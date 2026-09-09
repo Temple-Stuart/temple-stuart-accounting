@@ -555,7 +555,6 @@ model users {
   updatedAt               DateTime
   accountCode             String?
   subAccount              String?
-  tier                    String                   @default("free") @db.VarChar(20)
   stripeCustomerId        String?
   stripeSubscriptionId    String?
   bookkeeping_initialized Boolean                  @default(false)
@@ -1339,6 +1338,12 @@ model UserCategoryEntitlement {
   stripeSubscriptionId String?
   currentPeriodEnd     DateTime?
   updatedAt            DateTime  @updatedAt
+  // LAUNCH-01 LAPSE-01: when and why the row ended (the Stripe webhook:
+  // customer.subscription.deleted → 'canceled', invoice.payment_failed →
+  // 'payment_failed'); NULL while active or never lapsed; a re-grant clears both.
+  // A CHECK in the migration pins ended_reason to those two values.
+  ended_at             DateTime? @db.Timestamptz(6)
+  ended_reason         String?   @db.VarChar(32)
 
   @@unique([userId, categoryKey], map: "user_cat_entitle_user_cat_key")
   @@index([userId], map: "user_cat_entitle_user_idx")

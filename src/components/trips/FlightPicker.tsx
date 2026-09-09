@@ -1,25 +1,25 @@
 'use client';
 
 /**
- * FlightPicker — the LIVE, authed container for the flight picker.
+ * FlightPicker — the LIVE, authed container for the in-trip flight picker.
  *
- * T1 split: this file keeps the EXACT live behavior it had before — it owns ALL
- * network (GET committed itinerary on mount / GET the PAID Duffel search via
- * /api/flights/search / POST + DELETE vendor-commit), all leg state + the manual
- * entry, and the env check — and now renders the pure <FlightPickerView/> with the
- * live `legs`/`committing` + the real handlers wired to its callbacks. The public
- * name + prop shape are unchanged, so the existing call site
- * (budgets/trips/[id]/page.tsx:819) is untouched and the authed booking flow
- * behaves EXACTLY as before.
+ * T1 split: this file owns ALL network (GET committed itinerary on mount / the
+ * PAID LiteAPI search via /api/travel/liteapi/flights/search / POST + DELETE
+ * vendor-commit), all leg state + the manual entry, and renders the pure
+ * <FlightPickerView/> with the live `legs`/`committing` + the real handlers
+ * wired to its callbacks. The public name + prop shape are unchanged, so the
+ * call site (budgets/trips/[id]/page.tsx) is untouched.
  *
- * The paid Duffel search (api.duffel.com/air/offer_requests, reached via the
- * /api/flights/search route) is container-only and NEVER reachable from the pure
- * view. The real Duffel order (/air/orders, via /api/flights/book) is not invoked
- * by this component at all. NO new behavior, NO demo data, NO fallback.
+ * LAUNCH-01 RETIRE-01: Duffel is retired. The search rides the same public
+ * LiteAPI route + adapter the home flight search uses (PublicFlightSearch);
+ * live search is always on — a missing LiteAPI key surfaces as the route's
+ * declared error in the leg, never a silent empty list. No order is placed
+ * from here (Save to trip = plan it). NO demo data, NO fallback.
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import FlightPickerView, { type FlightOffer, type FlightLeg } from './FlightPickerView';
+import { liteApiResultsToFlightOffers } from '@/lib/liteapiFlightAdapter';
 
 interface Props {
   tripId: string;
@@ -177,22 +177,27 @@ export default function FlightPicker({
     updateLeg(legId, { loading: true, error: '', offers: [] });
 
     try {
-      const params = new URLSearchParams({
-        origin: leg.origin,
-        destination: leg.destination,
-        departureDate: leg.departureDate,
-        ...(leg.tripType === 'roundtrip' && leg.returnDate ? { returnDate: leg.returnDate } : {}),
-        passengers: passengers.toString(),
+      // Round-trip = TWO legs in ONE search (the documented legs[] contract); the
+      // adapter splits the direction-tagged segments back into outbound/return.
+      // USD pinned — the route requires an explicit ISO code.
+      const searchLegs = [
+        { origin: leg.origin.trim().toUpperCase(), destination: leg.destination.trim().toUpperCase(), date: leg.departureDate },
+        ...(leg.tripType === 'roundtrip' && leg.returnDate
+          ? [{ origin: leg.destination.trim().toUpperCase(), destination: leg.origin.trim().toUpperCase(), date: leg.returnDate }]
+          : []),
+      ];
+      const res = await fetch('/api/travel/liteapi/flights/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ legs: searchLegs, adults: passengers, currency: 'USD' }),
       });
-
-      const res = await fetch(`/api/flights/search?${params}`);
       if (!res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Failed to search flights');
       }
 
       const data = await res.json();
-      updateLeg(legId, { offers: data.offers || [], loading: false, expanded: true });
+      updateLeg(legId, { offers: liteApiResultsToFlightOffers(data.results || []), loading: false, expanded: true });
     } catch (err) {
       updateLeg(legId, { error: err instanceof Error ? err.message : 'Search failed', loading: false });
     }
@@ -268,8 +273,8 @@ export default function FlightPicker({
       const departTime = offer.outbound?.departure?.localTime || undefined;
       const arriveTime = offer.outbound?.arrival?.localTime || undefined;
       const arriveDate = offer.outbound?.arrival?.date || undefined;
-      // PR-Flight-Duration-Capture-AllPaths: Duffel's true elapsed minutes (parsed at
-      // duffel.ts:307), mirroring PublicFlightSearch.tsx:165,180 so this in-trip path also
+      // PR-Flight-Duration-Capture-AllPaths: the provider's true elapsed minutes (parsed by
+      // the LiteAPI adapter), mirroring PublicFlightSearch so this in-trip path also
       // stores duration_minutes. undefined for manual offers → vendor-commit gate stores null.
       const durationMinutes = offer.outbound?.durationMinutes ?? undefined;
       // PR-tz-0b: carry the departure/arrival airport IANA zones (mirrors PublicFlightSearch).
@@ -340,7 +345,7 @@ export default function FlightPicker({
     <FlightPickerView
       legs={legs}
       committing={committing}
-      liveSearchEnabled={!!process.env.NEXT_PUBLIC_DUFFEL_ENABLED}
+      liveSearchEnabled={true}
       onUpdateLeg={updateLeg}
       onRemoveLeg={removeLeg}
       onAddLeg={addLeg}
@@ -348,6 +353,7 @@ export default function FlightPicker({
       onSubmitManual={submitManual}
       onCommitLeg={commitLeg}
       onUncommitLeg={uncommitLeg}
+      providerLabel="LiteAPI"
     />
   );
 }

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { hasTabAccess } from '@/lib/entitlements';
+import { hasTabAccess, lapsedTabAccess } from '@/lib/entitlements';
+import { lapsedLine } from '@/lib/lapse';
 
 /**
  * Get current authenticated user from HMAC-verified cookie.
@@ -49,11 +50,18 @@ export async function requireUser() {
  */
 export async function requireTabAccess(userId: string, tabKey: string): Promise<NextResponse | null> {
   if (await hasTabAccess(userId, tabKey)) return null;
+  // LAUNCH-01 LAPSE-01: never a bare 403 — a user whose subscription ended is
+  // told when and why (the same line the locked card renders), with the door.
+  const lapsed = await lapsedTabAccess(userId, tabKey);
+  const moduleName = tabKey.replace('tab:', '');
   return NextResponse.json(
     {
       error: 'Tab not unlocked',
       tab: tabKey,
-      message: `This requires the ${tabKey.replace('tab:', '')} module — subscribe to unlock it.`,
+      message: lapsed
+        ? `${lapsedLine(lapsed)} Subscribe again to unlock the ${moduleName} module.`
+        : `This requires the ${moduleName} module — subscribe to unlock it.`,
+      lapsed,
     },
     { status: 403 }
   );

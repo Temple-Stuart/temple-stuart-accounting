@@ -11,18 +11,16 @@ import { DATA } from '@/lib/ds';
  *
  * Extracted from FlightPicker (T1). It owns NO data and NO network: no fetch, no
  * API call, no data-loading effect, no context, no server import, and it does NOT
- * import the Duffel lib or name any /api or /air route. It is FULLY CONTROLLED —
+ * import any provider client or name any /api route. It is FULLY CONTROLLED —
  * the `legs` array (search offers + committed flights), the `committing` flag and
  * `liveSearchEnabled` arrive as props, and EVERY action — search, select, manual
  * entry, and the BOOK/commit + uncommit — arrives as a callback the container
  * owns. The view just calls `onSearchLeg`/`onCommitLeg`/…; the container is the
- * only place the paid Duffel search or any order can fire. The rendered markup is
- * byte-for-byte equivalent to the pre-extraction FlightPicker output.
+ * only place the paid provider search or any order can fire.
  *
- * NOTE: the two "Duffel" strings below ("Searching … via Duffel", "Powered by
- * Duffel") and the "DUFFEL_API_TOKEN" note are byte-for-byte UI brand labels, not
- * code references — this view imports nothing from the Duffel lib and fetches
- * nothing.
+ * NOTE: the provider name in the brand strings ("Searching … via X", "Powered by
+ * X") is the `providerLabel` prop — LAUNCH-01 RETIRE-01: LiteAPI is the only
+ * flights lane, so it defaults to 'LiteAPI'; the containers pass it explicitly.
  */
 
 export interface FlightOffer {
@@ -30,7 +28,7 @@ export interface FlightOffer {
   price: number;
   currency: string;
   outbound: {
-    // PR-tz-0b: timeZone = the airport's IANA zone (Duffel Airport.time_zone). Captured +
+    // PR-tz-0b: timeZone = the airport's IANA zone (from the provider's airport data). Captured +
     // carried to the commit payload; not yet stored (tz-1) or rendered (tz-3).
     departure: { airport: string; airportName?: string; localTime: string; date: string; timeZone?: string | null };
     arrival: { airport: string; airportName?: string; localTime: string; date: string; timeZone?: string | null };
@@ -52,9 +50,9 @@ export interface FlightOffer {
     changeable: boolean;
   };
   isManual?: boolean;
-  /** BOOK-1: Duffel's offer TTL (parseOffer sends it; duffel.ts:478) — the
-   *  Book pre-check routes already-dead offers to re-search, never a doomed
-   *  checkout. Optional: absent on manual offers. */
+  /** BOOK-1: the offer's TTL when the provider states one — the Book pre-check
+   *  routes already-dead offers to re-search, never a doomed checkout.
+   *  Optional: absent on manual offers. */
   expiresAt?: string | null;
 }
 
@@ -89,25 +87,25 @@ export interface FlightPickerViewProps {
   onUpdateLeg: (legId: string, updates: Partial<FlightLeg>) => void;
   onRemoveLeg: (legId: string) => void;
   onAddLeg: () => void;
-  /** Triggers the PAID Duffel search (container-owned). */
+  /** Triggers the PAID provider search (container-owned). */
   onSearchLeg: (legId: string) => void;
   /** Optional — only needed when the manual-entry block is shown (see enableManualEntry). */
   onSubmitManual?: (legId: string) => void;
   /** The "Save to trip" action (container-owned). */
   onCommitLeg: (legId: string) => void;
   onUncommitLeg: (legId: string) => void;
-  /** PR-Duffel-Pay-3: "Book" (pay now) — opens the FlightCheckoutPanel for the leg's
-   *  selected offer (container-owned). Optional: only shown when wired (the public flight
+  /** "Book" (pay now) — opens the LiteAPI flight checkout for the leg's selected
+   *  offer (container-owned). Optional: only shown when wired (the public flight
    *  search passes it). Guest-ok, mirroring the hotel Book. */
   onBookLeg?: (legId: string) => void;
   /** PR-Travel-Cleanup: show the manual "enter flight details" block (Airline/Price/times
    *  + "Use This"). Default true (the authed in-trip picker keeps it for "booked
-   *  elsewhere"). The public home flight search passes false — guests use Duffel only. */
+   *  elsewhere"). The public home flight search passes false — guests use the live search only. */
   enableManualEntry?: boolean;
-  /** PR-FL-6a: the provider name rendered in the two brand strings ("Searching …
-   *  via X", "Powered by X"). Defaults to 'Duffel' — every existing mount renders
-   *  byte-identical output. The lane-flagged search passes 'LiteAPI' so the label
-   *  never lies about whose fares these are (no-drift). */
+  /** PR-FL-6a: the provider name rendered in the brand strings ("Searching …
+   *  via X", "Powered by X"). LAUNCH-01: defaults to 'LiteAPI', the only lane;
+   *  containers pass it so the label never lies about whose fares these are
+   *  (no-drift). */
   providerLabel?: string;
 }
 
@@ -130,7 +128,7 @@ export default function FlightPickerView({
   onUncommitLeg,
   onBookLeg,
   enableManualEntry = true,
-  providerLabel = 'Duffel',
+  providerLabel = 'LiteAPI',
 }: FlightPickerViewProps) {
   const totalCommitted = legs.filter(l => l.committed).reduce((s, l) => s + (l.selectedOffer?.price || 0), 0);
 
@@ -420,8 +418,8 @@ export default function FlightPickerView({
                           className="px-3 py-1.5 text-xs font-semibold rounded border border-brand-purple bg-white text-brand-purple transition-colors hover:bg-bg-row disabled:opacity-50">
                           {committing === leg.id ? 'Saving…' : 'Save to trip'}
                         </button>
-                        {/* PR-Duffel-Pay-3: Book = pay now (primary, solid), alongside Save to
-                            trip = plan it. Real Duffel offers only (not manual entries). Guest-ok. */}
+                        {/* Book = pay now (primary, solid), alongside Save to trip = plan it.
+                            Real provider offers only (not manual entries). Guest-ok. */}
                         {onBookLeg && !leg.selectedOffer.isManual && (
                           <button onClick={() => onBookLeg(leg.id)}
                             className="px-3 py-1.5 text-xs font-semibold rounded bg-brand-gold text-white transition-colors hover:bg-brand-gold/90">
@@ -446,7 +444,7 @@ export default function FlightPickerView({
 
       {!liveSearchEnabled && (
         <div className="text-[10px] text-text-faint text-center">
-          Note: DUFFEL_API_TOKEN must be set for live flight search. Manual entry always works.
+          Note: live flight search is off on this surface. Manual entry always works.
         </div>
       )}
     </div>

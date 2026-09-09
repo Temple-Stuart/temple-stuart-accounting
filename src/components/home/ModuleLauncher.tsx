@@ -99,6 +99,9 @@ import ContentPipeline from '@/components/workbench/operations/content/ContentPi
 // modules) is out of the app graph; locked viewers get pointer-card +
 // LockedTabCard.
 import { LockedTabCard } from '@/components/home/LockedTabCard';
+// LAUNCH-01 LAPSE-01: the me payload's lapsed rows → the card's "ended on" line per tab.
+import { keysGranting } from '@/lib/offer';
+import { lapsedFor, type LapsedEntitlement } from '@/lib/lapse';
 import { isTabLocked } from '@/lib/categoryLock';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
 import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
@@ -215,6 +218,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvaila
   const [currentUserId, setCurrentUserId] = useState('');
   // SELL-05b: the admin bypass is the SERVER's verdict (/api/auth/me isAdmin) — never an id compared here.
   const [isAdmin, setIsAdmin] = useState(false);
+  // LAPSE-01: rows whose subscription ended (when, why), from /api/auth/me.
+  const [lapsed, setLapsed] = useState<LapsedEntitlement[]>([]);
   // PR-HCR-Trips1: bumped after a create so the All Trips list re-fetches in place.
   const [tripsRefresh, setTripsRefresh] = useState(0);
   // PR-HCR-Trips2: the selected trip, lifted out of AllTripsList so later budget
@@ -321,6 +326,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvaila
           setEntitledCategories(Array.isArray(data?.user?.entitledCategories) ? data.user.entitledCategories : []);
           setCurrentUserId(data?.user?.id || '');
           setIsAdmin(data?.user?.isAdmin === true);
+          setLapsed(Array.isArray(data?.user?.lapsed) ? data.user.lapsed : []);
         }
       })
       .catch(() => { if (!cancelled) setAuthed(false); });
@@ -1268,6 +1274,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvaila
                 <LockedTabCard
                   tabKey="tab:trade"
                   offerAvailability={offerAvailability}
+                  lapsed={lapsedFor(keysGranting('tab:trade'), lapsed)}
                   currentUserId={currentUserId}
                   onRequireAuth={onRequireAuth}
                 />
@@ -1358,6 +1365,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvaila
                 <LockedTabCard
                   tabKey="tab:books"
                   offerAvailability={offerAvailability}
+                  lapsed={lapsedFor(keysGranting('tab:books'), lapsed)}
                   currentUserId={currentUserId}
                   onRequireAuth={onRequireAuth}
                 />
@@ -1390,6 +1398,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvaila
                 <LockedTabCard
                   tabKey="tab:tax"
                   offerAvailability={offerAvailability}
+                  lapsed={lapsedFor(keysGranting('tab:tax'), lapsed)}
                   currentUserId={currentUserId}
                   onRequireAuth={onRequireAuth}
                 />
@@ -1423,6 +1432,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvaila
                 <LockedTabCard
                   tabKey="tab:compliance"
                   offerAvailability={offerAvailability}
+                  lapsed={lapsedFor(keysGranting('tab:compliance'), lapsed)}
                   currentUserId={currentUserId}
                   onRequireAuth={onRequireAuth}
                 />

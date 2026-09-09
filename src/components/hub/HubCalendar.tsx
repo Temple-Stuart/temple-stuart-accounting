@@ -38,7 +38,7 @@ interface CalendarEvent {
   // ("1970-01-01THH:MM:SS.000Z") — toClock() normalizes both to "HH:MM".
   start_time: string | null;
   end_time: string | null;
-  // PR-Flight-Duration-Render: a flight's TRUE elapsed minutes (Duffel). Null for
+  // PR-Flight-Duration-Render: a flight's TRUE elapsed minutes (from the flight provider). Null for
   // non-flights / older rows. The grid draws depart+duration from this, not a naive span.
   duration_minutes: number | null;
   // PR-tz-3a: the true UTC instant anchor (timestamptz → ISO string) + the airport IANA

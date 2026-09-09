@@ -364,7 +364,7 @@ export function getActiveScanCategories(userInterests: string[], tripType: strin
   const active: string[] = [];
 
   for (const [key, cat] of Object.entries(TRAVEL_COA)) {
-    // Skip flights — handled by Duffel/manual
+    // Skip flights — handled by the LiteAPI flight search / manual entry
     if (key === 'flights') continue;
     // Skip communication and insurance — no scannable results
     if (key === 'communication' || key === 'insurance_fees') continue;

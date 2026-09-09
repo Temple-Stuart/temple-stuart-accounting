@@ -103,7 +103,6 @@ const PUBLIC_PATHS = [
   // rate-limited cheap reads (PR-loc-1). Without these, middleware redirects a
   // guest's fetch to '/', which returned no data (the "Countries unavailable" bug
   // + would break guest search/booking next). Additive — exact paths only.
-  '/api/flights/search',
   '/api/travel/hotels/search',
   '/api/travel/hotels/content',
   '/api/travel/hotels/reviews',
@@ -140,13 +139,6 @@ const PUBLIC_PATHS = [
   // returning from the hosted payment was 307-bounced to '/' and never
   // finalized the booking.
   '/booking/confirm',
-  // PR-Duffel-Pay-1: flight BOOKING is public too — booking is never locked (mirrors
-  // the hotel book routes above). Guarded by a per-IP rate limit + a tight durable
-  // daily cap, and pinned to Duffel TEST mode this PR.
-  '/api/flights/book',
-  // PR-Duffel-Pay-2: the payment-intent step (returns the Card component's client_token)
-  // is part of the same guest-ok checkout — public, rate-limited, TEST mode.
-  '/api/flights/payment-intent',
   // PROPOSAL-FORM: the public project-proposal form page — a static client
   // form (zero on-load fetches, zero authed reads, zero paid calls); its only
   // network call is the user-submitted POST below. Guests are the audience.

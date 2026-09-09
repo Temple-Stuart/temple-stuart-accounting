@@ -1053,7 +1053,6 @@ function sourceAttribution(source: Source): string {
     case 'viator':      return 'via Viator';
     case 'google':      return 'Google · discovery';
     case 'mozio':       return 'ground — books via Viator';
-    case 'duffel':      return 'via Duffel';
     case 'airalo':      return 'Airalo (coming soon)';
     case 'covergenius': return 'Cover Genius (coming soon)';
   }

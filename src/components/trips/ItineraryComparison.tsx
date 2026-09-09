@@ -130,7 +130,7 @@ export default function ItineraryComparison({
 
     try {
       // Flight data not available after Amadeus removal — defaults stand in for
-      // itinerary timing (fact, not TODO — wiring Duffel data here is its own PR).
+      // itinerary timing (fact, not TODO — wiring flight-provider data here is its own PR).
       const landingTime = '14:00';
       const hotelCheckIn = addHours(landingTime, 2);
 

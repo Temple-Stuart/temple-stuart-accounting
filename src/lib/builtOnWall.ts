@@ -52,7 +52,7 @@
 //   Azure PostgreSQL (the PostgreSQL mark stays killed: no-modify /
 //   no-co-present / standard-forms), SEC EDGAR (agency seal).
 //   PENDING — Plaid (permission pending — standing; slot inert).
-//   ARMED-INERT awaiting permission/asset: Duffel, Nuitée, Viator (portal
+//   ARMED-INERT awaiting permission/asset: Nuitée, Viator (portal
 //   file only), tastytrade, Finnhub, Inngest, FRED, Google Places.
 //
 // DROP CONVENTION: land the official file at public/logos/<slug>.svg
@@ -94,7 +94,6 @@ export const BUILT_ON: BuiltOnEntry[] = [
   // only, do not ship a file.
   { name: 'Stripe', tag: 'payments', category: 'banking', logo: { slug: 'stripe', alt: 'Stripe logo', href: 'https://stripe.com' } },
   // ── travel (armed-inert marks come via the pending permission emails) ──
-  { name: 'Duffel', tag: 'flights', category: 'travel', logo: { slug: 'duffel', alt: 'Duffel logo' } },
   { name: 'Nuitée liteAPI', tag: 'stays', category: 'travel', logo: { slug: 'nuitee', alt: 'Nuitée liteAPI logo' } },
   { name: 'Viator', tag: 'tours & transfers', category: 'travel', logo: { slug: 'viator', alt: 'Viator logo' } },
   { name: 'Google Places', tag: 'location data', category: 'travel', logo: { slug: 'googleplaces', alt: 'Google Places logo' } },

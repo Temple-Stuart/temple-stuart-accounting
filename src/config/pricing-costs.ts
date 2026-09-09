@@ -156,19 +156,9 @@ export const API_COSTS: ApiCostEntry[] = [
 
   // ── Travel (PRICING-AUDIT.md §1 Travel — all dedicated) ─────────────────
   {
-    id: 'duffel',
-    name: 'Duffel',
-    usedFor: 'flight search, offers, orders, payments',
-    modules: ['travel'],
-    costType: 'PER_USE',
-    cadence: 'per-booking',
-    monthlyCost: null,
-    note: 'live booking behind a hard env gate; 25 bookings/day cap in code',
-  },
-  {
     id: 'liteapi',
     name: 'LiteAPI',
-    usedFor: 'hotel search, rates, content, reviews, booking',
+    usedFor: 'hotel and flight search, rates, content, reviews, booking',
     modules: ['travel'],
     costType: 'COMMISSION',
     cadence: 'per-booking',
@@ -290,7 +280,7 @@ export const PRODUCTS: ProductEntry[] = [
     id: 'travel',
     name: 'Travel',
     what: 'flight/hotel/activity search, trip budgets & itineraries, booking',
-    deps: ['duffel', 'liteapi', 'viator', 'google-places', 'rapidapi-visa', 'fetch-og'],
+    deps: ['liteapi', 'viator', 'google-places', 'rapidapi-visa', 'fetch-og'],
     monthlyPrice: null,
   },
   {

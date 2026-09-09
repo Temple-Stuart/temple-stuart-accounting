@@ -9,7 +9,7 @@
  *
  * KEY INVARIANT — WHOSE STRIPE: Elements mounts with the `publishableKey` FROM THE
  * PREBOOK RESPONSE (prebook/route.ts:152), NEVER any env key and NEVER our own
- * Stripe (NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is the SUBSCRIPTION/Duffel rail).
+ * Stripe (NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is the SUBSCRIPTION rail).
  * Mixing rails would confirm a card against the wrong Stripe account, so a
  * null/absent publishableKey or secretKey is a DECLARED error state — loud, no
  * fallback of any kind.

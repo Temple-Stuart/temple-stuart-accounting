@@ -67,7 +67,12 @@ const handler = NextAuth({
   pages: {
     signIn: '/',
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  // LAUNCH-01 SECRET-01: ONE session secret — the same JWT_SECRET middleware's
+  // getToken and src/app/page.tsx's decode verify this token with (before this,
+  // NEXTAUTH_SECRET signed here and JWT_SECRET verified there: two names, one
+  // job, and a mismatch broke OAuth sessions silently). NEXTAUTH_SECRET is
+  // retired — the boot guard (src/instrumentation.ts) refuses to start with it set.
+  secret: process.env.JWT_SECRET,
 });
 
 export { handler as GET, handler as POST };

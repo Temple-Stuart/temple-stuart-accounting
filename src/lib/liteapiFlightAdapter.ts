@@ -1,6 +1,6 @@
 // ─── LiteAPI journeys → the picker's FlightOffer shape (PR-FL-6a) ────────────
 // The STEP-0 ruled choice: an ADAPTER, not a parallel results view — the pure
-// FlightPickerView (and the whole Duffel path that feeds it) stays untouched,
+// FlightPickerView stays untouched,
 // and this one mapping function is strictly smaller than a second results UI +
 // selection state machine.
 //

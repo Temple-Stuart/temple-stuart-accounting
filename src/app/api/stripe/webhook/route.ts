@@ -8,8 +8,24 @@ import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 // (client_secret redacted and declared), the handler from the arrival, one transaction.
 import { prismaLanding } from '@/lib/arrivals/prismaLanding';
 import { customerIdOf, runStripeDelivery } from '@/lib/arrivals/stripeWebhook';
+// LAUNCH-01 LAPSE-01: a lapsed subscription is told — the row records when/why it
+// ended (src/lib/lapse.ts), and the user is mailed AFTER the delivery commits
+// (src/lib/lapseMail.ts, declared on failure).
+import { lapseWrite, subscriptionIdOfInvoice, type LapseReason } from '@/lib/lapse';
+import { sendLapseMail, type LapseMail } from '@/lib/lapseMail';
+import { OFFERS } from '@/lib/offer';
 
 const OWNER_EMAIL = process.env.OWNER_EMAIL;
+
+/** The offer's label for a row's key (src/lib/offer.ts); a key no offer sells is named as itself. */
+function offerLabelFor(key: string): string {
+  return OFFERS.find((o) => o.key === key)?.label ?? key;
+}
+
+/** When a subscription ended: Stripe's ended_at on the object when present, else the event's own timestamp. */
+function endedAtOf(event: Stripe.Event, unix: number | null | undefined): Date {
+  return new Date((typeof unix === 'number' && unix > 0 ? unix : event.created) * 1000);
+}
 
 /** The handler's database — the delivery's transaction client (PR-4), so its writes roll back with the landing. writeAuditLog keeps its own hash-chained transaction. */
 type Db = Prisma.TransactionClient;
@@ -89,6 +105,9 @@ async function grantEntitlement(db: Db, opts: {
       status,
       stripeSubscriptionId: opts.subscriptionId,
       currentPeriodEnd: opts.currentPeriodEnd,
+      // LAPSE-01: a re-grant clears the lapse; a revoke through this path (an
+      // updated event with a non-active status) leaves any recorded lapse as is.
+      ...(opts.active ? { ended_at: null, ended_reason: null } : {}),
     },
   });
   if (previous?.status !== status) {
@@ -128,6 +147,11 @@ export async function POST(request: NextRequest) {
   const rawBody = Buffer.from(await request.arrayBuffer());
   const signature = request.headers.get('stripe-signature');
 
+  // LAPSE-01: the mails the handler collects inside the transaction — sent only
+  // after it commits (a rolled-back write is never announced; an already_landed
+  // redelivery runs no handler, so it mails nobody twice).
+  const lapses: LapseMail[] = [];
+
   const outcome = await runStripeDelivery<Stripe.Event>(
     prisma,
     { rawBody, signature, secret: process.env.STRIPE_WEBHOOK_SECRET, receivedAt: new Date() },
@@ -137,7 +161,7 @@ export async function POST(request: NextRequest) {
       return {
         landing: prismaLanding(db),
         userFor: (event) => userForEvent(db, event),
-        handle: (event) => handleStripeEvent(db, event),
+        handle: (event) => handleStripeEvent(db, event, lapses),
       };
     },
     (line) => console.log(line),
@@ -155,11 +179,67 @@ export async function POST(request: NextRequest) {
   }
   const r = outcome.result;
   console.log(`[stripe] ${r.type} ${r.eventId}: ${r.outcome}${r.handled ? '' : ' — handler skipped'}${r.redactions.length ? ` · redacted ${r.redactions.join(', ')}` : ''}${r.guestRef ? ` · guest ${r.guestRef}` : ''}`);
-  return NextResponse.json({ received: true, landed: r.outcome, handled: r.handled });
+
+  // LAPSE-01: the lapse mails, after the commit. Each is one attempt through
+  // Resend; a failure is logged with its class (sendLapseMail) and counted here
+  // — the entitlement write stands and Stripe's 200 stands with it.
+  let lapseMails: { sent: number; failed: number } | undefined;
+  if (r.handled && lapses.length > 0) {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    lapseMails = { sent: 0, failed: 0 };
+    for (const mail of lapses) {
+      const result = await sendLapseMail(mail, baseUrl);
+      if (result.sent) lapseMails.sent += 1; else lapseMails.failed += 1;
+    }
+    console.log(`[stripe] ${r.eventId}: lapse mails — ${lapseMails.sent} sent, ${lapseMails.failed} failed`);
+  }
+  return NextResponse.json({ received: true, landed: r.outcome, handled: r.handled, ...(lapseMails ? { lapseMails } : {}) });
 }
 
-/** The existing handler, unchanged in what it does — it reads the ARRIVAL payload (PR-4) and writes through the delivery's transaction. */
-async function handleStripeEvent(db: Db, event: Stripe.Event): Promise<void> {
+/** Revoke the entitlement rows a subscription backs with the lapse recorded (when, why), audit each, and queue the user's mail. */
+async function lapseRows(db: Db, event: Stripe.Event, opts: {
+  user: { id: string; email: string; name: string };
+  subscriptionId: string;
+  reason: LapseReason;
+  endedAt: Date;
+  lapses: LapseMail[];
+}): Promise<number> {
+  const rows = await db.userCategoryEntitlement.findMany({
+    where: { userId: opts.user.id, stripeSubscriptionId: opts.subscriptionId },
+  });
+  for (const row of rows) {
+    await db.userCategoryEntitlement.update({
+      where: { id: row.id },
+      data: lapseWrite(opts.reason, opts.endedAt),
+    });
+    // Audit the revoke on the TRANSITION (a payment_failed landing after the
+    // updated/past_due revoke finds the row already inactive — the lapse fields
+    // still land, the audit is not repeated).
+    if (row.status === 'active') {
+      await auditEntitlementChange({
+        eventId: event.id,
+        eventType: event.type,
+        userId: opts.user.id,
+        email: opts.user.email,
+        key: row.categoryKey,
+        granted: false,
+        subscriptionId: opts.subscriptionId,
+        rowId: row.id,
+      });
+    }
+    opts.lapses.push({
+      to: opts.user.email,
+      name: opts.user.name,
+      offerLabel: offerLabelFor(row.categoryKey),
+      endedAt: opts.endedAt,
+      reason: opts.reason,
+    });
+  }
+  return rows.length;
+}
+
+/** The handler — it reads the ARRIVAL payload (PR-4) and writes through the delivery's transaction; lapse mails are queued into `lapses` for the route to send after the commit. */
+async function handleStripeEvent(db: Db, event: Stripe.Event, lapses: LapseMail[]): Promise<void> {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
@@ -271,32 +351,51 @@ async function handleStripeEvent(db: Db, event: Stripe.Event): Promise<void> {
 
         // ENTITLEMENT-WRITER: if this subscription backs entitlement rows,
         // revoke exactly those rows (status → inactive, audit-logged).
-        const entitlementRows = await db.userCategoryEntitlement.findMany({
-          where: { userId: user.id, stripeSubscriptionId: subscription.id },
+        // LAPSE-01: the row records when (Stripe's ended_at) and why
+        // ('canceled'); the user is mailed after the commit.
+        const revoked = await lapseRows(db, event, {
+          user,
+          subscriptionId: subscription.id,
+          reason: 'canceled',
+          endedAt: endedAtOf(event, subscription.ended_at),
+          lapses,
         });
-        if (entitlementRows.length > 0) {
-          for (const row of entitlementRows) {
-            await db.userCategoryEntitlement.update({
-              where: { id: row.id },
-              data: { status: 'inactive' },
-            });
-            await auditEntitlementChange({
-              eventId: event.id,
-              eventType: event.type,
-              userId: user.id,
-              email: user.email,
-              key: row.categoryKey,
-              granted: false,
-              subscriptionId: subscription.id,
-              rowId: row.id,
-            });
-          }
-          break;
-        }
+        if (revoked > 0) break;
 
         // SELL-05b: a subscription backing no entitlement rows is not ours — NO change, declared.
         console.error(
           `Stripe webhook: subscription.deleted ${event.id} (${subscription.id}) backs no entitlement rows — NO change (fail-safe)`,
+        );
+        break;
+      }
+
+      case 'invoice.payment_failed': {
+        // LAPSE-01: a failed renewal. The subscription itself moves to past_due
+        // through customer.subscription.updated (which revokes the row); this
+        // branch records WHY and WHEN on the row and tells the user. Order of
+        // the two deliveries is not guaranteed, so this write is complete on
+        // its own (status inactive + the lapse fields) and idempotent.
+        const invoice = event.data.object;
+        const subscriptionId = subscriptionIdOfInvoice(invoice);
+        if (!subscriptionId) {
+          console.error(`Stripe webhook: invoice.payment_failed ${event.id} (${invoice.id}) bills no subscription — NO change (fail-safe)`);
+          break;
+        }
+        const customerId = customerIdOf(event);
+        const user = customerId ? await db.users.findFirst({ where: { stripeCustomerId: customerId } }) : null;
+        if (!user || user.email === OWNER_EMAIL) break;
+
+        const lapsed = await lapseRows(db, event, {
+          user,
+          subscriptionId,
+          reason: 'payment_failed',
+          endedAt: endedAtOf(event, null),
+          lapses,
+        });
+        if (lapsed > 0) break;
+
+        console.error(
+          `Stripe webhook: invoice.payment_failed ${event.id} (${subscriptionId}) backs no entitlement rows — NO change (fail-safe)`,
         );
         break;
       }

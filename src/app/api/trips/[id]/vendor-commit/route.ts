@@ -129,7 +129,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { optionType, optionId, startDate, endDate, startTime, endTime, arriveDate, notes, amount: requestAmount, location: requestLocation, synthetic, category,
       // PR 3 — commit-time capture (all optional; absent = old client → derive/default):
       recurrence: recurrenceInput, coa_code: coaCodeInput, vendor_name: vendorNameInput,
-      // PR-Flight-Duration-1: the flight's true elapsed minutes (Duffel). Flights only; null otherwise.
+      // PR-Flight-Duration-1: the flight's true elapsed minutes (from the flight provider). Flights only; null otherwise.
       durationMinutes: durationMinutesInput,
       // PR-tz-1: departure/arrival airport IANA zones (tz-0b sends them). Persisted as
       // passthrough below — flight-only; null otherwise. NEVER defaulted to a hardcoded zone.
@@ -331,7 +331,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             destDate: flightArriveDate, destTime: endTime || null,
             category: optionType, vendor: details.title, cost: Math.round(details.amount * 100) / 100,
             note: notes || null, location: activityLocation, vendorOptionId: optionId, vendorOptionType: optionType,
-            // PR-Flight-Duration-1: the true elapsed minutes (Duffel) — render depart+duration (PR-2).
+            // PR-Flight-Duration-1: the true elapsed minutes (from the flight provider) — render depart+duration (PR-2).
             duration_minutes: durationMinutes,
             // PR-tz-1 zones + PR-tz-2-fill instants: the airport IANA zones (passthrough) and the
             // true UTC instant anchor computed from naive+zone (null when no zone/time).

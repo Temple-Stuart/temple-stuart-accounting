@@ -3,9 +3,11 @@
 /**
  * PublicFlightSearch — the LIVE flight search on the public travel card (PR-4). It
  * reuses the pure <FlightPickerView/> (T1) and drives a REAL search against the
- * now-PUBLIC /api/flights/search route (PR-3: auth gate gone, bounded by per-IP
- * rate-limit + daily provider cap). Anyone — logged in or not — types airports +
- * dates and sees real Duffel results.
+ * public LiteAPI flight search route (/api/travel/liteapi/flights/search — no auth
+ * gate, bounded by per-IP rate-limit + the durable daily provider cap). Anyone —
+ * logged in or not — types airports + dates and sees real LiteAPI results.
+ * LAUNCH-01 RETIRE-01: Duffel is retired — LiteAPI is the only flights lane, and
+ * the checkout below is the LiteAPI panel; there is no other rail to fall to.
  *
  * SEARCH is always free. SAVING a flight to a trip follows the freemium model
  * (PR-Flight-Commit): a guest gets the sign-up nudge (onRequireAuth); a logged-in
@@ -17,8 +19,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import FlightPickerView, { type FlightLeg, type FlightOffer } from './FlightPickerView';
-import FlightCheckoutPanel from './FlightCheckoutPanel';
 import LiteApiFlightCheckoutPanel from './LiteApiFlightCheckoutPanel';
+import { FLIGHTS_LANES, type FlightsLane } from '@/lib/flightsLane';
 import { liteApiResultsToFlightOffers } from '@/lib/liteapiFlightAdapter';
 import TravelSectionShell from './travelSection';
 
@@ -65,11 +67,11 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
   }), []);
 
   // PR-FL-6a: which provider rail this surface drives — SERVER-resolved
-  // (FLIGHTS_LANE env via /api/travel/flights/lane; unset = 'duffel'). null
-  // until the read lands; a failed/invalid read BLOCKS searching with a
-  // declared error — the client NEVER guesses a lane and NEVER falls back
-  // between lanes (the ruled no-auto-detection design).
-  const [lane, setLane] = useState<'duffel' | 'liteapi' | null>(null);
+  // (FLIGHTS_LANE env via /api/travel/flights/lane; unset = 'liteapi', the only
+  // lane since LAUNCH-01 RETIRE-01). null until the read lands; a failed/invalid
+  // read BLOCKS searching with a declared error — the client NEVER guesses a
+  // lane and NEVER falls back (the ruled no-auto-detection design).
+  const [lane, setLane] = useState<FlightsLane | null>(null);
   const [laneError, setLaneError] = useState('');
   useEffect(() => {
     let cancelled = false;
@@ -78,7 +80,7 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
         const res = await fetch('/api/travel/flights/lane');
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || 'Flight search is misconfigured.');
-        if (data.lane !== 'duffel' && data.lane !== 'liteapi') {
+        if (!(FLIGHTS_LANES as readonly string[]).includes(data.lane)) {
           throw new Error('Flight search is misconfigured.');
         }
         if (!cancelled) setLane(data.lane);
@@ -92,23 +94,21 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
   const [legs, setLegs] = useState<FlightLeg[]>([]);
   // The leg currently committing (its button shows a pending state) — same as FlightPicker.
   const [committing, setCommitting] = useState<string | null>(null);
-  // PR-Duffel-Pay-3: the offer being booked (pay now). Set when a card's "Book" is tapped;
-  // mounts the FlightCheckoutPanel. Guest-ok — NO auth gate (booking is never locked, like
-  // hotels); the panel + backend run the Duffel Payments flow (TEST mode). The leg id is
-  // tracked alongside the offer so the offer-expired recovery can re-run the ORIGINAL
-  // search for that leg (fresh offer_request), never silently re-quote.
+  // The offer being booked (pay now). Set when a card's "Book" is tapped; mounts the
+  // LiteAPI checkout panel (passenger form → Nuitee-Stripe Elements). Guest-ok — NO
+  // auth gate (booking is never locked, like hotels). The leg id is tracked alongside
+  // the offer so the offer-expired pre-check can re-run the ORIGINAL search for that
+  // leg, never silently re-quote.
   const [booking, setBooking] = useState<{ legId: string; offer: FlightOffer } | null>(null);
 
   const bookLeg = (legId: string) => {
     const leg = legs.find((l) => l.id === legId);
     if (!leg?.selectedOffer) return;
-    // BOOK-1 mitigation (offer-expiry diagnosis): Duffel offers carry short
-    // TTLs (the sub-60s expiry investigation, flights/search/route.ts:66-75).
-    // If the selected offer is ALREADY dead, opening the checkout is certain
-    // failure — route straight to the existing recovery (drop the selection,
-    // re-run the leg's ORIGINAL search) instead. Mid-form expiry still lands
-    // on the panel's honest 410 refresh path; fixing THAT means changing the
-    // money-flow design (a ruled STOP — reported, not built).
+    // BOOK-1 mitigation (offer-expiry diagnosis): flight offers carry short
+    // TTLs (expiresAt, when the provider states one). If the selected offer is
+    // ALREADY dead, opening the checkout is certain failure — route straight to
+    // the existing recovery (drop the selection, re-run the leg's ORIGINAL
+    // search) instead. Mid-form expiry lands on the panel's own declared path.
     const exp = leg.selectedOffer.expiresAt;
     if (exp && new Date(exp).getTime() <= Date.now()) {
       updateLeg(legId, { selectedOffer: null });
@@ -147,9 +147,8 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
     })]);
   };
 
-  // ── LIVE search — lane-branched (PR-FL-6a). The 'duffel' branch is the
-  //    pre-existing code, unchanged; the 'liteapi' branch drives the FL-2
-  //    route and adapts its journeys into the SAME picker shape. ──
+  // ── LIVE search — the LiteAPI lane (the only one): drives the FL-2 route and
+  //    adapts its journeys into the picker shape. ──
   const searchLeg = async (legId: string) => {
     const leg = legs.find(l => l.id === legId);
     if (!leg) return;
@@ -166,60 +165,37 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
 
     updateLeg(legId, { loading: true, error: '', offers: [] });
 
-    if (lane === 'liteapi') {
-      try {
-        // Round-trip = TWO legs in ONE search (the documented legs[] contract);
-        // the response's direction-tagged segments split back into the picker's
-        // outbound/return blocks in the adapter. Currency is pinned USD — the
-        // FL-2 route requires an explicit ISO code and the public surface
-        // displays USD fares.
-        const searchLegs = [
-          { origin: leg.origin.trim().toUpperCase(), destination: leg.destination.trim().toUpperCase(), date: leg.departureDate },
-          ...(leg.tripType === 'roundtrip' && leg.returnDate
-            ? [{ origin: leg.destination.trim().toUpperCase(), destination: leg.origin.trim().toUpperCase(), date: leg.returnDate }]
-            : []),
-        ];
-        const res = await fetch('/api/travel/liteapi/flights/search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ legs: searchLegs, adults: 1, currency: 'USD' }),
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || 'Failed to search flights');
-        }
-        const data = await res.json();
-        const offers = liteApiResultsToFlightOffers(data.results || []);
-        updateLeg(legId, { offers, loading: false, expanded: true });
-      } catch (err) {
-        updateLeg(legId, { error: err instanceof Error ? err.message : 'Search failed', loading: false });
-      }
-      return;
-    }
-
     try {
-      const params = new URLSearchParams({
-        origin: leg.origin,
-        destination: leg.destination,
-        departureDate: leg.departureDate,
-        ...(leg.tripType === 'roundtrip' && leg.returnDate ? { returnDate: leg.returnDate } : {}),
-        passengers: '1',
+      // Round-trip = TWO legs in ONE search (the documented legs[] contract);
+      // the response's direction-tagged segments split back into the picker's
+      // outbound/return blocks in the adapter. Currency is pinned USD — the
+      // FL-2 route requires an explicit ISO code and the public surface
+      // displays USD fares.
+      const searchLegs = [
+        { origin: leg.origin.trim().toUpperCase(), destination: leg.destination.trim().toUpperCase(), date: leg.departureDate },
+        ...(leg.tripType === 'roundtrip' && leg.returnDate
+          ? [{ origin: leg.destination.trim().toUpperCase(), destination: leg.origin.trim().toUpperCase(), date: leg.returnDate }]
+          : []),
+      ];
+      const res = await fetch('/api/travel/liteapi/flights/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ legs: searchLegs, adults: 1, currency: 'USD' }),
       });
-
-      const res = await fetch(`/api/flights/search?${params}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Failed to search flights');
       }
       const data = await res.json();
-      updateLeg(legId, { offers: data.offers || [], loading: false, expanded: true });
+      const offers = liteApiResultsToFlightOffers(data.results || []);
+      updateLeg(legId, { offers, loading: false, expanded: true });
     } catch (err) {
       updateLeg(legId, { error: err instanceof Error ? err.message : 'Search failed', loading: false });
     }
   };
 
   // PR-Travel-Cleanup: the public home flight search drops the manual "enter flight
-  // details" block entirely (enableManualEntry={false} below) — guests use the live Duffel
+  // details" block entirely (enableManualEntry={false} below) — guests use the live LiteAPI
   // search, not hand-typed flights or competitor sites. The authed in-trip picker keeps
   // manual "booked elsewhere" entry. No submitManual handler is needed here anymore.
 
@@ -244,7 +220,7 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
       const departTime = offer.outbound?.departure?.localTime || undefined;
       const arriveTime = offer.outbound?.arrival?.localTime || undefined;
       const arriveDate = offer.outbound?.arrival?.date || undefined;
-      // PR-Flight-Duration-1: Duffel's TRUE elapsed minutes (already parsed) so the calendar
+      // PR-Flight-Duration-1: the provider's TRUE elapsed minutes (already parsed) so the calendar
       // can draw depart+duration instead of a naive cross-zone span (PR-2 renders it).
       const durationMinutes = offer.outbound?.durationMinutes ?? undefined;
       // PR-tz-0b: carry the departure/arrival airport IANA zones to the commit body. null
@@ -329,24 +305,15 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
         onCommitLeg={commitLeg}
         onUncommitLeg={uncommitLeg}
         onBookLeg={bookLeg}
-        providerLabel={lane === 'liteapi' ? 'LiteAPI' : 'Duffel'}
+        providerLabel="LiteAPI"
       />
 
-      {/* PR-Duffel-Pay-3: Book opens the flight checkout (PR-2) for the selected offer —
-          pay now via Duffel Payments (TEST mode). Standalone + guest-ok, like the hotel
-          Book; the confirmation shows in-panel and its "Done" button closes it.
-          T2b: for a logged-in user with a trip selected above, the trip's id threads
-          into the panel → the /api/flights/book ownership gate → the booking is born
-          attached. GUEST SAFETY: flights/book 401s a guest-with-tripId by design, so
-          tripId passes ONLY under authed === true && currentTrip — provable from this
-          component's own props (currentTrip is also only settable from the authed-gated
-          trips list). A guest always books standalone, unchanged. */}
-      {/* PR-FL-6a: the LiteAPI lane mounts ITS checkout (FL-4/4b panel —
-          passenger form → Nuitee-Stripe Elements; publishableKey-null renders
-          its declared error until Nuitee's key lands). Standalone bookings
-          only on this lane — trip attach stays a Duffel-lane feature until a
-          later PR. The Duffel branch below is byte-unchanged. */}
-      {booking && lane === 'liteapi' && (
+      {/* Book opens the LiteAPI checkout (FL-4/4b panel — passenger form →
+          Nuitee-Stripe Elements; publishableKey-null renders its declared error
+          until Nuitee's key lands) for the selected offer. Standalone + guest-ok,
+          like the hotel Book; a booking made while signed in is adopted from the
+          unattached list (UnattachedBookings). */}
+      {booking && (
         <div className="mt-4 space-y-2">
           <LiteApiFlightCheckoutPanel
             offerId={booking.offer.id}
@@ -362,35 +329,6 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
             Close checkout
           </button>
         </div>
-      )}
-      {booking && lane !== 'liteapi' && (
-        <FlightCheckoutPanel
-          tripId={authed === true && currentTrip ? currentTrip.id : undefined}
-          tripName={authed === true && currentTrip ? currentTrip.name : undefined}
-          authed={authed}
-          offer={{ id: booking.offer.id, price: booking.offer.price, currency: booking.offer.currency }}
-          passengerCount={1}
-          onClose={() => setBooking(null)}
-          onBooked={() => {
-            // F1: booking success rides the SAME refresh the commit path already
-            // uses — onCommitted is ModuleLauncher's setTripsRefresh bump, which
-            // re-keys TripBookings / UnattachedBookings / TripBudgetActual so the
-            // new reservation shows without a manual page refresh. The panel fires
-            // onBooked exactly once, only after the order succeeded (never on
-            // error, never on charged-but-no-order). Confirmation still shows
-            // in-panel; for a guest the bump re-keys nothing mounted — harmless.
-            onCommitted?.();
-          }}
-          onOfferExpired={() => {
-            // Offer-expired recovery: close the panel, drop the dead selection so it
-            // cannot be re-booked, and re-run the leg's ORIGINAL search — the user
-            // re-picks from fresh offers at current (possibly different) prices.
-            const legId = booking.legId;
-            setBooking(null);
-            updateLeg(legId, { selectedOffer: null });
-            void searchLeg(legId);
-          }}
-        />
       )}
     </TravelSectionShell>
   );

@@ -12,10 +12,7 @@ import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQ
 // prebook reference's order (prebook/route.ts:22-38 — rateLimit → validate →
 // reserve, so a malformed 400 can't consume a daily-cap slot):
 //   1. rateLimit('liteapi-flight-search:'+ip) — per-IP burst defense (429 +
-//      Retry-After). NOTE: the key is deliberately NOT 'flight-search:{ip}' —
-//      the Duffel search route already owns that bucket
-//      (api/flights/search/route.ts:27); sharing it would couple the two
-//      rails' limits.
+//      Retry-After). The key is this route's own bucket.
 //   2. reserveTravelSearch('liteapi') — the existing LiteAPI provider search
 //      cap (the same durable daily spend cap the hotel search route reserves,
 //      hotels/search/route.ts:66). Flights search bills the same LiteAPI
