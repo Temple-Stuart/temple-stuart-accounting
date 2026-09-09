@@ -78,7 +78,6 @@ export const VENDOR_DIM: Record<string, string> = {
   OAI: 'OpenAI',
   XAI: 'xAI',
   VOYG: 'Voyage AI',
-  DUFL: 'Duffel',
   GOOG: 'Google',
   PLD: 'Plaid',
   INNG: 'Inngest',
@@ -174,14 +173,6 @@ export const SCHEDULE_BILLS: ScheduleBill[] = [
   },
 
   // ── B-5100-30 · Travel APIs ───────────────────────────────────────────────
-  // Duffel — pricing-costs.ts:152-161 (PER_USE per-booking, null, ['travel'])
-  {
-    entity: 'B', account: '5100', sub: '30', object: 'API', vendor: 'DUFL',
-    description: 'Flight search, offers, orders, payments',
-    basis: 'PER-USE', cadence: 'per booking',
-    allocatedTo: [{ type: 'module', name: 'Travel' }],
-    amountUsd: null, footnotes: ['ᵃ'],
-  },
   // Google Places — pricing-costs.ts:182-191 (PER_USE per-call, null,
   // ['travel'], "hard cap: 5,000 calls/month enforced in code")
   {

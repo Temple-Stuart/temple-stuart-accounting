@@ -4,7 +4,7 @@
 // mounted directly on '/' (zero forks, zero duplicated search UIs; Alex's
 // ruling). Guests type, search, see results, and complete flight + hotel
 // bookings here without entering the app:
-//   • flights book fully in-panel (FlightCheckoutPanel — Duffel Payments);
+//   • flights book fully in-panel (LiteApiFlightCheckoutPanel — Nuitee-Stripe Elements);
 //   • hotels ride the existing hosted-payment → /booking/confirm flow;
 //   • BOOK-2: activities + ground transit (real Viator search; Book routes
 //     to sign-up — no in-house booking exists) and the visa check (official

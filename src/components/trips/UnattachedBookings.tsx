@@ -13,13 +13,12 @@
 
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import CancelBookingDialog from './CancelBookingDialog';
-import FlightCancelDialog, { type FlightCancelQuote } from './FlightCancelDialog';
 
 interface BookingRow {
   id: string;
   name: string;
-  /** 'liteapi' | 'viator' | 'duffel' — the route always returned this; declared
-   *  now because the Cancel action is liteapi-only (PR-Cancel-1). */
+  /** 'liteapi' | 'viator' | 'duffel' (history rows — LAUNCH-01 RETIRE-01) — the
+   *  route always returned this; the Cancel action is liteapi-only (PR-Cancel-1). */
   provider: string;
   type: string;
   amountUsd: number;
@@ -32,13 +31,12 @@ interface BookingRow {
   cancellationPolicyJson?: unknown;
 }
 
-/** PR-Cancel-1/2: the per-row cancellation outcome — the provider's verbatim
+/** PR-Cancel-1: the per-row cancellation outcome — the provider's verbatim
  *  numbers on success (null = not stated by provider), or the failure message.
- *  The `flight` variant (PR-Cancel-2) carries Duffel's confirmed quote — the
- *  refund goes to the DUFFEL BALANCE, and the outcome line says so. */
+ *  LAUNCH-01 RETIRE-01: the Duffel `flight` variant is gone with the provider —
+ *  a 'duffel' history row offers no Cancel action (the route refuses one, 409). */
 type CancelOutcome =
   | { ok: true; providerStatus: string | null; refundAmount: number | null; cancellationFee: number | null; currency: string | null }
-  | { ok: true; flight: true; refundAmount: string | null; refundCurrency: string | null }
   | { ok: false; message: string };
 
 function moneyOrUnstated(v: number | null, cur: string | null): string {
@@ -66,15 +64,6 @@ export default function UnattachedBookings({ selectedTrip, onChanged, onTotals }
   const [cancelTarget, setCancelTarget] = useState<BookingRow | null>(null);
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancelOutcomes, setCancelOutcomes] = useState<Record<string, CancelOutcome>>({});
-  // PR-Cancel-2: the Duffel two-step (same shape as TripBookings) — quote
-  // loading marker, the open flight dialog, and its button lock.
-  const [quoteBusyId, setQuoteBusyId] = useState<string | null>(null);
-  const [flightCancel, setFlightCancel] = useState<{
-    row: BookingRow;
-    quote: FlightCancelQuote;
-    error: { message: string; stale: boolean } | null;
-  } | null>(null);
-  const [flightBusy, setFlightBusy] = useState(false);
 
   const load = useCallback(() => {
     let cancelled = false;
@@ -147,112 +136,6 @@ export default function UnattachedBookings({ selectedTrip, onChanged, onTotals }
     }
   };
 
-  // ── PR-Cancel-2: Duffel quote-first — identical flow to TripBookings
-  // (STEP-1 quote → dialog → STEP-2 confirm; stale 409 → Re-quote). ──
-  const startFlightCancel = async (row: BookingRow) => {
-    setQuoteBusyId(row.id);
-    try {
-      const res = await fetch(`/api/reservations/${row.id}/cancel`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'quote' }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Could not get a cancellation quote.');
-      setFlightCancel({
-        row,
-        quote: {
-          id: data.cancellation?.id ?? null,
-          refundAmount: data.cancellation?.refundAmount ?? null,
-          refundCurrency: data.cancellation?.refundCurrency ?? null,
-          refundTo: data.cancellation?.refundTo ?? null,
-          expiresAt: data.cancellation?.expiresAt ?? null,
-        },
-        error: null,
-      });
-    } catch (err) {
-      setCancelOutcomes((prev) => ({
-        ...prev,
-        [row.id]: { ok: false, message: err instanceof Error ? err.message : 'Could not get a cancellation quote.' },
-      }));
-    } finally {
-      setQuoteBusyId(null);
-    }
-  };
-
-  const requoteFlight = async () => {
-    if (!flightCancel) return;
-    setFlightBusy(true);
-    try {
-      const res = await fetch(`/api/reservations/${flightCancel.row.id}/cancel`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'quote' }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Could not get a fresh quote.');
-      setFlightCancel((prev) => prev && {
-        ...prev,
-        quote: {
-          id: data.cancellation?.id ?? null,
-          refundAmount: data.cancellation?.refundAmount ?? null,
-          refundCurrency: data.cancellation?.refundCurrency ?? null,
-          refundTo: data.cancellation?.refundTo ?? null,
-          expiresAt: data.cancellation?.expiresAt ?? null,
-        },
-        error: null,
-      });
-    } catch (err) {
-      setFlightCancel((prev) => prev && {
-        ...prev,
-        error: { message: err instanceof Error ? err.message : 'Could not get a fresh quote.', stale: false },
-      });
-    } finally {
-      setFlightBusy(false);
-    }
-  };
-
-  const confirmFlightCancel = async () => {
-    if (!flightCancel || !flightCancel.quote.id) return;
-    setFlightBusy(true);
-    try {
-      const res = await fetch(`/api/reservations/${flightCancel.row.id}/cancel`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'confirm', cancellationId: flightCancel.quote.id }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setFlightCancel((prev) => prev && {
-          ...prev,
-          error: {
-            message: data.error || 'Could not confirm the cancellation.',
-            stale: data.code === 'quote_stale',
-          },
-        });
-        return;
-      }
-      const rowId = flightCancel.row.id;
-      setRows((prev) => prev.map((r) => (r.id === rowId ? { ...r, status: data.reservation?.status ?? 'cancelled' } : r)));
-      setCancelOutcomes((prev) => ({
-        ...prev,
-        [rowId]: {
-          ok: true,
-          flight: true,
-          refundAmount: data.cancellation?.refundAmount ?? null,
-          refundCurrency: data.cancellation?.refundCurrency ?? null,
-        },
-      }));
-      setFlightCancel(null);
-    } catch (err) {
-      setFlightCancel((prev) => prev && {
-        ...prev,
-        error: { message: err instanceof Error ? err.message : 'Could not confirm the cancellation.', stale: false },
-      });
-    } finally {
-      setFlightBusy(false);
-    }
-  };
 
   // Hidden entirely when there is genuinely nothing to adopt (and while the
   // brief initial load resolves — the block appears only when data proves it).
@@ -319,19 +202,18 @@ export default function UnattachedBookings({ selectedTrip, onChanged, onTotals }
                     </td>
                     <td className="px-3 py-2 text-text-muted">{r.status}</td>
                     <td className="px-3 py-2 text-right">
-                      {/* PR-Cancel-1/2: liteapi (hotel) + duffel (flight) rows,
-                          only while confirmed — after the flip the action
-                          disappears, the row stays (record-keeping). Hotels open
-                          the stored-policy dialog; flights fire the Duffel quote
-                          first (two-step). */}
-                      {(r.provider === 'liteapi' || r.provider === 'duffel') && r.status === 'confirmed' && (
+                      {/* PR-Cancel-1: liteapi rows only while confirmed — after the
+                          flip the action disappears, the row stays (record-keeping).
+                          Opens the stored-policy dialog. LAUNCH-01 RETIRE-01: 'duffel'
+                          history rows get no action (the provider is retired). */}
+                      {r.provider === 'liteapi' && r.status === 'confirmed' && (
                         <button
                           type="button"
-                          disabled={busyId === r.id || cancelBusy || quoteBusyId !== null || flightBusy}
-                          onClick={() => (r.provider === 'duffel' ? startFlightCancel(r) : setCancelTarget(r))}
+                          disabled={busyId === r.id || cancelBusy}
+                          onClick={() => setCancelTarget(r)}
                           className="mr-2 rounded border border-brand-red/40 px-2 py-1 text-xs font-medium text-brand-red hover:bg-brand-red/10 disabled:opacity-50"
                         >
-                          {quoteBusyId === r.id ? 'Getting quote…' : 'Cancel booking'}
+                          Cancel booking
                         </button>
                       )}
                       {selectedTrip ? (
@@ -353,17 +235,6 @@ export default function UnattachedBookings({ selectedTrip, onChanged, onTotals }
                       <td colSpan={6} className="px-3 py-2">
                         {!outcome.ok ? (
                           <p className="text-xs text-brand-red">{outcome.message}</p>
-                        ) : 'flight' in outcome ? (
-                          <p className="text-xs text-text-muted">
-                            <span className="font-semibold text-brand-green">Cancelled</span>
-                            {' — Duffel refunds '}
-                            <span className="font-medium">
-                              {outcome.refundAmount === null
-                                ? 'an amount not stated by provider'
-                                : `${outcome.refundCurrency ? `${outcome.refundCurrency} ` : ''}${outcome.refundAmount}`}
-                            </span>
-                            {' to the platform balance. Card refunds are processed separately.'}
-                          </p>
                         ) : (
                           <p className="text-xs text-text-muted">
                             <span className="font-semibold text-brand-green">Cancelled</span>
@@ -395,18 +266,6 @@ export default function UnattachedBookings({ selectedTrip, onChanged, onTotals }
           busy={cancelBusy}
           onConfirm={() => doCancel(cancelTarget)}
           onClose={() => { if (!cancelBusy) setCancelTarget(null); }}
-        />
-      )}
-
-      {flightCancel && (
-        <FlightCancelDialog
-          bookingName={flightCancel.row.name}
-          quote={flightCancel.quote}
-          busy={flightBusy}
-          error={flightCancel.error}
-          onConfirm={confirmFlightCancel}
-          onRequote={requoteFlight}
-          onClose={() => { if (!flightBusy) setFlightCancel(null); }}
         />
       )}
     </div>

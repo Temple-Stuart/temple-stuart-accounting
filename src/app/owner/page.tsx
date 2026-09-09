@@ -39,7 +39,6 @@ interface AccountRow {
   email: string;
   name: string;
   createdAt: string;
-  tier: string;
   bookkeeping_initialized: boolean;
   scanner_start_date: string | null;
   accountCode: string | null;
@@ -170,12 +169,6 @@ export default function OwnerPage() {
     return list;
   }, [accounts, sortKey, sortAsc]);
 
-  const tierCounts = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const a of accounts ?? []) m.set(a.tier, (m.get(a.tier) ?? 0) + 1);
-    return [...m.entries()].sort((x, y) => y[1] - x[1]);
-  }, [accounts]);
-
   const visibleProposals = useMemo(
     () => (proposals ?? []).filter((p) => statusFilter === 'all' || p.status === statusFilter),
     [proposals, statusFilter],
@@ -262,11 +255,6 @@ export default function OwnerPage() {
             <div className="p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-mono text-xs text-text-muted">{accounts.length} accounts</span>
-                {tierCounts.map(([tier, n]) => (
-                  <span key={tier} className={chip(tier === 'free' ? 'neutral' : 'accent')}>
-                    {tier} × {n}
-                  </span>
-                ))}
               </div>
               <div className="mt-3 overflow-x-auto">
                 <table className="w-full text-xs">
@@ -283,7 +271,6 @@ export default function OwnerPage() {
                           joined{sortKey === 'joined' ? (sortAsc ? ' ↑' : ' ↓') : ''}
                         </button>
                       </th>
-                      <th className={`${DATA.columnHeader} p-2`}>tier</th>
                       <th className={`${DATA.columnHeader} p-2`}>books</th>
                       <th className={`${DATA.columnHeader} p-2 text-right`}>plaid</th>
                       <th className={`${DATA.columnHeader} p-2 text-right`}>cards</th>
@@ -298,9 +285,6 @@ export default function OwnerPage() {
                         <td className="p-2 text-text-primary">{u.email}</td>
                         <td className="p-2 text-text-muted">{u.name}</td>
                         <td className="p-2 font-mono text-text-muted">{dateOnly(u.createdAt)}</td>
-                        <td className="p-2">
-                          <span className={chip(u.tier === 'free' ? 'neutral' : 'accent')}>{u.tier}</span>
-                        </td>
                         <td className="p-2 text-text-muted">{u.bookkeeping_initialized ? '✓' : '—'}</td>
                         <td className={`${DATA.numeral} p-2 text-text-secondary`}>{u.counts.plaid_items}</td>
                         <td className={`${DATA.numeral} p-2 text-text-secondary`}>{u.counts.trade_cards}</td>

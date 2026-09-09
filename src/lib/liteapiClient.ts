@@ -11,7 +11,7 @@
 // the same recommendation shape consumed by the UI + commit→budget spine.
 //
 // MODE: sandbox by default; flip LITEAPI_MODE=production once the production
-// key is set (mirrors src/lib/duffel.ts's mode-by-env pattern).
+// key is set (mode-by-env: the key that is set decides the mode; no default key).
 
 import { MissingLiteApiKeyError, LiteApiError } from './travelErrors';
 import type { LiteApiAnswer } from './arrivals/liteapiBooking';

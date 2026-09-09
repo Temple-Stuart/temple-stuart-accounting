@@ -28,11 +28,9 @@
  *     (liteapi/book/route.ts:166-204). Sandbox by default (liteapiClient.ts:35-37);
  *     no in-app confirmation email → the deck claims neither live-charging nor
  *     emails. Env-honest banner verbatim (CheckoutPanel.tsx:268-274).
- *   Flights (Duffel): search live; a REAL @duffel/components card element
- *     (FlightCheckoutPanel.tsx:24-30) — but TEST-pinned (flights/book:75,
- *     payment-intent:35) and NO order persistence (the book route's only Prisma
- *     call is the user lookup). TEST label verbatim (FlightCheckoutPanel.tsx:206).
- *     → NEVER "book flights now".
+ *   Flights (LiteAPI — the only lane since LAUNCH-01 RETIRE-01): search live;
+ *     checkout through Nuitée's Stripe Elements (LiteApiFlightCheckoutPanel),
+ *     sandbox by default. → NEVER "book flights now".
  *   Activities/Transfers (Viator): search live; affiliate model — public Book is
  *     a sign-up nudge, URLs stripped (activities/search/route.ts:80-84).
  *   Visa (RapidAPI Travel Buddy): live, capped 5/day (travelSearchQuota.ts:45).
@@ -42,7 +40,7 @@
  *   13 public routes (middleware.ts:64-87); per-IP rate limit (rateLimit.ts,
  *   default 5/60s); atomic per-provider daily caps (travelSearchQuota.ts:41-61 —
  *   travelbuddy 5, hotelbooking 25, flightbooking 25, hotelprebook 100…); honest
- *   503 pause strings; Duffel live double-flag block; LiteAPI sandbox default;
+ *   503 pause strings; LiteAPI sandbox default;
  *   locked category cards mount no fetch (PublicCategorySearch.tsx:68-77).
  *   THIS FILE ADDS ZERO FETCH PATHS — hero, slides, and labeled static mirrors
  *   only. The live components are mounted by ModuleLauncher, untouched.
@@ -57,10 +55,8 @@
  *   show FIELD NAMES and steps, not made-up prices.
  *
  * ── VERBATIM STRINGS CARRIED ─────────────────────────────────────────────────
- *   "Flight search is temporarily paused. Please try again later."
- *                                          flights/search/route.ts:90
  *   "Test mode — no real charge. Use a Stripe test card."
- *                                          FlightCheckoutPanel.tsx:206
+ *                                          LiteApiFlightCheckoutPanel.tsx
  *   "Test mode — use card 4242 4242 4242 4242, any future date, any CVV. No
  *    real charge."                         CheckoutPanel.tsx:269-270
  *   "Subscribe to see top-rated <label> with prices." / "Subscribe to unlock"
@@ -191,10 +187,8 @@ function HotelBookingPanel() {
   );
 }
 
-/** 3. FLIGHTS: SEARCH REAL, CHECKOUT IN TEST — mirrors FlightCheckoutPanel:
- *  payment-intent → client_token → @duffel/components card (:24-30,304), TEST
- *  label verbatim (:206), live double-flag block (flights/book:75), and the
- *  no-persistence truth (book route writes no order row). */
+/** 3. FLIGHTS: SEARCH REAL, CHECKOUT IN TEST — mirrors LiteApiFlightCheckoutPanel:
+ *  passenger form → Nuitée-Stripe Elements card, sandbox by default. */
 function FlightCheckoutMirror() {
   return (
     <DarkSlide title="Flight checkout — real card element, test rails" tag="Mirror · labeled">

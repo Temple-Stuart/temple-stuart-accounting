@@ -2,7 +2,7 @@
 
 Twenty-five business tools on one data pipe that ends in one Ledger and one Calendar.
 
-Source-available (BSL 1.1) · built and operated in production by its founder as User #1 · as of 2026-09-02: 116 Prisma models, 291 API route files, 121 feeds from 20 providers (counted August 24, 2026)
+Source-available (BSL 1.1) · built and operated in production by its founder as User #1 · as of 2026-09-02: 116 Prisma models, 288 API route files, 121 feeds from 20 providers (counted August 24, 2026)
 
 ## The system
 
@@ -197,7 +197,7 @@ Reported, not viewed — rows from a provider answer whose feed the rule book do
 
 | Table | Why |
 |---|---|
-| reservations (provider duffel) | 2 writes carry provider 'duffel' (src/app/api/flights/book/route.ts) — duffel is not a provider the deck names; those rows are outside the event view |
+| reservations (provider duffel) | history rows from a retired provider (LAUNCH-01 RETIRE-01 deleted its book route; nothing writes provider 'duffel' any more) — the rows are kept, labeled by their provider, and stay outside the event view (the bookings view reads provider 'liteapi' only) |
 | trip_scanner_results | src/app/api/trips/[id]/ai-assistant/route.ts writes AI recommendations per trip/category; the book names no such feed (anthropic · classification is the only anthropic row) |
 | scan_snapshots | src/lib/convergence/snapshot-logger.ts writes our own scores over quotes — math we did, not a provider answer; no rule-book feed |
 | operations_ai_usage | src/lib/ai/recordUsage.ts:158 stores our AI calls (purpose, tokens, full_response) — the book's anthropic row is classification, not a usage log |
@@ -283,15 +283,15 @@ BLUEPRINT is the step's headline; TODAY is the deck's honest-state line, verbati
 
 | Module | What exists in code |
 |---|---|
-| Travel | stays and flights through LiteAPI, activities through Viator, visa checks through RapidAPI — public routes under src/app/api/travel (15 route files) and src/app/api/flights (3); models `trips` (schema:653) and `reservations` (schema:1409). |
-| Runway | the reservation matcher — src/app/api/runway/match/propose, queue, review (the step-9 piece alive today) — plus src/app/api/runway/route.ts; models `budgets` (schema:623) and `home_expenses` (schema:1663). |
+| Travel | stays and flights through LiteAPI, activities through Viator, visa checks through RapidAPI — public routes under src/app/api/travel (15 route files); models `trips` (schema:652) and `reservations` (schema:1414). |
+| Runway | the reservation matcher — src/app/api/runway/match/propose, queue, review (the step-9 piece alive today) — plus src/app/api/runway/route.ts; models `budgets` (schema:622) and `home_expenses` (schema:1668). |
 | Books | Plaid-synced transactions, a chart of accounts, journal and ledger entries — the one Plaid writer, src/app/api/transactions/sync-complete/route.ts, writes `transactions` (schema:460) through src/lib/arrivals/plaidTransactionsPage.ts:114; `journal_entries` (schema:186), `ledger_entries` (schema:225). |
-| Trade | tastytrade connection, quotes and backtests — src/app/api/tastytrade (13 route files); models `trade_cards` (schema:1794) and `scan_snapshots` (schema:1980). |
-| Tax | scenarios, documents and the 2025 export script (`npm run tax:export:2025`) — src/app/api/tax (7 route files); models `tax_scenarios` (schema:1583) and `tax_documents` (schema:1902). |
-| Compliance | the regulatory corpus (eCFR, US Code, Federal Register, IRS bulletins) ingested by Inngest functions with sha256 on write, citations re-verified, and the hash-chained audit log — models `regulatory_sources` (schema:2293), `citations` (schema:2357), `audit_log` (schema:2523). |
-| Routines | scheduled routines evaluated by the `routine-evaluator` Inngest function — models `operations_routines` (schema:3177) and `hub_scheduled_items` (schema:3283); the deck calls the calendar window live in the cockpit (step 12 honest line). |
-| Projects | projects and tasks; accepting a pending task fires the Execute-Task Routine (src/app/api/operations/projects/[id]/tasks/[taskId]/route.ts:395-405) — models `operations_projects` (schema:3001) and `operations_project_tasks` (schema:3046). |
-| Content | scene groups, scenes, pieces and takes — model `operations_content_pieces` (schema:3410); src/app/api/operations carries 50 route files across Routines, Projects and Content. |
+| Trade | tastytrade connection, quotes and backtests — src/app/api/tastytrade (13 route files); models `trade_cards` (schema:1799) and `scan_snapshots` (schema:1985). |
+| Tax | scenarios, documents and the 2025 export script (`npm run tax:export:2025`) — src/app/api/tax (7 route files); models `tax_scenarios` (schema:1588) and `tax_documents` (schema:1907). |
+| Compliance | the regulatory corpus (eCFR, US Code, Federal Register, IRS bulletins) ingested by Inngest functions with sha256 on write, citations re-verified, and the hash-chained audit log — models `regulatory_sources` (schema:2298), `citations` (schema:2362), `audit_log` (schema:2528). |
+| Routines | scheduled routines evaluated by the `routine-evaluator` Inngest function — models `operations_routines` (schema:3182) and `hub_scheduled_items` (schema:3288); the deck calls the calendar window live in the cockpit (step 12 honest line). |
+| Projects | projects and tasks; accepting a pending task fires the Execute-Task Routine (src/app/api/operations/projects/[id]/tasks/[taskId]/route.ts:395-405) — models `operations_projects` (schema:3006) and `operations_project_tasks` (schema:3051). |
+| Content | scene groups, scenes, pieces and takes — model `operations_content_pieces` (schema:3415); src/app/api/operations carries 50 route files across Routines, Projects and Content. |
 
 ## Architecture
 
@@ -299,18 +299,18 @@ Versions from package.json, read 2026-09-02:
 
 | Layer | What |
 |---|---|
-| Framework | Next.js 15.5.9 · React ^18.3.1 · TypeScript ^5 |
+| Framework | Next.js 15.5.25 · React ^18.3.1 · TypeScript ^5 |
 | Data | Prisma ^5.22.0 (client ^5.22.0) on Azure PostgreSQL |
 | Hosting | Vercel (one cron in vercel.json: `/api/cron/auto-categorize` at 02:00 UTC) |
 | Jobs | Inngest ^4.2.6 — 8 functions: ecfr-ingest, embed-pending, fedreg-ingest, health-check, irb-ingest, operations-pipe-run, routine-evaluator, uscode-ingest |
-| Auth | HMAC-signed cookie (src/lib/cookie-auth.ts) · next-auth ^4.24.13 for OAuth sign-in |
+| Auth | HMAC-signed cookie (src/lib/cookie-auth.ts) · next-auth ^4.24.15 for OAuth sign-in |
 | Payments / banking | Stripe ^20.3.0 · Plaid ^11.0.0 |
 | Styling | Tailwind CSS ^3.4.18 |
 | Runtime | Node (typed against @types/node ^20) |
 
 Observed versus authored (step 6): what the world sends is observed; what you do is authored; the blueprint keeps the two apart and matches them on one key. Today the Plaid feeds land word for word, fingerprinted — 9,092 transactions, 712 investment transactions, 247 securities, counted September 7, 2026; the other providers still land parsed — see the gap ledger, step 14.
 
-Scale, as of 2026-09-02: 116 Prisma models, 34 enums, 291 API route files, 37 runtime dependencies, 18 dev dependencies, one test file (`npm test`).
+Scale, as of 2026-09-02: 116 Prisma models, 34 enums, 288 API route files, 35 runtime dependencies, 17 dev dependencies, one test file (`npm test`).
 
 ## Engineering discipline
 
@@ -331,7 +331,7 @@ These are the written laws in `CLAUDE.md`, stated as practice:
 - Middleware: every path not in `PUBLIC_PATHS` requires the verified cookie — `src/middleware.ts:50-160, 162, 165-170`; the two Routine callbacks (`…/audit-ingest`, `…/exec-ingest`) bypass the cookie and validate a shared-secret bearer (`AUDIT_INGEST_SECRET`, `EXEC_INGEST_SECRET`) instead — `src/middleware.ts:173-187`.
 - Route gates: `getCurrentUser` (`src/lib/auth-helpers.ts:11`), `requireTier` (`:42`), `requireAdmin` (`src/lib/require-admin.ts:8`); the working law is that a paid external call is never made before the gate (CLAUDE.md, Security-first).
 - User scoping: every query is scoped to the authed user — e.g. `where: { userId: user.id }` at `src/app/api/tastytrade/connect/route.ts:54`.
-- Rate limits: a durable fixed-window limiter backed by the `rate_limit_hits` table (`src/lib/rateLimit.ts:3-15`; schema:1394), plus `src/lib/scan-rate-limit.ts` and `src/lib/ai-rate-limit.ts`; tuned by `SEARCH_/BOOK_/SCAN_/AI_RATE_LIMIT` and `_WINDOW`, with daily caps `AI_PIPE_DAILY_CAP`, `AI_EXEC_DAILY_CAP`, `AI_ROUTINE_DAILY_CAP`, `AI_DISCOVERY_DAILY_CAP` (USD, from recorded spend — `src/lib/discovery/discoveryGate.ts`), `TRAVEL_SEARCH_DAILY_CAP`, and `GOOGLE_PLACES_MONTHLY_CAP`.
+- Rate limits: a durable fixed-window limiter backed by the `rate_limit_hits` table (`src/lib/rateLimit.ts:3-15`; schema:1399), plus `src/lib/scan-rate-limit.ts` and `src/lib/ai-rate-limit.ts`; tuned by `SEARCH_/BOOK_/SCAN_/AI_RATE_LIMIT` and `_WINDOW`, with daily caps `AI_PIPE_DAILY_CAP`, `AI_EXEC_DAILY_CAP`, `AI_ROUTINE_DAILY_CAP`, `AI_DISCOVERY_DAILY_CAP` (USD, from recorded spend — `src/lib/discovery/discoveryGate.ts`), `TRAVEL_SEARCH_DAILY_CAP`, and `GOOGLE_PLACES_MONTHLY_CAP`.
 - Audit log: a hash chain — each entry stores `prev_hash` and its own sha256 `content_hash` with a `sequence_number` (`prisma/schema.prisma:2441-2443`; written at `src/lib/audit/writeAuditLog.ts:99`); `src/lib/audit/verifyAuditChain.ts:47, 80` recomputes the chain.
 - Citations: `src/lib/citations/verifyCitation.ts:97` re-fetches the source and re-hashes it against `citations.retrieved_content_hash` (`prisma/schema.prisma:2287`); the column's only writer stores an empty string today (`src/lib/discovery/materializeProposal.ts:165`), so the check is structurally dead until the arrivals rebuild lands the real hash.
 - Corpus: the four ingest persisters hash content with sha256 on write — `src/lib/corpus/ingest/ecfr-persist.ts:28`, `uscode-persist.ts:32`, `fedreg-persist.ts:31`, `irb-persist.ts:32`.
@@ -366,12 +366,12 @@ You need Node (the code is typed against `@types/node ^20`), PostgreSQL, and a h
 
 | Vendor / concern | Keys | Needed when |
 |---|---|---|
-| Core | `DATABASE_URL` (read by Prisma, `prisma/schema.prisma:7`), `JWT_SECRET`, `NEXTAUTH_SECRET`, `OWNER_EMAIL`, `ADMIN_USER_ID` (the admin's users.id; every admin gate throws when it is unset — `src/lib/admin.ts`), `NEXT_PUBLIC_OWNER_EMAIL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_BASE_URL` | Required |
-| Set by the platform | `NODE_ENV`, `VERCEL`, `NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA` | Provided by Vercel / Node; nothing to set |
+| Core | `DATABASE_URL` (read by Prisma, `prisma/schema.prisma:7`), `JWT_SECRET` (the ONE session secret — the former NEXTAUTH_SECRET is retired: the server refuses to boot while it is set, `src/lib/secretGuard.ts`), `OWNER_EMAIL`, `ADMIN_USER_ID` (the admin's users.id; every admin gate throws when it is unset — `src/lib/admin.ts`), `NEXT_PUBLIC_OWNER_EMAIL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_BASE_URL` | Required |
+| Set by the platform | `NODE_ENV`, `NEXT_RUNTIME` (`nodejs` or `edge`, set by Next.js — the session-secret boot guard runs on the Node runtime only, `src/instrumentation.ts`), `NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA` | Provided by Vercel / Node / Next; nothing to set |
 | Plaid (bank sync) | `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_REDIRECT_URI` (the OAuth return URL, `src/lib/plaid/oauth.ts`) | Required unless Books sync is disabled — no link token is created without the redirect URI |
 | Provider tokens at rest | `TOKEN_ENCRYPTION_KEY` (base64 of 32 bytes), `TOKEN_ENCRYPTION_KEY_ID` (`src/lib/secrets/tokenCipher.ts`) | Required — every Plaid and tastytrade token read or write fails loud without both |
-| Stripe (payments) | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`; per entitlement `STRIPE_TAB_<KEY>_PRICE_ID`, `STRIPE_CAT_<KEY>_PRICE_ID`, `STRIPE_BUNDLE_ALL_PRICE_ID` (`src/lib/stripe.ts`) | Required to sell modules; skip to run everything unlocked |
-| Flights and stays (LiteAPI) | `LITEAPI_SANDBOX_KEY`, `LITEAPI_PRODUCTION_KEY`, `LITEAPI_MODE`, `FLIGHTS_LANE` (set to `liteapi`; `src/lib/flightsLane.ts:20`) | Required unless travel is disabled |
+| Stripe (payments) | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`; per entitlement `STRIPE_TAB_<KEY>_PRICE_ID`, `STRIPE_CAT_<KEY>_PRICE_ID`, `STRIPE_BUNDLE_ALL_PRICE_ID` (`src/lib/stripe.ts`) | Required to sell modules; skip to run everything unlocked |
+| Flights and stays (LiteAPI) | `LITEAPI_SANDBOX_KEY`, `LITEAPI_PRODUCTION_KEY`, `LITEAPI_MODE`, `FLIGHTS_LANE` (`liteapi` is the only lane — unset resolves to it, anything else refuses; `src/lib/flightsLane.ts:41`) | Required unless travel is disabled |
 | Tours (Viator) | `VIATOR_API_KEY` | Required unless activities are disabled |
 | Visa rules (RapidAPI) | `RAPIDAPI_VISA_KEY`, `RAPIDAPI_VISA_HOST` | Required unless the visa check is disabled |
 | Places | `GOOGLE_PLACES_API_KEY`, `GOOGLE_PLACES_MONTHLY_CAP`, `PLACES_CACHE_TTL_DAYS` | Key required unless location search is disabled; caps optional |
@@ -382,7 +382,7 @@ You need Node (the code is typed against `@types/node ^20`), PostgreSQL, and a h
 | Jobs (Inngest) | `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY` | Required unless background jobs are disabled |
 | OAuth sign-in | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | Optional; email login works without |
 | Routine and audit hooks | `CRON_SECRET`, `ROUTINE_AUDIT_TOKEN`, `ROUTINE_AUDIT_FIRE_URL`, `EXEC_ROUTINE_TOKEN`, `EXEC_ROUTINE_FIRE_URL`, `EXEC_INGEST_SECRET`, `AUDIT_INGEST_SECRET` | Required unless scheduled routines are disabled |
-| Rate limits and caps | `SEARCH_RATE_LIMIT`, `SEARCH_RATE_WINDOW`, `BOOK_RATE_LIMIT`, `BOOK_RATE_WINDOW`, `SCAN_RATE_LIMIT`, `SCAN_RATE_WINDOW`, `AI_RATE_LIMIT`, `AI_RATE_WINDOW`, `AI_PIPE_DAILY_CAP`, `AI_EXEC_DAILY_CAP`, `AI_ROUTINE_DAILY_CAP`, `AI_DISCOVERY_DAILY_CAP`, `TRAVEL_SEARCH_DAILY_CAP`; per provider `TRAVEL_SEARCH_DAILY_CAP_<PROVIDER>` (`src/lib/travelSearchQuota.ts:79`) | Optional; the code has defaults |
+| Rate limits and caps | `SEARCH_RATE_LIMIT`, `SEARCH_RATE_WINDOW`, `SCAN_RATE_LIMIT`, `SCAN_RATE_WINDOW`, `AI_RATE_LIMIT`, `AI_RATE_WINDOW`, `AI_PIPE_DAILY_CAP`, `AI_EXEC_DAILY_CAP`, `AI_ROUTINE_DAILY_CAP`, `AI_DISCOVERY_DAILY_CAP`, `TRAVEL_SEARCH_DAILY_CAP`; per provider `TRAVEL_SEARCH_DAILY_CAP_<PROVIDER>` (`src/lib/travelSearchQuota.ts:79`) | Optional; the code has defaults |
 | Misc | `YELP_API_KEY` | Required unless its feature is disabled |
 
 Yes, that's a lot of keys. That's why the next section exists.

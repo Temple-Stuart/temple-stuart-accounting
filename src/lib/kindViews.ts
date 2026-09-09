@@ -88,7 +88,7 @@ export const KIND_VIEW_CENSUS: readonly FeedTable[] = [
     table: 'reservations', label: 'bookings', feed: ['liteapi', 'booking'],
     rowId: 'r.id', theirId: 'r."providerBookingId"', arrivalId: null, userId: 'r."userId"', arrived: 'r."createdAt"',
     from: 'reservations r', where: "r.provider = 'liteapi'",
-    why: "src/app/api/travel/liteapi/book/route.ts and liteapi/flights/book/route.ts write provider 'liteapi' inside the landing's transaction (src/lib/arrivals/liteapiBooking.ts); the 2 'duffel' writes (src/app/api/flights/book/route.ts) are a provider the deck does not name — filtered out, reported; reservations.arrival_id exists since REBUILD-01 PR-5 (20260908000000_reservations_arrival_id) — the event view still reads NULL for it until a view migration of its own redefines it (TABLES-01b)",
+    why: "src/app/api/travel/liteapi/book/route.ts and liteapi/flights/book/route.ts write provider 'liteapi' inside the landing's transaction (src/lib/arrivals/liteapiBooking.ts); rows with provider 'duffel' are history — the provider was retired in LAUNCH-01 (its book route is deleted), the rows keep their provider label and stay outside this view, reported below; reservations.arrival_id exists since REBUILD-01 PR-5 (20260908000000_reservations_arrival_id) — the event view still reads NULL for it until a view migration of its own redefines it (TABLES-01b)",
   },
   {
     table: 'securities', label: 'securities', feed: ['plaid', 'security'],
@@ -126,7 +126,7 @@ export const KIND_VIEW_CENSUS: readonly FeedTable[] = [
 
 /** Tables whose rows come from a provider answer but whose feed the rule book does not name — reported, never viewed. */
 export const STOPPED_TABLES: ReadonlyArray<{ table: string; why: string }> = [
-  { table: 'reservations (provider duffel)', why: "2 writes carry provider 'duffel' (src/app/api/flights/book/route.ts) — duffel is not a provider the deck names; those rows are outside the event view" },
+  { table: 'reservations (provider duffel)', why: "history rows from a retired provider (LAUNCH-01 RETIRE-01 deleted its book route; nothing writes provider 'duffel' any more) — the rows are kept, labeled by their provider, and stay outside the event view (the bookings view reads provider 'liteapi' only)" },
   { table: 'trip_scanner_results', why: 'src/app/api/trips/[id]/ai-assistant/route.ts writes AI recommendations per trip/category; the book names no such feed (anthropic · classification is the only anthropic row)' },
   { table: 'scan_snapshots', why: 'src/lib/convergence/snapshot-logger.ts writes our own scores over quotes — math we did, not a provider answer; no rule-book feed' },
   { table: 'operations_ai_usage', why: 'src/lib/ai/recordUsage.ts:158 stores our AI calls (purpose, tokens, full_response) — the book\'s anthropic row is classification, not a usage log' },

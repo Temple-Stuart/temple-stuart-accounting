@@ -16,6 +16,8 @@ import { Lock } from 'lucide-react';
 import OfferCard from '@/components/OfferCard';
 import { TOOL_GATE, offerCard, offerGranting } from '@/lib/offer';
 import { startEntitlementCheckout } from '@/lib/checkoutDoor';
+// LAUNCH-01 LAPSE-01: a lapsed subscriber reads when and why it ended, above the same door.
+import { lapsedLine, type LapseReason } from '@/lib/lapse';
 
 /** The per-tab locked CTA, keyed tab:X — the offer that grants it. */
 export function LockedTabCard({
@@ -23,12 +25,15 @@ export function LockedTabCard({
   currentUserId,
   onRequireAuth,
   offerAvailability,
+  lapsed = null,
 }: {
   tabKey: string;
   currentUserId: string;
   onRequireAuth: () => void;
   /** Per offer key, is its Stripe price id set — server-computed (offerAvailabilityFromEnv), passed down; never read here. */
   offerAvailability: Readonly<Record<string, boolean>>;
+  /** LAPSE-01: the most recent ended subscription among the keys granting this tab (/api/auth/me → lapsedFor), or null. */
+  lapsed?: { endedAt: string; reason: LapseReason } | null;
 }) {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState('');
@@ -62,6 +67,11 @@ export function LockedTabCard({
         <Lock className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
         <span className="font-mono text-[10px] font-semibold uppercase tracking-wider">Locked — sold as {offer.label}</span>
       </div>
+      {lapsed && (
+        <p className="text-sm text-text-secondary" data-lapsed={lapsed.reason}>
+          {lapsedLine(lapsed)} Subscribe again below to unlock it.
+        </p>
+      )}
       <OfferCard
         card={card}
         door={{ kind: 'button', onClick: onRequestUnlock, busy: starting }}

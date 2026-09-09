@@ -44,7 +44,7 @@ export async function POST(request: Request) {
         newId: () => randomUUID(),
         createUser: (u) =>
           prisma.users.create({
-            data: { id: u.id, email: u.email, password: u.password, name: u.name, tier: 'free', updatedAt: new Date() },
+            data: { id: u.id, email: u.email, password: u.password, name: u.name, updatedAt: new Date() },
             select: { id: true, email: true, name: true },
           }),
         mintToken: () => mintToken(secret),

@@ -12,7 +12,7 @@ import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQ
 // (prebook/route.ts:22-38): rateLimit → validate → reserveTravelSearch, both
 // guards BEFORE the LiteAPI call. Verify is a re-pricing SEARCH call to the
 // same LiteAPI account, so it meters the same 'liteapi' provider cap the
-// hotel/flight search routes reserve — NOT 'flightbooking' (that cap guards
+// hotel/flight search routes reserve — NOT the booking cap (that guards
 // actual booking spend, and verify must never drain it).
 export async function POST(request: NextRequest) {
   const ip =
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     if (err instanceof FlightOfferExpiredError) {
       // Declared re-search body: the offer is dead (provider codes 42004/42017)
       // — retrying the same offerId is futile; the client swaps to a fresh
-      // search. Same code-keyed contract as the Duffel expiry envelope.
+      // search. A code-keyed envelope, so the client branches on the code.
       return NextResponse.json(
         {
           error: 'This flight offer expired — run a new search for current prices.',

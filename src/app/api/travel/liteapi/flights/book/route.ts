@@ -27,8 +27,8 @@ import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 //      tier.
 //   2. reserveTravelSearch('liteapiflightbooking') — NEW plain-string quota
 //      value (string column, schema.prisma:1290-region — no schema change),
-//      DISTINCT from Duffel's 'flightbooking' cap; money-tier 25/day safe
-//      default mirroring hotelbooking (travelSearchQuota.ts).
+//      money-tier 25/day safe default mirroring hotelbooking
+//      (travelSearchQuota.ts).
 export async function POST(request: NextRequest) {
   const ip =
     request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
@@ -123,8 +123,7 @@ export async function POST(request: NextRequest) {
             tx.reservations.findFirst({ where: { provider: 'liteapi', providerBookingId: bookingId } }),
           createReservation: async (parsed: FlightBookResult, arrivalId) => {
             // Flight rows carry no stay window: hotelName/checkinDate/checkoutDate null
-            // (the D3 convention the Duffel book route established, flights/book/
-            // route.ts:191,208-210). PENDING_CONFIRMATION and PENDING are SUCCESS-
+            // (the D3 convention). PENDING_CONFIRMATION and PENDING are SUCCESS-
             // shaped (the provider is finalizing — not an error): they persist as
             // 'pending'; CONFIRMED/TICKETED → 'confirmed'; CANCELLED → 'cancelled';
             // absent/unknown → 'pending' (never invented as confirmed).

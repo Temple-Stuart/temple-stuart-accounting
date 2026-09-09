@@ -8,7 +8,7 @@ import { prisma } from '@/lib/prisma';
 // No silent fallback: over cap = throw. Built before any search route goes public
 // (PR-3 wires it into flights/search); a bot cannot run up a bill past the cap.
 //
-// Caps come from env: TRAVEL_SEARCH_DAILY_CAP_<PROVIDER> (e.g. _DUFFEL) wins, else
+// Caps come from env: TRAVEL_SEARCH_DAILY_CAP_<PROVIDER> (e.g. _LITEAPI) wins, else
 // TRAVEL_SEARCH_DAILY_CAP, else DEFAULT_DAILY_CAP. Set conservatively from each
 // provider's real pricing (see audit-reports/PUBLIC-TRAVEL-SEARCH-AUDIT.md).
 
@@ -16,7 +16,7 @@ const DEFAULT_DAILY_CAP = 1000;
 const WARN_RATIO = 0.8;
 
 /** Providers whose SEARCH calls are metered. String is accepted too (forward-compat). */
-export type TravelProvider = 'duffel' | 'liteapi' | 'viator' | 'mozio' | 'travelbuddy';
+export type TravelProvider = 'liteapi' | 'viator' | 'mozio' | 'travelbuddy';
 
 export class TravelSearchQuotaError extends Error {
   constructor(
@@ -54,10 +54,6 @@ const PROVIDER_SAFE_DEFAULT_CAP: Record<string, number> = {
   // than booking but still capped so a public, no-auth route can't run up COGS.
   hotelcontent: 500,
   hotelreviews: 500,
-  // PR-Duffel-Pay-1: flight BOOKING is real money + public (guest-ok), like hotel
-  // booking → a tight daily cap, bounded even with no env override. Raise via
-  // TRAVEL_SEARCH_DAILY_CAP_FLIGHTBOOKING on a real volume plan.
-  flightbooking: 25,
   // PR-FL-3: LiteAPI flight PREBOOK is money-adjacent like hotelprebook above —
   // it reserves the offer AND mints the Stripe payment intent — so it gets the
   // same quote-tier safe cap (prebook is a quote: looser than booking, tighter
@@ -65,10 +61,10 @@ const PROVIDER_SAFE_DEFAULT_CAP: Record<string, number> = {
   // 1000/day global default. Raise via TRAVEL_SEARCH_DAILY_CAP_FLIGHTPREBOOK
   // on a real volume plan.
   flightprebook: 100,
-  // PR-FL-5: LiteAPI flight BOOKING is the money call (real ticket issuance),
-  // DISTINCT from Duffel's 'flightbooking' bucket above — same money-tier cap.
-  // Raise via TRAVEL_SEARCH_DAILY_CAP_LITEAPIFLIGHTBOOKING on a real volume
-  // plan.
+  // PR-FL-5: LiteAPI flight BOOKING is the money call (real ticket issuance) —
+  // the money-tier cap. (LAUNCH-01 RETIRE-01: the retired Duffel rail's
+  // 'flightbooking' bucket is gone with its route.) Raise via
+  // TRAVEL_SEARCH_DAILY_CAP_LITEAPIFLIGHTBOOKING on a real volume plan.
   liteapiflightbooking: 25,
 };
 

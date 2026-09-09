@@ -3,6 +3,8 @@ import { isAdminUser } from '@/lib/admin';
 import { GOOGLE_CATEGORY_KEYS } from '@/lib/categoryKeys';
 // SELL-02: which entitlement keys satisfy a tab gate is the OFFER's say (src/lib/offer.ts keysGranting).
 import { keysGranting } from '@/lib/offer';
+// LAUNCH-01 LAPSE-01: a lapsed row (inactive + ended_at) is told, never a bare lock.
+import { lapsedFor, lapsedFromRow, type LapsedEntitlement } from '@/lib/lapse';
 
 // The 9 Google category keys now live in the prisma-free src/lib/categoryKeys.ts so the
 // client can import them too (this module imports prisma → server-only). Re-exported here so
@@ -62,4 +64,29 @@ export async function hasTabAccess(userId: string, tabKey: string): Promise<bool
     select: { id: true },
   });
   return row !== null;
+}
+
+/**
+ * LAUNCH-01 LAPSE-01: this user's lapsed rows — inactive with an ended_at the
+ * Stripe webhook wrote (customer.subscription.deleted → 'canceled',
+ * invoice.payment_failed → 'payment_failed'), newest first. A row re-granted
+ * since has no ended_at and is not here. Admin never lapses (no rows are read
+ * for the admin — the gate never locks them).
+ *
+ * Fail-loud: a DB error PROPAGATES; a row with an unknown reason throws
+ * (LapseRowError) rather than rendering a guess.
+ */
+export async function getLapsedEntitlements(userId: string): Promise<LapsedEntitlement[]> {
+  if (isAdminUser(userId)) return [];
+  const rows = await prisma.userCategoryEntitlement.findMany({
+    where: { userId, status: 'inactive', ended_at: { not: null } },
+    select: { categoryKey: true, ended_at: true, ended_reason: true },
+    orderBy: { ended_at: 'desc' },
+  });
+  return rows.map(lapsedFromRow).filter((l): l is LapsedEntitlement => l !== null);
+}
+
+/** The most recent lapse among the keys that grant a tab, or null — what a locked tab's 403 and card say. */
+export async function lapsedTabAccess(userId: string, tabKey: string): Promise<LapsedEntitlement | null> {
+  return lapsedFor(keysGranting(tabKey), await getLapsedEntitlements(userId));
 }
