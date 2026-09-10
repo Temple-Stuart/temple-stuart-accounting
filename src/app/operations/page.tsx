@@ -16,8 +16,9 @@
  * Chrome (AppLayout, the entity provider, the identity bar) is the parent
  * src/app/operations/layout.tsx's.
  */
-import StepOpener from '@/components/shell/StepOpener';
-import { stepBySlug } from '@/lib/steps';
+import ToolOpener from '@/components/shell/ToolOpener';
+import { navToolsOfScreen } from '@/lib/nav';
+import { TOOL_GATE } from '@/lib/offer';
 import { OPERATIONS_PHASES, phaseFor } from '@/lib/operationsPhases';
 import OperationsRoom from './OperationsRoom';
 
@@ -29,12 +30,13 @@ export default async function OperationsPage({ searchParams }: {
   const params = await searchParams;
   const raw = typeof params.phase === 'string' ? params.phase : undefined;
   const { phase, fellBack } = phaseFor(raw);
-  const step = stepBySlug('operations')!;
+  // NAV-25: /operations is TWO tools' screen — Tasks (02) and Time (03). Each is named.
+  const tools = navToolsOfScreen('/operations', TOOL_GATE);
 
   return (
     <>
-      <StepOpener
-        step={step}
+      <ToolOpener
+        tools={tools}
         line="One day, top down — the plan, the calendar, the routines, the projects, the narrative, the log."
       />
 

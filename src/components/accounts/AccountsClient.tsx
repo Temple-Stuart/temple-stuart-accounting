@@ -24,8 +24,9 @@ import Script from 'next/script';
 import { useBankConnection } from '@/components/bank/useBankConnection';
 // SHELL-02: an entitlement refusal is a LOCK, never a red HTTP box.
 import RoomLock from '@/components/shell/RoomLock';
-import { stepBySlug } from '@/lib/steps';
-import StepOpener from '@/components/shell/StepOpener';
+import { navToolByName } from '@/lib/nav';
+import { TOOL_GATE } from '@/lib/offer';
+import ToolOpener from '@/components/shell/ToolOpener';
 import {
   ACCOUNT_GROUPS, groupAccounts, isReported, money, rowsOf, describeWord, when,
   type AccountRow, type ApiItem,
@@ -126,9 +127,9 @@ export default function AccountsClient() {
           inline note. RoomLock is the one mechanism; nothing here is a pitch. */}
       <RoomLock locked={state === 'locked'} stepName="Accounts">
         <>
-      {/* SHELL-02: the ONE opener — this page's shape became the standard. */}
-      <StepOpener
-        step={stepBySlug('accounts')!}
+      {/* NAV-25: the opener names the TOOL — /accounts is Banking's screen. */}
+      <ToolOpener
+        tools={[navToolByName('Banking', TOOL_GATE)]}
         line={`Every account you have connected, grouped by what it is.${state === 'ok' ? ` ${connected} connected.` : ''}`}
         actions={<>
           <button

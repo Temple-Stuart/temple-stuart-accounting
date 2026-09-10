@@ -5,15 +5,12 @@ import {
   FOLDED_ROUTES, OPERATIONS_HOME, OPERATIONS_PHASES, OperationsPhasesLawError,
   operationsHref, operationsPhasesLaw, phaseFor,
 } from '../operationsPhases';
-import { stepBySlug, stepLinks, stepsLaw } from '../steps';
-import { TOOL_REGISTRY, doorOf } from '../toolRegistry';
-
+import { navLaw, navToolByName, navToolsOfScreen } from '../nav';
+import { TOOL_GATE } from '../offer';
 // ROOM-02 — Operations is ONE room, read top down.
-
 const src = (f: string) => readFileSync(`${process.cwd()}/${f}`, 'utf8');
 /** The file with its comment lines stripped — a rule about CODE must not be satisfied, or broken, by prose. */
 const code = (f: string) => src(f).split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
-
 test('the six phases are one const, numbered top down, and the law holds on them', () => {
   assert.deepEqual(operationsPhasesLaw({ throwOnFail: false }), []);
   assert.equal(OPERATIONS_PHASES.length, 6);
@@ -28,7 +25,6 @@ test('the six phases are one const, numbered top down, and the law holds on them
     phases: OPERATIONS_PHASES.map((p, i) => (i === 0 ? { ...p, name: 'Plan' } : p)),
   }), OperationsPhasesLawError);
 });
-
 test('the phase named in ?phase= is the one the room renders', () => {
   for (const p of OPERATIONS_PHASES) {
     const got = phaseFor(p.key);
@@ -44,7 +40,6 @@ test('the phase named in ?phase= is the one the room renders', () => {
     assert.ok(room.includes(`case '${p.key}'`), `${p.key} has a body`);
   }
 });
-
 test('an unknown phase falls to 01 and the room says so — never a silent correction', () => {
   const missing = phaseFor(undefined);
   assert.equal(missing.phase.key, 'plan');
@@ -60,7 +55,6 @@ test('an unknown phase falls to 01 and the room says so — never a silent corre
   assert.match(page, /data-phase-fellback/, 'the note has a marker the screenshot pass can count');
   assert.match(page, /There is no/, 'the note names the phase the viewer typed');
 });
-
 test('every folded route resolves — a redirect into the room, ten lines or fewer', () => {
   for (const r of FOLDED_ROUTES) {
     const file = `src/app${r.path}/page.tsx`;
@@ -78,23 +72,21 @@ test('every folded route resolves — a redirect into the room, ten lines or few
     assert.ok(!tab.includes(`'${r.path.slice(1)}'`), `${r.path} is out of TAB_PATHS`);
   }
 });
-
-test('step 12 opens the room, and no folded route is a door', () => {
-  assert.deepEqual(stepsLaw({ throwOnFail: false }), []);
-  const step = stepBySlug('operations')!;
-  assert.equal(step.screen, OPERATIONS_HOME);
-  const hrefs = stepLinks(step).map((l) => (l.door.kind === 'none' ? 'none' : l.door.href));
-  for (const r of FOLDED_ROUTES) assert.ok(!hrefs.includes(r.path), `${r.path} is a phase, not a rail row`);
-  // /agenda is the ONE row left: it is an island, and this is its only door.
-  assert.deepEqual(hrefs, ['/agenda']);
-  // Tasks and Time now live in the room; neither keeps a cockpit door out of it.
+test('Tasks and Time open the room, and no folded route is a door', () => {
+  // NAV-25: the steps layer is gone; step 12 is now two tool rows, Tasks and Time.
+  assert.deepEqual(navLaw({ throwOnFail: false, gate: TOOL_GATE }), []);
+  const inRoom = navToolsOfScreen(OPERATIONS_HOME, TOOL_GATE).map((t) => t.name);
+  assert.deepEqual(inRoom, ['Tasks', 'Time'], 'both of the room\'s tools open it');
   for (const name of ['Tasks', 'Time'] as const) {
-    const tool = TOOL_REGISTRY.find((t) => t.name === name)!;
-    const door = doorOf(tool);
-    assert.equal(door.kind === 'none' ? 'none' : door.href, OPERATIONS_HOME, `${name}'s door is the room`);
+    const tool = navToolByName(name, TOOL_GATE);
+    assert.equal(tool.href, OPERATIONS_HOME, `${name}'s door is the room`);
+    for (const r of FOLDED_ROUTES) {
+      assert.ok(!tool.subRows.some((s) => s.door.href === r.path), `${r.path} is a phase inside the room, not a door`);
+    }
   }
+  // /agenda is Calendar's, and Calendar keeps it — the island's only door.
+  assert.equal(navToolByName('Calendar', TOOL_GATE).href, '/agenda');
 });
-
 test('the room mounts the existing components — no interior rewritten, one shell', () => {
   const room = src('src/app/operations/OperationsRoom.tsx');
   for (const c of ['SectionB_NorthStar', 'SectionC_DailyPlan', 'HubCalendar', 'SectionE_Routines', 'SectionD_ProjectBacklog', 'ContentPipeline', 'SectionK_AuditTail']) {

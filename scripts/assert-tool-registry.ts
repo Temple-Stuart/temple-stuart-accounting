@@ -11,7 +11,7 @@
  * rule: /agenda/[id] through /agenda). A page with no door fails the build.
  *
  * THE STEPS LAW (SHELL-01): the rail walks the sheet in FLOW ORDER — the
- * module-scope law of src/lib/steps.ts re-run here (every registry job in
+ * module-scope law of src/lib/nav.ts re-run here (every registry job in
  * exactly one step; every step in one family, holding that family's jobs; the
  * families in flow order; steps 1..12 with no gaps; a roomless step holds
  * nothing LIVE), plus what only the filesystem can answer: every step's screen
@@ -91,7 +91,9 @@ import { resolve } from 'node:path';
 import { readdirSync, statSync } from 'node:fs';
 import { PROBLEM_SHEET } from '../src/lib/problemSheet';
 import { EXPECTED_STATUS_COUNTS, FAMILY_READS, TOOL_REGISTRY, registryLaw, statusCounts } from '../src/lib/toolRegistry';
-import { FLOW_ORDER, STEPS, stepHref, stepLinks, stepStatus, stepsLaw, stepsOf, toolsOfStep } from '../src/lib/steps';
+import { HOME_ANSWER, HOME_OWNER, HOME_PHASES, navFamilies, navLaw, navRows } from '../src/lib/nav';
+import { TOOL_GATE } from '../src/lib/offer';
+import { PIPE_PHASES } from '../src/lib/pipePhases';
 import { OWNER_UTILITIES } from '../src/lib/shellMenu';
 import { ANSWERS_HOME, ANSWER_READS, ANSWER_ROWS, NET_WORTH_READ, answersLaw } from '../src/lib/answers';
 import { ARRIVAL_KINDS, PROVIDERS, PROVIDER_CODES, ROUTING_RULES, RULE_BOOK, providersLaw, ruleFor } from '../src/lib/providers';
@@ -208,15 +210,18 @@ const doors: Door[] = [];
 // carries the same steps plus each family's reads (pages that read across a
 // family and belong to no single job).
 doors.push({ route: ANSWERS_HOME, kind: 'rail', via: 'Home · the rail\'s first entry' });
-for (const step of STEPS) {
-  doors.push({ route: stepHref(step), kind: 'rail', via: `${step.number}. ${step.name}` });
-  for (const l of stepLinks(step)) {
-    if (l.door.kind !== 'none') doors.push({ route: l.door.href, kind: 'rail', via: `${step.number}. ${step.name} · "${l.label}"` });
-  }
+// NAV-25: the rail's doors are its twenty-five TOOL rows, and under the open
+// one, the pages that tool owns. A NOT_BUILT tool has no link, so it opens
+// nothing and contributes no door — which is the point: nothing pretends.
+for (const tool of navRows(TOOL_GATE)) {
+  if (tool.href) doors.push({ route: tool.href, kind: 'rail', via: `${tool.n}. ${tool.name}` });
+  for (const sub of tool.subRows) doors.push({ route: sub.door.href, kind: 'rail', via: `${tool.n}. ${tool.name} · "${sub.label}"` });
 }
-for (const f of FLOW_ORDER) {
-  for (const step of stepsOf(f)) doors.push({ route: stepHref(step), kind: 'sheet', via: `${f} · ${step.name}` });
-  for (const r of FAMILY_READS[f] ?? []) doors.push({ route: r.href as string, kind: 'sheet', via: `${f} · read "${r.label}"` });
+for (const family of navFamilies(TOOL_GATE)) {
+  for (const tool of family.tools) {
+    if (tool.href) doors.push({ route: tool.href, kind: 'sheet', via: `${family.name} · ${tool.name}` });
+  }
+  for (const r of FAMILY_READS[family.name] ?? []) doors.push({ route: r.href as string, kind: 'sheet', via: `${family.name} · read "${r.label}"` });
 }
 for (const u of OWNER_UTILITIES) doors.push({ route: u.href, kind: 'utilities menu', via: u.label });
 for (const g of GUEST_ROUTES) doors.push({ route: g.route, kind: 'listed route', via: g.why });
@@ -275,39 +280,52 @@ function mountsShell(pageFile: string): boolean {
   return false;
 }
 
-// ── THE STEPS LAW (SHELL-01) ────────────────────────────────────────────────
-violations.push(...stepsLaw({ throwOnFail: false }));
-console.log('THE STEPS — the rail walks the sheet in flow order');
-for (const step of STEPS) {
-  const tools = toolsOfStep(step);
-  const rooms = stepLinks(step).map((l) => (l.door.kind === 'none' ? '—' : l.door.href));
-  console.log(
-    `${String(step.number).padStart(2, '0')}  ${step.name.padEnd(11)} ${step.family.padEnd(13)} ${stepStatus(step, tools).padEnd(9)} ${stepHref(step).padEnd(16)} ${tools.map((t) => t.name).join(' · ').padEnd(46)} ${rooms.join(' ')}`,
-  );
-  if (step.screen !== null) {
-    const file = pageFor(step.screen, tabs);
-    if (!file) violations.push(`${step.name}: screen ${step.screen} has no page file`);
-    // ACCOUNTS-01: and that page wears the shell, so the rail is present in the room.
-    else if (!mountsShell(file)) violations.push(`${step.name}: ${step.screen} (${file}) mounts no shell — the rail must be on every step's screen (AppLayout or the cockpit, in the page or a layout above it)`);
+// ── THE NAV LAW (NAV-25) ────────────────────────────────────────────────────
+const PHASE_TOTAL = Object.values(PIPE_PHASES).reduce((n, ps) => n + ps.length, 0);
+// The steps layer is gone: the rail IS the sheet — six families in registry
+// order, twenty-five tool rows in registry order, one pipe's phases per tool.
+violations.push(...navLaw({ throwOnFail: false, gate: TOOL_GATE }));
+console.log('THE SHEET — six families, twenty-five tools, the phases each owns');
+for (const family of navFamilies(TOOL_GATE)) {
+  console.log(family.name);
+  for (const tool of family.tools) {
+    const phases = tool.phases.length
+      ? tool.phases.map((p) => `${p.pipe}·${p.num}${p.rendersSurface ? '' : '*'}`).join(' ')
+      : '—';
+    console.log(
+      `  ${String(tool.n).padStart(2, '0')}  ${tool.name.padEnd(13)} ${tool.status.padEnd(10)} ${(tool.href ?? '(no link)').padEnd(17)} ${(tool.gate ?? 'free').padEnd(16)} ${phases}`,
+    );
+    for (const sub of tool.subRows) console.log(`        └ ${sub.label} → ${sub.door.href}`);
   }
 }
-// A step with no room opens ONE page — the honest one that states its jobs.
-const STEP_PAGE = 'src/app/step/[slug]/page.tsx';
-if (!existsSync(resolve(ROOT, STEP_PAGE))) violations.push(`${STEP_PAGE} is missing — a step with no room opens it`);
-// The rail and the sheet render FROM steps.ts, never a retyped list.
+console.log(`  ${HOME_OWNER.padStart(6)}  (not a tool — "${HOME_ANSWER}")  ${HOME_PHASES.map((p) => `${p.pipe}·${p.num}${p.rendersSurface ? '' : '*'}`).join(' ')}`);
+console.log('  * a phase the code declares renders no surface — recorded, not tidied away');
+// Every built tool's screen is a page file that wears the shell, so the rail is
+// present in the room. A not-built tool has no screen to check — by law.
+for (const tool of navRows(TOOL_GATE)) {
+  if (!tool.href) continue;
+  const file = pageFor(tool.href, tabs);
+  if (!file) violations.push(`${tool.name}: screen ${tool.href} has no page file`);
+  else if (!mountsShell(file)) violations.push(`${tool.name}: ${tool.href} (${file}) mounts no shell — the rail must be on every tool's screen (AppLayout or the cockpit, in the page or a layout above it)`);
+}
+// The steps layer must stay gone — its module, its opener and its page.
+for (const gone of ['src/lib/steps.ts', 'src/components/shell/StepOpener.tsx', 'src/app/step/[slug]/page.tsx']) {
+  if (existsSync(resolve(ROOT, gone))) violations.push(`${gone} is back — NAV-25 deleted the steps layer; the rail renders the twenty-five tools from src/lib/nav.ts`);
+}
+// The rail and the sheet render FROM nav.ts, never a retyped list.
 const RAIL = 'src/components/shell/Rail.tsx';
 const SHEET = 'src/components/shell/TheSheet.tsx';
 const railSrc = existsSync(resolve(ROOT, RAIL)) ? readFileSync(resolve(ROOT, RAIL), 'utf8') : '';
 const sheetSrc = existsSync(resolve(ROOT, SHEET)) ? readFileSync(resolve(ROOT, SHEET), 'utf8') : '';
 if (!railSrc) violations.push(`${RAIL} is missing — it is the navigation`);
-for (const token of ['FLOW_ORDER', 'stepsOf(', 'stepLinks(', 'stepStatus(']) {
-  if (railSrc && !railSrc.includes(token)) violations.push(`${RAIL} must render from steps.ts (${token}) — never a retyped list`);
+for (const token of ['navFamilies(', "from '@/lib/nav'"]) {
+  if (railSrc && !railSrc.includes(token)) violations.push(`${RAIL} must render from nav.ts (${token}) — never a retyped list`);
 }
 // Real access, not the word: the file's own comment says it stores nothing.
-if (railSrc && /(?:local|session)Storage\s*[.[]/.test(railSrc)) violations.push(`${RAIL} must keep open/collapsed in React state only — no browser storage (SHELL-01)`);
+if (railSrc && /(?:local|session)Storage\s*[.[]/.test(railSrc)) violations.push(`${RAIL} must keep open/collapsed in React state only — no browser storage`);
 if (!sheetSrc) violations.push(`${SHEET} is missing — HOME carries the whole sheet`);
-for (const token of ['FLOW_ORDER', 'stepsOf(', 'toolsOfStep(']) {
-  if (sheetSrc && !sheetSrc.includes(token)) violations.push(`${SHEET} must render from steps.ts (${token}) — never a retyped list`);
+for (const token of ['navFamilies(', "from '@/lib/nav'"]) {
+  if (sheetSrc && !sheetSrc.includes(token)) violations.push(`${SHEET} must render from nav.ts (${token}) — never a retyped list`);
 }
 const HOME_CLIENT = 'src/components/answers/AnswersClient.tsx';
 const homeSrc = readFileSync(resolve(ROOT, HOME_CLIENT), 'utf8');
@@ -563,7 +581,7 @@ if (violations.length) {
 const raised = violations.length;
 console.log('✔ Tool registry law passed — 25/25 cells, homes resolve to page files, counts match the census.');
 console.log(`✔ Reachability law passed — ${pages.length} pages, every one has a door (the rail, the sheet, the utilities menu, a listed route, or a redirect to one).`);
-console.log(`✔ The steps law passed — ${STEPS.length} steps over ${FLOW_ORDER.length} families in flow order, every one of ${TOOL_REGISTRY.length} jobs walked once, every screen a page file that wears the shell; the rail and the sheet render from steps.ts.`);
+console.log(`✔ The nav law passed — ${navFamilies(TOOL_GATE).length} families and ${navRows(TOOL_GATE).length} tools, both in TOOL_REGISTRY's order; ${PHASE_TOTAL} phases from pipePhases.ts each owned by exactly one of them or by ${HOME_OWNER}; every built tool's screen is a page file that wears the shell; the rail and the sheet render from nav.ts.`);
 console.log(`✔ The answers law passed — ${ANSWER_ROWS.length}/4 questions on ${ANSWERS_HOME}, every number sourced.`);
 // ── THE KIND-VIEWS LAW (TABLES-01) ──────────────────────────────────────────
 const viewsMigration = ALL_MIGRATIONS.find((m) => m.dir.endsWith('_kind_views'));

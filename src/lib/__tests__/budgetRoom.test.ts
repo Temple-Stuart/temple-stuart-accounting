@@ -5,7 +5,8 @@ import {
   BUDGET_CATEGORIES, BUDGET_HOME, COLLAPSED_MODULES, BudgetCategoriesLawError,
   budgetCategoriesLaw, budgetHref, categoryFor,
 } from '../budgetCategories';
-import { STEPS, stepBySlug, stepLinks, stepsLaw } from '../steps';
+import { navLaw, navToolByName, navRows } from '../nav';
+import { TOOL_GATE } from '../offer';
 import { TOOL_REGISTRY } from '../toolRegistry';
 
 // ROOM-01 — Budget is ONE room: six category pages became a switcher.
@@ -56,21 +57,19 @@ test('the six legacy routes are redirects to the room, and each one resolves', (
   assert.equal(budgetHref('auto'), '/budget?category=auto');
 });
 
-test('step 11 opens /budget, and no category page is a sub-link anywhere', () => {
-  assert.deepEqual(stepsLaw({ throwOnFail: false }), []);
-  const step = stepBySlug('budget')!;
-  assert.equal(step.number, 11);
-  assert.equal(step.screen, BUDGET_HOME);
+test('Budget opens /budget, and no category page is a door anywhere', () => {
+  // NAV-25: the steps layer is gone; the rail's rows are the twenty-five tools.
+  assert.deepEqual(navLaw({ throwOnFail: false, gate: TOOL_GATE }), []);
+  const budget = navToolByName('Budget', TOOL_GATE);
+  assert.equal(budget.href, BUDGET_HOME);
   assert.equal(TOOL_REGISTRY.find((t) => t.name === 'Budget')?.home, BUDGET_HOME);
   const legacy = new Set(BUDGET_CATEGORIES.map((c) => c.legacyPath));
-  for (const s of STEPS) {
-    for (const l of stepLinks(s)) {
-      assert.ok(!legacy.has(l.door.kind === 'none' ? '' : l.door.href), `${s.name} still links ${l.label}`);
-    }
+  for (const tool of navRows(TOOL_GATE)) {
+    if (tool.href) assert.ok(!legacy.has(tool.href), `${tool.name} opens the category page ${tool.href}`);
+    for (const sub of tool.subRows) assert.ok(!legacy.has(sub.door.href), `${tool.name} still links ${sub.label}`);
   }
-  // What BUDGET keeps: Shopping, the itinerary builder and Runway — reported, not moved.
-  const kept = stepLinks(stepBySlug('budget')!).map((l) => (l.door.kind === 'none' ? '' : l.door.href));
-  assert.deepEqual(kept, ['/shopping', '/hub/itinerary', '/runway']);
+  // What Budget keeps: Shopping, the itinerary builder and Runway — reported, not moved.
+  assert.deepEqual(budget.subRows.map((r) => r.door.href), ['/shopping', '/hub/itinerary', '/runway']);
 });
 
 test('only the PROVABLY identical routes were collapsed — business and home kept their own', () => {
