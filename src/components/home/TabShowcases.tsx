@@ -136,7 +136,7 @@ export function TradeShowcase({ currentUserId, onRequireAuth, offerAvailability 
         eyebrow: 'Trade — the scanner',
         headline: 'An entire index in full focus. One decision out.',
         subcopy:
-          'Pick your universe — the S&P 500 (475 stocks) or the Nasdaq 100 (101), with more indexes already wired into the engine. Live prices from TastyTrade. Company numbers from Finnhub. Macro from FRED. Filings from SEC EDGAR. The mood from Grok. Twenty steps and four gates later you get a sized suggestion — or an honest NO TRADE.',
+          'Pick your universe — the S&P 500 (475 stocks) or the Nasdaq 100 (101), with more indexes already wired into the engine. Live prices from TastyTrade. Company numbers from Finnhub. Macro from FRED. Filings from SEC EDGAR. Twenty steps and four gates later you get a sized suggestion — or an honest NO TRADE.',
         cta: <UnlockTradeButton currentUserId={currentUserId} onRequireAuth={onRequireAuth} />,
         panel: <HeroTerminalPanel />,
       }}

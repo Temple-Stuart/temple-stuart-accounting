@@ -39,7 +39,6 @@ export interface EdgeMetrics {
   minEvPerRisk: number;         // ratio, default 0
   volEdge: VolEdge;
   minIvRank: number;            // 0-100, default 0
-  minSentiment: number;         // -100 to 100 (display as -1.0 to 1.0), default -100
 }
 
 // ── Combined Filter State ───────────────────────────────────────────
@@ -73,7 +72,6 @@ export const DEFAULT_FILTERS: ScannerFilters = {
     minEvPerRisk: 0,
     volEdge: 'ANY',
     minIvRank: 0,
-    minSentiment: -100,
   },
 };
 

@@ -72,12 +72,22 @@ export interface FinnhubBatchStats {
 
 const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-async function fetchWithRetry(url: string): Promise<Response> {
+/**
+ * PIPE-01: ONE call, never two. This used to wait 5s on HTTP 429 and refire —
+ * which bills the throttled call twice for an answer the vendor has just said
+ * it will not give, and hides the throttle from every caller. The throttle is
+ * now SURFACED: the 429 response is returned as-is, so each caller's existing
+ * `!resp.ok` branch declares `HTTP 429` on its own error channel and the run
+ * reports being rate-limited instead of quietly paying double for it.
+ *
+ * Kept as a named wrapper (not inlined) so the log line stays and so there is
+ * one place to add a real backoff — a queue with a budget — if Alex ever wants
+ * one. A retry is a cost decision, not a plumbing detail.
+ */
+async function fetchOnce(url: string): Promise<Response> {
   const resp = await fetch(url);
   if (resp.status === 429) {
-    console.warn(`[Finnhub] 429 rate limit on ${url.split('?')[0]}, waiting 5s and retrying...`);
-    await delay(5000);
-    return fetch(url);
+    console.warn(`[Finnhub] 429 rate limit on ${url.split('?')[0]} — NOT retried; the caller reports the throttle`);
   }
   return resp;
 }
@@ -107,10 +117,10 @@ async function fetchFinnhubEstimates(symbol: string, key: string): Promise<Finnh
   };
 
   const [epsResp, revResp, ptResp, udResp] = await Promise.all([
-    fetchWithRetry(`https://finnhub.io/api/v1/stock/eps-estimate?symbol=${symbol}&freq=quarterly&token=${key}`).catch((e) => { declare('eps-estimate', e); return null; }),
-    fetchWithRetry(`https://finnhub.io/api/v1/stock/revenue-estimate?symbol=${symbol}&freq=quarterly&token=${key}`).catch((e) => { declare('revenue-estimate', e); return null; }),
-    fetchWithRetry(`https://finnhub.io/api/v1/stock/price-target?symbol=${symbol}&token=${key}`).catch((e) => { declare('price-target', e); return null; }),
-    fetchWithRetry(`https://finnhub.io/api/v1/stock/upgrade-downgrade?symbol=${symbol}&token=${key}`).catch((e) => { declare('upgrade-downgrade', e); return null; }),
+    fetchOnce(`https://finnhub.io/api/v1/stock/eps-estimate?symbol=${symbol}&freq=quarterly&token=${key}`).catch((e) => { declare('eps-estimate', e); return null; }),
+    fetchOnce(`https://finnhub.io/api/v1/stock/revenue-estimate?symbol=${symbol}&freq=quarterly&token=${key}`).catch((e) => { declare('revenue-estimate', e); return null; }),
+    fetchOnce(`https://finnhub.io/api/v1/stock/price-target?symbol=${symbol}&token=${key}`).catch((e) => { declare('price-target', e); return null; }),
+    fetchOnce(`https://finnhub.io/api/v1/stock/upgrade-downgrade?symbol=${symbol}&token=${key}`).catch((e) => { declare('upgrade-downgrade', e); return null; }),
   ]);
 
   if (epsResp?.ok) {
@@ -210,7 +220,7 @@ export async function fetchFinnhubTicker(
 
   // 1. Fundamentals
   try {
-    const resp = await fetchWithRetry(
+    const resp = await fetchOnce(
       `https://finnhub.io/api/v1/stock/metric?symbol=${symbol}&metric=all&token=${key}`,
     );
     if (resp.ok) {
@@ -226,7 +236,7 @@ export async function fetchFinnhubTicker(
 
   // 2. Recommendations
   try {
-    const resp = await fetchWithRetry(
+    const resp = await fetchOnce(
       `https://finnhub.io/api/v1/stock/recommendation?symbol=${symbol}&token=${key}`,
     );
     if (resp.ok) {
@@ -243,7 +253,7 @@ export async function fetchFinnhubTicker(
   // Rolling 18-month window for insider sentiment data
   const insiderFrom = new Date(Date.now() - 18 * 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   try {
-    const resp = await fetchWithRetry(
+    const resp = await fetchOnce(
       `https://finnhub.io/api/v1/stock/insider-sentiment?symbol=${symbol}&from=${insiderFrom}&token=${key}`,
     );
     if (resp.ok) {
@@ -258,7 +268,7 @@ export async function fetchFinnhubTicker(
 
   // 4. Earnings
   try {
-    const resp = await fetchWithRetry(
+    const resp = await fetchOnce(
       `https://finnhub.io/api/v1/stock/earnings?symbol=${symbol}&token=${key}`,
     );
     if (resp.ok) {
@@ -385,7 +395,7 @@ export async function fetchAnnualFinancials(
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
   try {
-    const resp = await fetchWithRetry(
+    const resp = await fetchOnce(
       `https://finnhub.io/api/v1/stock/financials-reported?symbol=${symbol}&freq=annual&token=${key}`,
     );
     if (!resp.ok) {
@@ -442,9 +452,9 @@ export async function fetchQuarterlyFinancials(
       return null;
     };
     const [bsResp, icResp, cfResp] = await Promise.all([
-      fetchWithRetry(`https://finnhub.io/api/v1/stock/financials?symbol=${symbol}&statement=bs&freq=quarterly&token=${key}`).catch(stmtFail('bs')),
-      fetchWithRetry(`https://finnhub.io/api/v1/stock/financials?symbol=${symbol}&statement=ic&freq=quarterly&token=${key}`).catch(stmtFail('ic')),
-      fetchWithRetry(`https://finnhub.io/api/v1/stock/financials?symbol=${symbol}&statement=cf&freq=quarterly&token=${key}`).catch(stmtFail('cf')),
+      fetchOnce(`https://finnhub.io/api/v1/stock/financials?symbol=${symbol}&statement=bs&freq=quarterly&token=${key}`).catch(stmtFail('bs')),
+      fetchOnce(`https://finnhub.io/api/v1/stock/financials?symbol=${symbol}&statement=ic&freq=quarterly&token=${key}`).catch(stmtFail('ic')),
+      fetchOnce(`https://finnhub.io/api/v1/stock/financials?symbol=${symbol}&statement=cf&freq=quarterly&token=${key}`).catch(stmtFail('cf')),
     ]);
 
     type FinRow = Record<string, number | string | null | undefined>;
@@ -873,38 +883,62 @@ function computePeriodSentiment(headlines: NewsHeadlineEntry[]): NewsSentimentPe
 
 const SEC_USER_AGENT = 'TempleStuart/1.0 (astuart@templestuart.com)';
 
-// CIK cache: CIK never changes, cache 30 days
-const cikCache = new Map<string, { cik: string; fetchedAt: number }>();
+// PIPE-01: the CIK now comes from SEC's own ticker file — free, public, and
+// ONE fetch for every symbol in the process. It used to come from Finnhub
+// /stock/profile2, a METERED call per uncached symbol, for a number the SEC
+// publishes. The observatory's feed 21 proved they agree (both CIK 789019 for
+// MSFT). No fallback to the metered endpoint: if SEC cannot be reached, the
+// lookup says so and the caller reports it.
+//
+// CIK never changes; the whole map is cached for 30 days.
 const CIK_CACHE_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days
+const SEC_TICKERS_URL = 'https://www.sec.gov/files/company_tickers.json';
+const SEC_UA = { 'User-Agent': 'TempleStuart/1.0 (astuart@templestuart.com)', Accept: 'application/json' };
+let cikMapCache: { map: Map<string, string>; fetchedAt: number } | null = null;
+let cikMapInFlight: Promise<Map<string, string>> | null = null;
 
-async function lookupCIK(
-  symbol: string,
-  finnhubApiKey?: string,
-): Promise<string | null> {
-  const cached = cikCache.get(symbol);
-  if (cached && Date.now() - cached.fetchedAt < CIK_CACHE_TTL) {
-    return cached.cik;
+/** The ticker → 10-digit CIK map, fetched once. Throws with a stated reason; never returns a half map. */
+async function fetchCIKMap(): Promise<Map<string, string>> {
+  const resp = await fetch(SEC_TICKERS_URL, { headers: SEC_UA });
+  if (!resp.ok) throw new Error(`SEC company_tickers.json HTTP ${resp.status}`);
+  const json = await resp.json();
+  const rows = json && typeof json === 'object' ? Object.values(json as Record<string, unknown>) : [];
+  if (rows.length === 0) throw new Error('SEC company_tickers.json returned no rows');
+  const map = new Map<string, string>();
+  for (const row of rows) {
+    const r = row as { ticker?: unknown; cik_str?: unknown };
+    if (typeof r.ticker !== 'string' || r.cik_str == null) continue;
+    map.set(r.ticker.toUpperCase(), String(r.cik_str).padStart(10, '0'));
   }
+  if (map.size === 0) throw new Error('SEC company_tickers.json held no ticker/cik pair');
+  return map;
+}
 
-  const key = finnhubApiKey || process.env.FINNHUB_API_KEY;
-  if (!key) return null;
+export interface CIKLookup {
+  cik: string | null;
+  /** Why there is no CIK. null when one was found. A failure NEVER reads as "no such filer". */
+  error: string | null;
+}
 
-  try {
-    const resp = await fetchWithRetry(
-      `https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${key}`,
-    );
-    if (!resp.ok) return null;
-    const json = await resp.json();
-    const cik = json?.cik;
-    if (!cik) return null;
-
-    // Pad CIK to 10 digits (SEC format)
-    const paddedCik = String(cik).padStart(10, '0');
-    cikCache.set(symbol, { cik: paddedCik, fetchedAt: Date.now() });
-    return paddedCik;
-  } catch {
-    return null;
+async function lookupCIK(symbol: string): Promise<CIKLookup> {
+  if (!cikMapCache || Date.now() - cikMapCache.fetchedAt >= CIK_CACHE_TTL) {
+    try {
+      // One in-flight fetch serves every concurrent caller.
+      cikMapInFlight = cikMapInFlight ?? fetchCIKMap();
+      const map = await cikMapInFlight;
+      cikMapCache = { map, fetchedAt: Date.now() };
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error('[CIK] SEC lookup failed:', msg);
+      return { cik: null, error: `CIK lookup failed: ${msg}` };
+    } finally {
+      cikMapInFlight = null;
+    }
   }
+  const cik = cikMapCache.map.get(symbol.toUpperCase()) ?? null;
+  return cik
+    ? { cik, error: null }
+    : { cik: null, error: `CIK lookup failed: ${symbol} is not in SEC company_tickers.json` };
 }
 
 // SEC filing data cache: 1 hour
@@ -913,7 +947,6 @@ const SEC_FILING_CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
 export async function fetchSECFilingData(
   symbol: string,
-  finnhubApiKey?: string,
 ): Promise<{ data: SECFilingData | null; error: string | null }> {
   const cached = secFilingCache.get(symbol);
   if (cached && Date.now() - cached.fetchedAt < SEC_FILING_CACHE_TTL) {
@@ -921,9 +954,11 @@ export async function fetchSECFilingData(
   }
 
   // Step 1: Look up CIK
-  const cik = await lookupCIK(symbol, finnhubApiKey);
+  // PIPE-01: the reason travels with the failure — a SEC outage must not read
+  // as "this filer does not exist".
+  const { cik, error: cikError } = await lookupCIK(symbol);
   if (!cik) {
-    return { data: null, error: 'sec-edgar: CIK lookup failed' };
+    return { data: null, error: `sec-edgar: ${cikError ?? 'CIK lookup failed'}` };
   }
 
   try {
@@ -1034,7 +1069,7 @@ export async function fetchInsiderTransactions(
   try {
     // Fetch last 90 days of insider transactions
     const fromDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const resp = await fetchWithRetry(
+    const resp = await fetchOnce(
       `https://finnhub.io/api/v1/stock/insider-transactions?symbol=${symbol}&from=${fromDate}&token=${key}`,
     );
     if (!resp.ok) {
@@ -1206,7 +1241,7 @@ export async function fetchPeerTickers(
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
   try {
-    const resp = await fetchWithRetry(
+    const resp = await fetchOnce(
       `https://finnhub.io/api/v1/stock/peers?symbol=${symbol}&grouping=industry&token=${key}`,
     );
     if (!resp.ok) {
@@ -1242,7 +1277,6 @@ const SEC_FORM4_CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
 export async function fetchSECForm4Data(
   symbol: string,
-  finnhubApiKey?: string,
 ): Promise<{ data: SECForm4Data | null; error: string | null }> {
   const cached = secForm4Cache.get(symbol);
   if (cached && Date.now() - cached.fetchedAt < SEC_FORM4_CACHE_TTL) {
@@ -1250,9 +1284,11 @@ export async function fetchSECForm4Data(
   }
 
   // Step 1: Get CIK (reuses existing CIK lookup + cache)
-  const cik = await lookupCIK(symbol, finnhubApiKey);
+  // PIPE-01: the reason travels with the failure — a SEC outage must not read
+  // as "this filer does not exist".
+  const { cik, error: cikError } = await lookupCIK(symbol);
   if (!cik) {
-    return { data: null, error: 'sec-form4: CIK lookup failed' };
+    return { data: null, error: `sec-form4: ${cikError ?? 'CIK lookup failed'}` };
   }
 
   try {
@@ -1546,7 +1582,6 @@ const PRODUCT_INDICATORS = new Set([
 
 export async function fetch10KBusinessDescription(
   symbol: string,
-  finnhubApiKey?: string,
 ): Promise<{ data: CompanyTextProfile | null; error: string | null }> {
   const cached = tenKTextCache.get(symbol);
   if (cached && Date.now() - cached.fetchedAt < TEN_K_TEXT_CACHE_TTL) {
@@ -1554,9 +1589,11 @@ export async function fetch10KBusinessDescription(
   }
 
   // Step 1: Get CIK (reuses existing CIK lookup + cache)
-  const cik = await lookupCIK(symbol, finnhubApiKey);
+  // PIPE-01: the reason travels with the failure — a SEC outage must not read
+  // as "this filer does not exist".
+  const { cik, error: cikError } = await lookupCIK(symbol);
   if (!cik) {
-    return { data: null, error: 'sec-10k-text: CIK lookup failed' };
+    return { data: null, error: `sec-10k-text: ${cikError ?? 'CIK lookup failed'}` };
   }
 
   try {
@@ -1795,6 +1832,18 @@ function extractTopTerms(words: string[], n: number): string[] {
 
 // ===== FINNHUB INSTITUTIONAL OWNERSHIP FETCHER =====
 
+/** One holder row as /stock/ownership and /stock/fund-ownership return it. */
+type OwnershipEntry = { name?: string; share?: number; change?: number; filingDate?: string };
+
+/**
+ * PIPE-01: the raw /stock/fund-ownership rows, cached per symbol so the scan
+ * buys them ONCE. fetchFinnhubInstitutionalOwnership (Step E6) fetches them and
+ * fills this; fetchFinnhubFundOwnership (Step I5) reads it instead of paying
+ * again. Same TTL as the ownership cache it rides along with.
+ */
+const fundOwnershipRawCache = new Map<string, { rows: OwnershipEntry[]; fetchedAt: number }>();
+const FUND_OWNERSHIP_RAW_TTL = 60 * 60 * 1000; // 1 hour
+
 const institutionalOwnershipCache = new Map<string, { data: FinnhubInstitutionalOwnership; fetchedAt: number }>();
 const INSTITUTIONAL_OWNERSHIP_CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
@@ -1820,11 +1869,13 @@ export async function fetchFinnhubInstitutionalOwnership(
       return null;
     };
     const [ownershipResp, fundResp] = await Promise.all([
-      fetchWithRetry(`https://finnhub.io/api/v1/stock/ownership?symbol=${symbol}&token=${key}`).catch(ownFail('ownership')),
-      fetchWithRetry(`https://finnhub.io/api/v1/stock/fund-ownership?symbol=${symbol}&token=${key}`).catch(ownFail('fund-ownership')),
+      fetchOnce(`https://finnhub.io/api/v1/stock/ownership?symbol=${symbol}&token=${key}`).catch(ownFail('ownership')),
+      // PIPE-01: ONE fund-ownership call per symbol per scan. Step I5
+      // (fetchFinnhubFundOwnership) used to GET the same endpoint again; it now
+      // reads the array this call caches below.
+      fetchOnce(`https://finnhub.io/api/v1/stock/fund-ownership?symbol=${symbol}&token=${key}`).catch(ownFail('fund-ownership')),
     ]);
 
-    type OwnershipEntry = { share?: number; change?: number; filingDate?: string };
 
     let holders: OwnershipEntry[] = [];
 
@@ -1841,7 +1892,11 @@ export async function fetchFinnhubInstitutionalOwnership(
     if (fundResp?.ok) {
       try {
         const json = await fundResp.json();
-        if (Array.isArray(json?.ownership)) holders.push(...(json.ownership as OwnershipEntry[]));
+        if (Array.isArray(json?.ownership)) {
+          // PIPE-01: cache the raw array for Step I5, which used to buy it twice.
+          fundOwnershipRawCache.set(symbol, { rows: json.ownership as OwnershipEntry[], fetchedAt: Date.now() });
+          holders.push(...(json.ownership as OwnershipEntry[]));
+        }
       } catch (e: unknown) {
         // KILL-4: parse failure declared, holders from this endpoint excluded
         ownershipFailures.push(`fund-ownership parse: ${e instanceof Error ? e.message : String(e)}`);
@@ -1916,7 +1971,7 @@ export async function fetchFinnhubRevenueBreakdown(
 
   try {
     // v2 endpoint — granted under Premium Package 1 (v1 /stock/revenue-breakdown is NOT granted)
-    const resp = await fetchWithRetry(
+    const resp = await fetchOnce(
       `https://finnhub.io/api/v1/stock/revenue-breakdown2?symbol=${symbol}&token=${key}`,
     );
     if (!resp.ok) {
@@ -2020,7 +2075,7 @@ export async function fetchFinnhubNewsSentiment(
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
   try {
-    const resp = await fetchWithRetry(
+    const resp = await fetchOnce(
       `https://finnhub.io/api/v1/news-sentiment?symbol=${symbol}&token=${key}`,
     );
     if (!resp.ok) {
@@ -2070,7 +2125,7 @@ export async function fetchFinnhubEarningsQuality(
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
   try {
-    const resp = await fetchWithRetry(
+    const resp = await fetchOnce(
       `https://finnhub.io/api/v1/stock/earnings-quality-score?symbol=${symbol}&freq=quarterly&token=${key}`,
     );
     if (!resp.ok) {
@@ -2139,10 +2194,10 @@ export async function fetchNewsSentiment(
 
     // Fetch both periods in parallel
     const [resp7d, resp8_30d] = await Promise.all([
-      fetchWithRetry(
+      fetchOnce(
         `https://finnhub.io/api/v1/company-news?symbol=${symbol}&from=${from7d}&to=${toDate}&token=${key}`,
       ),
-      fetchWithRetry(
+      fetchOnce(
         `https://finnhub.io/api/v1/company-news?symbol=${symbol}&from=${from30d}&to=${to8d}&token=${key}`,
       ),
     ]);
@@ -2401,7 +2456,7 @@ export async function fetchFinnhubEbitdaEstimates(
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
   try {
-    const resp = await fetchWithRetry(
+    const resp = await fetchOnce(
       `https://finnhub.io/api/v1/stock/ebitda-estimate?symbol=${symbol}&freq=quarterly&token=${key}`,
     );
     if (!resp.ok) return { data: null, error: `ebitda-estimate ${symbol}: HTTP ${resp.status}` };
@@ -2432,7 +2487,7 @@ export async function fetchFinnhubEbitEstimates(
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
   try {
-    const resp = await fetchWithRetry(
+    const resp = await fetchOnce(
       `https://finnhub.io/api/v1/stock/ebit-estimate?symbol=${symbol}&freq=quarterly&token=${key}`,
     );
     if (!resp.ok) return { data: null, error: `ebit-estimate ${symbol}: HTTP ${resp.status}` };
@@ -2466,7 +2521,7 @@ export async function fetchFinnhubDividendHistory(
   const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
   try {
-    const resp = await fetchWithRetry(
+    const resp = await fetchOnce(
       `https://finnhub.io/api/v1/stock/dividend?symbol=${symbol}&from=${oneYearAgo}&to=${today}&token=${key}`,
     );
     if (!resp.ok) return { data: null, error: `dividend ${symbol}: HTTP ${resp.status}` };
@@ -2502,7 +2557,7 @@ export async function fetchFinnhubPriceMetrics(
   const today = new Date().toISOString().slice(0, 10);
 
   try {
-    const resp = await fetchWithRetry(
+    const resp = await fetchOnce(
       `https://finnhub.io/api/v1/stock/price-metric?symbol=${symbol}&date=${today}&token=${key}`,
     );
     if (!resp.ok) return { data: null, error: `price-metric ${symbol}: HTTP ${resp.status}` };
@@ -2542,15 +2597,25 @@ export async function fetchFinnhubFundOwnership(
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
   try {
-    const resp = await fetchWithRetry(
-      `https://finnhub.io/api/v1/stock/fund-ownership?symbol=${symbol}&limit=10&token=${key}`,
-    );
-    if (!resp.ok) return { data: null, error: `fund-ownership ${symbol}: HTTP ${resp.status}` };
-
-    const json = await resp.json();
-    console.log(`[FundOwnership RAW] ${symbol}:`, JSON.stringify(json).slice(0, 500));
-    const raw = Array.isArray(json?.ownership) ? json.ownership : [];
-    const funds: FinnhubFundOwnershipEntry[] = raw.map((f: Record<string, unknown>) => ({
+    // PIPE-01: Step E6 already bought these rows this scan — read them, don't
+    // buy them again. The shape below is unchanged: the first 10 rows, exactly
+    // what `limit=10` returned. Only when nothing filled the cache (E6 skipped
+    // or its call failed) does this fetch, and then it is the ONLY call.
+    const cached = fundOwnershipRawCache.get(symbol);
+    let raw: Record<string, unknown>[];
+    if (cached && Date.now() - cached.fetchedAt < FUND_OWNERSHIP_RAW_TTL) {
+      raw = cached.rows as unknown as Record<string, unknown>[];
+    } else {
+      const resp = await fetchOnce(
+        `https://finnhub.io/api/v1/stock/fund-ownership?symbol=${symbol}&token=${key}`,
+      );
+      if (!resp.ok) return { data: null, error: `fund-ownership ${symbol}: HTTP ${resp.status}` };
+      const json = await resp.json();
+      raw = Array.isArray(json?.ownership) ? json.ownership : [];
+      fundOwnershipRawCache.set(symbol, { rows: raw as unknown as OwnershipEntry[], fetchedAt: Date.now() });
+    }
+    const top = raw.slice(0, 10);
+    const funds: FinnhubFundOwnershipEntry[] = top.map((f: Record<string, unknown>) => ({
       name: String(f.name ?? ''),
       share: typeof f.share === 'number' ? f.share : null,
       change: typeof f.change === 'number' ? f.change : null,
@@ -2560,8 +2625,10 @@ export async function fetchFinnhubFundOwnership(
     return {
       data: {
         symbol,
+        // Unchanged meaning: the count of the rows this row set holds, capped at
+        // 10 exactly as `limit=10` capped it before.
         funds,
-        totalFunds: Array.isArray(json?.ownership) ? json.ownership.length : null,
+        totalFunds: top.length,
       },
       error: null,
     };
@@ -2628,7 +2695,7 @@ export async function fetchFinnhubEarningsCalendar(
   const ninetyDaysAhead = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
   try {
-    const resp = await fetchWithRetry(
+    const resp = await fetchOnce(
       `https://finnhub.io/api/v1/calendar/earnings?symbol=${symbol}&from=${today}&to=${ninetyDaysAhead}&token=${key}`,
     );
     if (!resp.ok) return { data: null, error: `earnings-calendar ${symbol}: HTTP ${resp.status}` };

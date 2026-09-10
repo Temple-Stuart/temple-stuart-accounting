@@ -45,7 +45,6 @@ function countActiveFilters(filters: ScannerFilters): number {
   if (filters.edge.minEvPerRisk !== d.edge.minEvPerRisk) count++;
   if (filters.edge.volEdge !== d.edge.volEdge) count++;
   if (filters.edge.minIvRank !== d.edge.minIvRank) count++;
-  if (filters.edge.minSentiment !== d.edge.minSentiment) count++;
   return count;
 }
 
@@ -371,12 +370,6 @@ export default function FilterPanel({ filters, onChange }: FilterPanelProps & { 
                     min={0} max={100} step={1}
                     format={v => `${v}%`}
                     onChange={v => setEdge({ minIvRank: v })}
-                  />
-                  <SliderRow
-                    label="Min Sentiment" value={filters.edge.minSentiment}
-                    min={-100} max={100} step={10}
-                    format={v => (v / 100).toFixed(1)}
-                    onChange={v => setEdge({ minSentiment: v })}
                   />
                 </div>
               )}

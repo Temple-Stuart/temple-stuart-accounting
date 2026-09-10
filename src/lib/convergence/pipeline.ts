@@ -6,8 +6,6 @@ import type { FinnhubData, CandleBatchStats } from './data-fetchers';
 import { fetchChainAndBuildCards, isMarketOpen } from './chain-fetcher';
 import type { ChainFetchStats, ChainFetchResult, PerTickerChainStats } from './chain-fetcher';
 import type { RejectionReason, StrategyCard } from '@/lib/strategy-builder';
-import { fetchSentimentBatch } from './sentiment';
-import type { SentimentResult } from './sentiment';
 import { computePeerStats, computeTextPeerGroups } from './sector-stats';
 import type { PeerStatsMap, PeerGroupAssignment } from './sector-stats';
 import { scoreAll } from './composite';
@@ -145,7 +143,6 @@ export interface PipelineResult {
   full_trade_cards_per_ticker: Record<string, TradeCardData[]>;
   chain_stats_per_ticker: Record<string, PerTickerChainStats>;
   pre_filter: PreFilterResult[];
-  social_sentiment: Record<string, SentimentResult>;
   rejection_reasons: Record<string, RejectionReason[]>;
   data_gaps: string[];
   errors: string[];
@@ -1558,26 +1555,11 @@ export async function runPipeline(
       }),
   } });
 
-  // ===== STEP G1.5: Fetch social sentiment (parallel with G2) =====
-  const top9Symbols = top9.map(r => r.symbol);
-  const sentimentPromise = (async (): Promise<Map<string, SentimentResult>> => {
-    if (!process.env.XAI_API_KEY) {
-      console.log('[Pipeline] Step G1.5: XAI_API_KEY not set — skipping social sentiment');
-      return new Map();
-    }
-    try {
-      console.log(`[Pipeline] Step G1.5: Fetching social sentiment for ${top9Symbols.length} symbols...`);
-      const startMs = Date.now();
-      const results = await fetchSentimentBatch(top9Symbols, 5);
-      console.log(`[Pipeline] Step G1.5: Sentiment fetched in ${Date.now() - startMs}ms`);
-      return results;
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      errors.push(`Step G1.5 (sentiment): ${msg}`);
-      console.error('[Pipeline] Step G1.5 sentiment failed:', msg);
-      return new Map();
-    }
-  })();
+  // PIPE-01: STEP G1.5 (xAI/Grok social sentiment) is DELETED. It cost 2 metered
+  // xAI calls per symbol and fed no score — scoreAll (composite.ts:118-137)
+  // scores four gates from ConvergenceInput, and social_sentiment was never one
+  // of them. Sentiment that DOES score comes from Finnhub: news sentiment
+  // (info-edge.ts:907 scoreNewsSentiment) over /company-news and /news-sentiment.
 
   // ===== STEP G2: Fetch chain data and build trade cards =====
   console.log('[Pipeline] Step G2: Fetching option chains and building trade cards...');
@@ -1843,21 +1825,6 @@ export async function runPipeline(
     console.error('[Pipeline] Step G2 failed:', msg);
   }
 
-  // Await sentiment (launched in parallel with G2)
-  const sentimentMap = await sentimentPromise;
-  const socialSentiment: Record<string, SentimentResult> = Object.fromEntries(sentimentMap);
-  if (sentimentMap.size > 0) {
-    const withData = [...sentimentMap.values()].filter(s => !s.error).length;
-    console.log(`[Pipeline] Sentiment: ${withData}/${sentimentMap.size} symbols with data`);
-    if (withData === 0) {
-      dataGaps.push('social_sentiment: xAI returned no results (API may be unavailable or no posts found)');
-    }
-  } else if (process.env.XAI_API_KEY) {
-    dataGaps.push('social_sentiment: fetch failed or returned empty');
-  } else {
-    dataGaps.push('social_sentiment: XAI_API_KEY not configured — social sentiment disabled');
-  }
-
   const top9Syms = top9.map(r => r.symbol);
 
   onProgress?.({ step: 'step_n', label: 'Chain Fetch', data: {
@@ -2041,7 +2008,6 @@ export async function runPipeline(
     full_trade_cards_per_ticker: fullTradeCardsPerTicker,
     chain_stats_per_ticker: chainStatsPerTicker,
     pre_filter: preFilterResults,
-    social_sentiment: socialSentiment,
     rejection_reasons: Object.fromEntries(chainRejections),
     data_gaps: dataGaps,
     errors,

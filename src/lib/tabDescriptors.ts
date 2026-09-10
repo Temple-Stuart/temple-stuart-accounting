@@ -14,7 +14,7 @@
 export const TAB_DESCRIPTORS: Record<string, string> = {
   calendar: 'Runway — how long your money buys you. Your planned and actual spend, mapped to the day, so your runway is never a guess.',
   travel: 'Book flights, hotels, and things to do — real prices, real times.',
-  trade: "Tell the scanner what you're hunting, and it pulls live prices from TastyTrade, company numbers from Finnhub, economy data from FRED, official filings from SEC EDGAR, and the mood online from Grok.",
+  trade: "Tell the scanner what you're hunting, and it pulls live prices from TastyTrade, company numbers from Finnhub, economy data from FRED and official filings from SEC EDGAR.",
   routines: 'Build your recurring routines and watch them land on your calendar — the rhythms that run your day.',
   projects: "Type the big messy goal that's rattling around your head — plain, rambly, however it actually lives up there.",
   content: 'Turn what you actually did today into a reel — sources to scenes to a ready-to-record script.',
