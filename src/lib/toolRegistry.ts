@@ -133,16 +133,16 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   },
   Mileage: { slug: 'mileage', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 12 — no miles or odometer column in prisma/schema.prisma' },
   Budget: {
-    slug: 'budget', status: 'PARTIAL', beats: ALL, home: '/business',
+    slug: 'budget', status: 'PARTIAL', beats: ALL, home: '/budget',
     why: 'actuals by entity plus recurring lines on module_expenses; no plan vs actual; no personal · trade · travel roll-up',
+    // ROOM-01: the six category sub-links are gone — they are the switcher inside
+    // /budget now, not six doors in the rail. Shopping stays a room of its own.
     links: [
-      { label: 'Personal', href: '/personal' }, { label: 'Home', href: '/household' }, { label: 'Auto', href: '/auto' },
-      { label: 'Growth', href: '/growth' }, { label: 'Health', href: '/health' },
       { label: 'Shopping · meal & cart plans', href: '/shopping' },
       { label: 'Itinerary budget builder', href: '/hub/itinerary' },
       { label: 'Runway · the read-only view', cockpitKey: 'calendar' },
     ],
-    citation: 'src/components/dashboard/BudgetingPage.tsx:39 · src/app/api/home/route.ts:33-63 · :89 (draft :107) · src/app/api/home/[id]/route.ts:143 · :118-139, :81-89',
+    citation: 'src/components/dashboard/BudgetingPage.tsx:47 · src/app/api/home/route.ts:33-63 · :89 (draft :107) · src/app/api/home/[id]/route.ts:143 · :118-139, :81-89',
     note: 'Six category pages, reachable from no menu until this PR; the draft form works on /business only (coaAccounts, census note B).',
   },
   // ── WHAT YOU OWN ──

@@ -18,7 +18,10 @@
  *   5. a step's screen is a route or null; a step with no screen holds no LIVE
  *      tool (nothing finished hides behind an honest page);
  *   6. slugs are unique and kebab-case;
- *   7. (ACCOUNTS-01b) a job's HOME lives inside its own step — neither the home
+ *   7. (ROOM-01) step 11 BUDGET opens /budget, and no category page it replaced
+ *      is a sub-link anywhere — six near-identical pages were eight doors in the
+ *      rail; they are one room with a switcher now;
+ *   8. (ACCOUNTS-01b) a job's HOME lives inside its own step — neither the home
  *      the registry names nor the DOOR the rail opens for it (doorOf, which
  *      prefers a cockpit path) may be another step's screen. Without this the
  *      rail sent step 1 ACCOUNTS to /books, step 3's room.
@@ -26,6 +29,7 @@
  * resolves to a page file.
  */
 import { doorOf, doorOfLink, TOOL_REGISTRY, type ToolDoor, type ToolEntry, type ToolStatus } from './toolRegistry';
+import { BUDGET_CATEGORIES, BUDGET_HOME } from './budgetCategories';
 import type { FamilyName, ToolName } from './problemSheet';
 
 /** The six families in the order a human walks them — NOT the deck's teaching order (PROBLEM_SHEET), which the sheet on HOME still shows. */
@@ -67,7 +71,9 @@ export const STEPS: readonly Step[] = [
   { number: 8, slug: 'sales', name: 'SALES', family: 'MONEY IN', tools: ['CRM', 'Contracts', 'Invoicing', 'Payments'], screen: null },
   { number: 9, slug: 'spend', name: 'SPEND', family: 'MONEY OUT', tools: ['Bill Pay', 'Payroll', 'Expenses', 'Mileage'], screen: null },
   { number: 10, slug: 'travel', name: 'TRAVEL', family: 'MONEY OUT', tools: ['Travel'], screen: '/travel' },
-  { number: 11, slug: 'budget', name: 'BUDGET', family: 'MONEY OUT', tools: ['Budget'], screen: '/business' },
+    // ROOM-01: the route matches the tab name. Six category pages became one room
+  // with a switcher; /business is a redirect like the other five.
+  { number: 11, slug: 'budget', name: 'BUDGET', family: 'MONEY OUT', tools: ['Budget'], screen: '/budget' },
   { number: 12, slug: 'operations', name: 'OPERATIONS', family: 'THE WORK', tools: ['Calendar', 'Tasks', 'Time'], screen: '/projects' },
 ];
 
@@ -211,7 +217,25 @@ export function stepsLaw(opts: { throwOnFail?: boolean; steps?: readonly Step[];
     if (live.length) violations.push(`${s.name}: no screen, but ${live.join(', ')} ${live.length === 1 ? 'is' : 'are'} LIVE — a finished job has a room`);
   }
 
-  // 7. a job's home is inside its own step — never another step's screen
+  // 7. BUDGET is one room (ROOM-01): its screen is /budget, and none of the six
+  // category routes it replaced may reappear as a step sub-link.
+  const budget = steps.find((s) => s.slug === 'budget');
+  if (budget && budget.screen !== BUDGET_HOME) {
+    violations.push(`BUDGET: screen "${budget.screen}" — step 11 opens ${BUDGET_HOME}, the room whose switcher holds the six categories (ROOM-01)`);
+  }
+  const legacy = new Set(BUDGET_CATEGORIES.map((c) => c.legacyPath));
+  for (const s of steps) {
+    const tools = s.tools.map((n) => registry.find((t) => t.name === n)).filter((t): t is ToolEntry => Boolean(t));
+    for (const tool of tools) {
+      for (const link of tool.links ?? []) {
+        if (link.href && legacy.has(link.href)) {
+          violations.push(`${s.name}: "${link.label}" → ${link.href} is a budget category page — it is a switch inside ${BUDGET_HOME}, not a door (ROOM-01)`);
+        }
+      }
+    }
+  }
+
+  // 8. a job's home is inside its own step — never another step's screen
   // (ACCOUNTS-01b). Both the registry's `home` and the door the rail actually
   // opens are checked: doorOf prefers a tool's cockpit path over its home, so a
   // home inside the step with a cockpitKey pointing out of it would still send

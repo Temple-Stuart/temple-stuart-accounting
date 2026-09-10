@@ -49,7 +49,8 @@ test('status is derived: LIVE when every job is, NOT_BUILT when every job is, el
 test('a step with no room opens /step/<slug>; one with a room opens the room', () => {
   assert.deepEqual(STEPS.filter((s) => s.screen === null).map((s) => stepHref(s)), ['/step/fpa', '/step/owed', '/step/sales', '/step/spend']);
   assert.equal(stepHref(stepBySlug('books')!), '/books');
-  assert.equal(stepHref(stepBySlug('budget')!), '/business');
+  // ROOM-01: the route matches the tab name — six category pages became one room.
+  assert.equal(stepHref(stepBySlug('budget')!), '/budget');
 });
 
 test('sub-links are derived from the registry — every door the family navigation gave a page, the rail gives it too; the step\'s own screen is not repeated and an href is listed once', () => {
@@ -68,7 +69,9 @@ test('sub-links are derived from the registry — every door the family navigati
   assert.deepEqual(byStep.tax, ['/dashboard/tax-filing']);
   assert.deepEqual(byStep.compliance, ['/?tab=compliance', '/soc2']);
   assert.deepEqual(byStep.travel, ['/budgets/trips']);
-  assert.deepEqual(byStep.budget, ['/personal', '/household', '/auto', '/growth', '/health', '/shopping', '/hub/itinerary', '/runway']);
+  // ROOM-01: the six category pages are the switcher inside /budget now, not six
+  // doors. Shopping, the itinerary builder and Runway keep theirs.
+  assert.deepEqual(byStep.budget, ['/shopping', '/hub/itinerary', '/runway']);
   assert.deepEqual(byStep.operations, ['/agenda', '/routines', '/operations/issues', '/operations/audit-log', '/content', '/operations']);
   for (const slug of ['accounts', 'trading', 'fpa', 'owed', 'sales', 'spend']) assert.deepEqual(byStep[slug], [], `${slug} has no door to give`);
   // no step repeats its own screen, and no href twice within a step

@@ -3,14 +3,35 @@ import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { randomUUID } from 'crypto';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { COLLAPSED_MODULES } from '@/lib/budgetCategories';
 
-const MODULE = 'auto';
-const ICON = '🚗';
-const COLOR = 'gray';
+/**
+ * ROOM-01 — the four category [id] routes, collapsed. They were 148 lines each
+ * and differed in exactly eight lines: MODULE, ICON, COLOR and the failClosed
+ * label. Everything else — the gates, the calendar-event write, the fail-closed
+ * handling — is byte-identical and carried here verbatim.
+ *
+ * ICON and COLOR are DATA, written onto the calendar_events row, and they are
+ * NOT the switcher's emoji (growth writes 📚 where the switcher shows 📈; health
+ * writes 💪 where the switcher shows 🏥). They are moved here exactly as each
+ * route carried them rather than derived from a list that would change them.
+ *
+ * /api/business/[id] and /api/home/[id] are NOT here: business differs in its
+ * GET payload and home writes a different table. Untouched.
+ */
+const MODULE_MARK: Readonly<Record<string, { icon: string; color: string }>> = {
+  personal: { icon: '\u{1F464}', color: 'purple' },
+  auto: { icon: '\u{1F697}', color: 'gray' },
+  growth: { icon: '\u{1F4DA}', color: 'blue' },
+  health: { icon: '\u{1F4AA}', color: 'green' },
+};
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ module: string; id: string }> }) {
   try {
-    const { id } = await params;
+    const { module: mod, id } = await params;
+    if (!COLLAPSED_MODULES.includes(mod)) return NextResponse.json({ error: 'Unknown budget category' }, { status: 404 });
+    const MODULE = mod;
+    const { icon: ICON, color: COLOR } = MODULE_MARK[mod];
     const userEmail = await getVerifiedEmail();
     if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     
@@ -127,13 +148,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    return failClosedResponse('api/auto/[id] PATCH', 'Failed to update the record', error);
+    return failClosedResponse('api/budget/[module]/[id] PATCH', 'Failed to update the record', error);
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ module: string; id: string }> }) {
   try {
-    const { id } = await params;
+    const { module: mod, id } = await params;
+    if (!COLLAPSED_MODULES.includes(mod)) return NextResponse.json({ error: 'Unknown budget category' }, { status: 404 });
+    const MODULE = mod;
+    const { icon: ICON, color: COLOR } = MODULE_MARK[mod];
     const userEmail = await getVerifiedEmail();
     if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
