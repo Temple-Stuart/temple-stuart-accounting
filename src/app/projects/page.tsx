@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
-// ROOM-02: step 12 is ONE room at /operations, read top down. Projects is its
-// phase 04. The URL keeps resolving for anyone who linked or bookmarked it.
+// TOOL-LAW-01: one tool, one page. The /operations room is gone; this URL keeps
+// resolving, straight to the tool that owns the work.
 export default function ProjectsRedirect() {
-  redirect('/operations?phase=projects');
+  redirect('/tasks');
 }

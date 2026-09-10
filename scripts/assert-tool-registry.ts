@@ -91,7 +91,7 @@ import { resolve } from 'node:path';
 import { readdirSync, statSync } from 'node:fs';
 import { PROBLEM_SHEET } from '../src/lib/problemSheet';
 import { EXPECTED_STATUS_COUNTS, FAMILY_READS, TOOL_REGISTRY, registryLaw, statusCounts } from '../src/lib/toolRegistry';
-import { HOME_ANSWER, HOME_OWNER, HOME_PHASES, navFamilies, navLaw, navRows } from '../src/lib/nav';
+import { HOME_ANSWER, HOME_OWNER, HOME_PHASES, THE_SORT, navFamilies, navLaw, navRows } from '../src/lib/nav';
 import { TOOL_GATE } from '../src/lib/offer';
 import { PIPE_PHASES } from '../src/lib/pipePhases';
 import { OWNER_UTILITIES } from '../src/lib/shellMenu';
@@ -844,6 +844,191 @@ const shellLine = `${shellFiles.length} files scanned, ${shellOffenders} outside
 // line above it is the kind of output that reads as green in a build log.
 if (shellOffenders || nestedShells) console.log(`✖ The shell law FAILED — ${shellLine} ${nestedShells} tree(s) mount more than one shell.`);
 else console.log(`✔ The shell law passed — ${shellLine} Every tree mounts at most one header and one rail.`);
+
+// ── THE TOOL LAW (TOOL-LAW-01) ──────────────────────────────────────────────
+// ONE TOOL, ONE PAGE, ITS OWN PIPE. Five navigation PRs each partly undid the
+// last on this surface because each fixed a symptom instead of stating the
+// model. The disease is GROUPING LAYERS — a room, a step, a phase list invented
+// to hold several tools at once. The model, stated:
+//
+//   1. A tool has ONE page. That page is its registry home and serves no other
+//      tool.
+//   2. That page renders ONLY that tool's own phases, from src/lib/pipePhases.ts,
+//      via the shared StageStrip. NOTE: this does NOT require a PAGE-LEVEL
+//      strip. Tasks' projects strip is per project row and behind that row's own
+//      pipelineMode toggle (TruthMachineView.tsx:374-376, ProjectRow.tsx:556);
+//      that is where the strip already lives and it satisfies this rule. Do not
+//      add a page-level strip to satisfy a requirement this rule does not make.
+//   3. A tool's page opens with its family, its name and its registry line. No
+//      other prose. (ToolOpener is the one opener; a `line` prop is the room's
+//      own words about itself, never a second heading for a grouping layer.)
+//   4. A phase list defined OUTSIDE pipePhases.ts and rendered as a strip is a
+//      violation. This is what killed /operations: six cells named in
+//      src/lib/operationsPhases.ts that existed in no pipe.
+//   5. A component belonging to tool A may not be mounted on tool B's page. The
+//      CALENDAR clause names the MERGED GRID specifically — HubCalendar, the
+//      view over trip events, plan blocks and routine occurrences. Only that
+//      component may not be mounted outside /calendar. CalendarGrid is a SHARED
+//      PRIMITIVE and is excluded: /trading:887 has fed it Trade Log's own P&L
+//      rows since long before this law. EXPLICIT NON-VIOLATION: DayCalendarView
+//      (src/components/workbench/operations/content/DayCalendarView.tsx) renders
+//      the day's blocks as "a dense, ONE-LINE stacked list in clock order (NOT
+//      an hour-grid)" — its own words — as the content pipe's phase 03 surface.
+//      It is Time's, it is not the merged grid, and it is not a violation.
+//
+// THE GRANDFATHER LIST is closed. Each entry is named, dated and reasoned, and
+// THE ALLOWLIST MAY ONLY SHRINK — the build throws if it grows.
+const MULTI_TOOL_ALLOWED: ReadonlyArray<{ route: string; tools: readonly string[]; since: string; why: string; retire: string }> = [
+  {
+    route: '/trading', tools: ['Brokerage', 'Trade Log'], since: '2026-09-10 (NAV-25)',
+    why: 'the trade pipe is ONE StageStrip inside one page; 01-03 are Brokerage\'s and 04-06 Trade Log\'s, split at the existing phase boundary but rendered by one control',
+    retire: 'split the trade pipe\'s strip so each tool renders its own three phases — an interior change to src/app/trading/page.tsx',
+  },
+];
+// RULE 2's one exception: a page rendering a phase another tool owns. /books is
+// NOT a multi-tool page (Bookkeeping is its only tool — Banking's screen is
+// /accounts), so it is not grandfathered above; what it does is render books 01
+// Feed, which THE SORT gives Banking. Closed and shrink-only, same as rule 1's.
+const FOREIGN_PHASE_ALLOWED: ReadonlyArray<{ route: string; pipe: string; num: string; owner: string; since: string; why: string; retire: string }> = [
+  {
+    route: '/books', pipe: 'books', num: '01', owner: 'Banking', since: '2026-09-10 (NAV-25)',
+    why: 'BooksPipeline renders books 01 Feed (Banking\'s) and 02-06 (Bookkeeping\'s) with one strip and one shared data layer; it takes no phase-range prop',
+    retire: 'lift 01 Feed out of BooksPipeline (733 lines) so Banking renders it on /accounts',
+  },
+];
+// The cockpit is the third grandfathered surface and is checked by route below:
+// ModuleLauncher renders every cockpit tab as a CSS-hidden section of ONE
+// component, so /books, /tax, /travel and /runway are its tabs, not pages.
+const COCKPIT_COMPONENT = 'src/components/home/ModuleLauncher.tsx';
+// THE MERGED GRID is HubCalendar — the one component that fetches the three
+// sources (trip events, daily-plan blocks, routine occurrences) and merges them.
+// CalendarGrid is NOT on this list and deliberately so: it is a SHARED
+// PRIMITIVE, and Trade Log's P&L calendar has fed it its own rows since long
+// before this law (src/app/trading/page.tsx:887 — plCalendarEvents,
+// PL_SOURCE_CONFIG). Naming it here would break /trading for no gain: a grid
+// component is not a calendar, the three merged sources are.
+const MERGED_GRID = ['src/components/hub/HubCalendar.tsx'];
+const CALENDAR_HOME = '/calendar';
+// /accounts was on NAV-25's list as Banking + Books' Feed; with 01 Feed recorded
+// against /books above it serves ONE tool, so it is NOT grandfathered here.
+
+let toolViolations = 0;
+const toolRows = navRows(TOOL_GATE);
+// 1. one tool, one page
+const screenTools = new Map<string, string[]>();
+for (const t of toolRows) if (t.href) screenTools.set(t.href, [...(screenTools.get(t.href) ?? []), t.name]);
+for (const [route, tools] of screenTools) {
+  if (tools.length === 1) continue;
+  const entry = MULTI_TOOL_ALLOWED.find((a) => a.route === route);
+  if (!entry) {
+    toolViolations += 1;
+    violations.push(`tool law 1: ${route} is ${tools.length} tools' page (${tools.join(' + ')}) and is not on the grandfather list — one tool, one page (TOOL-LAW-01)`);
+  } else if (entry.tools.join('|') !== tools.join('|')) {
+    toolViolations += 1;
+    violations.push(`tool law 1: ${route} is grandfathered for ${entry.tools.join(' + ')} but now serves ${tools.join(' + ')} — the allowlist may only shrink (TOOL-LAW-01)`);
+  }
+}
+// the allowlist may only SHRINK: every entry must still be a real multi-tool page
+for (const a of MULTI_TOOL_ALLOWED) {
+  if (!screenTools.has(a.route)) {
+    toolViolations += 1;
+    violations.push(`tool law 1: ${a.route} is on the grandfather list but is no tool's screen — remove the entry (TOOL-LAW-01)`);
+  } else if ((screenTools.get(a.route) ?? []).length < 2) {
+    toolViolations += 1;
+    violations.push(`tool law 1: ${a.route} is on the grandfather list but serves one tool now — remove the entry; the allowlist may only shrink (TOOL-LAW-01)`);
+  }
+  for (const f of ['route', 'since', 'why', 'retire'] as const) {
+    if (!a[f]?.trim()) { toolViolations += 1; violations.push(`tool law 1: the grandfather entry ${a.route} has no ${f} — each entry is named, dated and reasoned (TOOL-LAW-01)`); }
+  }
+}
+if (MULTI_TOOL_ALLOWED.length > 1) {
+  toolViolations += 1;
+  violations.push(`tool law 1: the multi-tool grandfather list has ${MULTI_TOOL_ALLOWED.length} entries — TOOL-LAW-01 closed it at 1 and THE ALLOWLIST MAY ONLY SHRINK`);
+}
+if (FOREIGN_PHASE_ALLOWED.length > 1) {
+  toolViolations += 1;
+  violations.push(`tool law 2: the foreign-phase grandfather list has ${FOREIGN_PHASE_ALLOWED.length} entries — TOOL-LAW-01 closed it at 1 and THE ALLOWLIST MAY ONLY SHRINK`);
+}
+for (const a of FOREIGN_PHASE_ALLOWED) {
+  for (const f of ['route', 'pipe', 'num', 'owner', 'since', 'why', 'retire'] as const) {
+    if (!a[f]?.trim()) { toolViolations += 1; violations.push(`tool law 2: the foreign-phase entry ${a.route} has no ${f} — each entry is named, dated and reasoned (TOOL-LAW-01)`); }
+  }
+  if (!THE_SORT.some((x) => x.pipe === a.pipe && x.num === a.num && x.owner === a.owner)) {
+    toolViolations += 1;
+    violations.push(`tool law 2: the foreign-phase entry ${a.route} says ${a.pipe} ${a.num} is ${a.owner}'s, which THE SORT does not — the exception must describe the real world (TOOL-LAW-01)`);
+  }
+}
+// 2 + 4. every StageStrip reads pipePhases.ts, and no other phase list is a strip
+const stripFiles = shellFiles.filter((f) => readFileSync(resolve(ROOT, f), 'utf8').includes('<StageStrip'));
+console.log('THE TOOL LAW — every phase strip and the pipe it reads');
+for (const f of stripFiles.sort()) {
+  const src = readFileSync(resolve(ROOT, f), 'utf8');
+  const pipes = [...new Set([...src.matchAll(/PIPE_PHASES\.([a-z]+)/g)].map((m) => m[1]))];
+  console.log(`  ${f.padEnd(62)} ${pipes.length ? pipes.join(' · ') : 'NO PIPE'}`);
+  if (pipes.length === 0) {
+    toolViolations += 1;
+    violations.push(`tool law 4: ${f} renders a StageStrip from a phase list that is not in src/lib/pipePhases.ts — an invented phase list is a grouping layer (TOOL-LAW-01)`);
+  }
+}
+// the room must stay gone
+for (const gone of ['src/lib/operationsPhases.ts', 'src/app/operations/OperationsRoom.tsx', 'src/app/operations/page.tsx']) {
+  if (existsSync(resolve(ROOT, gone))) {
+    toolViolations += 1;
+    violations.push(`tool law 4: ${gone} is back — /operations was six invented cells holding four tools' components; one tool, one page (TOOL-LAW-01)`);
+  }
+}
+// 2. a tool's page renders only ITS OWN phases (the strip may be page-level or
+// per row — this rule does not care which, only whose the phases are).
+for (const [route, tools] of screenTools) {
+  const page = pages.find((p) => p.route === route);
+  if (!page) continue;
+  const seen = new Set<string>();
+  const stack = [page.file];
+  const pipesHere = new Set<string>();
+  while (stack.length) {
+    const f = stack.pop()!;
+    if (seen.has(f)) continue;
+    seen.add(f);
+    const body = existsSync(resolve(ROOT, f)) ? readFileSync(resolve(ROOT, f), 'utf8') : '';
+    if (body.includes('<StageStrip')) for (const m of body.matchAll(/PIPE_PHASES\.([a-z]+)/g)) pipesHere.add(m[1]);
+    for (const next of importsFor(f)) stack.push(next);
+  }
+  for (const pipe of pipesHere) {
+    for (const a of THE_SORT.filter((x) => x.pipe === pipe)) {
+      if (tools.includes(a.owner)) continue;
+      if (FOREIGN_PHASE_ALLOWED.some((x) => x.route === route && x.pipe === pipe && x.num === a.num && x.owner === a.owner)) continue;
+      toolViolations += 1;
+      violations.push(`tool law 2: ${route} (${tools.join(' + ')}) renders ${pipe} ${a.num}, which is ${a.owner}'s — a tool's page renders only its own phases (TOOL-LAW-01)`);
+    }
+  }
+}
+
+// 5. the merged grid mounts in exactly ONE place: Calendar's page
+const calendarPage = pages.find((p) => p.route === CALENDAR_HOME);
+for (const p of pages) {
+  if (p.route === CALENDAR_HOME) continue;
+  const tools = screenTools.get(p.route);
+  if (!tools) continue; // not a tool's page — the cockpit and legacy pages are checked by their own laws
+  const seen = new Set<string>();
+  const stack = [p.file];
+  let mountsGrid: string | null = null;
+  while (stack.length) {
+    const f = stack.pop()!;
+    if (seen.has(f)) continue;
+    seen.add(f);
+    if (MERGED_GRID.includes(f)) { mountsGrid = f; break; }
+    for (const next of importsFor(f)) stack.push(next);
+  }
+  if (mountsGrid) {
+    toolViolations += 1;
+    violations.push(`tool law 5: ${p.route} (${tools.join(' + ')}) pulls in ${mountsGrid} — the merged grid is Calendar's and mounts only on ${CALENDAR_HOME} (TOOL-LAW-01)`);
+  }
+}
+if (!calendarPage) { toolViolations += 1; violations.push(`tool law 5: ${CALENDAR_HOME} has no page — the merged grid has nowhere to be (TOOL-LAW-01)`); }
+if (!existsSync(resolve(ROOT, COCKPIT_COMPONENT))) { toolViolations += 1; violations.push(`tool law: ${COCKPIT_COMPONENT} is missing — the cockpit's grandfathered tabs are checked against it`); }
+if (toolViolations) console.log(`✖ The tool law FAILED — ${toolViolations} violation(s).`);
+else console.log(`✔ The tool law passed — ${screenTools.size} tool pages, ${MULTI_TOOL_ALLOWED.length} grandfathered (closed, shrink-only); ${stripFiles.length} phase strips, every one reading src/lib/pipePhases.ts; the merged grid mounts only on ${CALENDAR_HOME}.`);
+
 // ── THE LOCK LAW (LOCK-01) ────────────────────────────────────────────────
 // (a) EVERY page that mounts a paid module's root component asks for its key
 //     first. src/app/dashboard/tax-filing/page.tsx mounted the FULL filing

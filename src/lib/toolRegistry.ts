@@ -109,20 +109,22 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     note: 'The grid shows only calendar_events with source "trip" (HubCalendar.tsx:132) — the agenda planner\'s own "agenda" rows are written and never read back.',
   },
   Tasks: {
-    // ROOM-02: home is the room. The cockpitKey is gone with the cockpit tab —
-    // /projects is a redirect into phase 04 now. The Issue log and Audit tail
-    // sub-links are gone too: both pages live UNDER /operations, so the rail's
-    // step-12 row is already their door (the reachability law's prefix match).
-    slug: 'tasks', status: 'PARTIAL', beats: ALL, home: '/operations',
+    // TOOL-LAW-01: one tool, one page. /operations was Tasks AND Time on one
+    // screen behind six invented cells; Tasks has /tasks now, rendering only
+    // the projects pipe (per project row, where that strip already lives).
+    // The Issue log and Audit tail return as Tasks' own sub-rows: they are THE
+    // WORK's pages, and the /operations prefix that doored them is gone with
+    // the room. Neither is any tool's screen, so navLaw rule 7 holds.
+    slug: 'tasks', status: 'PARTIAL', beats: ALL, home: '/tasks',
     why: "the founder's build pipeline — accepting a task fires a paid Claude Code build; not a customer's task tool",
-    links: [],
+    links: [{ label: 'Issue log', href: '/operations/issues' }, { label: 'Audit tail', href: '/operations/audit-log' }],
     citation: 'src/app/api/operations/projects/[id]/tasks/route.ts:43 · generate-tasks/route.ts:42 · tasks/bulk-create/route.ts:117 · tasks/[taskId]/route.ts:82 → :339, :370; accepting a pending_review task fires the paid build at tasks/[taskId]/route.ts:392-402',
   },
   Time: {
-    // ROOM-02: home is the room (phase 05 NARRATIVE — the label changed, the
-    // routes did not). The "Daily plan · North Star" sub-link is gone: it
-    // pointed at /operations, which IS the room now.
-    slug: 'time', status: 'PARTIAL', beats: ALL, home: '/operations',
+    // TOOL-LAW-01: one tool, one page. /time renders the content pipe's four
+    // phases and nothing else. DayCalendarView rides phase 03 and is Time's —
+    // a clock-ordered list of the day's blocks, not the merged grid.
+    slug: 'time', status: 'PARTIAL', beats: ALL, home: '/time',
     why: 'day blocks and a daily log inside the Narrative pipeline; no time tool',
     links: [],
     citation: 'src/app/api/operations/tasks/unscheduled/route.ts · daily-plan/items/route.ts:120 · daily-plan/items/[itemId]/blocks/route.ts:36 · daily-plan/blocks/[blockId]/route.ts:38, :163',

@@ -19,6 +19,8 @@
  */
 import AppLayout from '@/components/ui/AppLayout';
 import HubCalendar from '@/components/hub/HubCalendar';
+import { OperationsEntityProvider } from '@/components/workbench/operations/EntitySelector';
+import SectionE_Routines from '@/components/workbench/operations/SectionE_Routines';
 import ToolOpener from '@/components/shell/ToolOpener';
 import { navToolByName } from '@/lib/nav';
 import { TOOL_GATE } from '@/lib/offer';
@@ -32,6 +34,19 @@ export default function CalendarPage() {
       />
       <div data-calendar-room>
         <HubCalendar />
+      </div>
+      {/*
+        TOOL-LAW-01: the routine builder is Calendar's OWN writing surface — the
+        one CAL-01 re-cited three of this tool's four beats to, and the only
+        thing on the grid this tool writes. Its four phases (Define, Scheduled,
+        Run, Proven) are the ROUTINES pipe, from pipePhases.ts, rendered by the
+        component's own page-level strip (SectionE_Routines.tsx:47). Mounted
+        unchanged, in the entity provider it already reads.
+      */}
+      <div className="mt-4" data-calendar-routines>
+        <OperationsEntityProvider>
+          <SectionE_Routines />
+        </OperationsEntityProvider>
       </div>
     </AppLayout>
   );

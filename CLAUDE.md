@@ -50,6 +50,21 @@ prose. **Reuse over rebuild** — search for what exists before writing anything
   **NOT_BUILT** ⇔ no beats. The counts are a law; bump them only with a new dated census. Every
   count on a public or selling surface derives from the registry — never typed.
 
+## One tool, one page (TOOL-LAW-01)
+- **A tool has ONE page** — its registry home, serving no other tool. That page renders **ONLY
+  that tool's own phases, from `src/lib/pipePhases.ts`, via the shared `StageStrip`**. This does
+  **not** require a page-level strip: Tasks' projects strip is per project row and behind that
+  row's `pipelineMode` toggle, and that satisfies the rule.
+- A tool's page opens with its **family, its name and its registry line** — no other prose.
+- **A phase list defined outside `pipePhases.ts` and rendered as a strip is a violation.** This is
+  what `/operations` was: six invented cells holding four tools' components.
+- **A component belonging to tool A may not be mounted on tool B's page.** The calendar clause names
+  the MERGED GRID — `HubCalendar` — which mounts only on `/calendar`. `CalendarGrid` is a shared
+  primitive and is excluded; `DayCalendarView` (a clock-ordered list, not an hour-grid) is an
+  explicit non-violation.
+- The grandfather lists in `scripts/assert-tool-registry.ts` are **closed**, each entry named, dated
+  and reasoned. **The allowlist may only shrink** — the build throws if it grows.
+
 ## The steps law (the shell)
 - **The app lands on `/answers` (HOME)** — the four answers, then THE SHEET: every job with its
   true status and the door to its step. **A collapsible rail** (`src/components/shell/Rail.tsx`)
