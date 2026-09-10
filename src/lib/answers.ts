@@ -47,7 +47,7 @@ export const ANSWER_INPUTS: Readonly<Record<string, readonly string[]>> = {
 };
 
 /** The app's front page — the post-login front door (NAV-01c). */
-export const ANSWERS_HOME = '/answers';
+export const ANSWERS_HOME = '/home';
 
 /** A lens whose computation EXISTS in the code today: the card reads `endpoint` and prints the number WITH `source`. */
 export interface ComputedRead {

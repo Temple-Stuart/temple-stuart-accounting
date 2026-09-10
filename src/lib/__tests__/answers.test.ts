@@ -18,7 +18,9 @@ test('the real constants pass: four questions, four reads in order, every number
       assert.match(read.home, /^\//);
     }
   }
-  assert.equal(ANSWERS_HOME, '/answers');
+  // SHELL-02: THE ANSWERS moved to /home — the app's front door has the app's
+  // plainest name. /answers stays as a redirect so no link in the wild breaks.
+  assert.equal(ANSWERS_HOME, '/home');
 });
 
 test('a card with a number and no source line fails the law', () => {

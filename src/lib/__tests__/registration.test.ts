@@ -137,7 +137,7 @@ test('timing: the new and the taken path take the same wall time within toleranc
 test('the verification email carries the link first, then what the deck says — the front door, the free set and the offers from their sources; the taken email promises no reset that does not exist', () => {
   const v = verificationEmail({ name: 'Ada <Lovelace>', verifyUrl: 'https://templestuart.com/api/auth/verify?token=abc.def', baseUrl: 'https://templestuart.com/' });
   assert.equal(v.subject, 'Finish signing in to Temple Stuart');
-  assert.ok(v.text.indexOf('https://templestuart.com/api/auth/verify?token=abc.def') < v.text.indexOf('https://templestuart.com/answers'), 'the link comes first');
+  assert.ok(v.text.indexOf('https://templestuart.com/api/auth/verify?token=abc.def') < v.text.indexOf('https://templestuart.com/home'), 'the link comes first');
   assert.ok(v.text.includes('works once and for 24 hours'));
   for (const t of FREE_TOOLS) assert.ok(v.text.includes(t.name), `free tool ${t.name} named`);
   for (const o of OFFERS) assert.ok(v.text.includes(o.label), `offer ${o.label} named`);

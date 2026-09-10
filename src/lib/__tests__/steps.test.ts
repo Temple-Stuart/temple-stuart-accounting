@@ -59,14 +59,18 @@ test('sub-links are derived from the registry — every door the family navigati
   // NOT_BUILT. Step 2 keeps one room: /trade, the cockpit tab that carries the
   // grade and the coverage declaration, which /trading does not.
   assert.deepEqual(byStep.accounts, []);
-  assert.deepEqual(byStep.trading, ['/trade']);
+  // SHELL-02: Trade Log's "Grade · on the Trade tab" sub-link is gone — the room
+  // is /trading, the step's own screen, and a rail row pointing back into the
+  // cockpit was the last of the two-language navigation. /trade keeps its door
+  // as a listed guest route (the cockpit paths).
+  assert.deepEqual(byStep.trading, []);
   assert.deepEqual(byStep.books, ['/chart-of-accounts']);
   assert.deepEqual(byStep.tax, ['/dashboard/tax-filing']);
   assert.deepEqual(byStep.compliance, ['/?tab=compliance', '/soc2']);
   assert.deepEqual(byStep.travel, ['/budgets/trips']);
-  assert.deepEqual(byStep.budget, ['/personal', '/home', '/auto', '/growth', '/health', '/shopping', '/hub/itinerary', '/runway']);
+  assert.deepEqual(byStep.budget, ['/personal', '/household', '/auto', '/growth', '/health', '/shopping', '/hub/itinerary', '/runway']);
   assert.deepEqual(byStep.operations, ['/agenda', '/routines', '/operations/issues', '/operations/audit-log', '/content', '/operations']);
-  for (const slug of ['accounts', 'fpa', 'owed', 'sales', 'spend']) assert.deepEqual(byStep[slug], [], `${slug} has no door to give`);
+  for (const slug of ['accounts', 'trading', 'fpa', 'owed', 'sales', 'spend']) assert.deepEqual(byStep[slug], [], `${slug} has no door to give`);
   // no step repeats its own screen, and no href twice within a step
   for (const s of STEPS) {
     const hrefs = stepLinks(s).map((l) => (l.door.kind === 'none' ? 'none' : l.door.href));

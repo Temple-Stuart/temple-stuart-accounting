@@ -5,5 +5,5 @@ import { redirect } from 'next/navigation';
 // lands where login lands now — THE ANSWERS.
 // The URL keeps resolving for anyone who linked or bookmarked it.
 export default function HubRedirect() {
-  redirect('/answers');
+  redirect('/home');
 }

@@ -136,7 +136,7 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     slug: 'budget', status: 'PARTIAL', beats: ALL, home: '/business',
     why: 'actuals by entity plus recurring lines on module_expenses; no plan vs actual; no personal · trade · travel roll-up',
     links: [
-      { label: 'Personal', href: '/personal' }, { label: 'Home', href: '/home' }, { label: 'Auto', href: '/auto' },
+      { label: 'Personal', href: '/personal' }, { label: 'Home', href: '/household' }, { label: 'Auto', href: '/auto' },
       { label: 'Growth', href: '/growth' }, { label: 'Health', href: '/health' },
       { label: 'Shopping · meal & cart plans', href: '/shopping' },
       { label: 'Itinerary budget builder', href: '/hub/itinerary' },
@@ -161,12 +161,16 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // CONNECTS a brokerage (src/app/trading/page.tsx:263 /api/tastytrade/connect) and it
   // carries chains, positions and the journal. The cockpit's Trade tab connects
   // nothing, so it was never this tool's home; the old "Standalone cockpit" link is
-  // deleted because the standalone cockpit IS the home. /trade keeps its door from
-  // Trade Log's "Grade · on the Trade tab" link — see that row.
+  // deleted because the standalone cockpit IS the home. SHELL-02 removed Trade
+  // Log's "Grade · on the Trade tab" link too: /trade keeps its door as a listed
+  // guest route (the cockpit paths, scripts/assert-tool-registry.ts GUEST_ROUTES).
   Brokerage: {
     slug: 'brokerage', status: 'PARTIAL', beats: some({ discover: true, decide: true }), home: '/trading',
     citation: 'src/app/api/tastytrade/chains/route.ts:58 · scanner/route.ts:205 · src/app/api/trade-cards/route.ts:72 (status queued :92); no order is ever sent (ConvergenceIntelligence.tsx:840)',
   },
+  // SHELL-02: the "Grade · on the Trade tab" sub-link is gone. The room is
+  // /trading — the step's own screen — and a rail row pointing back into the
+  // cockpit was the last of the old two-language navigation.
   // ACCOUNTS-01b: home /books → /trading. Trade Log sits in step 2 TRADING, whose
   // screen is /trading — a job's home may not be another step's screen (the steps
   // law). /trading is where the job is done for a customer: it posts the balanced
@@ -175,7 +179,6 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // still READS investment transactions; that is Bookkeeping's row, not this one.
   'Trade Log': {
     slug: 'trade-log', status: 'PARTIAL', beats: some({ discover: true, commit: true, record: true }), home: '/trading',
-    links: [{ label: 'Grade · on the Trade tab', cockpitKey: 'trade' }],
     citation: 'src/app/trading/page.tsx:640 → src/app/api/trading/commit-to-ledger/route.ts:168 · page.tsx:733 → /api/trading-journal · src/app/api/transactions/sync-complete/route.ts:185 → :242 · investment-transactions/commit-to-ledger/route.ts:106 → src/lib/position-tracker-service.ts:170, :307-311 · :601, :619; no persisted draft',
   },
   // ── WHAT YOU OWE ──

@@ -4,5 +4,5 @@ import { redirect } from 'next/navigation';
 // sheet — every job in its step, with its true status — and the rail walks the
 // steps in flow order. THE PROOF's map lives there now; the URL keeps resolving.
 export default function TheProofPage() {
-  redirect('/answers');
+  redirect('/home');
 }

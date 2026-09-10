@@ -1,5 +1,8 @@
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import ShellFrame from '@/components/ui/ShellFrame';
+import { prisma } from '@/lib/prisma';
+// SHELL-02: the lock card renders the offer from the server's price-id presence map.
+import { offerAvailabilityFromEnv } from '@/lib/offer';
+import AppLayout from '@/components/ui/AppLayout';
 import AccountsClient from '@/components/accounts/AccountsClient';
 
 /**
@@ -16,9 +19,14 @@ export const dynamic = 'force-dynamic';
 
 export default async function AccountsPage() {
   const viewer = await getVerifiedEmail();
+  // SHELL-02: the viewer's id, for the lock card's checkout door. No entitlement
+  // is read here — the gate lives in /api/accounts, and a refusal renders the lock.
+  const user = viewer
+    ? await prisma.users.findFirst({ where: { email: { equals: viewer, mode: 'insensitive' } }, select: { id: true } })
+    : null;
   return (
-    <ShellFrame viewer={viewer ?? ''}>
-      <AccountsClient />
-    </ShellFrame>
+    <AppLayout page>
+      <AccountsClient viewerId={user?.id ?? ''} offerAvailability={offerAvailabilityFromEnv(process.env)} />
+    </AppLayout>
   );
 }

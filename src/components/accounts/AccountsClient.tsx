@@ -22,6 +22,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import Script from 'next/script';
 import { useBankConnection } from '@/components/bank/useBankConnection';
+// SHELL-02: an entitlement refusal is a LOCK, never a red HTTP box.
+import StepLock from '@/components/shell/StepLock';
+import { stepBySlug } from '@/lib/steps';
+import StepOpener from '@/components/shell/StepOpener';
 import {
   ACCOUNT_GROUPS, groupAccounts, isReported, money, rowsOf, describeWord, when,
   type AccountRow, type ApiItem,
@@ -33,8 +37,13 @@ const ENTITY_OPTIONS: readonly string[] = ['personal', 'business', 'trading', 'r
 const CARD = 'rounded-lg border border-border bg-white';
 const TH = 'px-3 py-2 text-left font-medium';
 
-export default function AccountsClient() {
-  const [state, setState] = useState<'loading' | 'error' | 'ok'>('loading');
+export default function AccountsClient({ viewerId, offerAvailability }: {
+  /** SHELL-02: the viewer's id — the lock card's checkout door needs it (a guest is sent to sign up). */
+  viewerId: string;
+  /** SHELL-02: per offer key, is its Stripe price id set — the server's env-presence read. The lock card renders the offer from it. */
+  offerAvailability: Readonly<Record<string, boolean>>;
+}) {
+  const [state, setState] = useState<'loading' | 'error' | 'ok' | 'locked'>('loading');
   const [failure, setFailure] = useState<string | null>(null);
   const [items, setItems] = useState<ApiItem[]>([]);
   const [entityBusy, setEntityBusy] = useState<string | null>(null);
@@ -53,6 +62,13 @@ export default function AccountsClient() {
           detail = [body.message, body.error].filter((v): v is string => typeof v === 'string')[0] ?? '';
         } catch {
           detail = 'no error body';
+        }
+        // SHELL-02: 403 is the tab gate refusing — a lock, not a fault. The
+        // status and the route's words never reach the viewer; the lock card
+        // says which module unlocks the step and offers the door.
+        if (res.status === 403) {
+          setState('locked');
+          return;
         }
         setFailure(`HTTP ${res.status}${detail ? ` · ${detail}` : ''}`);
         setState('error');
@@ -106,13 +122,23 @@ export default function AccountsClient() {
       {/* Plaid Link — the same CDN script the cockpit loads for the same flow. */}
       <Script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js" strategy="lazyOnload" />
 
-      <header className="mb-5">
-        <p className="font-mono text-[10px] sm:text-xs uppercase tracking-[0.2em] text-text-faint">Step 1 <span className="text-brand-gold">·</span> What you own</p>
-        <h1 className="mt-1 text-xl sm:text-2xl font-semibold tracking-tight text-text-primary">Accounts</h1>
-        <p className="mt-1 text-xs text-text-muted">
-          Every account you have connected, grouped by what it is. {state === 'ok' ? `${connected} connected.` : ''}
-        </p>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+      {/* SHELL-02: a locked viewer sees the lock ALONE — the lock carries its own
+          opener, and Connect/Sync are not offered for a step they cannot open. */}
+      {state === 'locked' ? (
+        <StepLock
+          step={stepBySlug('accounts')!}
+          tabKey="tab:books"
+          currentUserId={viewerId}
+          onRequireAuth={() => { window.location.href = '/'; }}
+          offerAvailability={offerAvailability}
+        />
+      ) : (
+        <>
+      {/* SHELL-02: the ONE opener — this page's shape became the standard. */}
+      <StepOpener
+        step={stepBySlug('accounts')!}
+        line={`Every account you have connected, grouped by what it is.${state === 'ok' ? ` ${connected} connected.` : ''}`}
+        actions={<>
           <button
             type="button"
             onClick={bank.linkAccount}
@@ -131,8 +157,9 @@ export default function AccountsClient() {
           >
             {bank.syncing ? 'Syncing…' : 'Sync'}
           </button>
-        </div>
-        {bank.message && (
+        </>}
+      />
+      {bank.message && (
           <div
             role={bank.message.tone === 'ok' ? 'status' : 'alert'}
             data-sync-line
@@ -142,8 +169,7 @@ export default function AccountsClient() {
             {bank.message.lines.map((line, i) => <div key={i}>{line}</div>)}
           </div>
         )}
-        {entityError && <p role="alert" className="mt-2 text-xs text-brand-red" data-entity-error>{entityError}</p>}
-      </header>
+      {entityError && <p role="alert" className="mt-2 text-xs text-brand-red" data-entity-error>{entityError}</p>}
 
       {state === 'loading' && <p className="font-mono text-xs text-text-faint" data-read="loading">Reading your accounts…</p>}
 
@@ -251,6 +277,8 @@ export default function AccountsClient() {
             none is shown. Groups come from the account’s own type and subtype ({ACCOUNT_GROUPS.map((g) => g.label).join(' · ')}).
           </p>
         </div>
+      )}
+        </>
       )}
     </div>
   );
