@@ -10,7 +10,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 // is a harness detail; the component under test is unchanged.
 Object.assign(globalThis, { React });
 import {
-  FEED_COST, FEED_IDS, SCAN_COST, FeedCostLawError,
+  EXPECTED_FEED_COUNT, FEED_COST, FEED_IDS, SCAN_COST, FeedCostLawError,
   callsMade, callsMadeLine, feedCostLaw, scanCostLine,
 } from '../observatory/feedCost';
 import DataObservatory from '@/components/data-observatory/DataObservatory';
@@ -19,20 +19,28 @@ import DataObservatory from '@/components/data-observatory/DataObservatory';
 // carries its cost. These pin the two halves: the cost facts are complete and
 // count-only, and the screen renders nothing it did not measure.
 
-test('every one of the 33 feeds carries provider, metered, calls and scan use — and the law holds on the real map', () => {
+test('every one of the 32 feeds carries provider, metered, calls and scan use — and the law holds on the real map', () => {
   assert.deepEqual(feedCostLaw({ throwOnFail: false }), []);
-  assert.equal(FEED_IDS.length, 33);
-  assert.deepEqual(FEED_IDS, Array.from({ length: 33 }, (_, i) => i + 1));
+  assert.equal(FEED_IDS.length, EXPECTED_FEED_COUNT);
+  assert.equal(EXPECTED_FEED_COUNT, 32);
+  // PIPE-01: 22 is ABSENT, not renumbered — every historical health-log row
+  // keeps meaning what it meant.
+  assert.equal(FEED_IDS.includes(22), false, 'feed 22 (xAI/Grok) is gone with the provider');
+  assert.deepEqual(FEED_IDS, Array.from({ length: 33 }, (_, i) => i + 1).filter(i => i !== 22));
   for (const id of FEED_IDS) {
     const c = FEED_COST[id];
     assert.ok(c.basis.trim().length > 0, `feed ${id} states its basis`);
     assert.ok(c.scanCitation.trim().length > 0, `feed ${id} cites the scan`);
-    if (c.billable) assert.ok(c.upstreamCalls > 0, `feed ${id}: billable means it calls`);
+    // PIPE-01: a metered row makes a call of its own, UNLESS it reads a payload
+    // another feed already bought (28 reads 7, 30 reads 9) and says so.
+    if (c.billable && c.upstreamCalls === 0) {
+      assert.match(c.basis, /PIPE-01: reads the/, `feed ${id}: metered with no call must say whose payload it reads`);
+    }
   }
-  // Only the metered providers are billable — SEC and FRED are public APIs,
-  // and TastyTrade is a brokerage session, not a per-call invoice.
+  // PIPE-01: Finnhub is the ONLY metered provider left. SEC and FRED are public
+  // APIs, TastyTrade is a brokerage session, and xAI is gone.
   const billableProviders = new Set(FEED_IDS.filter(id => FEED_COST[id].billable).map(id => FEED_COST[id].provider));
-  assert.deepEqual([...billableProviders].sort(), ['Finnhub', 'xAI']);
+  assert.deepEqual([...billableProviders].sort(), ['Finnhub']);
 });
 
 test('the law rejects: a missing feed, a billable feed that calls nothing, an unmetered Finnhub call, a basis-less row', () => {
@@ -40,8 +48,15 @@ test('the law rejects: a missing feed, a billable feed that calls nothing, an un
   delete (without as Record<number, unknown>)[9];
   assert.match(feedCostLaw({ throwOnFail: false, cost: without, ids: FEED_IDS.filter(i => i !== 9) }).join('\n'), /feed 9 has no cost row/);
 
-  const freeCall = { ...FEED_COST, 22: { ...FEED_COST[22], upstreamCalls: 0 } };
-  assert.match(feedCostLaw({ throwOnFail: false, cost: freeCall }).join('\n'), /feed 22: billable but makes no upstream call/);
+  // A metered row with no call of its own must say whose payload it reads.
+  const unexplainedZero = { ...FEED_COST, 3: { ...FEED_COST[3], upstreamCalls: 0 } };
+  assert.match(feedCostLaw({ throwOnFail: false, cost: unexplainedZero }).join('\n'),
+    /feed 3: metered with no call of its own and no basis saying whose payload it reads/);
+  // …and feeds 28 and 30 legitimately do: they read what 7 and 9 bought.
+  assert.equal(FEED_COST[28].upstreamCalls, 0);
+  assert.equal(FEED_COST[30].upstreamCalls, 0);
+  assert.match(FEED_COST[28].basis, /reads the \/stock\/recommendation payload feed 7 already paid for/);
+  assert.match(FEED_COST[30].basis, /reads the \/stock\/earnings-quality-score payload feed 9 already paid for/);
 
   const unmetered = { ...FEED_COST, 2: { ...FEED_COST[2], billable: false } };
   assert.match(feedCostLaw({ throwOnFail: false, cost: unmetered }).join('\n'), /feed 2: a Finnhub call is metered — billable must be true/);
@@ -49,7 +64,7 @@ test('the law rejects: a missing feed, a billable feed that calls nothing, an un
   const noBasis = { ...FEED_COST, 5: { ...FEED_COST[5], basis: '  ' } };
   assert.match(feedCostLaw({ throwOnFail: false, cost: noBasis }).join('\n'), /feed 5: billable=true with no basis/);
 
-  assert.throws(() => feedCostLaw({ cost: freeCall }), FeedCostLawError);
+  assert.throws(() => feedCostLaw({ cost: unexplainedZero }), FeedCostLawError);
 });
 
 test('a probe that did not run is charged nothing — SKIPPED and MKT-HRS make no call', () => {
@@ -59,14 +74,12 @@ test('a probe that did not run is charged nothing — SKIPPED and MKT-HRS make n
     { id: 5, status: 'SKIPPED' },    // no key — no call
     { id: 1, status: 'MKT-HRS' },    // market closed — no call
     { id: 23, status: 'LIVE' },      // TastyTrade, 2 calls
-    { id: 22, status: 'SKIPPED' },   // xAI, no key — no call
   ];
   const spend = callsMade(rows);
   const finnhub = spend.find(s => s.provider === 'Finnhub');
   assert.equal(finnhub?.calls, 2, 'the two that answered are charged; the skipped one is not');
   assert.equal(finnhub?.billable, true);
   assert.equal(spend.find(s => s.provider === 'TastyTrade')?.calls, 2);
-  assert.equal(spend.find(s => s.provider === 'xAI')?.calls, 0, 'no key, no call, no charge');
   assert.match(callsMadeLine(spend), /2 Finnhub \(metered\)/);
   assert.match(callsMadeLine(spend), /rate lives in the vendor's invoice/);
   assert.equal(callsMadeLine(callsMade([{ id: 5, status: 'SKIPPED' }])), 'This check made no upstream call.');
@@ -93,8 +106,8 @@ test('the cost lines are COUNTS — no currency symbol, no rate, anywhere in the
   ].join('\n');
   assert.doesNotMatch(everything, /\$[0-9]/, 'no price is ever printed — the product does not know one');
   assert.doesNotMatch(everything, /\bper (call|token) (rate|price)\b/i);
-  assert.match(scanCostLine(), /One scan of one symbol = 28 Finnhub, 2 xAI, 1 TastyTrade, 6 SEC/);
-  assert.match(scanCostLine(), /once per scan, 24 FRED/);
+  assert.match(scanCostLine(), /One scan of one symbol = 26 Finnhub, 1 TastyTrade, 6 SEC/);
+  assert.match(scanCostLine(), /once per scan, 1 SEC, 24 FRED/);
 });
 
 test('the screen with no results renders the not-measured state and ZERO rows', () => {
@@ -110,6 +123,7 @@ test('the screen with no results renders the not-measured state and ZERO rows', 
   assert.doesNotMatch(html, /data-measured-at/, 'no "measured at" header without a measurement');
 
   // none of the deleted fabrications survive
+  assert.ok(!html.includes('xAI'), 'the screen names no provider the product no longer calls');
   for (const lie of ['beta: 1.09', '12ms', 'Returning 1983 data', '2026-03-02', 'Bullish: 0.93', 'CIK: 789019']) {
     assert.ok(!html.includes(lie), `the screen must not print "${lie}" — it measured nothing`);
   }

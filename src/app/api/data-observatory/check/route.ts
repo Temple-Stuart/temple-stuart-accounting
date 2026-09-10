@@ -36,6 +36,8 @@ interface CheckResult {
   scanCitation?: string;
   /** The symbol this probe actually asked about — not always the selected one. */
   probedSymbol?: string | null;
+  /** PIPE-01: this row reads a payload another feed already paid for. */
+  sharesCallWith?: number;
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -60,7 +62,7 @@ const SOURCE_PROVIDER: Record<number, string> = {
   6: 'Finnhub', 7: 'Finnhub', 8: 'Finnhub', 9: 'Finnhub', 10: 'Finnhub',
   11: 'Finnhub', 12: 'Finnhub', 13: 'Finnhub', 14: 'Finnhub', 15: 'Finnhub',
   16: 'Finnhub', 17: 'Finnhub', 18: 'Finnhub', 19: 'FRED', 20: 'SEC',
-  21: 'SEC', 22: 'xAI', 23: 'TastyTrade', 24: 'TastyTrade', 25: 'FRED',
+  21: 'SEC', 23: 'TastyTrade', 24: 'TastyTrade', 25: 'FRED',
   26: 'SEC', 27: 'SEC', 28: 'Finnhub', 29: 'Internal', 30: 'Finnhub',
   31: 'TastyTrade', 32: 'TastyTrade', 33: 'Internal',
 };
@@ -641,37 +643,6 @@ function checkSECTickers(secData: Awaited<ReturnType<typeof fetchSECData>>): Che
   };
 }
 
-async function checkXAIGrok(symbol: string): Promise<CheckResult> {
-  const xaiKey = process.env.XAI_API_KEY;
-  if (!xaiKey) {
-    return { id: 22, source: 'xAI/Grok Sentiment', endpoint: 'xAI API', status: 'SKIPPED', records: '—', lastValue: 'XAI_API_KEY not set', latency: '—', rawData: null };
-  }
-  try {
-    const { data, latencyMs } = await timedFetch('https://api.x.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${xaiKey}` },
-      body: JSON.stringify({
-        model: 'grok-3-mini',
-        messages: [{ role: 'user', content: `In one word, is sentiment for ${symbol} bullish, bearish, or neutral?` }],
-        max_tokens: 10,
-      }),
-    });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const d = data as any;
-    const content = d?.choices?.[0]?.message?.content?.trim() ?? null;
-    return {
-      id: 22, source: 'xAI/Grok Sentiment', endpoint: 'xAI API',
-      status: content ? 'LIVE' : 'BROKEN',
-      records: '—',
-      lastValue: content ?? 'No response',
-      latency: fmtLatency(latencyMs),
-      rawData: data,
-    };
-  } catch (e) {
-    return { id: 22, source: 'xAI/Grok Sentiment', endpoint: 'xAI API', status: 'BROKEN', records: '—', lastValue: String(e), latency: '—', rawData: null };
-  }
-}
-
 async function checkTastyTradeGreeks(): Promise<CheckResult> {
   if (!isMarketHours()) {
     return { id: 23, source: 'TastyTrade Greeks', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null, dataSource: 'TastyTrade' };
@@ -877,27 +848,29 @@ function check10KBusinessDescription(secData: Awaited<ReturnType<typeof fetchSEC
   };
 }
 
-async function checkFinnhubRecommendationsInfoEdge(symbol: string, finnhubKey: string): Promise<CheckResult> {
-  try {
-    const { data, latencyMs } = await timedFetch(
-      `${FINNHUB_BASE}/stock/recommendation?symbol=${symbol}&token=${finnhubKey}`
-    );
-    const items = Array.isArray(data) ? data : [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const latest = items[0] as any;
-    const buyCount = latest ? (latest.strongBuy || 0) + (latest.buy || 0) : 0;
-    const holdCount = latest ? (latest.hold || 0) : 0;
-    return {
-      id: 28, source: 'Finnhub Recommendations', endpoint: '/stock/recommendation',
-      status: items.length > 0 ? 'LIVE' : 'BROKEN',
-      records: `${items.length} mo`,
-      lastValue: latest ? `Buy: ${buyCount} / Hold: ${holdCount}` : 'NULL',
-      latency: fmtLatency(latencyMs),
-      rawData: items.slice(0, 5),
-    };
-  } catch (e) {
-    return { id: 28, source: 'Finnhub Recommendations', endpoint: '/stock/recommendation', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null };
-  }
+/**
+ * PIPE-01: feed 28 reads the SAME /stock/recommendation payload feed 7 already
+ * fetched — it used to GET it a second time, and the production run proved the
+ * duplication (both returned Buy 64 / Hold 5). One call, two rows: feed 7
+ * reports the analyst mix as Buy vs Hold+Sell, feed 28 reports it as Buy vs
+ * Hold alone for the Info-Edge gate. Each row says which reading it is.
+ */
+function checkRecommendationsInfoEdge(shared: CheckResult): CheckResult {
+  const items = Array.isArray(shared.rawData) ? shared.rawData : [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const latest = items[0] as any;
+  const buyCount = latest ? (latest.strongBuy || 0) + (latest.buy || 0) : 0;
+  const holdCount = latest ? (latest.hold || 0) : 0;
+  return {
+    id: 28, source: 'Finnhub Recommendations', endpoint: '/stock/recommendation',
+    status: shared.status,
+    records: shared.records,
+    lastValue: latest ? `Buy: ${buyCount} / Hold: ${holdCount} (hold only)` : shared.lastValue,
+    latency: shared.latency,
+    rawData: shared.rawData,
+    upstreamCalls: 0,
+    sharesCallWith: 7,
+  };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -913,38 +886,28 @@ function checkNewsClassifier(newsItems: any[]): CheckResult {
   };
 }
 
-async function checkFinnhubEarningsQualityScore(symbol: string, finnhubKey: string): Promise<CheckResult> {
-  try {
-    const { data, latencyMs } = await timedFetch(
-      `${FINNHUB_BASE}/stock/earnings-quality-score?symbol=${symbol}&freq=annual&token=${finnhubKey}`
-    );
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const d = data as any;
-    const items = d?.data || [];
-    const latest = items[0];
-    const year = latest?.period ? parseInt(latest.period.substring(0, 4)) : null;
-    let status: SourceStatus = 'BROKEN';
-    let lastValue = 'No data';
-    if (year != null) {
-      if (year < 2020) {
-        status = 'BROKEN';
-        lastValue = `Returning ${year} data`;
-      } else {
-        status = 'LIVE';
-        lastValue = `Score: ${latest.score ?? '?'} (${latest.period})`;
-      }
-    }
-    return {
-      id: 30, source: 'Finnhub Earnings Quality', endpoint: '/stock/earnings-quality-score',
-      status,
-      records: items.length > 0 ? `${items.length} periods` : '0 curr',
-      lastValue,
-      latency: fmtLatency(latencyMs),
-      rawData: data,
-    };
-  } catch (e) {
-    return { id: 30, source: 'Finnhub Earnings Quality', endpoint: '/stock/earnings-quality-score', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null };
-  }
+/**
+ * PIPE-01: feed 30 reads the SAME /stock/earnings-quality-score payload feed 9
+ * already fetched — the production run proved it (both returned 67.717926 for
+ * 2026-06-30). One call, two rows: feed 9 is the Quality gate's freshness read
+ * (is the vendor answering with a current period?), feed 30 is the score value
+ * itself. Each row says which reading it is.
+ */
+function checkEarningsQualityScoreRow(shared: CheckResult): CheckResult {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const d = shared.rawData as any;
+  const items = d?.data || [];
+  const latest = items[0];
+  return {
+    id: 30, source: 'Finnhub Earnings Quality', endpoint: '/stock/earnings-quality-score',
+    status: shared.status,
+    records: shared.records,
+    lastValue: latest?.score != null ? `Score: ${latest.score} (${latest.period ?? '?'})` : shared.lastValue,
+    latency: shared.latency,
+    rawData: shared.rawData,
+    upstreamCalls: 0,
+    sharesCallWith: 9,
+  };
 }
 
 // ─── Main Handler ───────────────────────────────────────────────────────────
@@ -994,9 +957,21 @@ export async function GET(request: NextRequest) {
     finnhubKey ? checkRevenueEstimates(symbol, finnhubKey) : Promise.resolve({ id: 4, source: 'Revenue Estimates', endpoint: '/stock/revenue-estimate', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
     finnhubKey ? checkPriceTargets(symbol, finnhubKey) : Promise.resolve({ id: 5, source: 'Price Targets', endpoint: '/stock/price-target', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
     finnhubKey ? checkUpgradesDowngrades(symbol, finnhubKey) : Promise.resolve({ id: 6, source: 'Upgrades/Downgrades', endpoint: '/stock/upgrade-downgrade', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
-    finnhubKey ? checkRecommendations(symbol, finnhubKey) : Promise.resolve({ id: 7, source: 'Recommendations', endpoint: '/stock/recommendation', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
+    // PIPE-01: feeds 7 and 28 share ONE /stock/recommendation call.
+    (async () => {
+      const seven = finnhubKey
+        ? await checkRecommendations(symbol, finnhubKey)
+        : { id: 7, source: 'Recommendations', endpoint: '/stock/recommendation', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null };
+      return [seven, checkRecommendationsInfoEdge(seven)];
+    })(),
     finnhubKey ? checkEarningsHistory(symbol, finnhubKey) : Promise.resolve({ id: 8, source: 'Earnings History', endpoint: '/stock/earnings', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
-    finnhubKey ? checkEarningsQuality(symbol, finnhubKey) : Promise.resolve({ id: 9, source: 'Earnings Quality', endpoint: '/stock/earnings-quality', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
+    // PIPE-01: feeds 9 and 30 share ONE /stock/earnings-quality-score call.
+    (async () => {
+      const nine = finnhubKey
+        ? await checkEarningsQuality(symbol, finnhubKey)
+        : { id: 9, source: 'Earnings Quality', endpoint: '/stock/earnings-quality', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null };
+      return [nine, checkEarningsQualityScoreRow(nine)];
+    })(),
     finnhubKey ? checkRevenueBreakdown(symbol, finnhubKey) : Promise.resolve({ id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
     finnhubKey ? checkInsiderTransactions(symbol, finnhubKey) : Promise.resolve({ id: 11, source: 'Insider Transactions', endpoint: '/stock/insider-trans', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
     finnhubKey ? checkInsiderSentiment(symbol, finnhubKey) : Promise.resolve({ id: 12, source: 'Insider Sentiment', endpoint: '/stock/insider-sentiment', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
@@ -1078,18 +1053,12 @@ export async function GET(request: NextRequest) {
         ];
       }
     })(),
-    // Check 22: xAI
-    checkXAIGrok(symbol),
     // Check 23: TastyTrade Greeks
     checkTastyTradeGreeks(),
     // Check 24: TastyTrade Candles
     checkTastyTradeCandles(),
     // Check 25: FRED Cross-Asset Daily
     checkFREDCrossAssetDaily(),
-    // Check 28: Finnhub Recommendations (Info-Edge)
-    finnhubKey ? checkFinnhubRecommendationsInfoEdge(symbol, finnhubKey) : Promise.resolve({ id: 28, source: 'Finnhub Recommendations', endpoint: '/stock/recommendation', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
-    // Check 30: Finnhub Earnings Quality Score
-    finnhubKey ? checkFinnhubEarningsQualityScore(symbol, finnhubKey) : Promise.resolve({ id: 30, source: 'Finnhub Earnings Quality', endpoint: '/stock/earnings-quality-score', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
     // Check 31: TastyTrade Options Flow (market-hours gated)
     checkTastyTradeOptionsFlow(),
     // Check 32: TastyTrade SPY Correlation (market-hours gated)

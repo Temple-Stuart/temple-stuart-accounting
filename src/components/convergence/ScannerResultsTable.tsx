@@ -35,19 +35,6 @@ interface Headline {
 
 // ── Props ────────────────────────────────────────────────────────────
 
-interface SocialSentimentData {
-  symbol: string;
-  score: number;
-  magnitude: number;
-  postCount: number;
-  bullishCount: number;
-  bearishCount: number;
-  neutralCount: number;
-  themes: string[];
-  samplePosts: { text: string; sentiment: 'bullish' | 'bearish' | 'neutral'; author: string }[];
-  dataAge: string;
-  error?: string;
-}
 
 interface RejectionReason {
   strategy: string;
@@ -58,12 +45,11 @@ interface RejectionReason {
 
 interface ScannerResultsTableProps {
   results: TickerDetail[];
-  sentimentMap?: Record<string, SocialSentimentData>;
   rejectionMap?: Record<string, RejectionReason[]>;
   savedCards: Map<string, string>;
   savingCards: Set<string>;
   saveErrors: Map<string, string>;
-  onSaveCard: (detail: TickerDetail, card: TradeCardData, sentiment?: SocialSentimentData) => Promise<void>;
+  onSaveCard: (detail: TickerDetail, card: TradeCardData) => Promise<void>;
   onRemoveCard: (cardKey: string, savedId: string) => Promise<void>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pipelineProgress?: Record<string, any>;
@@ -166,7 +152,7 @@ type SortKey = 'symbol' | 'score' | 'direction' | 'strategyName' | 'maxProfit' |
 
 // ── Expanded Detail ──────────────────────────────────────────────────
 
-function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: TickerDetail; card: TradeCardData | null; sentiment?: SocialSentimentData; rejections?: RejectionReason[] }) {
+function ExpandedDetail({ detail, card, rejections }: { detail: TickerDetail; card: TradeCardData | null; rejections?: RejectionReason[] }) {
   const comp = detail.scores.composite;
   const why = card?.why;
   const ks = card?.key_stats;
@@ -329,56 +315,8 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
         </div>
       )}
 
-      {/* Social Pulse — from xAI x_search */}
-      {sentiment && !sentiment.error && sentiment.postCount > 0 && (
-        <div>
-          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5">
-            Social Pulse
-            <span className="ml-2 text-[9px] text-text-secondary normal-case font-normal">
-              Based on {sentiment.postCount} X posts in last 24h
-            </span>
-          </div>
-          <div className="rounded px-3 py-2 text-xs space-y-2 bg-bg-row">
-            <div className="flex items-center gap-3">
-              <span className="text-text-faint">Score:</span>
-              <span
-                className={`font-mono font-bold ${sentiment.score > 0.2 ? 'text-brand-green' : sentiment.score < -0.2 ? 'text-brand-red' : 'text-text-muted'}`}
-              >
-                {sentiment.score > 0 ? '+' : ''}{sentiment.score.toFixed(2)}
-              </span>
-              <span className="text-text-faint">
-                ({sentiment.bullishCount} bullish / {sentiment.bearishCount} bearish / {sentiment.neutralCount} neutral)
-              </span>
-            </div>
-            {sentiment.themes.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-text-faint shrink-0">Themes:</span>
-                <div className="flex flex-wrap gap-1">
-                  {sentiment.themes.slice(0, 5).map((t, i) => (
-                    <Badge key={i} variant="default" size="sm">{t}</Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-            {sentiment.samplePosts.length > 0 && (
-              <div className="space-y-1 mt-1">
-                {sentiment.samplePosts.slice(0, 3).map((post, i) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <Badge
-                      variant={post.sentiment === 'bullish' ? 'success' : post.sentiment === 'bearish' ? 'danger' : 'default'}
-                      size="sm"
-                    >
-                      {post.sentiment.charAt(0).toUpperCase()}
-                    </Badge>
-                    <span className="text-text-faint leading-relaxed flex-1">&ldquo;{post.text}&rdquo;</span>
-                    <span className="shrink-0 text-[9px] text-text-muted font-mono">{post.author}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* PIPE-01: the Social Pulse block is gone with xAI — it was the only
+          xAI-sourced value on this row and it fed no score. */}
     </div>
   );
 }
@@ -387,7 +325,6 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
 
 export default function ScannerResultsTable({
   results,
-  sentimentMap,
   rejectionMap,
   savedCards,
   savingCards,
@@ -574,12 +511,12 @@ export default function ScannerResultsTable({
     setBatchProgress({ done: 0, total: toSave.length });
     for (let i = 0; i < toSave.length; i++) {
       setBatchProgress({ done: i, total: toSave.length });
-      await onSaveCard(toSave[i].detail, toSave[i].card!, sentimentMap?.[toSave[i].symbol]);
+      await onSaveCard(toSave[i].detail, toSave[i].card!);
     }
     setBatchProgress({ done: toSave.length, total: toSave.length });
     setBatchSaving(false);
     setSelectedRows(new Set());
-  }, [sortedRows, selectedRows, savedCards, onSaveCard, sentimentMap]);
+  }, [sortedRows, selectedRows, savedCards, onSaveCard]);
 
   const sortIndicator = (key: SortKey) => {
     if (sortKey !== key) return '';
@@ -736,7 +673,7 @@ export default function ScannerResultsTable({
                   {isExpanded && (
                     <tr>
                       <td colSpan={7} className="bg-white p-0">
-                        <TickerChapter detail={row.detail} sentiment={sentimentMap?.[row.symbol]} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={onSaveCard} onRemove={onRemoveCard} pipelineProgress={pipelineProgress ?? {}} />
+                        <TickerChapter detail={row.detail} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={onSaveCard} onRemove={onRemoveCard} pipelineProgress={pipelineProgress ?? {}} />
                       </td>
                     </tr>
                   )}

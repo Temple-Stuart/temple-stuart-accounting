@@ -105,15 +105,6 @@ export const API_COSTS: ApiCostEntry[] = [
     monthlyCost: 0,
     note: 'free government API',
   },
-  {
-    id: 'xai',
-    name: 'xAI (Grok)',
-    usedFor: 'social/X sentiment on scanned tickers',
-    modules: ['trading'],
-    costType: 'PER_USE',
-    cadence: 'per-token',
-    monthlyCost: null,
-  },
 
   // ── Shared LLM / data pools (PRICING-AUDIT.md §2 SHARED) ────────────────
   {
@@ -273,7 +264,7 @@ export const PRODUCTS: ProductEntry[] = [
     id: 'trading',
     name: 'Trading',
     what: 'options convergence scanner, positions & greeks, backtests, outcome tracking',
-    deps: ['finnhub', 'tastytrade', 'fred', 'sec-edgar', 'xai', 'anthropic', 'plaid'],
+    deps: ['finnhub', 'tastytrade', 'fred', 'sec-edgar', 'anthropic', 'plaid'],
     monthlyPrice: null,
   },
   {

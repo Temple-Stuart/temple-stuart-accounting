@@ -98,8 +98,8 @@ export const BUILT_ON: BuiltOnEntry[] = [
   { name: 'Viator', tag: 'tours & transfers', category: 'travel', logo: { slug: 'viator', alt: 'Viator logo' } },
   { name: 'Google Places', tag: 'location data', category: 'travel', logo: { slug: 'googleplaces', alt: 'Google Places logo' } },
   { name: 'Leaflet', tag: 'maps', category: 'travel', logo: { slug: 'leaflet', alt: 'Leaflet logo' } },
-  // ── markets (claimability: grok.ts api.x.ai client; convergence/
-  //    data-fetchers.ts FRED macro + SEC EDGAR XBRL fetchers) ─────────────
+  // ── markets (claimability: convergence/data-fetchers.ts — Finnhub,
+  //    FRED macro and SEC EDGAR fetchers; tastytrade via src/lib/tastytrade) ──
   { name: 'tastytrade', tag: 'brokerage data', category: 'markets', logo: { slug: 'tastytrade', alt: 'tastytrade logo' } },
   { name: 'Finnhub', tag: 'market data', category: 'markets', logo: { slug: 'finnhub', alt: 'Finnhub logo' } },
   { name: 'FRED', tag: 'economic data', category: 'markets', logo: { slug: 'fred', alt: 'FRED logo' } },
@@ -114,7 +114,6 @@ export const BUILT_ON: BuiltOnEntry[] = [
   //    OpenAI badge remains the gold overwrite at the same path.) ─────────
   { name: 'Anthropic', tag: 'AI', category: 'ai', logo: { slug: 'anthropic', alt: 'Anthropic logo' } },
   { name: 'OpenAI', tag: 'AI', category: 'ai', logo: { slug: 'openai', alt: 'OpenAI logo' } },
-  { name: 'xAI Grok', tag: 'AI', category: 'ai', logo: { slug: 'xai', alt: 'xAI Grok logo' } },
   // ── infra (LOGOS-2 five-way split + the WALL-PURE core trio; the
   //    required Vercel/Next.js attribution line under the wall grid is
   //    unchanged and still binds — their marks render above it) ───────────

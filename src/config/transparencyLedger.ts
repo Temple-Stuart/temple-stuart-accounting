@@ -76,7 +76,6 @@ export const OBJECT_DIM: Record<string, string> = {
 export const VENDOR_DIM: Record<string, string> = {
   ANTH: 'Anthropic',
   OAI: 'OpenAI',
-  XAI: 'xAI',
   VOYG: 'Voyage AI',
   GOOG: 'Google',
   PLD: 'Plaid',
@@ -153,14 +152,6 @@ export const SCHEDULE_BILLS: ScheduleBill[] = [
     description: 'Spending insights (bookkeeping) · meal & cart planning (personal)',
     basis: 'PER-USE', cadence: 'per token',
     allocatedTo: [{ type: 'module', name: 'Books' }],
-    amountUsd: null, footnotes: ['ᵃ'],
-  },
-  // xAI (Grok) — pricing-costs.ts:102-110 (PER_USE per-token, null, ['trading'])
-  {
-    entity: 'B', account: '5100', sub: '10', object: 'API', vendor: 'XAI',
-    description: 'Social/X sentiment on scanned tickers',
-    basis: 'PER-USE', cadence: 'per token',
-    allocatedTo: [{ type: 'module', name: 'Trade' }],
     amountUsd: null, footnotes: ['ᵃ'],
   },
   // Voyage AI — pricing-costs.ts:214-222 (PER_USE per-token, null, ['compliance'])

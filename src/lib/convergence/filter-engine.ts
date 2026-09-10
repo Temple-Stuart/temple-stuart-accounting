@@ -64,17 +64,12 @@ export interface FilterOutput {
 
 // ── Main filter function ────────────────────────────────────────────
 
-interface SocialSentimentData {
-  score: number;
-  magnitude: number;
-  postCount: number;
-  error?: string;
-}
 
+// PIPE-01: the sentimentMap parameter is gone with xAI — it was the only
+// source the social-sentiment filter could read, so the filter went with it.
 export function applyFilters(
   results: TickerDetail[],
   filters: ScannerFilters,
-  sentimentMap?: Record<string, SocialSentimentData>,
 ): FilterOutput {
   const passed: TickerDetail[] = [];
   const filtered: FilteredResult[] = [];
@@ -87,21 +82,6 @@ export function applyFilters(
       // No strategies — pass through as-is (no cards to filter)
       passed.push(result);
       continue;
-    }
-
-    // Ticker-level: social sentiment filter
-    if (filters.edge.minSentiment > -100 && sentimentMap) {
-      const s = sentimentMap[result.symbol];
-      if (s && !s.error && s.postCount > 0) {
-        const minScore = filters.edge.minSentiment / 100;
-        if (s.score < minScore) {
-          filtered.push({
-            result,
-            reasons: [`Social sentiment ${s.score.toFixed(2)} below min ${minScore.toFixed(1)}`],
-          });
-          continue;
-        }
-      }
     }
 
     totalStrategies += cards.length;
@@ -294,8 +274,6 @@ export function describeActiveFilters(filters: ScannerFilters): string[] {
     parts.push(filters.edge.volEdge === 'IV_ABOVE_HV' ? 'IV > HV only' : 'IV < HV only');
   if (filters.edge.minIvRank !== d.edge.minIvRank)
     parts.push(`Min IVR \u2265 ${filters.edge.minIvRank}%`);
-  if (filters.edge.minSentiment !== d.edge.minSentiment)
-    parts.push(`Min Sentiment \u2265 ${(filters.edge.minSentiment / 100).toFixed(1)}`);
 
   return parts;
 }

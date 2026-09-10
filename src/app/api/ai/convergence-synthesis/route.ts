@@ -380,7 +380,6 @@ export async function POST(request: Request) {
       top_9: pipeline.rankings.top_9,
       pre_filter: pipeline.pre_filter,
       sector_distribution: pipeline.rankings.sector_distribution,
-      social_sentiment: pipeline.social_sentiment,
       rejection_reasons: pipeline.rejection_reasons,
       timing: {
         pipeline_ms: pipeline.pipeline_summary?.pipeline_runtime_ms ?? 0,

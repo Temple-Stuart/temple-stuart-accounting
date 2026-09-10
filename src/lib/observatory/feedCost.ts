@@ -20,7 +20,7 @@
  * makes no upstream call is not billable.
  */
 
-export type FeedProvider = 'TastyTrade' | 'Finnhub' | 'FRED' | 'SEC' | 'xAI' | 'Internal';
+export type FeedProvider = 'TastyTrade' | 'Finnhub' | 'FRED' | 'SEC' | 'Internal';
 
 export interface FeedCost {
   /** Who this probe calls. */
@@ -41,13 +41,15 @@ export interface FeedCost {
 
 const METERED_FINNHUB =
   'Finnhub is metered per call — the founder\'s COA carries B-B-5130 Finnhub (Per-Call). The rate is on Finnhub\'s invoice, not in this product.';
-const METERED_XAI =
-  'xAI bills per token on the completion this probe requests (model grok-3-mini, max_tokens 10 — route.ts:637-639). The rate is on xAI\'s invoice.';
 const FREE_FRED = 'St. Louis Fed FRED — a free public API behind a free key (FRED_API_KEY). No invoice known to this product.';
 const FREE_SEC = 'SEC EDGAR — a free public API, no key, User-Agent only (route.ts:572). No invoice known to this product.';
 const TT_ACCOUNT =
   'No per-call invoice: this spends the SHARED FIRM TastyTrade session (getTastytradeClient — env credentials), which is why the route is admin-gated (route.ts:930-935).';
 const NO_CALL = 'Makes no upstream call — nothing is metered.';
+const SHARED_WITH_7 =
+  'PIPE-01: reads the /stock/recommendation payload feed 7 already paid for — one call, two readings. Metered when it is bought, but this row does not buy it.';
+const SHARED_WITH_9 =
+  'PIPE-01: reads the /stock/earnings-quality-score payload feed 9 already paid for — one call, two readings. Metered when it is bought, but this row does not buy it.';
 
 /** The 33 feeds the check probes, keyed by the id the route and the screen both use. */
 export const FEED_COST: Readonly<Record<number, FeedCost>> = {
@@ -77,8 +79,8 @@ export const FEED_COST: Readonly<Record<number, FeedCost>> = {
   16: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:445-447 /stock/financials — the scan asks bs, ic and cf (three calls); this probe asks ic only', probes: 'selected' },
   17: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:2024 /news-sentiment', probes: 'selected' },
   18: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:2143 · :2146 /company-news — the scan asks two windows (7d and 30d); this probe asks one', probes: 'selected' },
-  28: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:230 — the SAME endpoint feed 7 probes; this check pays for it twice', probes: 'selected' },
-  30: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:2074 — the SAME endpoint feed 9 probes; this check pays for it twice', probes: 'selected' },
+  28: { provider: 'Finnhub', billable: true, basis: SHARED_WITH_7, upstreamCalls: 0, usedByScan: true,  scanCitation: 'data-fetchers.ts:230 — the scan fetches /stock/recommendation ONCE; since PIPE-01 so does this check', probes: 'selected' },
+  30: { provider: 'Finnhub', billable: true, basis: SHARED_WITH_9, upstreamCalls: 0, usedByScan: true,  scanCitation: 'data-fetchers.ts:2074 — the scan fetches /stock/earnings-quality-score ONCE; since PIPE-01 so does this check', probes: 'selected' },
 
   // ── FRED: free public API behind a free key.
   19: { provider: 'FRED', billable: false, basis: FREE_FRED, upstreamCalls: 2, usedByScan: true, scanCitation: 'data-fetchers.ts:638 · :663 · :683 fetchFredMacro (pipeline.ts:650) — 21 series, once per SCAN, 1-hour cached (:568)', probes: 'none' },
@@ -86,12 +88,10 @@ export const FEED_COST: Readonly<Record<number, FeedCost>> = {
 
   // ── SEC: free public API. Feeds 20/21/26/27 share ONE fetch pass in the route.
   20: { provider: 'SEC', billable: false, basis: FREE_SEC, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:1588 data.sec.gov/submissions (inside fetch10KBusinessDescription)', probes: 'selected' },
-  21: { provider: 'SEC', billable: false, basis: FREE_SEC, upstreamCalls: 1, usedByScan: false, scanCitation: 'the scan never reads company_tickers.json — it resolves the CIK through Finnhub /stock/profile2 (data-fetchers.ts:894 lookupCIK), a METERED call this probe avoids', probes: 'selected' },
+  21: { provider: 'SEC', billable: false, basis: FREE_SEC, upstreamCalls: 1, usedByScan: false, scanCitation: 'data-fetchers.ts:927 lookupCIK — since PIPE-01 the scan resolves every CIK from this same free file, once per process, instead of buying it from Finnhub /stock/profile2', probes: 'selected' },
   26: { provider: 'SEC', billable: false, basis: FREE_SEC, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:931 data.sec.gov/api/xbrl/companyfacts', probes: 'selected' },
   27: { provider: 'SEC', billable: false, basis: FREE_SEC, upstreamCalls: 0, usedByScan: true,  scanCitation: 'data-fetchers.ts:1569 · :1621 · :1672 fetch10KBusinessDescription (pipeline.ts:961) — the SCAN reads the filing; this probe only reports whether the CIK resolved', probes: 'selected' },
 
-  // ── xAI: metered per token.
-  22: { provider: 'xAI', billable: true, basis: METERED_XAI, upstreamCalls: 1, usedByScan: true, scanCitation: 'sentiment.ts:152 /v1/responses · :218 /v1/chat/completions — the scan makes TWO calls per symbol (pipeline.ts:1564)', probes: 'selected' },
 
   // ── Internal: derived from feeds already fetched, no call of its own.
   29: { provider: 'Internal', billable: false, basis: NO_CALL, upstreamCalls: 0, usedByScan: true, scanCitation: 'news-classifier.ts — classifies the headlines feed 18 already fetched', probes: 'selected' },
@@ -99,6 +99,13 @@ export const FEED_COST: Readonly<Record<number, FeedCost>> = {
 };
 
 export const FEED_IDS: readonly number[] = Object.keys(FEED_COST).map(Number).sort((a, b) => a - b);
+
+/**
+ * PIPE-01: 32, not 33 — feed 22 (xAI/Grok Sentiment) is GONE with the provider.
+ * The ids are NOT renumbered: 22 is simply absent, so every historical
+ * ObservatoryHealthLog row keeps meaning what it meant.
+ */
+export const EXPECTED_FEED_COUNT = 32;
 
 /**
  * What ONE SCAN of ONE SYMBOL costs upstream, counted by reading every call
@@ -115,20 +122,16 @@ export interface ScanCost {
 
 export const SCAN_COST: readonly ScanCost[] = [
   {
-    provider: 'Finnhub', callsPerSymbol: 28, callsPerScan: null,
-    note: '8 in fetchFinnhubTicker (data-fetchers.ts:214 · :230 · :247 · :262 plus the four estimate calls :110-113), then financials-reported :389, company-news ×2 :2143 · :2146, news-sentiment :2024, earnings-quality-score :2074, ownership + fund-ownership :1823 · :1824, revenue-breakdown2 :1920, financials bs/ic/cf :445-447, profile2 :894, insider-transactions :1038, ebitda-estimate :2405, ebit-estimate :2436, dividend :2470, price-metric :2506, fund-ownership again :2546, calendar/earnings :2632 and peers :1210. Ceiling, not average: a symbol dropped at an early gate makes fewer.',
-  },
-  {
-    provider: 'xAI', callsPerSymbol: 2, callsPerScan: null,
-    note: 'sentiment.ts:152 (/v1/responses, x_search) then :218 (/v1/chat/completions, scoring) — both per symbol, and only when XAI_API_KEY is set (pipeline.ts:1564).',
+    provider: 'Finnhub', callsPerSymbol: 26, callsPerScan: null,
+    note: '8 in fetchFinnhubTicker (data-fetchers.ts:214 · :230 · :247 · :262 plus the four estimate calls :110-113), then financials-reported :389, company-news ×2 :2143 · :2146, news-sentiment :2024, earnings-quality-score :2074, ownership + fund-ownership :1823 · :1824, revenue-breakdown2 :1920, financials bs/ic/cf :445-447, profile2 :894, insider-transactions :1038, ebitda-estimate :2405, ebit-estimate :2436, dividend :2470, price-metric :2506, fund-ownership again :2546, calendar/earnings :2632 and peers :1210. PIPE-01 removed two: /stock/profile2 (the CIK now comes free from SEC) and the second /stock/fund-ownership (Step I5 reads what Step E6 bought). Ceiling, not average: a symbol dropped at an early gate makes fewer.',
   },
   {
     provider: 'TastyTrade', callsPerSymbol: 1, callsPerScan: null,
     note: 'One getNestedOptionChain per surviving symbol (chain-fetcher.ts:166). The market-metrics read is BATCHED over all symbols (pipeline.ts:399), and candles arrive on a quote-stream subscription (data-fetchers.ts:2271), so neither is one call per symbol.',
   },
   {
-    provider: 'SEC', callsPerSymbol: 6, callsPerScan: null,
-    note: 'companyfacts :931, then the 10-K walk — efts search :1569, submissions :1588, index.json :1621, the document :1672 — and the 8-K scan :2582.',
+    provider: 'SEC', callsPerSymbol: 6, callsPerScan: 1,
+    note: 'companyfacts, then the 10-K walk — efts search, submissions, index.json, the document — and the 8-K scan. PIPE-01 adds ONE per scan, not per symbol: company_tickers.json (data-fetchers.ts:900), the free CIK map that replaced a metered Finnhub call, fetched once per process and cached 30 days.',
   },
   {
     provider: 'FRED', callsPerSymbol: 0, callsPerScan: 24,
@@ -200,17 +203,20 @@ export function feedCostLaw(opts: { throwOnFail?: boolean; cost?: Readonly<Recor
   const ids = opts.ids ?? FEED_IDS;
   const violations: string[] = [];
 
-  if (ids.length !== 33) violations.push(`${ids.length} feeds carry a cost row, expected 33 — every feed the check probes says what it costs`);
-  for (let i = 1; i <= 33; i += 1) {
-    if (!(i in cost)) violations.push(`feed ${i} has no cost row — no row may render without one`);
+  if (ids.length !== EXPECTED_FEED_COUNT) violations.push(`${ids.length} feeds carry a cost row, expected ${EXPECTED_FEED_COUNT} — every feed the check probes says what it costs`);
+  for (const id of FEED_IDS) {
+    if (!(id in cost)) violations.push(`feed ${id} has no cost row — no row may render without one`);
   }
   for (const id of ids) {
     const c = cost[id];
     if (!c) continue;
     if (!c.basis.trim()) violations.push(`feed ${id}: billable=${c.billable} with no basis — say on what evidence`);
-    if (c.billable && c.upstreamCalls === 0) violations.push(`feed ${id}: billable but makes no upstream call`);
     if (!c.billable && c.provider === 'Finnhub') violations.push(`feed ${id}: a Finnhub call is metered — billable must be true`);
-    if (c.upstreamCalls === 0 && c.billable) violations.push(`feed ${id}: no call, so nothing can be metered`);
+    // PIPE-01: a metered row may make ZERO calls when it reads a payload another
+    // feed bought — but it must say which, or the zero is unexplained.
+    if (c.billable && c.upstreamCalls === 0 && !/PIPE-01: reads the/.test(c.basis)) {
+      violations.push(`feed ${id}: metered with no call of its own and no basis saying whose payload it reads`);
+    }
     if (c.upstreamCalls < 0) violations.push(`feed ${id}: negative call count`);
     if (!c.scanCitation.trim()) violations.push(`feed ${id}: usedByScan=${c.usedByScan} with no citation — say where the scan calls it, or why it does not`);
   }

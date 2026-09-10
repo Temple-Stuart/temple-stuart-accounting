@@ -2,7 +2,7 @@
 
 Twenty-five business tools on one data pipe that ends in one Ledger and one Calendar.
 
-Source-available (BSL 1.1) · built and operated in production by its founder as User #1 · as of 2026-09-02: 116 Prisma models, 288 API route files, 121 feeds from 20 providers (counted August 24, 2026)
+Source-available (BSL 1.1) · built and operated in production by its founder as User #1 · as of 2026-09-02: 116 Prisma models, 287 API route files, 121 feeds from 20 providers (counted August 24, 2026)
 
 ## The system
 
@@ -329,7 +329,7 @@ Versions from package.json, read 2026-09-02:
 
 Observed versus authored (step 6): what the world sends is observed; what you do is authored; the blueprint keeps the two apart and matches them on one key. Today the Plaid feeds land word for word, fingerprinted — 9,092 transactions, 712 investment transactions, 247 securities, counted September 7, 2026; the other providers still land parsed — see the gap ledger, step 14.
 
-Scale, as of 2026-09-02: 116 Prisma models, 34 enums, 288 API route files, 35 runtime dependencies, 17 dev dependencies, one test file (`npm test`).
+Scale, as of 2026-09-02: 116 Prisma models, 34 enums, 287 API route files, 34 runtime dependencies, 17 dev dependencies, one test file (`npm test`).
 
 ## Engineering discipline
 
@@ -396,7 +396,7 @@ You need Node (the code is typed against `@types/node ^20`), PostgreSQL, and a h
 | Places | `GOOGLE_PLACES_API_KEY`, `GOOGLE_PLACES_MONTHLY_CAP`, `PLACES_CACHE_TTL_DAYS` | Key required unless location search is disabled; caps optional |
 | Markets (tastytrade) | `TASTYTRADE_CLIENT_SECRET`, `TASTYTRADE_REFRESH_TOKEN`, `TT_USERNAME`, `TT_PASSWORD` | Required unless Trade is disabled |
 | Market data | `FINNHUB_API_KEY`, `FRED_API_KEY` | Required unless the scanner is disabled |
-| AI | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `XAI_API_KEY`, `VOYAGE_API_KEY` | Required unless the AI features are disabled |
+| AI | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `VOYAGE_API_KEY` | Required unless the AI features are disabled |
 | Email (Resend) | `RESEND_API_KEY`, `EMAIL_FROM` | Required unless email is disabled |
 | Jobs (Inngest) | `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY` | Required unless background jobs are disabled |
 | OAuth sign-in | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | Optional; email login works without |

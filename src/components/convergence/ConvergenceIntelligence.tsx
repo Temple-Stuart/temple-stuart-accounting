@@ -55,20 +55,6 @@ interface PipelineSummary {
   timestamp: string;
 }
 
-interface SocialSentimentData {
-  symbol: string;
-  score: number;
-  magnitude: number;
-  postCount: number;
-  bullishCount: number;
-  bearishCount: number;
-  neutralCount: number;
-  themes: string[];
-  samplePosts: { text: string; sentiment: 'bullish' | 'bearish' | 'neutral'; author: string }[];
-  dataAge: string;
-  error?: string;
-}
-
 interface RejectionReason {
   strategy: string;
   reason: string;
@@ -79,7 +65,6 @@ interface RejectionReason {
 interface BatchResponse {
   pipeline_summary: PipelineSummary;
   top_9: RankedRow[];
-  social_sentiment?: Record<string, SocialSentimentData>;
   rejection_reasons?: Record<string, RejectionReason[]>;
   timing: { pipeline_ms: number; ai_ms: number; total_ms: number };
 }
@@ -212,12 +197,11 @@ function buildCardKey(symbol: string, strategyName: string, expiration?: string 
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function TickerChapter({ detail, sentiment, savedCards, savingCards, saveErrors, onSave, onRemove, pipelineProgress }: { detail: TickerDetail;
-  sentiment?: SocialSentimentData;
+export function TickerChapter({ detail, savedCards, savingCards, saveErrors, onSave, onRemove, pipelineProgress }: { detail: TickerDetail;
   savedCards: Map<string, string>;
   savingCards: Set<string>;
   saveErrors: Map<string, string>;
-  onSave: (detail: TickerDetail, card: TradeCardData, sentiment?: SocialSentimentData) => Promise<void>;
+  onSave: (detail: TickerDetail, card: TradeCardData) => Promise<void>;
   onRemove: (cardKey: string, savedId: string) => Promise<void>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pipelineProgress: Record<string, any>;
@@ -380,7 +364,6 @@ export function TickerChapter({ detail, sentiment, savedCards, savingCards, save
       {/* Terminal-style trade card */}
       <TerminalTradeCard
         detail={detail}
-        sentiment={sentiment}
         savedCards={savedCards}
         savingCards={savingCards}
         saveErrors={saveErrors}
@@ -406,12 +389,11 @@ function termTruncate(s: string, max: number): string {
   return s.length > max ? s.slice(0, max - 1) + '…' : s;
 }
 
-export function TerminalTradeCard({ detail, sentiment, savedCards, savingCards, saveErrors, onSave, onRemove }: { detail: TickerDetail;
-  sentiment?: SocialSentimentData;
+export function TerminalTradeCard({ detail, savedCards, savingCards, saveErrors, onSave, onRemove }: { detail: TickerDetail;
   savedCards: Map<string, string>;
   savingCards: Set<string>;
   saveErrors: Map<string, string>;
-  onSave: (detail: TickerDetail, card: TradeCardData, sentiment?: SocialSentimentData) => Promise<void>;
+  onSave: (detail: TickerDetail, card: TradeCardData) => Promise<void>;
   onRemove: (cardKey: string, savedId: string) => Promise<void>;
 }) {
   // RISK-1: user-entered account size for capital context (0 = unset → no dollar math).
@@ -433,18 +415,12 @@ export function TerminalTradeCard({ detail, sentiment, savedCards, savingCards, 
     if (cardWhy) {
       forItems.push(...cardWhy.plain_english_signals);
     }
-    if (sentiment && !sentiment.error && sentiment.score > 0.2) {
-      forItems.push(`Social +${sentiment.score.toFixed(2)} bullish (${sentiment.postCount} posts)`);
-    }
     if (ks?.earnings_pattern && ks.earnings_pattern.beat_rate != null && ks.earnings_pattern.beat_rate > 60) {
       forItems.push(`Beat rate ${ks.earnings_pattern.beat_rate}%${ks.earnings_pattern.sue_score != null ? ` · SUE ${ks.earnings_pattern.sue_score}` : ''}`);
     }
 
     if (cardWhy) {
       againstItems.push(...cardWhy.risk_flags);
-    }
-    if (sentiment && !sentiment.error && sentiment.score < -0.2) {
-      againstItems.push(`Social ${sentiment.score.toFixed(2)} bearish`);
     }
     if (comp.category_scores.regime < 40) {
       againstItems.push(`Weak regime ${comp.category_scores.regime.toFixed(1)}`);
@@ -605,40 +581,6 @@ export function TerminalTradeCard({ detail, sentiment, savedCards, savingCards, 
         <div className="text-xs text-text-muted">
           ANALYSTS: {ks?.analyst_consensus ?? '—'} · INSIDER MSPR: {mspr != null ? mspr.toFixed(2) : '—'} · NEWS SENTIMENT: {newsScore != null ? newsScore.toFixed(1) : '—'} · INST OWNERS: {instOwners ?? '—'} · BUZZ: {ks?.buzz_ratio != null ? `${ks.buzz_ratio.toFixed(1)}x` : '—'} · TREND: {ks?.sentiment_momentum != null ? ks.sentiment_momentum.toFixed(0) : '—'}
         </div>
-        {sentiment && !sentiment.error && sentiment.postCount > 0 && (
-          <>
-            <div className="text-xs mt-0.5">
-              <span className="text-text-muted">SOCIAL: </span>
-              <span className={sentiment.score > 0.2 ? 'text-brand-green font-bold' : sentiment.score < -0.2 ? 'text-brand-red font-bold' : 'text-text-muted font-bold'}>
-                {sentiment.score > 0 ? '+' : ''}{sentiment.score.toFixed(2)}
-              </span>
-              <span className="text-text-faint"> · {sentiment.postCount} posts · {sentiment.bullishCount}B/{sentiment.bearishCount}Be/{sentiment.neutralCount}N · AGE: {sentiment.dataAge}</span>
-            </div>
-            {sentiment.themes.length > 0 && (
-              <div className="text-xs text-text-faint mt-0.5">THEMES: {sentiment.themes.join(' · ')}</div>
-            )}
-            {sentiment.samplePosts && sentiment.samplePosts.length > 0 && (
-              <div className="mt-0.5">
-                {sentiment.samplePosts.slice(0, 2).map((post, i) => (
-                  <div key={i} className="text-xs text-text-faint truncate">&ldquo;{termTruncate(post.text, 80)}&rdquo; — {post.sentiment}</div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-        {sentiment?.error && (
-          <div className="text-xs text-text-faint mt-0.5">SOCIAL: unavailable — {sentiment.error}</div>
-        )}
-        {!sentiment && (
-          <div className="text-xs text-text-faint mt-0.5">SOCIAL: xAI data not loaded</div>
-        )}
-        {sentiment && !sentiment.error && sentiment.postCount === 0 && (
-          <div className="text-xs text-text-faint mt-0.5">SOCIAL: 0 posts found</div>
-        )}
-        {/* Magnitude + data age always shown if available */}
-        {sentiment && !sentiment.error && sentiment.postCount > 0 && (
-          <div className="text-xs text-text-faint mt-0.5">MAGNITUDE: {sentiment.magnitude.toFixed(2)}</div>
-        )}
       </div>
     );
   };
@@ -838,7 +780,7 @@ export function TerminalTradeCard({ detail, sentiment, savedCards, savingCards, 
               <div>
                 {/* LANG-1: label states the true action — onSave = saveCard (:4478) POSTs
                     /api/trade-cards status 'queued' (:4540); it places NO broker order. */}
-                <Button variant="primary" size="md" onClick={() => onSave(detail, card, sentiment)} className="w-full mt-1">Queue Card</Button>
+                <Button variant="primary" size="md" onClick={() => onSave(detail, card)} className="w-full mt-1">Queue Card</Button>
                 {error && <div className="mt-1 px-2 py-1 rounded text-[10px] bg-red-900/50 text-brand-red">Failed: {error}</div>}
               </div>
             )}
@@ -851,12 +793,11 @@ export function TerminalTradeCard({ detail, sentiment, savedCards, savingCards, 
 
 // ── Ticker Card (the full card for one ticker) ─────────────────────
 
-export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, onSave, onRemove }: { detail: TickerDetail;
-  sentiment?: SocialSentimentData;
+export function TickerCard({ detail, savedCards, savingCards, saveErrors, onSave, onRemove }: { detail: TickerDetail;
   savedCards: Map<string, string>; // key: "SYMBOL|strategy_name" → saved card ID
   savingCards: Set<string>;
   saveErrors: Map<string, string>;
-  onSave: (detail: TickerDetail, card: TradeCardData, sentiment?: SocialSentimentData) => Promise<void>;
+  onSave: (detail: TickerDetail, card: TradeCardData) => Promise<void>;
   onRemove: (cardKey: string, savedId: string) => Promise<void>;
 }) {
   // RISK-1: user-entered account size for capital context (0 = unset → no dollar math).
@@ -895,48 +836,10 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
         <div title="Information Edge Gate (0–100): measures signals of informed activity. Combines insider net purchase ratio (MSPR), institutional ownership changes, analyst upgrades/downgrades, SUE earnings surprise, and FinBERT news sentiment. Above 50 = positive information asymmetry."><MetricInfo metricKey="info_edge" values={{ score: comp.category_scores.info_edge }}><ScoreBar label="Info Edge" score={comp.category_scores.info_edge} /></MetricInfo></div>
       </div>
 
-      {/* B2) SOCIAL PULSE — promoted from Key Stats */}
-      {sentiment && !sentiment.error && sentiment.postCount > 0 && (
-        <div className="px-5 py-2 border-b border-border bg-bg-row">
-          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1">Social Pulse (xAI/Grok)</div>
-          <div className="flex items-baseline gap-2 flex-wrap">
-            <span
-              className={`text-lg font-bold font-mono ${sentiment.score > 0.2 ? 'text-brand-green' : sentiment.score < -0.2 ? 'text-brand-red' : 'text-text-muted'}`}
-              title="Aggregate sentiment score from real X (Twitter) posts analyzed by xAI Grok. Range -1.0 (fully bearish) to +1.0 (fully bullish). Based on actual post content, not price action."
-            >
-              {sentiment.score > 0 ? '+' : ''}{sentiment.score.toFixed(2)}
-            </span>
-            <span className="text-xs text-text-faint font-mono" title="Breakdown of post sentiment classification by xAI Grok. Each post classified as bullish, bearish, or neutral based on content analysis.">
-              <span title="Number of recent X/Twitter posts about this ticker analyzed by xAI Grok. Higher count = more data points = higher confidence in the sentiment reading.">{sentiment.postCount} posts</span>
-              {' | '}{sentiment.bullishCount}B/{sentiment.bearishCount}b/{sentiment.neutralCount}N
-            </span>
-            {sentiment.themes.length > 0 && (
-              <span className="flex gap-1 flex-wrap">
-                {sentiment.themes.slice(0, 3).map((t, i) => (
-                  <Badge key={i} variant="default" size="sm">{t}</Badge>
-                ))}
-              </span>
-            )}
-          </div>
-          {sentiment.samplePosts && sentiment.samplePosts.length > 0 && (
-            <div className="mt-1 space-y-0.5">
-              {sentiment.samplePosts.slice(0, 2).map((post, i) => (
-                <div key={i} className="text-[10px] text-text-secondary leading-relaxed truncate">&ldquo;{post.text}&rdquo;</div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-      {sentiment?.error && (
-        <div className="px-5 py-2 border-b border-border text-xs text-text-muted">
-          Social Pulse unavailable — {sentiment.error}
-        </div>
-      )}
-      {!sentiment && (
-        <div className="px-5 py-2 border-b border-border text-xs text-text-muted">
-          Social Pulse — xAI data not loaded
-        </div>
-      )}
+      {/* PIPE-01: the Social Pulse panel is GONE with xAI. It rendered the only
+          xAI-sourced value in the product, and that value fed no score —
+          scoreAll (composite.ts:118-137) never read it. The sentiment that does
+          score is Finnhub's, shown in Key Stats below. */}
 
       {/* C) THE TRADE */}
       {cards.length > 0 ? (
@@ -1170,7 +1073,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
                       <Button
                         variant="primary"
                         size="md"
-                        onClick={() => onSave(detail, card, sentiment)}
+                        onClick={() => onSave(detail, card)}
                         className="w-full mt-1"
                       >
                         Queue Card
@@ -1549,9 +1452,9 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
               <span className="text-text-muted font-medium">Sentiment: </span>
               <span className="text-text-secondary font-mono">
                 <span title="Aggregated analyst rating from Finnhub. Ranges from Strong Buy to Strong Sell. Used as one input to the Info Edge gate.">Analysts: {ks.analyst_consensus ?? '—'}</span>
-                {' | '}<span title="Social media activity ratio: recent mention volume vs baseline. From xAI/Grok real-time X/Twitter analysis. Elevated buzz can signal upcoming price movement.">Buzz {ks.buzz_ratio != null ? `${ks.buzz_ratio.toFixed(1)}x` : '—'}</span>
+                {' | '}<span title="News activity ratio: articles in the last 7 days vs the prior baseline. Computed from Finnhub /company-news (data-fetchers.ts:2242) — never a social feed. Elevated coverage can precede price movement.">Buzz {ks.buzz_ratio != null ? `${ks.buzz_ratio.toFixed(1)}x` : '—'}</span>
                 {ks.buzz_ratio != null && <span className="text-text-muted"> — {statExplain('buzz_ratio', ks.buzz_ratio)}</span>}
-                {' | '}<span title="Rate of change in social sentiment. Positive = sentiment improving recently. Negative = sentiment deteriorating. From xAI/Grok X/Twitter analysis.">Trend {ks.sentiment_momentum != null ? ks.sentiment_momentum.toFixed(0) : '—'}</span>
+                {' | '}<span title="Rate of change in NEWS sentiment: the last 7 days vs the prior month, from Finnhub /company-news. Positive = coverage improving. Negative = deteriorating.">Trend {ks.sentiment_momentum != null ? ks.sentiment_momentum.toFixed(0) : '—'}</span>
                 {ks.sentiment_momentum != null && <span className="text-text-muted"> — {statExplain('sentiment_momentum', ks.sentiment_momentum)}</span>}
               </span>
             </div>
@@ -3866,7 +3769,6 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       ['Probability of Profit', 'Step O Greeks, N(d2) method', 'Step P Gate B', 'Gate B — floor by strategy type', 'Iron Condor ≥50%, Put Credit Spread ≥55%, Short Strangle ≥60%', 'Below floor = eliminated'],
                       ['Net credit collected', 'Step O bid/ask', 'Step P Gate C', 'Gate C — must be ≥$0.10/share', 'Collecting less than $0.10 means the edge is too thin to survive friction costs', 'Below $0.10 = eliminated'],
                       ['Strategy score', 'Computed: EV/Risk×50% + Theta Efficiency×30% + Edge Ratio×20%', 'Step P ranking', 'Winner selection per expiration', 'Ranks surviving strategies. Highest score = Strategy A on the trade card', 'Determines which strategy is selected'],
-                      ['xAI social sentiment', 'xAI Grok API', 'Step P fetch (parallel)', 'Trade card For/Against section', 'Real-time social signal from Reddit Twitter and financial forums', 'Bullish sentiment adds to For column. Bearish adds to Against'],
                     ].map(([dp, src, when, where, why, how], i) => (
                       <tr key={i}>
                         <td className={"text-xs p-2 text-text-secondary font-medium border border-border"}>{dp}</td>
@@ -4374,18 +4276,17 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
   );
 }
 
-function FilteredResultsSection({ enriched, filters, sentimentMap, rejectionMap, onResetFilters,
+function FilteredResultsSection({ enriched, filters, rejectionMap, onResetFilters,
   savedCards, savingCards, saveErrors, onSaveCard, onRemoveCard,
   pipelineProgress, onTally,
 }: { enriched: TickerDetail[];
   filters: ScannerFilters;
-  sentimentMap?: Record<string, SocialSentimentData>;
   rejectionMap?: Record<string, RejectionReason[]>;
   onResetFilters: () => void;
   savedCards: Map<string, string>;
   savingCards: Set<string>;
   saveErrors: Map<string, string>;
-  onSaveCard: (detail: TickerDetail, card: TradeCardData, sentiment?: SocialSentimentData) => Promise<void>;
+  onSaveCard: (detail: TickerDetail, card: TradeCardData) => Promise<void>;
   onRemoveCard: (cardKey: string, savedId: string) => Promise<void>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pipelineProgress: Record<string, any>;
@@ -4393,8 +4294,8 @@ function FilteredResultsSection({ enriched, filters, sentimentMap, rejectionMap,
   onTally?: (t: { trade: number; skip: number }) => void;
 }) {
   const { passed, filtered, totalStrategies, passedStrategies } = useMemo(
-    () => applyFilters(enriched, filters, sentimentMap),
-    [enriched, filters, sentimentMap],
+    () => applyFilters(enriched, filters),
+    [enriched, filters],
   );
   const [showFiltered, setShowFiltered] = useState(false);
   const activeFilters = useMemo(() => describeActiveFilters(filters), [filters]);
@@ -4446,7 +4347,6 @@ function FilteredResultsSection({ enriched, filters, sentimentMap, rejectionMap,
 
       <ScannerResultsTable
         results={passed}
-        sentimentMap={sentimentMap}
         rejectionMap={rejectionMap}
         savedCards={savedCards}
         savingCards={savingCards}
@@ -4577,7 +4477,7 @@ export default function ConvergenceIntelligence({
   }, []);
 
   // Save a card to queue
-  const saveCard = useCallback(async (detail: TickerDetail, card: TradeCardData, socialData?: SocialSentimentData) => {
+  const saveCard = useCallback(async (detail: TickerDetail, card: TradeCardData) => {
     const cardKey = buildCardKey(detail.symbol, card.setup.strategy_name, card.setup.expiration_date, card.setup.legs);
     setSavingCards(prev => { const next = new Set(prev); next.add(cardKey); return next; });
     setSaveErrors(prev => { const next = new Map(prev); next.delete(cardKey); return next; });
@@ -4621,10 +4521,6 @@ export default function ConvergenceIntelligence({
       risk_flags: why?.risk_flags ?? null,
       plain_signals: why?.plain_english_signals ?? null,
       // Social sentiment
-      social_score: socialData?.score ?? null,
-      social_post_count: socialData?.postCount ?? null,
-      social_themes: socialData?.themes ?? null,
-      social_posts: socialData?.samplePosts ?? null,
       // Greeks
       greeks_delta: card.setup.greeks?.delta ?? null,
       greeks_gamma: card.setup.greeks?.gamma ?? null,
@@ -4946,8 +4842,7 @@ export default function ConvergenceIntelligence({
         <FilteredResultsSection
           enriched={enriched}
           filters={filters}
-          sentimentMap={batchData?.social_sentiment}
-          rejectionMap={batchData?.rejection_reasons}
+                    rejectionMap={batchData?.rejection_reasons}
           onResetFilters={() => handleFiltersChange(DEFAULT_FILTERS)}
           savedCards={savedCards}
           savingCards={savingCards}
@@ -4960,7 +4855,7 @@ export default function ConvergenceIntelligence({
       )}
       {enriched.length === 1 && (
         <div className="px-5 py-4 space-y-4">
-          <TickerChapter detail={enriched[0]} sentiment={batchData?.social_sentiment?.[enriched[0].symbol]} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={saveCard} onRemove={removeCard} pipelineProgress={pipelineProgress} />
+          <TickerChapter detail={enriched[0]} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={saveCard} onRemove={removeCard} pipelineProgress={pipelineProgress} />
         </div>
       )}
 
