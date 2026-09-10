@@ -84,8 +84,10 @@ test('Tasks and Time open the room, and no folded route is a door', () => {
       assert.ok(!tool.subRows.some((s) => s.door.href === r.path), `${r.path} is a phase inside the room, not a door`);
     }
   }
-  // /agenda is Calendar's, and Calendar keeps it — the island's only door.
-  assert.equal(navToolByName('Calendar', TOOL_GATE).href, '/agenda');
+  // CAL-01: /agenda was Calendar's home; it is Budget's sub-row now, and Calendar
+  // opens the calendar. Neither is one of the room's folded routes.
+  assert.equal(navToolByName('Calendar', TOOL_GATE).href, '/calendar');
+  assert.ok(navToolByName('Budget', TOOL_GATE).subRows.some((r) => r.door.href === '/agenda'));
 });
 test('the room mounts the existing components — no interior rewritten, one shell', () => {
   const room = src('src/app/operations/OperationsRoom.tsx');

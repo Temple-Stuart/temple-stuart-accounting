@@ -22,8 +22,9 @@
  * that IS its home, selected in place); an off-cockpit tool is a plain link.
  * A NOT_BUILT tool has no home, no screen, no copy.
  *
- * SHELL-01: which STEP a tool sits in, and the order a human walks them, is
- * src/lib/steps.ts — this file stays the one source for what a tool IS.
+ * NAV-25: the order the rail walks the tools, and which phases each owns, is
+ * src/lib/nav.ts — this file stays the one source for what a tool IS. (The
+ * steps layer SHELL-01 invented was deleted with it; src/lib/steps.ts is gone.)
  *
  * THE LAW (module scope — the deck's LAYOUT LAW idiom; also re-run at build by
  * scripts/assert-tool-registry.ts, which adds the filesystem check that every
@@ -33,8 +34,9 @@
  *   3. NOT_BUILT ⇔ no beats; LIVE ⇒ four beats; a PARTIAL with four beats
  *      carries a `why` note (thrown without it) — four beats never imply LIVE;
  *   4. status counts == the dated census (EXPECTED_STATUS_COUNTS);
- * SHELL-01: the six family MENUS and PAGES are retired — the rail walks the
- * steps (src/lib/steps.ts) and HOME carries the whole sheet — so FAMILY_PAGES,
+ * SHELL-01 → NAV-25: the six family MENUS and PAGES are retired — the rail
+ * renders the twenty-five tools (src/lib/nav.ts) and HOME carries the whole
+ * sheet — so FAMILY_PAGES,
  * familyMenu, familyCards, familyOfPath and toolsOf went with them. What the
  * rail and the sheet still read lives here: the facts, the doors (doorOf /
  * doorOfLink), the cockpit paths and the family reads.
@@ -92,18 +94,19 @@ export const EXPECTED_STATUS_COUNTS: Readonly<Record<ToolStatus, number>> = { LI
 
 const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // ── THE WORK ──
-  // ROOM-02: the Routines sub-link is GONE — the recurring form is the room's
-  // phase 03. HOME STAYS /agenda, deliberately: /agenda is an island (its
-  // agenda_items + agenda_checkins are read by no other route, and neither
-  // table is in schema.prisma), and this row is its ONLY door. Dropping it
-  // from step 12 as ruled would leave /agenda, /agenda/new and /agenda/[id]
-  // with no door at all and fail the reachability law — reported, not done.
+  // CAL-01: the calendar is THE CALENDAR. Its home was /agenda — a recurring-spend
+  // planner (cadence + coa_code + budget_amount, committing a `budgets` row) that
+  // is Budget's work and is Budget's now. The merged grid had no room of its own;
+  // it has one at /calendar. The four beats are the ROUTINES pipe, which is what
+  // NAV-25's sort gives this tool: define, schedule, run, prove. The grid itself
+  // is READ-ONLY — three GETs, no write anywhere in it or in EventDetailPanel —
+  // so it carries discover and nothing more, and the citation says which is which.
   Calendar: {
-    slug: 'calendar', status: 'PARTIAL', beats: ALL, home: '/agenda',
-    why: 'an agenda list whose commit lands on calendar_events; the calendar grid itself lives on /runway',
+    slug: 'calendar', status: 'PARTIAL', beats: ALL, home: '/calendar',
+    why: 'a read-only grid over three feeds it does not own, beside a routine builder whose occurrences are the only thing on it this tool writes',
     links: [],
-    citation: 'src/app/api/agenda/route.ts:5 (discover) · :56 (decide, draft :86) · src/app/api/agenda/[id]/route.ts:54 (commit) · :84 (record → calendar_events)',
-    note: 'Reachable from no menu until this PR; the tab keyed "calendar" is Runway.',
+    citation: 'discover: src/components/hub/HubCalendar.tsx:128 (/api/calendar) · :141 (/api/operations/daily-plan/items) · :153 (/api/hub/operations-routines) — three GETs, no write · decide/commit/record: src/app/api/operations/routines/route.ts:264 (create) · routines/[id]/route.ts (edit) · routines/[id]/completions/route.ts (record)',
+    note: 'The grid shows only calendar_events with source "trip" (HubCalendar.tsx:132) — the agenda planner\'s own "agenda" rows are written and never read back.',
   },
   Tasks: {
     // ROOM-02: home is the room. The cockpitKey is gone with the cockpit tab —
@@ -151,6 +154,11 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     // ROOM-01: the six category sub-links are gone — they are the switcher inside
     // /budget now, not six doors in the rail. Shopping stays a room of its own.
     links: [
+      // CAL-01: the agenda planner is Budget's. Its items carry a cadence, a
+      // coa_code and a budget_amount, and committing one writes a `budgets`
+      // plan row (src/app/api/agenda/[id]/route.ts:113-133). ONE sub-row covers
+      // all three pages — /agenda/new and /agenda/[id] are reached through it.
+      { label: 'Recurring plan · the agenda', href: '/agenda' },
       { label: 'Shopping · meal & cart plans', href: '/shopping' },
       { label: 'Itinerary budget builder', href: '/hub/itinerary' },
       { label: 'Runway · the read-only view', cockpitKey: 'calendar' },

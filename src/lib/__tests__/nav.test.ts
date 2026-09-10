@@ -100,7 +100,7 @@ test('every legacy page hangs under the tool that OWNS it — never another tool
   const subs = Object.fromEntries(navRows(TOOL_GATE).filter((t) => t.subRows.length).map((t) => [t.name, t.subRows.map((r) => r.door.href)]));
   assert.deepEqual(subs, {
     Travel: ['/budgets/trips'],
-    Budget: ['/shopping', '/hub/itinerary', '/runway'],
+    Budget: ['/agenda', '/shopping', '/hub/itinerary', '/runway'],
     Bookkeeping: ['/chart-of-accounts'],
     Tax: ['/dashboard/tax-filing'],
     Compliance: ['/soc2'],

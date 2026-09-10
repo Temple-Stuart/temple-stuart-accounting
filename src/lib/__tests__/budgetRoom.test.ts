@@ -68,8 +68,9 @@ test('Budget opens /budget, and no category page is a door anywhere', () => {
     if (tool.href) assert.ok(!legacy.has(tool.href), `${tool.name} opens the category page ${tool.href}`);
     for (const sub of tool.subRows) assert.ok(!legacy.has(sub.door.href), `${tool.name} still links ${sub.label}`);
   }
-  // What Budget keeps: Shopping, the itinerary builder and Runway — reported, not moved.
-  assert.deepEqual(budget.subRows.map((r) => r.door.href), ['/shopping', '/hub/itinerary', '/runway']);
+  // What Budget keeps, plus the agenda planner CAL-01 handed it: recurring-spend
+  // planning is Budget's work, and the planner is where it is done.
+  assert.deepEqual(budget.subRows.map((r) => r.door.href), ['/agenda', '/shopping', '/hub/itinerary', '/runway']);
 });
 
 test('only the PROVABLY identical routes were collapsed — business and home kept their own', () => {

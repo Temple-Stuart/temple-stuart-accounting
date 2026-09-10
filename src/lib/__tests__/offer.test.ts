@@ -70,7 +70,7 @@ test('claim lines come from the registry: "built and running" for LIVE only, "pa
     assert.equal(claimLine(t), `partial — ${t.why}`);
     assert.ok(!claimLine(t).includes('discover'), `${name}: the why, not the beats`);
   }
-  assert.equal(claimLine(tool('Calendar')), 'partial — an agenda list whose commit lands on calendar_events; the calendar grid itself lives on /runway');
+  assert.equal(claimLine(tool('Calendar')), 'partial — a read-only grid over three feeds it does not own, beside a routine builder whose occurrences are the only thing on it this tool writes');
   // a four-beat PARTIAL with no why is thrown, not rendered as the beats form
   assert.throws(() => claimLine({ ...tool('Calendar'), why: undefined }), /Calendar is PARTIAL with four beats and no why/);
   assert.throws(() => claimLine({ ...tool('Calendar'), why: '  ' }), /Calendar is PARTIAL with four beats and no why/);
