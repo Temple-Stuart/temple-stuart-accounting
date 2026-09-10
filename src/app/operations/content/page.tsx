@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation';
 
-// ROOM-02: this hop used to land on the cockpit tab /content, which is now a
-// redirect of its own. It goes straight to the room's phase — one hop, not two.
+// TOOL-LAW-01: the room this hop pointed into is gone. One hop, to the owner.
 export default function OperationsContentRedirect() {
-  redirect('/operations?phase=narrative');
+  redirect('/time');
 }

@@ -89,7 +89,10 @@ test('the two phases that render no surface say so, and cite where the code decl
 });
 
 test('a tool sharing a screen still has its own row and its own destination', () => {
-  assert.deepEqual(navToolsOfScreen('/operations', TOOL_GATE).map((t) => t.name), ['Tasks', 'Time']);
+  // TOOL-LAW-01: /operations is gone — Tasks and Time each have their own page.
+  assert.deepEqual(navToolsOfScreen('/operations', TOOL_GATE).map((t) => t.name), []);
+  assert.deepEqual(navToolsOfScreen('/tasks', TOOL_GATE).map((t) => t.name), ['Tasks']);
+  assert.deepEqual(navToolsOfScreen('/time', TOOL_GATE).map((t) => t.name), ['Time']);
   assert.deepEqual(navToolsOfScreen('/trading', TOOL_GATE).map((t) => t.name), ['Brokerage', 'Trade Log']);
   // Compliance opens its OWN page, not the cockpit carve-out — nine child pages hang off it.
   assert.equal(navToolByName('Compliance', TOOL_GATE).href, '/compliance');
@@ -99,6 +102,9 @@ test('a tool sharing a screen still has its own row and its own destination', ()
 test('every legacy page hangs under the tool that OWNS it — never another tool\'s screen', () => {
   const subs = Object.fromEntries(navRows(TOOL_GATE).filter((t) => t.subRows.length).map((t) => [t.name, t.subRows.map((r) => r.door.href)]));
   assert.deepEqual(subs, {
+    // TOOL-LAW-01: the Issue log and Audit tail return as Tasks' own sub-rows —
+    // the /operations prefix that doored them went with the room.
+    Tasks: ['/operations/issues', '/operations/audit-log'],
     Travel: ['/budgets/trips'],
     Budget: ['/agenda', '/shopping', '/hub/itinerary', '/runway'],
     Bookkeeping: ['/chart-of-accounts'],

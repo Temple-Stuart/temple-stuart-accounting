@@ -20,10 +20,9 @@ test('/calendar mounts the SAME grid, bare — nothing only ModuleLauncher could
   assert.match(page, /<HubCalendar \/>/, 'the same component, mounted with no props');
   assert.match(page, /<AppLayout page>/, 'it wears the one shell');
   assert.match(page, /navToolByName\('Calendar'/, 'its opener names the tool from the registry');
-  // Both existing mounts pass nothing either — so the page needs nothing new.
-  for (const f of ['src/components/home/ModuleLauncher.tsx', 'src/app/operations/OperationsRoom.tsx']) {
-    assert.match(code(f), /<HubCalendar \/>/, `${f} mounts it bare too`);
-  }
+  // TOOL-LAW-01: the room's mount went with the room. The cockpit's runway tab
+  // is the only other mount, and it passes nothing either.
+  assert.match(code('src/components/home/ModuleLauncher.tsx'), /<HubCalendar \/>/, 'the cockpit mounts it bare too');
   // Every prop HubCalendar takes is optional, and the page passes none.
   assert.match(src('src/components/hub/HubCalendar.tsx'), /demoEvents\?:/);
   assert.match(src('src/components/hub/HubCalendar.tsx'), /onRequireAuth\?:/);
