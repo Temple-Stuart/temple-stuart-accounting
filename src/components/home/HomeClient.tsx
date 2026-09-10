@@ -13,10 +13,11 @@ import AppLayout from '@/components/ui/AppLayout';
 import LandingHeader from '@/components/landing/LandingHeader';
 // SHELL-02: every tab opens in the Accounts shape — "STEP N · FAMILY", the
 // step's title, one derived line. The step comes from the registry's own
-// cockpit map (COCKPIT_PRIMARY_TOOL → stepOfTool), never a retyped list.
-import StepOpener from '@/components/shell/StepOpener';
-import { COCKPIT_PRIMARY_TOOL } from '@/lib/toolRegistry';
-import { stepOfTool } from '@/lib/steps';
+// cockpit map (COCKPIT_PATH → navToolsOfScreen), never a retyped list.
+import ToolOpener from '@/components/shell/ToolOpener';
+import { COCKPIT_PATH } from '@/lib/toolRegistry';
+import { navToolsOfScreen } from '@/lib/nav';
+import { TOOL_GATE } from '@/lib/offer';
 // DS-2: the app hero uses the SAME radial-glow surface as the landing hero.
 // REPAINT-3: the HERO_BG import died — the hero is a solid aubergine band
 // (HOME-HERO-PARITY holds: the landing hero made the same move in REPAINT-2).
@@ -97,13 +98,16 @@ export default function HomeClient({ offerAvailability }: {
       )}
 
 
-      {/* SHELL-02: the tab's opener, where the purple band used to be. */}
+      {/* NAV-25: the tab's opener names the TOOLS this screen serves. A cockpit
+          tab can be two tools' screen (/trade is Brokerage and Trade Log); the
+          single strip below is unchanged — the opener adds no second one. */}
       {(() => {
-        const tool = COCKPIT_PRIMARY_TOOL[activeTab];
-        if (!tool) return null;
+        const path = COCKPIT_PATH[activeTab];
+        const tools = path ? navToolsOfScreen(path, TOOL_GATE) : [];
+        if (tools.length === 0) return null;
         return (
           <div className="mx-auto w-full max-w-[1800px] px-4 pt-6 lg:px-6">
-            <StepOpener step={stepOfTool(tool)} />
+            <ToolOpener tools={tools} />
           </div>
         );
       })()}

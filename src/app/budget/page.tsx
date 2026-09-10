@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import AppLayout from '@/components/ui/AppLayout';
 import BudgetingPage from '@/components/dashboard/BudgetingPage';
-import StepOpener from '@/components/shell/StepOpener';
-import { stepBySlug } from '@/lib/steps';
+import ToolOpener from '@/components/shell/ToolOpener';
+import { navToolByName } from '@/lib/nav';
+import { TOOL_GATE } from '@/lib/offer';
 import { BUDGET_CATEGORIES, budgetHref, categoryFor } from '@/lib/budgetCategories';
 
 /**
@@ -30,12 +31,12 @@ export default async function BudgetPage({ searchParams }: {
   const params = await searchParams;
   const raw = typeof params.category === 'string' ? params.category : undefined;
   const { category, fellBack } = categoryFor(raw);
-  const step = stepBySlug('budget')!;
+  const budget = navToolByName('Budget', TOOL_GATE);
 
   return (
     <AppLayout page>
-      <StepOpener
-        step={step}
+      <ToolOpener
+        tools={[budget]}
         line="Your recurring cost lines and what you actually spent, by category."
       />
 

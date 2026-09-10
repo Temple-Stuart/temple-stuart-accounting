@@ -23,6 +23,9 @@ import AppLayout from '@/components/ui/AppLayout';
 // hasTabAccess); the client pages use useTabLock. Both resolve keysGranting.
 import RoomLock from '@/components/shell/RoomLock';
 import { roomGate } from '@/lib/roomGate';
+import ToolOpener from '@/components/shell/ToolOpener';
+import { navToolByName } from '@/lib/nav';
+import { TOOL_GATE } from '@/lib/offer';
 import OpsSubNav from '@/components/ops/OpsSubNav';
 import { SectionA_IdentityBar } from '@/components/workbench/SectionA_IdentityBar';
 import { SectionB_FounderProfile } from '@/components/workbench/SectionB_FounderProfile';
@@ -44,6 +47,8 @@ export default async function OpsWorkbenchPage() {
       <SectionA_IdentityBar />
       <OpsSubNav />
       <div className="max-w-[1600px] mx-auto px-4 pt-4 pb-8 space-y-4">
+        {/* NAV-25: the screen names the TOOL it is — /compliance is Compliance's. */}
+        <ToolOpener tools={[navToolByName('Compliance', TOOL_GATE)]} />
         <SectionB_FounderProfile />
         <SectionC_CorpusContext />
         <SectionD_DiscoveryLauncher />

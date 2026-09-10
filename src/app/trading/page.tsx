@@ -4,6 +4,9 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { AppLayout } from '@/components/ui';
 // LOCK-01: this page renders a paid module — it asks the tab's own question first.
 import RoomLock, { useTabLock } from '@/components/shell/RoomLock';
+import ToolOpener from '@/components/shell/ToolOpener';
+import { navToolsOfScreen } from '@/lib/nav';
+import { TOOL_GATE } from '@/lib/offer';
 import CalendarGrid, { CalendarEvent, SourceConfig } from '@/components/shared/CalendarGrid';
 import ConvergenceIntelligence from '@/components/convergence/ConvergenceIntelligence';
 import TradeLabPanel from '@/components/trading/TradeLabPanel';
@@ -785,6 +788,10 @@ export default function TradingPage() {
       <RoomLock locked={roomLock.locked} stepName="Trading">
       <div className="min-h-screen bg-bg-terminal text-text-primary">
         <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
+          {/* NAV-25: /trading is TWO tools' screen — Brokerage (17) and Trade Log
+              (18). Each is named, with its own number, status and phases; the
+              single strip below is unchanged (one phase control, never two). */}
+          <ToolOpener tools={navToolsOfScreen('/trading', TOOL_GATE)} />
 
           {/* TRADING-PR-3: the sticky/backdrop-blur "Purple Background Zone" is
               dissolved — the scan form is a full-height SectionCard in normal flow
