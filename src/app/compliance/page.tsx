@@ -18,6 +18,11 @@
  */
 
 import AppLayout from '@/components/ui/AppLayout';
+// LOCK-01: this page renders a paid module — it asks the tab's own question
+// first. This is a SERVER component, so it uses the server twin (roomGate →
+// hasTabAccess); the client pages use useTabLock. Both resolve keysGranting.
+import RoomLock from '@/components/shell/RoomLock';
+import { roomGate } from '@/lib/roomGate';
 import OpsSubNav from '@/components/ops/OpsSubNav';
 import { SectionA_IdentityBar } from '@/components/workbench/SectionA_IdentityBar';
 import { SectionB_FounderProfile } from '@/components/workbench/SectionB_FounderProfile';
@@ -30,9 +35,12 @@ import { SectionH_CorpusInspector } from '@/components/workbench/SectionH_Corpus
 import { SectionI_AuditTail } from '@/components/workbench/SectionI_AuditTail';
 import { SectionJ_CostLedger } from '@/components/workbench/SectionJ_CostLedger';
 
-export default function OpsWorkbenchPage() {
+export default async function OpsWorkbenchPage() {
+  // LOCK-01: the same question the Compliance tab asks.
+  const { locked } = await roomGate('tab:compliance');
   return (
     <AppLayout>
+      <RoomLock locked={locked} stepName="Compliance">
       <SectionA_IdentityBar />
       <OpsSubNav />
       <div className="max-w-[1600px] mx-auto px-4 pt-4 pb-8 space-y-4">
@@ -46,6 +54,7 @@ export default function OpsWorkbenchPage() {
         <SectionI_AuditTail />
         <SectionJ_CostLedger />
       </div>
+    </RoomLock>
     </AppLayout>
   );
 }

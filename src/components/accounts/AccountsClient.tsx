@@ -23,7 +23,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Script from 'next/script';
 import { useBankConnection } from '@/components/bank/useBankConnection';
 // SHELL-02: an entitlement refusal is a LOCK, never a red HTTP box.
-import StepLock from '@/components/shell/StepLock';
+import RoomLock from '@/components/shell/RoomLock';
 import { stepBySlug } from '@/lib/steps';
 import StepOpener from '@/components/shell/StepOpener';
 import {
@@ -37,12 +37,9 @@ const ENTITY_OPTIONS: readonly string[] = ['personal', 'business', 'trading', 'r
 const CARD = 'rounded-lg border border-border bg-white';
 const TH = 'px-3 py-2 text-left font-medium';
 
-export default function AccountsClient({ viewerId, offerAvailability }: {
-  /** SHELL-02: the viewer's id — the lock card's checkout door needs it (a guest is sent to sign up). */
-  viewerId: string;
-  /** SHELL-02: per offer key, is its Stripe price id set — the server's env-presence read. The lock card renders the offer from it. */
-  offerAvailability: Readonly<Record<string, boolean>>;
-}) {
+// LOCK-01: the viewerId / offerAvailability props left with the offer card — a
+// locked viewer sees the room, and the room needs neither an id nor a price.
+export default function AccountsClient() {
   const [state, setState] = useState<'loading' | 'error' | 'ok' | 'locked'>('loading');
   const [failure, setFailure] = useState<string | null>(null);
   const [items, setItems] = useState<ApiItem[]>([]);
@@ -113,6 +110,9 @@ export default function AccountsClient({ viewerId, offerAvailability }: {
     }
   };
 
+  // LOCK-01: a 403 shows the room's EMPTY state — the same groups an entitled
+  // viewer with no accounts sees — never an error and never an HTTP status.
+  const shown = state === 'ok' || state === 'locked';
   const rows = state === 'ok' ? rowsOf(items) : [];
   const groups = groupAccounts(rows);
   const connected = rows.length;
@@ -122,17 +122,9 @@ export default function AccountsClient({ viewerId, offerAvailability }: {
       {/* Plaid Link — the same CDN script the cockpit loads for the same flow. */}
       <Script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js" strategy="lazyOnload" />
 
-      {/* SHELL-02: a locked viewer sees the lock ALONE — the lock carries its own
-          opener, and Connect/Sync are not offered for a step they cannot open. */}
-      {state === 'locked' ? (
-        <StepLock
-          step={stepBySlug('accounts')!}
-          tabKey="tab:books"
-          currentUserId={viewerId}
-          onRequireAuth={() => { window.location.href = '/'; }}
-          offerAvailability={offerAvailability}
-        />
-      ) : (
+      {/* LOCK-01: the room renders for a locked viewer too — frozen, under one
+          inline note. RoomLock is the one mechanism; nothing here is a pitch. */}
+      <RoomLock locked={state === 'locked'} stepName="Accounts">
         <>
       {/* SHELL-02: the ONE opener — this page's shape became the standard. */}
       <StepOpener
@@ -182,7 +174,7 @@ export default function AccountsClient({ viewerId, offerAvailability }: {
         </div>
       )}
 
-      {state === 'ok' && (
+      {shown && (
         <div className="space-y-4">
           {groups.map((group) => (
             <section key={group.key} className={`${CARD} p-3`} data-group={group.key} data-group-count={group.rows.length}>
@@ -279,7 +271,7 @@ export default function AccountsClient({ viewerId, offerAvailability }: {
         </div>
       )}
         </>
-      )}
+      </RoomLock>
     </div>
   );
 }

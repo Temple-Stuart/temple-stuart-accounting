@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { AppLayout } from '@/components/ui';
+// LOCK-01: this page renders a paid module — it asks the tab's own question first.
+import RoomLock, { useTabLock } from '@/components/shell/RoomLock';
 import CalendarGrid, { CalendarEvent, SourceConfig } from '@/components/shared/CalendarGrid';
 import ConvergenceIntelligence from '@/components/convergence/ConvergenceIntelligence';
 import TradeLabPanel from '@/components/trading/TradeLabPanel';
@@ -87,6 +89,8 @@ const EMOTIONS = ['confident', 'neutral', 'nervous', 'fomo', 'revenge', 'greedy'
 const SETUPS = ['breakout', 'pullback', 'mean-reversion', 'momentum', 'earnings', 'theta-decay', 'volatility', 'other'];
 
 export default function TradingPage() {
+  // LOCK-01: the same check the tab makes (isTabLocked over /api/auth/me).
+  const roomLock = useTabLock('tab:trade');
   // Identity from the cookie-auth read the rest of the app uses (/api/auth/me),
   // not from the NextAuth session — a password login mints only the signed
   // userEmail cookie (api/auth/login/route.ts:56-62), so that session is empty
@@ -778,6 +782,7 @@ export default function TradingPage() {
 
   return (
     <AppLayout>
+      <RoomLock locked={roomLock.locked} stepName="Trading">
       <div className="min-h-screen bg-bg-terminal text-text-primary">
         <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
 
@@ -1156,6 +1161,7 @@ export default function TradingPage() {
         </div>
       )}
 
+    </RoomLock>
     </AppLayout>
   );
 }

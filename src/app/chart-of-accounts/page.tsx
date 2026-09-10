@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { AppLayout } from '@/components/ui';
+// LOCK-01: this page renders a paid module — it asks the tab's own question first.
+import RoomLock, { useTabLock } from '@/components/shell/RoomLock';
 import BookkeepingSection from '@/components/bookkeeping/BookkeepingSection';
 import COAManagementTable from '@/components/bookkeeping/COAManagementTable';
 // SELL-04: the first-run entity step (no entity yet) and the add-a-business step (no sole-prop).
@@ -30,6 +32,8 @@ interface Entity {
 const TYPE_ORDER: Record<string, number> = { personal: 0, sole_prop: 1, trading: 2 };
 
 export default function ChartOfAccountsPage() {
+  // LOCK-01: the same check the tab makes (isTabLocked over /api/auth/me).
+  const roomLock = useTabLock('tab:books');
   const [entities, setEntities] = useState<Entity[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,6 +61,7 @@ export default function ChartOfAccountsPage() {
 
   return (
     <AppLayout>
+      <RoomLock locked={roomLock.locked} stepName="Books">
       <div className="max-w-6xl mx-auto px-4 py-3 space-y-3" data-coa-page>
         <div className="py-2">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint">Books · the chart</p>
@@ -97,6 +102,7 @@ export default function ChartOfAccountsPage() {
           );
         })}
       </div>
+    </RoomLock>
     </AppLayout>
   );
 }

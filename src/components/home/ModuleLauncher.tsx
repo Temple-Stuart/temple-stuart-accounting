@@ -97,7 +97,10 @@ import ContentPipeline from '@/components/workbench/operations/content/ContentPi
 // the last transitive deck thread (TabShowcases and its slide-section
 // modules) is out of the app graph; locked viewers get pointer-card +
 // LockedTabCard.
-import { LockedTabCard } from '@/components/home/LockedTabCard';
+// LOCK-01: the four locked tabs render THEIR OWN ROOM, frozen, under one inline
+// note — not the offer card. LockedTabCard left the app with them; the offer
+// lives at /pricing and on the deck.
+import RoomLock from '@/components/shell/RoomLock';
 // LAUNCH-01 LAPSE-01: the me payload's lapsed rows → the card's "ended on" line per tab.
 import { keysGranting } from '@/lib/offer';
 import { lapsedFor, type LapsedEntitlement } from '@/lib/lapse';
@@ -204,10 +207,9 @@ interface Props {
    *  subhead up top can swap to that tab's descriptor. Optional/additive. */
   onTabChange?: (tab: string) => void;
   /** SELL-02: per offer key, is its Stripe price id set — server-computed (page.tsx), passed down to the locked cards; never read here. */
-  offerAvailability: Readonly<Record<string, boolean>>;
 }
 
-export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvailability }: Props) {
+export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // Auth state: null = unknown (initial), true/false once /api/auth/me resolves.
   const [authed, setAuthed] = useState<boolean | null>(null);
   // PR-2b: per-category entitlements + user id (server-computed via /api/auth/me). Drive the
@@ -1012,7 +1014,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvaila
       <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'trade' ? 'block' : 'hidden'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
-            {!tradeLocked ? (
+            <RoomLock locked={tradeLocked} lapsed={lapsedFor(keysGranting('tab:trade'), lapsed)} stepName="Trading">
               <>
                 {/* TRADE-UX-1: the tab's sections consolidate on the shared
                     <ToggleStrip> (the travel/books precedent) — one phase
@@ -1186,23 +1188,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvaila
                     declaration moved INTO phase 05 per the Pipe Frame.) */}
                 <TradingDataDisclaimer />
               </>
-            ) : (
-              <div>
-                <div className={MODULE_SHELL_CARD}>
-                {/* MOD-2: pointer-card to /modules/trade + the surviving purchase
-                    path. label/valueLine are VERBATIM lockstep copies of
-                    TabShowcases' TradeShowcase cta (extraction = MOD-3). */}
-                <ModulePointerCard pillarId="trade" />
-                <LockedTabCard
-                  tabKey="tab:trade"
-                  offerAvailability={offerAvailability}
-                  lapsed={lapsedFor(keysGranting('tab:trade'), lapsed)}
-                  currentUserId={currentUserId}
-                  onRequireAuth={onRequireAuth}
-                />
-                </div>
-              </div>
-            )}
+            </RoomLock>
           </div>
         </div>
       </section>
@@ -1220,7 +1206,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvaila
           <div className="px-4 py-4 space-y-6">
             <div>
               <div className={MODULE_SHELL_CARD}>
-            {!booksLocked ? (
+            <RoomLock locked={booksLocked} lapsed={lapsedFor(keysGranting('tab:books'), lapsed)} stepName="Books">
               <>
                 {/* Plaid Link script — loaded only for a viewer who sees this surface (locked
                     viewers never pull Plaid). Mirrors dashboard/page.tsx:454. */}
@@ -1278,21 +1264,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvaila
                     dashboard positions; the cockpit above keeps its own BOOKS-1 wiring. */}
                 <BooksPipeline />
               </>
-            ) : (
-              <>
-                {/* MOD-2: pointer-card to /modules/books + the surviving purchase
-                    path. label/valueLine are VERBATIM lockstep copies of
-                    TabShowcases' BooksShowcase cta (extraction = MOD-3). */}
-                <ModulePointerCard pillarId="books" />
-                <LockedTabCard
-                  tabKey="tab:books"
-                  offerAvailability={offerAvailability}
-                  lapsed={lapsedFor(keysGranting('tab:books'), lapsed)}
-                  currentUserId={currentUserId}
-                  onRequireAuth={onRequireAuth}
-                />
-              </>
-            )}
+            </RoomLock>
               </div>
             </div>
           </div>
@@ -1309,23 +1281,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvaila
           <div className="px-4 py-4 space-y-6">
             <div>
               <div className={MODULE_SHELL_CARD}>
-            {!taxLocked ? (
+            <RoomLock locked={taxLocked} lapsed={lapsedFor(keysGranting('tab:tax'), lapsed)} stepName="Tax">
               <TaxHandoffGate onGoToBooks={() => selectTab('books')} />
-            ) : (
-              <>
-                {/* MOD-2: pointer-card to /modules/tax + the surviving purchase
-                    path. label/valueLine are VERBATIM lockstep copies of
-                    TabShowcases' TaxShowcase cta (extraction = MOD-3). */}
-                <ModulePointerCard pillarId="tax" />
-                <LockedTabCard
-                  tabKey="tab:tax"
-                  offerAvailability={offerAvailability}
-                  lapsed={lapsedFor(keysGranting('tab:tax'), lapsed)}
-                  currentUserId={currentUserId}
-                  onRequireAuth={onRequireAuth}
-                />
-              </>
-            )}
+            </RoomLock>
               </div>
             </div>
           </div>
@@ -1343,23 +1301,9 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange, offerAvaila
           <div className="px-4 py-4 space-y-6">
             <div>
               <div className={MODULE_SHELL_CARD}>
-            {!complianceLocked ? (
+            <RoomLock locked={complianceLocked} lapsed={lapsedFor(keysGranting('tab:compliance'), lapsed)} stepName="Compliance">
               <ComplianceWorkbench />
-            ) : (
-              <>
-                {/* MOD-2: pointer-card to /modules/compliance + the surviving
-                    purchase path. label/valueLine are VERBATIM lockstep copies of
-                    TabShowcases' ComplianceShowcase cta (extraction = MOD-3). */}
-                <ModulePointerCard pillarId="compliance" />
-                <LockedTabCard
-                  tabKey="tab:compliance"
-                  offerAvailability={offerAvailability}
-                  lapsed={lapsedFor(keysGranting('tab:compliance'), lapsed)}
-                  currentUserId={currentUserId}
-                  onRequireAuth={onRequireAuth}
-                />
-              </>
-            )}
+            </RoomLock>
               </div>
             </div>
           </div>

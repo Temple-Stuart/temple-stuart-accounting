@@ -698,6 +698,64 @@ if (existsSync(resolve(ROOT, 'src/components/ui/ShellFrame.tsx'))) {
   violations.push('shell: ShellFrame is back — AppLayout is the ONE wrapper (SHELL-02)');
 }
 console.log(`✔ The shell law passed — ${shellFiles.length} files scanned, ${shellOffenders} outside ShellBar render a sign-out, a brand bar or the module band; ${DECK_HEADER_FILES.length} declared deck surfaces keep LandingHeader; AppLayout is the one wrapper.`);
+// ── THE LOCK LAW (LOCK-01) ────────────────────────────────────────────────
+// (a) EVERY page that mounts a paid module's root component asks for its key
+//     first. src/app/dashboard/tax-filing/page.tsx mounted the FULL filing
+//     wizard with no check at all: an account holding nothing got the whole
+//     wizard at that URL. The table below is the component → key map; a page
+//     that mounts one of them without naming a gate fails the build.
+// (b) NO offer inside the app. The offer card, its price line and its billing
+//     copy belong at /pricing and on the deck; a locked step shows its room.
+const PAID_COMPONENTS: ReadonlyArray<{ component: string; key: string }> = [
+  { component: 'TaxFilingWizard', key: 'tab:tax' },
+  { component: 'BooksPipeline', key: 'tab:books' },
+  { component: 'ConvergenceIntelligence', key: 'tab:trade' },
+  { component: 'TradeLabPanel', key: 'tab:trade' },
+  { component: 'COAManagementTable', key: 'tab:books' },
+  { component: 'BookkeepingSection', key: 'tab:books' },
+  { component: 'ComplianceWorkbench', key: 'tab:compliance' },
+];
+// The gate is one of the two twins — the server's roomGate/hasTabAccess or the
+// client's useTabLock/isTabLocked — and both resolve through keysGranting.
+const GATE_MARK = /(roomGate|useTabLock|hasTabAccess|isTabLocked)\s*\(/;
+const OFFER_ALLOWLIST = [
+  'src/app/pricing/',
+  'src/components/landing/',
+  'src/app/modules/',
+  // The offer card itself and the tab card that renders it — leaves the deck imports.
+  'src/components/OfferCard.tsx',
+  'src/components/home/LockedTabCard.tsx',
+  'src/components/home/TabShowcases.tsx',
+  'src/components/home/TabShowcaseTemplate.tsx',
+  'src/components/home/ComplianceShowcaseSections.tsx',
+];
+const BILLING_COPY = /(BILLED MONTHLY|CANCEL ANYTIME|Billed monthly|Cancel anytime)/;
+const OFFER_MOUNT = /<LockedTabCard\b/;
+let ungated = 0;
+let offerInApp = 0;
+for (const f of shellFiles) {
+  const src = readFileSync(resolve(ROOT, f), 'utf8');
+  const code = src.split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
+  if (f.endsWith('/page.tsx')) {
+    for (const { component, key } of PAID_COMPONENTS) {
+      if (!new RegExp(`<${component}\\b`).test(code)) continue;
+      if (!GATE_MARK.test(code)) {
+        ungated += 1;
+        violations.push(`lock: ${f} mounts ${component} (${key}) with no entitlement check — every paid surface asks for its key (LOCK-01)`);
+      }
+    }
+  }
+  if (OFFER_ALLOWLIST.some((a) => f.startsWith(a))) continue;
+  if (BILLING_COPY.test(code)) {
+    offerInApp += 1;
+    violations.push(`lock: ${f} carries billing copy — the offer lives at /pricing and on the deck, never inside the app (LOCK-01)`);
+  }
+  if (OFFER_MOUNT.test(code)) {
+    offerInApp += 1;
+    violations.push(`lock: ${f} renders LockedTabCard — a locked step shows its room, not a sales pitch (LOCK-01)`);
+  }
+}
+console.log(`✔ The lock law passed — ${PAID_COMPONENTS.length} paid components mapped to their keys, ${ungated} page(s) mount one without a check; ${offerInApp} file(s) outside /pricing and the deck carry an offer or billing copy.`);
 console.log(`✔ The offer law passed — ${OFFERS.length} offers over ${new Set(OFFERS.flatMap((o) => o.tools)).size} tools (LIVE or PARTIAL only), ${FREE_TOOLS.length} free; the purchasable keys are the offers'; "built and running" typed nowhere but offer.ts; ${SELLING_SURFACES.length} selling surfaces render the offer.`);
 
 // ── THE SECOND GATE ─────────────────────────────────────────────────────────
