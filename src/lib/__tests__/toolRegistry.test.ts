@@ -25,7 +25,9 @@ test('the counts are the dated census — 2 LIVE · 9 PARTIAL · 14 NOT_BUILT �
 test('the four four-beat PARTIALs each carry the census note; no LIVE or NOT_BUILT tool carries one', () => {
   const fourBeatPartials = TOOL_REGISTRY.filter((t) => t.status === 'PARTIAL' && beats(t) === 4).map((t) => t.name);
   assert.deepEqual(fourBeatPartials, ['Calendar', 'Tasks', 'Time', 'Budget']);
-  assert.equal(byName('Calendar').why, 'an agenda list whose commit lands on calendar_events; the calendar grid itself lives on /runway');
+  // CAL-01: the why states what /calendar actually is — a read-only grid over
+  // three feeds it does not own, beside the routine builder it does write.
+  assert.equal(byName('Calendar').why, 'a read-only grid over three feeds it does not own, beside a routine builder whose occurrences are the only thing on it this tool writes');
   assert.equal(byName('Tasks').why, "the founder's build pipeline — accepting a task fires a paid Claude Code build; not a customer's task tool");
   assert.equal(byName('Time').why, 'day blocks and a daily log inside the Narrative pipeline; no time tool');
   assert.equal(byName('Budget').why, 'actuals by entity plus recurring lines on module_expenses; no plan vs actual; no personal · trade · travel roll-up');
