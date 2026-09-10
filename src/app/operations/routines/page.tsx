@@ -1,8 +1,7 @@
 import { redirect } from 'next/navigation';
 
-// NAV-01b (ONE SHELL): the Operations shell's Routines page mounted the same SectionE_Routines the
-// cockpit's Routines section mounts.
-// The URL keeps resolving for anyone who linked or bookmarked it.
+// ROOM-02: this hop used to land on the cockpit tab /routines, which is now a
+// redirect of its own. It goes straight to the room's phase — one hop, not two.
 export default function OperationsRoutinesRedirect() {
-  redirect('/routines');
+  redirect('/operations?phase=routines');
 }

@@ -1,8 +1,7 @@
 import { redirect } from 'next/navigation';
 
-// NAV-01b (ONE SHELL): the Operations shell's Projects page mounted the same SectionD_ProjectBacklog
-// the cockpit's Projects section mounts (Tasks' home).
-// The URL keeps resolving for anyone who linked or bookmarked it.
+// ROOM-02: this hop used to land on the cockpit tab /projects, which is now a
+// redirect of its own. It goes straight to the room's phase — one hop, not two.
 export default function OperationsProjectsRedirect() {
-  redirect('/projects');
+  redirect('/operations?phase=projects');
 }

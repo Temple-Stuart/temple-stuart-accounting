@@ -92,23 +92,36 @@ export const EXPECTED_STATUS_COUNTS: Readonly<Record<ToolStatus, number>> = { LI
 
 const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // ── THE WORK ──
+  // ROOM-02: the Routines sub-link is GONE — the recurring form is the room's
+  // phase 03. HOME STAYS /agenda, deliberately: /agenda is an island (its
+  // agenda_items + agenda_checkins are read by no other route, and neither
+  // table is in schema.prisma), and this row is its ONLY door. Dropping it
+  // from step 12 as ruled would leave /agenda, /agenda/new and /agenda/[id]
+  // with no door at all and fail the reachability law — reported, not done.
   Calendar: {
     slug: 'calendar', status: 'PARTIAL', beats: ALL, home: '/agenda',
     why: 'an agenda list whose commit lands on calendar_events; the calendar grid itself lives on /runway',
-    links: [{ label: 'Routines · the recurring form', cockpitKey: 'routines' }],
+    links: [],
     citation: 'src/app/api/agenda/route.ts:5 (discover) · :56 (decide, draft :86) · src/app/api/agenda/[id]/route.ts:54 (commit) · :84 (record → calendar_events)',
     note: 'Reachable from no menu until this PR; the tab keyed "calendar" is Runway.',
   },
   Tasks: {
-    slug: 'tasks', status: 'PARTIAL', beats: ALL, home: '/projects', cockpitKey: 'projects',
+    // ROOM-02: home is the room. The cockpitKey is gone with the cockpit tab —
+    // /projects is a redirect into phase 04 now. The Issue log and Audit tail
+    // sub-links are gone too: both pages live UNDER /operations, so the rail's
+    // step-12 row is already their door (the reachability law's prefix match).
+    slug: 'tasks', status: 'PARTIAL', beats: ALL, home: '/operations',
     why: "the founder's build pipeline — accepting a task fires a paid Claude Code build; not a customer's task tool",
-    links: [{ label: 'Issue log', href: '/operations/issues' }, { label: 'Audit tail', href: '/operations/audit-log' }],
+    links: [],
     citation: 'src/app/api/operations/projects/[id]/tasks/route.ts:43 · generate-tasks/route.ts:42 · tasks/bulk-create/route.ts:117 · tasks/[taskId]/route.ts:82 → :339, :370; accepting a pending_review task fires the paid build at tasks/[taskId]/route.ts:392-402',
   },
   Time: {
-    slug: 'time', status: 'PARTIAL', beats: ALL, home: '/content', cockpitKey: 'content',
+    // ROOM-02: home is the room (phase 05 NARRATIVE — the label changed, the
+    // routes did not). The "Daily plan · North Star" sub-link is gone: it
+    // pointed at /operations, which IS the room now.
+    slug: 'time', status: 'PARTIAL', beats: ALL, home: '/operations',
     why: 'day blocks and a daily log inside the Narrative pipeline; no time tool',
-    links: [{ label: 'Daily plan · North Star', href: '/operations' }],
+    links: [],
     citation: 'src/app/api/operations/tasks/unscheduled/route.ts · daily-plan/items/route.ts:120 · daily-plan/items/[itemId]/blocks/route.ts:36 · daily-plan/blocks/[blockId]/route.ts:38, :163',
   },
   // ── MONEY IN ──

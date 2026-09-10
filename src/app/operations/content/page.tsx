@@ -1,8 +1,7 @@
 import { redirect } from 'next/navigation';
 
-// NAV-01b (ONE SHELL): the Operations shell's Content page mounted the same ContentPipeline the
-// cockpit's Content section mounts (Time's home).
-// The URL keeps resolving for anyone who linked or bookmarked it.
+// ROOM-02: this hop used to land on the cockpit tab /content, which is now a
+// redirect of its own. It goes straight to the room's phase — one hop, not two.
 export default function OperationsContentRedirect() {
-  redirect('/content');
+  redirect('/operations?phase=narrative');
 }
