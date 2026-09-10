@@ -115,7 +115,6 @@ export default function HomeClient({ offerAvailability }: {
       <ModuleLauncher
         onRequireAuth={() => { setLoginMode('register'); setShowLogin(true); }}
         onTabChange={setActiveTab}
-        offerAvailability={offerAvailability}
       />
 
       {/* CPA Disclaimer — FD-3-2: the panel family, mirroring LandingFooter's
