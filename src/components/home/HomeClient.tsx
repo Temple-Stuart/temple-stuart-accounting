@@ -1,17 +1,22 @@
 'use client';
 
 import { Fragment, useState, useEffect } from 'react';
-import { useSession, signOut } from 'next-auth/react';
-import Link from 'next/link';
-import Image from 'next/image';
 import LoginBox from '@/components/LoginBox';
 import ModuleLauncher from '@/components/home/ModuleLauncher';
-import UtilitiesMenu from '@/components/ui/UtilitiesMenu';
-// ONE-BAND: the per-tab module band copy (headline + ✓ chips) — the hero IS
-// the module band now, so it reads the same single source (leaf module,
-// lockstep with the deck's PILLAR_CARDS).
-import { MODULE_BANDS } from '@/lib/moduleBands';
-import { Check } from 'lucide-react';
+// SHELL-02: the app's shell — ShellBar + the rail — for a signed-in viewer. The
+// cockpit used to render its own marketing header instead, which is why /books,
+// /trade, /tax and /travel wore a different chrome from every other page.
+import AppLayout from '@/components/ui/AppLayout';
+// SHELL-02: a GUEST on a cockpit path keeps the deck's own header — the same
+// component the landing, /pricing and the /modules pages already mount. One
+// language per audience; no third header, no new copy.
+import LandingHeader from '@/components/landing/LandingHeader';
+// SHELL-02: every tab opens in the Accounts shape — "STEP N · FAMILY", the
+// step's title, one derived line. The step comes from the registry's own
+// cockpit map (COCKPIT_PRIMARY_TOOL → stepOfTool), never a retyped list.
+import StepOpener from '@/components/shell/StepOpener';
+import { COCKPIT_PRIMARY_TOOL } from '@/lib/toolRegistry';
+import { stepOfTool } from '@/lib/steps';
 // DS-2: the app hero uses the SAME radial-glow surface as the landing hero.
 // REPAINT-3: the HERO_BG import died — the hero is a solid aubergine band
 // (HOME-HERO-PARITY holds: the landing hero made the same move in REPAINT-2).
@@ -19,7 +24,6 @@ import CheckoutResultBanner from '@/components/CheckoutResultBanner';
 // SELL-02: the `?module=<key>` door on the authed landing, and the one checkout call.
 import { moduleDoorPlan } from '@/lib/offer';
 import { startEntitlementCheckout } from '@/lib/checkoutDoor';
-import { useExportDownload } from '@/lib/useExportDownload';
 
 // BANDS-TRIM: the per-tab "How it works" disclosure (PR-Hero-Collapsible)
 // RETIRED with the band's descriptor sub-line — the band is h1 + proof
@@ -31,7 +35,6 @@ export default function HomeClient({ offerAvailability }: {
   /** SELL-02: per offer key, is its Stripe price id set — the server's env-presence read (page.tsx, [tab]/page.tsx); the locked cards render from it. */
   offerAvailability: Record<string, boolean>;
 }) {
-  const { data: session } = useSession();
   const [showLogin, setShowLogin] = useState(false);
   // PR-Hero-PerTab: the hero subhead swaps with the active tab. ModuleLauncher owns the
   // tabs and reports the active one via onTabChange; this mirror drives the hero copy.
@@ -45,52 +48,17 @@ export default function HomeClient({ offerAvailability }: {
   // rest of the app uses) so the header can switch Enter ↔ Log out. null = still loading
   // (render a neutral placeholder, never flash the wrong action); true/false once resolved.
   const [authed, setAuthed] = useState<boolean | null>(null);
-  const [userLabel, setUserLabel] = useState('');
-  const [isAdmin, setIsAdmin] = useState(false);
   // SELL-02: the `?module=<key>` door — a signed-in viewer goes straight to checkout; a guest
   // (the tab paths render this shell for guests too) gets the sign-up modal with the key
   // pending and checkout resumes after sign-up. Errors render loud; nothing retries.
   const [pendingBuyKey, setPendingBuyKey] = useState<string | null>(null);
   const [buyError, setBuyError] = useState('');
-  // EXPORT-1b: the header export chip — shared behavior with the Books-tab button.
-  const { busy: exportBusy, error: exportError, run: runExport } = useExportDownload();
-  // PR-PRICE-3: "Manage subscription" relocated here from the dead /pricing
-  // page — the EXPORT-1b rationale verbatim: this header user area is the one
-  // authed surface with no entitlement in front of it (no settings/account
-  // page exists), and billing must reach EVERY subscriber regardless of which
-  // module they hold. Same portal flow PricingClient ran (POST
-  // /api/stripe/portal → Stripe's hosted portal); errors render inline like
-  // the export chip's — fail-loud, no alert().
-  const [manageBusy, setManageBusy] = useState(false);
-  const [manageError, setManageError] = useState('');
-  const openBillingPortal = async () => {
-    setManageError('');
-    setManageBusy(true);
-    try {
-      const res = await fetch('/api/stripe/portal', { method: 'POST' });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.url) {
-        throw new Error(data.error || 'Could not open the billing portal');
-      }
-      window.location.href = data.url;
-    } catch (err) {
-      setManageError(err instanceof Error ? err.message : 'Could not open the billing portal');
-      setManageBusy(false);
-    }
-  };
   useEffect(() => {
     let cancelled = false;
     fetch('/api/auth/me')
       .then(async (res) => {
         if (cancelled) return;
         setAuthed(res.ok);
-        if (res.ok) {
-          const data = await res.json().catch(() => null);
-          const u = data?.user;
-          if (u) setUserLabel(u.name || u.email?.split('@')[0] || '');
-          // NAV-01b: the utilities menu (owner pages) shows for an admin viewer only.
-          setIsAdmin(Boolean(u?.isAdmin));
-        }
       })
       .catch(() => { if (!cancelled) setAuthed(false); });
     return () => { cancelled = true; };
@@ -110,26 +78,15 @@ export default function HomeClient({ offerAvailability }: {
     }
   }, [authed]);
 
-  // PR-Auth-Home: log out from the home header — the SAME recipe the app shell uses
-  // (AppLayout.handleSignOut): clear the cookie-auth cookie, sign out of next-auth if
-  // there's a session, otherwise hit the clear-cookie route. End on the home page,
-  // logged out (a full load so the header + tabs reflect the guest state cleanly).
-  const handleSignOut = async () => {
-    document.cookie = 'userEmail=; path=/; max-age=0';
-    if (session) {
-      await signOut({ callbackUrl: '/' });
-    } else {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      window.location.href = '/';
-    }
-  };
-
-  return (
-    // FD-3 → REPAINT-3: the shell canvas returns to the cream paper (Direction
-    // C) — bg-page died with the dark chrome. Each tab body still sets its OWN
-    // surface; the remaining dark tab interiors are the declared Slice-4
-    // islands.
-    <div className="min-h-screen bg-bg-terminal">
+  // SHELL-02 — ONE HEADER, and which one depends on the audience:
+  //   authed → AppLayout (ShellBar + the rail), the app's shell, the same one
+  //            every other signed-in page wears;
+  //   guest  → LandingHeader, the deck's own header (the landing, /pricing and
+  //            the /modules pages already mount it).
+  // While auth resolves, neither renders — the no-flash idiom the deleted
+  // header used, kept.
+  const body = (
+    <>
       {/* UNLOCK-BANNER: authed landing — the same checkout result card the
           guest landing mounts (the purchase resume returns to '/'). */}
       <CheckoutResultBanner />
@@ -138,164 +95,18 @@ export default function HomeClient({ offerAvailability }: {
           {buyError} — click to dismiss.
         </div>
       )}
-      {/* Header — FD-3-2: joins the panel family, mirroring LandingHeader
-          (border-b border-border bg-white text-text-primary; mono micro sub-
-          line; text-text-muted nav links). It stays distinct from the hero via
-          the lavender HAIRLINE, not a different colour. */}
-      <header className="border-b border-border bg-white text-text-primary">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8">
-          <div className="flex items-center justify-between h-16 sm:h-20">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white flex items-center justify-center">
-                <span className="text-brand-purple font-bold text-terminal-lg">TS</span>
-              </div>
-              <div>
-                <div className="text-sm font-semibold tracking-tight">Temple Stuart</div>
-                <div className="font-mono text-[10px] uppercase tracking-wider text-text-faint">Founder&apos;s Back Office</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Link href="/how-pricing-works" className="text-xs text-text-muted hover:text-text-primary hidden sm:block">
-                Pricing
-              </Link>
-              <a href="mailto:astuart@templestuart.com" className="text-xs text-text-muted hover:text-text-primary hidden sm:block">
-                Contact
-              </a>
-              {/* PR-Auth-Home: logged in → name + Log out; logged out → Enter →. While auth
-                  is still resolving (authed === null), show an invisible placeholder so the
-                  header never flashes the wrong action or shifts width. */}
-              {authed === null ? (
-                <span className="px-4 py-2.5 text-sm opacity-0 select-none" aria-hidden="true">Enter →</span>
-              ) : authed ? (
-                <>
-                  {/* EXPORT-1b: the export must reach EVERY authed user, not just
-                      tab:books holders — the only prior mount sat inside the
-                      entitlement-locked BooksPipeline. This header user area is
-                      the one authed surface with no entitlement in front of it
-                      (no settings/account page exists). Same behavior as the
-                      CPA-context button via the shared useExportDownload hook;
-                      visible at all breakpoints (mobile users export too). The
-                      error renders inline, truncated with the full message in
-                      title — fail-loud, layout-stable. */}
-                  {exportError && (
-                    <span role="alert" title={exportError} className="max-w-[14rem] truncate text-xs text-rose-400">
-                      {exportError}
-                    </span>
-                  )}
-                  <button
-                    onClick={runExport}
-                    disabled={exportBusy}
-                    title="Download every financial + travel table you own — one CSV per table, zipped. Never paywalled."
-                    className="text-xs text-text-muted hover:text-text-primary disabled:opacity-60"
-                  >
-                    {exportBusy ? 'Preparing export…' : 'Export my data'}
-                  </button>
-                  {/* PR-PRICE-3: the relocated /pricing "Manage existing
-                      subscription" — same link idiom as the export chip. */}
-                  {manageError && (
-                    <span role="alert" title={manageError} className="max-w-[14rem] truncate text-xs text-rose-400">
-                      {manageError}
-                    </span>
-                  )}
-                  <button
-                    onClick={openBillingPortal}
-                    disabled={manageBusy}
-                    title="Open the Stripe billing portal — view, update, or cancel your subscriptions."
-                    className="text-xs text-text-muted hover:text-text-primary disabled:opacity-60"
-                  >
-                    {manageBusy ? 'Opening portal…' : 'Manage subscription'}
-                  </button>
-                  {isAdmin && <UtilitiesMenu />}
-                  {userLabel && (
-                    <span className="text-xs text-text-muted hidden sm:block">{userLabel}</span>
-                  )}
-                  <button onClick={handleSignOut}
-                    className="px-4 py-2.5 text-sm bg-white text-brand-purple font-medium hover:bg-bg-row">
-                    Log out
-                  </button>
-                </>
-              ) : (
-                <button onClick={() => { setLoginMode('login'); setShowLogin(true); }}
-                  className="px-4 py-2.5 text-sm bg-brand-purple text-white font-medium hover:bg-brand-purple-hover">
-                  Enter →
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
 
-      {/* Hero — DS-2 → REPAINT-3 → ONE-BAND: the app hero IS the module band
-          now (the second purple band under the tab bar retired — every tab
-          renders exactly ONE purple headline surface). SOLID bg-brand-purple
-          band, cream headline (text-ts-white); section padding (pb-8 pt-6)
-          stays. The marketing tri-line retired from the app — it remains
-          landing copy for guests (Landing.tsx hero, mounted via GuestLanding).
-          Content = the ACTIVE tab's band config (MODULE_BANDS leaf — the same
-          strings the retired ModuleBand cards rendered), swapping on tab
-          select exactly as the subtitle already does. */}
-      <section className="bg-brand-purple text-white pb-8 pt-6">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8">
-          <div className="max-w-3xl">
-            {/* ONE-BAND eyebrow: the module kicker in the ratified mock's
-                grammar — "MODULE NN / NAME" (numbering = PILLAR_CARDS'
-                canonical lifecycle order, MODULE-ORDER, via the moduleBands
-                nums). Landing eyebrow mono idiom; ink =
-                the band's own muted white tier (StageStrip's active num line,
-                StageStrip.tsx:69). The old badge pill retired with the
-                tri-line. No descriptor renders here: the band config carries
-                none (MODULE_BANDS has plain + bullets only). */}
-            {MODULE_BANDS[activeTab] && (
-              <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/60 mb-6">
-                MODULE {MODULE_BANDS[activeTab].num} / {MODULE_BANDS[activeTab].name}
-              </p>
-            )}
-            <h1 className="text-4xl sm:text-6xl font-bold leading-tight tracking-tight mb-6 text-ts-white">
-              {MODULE_BANDS[activeTab]?.plain}
-            </h1>
-            {/* ONE-BAND chips: the band's ✓ chips, same config — the
-                white-on-purple chip idiom byte-copied from the retired
-                ModuleBand (row: ModuleLauncher's :180 row classes minus
-                justify-center — the hero is left-aligned; chip span + Check:
-                TradeTrustChip verbatim). flex-wrap = the 390px contract
-                (chips wrap, no horizontal overflow). */}
-            {MODULE_BANDS[activeTab] && (
-              <div className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-white/80">
-                {MODULE_BANDS[activeTab].bullets.map((fact, i) => (
-                  <Fragment key={fact}>
-                    {i > 0 && <span className="text-white/30" aria-hidden="true">|</span>}
-                    <span className="flex items-center gap-1">
-                      <Check className="h-3.5 w-3.5 shrink-0 text-white/80" strokeWidth={2.5} aria-hidden="true" />
-                      {fact}
-                    </span>
-                  </Fragment>
-                ))}
-              </div>
-            )}
-            {/* BANDS-TRIM: the descriptor sub-line (TAB_DESCRIPTORS) and the
-                "How it works:" disclosure RETIRED — the band is h1 + proof
-                chips only; the chips' own mb-6 closes the rhythm to the CTA
-                row below (nothing invented). */}
-            {/* ROUTE-1b: "Get Started" is a REGISTER funnel — a guest pitch.
-                It renders ONLY for verified guests (authed === false — the
-                same /api/auth/me state the header's Enter↔Log-out branch
-                reads). Signed-in users see no CTA (Alex: "why would we need
-                to get started inside the app"). While auth resolves
-                (authed === null) an invisible placeholder holds the space —
-                the header's own no-flash idiom — so the hero never jumps. */}
-            <div className="flex items-center gap-4">
-              {authed === null ? (
-                <span className="px-6 py-3 text-sm opacity-0 select-none" aria-hidden="true">Get Started</span>
-              ) : authed === false ? (
-                <button onClick={() => { setLoginMode('register'); setShowLogin(true); }}
-                  className="px-6 py-3 bg-white text-brand-purple font-medium hover:bg-bg-row text-sm">
-                  Get Started
-                </button>
-              ) : null}
-            </div>
+
+      {/* SHELL-02: the tab's opener, where the purple band used to be. */}
+      {(() => {
+        const tool = COCKPIT_PRIMARY_TOOL[activeTab];
+        if (!tool) return null;
+        return (
+          <div className="mx-auto w-full max-w-[1800px] px-4 pt-6 lg:px-6">
+            <StepOpener step={stepOfTool(tool)} />
           </div>
-        </div>
-      </section>
+        );
+      })()}
 
       {/* HOME-PR-1: module launcher (additive, directly under the Hero). Travel
           is live + guest-usable (shared CreateTripForm; saving is register-gated
@@ -398,6 +209,24 @@ export default function HomeClient({ offerAvailability }: {
           </div>
         </div>
       )}
+    </>
+  );
+
+  if (authed === null) {
+    return <div className="min-h-screen bg-bg-terminal" aria-busy="true" />;
+  }
+  if (authed) {
+    // rail={false}: ModuleLauncher mounts the rail itself, in select mode. One
+    // shell, one rail — AppLayout supplies the bar, the cockpit supplies the rail.
+    return <AppLayout rail={false}>{body}</AppLayout>;
+  }
+  return (
+    <div className="min-h-screen bg-bg-terminal">
+      <LandingHeader
+        onRequireLogin={() => { setLoginMode('login'); setShowLogin(true); }}
+        onRequireAuth={() => { setLoginMode('register'); setShowLogin(true); }}
+      />
+      {body}
     </div>
   );
 }

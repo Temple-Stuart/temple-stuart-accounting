@@ -26,7 +26,10 @@ export default function ShellBar({ userLabel, isAdmin, onSignOut }: Props) {
           <span className="hidden sm:inline font-mono text-[10px] uppercase tracking-wider text-text-faint">← the map</span>
         </Link>
         <div className="flex items-center gap-4">
-          {isAdmin && <UtilitiesMenu />}
+          {/* SHELL-02: the menu renders for every signed-in viewer — its ACCOUNT
+              section (export, billing) must reach every customer; the owner
+              section inside stays admin-only. */}
+          <UtilitiesMenu isAdmin={isAdmin} />
           {userLabel && <span className="hidden sm:block text-xs text-text-muted truncate max-w-[12rem]">{userLabel}</span>}
           <button type="button" onClick={onSignOut} className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary" title="Sign out">
             <LogOut className="h-4 w-4" aria-hidden="true" />

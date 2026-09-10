@@ -46,6 +46,21 @@ export interface AppLayoutProps {
   engineMetrics?: EngineMetrics | null;
   onOpenTaxSettings?: () => void;
   bookkeepingBar?: React.ReactNode;
+  /**
+   * SHELL-02: the reading-column shape ShellFrame used to give /accounts and
+   * /step/<slug> — a narrower centred main with page padding. The rooms that
+   * carry their own full-bleed chrome (the cockpit tabs, Books, Travel) leave it
+   * off and keep the wide 1800px main. This is the ONE thing AppLayout lacked
+   * that ShellFrame had, so it was added here rather than keeping two wrappers.
+   */
+  page?: boolean;
+  /**
+   * SHELL-02: does the CHILD bring its own rail? The cockpit does — ModuleLauncher
+   * mounts the rail in SELECT mode (:589), where a step switches tab in place
+   * instead of navigating. One shell, one rail: when the child has one, this
+   * wrapper does not add a second.
+   */
+  rail?: boolean;
 }
 
 interface CookieUser {
@@ -93,12 +108,17 @@ function fmtMom(n: number | undefined): string {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOpenTaxSettings, bookkeepingBar }: AppLayoutProps) {
+export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOpenTaxSettings, bookkeepingBar, page = false, rail = true }: AppLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const [cookieUser, setCookieUser] = useState<CookieUser | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  // SHELL-02: ShellFrame DECLARED a failed profile read under the bar; AppLayout
+  // swallowed it in a bare catch. Folding the two wrappers keeps the louder
+  // behaviour — a viewer whose profile could not be read is told, and the
+  // utilities menu is hidden rather than guessed at.
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   // ─── Auth ──────────────────────────────────────────────────────────────────
 
@@ -108,12 +128,14 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
         const res = await fetch('/api/auth/me');
         if (res.ok) {
           const data = await res.json();
-          if (data.user) {
-            setCookieUser(data.user);
-          }
+          if (data.user) setCookieUser(data.user);
+        } else if (res.status !== 401) {
+          // 401 is "not signed in" — the guard below handles it. Anything else
+          // is a failure the viewer is told about, never swallowed.
+          setProfileError(`HTTP ${res.status}`);
         }
       } catch (e) {
-        // No cookie auth
+        setProfileError(`network — ${e instanceof Error ? e.message : String(e)}`);
       } finally {
         setCheckingAuth(false);
       }
@@ -192,10 +214,12 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
       />
 
       <div className="flex flex-1 min-w-0 flex-col sm:flex-row">
-      <Rail
-        entitledKeys={(currentUser as CookieUser | null | undefined)?.entitledCategories}
-        isAdmin={Boolean((currentUser as { isAdmin?: boolean } | null | undefined)?.isAdmin)}
-      />
+      {rail && (
+        <Rail
+          entitledKeys={(currentUser as CookieUser | null | undefined)?.entitledCategories}
+          isAdmin={Boolean((currentUser as { isAdmin?: boolean } | null | undefined)?.isAdmin)}
+        />
+      )}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Travel Search Bar (only on Travel routes) */}
         {showTravelSearch && (
@@ -288,7 +312,12 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
           </div>
         )}
 
-        <main className="max-w-[1800px] mx-auto w-full">{children}</main>
+        <main className={page ? 'max-w-7xl mx-auto w-full min-w-0 px-4 lg:px-8 py-6 sm:py-8' : 'max-w-[1800px] mx-auto w-full'}>
+          {profileError && (
+            <p role="alert" className="mb-4 font-mono text-[10px] text-rose-700">Profile read failed — {profileError}. Utilities hidden.</p>
+          )}
+          {children}
+        </main>
       </div>
       </div>
     </div>

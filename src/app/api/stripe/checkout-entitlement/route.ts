@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       line_items: [{ price: priceId, quantity: 1 }],
       // SELL-02: a purchase lands on THE ANSWERS with the tab unlocked (the
       // banner reads ?unlocked= there); a cancel lands on the deck's offer act.
-      success_url: `${baseUrl}/answers?unlocked=${encodeURIComponent(key)}`,
+      success_url: `${baseUrl}/home?unlocked=${encodeURIComponent(key)}`,
       cancel_url: `${baseUrl}/?checkout=cancelled#modules`,
       metadata: { userId: user.id, entitlementKey: key },
     });

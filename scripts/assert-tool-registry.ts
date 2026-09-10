@@ -16,7 +16,7 @@
  * families in flow order; steps 1..12 with no gaps; a roomless step holds
  * nothing LIVE), plus what only the filesystem can answer: every step's screen
  * resolves to a page file THAT MOUNTS THE APP SHELL (ACCOUNTS-01: the rail is on
- * every step's screen — the page file, or a layout above it, renders ShellFrame /
+ * every step's screen — the page file, or a layout above it, renders
  * AppLayout / the cockpit; a step whose room drops the navigation fails the
  * build), the roomless steps' one page exists (src/app/step/[slug]/page.tsx), and
  * the rail and the sheet render FROM steps.ts — never a retyped list.
@@ -262,7 +262,8 @@ console.log(`pages: ${pages.length} · doors: ${doors.length}`);
 // ACCOUNTS-01: does this page wear the app shell — in its own file, or in any layout
 // above it? The shells that carry the rail: ShellFrame, AppLayout, and the cockpit
 // (HomeClient / AnswersClient / ModulePageClient, which mount it themselves).
-const SHELLS = ['ShellFrame', 'AppLayout', 'HomeClient', 'AnswersClient', 'ModulePageClient'];
+// SHELL-02: ShellFrame folded into AppLayout — one wrapper, one bar.
+const SHELLS = ['AppLayout', 'HomeClient', 'AnswersClient', 'ModulePageClient'];
 function mountsShell(pageFile: string): boolean {
   const read = (f: string) => (existsSync(resolve(ROOT, f)) ? readFileSync(resolve(ROOT, f), 'utf8') : '');
   if (SHELLS.some((shell) => read(pageFile).includes(shell))) return true;
@@ -287,7 +288,7 @@ for (const step of STEPS) {
     const file = pageFor(step.screen, tabs);
     if (!file) violations.push(`${step.name}: screen ${step.screen} has no page file`);
     // ACCOUNTS-01: and that page wears the shell, so the rail is present in the room.
-    else if (!mountsShell(file)) violations.push(`${step.name}: ${step.screen} (${file}) mounts no shell — the rail must be on every step's screen (ShellFrame, AppLayout, or the cockpit, in the page or a layout above it)`);
+    else if (!mountsShell(file)) violations.push(`${step.name}: ${step.screen} (${file}) mounts no shell — the rail must be on every step's screen (AppLayout or the cockpit, in the page or a layout above it)`);
   }
 }
 // A step with no room opens ONE page — the honest one that states its jobs.
@@ -644,6 +645,59 @@ for (const id of FEED_IDS) {
 }
 console.log(scanCostLine());
 console.log(`✔ The observatory law passed — ${FEED_IDS.length}/${EXPECTED_FEED_COUNT} feeds each carry provider, metered, calls and scan use; ${observatoryFiles.length} file(s) under ${OBSERVATORY_DIR} hold ${observatoryRowsTyped} typed measurement(s); the screen renders a not-measured state. One scan of one symbol: ${SCAN_COST.filter((c) => (c.callsPerSymbol ?? 0) > 0).map((c) => `${c.callsPerSymbol} ${c.provider}`).join(' · ')}.`);
+// ── THE SHELL LAW (SHELL-02) ──────────────────────────────────────────────
+// ONE header and ONE band. Two markers, checked over src/app and src/components:
+//   · a BRAND BAR or a SIGN-OUT outside ShellBar — the app rendered two design
+//     languages at once, a marketing header on the cockpit tabs and ShellBar
+//     everywhere else. The deck is a declared exception: the landing, /pricing
+//     and the /modules pages are marketing surfaces and mount LandingHeader,
+//     which is the guest's language by design.
+//   · the purple MODULE BAND — it is the deck's language, and it landed on the
+//     app tabs. It belongs to HOME and the deck, nowhere else under src/app.
+const DECK_HEADER_FILES = [
+  'src/components/landing/LandingHeader.tsx',
+  'src/components/landing/Landing.tsx',
+  'src/components/landing/GuestLanding.tsx',
+  'src/app/pricing/page.tsx',
+  'src/app/modules/[pillar]/ModulePageClient.tsx',
+  // SHELL-02: the cockpit mounts the DECK's header for a guest only; a signed-in
+  // viewer gets AppLayout. One header per audience, neither of them bespoke.
+  'src/components/home/HomeClient.tsx',
+];
+const SHELL_BAR = 'src/components/ui/ShellBar.tsx';
+function walkSrc(dir: string, out: string[] = []): string[] {
+  for (const e of readdirSync(resolve(ROOT, dir), { withFileTypes: true })) {
+    const rel = `${dir}/${e.name}`;
+    if (e.isDirectory()) walkSrc(rel, out);
+    else if (e.name.endsWith('.tsx')) out.push(rel);
+  }
+  return out;
+}
+const shellFiles = [...walkSrc('src/app'), ...walkSrc('src/components')];
+// A sign-out: the words a viewer clicks to leave. A brand bar: the wordmark
+// inside a <header>. Both are ShellBar's alone.
+const SIGN_OUT = /(Sign out|Log out)</;
+const BRAND_BAR = /<header[\s\S]{0,400}?Temple Stuart/;
+const MODULE_BAND = /MODULE_BANDS\s*\[/;
+let shellOffenders = 0;
+for (const f of shellFiles) {
+  if (f === SHELL_BAR) continue;
+  const src = readFileSync(resolve(ROOT, f), 'utf8');
+  const code = src.split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
+  if (!DECK_HEADER_FILES.includes(f)) {
+    if (SIGN_OUT.test(code)) { shellOffenders += 1; violations.push(`shell: ${f} renders a sign-out — only ${SHELL_BAR} may (SHELL-02: one header)`); }
+    if (BRAND_BAR.test(code)) { shellOffenders += 1; violations.push(`shell: ${f} renders a brand bar inside a <header> — only ${SHELL_BAR} may (SHELL-02: one header)`); }
+  }
+  // The band: HOME's own page may render it; nothing else under src/app.
+  if (MODULE_BAND.test(code) && f.startsWith('src/app/') && !f.startsWith(`src/app${ANSWERS_HOME}/`)) {
+    shellOffenders += 1;
+    violations.push(`shell: ${f} renders the module band — it belongs to HOME (${ANSWERS_HOME}) and the deck (SHELL-02)`);
+  }
+}
+if (existsSync(resolve(ROOT, 'src/components/ui/ShellFrame.tsx'))) {
+  violations.push('shell: ShellFrame is back — AppLayout is the ONE wrapper (SHELL-02)');
+}
+console.log(`✔ The shell law passed — ${shellFiles.length} files scanned, ${shellOffenders} outside ShellBar render a sign-out, a brand bar or the module band; ${DECK_HEADER_FILES.length} declared deck surfaces keep LandingHeader; AppLayout is the one wrapper.`);
 console.log(`✔ The offer law passed — ${OFFERS.length} offers over ${new Set(OFFERS.flatMap((o) => o.tools)).size} tools (LIVE or PARTIAL only), ${FREE_TOOLS.length} free; the purchasable keys are the offers'; "built and running" typed nowhere but offer.ts; ${SELLING_SURFACES.length} selling surfaces render the offer.`);
 
 // ── THE SECOND GATE ─────────────────────────────────────────────────────────

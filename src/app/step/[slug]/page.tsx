@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import ShellFrame from '@/components/ui/ShellFrame';
+import AppLayout from '@/components/ui/AppLayout';
 import { StatusChip } from '@/components/home/ToolChrome';
 import { STEPS, stepBySlug, stepStatus, toolsOfStep } from '@/lib/steps';
 
@@ -34,7 +34,7 @@ export default async function StepPage({ params }: { params: Promise<{ slug: str
   const tools = toolsOfStep(step);
 
   return (
-    <ShellFrame viewer={viewer ?? ''}>
+    <AppLayout page>
       <header className="mb-5">
         <p className="font-mono text-[10px] sm:text-xs uppercase tracking-[0.2em] text-text-faint">
           Step {step.number} <span className="text-brand-gold">·</span> {step.family}
@@ -61,6 +61,6 @@ export default async function StepPage({ params }: { params: Promise<{ slug: str
           </li>
         ))}
       </ul>
-    </ShellFrame>
+    </AppLayout>
   );
 }
