@@ -21,7 +21,10 @@
  *   7. (ROOM-01) step 11 BUDGET opens /budget, and no category page it replaced
  *      is a sub-link anywhere — six near-identical pages were eight doors in the
  *      rail; they are one room with a switcher now;
- *   8. (ACCOUNTS-01b) a job's HOME lives inside its own step — neither the home
+ *   8. (ROOM-02) step 12 OPERATIONS opens /operations, and none of the routes it
+ *      folded in (/projects, /routines, /content) is a sub-link anywhere — one
+ *      day's work was six doors in the rail; it is one room with a phase strip;
+ *   9. (ACCOUNTS-01b) a job's HOME lives inside its own step — neither the home
  *      the registry names nor the DOOR the rail opens for it (doorOf, which
  *      prefers a cockpit path) may be another step's screen. Without this the
  *      rail sent step 1 ACCOUNTS to /books, step 3's room.
@@ -30,6 +33,7 @@
  */
 import { doorOf, doorOfLink, TOOL_REGISTRY, type ToolDoor, type ToolEntry, type ToolStatus } from './toolRegistry';
 import { BUDGET_CATEGORIES, BUDGET_HOME } from './budgetCategories';
+import { FOLDED_ROUTES, OPERATIONS_HOME } from './operationsPhases';
 import type { FamilyName, ToolName } from './problemSheet';
 
 /** The six families in the order a human walks them — NOT the deck's teaching order (PROBLEM_SHEET), which the sheet on HOME still shows. */
@@ -74,17 +78,22 @@ export const STEPS: readonly Step[] = [
     // ROOM-01: the route matches the tab name. Six category pages became one room
   // with a switcher; /business is a redirect like the other five.
   { number: 11, slug: 'budget', name: 'BUDGET', family: 'MONEY OUT', tools: ['Budget'], screen: '/budget' },
-  { number: 12, slug: 'operations', name: 'OPERATIONS', family: 'THE WORK', tools: ['Calendar', 'Tasks', 'Time'], screen: '/projects' },
+  // ROOM-02: step 12 opens THE ROOM, not one of its phases. /projects is a redirect into phase 04.
+  { number: 12, slug: 'operations', name: 'OPERATIONS', family: 'THE WORK', tools: ['Calendar', 'Tasks', 'Time'], screen: '/operations' },
 ];
 
 /**
  * SHELL-01: a room's name in the rail where it differs from the tool that owns
- * it. LABEL ONLY — the route, its API and its component are untouched; the
- * cockpit section key stays 'content'.
+ * it. LABEL ONLY — the route, its API and its component are untouched.
+ *
+ * ROOM-02: its one entry ('/content' → 'Narrative') is GONE because the door it
+ * renamed is gone — /content is a redirect into the room now, not a rail row.
+ * The Narrative label did not disappear with it: it is phase 05's name in
+ * src/lib/operationsPhases.ts, which is where the room reads it. Empty, not
+ * deleted — the mechanism is the next renamed room's, and an entry pointing at
+ * a route the rail no longer opens would be config that lies.
  */
-export const ROOM_LABELS: Readonly<Record<string, string>> = {
-  '/content': 'Narrative',
-};
+export const ROOM_LABELS: Readonly<Record<string, string>> = {};
 
 /** Where a step with no room opens: an honest page that states its jobs, their statuses and their citations. */
 export const stepHref = (step: Step): string => step.screen ?? `/step/${step.slug}`;
@@ -235,7 +244,33 @@ export function stepsLaw(opts: { throwOnFail?: boolean; steps?: readonly Step[];
     }
   }
 
-  // 8. a job's home is inside its own step — never another step's screen
+  // 8. OPERATIONS is one room (ROOM-02): its screen is /operations, and none of
+  // the routes it folded in may reappear as a step sub-link OR as a job's door.
+  // Unlike ROOM-01's rule this also checks doorOf: /projects and /content were
+  // COCKPIT keys, so a leftover cockpitKey would send the rail back to a
+  // redirect page while the registry's `home` looked correct.
+  const operations = steps.find((s) => s.slug === 'operations');
+  if (operations && operations.screen !== OPERATIONS_HOME) {
+    violations.push(`OPERATIONS: screen "${operations.screen}" — step 12 opens ${OPERATIONS_HOME}, the room whose phase strip reads the day top down (ROOM-02)`);
+  }
+  const folded = new Set(FOLDED_ROUTES.map((r) => r.path));
+  for (const s of steps) {
+    const tools = s.tools.map((n) => registry.find((t) => t.name === n)).filter((t): t is ToolEntry => Boolean(t));
+    for (const tool of tools) {
+      const own = doorOf(tool);
+      if (own.kind !== 'none' && folded.has(own.href)) {
+        violations.push(`${s.name}: ${tool.name}'s door is ${own.href} — that route folded into ${OPERATIONS_HOME} and is a phase inside it, not a door (ROOM-02)`);
+      }
+      for (const link of tool.links ?? []) {
+        const door = doorOfLink(tool, link);
+        if (door.kind !== 'none' && folded.has(door.href)) {
+          violations.push(`${s.name}: "${link.label}" → ${door.href} folded into ${OPERATIONS_HOME} — it is a phase inside the room, not a door (ROOM-02)`);
+        }
+      }
+    }
+  }
+
+  // 9. a job's home is inside its own step — never another step's screen
   // (ACCOUNTS-01b). Both the registry's `home` and the door the rail actually
   // opens are checked: doorOf prefers a tool's cockpit path over its home, so a
   // home inside the step with a cockpitKey pointing out of it would still send

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { FLOW_ORDER, ROOM_LABELS, STEPS, StepsLawError, stepBySlug, stepGates, stepHref, stepLinks, stepOfTool, stepStatus, stepsLaw, stepsOf, toolsOfStep, type Step } from '../steps';
 import { TOOL_REGISTRY, type ToolEntry } from '../toolRegistry';
 import { TOOL_GATE } from '../offer';
+import { FOLDED_ROUTES, OPERATIONS_PHASES } from '../operationsPhases';
 
 // SHELL-01 — the rail walks the sheet in flow order: six families, twelve steps, twenty-five jobs.
 // Everything a step shows is derived; the law is what keeps it honest.
@@ -72,7 +73,10 @@ test('sub-links are derived from the registry — every door the family navigati
   // ROOM-01: the six category pages are the switcher inside /budget now, not six
   // doors. Shopping, the itinerary builder and Runway keep theirs.
   assert.deepEqual(byStep.budget, ['/shopping', '/hub/itinerary', '/runway']);
-  assert.deepEqual(byStep.operations, ['/agenda', '/routines', '/operations/issues', '/operations/audit-log', '/content', '/operations']);
+  // ROOM-02: six doors onto one day's work became one room at /operations. The
+  // ONE row left is /agenda — an island whose tables nothing else reads, and
+  // this is its only door.
+  assert.deepEqual(byStep.operations, ['/agenda']);
   for (const slug of ['accounts', 'trading', 'fpa', 'owed', 'sales', 'spend']) assert.deepEqual(byStep[slug], [], `${slug} has no door to give`);
   // no step repeats its own screen, and no href twice within a step
   for (const s of STEPS) {
@@ -82,11 +86,17 @@ test('sub-links are derived from the registry — every door the family navigati
   }
 });
 
-test('the room at /content is labelled Narrative — label only, the route is untouched', () => {
-  assert.deepEqual(ROOM_LABELS, { '/content': 'Narrative' });
-  const content = stepLinks(stepBySlug('operations')!).find((l) => l.door.kind !== 'none' && l.door.href === '/content');
-  assert.equal(content?.label, 'Narrative');
-  assert.equal(TOOL_REGISTRY.find((t) => t.name === 'Time')?.home, '/content', 'the route the registry names is unchanged');
+test('the Narrative label moved into the room — ROOM-02 took its rail row, not its name', () => {
+  // The rename mechanism is empty because the door it renamed is gone: /content
+  // is a redirect into the room, so nothing in the rail is labelled from here.
+  assert.deepEqual(ROOM_LABELS, {});
+  assert.equal(stepLinks(stepBySlug('operations')!).find((l) => l.door.kind !== 'none' && l.door.href === '/content'), undefined);
+  // The label lives on phase 05 now, and the route it names is untouched.
+  const narrative = OPERATIONS_PHASES.find((p) => p.key === 'narrative')!;
+  assert.equal(narrative.name, 'NARRATIVE');
+  assert.equal(narrative.mounts, 'ContentPipeline', 'the same component /content mounted');
+  assert.equal(TOOL_REGISTRY.find((t) => t.name === 'Time')?.home, '/operations', 'Time lives in the room now');
+  assert.ok(FOLDED_ROUTES.some((r) => r.path === '/content' && r.phase === 'narrative'), '/content still resolves — into phase 05');
 });
 
 test('a step names the entitlement keys its jobs are gated by — the tab keys, from the offer\'s gate map', () => {

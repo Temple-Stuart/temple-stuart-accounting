@@ -42,8 +42,13 @@ import { offerAvailabilityFromEnv } from '@/lib/offer';
 // three-state hero logic is untouched.
 export const dynamic = 'force-dynamic';
 
+// ROOM-02: 'routines', 'projects' and 'content' LEFT this allowlist — step 12
+// is one room at /operations now and those three URLs are redirect pages of
+// their own (src/app/{routines,projects,content}/page.tsx). Next's
+// static-beats-dynamic precedence means this segment could never receive them
+// again; leaving them listed would be config that lies.
 const TAB_PATHS = new Set([
-  'runway', 'travel', 'routines', 'projects', 'content', 'trade', 'books', 'tax',
+  'runway', 'travel', 'trade', 'books', 'tax',
 ]);
 
 export default async function TabPage({ params }: {

@@ -110,7 +110,7 @@ import { PURCHASABLE_ENTITLEMENT_KEYS } from '../src/lib/stripe';
  */
 const GUEST_ROUTES: ReadonlyArray<{ route: string; why: string }> = [
   { route: '/', why: 'the front door — src/middleware.ts PUBLIC_PATHS' },
-  { route: '/[tab]', why: 'the cockpit paths (/runway /travel /routines /projects /content /trade /books /tax) — every cockpit home in the registry; src/app/[tab]/page.tsx TAB_PATHS' },
+  { route: '/[tab]', why: 'the cockpit paths (/runway /travel /trade /books /tax) — every cockpit home in the registry; src/app/[tab]/page.tsx TAB_PATHS. ROOM-02 took /routines /projects /content out: they are redirect pages into /operations now' },
   { route: '/login', why: 'the sign-in page (the one LoginBox, SELL-03) — src/app/accounts/page.tsx:37 sends an unauthenticated viewer here' },
   { route: '/pricing', why: 'PUBLIC_PATHS; renders THE OFFER (SELL-02) — LandingHeader.tsx, LandingFooter.tsx' },
   { route: '/how-pricing-works', why: 'LandingHeader.tsx:52, LandingFooter.tsx:54, the HomeClient header' },
@@ -697,7 +697,135 @@ for (const f of shellFiles) {
 if (existsSync(resolve(ROOT, 'src/components/ui/ShellFrame.tsx'))) {
   violations.push('shell: ShellFrame is back — AppLayout is the ONE wrapper (SHELL-02)');
 }
-console.log(`✔ The shell law passed — ${shellFiles.length} files scanned, ${shellOffenders} outside ShellBar render a sign-out, a brand bar or the module band; ${DECK_HEADER_FILES.length} declared deck surfaces keep LandingHeader; AppLayout is the one wrapper.`);
+
+// ── THE SHELL LAW, TIGHTENED: NESTING (ROOM-02) ────────────────────────────
+// SHELL-02's checks above are MARKER checks: they look for the rendered markup
+// of a header (a sign-out, a wordmark in a <header>, the module band), which
+// only ShellBar.tsx contains — and ShellBar is skipped at the top of the loop.
+// A component that MOUNTS <AppLayout/> renders none of those markers itself, so
+// every one of them passed while six budget pages drew TWO headers and TWO
+// rails (ROOM-01's finding: BudgetingPage mounted its own AppLayout inside
+// pages that mounted one too, and /api/auth/me was fetched twice per load).
+// The existsSync line above was the whole basis of "AppLayout is the one
+// wrapper" — it only proves the OTHER wrapper file is gone, never how many
+// AppLayouts a page mounts.
+//
+// So this checks the whole MOUNTED TREE, not the outermost wrapper: for every
+// route, the page file plus every layout above it plus everything they import,
+// transitively. A tree may hold at most ONE header and at most ONE rail.
+//   · <AppLayout>            → one header, and one rail unless rail={false}
+//   · <ShellBar>             → one header   (AnswersClient is HOME's own shell)
+//   · <Rail>                 → one rail     (ModuleLauncher's select-mode rail)
+// AppLayout.tsx itself is not counted: its ShellBar and Rail ARE the header and
+// rail that `<AppLayout` already counted.
+const APP_LAYOUT_FILE = 'src/components/ui/AppLayout.tsx';
+const MOUNT_APP_LAYOUT = /<AppLayout(\s[^>]*)?>/g;
+const MOUNT_SHELL_BAR = /<ShellBar[\s/>]/;
+const MOUNT_RAIL = /<Rail[\s/>]/;
+
+/** Resolve an import specifier to a file under src/, or null when it leaves the tree. */
+function resolveImport(fromFile: string, spec: string): string | null {
+  let base: string;
+  if (spec.startsWith('@/')) base = `src/${spec.slice(2)}`;
+  else if (spec.startsWith('.')) {
+    const dir = fromFile.split('/').slice(0, -1);
+    for (const part of spec.split('/')) {
+      if (part === '.') continue;
+      else if (part === '..') dir.pop();
+      else dir.push(part);
+    }
+    base = dir.join('/');
+  } else return null; // a package, not our code
+  for (const cand of [`${base}.tsx`, `${base}.ts`, `${base}/index.tsx`, `${base}/index.ts`]) {
+    if (existsSync(resolve(ROOT, cand))) return cand;
+  }
+  return null;
+}
+
+const IMPORT_SPEC = /(?:^|\n)\s*(?:import|export)[\s\S]{0,400}?from\s+['"]([^'"]+)['"]/g;
+const importsOf = new Map<string, string[]>();
+function importsFor(file: string): string[] {
+  const hit = importsOf.get(file);
+  if (hit) return hit;
+  let src = '';
+  try { src = readFileSync(resolve(ROOT, file), 'utf8'); } catch { src = ''; }
+  const out: string[] = [];
+  for (const m of src.matchAll(IMPORT_SPEC)) {
+    const r = resolveImport(file, m[1]);
+    if (r) out.push(r);
+  }
+  importsOf.set(file, out);
+  return out;
+}
+
+/**
+ * Does this one file mount a header / a rail? At most ONE of each per file, on
+ * purpose: a component routinely mounts <AppLayout> twice — once around a
+ * loading spinner it returns early, once around its body — and those two are
+ * mutually exclusive, never both on screen. The bug this law exists to catch is
+ * TWO DIFFERENT FILES in one tree each bringing a shell. AppLayout.tsx is
+ * excluded: its ShellBar and Rail ARE what `<AppLayout` already counts.
+ */
+function mountsOf(file: string): { header: boolean; rail: boolean } {
+  if (file === APP_LAYOUT_FILE) return { header: false, rail: false };
+  let src = '';
+  try { src = readFileSync(resolve(ROOT, file), 'utf8'); } catch { return { header: false, rail: false }; }
+  const code = src.split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
+  let header = false;
+  let rail = false;
+  for (const m of code.matchAll(MOUNT_APP_LAYOUT)) {
+    header = true;
+    // rail={false} is the declared opt-out: the child brings its own rail.
+    if (!/rail=\{false\}/.test(m[1] ?? '')) rail = true;
+  }
+  if (MOUNT_SHELL_BAR.test(code)) header = true;
+  if (MOUNT_RAIL.test(code)) rail = true;
+  return { header, rail };
+}
+
+/** The layout files that wrap a page, outermost first. */
+function layoutsFor(pageFile: string): string[] {
+  const parts = pageFile.split('/');
+  const out: string[] = [];
+  for (let i = 2; i < parts.length; i += 1) {
+    const cand = `${parts.slice(0, i).join('/')}/layout.tsx`;
+    if (existsSync(resolve(ROOT, cand))) out.push(cand);
+  }
+  return out;
+}
+
+let nestedShells = 0;
+for (const p of pages) {
+  const roots = [...layoutsFor(p.file), p.file];
+  const seen = new Set<string>();
+  const stack = [...roots];
+  let headers = 0;
+  let rails = 0;
+  const headerSites: string[] = [];
+  const railSites: string[] = [];
+  while (stack.length) {
+    const f = stack.pop()!;
+    if (seen.has(f)) continue;
+    seen.add(f);
+    const m = mountsOf(f);
+    if (m.header) { headers += 1; headerSites.push(f); }
+    if (m.rail) { rails += 1; railSites.push(f); }
+    for (const next of importsFor(f)) stack.push(next);
+  }
+  if (headers > 1) {
+    nestedShells += 1;
+    violations.push(`shell: ${p.route} mounts ${headers} headers in one tree — ${headerSites.join(', ')}. A page renders ONE shell (ROOM-02: SHELL-02's marker checks could not see nesting)`);
+  }
+  if (rails > 1) {
+    nestedShells += 1;
+    violations.push(`shell: ${p.route} mounts ${rails} rails in one tree — ${railSites.join(', ')}. A page renders ONE rail; AppLayout takes rail={false} when the child brings its own (ROOM-02)`);
+  }
+}
+const shellLine = `${shellFiles.length} files scanned, ${shellOffenders} outside ShellBar render a sign-out, a brand bar or the module band; ${DECK_HEADER_FILES.length} declared deck surfaces keep LandingHeader; AppLayout is the one wrapper; ${pages.length} page trees walked (page + every layout above it + everything they import).`;
+// Never print a pass over a failure — the gate below exits, but a "✔ passed"
+// line above it is the kind of output that reads as green in a build log.
+if (shellOffenders || nestedShells) console.log(`✖ The shell law FAILED — ${shellLine} ${nestedShells} tree(s) mount more than one shell.`);
+else console.log(`✔ The shell law passed — ${shellLine} Every tree mounts at most one header and one rail.`);
 // ── THE LOCK LAW (LOCK-01) ────────────────────────────────────────────────
 // (a) EVERY page that mounts a paid module's root component asks for its key
 //     first. src/app/dashboard/tax-filing/page.tsx mounted the FULL filing
