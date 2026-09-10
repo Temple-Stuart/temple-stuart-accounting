@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AppLayout, Button, Badge } from '@/components/ui';
+import { Button, Badge } from '@/components/ui';
 import COAManagementTable from '@/components/bookkeeping/COAManagementTable';
 import BookkeepingSection from '@/components/bookkeeping/BookkeepingSection';
 import PersonalExpenseDashboard from '@/components/dashboard/PersonalExpenseDashboard';
@@ -36,6 +36,14 @@ export interface BudgetingPageProps {
   apiPath: string;
 }
 
+/**
+ * ROOM-01: this room used to mount its OWN <AppLayout> (the shell: ShellBar + the
+ * rail) while every page that rendered it ALSO mounted one — so /business,
+ * /personal, /household, /auto, /growth and /health each drew TWO headers and TWO
+ * rails, and fetched /api/auth/me twice. Pre-existing on main; found by ROOM-01's
+ * screenshot pass. The wrapper is a fragment now: /budget (the sole consumer) owns
+ * the one shell, per SHELL-02's law. The room's own body is untouched.
+ */
 export default function BudgetingPage({ category, emoji, apiPath }: BudgetingPageProps) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [coaAccounts, setCoaAccounts] = useState<COAAccount[]>([]);
@@ -123,16 +131,16 @@ export default function BudgetingPage({ category, emoji, apiPath }: BudgetingPag
 
   if (loading) {
     return (
-      <AppLayout>
+      <>
         <div className="p-6 flex justify-center">
           <div className="w-5 h-5 border-2 border-brand-purple border-t-transparent rounded-full animate-spin" />
         </div>
-      </AppLayout>
+      </>
     );
   }
 
   return (
-    <AppLayout>
+    <>
       <div className="max-w-6xl mx-auto px-4 py-3 space-y-3">
         {/* Chart of Accounts Management */}
         {entityId && (
@@ -311,6 +319,6 @@ export default function BudgetingPage({ category, emoji, apiPath }: BudgetingPag
         </div>
 
       </div>
-    </AppLayout>
+    </>
   );
 }

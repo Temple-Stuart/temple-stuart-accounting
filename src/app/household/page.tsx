@@ -1,16 +1,8 @@
-import AppLayout from '@/components/ui/AppLayout';
-import BudgetingPage from '@/components/dashboard/BudgetingPage';
+import { redirect } from 'next/navigation';
 
-// SHELL-02: this room moved /home → /household so /home could become the app's
-// front door (THE ANSWERS). Its LABEL is unchanged — the registry still calls it
-// "Home", the household budget, a flat sibling of /personal /auto /growth /health.
-// ACCOUNTS-01: a signed-in room mounts the app shell, so THE RAIL is here too. AppLayout
-// is the shell most rooms already use — it authenticates itself (/api/auth/me), bounces a
-// guest, and carries the rail beside the page. The room's own body is unchanged.
-export default function HouseholdPage() {
-  return (
-    <AppLayout>
-      <BudgetingPage category="Home" emoji="🏠" apiPath="/api/home" />
-    </AppLayout>
-  );
+// ROOM-01: Budget is ONE room at /budget with a category switcher. This route
+// kept its own page and its own rail door until now; it redirects so no link,
+// bookmark or printed URL breaks.
+export default function HouseholdRedirect() {
+  redirect('/budget?category=home');
 }
