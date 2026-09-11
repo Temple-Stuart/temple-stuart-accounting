@@ -256,6 +256,33 @@ export default function BooksPipeline() {
   const pendingCount = uncommittedSpending.length + investmentQueue;
   const reconciledCount = reconciliations.filter((r) => r.status === 'reconciled').length;
   const closedThisYear = periodCloses.filter((p) => p.year === year && p.status === 'closed').length;
+
+  // BOOKS-PIPE-01: THE PIPELINE IS THE PAGE. The strip is hoisted out of the
+  // main return so the FIRST-RUN state renders it too. It used to be below an
+  // early `return <EntitySetup/>` (the old :277), so a customer with no entity
+  // never saw the six phases at all — the page opened on a setup card with no
+  // sense of what it was setting up. Same JSX, same derived states, same
+  // handler; ORDER ONLY.
+  const strip = (
+    <StageStrip
+      phases={([
+        { key: 'feed', num: PIPE_FEED.num, label: PIPE_FEED.name,
+          state: phase === 'feed' ? 'active' : accounts.length > 0 ? 'done' : 'pending' },
+        { key: 'code', num: PIPE_CODE.num, label: PIPE_CODE.name,
+          state: phase === 'code' ? 'active' : committedCount > 0 && pendingCount === 0 ? 'done' : 'pending' },
+        { key: 'reconcile', num: PIPE_RECONCILE.num, label: PIPE_RECONCILE.name,
+          state: phase === 'reconcile' ? 'active' : reconciledCount > 0 ? 'done' : 'pending' },
+        { key: 'close', num: PIPE_CLOSE.num, label: PIPE_CLOSE.name,
+          state: phase === 'close' ? 'active' : closedThisYear > 0 ? 'done' : 'pending' },
+        { key: 'reports', num: PIPE_REPORTS.num, label: PIPE_REPORTS.name,
+          state: phase === 'reports' ? 'active' : tbTotals?.hasActivity && tbTotals?.isBalanced ? 'done' : 'pending' },
+        { key: 'export', num: PIPE_EXPORT.num, label: PIPE_EXPORT.name,
+          state: phase === 'export' ? 'active' : 'pending' },
+      ] as StagePhase[])}
+      onSelect={(k) => setPhase(k as typeof phase)}
+    />
+  );
+
   const closedPeriods = periodCloses.filter((p) => p.status === 'closed' && p.closedAt);
   // NAV-01b: the December close of the selected year IS the year-end close.
   const yearEndClosed = periodCloses.some((p) => p.year === year && p.month === 12 && p.status === 'closed');
@@ -274,7 +301,19 @@ export default function BooksPipeline() {
     );
   }
   if (state === 'setup') {
-    return <EntitySetup existing={[]} mode="first-run" onCreated={reloadAll} />;
+    // FIRST RUN IS PHASE 01's CONTENT, not a card in front of the pipeline: the
+    // strip renders first, 01 Feed is the phase you are on, and the entity form
+    // is what that phase asks for. Nothing is hidden and nothing is invented —
+    // the later phases read `pending`, which is what they are.
+    return (
+      <>
+        {strip}
+        <div className="space-y-3">
+          <SectionHeader kicker={`${PIPE_FEED.num} / ${PIPE_FEED.name}`} right={`PHASE ${PIPE_FEED.num} OF 06`} />
+          <EntitySetup existing={[]} mode="first-run" onCreated={reloadAll} />
+        </div>
+      </>
+    );
   }
   if (state === 'error') {
     return (
@@ -325,23 +364,7 @@ export default function BooksPipeline() {
           export-completion signal exists client-side, so it renders pending
           (never hardcoded done). States are indicators, never locks — every
           phase stays clickable (the ratified StageStrip amendment). */}
-      <StageStrip
-        phases={([
-          { key: 'feed', num: PIPE_FEED.num, label: PIPE_FEED.name,
-            state: phase === 'feed' ? 'active' : accounts.length > 0 ? 'done' : 'pending' },
-          { key: 'code', num: PIPE_CODE.num, label: PIPE_CODE.name,
-            state: phase === 'code' ? 'active' : committedCount > 0 && pendingCount === 0 ? 'done' : 'pending' },
-          { key: 'reconcile', num: PIPE_RECONCILE.num, label: PIPE_RECONCILE.name,
-            state: phase === 'reconcile' ? 'active' : reconciledCount > 0 ? 'done' : 'pending' },
-          { key: 'close', num: PIPE_CLOSE.num, label: PIPE_CLOSE.name,
-            state: phase === 'close' ? 'active' : closedThisYear > 0 ? 'done' : 'pending' },
-          { key: 'reports', num: PIPE_REPORTS.num, label: PIPE_REPORTS.name,
-            state: phase === 'reports' ? 'active' : tbTotals?.hasActivity && tbTotals?.isBalanced ? 'done' : 'pending' },
-          { key: 'export', num: PIPE_EXPORT.num, label: PIPE_EXPORT.name,
-            state: phase === 'export' ? 'active' : 'pending' },
-        ] as StagePhase[])}
-        onSelect={(k) => setPhase(k as typeof phase)}
-      />
+      {strip}
 
       <div className={phase === 'feed' ? 'block space-y-3' : 'hidden'}>
         <SectionHeader kicker="01 / Feed" right="PHASE 01 OF 06" />

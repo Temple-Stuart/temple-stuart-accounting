@@ -91,7 +91,7 @@ import { resolve } from 'node:path';
 import { readdirSync, statSync } from 'node:fs';
 import { PROBLEM_SHEET } from '../src/lib/problemSheet';
 import { EXPECTED_STATUS_COUNTS, FAMILY_READS, TOOL_REGISTRY, registryLaw, statusCounts } from '../src/lib/toolRegistry';
-import { HOME_ANSWER, HOME_OWNER, HOME_PHASES, THE_SORT, navFamilies, navLaw, navRows } from '../src/lib/nav';
+import { HOME_ANSWER, HOME_OWNER, HOME_PHASES, PHASES_RENDERED_AT, THE_SORT, navFamilies, navLaw, navRows } from '../src/lib/nav';
 import { TOOL_GATE } from '../src/lib/offer';
 import { PIPE_PHASES } from '../src/lib/pipePhases';
 import { OWNER_UTILITIES } from '../src/lib/shellMenu';
@@ -1026,6 +1026,90 @@ for (const p of pages) {
 }
 if (!calendarPage) { toolViolations += 1; violations.push(`tool law 5: ${CALENDAR_HOME} has no page — the merged grid has nowhere to be (TOOL-LAW-01)`); }
 if (!existsSync(resolve(ROOT, COCKPIT_COMPONENT))) { toolViolations += 1; violations.push(`tool law: ${COCKPIT_COMPONENT} is missing — the cockpit's grandfathered tabs are checked against it`); }
+// ── THE CITATION LAW (BOOKS-PIPE-01) ────────────────────────────────────────
+// A registry `citation` is INTERNAL EVIDENCE for these laws — a list of
+// file:line pairs proving a tool's beats. It is not customer copy, and it must
+// never reach a rendered surface. It did: nav.ts's `line` fell back to it when
+// a tool had no `why`, and ToolOpener printed it verbatim on SEVEN tool pages
+// (Travel, Banking, Brokerage, Trade Log, Bookkeeping, Tax, Compliance), while
+// TheSheet printed it on HOME. Both now read `why` or nothing.
+//
+// The registry itself, its tests and these scripts may read the field; nothing
+// that renders may.
+const CITATION_ALLOWED = [
+  'src/lib/toolRegistry.ts',   // the field's own home
+  'src/lib/problemSheet.ts',
+];
+// Compliance renders LEGAL citations of its own — citation_string, citation_key,
+// a TaskCitation's `.citation`, a `citations` array from the discovery API. A
+// different thing entirely, and none of it is the registry's field. The
+// discriminator is not the word: it is whether a ToolEntry can be in scope at
+// all, which requires importing the registry or the nav model. Compliance's
+// pages import neither.
+const REGISTRY_IMPORT = /from '@\/lib\/(toolRegistry|nav)'|from '\.\.?\/(toolRegistry|nav)'/;
+let citationLeaks = 0;
+for (const f of shellFiles) {
+  if (CITATION_ALLOWED.includes(f)) continue;
+  const body = readFileSync(resolve(ROOT, f), 'utf8');
+  if (!REGISTRY_IMPORT.test(body)) continue;
+  const code = body.split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
+  // Any read of the field, however it is reached: `t.citation`, `x?.citation`,
+  // `find(...)?.citation`, `['citation']`. The import guard above already
+  // excludes Compliance's legal citations, so this can be as wide as it needs.
+  const hits = [...code.matchAll(/\??\.citation\b|\['citation'\]|\["citation"\]/g)].map((m) => m[0]);
+  if (!hits.length) continue;
+  citationLeaks += 1;
+  violations.push(`citation law: ${f} reads a registry citation (${hits.join(', ')}) — a citation is file:line evidence for these laws, never customer copy (BOOKS-PIPE-01)`);
+}
+// nav.ts must not hand it on either.
+const NAV_FILE = 'src/lib/nav.ts';
+const navBody = readFileSync(resolve(ROOT, NAV_FILE), 'utf8');
+if (/line:\s*tool\.why[^\n]*tool\.citation/.test(navBody)) {
+  citationLeaks += 1;
+  violations.push(`citation law: ${NAV_FILE} falls back to the citation for a tool's rendered line — a tool with no \`why\` gets no line (BOOKS-PIPE-01)`);
+}
+if (citationLeaks) console.log(`✖ The citation law FAILED — ${citationLeaks} file(s) can render a registry citation.`);
+else console.log(`✔ The citation law passed — ${shellFiles.length} rendered files scanned, 0 read a registry citation; ${CITATION_ALLOWED.length} declared holders of the field.`);
+
+// ── THE OPENER LAW (BOOKS-PIPE-01) ──────────────────────────────────────────
+// An opener lists only the phases ITS PAGE DRAWS. nav.ts declares that per
+// route (PHASES_RENDERED_AT); this checks every entry against the real strip
+// census, so the declaration cannot drift from the code.
+console.log('THE OPENER — what each tool page advertises vs what it draws');
+let openerViolations = 0;
+for (const [route, tools] of screenTools) {
+  const page = pages.find((p) => p.route === route);
+  if (!page) continue;
+  const seen = new Set<string>();
+  const stack = [page.file];
+  const drawn = new Set<string>();
+  while (stack.length) {
+    const f = stack.pop()!;
+    if (seen.has(f)) continue;
+    seen.add(f);
+    const body = existsSync(resolve(ROOT, f)) ? readFileSync(resolve(ROOT, f), 'utf8') : '';
+    if (body.includes('<StageStrip')) for (const m of body.matchAll(/PIPE_PHASES\.([a-z]+)/g)) drawn.add(m[1]);
+    for (const next of importsFor(f)) stack.push(next);
+  }
+  const declared = [...(PHASES_RENDERED_AT[route] ?? [])].sort();
+  const real = [...drawn].sort();
+  const owned = [...new Set(toolRows.filter((t) => t.href === route).flatMap((t) => t.phases.map((p) => p.pipe)))].sort();
+  const elsewhere = owned.filter((p) => !real.includes(p));
+  console.log(`  ${route.padEnd(13)} ${tools.join(' + ').padEnd(24)} draws [${real.join(' ') || '—'}]  owns [${owned.join(' ') || '—'}]${elsewhere.length ? `  drawn elsewhere: ${elsewhere.join(' ')}` : ''}`);
+  if (declared.join('|') !== real.join('|')) {
+    openerViolations += 1;
+    violations.push(`opener law: ${route} declares it draws [${declared.join(' ') || '—'}] but its tree draws [${real.join(' ') || '—'}] — nav.ts PHASES_RENDERED_AT must match the code (BOOKS-PIPE-01)`);
+  }
+}
+for (const route of Object.keys(PHASES_RENDERED_AT)) {
+  if (!screenTools.has(route)) {
+    openerViolations += 1;
+    violations.push(`opener law: PHASES_RENDERED_AT names ${route}, which is no tool's screen (BOOKS-PIPE-01)`);
+  }
+}
+if (openerViolations) console.log(`✖ The opener law FAILED — ${openerViolations} route(s) advertise a pipeline they do not draw.`);
+else console.log(`✔ The opener law passed — ${screenTools.size} tool pages, every one advertising only the phases it draws.`);
+
 if (toolViolations) console.log(`✖ The tool law FAILED — ${toolViolations} violation(s).`);
 else console.log(`✔ The tool law passed — ${screenTools.size} tool pages, ${MULTI_TOOL_ALLOWED.length} grandfathered (closed, shrink-only); ${stripFiles.length} phase strips, every one reading src/lib/pipePhases.ts; the merged grid mounts only on ${CALENDAR_HOME}.`);
 
