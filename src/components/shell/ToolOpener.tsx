@@ -10,16 +10,22 @@
  * and registry line — so a customer reading the rail's row finds that row's name
  * on the screen it opens.
  *
- * PHASES: the opener PRINTS the phases each tool owns (nav.ts THE SORT) but
- * renders no strip of its own. Every one of these screens already mounts the
- * StageStrip its pipe belongs to, and the ratified Pipe Frame holds ONE phase
- * control, never two.
+ * PHASES: the opener PRINTS the phases THIS PAGE DRAWS (nav.ts
+ * PHASES_RENDERED_AT, cross-checked at build against the real strip census) and
+ * renders no strip of its own — the ratified Pipe Frame holds ONE phase control,
+ * never two. A phase the tool owns but that is drawn somewhere else is not
+ * advertised here: the header must describe the pipeline the page HAS.
+ *
+ * THE LINE is the registry's `why` and nothing else. It used to fall back to
+ * `citation` — file:line evidence for the build laws — and seven tool pages
+ * printed source paths to customers. A tool with no `why` gets no line.
  *
  * Nothing here is typed: every family name, tool name, number, status, line and
  * phase name is read from the registry or from pipePhases.ts.
  */
+import { usePathname } from 'next/navigation';
 import { StatusChip } from '@/components/home/ToolChrome';
-import type { NavTool } from '@/lib/nav';
+import { phasesRenderedOn, type NavTool } from '@/lib/nav';
 
 /** "WHAT YOU OWN" → "What you own" — the eyebrow's sentence case, computed. */
 function familyWord(family: string): string {
@@ -33,6 +39,7 @@ export default function ToolOpener({ tools, line, actions }: {
   line?: string;
   actions?: React.ReactNode;
 }) {
+  const pathname = usePathname() ?? '';
   const [first] = tools;
   if (!first) return null;
   return (
@@ -47,10 +54,17 @@ export default function ToolOpener({ tools, line, actions }: {
             <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-primary">{tool.name}</h1>
             <StatusChip status={tool.status} />
           </div>
-          <p className="mt-1 max-w-3xl font-mono text-[10px] leading-relaxed text-text-muted">{tool.line}</p>
-          {tool.phases.length > 0 && (
+          {/* The registry's `why`, or nothing. NEVER the citation — that is
+              internal evidence for the build laws, and the law throws if a
+              rendered file so much as reads it. */}
+          {tool.line && (
+            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-text-muted">{tool.line}</p>
+          )}
+          {/* Only the phases THIS PAGE DRAWS. A phase the tool owns but that is
+              drawn elsewhere is not advertised here (nav.ts PHASES_RENDERED_AT). */}
+          {phasesRenderedOn(pathname, tool).length > 0 && (
             <p className="mt-1 font-mono text-[10px] uppercase tracking-wider text-text-faint" data-opener-phases={tool.name}>
-              {tool.phases.map((p) => `${p.num} ${p.name}`).join(' · ')}
+              {phasesRenderedOn(pathname, tool).map((p) => `${p.num} ${p.name}`).join(' · ')}
             </p>
           )}
         </div>

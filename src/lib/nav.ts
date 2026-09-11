@@ -130,8 +130,8 @@ export interface NavTool {
   door: OpenDoor | null;
   /** The offer gate the tool's routes carry, or null when it is free. */
   gate: string | null;
-  /** The registry line the screen prints under the tool's name. */
-  line: string;
+  /** The registry line the screen prints under the tool's name, or null when the registry has none. NEVER the citation. */
+  line: string | null;
   /**
    * The pages this tool OWNS that are not its screen — the registry's own
    * `links`, through the registry's own doors. They render as sub-rows beneath
@@ -191,7 +191,13 @@ const navTool = (tool: ToolEntry, i: number, gate: Readonly<Record<string, strin
     href: door.kind === 'none' ? null : door.href,
     door: door.kind === 'none' ? null : door,
     gate: gate[tool.name] ?? null,
-    line: tool.why?.trim() ? tool.why : tool.citation,
+    // BOOKS-PIPE-01: the line is the registry's `why` and NOTHING ELSE. It used
+    // to fall back to `citation` — which is internal evidence for the build laws,
+    // a list of file:line pairs — and seven tool pages printed it to customers
+    // verbatim. `why` is customer copy by construction: offer.ts's claimLine()
+    // renders it on the deck's offer cards as "partial — <why>". A tool with no
+    // `why` gets NO LINE; an empty opener line is honest, a source path is not.
+    line: tool.why?.trim() ? tool.why : null,
     subRows: (tool.links ?? [])
       .map((l) => ({ label: l.label, door: doorOfLink(tool, l) }))
       .filter((r): r is { label: string; door: OpenDoor } => r.door.kind !== 'none'),
@@ -236,6 +242,39 @@ export function navToolByName(name: string, gate: Readonly<Record<string, string
 /** Every tool whose screen is this href — several tools share /trading and /operations. */
 export function navToolsOfScreen(href: string, gate: Readonly<Record<string, string | null>>): readonly NavTool[] {
   return navRows(gate).filter((t) => t.href === href);
+}
+
+/**
+ * BOOKS-PIPE-01 — WHICH PIPES A ROUTE ACTUALLY RENDERS.
+ *
+ * THE SORT says who OWNS a phase. It does not say where that phase is drawn,
+ * and the two diverge: Bookkeeping owns runway 04 Match, which renders inside
+ * the cockpit's runway section; Banking owns books 01 Feed, which renders on
+ * /books. An opener that lists a tool's owned phases therefore advertised a
+ * pipeline the page does not have.
+ *
+ * This map is what each ROUTE renders, and the build cross-checks every entry
+ * against the real strip census (the tool law already walks each page's tree),
+ * so it cannot drift from the code.
+ */
+export const PHASES_RENDERED_AT: Readonly<Record<string, readonly PipePillarId[]>> = {
+  '/books': ['books'],           // BooksPipeline.tsx:328
+  '/calendar': ['routines'],     // SectionE_Routines.tsx:47
+  '/tasks': ['projects'],        // TruthMachineView.tsx:376, per project row
+  '/time': ['content'],          // ContentPipeline.tsx:371
+  '/travel': ['travel'],         // ModuleLauncher.tsx:758 — /travel IS the cockpit tab
+  '/tax': ['tax'],               // TaxFilingWizard.tsx, through TaxHandoffGate
+  // Declared EMPTY, each for a reason the audit verified:
+  '/accounts': [],   // Banking owns books 01 (drawn on /books) and runway 01 (drawn nowhere — a state-only cell)
+  '/budget': [],     // Budget owns runway 05, drawn in the cockpit's runway section
+  '/trading': [],    // Brokerage and Trade Log own trade 01-06; the trade strip is the cockpit's /trade tab, and this page has none
+  '/compliance': [], // Compliance owns compliance 01-06; ComplianceWorkbench is the cockpit's tab, not this page
+};
+
+/** The phases a tool owns THAT THIS ROUTE DRAWS — what an opener may honestly list. */
+export function phasesRenderedOn(route: string, tool: NavTool): readonly NavPhase[] {
+  const pipes = PHASES_RENDERED_AT[route.split('?')[0]] ?? [];
+  return tool.phases.filter((p) => pipes.includes(p.pipe));
 }
 
 export class NavLawError extends Error {

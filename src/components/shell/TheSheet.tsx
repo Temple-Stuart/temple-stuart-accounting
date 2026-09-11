@@ -23,9 +23,14 @@ import { TOOL_GATE } from '@/lib/offer';
 import { FAMILY_READS, TOOL_REGISTRY, type ToolEntry } from '@/lib/toolRegistry';
 import { StatusChip } from '@/components/home/ToolChrome';
 
-/** The line a job expands to: why it is not finished when the registry says why, else the census citation that placed it. */
+/**
+ * The line a job expands to: the registry's `why` — what is not finished for a
+ * customer. BOOKS-PIPE-01: it used to fall back to `citation`, the census's
+ * file:line evidence, and printed source paths on HOME. A job with no `why`
+ * says plainly that the registry holds no note, which is true and is not a path.
+ */
 function proofLine(tool: ToolEntry): string {
-  return tool.why?.trim() ? tool.why : tool.citation;
+  return tool.why?.trim() ? tool.why : 'No note in the registry for this job.';
 }
 
 export default function TheSheet() {
