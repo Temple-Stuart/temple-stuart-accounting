@@ -1089,6 +1089,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                       onFiltersChange={handleFiltersChange}
                       scanTriggerRef={scanTriggerRef}
                       showHeader={false}
+                      founderBroker={authed === true && !isAdmin}
                     />
                     <SectionHeader
                       kicker="02 / RESULTS"
