@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { runPipeline } from '@/lib/convergence/pipeline';
-import type { PipelineResult } from '@/lib/convergence/pipeline';
+import type { PipelineResult, ScanOptions } from '@/lib/convergence/pipeline';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
 import { requireScanRateLimit } from '@/lib/scan-rate-limit';
@@ -27,12 +27,15 @@ const cache = new Map<string, CacheEntry>();
 // history as `vrpHistory` (pipeline.ts:1130-1132 → snapshot-logger, WHERE userId
 // = A) — was served to user B on the next hit for 15 minutes with no user check.
 // One user's per-user series, computed from their session, shown to another.
-function getCacheKey(userId: string, limit: number, universe?: string): string {
-  return `convergence_${userId}_${limit}_${universe ?? 'all'}`;
+// MODEL-01: the key carries the SIDE and the RISK state too — a SELL run and a
+// BUY run are different funnels; a defined-risk run must never serve an
+// unlimited-risk request (or the reverse).
+function getCacheKey(userId: string, limit: number, universe: string | undefined, options: ScanOptions): string {
+  return `convergence_${userId}_${limit}_${universe ?? 'all'}_${options.side}_${options.allowUndefinedRisk ? 'unlimited' : 'defined'}`;
 }
 
-function getFromCache(userId: string, limit: number, universe?: string): CacheEntry | null {
-  const key = getCacheKey(userId, limit, universe);
+function getFromCache(userId: string, limit: number, universe: string | undefined, options: ScanOptions): CacheEntry | null {
+  const key = getCacheKey(userId, limit, universe, options);
   const entry = cache.get(key);
   if (!entry) return null;
   if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
@@ -42,8 +45,8 @@ function getFromCache(userId: string, limit: number, universe?: string): CacheEn
   return entry;
 }
 
-function setCache(userId: string, limit: number, data: PipelineResult, universe?: string): void {
-  const key = getCacheKey(userId, limit, universe);
+function setCache(userId: string, limit: number, data: PipelineResult, universe: string | undefined, options: ScanOptions): void {
+  const key = getCacheKey(userId, limit, universe, options);
   cache.set(key, { data, timestamp: Date.now() });
 }
 
@@ -86,6 +89,20 @@ export async function GET(request: Request) {
     const refresh = searchParams.get('refresh') === 'true';
     const universe = searchParams.get('universe') ?? undefined;
     const stream = searchParams.get('stream') === 'true';
+
+    // MODEL-01: the premium side (SELL | BUY | BOTH; absent = BOTH, the filter
+    // panel's default) and the risk state (defined | unlimited; absent =
+    // defined, the default filter state). An unknown value is refused — never
+    // read as a default.
+    const sideParam = searchParams.get('side') ?? 'BOTH';
+    if (sideParam !== 'SELL' && sideParam !== 'BUY' && sideParam !== 'BOTH') {
+      return NextResponse.json({ error: `side must be SELL, BUY or BOTH (got ${sideParam})` }, { status: 400 });
+    }
+    const riskParam = searchParams.get('risk') ?? 'defined';
+    if (riskParam !== 'defined' && riskParam !== 'unlimited') {
+      return NextResponse.json({ error: `risk must be defined or unlimited (got ${riskParam})` }, { status: 400 });
+    }
+    const options: ScanOptions = { side: sideParam, allowUndefinedRisk: riskParam === 'unlimited' };
 
     // TT-01 — THE FOUNDER'S BROKER. The pipeline's TastyTrade client is the env
     // client (src/lib/tastytrade.ts:7-13): Alex's own grant. No per-user
@@ -132,9 +149,9 @@ export async function GET(request: Request) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
           };
           try {
-            const result = await runPipeline(limit, userId, universe, (event) => send(event));
+            const result = await runPipeline(limit, userId, universe, (event) => send(event), options);
             // Cache the final result so the follow-up fetch is instant
-            setCache(gateUser.id, limit, result, universe);
+            setCache(gateUser.id, limit, result, universe, options);
             send({ step: 'done', label: 'Complete', data: {} });
           } catch (err) {
             send({ step: 'error', label: err instanceof Error ? err.message : String(err), data: {} });
@@ -155,7 +172,7 @@ export async function GET(request: Request) {
 
     // Check cache (unless refresh=true)
     if (!refresh) {
-      const cached = getFromCache(gateUser.id, limit, universe);
+      const cached = getFromCache(gateUser.id, limit, universe, options);
       if (cached) {
         const age = Math.round((Date.now() - cached.timestamp) / 1000);
         console.log(`[Convergence Route] Cache HIT (age=${age}s, limit=${limit})`);
@@ -177,18 +194,18 @@ export async function GET(request: Request) {
     const scanQuota = await requireScanRateLimit(gateUser.id);
     if (scanQuota) return scanQuota;
 
-    console.log(`[Convergence Route] Cache MISS (limit=${limit}, refresh=${refresh}, universe=${universe ?? 'all'})`);
+    console.log(`[Convergence Route] Cache MISS (limit=${limit}, refresh=${refresh}, universe=${universe ?? 'all'}, side=${options.side}, risk=${riskParam})`);
 
     // LOG-01: the gate user IS the scan's user (see the stream branch).
     const userId: string = gateUser.id;
 
     const start = Date.now();
-    const result = await runPipeline(limit, userId, universe);
+    const result = await runPipeline(limit, userId, universe, undefined, options);
     const elapsed = Date.now() - start;
     console.log(`[Convergence Route] Pipeline completed in ${elapsed}ms`);
 
     // Store in cache
-    setCache(gateUser.id, limit, result, universe);
+    setCache(gateUser.id, limit, result, universe, options);
 
     return NextResponse.json(result, {
       headers: {

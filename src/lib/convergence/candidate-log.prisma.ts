@@ -13,7 +13,7 @@ export const prismaCandidateLogStore: CandidateLogStore = {
       await tx.scan_runs.create({ data: run });
       if (candidates.length === 0) return 0;
       const res = await tx.scan_candidates.createMany({
-        data: candidates.map((c) => ({ ...c, legs: c.legs as unknown as Prisma.InputJsonValue, excluded_fields: c.excluded_fields as unknown as Prisma.InputJsonValue })),
+        data: candidates.map((c) => ({ ...c, legs: c.legs as unknown as Prisma.InputJsonValue, excluded_fields: c.excluded_fields as unknown as Prisma.InputJsonValue, catalyst: c.catalyst as unknown as Prisma.InputJsonValue })),
       });
       return res.count;
     });

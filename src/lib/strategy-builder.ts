@@ -3,6 +3,10 @@
 
 import { probAbove, probBetween } from './convergence/probability';
 import { numOrNull } from './parse-num';
+import type { Catalyst, EarningsWindow, PremiumSide } from './convergence/types';
+import { buyCatalysts, earningsWindow, noCatalystReason, type EarningsDateSource } from './convergence/side-rules';
+import type { UndefinedRiskCapCheck } from './convergence/undefined-risk';
+import { POP_MODEL_LABEL } from './convergence/modelLabels';
 
 // ─── Math Utilities ─────────────────────────────────────────────────
 
@@ -216,6 +220,15 @@ export interface StrategyCard {
   evPerRisk: number;         // EV per dollar risked
   hvPop: number | null;      // HV-adjusted PoP for credit strategies
   compositeScore: number;    // edge-aware composite score used for ranking
+  // MODEL-01: the funnel side that built this card (generateStrategies sets it
+  // from params.side; a custom card carries its structure's side), the buy-side
+  // catalysts (≥ 1 on a BUY card — the card does not exist without one), the
+  // earnings date against [scan, expiration] (stated on every card), and the
+  // cap check that let an unbounded structure be built (null for defined risk).
+  side: PremiumSide;
+  catalysts: Catalyst[];
+  earningsWindow: EarningsWindow;
+  undefinedRiskCap: string | null;
 }
 
 export interface GenerateParams {
@@ -241,6 +254,21 @@ export interface GenerateParams {
   hv10: number | null;
   // Risk-free rate from FRED FEDFUNDS series, converted to decimal. Required — no default.
   riskFreeRate: number;
+  // MODEL-01: the premium direction this symbol came through the pre-filter on.
+  // A side builds ONLY its own structures: SELL → credit (iron condor, put
+  // credit spread, short strangle under the cap); BUY → debit (long straddle,
+  // long strangle, and the bull call debit spread when the overlay is BULLISH).
+  side: PremiumSide;
+  // The directional overlay (composite.direction): BULLISH / BEARISH / NEUTRAL / UNKNOWN…
+  direction: string;
+  // ISO scan date and every earnings date the run has for the symbol, each
+  // named by its source (Finnhub calendar/earnings; TastyTrade expected-report-date).
+  scanDate: string;
+  earningsDates: EarningsDateSource[];
+  // TastyTrade iv-hv-30-day-difference in vol points (null = not delivered).
+  ivHvSpread: number | null;
+  // STEP 5: the per-user undefined-risk cap check, evaluated once per run.
+  undefinedRisk: UndefinedRiskCapCheck;
 }
 
 // ─── Rejection Tracking ─────────────────────────────────────────────
@@ -586,6 +614,12 @@ function buildCard(
     evPerRisk: 0,
     hvPop: null,
     compositeScore: 0,
+    // MODEL-01 defaults — generateStrategies overwrites side/catalysts/window/cap
+    // from its params; a custom card keeps its structure's side.
+    side: cashFlow >= 0 ? 'SELL' : 'BUY',
+    catalysts: [],
+    earningsWindow: { state: 'unknown', detail: 'earnings window not evaluated for this card', date: null, source: null },
+    undefinedRiskCap: null,
   };
 }
 
@@ -779,46 +813,49 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
   }
 
   const tier = pct > 50 ? 'HIGH_IV (>50)' : pct >= 20 ? 'NORMAL_IV (20-50)' : 'LOW_IV (<20)';
-  console.log(`[StrategyBuilder] ${sym}: IV tier=${tier} → generating strategies...`);
+  // MODEL-01: the earnings date against THIS expiration's window, and the
+  // buy-side catalysts that hold for it. Evaluated per expiration — the window
+  // is the structure's, not the ticker's.
+  const window = earningsWindow(params.earningsDates, params.scanDate, expiration);
+  const catalysts: Catalyst[] = params.side === 'BUY' ? buyCatalysts({ ivHvSpread: params.ivHvSpread, window }) : [];
+  console.log(`[StrategyBuilder] ${sym}: side=${params.side}, IV tier=${tier}, earnings window=${window.state} → generating strategies...`);
 
   const cards: StrategyCard[] = [];
 
-  if (pct > 50) {
-    // ─── High IV: Sell Premium — scan delta ranges ─────
-    const ic = scanBestIronCondor(valid, 'A', expiration, dte, currentPrice, sym);
-    if (ic) cards.push(ic);
+  if (params.side === 'SELL') {
+    // ─── SELL: credit structures only (the seller's ladder, minus the debit
+    // structures it used to mix in — those belong to the BUY funnel now) ───
+    if (pct > 50) {
+      const ic = scanBestIronCondor(valid, 'A', expiration, dte, currentPrice, sym);
+      if (ic) cards.push(ic);
 
-    const pcs = scanBestPutCreditSpread(valid, 'B', expiration, dte, currentPrice, sym);
-    if (pcs) cards.push(pcs);
+      const pcs = scanBestPutCreditSpread(valid, 'B', expiration, dte, currentPrice, sym);
+      if (pcs) cards.push(pcs);
 
-    const ss = scanBestShortStrangle(valid, 'C', expiration, dte, currentPrice, sym);
-    if (ss) cards.push(ss);
-
-  } else if (pct >= 20) {
-    // ─── Normal IV: Mild Directional ─────────────────────
-    // A) Bull Call Spread (debit — fixed delta, no scan)
-    const longBCS = findByDelta(valid, 0.50, 'call');
-    const shortBCS = findByDelta(valid, 0.30, 'call');
-    if (longBCS && shortBCS && longBCS.strike !== shortBCS.strike) {
-      const legs = [
-        makeLeg(longBCS, 'call', 'buy'),
-        makeLeg(shortBCS, 'call', 'sell'),
-      ].filter((l): l is StrategyLeg => l != null);
-      if (legs.length === 2) {
-        cards.push(buildCard('Bull Call Spread', 'A', legs, expiration, dte, currentPrice, false));
+      // STEP 5: an unbounded structure exists only when the filter says
+      // Risk = Unlimited AND the per-user cap has room — the candidate says so.
+      if (params.undefinedRisk.allowed) {
+        const ss = scanBestShortStrangle(valid, 'C', expiration, dte, currentPrice, sym);
+        if (ss) cards.push(ss);
+      } else {
+        rejections.push({ strategy: 'Short Strangle', reason: params.undefinedRisk.reason, gate: 'construction' });
       }
+    } else if (pct >= 20) {
+      const icW = scanBestIronCondor(valid, 'A', expiration, dte, currentPrice, sym);
+      if (icW) cards.push(icW);
+
+      const pcs2 = scanBestPutCreditSpread(valid, 'B', expiration, dte, currentPrice, sym);
+      if (pcs2) cards.push(pcs2);
+
+      rejections.push({ strategy: 'Bull Call Spread', reason: 'SELL side: the bull call spread is a debit structure — built on the BUY side only (MODEL-01: a side builds its own structures)', gate: 'construction' });
+    } else {
+      rejections.push({ strategy: 'all', reason: `SELL side: IV rank ${pct.toFixed(1)} < 20 — the low-IV tier's structures (Long Straddle, Long Strangle, Debit Spread) are debit and belong to the BUY funnel; no credit structure built at this IV rank`, gate: 'construction' });
     }
-
-    // B) Iron Condor — scan
-    const icW = scanBestIronCondor(valid, 'B', expiration, dte, currentPrice, sym);
-    if (icW) cards.push(icW);
-
-    // C) Put Credit Spread — scan
-    const pcs2 = scanBestPutCreditSpread(valid, 'C', expiration, dte, currentPrice, sym);
-    if (pcs2) cards.push(pcs2);
-
+  } else if (catalysts.length === 0) {
+    // ─── BUY without a catalyst: not built, and the reason says so ───
+    rejections.push({ strategy: 'all', reason: noCatalystReason({ ivHvSpread: params.ivHvSpread, window }), gate: 'construction' });
   } else {
-    // ─── Low IV: Buy Premium ──────────────────────────
+    // ─── BUY with a catalyst: debit structures only, at any IV rank ───
     // A) Long Straddle
     const atm = findByDelta(valid, 0.50, 'call');
     if (atm) {
@@ -844,18 +881,32 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
       }
     }
 
-    // C) Bull Call Debit Spread
-    const longDBS = findByDelta(valid, 0.50, 'call');
-    const shortDBS = findByDelta(valid, 0.30, 'call');
-    if (longDBS && shortDBS && longDBS.strike !== shortDBS.strike) {
-      const legs = [
-        makeLeg(longDBS, 'call', 'buy'),
-        makeLeg(shortDBS, 'call', 'sell'),
-      ].filter((l): l is StrategyLeg => l != null);
-      if (legs.length === 2) {
-        cards.push(buildCard('Debit Spread', 'C', legs, expiration, dte, currentPrice, false));
+    // C) the directional debit spread — the overlay decides. Only a bull call
+    // builder exists; BEARISH is declared, not built (MODEL-02).
+    if (params.direction === 'BULLISH') {
+      const longDBS = findByDelta(valid, 0.50, 'call');
+      const shortDBS = findByDelta(valid, 0.30, 'call');
+      if (longDBS && shortDBS && longDBS.strike !== shortDBS.strike) {
+        const legs = [
+          makeLeg(longDBS, 'call', 'buy'),
+          makeLeg(shortDBS, 'call', 'sell'),
+        ].filter((l): l is StrategyLeg => l != null);
+        if (legs.length === 2) {
+          cards.push(buildCard('Debit Spread', 'C', legs, expiration, dte, currentPrice, false));
+        }
       }
+    } else if (params.direction === 'BEARISH') {
+      rejections.push({ strategy: 'Bear Put Spread', reason: 'BUY side: directional overlay is BEARISH — no bear put debit-spread builder exists in the scanner (MODEL-02); not built', gate: 'construction' });
+    } else {
+      rejections.push({ strategy: 'Debit Spread', reason: `BUY side: directional overlay is ${params.direction} — the bull call debit spread is a directional structure; not built without a BULLISH overlay`, gate: 'construction' });
     }
+  }
+
+  for (const card of cards) {
+    card.side = params.side;
+    card.catalysts = catalysts;
+    card.earningsWindow = window;
+    card.undefinedRiskCap = card.isUnlimited ? params.undefinedRisk.reason : null;
   }
 
   console.log(`[StrategyBuilder] ${sym}: pre-filter cards=${cards.length} [${cards.map(c => c.name).join(', ')}]`);
@@ -958,6 +1009,8 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
   // EDGE-3: track whether the HV10>IV gate ever passed a premium-selling card
   // without being evaluable — the non-evaluation is DECLARED below, never silent.
   let hv10GateSkippedNoHv10 = 0;
+  // MODEL-01: BUY cards that proceeded with EV (model) ≤ 0 — declared below.
+  let buyEvBelowZero = 0;
   const hv10GateSkippedNoLegIv: string[] = [];
 
   const filtered = cards.filter(card => {
@@ -1033,7 +1086,16 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
     }
 
     // Gate A: EV must be positive (uses hvPoP for credit, deltaPoP for debit)
-    if (card.ev <= 0) {
+    // MODEL-01: on the BUY side Gate A is NOT an existence test. The EV here
+    // is the breakeven-d2 (risk-neutral) model's — an option bought at the ask
+    // has EV ≤ 0 under the very model that priced it, and the sampled payoff
+    // range caps a long-vol structure's upside — so a fair-priced straddle
+    // reads EV −$176 on a $701 debit and the buy side could never exist. The
+    // ruling makes the CATALYST the buy side's existence test; EV (model) is
+    // shown on the card, labelled for what it is, and declared below.
+    if (card.ev <= 0 && card.side === 'BUY') {
+      buyEvBelowZero += 1;
+    } else if (card.ev <= 0) {
       const effectiveML = card.isUnlimited ? (hvProxyML as number) : (card.maxLoss ?? 0);
       console.log(`[StrategyBuilder] ${sym}: EV GATE rejected "${card.name}" — EV=$${card.ev.toFixed(0)} (hvPoP=${card.hvPop?.toFixed(3) ?? 'n/a'}, deltaPoP=${card.pop?.toFixed(3)}, mp=$${card.maxProfit}, ml=$${effectiveML.toFixed(0)})`);
       const strikes = card.legs.map(l => l.strike).sort((a, b) => a - b);
@@ -1053,7 +1115,7 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
       console.log(`[StrategyBuilder] ${sym}: PoP GATE rejected "${card.name}" — pop=${card.pop != null ? (card.pop * 100).toFixed(1) + '%' : 'null'}, threshold=${(threshold * 100).toFixed(0)}%`);
       rejections.push({
         strategy: card.name,
-        reason: `Est. PoP ${card.pop != null ? (card.pop * 100).toFixed(0) + '%' : 'null'} below floor ${(threshold * 100).toFixed(0)}%`,
+        reason: `${POP_MODEL_LABEL} ${card.pop != null ? (card.pop * 100).toFixed(0) + '%' : 'null'} below floor ${(threshold * 100).toFixed(0)}%`,
         gate: 'B',
         details: { value: card.pop ?? 0, threshold },
       });
@@ -1084,6 +1146,13 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
     rejections.push({
       strategy: 'all',
       reason: `hv10 unavailable — HV10>IV gate not evaluated (${hv10GateSkippedNoHv10} premium-selling candidate(s) proceeded unchecked)`,
+      gate: 'construction',
+    });
+  }
+  if (buyEvBelowZero > 0) {
+    rejections.push({
+      strategy: 'all',
+      reason: `BUY side: Gate A (model EV > 0) is not an existence test on the buy side — EV (model) is a pricing quantity under the IV that priced the legs, and the catalyst is the gate (MODEL-01); ${buyEvBelowZero} candidate(s) proceeded with EV (model) ≤ 0, shown labelled on the card`,
       gate: 'construction',
     });
   }

@@ -4,6 +4,8 @@ import { finnhubCached, finnhubErrorLine } from '@/lib/convergence/finnhub-cache
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { CandleType } from '@tastytrade/api';
 import { scoreAll } from '@/lib/convergence/composite';
+import { earningsDateSources } from '@/lib/convergence/side-rules';
+import { checkUndefinedRiskCap } from '@/lib/convergence/undefined-risk';
 import { fetchFredMacro, fetchFredDailySeries, fetchAnnualFinancials, fetchNewsSentiment, fetchFinnhubTicker, fetchFinnhubFundOwnership, fetchSECEdgar8KScan, type FinnhubData } from '@/lib/convergence/data-fetchers';
 import { computeCrossAssetCorrelations } from '@/lib/convergence/cross-asset';
 import { fetchChainAndBuildCards } from '@/lib/convergence/chain-fetcher';
@@ -335,6 +337,14 @@ export async function GET(request: Request) {
         dividendYield: rawDivYield != null && Number.isFinite(rawDivYield) ? rawDivYield / 100 : null,
         hv10: hv10Pct != null ? hv10Pct / 100 : null,
         riskFreeRate: fredResult.data.fedFunds / 100,
+        // MODEL-01: the single-ticker test path scores on the SELL model (scoreAll's
+        // default above) and builds defined risk only; the earnings sources are
+        // TastyTrade's date (this path makes no calendar call).
+        side: 'SELL',
+        scanDate: new Date().toISOString().slice(0, 10),
+        earningsDates: earningsDateSources([], ttScannerResult.data.earningsDate),
+        ivHvSpread: ttScannerResult.data.ivHvSpread,
+        undefinedRisk: checkUndefinedRiskCap(false, null),
       }];
 
       const chainResult = await fetchChainAndBuildCards(chainInput);

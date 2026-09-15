@@ -14,6 +14,8 @@ import type {
   TradeCardKeyStats,
 } from './types';
 import type { StrategyCard } from '@/lib/strategy-builder';
+import { sellerEarningsHazard } from './side-rules';
+import { POP_MODEL_LABEL } from './modelLabels';
 
 // ===== LETTER GRADE =====
 
@@ -177,9 +179,17 @@ function computeRiskFlags(
     flags.push('WIDE BID-ASK SPREAD — fill may be worse than midpoint. Use limit orders.');
   }
 
-  const dte_to_earnings = input.ttScanner?.daysTillEarnings ?? null;
-  if (dte_to_earnings !== null && dte_to_earnings > 0 && dte_to_earnings <= card.dte) {
-    flags.push(`EARNINGS WITHIN DTE — report in ${dte_to_earnings} days, trade expires in ${card.dte}. Expect IV crush post-earnings.`);
+  // MODEL-01 STEP 3: the earnings date against THIS structure's window, from
+  // the named sources the builder evaluated (Finnhub calendar + TastyTrade).
+  // SELL inside the window → the seller's hazard, flagged, never excluded.
+  // BUY inside the window → that IS the catalyst (carried on why.catalysts).
+  // Unknown on either side → said so, never silent.
+  if (card.side === 'SELL') {
+    const hazard = sellerEarningsHazard(card.earningsWindow, card.dte);
+    if (hazard) flags.push(hazard);
+  }
+  if (card.earningsWindow.state === 'unknown') {
+    flags.push(`EARNINGS DATE UNKNOWN — ${card.earningsWindow.detail}; the window [scan, ${card.expiration}] could not be checked.`);
   }
 
   const liq = input.ttScanner?.liquidityRating ?? null;
@@ -188,7 +198,7 @@ function computeRiskFlags(
   }
 
   if (card.pop !== null && card.pop < 0.4) {
-    flags.push(`LOW PROBABILITY — PoP is ${(card.pop * 100).toFixed(0)}%. This is a speculative trade.`);
+    flags.push(`LOW PROBABILITY — ${POP_MODEL_LABEL} is ${(card.pop * 100).toFixed(0)}%. This is a speculative trade.`);
   }
 
   const vixOverlay = scoring.regime.breakdown.vix_overlay;
@@ -452,8 +462,17 @@ export function generateTradeCards(
   const plainEnglish = formatPlainEnglish(scoring, input);
   const regimeCtx = regimeContext(scoring);
   const keyStats = buildKeyStats(input, scoring);
+  // MODEL-01 (the runtime half of the law): a card's score_model and era are never null.
+  const comp = scoring.composite;
+  if (comp.score_model !== 'seller' && comp.score_model !== 'buyer') throw new Error(`MODEL-01: ${input.symbol} scoring carries no score_model — a card cannot leave without the model that scored it`);
+  if (!comp.model_era) throw new Error(`MODEL-01: ${input.symbol} scoring carries no model_era`);
+  const scoredSide = comp.score_model === 'buyer' ? 'BUY' : 'SELL';
 
   return strategyCards.map((card) => {
+    // A card built on one side and scored on the other's model is the defect MODEL-01 removes — refused.
+    if (card.side !== scoredSide) throw new Error(`MODEL-01: ${input.symbol} ${card.name} was built on the ${card.side} side but scored by the ${comp.score_model} model`);
+    if (card.side === 'BUY' && card.catalysts.length === 0) throw new Error(`MODEL-01: ${input.symbol} ${card.name} is a BUY candidate with no catalyst — it must not exist`);
+    if (card.isUnlimited && !card.undefinedRiskCap) throw new Error(`MODEL-01: ${input.symbol} ${card.name} is unbounded with no cap check recorded`);
     const setup: TradeCardSetup = {
       strategy_name: card.name,
       legs: card.legs.map(l => ({
@@ -495,6 +514,13 @@ export function generateTradeCards(
       plain_english_signals: plainEnglish,
       regime_context: regimeCtx,
       risk_flags: computeRiskFlags(card, scoring, input),
+      side: card.side,
+      score_model: comp.score_model,
+      model_era: comp.model_era,
+      scored_by: [...comp.scored_by],
+      catalysts: card.catalysts.map((c) => ({ ...c })),
+      earnings_window: { ...card.earningsWindow },
+      undefined_risk_cap: card.undefinedRiskCap,
     };
 
     return {

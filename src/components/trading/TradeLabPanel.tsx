@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { formatMoney, moneyColorClass } from '@/lib/money';
 import { chip, CHIP_VARIANTS, type ChipVariant, SECTION_HEADER } from '@/lib/ds';
+import { POP_MODEL_LABEL, EV_MODEL_LABEL, EV_PER_RISK_MODEL_LABEL, HV_POP_MODEL_LABEL, MODEL_NUMBER_TOOLTIP } from '@/lib/convergence/modelLabels';
 
 interface TradeCard {
   id: string;
@@ -520,7 +521,7 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
                         <div className="font-mono font-bold text-brand-green">{fmtDollar(card.max_profit)}</div>
                         <div className="text-text-muted">Max Loss</div>
                         <div className="font-mono font-bold text-brand-red">{fmtDollar(card.max_loss)}</div>
-                        <div className="text-text-muted" title="Estimated Probability of Profit based on delta approximation">Est. PoP</div>
+                        <div className="text-text-muted" title={MODEL_NUMBER_TOOLTIP}>{POP_MODEL_LABEL}</div>
                         {/* TRADE-UX-1: the anchor leads the queue row \u2014 size +
                             weight within the grid idiom. Same field/format. */}
                         <div className="font-mono font-black text-sm text-text-secondary">{card.win_rate != null ? `${Number(card.win_rate).toFixed(1)}%` : '\u2014'}</div>
@@ -646,7 +647,7 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
                             <span className="font-mono font-bold text-brand-red">{fmtDollar(card.max_loss)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-text-muted" title="Estimated Probability of Profit based on delta approximation">Est. PoP</span>
+                            <span className="text-text-muted" title={MODEL_NUMBER_TOOLTIP}>{POP_MODEL_LABEL}</span>
                             <span className="font-mono font-bold text-text-secondary">{card.win_rate != null ? `${Number(card.win_rate).toFixed(1)}%` : '\u2014'}</span>
                           </div>
                           <div className="flex justify-between">
@@ -798,11 +799,11 @@ export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () =>
                                 {row('Breakevens', (setup.breakevens?.length ?? 0) > 0 ? setup.breakevens!.map((b) => `$${Number(b).toFixed(2)}`).join(' / ') : '\u2014')}
                                 {row('Net credit', setup.net_credit != null ? `$${fmtN(setup.net_credit)}` : '\u2014')}
                                 {row('Net debit', setup.net_debit != null ? `$${fmtN(setup.net_debit)}` : '\u2014')}
-                                {row('EV', setup.ev != null ? `$${fmtN(setup.ev)}` : '\u2014')}
-                                {row('EV/risk', card.ev_per_risk != null ? fmtN(card.ev_per_risk) : '\u2014')}
+                                {row(EV_MODEL_LABEL, setup.ev != null ? `$${fmtN(setup.ev)}` : '\u2014')}
+                                {row(EV_PER_RISK_MODEL_LABEL, card.ev_per_risk != null ? fmtN(card.ev_per_risk) : '\u2014')}
                                 {row('Theta/day', setup.greeks?.theta_per_day != null ? `$${fmtN(setup.greeks.theta_per_day)}` : '\u2014')}
-                                {row('PoP method', setup.pop_method ?? '\u2014')}
-                                {row('HV PoP', setup.hv_pop != null ? `${Math.round(Number(setup.hv_pop) * 100)}%` : '\u2014')}
+                                {row(`${POP_MODEL_LABEL} method`, setup.pop_method ?? '\u2014')}
+                                {row(HV_POP_MODEL_LABEL, setup.hv_pop != null ? `${Math.round(Number(setup.hv_pop) * 100)}%` : '\u2014')}
                               </div>
                             </div>
                             <div>

@@ -94,6 +94,9 @@ import { EXPECTED_STATUS_COUNTS, FAMILY_READS, TOOL_REGISTRY, registryLaw, statu
 import { HOME_ANSWER, HOME_OWNER, HOME_PHASES, PHASES_RENDERED_AT, THE_SORT, navFamilies, navLaw, navRows } from '../src/lib/nav';
 import { TOOL_GATE } from '../src/lib/offer';
 import { PIPE_PHASES } from '../src/lib/pipePhases';
+import { INPUT_SIGNS, buyerAdmittedInputs } from '../src/lib/convergence/input-signs';
+import { GATE_CARDS, README_GATE_CARDS_END, README_GATE_CARDS_START, gateCardsMarkdown } from '../src/lib/convergence/gateCards';
+import { MODEL_NUMBER_TOOLTIP } from '../src/lib/convergence/modelLabels';
 import { OWNER_UTILITIES } from '../src/lib/shellMenu';
 import { ANSWERS_HOME, ANSWER_READS, ANSWER_ROWS, NET_WORTH_READ, answersLaw } from '../src/lib/answers';
 import { ARRIVAL_KINDS, PROVIDERS, PROVIDER_CODES, ROUTING_RULES, RULE_BOOK, providersLaw, ruleFor } from '../src/lib/providers';
@@ -1284,6 +1287,141 @@ if (!/a card left the log without a candidate_id/.test(logModule)) logFail(`${LO
 const logBuilders = (logPipeline.match(/full_trade_cards_per_ticker: (?!Record<)/g) ?? []).length; // the type line declares, it does not build
 if (logBuilders !== 1) logFail(`${LOG_PIPELINE} builds full_trade_cards_per_ticker ${logBuilders} times — exactly one list leaves the pipeline`);
 if (logViolations === 0) console.log('✔ The candidate log law passed — the scan persists every scored candidate before it returns it, from one list; a failed write withholds and declares.');
+
+// ── THE TWO-SCORES LAWS (MODEL-01) ──────────────────────────────────────────
+// (1) A card's score_model and model era are never null: the composite sets
+//     both from the model that ran; trade-cards.ts and candidate-log.ts throw
+//     without them. (2) The input-sign table drives both scores: buyerScore
+//     admits exactly the rows the table admits, by name, and the seller
+//     composite is the renamed original. (3) No surface prints "win rate" or
+//     a bare PoP/EV outside the leaf: every model-number surface renders the
+//     labels and the one tooltip from modelLabels.ts. (4) A BUY candidate
+//     always carries a non-empty catalyst — the builder refuses to build one
+//     without, the card builder and the candidate log refuse to pass one.
+//     (5) An unbounded structure never exists without the cap check recorded.
+//     (6) The gate cards: one per gate per side, every field said, README's
+//     block byte-equal to the generator, the tooltips rendering from the cards.
+//     (7) The pre-filter splits by side and every symbol is scored on ITS side.
+const M01 = (f: string) => (existsSync(resolve(ROOT, f)) ? readFileSync(resolve(ROOT, f), 'utf8') : '');
+const m01Composite = M01('src/lib/convergence/composite.ts');
+const m01Cards = M01('src/lib/convergence/trade-cards.ts');
+const m01Log = M01('src/lib/convergence/candidate-log.ts');
+const m01Types = M01('src/lib/convergence/types.ts');
+const m01Builder = M01('src/lib/strategy-builder.ts');
+const m01Pipeline = M01('src/lib/convergence/pipeline.ts');
+const m01Rules = M01('src/lib/convergence/side-rules.ts');
+const m01Cap = M01('src/lib/convergence/undefined-risk.ts');
+const m01Filters = M01('src/lib/convergence/filter-types.ts');
+const m01Leaf = M01('src/lib/convergence/modelLabels.ts');
+const m01Explainers = M01('src/components/trading/metricExplainers.ts');
+let m01Violations = 0;
+const m01Fail = (law: string, msg: string) => { m01Violations += 1; violations.push(`${law}: ${msg} (MODEL-01)`); };
+
+// (1) score_model and era never null
+if (!/score_model: model\.model,/.test(m01Composite) || !/model_era: CURRENT_MODEL_ERA\.id,/.test(m01Composite)) m01Fail('model law', 'composite.ts no longer stamps score_model and model_era from the model that ran');
+if (!/^\s+score_model: ScoreModel;$/m.test(m01Types) || !/^\s+model_era: string;$/m.test(m01Types)) m01Fail('model law', 'types.ts lets score_model or model_era be optional — a card records both, never null');
+if (!/carries no score_model/.test(m01Cards) || !/carries no model_era/.test(m01Cards)) m01Fail('model law', 'trade-cards.ts no longer throws when the scoring carries no score_model / model_era');
+if (!/carries no score_model/.test(m01Log) || !/carries no model_era/.test(m01Log)) m01Fail('model law', 'candidate-log.ts no longer throws when a card carries no score_model / model_era');
+if (!/was built on the \$\{card\.side\} side but scored by the/.test(m01Cards)) m01Fail('model law', 'trade-cards.ts no longer refuses a card built on one side and scored by the other\'s model');
+
+// (2) the table drives both scores
+if (!/import \{ INPUT_SIGNS, MODEL_WEIGHTS_SET_ON, applyBuyerSign, signFor \} from '\.\/input-signs';/.test(m01Composite)) m01Fail('sign-table law', 'composite.ts does not read the input-sign table');
+if (!/admittedRows !== components\.length/.test(m01Composite)) m01Fail('sign-table law', 'buyerScore no longer checks that it admitted exactly the rows the table admits');
+if (!/export function sellerScore\(/.test(m01Composite) || !/export function buyerScore\(/.test(m01Composite)) m01Fail('sign-table law', 'composite.ts must export sellerScore() and buyerScore()');
+const m01Admitted = buyerAdmittedInputs();
+if (m01Admitted.length === 0) m01Fail('sign-table law', 'the input-sign table admits nothing to the buy score');
+for (const row of m01Admitted) {
+  const re = new RegExp(`admit\\('${row.gate}', '${row.input}'`);
+  if (!re.test(m01Composite)) m01Fail('sign-table law', `buyerScore does not read ${row.gate}.${row.input}, which the table admits with sign '${row.buyer}'`);
+}
+for (const row of INPUT_SIGNS) {
+  if (!/\.ts:\d+/.test(`${row.why} ${row.sellerWeight}`)) m01Fail('sign-table law', `${row.gate}.${row.input} carries no file:line citation`);
+  if (row.seller !== '+') m01Fail('sign-table law', `${row.gate}.${row.input} seller sign is '${row.seller}' — the seller model is today's composite, every input reads '+' for the seller`);
+  if (!row.directionNeutral && row.buyer !== '0') m01Fail('sign-table law', `${row.gate}.${row.input} is direction-bearing but enters the buy score — direction-bearing inputs feed the overlay, never the buy score`);
+}
+
+// (3) the label law — the leaf, and every model-number surface
+const M01_TOOLTIP_RULED = 'breakeven-d2 probability under a lognormal model at scan-time IV — a pricing quantity, not a forecast; realized frequency is measured in EDGE-01.';
+if (MODEL_NUMBER_TOOLTIP !== M01_TOOLTIP_RULED) m01Fail('label law', 'modelLabels.ts MODEL_NUMBER_TOOLTIP is not the ruled sentence verbatim');
+if (!/export const POP_MODEL_LABEL = 'PoP \(model\)';/.test(m01Leaf) || !/export const EV_MODEL_LABEL = 'EV \(model\)';/.test(m01Leaf)) m01Fail('label law', 'modelLabels.ts no longer defines PoP (model) / EV (model)');
+const M01_SURFACES = [
+  'src/components/convergence/ConvergenceIntelligence.tsx',
+  'src/components/convergence/ScannerResultsTable.tsx',
+  'src/components/convergence/FilterPanel.tsx',
+  'src/components/trading/TradeLabPanel.tsx',
+  'src/components/trading/ScanFilterForm.tsx',
+  'src/components/trading/metricExplainers.ts',
+  'src/components/home/TradeShowcaseSections.tsx',
+  'src/components/landing/glimpses.tsx',
+  'src/lib/convergence/filter-engine.ts',
+  'src/lib/convergence/trade-cards.ts',
+  'src/lib/strategy-builder.ts',
+  'src/lib/walkthroughLedger.ts',
+];
+const M01_BARE = [
+  /Est\.\s*(PoP|EV)\b/,
+  />\s*(PoP|POP|EV|EV\/RISK|EV\/Risk|EV\/risk|HV\s*PoP|HV\s*POP)\s*</,
+  /['"`]\s*(PoP|POP|EV|EV\/RISK|EV\/Risk|EV\/risk|HV\s*PoP|HV\s*POP|Min PoP|Min EV|Min EV\/Risk|PoP method|Probability of Profit|Expected Value \(EV\))\s*['"`]/,
+  /·\s*(POP|EV|EV\/RISK|HV POP)\s/,
+  /\bwin rate\b/i,
+];
+for (const f of M01_SURFACES) {
+  const body = M01(f);
+  if (!body) { m01Fail('label law', `${f} is missing — it is a model-number surface the law scans`); continue; }
+  if (!/modelLabels'/.test(body)) m01Fail('label law', `${f} shows a model number but does not import its labels from modelLabels.ts`);
+  for (const re of M01_BARE) {
+    const hit = body.match(re);
+    if (hit) m01Fail('label law', `${f} prints "${hit[0].trim()}" — a model number is labelled PoP (model) / EV (model) from the leaf, and "win rate" leaves every surface that shows one`);
+  }
+}
+// bare PoP labels anywhere else a customer reads
+const m01Walk = (dir: string): string[] => readdirSync(resolve(ROOT, dir)).flatMap((n) => {
+  const p = `${dir}/${n}`;
+  if (statSync(resolve(ROOT, p)).isDirectory()) return m01Walk(p);
+  return /\.(tsx?|md)$/.test(n) && !/__tests__/.test(p) ? [p] : [];
+});
+for (const f of [...m01Walk('src/components'), ...m01Walk('src/app')]) {
+  if (M01_SURFACES.includes(f) || f === 'src/lib/convergence/modelLabels.ts') continue;
+  const body = M01(f);
+  const hit = body.match(/Est\.\s*PoP|>\s*(PoP|POP)\s*<|['"]\s*(PoP|POP|HV PoP|HV POP)\s*['"]/);
+  if (hit) m01Fail('label law', `${f} prints a bare "${hit[0].trim()}" — PoP is a model number and is labelled from the leaf`);
+}
+
+// (4) the catalyst law
+if (!/export const BUY_CATALYST_HV_OVER_IV_PTS = 5\.0;/.test(m01Rules) || !/export const BUY_PREFILTER_HV_OVER_IV_MIN_PTS = 1\.0;/.test(m01Rules)) m01Fail('catalyst law', 'side-rules.ts no longer names the BUY thresholds as dated consts');
+if (!/\} else if \(catalysts\.length === 0\) \{/.test(m01Builder) || !/noCatalystReason\(/.test(m01Builder)) m01Fail('catalyst law', 'strategy-builder.ts builds a BUY structure without checking for a catalyst, or without saying why it did not');
+if (!/is a BUY candidate with no catalyst/.test(m01Cards)) m01Fail('catalyst law', 'trade-cards.ts no longer refuses a BUY card with no catalyst');
+if (!/is a BUY candidate with no catalyst/.test(m01Log)) m01Fail('catalyst law', 'candidate-log.ts no longer refuses a BUY row with no catalyst');
+if (!/sellerEarningsHazard\(/.test(m01Cards)) m01Fail('catalyst law', 'trade-cards.ts no longer flags a seller structure whose window holds an earnings date');
+
+// (5) the cap law
+if (!/export const UNDEFINED_RISK_OPEN_POSITION_CAP = 1;/.test(m01Cap)) m01Fail('cap law', 'undefined-risk.ts no longer names the cap (default 1 open undefined-risk position)');
+if (!/if \(params\.undefinedRisk\.allowed\) \{/.test(m01Builder) || !/card\.undefinedRiskCap = card\.isUnlimited \? params\.undefinedRisk\.reason : null;/.test(m01Builder)) m01Fail('cap law', 'strategy-builder.ts builds an unbounded structure without the cap check, or without recording it on the card');
+if (!/is unbounded with no cap check recorded/.test(m01Cards) || !/is unbounded with no cap check recorded/.test(m01Log)) m01Fail('cap law', 'the card builder or the candidate log no longer refuses an unbounded structure with no cap check');
+if (!/checkUndefinedRiskCap\(options\.allowUndefinedRisk, openUndefinedRisk\)/.test(m01Pipeline)) m01Fail('cap law', 'pipeline.ts no longer checks the cap against the user\'s open positions before building');
+if (!/riskType: 'DEFINED_ONLY',/.test(m01Filters)) m01Fail('cap law', 'filter-types.ts DEFAULT_FILTERS is no longer defined-risk — defined risk is the default filter state');
+
+// (6) the gate cards
+if (GATE_CARDS.length !== 8) m01Fail('gate-cards law', `gateCards.ts holds ${GATE_CARDS.length} cards — one per gate per side is 8`);
+for (const g of ['vol_edge', 'quality', 'regime', 'info_edge'] as const) for (const m of ['seller', 'buyer'] as const) {
+  const c = GATE_CARDS.find((x) => x.gate === g && x.model === m);
+  if (!c) { m01Fail('gate-cards law', `no gate card for ${g} / ${m}`); continue; }
+  for (const k of ['purpose', 'inputs', 'weight', 'evidence', 'isNot'] as const) if (!c[k]?.trim()) m01Fail('gate-cards law', `gate card ${g}/${m} has no ${k}`);
+  if (!/\d{4}-\d{2}-\d{2}|#1082/.test(c.weight)) m01Fail('gate-cards law', `gate card ${g}/${m} weight carries no date`);
+}
+const m01Readme = M01('README.md');
+const m01Start = m01Readme.indexOf(README_GATE_CARDS_START);
+const m01End = m01Readme.indexOf(README_GATE_CARDS_END);
+if (m01Start < 0 || m01End < m01Start) m01Fail('gate-cards law', 'README.md has no gate-cards block');
+else if (m01Readme.slice(m01Start, m01End + README_GATE_CARDS_END.length) !== `${README_GATE_CARDS_START}\n${gateCardsMarkdown()}\n${README_GATE_CARDS_END}`) m01Fail('gate-cards law', 'README.md gate-cards block differs from gateCards.ts — run npx tsx scripts/regen-gate-cards-readme.ts (byte-stable)');
+if (!/gateCard\(/.test(m01Explainers)) m01Fail('gate-cards law', 'metricExplainers.ts no longer renders the gate tooltips from the gate cards');
+
+// (7) the funnel splits by side; every symbol scores on its side
+if (!/stepCReason\(|sideOf\(/.test(m01Pipeline)) m01Fail('side law', 'pipeline.ts Step C no longer applies the side\'s rule');
+if (/scoreAll\(convergenceInput\)/.test(m01Pipeline)) m01Fail('side law', 'pipeline.ts scores a symbol without its side — scoreAll(input, side) is the only call');
+if (!/scoreAll\(convergenceInput, side\)/.test(m01Pipeline) || (m01Pipeline.match(/scoreAll\(convergenceInput, ticker\.side\)/g) ?? []).length !== 2) m01Fail('side law', 'pipeline.ts must score every symbol (first pass and both re-scores) on the side it came through Step C on');
+if (!/rankAndDiversifyBySide\(/.test(m01Pipeline)) m01Fail('side law', 'pipeline.ts ranks the two sides as one book — a seller score and a buyer score are not comparable');
+if (m01Violations === 0) console.log(`✔ The two-scores laws passed — score_model and era stamped on every card; the sign table admits ${m01Admitted.length} components to the buy score and buyerScore reads each by name; ${M01_SURFACES.length} model-number surfaces label from the leaf; a BUY candidate needs a catalyst; an unbounded structure needs the cap; ${GATE_CARDS.length} gate cards, README byte-stable; every symbol scored on its side.`);
 
 // ── THE SECOND GATE ─────────────────────────────────────────────────────────
 // Every law below the first gate — kind views, arrivals, the rule book,

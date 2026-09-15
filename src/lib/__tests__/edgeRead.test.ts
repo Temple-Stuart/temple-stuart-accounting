@@ -233,6 +233,7 @@ test('eras — merge dates on main; a card is bucketed by generated_at', () => {
   assert.equal(eraFor(new Date('2026-07-07T00:00:00Z')).id, 'E5');
   assert.equal(eraFor(new Date('2026-08-03T13:00:00Z')).id, 'E6');
   assert.equal(eraFor(new Date('2026-09-15T00:00:00Z')).id, 'E8');
+  assert.equal(eraFor(new Date('2026-09-16T00:00:00Z')).id, 'E9');
   assert.ok(MODEL_ERAS.every((e, i) => i === 0 || e.from > MODEL_ERAS[i - 1].from));
   const old = ticket(1, { generatedAt: new Date('2026-06-01T00:00:00Z') });
   assert.equal(buildReport([old]).buckets[0].key, 'SELL × SELL-DEFINED × E0');

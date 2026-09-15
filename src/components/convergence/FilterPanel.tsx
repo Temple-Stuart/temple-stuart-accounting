@@ -12,6 +12,7 @@ import type {
   VolEdge,
 } from '@/lib/convergence/filter-types';
 import { DEFAULT_FILTERS, AVAILABLE_STRATEGIES } from '@/lib/convergence/filter-types';
+import { MIN_POP_MODEL_LABEL, MIN_EV_MODEL_LABEL, MIN_EV_PER_RISK_MODEL_LABEL } from '@/lib/convergence/modelLabels';
 
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -336,19 +337,19 @@ export default function FilterPanel({ filters, onChange }: FilterPanelProps & { 
               {t3Open && (
                 <div className="space-y-2 mt-2">
                   <SliderRow
-                    label="Min Est. PoP" value={filters.edge.minPop}
+                    label={MIN_POP_MODEL_LABEL} value={filters.edge.minPop}
                     min={0} max={100} step={1}
                     format={v => `${v}%`}
                     onChange={v => setEdge({ minPop: v })}
                   />
                   <SliderRow
-                    label="Min Est. EV" value={filters.edge.minEv}
+                    label={MIN_EV_MODEL_LABEL} value={filters.edge.minEv}
                     min={-500} max={500} step={10}
                     format={v => `$${v}`}
                     onChange={v => setEdge({ minEv: v })}
                   />
                   <SliderRow
-                    label="Min EV/Risk" value={filters.edge.minEvPerRisk}
+                    label={MIN_EV_PER_RISK_MODEL_LABEL} value={filters.edge.minEvPerRisk}
                     min={-100} max={100} step={1}
                     format={v => (v / 100).toFixed(2)}
                     onChange={v => setEdge({ minEvPerRisk: v })}

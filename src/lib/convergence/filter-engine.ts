@@ -14,6 +14,7 @@
 
 import type { ScannerFilters } from './filter-types';
 import { isCreditStrategy, DEFAULT_FILTERS } from './filter-types';
+import { POP_MODEL_LABEL, EV_MODEL_LABEL, EV_PER_RISK_MODEL_LABEL, MIN_POP_MODEL_LABEL, MIN_EV_MODEL_LABEL, MIN_EV_PER_RISK_MODEL_LABEL } from './modelLabels';
 import type {
   VolEdgeResult,
   QualityGateResult,
@@ -23,6 +24,7 @@ import type {
   TradeCardWhy,
   TradeCardKeyStats,
   TradeCardData,
+  ScoreModel,
 } from './types';
 
 export interface TickerDetail {
@@ -39,6 +41,8 @@ export interface TickerDetail {
       convergence_gate: string;
       categories_above_50: number;
       category_scores: { vol_edge: number; quality: number; regime: number; info_edge: number };
+      /** MODEL-01: which model scored this ticker; a detail without one renders "not verified" in the gate explainers. */
+      score_model?: ScoreModel;
     };
   };
   trade_cards?: TradeCardData[];
@@ -196,19 +200,19 @@ function filterCard(
   if (s.probability_of_profit != null) {
     const popPct = s.probability_of_profit * 100;
     if (popPct < filters.edge.minPop) {
-      reasons.push(`Est. PoP ${popPct.toFixed(0)}% below min ${filters.edge.minPop}%`);
+      reasons.push(`${POP_MODEL_LABEL} ${popPct.toFixed(0)}% below min ${filters.edge.minPop}%`);
     }
   }
 
   // Min EV
   if (s.ev < filters.edge.minEv) {
-    reasons.push(`Est. EV $${Math.round(s.ev)} below min $${filters.edge.minEv}`);
+    reasons.push(`${EV_MODEL_LABEL} $${Math.round(s.ev)} below min $${filters.edge.minEv}`);
   }
 
   // Min EV/Risk (stored as integer /100 in the slider)
   const minEvPerRiskRatio = filters.edge.minEvPerRisk / 100;
   if (s.ev_per_risk < minEvPerRiskRatio) {
-    reasons.push(`EV/Risk ${s.ev_per_risk.toFixed(3)} below min ${minEvPerRiskRatio.toFixed(2)}`);
+    reasons.push(`${EV_PER_RISK_MODEL_LABEL} ${s.ev_per_risk.toFixed(3)} below min ${minEvPerRiskRatio.toFixed(2)}`);
   }
 
   // Vol Edge
@@ -265,11 +269,11 @@ export function describeActiveFilters(filters: ScannerFilters): string[] {
     parts.push(`Width $${filters.risk.minSpreadWidth}-$${filters.risk.maxSpreadWidth}`);
 
   if (filters.edge.minPop !== d.edge.minPop)
-    parts.push(`Min PoP \u2265 ${filters.edge.minPop}%`);
+    parts.push(`${MIN_POP_MODEL_LABEL} \u2265 ${filters.edge.minPop}%`);
   if (filters.edge.minEv !== d.edge.minEv)
-    parts.push(`Min EV \u2265 $${filters.edge.minEv}`);
+    parts.push(`${MIN_EV_MODEL_LABEL} \u2265 $${filters.edge.minEv}`);
   if (filters.edge.minEvPerRisk !== d.edge.minEvPerRisk)
-    parts.push(`Min EV/Risk \u2265 ${(filters.edge.minEvPerRisk / 100).toFixed(2)}`);
+    parts.push(`${MIN_EV_PER_RISK_MODEL_LABEL} \u2265 ${(filters.edge.minEvPerRisk / 100).toFixed(2)}`);
   if (filters.edge.volEdge !== d.edge.volEdge)
     parts.push(filters.edge.volEdge === 'IV_ABOVE_HV' ? 'IV > HV only' : 'IV < HV only');
   if (filters.edge.minIvRank !== d.edge.minIvRank)

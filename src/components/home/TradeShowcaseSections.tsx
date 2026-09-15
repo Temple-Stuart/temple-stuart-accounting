@@ -19,6 +19,7 @@
  */
 
 import { DEFAULT_FILTERS, AVAILABLE_STRATEGIES } from '@/lib/convergence/filter-types';
+import { POP_MODEL_LABEL, EV_MODEL_LABEL, EV_PER_RISK_MODEL_LABEL, HV_POP_MODEL_LABEL, MIN_POP_MODEL_LABEL, MIN_EV_MODEL_LABEL, MIN_EV_PER_RISK_MODEL_LABEL } from '@/lib/convergence/modelLabels';
 import { ExampleTag } from '@/components/home/TabShowcaseTemplate';
 import {
   SHOWCASE_RESULTS,
@@ -83,7 +84,7 @@ export function HeroTerminalPanel() {
           <br />
           <span className="text-brand-green">COLLECT ${((condor.net_credit ?? 0) * 100).toFixed(0)}</span>
           <span className="text-text-faint"> · MAX L </span><span className="text-brand-red">${condor.max_loss}</span>
-          <span className="text-text-faint"> · POP </span><span className="text-text-primary">{Math.round((condor.probability_of_profit ?? 0) * 100)}%</span>
+          <span className="text-text-faint"> · {POP_MODEL_LABEL} </span><span className="text-text-primary">{Math.round((condor.probability_of_profit ?? 0) * 100)}%</span>
         </p>
         <p>
           <span className="font-bold text-text-primary">ACME</span>{' '}
@@ -227,7 +228,7 @@ export function ScannerPanelDark() {
         <p>Universe <span className="text-text-primary">S&amp;P 500 | Nasdaq 100</span> · Direction <span className="text-text-primary">All</span><span className="text-text-faint">/Bull/Bear/Ntrl</span> · Premium <span className="text-text-primary">Both</span><span className="text-text-faint">/Sell/Buy</span> · Risk <span className="text-text-primary">Defined</span><span className="text-text-faint">/Unlimited</span></p>
         <p>DTE <span className="text-text-primary">{f.risk.minDte}–{f.risk.maxDte}</span> · Width <span className="text-text-primary">${f.risk.minSpreadWidth}–${f.risk.maxSpreadWidth}</span></p>
         <p className="text-text-faint">Liquidity gates (4): min OI <span className="text-text-secondary">{f.liquidity.minOpenInterest}</span> · max bid-ask spread <span className="text-text-secondary">{f.liquidity.maxBidAskSpreadPct}%</span> · min volume <span className="text-text-secondary">{(f.liquidity.minUnderlyingVolume / 1000).toFixed(0)}K</span> · min TT rating <span className="text-text-secondary">{f.liquidity.minLiquidityRating}★</span></p>
-        <p className="text-text-faint">Edge metrics (5): min PoP <span className="text-text-secondary">{f.edge.minPop}%</span> · min EV <span className="text-text-secondary">${f.edge.minEv}</span> · min EV/Risk <span className="text-text-secondary">{f.edge.minEvPerRisk.toFixed(2)}</span> · vol edge <span className="text-text-secondary">Any</span> · min IV rank <span className="text-text-secondary">{f.edge.minIvRank}%</span></p>
+        <p className="text-text-faint">Edge metrics (5): {MIN_POP_MODEL_LABEL} <span className="text-text-secondary">{f.edge.minPop}%</span> · {MIN_EV_MODEL_LABEL} <span className="text-text-secondary">${f.edge.minEv}</span> · {MIN_EV_PER_RISK_MODEL_LABEL} <span className="text-text-secondary">{f.edge.minEvPerRisk.toFixed(2)}</span> · vol edge <span className="text-text-secondary">Any</span> · min IV rank <span className="text-text-secondary">{f.edge.minIvRank}%</span></p>
         <p className="mt-1.5 flex flex-wrap gap-1">
           {AVAILABLE_STRATEGIES.map((s) => (
             <span key={s} className="rounded border border-border bg-bg-row px-1.5 py-0.5 text-[10px] text-text-secondary">{s}</span>
@@ -262,9 +263,9 @@ export function ResultsTablePanelDark() {
             <span className="text-brand-green">COLLECT ${((condor.net_credit ?? 0) * 100).toFixed(0)}</span>
             <span className="text-text-faint"> · MAX P </span><span className="text-brand-green">${condor.max_profit}</span>
             <span className="text-text-faint"> · MAX L </span><span className="text-brand-red">${condor.max_loss}</span>
-            <span className="text-text-faint"> · POP </span><span className="text-text-primary">{Math.round((condor.probability_of_profit ?? 0) * 100)}%</span>
-            <span className="text-text-faint"> · EV </span><span className="text-brand-green">+${condor.ev}</span>
-            <span className="text-text-faint"> · EV/RISK </span><span className="text-text-primary">{condor.ev_per_risk.toFixed(3)}</span>
+            <span className="text-text-faint"> · {POP_MODEL_LABEL} </span><span className="text-text-primary">{Math.round((condor.probability_of_profit ?? 0) * 100)}%</span>
+            <span className="text-text-faint"> · {EV_MODEL_LABEL} </span><span className="text-brand-green">+${condor.ev}</span>
+            <span className="text-text-faint"> · {EV_PER_RISK_MODEL_LABEL} </span><span className="text-text-primary">{condor.ev_per_risk.toFixed(3)}</span>
             <span className="text-text-faint"> · R:R </span><span className="text-text-primary">{condor.risk_reward_ratio?.toFixed(2)}</span>
           </p>
         </div>
@@ -364,13 +365,13 @@ export function TradeCardPanelDark() {
         <p className="pt-1.5">
           <span className="font-bold text-brand-green">COLLECT ${((s.net_credit ?? 0) * 100).toFixed(0)}</span>
           <span className="text-text-faint"> · MAX LOSS </span><span className="text-brand-red">${s.max_loss}</span>
-          <span className="text-text-faint"> · POP </span><span className="text-text-primary">{Math.round((s.probability_of_profit ?? 0) * 100)}%</span><span className="text-text-faint"> (N(d2))</span>
-          <span className="text-text-faint"> · EV </span><span className="text-brand-green">+${s.ev}</span>
-          <span className="text-text-faint"> · EV/RISK </span><span className="text-text-primary">{s.ev_per_risk.toFixed(3)}</span>
+          <span className="text-text-faint"> · {POP_MODEL_LABEL} </span><span className="text-text-primary">{Math.round((s.probability_of_profit ?? 0) * 100)}%</span><span className="text-text-faint"> (N(d2))</span>
+          <span className="text-text-faint"> · {EV_MODEL_LABEL} </span><span className="text-brand-green">+${s.ev}</span>
+          <span className="text-text-faint"> · {EV_PER_RISK_MODEL_LABEL} </span><span className="text-text-primary">{s.ev_per_risk.toFixed(3)}</span>
           <span className="text-text-faint"> · R:R </span><span className="text-text-primary">{s.risk_reward_ratio?.toFixed(2)}</span>
         </p>
         <p className="text-text-faint">
-          B/E <span className="text-text-secondary">{s.breakevens.map((b) => `$${b.toFixed(2)}`).join(' / ')}</span> · HV POP <span className="text-text-secondary">{Math.round((s.hv_pop ?? 0) * 100)}%</span> · THETA <span className="text-brand-green">+${s.greeks.theta_per_day.toFixed(2)}/day</span> · VEGA/pt <span className="text-brand-red">-${Math.abs(s.greeks.vega * 100).toFixed(2)}</span> · KELLY <span className="text-text-secondary">{kellyPct.toFixed(1)}%</span>
+          B/E <span className="text-text-secondary">{s.breakevens.map((b) => `$${b.toFixed(2)}`).join(' / ')}</span> · {HV_POP_MODEL_LABEL} <span className="text-text-secondary">{Math.round((s.hv_pop ?? 0) * 100)}%</span> · THETA <span className="text-brand-green">+${s.greeks.theta_per_day.toFixed(2)}/day</span> · VEGA/pt <span className="text-brand-red">-${Math.abs(s.greeks.vega * 100).toFixed(2)}</span> · KELLY <span className="text-text-secondary">{kellyPct.toFixed(1)}%</span>
         </p>
       </div>
     </SlideShell>
@@ -387,7 +388,7 @@ export function GradedPanelDark() {
           <p className="text-text-faint">PREDICTED</p>
           <p className="text-text-secondary">Max Profit <span className="text-brand-green">{REPLICA.predicted.maxProfit}</span></p>
           <p className="text-text-secondary">Max Loss <span className="text-brand-red">{REPLICA.predicted.maxLoss}</span></p>
-          <p className="text-text-secondary">Est. PoP <span className="text-text-primary">{REPLICA.predicted.pop}</span></p>
+          <p className="text-text-secondary">{POP_MODEL_LABEL} <span className="text-text-primary">{REPLICA.predicted.pop}</span></p>
           <p className="text-text-secondary">R:R <span className="text-text-primary">{REPLICA.predicted.rr}</span></p>
           <p className="text-text-secondary">Entry <span className="text-text-primary">{REPLICA.predicted.entry}</span></p>
         </div>

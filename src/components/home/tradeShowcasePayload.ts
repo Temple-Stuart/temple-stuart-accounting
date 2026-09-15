@@ -75,6 +75,14 @@ const GLOBEX_CONDOR: TradeCardData = {
     direction: TRADE_SHOWCASE_FULL.GLOBEX.composite.direction,
     convergence_gate: TRADE_SHOWCASE_FULL.GLOBEX.composite.convergence_gate,
     category_scores: TRADE_SHOWCASE_FULL.GLOBEX.composite.category_scores,
+    // MODEL-01: the showcase condor is a SELL card scored by the seller model (the real scoreAll, declared inputs)
+    side: 'SELL',
+    score_model: TRADE_SHOWCASE_FULL.GLOBEX.composite.score_model,
+    model_era: TRADE_SHOWCASE_FULL.GLOBEX.composite.model_era,
+    scored_by: TRADE_SHOWCASE_FULL.GLOBEX.composite.scored_by,
+    catalysts: [],
+    earnings_window: { state: 'outside', detail: 'no earnings date inside the window (declared example)', date: null, source: null },
+    undefined_risk_cap: null,
     plain_english_signals: [
       'All four gates cleared 50 — a marginal but unanimous signal (example)',
       'Options modestly rich vs realized movement — premium seller collects the gap (example)',

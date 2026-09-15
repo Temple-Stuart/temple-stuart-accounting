@@ -23,6 +23,7 @@ import type {
   TradeCardData,
 } from '@/lib/convergence/types';
 import type { TickerDetail } from '@/lib/convergence/filter-engine';
+import { POP_MODEL_LABEL, EV_MODEL_LABEL, MODEL_NUMBER_TOOLTIP } from '@/lib/convergence/modelLabels';
 import { TickerChapter } from './ConvergenceIntelligence';
 
 
@@ -558,7 +559,7 @@ export default function ScannerResultsTable({
       <div className="overflow-x-auto rounded border border-border overflow-y-auto">
         <table className="w-full text-xs" style={{ minWidth: 900 }}>
           {/* RESULTS-ANATOMY (mock 1A "02 / RESULTS"): the six mapped columns
-              — TICKER · STRATEGY · PREMIUM · POP · EV · VERDICT (+ the
+              — TICKER · STRATEGY · PREMIUM · the model PoP · the model EV · VERDICT (+ the
               functional checkbox column, unchanged wiring). The demoted
               top-level columns (X, Score, Direction, Legs, Max P/L, EV/Risk,
               R:R, DTE) all still render in the expanded chapter beneath each
@@ -570,8 +571,8 @@ export default function ScannerResultsTable({
               <th className={thBase + ' text-left'} onClick={() => toggleSort('symbol')}>Ticker{sortIndicator('symbol')}</th>
               <th className={thBase + ' text-left'} onClick={() => toggleSort('strategyName')}>Strategy{sortIndicator('strategyName')}</th>
               <th className={thBase + ' text-right'}>Premium</th>
-              <th className={thBase + ' text-right'} onClick={() => toggleSort('winPct')} title="Estimated Probability of Profit — N(d2) at breakeven when available, delta approximation otherwise. Actual results will vary.">PoP{sortIndicator('winPct')}</th>
-              <th className={thBase + ' text-right'} onClick={() => toggleSort('ev')} title="Expected Value — estimated profit/loss per trade using three-outcome model">EV{sortIndicator('ev')}</th>
+              <th className={thBase + ' text-right'} onClick={() => toggleSort('winPct')} title={MODEL_NUMBER_TOOLTIP}>{POP_MODEL_LABEL}{sortIndicator('winPct')}</th>
+              <th className={thBase + ' text-right'} onClick={() => toggleSort('ev')} title={MODEL_NUMBER_TOOLTIP}>{EV_MODEL_LABEL}{sortIndicator('ev')}</th>
               <th className={thBase + ' text-left'}>Verdict</th>
             </tr>
           </thead>
@@ -631,8 +632,8 @@ export default function ScannerResultsTable({
                       className="px-2 py-2 text-right font-mono text-sm font-black text-text-primary"
                       onClick={() => toggleRow(row.id)}
                       title={row.popMethod === 'breakeven_d2'
-                        ? 'PoP via N(d2) at breakeven price'
-                        : 'PoP estimated from option deltas (approximate)'}
+                        ? `${POP_MODEL_LABEL} via N(d2) at breakeven price — ${MODEL_NUMBER_TOOLTIP}`
+                        : `${POP_MODEL_LABEL} estimated from option deltas (approximate) — ${MODEL_NUMBER_TOOLTIP}`}
                     >
                       {fmtPct(row.winPct)}
                     </td>

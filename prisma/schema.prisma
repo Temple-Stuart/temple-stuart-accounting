@@ -3875,6 +3875,8 @@ model scan_runs {
   model_era          String   @db.VarChar(8)
   tickers_scored     Int
   candidates_written Int
+  /// MODEL-01: the mode the run was requested in — SELL, BUY or BOTH
+  side               String   @db.VarChar(4)
 
   user       users             @relation(fields: [userId], references: [id], onDelete: Cascade)
   candidates scan_candidates[]
@@ -3930,6 +3932,16 @@ model scan_candidates {
   outcome_reason    String?   @db.Text
   settle_price      Float?
   settle_price_date DateTime? @db.Date
+  /// MODEL-01: the funnel side the candidate came through (SELL | BUY)
+  side               String  @db.VarChar(4)
+  /// MODEL-01: the model that scored it (seller | buyer) — never null
+  score_model        String  @db.VarChar(8)
+  /// MODEL-01: [{ kind, detail, source }] — non-empty on every BUY row (the catalyst law); [] on SELL
+  catalyst           Json    @default("[]")
+  /// MODEL-01: the earnings date against [scan, expiration] — inside / outside / unknown, with its source
+  earnings_window    String  @db.Text
+  /// MODEL-01: the cap check that let an unbounded structure exist; null for defined risk
+  undefined_risk_cap String? @db.Text
 
   run   scan_runs     @relation(fields: [run_id], references: [id], onDelete: Cascade)
   cards trade_cards[]
@@ -3937,4 +3949,5 @@ model scan_candidates {
   @@index([run_id])
   @@index([expiration, outcome_at])
   @@index([symbol, generated_at])
+  @@index([side, generated_at])
 }
