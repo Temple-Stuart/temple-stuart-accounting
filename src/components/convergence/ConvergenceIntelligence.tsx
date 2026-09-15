@@ -4530,6 +4530,7 @@ export default function ConvergenceIntelligence({
       ev_per_risk: card.setup.ev_per_risk ?? null,
       // Full card snapshot
       full_card_json: card ?? null,
+      candidate_id: card.candidate_id ?? null,
     };
 
 

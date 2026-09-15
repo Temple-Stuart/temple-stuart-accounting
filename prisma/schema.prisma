@@ -580,6 +580,7 @@ model users {
   tastytrade_connections  tastytrade_connections[]
   merchant_coa_mappings   merchant_coa_mappings[]
   trade_cards             trade_cards[]
+  scan_runs               scan_runs[]
   tax_overrides           tax_overrides[]
   tax_documents           tax_documents[]
   closing_periods         closing_periods[]
@@ -1857,12 +1858,19 @@ model trade_cards {
   // Full card snapshot — safety net so we never lose data
   full_card_json Json?
 
-  user users             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  link trade_card_links?
+  // LOG-01: the scored candidate this card was saved from (null for cards
+  // saved before LOG-01 or posted without one). The link route flips the
+  // candidate's `taken` on link/unlink.
+  candidate_id String? @db.Uuid
+
+  user      users             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  link      trade_card_links?
+  candidate scan_candidates?  @relation(fields: [candidate_id], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([userId, status])
   @@index([symbol])
+  @@index([candidate_id])
 }
 
 model trade_card_links {
@@ -3850,4 +3858,83 @@ view posting {
   arrived    DateTime? @db.Timestamptz(6)
 
   @@unique([table_name, row_id])
+}
+
+/// LOG-01 — EVERY SCANNED CANDIDATE IS LOGGED, TAKEN OR NOT. One row per
+/// scan run, keyed by the user who ran it (the candidates below are market
+/// data, keyed by the run, never by the user directly). Written by
+/// src/lib/convergence/candidate-log.ts persistScanCandidates from
+/// pipeline.ts — the SAME list the scan returns.
+model scan_runs {
+  id                 String   @id @default(uuid()) @db.Uuid
+  userId             String
+  started_at         DateTime @default(now()) @db.Timestamptz(6)
+  universe           String?  @db.VarChar(40)
+  limit_requested    Int
+  /// src/lib/edge-read/eras.ts MODEL_ERAS id in force at the run
+  model_era          String   @db.VarChar(8)
+  tickers_scored     Int
+  candidates_written Int
+
+  user       users             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  candidates scan_candidates[]
+
+  @@index([userId, started_at])
+}
+
+/// LOG-01 — one row per scored candidate structure (a ticker yields several:
+/// iron condor, put credit spread, short strangle …), with its scores LOCKED
+/// at scan time and its outcome tracked to expiry whether or not it was
+/// traded. `taken` flips when the card saved from it is linked to a real
+/// position; `outcome_source` says whether outcome_pl came from that position
+/// or from the counterfactual price path (candidate-log.ts settleCandidateOutcomes).
+/// A price that cannot be obtained leaves outcome_pl null with outcome_reason —
+/// never imputed, never 0.
+model scan_candidates {
+  id                String    @id @default(uuid()) @db.Uuid
+  run_id            String    @db.Uuid
+  symbol            String    @db.VarChar(20)
+  strategy_name     String    @db.Text
+  label             String?   @db.VarChar(8)
+  /// [{ type: call|put, side: buy|sell, strike, price (mid at scan) }]
+  legs              Json
+  expiration        DateTime  @db.Date
+  dte               Int
+  net_credit        Float?
+  net_debit         Float?
+  max_profit        Float?
+  max_loss          Float?
+  is_unlimited      Boolean
+  /// probability of profit 0–1 (strategy-builder breakeven_d2 or delta_approx)
+  pop               Float?
+  pop_method        String?   @db.VarChar(20)
+  ev                Float?
+  ev_per_risk       Float?
+  spot_at_scan      Float?
+  iv30_at_scan      Float?
+  composite_score   Float?
+  vol_edge_score    Float?
+  quality_score     Float?
+  regime_score      Float?
+  info_edge_score   Float?
+  data_confidence   Float?
+  imputed_count     Int?
+  /// composite.data_confidence.excluded_fields at scan time (string[])
+  excluded_fields   Json
+  model_era         String    @db.VarChar(8)
+  generated_at      DateTime  @db.Timestamptz(6)
+  taken             Boolean   @default(false)
+  outcome_pl        Float?
+  outcome_at        DateTime? @db.Timestamptz(6)
+  outcome_source    String?   @db.VarChar(120)
+  outcome_reason    String?   @db.Text
+  settle_price      Float?
+  settle_price_date DateTime? @db.Date
+
+  run   scan_runs     @relation(fields: [run_id], references: [id], onDelete: Cascade)
+  cards trade_cards[]
+
+  @@index([run_id])
+  @@index([expiration, outcome_at])
+  @@index([symbol, generated_at])
 }

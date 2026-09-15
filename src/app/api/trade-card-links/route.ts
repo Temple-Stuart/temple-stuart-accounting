@@ -99,6 +99,9 @@ export async function POST(request: NextRequest) {
         where: { id: trade_card_id },
         data: { status: grade ? 'graded' : 'linked' },
       }),
+      // LOG-01: the candidate this card came from is now TAKEN — its outcome
+      // will come from this position, not the price path.
+      ...(card.candidate_id ? [prisma.scan_candidates.update({ where: { id: card.candidate_id }, data: { taken: true } })] : []),
     ]);
 
     return NextResponse.json({ success: true, link });
@@ -141,6 +144,8 @@ export async function DELETE(request: NextRequest) {
         where: { id: link.trade_card_id },
         data: { status: 'queued' },
       }),
+      // LOG-01: unlinked → the candidate is UNTAKEN again (its outcome, if any, is re-settled from the price path once cleared)
+      ...(link.trade_card.candidate_id ? [prisma.scan_candidates.update({ where: { id: link.trade_card.candidate_id }, data: { taken: false, outcome_pl: null, outcome_at: null, outcome_source: null, outcome_reason: 'unlinked — outcome cleared, re-settled from the price path' } })] : []),
     ]);
 
     return NextResponse.json({ success: true });

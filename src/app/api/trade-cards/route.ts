@@ -61,6 +61,7 @@ export async function POST(request: NextRequest) {
       greeks_vega,
       ev_per_risk,
       full_card_json,
+      candidate_id,
     } = body;
 
     if (!symbol || !strategy_name || !direction || !legs) {
@@ -68,6 +69,16 @@ export async function POST(request: NextRequest) {
         { error: 'Required: symbol, strategy_name, direction, legs' },
         { status: 400 }
       );
+    }
+
+    // LOG-01: a card saved from a scored candidate carries its candidate_id; it
+    // must be a candidate of THIS user's runs (defensive 404 otherwise).
+    let candidateId: string | null = null;
+    if (candidate_id != null) {
+      if (typeof candidate_id !== 'string') return NextResponse.json({ error: 'candidate_id must be a string' }, { status: 400 });
+      const cand = await prisma.scan_candidates.findFirst({ where: { id: candidate_id, run: { userId: user.id } }, select: { id: true } });
+      if (!cand) return NextResponse.json({ error: 'Candidate not found' }, { status: 404 });
+      candidateId = cand.id;
     }
 
     const card = await prisma.trade_cards.create({
@@ -91,6 +102,7 @@ export async function POST(request: NextRequest) {
         dte: dte != null ? dte : null,
         expiration_date: expiration_date ? new Date(expiration_date) : null,
         status: 'queued',
+        candidate_id: candidateId,
         composite_score: composite_score ?? null,
         letter_grade: letter_grade ?? null,
         convergence_gate: convergence_gate ?? null,

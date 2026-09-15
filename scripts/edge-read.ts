@@ -19,6 +19,7 @@ import { honestFrame } from '../src/lib/edge-read/frame';
 import { cboeHistoryUrl, fetchCboeHistory, type BenchmarkIndex, type SeriesPoint } from '../src/lib/edge-read/cboe';
 import { sideFromPositionLegs } from '../src/lib/edge-read/families';
 import { MIN_N } from '../src/lib/edge-read/stats';
+import { familyOf } from '../src/lib/edge-read/families';
 
 type Args = { user: string | null; benchmark: boolean };
 
@@ -226,6 +227,64 @@ async function main(): Promise<number> {
   }
   say(`SECONDARY BOOK excludes ${excludedNullPl} closed trade${excludedNullPl === 1 ? '' : 's'} with a null realized_pl leg (declared, not imputed).`);
   for (const l of secondaryBookReport(closed, { benchmarks })) say(l);
+  say('');
+  // ── LOG-01: the THIRD book — every scored candidate with a settled outcome ──
+  say('');
+  const candRows = await prisma.scan_candidates.findMany({
+    where: { run: { userId: user.id } },
+    select: {
+      id: true, symbol: true, strategy_name: true, legs: true, expiration: true, generated_at: true, taken: true, model_era: true,
+      composite_score: true, vol_edge_score: true, quality_score: true, regime_score: true, info_edge_score: true,
+      pop: true, max_loss: true, excluded_fields: true, imputed_count: true,
+      outcome_pl: true, outcome_at: true, outcome_source: true, outcome_reason: true,
+      cards: { select: { link: { select: { trade_num: true } } } },
+    },
+  });
+  const runCount = await prisma.scan_runs.count({ where: { userId: user.id } });
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const settled = candRows.filter((c) => c.outcome_at !== null);
+  const expiredUnsettled = candRows.filter((c) => c.outcome_at === null && c.expiration.toISOString().slice(0, 10) <= todayIso);
+  const pendingCands = candRows.filter((c) => c.outcome_at === null && c.expiration.toISOString().slice(0, 10) > todayIso);
+  say(`CANDIDATE BOOK (LOG-01) — every scored candidate, taken or not: ${candRows.length} candidates over ${runCount} scan runs; settled ${settled.length} (from position ${settled.filter((c) => c.taken).length}, from the price path ${settled.filter((c) => !c.taken).length}); expired but unsettled ${expiredUnsettled.length}; not yet expired ${pendingCands.length}; taken ${candRows.filter((c) => c.taken).length}`);
+  say(`  runs by model era: ${countBy(candRows, (c) => c.model_era).map(([k, v]) => `${k} ${v}`).join(', ') || '—'} · candidates by strategy: ${countBy(candRows, (c) => `${c.strategy_name} → ${familyOf(c.strategy_name).family}`).map(([k, v]) => `${k} ${v}`).join(', ') || '—'}`);
+  const reasons = countBy(expiredUnsettled.filter((c) => c.outcome_reason), (c) => c.outcome_reason as string);
+  if (reasons.length) say(`  unsettled reasons: ${reasons.map(([k, v]) => `"${k}" ×${v}`).join('; ')}`);
+  say(`  bucket = direction × family × era × TAKEN/UNTAKEN — the founder's picks beside the model's full output; direction for an untaken candidate is read from its own legs (no position exists); the same n floor, CI and frame as the primary book. Cards that were saved but never linked count as UNTAKEN.`);
+  const candTickets: Ticket[] = settled.map((c) => {
+    const tradeNum = c.cards.map((k) => k.link?.trade_num).find((t): t is string => typeof t === 'string') ?? null;
+    const legs = c.taken && tradeNum ? byTradeNum.get(tradeNum) ?? [] : [];
+    const cardLegs = Array.isArray(c.legs) ? (c.legs as unknown[]).map((l) => { const o = (l ?? {}) as { side?: unknown; price?: unknown }; return { side: typeof o.side === 'string' ? o.side : null, price: num(o.price) }; }) : [];
+    return {
+      id: c.id,
+      symbol: c.symbol,
+      generatedAt: c.generated_at,
+      cardStrategyRaw: c.strategy_name,
+      cardLegs,
+      cardExpirationDate: c.expiration,
+      positionLegs: legs.map((l) => ({ positionType: l.position_type, openPrice: num(l.open_price), quantity: num(l.quantity), openDate: l.open_date, expirationDate: l.expiration_date, closeDate: l.close_date, status: l.status, strategyRaw: l.strategy })),
+      compositeScore: num(c.composite_score),
+      volEdgeScore: num(c.vol_edge_score),
+      qualityScore: num(c.quality_score),
+      regimeScore: num(c.regime_score),
+      infoEdgeScore: num(c.info_edge_score),
+      predictedWinRatePct: c.pop === null ? null : Number(c.pop) * 100,
+      maxLoss: num(c.max_loss),
+      actualPl: num(c.outcome_pl),
+      grade: null,
+      snapshot: { excludedFields: Array.isArray(c.excluded_fields) ? (c.excluded_fields as unknown[]).filter((f): f is string => typeof f === 'string') : [], imputedCount: c.imputed_count },
+      directionSource: c.taken && legs.length > 0 ? 'position_legs' : 'card_legs',
+      split: c.taken ? 'TAKEN' : 'UNTAKEN',
+      // a candidate's entry is the scan that scored it; an untaken one was held to its expiration
+      entryDate: legs.length > 0 ? undefined : c.generated_at,
+      closeDate: legs.length > 0 ? undefined : c.expiration,
+    };
+  });
+  if (candTickets.length === 0) {
+    say(`  nothing settled yet — the first candidates settle after their expiration (${pendingCands.length} pending); this book prints in full once they do.`);
+  } else {
+    const candReport = buildReport(candTickets, { benchmarks });
+    for (const l of candReport.lines) say(l);
+  }
   say('');
   say('END — nothing was written; every number above carries its n.');
   process.stdout.write(`${out.join('\n')}\n`);

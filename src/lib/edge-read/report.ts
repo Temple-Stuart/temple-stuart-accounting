@@ -65,6 +65,17 @@ export interface Ticket {
   grade: string | null;
   /** The same-day scan_snapshots row for (userId, symbol), when one exists. */
   snapshot: { excludedFields: string[]; imputedCount: number | null } | null;
+  /**
+   * Where the bucket direction is read from. The primary book reads the linked
+   * position's legs (ruling §3); LOG-01's candidate book has no position for an
+   * untaken candidate and reads the card's own legs — declared, never guessed.
+   */
+  directionSource?: 'position_legs' | 'card_legs';
+  /** An extra bucket dimension (LOG-01: TAKEN / UNTAKEN); empty = none. */
+  split?: string;
+  /** Explicit entry/close dates when no position carries them (LOG-01: generated_at and the expiration a candidate was held to). Undefined = derive from the position legs. */
+  entryDate?: Date | null;
+  closeDate?: Date | null;
 }
 
 export interface ClassifiedTicket {
@@ -99,19 +110,19 @@ export function classifyTicket(t: Ticket): ClassifiedTicket {
     familyNormalized: fam.normalized,
     positionFamily: posFam.family,
     positionStrategyRaw: posRaw ?? '(null)',
-    direction: sideFromPositionLegs(t.positionLegs),
+    direction: t.directionSource === 'card_legs' ? sideFromCardLegs(t.cardLegs) : sideFromPositionLegs(t.positionLegs),
     cardSide: sideFromCardLegs(t.cardLegs),
     era: eraFor(t.generatedAt),
     nearEraBoundary: nearBoundary(t.generatedAt),
-    entryDate: minDate(opens),
+    entryDate: t.entryDate !== undefined ? t.entryDate : minDate(opens),
     expirationDate: t.cardExpirationDate ?? minDate(exps),
-    closeDate: maxDate(closes),
+    closeDate: t.closeDate !== undefined ? t.closeDate : maxDate(closes),
     graded: t.actualPl !== null,
   };
 }
 
 export function bucketKey(c: ClassifiedTicket): string {
-  return `${c.direction} × ${c.family} × ${c.era.id}`;
+  return `${c.direction} × ${c.family} × ${c.era.id}${c.t.split ? ` × ${c.t.split}` : ''}`;
 }
 
 export interface BenchmarkSeries { PUT?: SeriesPoint[]; CMBO?: SeriesPoint[]; errors: Partial<Record<BenchmarkIndex, string>> }
@@ -316,9 +327,11 @@ export function buildReport(tickets: Ticket[], opts: ReportOptions = {}): FullRe
     const a = cardStrings.get(c.t.cardStrategyRaw) ?? { family: c.family, count: 0 };
     a.count += 1;
     cardStrings.set(c.t.cardStrategyRaw, a);
-    const b = posStrings.get(c.positionStrategyRaw) ?? { family: c.positionFamily, count: 0 };
-    b.count += 1;
-    posStrings.set(c.positionStrategyRaw, b);
+    if (c.t.positionLegs.length > 0) {
+      const b = posStrings.get(c.positionStrategyRaw) ?? { family: c.positionFamily, count: 0 };
+      b.count += 1;
+      posStrings.set(c.positionStrategyRaw, b);
+    }
   }
   for (const [raw, v] of [...cardStrings.entries()].sort((x, y) => y[1].count - x[1].count)) lines.push(`  card  trade_cards.strategy_name "${raw}" → ${v.family} ×${v.count}`);
   for (const [raw, v] of [...posStrings.entries()].sort((x, y) => y[1].count - x[1].count)) lines.push(`  pos   trading_positions.strategy "${raw}" → ${v.family} ×${v.count}`);

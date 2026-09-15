@@ -3,6 +3,8 @@ import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { requireAdmin } from '@/lib/require-admin';
 import { prisma } from '@/lib/prisma';
 import { closeSnapshotOutcomes } from '@/lib/convergence/outcome-tracker';
+import { settleCandidateOutcomes } from '@/lib/convergence/candidate-log';
+import { prismaSettlePorts } from '@/lib/convergence/candidate-log.prisma';
 
 // TT candle WebSocket + market-metrics can take a while for many tickers
 export const maxDuration = 120;
@@ -33,7 +35,11 @@ export async function POST() {
 
     // User-scoped: closes only this admin's snapshots (WHERE userId = ...)
     const summary = await closeSnapshotOutcomes(user.id);
-    return NextResponse.json(summary);
+    // LOG-01: settle every expired scan candidate of this user's runs — a taken
+    // one from its linked position, an untaken one from the free candle path;
+    // an unobtainable price leaves outcome_pl null with its reason.
+    const candidates = await settleCandidateOutcomes(user.id, prismaSettlePorts);
+    return NextResponse.json({ ...summary, candidates });
   } catch (error: unknown) {
     return failClosedResponse('OutcomeCloser', 'Outcome close failed', error);
   }
