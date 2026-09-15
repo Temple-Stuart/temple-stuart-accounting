@@ -34,7 +34,8 @@ function HeroStats({ result }: { result: BacktestResult }) {
   // 75,83,63). No arbitrary hex survives.
   const s = result.summary;
   const stats = [
-    { label: 'Est. PoP', value: `${Math.round(s.winRate * 100)}%`, color: s.winRate >= 0.5 ? '#16a34a' : '#c53030' },
+    // MODEL-01: this is the backtest's realized win frequency (backtest-translator.ts summary.winRate) — not the model PoP.
+    { label: 'Backtest win rate', value: `${Math.round(s.winRate * 100)}%`, color: s.winRate >= 0.5 ? '#16a34a' : '#c53030' },
     { label: 'Total P&L', value: `$${s.totalPnl.toLocaleString()}`, color: s.totalPnl >= 0 ? '#16a34a' : '#c53030' },
     { label: 'Avg P&L', value: `$${s.avgPnl.toFixed(0)}`, color: s.avgPnl >= 0 ? '#16a34a' : '#c53030' },
     { label: 'Max Drawdown', value: `$${s.maxDrawdown.toFixed(0)}`, color: '#c53030' },

@@ -9,12 +9,19 @@ import type {
   DataConfidence,
   GateWeights,
   GateWeightTrace,
+  GateKey,
+  PremiumSide,
+  ScoreModel,
+  BuyerComponent,
+  BuyerComponentTrace,
 } from './types';
 import { scoreVolEdge } from './vol-edge';
 import { combineWeighted } from './weighted-combiner';
 import { scoreQualityGate } from './quality-gate';
 import { scoreRegime } from './regime';
 import { scoreInfoEdge } from './info-edge';
+import { INPUT_SIGNS, MODEL_WEIGHTS_SET_ON, applyBuyerSign, signFor } from './input-signs';
+import { CURRENT_MODEL_ERA } from '../edge-read/eras';
 
 function round(v: number, decimals = 2): number {
   const f = Math.pow(10, decimals);
@@ -103,6 +110,205 @@ function computeDynamicGateWeights(regime: RegimeResult | null): GateWeightTrace
   };
 }
 
+// ===== MODEL-01: TWO SCORES, ONE PER PREMIUM DIRECTION =====
+//
+// sellerScore = today's composite, unchanged, renamed: the four gate scores
+// under the regime-dynamic weights above (STATIC_WEIGHTS / REGIME_WEIGHT_TABLE,
+// dated at #1082, 2026-06-20; untuned on any outcome — EDGE-01 found zero
+// graded outcomes under this model).
+//
+// buyerScore = a recomposition of the four gates per the input-sign table
+// (input-signs.ts): only the inputs the table admits enter, each with the sign
+// the table states, at EQUAL UNTUNED weights (MODEL_WEIGHTS_SET_ON,
+// 2026-09-15) — they await EDGE-01's third book (LOG-01 scan_candidates,
+// bucketed by side). A gate with no admitted component present is EXCLUDED and
+// the gate weights renormalize; all four excluded → score null (never a
+// number). No input's meaning is changed by a sign flip in place.
+
+export interface ModelScore {
+  model: ScoreModel;
+  score: number | null;
+  category_scores: CompositeResult['category_scores'];
+  gate_weight_trace: GateWeightTrace;
+  excluded_gates: GateKey[];
+  scored_by: GateKey[];
+  buyer_components: BuyerComponentTrace | null;
+  note: string;
+}
+
+const GATE_KEYS: readonly GateKey[] = ['vol_edge', 'quality', 'regime', 'info_edge'];
+
+function combineGates(
+  scores: CompositeResult['category_scores'],
+  w: GateWeights,
+): { score: number | null; excluded: GateKey[]; scoredBy: GateKey[] } {
+  const combined = combineWeighted(GATE_KEYS.map((k) => ({ key: k, weight: w[k], score: scores[k] })));
+  const excluded = combined.excludedKeys as GateKey[];
+  return { score: combined.score, excluded, scoredBy: GATE_KEYS.filter((k) => !excluded.includes(k)) };
+}
+
+/** The SELLER model — today's composite, unchanged. */
+export function sellerScore(
+  volEdge: VolEdgeResult,
+  quality: QualityGateResult,
+  regime: RegimeResult,
+  infoEdge: InfoEdgeResult,
+): ModelScore {
+  // Dynamic gate weighting: regime-dependent with confidence blending
+  const gateWeightTrace = computeDynamicGateWeights(regime);
+  const w = gateWeightTrace.gate_weights;
+  const category_scores = {
+    vol_edge: volEdge.score,
+    quality: quality.score,
+    regime: regime.score,
+    info_edge: infoEdge.score,
+  };
+  // MIG-1: an excluded gate (score null) is dropped and the remaining gate
+  // weights renormalize — the composite is computed only from present gates.
+  // All four gates null (a ticker with literally zero data) → composite null,
+  // recorded as an honest null in scan_snapshots.
+  const { score, excluded, scoredBy } = combineGates(category_scores, w);
+  return {
+    model: 'seller',
+    score,
+    category_scores,
+    gate_weight_trace: gateWeightTrace,
+    excluded_gates: excluded,
+    scored_by: scoredBy,
+    buyer_components: null,
+    note: `Gate weights: VE=${round(w.vol_edge, 2)} Q=${round(w.quality, 2)} R=${round(w.regime, 2)} IE=${round(w.info_edge, 2)} [${gateWeightTrace.weight_mode}, regime=${gateWeightTrace.regime_used}, blend=${round(gateWeightTrace.blend_factor, 2)}]`,
+  };
+}
+
+/** The raw HV-acceleration ladder as scoreMispricing scores it for the seller (vol-edge.ts:289-305). */
+function hvAccelLadderSellerOriented(hv30: number | null, hv60: number | null, hv90: number | null): number | null {
+  if (hv30 === null || hv60 === null || hv90 === null) return null;
+  if (hv30 < hv60 && hv60 < hv90) return 80;
+  if (hv30 < hv60) return 65;
+  if (hv30 > hv60 && hv60 > hv90) return 20;
+  if (hv30 > hv60) return 35;
+  return 50;
+}
+
+const numOrNull = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+
+function equalCombine(components: BuyerComponent[]): { score: number | null; present: number } {
+  const combined = combineWeighted(components.map((c) => ({ key: `${c.gate}.${c.input}`, weight: 1, score: c.buyer_value })));
+  return { score: combined.score, present: combined.activeCount };
+}
+
+/**
+ * The BUYER model — Vol-Edge inverts (HV above IV is the edge); Regime keeps
+ * its sign only for the survival brake's inputs; Quality and Info-Edge enter
+ * with direction-neutral inputs only; direction-bearing inputs feed the
+ * directional overlay (composite.direction → bull/bear debit spreads), not
+ * this score. The table decides every row — see input-signs.ts.
+ */
+export function buyerScore(
+  volEdge: VolEdgeResult,
+  quality: QualityGateResult,
+  regime: RegimeResult,
+  infoEdge: InfoEdgeResult,
+): ModelScore {
+  const components: BuyerComponent[] = [];
+  const admit = (gate: GateKey, input: string, sellerOriented: number | null, note: string, buyerOverride?: number | null): BuyerComponent => {
+    const row = signFor(gate, input);
+    if (row.buyer === '0') throw new Error(`MODEL-01: ${gate}.${input} is not admitted to the buy score by the input-sign table`);
+    const buyerValue = buyerOverride !== undefined ? buyerOverride : applyBuyerSign(row, sellerOriented);
+    const c: BuyerComponent = { gate, input, sign: row.buyer, seller_oriented: sellerOriented, buyer_value: buyerValue, note };
+    components.push(c);
+    return c;
+  };
+
+  // ── Vol-Edge: the IV-level inputs invert; liquidity keeps; the rest is the table's '0'
+  const m = volEdge.breakdown.mispricing;
+  const mispricingActive = (m.active_signal_count ?? 0) > 0;
+  const cs = m.component_scores;
+  admit('vol_edge', 'vrp', mispricingActive ? cs.vrp : null, 'own-history VRP percentile, inverted');
+  admit('vol_edge', 'iv_composite', mispricingActive ? cs.iv_composite : null, 'IVP/IVR level, inverted');
+  const spread = numOrNull(m.inputs.IV_HV_spread);
+  const hvOverIv = spread === null ? null : round(clamp((-spread / 20) * 100, 0, 100), 1);
+  admit('vol_edge', 'iv_hv_spread', mispricingActive ? cs.iv_hv_spread : null,
+    spread === null ? 'IV-HV spread unavailable — excluded' : `HV over IV by ${round(-spread, 2)} pts → ${hvOverIv} (magnitude of the opposite sign, from the raw spread)`, hvOverIv);
+  const ladder = hvAccelLadderSellerOriented(numOrNull(m.inputs.HV_30), numOrNull(m.inputs.HV_60), numOrNull(m.inputs.HV_90));
+  admit('vol_edge', 'hv_accel', ladder, ladder === null ? 'HV30/60/90 not all present — excluded' : 'raw HV30/60/90 ladder, inverted (rising realized vol = the buyer\'s side)');
+  const gexActive = (volEdge.breakdown.gex.active_signal_count ?? 0) > 0;
+  admit('vol_edge', 'gex', gexActive ? volEdge.breakdown.gex.gex_score : null, gexActive ? 'dealer gamma, inverted (negative GEX amplifies realized moves)' : 'GEX excluded — no chain/OI data');
+  const techActive = (volEdge.breakdown.technicals.active_signal_count ?? 0) > 0;
+  admit('vol_edge', 'volume', techActive ? volEdge.breakdown.technicals.sub_scores.volume_score : null, 'volume ratio — liquidity, kept');
+  const ve = equalCombine(components.filter((c) => c.gate === 'vol_edge'));
+
+  // ── Quality: the six safety components only (direction-neutral tradability + solvency)
+  const safety = quality.breakdown.safety;
+  const safetyActive = (safety.active_signal_count ?? 0) > 0;
+  const ss = safety.sub_scores;
+  admit('quality', 'liquidity_rating', safetyActive ? ss.liquidity_rating_score : null, 'TastyTrade liquidity rating, kept');
+  admit('quality', 'market_cap', safetyActive ? ss.market_cap_score : null, 'size tier, kept');
+  admit('quality', 'volume', safetyActive ? ss.volume_score : null, '20-day share volume tier, kept');
+  admit('quality', 'lendability', safetyActive ? ss.lendability_score : null, 'borrow-market state, kept');
+  admit('quality', 'beta', safetyActive ? ss.beta_score : null, 'market exposure, kept');
+  admit('quality', 'debt_to_equity', safetyActive ? ss.debt_to_equity_score : null, 'solvency, kept');
+  const q = equalCombine(components.filter((c) => c.gate === 'quality'));
+
+  // ── Regime: the survival brake's two inputs only, same sign (a brake applies to both sides)
+  const vc = regime.breakdown.vol_conditioners;
+  admit('regime', 'vix_term_structure', vc.vix_term_structure.score, vc.vix_term_structure.score === null ? 'VIX/VIX3M unavailable — excluded' : `VIX/VIX3M = ${vc.vix_term_structure.raw_value} (backwardation scores low), kept`);
+  admit('regime', 'vvix', vc.vvix.score, vc.vvix.score === null ? 'VVIX unavailable (VVIXCLS is not a FRED series — dead since 2026-07-08; MODEL-02) — excluded' : 'VVIX level (elevated scores low), kept');
+  const r = equalCombine(components.filter((c) => c.gate === 'regime'));
+
+  // ── Info-Edge: direction-neutral inputs only (activity, attention, evidence quality, event count)
+  const flow = infoEdge.breakdown.flow_signal;
+  const news = infoEdge.breakdown.news_sentiment;
+  const event = infoEdge.breakdown.material_event_flag;
+  admit('info_edge', 'unusual_activity', flow ? flow.sub_scores.unusual_activity_score : null, flow ? 'option volume / OI, kept' : 'flow signal excluded — no chain');
+  admit('info_edge', 'buzz', news ? news.sub_scores.buzz_score : null, news ? 'news buzz vs baseline, kept' : 'news excluded — no feed');
+  admit('info_edge', 'source_quality', news ? news.sub_scores.source_quality_score : null, news ? 'tier-1 share of coverage, kept' : 'news excluded — no feed');
+  admit('info_edge', 'material_event', event ? event.score : null, event ? '8-K count, inverted (more material events = more catalysts for a buyer of movement)' : '8-K scan excluded — no data');
+  const ie = equalCombine(components.filter((c) => c.gate === 'info_edge'));
+
+  const category_scores = { vol_edge: ve.score, quality: q.score, regime: r.score, info_edge: ie.score };
+  const w: GateWeights = { vol_edge: 0.25, quality: 0.25, regime: 0.25, info_edge: 0.25 };
+  const { score, excluded, scoredBy } = combineGates(category_scores, w);
+  const gateNote = (k: GateKey, g: { score: number | null; present: number }) => ({
+    score: g.score,
+    present: g.present,
+    admitted: components.filter((c) => c.gate === k).length,
+    note: g.score === null ? `EXCLUDED — none of the ${components.filter((c) => c.gate === k).length} admitted components present; gate weight renormalized` : `equal weights over ${g.present} present component(s)`,
+  });
+  const trace: BuyerComponentTrace = {
+    components,
+    gates: {
+      vol_edge: gateNote('vol_edge', ve),
+      quality: gateNote('quality', q),
+      regime: gateNote('regime', r),
+      info_edge: gateNote('info_edge', ie),
+    },
+    weights_set_on: MODEL_WEIGHTS_SET_ON,
+  };
+  const admittedRows = INPUT_SIGNS.filter((x) => x.buyer !== '0').length;
+  if (admittedRows !== components.length) throw new Error(`MODEL-01: the buy score admitted ${components.length} components but the input-sign table admits ${admittedRows} — the table decides, the scorer must read every admitted row`);
+  return {
+    model: 'buyer',
+    score,
+    category_scores,
+    gate_weight_trace: {
+      gate_weights: w,
+      weight_mode: 'equal_untuned',
+      regime_used: 'n/a — buyer model: regime enters through its survival-brake inputs only',
+      regime_confidence: 0,
+      blend_factor: 0,
+    },
+    excluded_gates: excluded,
+    scored_by: scoredBy,
+    buyer_components: trace,
+    note: `Buyer model: equal untuned gate weights 0.25×4 (set ${MODEL_WEIGHTS_SET_ON}, awaiting EDGE-01's third book); VE=${ve.score ?? 'EXCLUDED'} Q=${q.score ?? 'EXCLUDED'} R=${r.score ?? 'EXCLUDED'} IE=${ie.score ?? 'EXCLUDED'} [${components.filter((c) => c.buyer_value !== null).length}/${components.length} admitted components present]`,
+  };
+}
+
+function clamp(v: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, v));
+}
+
 // ===== MAIN COMPOSITE SCORER =====
 
 export interface FullScoringResult {
@@ -115,33 +321,28 @@ export interface FullScoringResult {
   data_gaps: string[];
 }
 
-export function scoreAll(input: ConvergenceInput): FullScoringResult {
+/**
+ * Score a ticker on ONE side's model. `side` defaults to SELL — today's
+ * composite — so every existing caller keeps its behaviour; the pipeline
+ * passes the side the symbol came through the pre-filter on.
+ */
+export function scoreAll(input: ConvergenceInput, side: PremiumSide = 'SELL'): FullScoringResult {
   const volEdge = scoreVolEdge(input);
   const quality = scoreQualityGate(input);
   const regime = scoreRegime(input);
   const infoEdge = scoreInfoEdge(input);
 
-  // Dynamic gate weighting: regime-dependent with confidence blending
-  const gateWeightTrace = computeDynamicGateWeights(regime);
-  const w = gateWeightTrace.gate_weights;
-
-  // MIG-1: an excluded gate (score null) is dropped and the remaining gate
-  // weights renormalize — the composite is computed only from present gates.
-  // All four gates null (a ticker with literally zero data) → composite null,
-  // recorded as an honest null in scan_snapshots.
-  const gateCombined = combineWeighted([
-    { key: 'vol_edge', weight: w.vol_edge, score: volEdge.score },
-    { key: 'quality', weight: w.quality, score: quality.score },
-    { key: 'regime', weight: w.regime, score: regime.score },
-    { key: 'info_edge', weight: w.info_edge, score: infoEdge.score },
-  ]);
-  const compositeScore = gateCombined.score;
-  const excludedGates = gateCombined.excludedKeys;
+  const model = side === 'BUY'
+    ? buyerScore(volEdge, quality, regime, infoEdge)
+    : sellerScore(volEdge, quality, regime, infoEdge);
+  const gateWeightTrace = model.gate_weight_trace;
+  const compositeScore = model.score;
+  const excludedGates = model.excluded_gates;
 
   // Convergence gate: how many categories above 50 (an excluded gate cannot
   // be "above 50" — it counts against convergence, which is honest: less
-  // evidence, smaller size)
-  const scores = [volEdge.score, quality.score, regime.score, infoEdge.score];
+  // evidence, smaller size). Counted on the MODEL's gate scores.
+  const scores = [model.category_scores.vol_edge, model.category_scores.quality, model.category_scores.regime, model.category_scores.info_edge];
   const above50 = scores.filter((s): s is number => s !== null && s > 50).length;
 
   // EDGE-6 (STRATEGY-EVIDENCE §6): the survival brake is market-level state
@@ -175,6 +376,9 @@ export function scoreAll(input: ConvergenceInput): FullScoringResult {
 
   // Direction signal from Info Edge. MIG-1: an excluded info-edge gate gives
   // no direction evidence — labeled UNKNOWN, never imputed as neutral.
+  // MODEL-01: this is the directional OVERLAY — it reads the direction-bearing
+  // info-edge inputs on BOTH sides; on the buy side it picks bull/bear debit
+  // spreads and never enters the buy score.
   let direction: string;
   if (infoEdge.score == null) direction = 'UNKNOWN (info-edge excluded — no signal data)';
   else if (infoEdge.score > 65) direction = 'BULLISH';
@@ -220,32 +424,32 @@ export function scoreAll(input: ConvergenceInput): FullScoringResult {
 
   const composite: CompositeResult = {
     score: compositeScore,
-    rank_method: 'dynamic_regime_weighted',
-    note: `Gate weights: VE=${round(w.vol_edge, 2)} Q=${round(w.quality, 2)} R=${round(w.regime, 2)} IE=${round(w.info_edge, 2)} [${gateWeightTrace.weight_mode}, regime=${gateWeightTrace.regime_used}, blend=${round(gateWeightTrace.blend_factor, 2)}]`,
+    rank_method: model.model === 'seller' ? 'dynamic_regime_weighted' : 'buyer_equal_untuned',
+    note: model.note,
     convergence_gate: convergenceGate,
     direction,
-    category_scores: {
-      vol_edge: volEdge.score,
-      quality: quality.score,
-      regime: regime.score,
-      info_edge: infoEdge.score,
-    },
+    category_scores: model.category_scores,
     categories_above_50: above50,
     position_size_pct: positionSizePct,
     sizing_method: 'continuous_v1',
     data_confidence: compositeConfidence,
     gate_weight_trace: gateWeightTrace,
     regime_brake: { state: survivalBrake.state, declaration: survivalBrake.declaration },
+    score_model: model.model,
+    model_era: CURRENT_MODEL_ERA.id,
+    scored_by: model.scored_by,
+    excluded_gates: excludedGates,
+    buyer_components: model.buyer_components,
   };
 
   // Strategy suggestion
-  const strategySuggestion = deriveStrategy(volEdge, quality, regime, infoEdge, direction);
+  const strategySuggestion = deriveStrategy(volEdge, quality, regime, infoEdge, direction, side);
 
   // Data gaps
   const dataGaps = computeDataGaps(input, volEdge, quality);
   // MIG-1: a fully-excluded gate is DECLARED on the existing surface
   for (const g of excludedGates) {
-    dataGaps.push(`gate_excluded: ${g} — zero computable signals; recorded as null in scan_snapshots, composite renormalized over the present gates`);
+    dataGaps.push(`gate_excluded: ${g} — zero computable signals${model.model === 'buyer' ? ' among the components the input-sign table admits to the buy score' : ''}; recorded as null in scan_snapshots, composite renormalized over the present gates`);
   }
 
   return {
@@ -265,7 +469,9 @@ function deriveStrategy(
   regime: RegimeResult,
   _infoEdge: InfoEdgeResult,
   direction: string,
+  side: PremiumSide,
 ): StrategySuggestion {
+  if (side === 'BUY') return deriveBuyStrategy(volEdge, regime, direction);
   const regimeScore = regime.score;
   const volScore = volEdge.score;
   let ivp = volEdge.breakdown.mispricing.inputs.IV_percentile as number | null;
@@ -372,6 +578,45 @@ function deriveStrategy(
     suggested_strategy: suggestedStrategy,
     suggested_dte: suggestedDte,
     note: 'Trade cards generated from real chain data when run via pipeline',
+  };
+}
+
+/**
+ * MODEL-01: the buy side's suggestion. The regime gate speaks only through its
+ * brake here; the vol read is HV over IV; the directional overlay picks the
+ * debit spread. No premium-selling structure is ever suggested on this side.
+ */
+function deriveBuyStrategy(volEdge: VolEdgeResult, regime: RegimeResult, direction: string): StrategySuggestion {
+  const brake = regime.breakdown.survival_brake;
+  const spread = volEdge.breakdown.mispricing.inputs.IV_HV_spread;
+  const termShape = volEdge.breakdown.term_structure.shape;
+  const regimePreferred = brake.state !== 'OFF'
+    ? `${brake.declaration} — a brake applies to both sides`
+    : 'Regime enters the buy score through its brake inputs only (VIX/VIX3M, VVIX) — brake off';
+  const volEdgeConfirms = typeof spread === 'number'
+    ? `IV−HV = ${round(spread, 1)} → HV above IV by ${round(-spread, 1)} pts → long premium`
+    : 'IV−HV spread unavailable — no long-premium read';
+  let suggestedStrategy: string;
+  let suggestedDte = 30;
+  if (volEdge.score === null) {
+    suggestedStrategy = 'NOT COMPUTABLE — vol-edge excluded (no admitted buy-side signal); no strategy without a vol read';
+  } else if (direction === 'BULLISH') {
+    suggestedStrategy = 'Bull Call Debit Spread';
+  } else if (direction === 'BEARISH') {
+    suggestedStrategy = 'Bear Put Debit Spread — no builder exists in the scanner yet (MODEL-02); not built';
+  } else if (direction === 'NEUTRAL') {
+    suggestedStrategy = 'Long Straddle or Long Strangle';
+  } else {
+    suggestedStrategy = 'Long Straddle or Long Strangle (direction unknown — info-edge excluded; no debit spread)';
+  }
+  if (termShape === 'BACKWARDATION' || termShape === 'STEEP_BACKWARDATION') suggestedDte = 21;
+  return {
+    direction,
+    regime_preferred: regimePreferred,
+    vol_edge_confirms: volEdgeConfirms,
+    suggested_strategy: suggestedStrategy,
+    suggested_dte: suggestedDte,
+    note: 'Buy side: a candidate exists only with a catalyst (earnings inside the DTE window, or HV over IV by the stated margin) — trade cards generated from real chain data when run via pipeline',
   };
 }
 

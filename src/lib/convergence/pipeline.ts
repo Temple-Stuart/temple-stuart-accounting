@@ -1,7 +1,7 @@
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { fetchFinnhubBatch, fetchFredMacro, fetchFredDailySeries, fetchTTCandlesBatch, fetchAnnualFinancials, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality, fetchFinnhubInstitutionalOwnership, fetchFinnhubRevenueBreakdown, fetchQuarterlyFinancials, fetchSECFilingData, fetchInsiderTransactions, fetchPeerTickers, fetch10KBusinessDescription, fetchFinnhubEbitdaEstimates, fetchFinnhubEbitEstimates, fetchFinnhubDividendHistory, fetchFinnhubPriceMetrics, fetchFinnhubFundOwnership, fetchSECEdgar8KScan, fetchFinnhubEarningsCalendar } from './data-fetchers';
 import { computeCrossAssetCorrelations } from './cross-asset';
-import type { CrossAssetCorrelations } from './types';
+import type { CrossAssetCorrelations, PremiumSide, ScanSide, ScoreModel } from './types';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
 import { finnhubMeterSnapshot, withFinnhubMeter } from './finnhub-cache';
 import type { FinnhubFetchedAt } from './types';
@@ -14,6 +14,10 @@ import { scoreAll } from './composite';
 import type { FullScoringResult } from './composite';
 import { computePreFilter } from './pre-filter';
 import type { PreFilterResult } from './pre-filter';
+import { earningsDateSources, sideOf, stepCReason } from './side-rules';
+import { checkUndefinedRiskCap } from './undefined-risk';
+import type { UndefinedRiskCapCheck } from './undefined-risk';
+import { countUserOpenUndefinedRiskPositions } from './undefined-risk.prisma';
 import { logScanSnapshotBatch, fetchVrpHistoryBatch } from './snapshot-logger';
 import { persistScanCandidates } from './candidate-log';
 import { prismaCandidateLogStore } from './candidate-log.prisma';
@@ -108,6 +112,9 @@ interface RankedRow {
   mspr: number | null;
   beat_streak: string;
   key_signal: string;
+  // MODEL-01: the funnel side and the model that scored this row — never null
+  side: PremiumSide;
+  score_model: ScoreModel;
 }
 
 interface DiversificationResult {
@@ -132,6 +139,11 @@ export interface PipelineResult {
     scan_run_id: string | null;
     candidates_logged: number;
     candidates_withheld: boolean;
+    /** MODEL-01: the mode the scan ran in, the undefined-risk cap check, and the cards per side */
+    scan_side: ScanSide;
+    allow_undefined_risk: boolean;
+    undefined_risk_cap: UndefinedRiskCapCheck;
+    cards_by_side: { SELL: number; BUY: number };
     finnhub_errors: number;
     fred_cached: boolean;
     candle_symbols_fetched: number;
@@ -375,15 +387,30 @@ async function fetchRegShoThreshold(): Promise<Set<string>> {
 
 // ===== MAIN PIPELINE =====
 
+/**
+ * MODEL-01: what the scan runs as. `side` is the premium direction — SELL and
+ * BUY are separate funnels with separate models; BOTH runs both and labels
+ * every candidate with its side. `allowUndefinedRisk` is the scan filter's
+ * Risk = Unlimited state (default false = defined risk only, filter-types.ts
+ * DEFAULT_FILTERS); an unbounded structure also needs the per-user cap.
+ */
+export interface ScanOptions {
+  side: ScanSide;
+  allowUndefinedRisk: boolean;
+}
+
+export const DEFAULT_SCAN_OPTIONS: ScanOptions = { side: 'BOTH', allowUndefinedRisk: false };
+
 export async function runPipeline(
   limit: number = 20,
   userId?: string,
   universe?: string,
   onProgress?: (event: { step: string; label: string; data: Record<string, unknown> }) => void,
+  options: ScanOptions = DEFAULT_SCAN_OPTIONS,
 ): Promise<PipelineResult> {
   // TRADE-COST-01: every Finnhub call the run makes is counted on ONE meter
   // (finnhub-cache.ts) — pipeline_summary.finnhub_calls_made is measured, not asserted.
-  const { result } = await withFinnhubMeter(() => runPipelineMetered(limit, userId, universe, onProgress));
+  const { result } = await withFinnhubMeter(() => runPipelineMetered(limit, userId, universe, onProgress, options));
   return result;
 }
 
@@ -392,8 +419,13 @@ async function runPipelineMetered(
   userId?: string,
   universe?: string,
   onProgress?: (event: { step: string; label: string; data: Record<string, unknown> }) => void,
+  options: ScanOptions = DEFAULT_SCAN_OPTIONS,
 ): Promise<PipelineResult> {
   const pipelineStart = Date.now();
+  if (options.side !== 'SELL' && options.side !== 'BUY' && options.side !== 'BOTH') {
+    throw new Error(`MODEL-01: unknown scan side ${String(options.side)} — SELL, BUY or BOTH`);
+  }
+  const scanDateIso = new Date().toISOString().slice(0, 10);
   // TRADE-COST-01: fetched_at of every Finnhub answer, per symbol, merged from
   // every fetcher's result as it lands — read by nothing that scores.
   const finnhubAgeMap = new Map<string, FinnhubFetchedAt>();
@@ -488,8 +520,16 @@ async function runPipelineMetered(
 
   // ===== STEP A2: Pre-Filter (market-metrics-based ranking) =====
   console.log('[Pipeline] Step A2: Running market-metrics pre-filter...');
-  const preFilterResults = computePreFilter(allScannerData);
-  console.log(`[Pipeline] Step A2: ${preFilterResults.length} tickers ranked by preScore`);
+  // MODEL-01: one ranking per side — a buy-side symbol is ranked by the buyer's
+  // pre-score, never by a seller's that zeroes its own edge. The SELL ranking
+  // keeps its place in the step_b payload (today's shape); BUY rides alongside.
+  const preFilterResults = computePreFilter(allScannerData, 'SELL');
+  const preFilterResultsBuy = computePreFilter(allScannerData, 'BUY');
+  const preFilterBySide: Record<PremiumSide, Map<string, PreFilterResult>> = {
+    SELL: new Map(preFilterResults.map(r => [r.symbol, r])),
+    BUY: new Map(preFilterResultsBuy.map(r => [r.symbol, r])),
+  };
+  console.log(`[Pipeline] Step A2: ${preFilterResults.length} tickers ranked by preScore (mode=${options.side})`);
 
   onProgress?.({ step: 'step_b', label: 'Pre-Filter', data: {
     input: allScannerData.length,
@@ -503,33 +543,38 @@ async function runPipelineMetered(
     })),
   } });
 
-  // ===== STEP C (new): Hard Exclusions =====
-  // Step C applies exclusion rules that Step B (ranking) does not.
-  const stepCExcluded: { symbol: string; reason: string }[] = [];
-  const stepCIncluded: typeof preFilterResults = [];
+  // ===== STEP C (new): Hard Exclusions — per premium direction (MODEL-01) =====
+  // SELL keeps today's rule (IV ≤ HV excluded — no vol premium); BUY requires
+  // the opposite (HV above IV by the stated margin, side-rules.ts). BOTH runs
+  // both branches; the two rules are mutually exclusive on the spread, so every
+  // survivor has exactly one side. Every exclusion reason names the side.
+  const stepCExcluded: { symbol: string; side: ScanSide; reason: string }[] = [];
+  const stepCIncluded: (PreFilterResult & { side: PremiumSide })[] = [];
+  const symbolSide = new Map<string, PremiumSide>();
 
   for (const r of preFilterResults) {
     const t = allScannerData.find(s => s.symbol === r.symbol)!;
-    let excludeReason: string | null = null;
-
-    if (t.ivHvSpread == null) {
-      excludeReason = 'IV-HV spread unavailable — cannot assess vol premium';
-    } else if (t.ivHvSpread <= 0) {
-      excludeReason = `No vol premium — IV-HV spread is ${t.ivHvSpread.toFixed(1)} (realized vol exceeds implied)`;
-    }
-
-    if (excludeReason == null && r.liquidityRating == null) {
-      excludeReason = 'Liquidity rating unavailable — cannot score liquidity';
-    } else if (excludeReason == null && r.liquidityRating != null && r.liquidityRating < 2) {
-      excludeReason = `Low liquidity rating (${r.liquidityRating}/5)`;
-    }
-
-    if (excludeReason != null) {
-      stepCExcluded.push({ symbol: r.symbol, reason: excludeReason });
+    const inputs = { ivHvSpread: t.ivHvSpread, liquidityRating: r.liquidityRating };
+    if (options.side === 'BOTH') {
+      const { side, reasons } = sideOf(inputs);
+      if (side === null) {
+        stepCExcluded.push({ symbol: r.symbol, side: 'BOTH', reason: `${reasons.SELL} | ${reasons.BUY}` });
+      } else {
+        stepCIncluded.push({ ...(preFilterBySide[side].get(r.symbol) ?? r), side });
+        symbolSide.set(r.symbol, side);
+      }
     } else {
-      stepCIncluded.push(r);
+      const reason = stepCReason(options.side, inputs);
+      if (reason !== null) {
+        stepCExcluded.push({ symbol: r.symbol, side: options.side, reason });
+      } else {
+        stepCIncluded.push({ ...(preFilterBySide[options.side].get(r.symbol) ?? r), side: options.side });
+        symbolSide.set(r.symbol, options.side);
+      }
     }
   }
+  // Rank within side by the side's own pre-score
+  stepCIncluded.sort((a, b) => b.preScore - a.preScore);
 
   const earningsWarnings = stepCIncluded
     .filter(r => {
@@ -538,10 +583,13 @@ async function runPipelineMetered(
     })
     .map(r => ({ symbol: r.symbol, days_to_earnings: allScannerData.find(t => t.symbol === r.symbol)?.daysTillEarnings ?? null }));
 
-  console.log(`[Pipeline] Step C: ${stepCIncluded.length} survived, ${stepCExcluded.length} excluded`);
+  const stepCBySide = { SELL: stepCIncluded.filter(r => r.side === 'SELL').length, BUY: stepCIncluded.filter(r => r.side === 'BUY').length };
+  console.log(`[Pipeline] Step C: ${stepCIncluded.length} survived (SELL ${stepCBySide.SELL}, BUY ${stepCBySide.BUY}), ${stepCExcluded.length} excluded`);
 
   onProgress?.({ step: 'step_c', label: 'Hard Exclusions', data: {
+    side_mode: options.side,
     survivors: stepCIncluded.length,
+    survivors_by_side: stepCBySide,
     excluded: stepCExcluded.length,
     exclusions: stepCExcluded,
     earnings_warnings: earningsWarnings,
@@ -549,18 +597,31 @@ async function runPipelineMetered(
 
   // Use pre-filter to narrow the candidate set: take top (limit * 2) non-excluded
   // tickers by preScore. This reduces the universe BEFORE hard filters + Finnhub.
+  // MODEL-01: in BOTH mode the limit*2 seats split evenly between the sides
+  // (each ranked by its own pre-score); a side with fewer eligible symbols
+  // yields its unused seats to the other. The total never exceeds limit*2, so
+  // the Finnhub fetch that follows costs the same as a one-sided run.
+  const allocateBySide = <T extends { side: PremiumSide }>(rows: T[], seats: number): T[] => {
+    const sell = rows.filter(r => r.side === 'SELL');
+    const buy = rows.filter(r => r.side === 'BUY');
+    if (options.side !== 'BOTH') return rows.slice(0, seats);
+    const half = Math.ceil(seats / 2);
+    const sellTake = Math.min(sell.length, Math.max(half, seats - buy.length));
+    const buyTake = Math.min(buy.length, seats - sellTake);
+    return [...sell.slice(0, sellTake), ...buy.slice(0, buyTake)];
+  };
   const preFilterTopN = Math.min(limit * 2, stepCIncluded.length);
-  const preFilterCandidates = new Set(
-    stepCIncluded.slice(0, preFilterTopN).map(r => r.symbol)
-  );
+  const preFilterSelected = allocateBySide(stepCIncluded, preFilterTopN);
+  const preFilterCandidates = new Set(preFilterSelected.map(r => r.symbol));
   const preFilteredScannerData = allScannerData.filter(t => preFilterCandidates.has(t.symbol));
-  console.log(`[Pipeline] Step D: Narrowed ${stepCIncluded.length} → ${preFilteredScannerData.length} by preScore (top ${preFilterTopN})`);
+  console.log(`[Pipeline] Step D: Narrowed ${stepCIncluded.length} → ${preFilteredScannerData.length} by preScore (top ${preFilterTopN}, per side)`);
 
   // ===== STEP D (new): Top-N Selection =====
-  const cutoffScore = stepCIncluded[preFilterTopN - 1]?.preScore ?? 0;
+  const cutoffScore = preFilterSelected[preFilterSelected.length - 1]?.preScore ?? 0;
   onProgress?.({ step: 'step_d', label: 'Top-N Selection', data: {
     input: stepCIncluded.length,
-    selected: preFilterTopN,
+    selected: preFilterSelected.length,
+    selected_by_side: { SELL: preFilterSelected.filter(r => r.side === 'SELL').length, BUY: preFilterSelected.filter(r => r.side === 'BUY').length },
     cutoff_score: Math.round(cutoffScore * 100),
   } });
 
@@ -652,11 +713,13 @@ async function runPipelineMetered(
 
   // ===== STEP D: Pre-Score and Limit =====
   console.log('[Pipeline] Step D: Pre-scoring and limiting...');
-  const preScores = computePreScores(survivors);
+  const preScores = computePreScores(survivors, symbolSide);
   // Overfetch: fetch 2x the desired final count so convergence gate + quality floor
   // exclusions don't leave us short on tickers for the final 9
+  // MODEL-01: seats split per side in BOTH mode (see allocateBySide) — the
+  // Finnhub fetch count is unchanged.
   const fetchCount = Math.min(limit * 2, preScores.length);
-  const topN = preScores.slice(0, fetchCount);
+  const topN = allocateBySide(preScores.map(r => ({ ...r, side: symbolSide.get(r.symbol) as PremiumSide })), fetchCount);
   const topSymbols = topN.map(r => r.symbol);
   console.log(`[Pipeline] Step D: Top ${topSymbols.length} selected for Finnhub fetch (limit=${limit}, fetch=2x)`);
   onProgress?.({ step: 'step_g', label: 'Pre-Score', data: {
@@ -1202,11 +1265,19 @@ async function runPipelineMetered(
   console.log('[Pipeline] Step F: Scoring all categories...');
   const scoredTickers: {
     symbol: string;
+    side: PremiumSide;
     scannerData: TTScannerData;
     finnhubData: FinnhubData;
     scoring: FullScoringResult;
     dataAge: FinnhubFetchedAt;
   }[] = [];
+  // MODEL-01: every scored symbol came through Step C on exactly one side; a
+  // symbol without a side cannot be scored on "its side's model" — refused.
+  const sideOfSymbol = (symbol: string): PremiumSide => {
+    const side = symbolSide.get(symbol);
+    if (!side) throw new Error(`MODEL-01: ${symbol} reached scoring with no premium side — it did not pass Step C on either side`);
+    return side;
+  };
 
   for (const symbol of topSymbols) {
     const scannerData = scannerMap.get(symbol);
@@ -1256,8 +1327,9 @@ async function runPipelineMetered(
     };
 
     try {
-      const scoring = scoreAll(convergenceInput);
-      scoredTickers.push({ symbol, scannerData, finnhubData, scoring, dataAge: finnhubAgeMap.get(symbol) ?? {} });
+      const side = sideOfSymbol(symbol);
+      const scoring = scoreAll(convergenceInput, side);
+      scoredTickers.push({ symbol, side, scannerData, finnhubData, scoring, dataAge: finnhubAgeMap.get(symbol) ?? {} });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       errors.push(`Step F (score ${symbol}): ${msg}`);
@@ -1319,7 +1391,7 @@ async function runPipelineMetered(
       };
 
       try {
-        ticker.scoring = scoreAll(convergenceInput);
+        ticker.scoring = scoreAll(convergenceInput, ticker.side);
         reScored++;
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -1569,7 +1641,9 @@ async function runPipelineMetered(
 
   // ===== STEP G: Rank and Diversify =====
   console.log('[Pipeline] Step G: Ranking and diversifying...');
-  const { top9, alsoScored, diversification, sectorDistribution } = rankAndDiversify(rankedRows);
+  // MODEL-01: SELL and BUY are ranked as separate books — a seller score and a
+  // buyer score are not comparable, so each side takes its own top N.
+  const { top9, alsoScored, diversification, sectorDistribution } = rankAndDiversifyBySide(rankedRows);
 
   onProgress?.({ step: 'step_m', label: 'Final Selection', data: {
     fetched_at: new Date().toISOString(),
@@ -1582,6 +1656,8 @@ async function runPipelineMetered(
     adjustments: diversification.adjustments,
     top9: top9.map(r => ({
       symbol: r.symbol,
+      side: r.side,
+      score_model: r.score_model,
       rank: r.rank,
       composite: r.composite,
       vol_edge: r.vol_edge,
@@ -1635,6 +1711,21 @@ async function runPipelineMetered(
   let chainMarketNote: string | undefined;
   let perTickerStats = new Map<string, PerTickerChainStats>();
   let rawStrategyCards = new Map<string, StrategyCard[]>();
+
+  // MODEL-01 STEP 5: the undefined-risk cap, checked ONCE per run against the
+  // user's OPEN positions. A count that cannot be obtained blocks the build
+  // (fail-safe) and is declared here and on every blocked candidate.
+  let openUndefinedRisk: number | null = null;
+  if (userId) {
+    try {
+      openUndefinedRisk = await countUserOpenUndefinedRiskPositions(userId);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      errors.push(`MODEL-01 (undefined-risk cap): open positions could not be counted — ${msg}; unbounded structures NOT built this run`);
+    }
+  }
+  const undefinedRiskCap = checkUndefinedRiskCap(options.allowUndefinedRisk, openUndefinedRisk);
+  if (!undefinedRiskCap.allowed) dataGaps.push(`trade_cards: ${undefinedRiskCap.reason}`);
 
   const marketStatus = isMarketOpen();
   if (!marketStatus.open) {
@@ -1708,6 +1799,16 @@ async function runPipelineMetered(
         dividendYield: tt.dividendYield != null && Number.isFinite(tt.dividendYield) ? tt.dividendYield / 100 : null,
         hv10: hv10Pct != null ? hv10Pct / 100 : null,
         riskFreeRate: fedFundsRate,
+        // MODEL-01: the side, the named earnings dates (Finnhub calendar, already
+        // fetched at Step I7, + TastyTrade), the raw spread and the cap check
+        side: ticker.side,
+        scanDate: scanDateIso,
+        earningsDates: earningsDateSources(
+          (earningsCalendarMap.get(row.symbol)?.earningsCalendar ?? []).map(e => e.date),
+          tt.earningsDate,
+        ),
+        ivHvSpread: tt.ivHvSpread,
+        undefinedRisk: undefinedRiskCap,
       };
     }).filter((input): input is NonNullable<typeof input> => input !== null);
 
@@ -1848,7 +1949,7 @@ async function runPipelineMetered(
           try {
             // Preserve trade cards from G2 (they're attached to strategy_suggestion)
             const existingTradeCards = ticker.scoring.strategy_suggestion.trade_cards;
-            ticker.scoring = scoreAll(convergenceInput);
+            ticker.scoring = scoreAll(convergenceInput, ticker.side);
             if (existingTradeCards) {
               ticker.scoring.strategy_suggestion.trade_cards = existingTradeCards;
             }
@@ -2048,7 +2149,7 @@ async function runPipelineMetered(
   } else {
     try {
       const persisted = await persistScanCandidates(
-        { userId, universe, limit, tickersScored: scoredTickers.length, cards: fullTradeCardsPerTicker, context: candidateContext, now: new Date() },
+        { userId, universe, limit, side: options.side, tickersScored: scoredTickers.length, cards: fullTradeCardsPerTicker, context: candidateContext, now: new Date() },
         prismaCandidateLogStore,
       );
       fullTradeCardsPerTicker = persisted.cards;
@@ -2087,6 +2188,13 @@ async function runPipelineMetered(
       scan_run_id: scanRunId,
       candidates_logged: candidatesLogged,
       candidates_withheld: candidatesWithheld,
+      scan_side: options.side,
+      allow_undefined_risk: options.allowUndefinedRisk,
+      undefined_risk_cap: undefinedRiskCap,
+      cards_by_side: {
+        SELL: Object.values(fullTradeCardsPerTicker).flat().filter(c => c.why.side === 'SELL').length,
+        BUY: Object.values(fullTradeCardsPerTicker).flat().filter(c => c.why.side === 'BUY').length,
+      },
       finnhub_errors: finnhubResult.stats.errors,
       fred_cached: fredResult.cached,
       candle_symbols_fetched: candleStats.symbols_with_data,
@@ -2349,13 +2457,16 @@ function applyHardFilters(tickers: TTScannerData[], regShoSymbols: Set<string>):
 
 // ===== STEP D: Pre-Score =====
 
-function computePreScores(survivors: TTScannerData[]): PreScoreRow[] {
+function computePreScores(survivors: TTScannerData[], symbolSide: Map<string, PremiumSide>): PreScoreRow[] {
   const rows: PreScoreRow[] = [];
 
   for (const t of survivors) {
     // Normalize IVP: if <= 1.0, multiply by 100
     let ivp = t.ivPercentile;
     if (ivp != null && ivp <= 1.0) ivp = round(ivp * 100, 1);
+    // MODEL-01: on the BUY side a low IV percentile is the edge — inverted.
+    // (The |spread| term below is direction-blind and serves both sides.)
+    if (ivp != null && symbolSide.get(t.symbol) === 'BUY') ivp = round(100 - ivp, 1);
 
     // Normalize IV-HV spread
     const ivHvSpread = t.ivHvSpread;
@@ -2387,6 +2498,7 @@ function computePreScores(survivors: TTScannerData[]): PreScoreRow[] {
 function buildRankedRows(
   scoredTickers: {
     symbol: string;
+    side: PremiumSide;
     scannerData: TTScannerData;
     finnhubData: FinnhubData;
     scoring: FullScoringResult;
@@ -2465,8 +2577,34 @@ function buildRankedRows(
       mspr: mspr != null ? round(mspr, 2) : null,
       beat_streak: beatStreak,
       key_signal: signals.join(', '),
+      side: t.side,
+      score_model: s.composite.score_model,
     };
   });
+}
+
+/**
+ * MODEL-01: rank each side as its own book. A seller score and a buyer score
+ * live on different models and are never ranked against each other; each
+ * side takes its own top N (rankAndDiversify, unchanged) and the two lists
+ * are concatenated, SELL first, every row labelled with its side.
+ */
+function rankAndDiversifyBySide(rankedRows: RankedRow[]): ReturnType<typeof rankAndDiversify> {
+  const sides: PremiumSide[] = ['SELL', 'BUY'];
+  const top9: RankedRow[] = [];
+  const alsoScored: RankedRow[] = [];
+  const adjustments: string[] = [];
+  const sectorDistribution: Record<string, number> = {};
+  for (const side of sides) {
+    const rows = rankedRows.filter(r => r.side === side).map((r, i) => ({ ...r, rank: i + 1 }));
+    if (rows.length === 0) continue;
+    const res = rankAndDiversify(rows);
+    top9.push(...res.top9);
+    alsoScored.push(...res.alsoScored);
+    adjustments.push(...res.diversification.adjustments.map(a => `[${side}] ${a}`));
+    for (const [sector, n] of Object.entries(res.sectorDistribution)) sectorDistribution[sector] = (sectorDistribution[sector] ?? 0) + n;
+  }
+  return { top9, alsoScored, diversification: { adjustments }, sectorDistribution };
 }
 
 // ===== STEP G: Rank and Diversify =====

@@ -47,7 +47,15 @@ function card(symbol: string, strategy: string, legs: TradeCardData['setup']['le
       is_unlimited_risk: false,
       ...overrides,
     } as TradeCardData['setup'],
-    why: {} as TradeCardData['why'],
+    why: {
+      side: 'SELL',
+      score_model: 'seller',
+      model_era: 'E9',
+      scored_by: ['vol_edge', 'quality', 'regime', 'info_edge'],
+      catalysts: [],
+      earnings_window: { state: 'outside', detail: 'no earnings date inside [2026-09-15, 2026-10-16] — nearest known 2026-10-28 (Finnhub calendar/earnings)', date: '2026-10-28', source: 'Finnhub calendar/earnings' },
+      undefined_risk_cap: overrides.is_unlimited_risk ? 'undefined-risk structure allowed — filter Risk = Unlimited and 0 open undefined-risk position(s) < cap 1' : null,
+    } as unknown as TradeCardData['why'],
     key_stats: {} as TradeCardData['key_stats'],
   };
 }
@@ -85,14 +93,16 @@ const pcs = [
 
 test('persist — every card the scan returns is the card the log wrote, stamped with its candidate_id (one list)', async () => {
   const store = memoryStore();
-  const cards = { AAPL: [card('AAPL', 'Put Credit Spread', pcs), card('AAPL', 'Iron Condor', [...pcs, { type: 'call', side: 'sell', strike: 110, price: 1.8 }, { type: 'call', side: 'buy', strike: 115, price: 0.4 }])], MSFT: [card('MSFT', 'Short Strangle', [{ type: 'put', side: 'sell', strike: 380, price: 4 }, { type: 'call', side: 'sell', strike: 440, price: 3.5 }])] };
+  const cards = { AAPL: [card('AAPL', 'Put Credit Spread', pcs), card('AAPL', 'Iron Condor', [...pcs, { type: 'call', side: 'sell', strike: 110, price: 1.8 }, { type: 'call', side: 'buy', strike: 115, price: 0.4 }])], MSFT: [card('MSFT', 'Short Strangle', [{ type: 'put', side: 'sell', strike: 380, price: 4 }, { type: 'call', side: 'sell', strike: 440, price: 3.5 }], { is_unlimited_risk: true, max_loss: null })] };
   const now = new Date('2026-09-15T14:30:00Z');
-  const r = await persistScanCandidates({ userId: 'u1', universe: 'sp500', limit: 20, tickersScored: 40, cards, context: { AAPL: { scoring: scoring(72, ['vol_edge.gex']), spotAtScan: 101.2, iv30AtScan: 28.5 }, MSFT: { scoring: scoring(61), spotAtScan: 410, iv30AtScan: 24 } }, now }, store);
+  const r = await persistScanCandidates({ userId: 'u1', universe: 'sp500', limit: 20, side: 'BOTH', tickersScored: 40, cards, context: { AAPL: { scoring: scoring(72, ['vol_edge.gex']), spotAtScan: 101.2, iv30AtScan: 28.5 }, MSFT: { scoring: scoring(61), spotAtScan: 410, iv30AtScan: 24 } }, now }, store);
   assert.equal(r.written, 3);
   assert.equal(store.runs.length, 1);
   assert.equal(store.runs[0].candidates_written, 3);
   assert.equal(store.runs[0].tickers_scored, 40);
-  assert.equal(store.runs[0].model_era, 'E8');
+  // MODEL-01: the era is the running model's (CURRENT_MODEL_ERA), not the calendar's
+  assert.equal(store.runs[0].model_era, 'E9');
+  assert.equal(store.runs[0].side, 'BOTH');
   const returned = [...r.cards.AAPL, ...r.cards.MSFT];
   assert.equal(returned.length, 3);
   const ids = new Set(returned.map((c) => c.candidate_id));
@@ -107,6 +117,14 @@ test('persist — every card the scan returns is the card the log wrote, stamped
   assert.equal(aapl.max_loss, 350);
   assert.equal(aapl.spot_at_scan, 101.2);
   assert.equal(aapl.taken, false);
+  assert.equal(aapl.side, 'SELL');
+  assert.equal(aapl.score_model, 'seller');
+  assert.deepEqual(aapl.catalyst, []);
+  assert.match(aapl.earnings_window, /no earnings date inside/);
+  assert.equal(aapl.undefined_risk_cap, null);
+  const msft = store.rows.find((x) => x.symbol === 'MSFT') as CandidateRow;
+  assert.equal(msft.is_unlimited, true);
+  assert.match(msft.undefined_risk_cap ?? '', /cap 1/);
   assert.equal(aapl.expiration.toISOString(), '2026-10-16T00:00:00.000Z');
   assert.equal(aapl.generated_at, now);
   // the original list is not mutated — the stamped list is what the caller must adopt
@@ -116,14 +134,14 @@ test('persist — every card the scan returns is the card the log wrote, stamped
 test('persist — a store that writes fewer rows than cards throws (never an unpersisted candidate)', async () => {
   const short: CandidateLogStore = { async write() { return 0; } };
   await assert.rejects(
-    persistScanCandidates({ userId: 'u1', universe: undefined, limit: 20, tickersScored: 1, cards: { AAPL: [card('AAPL', 'Put Credit Spread', pcs)] }, context: { AAPL: { scoring: scoring(50), spotAtScan: null, iv30AtScan: null } }, now: new Date() }, short),
+    persistScanCandidates({ userId: 'u1', universe: undefined, limit: 20, side: 'SELL', tickersScored: 1, cards: { AAPL: [card('AAPL', 'Put Credit Spread', pcs)] }, context: { AAPL: { scoring: scoring(50), spotAtScan: null, iv30AtScan: null } }, now: new Date() }, short),
     /wrote 0 candidate rows for 1 cards/,
   );
 });
 
 test('persist — an empty scan writes one run with zero candidates and returns an empty list', async () => {
   const store = memoryStore();
-  const r = await persistScanCandidates({ userId: 'u1', universe: undefined, limit: 20, tickersScored: 0, cards: {}, context: {}, now: new Date() }, store);
+  const r = await persistScanCandidates({ userId: 'u1', universe: undefined, limit: 20, side: 'SELL', tickersScored: 0, cards: {}, context: {}, now: new Date() }, store);
   assert.equal(r.written, 0);
   assert.deepEqual(r.cards, {});
   assert.equal(store.runs[0].candidates_written, 0);

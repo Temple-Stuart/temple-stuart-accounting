@@ -446,6 +446,13 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
       ? `${vrpNote}, IVComposite=${fmtN(ivCompositeScore)}(IVP=${fmtN(ivpScore)},IVR=${ivrScore !== null ? round(ivrScore) : 'N/A'}), IV_HV=${fmtN(ivHvSpreadScore)}(raw=${fmtN(ivHvSpreadScoreRaw)},z=${zScores.iv_hv_z}), HV_accel=${fmtN(hvAccelScore)}(raw=${fmtN(hvAccelScoreRaw)},z=${zScores.hv_accel_z})`
       : `${vrpNote}, IVComposite=${fmtN(ivCompositeScore)}(IVP=${fmtN(ivpScore)},IVR=${ivrScore !== null ? round(ivrScore) : 'N/A'}), IV_HV=${fmtN(ivHvSpreadScore)}, HV_accel=${fmtN(hvAccelScore)}`,
     hv_trend: hvTrend,
+    // MODEL-01: the post-transform component scores the buyer model recomposes from
+    component_scores: {
+      vrp: vrpScore !== null ? round(vrpScore, 1) : null,
+      iv_composite: ivCompositeScore !== null ? round(ivCompositeScore, 1) : null,
+      iv_hv_spread: ivHvSpreadScore !== null ? round(ivHvSpreadScore, 1) : null,
+      hv_accel: hvAccelScore !== null ? round(hvAccelScore, 1) : null,
+    },
     iv_composite: {
       iv_rank: ivr,
       iv_percentile: ivp,

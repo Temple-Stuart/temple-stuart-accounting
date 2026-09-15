@@ -2,8 +2,10 @@ import { getTastytradeClient } from '@/lib/tastytrade';
 import { MarketDataSubscriptionType } from '@tastytrade/api';
 import { buildStrikeData, generateStrategies } from '@/lib/strategy-builder';
 import type { StrategyCard, RejectionReason, StrikeData } from '@/lib/strategy-builder';
-import type { OptionsFlowData, OptionsChainExpiration, OptionsChainStrike } from './types';
+import type { OptionsFlowData, OptionsChainExpiration, OptionsChainStrike, PremiumSide } from './types';
 import { numOrNull, firstNumOrNull } from '@/lib/parse-num';
+import type { EarningsDateSource } from './side-rules';
+import type { UndefinedRiskCapCheck } from './undefined-risk';
 
 // ===== TYPES =====
 
@@ -25,6 +27,14 @@ export interface ChainTickerInput {
   hv10: number | null;
   // Risk-free rate from FRED FEDFUNDS series, converted to decimal. Required — no default.
   riskFreeRate: number;
+  // MODEL-01: the funnel side, the ISO scan date, every named earnings date
+  // the run has, the raw IV-HV spread (vol points) and the undefined-risk cap
+  // check — passed through to generateStrategies unchanged.
+  side: PremiumSide;
+  scanDate: string;
+  earningsDates: EarningsDateSource[];
+  ivHvSpread: number | null;
+  undefinedRisk: UndefinedRiskCapCheck;
 }
 
 export interface ChainFetchStats {
@@ -353,6 +363,10 @@ export async function fetchChainAndBuildCards(
       try {
         let bestStrategies: StrategyCard[] = [];
         let bestRejections: RejectionReason[] = [];
+        // MODEL-01: when NO expiration builds a card, the reasons must still
+        // reach the result (a BUY with no catalyst, a blocked strangle) — keep
+        // the first real expiration's rejections for that case.
+        let firstRejections: RejectionReason[] | null = null;
         let bestCompositeScore = -Infinity;
         let winningExp = expirations[0];
         let winningDominantSource: StrikeData['priceSource'] = 'none';
@@ -381,9 +395,16 @@ export async function fetchChainAndBuildCards(
             dividendYield: ticker.dividendYield,
             hv10: ticker.hv10,
             riskFreeRate: ticker.riskFreeRate,
+            side: ticker.side,
+            direction: ticker.direction,
+            scanDate: ticker.scanDate,
+            earningsDates: ticker.earningsDates,
+            ivHvSpread: ticker.ivHvSpread,
+            undefinedRisk: ticker.undefinedRisk,
           });
 
           const topScore = result.strategies[0]?.compositeScore ?? null;
+          if (firstRejections === null && strikeData.length > 0) firstRejections = result.rejections;
 
           allExpStats.push({
             expiration: exp.expiration,
@@ -431,6 +452,7 @@ export async function fetchChainAndBuildCards(
           }
         }
 
+        if (bestStrategies.length === 0 && bestRejections.length === 0 && firstRejections) bestRejections = firstRejections;
         cards.set(ticker.symbol, bestStrategies);
         if (bestRejections.length > 0) {
           rejections.set(ticker.symbol, bestRejections);

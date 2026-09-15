@@ -23,6 +23,7 @@
 // is the PipePillarId TYPE from the zero-import pipePhases leaf.
 
 import type { PipePillarId } from '@/lib/pipePhases';
+import { POP_MODEL_LABEL, EV_MODEL_LABEL } from '@/lib/convergence/modelLabels';
 
 export interface WalkthroughFeeds {
   /** The step number this step feeds (2-based ordinal in the SAME module);
@@ -206,7 +207,7 @@ export const WALKTHROUGH_LEDGER: Record<PipePillarId, WalkthroughModule> = {
         you: "Read the verdicts — queue the ones worth taking",
         app: "Shows every candidate WITH the reason — including why to skip",
         feeds: { target: 4, clause: "your queue" },
-        glimpse: "the real results rows — ticker · strategy · premium · PoP · EV · verdict — with the expanded dive (gates · legs · collect/max loss); skips carry their stored reason",
+        glimpse: `the real results rows — ticker · strategy · premium · ${POP_MODEL_LABEL} · ${EV_MODEL_LABEL} · verdict — with the expanded dive (gates · legs · collect/max loss); skips carry their stored reason`,
       },
       {
         teach: "The card holds the prediction",

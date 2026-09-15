@@ -25,9 +25,9 @@
  *   the number; the two are never confused.
  */
 import { randomUUID } from 'node:crypto';
-import type { CandleData, TradeCardData } from './types';
+import type { CandleData, Catalyst, PremiumSide, ScanSide, ScoreModel, TradeCardData } from './types';
 import type { FullScoringResult } from './composite';
-import { eraFor } from '../edge-read/eras';
+import { CURRENT_MODEL_ERA } from '../edge-read/eras';
 
 // ── the write ────────────────────────────────────────────────────────────
 
@@ -48,6 +48,8 @@ export interface ScanRunRow {
   model_era: string;
   tickers_scored: number;
   candidates_written: number;
+  /** MODEL-01: the mode the run was requested in (SELL / BUY / BOTH). */
+  side: ScanSide;
 }
 
 export interface CandidateRow {
@@ -81,6 +83,14 @@ export interface CandidateRow {
   model_era: string;
   generated_at: Date;
   taken: false;
+  // MODEL-01: the side the candidate came through, the model that scored it,
+  // its catalysts (non-empty on every BUY row — the law), the earnings-window
+  // line, and the cap check that let an unbounded structure exist.
+  side: PremiumSide;
+  score_model: ScoreModel;
+  catalyst: Catalyst[];
+  earnings_window: string;
+  undefined_risk_cap: string | null;
 }
 
 export interface CandidateLogStore {
@@ -92,6 +102,8 @@ export interface PersistScanInput {
   userId: string;
   universe: string | undefined;
   limit: number;
+  /** MODEL-01: the scan mode. */
+  side: ScanSide;
   tickersScored: number;
   /** The scan's per-ticker card list — the list the response is built from. */
   cards: Record<string, TradeCardData[]>;
@@ -122,7 +134,9 @@ function legsOf(card: TradeCardData): CandidateLeg[] {
 
 export async function persistScanCandidates(input: PersistScanInput, store: CandidateLogStore): Promise<PersistScanResult> {
   const runId = randomUUID();
-  const era = eraFor(input.now).id;
+  // MODEL-01: the era is the running model's, not the calendar's — the code
+  // that scored the candidate knows which model it is.
+  const era = CURRENT_MODEL_ERA.id;
   const rows: CandidateRow[] = [];
   const stamped: Record<string, TradeCardData[]> = {};
   for (const [symbol, cards] of Object.entries(input.cards)) {
@@ -132,6 +146,16 @@ export async function persistScanCandidates(input: PersistScanInput, store: Cand
       const id = randomUUID();
       const dc = ctx.scoring.composite.data_confidence;
       const cs = ctx.scoring.composite.category_scores;
+      // MODEL-01 (the runtime half of the laws): the row carries side, model,
+      // catalyst and cap check from the card; a BUY row with no catalyst and an
+      // unbounded row with no cap check are refused — they must not exist.
+      const why = card.why;
+      if (why.side !== 'SELL' && why.side !== 'BUY') throw new Error(`MODEL-01: ${symbol} ${card.setup.strategy_name} carries no side`);
+      if (why.score_model !== 'seller' && why.score_model !== 'buyer') throw new Error(`MODEL-01: ${symbol} ${card.setup.strategy_name} carries no score_model`);
+      if (!why.model_era) throw new Error(`MODEL-01: ${symbol} ${card.setup.strategy_name} carries no model_era`);
+      if ((why.side === 'BUY') !== (why.score_model === 'buyer')) throw new Error(`MODEL-01: ${symbol} ${card.setup.strategy_name} is ${why.side} but scored by the ${why.score_model} model`);
+      if (why.side === 'BUY' && (!Array.isArray(why.catalysts) || why.catalysts.length === 0)) throw new Error(`MODEL-01: ${symbol} ${card.setup.strategy_name} is a BUY candidate with no catalyst — refused`);
+      if (card.setup.is_unlimited_risk === true && !why.undefined_risk_cap) throw new Error(`MODEL-01: ${symbol} ${card.setup.strategy_name} is unbounded with no cap check recorded — refused`);
       rows.push({
         id,
         run_id: runId,
@@ -160,9 +184,14 @@ export async function persistScanCandidates(input: PersistScanInput, store: Cand
         data_confidence: finite(dc.confidence),
         imputed_count: finite(dc.imputed_sub_scores),
         excluded_fields: [...(dc.excluded_fields ?? [])],
-        model_era: era,
+        model_era: why.model_era,
         generated_at: input.now,
         taken: false,
+        side: why.side,
+        score_model: why.score_model,
+        catalyst: why.catalysts.map((c) => ({ ...c })),
+        earnings_window: why.earnings_window?.detail ?? 'earnings window not evaluated',
+        undefined_risk_cap: why.undefined_risk_cap ?? null,
       });
       return { ...card, candidate_id: id };
     });
@@ -176,6 +205,7 @@ export async function persistScanCandidates(input: PersistScanInput, store: Cand
     model_era: era,
     tickers_scored: input.tickersScored,
     candidates_written: rows.length,
+    side: input.side,
   };
   const written = await store.write(run, rows);
   if (written !== rows.length) throw new Error(`LOG-01: the store wrote ${written} candidate rows for ${rows.length} cards — refusing to return an unpersisted candidate`);

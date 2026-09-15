@@ -83,7 +83,21 @@ export const MODEL_ERAS: readonly ModelEra[] = [
     change: 'no weight changed; the 16 slow-tier Finnhub inputs may now be up to 7 days (quarterly) or 24 h (weekly/monthly) old when scored',
     commits: '247e33c2 (7f283cbe) merged 2026-09-15',
   },
+  {
+    id: 'E9',
+    from: '2026-09-16',
+    label: 'MODEL-01 two scores',
+    change: 'the composite is two models — sellerScore (today\'s composite, unchanged, renamed) and buyerScore (recomposed per the input-sign table, equal untuned weights set 2026-09-15); the pre-filter splits by side (SELL: IV > HV; BUY: HV above IV by ≥ 1 pt); a BUY candidate exists only with a catalyst (earnings inside the DTE window or HV over IV by ≥ 5 pts); unbounded structures need the filter AND the per-user cap. `from` is the day after authoring — Alex sets the merge date on merge; every MODEL-01 candidate row is stamped E9 from CURRENT_MODEL_ERA regardless of the date',
+    commits: 'claude/model-01-two-scores (authored 2026-09-15; merge date to be set)',
+  },
 ];
+
+/**
+ * MODEL-01: the era the RUNNING code is. The scan stamps this on every
+ * candidate row — the code that scored the candidate knows which model it is;
+ * eraFor(date) exists for cards that carry no stamp (trade_cards.generated_at).
+ */
+export const CURRENT_MODEL_ERA: ModelEra = MODEL_ERAS[MODEL_ERAS.length - 1];
 
 export function eraFor(date: Date): ModelEra {
   const iso = date.toISOString().slice(0, 10);

@@ -26,6 +26,7 @@
 
 import type { ReactNode } from 'react';
 import type { PipePillarId } from '@/lib/pipePhases';
+import { POP_MODEL_LABEL, EV_MODEL_LABEL, MIN_POP_MODEL_LABEL, MIN_EV_MODEL_LABEL, MIN_EV_PER_RISK_MODEL_LABEL } from '@/lib/convergence/modelLabels';
 
 /** The shared 299 surface shell — the mock's own card (border + ts-white). */
 const SHELL = 'flex h-full min-h-[220px] flex-col border border-border bg-ts-white lg:h-[299px]';
@@ -431,9 +432,9 @@ const tradeGlimpses: ReadonlyArray<ReactNode> = [
         <div>
           <div className="mb-[3px] font-mono text-[8.5px] uppercase tracking-wider text-text-muted">Edge metrics</div>
           {([
-            ['Min PoP', 'w-[50%]', '50%'],
-            ['Min EV', 'w-[33%]', '$0'],
-            ['Min EV/Risk', 'w-[50%]', '0.00'],
+            [MIN_POP_MODEL_LABEL, 'w-[50%]', '50%'],
+            [MIN_EV_MODEL_LABEL, 'w-[33%]', '$0'],
+            [MIN_EV_PER_RISK_MODEL_LABEL, 'w-[50%]', '0.00'],
           ] as const).map(([lab, w, val]) => (
             <div key={lab} className="flex h-[11px] items-center gap-1.5">
               <span className="w-[56px] min-w-0 shrink text-[8.5px] font-medium text-text-secondary lg:shrink-0">{lab}</span>
@@ -546,7 +547,7 @@ const tradeGlimpses: ReadonlyArray<ReactNode> = [
     <div className="mx-4 mb-1.5 border border-border-light bg-bg-row px-2.5 py-1.5 font-mono text-[8.5px] leading-[1.7] text-text-secondary">
       <div>VOL EDGE <span className="font-semibold text-text-primary">65.2</span> · QUALITY <span className="font-semibold text-text-primary">64.7</span> · REGIME <span className="font-semibold text-text-primary">67.7</span> · INFO <span className="font-semibold text-text-primary">48.7</span></div>
       <div>SELL PUT $185 $5.60 / BUY PUT $175 $3.80 / SELL CALL $240 $4.20 / BUY CALL $250 $3.30</div>
-      <div>COLLECT <span className="font-semibold text-brand-gold">$270</span> · MAX LOSS <span className="font-semibold text-brand-gold">$730</span> · POP 92.0% · EV <span className="font-semibold text-brand-gold">+$64</span> · R:R 0.37</div>
+      <div>COLLECT <span className="font-semibold text-brand-gold">$270</span> · MAX LOSS <span className="font-semibold text-brand-gold">$730</span> · {POP_MODEL_LABEL} 92.0% · {EV_MODEL_LABEL} <span className="font-semibold text-brand-gold">+$64</span> · R:R 0.37</div>
     </div>
     <div className={ROW}>
       <span className="w-[44px] min-w-0 shrink font-mono text-[13px] font-bold text-brand-purple lg:shrink-0">NWS</span>
@@ -557,7 +558,7 @@ const tradeGlimpses: ReadonlyArray<ReactNode> = [
     <div className={FOOT}><span className="text-text-primary">SKIPS SHOW THEIR WHY</span><span className="text-text-muted">PICK OR PASS — YOURS</span></div>
   </div>,
   /* ── 04 Lab — the REAL lab scorecard (TradeLabPanel.tsx): the Predicted
-     column labels + formats (:638-654 — Max Profit / Max Loss / Est. PoP
+     column labels + formats (:638-654 — Max Profit / Max Loss / the model PoP
      .toFixed(1)% / R:R .toFixed(2)); the unlinked Actual column verbatim
      ("Not yet linked to a position", :703-704); the "Link to Position"
      action (:540). $520/$980 wear the money gold (law); the real UI's
@@ -575,7 +576,7 @@ const tradeGlimpses: ReadonlyArray<ReactNode> = [
           {([
             ['Max Profit', '$520', 'text-brand-gold'],
             ['Max Loss', '$980', 'text-brand-gold'],
-            ['Est. PoP', '62.0%', 'text-text-secondary'],
+            [POP_MODEL_LABEL, '62.0%', 'text-text-secondary'],
             ['R:R', '0.53', 'text-text-secondary'],
           ] as const).map(([lab, val, tone]) => (
             <div key={lab} className="mt-1 flex items-baseline justify-between gap-2">

@@ -13,9 +13,41 @@
 // "market data" hand-waving. A null/missing value is handled by the UI's true-state
 // message; explain() may assume the value it needs is present (the UI guards nulls).
 
+import { gateCard } from '@/lib/convergence/gateCards';
+import type { GateKey, ScoreModel } from '@/lib/convergence/types';
+import {
+  EV_MODEL_LABEL,
+  EV_PER_RISK_MODEL_LABEL,
+  HV_POP_MODEL_LABEL,
+  HV_SOURCE_NOTE,
+  MODEL_NUMBER_TOOLTIP,
+  POP_MODEL_LABEL,
+} from '@/lib/convergence/modelLabels';
+
 export interface MetricValues {
   [k: string]: number | string | null | undefined;
 }
+
+// MODEL-01 STEP 6: the four gate explainers render FROM the gate cards — one
+// card per gate per side. The card's `score_model` picks the side; a value
+// without one says so instead of assuming the seller.
+const modelOf = (v: MetricValues): ScoreModel | null => (v.score_model === 'seller' || v.score_model === 'buyer' ? v.score_model : null);
+const gateExplain = (gate: GateKey) => (v: MetricValues): string[] => {
+  const model = modelOf(v);
+  if (model === null) {
+    return [`${gateCard(gate, 'seller').title} is ${num(v.score)} out of 100.`, 'This card carries no score_model — which model scored it is not verified here.'];
+  }
+  const c = gateCard(gate, model);
+  return [
+    `${c.title} is ${num(v.score)} out of 100 — scored by the ${model} model (${c.side} side).`,
+    c.purpose,
+    `What it is NOT: ${c.isNot}`,
+  ];
+};
+const gatePipeline = (gate: GateKey, model: ScoreModel): string[] => {
+  const c = gateCard(gate, model);
+  return [`Inputs and sources: ${c.inputs}`, `Weight, date set: ${c.weight}`, `Evidence: ${c.evidence}`];
+};
 
 export interface MetricExplainer {
   title: string;
@@ -36,9 +68,9 @@ export const METRIC_EXPLAINERS: Record<string, MetricExplainer> = {
   composite_score: {
     title: 'Convergence score',
     explain: (v) => [
-      `This card scores ${num(v.score)} out of 100.`,
+      `This card scores ${num(v.score)} out of 100${modelOf(v) ? ` on the ${modelOf(v)} model` : ''}.`,
       'It is the average of four separate report cards on the trade — how mispriced the options look, how healthy the company is, whether the wider market backdrop fits, and whether informed people are buying.',
-      'A higher number means more of those four things point the same way at once.',
+      'A higher number means more of those four things point the same way at once. A seller score and a buyer score live on different models and are never compared.',
     ],
     pipeline: [
       'Four gates are each scored 0 to 100: Vol Edge, Quality, Regime, Info Edge.',
@@ -66,65 +98,30 @@ export const METRIC_EXPLAINERS: Record<string, MetricExplainer> = {
 
   vol_edge: {
     title: 'Vol Edge',
-    explain: (v) => [
-      `Vol Edge is ${num(v.score)} out of 100.`,
-      'It asks one question: are these options priced higher than the stock actually tends to move?',
-      'When options are "expensive" like that, a seller of options is being paid extra for the same risk. Above 50 means they look expensive.',
-    ],
-    pipeline: [
-      'Measure how much the options imply the stock will move (implied volatility).',
-      'Measure how much the stock has really moved lately (realized volatility).',
-      'Compare the two as a z-score, and add option-chain shape clues (term structure, skew, dealer positioning).',
-      'Blend those into a 0-to-100 score.',
-      'Example: if options price in a big swing but the stock has been calm, this score rises.',
-    ],
-    source: 'Computed by the scanner from TastyTrade options data and price history',
+    explain: gateExplain('vol_edge'),
+    pipeline: [...gatePipeline('vol_edge', 'seller'), `Buyer model — ${gatePipeline('vol_edge', 'buyer').join(' ')}`],
+    source: `Computed by the scanner from TastyTrade options data and price history. ${HV_SOURCE_NOTE}`,
   },
 
   quality: {
     title: 'Quality gate',
-    explain: (v) => [
-      `Quality is ${num(v.score)} out of 100.`,
-      'It is a health check on the underlying company — is it profitable, financially safe, and steady with its earnings?',
-      'Above 50 means the company looks solid rather than shaky.',
-    ],
-    pipeline: [
-      'Pull company fundamentals: profitability, margins, balance-sheet safety (Piotroski F-Score).',
-      'Add earnings quality: how often it beats, and whether profits are real cash or accounting.',
-      'Combine those into a 0-to-100 score.',
-    ],
-    source: 'Computed by the scanner from Finnhub fundamentals data',
+    explain: gateExplain('quality'),
+    pipeline: [...gatePipeline('quality', 'seller'), `Buyer model — ${gatePipeline('quality', 'buyer').join(' ')}`],
+    source: 'Computed by the scanner from Finnhub fundamentals, TastyTrade market-metrics and candles',
   },
 
   regime: {
     title: 'Macro regime gate',
-    explain: (v) => [
-      `Regime is ${num(v.score)} out of 100.`,
-      'It looks at the weather of the whole economy — growth, inflation, interest rates, the yield curve — and asks whether that backdrop fits this trade.',
-      'Above 50 means the big-picture conditions line up rather than fight the trade.',
-    ],
-    pipeline: [
-      'Read 14 national economic indicators (GDP, CPI, Fed Funds rate, yield curve, credit spreads, and more).',
-      'Classify the current environment (for example: calm growth, or high-stress).',
-      'Score how well that environment fits the trade direction, 0 to 100.',
-    ],
-    source: 'Computed by the scanner from FRED macro data',
+    explain: gateExplain('regime'),
+    pipeline: [...gatePipeline('regime', 'seller'), `Buyer model — ${gatePipeline('regime', 'buyer').join(' ')}`],
+    source: 'Computed by the scanner from FRED macro data (VVIX leg dead since 2026-07-08 — VVIXCLS is not a FRED series)',
   },
 
   info_edge: {
     title: 'Info Edge gate',
-    explain: (v) => [
-      `Info Edge is ${num(v.score)} out of 100.`,
-      'It watches for footprints of people who tend to know more — company insiders buying, big institutions, analysts changing their minds, and the tone of the news.',
-      'Above 50 means those footprints lean positive.',
-    ],
-    pipeline: [
-      'Check insider buying vs selling (the MSPR ratio).',
-      'Check institutional ownership changes and analyst upgrades/downgrades.',
-      'Read recent news tone with a sentiment model (FinBERT) and earnings-surprise history.',
-      'Blend into a 0-to-100 score.',
-    ],
-    source: 'Computed by the scanner from Finnhub analyst/insider data and news sentiment',
+    explain: gateExplain('info_edge'),
+    pipeline: [...gatePipeline('info_edge', 'seller'), `Buyer model — ${gatePipeline('info_edge', 'buyer').join(' ')}`],
+    source: 'Computed by the scanner from Finnhub analyst/insider data, news sentiment and SEC EDGAR',
   },
 
   gates: {
@@ -193,14 +190,14 @@ export const METRIC_EXPLAINERS: Record<string, MetricExplainer> = {
     explain: (v) => [
       `The 30-day historical volatility is ${pct(v.hv30, 1)}.`,
       'This is how much the stock has ACTUALLY moved over the last month, as a yearly percentage.',
-      'It is the reality check against what the options expect.',
+      HV_SOURCE_NOTE,
     ],
     pipeline: [
-      'Take the stock’s daily price changes over the past ~30 days.',
-      'Measure how spread out those changes were (standard deviation).',
-      'Scale it up to a yearly percentage.',
+      'TastyTrade delivers historical-volatility-30-day with the market-metrics answer (percent points).',
+      'The scanner reads it as delivered — it does not compute this number from candles (the vol cone’s HV10/20/30 are the scanner’s own close-to-close estimate; HV60/90 there are the vendor’s).',
+      'The vendor does not say how it is estimated.',
     ],
-    source: 'Computed by the scanner from historical price data',
+    source: 'TastyTrade market-metrics historical-volatility-30-day (estimator undisclosed)',
   },
 
   vrp: {
@@ -216,7 +213,7 @@ export const METRIC_EXPLAINERS: Record<string, MetricExplainer> = {
       'The leftover gap is the volatility risk premium.',
       'Example: IV 40% minus HV 25% = +15% — options were 15 points "richer" than reality.',
     ],
-    source: 'Computed by the scanner from TastyTrade IV and historical price data',
+    source: 'Computed by the scanner from TastyTrade IV and TastyTrade hv30 (estimator undisclosed)',
   },
 
   max_profit: {
@@ -251,13 +248,13 @@ export const METRIC_EXPLAINERS: Record<string, MetricExplainer> = {
   },
 
   est_pop: {
-    title: 'Estimated probability of profit',
+    title: POP_MODEL_LABEL,
     explain: (v) => [
-      `The estimated chance this trade ends with any profit is ${pct(v.pop, 0)}.`,
+      `${POP_MODEL_LABEL} is ${pct(v.pop, 0)} — ${MODEL_NUMBER_TOOLTIP}`,
       v.pop_method === 'N(d2)'
         ? 'It is measured from where the stock would have to close (the breakeven), using a standard options-math formula.'
-        : 'It is a quick estimate read from the option deltas — less precise than the breakeven method.',
-      'It is an estimate from today’s prices, not a guarantee.',
+        : 'It is a quick estimate read from the option deltas — less precise than the breakeven method, and still a model number.',
+      'It is a pricing quantity from today’s prices, not a forecast.',
     ],
     pipeline: [
       'Find the breakeven price(s) where the trade turns from loss to profit.',
@@ -269,11 +266,11 @@ export const METRIC_EXPLAINERS: Record<string, MetricExplainer> = {
   },
 
   ev: {
-    title: 'Expected value (EV)',
+    title: EV_MODEL_LABEL,
     explain: (v) => [
-      `The estimated average outcome is ${dollars(v.ev)} per trade.`,
-      'It weighs the win, the loss, and the in-between by how likely each is, then averages them.',
-      'It is a long-run average estimate, not what any single trade will do.',
+      `${EV_MODEL_LABEL} is ${dollars(v.ev)} per trade — built on the ${POP_MODEL_LABEL}: ${MODEL_NUMBER_TOOLTIP}`,
+      'It weighs the win, the loss, and the in-between by how likely each is under that model, then averages them.',
+      'It is a model average, not what any single trade will do and not a measured edge.',
     ],
     pipeline: [
       'List the possible outcomes (roughly: max win, max loss, and a middle case).',
@@ -285,9 +282,9 @@ export const METRIC_EXPLAINERS: Record<string, MetricExplainer> = {
   },
 
   ev_per_risk: {
-    title: 'EV per unit of risk',
+    title: EV_PER_RISK_MODEL_LABEL,
     explain: (v) => [
-      `For every $1 at risk, the estimated average return is ${num(v.ev_per_risk, 3)}.`,
+      `${EV_PER_RISK_MODEL_LABEL} is ${num(v.ev_per_risk, 3)} per $1 at risk — ${MODEL_NUMBER_TOOLTIP}`,
       'It takes the expected value and divides it by the max loss, so trades of different sizes can be compared fairly.',
       'Bigger means more estimated reward for the same dollar of risk.',
     ],
@@ -382,27 +379,27 @@ export const METRIC_EXPLAINERS: Record<string, MetricExplainer> = {
       'It is a math output about sizing, not a call to trade any amount.',
     ],
     pipeline: [
-      'Take the estimated win rate and the reward-to-risk ratio.',
-      'Full Kelly = (win rate × ratio − loss rate) ÷ ratio.',
+      `Take the ${POP_MODEL_LABEL} (a pricing quantity, not a measured frequency) and the reward-to-risk ratio.`,
+      'Full Kelly = (p × ratio − (1 − p)) ÷ ratio, with p the model PoP.',
       'Multiply by 0.25 to get the cautious quarter-Kelly.',
       'Show it as a percent of an account. Example: full Kelly 8% → quarter-Kelly 2%.',
     ],
-    source: 'Computed on this page from the win rate and reward-to-risk',
+    source: `Computed on this page from the ${POP_MODEL_LABEL} and reward-to-risk`,
   },
 
   hv_pop: {
-    title: 'HV-based probability of profit',
+    title: HV_POP_MODEL_LABEL,
     explain: (v) => [
-      `Using how the stock has really moved, the estimated chance of profit is ${pct(v.hv_pop, 0)}.`,
-      'It is the same idea as PoP, but it uses the stock’s actual past movement (historical volatility) instead of what options imply.',
-      'Comparing it with the options-based PoP shows whether the two agree.',
+      `${HV_POP_MODEL_LABEL} is ${pct(v.hv_pop, 0)} — the same breakeven arithmetic with TastyTrade hv30 in place of IV (a normal, zero-drift model): still a pricing quantity, not a forecast.`,
+      `Comparing it with the ${POP_MODEL_LABEL} shows whether the IV-priced and HV-priced models agree.`,
+      HV_SOURCE_NOTE,
     ],
     pipeline: [
-      'Measure the stock’s real movement (historical volatility).',
-      'Estimate the chance it closes on the winning side of the breakevens.',
+      'Take TastyTrade hv30 (capped at IV/4 when IV/HV exceeds 4).',
+      'Estimate the chance the stock closes on the winning side of the short strikes ± credit under a normal model.',
       'State it as a percentage.',
     ],
-    source: 'Computed by the scanner from historical price data',
+    source: 'Computed by the scanner from TastyTrade hv30 (estimator undisclosed) and the option legs',
   },
 
   net_credit_debit: {

@@ -557,6 +557,15 @@ export interface MispricingTrace extends SubScoreTrace {
     transform: 'percentile' | 'z-score-fallback' | 'raw';
   };
   hv_trend: string;
+  // MODEL-01: the four seller-oriented component scores AFTER the peer
+  // transform, exposed so composite.ts buyerScore() can recompose the gate
+  // per the input-sign table (input-signs.ts). null = component EXCLUDED.
+  component_scores: {
+    vrp: number | null;
+    iv_composite: number | null;
+    iv_hv_spread: number | null;
+    hv_accel: number | null;
+  };
   iv_composite: {
     iv_rank: number | null;
     iv_percentile: number | null;
@@ -1130,7 +1139,8 @@ export interface GateWeights {
 
 export interface GateWeightTrace {
   gate_weights: GateWeights;
-  weight_mode: 'dynamic' | 'static_fallback';
+  // MODEL-01: 'equal_untuned' = the buyer model's equal weights (input-signs.ts MODEL_WEIGHTS_SET_ON)
+  weight_mode: 'dynamic' | 'static_fallback' | 'equal_untuned';
   regime_used: string;
   regime_confidence: number;
   blend_factor: number;
@@ -1159,6 +1169,58 @@ export interface CompositeResult {
   // EDGE-6 (STRATEGY-EVIDENCE §6): survival brake state copied from the
   // regime gate so every composite consumer (snapshot, cards, UI) sees it.
   regime_brake: { state: 'OFF' | 'ON' | 'UNVERIFIED'; declaration: string };
+  // MODEL-01: which model produced `score` — never null. 'seller' is today's
+  // composite unchanged (renamed); 'buyer' is the recomposition per the
+  // input-sign table. The era is the model version the card was scored under
+  // (edge-read/eras.ts CURRENT_MODEL_ERA).
+  score_model: ScoreModel;
+  model_era: string;
+  /** The gates that actually entered `score` (the rest were excluded and the weights renormalized). */
+  scored_by: GateKey[];
+  excluded_gates: GateKey[];
+  /** buyer model only: every component the table admitted, its seller-oriented value, sign and buyer value. */
+  buyer_components: BuyerComponentTrace | null;
+}
+
+// -- MODEL-01: two scores, one per premium direction --
+
+export type PremiumSide = 'SELL' | 'BUY';
+/** The scan mode: one side, or both funnels with every candidate labelled by its side. */
+export type ScanSide = PremiumSide | 'BOTH';
+export type ScoreModel = 'seller' | 'buyer';
+export type GateKey = 'vol_edge' | 'quality' | 'regime' | 'info_edge';
+
+export interface BuyerComponent {
+  gate: GateKey;
+  input: string;
+  sign: '+' | '-';
+  /** The component as the gate computed it (seller-oriented), null = excluded. */
+  seller_oriented: number | null;
+  /** What entered the buy score after the table's sign. */
+  buyer_value: number | null;
+  note: string;
+}
+
+export interface BuyerComponentTrace {
+  components: BuyerComponent[];
+  /** Per gate: the buyer gate score and how many admitted components were present. */
+  gates: Record<GateKey, { score: number | null; present: number; admitted: number; note: string }>;
+  weights_set_on: string;
+}
+
+/** MODEL-01 STEP 3: why a BUY candidate exists. A BUY card carries at least one. */
+export interface Catalyst {
+  kind: 'earnings_in_window' | 'hv_over_iv';
+  detail: string;
+  source: string;
+}
+
+/** MODEL-01 STEP 3: the earnings date against the structure's DTE window — stated on every card, never silent. */
+export interface EarningsWindow {
+  state: 'inside' | 'outside' | 'unknown';
+  detail: string;
+  date: string | null;
+  source: string | null;
 }
 
 // -- Strategy Suggestion --
@@ -1241,6 +1303,18 @@ export interface TradeCardWhy {
   plain_english_signals: string[];
   regime_context: string;
   risk_flags: string[];
+  // MODEL-01: the side the candidate came through, the model that scored it,
+  // the model era, and the gates that entered the score — never null.
+  side: PremiumSide;
+  score_model: ScoreModel;
+  model_era: string;
+  scored_by: GateKey[];
+  /** BUY: ≥ 1 catalyst (the candidate does not exist without one). SELL: []. */
+  catalysts: Catalyst[];
+  /** Every card: the earnings date vs [scan, expiration] — a SELL card inside the window is flagged, never excluded. */
+  earnings_window: EarningsWindow;
+  /** Unbounded structures only: the per-user cap check that let this card be built. null for defined risk. */
+  undefined_risk_cap: string | null;
 }
 
 export interface SocialSentiment {
