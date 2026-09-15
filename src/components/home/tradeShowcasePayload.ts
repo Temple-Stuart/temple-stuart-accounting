@@ -159,7 +159,8 @@ export const SHOWCASE_RESULTS: TickerDetail[] = [
  *  (filter-engine.ts TickerDetail._rejection_reasons / SRT rejectionMap). */
 export const SHOWCASE_REJECTIONS: Record<string, { strategy: string; reason: string; gate: string; details?: { value: number; threshold: number } }[]> = {
   ACME: [
-    { strategy: 'Bull Put Spread', reason: 'net credit below the minimum', gate: 'Gate C (min credit)', details: { value: 0.27, threshold: 0.3 } },
+    // MODEL-02: a strategy the builder actually names (was a bull put spread — no builder ever emitted that name)
+    { strategy: 'Put Credit Spread', reason: 'net credit below the minimum', gate: 'Gate C (min credit)', details: { value: 0.27, threshold: 0.3 } },
     { strategy: 'Iron Condor', reason: 'expected value not positive', gate: 'Gate A (EV ≤ 0)', details: { value: -4, threshold: 0 } },
   ],
   INITECH: [

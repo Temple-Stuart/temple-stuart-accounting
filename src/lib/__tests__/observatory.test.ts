@@ -107,7 +107,7 @@ test('the cost lines are COUNTS — no currency symbol, no rate, anywhere in the
   assert.doesNotMatch(everything, /\$[0-9]/, 'no price is ever printed — the product does not know one');
   assert.doesNotMatch(everything, /\bper (call|token) (rate|price)\b/i);
   assert.match(scanCostLine(), /One scan of one symbol = 26 Finnhub, 1 TastyTrade, 6 SEC/);
-  assert.match(scanCostLine(), /once per scan, 1 SEC, 24 FRED/);
+  assert.match(scanCostLine(), /once per scan, 1 SEC, 23 FRED, 6 Cboe/);
 });
 
 test('the screen with no results renders the not-measured state and ZERO rows', () => {

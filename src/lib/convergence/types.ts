@@ -170,7 +170,9 @@ export interface FredMacroData {
   // series. VIX/VIX3M < 1 = contango (favorable to premium selling),
   // > 1 = backwardation (stress). See STRATEGY-EVIDENCE.md §2.
   vxvShortTerm: number | null;         // VXVCLS: CBOE 3-month VIX (VIX3M, formerly VXV)
-  vvix: number | null;                 // VVIXCLS: Volatility of VIX
+  // MODEL-02: VVIX is NOT here any more — FRED has no VVIXCLS series (DATA-01:
+  // 404; ten weeks of UNVERIFIED brakes). It arrives on ConvergenceInput.cboeDaily
+  // from Cboe's free daily file (cboe-daily.ts).
   // Fed net liquidity series
   fedBalanceSheet: number | null;      // WALCL: Fed total assets (weekly, billions)
   treasuryGeneralAccount: number | null; // WTREGEN: TGA balance (weekly, billions)
@@ -475,6 +477,31 @@ export interface VrpHistoryData {
 
 // ===== COMBINED RAW INPUT =====
 
+// ===== MODEL-02: Cboe daily index reads (free, no key, dated) =====
+
+export interface CboeDailyPoint {
+  index: 'VVIX' | 'VIX9D' | 'VIX' | 'VIX3M' | 'VIX6M' | 'SKEW';
+  value: number;
+  /** ISO date of the row (the prior session's close). */
+  date: string;
+  /** When this process fetched the file. */
+  fetched_at: string;
+  source: string;
+  url: string;
+}
+
+export interface CboeDailyData {
+  vvix: CboeDailyPoint | null;
+  vix9d: CboeDailyPoint | null;
+  vix: CboeDailyPoint | null;
+  vix3m: CboeDailyPoint | null;
+  vix6m: CboeDailyPoint | null;
+  skew: CboeDailyPoint | null;
+  /** One line per index that could not be fetched or parsed — declared by the regime gate. */
+  errors: string[];
+  fetched_at: string;
+}
+
 export interface ConvergenceInput {
   symbol: string;
   ttScanner: TTScannerData | null;
@@ -498,6 +525,10 @@ export interface ConvergenceInput {
   finnhubFundOwnership: FinnhubFundOwnership | null;
   edgar8kScan: SECEdgar8KScan | null;
   crossAssetCorrelations: CrossAssetCorrelations | null;
+  // MODEL-02: Cboe's daily VVIX / VIX term structure / SKEW — the regime gate's
+  // brake reads VVIX here; the rest are weight-0 inputs, present and logged.
+  // null/absent = not fetched this run (declared by the gate).
+  cboeDaily?: CboeDailyData | null;
   peerStats?: Record<string, { ticker_count?: number; peer_group_type?: string; peer_group_name?: string; metrics: Record<string, { mean: number; std: number; sortedValues?: number[] }> }>;
   peerGroupAssignment?: Record<string, string>;
   textPeerGroups?: Record<string, TextBasedPeerGroup>;
@@ -801,11 +832,25 @@ export interface StrategyRegimeScore {
 //              safety, so short-vol exposure is NOT confirmed safe (fail-safe:
 //              treated like ON downstream, with its own declared reason).
 // OFF        = both inputs present, neither triggered.
+/** MODEL-02: a Cboe-sourced regime input carried at weight 0 (no normalization until EDGE-01's third book has n). */
+export interface CboeRegimeInput {
+  key: 'vix9d_over_vix' | 'vix_over_vix3m_cboe' | 'vix3m_over_vix6m' | 'skew';
+  label: string;
+  raw_value: number | null;
+  /** The legs the ratio was built from, each with its Cboe row date. */
+  inputs: { index: string; value: number | null; date: string | null }[];
+  weight: 0;
+  fetched_at: string | null;
+  source: string;
+  null_reason: string | null;
+  note: string;
+}
+
 export interface SurvivalBrake {
   state: 'OFF' | 'ON' | 'UNVERIFIED';
   reasons: string[];
   vix_term_structure_ratio: number | null; // VIXCLS / VXVCLS
-  vvix: number | null;                     // VVIXCLS
+  vvix: number | null;                     // Cboe VVIX daily close (MODEL-02; FRED never had it)
   thresholds: { backwardation_ratio: number; vvix_elevated: number };
   declaration: string; // user-facing declared state — never a silent score change
 }
@@ -908,7 +953,10 @@ export interface RegimeResult {
     // missing → excluded + renormalized via combineWeighted, never defaulted.
     vol_conditioners: {
       vix_term_structure: { score: number | null; raw_value: number | null; formula: string };
-      vvix: { score: number | null; raw_value: number | null; source: string };
+      // MODEL-02: VVIX from Cboe — dated; null_reason says why when absent
+      vvix: { score: number | null; raw_value: number | null; source: string; fetched_at: string | null; data_date: string | null; null_reason: string | null };
+      // MODEL-02: NEW inputs at weight 0 — present, dated, tuned by nobody
+      cboe_inputs: CboeRegimeInput[];
       combine_formula: string;
       excluded: string[];
     };

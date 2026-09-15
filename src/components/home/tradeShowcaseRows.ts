@@ -53,7 +53,6 @@ const DEMO_MACRO: FredMacroData = {
   initialClaimsDate: '2026-07-02',
   nfciDate: '2026-07-03',
   vxvShortTerm: 17.1,
-  vvix: 92,
   // Fed net-liquidity + extra credit/rate series: declared ABSENT (null) — the
   // engine excludes and renormalizes, exactly as on a real run without them.
   fedBalanceSheet: null,

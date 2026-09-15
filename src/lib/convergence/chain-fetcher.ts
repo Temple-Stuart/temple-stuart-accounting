@@ -181,10 +181,18 @@ export async function fetchChainAndBuildCards(
     // Collect all streamer symbols across all tickers
     const allStreamerSymbols: string[] = [];
 
-    for (const res of chainResults) {
+    for (const [idx, res] of chainResults.entries()) {
       if (res.status !== 'fulfilled') {
         const reason = res.reason instanceof Error ? res.reason.message : String(res.reason);
-        console.error(`[ChainFetcher] Chain fetch failed:`, reason);
+        const failedSymbol = tickers[idx]?.symbol ?? 'unknown';
+        console.error(`[ChainFetcher] Chain fetch failed for ${failedSymbol}:`, reason);
+        // MODEL-02 STEP 4: a symbol TastyTrade returns no chain for is REPORTED
+        // on the scan's rejection_reasons — never silently dropped from the cut.
+        rejections.set(failedSymbol, [{
+          strategy: 'ALL',
+          gate: 'construction',
+          reason: `TastyTrade returned no option chain for ${failedSymbol} — chain fetch failed: ${reason}. Reported, not dropped (MODEL-02).`,
+        }]);
         continue;
       }
 

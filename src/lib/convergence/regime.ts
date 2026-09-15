@@ -1,5 +1,6 @@
-import type { ConvergenceInput, RegimeResult, DataConfidence, CrossAssetCorrelations, FredMacroData, SurvivalBrake } from './types';
+import type { ConvergenceInput, RegimeResult, DataConfidence, CrossAssetCorrelations, FredMacroData, SurvivalBrake, CboeRegimeInput } from './types';
 import { combineWeighted } from './weighted-combiner';
+import { CBOE_SOURCE, CBOE_INPUTS_SET_ON } from './cboe-daily';
 
 function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v));
@@ -91,7 +92,15 @@ function normalizeVvix(v: number | null): number | null {
 // how attractive the VRP looks. FAIL-SAFE: a missing input means the brake
 // cannot confirm safety — it declares UNVERIFIED (treated like ON downstream)
 // rather than silently allowing full exposure. No default, no neutral pass.
-function computeSurvivalBrake(ratio: number | null, vvix: number | null): SurvivalBrake {
+/** MODEL-02: the reason a brake input is missing rides on the declaration, bounded so the string stays a summary (the full text is on the vol_conditioners trace). */
+const BRAKE_REASON_MAX = 80;
+function clipReason(reason: string | null): string {
+  if (!reason) return '';
+  const r = reason.length > BRAKE_REASON_MAX ? `${reason.slice(0, BRAKE_REASON_MAX - 1)}…` : reason;
+  return ` (${r})`;
+}
+
+function computeSurvivalBrake(ratio: number | null, vvix: number | null, vvixNullReason: string | null = null): SurvivalBrake {
   const reasons: string[] = [];
   if (ratio !== null && ratio > BRAKE_BACKWARDATION_RATIO) {
     reasons.push(`VIX/VIX3M = ${round(ratio, 3)} > ${BRAKE_BACKWARDATION_RATIO} — backwardation`);
@@ -101,7 +110,7 @@ function computeSurvivalBrake(ratio: number | null, vvix: number | null): Surviv
   }
   const missing: string[] = [];
   if (ratio === null) missing.push('VIX/VIX3M term structure');
-  if (vvix === null) missing.push('VVIX');
+  if (vvix === null) missing.push(`VVIX${clipReason(vvixNullReason)}`);
 
   let state: SurvivalBrake['state'];
   let declaration: string;
@@ -643,6 +652,34 @@ function computeAncillarySignals(macro: FredMacroData): {
   };
 }
 
+// ===== MODEL-02: the weight-0 Cboe inputs (present, dated, tuned by nobody) =====
+// The VIX term structure (VIX9D, VIX, VIX3M, VIX6M — three adjacent ratios)
+// and SKEW enter the regime trace at WEIGHT 0: no baseline normalization
+// exists for them here, and inventing one would be a tuning; they wait for
+// EDGE-01's third book to have n. Set 2026-09-16.
+export { CBOE_INPUTS_SET_ON };
+
+export function buildCboeRegimeInputs(cboe: ConvergenceInput['cboeDaily']): CboeRegimeInput[] {
+  const leg = (p: { index: string; value: number; date: string } | null | undefined, index: string) =>
+    ({ index, value: p?.value ?? null, date: p?.date ?? null });
+  const ratio = (a: number | null, b: number | null) => (a !== null && b !== null && b > 0 ? round(a / b, 4) : null);
+  const errorsRead = cboe?.errors ?? null;
+  const reason = (legs: { index: string; value: number | null }[]) =>
+    errorsRead === null
+      ? 'Cboe daily file not fetched this run'
+      : legs.filter((l) => l.value === null).map((l) => errorsRead.find((e) => e.startsWith(`${l.index}:`)) ?? `${l.index} absent from the Cboe read`).join('; ') || null;
+  const note = `weight 0 — present and logged; no baseline normalization until EDGE-01's third book has n (set ${CBOE_INPUTS_SET_ON})`;
+  const fetchedAt = (...ps: ({ fetched_at: string } | null | undefined)[]) => ps.find((p) => p)?.fetched_at ?? null;
+  const vix9d = cboe?.vix9d ?? null, vix = cboe?.vix ?? null, vix3m = cboe?.vix3m ?? null, vix6m = cboe?.vix6m ?? null, skew = cboe?.skew ?? null;
+  const l9 = leg(vix9d, 'VIX9D'), lv = leg(vix, 'VIX'), l3 = leg(vix3m, 'VIX3M'), l6 = leg(vix6m, 'VIX6M'), ls = leg(skew, 'SKEW');
+  return [
+    { key: 'vix9d_over_vix', label: 'VIX9D ÷ VIX (short-end term structure)', raw_value: ratio(l9.value, lv.value), inputs: [l9, lv], weight: 0, fetched_at: fetchedAt(vix9d, vix), source: CBOE_SOURCE, null_reason: reason([l9, lv]), note },
+    { key: 'vix_over_vix3m_cboe', label: 'VIX ÷ VIX3M (Cboe; the FRED VIXCLS/VXVCLS leg above is the scored one)', raw_value: ratio(lv.value, l3.value), inputs: [lv, l3], weight: 0, fetched_at: fetchedAt(vix, vix3m), source: CBOE_SOURCE, null_reason: reason([lv, l3]), note },
+    { key: 'vix3m_over_vix6m', label: 'VIX3M ÷ VIX6M (mid-curve term structure)', raw_value: ratio(l3.value, l6.value), inputs: [l3, l6], weight: 0, fetched_at: fetchedAt(vix3m, vix6m), source: CBOE_SOURCE, null_reason: reason([l3, l6]), note },
+    { key: 'skew', label: 'SKEW (Cboe S&P 500 tail-risk index level)', raw_value: ls.value, inputs: [ls], weight: 0, fetched_at: fetchedAt(skew), source: CBOE_SOURCE, null_reason: reason([ls]), note },
+  ];
+}
+
 // ===== MAIN REGIME SCORER =====
 
 export function scoreRegime(input: ConvergenceInput): RegimeResult {
@@ -656,7 +693,17 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
   // `?? null` / `!= null`: legacy FredMacroData casts can carry undefined for
   // these keys — undefined IS a missing input and must hit the same
   // excluded/UNVERIFIED path as null, never read as "present".
-  const vvixRaw = macro.vvix ?? null;
+  // MODEL-02: VVIX comes from Cboe's daily file (cboe-daily.ts), dated; FRED
+  // never had it. A missing read is DECLARED with its reason — the brake shows
+  // UNVERIFIED — never imputed.
+  const cboe = input.cboeDaily ?? null;
+  const vvixPoint = cboe?.vvix ?? null;
+  const vvixRaw = vvixPoint?.value ?? null;
+  const vvixNullReason: string | null = vvixPoint
+    ? null
+    : cboe === null
+      ? 'Cboe daily file not fetched this run'
+      : (cboe.errors.find((e) => e.startsWith('VVIX')) ?? 'VVIX absent from the Cboe read');
   const vixTermStructureRatio = (
     macro.vix != null &&
     macro.vxvShortTerm != null &&
@@ -668,7 +715,7 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
   const vvixScore = normalizeVvix(vvixRaw);
   // The brake is market-level and computable even when the macro classification
   // is not — it is attached on BOTH return paths below.
-  const survivalBrake = computeSurvivalBrake(vixTermStructureRatio, vvixRaw);
+  const survivalBrake = computeSurvivalBrake(vixTermStructureRatio, vvixRaw, vvixNullReason);
   const volConditionerBreakdown = {
     vix_term_structure: {
       score: vixTermStructureScore,
@@ -678,9 +725,13 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
     vvix: {
       score: vvixScore,
       raw_value: vvixRaw,
-      source: 'FRED VVIXCLS',
+      source: `${CBOE_SOURCE} — VVIX_History.csv (restored 2026-09-16; FRED VVIXCLS never existed)`,
+      fetched_at: vvixPoint?.fetched_at ?? null,
+      data_date: vvixPoint?.date ?? null,
+      null_reason: vvixNullReason,
     },
-    combine_formula: 'regime_base = renormalized(0.70 × strategy_regime + 0.20 × vix_term_structure(VIXCLS/VXVCLS) + 0.10 × vvix(VVIXCLS))',
+    cboe_inputs: buildCboeRegimeInputs(cboe),
+    combine_formula: 'regime_base = renormalized(0.70 × strategy_regime + 0.20 × vix_term_structure(VIXCLS/VXVCLS) + 0.10 × vvix(Cboe VVIX_History.csv)); cboe_inputs (VIX9D/VIX, VIX/VIX3M, VIX3M/VIX6M, SKEW) carry weight 0',
     excluded: [
       ...(vixTermStructureScore === null ? ['vix_term_structure'] : []),
       ...(vvixScore === null ? ['vvix'] : []),
@@ -956,7 +1007,7 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
         multiplier,
         base_regime_score: conditionedBase,
         adjusted_regime_score: score,
-        formula: 'adjusted_regime = conditioned_base * (0.1 + 0.9 * max(0, corrSpy)); conditioned_base = renormalized(0.70 × strategy_regime + 0.20 × vix_term_structure(VIXCLS/VXVCLS) + 0.10 × vvix(VVIXCLS))',
+        formula: 'adjusted_regime = conditioned_base * (0.1 + 0.9 * max(0, corrSpy)); conditioned_base = renormalized(0.70 × strategy_regime + 0.20 × vix_term_structure(VIXCLS/VXVCLS) + 0.10 × vvix(Cboe VVIX daily file)); the Cboe term-structure ratios and SKEW ride vol_conditioners.cboe_inputs at weight 0',
         note: modifierNote,
       },
       cross_asset_correlations: input.crossAssetCorrelations ? {

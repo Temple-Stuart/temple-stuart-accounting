@@ -571,7 +571,7 @@ export async function fetchFredMacro(apiKey?: string): Promise<{ data: FredMacro
       cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, cpiMom: null,
       yieldCurveSpread: null, breakeven5y: null, hySpread: null, nfci: null, initialClaims: null,
       initialClaimsDate: null, nfciDate: null,
-      vxvShortTerm: null, vvix: null,
+      vxvShortTerm: null,
       fedBalanceSheet: null, treasuryGeneralAccount: null, overnightReverseRepo: null,
       bbbSpread: null, t10y3m: null, dollarIndex: null,
     };
@@ -595,7 +595,8 @@ export async function fetchFredMacro(apiKey?: string): Promise<{ data: FredMacro
     { key: 'initialClaims', id: 'ICSA', trackDate: true }, // Initial jobless claims (weekly)
     // Vol regime
     { key: 'vxvShortTerm', id: 'VXVCLS' },
-    { key: 'vvix', id: 'VVIXCLS' },
+    // MODEL-02: VVIXCLS is DELETED — FRED has no such series (404 since the EDGE-6
+    // wiring, 2026-07-08); VVIX now arrives from Cboe (cboe-daily.ts).
     // Fed net liquidity
     { key: 'fedBalanceSheet', id: 'WALCL' },
     { key: 'treasuryGeneralAccount', id: 'WTREGEN' },
@@ -611,7 +612,7 @@ export async function fetchFredMacro(apiKey?: string): Promise<{ data: FredMacro
     cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, cpiMom: null,
     yieldCurveSpread: null, breakeven5y: null, hySpread: null, nfci: null, initialClaims: null,
     initialClaimsDate: null, nfciDate: null,
-    vxvShortTerm: null, vvix: null,
+    vxvShortTerm: null,
     fedBalanceSheet: null, treasuryGeneralAccount: null, overnightReverseRepo: null,
     bbbSpread: null, t10y3m: null, dollarIndex: null,
   };

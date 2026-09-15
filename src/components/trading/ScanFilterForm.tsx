@@ -4,6 +4,7 @@ import { FOUNDER_BROKER_LINE } from '@/lib/tastytrade/founderBroker';
 import type { MutableRefObject } from 'react';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
 import { AVAILABLE_STRATEGIES } from '@/lib/convergence/filter-types';
+import { ETF_UNIVERSE_KEY, ETF_UNIVERSE_LABEL } from '@/lib/convergence/etf-universe';
 import { MIN_POP_MODEL_LABEL, MIN_EV_MODEL_LABEL, MIN_EV_PER_RISK_MODEL_LABEL } from '@/lib/convergence/modelLabels';
 // TRADE-SEGMENTS: the DS segmented-control + chip idioms. The converted
 // controls drop their themed() wrap: both idioms are token-native dark
@@ -42,7 +43,8 @@ interface Props {
   showHeader?: boolean;
 }
 
-const UNIVERSES = [{ val: 'sp500', label: 'S&P 500' }, { val: 'nasdaq100', label: 'Nasdaq 100' }];
+// MODEL-02 STEP 4: the ETF layer is its own selectable set beside the two index universes.
+const UNIVERSES = [{ val: 'sp500', label: 'S&P 500' }, { val: 'nasdaq100', label: 'Nasdaq 100' }, { val: ETF_UNIVERSE_KEY, label: ETF_UNIVERSE_LABEL }];
 
 // Light/secondary group label — the Travel one-purple + secondary-white inner rule.
 function GroupLabel({ children }: { children: React.ReactNode }) {
@@ -155,10 +157,10 @@ export default function ScanFilterForm({
         </div>
       </div>
 
-      {/* Strategies (16) — expanded inline (was popover) */}
+      {/* Strategies — exactly the ones the builder makes (MODEL-02: AVAILABLE_STRATEGIES == the builders; the ten without one are listed under "not built" in the gate cards) */}
       <div className="border-t border-border pt-3">
         <div className="flex items-center justify-between mb-1.5">
-          <GroupLabel>Strategies {f.risk.strategies.length > 0 ? `(${f.risk.strategies.length}/16)` : '(all)'}</GroupLabel>
+          <GroupLabel>Strategies {f.risk.strategies.length > 0 ? `(${f.risk.strategies.length}/${AVAILABLE_STRATEGIES.length})` : '(all)'}</GroupLabel>
           {f.risk.strategies.length > 0 && (
             <button type="button" onClick={() => onFiltersChange({ ...f, risk: { ...f.risk, strategies: [] } })}
               className="text-[11px] text-brand-purple hover:underline">Reset all</button>

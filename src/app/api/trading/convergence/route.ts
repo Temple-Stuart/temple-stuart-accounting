@@ -8,6 +8,7 @@ import { requireScanRateLimit } from '@/lib/scan-rate-limit';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/require-admin';
 import { FOUNDER_BROKER_LINE, FOUNDER_BROKER_REASON, scanGate } from '@/lib/tastytrade/founderBroker';
+import { SCAN_LIMIT_DEFAULT, SCAN_LIMIT_MAX, SCAN_LIMIT_MIN } from '@/lib/convergence/funnel';
 
 export const maxDuration = 300;
 
@@ -82,9 +83,10 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
 
     // Parse query params
-    let limit = parseInt(searchParams.get('limit') || '20', 10);
-    if (isNaN(limit) || limit < 4) limit = 4;
-    if (limit > 150) limit = 150;
+    // MODEL-02 STEP 3: the default and the clamp are the named consts in funnel.ts (the panel sends the same default).
+    let limit = parseInt(searchParams.get('limit') || String(SCAN_LIMIT_DEFAULT), 10);
+    if (isNaN(limit) || limit < SCAN_LIMIT_MIN) limit = SCAN_LIMIT_MIN;
+    if (limit > SCAN_LIMIT_MAX) limit = SCAN_LIMIT_MAX;
 
     const refresh = searchParams.get('refresh') === 'true';
     const universe = searchParams.get('universe') ?? undefined;

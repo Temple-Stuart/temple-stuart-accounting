@@ -90,6 +90,13 @@ export const MODEL_ERAS: readonly ModelEra[] = [
     change: 'the composite is two models — sellerScore (today\'s composite, unchanged, renamed) and buyerScore (recomposed per the input-sign table, equal untuned weights set 2026-09-15); the pre-filter splits by side (SELL: IV > HV; BUY: HV above IV by ≥ 1 pt); a BUY candidate exists only with a catalyst (earnings inside the DTE window or HV over IV by ≥ 5 pts); unbounded structures need the filter AND the per-user cap. `from` is the day after authoring — Alex sets the merge date on merge; every MODEL-01 candidate row is stamped E9 from CURRENT_MODEL_ERA regardless of the date',
     commits: 'claude/model-01-two-scores (authored 2026-09-15; merge date to be set)',
   },
+  {
+    id: 'E10',
+    from: '2026-09-17',
+    label: 'MODEL-02 inputs and funnel',
+    change: 'no weight changed. The regime\'s VVIX leg (0.10, dead since E6) reads again — from Cboe\'s VVIX daily file, so a regime score renormalized over two legs is now over three when the read succeeds; the VIX term structure (VIX9D/VIX/VIX3M/VIX6M) and SKEW ride the regime trace at weight 0; the structure cut is 40 per side (was 9) and the panel\'s limit 20 (was 9 — deep fetch 40 symbols, was 18); the index & sector ETF universe (15 names) is selectable; the filter panel offers the 6 built strategies (was 16). `from` is the day after authoring — Alex sets the merge date on merge',
+    commits: 'claude/model-02-inputs-and-funnel (authored 2026-09-16; merge date to be set)',
+  },
 ];
 
 /**

@@ -2023,8 +2023,11 @@ model scan_snapshots {
   regimeLabel String? @db.VarChar(30) // "goldilocks", "stagflation", etc.
   vixLevel    Float?
 
-  // Strategy suggested
-  suggestedStrategy String? @db.VarChar(100)
+  // Strategy suggested. MODEL-02: VarChar(400) — the longest producible line is
+  // ≈272 chars (brake UNVERIFIED with both legs missing + a clipped VVIX reason);
+  // VarChar(100) overflowed on every seller row from 2026-07-08 (P2000, swallowed).
+  // Width is SNAPSHOT_SUGGESTED_STRATEGY_MAX in snapshot-logger.ts; the build holds them equal.
+  suggestedStrategy String? @db.VarChar(400)
   suggestedDTE      Int?
 
   // Outcome tracking (filled in later by scheduled job after DTE expiry)

@@ -8,6 +8,7 @@ import { computePreFilter } from '../convergence/pre-filter';
 import { generateStrategies, type StrikeData } from '../strategy-builder';
 import { generateTradeCards } from '../convergence/trade-cards';
 import { GATE_CARDS, gateCardsMarkdown } from '../convergence/gateCards';
+import { CURRENT_MODEL_ERA } from '../edge-read/eras';
 import type { BuyerComponent, ConvergenceInput, FredMacroData, InfoEdgeResult, QualityGateResult, RegimeResult, TTScannerData, VolEdgeResult } from '../convergence/types';
 
 // MODEL-01 STEP 7 — tests on fixtures. Pure modules: no database, no vendor.
@@ -266,7 +267,7 @@ test('the cap blocks a second undefined-risk build; the filter alone is not enou
 const FRED: FredMacroData = {
   vix: 18, treasury10y: 4.1, fedFunds: 4.3, unemployment: 4.2, cpi: 2.9, gdp: 2.4, consumerConfidence: 70, nonfarmPayrolls: 150, cpiMom: 0.2,
   yieldCurveSpread: 0.3, breakeven5y: 2.3, hySpread: 3.4, nfci: -0.4, initialClaims: 230, initialClaimsDate: '2026-09-10', nfciDate: '2026-09-11',
-  vxvShortTerm: 20, vvix: null, fedBalanceSheet: null, treasuryGeneralAccount: null, overnightReverseRepo: null, bbbSpread: null, t10y3m: null, dollarIndex: null,
+  vxvShortTerm: 20, fedBalanceSheet: null, treasuryGeneralAccount: null, overnightReverseRepo: null, bbbSpread: null, t10y3m: null, dollarIndex: null,
 };
 function etfInput(symbol: string, spread: number): ConvergenceInput {
   return {
@@ -287,7 +288,7 @@ test('SPY scores on Vol-Edge + Regime with Quality and Info-Edge null — and th
   assert.deepEqual(sell.composite.scored_by, ['vol_edge', 'regime']);
   assert.deepEqual(sell.composite.excluded_gates, ['quality', 'info_edge']);
   assert.equal(sell.composite.score_model, 'seller');
-  assert.equal(sell.composite.model_era, 'E9');
+  assert.equal(sell.composite.model_era, CURRENT_MODEL_ERA.id);
   assert.ok(sell.composite.score !== null);
   assert.match(sell.composite.direction, /^UNKNOWN/);
   const buy = scoreAll(etfInput('SPY', -6), 'BUY');
@@ -302,7 +303,7 @@ test('SPY scores on Vol-Edge + Regime with Quality and Info-Edge null — and th
   assert.ok(cards.length > 0);
   assert.deepEqual(cards[0].why.scored_by, ['vol_edge', 'regime']);
   assert.equal(cards[0].why.score_model, 'seller');
-  assert.equal(cards[0].why.model_era, 'E9');
+  assert.equal(cards[0].why.model_era, CURRENT_MODEL_ERA.id);
   assert.equal(cards[0].why.side, 'SELL');
   assert.deepEqual(cards[0].why.catalysts, []);
   assert.equal(cards[0].why.earnings_window.state, 'unknown');
@@ -324,5 +325,5 @@ test('the gate cards — one per gate per side, every field said; README renders
   assert.equal(GATE_CARDS.length, 8);
   for (const c of GATE_CARDS) for (const k of ['purpose', 'inputs', 'weight', 'evidence', 'isNot'] as const) assert.ok(c[k].length > 20, `${c.gate}/${c.model} ${k}`);
   assert.equal(gateCardsMarkdown(), gateCardsMarkdown());
-  assert.match(gateCardsMarkdown(), /\| Regime \| SELL \(seller model\) \|.*VVIX leg has been dead since 2026-07-08/);
+  assert.match(gateCardsMarkdown(), /\| Regime \| SELL \(seller model\) \|.*restored 2026-09-16 from Cboe/);
 });

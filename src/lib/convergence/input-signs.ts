@@ -112,7 +112,7 @@ export const INPUT_SIGNS: readonly InputSign[] = [
   { gate: 'regime', section: 'vol_conditioners', input: 'vix_term_structure', sellerWeight: '0.20 of the conditioned base (regime.ts:838)', seller: '+', buyer: '+', directionNeutral: true,
     why: 'VIX/VIX3M: backwardation scores low (regime.ts:86-91) and trips the survival brake at > 1.0 (:100-104). A brake applies to both sides — the buyer keeps its sign' },
   { gate: 'regime', section: 'vol_conditioners', input: 'vvix', sellerWeight: '0.10 of the conditioned base (regime.ts:839)', seller: '+', buyer: '+', directionNeutral: true,
-    why: 'elevated VVIX scores low and trips the brake at ≥ 110 (regime.ts:93-97, :104-108); kept for both sides. DEAD since 2026-07-08: VVIXCLS is not a FRED series (DATA-01) — MODEL-02 restores it from Cboe' },
+    why: 'elevated VVIX scores low and trips the brake at ≥ 110 (regime.ts:93-97, :104-108); kept for both sides. Dead 2026-07-08 (VVIXCLS is not a FRED series, DATA-01) → restored 2026-09-16 from Cboe\'s VVIX daily file (cboe-daily.ts, MODEL-02)' },
   { gate: 'regime', section: 'gate', input: 'corrSpy multiplier', sellerWeight: '×(0.1 + 0.9·max(0, corrSpy)) (regime.ts:847-852)', seller: '+', buyer: '0', directionNeutral: true,
     why: 'scales the seller-shaped regime score per ticker; the buyer\'s regime read is the two brake inputs only, unscaled' },
 
