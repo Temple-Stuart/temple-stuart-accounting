@@ -15,6 +15,8 @@ import type { FullScoringResult } from './composite';
 import { computePreFilter } from './pre-filter';
 import type { PreFilterResult } from './pre-filter';
 import { logScanSnapshotBatch, fetchVrpHistoryBatch } from './snapshot-logger';
+import { persistScanCandidates } from './candidate-log';
+import { prismaCandidateLogStore } from './candidate-log.prisma';
 import { numOrNull, firstNumOrNull } from '@/lib/parse-num';
 import { generateTradeCards, computeCloseToCloseHV } from './trade-cards';
 import type {
@@ -126,6 +128,10 @@ export interface PipelineResult {
     finnhub_calls_made: number;
     // TRADE-COST-01: slow-tier answers served from finnhub_responses within their TTL.
     finnhub_cache_hits: number;
+    /** LOG-01: the scan_runs row this run's candidates were written under; null = withheld */
+    scan_run_id: string | null;
+    candidates_logged: number;
+    candidates_withheld: boolean;
     finnhub_errors: number;
     fred_cached: boolean;
     candle_symbols_fetched: number;
@@ -1948,7 +1954,7 @@ async function runPipelineMetered(
 
   // Generate full TradeCardData (setup + why + key_stats) for each top-9 ticker
   // This is the single source of truth — no second chain fetch needed
-  const fullTradeCardsPerTicker: Record<string, TradeCardData[]> = {};
+  let fullTradeCardsPerTicker: Record<string, TradeCardData[]> = {};
   for (const row of top9) {
     const ticker = scoredTickers.find(t => t.symbol === row.symbol);
     const stratCards = rawStrategyCards.get(row.symbol);
@@ -2020,6 +2026,43 @@ async function runPipelineMetered(
   }
   dataGaps.push('peer_z_scores: computed per-ticker using industry peers (>=5) or sector fallback from hard-filter survivors');
 
+  // ===== LOG-01: EVERY SCORED CANDIDATE IS PERSISTED BEFORE IT IS RETURNED =====
+  // The write and the response are ONE list: persistScanCandidates stamps a
+  // candidate_id on every card and returns the same list, which is assigned
+  // back to fullTradeCardsPerTicker — the variable the response is built from
+  // (the candidate log law, scripts/assert-tool-registry.ts). If the write
+  // fails, every candidate is WITHHELD and the gap declared: the scan never
+  // returns a scored candidate it did not persist.
+  let scanRunId: string | null = null;
+  let candidatesLogged = 0;
+  let candidatesWithheld = false;
+  const candidateContext: Record<string, { scoring: FullScoringResult; spotAtScan: number | null; iv30AtScan: number | null }> = {};
+  for (const symbol of Object.keys(fullTradeCardsPerTicker)) {
+    const t = scoredTickers.find(x => x.symbol === symbol);
+    if (t) candidateContext[symbol] = { scoring: t.scoring, spotAtScan: t.scoring.vol_edge.breakdown.technicals.indicators.latest_close ?? null, iv30AtScan: t.scannerData.iv30 ?? null };
+  }
+  if (!userId) {
+    candidatesWithheld = true;
+    fullTradeCardsPerTicker = {};
+    dataGaps.push('LOG-01: no userId — candidates cannot be keyed to a scan run; every scored candidate WITHHELD from this response (never returned unpersisted)');
+  } else {
+    try {
+      const persisted = await persistScanCandidates(
+        { userId, universe, limit, tickersScored: scoredTickers.length, cards: fullTradeCardsPerTicker, context: candidateContext, now: new Date() },
+        prismaCandidateLogStore,
+      );
+      fullTradeCardsPerTicker = persisted.cards;
+      scanRunId = persisted.runId;
+      candidatesLogged = persisted.written;
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      candidatesWithheld = true;
+      fullTradeCardsPerTicker = {};
+      errors.push(`LOG-01 (candidate persistence): ${msg}`);
+      dataGaps.push(`LOG-01: candidate persistence FAILED (${msg}) — every scored candidate WITHHELD from this response (the scan never returns a candidate it did not persist)`);
+    }
+  }
+
   if (chainStats.chain_symbols_fetched > 0 && chainStats.total_trade_cards === 0) {
     dataGaps.push('trade_cards: option chains fetched but no strategies passed quality gates');
   } else if (chainStats.chain_symbols_fetched === 0 && top9.length > 0) {
@@ -2041,6 +2084,9 @@ async function runPipelineMetered(
       pipeline_runtime_ms: pipelineMs,
       finnhub_calls_made: meter.upstream,
       finnhub_cache_hits: meter.hits,
+      scan_run_id: scanRunId,
+      candidates_logged: candidatesLogged,
+      candidates_withheld: candidatesWithheld,
       finnhub_errors: finnhubResult.stats.errors,
       fred_cached: fredResult.cached,
       candle_symbols_fetched: candleStats.symbols_with_data,

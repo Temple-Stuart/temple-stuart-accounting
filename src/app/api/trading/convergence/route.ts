@@ -121,17 +121,9 @@ export async function GET(request: Request) {
       const scanQuota = await requireScanRateLimit(gateUser.id);
       if (scanQuota) return scanQuota;
 
-      // Resolve userId for snapshot logging
-      let userId: string | undefined;
-      let snapshotLookupError: string | null = null;
-      try {
-        const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
-        userId = user?.id;
-      } catch (e: unknown) {
-        // KILL-4: still non-fatal (pipeline runs without snapshots), but the
-        // skipped audit trail is DECLARED on the result below.
-        snapshotLookupError = e instanceof Error ? e.message : String(e);
-      }
+      // LOG-01: the gate user IS the scan's user — every candidate is keyed to
+      // a scan_runs row under this id (no second lookup, no run without a user).
+      const userId: string = gateUser.id;
 
       const encoder = new TextEncoder();
       const readable = new ReadableStream({
@@ -141,9 +133,6 @@ export async function GET(request: Request) {
           };
           try {
             const result = await runPipeline(limit, userId, universe, (event) => send(event));
-            if (snapshotLookupError) {
-              result.data_gaps.push(`snapshot_logging: SKIPPED — user lookup failed (${snapshotLookupError}); this run left no scan_snapshots audit trail`);
-            }
             // Cache the final result so the follow-up fetch is instant
             setCache(gateUser.id, limit, result, universe);
             send({ step: 'done', label: 'Complete', data: {} });
@@ -190,23 +179,11 @@ export async function GET(request: Request) {
 
     console.log(`[Convergence Route] Cache MISS (limit=${limit}, refresh=${refresh}, universe=${universe ?? 'all'})`);
 
-    // Resolve userId for snapshot logging (non-blocking — pipeline runs even if lookup fails)
-    let userId: string | undefined;
-    let snapshotLookupError: string | null = null;
-    try {
-      const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
-      userId = user?.id;
-    } catch (e: unknown) {
-      // KILL-4: still non-fatal, but the skipped snapshot audit trail is
-      // DECLARED on the result below.
-      snapshotLookupError = e instanceof Error ? e.message : String(e);
-    }
+    // LOG-01: the gate user IS the scan's user (see the stream branch).
+    const userId: string = gateUser.id;
 
     const start = Date.now();
     const result = await runPipeline(limit, userId, universe);
-    if (snapshotLookupError) {
-      result.data_gaps.push(`snapshot_logging: SKIPPED — user lookup failed (${snapshotLookupError}); this run left no scan_snapshots audit trail`);
-    }
     const elapsed = Date.now() - start;
     console.log(`[Convergence Route] Pipeline completed in ${elapsed}ms`);
 

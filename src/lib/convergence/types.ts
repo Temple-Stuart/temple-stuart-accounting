@@ -1324,6 +1324,8 @@ export interface TradeCard {
   setup: TradeCardSetup;
   why: TradeCardWhy;
   key_stats: TradeCardKeyStats;
+  /** LOG-01: the scan_candidates row this card was persisted as (stamped by candidate-log.ts before the scan returns). */
+  candidate_id?: string | null;
 }
 
 /** Client-side trade card shape (TradeCard minus generated_at). */
@@ -1333,6 +1335,8 @@ export interface TradeCardData {
   setup: TradeCardSetup;
   why: TradeCardWhy;
   key_stats: TradeCardKeyStats;
+  /** LOG-01: the scan_candidates row this card was persisted as. */
+  candidate_id?: string | null;
 }
 
 // -- Full Pipeline Response --

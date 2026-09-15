@@ -1256,6 +1256,35 @@ for (const f of shellFiles) {
 console.log(`✔ The lock law passed — ${PAID_COMPONENTS.length} paid components mapped to their keys, ${ungated} page(s) mount one without a check; ${offerInApp} file(s) outside /pricing and the deck carry an offer or billing copy.`);
 console.log(`✔ The offer law passed — ${OFFERS.length} offers over ${new Set(OFFERS.flatMap((o) => o.tools)).size} tools (LIVE or PARTIAL only), ${FREE_TOOLS.length} free; the purchasable keys are the offers'; "built and running" typed nowhere but offer.ts; ${SELLING_SURFACES.length} selling surfaces render the offer.`);
 
+// ── THE CANDIDATE LOG LAW (LOG-01) ──────────────────────────────────────────
+// Every scored candidate the scan returns was persisted first: the write and
+// the response come from ONE list. pipeline.ts must (1) await
+// persistScanCandidates — never void it, (2) assign the PERSISTED list back to
+// fullTradeCardsPerTicker, the variable the response is built from, (3) keep
+// the withhold branch (a failed write returns NO candidates, declared), and
+// (4) the scan route may not touch the candidate list on its way out. The
+// runtime half — every returned card carries candidate_id — is thrown by
+// candidate-log.ts itself.
+const LOG_PIPELINE = 'src/lib/convergence/pipeline.ts';
+const LOG_ROUTE = 'src/app/api/trading/convergence/route.ts';
+const LOG_MODULE = 'src/lib/convergence/candidate-log.ts';
+const logPipeline = existsSync(resolve(ROOT, LOG_PIPELINE)) ? readFileSync(resolve(ROOT, LOG_PIPELINE), 'utf8') : '';
+const logRoute = existsSync(resolve(ROOT, LOG_ROUTE)) ? readFileSync(resolve(ROOT, LOG_ROUTE), 'utf8') : '';
+const logModule = existsSync(resolve(ROOT, LOG_MODULE)) ? readFileSync(resolve(ROOT, LOG_MODULE), 'utf8') : '';
+let logViolations = 0;
+const logFail = (msg: string) => { logViolations += 1; violations.push(`candidate log law: ${msg} (LOG-01)`); };
+if (!logModule) logFail(`${LOG_MODULE} is missing — nothing persists the scored candidates`);
+if (!/await persistScanCandidates\(/.test(logPipeline)) logFail(`${LOG_PIPELINE} does not await persistScanCandidates — the scan must persist every candidate before it returns`);
+if (/void persistScanCandidates\(/.test(logPipeline)) logFail(`${LOG_PIPELINE} fires persistScanCandidates and forgets it — a candidate the write lost would still be returned`);
+if (!/fullTradeCardsPerTicker = persisted\.cards;/.test(logPipeline)) logFail(`${LOG_PIPELINE} does not assign the PERSISTED list back to fullTradeCardsPerTicker — the write and the response must be one list`);
+if (!/full_trade_cards_per_ticker: fullTradeCardsPerTicker,/.test(logPipeline)) logFail(`${LOG_PIPELINE} builds full_trade_cards_per_ticker from something other than fullTradeCardsPerTicker`);
+if (!/LOG-01: candidate persistence FAILED/.test(logPipeline) || !/fullTradeCardsPerTicker = \{\};/.test(logPipeline)) logFail(`${LOG_PIPELINE} has no withhold branch — a failed write must return NO candidates and declare it`);
+if (/full_trade_cards_per_ticker/.test(logRoute)) logFail(`${LOG_ROUTE} touches the candidate list on its way out — the response is the pipeline's persisted list, untouched`);
+if (!/a card left the log without a candidate_id/.test(logModule)) logFail(`${LOG_MODULE} no longer throws when a returned card has no candidate_id — the runtime half of the law is gone`);
+const logBuilders = (logPipeline.match(/full_trade_cards_per_ticker: (?!Record<)/g) ?? []).length; // the type line declares, it does not build
+if (logBuilders !== 1) logFail(`${LOG_PIPELINE} builds full_trade_cards_per_ticker ${logBuilders} times — exactly one list leaves the pipeline`);
+if (logViolations === 0) console.log('✔ The candidate log law passed — the scan persists every scored candidate before it returns it, from one list; a failed write withholds and declares.');
+
 // ── THE SECOND GATE ─────────────────────────────────────────────────────────
 // Every law below the first gate — kind views, arrivals, the rule book,
 // posting, env, the observatory, the offer — pushes onto `violations`. Without

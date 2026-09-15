@@ -299,3 +299,23 @@ test('the honest frame names the three biases and the 194-trade line', () => {
   assert.ok(f.includes('Small and correlated'));
   assert.ok(f.includes('About 194 INDEPENDENT trades'));
 });
+
+test('LOG-01 — the candidate book reads direction from the card legs when told to, and TAKEN/UNTAKEN is one more bucket split', () => {
+  const untaken = ticket(1, { positionLegs: [], directionSource: 'card_legs', split: 'UNTAKEN' });
+  const taken = ticket(2, { directionSource: 'position_legs', split: 'TAKEN' });
+  const r = buildReport([untaken, taken]);
+  assert.deepEqual(r.buckets.map((b) => b.key).sort(), ['SELL × SELL-DEFINED × E6 × TAKEN', 'SELL × SELL-DEFINED × E6 × UNTAKEN']);
+  // without the flag an empty position list is UNKNOWN — never silently read from the card
+  const plain = classifyTicket(ticket(3, { positionLegs: [] }));
+  assert.equal(plain.direction, 'UNKNOWN');
+  // no position strings are listed for tickets without positions
+  assert.ok(!line(r.lines, 'trading_positions.strategy "(null)"'));
+});
+
+test('LOG-01 — explicit entry/close dates are used when given; otherwise the position legs decide', () => {
+  const c = classifyTicket(ticket(1, { positionLegs: [], directionSource: 'card_legs', entryDate: new Date('2026-09-15T14:00:00Z'), closeDate: new Date('2026-10-16T00:00:00Z') }));
+  assert.equal(c.entryDate?.toISOString(), '2026-09-15T14:00:00.000Z');
+  assert.equal(c.closeDate?.toISOString(), '2026-10-16T00:00:00.000Z');
+  const d = classifyTicket(ticket(2));
+  assert.equal(d.entryDate?.toISOString(), '2026-08-03T14:00:00.000Z');
+});
