@@ -17,6 +17,11 @@
  * excludes it. A member TastyTrade returns no market-metrics row or no chain
  * for is REPORTED on the scan (errors, data gaps, rejection reasons) — never
  * silently dropped.
+ *
+ * Addendum (ruled 2026-09-16): at the structure cut (structure-cut.ts) a
+ * member's convergence is judged on the gates that can score (2 of 2 when
+ * only Vol-Edge and Regime score) and the quality-null rule does not bar it;
+ * the card states "scored on N of 4 gates". Single names are untouched.
  */
 export const ETF_UNIVERSE_SET_ON = '2026-09-16';
 

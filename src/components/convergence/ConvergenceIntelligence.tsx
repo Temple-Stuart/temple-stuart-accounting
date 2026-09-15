@@ -1258,7 +1258,7 @@ export function TickerCard({ detail, savedCards, savingCards, saveErrors, onSave
           {/* MODEL-02: the gates that scored this card — MODEL-01 computed why.scored_by; nothing rendered it until 2026-09-16 */}
           {why.scored_by && (
             <div className="text-[10px] font-mono text-text-muted px-1" title="The gates whose numbers entered this card's score. A gate with zero computable signals (an ETF's Quality and Info Edge) is excluded and the weights renormalized — never imputed.">
-              Scored by: <span className="text-text-secondary">{why.scored_by.map((g) => GATE_TITLES[g]).join(', ')}</span>
+              Scored on {why.scored_by.length} of 4 gates: <span className="text-text-secondary">{why.scored_by.map((g) => GATE_TITLES[g]).join(', ')}</span>
               {(['vol_edge', 'quality', 'regime', 'info_edge'] as const).filter((g) => !why.scored_by.includes(g)).length > 0 && (
                 <span> · excluded: {(['vol_edge', 'quality', 'regime', 'info_edge'] as const).filter((g) => !why.scored_by.includes(g)).map((g) => GATE_TITLES[g]).join(', ')}</span>
               )}

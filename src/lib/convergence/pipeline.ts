@@ -24,6 +24,7 @@ import { logScanSnapshotBatch, snapshotNotAttempted, type SnapshotWriteResult } 
 import { prismaSnapshotStore, fetchVrpHistoryBatch } from './snapshot-logger.prisma';
 import { STRUCTURE_CUT, DEEP_FETCH_MULTIPLIER } from './funnel';
 import { ETF_UNIVERSE_KEY, ETF_UNIVERSE_SET_ON, ETF_UNIVERSE_SYMBOLS, isEtfUniverseSymbol } from './etf-universe';
+import { structureCutEligibility } from './structure-cut';
 import { persistScanCandidates } from './candidate-log';
 import { prismaCandidateLogStore } from './candidate-log.prisma';
 import { numOrNull, firstNumOrNull } from '@/lib/parse-num';
@@ -108,6 +109,9 @@ interface RankedRow {
   regime: number | null;
   info_edge: number | null;
   convergence: string;
+  /** MODEL-02 addendum: the composite's count of gates above 50 and how many of the four gates scored — Step G reads these, never the string. */
+  categories_above_50: number;
+  scored_gates: number;
   direction: string;
   strategy: string;
   sector: string | null;
@@ -1691,9 +1695,8 @@ async function runPipelineMetered(
   onProgress?.({ step: 'step_m', label: 'Final Selection', data: {
     fetched_at: new Date().toISOString(),
     total_scored: rankedRows.length,
-    eligible: top9.length + alsoScored.filter(
-      (r: any) => parseInt(r.convergence.split('/')[0], 10) >= 3 && r.quality >= 40
-    ).length,
+    // MODEL-02 addendum: the same rule as rankAndDiversify (structure-cut.ts), never a retyped copy.
+    eligible: top9.length + alsoScored.filter(r => structureCutEligibility(r, isEtfUniverseSymbol(r.symbol)).eligible).length,
     selected: top9.length,
     sector_distribution: sectorDistribution,
     adjustments: diversification.adjustments,
@@ -1714,14 +1717,9 @@ async function runPipelineMetered(
     excluded: rankedRows
       .filter(r => !top9.find(t => t.symbol === r.symbol))
       .map(r => {
-        const catAbove50 = parseInt(r.convergence.split('/')[0], 10);
-        const reason = catAbove50 < 3
-          ? `convergence ${r.convergence} — below 3/4 minimum`
-          : r.quality === null
-          ? `quality gate EXCLUDED (zero computable signals) — 40-floor not evaluable, missing is not treated as passing`
-          : r.quality < 40
-          ? `quality ${r.quality} — below floor of 40`
-          : `sector cap or rank`;
+        // MODEL-02 addendum: the reason is the rule's own verdict (structure-cut.ts) — an ETF member is judged on the gates that can score.
+        const verdict = structureCutEligibility(r, isEtfUniverseSymbol(r.symbol));
+        const reason = verdict.eligible ? 'sector cap or rank' : verdict.reason;
         return {
           symbol: r.symbol,
           composite: r.composite,
@@ -2606,8 +2604,12 @@ function buildRankedRows(
     // Extract beat streak from quality breakdown
     const beatStreak = s.quality.breakdown.profitability.earnings_quality.earnings_detail.streak;
 
-    // Build convergence string
-    const convergence = `${s.composite.categories_above_50}/4`;
+    // Build convergence string. MODEL-02 addendum: an ETF_UNIVERSE member is
+    // judged on the gates that can score, and the string says so.
+    const scoredGates = s.composite.scored_by.length;
+    const convergence = isEtfUniverseSymbol(t.symbol) && scoredGates < 4
+      ? `${s.composite.categories_above_50}/${scoredGates} (scored on ${scoredGates} of 4 gates)`
+      : `${s.composite.categories_above_50}/4`;
 
     // Build key_signal summary
     const signals: string[] = [];
@@ -2641,6 +2643,8 @@ function buildRankedRows(
       regime: s.regime.score,
       info_edge: s.info_edge.score,
       convergence,
+      categories_above_50: s.composite.categories_above_50,
+      scored_gates: scoredGates,
       direction: s.composite.direction,
       strategy: s.strategy_suggestion.suggested_strategy,
       sector: tt.sector,
@@ -2695,38 +2699,17 @@ function rankAndDiversify(rankedRows: RankedRow[]): {
 
   // BUG 4 fix: Enforce convergence gate — exclude tickers with < 3/4 categories above 50
   // BUG 5 fix: Enforce quality floor — exclude quality < 40, or quality 40-50 with 3+ miss streak
+  // MODEL-02 addendum: the four rules live in structure-cut.ts (pure, tested).
+  // Single names read exactly as before; an ETF_UNIVERSE member is judged on
+  // the gates that can score and the quality-null rule does not bar it.
   const eligible: RankedRow[] = [];
   for (const row of rankedRows) {
-    const catAbove50 = parseInt(row.convergence.split('/')[0], 10);
-    if (catAbove50 < 3) {
-      adjustments.push(
-        `Excluded ${row.symbol} (rank ${row.rank}, composite=${row.composite}) — convergence ${row.convergence}, below 3/4 minimum.`,
-      );
+    const verdict = structureCutEligibility(row, isEtfUniverseSymbol(row.symbol));
+    if (!verdict.eligible) {
+      adjustments.push(verdict.reason);
       continue;
     }
-    if (row.quality === null) {
-      // MIG-1: quality gate excluded — the 40-floor cannot be evaluated.
-      // Missing is NOT treated as passing (that would impute "fine").
-      adjustments.push(
-        `Excluded ${row.symbol} (rank ${row.rank}) — quality gate EXCLUDED (zero computable signals); 40-quality floor not evaluable, missing is not treated as passing.`,
-      );
-      continue;
-    }
-    if (row.quality < 40) {
-      adjustments.push(
-        `Excluded ${row.symbol} (rank ${row.rank}, quality=${row.quality}) — quality below 40 floor.`,
-      );
-      continue;
-    }
-    if (row.quality < 50 && /\d+Q MISS STREAK/.test(row.beat_streak)) {
-      const missCount = parseInt(row.beat_streak, 10);
-      if (missCount >= 3) {
-        adjustments.push(
-          `Excluded ${row.symbol} (rank ${row.rank}, quality=${row.quality}, ${row.beat_streak}) — quality <50 with consecutive miss streak ≥3.`,
-        );
-        continue;
-      }
-    }
+    if (verdict.note) adjustments.push(verdict.note);
     eligible.push(row);
   }
 

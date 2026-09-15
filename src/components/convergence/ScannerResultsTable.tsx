@@ -282,7 +282,7 @@ function ExpandedDetail({ detail, card, rejections }: { detail: TickerDetail; ca
       {/* MODEL-02: the gates that scored this card (why.scored_by — computed by MODEL-01, rendered since 2026-09-16) */}
       {why?.scored_by && (
         <div className="text-[10px] font-mono text-text-muted" title="The gates whose numbers entered this card's score; an excluded gate had zero computable signals and its weight was renormalized away, never imputed.">
-          Scored by: <span className="text-text-secondary">{why.scored_by.map((g) => GATE_TITLES[g]).join(', ')}</span>
+          Scored on {why.scored_by.length} of 4 gates: <span className="text-text-secondary">{why.scored_by.map((g) => GATE_TITLES[g]).join(', ')}</span>
           {(['vol_edge', 'quality', 'regime', 'info_edge'] as const).filter((g) => !why.scored_by.includes(g)).length > 0 && (
             <span> · excluded: {(['vol_edge', 'quality', 'regime', 'info_edge'] as const).filter((g) => !why.scored_by.includes(g)).map((g) => GATE_TITLES[g]).join(', ')}</span>
           )}

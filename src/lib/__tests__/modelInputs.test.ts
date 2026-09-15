@@ -10,6 +10,7 @@ import { AVAILABLE_STRATEGIES } from '../convergence/filter-types';
 import { GATE_TITLES, NOT_BUILT_STRATEGIES, gateCardsMarkdown } from '../convergence/gateCards';
 import { ETF_UNIVERSE, ETF_UNIVERSE_SET_ON, ETF_UNIVERSE_SYMBOLS, isEtfUniverseSymbol } from '../convergence/etf-universe';
 import { DEEP_FETCH_MULTIPLIER, FUNNEL_SET_ON, SCAN_LIMIT_DEFAULT, STRUCTURE_CUT } from '../convergence/funnel';
+import { ETF_STRUCTURE_CUT_SET_ON, STRUCTURE_CUT_CONVERGENCE_MIN, STRUCTURE_CUT_QUALITY_FLOOR, convergenceRequiredOf, structureCutEligibility, type StructureCutRow } from '../convergence/structure-cut';
 import type { CboeDailyData, CboeDailyPoint, ConvergenceInput, FredMacroData } from '../convergence/types';
 
 // MODEL-02 STEP 6 — tests on fixtures. Pure modules: no database, no vendor.
@@ -32,10 +33,10 @@ function cboeFx(o: { vvix?: number | null; errors?: string[] } = {}): CboeDailyD
     errors: o.errors ?? [], fetched_at: FETCHED,
   };
 }
-function etfInput(symbol: string, spread: number, o: { cboe?: CboeDailyData | null; fred?: FredMacroData } = {}): ConvergenceInput {
+function etfInput(symbol: string, spread: number, o: { cboe?: CboeDailyData | null; fred?: FredMacroData; ivRank?: number; ivPercentile?: number } = {}): ConvergenceInput {
   return {
     symbol,
-    ttScanner: { symbol, ivRank: 0.3, ivPercentile: 0.35, impliedVolatility: 0.18, liquidityRating: null, earningsDate: null, daysTillEarnings: null, hv30: 18 - spread, hv60: 17, hv90: 16, iv30: 18, ivHvSpread: spread, beta: null, corrSpy: 1, marketCap: null, sector: null, industry: null, peRatio: null, eps: null, dividendYield: 1.3, lendability: null, borrowRate: null, earningsActualEps: null, earningsEstimate: null, earningsTimeOfDay: null, termStructure: [{ date: '2026-10-16', iv: 0.18 }, { date: '2026-11-20', iv: 0.19 }] },
+    ttScanner: { symbol, ivRank: o.ivRank ?? 0.3, ivPercentile: o.ivPercentile ?? 0.35, impliedVolatility: 0.18, liquidityRating: null, earningsDate: null, daysTillEarnings: null, hv30: 18 - spread, hv60: 17, hv90: 16, iv30: 18, ivHvSpread: spread, beta: null, corrSpy: 1, marketCap: null, sector: null, industry: null, peRatio: null, eps: null, dividendYield: 1.3, lendability: null, borrowRate: null, earningsActualEps: null, earningsEstimate: null, earningsTimeOfDay: null, termStructure: [{ date: '2026-10-16', iv: 0.18 }, { date: '2026-11-20', iv: 0.19 }] },
     candles: [],
     finnhubFundamentals: null, finnhubRecommendations: [], finnhubInsiderSentiment: [], finnhubEarnings: [], finnhubEstimates: null,
     fredMacro: o.fred ?? FRED, annualFinancials: null, quarterlyFinancials: null, optionsFlow: null, newsSentiment: null, finnhubNewsSentiment: null,
@@ -260,4 +261,62 @@ test('the funnel constants are named and dated; the panel offers exactly the str
   assert.equal(NOT_BUILT_STRATEGIES.length, 10);
   assert.match(gateCardsMarkdown(), /\| Not built \| Why \|/);
   assert.match(gateCardsMarkdown(), /offers exactly the 6 strategies the builder makes/);
+});
+
+// ── the addendum (ruled 2026-09-16): the ETF-only Step G amendment ─────────
+
+function cutRow(o: Partial<StructureCutRow> & { symbol: string }): StructureCutRow {
+  return { rank: 1, composite: 61, quality: null, beat_streak: 'UNKNOWN', categories_above_50: 2, scored_gates: 2, ...o };
+}
+
+test('SPY reaches the structure cut on the gates that can score (2 of 2, quality null); a single name with a null quality gate still does not', () => {
+  assert.equal(ETF_STRUCTURE_CUT_SET_ON, '2026-09-16');
+  assert.equal(STRUCTURE_CUT_CONVERGENCE_MIN, 3);
+  assert.equal(STRUCTURE_CUT_QUALITY_FLOOR, 40);
+  // the ETF-shaped composite: Vol-Edge + Regime score, Quality and Info-Edge excluded. A rich SPY
+  // (IV rank 0.7, IV percentile 0.8, IV 6 pts over HV) scores both gates above 50 — 2 of 2.
+  const spyScoring = quiet(() => scoreAll(etfInput('SPY', 6, { ivRank: 0.7, ivPercentile: 0.8 }), 'SELL'));
+  assert.deepEqual(spyScoring.composite.scored_by, ['vol_edge', 'regime']);
+  assert.equal(spyScoring.quality.score, null);
+  assert.equal(spyScoring.info_edge.score, null);
+  assert.equal(spyScoring.composite.categories_above_50, 2);
+  const spy = cutRow({ symbol: 'SPY', quality: spyScoring.quality.score, composite: spyScoring.composite.score, categories_above_50: spyScoring.composite.categories_above_50, scored_gates: spyScoring.composite.scored_by.length });
+  const spyVerdict = structureCutEligibility(spy, true);
+  assert.equal(spyVerdict.eligible, true);
+  // the same instrument with compressed premium scores Vol-Edge below 50 — 1 of 2 — and is honestly NOT admitted
+  const spyCheap = quiet(() => scoreAll(etfInput('SPY', 2), 'SELL'));
+  assert.equal(spyCheap.composite.categories_above_50, 1);
+  assert.equal(structureCutEligibility(cutRow({ symbol: 'SPY', categories_above_50: spyCheap.composite.categories_above_50, scored_gates: spyCheap.composite.scored_by.length }), true).eligible, false);
+  assert.match(spyVerdict.eligible ? spyVerdict.note ?? '' : '', /^Admitted SPY .* ETF member \(set 2026-09-16\): convergence 2\/2 over the gates that can score \(scored on 2 of 4 gates\); quality gate EXCLUDED — the 40-floor is not applicable to an index\/sector ETF, declared\.$/);
+  // the same row as a single name: MIG-1 still bars it (and BUG 4 before that — 2 of 4)
+  const aapl = structureCutEligibility(cutRow({ symbol: 'AAPL' }), false);
+  assert.equal(aapl.eligible, false);
+  assert.match(aapl.eligible ? '' : aapl.reason, /convergence 2\/4, below 3\/4 minimum/);
+  const aaplConverged = structureCutEligibility(cutRow({ symbol: 'AAPL', categories_above_50: 3, scored_gates: 3 }), false);
+  assert.equal(aaplConverged.eligible, false);
+  assert.match(aaplConverged.eligible ? '' : aaplConverged.reason, /quality gate EXCLUDED \(zero computable signals\); 40-quality floor not evaluable, missing is not treated as passing/);
+  // a single name with quality scored and 3 of 4 above 50 is admitted with no note — unchanged
+  const msft = structureCutEligibility(cutRow({ symbol: 'MSFT', quality: 58, categories_above_50: 3, scored_gates: 4 }), false);
+  assert.deepEqual(msft, { eligible: true, note: null });
+  // an ETF member is still held to the fraction over the gates that scored
+  assert.equal(convergenceRequiredOf(2), 2);
+  assert.equal(convergenceRequiredOf(3), 3);
+  assert.equal(convergenceRequiredOf(4), 3);
+  const oneOfTwo = structureCutEligibility(cutRow({ symbol: 'QQQ', categories_above_50: 1 }), true);
+  assert.equal(oneOfTwo.eligible, false);
+  assert.match(oneOfTwo.eligible ? '' : oneOfTwo.reason, /ETF member: convergence 1\/2 over the gates that can score, below the 2\/2 minimum \(scored on 2 of 4 gates/);
+  const twoOfFour = structureCutEligibility(cutRow({ symbol: 'XLF', quality: 76, categories_above_50: 2, scored_gates: 4 }), true);
+  assert.equal(twoOfFour.eligible, false);
+  const threeOfFour = structureCutEligibility(cutRow({ symbol: 'XLK', quality: 76, categories_above_50: 3, scored_gates: 4 }), true);
+  assert.equal(threeOfFour.eligible, true);
+  assert.match(threeOfFour.eligible ? threeOfFour.note ?? '' : '', /convergence 3\/4 over the gates that can score \(scored on 4 of 4 gates\)\.$/);
+  // the quality floor and the miss streak still bind an ETF member whose quality gate DID score
+  const lowQuality = structureCutEligibility(cutRow({ symbol: 'XLE', quality: 32 }), true);
+  assert.equal(lowQuality.eligible, false);
+  assert.match(lowQuality.eligible ? '' : lowQuality.reason, /quality below 40 floor/);
+  const streak = structureCutEligibility(cutRow({ symbol: 'XLU', quality: 45, beat_streak: '3Q MISS STREAK' }), true);
+  assert.equal(streak.eligible, false);
+  // nothing scored at all is not "converged"
+  const nothing = structureCutEligibility(cutRow({ symbol: 'DIA', categories_above_50: 0, scored_gates: 0 }), true);
+  assert.equal(nothing.eligible, false);
 });

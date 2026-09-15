@@ -101,6 +101,7 @@ import { buildCboeRegimeInputs } from '../src/lib/convergence/regime';
 import { SNAPSHOT_SUGGESTED_STRATEGY_MAX } from '../src/lib/convergence/snapshot-logger';
 import { ETF_UNIVERSE_SYMBOLS } from '../src/lib/convergence/etf-universe';
 import { DEEP_FETCH_MULTIPLIER, SCAN_LIMIT_DEFAULT, STRUCTURE_CUT } from '../src/lib/convergence/funnel';
+import { structureCutEligibility } from '../src/lib/convergence/structure-cut';
 import { MODEL_NUMBER_TOOLTIP } from '../src/lib/convergence/modelLabels';
 import { OWNER_UTILITIES } from '../src/lib/shellMenu';
 import { ANSWERS_HOME, ANSWER_READS, ANSWER_ROWS, NET_WORTH_READ, answersLaw } from '../src/lib/answers';
@@ -1525,6 +1526,16 @@ const m02Form = M01('src/components/trading/ScanFilterForm.tsx');
 if (!/ETF_UNIVERSE_KEY/.test(m02Ui) || !/ETF_UNIVERSE_KEY/.test(m02Form)) m02Fail('etf law', 'the universe selectors no longer offer the ETF universe (ConvergenceIntelligence.tsx, ScanFilterForm.tsx)');
 const m02Table = M01('src/components/convergence/ScannerResultsTable.tsx');
 if (!/why\.scored_by\.map/.test(m02Ui) || !/why\.scored_by\.map/.test(m02Table)) m02Fail('etf law', 'a card no longer names the gates that scored it (why.scored_by) on both card surfaces');
+if (!/Scored on \{why\.scored_by\.length\} of 4 gates/.test(m02Ui) || !/Scored on \{why\.scored_by\.length\} of 4 gates/.test(m02Table)) m02Fail('etf law', 'a card no longer states "scored on N of 4 gates" on both card surfaces (addendum, ruled 2026-09-16)');
+// the addendum: Step G reads the pure rule; single names unchanged; an ETF member judged on the gates that can score
+const m02Cut = M01('src/lib/convergence/structure-cut.ts');
+if (!/export const STRUCTURE_CUT_CONVERGENCE_MIN = 3;/.test(m02Cut) || !/export const STRUCTURE_CUT_QUALITY_FLOOR = 40;/.test(m02Cut) || !/export const ETF_STRUCTURE_CUT_SET_ON = '\d{4}-\d{2}-\d{2}';/.test(m02Cut)) m02Fail('etf law', 'structure-cut.ts no longer names the single-name rules (3 of 4, floor 40) and the dated ETF amendment');
+if (!/structureCutEligibility\(row, isEtfUniverseSymbol\(row\.symbol\)\)/.test(m01Pipeline)) m02Fail('etf law', 'pipeline.ts rankAndDiversify no longer reads the structure-cut rule from structure-cut.ts with the ETF membership from the const');
+if (/catAbove50 < 3/.test(m01Pipeline) || /row\.convergence\.split/.test(m01Pipeline)) m02Fail('etf law', 'pipeline.ts still judges the cut inline from the convergence string');
+for (const [sym, etf, expect] of [['SPY', true, true], ['AAPL', false, false]] as const) {
+  const v = structureCutEligibility({ symbol: sym, rank: 1, composite: 61, quality: null, beat_streak: 'UNKNOWN', categories_above_50: 2, scored_gates: 2 }, etf);
+  if (v.eligible !== expect) m02Fail('etf law', `structureCutEligibility: ${sym} with Quality and Info-Edge null and 2 of 2 scored gates above 50 should be ${expect ? 'admitted (ETF member)' : 'excluded (single name)'}`);
+}
 
 // (5) no phantoms
 const m02Built = [...new Set([...m01Builder.matchAll(/buildCard\('([^']+)'/g)].map((m) => m[1]))].sort();
