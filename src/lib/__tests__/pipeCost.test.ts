@@ -29,6 +29,18 @@ test('one scan of one symbol costs exactly this, by provider — a new metered c
 
   assert.match(scanCostLine(), /One scan of one symbol = 26 Finnhub, 1 TastyTrade, 6 SEC/);
   assert.doesNotMatch(scanCostLine(), /xAI/);
+
+  // TRADE-COST-01: the WARM number — every slow-tier row a hit within its TTL —
+  // is pinned beside the cold one. Only the daily tier is bought: metric,
+  // price-metric, peers, company-news ×2, news-sentiment, upgrade-downgrade
+  // (the vendor calls it real-time) and calendar/earnings (unassigned → daily).
+  const warmSymbol = Object.fromEntries(SCAN_COST.map(c => [c.provider, c.warmCallsPerSymbol]));
+  const warmScan = Object.fromEntries(SCAN_COST.map(c => [c.provider, c.warmCallsPerScan]));
+  assert.equal(warmSymbol.Finnhub, 8, 'the daily tier alone — lower this ONLY with a tier change in finnhub-ttl.ts');
+  assert.equal(warmSymbol.TastyTrade, 1, 'no tiered store: warm = cold');
+  assert.equal(warmSymbol.SEC, 6, 'no tiered store: warm = cold');
+  assert.equal(warmScan.FRED, 24, 'no tiered store: warm = cold');
+  assert.match(scanCostLine(), /Warm \(every slow-tier row within its TTL\) = 8 Finnhub, 1 TastyTrade, 6 SEC — plus, once per scan, 1 SEC, 24 FRED\./);
 });
 
 test('every scan-cost note cites the call sites it counted, and no note prices anything', () => {
@@ -37,6 +49,8 @@ test('every scan-cost note cites the call sites it counted, and no note prices a
     assert.doesNotMatch(c.note, /\$[0-9]/, `${c.provider}: counts, never dollars`);
   }
   assert.match(SCAN_COST.find(c => c.provider === 'Finnhub')!.note, /PIPE-01 removed two/);
+  assert.match(SCAN_COST.find(c => c.provider === 'Finnhub')!.note, /COLD \(26\)/);
+  assert.match(SCAN_COST.find(c => c.provider === 'Finnhub')!.note, /WARM \(8\)/);
 });
 
 test('one observatory check costs 17 Finnhub calls for 19 Finnhub rows — 19 calls before PIPE-01', () => {

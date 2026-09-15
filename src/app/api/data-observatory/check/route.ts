@@ -3,6 +3,7 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireAdmin } from '@/lib/require-admin';
 import { prisma } from '@/lib/prisma';
 import { getTastytradeClient } from '@/lib/tastytrade';
+import { finnhubCached, finnhubErrorLine } from '@/lib/convergence/finnhub-cache';
 // OBSERVATORY-01: what each feed costs, derived from the call sites — counts only, no rates.
 import { FEED_COST, callsMade, type FeedProvider } from '@/lib/observatory/feedCost';
 
@@ -19,6 +20,11 @@ interface CheckResult {
   lastValue: string;
   latency: string;
   rawData: unknown;
+  // TRADE-COST-01: a slow-tier probe reads through finnhub_responses — did the
+  // row serve (no call made) and when was it fetched? null on a probe that does
+  // not read through the store (daily tier, other providers).
+  servedFromCache?: boolean | null;
+  fetchedAt?: string | null;
   dataSource?: string;
   lastConfirmedLive?: string | null;
   // OBSERVATORY-01 — every row says what it cost and what it asked about.
@@ -79,6 +85,34 @@ async function timedFetch(url: string, options?: RequestInit): Promise<{ data: u
 
 function fmtLatency(ms: number): string {
   return `${ms}ms`;
+}
+
+/** TRADE-COST-01: a refused slow-tier probe — the error line and whether a call was paid for. */
+class ProbeRefused extends Error {
+  constructor(message: string, public readonly upstreamCalls: number) {
+    super(message);
+    this.name = 'ProbeRefused';
+  }
+}
+const refusedFacts = (e: unknown) =>
+  e instanceof ProbeRefused ? { upstreamCalls: e.upstreamCalls, servedFromCache: false, fetchedAt: null } : {};
+
+/**
+ * TRADE-COST-01: a slow-tier probe reads through the SAME helper the scan
+ * uses (src/lib/convergence/finnhub-cache.ts). A row inside its TTL serves —
+ * upstreamCalls 0, servedFromCache true, the row's fetched_at; a miss buys the
+ * call and stores it, so the scan reads what the check just paid for when the
+ * params match (they match for eps, revenue, price-target, recommendation,
+ * revenue-breakdown2, financials-reported and financials ic; feeds 8, 9, 11,
+ * 12 and 13 send different params and read their own rows). A vendor refusal
+ * throws ProbeRefused with the stale row's age — never the stale row.
+ */
+async function cachedProbe(endpoint: string, symbol: string, params: Record<string, string>, finnhubKey: string): Promise<{ data: unknown; latencyMs: number; cache: { servedFromCache: boolean; fetchedAt: string; upstreamCalls: number } }> {
+  const start = performance.now();
+  const ans = await finnhubCached({ endpoint, symbol, params, apiKey: finnhubKey });
+  const latencyMs = Math.round(performance.now() - start);
+  if (!ans.ok) throw new ProbeRefused(finnhubErrorLine(ans), ans.upstreamCalled ? 1 : 0);
+  return { data: ans.data, latencyMs, cache: { servedFromCache: ans.meta.servedFromCache, fetchedAt: ans.meta.fetchedAt, upstreamCalls: ans.meta.servedFromCache ? 0 : 1 } };
 }
 
 function formatBillions(val: number): string {
@@ -155,9 +189,7 @@ function checkBasicMetrics(metricResult: FinnhubMetricData, latencyMs: number): 
 
 async function checkEPSEstimates(symbol: string, finnhubKey: string): Promise<CheckResult> {
   try {
-    const { data, latencyMs } = await timedFetch(
-      `${FINNHUB_BASE}/stock/eps-estimate?symbol=${symbol}&freq=quarterly&token=${finnhubKey}`
-    );
+    const { data, latencyMs, cache } = await cachedProbe('stock/eps-estimate', symbol, { freq: 'quarterly' }, finnhubKey);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const d = data as any;
     const items = d?.data || [];
@@ -169,17 +201,16 @@ async function checkEPSEstimates(symbol: string, finnhubKey: string): Promise<Ch
       lastValue: latest?.epsAvg != null ? `Next: $${latest.epsAvg} avg` : 'NULL',
       latency: fmtLatency(latencyMs),
       rawData: data,
+      ...cache,
     };
   } catch (e) {
-    return { id: 3, source: 'EPS Estimates', endpoint: '/stock/eps-estimate', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null };
+    return { id: 3, source: 'EPS Estimates', endpoint: '/stock/eps-estimate', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null, ...refusedFacts(e) };
   }
 }
 
 async function checkRevenueEstimates(symbol: string, finnhubKey: string): Promise<CheckResult> {
   try {
-    const { data, latencyMs } = await timedFetch(
-      `${FINNHUB_BASE}/stock/revenue-estimate?symbol=${symbol}&freq=quarterly&token=${finnhubKey}`
-    );
+    const { data, latencyMs, cache } = await cachedProbe('stock/revenue-estimate', symbol, { freq: 'quarterly' }, finnhubKey);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const d = data as any;
     const items = d?.data || [];
@@ -192,17 +223,16 @@ async function checkRevenueEstimates(symbol: string, finnhubKey: string): Promis
       lastValue: revAvg != null ? `Next: ${formatBillions(revAvg)}` : 'NULL',
       latency: fmtLatency(latencyMs),
       rawData: data,
+      ...cache,
     };
   } catch (e) {
-    return { id: 4, source: 'Revenue Estimates', endpoint: '/stock/revenue-estimate', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null };
+    return { id: 4, source: 'Revenue Estimates', endpoint: '/stock/revenue-estimate', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null, ...refusedFacts(e) };
   }
 }
 
 async function checkPriceTargets(symbol: string, finnhubKey: string): Promise<CheckResult> {
   try {
-    const { data, latencyMs } = await timedFetch(
-      `${FINNHUB_BASE}/stock/price-target?symbol=${symbol}&token=${finnhubKey}`
-    );
+    const { data, latencyMs, cache } = await cachedProbe('stock/price-target', symbol, {}, finnhubKey);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const d = data as any;
     return {
@@ -212,9 +242,10 @@ async function checkPriceTargets(symbol: string, finnhubKey: string): Promise<Ch
       lastValue: d?.targetMean != null ? `Mean: $${d.targetMean} (${d.numberOfAnalysts ?? '?'} analysts)` : 'NULL',
       latency: fmtLatency(latencyMs),
       rawData: data,
+      ...cache,
     };
   } catch (e) {
-    return { id: 5, source: 'Price Targets', endpoint: '/stock/price-target', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null };
+    return { id: 5, source: 'Price Targets', endpoint: '/stock/price-target', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null, ...refusedFacts(e) };
   }
 }
 
@@ -244,9 +275,7 @@ async function checkUpgradesDowngrades(symbol: string, finnhubKey: string): Prom
 
 async function checkRecommendations(symbol: string, finnhubKey: string): Promise<CheckResult> {
   try {
-    const { data, latencyMs } = await timedFetch(
-      `${FINNHUB_BASE}/stock/recommendation?symbol=${symbol}&token=${finnhubKey}`
-    );
+    const { data, latencyMs, cache } = await cachedProbe('stock/recommendation', symbol, {}, finnhubKey);
     const items = Array.isArray(data) ? data : [];
     const latest = items[0];
     const buyCount = latest ? (latest.strongBuy || 0) + (latest.buy || 0) : 0;
@@ -258,17 +287,16 @@ async function checkRecommendations(symbol: string, finnhubKey: string): Promise
       lastValue: latest ? `Buy: ${buyCount} / Hold: ${holdCount}` : 'NULL',
       latency: fmtLatency(latencyMs),
       rawData: items.slice(0, 5),
+      ...cache,
     };
   } catch (e) {
-    return { id: 7, source: 'Recommendations', endpoint: '/stock/recommendation', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null };
+    return { id: 7, source: 'Recommendations', endpoint: '/stock/recommendation', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null, ...refusedFacts(e) };
   }
 }
 
 async function checkEarningsHistory(symbol: string, finnhubKey: string): Promise<CheckResult> {
   try {
-    const { data, latencyMs } = await timedFetch(
-      `${FINNHUB_BASE}/stock/earnings?symbol=${symbol}&limit=40&token=${finnhubKey}`
-    );
+    const { data, latencyMs, cache } = await cachedProbe('stock/earnings', symbol, { limit: '40' }, finnhubKey);
     const items = Array.isArray(data) ? data : [];
     const beats = items.filter((e: { actual?: number; estimate?: number }) => e.actual != null && e.estimate != null && e.actual > e.estimate).length;
     const rate = items.length > 0 ? Math.round((beats / items.length) * 100) : 0;
@@ -279,17 +307,16 @@ async function checkEarningsHistory(symbol: string, finnhubKey: string): Promise
       lastValue: items.length > 0 ? `Beat rate: ${rate}% (${items.length} qtrs)` : 'NULL',
       latency: fmtLatency(latencyMs),
       rawData: items.slice(0, 5),
+      ...cache,
     };
   } catch (e) {
-    return { id: 8, source: 'Earnings History', endpoint: '/stock/earnings', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null };
+    return { id: 8, source: 'Earnings History', endpoint: '/stock/earnings', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null, ...refusedFacts(e) };
   }
 }
 
 async function checkEarningsQuality(symbol: string, finnhubKey: string): Promise<CheckResult> {
   try {
-    const { data, latencyMs } = await timedFetch(
-      `${FINNHUB_BASE}/stock/earnings-quality-score?symbol=${symbol}&freq=annual&token=${finnhubKey}`
-    );
+    const { data, latencyMs, cache } = await cachedProbe('stock/earnings-quality-score', symbol, { freq: 'annual' }, finnhubKey);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const d = data as any;
     const items = d?.data || [];
@@ -313,32 +340,31 @@ async function checkEarningsQuality(symbol: string, finnhubKey: string): Promise
       lastValue,
       latency: fmtLatency(latencyMs),
       rawData: data,
+      ...cache,
     };
   } catch (e) {
-    return { id: 9, source: 'Earnings Quality', endpoint: '/stock/earnings-quality', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null };
+    return { id: 9, source: 'Earnings Quality', endpoint: '/stock/earnings-quality', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null, ...refusedFacts(e) };
   }
 }
 
 async function checkRevenueBreakdown(symbol: string, finnhubKey: string): Promise<CheckResult> {
   try {
-    const { data, latencyMs } = await timedFetch(
-      `${FINNHUB_BASE}/stock/revenue-breakdown2?symbol=${symbol}&token=${finnhubKey}`
-    );
+    const { data, latencyMs, cache } = await cachedProbe('stock/revenue-breakdown2', symbol, {}, finnhubKey);
     const latency = fmtLatency(latencyMs);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const annual = (data as any)?.data?.annual;
     if (!annual) {
-      return { id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2', status: 'BROKEN', records: '0 seg', lastValue: 'No annual data', latency, rawData: data };
+      return { id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2', status: 'BROKEN', records: '0 seg', lastValue: 'No annual data', latency, rawData: data, ...cache };
     }
     // revenue_by_product is array of arrays — flatten one level
     const revenueGroups = annual.revenue_by_product ?? annual.ebit_by_product;
     if (!revenueGroups || revenueGroups.length === 0) {
-      return { id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2', status: 'BROKEN', records: '0 seg', lastValue: 'No revenue segments', latency, rawData: data };
+      return { id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2', status: 'BROKEN', records: '0 seg', lastValue: 'No revenue segments', latency, rawData: data, ...cache };
     }
     // Take the first group (most recent reporting standard)
     const segments = revenueGroups[0];
     if (!Array.isArray(segments) || segments.length === 0) {
-      return { id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2', status: 'BROKEN', records: '0 seg', lastValue: 'Empty segment group', latency, rawData: data };
+      return { id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2', status: 'BROKEN', records: '0 seg', lastValue: 'Empty segment group', latency, rawData: data, ...cache };
     }
     // Get most recent value for each segment
     const parsed = segments
@@ -349,7 +375,7 @@ async function checkRevenueBreakdown(symbol: string, finnhubKey: string): Promis
       }))
       .filter((s: { value: number }) => s.value > 0);
     if (parsed.length === 0) {
-      return { id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2', status: 'BROKEN', records: '0 seg', lastValue: 'No positive segments', latency, rawData: data };
+      return { id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2', status: 'BROKEN', records: '0 seg', lastValue: 'No positive segments', latency, rawData: data, ...cache };
     }
     const top = parsed.sort((a: { value: number }, b: { value: number }) => b.value - a.value)[0];
     const period = top.period;
@@ -360,17 +386,16 @@ async function checkRevenueBreakdown(symbol: string, finnhubKey: string): Promis
       lastValue: `${top.label.replace(/ \(Post-FY\d+\)| \(Pre-FY\d+\)/g, '')}: ${(top.value / 1e9).toFixed(1)}B (${period})`,
       latency,
       rawData: data,
+      ...cache,
     };
   } catch (e) {
-    return { id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null };
+    return { id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null, ...refusedFacts(e) };
   }
 }
 
 async function checkInsiderTransactions(symbol: string, finnhubKey: string): Promise<CheckResult> {
   try {
-    const { data, latencyMs } = await timedFetch(
-      `${FINNHUB_BASE}/stock/insider-transactions?symbol=${symbol}&token=${finnhubKey}`
-    );
+    const { data, latencyMs, cache } = await cachedProbe('stock/insider-transactions', symbol, {}, finnhubKey);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const d = data as any;
     const items = d?.data || [];
@@ -382,17 +407,16 @@ async function checkInsiderTransactions(symbol: string, finnhubKey: string): Pro
       lastValue: latest ? `${latest.transactionCode ?? '?'}: ${latest.change ?? '?'} (${latest.transactionDate ?? '?'})` : 'NULL',
       latency: fmtLatency(latencyMs),
       rawData: items.slice(0, 5),
+      ...cache,
     };
   } catch (e) {
-    return { id: 11, source: 'Insider Transactions', endpoint: '/stock/insider-trans', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null };
+    return { id: 11, source: 'Insider Transactions', endpoint: '/stock/insider-trans', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null, ...refusedFacts(e) };
   }
 }
 
 async function checkInsiderSentiment(symbol: string, finnhubKey: string): Promise<CheckResult> {
   try {
-    const { data, latencyMs } = await timedFetch(
-      `${FINNHUB_BASE}/stock/insider-sentiment?symbol=${symbol}&from=2024-01-01&to=2025-12-31&token=${finnhubKey}`
-    );
+    const { data, latencyMs, cache } = await cachedProbe('stock/insider-sentiment', symbol, { from: '2024-01-01', to: '2025-12-31' }, finnhubKey);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const d = data as any;
     const items = d?.data || [];
@@ -404,17 +428,16 @@ async function checkInsiderSentiment(symbol: string, finnhubKey: string): Promis
       lastValue: latest?.mspr != null ? `MSPR: ${latest.mspr.toFixed(2)}` : 'Empty response',
       latency: fmtLatency(latencyMs),
       rawData: items.slice(-5),
+      ...cache,
     };
   } catch (e) {
-    return { id: 12, source: 'Insider Sentiment', endpoint: '/stock/insider-sentiment', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null };
+    return { id: 12, source: 'Insider Sentiment', endpoint: '/stock/insider-sentiment', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null, ...refusedFacts(e) };
   }
 }
 
 async function checkInstitutionalOwnership(symbol: string, finnhubKey: string): Promise<CheckResult> {
   try {
-    const { data, latencyMs } = await timedFetch(
-      `${FINNHUB_BASE}/stock/ownership?symbol=${symbol}&limit=5&token=${finnhubKey}`
-    );
+    const { data, latencyMs, cache } = await cachedProbe('stock/ownership', symbol, { limit: '5' }, finnhubKey);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const d = data as any;
     const items = d?.ownership || [];
@@ -429,9 +452,10 @@ async function checkInstitutionalOwnership(symbol: string, finnhubKey: string): 
       lastValue: hasName ? first.name : (items.length > 0 ? 'Names: NULL' : 'NULL'),
       latency: fmtLatency(latencyMs),
       rawData: items,
+      ...cache,
     };
   } catch (e) {
-    return { id: 13, source: 'Institutional Own.', endpoint: '/stock/ownership', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null };
+    return { id: 13, source: 'Institutional Own.', endpoint: '/stock/ownership', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null, ...refusedFacts(e) };
   }
 }
 
@@ -456,9 +480,7 @@ async function checkPeers(symbol: string, finnhubKey: string): Promise<CheckResu
 
 async function checkFinancialsAnnual(symbol: string, finnhubKey: string): Promise<CheckResult> {
   try {
-    const { data, latencyMs } = await timedFetch(
-      `${FINNHUB_BASE}/stock/financials-reported?symbol=${symbol}&freq=annual&token=${finnhubKey}`
-    );
+    const { data, latencyMs, cache } = await cachedProbe('stock/financials-reported', symbol, { freq: 'annual' }, finnhubKey);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const d = data as any;
     const items = d?.data || [];
@@ -473,17 +495,16 @@ async function checkFinancialsAnnual(symbol: string, finnhubKey: string): Promis
       lastValue: hasRevenue ? `${items.length} reports found` : 'All fields NULL',
       latency: fmtLatency(latencyMs),
       rawData: latest ? { year: latest.year, form: latest.form, fieldCount: report?.ic?.length } : null,
+      ...cache,
     };
   } catch (e) {
-    return { id: 15, source: 'Financials (Annual)', endpoint: '/stock/financials-rep', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null };
+    return { id: 15, source: 'Financials (Annual)', endpoint: '/stock/financials-rep', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null, ...refusedFacts(e) };
   }
 }
 
 async function checkFinancialsQuarterly(symbol: string, finnhubKey: string): Promise<CheckResult> {
   try {
-    const { data, latencyMs } = await timedFetch(
-      `${FINNHUB_BASE}/stock/financials?symbol=${symbol}&statement=ic&freq=quarterly&token=${finnhubKey}`
-    );
+    const { data, latencyMs, cache } = await cachedProbe('stock/financials', symbol, { statement: 'ic', freq: 'quarterly' }, finnhubKey);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const d = data as any;
     const items = d?.financials || [];
@@ -502,9 +523,10 @@ async function checkFinancialsQuarterly(symbol: string, finnhubKey: string): Pro
       lastValue: missing.length > 0 ? `${missing[0]}: NULL` : `${present.length} fields present`,
       latency: fmtLatency(latencyMs),
       rawData: latest,
+      ...cache,
     };
   } catch (e) {
-    return { id: 16, source: 'Financials (Quarterly)', endpoint: '/stock/financials', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null };
+    return { id: 16, source: 'Financials (Quarterly)', endpoint: '/stock/financials', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null, ...refusedFacts(e) };
   }
 }
 
@@ -1118,6 +1140,9 @@ export async function GET(request: NextRequest) {
     r.usedByScan = cost.usedByScan;
     r.scanCitation = cost.scanCitation;
     r.probedSymbol = cost.probes === 'none' ? null : cost.probes === 'selected' ? symbol : cost.probes;
+    // TRADE-COST-01: a probe that did not read through the store says so with null, not false.
+    if (r.servedFromCache === undefined) r.servedFromCache = null;
+    if (r.fetchedAt === undefined) r.fetchedAt = null;
   }
 
   // ── Write results to ObservatoryHealthLog ──

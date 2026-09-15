@@ -3,6 +3,8 @@ import { fetchFinnhubBatch, fetchFredMacro, fetchFredDailySeries, fetchTTCandles
 import { computeCrossAssetCorrelations } from './cross-asset';
 import type { CrossAssetCorrelations } from './types';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
+import { finnhubMeterSnapshot, withFinnhubMeter } from './finnhub-cache';
+import type { FinnhubFetchedAt } from './types';
 import { fetchChainAndBuildCards, isMarketOpen } from './chain-fetcher';
 import type { ChainFetchStats, ChainFetchResult, PerTickerChainStats } from './chain-fetcher';
 import type { RejectionReason, StrategyCard } from '@/lib/strategy-builder';
@@ -85,6 +87,9 @@ interface PreScoreRow {
 interface RankedRow {
   rank: number;
   symbol: string;
+  // TRADE-COST-01: when each Finnhub answer behind this row was fetched (endpoint?params → meta).
+  // Read by nothing that scores; carried so the card can say how old each value is.
+  data_age: FinnhubFetchedAt;
   // MIG-1: null = gate EXCLUDED (zero computable signals) — rendered '—', never 0
   composite: number | null;
   vol_edge: number | null;
@@ -116,7 +121,11 @@ export interface PipelineResult {
     scored: number;
     final_9: string[];
     pipeline_runtime_ms: number;
+    // TRADE-COST-01: MEASURED by the run's meter — every upstream Finnhub call this
+    // run actually made (the batch's 8×N ceiling is no longer reported as a count).
     finnhub_calls_made: number;
+    // TRADE-COST-01: slow-tier answers served from finnhub_responses within their TTL.
+    finnhub_cache_hits: number;
     finnhub_errors: number;
     fred_cached: boolean;
     candle_symbols_fetched: number;
@@ -366,7 +375,26 @@ export async function runPipeline(
   universe?: string,
   onProgress?: (event: { step: string; label: string; data: Record<string, unknown> }) => void,
 ): Promise<PipelineResult> {
+  // TRADE-COST-01: every Finnhub call the run makes is counted on ONE meter
+  // (finnhub-cache.ts) — pipeline_summary.finnhub_calls_made is measured, not asserted.
+  const { result } = await withFinnhubMeter(() => runPipelineMetered(limit, userId, universe, onProgress));
+  return result;
+}
+
+async function runPipelineMetered(
+  limit: number = 20,
+  userId?: string,
+  universe?: string,
+  onProgress?: (event: { step: string; label: string; data: Record<string, unknown> }) => void,
+): Promise<PipelineResult> {
   const pipelineStart = Date.now();
+  // TRADE-COST-01: fetched_at of every Finnhub answer, per symbol, merged from
+  // every fetcher's result as it lands — read by nothing that scores.
+  const finnhubAgeMap = new Map<string, FinnhubFetchedAt>();
+  const noteAge = (symbol: string, r: { fetchedAt?: FinnhubFetchedAt }): void => {
+    if (!r.fetchedAt) return;
+    finnhubAgeMap.set(symbol, { ...(finnhubAgeMap.get(symbol) ?? {}), ...r.fetchedAt });
+  };
   const errors: string[] = [];
   const dataGaps: string[] = [];
 
@@ -550,6 +578,7 @@ export async function runPipeline(
   const peerFetchPromises = survivors.map(async (item) => {
     try {
       const result = await fetchPeerTickers(item.symbol);
+      noteAge(item.symbol, result);
       if (result.data && result.data.length > 0) {
         finnhubPeersMap[item.symbol] = result.data;
       }
@@ -773,6 +802,11 @@ export async function runPipeline(
     errors.push(...msgs.slice(0, 50).map(m => `Step E (finnhub feed) FAILED: ${m}`));
     if (msgs.length > 50) errors.push(`Step E (finnhub feed): ${msgs.length - 50} further feed failure(s) truncated — see server logs`);
   }
+  // TRADE-COST-01: an answer the vendor gave that could NOT be stored is declared
+  // on its own line — the feed was available, the cache row was not written.
+  if (finnhubResult.stats.store_errors.length > 0) {
+    errors.push(...finnhubResult.stats.store_errors.slice(0, 20).map(m => `Step E (finnhub cache store) FAILED: ${m}`));
+  }
 
   // Fetch annual financials per symbol (for Piotroski YoY signals)
   const annualFinancialsMap = new Map<string, AnnualFinancials | null>();
@@ -780,6 +814,7 @@ export async function runPipeline(
     try {
       const result = await fetchAnnualFinancials(symbol);
       annualFinancialsMap.set(symbol, result.data);
+      noteAge(symbol, result);
       if (result.error) errors.push(`Step E (annual-financials ${symbol}): ${result.error}`);
     } catch (e: unknown) {
       // KILL-4: a thrown fetch is DECLARED like the result.error path above —
@@ -821,6 +856,7 @@ export async function runPipeline(
         try {
           const result = await fetchNewsSentiment(symbol);
           newsSentimentMap.set(symbol, result.data);
+          noteAge(symbol, result);
           if (result.error) errors.push(`Step E3 (news-sentiment ${symbol}): ${result.error}`);
         } catch (e: unknown) {
           // KILL-4: a thrown fetch is DECLARED like the result.error path above
@@ -838,6 +874,7 @@ export async function runPipeline(
         try {
           const result = await fetchFinnhubNewsSentiment(symbol);
           finbertMap.set(symbol, result.data);
+          noteAge(symbol, result);
           if (result.error) errors.push(`Step E4 (finbert ${symbol}): ${result.error}`);
         } catch (e: unknown) {
           // KILL-4: a thrown fetch is DECLARED like the result.error path above
@@ -855,6 +892,7 @@ export async function runPipeline(
         try {
           const result = await fetchFinnhubEarningsQuality(symbol);
           earningsQualityMap.set(symbol, result.data);
+          noteAge(symbol, result);
           if (result.error) errors.push(`Step E5 (earnings-quality ${symbol}): ${result.error}`);
         } catch (e: unknown) {
           // KILL-4: a thrown fetch is DECLARED like the result.error path above
@@ -872,6 +910,7 @@ export async function runPipeline(
         try {
           const result = await fetchFinnhubInstitutionalOwnership(symbol);
           institutionalOwnershipMap.set(symbol, result.data);
+          noteAge(symbol, result);
           if (result.error) errors.push(`Step E6 (institutional-ownership ${symbol}): ${result.error}`);
         } catch (e: unknown) {
           // KILL-4: a thrown fetch is DECLARED like the result.error path above
@@ -889,6 +928,7 @@ export async function runPipeline(
         try {
           const result = await fetchFinnhubRevenueBreakdown(symbol);
           revenueBreakdownMap.set(symbol, result.data);
+          noteAge(symbol, result);
           if (result.error) errors.push(`Step E7 (revenue-breakdown ${symbol}): ${result.error}`);
         } catch (e: unknown) {
           // KILL-4: a thrown fetch is DECLARED like the result.error path above
@@ -906,6 +946,7 @@ export async function runPipeline(
         try {
           const result = await fetchQuarterlyFinancials(symbol);
           quarterlyFinancialsMap.set(symbol, result.data);
+          noteAge(symbol, result);
           if (result.error) errors.push(`Step E8 (quarterly-financials ${symbol}): ${result.error}`);
         } catch (e: unknown) {
           // KILL-4: a thrown fetch is DECLARED like the result.error path above
@@ -940,6 +981,7 @@ export async function runPipeline(
         try {
           const result = await fetchInsiderTransactions(symbol);
           secForm4Map.set(symbol, result.data);
+          noteAge(symbol, result);
           if (result.error) errors.push(`Step E10 (insider-tx ${symbol}): ${result.error}`);
         } catch (e: unknown) {
           // KILL-4: a thrown fetch is DECLARED like the result.error path above
@@ -975,6 +1017,7 @@ export async function runPipeline(
       for (const symbol of topSymbols) {
         const result = await fetchFinnhubEbitdaEstimates(symbol);
         ebitdaEstimateMap.set(symbol, result.data);
+        noteAge(symbol, result);
         if (result.error) errors.push(`Step I1 (ebitda-estimate ${symbol}): ${result.error}`);
         await new Promise(r => setTimeout(r, 200));
       }
@@ -986,6 +1029,7 @@ export async function runPipeline(
       for (const symbol of topSymbols) {
         const result = await fetchFinnhubEbitEstimates(symbol);
         ebitEstimateMap.set(symbol, result.data);
+        noteAge(symbol, result);
         if (result.error) errors.push(`Step I2 (ebit-estimate ${symbol}): ${result.error}`);
         await new Promise(r => setTimeout(r, 200));
       }
@@ -997,6 +1041,7 @@ export async function runPipeline(
       for (const symbol of topSymbols) {
         const result = await fetchFinnhubDividendHistory(symbol);
         dividendHistoryMap.set(symbol, result.data);
+        noteAge(symbol, result);
         if (result.error) errors.push(`Step I3 (dividend ${symbol}): ${result.error}`);
         await new Promise(r => setTimeout(r, 200));
       }
@@ -1008,6 +1053,7 @@ export async function runPipeline(
       for (const symbol of topSymbols) {
         const result = await fetchFinnhubPriceMetrics(symbol);
         priceMetricsMap.set(symbol, result.data);
+        noteAge(symbol, result);
         if (result.error) errors.push(`Step I4 (price-metric ${symbol}): ${result.error}`);
         await new Promise(r => setTimeout(r, 200));
       }
@@ -1019,6 +1065,7 @@ export async function runPipeline(
       for (const symbol of topSymbols) {
         const result = await fetchFinnhubFundOwnership(symbol);
         fundOwnershipMap.set(symbol, result.data);
+        noteAge(symbol, result);
         if (result.error) errors.push(`Step I5 (fund-ownership ${symbol}): ${result.error}`);
         await new Promise(r => setTimeout(r, 200));
       }
@@ -1041,6 +1088,7 @@ export async function runPipeline(
       for (const symbol of topSymbols) {
         const result = await fetchFinnhubEarningsCalendar(symbol);
         earningsCalendarMap.set(symbol, result.data);
+        noteAge(symbol, result);
         if (result.error) errors.push(`Step I7 (earnings-calendar ${symbol}): ${result.error}`);
         await new Promise(r => setTimeout(r, 200));
       }
@@ -1151,20 +1199,24 @@ export async function runPipeline(
     scannerData: TTScannerData;
     finnhubData: FinnhubData;
     scoring: FullScoringResult;
+    dataAge: FinnhubFetchedAt;
   }[] = [];
 
   for (const symbol of topSymbols) {
     const scannerData = scannerMap.get(symbol);
     if (!scannerData) continue;
 
-    const finnhubData = finnhubResult.data.get(symbol) || {
+    const finnhubData: FinnhubData = finnhubResult.data.get(symbol) || {
       fundamentals: null,
       recommendations: [],
       insiderSentiment: [],
       earnings: [],
       estimateData: null,
       feedErrors: [],
+      fetchedAt: {},
+      storeErrors: [],
     };
+    noteAge(symbol, finnhubData);
 
     // Assemble ConvergenceInput (same structure as single-ticker route)
     const convergenceInput: ConvergenceInput = {
@@ -1194,11 +1246,12 @@ export async function runPipeline(
       peerGroupAssignment,
       textPeerGroups: Object.keys(textPeerGroups).length > 0 ? textPeerGroups : undefined,
       vrpHistory: vrpHistoryMap.get(symbol) ?? null,
+      finnhubFetchedAt: finnhubAgeMap.get(symbol) ?? null,
     };
 
     try {
       const scoring = scoreAll(convergenceInput);
-      scoredTickers.push({ symbol, scannerData, finnhubData, scoring });
+      scoredTickers.push({ symbol, scannerData, finnhubData, scoring, dataAge: finnhubAgeMap.get(symbol) ?? {} });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       errors.push(`Step F (score ${symbol}): ${msg}`);
@@ -1256,6 +1309,7 @@ export async function runPipeline(
         peerGroupAssignment,
         textPeerGroups: Object.keys(textPeerGroups).length > 0 ? textPeerGroups : undefined,
         vrpHistory: vrpHistoryMap.get(ticker.symbol) ?? null,
+        finnhubFetchedAt: finnhubAgeMap.get(ticker.symbol) ?? null,
       };
 
       try {
@@ -1782,6 +1836,7 @@ export async function runPipeline(
             peerGroupAssignment,
             textPeerGroups: Object.keys(textPeerGroups).length > 0 ? textPeerGroups : undefined,
             vrpHistory: vrpHistoryMap.get(ticker.symbol) ?? null,
+            finnhubFetchedAt: finnhubAgeMap.get(ticker.symbol) ?? null,
           };
 
           try {
@@ -1931,6 +1986,7 @@ export async function runPipeline(
       peerGroupAssignment,
       textPeerGroups: Object.keys(textPeerGroups).length > 0 ? textPeerGroups : undefined,
       vrpHistory: vrpHistoryMap.get(row.symbol) ?? null,
+      finnhubFetchedAt: finnhubAgeMap.get(row.symbol) ?? null,
     };
 
     try {
@@ -1971,6 +2027,8 @@ export async function runPipeline(
   }
 
   const pipelineMs = Date.now() - pipelineStart;
+  const meter = finnhubMeterSnapshot();
+  if (!meter) throw new Error('runPipelineMetered ran outside withFinnhubMeter — the Finnhub call count would be unmeasured');
 
   const result: PipelineResult = {
     pipeline_summary: {
@@ -1981,7 +2039,8 @@ export async function runPipeline(
       scored: scoredTickers.length,
       final_9: top9.map(r => r.symbol),
       pipeline_runtime_ms: pipelineMs,
-      finnhub_calls_made: finnhubResult.stats.calls_made,
+      finnhub_calls_made: meter.upstream,
+      finnhub_cache_hits: meter.hits,
       finnhub_errors: finnhubResult.stats.errors,
       fred_cached: fredResult.cached,
       candle_symbols_fetched: candleStats.symbols_with_data,
@@ -2285,6 +2344,7 @@ function buildRankedRows(
     scannerData: TTScannerData;
     finnhubData: FinnhubData;
     scoring: FullScoringResult;
+    dataAge: FinnhubFetchedAt;
   }[],
 ): RankedRow[] {
   // Sort by composite score descending. MIG-1: a null composite (all gates
@@ -2343,6 +2403,7 @@ function buildRankedRows(
     return {
       rank: idx + 1,
       symbol: t.symbol,
+      data_age: t.dataAge,
       composite: s.composite.score,
       vol_edge: s.vol_edge.score,
       quality: s.quality.score,

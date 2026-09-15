@@ -46,6 +46,27 @@ export interface FinnhubFundamentals {
   fieldCount: number;
 }
 
+// TRADE-COST-01: fetched_at for ONE Finnhub answer — rides alongside every
+// value the composite scores (ConvergenceInput.finnhubFetchedAt), so a later
+// PR can show data age on the card. A hit carries the ORIGINAL fetch time;
+// nothing is presented as fresher than it is. Client-safe (types only).
+export type FinnhubTier = 'quarterly' | 'weekly' | 'monthly' | 'daily';
+
+export interface FinnhubFetchMeta {
+  /** endpoint plus its key params, e.g. "stock/financials?freq=quarterly&statement=bs" */
+  key: string;
+  endpoint: string;
+  tier: FinnhubTier;
+  /** 0 = daily tier, never cached */
+  ttlMs: number;
+  /** ISO — when the vendor answered */
+  fetchedAt: string;
+  servedFromCache: boolean;
+}
+
+/** Per symbol: every Finnhub answer that fed it, keyed by FinnhubFetchMeta.key. */
+export type FinnhubFetchedAt = Record<string, FinnhubFetchMeta>;
+
 export interface FinnhubRecommendation {
   buy: number;
   hold: number;
@@ -118,6 +139,10 @@ export interface FinnhubEstimateData {
   // KILL-4 failure channel: sub-feed fetch/HTTP/parse failures — an empty
   // array with an entry here means "feed unavailable", not "no estimates".
   feedErrors?: string[];
+  // TRADE-COST-01: when each sub-feed's answer was fetched (a hit keeps its original time).
+  fetchedAt?: FinnhubFetchedAt;
+  // TRADE-COST-01: a vendor answer that was returned but could NOT be stored — declared, never swallowed.
+  storeErrors?: string[];
 }
 
 export interface FredMacroData {
@@ -478,6 +503,10 @@ export interface ConvergenceInput {
   textPeerGroups?: Record<string, TextBasedPeerGroup>;
   // EDGE-4: ticker's own historical VRP distribution — null/absent ⇒ VRP excluded
   vrpHistory?: VrpHistoryData | null;
+  // TRADE-COST-01: fetched_at of every Finnhub answer above, keyed by
+  // endpoint?params — read by nothing that scores (no weight, no gate), carried
+  // so the card can say how old each value is.
+  finnhubFetchedAt?: FinnhubFetchedAt | null;
 }
 
 // ===== DATA CONFIDENCE =====
