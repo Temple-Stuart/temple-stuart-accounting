@@ -845,6 +845,49 @@ const shellLine = `${shellFiles.length} files scanned, ${shellOffenders} outside
 if (shellOffenders || nestedShells) console.log(`✖ The shell law FAILED — ${shellLine} ${nestedShells} tree(s) mount more than one shell.`);
 else console.log(`✔ The shell law passed — ${shellLine} Every tree mounts at most one header and one rail.`);
 
+// ── THE FOUNDER-BROKER LAW (TT-01) ──────────────────────────────────────────
+// The convergence scanner's TastyTrade client is the ENV client — the founder's
+// own OAuth grant (src/lib/tastytrade.ts:7-13). No per-user credential exists
+// (connect/route.ts:59-60 stores the literal 'oauth'). Until TT-02 lands a real
+// per-user flow, NO NON-ADMIN PATH MAY REACH getTastytradeClient() THROUGH THE
+// SCAN: every route that drives the pipeline gates on requireAdmin() BEFORE its
+// cache read and BEFORE runPipeline, and the scan cache is keyed by the user.
+//
+// DEFERRED (TT-02): the ruled import law — "no file under src/lib/convergence
+// may import the env-backed factory" — CANNOT pass today: chain-fetcher.ts:142,
+// data-fetchers.ts:2347, pipeline.ts:381 and outcome-tracker.ts:160 have no
+// per-user client to import instead, because none exists. Enforcing it now
+// would fail every build with no legal fix. It lands with TT-02's client.
+// walkSrc collects .tsx only; API routes are .ts, so walk them here.
+function walkRoutes(dir: string, out: string[] = []): string[] {
+  for (const e of readdirSync(resolve(ROOT, dir), { withFileTypes: true })) {
+    const rel = `${dir}/${e.name}`;
+    if (e.isDirectory()) walkRoutes(rel, out);
+    else if (e.name === 'route.ts' || e.name === 'route.tsx') out.push(rel);
+  }
+  return out;
+}
+const SCAN_DRIVERS: string[] = [];
+for (const f of walkRoutes('src/app/api')) {
+  const body = readFileSync(resolve(ROOT, f), 'utf8');
+  if (/from '@\/lib\/convergence\/pipeline'/.test(body) && /runPipeline\(/.test(body.split('\n').filter((l) => !/^\s*(\*|\/\/)/.test(l)).join('\n'))) SCAN_DRIVERS.push(f);
+}
+let brokerViolations = 0;
+for (const f of SCAN_DRIVERS) {
+  const code = readFileSync(resolve(ROOT, f), 'utf8').split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
+  const gateAt = code.indexOf('requireAdmin()');
+  const runAt = code.indexOf('runPipeline(');
+  const cacheAt = code.search(/(?<!function )getFromCache\(/);
+  if (gateAt < 0) { brokerViolations += 1; violations.push(`founder-broker law: ${f} drives the scan without requireAdmin() — a non-admin would spend the founder's broker (TT-01)`); continue; }
+  if (runAt >= 0 && gateAt > runAt) { brokerViolations += 1; violations.push(`founder-broker law: ${f} calls runPipeline before requireAdmin() — the gate must come first (TT-01)`); }
+  if (cacheAt >= 0 && gateAt > cacheAt) { brokerViolations += 1; violations.push(`founder-broker law: ${f} reads the scan cache before requireAdmin() — a refused viewer must get nothing computed (TT-01)`); }
+  if (/function getCacheKey\(/.test(code) && !/function getCacheKey\(userId/.test(code)) { brokerViolations += 1; violations.push(`founder-broker law: ${f} keys the scan cache without the user — one user's scan_snapshots-derived rows were served to another (TT-01)`); }
+}
+if (SCAN_DRIVERS.length === 0) { brokerViolations += 1; violations.push('founder-broker law: no route drives runPipeline — the scan entry moved and this law no longer watches it (TT-01)'); }
+if (brokerViolations) console.log(`✖ The founder-broker law FAILED — ${brokerViolations} violation(s).`);
+else console.log(`✔ The founder-broker law passed — ${SCAN_DRIVERS.length} scan driver(s) gate on requireAdmin() before the cache and the pipeline, and key the cache by user. The convergence-import law is DEFERRED to TT-02 (no per-user client exists to import).`);
+
+
 // ── THE TOOL LAW (TOOL-LAW-01) ──────────────────────────────────────────────
 // ONE TOOL, ONE PAGE, ITS OWN PIPE. Five navigation PRs each partly undid the
 // last on this surface because each fixed a symptom instead of stating the

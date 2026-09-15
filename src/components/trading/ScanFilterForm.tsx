@@ -1,5 +1,6 @@
 'use client';
 
+import { FOUNDER_BROKER_LINE } from '@/lib/tastytrade/founderBroker';
 import type { MutableRefObject } from 'react';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
 import { AVAILABLE_STRATEGIES } from '@/lib/convergence/filter-types';
@@ -31,6 +32,8 @@ interface Props {
   /** The ref ConvergenceIntelligence registers its scan trigger into. */
   scanTriggerRef: MutableRefObject<(() => void) | null>;
   ttConnected?: boolean | null;
+  /** TT-01: this viewer is not the admin — the scan will be refused, and the form says so with the ONE line. */
+  founderBroker?: boolean;
   /** TRADING-PR-3: render the "Scan filters" SectionCard band. Default true
    *  (dashboard, standalone). The home launcher passes false — it already wraps
    *  the form in the single "Launch a module" band, so a second band would be a
@@ -51,7 +54,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 }
 
 export default function ScanFilterForm({
-  scannerUniverse, setScannerUniverse, scannerFilters, onFiltersChange, scanTriggerRef, ttConnected, showHeader = true, }: Props & { }) {
+  scannerUniverse, setScannerUniverse, scannerFilters, onFiltersChange, scanTriggerRef, ttConnected, founderBroker = false, showHeader = true, }: Props & { }) {
   const f = scannerFilters;
   const runScan = () => { if (scanTriggerRef.current) scanTriggerRef.current(); };
 
@@ -178,6 +181,11 @@ export default function ScanFilterForm({
       </div>
 
       {/* Scan CTA */}
+      {/* TT-01: a non-admin is told, here, before the click, in the same words the
+          route refuses with — one const (src/lib/tastytrade/founderBroker.ts). */}
+      {founderBroker && (
+        <p role="status" data-founder-broker className="border-t border-border pt-3 font-mono text-[11px] text-brand-amber">{FOUNDER_BROKER_LINE}</p>
+      )}
       <div className="flex justify-end border-t border-border pt-3">
         <button type="button" onClick={runScan}
           className="px-8 py-2 bg-brand-purple text-white font-bold text-sm rounded transition-colors hover:bg-brand-purple-hover whitespace-nowrap">

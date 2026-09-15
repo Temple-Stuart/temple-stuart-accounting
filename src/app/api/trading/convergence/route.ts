@@ -6,6 +6,8 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
 import { requireScanRateLimit } from '@/lib/scan-rate-limit';
 import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/require-admin';
+import { FOUNDER_BROKER_LINE, FOUNDER_BROKER_REASON, scanGate } from '@/lib/tastytrade/founderBroker';
 
 export const maxDuration = 300;
 
@@ -20,12 +22,17 @@ interface CacheEntry {
 
 const cache = new Map<string, CacheEntry>();
 
-function getCacheKey(limit: number, universe?: string): string {
-  return `convergence_${limit}_${universe ?? 'all'}`;
+// TT-01: the key carries the USER. It was (limit, universe) only, and a
+// cache-miss run by user A — whose result rows carry A's OWN scan_snapshots
+// history as `vrpHistory` (pipeline.ts:1130-1132 → snapshot-logger, WHERE userId
+// = A) — was served to user B on the next hit for 15 minutes with no user check.
+// One user's per-user series, computed from their session, shown to another.
+function getCacheKey(userId: string, limit: number, universe?: string): string {
+  return `convergence_${userId}_${limit}_${universe ?? 'all'}`;
 }
 
-function getFromCache(limit: number, universe?: string): CacheEntry | null {
-  const key = getCacheKey(limit, universe);
+function getFromCache(userId: string, limit: number, universe?: string): CacheEntry | null {
+  const key = getCacheKey(userId, limit, universe);
   const entry = cache.get(key);
   if (!entry) return null;
   if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
@@ -35,8 +42,8 @@ function getFromCache(limit: number, universe?: string): CacheEntry | null {
   return entry;
 }
 
-function setCache(limit: number, data: PipelineResult, universe?: string): void {
-  const key = getCacheKey(limit, universe);
+function setCache(userId: string, limit: number, data: PipelineResult, universe?: string): void {
+  const key = getCacheKey(userId, limit, universe);
   cache.set(key, { data, timestamp: Date.now() });
 }
 
@@ -80,6 +87,31 @@ export async function GET(request: Request) {
     const universe = searchParams.get('universe') ?? undefined;
     const stream = searchParams.get('stream') === 'true';
 
+    // TT-01 — THE FOUNDER'S BROKER. The pipeline's TastyTrade client is the env
+    // client (src/lib/tastytrade.ts:7-13): Alex's own grant. No per-user
+    // credential exists (connect/route.ts:59-60 stores the literal 'oauth'), so
+    // an entitled customer's scan spent HIS broker session. Until TT-02's
+    // per-user OAuth flow, only the admin may spend it — the same requireAdmin
+    // SEC4 put on the account routes and never on the scan. Refused BEFORE the
+    // cache read, the quota and any upstream call: nothing computed, nothing
+    // borrowed. The SSE path cannot carry a 403 (EventSource turns it into
+    // "connection lost"), so it says the line as its one error event instead.
+    const admin = await requireAdmin();
+    const gate = scanGate(!(admin instanceof NextResponse));
+    if (gate.refused) {
+      if (stream) {
+        const encoder = new TextEncoder();
+        const body = new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ step: 'error', label: gate.line, data: { reason: gate.reason } })}\n\n`));
+            controller.close();
+          },
+        });
+        return new Response(body, { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'X-Scan-Refused': FOUNDER_BROKER_REASON } });
+      }
+      return NextResponse.json({ error: FOUNDER_BROKER_LINE, reason: FOUNDER_BROKER_REASON }, { status: 403, headers: { 'X-Scan-Refused': FOUNDER_BROKER_REASON } });
+    }
+
     // ===== SSE STREAMING PATH =====
     if (stream) {
       // SCAN-SPEND-QUOTA: the stream path NEVER reads the cache — every stream
@@ -113,7 +145,7 @@ export async function GET(request: Request) {
               result.data_gaps.push(`snapshot_logging: SKIPPED — user lookup failed (${snapshotLookupError}); this run left no scan_snapshots audit trail`);
             }
             // Cache the final result so the follow-up fetch is instant
-            setCache(limit, result, universe);
+            setCache(gateUser.id, limit, result, universe);
             send({ step: 'done', label: 'Complete', data: {} });
           } catch (err) {
             send({ step: 'error', label: err instanceof Error ? err.message : String(err), data: {} });
@@ -134,7 +166,7 @@ export async function GET(request: Request) {
 
     // Check cache (unless refresh=true)
     if (!refresh) {
-      const cached = getFromCache(limit, universe);
+      const cached = getFromCache(gateUser.id, limit, universe);
       if (cached) {
         const age = Math.round((Date.now() - cached.timestamp) / 1000);
         console.log(`[Convergence Route] Cache HIT (age=${age}s, limit=${limit})`);
@@ -179,7 +211,7 @@ export async function GET(request: Request) {
     console.log(`[Convergence Route] Pipeline completed in ${elapsed}ms`);
 
     // Store in cache
-    setCache(limit, result, universe);
+    setCache(gateUser.id, limit, result, universe);
 
     return NextResponse.json(result, {
       headers: {

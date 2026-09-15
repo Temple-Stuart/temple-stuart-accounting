@@ -804,6 +804,7 @@ export default function TradingPage() {
             onFiltersChange={handleFiltersChange}
             scanTriggerRef={scanTriggerRef}
             ttConnected={ttConnected}
+            founderBroker={!isOwner}
           />
 
           {/* Performance — the 7-metric row (was ROW 2 in the sticky zone). */}
