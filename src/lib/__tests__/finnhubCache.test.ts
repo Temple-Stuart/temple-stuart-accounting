@@ -65,8 +65,8 @@ test('SCAN_COST reads the census: Finnhub 26 cold / 8 warm, the line prints both
   assert.equal(finnhub.callsPerSymbol, 26);
   assert.equal(finnhub.warmCallsPerSymbol, 8);
   for (const c of SCAN_COST) assert.ok((c.warmCallsPerSymbol ?? 0) <= (c.callsPerSymbol ?? 0), `${c.provider} warm ≤ cold`);
-  assert.match(scanCostLine(), /One scan of one symbol = 26 Finnhub, 1 TastyTrade, 6 SEC — plus, once per scan, 1 SEC, 24 FRED\./);
-  assert.match(scanCostLine(), /Warm \(every slow-tier row within its TTL\) = 8 Finnhub, 1 TastyTrade, 6 SEC — plus, once per scan, 1 SEC, 24 FRED\./);
+  assert.match(scanCostLine(), /One scan of one symbol = 26 Finnhub, 1 TastyTrade, 6 SEC — plus, once per scan, 1 SEC, 23 FRED, 6 Cboe\./);
+  assert.match(scanCostLine(), /Warm \(every slow-tier row within its TTL\) = 8 Finnhub, 1 TastyTrade, 6 SEC — plus, once per scan, 1 SEC, 23 FRED\./);
 });
 
 test('the key: symbol uppercased, params sorted and token-free, a rolling window keyed relatively; the URL keeps the sent order', () => {

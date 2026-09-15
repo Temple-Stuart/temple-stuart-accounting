@@ -25,6 +25,7 @@ import type {
 import type { TickerDetail } from '@/lib/convergence/filter-engine';
 import { POP_MODEL_LABEL, EV_MODEL_LABEL, MODEL_NUMBER_TOOLTIP } from '@/lib/convergence/modelLabels';
 import { TickerChapter } from './ConvergenceIntelligence';
+import { GATE_TITLES } from '@/lib/convergence/gateCards';
 
 
 interface Headline {
@@ -275,6 +276,16 @@ function ExpandedDetail({ detail, card, rejections }: { detail: TickerDetail; ca
           <div className="rounded px-3 py-2 text-xs text-text-faint leading-relaxed bg-bg-row">
             {why.regime_context}
           </div>
+        </div>
+      )}
+
+      {/* MODEL-02: the gates that scored this card (why.scored_by — computed by MODEL-01, rendered since 2026-09-16) */}
+      {why?.scored_by && (
+        <div className="text-[10px] font-mono text-text-muted" title="The gates whose numbers entered this card's score; an excluded gate had zero computable signals and its weight was renormalized away, never imputed.">
+          Scored on {why.scored_by.length} of 4 gates: <span className="text-text-secondary">{why.scored_by.map((g) => GATE_TITLES[g]).join(', ')}</span>
+          {(['vol_edge', 'quality', 'regime', 'info_edge'] as const).filter((g) => !why.scored_by.includes(g)).length > 0 && (
+            <span> · excluded: {(['vol_edge', 'quality', 'regime', 'info_edge'] as const).filter((g) => !why.scored_by.includes(g)).map((g) => GATE_TITLES[g]).join(', ')}</span>
+          )}
         </div>
       )}
 

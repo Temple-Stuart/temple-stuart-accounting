@@ -12,6 +12,8 @@
  */
 import type { GateKey, PremiumSide, ScoreModel } from './types';
 import { MODEL_WEIGHTS_SET_ON } from './input-signs';
+import { AVAILABLE_STRATEGIES, AVAILABLE_STRATEGIES_SET_ON } from './filter-types';
+import { CBOE_INPUTS_SET_ON } from './cboe-daily';
 
 export interface GateCard {
   gate: GateKey;
@@ -30,7 +32,7 @@ export interface GateCard {
   isNot: string;
 }
 
-const GATE_TITLES: Record<GateKey, string> = {
+export const GATE_TITLES: Record<GateKey, string> = {
   vol_edge: 'Vol Edge',
   quality: 'Quality',
   regime: 'Regime',
@@ -73,18 +75,18 @@ export const GATE_CARDS: readonly GateCard[] = [
   {
     gate: 'regime', side: 'SELL', model: 'seller', title: GATE_TITLES.regime,
     purpose: 'Does the macro and volatility backdrop favor the best premium-selling structure right now?',
-    inputs: 'FRED growth (6 series) and inflation (5 series) → regime probabilities with the yield-curve, high-yield-spread and cross-asset modifiers → the best strategy\'s fit in the strategy-regime matrix 0.70, VIX/VIX3M 0.20, VVIX 0.10, then × the ticker\'s SPY correlation (TastyTrade).',
+    inputs: `FRED growth (6 series) and inflation (5 series) → regime probabilities with the yield-curve, high-yield-spread and cross-asset modifiers → the best strategy's fit in the strategy-regime matrix 0.70, VIX/VIX3M 0.20 (FRED VIXCLS ÷ VXVCLS), VVIX 0.10 (Cboe VVIX daily file, 24h cache), then × the ticker's SPY correlation (TastyTrade). On the trace at WEIGHT 0, present and dated: the VIX term structure (Cboe VIX9D ÷ VIX, VIX ÷ VIX3M, VIX3M ÷ VIX6M) and SKEW (Cboe) — set ${CBOE_INPUTS_SET_ON}, tuned by nobody.`,
     weight: '0.25 static → 0.20–0.30 by regime — set at #1082 (2026-06-20) and EDGE-6 (2026-07-08); untuned on any outcome.',
     evidence: 'Hamilton 1989 (the regime framework); Bansal & Stivers 2023 (the VIX overlay); CBOE PUT and BXM index history behind the matrix.',
-    isNot: 'The VVIX leg has been dead since 2026-07-08 — VVIXCLS is not a FRED series (DATA-01); MODEL-02 restores it from Cboe. The survival brake (VIX/VIX3M > 1 or VVIX ≥ 110) is declared on every card and suppresses short-premium suggestions; it does not move this number.',
+    isNot: 'The VVIX leg was dead from 2026-07-08 (VVIXCLS is not a FRED series — DATA-01) and was restored 2026-09-16 from Cboe; a Cboe read that fails is declared on the brake (UNVERIFIED, with the reason), never imputed. The weight-0 term-structure and SKEW inputs move nothing. The survival brake (VIX/VIX3M > 1 or VVIX ≥ 110) is declared on every card and suppresses short-premium suggestions; it does not move this number.',
   },
   {
     gate: 'regime', side: 'BUY', model: 'buyer', title: GATE_TITLES.regime,
     purpose: 'Is the market in a state where owning volatility is affordable — the same brake, read for the buyer?',
-    inputs: 'The survival brake\'s two inputs only, same sign: VIX/VIX3M (FRED VIXCLS ÷ VXVCLS) and VVIX (dead — see the seller card).',
+    inputs: 'The survival brake\'s two inputs only, same sign: VIX/VIX3M (FRED VIXCLS ÷ VXVCLS) and VVIX (Cboe VVIX daily file — restored 2026-09-16; a failed read is declared, the gate is VIX/VIX3M alone).',
     weight: `0.25 of the buy score, equal and untuned, set ${MODEL_WEIGHTS_SET_ON}.`,
     evidence: 'STRATEGY-EVIDENCE §6 (the anti-wipeout rule — a brake applies to both sides); Park 2015 (the tail-risk premium binds when VVIX is elevated).',
-    isNot: 'Not the macro classification, the strategy matrix or the SPY-correlation multiplier — those are seller-shaped and do not enter. Until VVIX returns this gate is VIX/VIX3M alone, or EXCLUDED when that is missing.',
+    isNot: 'Not the macro classification, the strategy matrix or the SPY-correlation multiplier — those are seller-shaped and do not enter; the weight-0 Cboe term-structure and SKEW inputs do not enter either. When a brake input is missing this gate is the other alone, or EXCLUDED when both are.',
   },
   {
     gate: 'info_edge', side: 'SELL', model: 'seller', title: GATE_TITLES.info_edge,
@@ -110,6 +112,30 @@ export function gateCard(gate: GateKey, model: ScoreModel): GateCard {
   return card;
 }
 
+/**
+ * MODEL-02 STEP 5 — the strategies the filter panel USED to offer that no
+ * builder makes. Each names why, in one line, citing the builder. The panel
+ * offers exactly AVAILABLE_STRATEGIES (filter-types.ts) — the build holds the
+ * two lists disjoint and the offered list equal to the builder's names.
+ */
+export interface NotBuiltStrategy {
+  name: string;
+  reason: string;
+}
+
+export const NOT_BUILT_STRATEGIES: readonly NotBuiltStrategy[] = [
+  { name: 'Call Credit Spread', reason: 'No builder — the SELL branch (strategy-builder.ts generateStrategies) builds the put credit spread, the iron condor and the short strangle; no call-side credit spread routine exists.' },
+  { name: 'Short Straddle', reason: 'No builder — an unbounded two-leg structure at the money; the short strangle is the only unbounded structure built, and it carries the undefined-risk cap.' },
+  { name: 'Jade Lizard', reason: 'No builder — three legs (short put + short call spread); no leg-combination routine exists for it.' },
+  { name: 'Bull Call Spread', reason: 'No builder since MODEL-01 — the bullish debit structure is built on the BUY side as "Debit Spread"; the SELL branch emits a rejection line naming this one.' },
+  { name: 'Bear Call Spread', reason: 'No builder — a synonym of the call credit spread; appears only in the custom-leg namer (detectStrategyName), which nothing in the app calls.' },
+  { name: 'Bear Put Spread', reason: 'No builder — the BUY branch builds the debit spread for BULLISH direction only and declares this one not built (strategy-builder.ts rejection line).' },
+  { name: 'Bull Put Spread', reason: 'No builder under this name — it is the put credit spread, which IS built as "Put Credit Spread"; the duplicate name is retired.' },
+  { name: 'Calendar Spread', reason: 'No builder — needs two expirations; the builder evaluates one expiration at a time (chain-fetcher.ts calls generateStrategies per expiration).' },
+  { name: 'Diagonal Spread', reason: 'No builder — two expirations and two strikes; the same one-expiration limit as the calendar.' },
+  { name: 'Iron Butterfly', reason: 'No builder — an at-the-money condor variant; no strike-selection routine exists for it.' },
+];
+
 export const README_GATE_CARDS_START = '<!-- gate-cards:start — generated from src/lib/convergence/gateCards.ts by scripts/regen-gate-cards-readme.ts; the build asserts this block byte-for-byte; do not edit by hand -->';
 export const README_GATE_CARDS_END = '<!-- gate-cards:end -->';
 
@@ -124,5 +150,12 @@ export function gateCardsMarkdown(): string {
   for (const c of GATE_CARDS) {
     lines.push(`| ${c.title} | ${c.side} (${c.model} model) | ${cell(c.purpose)} | ${cell(c.inputs)} | ${cell(c.weight)} | ${cell(c.evidence)} | ${cell(c.isNot)} |`);
   }
+  // MODEL-02 STEP 5: the strategies offered are exactly the ones built; the rest are named here with a reason each.
+  lines.push('');
+  lines.push(`The filter panel offers exactly the ${AVAILABLE_STRATEGIES.length} strategies the builder makes (set ${AVAILABLE_STRATEGIES_SET_ON}): ${AVAILABLE_STRATEGIES.join(', ')}. The ${NOT_BUILT_STRATEGIES.length} below were offered until then and are not built:`);
+  lines.push('');
+  lines.push('| Not built | Why |');
+  lines.push('|---|---|');
+  for (const n of NOT_BUILT_STRATEGIES) lines.push(`| ${n.name} | ${cell(n.reason)} |`);
   return lines.join('\n');
 }

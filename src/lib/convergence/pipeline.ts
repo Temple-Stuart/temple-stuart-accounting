@@ -15,10 +15,16 @@ import type { FullScoringResult } from './composite';
 import { computePreFilter } from './pre-filter';
 import type { PreFilterResult } from './pre-filter';
 import { earningsDateSources, sideOf, stepCReason } from './side-rules';
+import { fetchCboeDaily } from './cboe-daily';
+import type { CboeDailyData } from './types';
 import { checkUndefinedRiskCap } from './undefined-risk';
 import type { UndefinedRiskCapCheck } from './undefined-risk';
 import { countUserOpenUndefinedRiskPositions } from './undefined-risk.prisma';
-import { logScanSnapshotBatch, fetchVrpHistoryBatch } from './snapshot-logger';
+import { logScanSnapshotBatch, snapshotNotAttempted, type SnapshotWriteResult } from './snapshot-logger';
+import { prismaSnapshotStore, fetchVrpHistoryBatch } from './snapshot-logger.prisma';
+import { STRUCTURE_CUT, DEEP_FETCH_MULTIPLIER } from './funnel';
+import { ETF_UNIVERSE_KEY, ETF_UNIVERSE_SET_ON, ETF_UNIVERSE_SYMBOLS, isEtfUniverseSymbol } from './etf-universe';
+import { structureCutEligibility } from './structure-cut';
 import { persistScanCandidates } from './candidate-log';
 import { prismaCandidateLogStore } from './candidate-log.prisma';
 import { numOrNull, firstNumOrNull } from '@/lib/parse-num';
@@ -103,6 +109,9 @@ interface RankedRow {
   regime: number | null;
   info_edge: number | null;
   convergence: string;
+  /** MODEL-02 addendum: the composite's count of gates above 50 and how many of the four gates scored — Step G reads these, never the string. */
+  categories_above_50: number;
+  scored_gates: number;
   direction: string;
   strategy: string;
   sector: string | null;
@@ -139,6 +148,8 @@ export interface PipelineResult {
     scan_run_id: string | null;
     candidates_logged: number;
     candidates_withheld: boolean;
+    /** MODEL-02: what the scan_snapshots write actually did — `written` only when every row landed; the reason otherwise. */
+    snapshot: SnapshotWriteResult;
     /** MODEL-01: the mode the scan ran in, the undefined-risk cap check, and the cards per side */
     scan_side: ScanSide;
     allow_undefined_risk: boolean;
@@ -352,6 +363,8 @@ function getUniverseSymbols(universe?: string): string[] {
   switch (universe) {
     case 'sp500': return [...SP500];
     case 'nasdaq100': return [...NASDAQ_100];
+    // MODEL-02 STEP 4: the index & sector ETF layer, its own selectable set (etf-universe.ts, dated).
+    case ETF_UNIVERSE_KEY: return [...new Set(ETF_UNIVERSE_SYMBOLS)];
     case 'russell2000': return [...RUSSELL_2000];
     case 'sp400': return [...SP400];
     case 'dow30': return [...DOW_30];
@@ -443,6 +456,7 @@ async function runPipelineMetered(
   console.log('[Pipeline] Step A: Fetching TT scanner data...');
   let allScannerData: TTScannerData[] = [];
   let stepAFetchedAt = new Date().toISOString();
+  let stepAMissing: string[] = [];
   try {
     const client = getTastytradeClient();
     await client.accountsAndCustomersService.getCustomerResource();
@@ -476,6 +490,16 @@ async function runPipelineMetered(
     stepAFetchedAt = new Date().toISOString();
     allScannerData = parseMarketMetrics(items);
     console.log(`[Pipeline] Step A: Got ${allScannerData.length} tickers from TT scanner`);
+    // MODEL-02 STEP 4: a requested symbol TastyTrade returned no row for is
+    // REPORTED — an ETF_UNIVERSE member by name on the errors list — never
+    // silently absent from the funnel.
+    const returned = new Set(allScannerData.map(d => d.symbol));
+    stepAMissing = allSymbols.filter(sym => !returned.has(sym));
+    if (stepAMissing.length > 0) {
+      dataGaps.push(`Step A: ${stepAMissing.length} of ${allSymbols.length} requested symbols returned no TastyTrade market-metrics row (${stepAMissing.slice(0, 20).join(', ')}${stepAMissing.length > 20 ? `, +${stepAMissing.length - 20} more` : ''})`);
+      const etfMissing = stepAMissing.filter(isEtfUniverseSymbol);
+      if (etfMissing.length > 0) errors.push(`Step A (ETF universe ${ETF_UNIVERSE_SET_ON}): TastyTrade returned no market-metrics row for ${etfMissing.join(', ')} — reported, not dropped`);
+    }
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     errors.push(`Step A (TT Scanner): ${msg}`);
@@ -485,6 +509,8 @@ async function runPipelineMetered(
   const totalUniverse = allScannerData.length;
   onProgress?.({ step: 'step_a', label: 'TT Scanner', data: {
     total_universe: allScannerData.length,
+    /** MODEL-02: requested symbols TastyTrade returned no market-metrics row for (ETF members are also on errors[]). */
+    missing_symbols: stepAMissing,
     market_open: isMarketOpen().open,
     fetched_at: stepAFetchedAt,
     source: 'TastyTrade',
@@ -595,7 +621,7 @@ async function runPipelineMetered(
     earnings_warnings: earningsWarnings,
   } });
 
-  // Use pre-filter to narrow the candidate set: take top (limit * 2) non-excluded
+  // Use pre-filter to narrow the candidate set: take top (limit × DEEP_FETCH_MULTIPLIER) non-excluded
   // tickers by preScore. This reduces the universe BEFORE hard filters + Finnhub.
   // MODEL-01: in BOTH mode the limit*2 seats split evenly between the sides
   // (each ranked by its own pre-score); a side with fewer eligible symbols
@@ -610,7 +636,7 @@ async function runPipelineMetered(
     const buyTake = Math.min(buy.length, seats - sellTake);
     return [...sell.slice(0, sellTake), ...buy.slice(0, buyTake)];
   };
-  const preFilterTopN = Math.min(limit * 2, stepCIncluded.length);
+  const preFilterTopN = Math.min(limit * DEEP_FETCH_MULTIPLIER, stepCIncluded.length);
   const preFilterSelected = allocateBySide(stepCIncluded, preFilterTopN);
   const preFilterCandidates = new Set(preFilterSelected.map(r => r.symbol));
   const preFilteredScannerData = allScannerData.filter(t => preFilterCandidates.has(t.symbol));
@@ -718,7 +744,8 @@ async function runPipelineMetered(
   // exclusions don't leave us short on tickers for the final 9
   // MODEL-01: seats split per side in BOTH mode (see allocateBySide) — the
   // Finnhub fetch count is unchanged.
-  const fetchCount = Math.min(limit * 2, preScores.length);
+  // MODEL-02: this second cut never binds — preScores derives from the survivors of the first (reported, kept for the shape of pre_scores).
+  const fetchCount = Math.min(limit * DEEP_FETCH_MULTIPLIER, preScores.length);
   const topN = allocateBySide(preScores.map(r => ({ ...r, side: symbolSide.get(r.symbol) as PremiumSide })), fetchCount);
   const topSymbols = topN.map(r => r.symbol);
   console.log(`[Pipeline] Step D: Top ${topSymbols.length} selected for Finnhub fetch (limit=${limit}, fetch=2x)`);
@@ -741,9 +768,13 @@ async function runPipelineMetered(
 
   // ===== STEP H: Macro & Regime Data =====
   const fredStart = Date.now();
-  const [fredResult, fredDailyResult] = await Promise.all([
+  // MODEL-02: Cboe's daily VVIX / VIX term structure / SKEW ride alongside FRED —
+  // free, no key, 24 h in-process TTL (cboe-daily.ts). A file that fails is an
+  // error line here and a declared null on the regime trace, never imputed.
+  const [fredResult, fredDailyResult, cboeDaily] = await Promise.all([
     fetchFredMacro(),
     fetchFredDailySeries(),
+    fetchCboeDaily(),
   ]);
   const fredMs = Date.now() - fredStart;
 
@@ -753,6 +784,15 @@ async function runPipelineMetered(
   if (fredDailyResult.error) {
     errors.push(`Step H (FRED daily): ${fredDailyResult.error}`);
   }
+  for (const e of cboeDaily.errors) {
+    errors.push(`Step H (Cboe daily): ${e}`);
+    dataGaps.push(`cboe_daily: ${e} — the regime input is null this run (declared on the brake / vol_conditioners trace, never imputed)`);
+  }
+  const cboeRow = (name: string, key: string, p: CboeDailyData['vvix'], file: string) => ({
+    name, key, value: p?.value ?? null, source: 'Cboe', series_id: file,
+    fetched_at: p?.fetched_at ?? null, data_date: p?.date ?? null,
+    null_reason: p ? null : (cboeDaily.errors.find(e => e.startsWith(`${file.replace('_History.csv', '')}:`)) ?? 'absent from the Cboe read'),
+  });
 
   const crossAssetCorrelations: CrossAssetCorrelations | null = computeCrossAssetCorrelations(fredDailyResult.data);
 
@@ -785,8 +825,13 @@ async function runPipelineMetered(
       // VXV) — the prior "Short-Term (9d)" label was factually wrong.
       { name: 'VIX 3-Month (VIX3M)', key: 'vxvShortTerm', value: fredResult.data.vxvShortTerm,
         source: 'FRED', series_id: 'VXVCLS', null_reason: fredResult.data.vxvShortTerm == null ? 'FRED returned null' : null },
-      { name: 'VVIX', key: 'vvix', value: fredResult.data.vvix,
-        source: 'FRED', series_id: 'VVIXCLS', null_reason: fredResult.data.vvix == null ? 'FRED returned null' : null },
+      // MODEL-02: VVIX and the term structure / SKEW from Cboe (FRED never had VVIXCLS)
+      cboeRow('VVIX', 'vvix', cboeDaily.vvix, 'VVIX_History.csv'),
+      cboeRow('VIX 9-Day (Cboe)', 'vix9d', cboeDaily.vix9d, 'VIX9D_History.csv'),
+      cboeRow('VIX (Cboe)', 'vix_cboe', cboeDaily.vix, 'VIX_History.csv'),
+      cboeRow('VIX 3-Month (Cboe)', 'vix3m_cboe', cboeDaily.vix3m, 'VIX3M_History.csv'),
+      cboeRow('VIX 6-Month (Cboe)', 'vix6m', cboeDaily.vix6m, 'VIX6M_History.csv'),
+      cboeRow('SKEW', 'skew', cboeDaily.skew, 'SKEW_History.csv'),
       { name: 'Fed Funds Rate', key: 'fedFunds', value: fredResult.data.fedFunds,
         source: 'FRED', series_id: 'FEDFUNDS', null_reason: fredResult.data.fedFunds == null ? 'FRED returned null' : null },
       { name: '10Y Treasury', key: 'treasury10y', value: fredResult.data.treasury10y,
@@ -1319,6 +1364,7 @@ async function runPipelineMetered(
       finnhubFundOwnership: fundOwnershipMap.get(symbol) ?? null,
       edgar8kScan: edgar8kMap.get(symbol) ?? null,
       crossAssetCorrelations,
+      cboeDaily,
       peerStats,
       peerGroupAssignment,
       textPeerGroups: Object.keys(textPeerGroups).length > 0 ? textPeerGroups : undefined,
@@ -1383,6 +1429,7 @@ async function runPipelineMetered(
         finnhubFundOwnership: fundOwnershipMap.get(ticker.symbol) ?? null,
         edgar8kScan: edgar8kMap.get(ticker.symbol) ?? null,
         crossAssetCorrelations,
+        cboeDaily,
         peerStats,
         peerGroupAssignment,
         textPeerGroups: Object.keys(textPeerGroups).length > 0 ? textPeerGroups : undefined,
@@ -1648,9 +1695,8 @@ async function runPipelineMetered(
   onProgress?.({ step: 'step_m', label: 'Final Selection', data: {
     fetched_at: new Date().toISOString(),
     total_scored: rankedRows.length,
-    eligible: top9.length + alsoScored.filter(
-      (r: any) => parseInt(r.convergence.split('/')[0], 10) >= 3 && r.quality >= 40
-    ).length,
+    // MODEL-02 addendum: the same rule as rankAndDiversify (structure-cut.ts), never a retyped copy.
+    eligible: top9.length + alsoScored.filter(r => structureCutEligibility(r, isEtfUniverseSymbol(r.symbol)).eligible).length,
     selected: top9.length,
     sector_distribution: sectorDistribution,
     adjustments: diversification.adjustments,
@@ -1671,14 +1717,9 @@ async function runPipelineMetered(
     excluded: rankedRows
       .filter(r => !top9.find(t => t.symbol === r.symbol))
       .map(r => {
-        const catAbove50 = parseInt(r.convergence.split('/')[0], 10);
-        const reason = catAbove50 < 3
-          ? `convergence ${r.convergence} — below 3/4 minimum`
-          : r.quality === null
-          ? `quality gate EXCLUDED (zero computable signals) — 40-floor not evaluable, missing is not treated as passing`
-          : r.quality < 40
-          ? `quality ${r.quality} — below floor of 40`
-          : `sector cap or rank`;
+        // MODEL-02 addendum: the reason is the rule's own verdict (structure-cut.ts) — an ETF member is judged on the gates that can score.
+        const verdict = structureCutEligibility(r, isEtfUniverseSymbol(r.symbol));
+        const reason = verdict.eligible ? 'sector cap or rank' : verdict.reason;
         return {
           symbol: r.symbol,
           composite: r.composite,
@@ -1939,6 +1980,7 @@ async function runPipelineMetered(
             finnhubFundOwnership: fundOwnershipMap.get(ticker.symbol) ?? null,
             edgar8kScan: edgar8kMap.get(ticker.symbol) ?? null,
             crossAssetCorrelations,
+            cboeDaily,
             peerStats,
             peerGroupAssignment,
             textPeerGroups: Object.keys(textPeerGroups).length > 0 ? textPeerGroups : undefined,
@@ -2089,6 +2131,7 @@ async function runPipelineMetered(
       finnhubFundOwnership: fundOwnershipMap.get(row.symbol) ?? null,
       edgar8kScan: edgar8kMap.get(row.symbol) ?? null,
       crossAssetCorrelations,
+      cboeDaily,
       peerStats,
       peerGroupAssignment,
       textPeerGroups: Object.keys(textPeerGroups).length > 0 ? textPeerGroups : undefined,
@@ -2170,6 +2213,37 @@ async function runPipelineMetered(
     dataGaps.push('trade_cards: chain fetch failed or no valid expirations found');
   }
 
+  // ===== SNAPSHOT LOGGING (MODEL-02: awaited — the log never lies) =====
+  // Every scored ticker is written to scan_snapshots, one insert each, and the
+  // write's result is part of the scan: `pipeline_summary.snapshot` says how
+  // many rows landed and, per ticker, why any did not. A failed write is an
+  // error line and a data gap on the response — never `saved: true` by
+  // assumption. Until 2026-09-16 this was `void`ed and reported as saved.
+  let snapshot: SnapshotWriteResult;
+  if (userId) {
+    snapshot = await logScanSnapshotBatch(
+      userId,
+      scoredTickers.map(t => ({
+        symbol: t.symbol,
+        scoring: t.scoring,
+        spotPrice: t.scoring.vol_edge.breakdown.technicals.indicators.latest_close ?? undefined,
+        iv30: t.scannerData.iv30 ?? undefined,
+        hv30: t.scannerData.hv30 ?? undefined,
+        ivPercentile: t.scannerData.ivPercentile ?? undefined,
+        vixLevel: fredResult.data.vix ?? undefined,
+      })),
+      prismaSnapshotStore,
+    );
+    if (!snapshot.written) {
+      errors.push(`Step T (snapshot): ${snapshot.reason}`);
+      dataGaps.push(`scan_snapshots: ${snapshot.rows_written} of ${snapshot.rows_attempted} rows written — ${snapshot.reason}`);
+      console.error(`[Pipeline] scan_snapshots write incomplete: ${snapshot.reason}`);
+    }
+  } else {
+    snapshot = snapshotNotAttempted('no user session — snapshot not attempted');
+    dataGaps.push('scan_snapshots: not attempted (no user session)');
+  }
+
   const pipelineMs = Date.now() - pipelineStart;
   const meter = finnhubMeterSnapshot();
   if (!meter) throw new Error('runPipelineMetered ran outside withFinnhubMeter — the Finnhub call count would be unmeasured');
@@ -2188,6 +2262,7 @@ async function runPipelineMetered(
       scan_run_id: scanRunId,
       candidates_logged: candidatesLogged,
       candidates_withheld: candidatesWithheld,
+      snapshot,
       scan_side: options.side,
       allow_undefined_risk: options.allowUndefinedRisk,
       undefined_risk_cap: undefinedRiskCap,
@@ -2226,31 +2301,15 @@ async function runPipelineMetered(
     errors,
   };
 
-  console.log(`[Pipeline] Complete in ${pipelineMs}ms. Final 9: ${top9.map(r => r.symbol).join(', ')}`);
-
-  // ===== SNAPSHOT LOGGING (fire-and-forget) =====
-  // Persist scored results for outcome tracking / backtesting (Phase 5).
-  // Does not block the response; errors logged but never propagate.
-  if (userId) {
-    void logScanSnapshotBatch(
-      userId,
-      scoredTickers.map(t => ({
-        symbol: t.symbol,
-        scoring: t.scoring,
-        spotPrice: t.scoring.vol_edge.breakdown.technicals.indicators.latest_close ?? undefined,
-        iv30: t.scannerData.iv30 ?? undefined,
-        hv30: t.scannerData.hv30 ?? undefined,
-        ivPercentile: t.scannerData.ivPercentile ?? undefined,
-        vixLevel: fredResult.data.vix ?? undefined,
-      })),
-    );
-  }
+  console.log(`[Pipeline] Complete in ${pipelineMs}ms. Structure cut (${STRUCTURE_CUT} per side): ${top9.length} — ${top9.map(r => r.symbol).join(', ')}`);
 
   onProgress?.({ step: 'step_t', label: 'Save & Return', data: {
     fetched_at: new Date().toISOString(),
-    saved: userId != null,
+    // MODEL-02: `saved` is the write's own verdict, never the presence of a session.
+    saved: snapshot.written,
     user_id_present: userId != null,
-    symbols_logged: userId != null ? scoredTickers.length : 0,
+    symbols_logged: snapshot.rows_written,
+    snapshot,
     pipeline_runtime_ms: pipelineMs,
     final_9: top9.map(r => r.symbol),
     source: 'Azure PostgreSQL',
@@ -2275,6 +2334,16 @@ function applyHardFilters(tickers: TTScannerData[], regShoSymbols: Set<string>):
     for (const t of current) {
       if (t.marketCap != null && t.marketCap > 2_000_000_000) {
         passed.push(t);
+      } else if (t.marketCap == null && isEtfUniverseSymbol(t.symbol)) {
+        // MODEL-02 STEP 4: an index/sector ETF has no issuer market cap — the
+        // $2B floor is an issuer-size test and is DECLARED not applicable to an
+        // ETF_UNIVERSE member (dated const, 15 names), never imputed. Passes with
+        // a warning on the record; a null cap on any other symbol still fails.
+        passed.push(t);
+        warningTickers.set(t.symbol, {
+          filter: 'Market Cap',
+          reason: `ETF_UNIVERSE member (${ETF_UNIVERSE_SET_ON}): issuer market cap is not applicable to an index/sector ETF — the $2B floor was not evaluated, declared`,
+        });
       } else {
         failedTickers.push(t);
       }
@@ -2360,11 +2429,13 @@ function applyHardFilters(tickers: TTScannerData[], regShoSymbols: Set<string>):
     const failedTickers: TTScannerData[] = [];
     for (const t of current) {
       if (t.borrowRate == null) {
-        // Borrow rate data unavailable — pass but flag warning
+        // Borrow rate data unavailable — pass but flag warning (MODEL-02: merged
+        // with an earlier warning on the same symbol, never overwriting it)
         passed.push(t);
+        const prior = warningTickers.get(t.symbol);
         warningTickers.set(t.symbol, {
-          filter: 'Borrow Rate',
-          reason: 'Borrow rate data unavailable — flagged for review',
+          filter: prior ? `${prior.filter} + Borrow Rate` : 'Borrow Rate',
+          reason: prior ? `${prior.reason}; borrow rate data unavailable — flagged for review` : 'Borrow rate data unavailable — flagged for review',
         });
       } else if (t.borrowRate < 50) {
         passed.push(t);
@@ -2533,8 +2604,12 @@ function buildRankedRows(
     // Extract beat streak from quality breakdown
     const beatStreak = s.quality.breakdown.profitability.earnings_quality.earnings_detail.streak;
 
-    // Build convergence string
-    const convergence = `${s.composite.categories_above_50}/4`;
+    // Build convergence string. MODEL-02 addendum: an ETF_UNIVERSE member is
+    // judged on the gates that can score, and the string says so.
+    const scoredGates = s.composite.scored_by.length;
+    const convergence = isEtfUniverseSymbol(t.symbol) && scoredGates < 4
+      ? `${s.composite.categories_above_50}/${scoredGates} (scored on ${scoredGates} of 4 gates)`
+      : `${s.composite.categories_above_50}/4`;
 
     // Build key_signal summary
     const signals: string[] = [];
@@ -2568,6 +2643,8 @@ function buildRankedRows(
       regime: s.regime.score,
       info_edge: s.info_edge.score,
       convergence,
+      categories_above_50: s.composite.categories_above_50,
+      scored_gates: scoredGates,
       direction: s.composite.direction,
       strategy: s.strategy_suggestion.suggested_strategy,
       sector: tt.sector,
@@ -2616,43 +2693,23 @@ function rankAndDiversify(rankedRows: RankedRow[]): {
   sectorDistribution: Record<string, number>;
 } {
   const MAX_PER_SECTOR = 2;
-  const TOP_N = 9;
+  // MODEL-02 STEP 3: the structure cut is the named, dated const in funnel.ts (was a bare 9 here).
+  const TOP_N = STRUCTURE_CUT;
   const adjustments: string[] = [];
 
   // BUG 4 fix: Enforce convergence gate — exclude tickers with < 3/4 categories above 50
   // BUG 5 fix: Enforce quality floor — exclude quality < 40, or quality 40-50 with 3+ miss streak
+  // MODEL-02 addendum: the four rules live in structure-cut.ts (pure, tested).
+  // Single names read exactly as before; an ETF_UNIVERSE member is judged on
+  // the gates that can score and the quality-null rule does not bar it.
   const eligible: RankedRow[] = [];
   for (const row of rankedRows) {
-    const catAbove50 = parseInt(row.convergence.split('/')[0], 10);
-    if (catAbove50 < 3) {
-      adjustments.push(
-        `Excluded ${row.symbol} (rank ${row.rank}, composite=${row.composite}) — convergence ${row.convergence}, below 3/4 minimum.`,
-      );
+    const verdict = structureCutEligibility(row, isEtfUniverseSymbol(row.symbol));
+    if (!verdict.eligible) {
+      adjustments.push(verdict.reason);
       continue;
     }
-    if (row.quality === null) {
-      // MIG-1: quality gate excluded — the 40-floor cannot be evaluated.
-      // Missing is NOT treated as passing (that would impute "fine").
-      adjustments.push(
-        `Excluded ${row.symbol} (rank ${row.rank}) — quality gate EXCLUDED (zero computable signals); 40-quality floor not evaluable, missing is not treated as passing.`,
-      );
-      continue;
-    }
-    if (row.quality < 40) {
-      adjustments.push(
-        `Excluded ${row.symbol} (rank ${row.rank}, quality=${row.quality}) — quality below 40 floor.`,
-      );
-      continue;
-    }
-    if (row.quality < 50 && /\d+Q MISS STREAK/.test(row.beat_streak)) {
-      const missCount = parseInt(row.beat_streak, 10);
-      if (missCount >= 3) {
-        adjustments.push(
-          `Excluded ${row.symbol} (rank ${row.rank}, quality=${row.quality}, ${row.beat_streak}) — quality <50 with consecutive miss streak ≥3.`,
-        );
-        continue;
-      }
-    }
+    if (verdict.note) adjustments.push(verdict.note);
     eligible.push(row);
   }
 

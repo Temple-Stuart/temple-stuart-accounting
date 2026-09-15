@@ -85,7 +85,7 @@ endpoints served from `finnhub_responses` inside their TTL (`prisma/migrations/2
 
 | Call | Series | Site (C) | Cadence (C) |
 |---|---|---|---|
-| `fred/series/observations?…&limit=1` | VIXCLS, DGS10, FEDFUNDS, UNRATE, A191RL1Q225SBEA, UMCSENT, T10Y2Y, T5YIE, BAMLH0A0HYM2, NFCI, ICSA, VXVCLS, **VVIXCLS**, WALCL, WTREGEN, RRPONTSYD, BAMLC0A4CBBB, T10Y3M, DTWEXBGS (19) | `data-fetchers.ts:583-603` `seriesMap`, loop `:621-643` | once per scan (`pipeline.ts:676` `fetchFredMacro`), cached 1h |
+| `fred/series/observations?…&limit=1` | VIXCLS, DGS10, FEDFUNDS, UNRATE, A191RL1Q225SBEA, UMCSENT, T10Y2Y, T5YIE, BAMLH0A0HYM2, NFCI, ICSA, VXVCLS, ~~VVIXCLS~~ (deleted by MODEL-02, 2026-09-16 — VVIX now reads from Cboe, §5), WALCL, WTREGEN, RRPONTSYD, BAMLC0A4CBBB, T10Y3M, DTWEXBGS (18) | `data-fetchers.ts:583-603` `seriesMap`, loop `:621-643` | once per scan (`pipeline.ts:676` `fetchFredMacro`), cached 1h |
 | `…series_id=PAYEMS&limit=2` | PAYEMS | `:649` | same |
 | `…series_id=CPIAUCSL&limit=13` | CPIAUCSL | `:669` | same |
 | `fetchFredDailySeries` | DGS10, SP500, DCOILWTICO daily history | `:714` `CROSS_ASSET_SERIES`, `:716` | once per scan (`pipeline.ts:677`), cached 1h |
@@ -95,6 +95,11 @@ endpoints served from `finnhub_responses` inside their TTL (`prisma/migrations/2
 "VVIX" lists 0 series). The loop records `VVIXCLS: HTTP <status>` in `errors` and leaves `vvix`
 null (`:636-641`); the API's exact status code for a nonexistent series is NV (no key here).
 Consequence in §4.4.
+
+**MODEL-02 (2026-09-16):** the VVIXCLS entry is deleted from `seriesMap`; VVIX is read from Cboe's
+free daily file (`src/lib/convergence/cboe-daily.ts`, `VVIX_History.csv`, 24h in-process cache,
+no key) together with VIX9D/VIX/VIX3M/VIX6M (term structure) and SKEW at weight 0. A Cboe read
+that fails is declared on the survival brake (UNVERIFIED with the reason), never imputed.
 
 ### 1.3 SEC EDGAR — free, no key, 10 req/s (V — `https://www.sec.gov/os/accessing-edgar-data`), 6 calls per symbol + 1 per scan
 
@@ -197,7 +202,7 @@ on 17 of 19 series (staleness is unknown for them). Scored — see §4.4 for the
 |---|---|---|
 | VIXCLS | `vix` | yes — VIX/VIX3M ratio `:661-665` |
 | VXVCLS | `vxvShortTerm` | yes — same ratio |
-| VVIXCLS | `vvix` | **wired (`:659`, weight 0.10 `:839`) but the series does not exist — always null** |
+| ~~VVIXCLS~~ | `vvix` | **was wired (`:659`, weight 0.10 `:839`) to a series that does not exist — always null until 2026-09-16; MODEL-02 deleted the FRED read and the leg now reads Cboe's VVIX daily file (`cboe-daily.ts`)** |
 | DGS10 | `treasury10y` | yes — inflation 0.15 `:283`; vol-edge GEX risk-free rate `vol-edge.ts:1016-1027` |
 | FEDFUNDS | `fedFunds` | yes — inflation 0.15 `:282` |
 | UNRATE | `unemployment` | yes — growth 0.20 `:252` |
@@ -420,7 +425,7 @@ the keys the live map actually carries.
 | modifier · cross-asset cluster | ±10 % max (`:490`, `:796-799`) | DGS10 · SP500 · DCOILWTICO daily → correlations | yes |
 | conditioner · strategy_regime | 0.70 (`:837`) | the growth × inflation composite | yes |
 | conditioner · vix_term_structure | 0.20 (`:838`) | VIXCLS ÷ VXVCLS (`:661-665`) | yes |
-| conditioner · vvix | 0.10 (`:839`) | **VVIXCLS → `vvix` — the series does not exist on FRED** (P) | **never. Dead weight** — renormalized away every scan; the survival brake's VVIX leg (`:94-105`, threshold 110) can never fire and always reports `VVIX` missing |
+| conditioner · vvix | 0.10 (`:839`) | **was VVIXCLS → `vvix` — the series does not exist on FRED** (P); **MODEL-02 (2026-09-16): Cboe `VVIX_History.csv` → `input.cboeDaily.vvix`** | **dead weight 2026-07-08 → 2026-09-16** (renormalized away every scan; the survival brake's VVIX leg could never fire); **live from MODEL-02** when the Cboe read succeeds, declared UNVERIFIED with the reason when it does not |
 | multiplier · corrSpy | 0.10 → 1.0 (`:847-852`) | TT `corr-spy-3month` | yes |
 | ancillary (not scored) | — (`:651`) | BAMLC0A4CBBB, T10Y3M, DTWEXBGS, WALCL, WTREGEN, RRPONTSYD | pulled every scan; **read by no score** |
 
@@ -436,7 +441,7 @@ STAGFLATION 0.20 / 0.30 / 0.30 / 0.20; CRISIS 0.15 / 0.40 / 0.30 / 0.15. The reg
 | # | Weight | Where | Why it never arrives | Prov. |
 |---|---|---|---|---|
 | D1 | quality · safety **HHI modifier** ×0.85–×1.03 | `quality-gate.ts:409-431` | `stock/revenue-breakdown2` never parses (P2) | S, F |
-| D2 | regime · **vvix 0.10** and the VVIX survival-brake leg | `regime.ts:839`, `:94-105` | `VVIXCLS` is not a FRED series (HTTP 404) | P |
+| D2 | regime · **vvix 0.10** and the VVIX survival-brake leg | `regime.ts:839`, `:94-105` | `VVIXCLS` is not a FRED series (HTTP 404) — **restored 2026-09-16 by MODEL-02 from Cboe (`cboe-daily.ts`)** | P → fixed |
 | D3 | info-edge · analyst **ΔTPER peer branch** | `info-edge.ts:246` | `price_target_implied_return` is never in `peerStats` | C |
 | D4 | info-edge · insider **`officerBuyCount` bump** +5/+10 | `info-edge.ts:562-563` | always 0 from the Finnhub feed | C |
 | D5 | quality · Piotroski **`gross_margin_expanding`** (quarterly path) | `quality-gate.ts:193-198` | `grossProfit` is null — the vendor's key is `grossIncome` (P5) | S |
@@ -580,7 +585,8 @@ shape; the founder's own counts are NV here).
 | Finnhub | 26 cold / 8 warm | — | yes | 6 of 26 cold; 2 of 8 warm |
 | TastyTrade | 1 REST chain + WS | 1 market-metrics per 50 symbols | no (account) | `implied-volatility-index`, `earnings.actual-eps/consensus-estimate/time-of-day` (Step A payload only); the unmapped fields in §2.4 |
 | SEC | 6 | 1 | no | `dei`; 8-K `items`; the 10-K walk via EFTS (S1) |
-| FRED | 0 | 24 | no | 6 series pulled and unscored (ancillary); 1 series that does not exist (VVIXCLS) |
+| FRED | 0 | 23 | no | 6 series pulled and unscored (ancillary); the nonexistent VVIXCLS read was deleted by MODEL-02 (2026-09-16) |
+| Cboe | 0 | 6 per process per 24h | no (no key) | VVIX, VIX9D, VIX, VIX3M, VIX6M, SKEW daily files (`cboe-daily.ts`, MODEL-02) — VVIX scored at 0.10, the rest logged at weight 0 |
 | Nasdaq Trader | 0 | 1 | no | — |
 
 ---

@@ -84,6 +84,9 @@ import type {
 import type { TickerDetail } from '@/lib/convergence/filter-engine';
 import { EXPLAINER, SECTION_HEADER, STATE, chip } from '@/lib/ds';
 import { POP_MODEL_LABEL, EV_MODEL_LABEL, EV_PER_RISK_MODEL_LABEL, HV_POP_MODEL_LABEL, MODEL_NUMBER_TOOLTIP, HV_SOURCE_NOTE } from '@/lib/convergence/modelLabels';
+import { SCAN_LIMIT_DEFAULT } from '@/lib/convergence/funnel';
+import { ETF_UNIVERSE_KEY, ETF_UNIVERSE_LABEL } from '@/lib/convergence/etf-universe';
+import { GATE_TITLES } from '@/lib/convergence/gateCards';
 
 interface Headline {
   datetime: number;
@@ -1251,6 +1254,16 @@ export function TickerCard({ detail, savedCards, savingCards, saveErrors, onSave
               </div>
             );
           })()}
+
+          {/* MODEL-02: the gates that scored this card — MODEL-01 computed why.scored_by; nothing rendered it until 2026-09-16 */}
+          {why.scored_by && (
+            <div className="text-[10px] font-mono text-text-muted px-1" title="The gates whose numbers entered this card's score. A gate with zero computable signals (an ETF's Quality and Info Edge) is excluded and the weights renormalized — never imputed.">
+              Scored on {why.scored_by.length} of 4 gates: <span className="text-text-secondary">{why.scored_by.map((g) => GATE_TITLES[g]).join(', ')}</span>
+              {(['vol_edge', 'quality', 'regime', 'info_edge'] as const).filter((g) => !why.scored_by.includes(g)).length > 0 && (
+                <span> · excluded: {(['vol_edge', 'quality', 'regime', 'info_edge'] as const).filter((g) => !why.scored_by.includes(g)).map((g) => GATE_TITLES[g]).join(', ')}</span>
+              )}
+            </div>
+          )}
 
           {/* Risk flags */}
           {why.risk_flags.length > 0 && (
@@ -2531,7 +2544,9 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   <tbody>
                     {[
                       ['VIX / VIX3M', 'FRED VIXCLS / VXVCLS', 'Step H fetch', 'Step K Regime gate (EDGE-6 conditioner + survival brake)', 'VIX measures market fear. Term structure slope tells us whether vol is in contango or backwardation', 'Slope <1 = contango = favorable for vol selling. Slope >1 = backwardation → survival brake cuts short-vol'],
-                      ['VVIX', 'FRED VVIXCLS', 'Step H fetch', 'Step K Regime gate (EDGE-6 conditioner + survival brake)', 'Volatility of volatility. Elevated VVIX means the vol surface is unstable — bad for premium selling', 'High VVIX reduces the Regime score; VVIX ≥ 110 trips the survival brake'],
+                      ['VVIX', 'Cboe VVIX_History.csv (restored 2026-09-16 — FRED never had it)', 'Step H fetch (24h cache)', 'Step K Regime gate (EDGE-6 conditioner + survival brake)', 'Volatility of volatility. Elevated VVIX means the vol surface is unstable — bad for premium selling', 'High VVIX reduces the Regime score; VVIX ≥ 110 trips the survival brake; a missing read leaves the brake UNVERIFIED with the reason'],
+                      ['VIX9D / VIX / VIX3M / VIX6M', 'Cboe daily files (MODEL-02)', 'Step H fetch (24h cache)', 'Step K Regime trace — weight 0', 'The VIX term structure at three adjacent ratios. Present, logged, dated; tuned by nobody until EDGE-01 has n', 'Weight 0 — enters no score; visible on the regime trace and the gate card'],
+                      ['SKEW', 'Cboe SKEW_History.csv (MODEL-02)', 'Step H fetch (24h cache)', 'Step K Regime trace — weight 0', 'The S&P 500 tail-risk index level', 'Weight 0 — enters no score; visible on the regime trace and the gate card'],
                       ['Fed Funds Rate', 'FRED FEDFUNDS', 'Step H fetch', 'Step K Regime gate, Black-Scholes PoP', 'Risk-free rate used in options pricing. Also signals monetary policy stance', 'Used as risk-free rate in N(d2) PoP calculation on the trade card'],
                       ['Yield Curve (10Y-2Y, 10Y-3M)', 'FRED T10Y2Y / T10Y3M', 'Step H fetch', 'Step K Regime gate', 'Inverted yield curve signals recession risk. Affects regime classification', 'Inversion detected = regime shifts toward Deflation or Stagflation'],
                       ['CPI / Inflation', 'FRED CPIAUCSL', 'Step H fetch', 'Step K Regime gate', 'Inflation level determines whether we are in Goldilocks, Reflation, or Stagflation', 'High CPI + low growth = Stagflation weights applied'],
@@ -4191,8 +4206,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
             {tData ? (
               tData.saved ? (
                 <span className="text-brand-green">Scan saved — {tData.symbols_logged} tickers logged</span>
+              ) : tData.snapshot?.rows_attempted > 0 ? (
+                <span className="text-brand-red">NOT SAVED — {tData.snapshot.rows_failed} of {tData.snapshot.rows_attempted} rows failed: {tData.snapshot.reason}</span>
               ) : (
-                <span className="text-brand-gold">Not saved — no user session</span>
+                <span className="text-brand-gold">Not saved — {tData.snapshot?.reason ?? 'no user session'}</span>
               )
             ) : (
               <span className="text-text-faint animate-pulse">waiting...</span>
@@ -4242,9 +4259,15 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
             <table className="text-[10px]">
               <tbody>
                 <tr><td className="py-0.5 pr-4 text-text-faint font-bold">Pipeline Runtime</td><td className="py-0.5 font-mono text-text-secondary">{tData.pipeline_runtime_ms}ms</td></tr>
-                <tr><td className="py-0.5 pr-4 text-text-faint font-bold">Symbols Logged</td><td className="py-0.5 font-mono text-text-secondary">{tData.symbols_logged}</td></tr>
+                <tr><td className="py-0.5 pr-4 text-text-faint font-bold">Rows written</td><td className="py-0.5 font-mono text-text-secondary">{tData.snapshot ? `${tData.snapshot.rows_written} of ${tData.snapshot.rows_attempted}` : tData.symbols_logged}</td></tr>
+                {tData.snapshot?.rows_failed > 0 && (
+                  <tr><td className="py-0.5 pr-4 text-brand-red font-bold">Rows failed</td><td className="py-0.5 font-mono text-brand-red">{tData.snapshot.rows_failed} — {tData.snapshot.failed.slice(0, 8).map((f: { ticker: string; reason: string }) => `${f.ticker}: ${f.reason}`).join(' · ')}{tData.snapshot.failed.length > 8 ? ` · +${tData.snapshot.failed.length - 8} more` : ''}</td></tr>
+                )}
+                {tData.snapshot?.reason && (
+                  <tr><td className="py-0.5 pr-4 text-text-faint font-bold">Why</td><td className="py-0.5 font-mono text-text-secondary">{tData.snapshot.reason}</td></tr>
+                )}
                 <tr><td className="py-0.5 pr-4 text-text-faint font-bold">Final 9</td><td className="py-0.5 font-mono text-text-secondary">{(tData.final_9 ?? []).join(', ')}</td></tr>
-                <tr><td className="py-0.5 pr-4 text-text-faint font-bold">Saved</td><td className="py-0.5 font-mono text-text-secondary">{tData.saved ? 'Yes' : 'No'}</td></tr>
+                <tr><td className="py-0.5 pr-4 text-text-faint font-bold">Saved</td><td className={`py-0.5 font-mono ${tData.saved ? 'text-brand-green' : 'text-brand-red'}`}>{tData.saved ? 'Yes — every row written' : 'No'}</td></tr>
                 <tr><td className="py-0.5 pr-4 text-text-faint font-bold">Source</td><td className="py-0.5 font-mono text-text-secondary">{tData.source}</td></tr>
                 <tr><td className="py-0.5 pr-4 text-text-faint font-bold">Endpoint</td><td className="py-0.5 font-mono text-text-secondary">{tData.endpoint}</td></tr>
                 <tr><td className="py-0.5 pr-4 text-text-faint font-bold">Fetched</td><td className="py-0.5 font-mono text-text-secondary">{tFetchedTime}</td></tr>
@@ -4598,7 +4621,8 @@ export default function ConvergenceIntelligence({
         // MODEL-01: the scan runs on the filter panel's premium side (SELL/BUY/BOTH) and
         // builds unbounded structures only when the panel says Risk = Unlimited.
         const sideRisk = `&side=${filters.risk.premiumStance}&risk=${filters.risk.riskType === 'INCLUDE_UNLIMITED' ? 'unlimited' : 'defined'}`;
-        const url = `/api/trading/convergence?stream=true&limit=9&refresh=true&universe=${encodeURIComponent(universe)}${sideRisk}`;
+        // MODEL-02 STEP 3: the panel's limit is the route's default (funnel.ts) — was a bare 9 against the route's 20.
+        const url = `/api/trading/convergence?stream=true&limit=${SCAN_LIMIT_DEFAULT}&refresh=true&universe=${encodeURIComponent(universe)}${sideRisk}`;
         const eventSource = new EventSource(url);
 
         eventSource.onmessage = (e) => {
@@ -4607,7 +4631,7 @@ export default function ConvergenceIntelligence({
             if (event.step === 'done') {
               eventSource.close();
               // Pipeline cached the result — fetch it instantly
-              fetch(`/api/trading/convergence?limit=9&universe=${encodeURIComponent(universe)}${sideRisk}`)
+              fetch(`/api/trading/convergence?limit=${SCAN_LIMIT_DEFAULT}&universe=${encodeURIComponent(universe)}${sideRisk}`)
                 .then(r => {
                   if (!r.ok) throw new Error(`Pipeline HTTP ${r.status}`);
                   return r.json();
@@ -4760,6 +4784,7 @@ export default function ConvergenceIntelligence({
                 className="bg-brand-purple-deep text-white text-xs font-mono px-2 py-1 border border-white/10 rounded focus:outline-none focus:ring-1 focus:ring-brand-gold disabled:opacity-50">
                 <option value="sp500">S&amp;P 500</option>
                 <option value="nasdaq100">Nasdaq 100</option>
+                <option value={ETF_UNIVERSE_KEY}>{ETF_UNIVERSE_LABEL}</option>
                 <option value="russell2000">Russell 2000</option>
                 <option value="sp400">S&amp;P 400 MidCap</option>
                 <option value="dow30">Dow Jones (30)</option>

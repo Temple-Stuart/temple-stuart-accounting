@@ -22,7 +22,7 @@
 
 import { FINNHUB_TTL, finnhubCallsPerSymbol, slowTierEndpoints } from '../convergence/finnhub-ttl';
 
-export type FeedProvider = 'TastyTrade' | 'Finnhub' | 'FRED' | 'SEC' | 'Internal';
+export type FeedProvider = 'TastyTrade' | 'Finnhub' | 'FRED' | 'SEC' | 'Cboe' | 'Internal';
 
 export interface FeedCost {
   /** Who this probe calls. */
@@ -156,8 +156,12 @@ export const SCAN_COST: readonly ScanCost[] = [
     note: 'companyfacts, then the 10-K walk — efts search, submissions, index.json, the document — and the 8-K scan. PIPE-01 adds ONE per scan, not per symbol: company_tickers.json (data-fetchers.ts fetchCIKMap), the free CIK map that replaced a metered Finnhub call, fetched once per process and cached 30 days. No tiered store: warm = cold.',
   },
   {
-    provider: 'FRED', callsPerSymbol: 0, callsPerScan: 24, warmCallsPerSymbol: 0, warmCallsPerScan: 24,
-    note: 'Macro is per SCAN, not per symbol: 19 series in the seriesMap loop plus PAYEMS and CPIAUCSL (fetchFredMacro), and 3 cross-asset series (fetchFredDailySeries). 1-hour in-process cached. No tiered store: warm = cold.',
+    provider: 'FRED', callsPerSymbol: 0, callsPerScan: 23, warmCallsPerSymbol: 0, warmCallsPerScan: 23,
+    note: 'Macro is per SCAN, not per symbol: 18 series in the seriesMap loop plus PAYEMS and CPIAUCSL (fetchFredMacro), and 3 cross-asset series (fetchFredDailySeries). Was 24 until MODEL-02 (2026-09-16) deleted the VVIXCLS read — FRED never had that series. 1-hour in-process cached. No tiered store: warm = cold.',
+  },
+  {
+    provider: 'Cboe', callsPerSymbol: 0, callsPerScan: 6, warmCallsPerSymbol: 0, warmCallsPerScan: 0,
+    note: 'MODEL-02 (2026-09-16): six free daily index files per SCAN — VVIX, VIX9D, VIX, VIX3M, VIX6M, SKEW (src/lib/convergence/cboe-daily.ts, cdn.cboe.com, no key, no meter) — fetched once per file per process per 24 hours; the file itself moves once a day after the close, so WARM buys nothing. VVIX enters the regime gate at its existing 0.10; the rest ride the trace at weight 0.',
   },
 ];
 

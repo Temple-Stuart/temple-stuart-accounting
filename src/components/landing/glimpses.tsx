@@ -27,6 +27,7 @@
 import type { ReactNode } from 'react';
 import type { PipePillarId } from '@/lib/pipePhases';
 import { POP_MODEL_LABEL, EV_MODEL_LABEL, MIN_POP_MODEL_LABEL, MIN_EV_MODEL_LABEL, MIN_EV_PER_RISK_MODEL_LABEL } from '@/lib/convergence/modelLabels';
+import { AVAILABLE_STRATEGIES } from '@/lib/convergence/filter-types';
 
 /** The shared 299 surface shell — the mock's own card (border + ts-white). */
 const SHELL = 'flex h-full min-h-[220px] flex-col border border-border bg-ts-white lg:h-[299px]';
@@ -465,12 +466,8 @@ const tradeGlimpses: ReadonlyArray<ReactNode> = [
       <div>
         <div className="font-mono text-[8.5px] uppercase tracking-wider text-text-muted">Strategies (all)</div>
         <div className="mt-[3px] flex flex-wrap gap-[3px]">
-          {([
-            'Iron Condor', 'Put Credit Spread', 'Call Credit Spread', 'Short Strangle',
-            'Short Straddle', 'Jade Lizard', 'Bull Call Spread', 'Bear Call Spread',
-            'Bear Put Spread', 'Bull Put Spread', 'Long Straddle', 'Long Strangle',
-            'Debit Spread', 'Calendar Spread', 'Diagonal Spread', 'Iron Butterfly',
-          ] as const).map((s) => (
+          {/* MODEL-02: from the const, never retyped — exactly the strategies the builder makes */}
+          {AVAILABLE_STRATEGIES.map((s) => (
             <span key={s} className="rounded-sm bg-brand-purple px-1 py-[2px] font-mono text-[8px] leading-none text-white">{s}</span>
           ))}
         </div>

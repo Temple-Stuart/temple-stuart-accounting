@@ -95,7 +95,13 @@ import { HOME_ANSWER, HOME_OWNER, HOME_PHASES, PHASES_RENDERED_AT, THE_SORT, nav
 import { TOOL_GATE } from '../src/lib/offer';
 import { PIPE_PHASES } from '../src/lib/pipePhases';
 import { INPUT_SIGNS, buyerAdmittedInputs } from '../src/lib/convergence/input-signs';
-import { GATE_CARDS, README_GATE_CARDS_END, README_GATE_CARDS_START, gateCardsMarkdown } from '../src/lib/convergence/gateCards';
+import { GATE_CARDS, NOT_BUILT_STRATEGIES, README_GATE_CARDS_END, README_GATE_CARDS_START, gateCardsMarkdown } from '../src/lib/convergence/gateCards';
+import { AVAILABLE_STRATEGIES } from '../src/lib/convergence/filter-types';
+import { buildCboeRegimeInputs } from '../src/lib/convergence/regime';
+import { SNAPSHOT_SUGGESTED_STRATEGY_MAX } from '../src/lib/convergence/snapshot-logger';
+import { ETF_UNIVERSE_SYMBOLS } from '../src/lib/convergence/etf-universe';
+import { DEEP_FETCH_MULTIPLIER, SCAN_LIMIT_DEFAULT, STRUCTURE_CUT } from '../src/lib/convergence/funnel';
+import { structureCutEligibility } from '../src/lib/convergence/structure-cut';
 import { MODEL_NUMBER_TOOLTIP } from '../src/lib/convergence/modelLabels';
 import { OWNER_UTILITIES } from '../src/lib/shellMenu';
 import { ANSWERS_HOME, ANSWER_READS, ANSWER_ROWS, NET_WORTH_READ, answersLaw } from '../src/lib/answers';
@@ -1422,6 +1428,135 @@ if (/scoreAll\(convergenceInput\)/.test(m01Pipeline)) m01Fail('side law', 'pipel
 if (!/scoreAll\(convergenceInput, side\)/.test(m01Pipeline) || (m01Pipeline.match(/scoreAll\(convergenceInput, ticker\.side\)/g) ?? []).length !== 2) m01Fail('side law', 'pipeline.ts must score every symbol (first pass and both re-scores) on the side it came through Step C on');
 if (!/rankAndDiversifyBySide\(/.test(m01Pipeline)) m01Fail('side law', 'pipeline.ts ranks the two sides as one book — a seller score and a buyer score are not comparable');
 if (m01Violations === 0) console.log(`✔ The two-scores laws passed — score_model and era stamped on every card; the sign table admits ${m01Admitted.length} components to the buy score and buyerScore reads each by name; ${M01_SURFACES.length} model-number surfaces label from the leaf; a BUY candidate needs a catalyst; an unbounded structure needs the cap; ${GATE_CARDS.length} gate cards, README byte-stable; every symbol scored on its side.`);
+
+// ── THE INPUTS-AND-FUNNEL LAWS (MODEL-02) ───────────────────────────────────
+// (1) The log never lies: no bare catch in any src/lib/convergence file that
+//     writes a table — a catch records the failure on its result or rethrows,
+//     never logs and moves on; the pipeline AWAITS the snapshot write and the
+//     scan response carries its result; the column is as wide as the longest
+//     producible line plus margin, the schema and the migration agree with the
+//     const. (2) The inputs are real: VVIX comes from Cboe (FRED VVIXCLS is
+//     deleted), every Cboe input on the regime trace carries fetched_at and
+//     weight 0, a missing read is declared. (3) The funnel constants are named
+//     and dated in one leaf and no site carries a bare number. (4) The ETF
+//     layer is one dated const of the 15 ruled symbols, selectable, reported
+//     when TastyTrade returns nothing. (5) No phantoms: the panel offers
+//     exactly the strategies with a builder; every builder is offered.
+const M02_WRITE = /prisma\.[a-z_]+\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\(/;
+let m02Violations = 0;
+const m02Fail = (law: string, msg: string) => { m02Violations += 1; violations.push(`${law}: ${msg} (MODEL-02)`); };
+
+// (1) the log never lies
+const m02Writers = m01Walk('src/lib/convergence').filter((f) => /\.ts$/.test(f) && M02_WRITE.test(M01(f)));
+if (m02Writers.length === 0) m02Fail('snapshot law', 'no file under src/lib/convergence writes a table — the scan no longer records anything');
+for (const f of m02Writers) {
+  const body = M01(f);
+  const re = /catch\s*(?:\(\s*(\w+)[^)]*\))?\s*\{/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body))) {
+    const bound = m[1] ?? null;
+    let depth = 1; let i = re.lastIndex;
+    while (i < body.length && depth > 0) { if (body[i] === '{') depth += 1; else if (body[i] === '}') depth -= 1; i += 1; }
+    const inner = body.slice(re.lastIndex, i - 1).replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+    const withoutConsole = inner.replace(/console\.\w+\([^;]*\);?/g, '');
+    const uses = bound !== null && new RegExp(`\\b${bound}\\b`).test(withoutConsole);
+    const rethrows = /\bthrow\b/.test(inner);
+    if (!uses && !rethrows) m02Fail('snapshot law', `${f} has a bare catch at line ${body.slice(0, m.index).split('\n').length} — a table writer records the failure on its result or rethrows; it never logs and moves on`);
+  }
+}
+if (/void logScanSnapshotBatch\(/.test(m01Pipeline)) m02Fail('snapshot law', 'pipeline.ts fires the snapshot write and forgets it — the scan must await the write and carry its result');
+if (!/snapshot = await logScanSnapshotBatch\(/.test(m01Pipeline)) m02Fail('snapshot law', 'pipeline.ts does not await logScanSnapshotBatch into `snapshot`');
+if (!/^\s+snapshot: SnapshotWriteResult;$/m.test(m01Pipeline) || !/^\s+snapshot,$/m.test(m01Pipeline)) m02Fail('snapshot law', 'PipelineResult.pipeline_summary no longer carries the snapshot write result');
+if (!/errors\.push\(`Step T \(snapshot\): \$\{snapshot\.reason\}`\)/.test(m01Pipeline)) m02Fail('snapshot law', 'pipeline.ts no longer puts a failed snapshot write on errors[]');
+if (!/saved: snapshot\.written,/.test(m01Pipeline)) m02Fail('snapshot law', 'step_t reports `saved` from something other than the write\'s own result');
+const m02Ui = M01('src/components/convergence/ConvergenceIntelligence.tsx');
+if (!/tData\.snapshot\.rows_failed/.test(m02Ui) || !/tData\.snapshot\.reason/.test(m02Ui)) m02Fail('snapshot law', 'ConvergenceIntelligence.tsx step T no longer shows a failed snapshot write (rows failed, reason)');
+const m02Schema = M01('prisma/schema.prisma');
+const m02Width = m02Schema.match(/suggestedStrategy String\? @db\.VarChar\((\d+)\)/);
+if (!m02Width || Number(m02Width[1]) !== SNAPSHOT_SUGGESTED_STRATEGY_MAX) m02Fail('snapshot law', `schema.prisma scan_snapshots.suggestedStrategy is VarChar(${m02Width?.[1] ?? '?'}) — the const SNAPSHOT_SUGGESTED_STRATEGY_MAX is ${SNAPSHOT_SUGGESTED_STRATEGY_MAX}; they move together`);
+const m02Migration = M01('prisma/migrations/20260916000000_model_02_snapshot_width/migration.sql');
+if (!new RegExp(`ALTER TABLE "scan_snapshots" ALTER COLUMN "suggestedStrategy" TYPE VARCHAR\\(${SNAPSHOT_SUGGESTED_STRATEGY_MAX}\\);`).test(m02Migration)) m02Fail('snapshot law', `the MODEL-02 migration does not widen suggestedStrategy to VARCHAR(${SNAPSHOT_SUGGESTED_STRATEGY_MAX})`);
+
+// (2) the inputs are real
+const m02Fetchers = M01('src/lib/convergence/data-fetchers.ts');
+const m02Regime = M01('src/lib/convergence/regime.ts');
+const m02Cboe = M01('src/lib/convergence/cboe-daily.ts');
+if (/id: 'VVIXCLS'/.test(m02Fetchers) || /VVIXCLS'\)/.test(m02Fetchers)) m02Fail('inputs law', 'data-fetchers.ts still reads VVIXCLS from FRED — FRED has no such series; VVIX comes from Cboe');
+if (!/export async function fetchCboeDaily\(/.test(m02Cboe) || !/CBOE_TTL_MS = 24 \* 60 \* 60 \* 1000/.test(m02Cboe)) m02Fail('inputs law', 'cboe-daily.ts no longer fetches the Cboe daily files through a 24h in-process cache');
+if (!/cboeDailyUrl\(index: CboeIndex\): string \{\s*return `\$\{CBOE_BASE\}\/\$\{index\}_History\.csv`;/.test(m02Cboe)) m02Fail('inputs law', 'cboe-daily.ts no longer reads the sibling files of PUT_History.csv under CBOE_BASE');
+if (!/const cboe = input\.cboeDaily \?\? null;/.test(m02Regime) || !/computeSurvivalBrake\(vixTermStructureRatio, vvixRaw, vvixNullReason\)/.test(m02Regime)) m02Fail('inputs law', 'regime.ts no longer reads VVIX from the Cboe read, or the brake no longer carries the null reason');
+if (!/fetchCboeDaily\(\)/.test(m01Pipeline)) m02Fail('inputs law', 'pipeline.ts Step H no longer fetches the Cboe daily files');
+const m02Threaded = (m01Pipeline.match(/^\s+cboeDaily,$/gm) ?? []).length;
+if (m02Threaded < 4) m02Fail('inputs law', `pipeline.ts threads cboeDaily into ${m02Threaded} ConvergenceInput literal(s) — every scoring input carries the Cboe read (4)`);
+const m02BuilderBody = m02Regime.slice(m02Regime.indexOf('export function buildCboeRegimeInputs('), m02Regime.indexOf('// ===== MAIN REGIME SCORER ====='));
+if ((m02BuilderBody.match(/weight: 0,/g) ?? []).length !== 4 || /weight: (?!0,)/.test(m02BuilderBody)) m02Fail('inputs law', 'regime.ts buildCboeRegimeInputs puts a weight other than 0 on a new Cboe input — the term structure and SKEW are present and logged, tuned by nobody');
+for (const fx of [null, { vvix: null, vix9d: null, vix: null, vix3m: null, vix6m: null, skew: null, errors: ['VVIX: HTTP 404 from x'], fetched_at: '2026-09-16T00:00:00.000Z' }]) {
+  const rows = buildCboeRegimeInputs(fx);
+  if (rows.length !== 4) m02Fail('inputs law', `buildCboeRegimeInputs returns ${rows.length} inputs — four (three term-structure ratios and SKEW)`);
+  for (const r of rows) {
+    if (!('fetched_at' in r)) m02Fail('inputs law', `Cboe input ${r.key} carries no fetched_at`);
+    if (r.weight !== 0) m02Fail('inputs law', `Cboe input ${r.key} has weight ${r.weight} — 0`);
+    if (r.raw_value === null && !r.null_reason) m02Fail('inputs law', `Cboe input ${r.key} is null with no reason — a missing read is declared`);
+  }
+}
+const m02RegimeSeller = GATE_CARDS.find((c) => c.gate === 'regime' && c.model === 'seller');
+if (!m02RegimeSeller || !/Cboe/.test(m02RegimeSeller.inputs) || !/WEIGHT 0/.test(m02RegimeSeller.inputs) || !/restored 2026-09-16 from Cboe/.test(m02RegimeSeller.isNot)) m02Fail('inputs law', 'the regime seller gate card no longer names the Cboe VVIX source, the weight-0 inputs, or the restoration date');
+if (/VVIX leg has been dead/.test(gateCardsMarkdown())) m02Fail('inputs law', 'the gate cards still say the VVIX leg is dead');
+
+// (3) the funnel constants
+const m02Funnel = M01('src/lib/convergence/funnel.ts');
+const m02Route = M01('src/app/api/trading/convergence/route.ts');
+if (!/export const STRUCTURE_CUT = 40;/.test(m02Funnel) || !/export const DEEP_FETCH_MULTIPLIER = 2;/.test(m02Funnel) || !/export const SCAN_LIMIT_DEFAULT = 20;/.test(m02Funnel) || !/export const FUNNEL_SET_ON = '\d{4}-\d{2}-\d{2}';/.test(m02Funnel)) m02Fail('funnel law', 'funnel.ts no longer names and dates STRUCTURE_CUT 40, DEEP_FETCH_MULTIPLIER 2 and SCAN_LIMIT_DEFAULT 20');
+if (STRUCTURE_CUT !== 40 || DEEP_FETCH_MULTIPLIER !== 2 || SCAN_LIMIT_DEFAULT !== 20) m02Fail('funnel law', 'the funnel constants moved — a new value needs a new date and a report');
+if (!/const TOP_N = STRUCTURE_CUT;/.test(m01Pipeline)) m02Fail('funnel law', 'pipeline.ts rankAndDiversify no longer cuts at STRUCTURE_CUT');
+if (/TOP_N = \d/.test(m01Pipeline) || /limit \* 2\b/.test(m01Pipeline)) m02Fail('funnel law', 'pipeline.ts carries a bare funnel number — every cut reads funnel.ts');
+if ((m01Pipeline.match(/limit \* DEEP_FETCH_MULTIPLIER/g) ?? []).length < 1) m02Fail('funnel law', 'pipeline.ts deep-fetch cut no longer reads DEEP_FETCH_MULTIPLIER');
+if (/limit=\d/.test(m02Ui) || (m02Ui.match(/limit=\$\{SCAN_LIMIT_DEFAULT\}/g) ?? []).length !== 2) m02Fail('funnel law', 'ConvergenceIntelligence.tsx sends a bare limit — both scan URLs read SCAN_LIMIT_DEFAULT');
+if (/\|\| '\d+'/.test(m02Route) || !/String\(SCAN_LIMIT_DEFAULT\)/.test(m02Route)) m02Fail('funnel law', 'the convergence route defaults limit from a bare number — it reads SCAN_LIMIT_DEFAULT');
+
+// (4) the ETF layer
+const M02_ETF_RULED = ['SPY', 'QQQ', 'IWM', 'DIA', 'XLF', 'XLE', 'XLK', 'XLV', 'XLY', 'XLI', 'XLP', 'XLU', 'XLB', 'XLRE', 'XLC'];
+if (ETF_UNIVERSE_SYMBOLS.length !== 15 || new Set(ETF_UNIVERSE_SYMBOLS).size !== 15 || M02_ETF_RULED.some((sym) => !ETF_UNIVERSE_SYMBOLS.includes(sym))) m02Fail('etf law', `etf-universe.ts is not the 15 ruled symbols, unique (${ETF_UNIVERSE_SYMBOLS.join(', ')})`);
+if (!/case ETF_UNIVERSE_KEY: return \[\.\.\.new Set\(ETF_UNIVERSE_SYMBOLS\)\];/.test(m01Pipeline)) m02Fail('etf law', 'pipeline.ts getUniverseSymbols no longer offers the ETF universe by its key, deduplicated');
+if (!/stepAMissing = allSymbols\.filter/.test(m01Pipeline) || !/TastyTrade returned no market-metrics row for \$\{etfMissing\.join/.test(m01Pipeline)) m02Fail('etf law', 'pipeline.ts Step A no longer reports the ETF members TastyTrade returned no row for');
+if (!/t\.marketCap == null && isEtfUniverseSymbol\(t\.symbol\)/.test(m01Pipeline)) m02Fail('etf law', 'pipeline.ts hard filter 1 no longer declares the issuer-size floor not applicable to an ETF member (with the warning on the record)');
+const m02Chain = M01('src/lib/convergence/chain-fetcher.ts');
+if (!/TastyTrade returned no option chain for \$\{failedSymbol\}/.test(m02Chain)) m02Fail('etf law', 'chain-fetcher.ts drops a symbol whose chain fetch failed without a rejection on the record');
+const m02Form = M01('src/components/trading/ScanFilterForm.tsx');
+if (!/ETF_UNIVERSE_KEY/.test(m02Ui) || !/ETF_UNIVERSE_KEY/.test(m02Form)) m02Fail('etf law', 'the universe selectors no longer offer the ETF universe (ConvergenceIntelligence.tsx, ScanFilterForm.tsx)');
+const m02Table = M01('src/components/convergence/ScannerResultsTable.tsx');
+if (!/why\.scored_by\.map/.test(m02Ui) || !/why\.scored_by\.map/.test(m02Table)) m02Fail('etf law', 'a card no longer names the gates that scored it (why.scored_by) on both card surfaces');
+if (!/Scored on \{why\.scored_by\.length\} of 4 gates/.test(m02Ui) || !/Scored on \{why\.scored_by\.length\} of 4 gates/.test(m02Table)) m02Fail('etf law', 'a card no longer states "scored on N of 4 gates" on both card surfaces (addendum, ruled 2026-09-16)');
+// the addendum: Step G reads the pure rule; single names unchanged; an ETF member judged on the gates that can score
+const m02Cut = M01('src/lib/convergence/structure-cut.ts');
+if (!/export const STRUCTURE_CUT_CONVERGENCE_MIN = 3;/.test(m02Cut) || !/export const STRUCTURE_CUT_QUALITY_FLOOR = 40;/.test(m02Cut) || !/export const ETF_STRUCTURE_CUT_SET_ON = '\d{4}-\d{2}-\d{2}';/.test(m02Cut)) m02Fail('etf law', 'structure-cut.ts no longer names the single-name rules (3 of 4, floor 40) and the dated ETF amendment');
+if (!/structureCutEligibility\(row, isEtfUniverseSymbol\(row\.symbol\)\)/.test(m01Pipeline)) m02Fail('etf law', 'pipeline.ts rankAndDiversify no longer reads the structure-cut rule from structure-cut.ts with the ETF membership from the const');
+if (/catAbove50 < 3/.test(m01Pipeline) || /row\.convergence\.split/.test(m01Pipeline)) m02Fail('etf law', 'pipeline.ts still judges the cut inline from the convergence string');
+for (const [sym, etf, expect] of [['SPY', true, true], ['AAPL', false, false]] as const) {
+  const v = structureCutEligibility({ symbol: sym, rank: 1, composite: 61, quality: null, beat_streak: 'UNKNOWN', categories_above_50: 2, scored_gates: 2 }, etf);
+  if (v.eligible !== expect) m02Fail('etf law', `structureCutEligibility: ${sym} with Quality and Info-Edge null and 2 of 2 scored gates above 50 should be ${expect ? 'admitted (ETF member)' : 'excluded (single name)'}`);
+}
+
+// (5) no phantoms
+const m02Built = [...new Set([...m01Builder.matchAll(/buildCard\('([^']+)'/g)].map((m) => m[1]))].sort();
+const m02Offered = [...AVAILABLE_STRATEGIES].sort();
+if (m02Built.join('|') !== m02Offered.join('|')) m02Fail('phantom law', `the panel offers [${m02Offered.join(', ')}] but the builder makes [${m02Built.join(', ')}] — every strategy offered has a builder and every builder is offered`);
+for (const n of NOT_BUILT_STRATEGIES) {
+  if (AVAILABLE_STRATEGIES.includes(n.name)) m02Fail('phantom law', `${n.name} is offered AND listed as not built`);
+  if (m02Built.includes(n.name)) m02Fail('phantom law', `${n.name} has a builder AND is listed as not built`);
+  if (!n.reason || n.reason.length < 40) m02Fail('phantom law', `${n.name} is listed as not built with no reason`);
+}
+// The scanner's panels and the selling surfaces. src/components/dashboard is
+// the Trade Log's manual commit forms — the user logs a position opened
+// anywhere (a call credit spread included); that list is not the scanner's.
+for (const f of [...m01Walk('src/components'), ...m01Walk('src/app')].filter((f) => !f.startsWith('src/components/dashboard/'))) {
+  const body = M01(f);
+  for (const n of NOT_BUILT_STRATEGIES) if (body.includes(`'${n.name}'`) || body.includes(`"${n.name}"`)) m02Fail('phantom law', `${f} offers or names "${n.name}" — no builder makes it; the scanner's panels render AVAILABLE_STRATEGIES from filter-types.ts`);
+}
+for (const f of ['src/components/convergence/FilterPanel.tsx', 'src/components/trading/ScanFilterForm.tsx', 'src/components/home/TradeShowcaseSections.tsx', 'src/components/landing/glimpses.tsx']) {
+  if (!/AVAILABLE_STRATEGIES/.test(M01(f))) m02Fail('phantom law', `${f} no longer renders the strategy list from AVAILABLE_STRATEGIES`);
+}
+if (m02Violations === 0) console.log(`✔ The inputs-and-funnel laws passed — ${m02Writers.length} table writer(s) under src/lib/convergence carry no bare catch and the scan awaits its snapshot write (column ${SNAPSHOT_SUGGESTED_STRATEGY_MAX}); VVIX from Cboe with the term structure and SKEW at weight 0, every input dated; structure cut ${STRUCTURE_CUT} per side, deep fetch limit × ${DEEP_FETCH_MULTIPLIER} at limit ${SCAN_LIMIT_DEFAULT}; ${ETF_UNIVERSE_SYMBOLS.length} ETF members selectable and reported; ${m02Offered.length} strategies offered = ${m02Built.length} built, ${NOT_BUILT_STRATEGIES.length} named not built.`);
 
 // ── THE SECOND GATE ─────────────────────────────────────────────────────────
 // Every law below the first gate — kind views, arrivals, the rule book,

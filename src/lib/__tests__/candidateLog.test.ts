@@ -18,6 +18,7 @@ import {
 } from '../convergence/candidate-log';
 import type { TradeCardData, CandleData } from '../convergence/types';
 import type { FullScoringResult } from '../convergence/composite';
+import { CURRENT_MODEL_ERA } from '../edge-read/eras';
 
 // LOG-01 STEP 4 — tests on fixtures. Pure module, no database, no vendor.
 
@@ -50,7 +51,7 @@ function card(symbol: string, strategy: string, legs: TradeCardData['setup']['le
     why: {
       side: 'SELL',
       score_model: 'seller',
-      model_era: 'E9',
+      model_era: CURRENT_MODEL_ERA.id,
       scored_by: ['vol_edge', 'quality', 'regime', 'info_edge'],
       catalysts: [],
       earnings_window: { state: 'outside', detail: 'no earnings date inside [2026-09-15, 2026-10-16] — nearest known 2026-10-28 (Finnhub calendar/earnings)', date: '2026-10-28', source: 'Finnhub calendar/earnings' },
@@ -101,7 +102,7 @@ test('persist — every card the scan returns is the card the log wrote, stamped
   assert.equal(store.runs[0].candidates_written, 3);
   assert.equal(store.runs[0].tickers_scored, 40);
   // MODEL-01: the era is the running model's (CURRENT_MODEL_ERA), not the calendar's
-  assert.equal(store.runs[0].model_era, 'E9');
+  assert.equal(store.runs[0].model_era, CURRENT_MODEL_ERA.id);
   assert.equal(store.runs[0].side, 'BOTH');
   const returned = [...r.cards.AAPL, ...r.cards.MSFT];
   assert.equal(returned.length, 3);

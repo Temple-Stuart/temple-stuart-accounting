@@ -128,7 +128,7 @@ export const KIND_VIEW_CENSUS: readonly FeedTable[] = [
 export const STOPPED_TABLES: ReadonlyArray<{ table: string; why: string }> = [
   { table: 'reservations (provider duffel)', why: "history rows from a retired provider (LAUNCH-01 RETIRE-01 deleted its book route; nothing writes provider 'duffel' any more) — the rows are kept, labeled by their provider, and stay outside the event view (the bookings view reads provider 'liteapi' only)" },
   { table: 'trip_scanner_results', why: 'src/app/api/trips/[id]/ai-assistant/route.ts writes AI recommendations per trip/category; the book names no such feed (anthropic · classification is the only anthropic row)' },
-  { table: 'scan_snapshots', why: 'src/lib/convergence/snapshot-logger.ts writes our own scores over quotes — math we did, not a provider answer; no rule-book feed' },
+  { table: 'scan_snapshots', why: 'src/lib/convergence/snapshot-logger.prisma.ts writes our own scores over quotes — math we did, not a provider answer; no rule-book feed' },
   { table: 'operations_ai_usage', why: 'src/lib/ai/recordUsage.ts:158 stores our AI calls (purpose, tokens, full_response) — the book\'s anthropic row is classification, not a usage log' },
   { table: 'discovery_proposals', why: 'AI-authored proposals (src/lib/discovery); not the book\'s anthropic · classification by name' },
   { table: 'plaid_items', why: "Plaid's item — a handshake (the access token lives here); the deck: handshakes never enter the tables; the book has no plaid · item row" },

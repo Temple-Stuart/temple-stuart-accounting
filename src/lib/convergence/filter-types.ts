@@ -76,28 +76,26 @@ export const DEFAULT_FILTERS: ScannerFilters = {
 };
 
 /**
- * All strategy names the engine can generate.
- * Sourced from strategy-builder.ts: getStrategyLabels(), generateStrategies(),
- * detectStrategyName(), and CREDIT_STRATEGIES constant.
+ * MODEL-02 STEP 5 — NO PHANTOMS. Exactly the strategies the scanner BUILDS:
+ * one entry per `buildCard('<name>', …)` in strategy-builder.ts
+ * generateStrategies (SELL: Iron Condor, Put Credit Spread, Short Strangle;
+ * BUY: Long Straddle, Long Strangle, Debit Spread). Until 2026-09-16 this list
+ * held 16 names — ten with no builder, selectable in every panel and never
+ * produced (a selection of one of them returned zero cards with the reason
+ * "not in selected list" on every real card). The ten are listed with a
+ * reason each in gateCards.ts NOT_BUILT_STRATEGIES; the build (the phantom
+ * law) holds this list equal to the builder's names and the panels to this
+ * list. Set 2026-09-16.
  */
 export const AVAILABLE_STRATEGIES: string[] = [
   'Iron Condor',
   'Put Credit Spread',
-  'Call Credit Spread',
   'Short Strangle',
-  'Short Straddle',
-  'Jade Lizard',
-  'Bull Call Spread',
-  'Bear Call Spread',
-  'Bear Put Spread',
-  'Bull Put Spread',
   'Long Straddle',
   'Long Strangle',
   'Debit Spread',
-  'Calendar Spread',
-  'Diagonal Spread',
-  'Iron Butterfly',
 ];
+export const AVAILABLE_STRATEGIES_SET_ON = '2026-09-16';
 
 /** Credit strategies — entry receives premium */
 const CREDIT_STRATEGIES = new Set([

@@ -253,7 +253,7 @@ export function buyerScore(
   // ── Regime: the survival brake's two inputs only, same sign (a brake applies to both sides)
   const vc = regime.breakdown.vol_conditioners;
   admit('regime', 'vix_term_structure', vc.vix_term_structure.score, vc.vix_term_structure.score === null ? 'VIX/VIX3M unavailable — excluded' : `VIX/VIX3M = ${vc.vix_term_structure.raw_value} (backwardation scores low), kept`);
-  admit('regime', 'vvix', vc.vvix.score, vc.vvix.score === null ? 'VVIX unavailable (VVIXCLS is not a FRED series — dead since 2026-07-08; MODEL-02) — excluded' : 'VVIX level (elevated scores low), kept');
+  admit('regime', 'vvix', vc.vvix.score, vc.vvix.score === null ? `VVIX unavailable (Cboe daily read: ${vc.vvix.null_reason ?? 'no reason recorded'}) — excluded` : 'VVIX level (Cboe; elevated scores low), kept');
   const r = equalCombine(components.filter((c) => c.gate === 'regime'));
 
   // ── Info-Edge: direction-neutral inputs only (activity, attention, evidence quality, event count)

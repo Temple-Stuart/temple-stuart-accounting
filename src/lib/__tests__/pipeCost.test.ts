@@ -24,7 +24,8 @@ test('one scan of one symbol costs exactly this, by provider — a new metered c
   assert.equal(perSymbol.FRED, 0);
 
   // Per SCAN, not per symbol.
-  assert.equal(perScan.FRED, 24);
+  assert.equal(perScan.FRED, 23, 'MODEL-02: the VVIXCLS read is gone');
+  assert.equal(perScan.Cboe, 6, 'MODEL-02: six free daily files per scan');
   assert.equal(perScan.SEC, 1, 'company_tickers.json — one free CIK map for every symbol');
 
   assert.match(scanCostLine(), /One scan of one symbol = 26 Finnhub, 1 TastyTrade, 6 SEC/);
@@ -39,8 +40,9 @@ test('one scan of one symbol costs exactly this, by provider — a new metered c
   assert.equal(warmSymbol.Finnhub, 8, 'the daily tier alone — lower this ONLY with a tier change in finnhub-ttl.ts');
   assert.equal(warmSymbol.TastyTrade, 1, 'no tiered store: warm = cold');
   assert.equal(warmSymbol.SEC, 6, 'no tiered store: warm = cold');
-  assert.equal(warmScan.FRED, 24, 'no tiered store: warm = cold');
-  assert.match(scanCostLine(), /Warm \(every slow-tier row within its TTL\) = 8 Finnhub, 1 TastyTrade, 6 SEC — plus, once per scan, 1 SEC, 24 FRED\./);
+  assert.equal(warmScan.FRED, 23, 'no tiered store: warm = cold');
+  assert.equal(warmScan.Cboe, 0, 'a Cboe file is served from the 24h cache — nothing bought warm');
+  assert.match(scanCostLine(), /Warm \(every slow-tier row within its TTL\) = 8 Finnhub, 1 TastyTrade, 6 SEC — plus, once per scan, 1 SEC, 23 FRED\./);
 });
 
 test('every scan-cost note cites the call sites it counted, and no note prices anything', () => {

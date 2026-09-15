@@ -114,7 +114,7 @@ export const METRIC_EXPLAINERS: Record<string, MetricExplainer> = {
     title: 'Macro regime gate',
     explain: gateExplain('regime'),
     pipeline: [...gatePipeline('regime', 'seller'), `Buyer model — ${gatePipeline('regime', 'buyer').join(' ')}`],
-    source: 'Computed by the scanner from FRED macro data (VVIX leg dead since 2026-07-08 — VVIXCLS is not a FRED series)',
+    source: 'Computed by the scanner from FRED macro data and Cboe daily index files (VVIX restored 2026-09-16 from Cboe — FRED never had it; the VIX term structure and SKEW ride the trace at weight 0)',
   },
 
   info_edge: {
