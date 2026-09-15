@@ -20,6 +20,8 @@
  * makes no upstream call is not billable.
  */
 
+import { FINNHUB_TTL, finnhubCallsPerSymbol, slowTierEndpoints } from '../convergence/finnhub-ttl';
+
 export type FeedProvider = 'TastyTrade' | 'Finnhub' | 'FRED' | 'SEC' | 'Internal';
 
 export interface FeedCost {
@@ -61,26 +63,28 @@ export const FEED_COST: Readonly<Record<number, FeedCost>> = {
   31: { provider: 'TastyTrade', billable: false, basis: TT_ACCOUNT, upstreamCalls: 2, usedByScan: true,  scanCitation: 'chain-fetcher.ts:166 getNestedOptionChain — one call per surviving symbol', probes: 'AAPL' },
   32: { provider: 'TastyTrade', billable: false, basis: TT_ACCOUNT, upstreamCalls: 2, usedByScan: true,  scanCitation: 'pipeline.ts:399 — corr-spy-3month and beta ride the same batched call', probes: 'SPY' },
 
-  // ── Finnhub: one probe = one GET on finnhub.io, metered.
-  2:  { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:214 /stock/metric', probes: 'selected' },
-  3:  { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:110 /stock/eps-estimate', probes: 'selected' },
-  4:  { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:111 /stock/revenue-estimate', probes: 'selected' },
-  5:  { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:112 /stock/price-target', probes: 'selected' },
-  6:  { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:113 /stock/upgrade-downgrade', probes: 'selected' },
-  7:  { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:230 /stock/recommendation', probes: 'selected' },
-  8:  { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:262 /stock/earnings', probes: 'selected' },
-  9:  { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:2074 /stock/earnings-quality-score (the scan asks freq=quarterly; this probe asks freq=annual)', probes: 'selected' },
-  10: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:1920 /stock/revenue-breakdown2', probes: 'selected' },
-  11: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:1038 /stock/insider-transactions', probes: 'selected' },
-  12: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:247 /stock/insider-sentiment', probes: 'selected' },
-  13: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:1823 /stock/ownership', probes: 'selected' },
-  14: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:1210 /stock/peers (pipeline.ts:555)', probes: 'selected' },
-  15: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:389 /stock/financials-reported', probes: 'selected' },
-  16: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:445-447 /stock/financials — the scan asks bs, ic and cf (three calls); this probe asks ic only', probes: 'selected' },
-  17: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:2024 /news-sentiment', probes: 'selected' },
-  18: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts:2143 · :2146 /company-news — the scan asks two windows (7d and 30d); this probe asks one', probes: 'selected' },
-  28: { provider: 'Finnhub', billable: true, basis: SHARED_WITH_7, upstreamCalls: 0, usedByScan: true,  scanCitation: 'data-fetchers.ts:230 — the scan fetches /stock/recommendation ONCE; since PIPE-01 so does this check', probes: 'selected' },
-  30: { provider: 'Finnhub', billable: true, basis: SHARED_WITH_9, upstreamCalls: 0, usedByScan: true,  scanCitation: 'data-fetchers.ts:2074 — the scan fetches /stock/earnings-quality-score ONCE; since PIPE-01 so does this check', probes: 'selected' },
+  // ── Finnhub: one probe = one GET on finnhub.io, metered. TRADE-COST-01: a
+  //    slow-tier probe reads through the tiered store; a hit costs nothing (the
+  //    row declares upstreamCalls 0 at run time) — the static count is the miss.
+  2:  { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts fetchFinnhubTicker /stock/metric — daily tier, bought every scan (finnhub-cache.ts finnhubDirect)', probes: 'selected' },
+  3:  { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts fetchFinnhubEstimates /stock/eps-estimate — weekly tier, 24h in finnhub_responses (finnhubCached)', probes: 'selected' },
+  4:  { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts fetchFinnhubEstimates /stock/revenue-estimate — weekly tier, 24h in finnhub_responses (finnhubCached)', probes: 'selected' },
+  5:  { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts fetchFinnhubEstimates /stock/price-target — weekly tier, 24h in finnhub_responses (finnhubCached)', probes: 'selected' },
+  6:  { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts fetchFinnhubEstimates /stock/upgrade-downgrade — daily tier (the vendor calls it real-time), bought every scan', probes: 'selected' },
+  7:  { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts fetchFinnhubTicker /stock/recommendation — weekly tier, 24h in finnhub_responses (finnhubCached)', probes: 'selected' },
+  8:  { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts fetchFinnhubTicker /stock/earnings — quarterly tier, 7d in finnhub_responses (finnhubCached); this probe asks limit=40, the scan asks none — its own row', probes: 'selected' },
+  9:  { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts fetchFinnhubEarningsQuality /stock/earnings-quality-score — quarterly tier, 7d (the scan asks freq=quarterly; this probe asks freq=annual — its own row)', probes: 'selected' },
+  10: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts fetchFinnhubRevenueBreakdown /stock/revenue-breakdown2 — quarterly tier, 7d in finnhub_responses (finnhubCached)', probes: 'selected' },
+  11: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts fetchInsiderTransactions /stock/insider-transactions — monthly tier, 24h (the scan asks from=-90d; this probe asks no from — its own row)', probes: 'selected' },
+  12: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts fetchFinnhubTicker /stock/insider-sentiment — monthly tier, 24h (the scan asks a rolling from=-540d; this probe asks a fixed 2024-01-01..2025-12-31 — its own row)', probes: 'selected' },
+  13: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts fetchFinnhubInstitutionalOwnership /stock/ownership — monthly tier, 24h (the scan asks no limit; this probe asks limit=5 — its own row)', probes: 'selected' },
+  14: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts fetchPeerTickers /stock/peers (pipeline.ts Step B) — daily tier, bought every scan; the scan asks grouping=industry, this probe none', probes: 'selected' },
+  15: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts fetchAnnualFinancials /stock/financials-reported — quarterly tier, 7d in finnhub_responses (finnhubCached)', probes: 'selected' },
+  16: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts fetchQuarterlyFinancials /stock/financials — quarterly tier, 7d; the scan asks bs, ic and cf (three rows); this probe asks ic only — the ic row the scan reads', probes: 'selected' },
+  17: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts fetchFinnhubNewsSentiment /news-sentiment — daily tier, bought every scan', probes: 'selected' },
+  18: { provider: 'Finnhub', billable: true, basis: METERED_FINNHUB, upstreamCalls: 1, usedByScan: true,  scanCitation: 'data-fetchers.ts fetchNewsSentiment /company-news — daily tier; the scan asks two windows (7d and 8–30d), this probe one', probes: 'selected' },
+  28: { provider: 'Finnhub', billable: true, basis: SHARED_WITH_7, upstreamCalls: 0, usedByScan: true,  scanCitation: 'data-fetchers.ts fetchFinnhubTicker — the scan fetches /stock/recommendation ONCE; since PIPE-01 so does this check', probes: 'selected' },
+  30: { provider: 'Finnhub', billable: true, basis: SHARED_WITH_9, upstreamCalls: 0, usedByScan: true,  scanCitation: 'data-fetchers.ts fetchFinnhubEarningsQuality — the scan fetches /stock/earnings-quality-score ONCE; since PIPE-01 so does this check', probes: 'selected' },
 
   // ── FRED: free public API behind a free key.
   19: { provider: 'FRED', billable: false, basis: FREE_FRED, upstreamCalls: 2, usedByScan: true, scanCitation: 'data-fetchers.ts:638 · :663 · :683 fetchFredMacro (pipeline.ts:650) — 21 series, once per SCAN, 1-hour cached (:568)', probes: 'none' },
@@ -110,36 +114,54 @@ export const EXPECTED_FEED_COUNT = 32;
 /**
  * What ONE SCAN of ONE SYMBOL costs upstream, counted by reading every call
  * site the pipeline reaches. Upper bounds: the pipeline gates its later stages,
- * so a symbol dropped early makes fewer, and three caches (Finnhub estimates
- * 1h, quarterly financials 6h, CIK for the process) can serve a repeat for free.
+ * so a symbol dropped early makes fewer.
+ *
+ * TRADE-COST-01 — two numbers per provider, both MEASURED by the run's meter
+ * (pipeline_summary.finnhub_calls_made / finnhub_cache_hits) and pinned here:
+ *   COLD = every row a miss — every call made (callsPerSymbol / callsPerScan);
+ *   WARM = every slow-tier row a hit within its TTL — only the daily tier is
+ *          bought (warmCallsPerSymbol / warmCallsPerScan).
+ * Finnhub's numbers DERIVE from the tier census (src/lib/convergence/
+ * finnhub-ttl.ts) — never typed twice. The other providers have no tiered
+ * store, so their warm number is their cold number, and they say so.
  */
 export interface ScanCost {
   provider: FeedProvider;
   callsPerSymbol: number | null;
   callsPerScan: number | null;
+  /** All slow-tier rows within their TTL. */
+  warmCallsPerSymbol: number | null;
+  warmCallsPerScan: number | null;
   note: string;
 }
 
+const finnhubSites = (state: 'cold' | 'warm'): string =>
+  FINNHUB_TTL.filter((r) => state === 'cold' || r.ttlMs === 0)
+    .map((r) => `${r.endpoint}${r.callsPerSymbol > 1 ? ` ×${r.callsPerSymbol}` : ''}`)
+    .join(', ');
+
 export const SCAN_COST: readonly ScanCost[] = [
   {
-    provider: 'Finnhub', callsPerSymbol: 26, callsPerScan: null,
-    note: '8 in fetchFinnhubTicker (data-fetchers.ts:214 · :230 · :247 · :262 plus the four estimate calls :110-113), then financials-reported :389, company-news ×2 :2143 · :2146, news-sentiment :2024, earnings-quality-score :2074, ownership + fund-ownership :1823 · :1824, revenue-breakdown2 :1920, financials bs/ic/cf :445-447, profile2 :894, insider-transactions :1038, ebitda-estimate :2405, ebit-estimate :2436, dividend :2470, price-metric :2506, fund-ownership again :2546, calendar/earnings :2632 and peers :1210. PIPE-01 removed two: /stock/profile2 (the CIK now comes free from SEC) and the second /stock/fund-ownership (Step I5 reads what Step E6 bought). Ceiling, not average: a symbol dropped at an early gate makes fewer.',
+    provider: 'Finnhub',
+    callsPerSymbol: finnhubCallsPerSymbol('cold'), callsPerScan: null,
+    warmCallsPerSymbol: finnhubCallsPerSymbol('warm'), warmCallsPerScan: null,
+    note: `Every Finnhub URL is built in src/lib/convergence/finnhub-cache.ts; the call sites are the fetchers in data-fetchers.ts, one row each in src/lib/convergence/finnhub-ttl.ts. COLD (${finnhubCallsPerSymbol('cold')}): ${finnhubSites('cold')}. WARM (${finnhubCallsPerSymbol('warm')}) buys only the daily tier: ${finnhubSites('warm')}; the ${slowTierEndpoints().length} slow-tier endpoints are served from finnhub_responses inside their TTL (7 days quarterly, 24 hours weekly and monthly). PIPE-01 removed two: /stock/profile2 (the CIK now comes free from SEC) and the second /stock/fund-ownership — which TRADE-COST-01 made true: Step E6 and Step I5 read ONE store key, coalesced in flight. Ceiling, not average: a symbol dropped at an early gate makes fewer.`,
   },
   {
-    provider: 'TastyTrade', callsPerSymbol: 1, callsPerScan: null,
-    note: 'One getNestedOptionChain per surviving symbol (chain-fetcher.ts:166). The market-metrics read is BATCHED over all symbols (pipeline.ts:399), and candles arrive on a quote-stream subscription (data-fetchers.ts:2271), so neither is one call per symbol.',
+    provider: 'TastyTrade', callsPerSymbol: 1, callsPerScan: null, warmCallsPerSymbol: 1, warmCallsPerScan: null,
+    note: 'One getNestedOptionChain per surviving symbol (chain-fetcher.ts fetchChainAndBuildCards). The market-metrics read is BATCHED over all symbols (pipeline.ts Step A), and candles arrive on a quote-stream subscription (data-fetchers.ts fetchTTCandlesBatch), so neither is one call per symbol. No tiered store: warm = cold.',
   },
   {
-    provider: 'SEC', callsPerSymbol: 6, callsPerScan: 1,
-    note: 'companyfacts, then the 10-K walk — efts search, submissions, index.json, the document — and the 8-K scan. PIPE-01 adds ONE per scan, not per symbol: company_tickers.json (data-fetchers.ts:900), the free CIK map that replaced a metered Finnhub call, fetched once per process and cached 30 days.',
+    provider: 'SEC', callsPerSymbol: 6, callsPerScan: 1, warmCallsPerSymbol: 6, warmCallsPerScan: 1,
+    note: 'companyfacts, then the 10-K walk — efts search, submissions, index.json, the document — and the 8-K scan. PIPE-01 adds ONE per scan, not per symbol: company_tickers.json (data-fetchers.ts fetchCIKMap), the free CIK map that replaced a metered Finnhub call, fetched once per process and cached 30 days. No tiered store: warm = cold.',
   },
   {
-    provider: 'FRED', callsPerSymbol: 0, callsPerScan: 24,
-    note: 'Macro is per SCAN, not per symbol: 19 series in the seriesMap loop (:638) plus PAYEMS (:663) and CPIAUCSL (:683), and 3 cross-asset series (:761). 1-hour cached (:568, :725).',
+    provider: 'FRED', callsPerSymbol: 0, callsPerScan: 24, warmCallsPerSymbol: 0, warmCallsPerScan: 24,
+    note: 'Macro is per SCAN, not per symbol: 19 series in the seriesMap loop plus PAYEMS and CPIAUCSL (fetchFredMacro), and 3 cross-asset series (fetchFredDailySeries). 1-hour in-process cached. No tiered store: warm = cold.',
   },
 ];
 
-/** The one-line answer the screen prints above the table. Counts only — the rate is the vendor's. */
+/** The one-line answer the screen prints above the table. Counts only — the rate is the vendor's. COLD first, then WARM. */
 export function scanCostLine(cost: readonly ScanCost[] = SCAN_COST): string {
   const perSymbol = cost
     .filter((c) => c.callsPerSymbol !== null && c.callsPerSymbol > 0)
@@ -147,7 +169,13 @@ export function scanCostLine(cost: readonly ScanCost[] = SCAN_COST): string {
   const perScan = cost
     .filter((c) => c.callsPerScan !== null && c.callsPerScan > 0)
     .map((c) => `${c.callsPerScan} ${c.provider}`);
-  return `One scan of one symbol = ${perSymbol.join(', ')} — plus, once per scan, ${perScan.join(', ')}.`;
+  const warmSymbol = cost
+    .filter((c) => c.warmCallsPerSymbol !== null && c.warmCallsPerSymbol > 0)
+    .map((c) => `${c.warmCallsPerSymbol} ${c.provider}`);
+  const warmScan = cost
+    .filter((c) => c.warmCallsPerScan !== null && c.warmCallsPerScan > 0)
+    .map((c) => `${c.warmCallsPerScan} ${c.provider}`);
+  return `One scan of one symbol = ${perSymbol.join(', ')} — plus, once per scan, ${perScan.join(', ')}. Warm (every slow-tier row within its TTL) = ${warmSymbol.join(', ')} — plus, once per scan, ${warmScan.join(', ')}.`;
 }
 
 /** What THIS check spent, by provider, counted from the rows it actually ran. */
@@ -219,6 +247,15 @@ export function feedCostLaw(opts: { throwOnFail?: boolean; cost?: Readonly<Recor
     }
     if (c.upstreamCalls < 0) violations.push(`feed ${id}: negative call count`);
     if (!c.scanCitation.trim()) violations.push(`feed ${id}: usedByScan=${c.usedByScan} with no citation — say where the scan calls it, or why it does not`);
+  }
+  // TRADE-COST-01: a warm scan never costs more than a cold one, and Finnhub's
+  // two numbers are the tier census's, never typed here.
+  for (const c of SCAN_COST) {
+    if ((c.warmCallsPerSymbol ?? 0) > (c.callsPerSymbol ?? 0)) violations.push(`${c.provider}: warm per-symbol (${c.warmCallsPerSymbol}) exceeds cold (${c.callsPerSymbol})`);
+    if ((c.warmCallsPerScan ?? 0) > (c.callsPerScan ?? 0)) violations.push(`${c.provider}: warm per-scan (${c.warmCallsPerScan}) exceeds cold (${c.callsPerScan})`);
+    if (c.provider === 'Finnhub' && (c.callsPerSymbol !== finnhubCallsPerSymbol('cold') || c.warmCallsPerSymbol !== finnhubCallsPerSymbol('warm'))) {
+      violations.push('Finnhub: SCAN_COST must read the tier census (finnhub-ttl.ts), never a typed number');
+    }
   }
   if (violations.length && opts.throwOnFail !== false) throw new FeedCostLawError(violations.join('\n  '));
   return violations;

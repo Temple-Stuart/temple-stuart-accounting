@@ -2039,6 +2039,28 @@ model scan_snapshots {
   @@index([regimeLabel])
 }
 
+/// TRADE-COST-01 — the per-symbol Finnhub cache. ONE row per (symbol, endpoint,
+/// params hash): the vendor's verbatim answer, its HTTP status and fetched_at.
+/// A row older than its endpoint's TTL (src/lib/convergence/finnhub-ttl.ts) is a
+/// MISS — refetched and OVERWRITTEN, fetched_at updated. Written and read only by
+/// src/lib/convergence/finnhub-cache.ts. NO user column: market data is not
+/// user-scoped — the same answer serves every scan (unlike scan_snapshots, which
+/// holds a user's own scores). key_params is the hashed spec (a rolling window
+/// keyed relatively, e.g. from=-540d); sent_params the absolute query the vendor saw.
+model finnhub_responses {
+  symbol        String   @db.VarChar(20)
+  endpoint      String   @db.VarChar(64)
+  params_hash   String   @db.VarChar(64)
+  key_params    String   @db.VarChar(512)
+  sent_params   String   @db.VarChar(512)
+  response      Json     @db.JsonB
+  vendor_status Int
+  fetched_at    DateTime @db.Timestamptz(6)
+
+  @@id([symbol, endpoint, params_hash])
+  @@index([fetched_at])
+}
+
 model ObservatoryHealthLog {
   id             Int      @id @default(autoincrement())
   symbol         String

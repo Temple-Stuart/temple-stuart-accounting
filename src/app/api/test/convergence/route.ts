@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { finnhubCached, finnhubErrorLine } from '@/lib/convergence/finnhub-cache';
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { CandleType } from '@tastytrade/api';
 import { scoreAll } from '@/lib/convergence/composite';
@@ -209,7 +210,7 @@ export async function GET(request: Request) {
     fetchFinnhubTicker(symbol, finnhubKey || undefined).catch((e): FinnhubData => {
       fetchErrors.finnhub = e instanceof Error ? e.message : String(e);
       // KILL-4: typed failure — all feeds unavailable, declared
-      return { fundamentals: null, recommendations: [], insiderSentiment: [], earnings: [], estimateData: null, feedErrors: [`all: ${e instanceof Error ? e.message : String(e)}`] };
+      return { fundamentals: null, recommendations: [], insiderSentiment: [], earnings: [], estimateData: null, feedErrors: [`all: ${e instanceof Error ? e.message : String(e)}`], fetchedAt: {}, storeErrors: [] };
     }),
     fredKey
       ? fetchFredMacro(fredKey).catch(e => ({
@@ -448,12 +449,12 @@ export async function GET(request: Request) {
   let debugFinnhubFinancials: Record<string, unknown> = { error: 'not fetched' };
   if (finnhubKey) {
     try {
-      const fResp = await fetch(
-        `https://finnhub.io/api/v1/stock/financials-reported?symbol=${symbol}&freq=annual&token=${finnhubKey}`,
-      );
-      if (fResp.ok) {
-        const fJson = await fResp.json();
-        const reports = fJson?.data || [];
+      // TRADE-COST-01: quarterly tier — the same store row the scan reads (7d)
+      const fAns = await finnhubCached<{ data?: unknown }>({ endpoint: 'stock/financials-reported', symbol, params: { freq: 'annual' }, apiKey: finnhubKey });
+      if (fAns.ok) {
+        const fJson = fAns.data;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const reports: any[] = Array.isArray(fJson?.data) ? (fJson.data as any[]) : [];
         if (reports.length > 0) {
           // Sort descending by year, take most recent
           reports.sort((a: { year: number }, b: { year: number }) => b.year - a.year);
@@ -500,7 +501,7 @@ export async function GET(request: Request) {
           debugFinnhubFinancials = { error: 'no annual reports returned' };
         }
       } else {
-        debugFinnhubFinancials = { error: `HTTP ${fResp.status}` };
+        debugFinnhubFinancials = { error: finnhubErrorLine(fAns) };
       }
     } catch (e: unknown) {
       debugFinnhubFinancials = { error: e instanceof Error ? e.message : String(e) };

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
+import { finnhubCached } from '@/lib/convergence/finnhub-cache';
 
 export async function GET(request: Request) {
   const userEmail = await getVerifiedEmail();
@@ -60,33 +61,34 @@ export async function GET(request: Request) {
       })
       .catch((e) => { console.error(`[Finnhub] News ${symbol} error:`, e); return null; }),
 
-    // 2. Analyst Recommendations (most recent)
-    fetch(`${baseUrl}/stock/recommendation?symbol=${symbol}&token=${token}`)
-      .then(r => {
-        if (!r.ok) { console.error(`[Finnhub] Recommendations ${symbol}: HTTP ${r.status}`); return null; }
-        return r.json();
-      })
-      .then((recs: any[] | null) => {
+    // 2. Analyst Recommendations (most recent) — TRADE-COST-01: weekly tier,
+    //    read through the tiered store (24h); fetchedAt rides on the answer.
+    finnhubCached<unknown>({ endpoint: 'stock/recommendation', symbol, apiKey: token })
+      .then((ans) => {
+        if (!ans.ok) { console.error(`[Finnhub] Recommendations ${symbol}: ${ans.error}`); return null; }
+        const recs = ans.data;
         if (!recs || !Array.isArray(recs) || recs.length === 0) return null;
-        const latest = recs[0];
+        const latest = recs[0] as Record<string, unknown>;
         return {
-          strongBuy: latest.strongBuy ?? 0,
-          buy: latest.buy ?? 0,
-          hold: latest.hold ?? 0,
-          sell: latest.sell ?? 0,
-          strongSell: latest.strongSell ?? 0,
-          period: latest.period ?? '',
+          strongBuy: (latest.strongBuy ?? 0) as number,
+          buy: (latest.buy ?? 0) as number,
+          hold: (latest.hold ?? 0) as number,
+          sell: (latest.sell ?? 0) as number,
+          strongSell: (latest.strongSell ?? 0) as number,
+          period: (latest.period ?? '') as string,
+          fetchedAt: ans.meta.fetchedAt,
+          servedFromCache: ans.meta.servedFromCache,
         };
       })
       .catch((e) => { console.error(`[Finnhub] Recommendations ${symbol} error:`, e); return null; }),
 
-    // 3. Price Target
-    fetch(`${baseUrl}/stock/price-target?symbol=${symbol}&token=${token}`)
-      .then(async (r) => {
-        if (!r.ok) { console.error(`[Finnhub] PriceTarget ${symbol}: HTTP ${r.status}`); return { _status: r.status }; }
-        const pt = await r.json();
+    // 3. Price Target — TRADE-COST-01: weekly tier, read through the tiered store (24h)
+    finnhubCached<unknown>({ endpoint: 'stock/price-target', symbol, apiKey: token })
+      .then((ans) => {
+        if (!ans.ok) { console.error(`[Finnhub] PriceTarget ${symbol}: ${ans.error}`); return ans.status !== null ? { _status: ans.status } : null; }
+        const pt = ans.data;
         console.log(`[Finnhub] PriceTarget ${symbol} raw:`, JSON.stringify(pt));
-        return pt;
+        return pt && typeof pt === 'object' ? { ...(pt as Record<string, unknown>), _fetchedAt: ans.meta.fetchedAt, _servedFromCache: ans.meta.servedFromCache } : pt;
       })
       .then((pt: any | null) => {
         if (!pt || pt._status) return pt?._status ? { _blocked: pt._status } : null;
@@ -103,6 +105,8 @@ export async function GET(request: Request) {
           mean: bestMean,
           median: median ?? mean ?? 0,
           numberAnalysts: typeof pt.numberAnalysts === 'number' ? pt.numberAnalysts : 0,
+          fetchedAt: typeof pt._fetchedAt === 'string' ? pt._fetchedAt : null,
+          servedFromCache: pt._servedFromCache === true,
         };
       })
       .catch((e) => { console.error(`[Finnhub] PriceTarget ${symbol} error:`, e); return null; }),

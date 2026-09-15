@@ -54,6 +54,11 @@ interface DataSource {
   usedByScan?: boolean;
   scanCitation?: string;
   probedSymbol?: string | null;
+  // TRADE-COST-01 — a slow-tier probe reads through finnhub_responses: served
+  // from the store (no call made) or bought from the vendor, and when the
+  // answer was fetched. null when the probe does not read through the store.
+  servedFromCache?: boolean | null;
+  fetchedAt?: string | null;
 }
 
 interface CheckResponse {
@@ -103,6 +108,13 @@ const PROVIDER_BADGE_CLASSES: Record<DataProvider, string> = {
   xAI:        'bg-orange-50 text-orange-700 border border-orange-200 font-mono',
   Internal:   'bg-gray-50 text-gray-500 border border-gray-200 font-mono',
 };
+
+/** TRADE-COST-01: "2026-09-15 12:04Z" — when the served Finnhub answer was fetched. */
+function formatFetchedAt(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return `${d.toISOString().slice(0, 16).replace('T', ' ')}Z`;
+}
 
 function formatLastLive(iso: string): string {
   const d = new Date(iso);
@@ -317,6 +329,7 @@ export default function DataObservatory() {
                         <th className="px-3 py-2 text-right font-medium text-text-muted">LATENCY</th>
                         <th className="px-3 py-2 text-center font-medium text-text-muted">METERED</th>
                         <th className="px-3 py-2 text-right font-medium text-text-muted">CALLS</th>
+                        <th className="px-3 py-2 text-left font-medium text-text-muted">FETCHED</th>
                         <th className="px-3 py-2 text-center font-medium text-text-muted">IN SCAN</th>
                       </tr>
                     </thead>
@@ -353,11 +366,16 @@ export default function DataObservatory() {
                               {row.billable ? <span className="text-brand-red font-semibold">METERED</span> : <span className="text-text-muted">no</span>}
                             </td>
                             <td className="px-3 py-2 text-right font-mono text-text-primary">{row.upstreamCalls ?? '—'}</td>
+                            <td className="px-3 py-2 font-mono text-[10px] text-text-secondary" data-fetched-from={row.servedFromCache == null ? 'none' : row.servedFromCache ? 'cache' : 'vendor'}>
+                              {row.servedFromCache == null
+                                ? '—'
+                                : `${row.servedFromCache ? 'cache' : 'vendor'} · ${row.fetchedAt ? formatFetchedAt(row.fetchedAt) : '—'}`}
+                            </td>
                             <td className="px-3 py-2 text-center font-mono text-[10px] text-text-secondary">{row.usedByScan ? 'yes' : 'no'}</td>
                           </tr>
                           {expandedRow === row.id && (
                             <tr>
-                              <td colSpan={13} className="px-0 py-0">
+                              <td colSpan={14} className="px-0 py-0">
                                 <div className="bg-bg-row border-t border-border px-4 py-3 space-y-2">
                                   <div className="font-mono text-terminal-xs text-text-secondary">
                                     <span className="text-text-muted">Cost basis:</span> {row.costBasis ?? 'not recorded'}

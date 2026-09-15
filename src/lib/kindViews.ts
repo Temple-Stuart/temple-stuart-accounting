@@ -134,6 +134,7 @@ export const STOPPED_TABLES: ReadonlyArray<{ table: string; why: string }> = [
   { table: 'plaid_items', why: "Plaid's item — a handshake (the access token lives here); the deck: handshakes never enter the tables; the book has no plaid · item row" },
   { table: 'tastytrade_connections', why: 'a handshake (tokens); never data' },
   { table: 'observatoryHealthLog', why: 'our probes of the providers (src/app/api/data-observatory) — not a provider feed' },
+  { table: 'finnhub_responses', why: "TRADE-COST-01: the per-symbol Finnhub cache (src/lib/convergence/finnhub-cache.ts) — verbatim vendor answers keyed (symbol, endpoint, params hash) with fetched_at, OVERWRITTEN on refetch, no user, no arrival_id. The book names ONE finnhub feed (fundamentals · REFERENCE, providers.ts) while this table holds sixteen endpoints' answers; which of them the book should name is a rule-book ruling, and the reference view is redefined only by a migration of its own (TABLES-01) — reported here until then" },
 ];
 
 const feedLabel = (code: string, resource: string): string => {

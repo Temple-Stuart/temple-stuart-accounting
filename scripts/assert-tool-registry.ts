@@ -102,6 +102,7 @@ import { KIND_VIEWS_HONEST_LINE, KIND_VIEW_CENSUS, STOPPED_TABLES, VIEW_COLUMNS,
 import { FREE_TOOLS, OFFERS, TOOL_GATE, heroCountsLine, offerCard, offerLaw, priceEnvName } from '../src/lib/offer';
 import { DYNAMIC_READ_ENV, LIBRARY_READ_ENV } from '../src/lib/envLaw';
 import { EXPECTED_FEED_COUNT, FEED_COST, FEED_IDS, SCAN_COST, feedCostLaw, scanCostLine } from '../src/lib/observatory/feedCost';
+import { FINNHUB_TTL, finnhubCallsPerSymbol, finnhubTtlLaw, slowTierEndpoints } from '../src/lib/convergence/finnhub-ttl';
 import { PURCHASABLE_ENTITLEMENT_KEYS } from '../src/lib/stripe';
 
 /**
@@ -663,6 +664,45 @@ for (const id of FEED_IDS) {
 }
 console.log(scanCostLine());
 console.log(`✔ The observatory law passed — ${FEED_IDS.length}/${EXPECTED_FEED_COUNT} feeds each carry provider, metered, calls and scan use; ${observatoryFiles.length} file(s) under ${OBSERVATORY_DIR} hold ${observatoryRowsTyped} typed measurement(s); the screen renders a not-measured state. One scan of one symbol: ${SCAN_COST.filter((c) => (c.callsPerSymbol ?? 0) > 0).map((c) => `${c.callsPerSymbol} ${c.provider}`).join(' · ')}.`);
+// ── THE FINNHUB CACHE LAW (TRADE-COST-01) ──────────────────────────────────
+// Slow data is fetched once. Every slow-tier Finnhub endpoint named in the TTL
+// const (src/lib/convergence/finnhub-ttl.ts) is called ONLY through the cache
+// helper (src/lib/convergence/finnhub-cache.ts): a URL for one of them built
+// anywhere else under src — `…/api/v1/<endpoint>?`, `${BASE}/<endpoint>?` — is
+// a metered call the store cannot see, and the build throws naming the file.
+// Comment lines are stripped first (a citation is not a call). The helper
+// itself must be the one place the base URL and the path are joined, or the
+// law guards nothing. The cost line prints COLD and WARM, both read from the
+// census.
+const FINNHUB_CACHE_HELPER = 'src/lib/convergence/finnhub-cache.ts';
+violations.push(...finnhubTtlLaw({ throwOnFail: false }).map((v) => `finnhub cache law (ttl const): ${v}`));
+const helperSrc = existsSync(resolve(ROOT, FINNHUB_CACHE_HELPER)) ? readFileSync(resolve(ROOT, FINNHUB_CACHE_HELPER), 'utf8') : '';
+if (!helperSrc) violations.push(`finnhub cache law: ${FINNHUB_CACHE_HELPER} is missing — the one place a Finnhub URL is built`);
+else {
+  if (!/FINNHUB_BASE = 'https:\/\/finnhub\.io\/api\/v1'/.test(helperSrc)) violations.push(`finnhub cache law: ${FINNHUB_CACHE_HELPER} does not declare FINNHUB_BASE — the base and the path join here or nowhere`);
+  if (!/\$\{FINNHUB_BASE\}\/\$\{endpoint\}\?/.test(helperSrc)) violations.push(`finnhub cache law: ${FINNHUB_CACHE_HELPER} does not build the URL from FINNHUB_BASE and the endpoint`);
+  for (const must of ['export async function finnhubCached', 'export async function finnhubDirect', 'store.get(', 'store.put(', 'stale']) {
+    if (!helperSrc.includes(must)) violations.push(`finnhub cache law: ${FINNHUB_CACHE_HELPER} lacks ${must}`);
+  }
+}
+const escapeRe = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+let slowTierUrlsOutside = 0;
+for (const { file, src } of srcFiles) {
+  if (file === FINNHUB_CACHE_HELPER) continue;
+  const bare = src.split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
+  for (const endpoint of slowTierEndpoints()) {
+    // a URL for this endpoint: the vendor host path, or a base constant, then the path, then the query
+    const url = new RegExp(`(finnhub\\.io\\/api\\/v1|\\$\\{[A-Za-z_]+\\}|\\})\\/${escapeRe(endpoint)}\\?`);
+    if (url.test(bare)) {
+      slowTierUrlsOutside += 1;
+      violations.push(`finnhub cache law: ${file} builds a URL for ${endpoint} outside ${FINNHUB_CACHE_HELPER} — a slow-tier call the store cannot see (TRADE-COST-01)`);
+    }
+  }
+}
+if (slowTierUrlsOutside === 0) {
+  const warm = SCAN_COST.find((c) => c.provider === 'Finnhub');
+  console.log(`✔ The Finnhub cache law passed — ${slowTierEndpoints().length} slow-tier endpoints (${FINNHUB_TTL.filter((r) => r.ttlMs > 0).map((r) => r.tier).filter((t, i, a) => a.indexOf(t) === i).join(' · ')}) are called only through ${FINNHUB_CACHE_HELPER}; ${srcFiles.length} files checked. One symbol, one scan: COLD ${finnhubCallsPerSymbol('cold')} Finnhub · WARM ${finnhubCallsPerSymbol('warm')} Finnhub (${warm?.callsPerSymbol}/${warm?.warmCallsPerSymbol} in SCAN_COST).`);
+}
 // ── THE SHELL LAW (SHELL-02) ──────────────────────────────────────────────
 // ONE header and ONE band. Two markers, checked over src/app and src/components:
 //   · a BRAND BAR or a SIGN-OUT outside ShellBar — the app rendered two design

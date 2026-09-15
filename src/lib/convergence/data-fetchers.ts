@@ -1,5 +1,7 @@
 import { numOrNull } from '@/lib/parse-num';
 import type {
+  FinnhubFetchedAt,
+  FinnhubFetchMeta,
   CandleData,
   FinnhubFundamentals,
   FinnhubRecommendation,
@@ -45,6 +47,7 @@ import type {
 // news-classifier.ts no longer used — Claude API classification removed
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { CandleType } from '@tastytrade/api';
+import { finnhubCached, finnhubDirect, finnhubErrorLine, type FinnhubAnswer } from './finnhub-cache';
 
 // ===== TYPES =====
 
@@ -58,131 +61,113 @@ export interface FinnhubData {
   // feed is DECLARED here — an empty array/null with no feedErrors entry
   // genuinely means "fetched, empty"; with an entry it means "feed unavailable".
   feedErrors: string[];
+  // TRADE-COST-01: when each answer was fetched, keyed by endpoint?params — a
+  // cache hit keeps its ORIGINAL fetch time, so nothing reads fresher than it is.
+  fetchedAt: FinnhubFetchedAt;
+  // TRADE-COST-01: a vendor answer that was returned but could not be stored —
+  // declared here (not on feedErrors: the feed WAS available), never swallowed.
+  storeErrors: string[];
 }
 
 export interface FinnhubBatchStats {
+  /** The CEILING the batch would buy (8 per ticker) — the run's real count is the meter (pipeline_summary.finnhub_calls_made). */
   calls_made: number;
   errors: number;
   retries: number;
   // KILL-4: per-symbol per-endpoint failure declarations ("SYM fundamentals: HTTP 429")
   error_messages: string[];
+  // TRADE-COST-01: cache-store failures with the data still returned ("SYM stock/earnings: finnhub cache write failed: …")
+  store_errors: string[];
 }
+
+/** TRADE-COST-01: the shape every Finnhub fetcher returns — data, a declared error, and when the data was fetched. */
+export type Fetched<T> = { data: T | null; error: string | null; fetchedAt?: FinnhubFetchedAt };
+
+const recordMeta = (into: FinnhubFetchedAt, meta: FinnhubFetchMeta | null): void => {
+  if (meta) into[meta.key] = meta;
+};
+/** A stored-nothing declaration: the vendor answered and was paid, the row could not be written. */
+const storeNote = (label: string, a: Extract<FinnhubAnswer, { ok: true }>): string | null =>
+  a.storeError ? `${label}: ${a.storeError} (data returned, not cached)` : null;
 
 // ===== HELPERS =====
 
 const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-/**
- * PIPE-01: ONE call, never two. This used to wait 5s on HTTP 429 and refire —
- * which bills the throttled call twice for an answer the vendor has just said
- * it will not give, and hides the throttle from every caller. The throttle is
- * now SURFACED: the 429 response is returned as-is, so each caller's existing
- * `!resp.ok` branch declares `HTTP 429` on its own error channel and the run
- * reports being rate-limited instead of quietly paying double for it.
- *
- * Kept as a named wrapper (not inlined) so the log line stays and so there is
- * one place to add a real backoff — a queue with a budget — if Alex ever wants
- * one. A retry is a cost decision, not a plumbing detail.
- */
-async function fetchOnce(url: string): Promise<Response> {
-  const resp = await fetch(url);
-  if (resp.status === 429) {
-    console.warn(`[Finnhub] 429 rate limit on ${url.split('?')[0]} — NOT retried; the caller reports the throttle`);
-  }
-  return resp;
-}
+// TRADE-COST-01: every Finnhub URL is built in ONE module — ./finnhub-cache.ts
+// (finnhubCached for the slow tiers, finnhubDirect for the daily tier; PIPE-01's
+// one-call-never-two rule lives there as finnhubFetchOnce). The in-process Maps
+// this file kept in front of Finnhub (estimates 1h, quarterly financials 6h,
+// insider-tx 1h, peers 24h, ownership + fund-ownership 1h, revenue-breakdown 1h,
+// news-sentiment 1h, earnings-quality 1h) are RETIRED: they served hits with no
+// fetched_at, died with the lambda, and one of them cached a failed partial for
+// an hour. The tiered store (finnhub_responses, TTLs in ./finnhub-ttl.ts)
+// replaces every one of them; the daily tier is bought every scan, as ruled.
 
-// ===== FINNHUB ESTIMATE CACHE (1-hour TTL) =====
-
-const estimateCache = new Map<string, { data: FinnhubEstimateData; timestamp: number }>();
-const ESTIMATE_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+// ===== FINNHUB ESTIMATES (eps · revenue · price-target via the cache; upgrade-downgrade daily) =====
 
 async function fetchFinnhubEstimates(symbol: string, key: string): Promise<FinnhubEstimateData> {
-  const cached = estimateCache.get(symbol);
-  if (cached && Date.now() - cached.timestamp < ESTIMATE_CACHE_TTL) {
-    return cached.data;
-  }
-
   let epsEstimates: FinnhubEpsEstimate[] = [];
   let revenueEstimates: FinnhubRevenueEstimate[] = [];
   let priceTarget: FinnhubPriceTarget | null = null;
   let upgradeDowngrade: FinnhubUpgradeDowngrade[] = [];
+  const fetchedAt: FinnhubFetchedAt = {};
+  const storeErrors: string[] = [];
   // KILL-4: every fetch/HTTP/parse failure is DECLARED on the result — a
-  // failed feed must never masquerade as "no estimates exist".
+  // failed feed must never masquerade as "no estimates exist". TRADE-COST-01: a
+  // refused refetch names the stale row's age; the stale row is never served.
   const feedErrors: string[] = [];
-  const declare = (feed: string, e: unknown) => {
-    const msg = e instanceof Error ? e.message : String(e);
+  const declare = (feed: string, msg: string) => {
     console.error(`[Finnhub] ${feed} ${symbol}:`, msg);
     feedErrors.push(`${feed}: ${msg}`);
   };
+  const took = (feed: string, a: Extract<FinnhubAnswer, { ok: true }>) => {
+    recordMeta(fetchedAt, a.meta);
+    const note = storeNote(feed, a);
+    if (note) storeErrors.push(note);
+  };
 
-  const [epsResp, revResp, ptResp, udResp] = await Promise.all([
-    fetchOnce(`https://finnhub.io/api/v1/stock/eps-estimate?symbol=${symbol}&freq=quarterly&token=${key}`).catch((e) => { declare('eps-estimate', e); return null; }),
-    fetchOnce(`https://finnhub.io/api/v1/stock/revenue-estimate?symbol=${symbol}&freq=quarterly&token=${key}`).catch((e) => { declare('revenue-estimate', e); return null; }),
-    fetchOnce(`https://finnhub.io/api/v1/stock/price-target?symbol=${symbol}&token=${key}`).catch((e) => { declare('price-target', e); return null; }),
-    fetchOnce(`https://finnhub.io/api/v1/stock/upgrade-downgrade?symbol=${symbol}&token=${key}`).catch((e) => { declare('upgrade-downgrade', e); return null; }),
+  const [eps, rev, pt, ud] = await Promise.all([
+    finnhubCached<{ data?: unknown }>({ endpoint: 'stock/eps-estimate', symbol, params: { freq: 'quarterly' }, apiKey: key }),
+    finnhubCached<{ data?: unknown }>({ endpoint: 'stock/revenue-estimate', symbol, params: { freq: 'quarterly' }, apiKey: key }),
+    finnhubCached<{ targetMedian?: unknown }>({ endpoint: 'stock/price-target', symbol, apiKey: key }),
+    finnhubDirect<unknown>({ endpoint: 'stock/upgrade-downgrade', symbol, apiKey: key }),
   ]);
 
-  if (epsResp?.ok) {
-    try {
-      const json = await epsResp.json();
-      epsEstimates = Array.isArray(json?.data) ? json.data : [];
-    } catch (e: unknown) {
-      declare('eps-estimate', e);
-    }
-  } else if (epsResp) {
-    declare('eps-estimate', `HTTP ${epsResp.status}`);
-  }
-
-  if (revResp?.ok) {
-    try {
-      const json = await revResp.json();
-      revenueEstimates = Array.isArray(json?.data) ? json.data : [];
-    } catch (e: unknown) {
-      declare('revenue-estimate', e);
-    }
-  } else if (revResp) {
-    declare('revenue-estimate', `HTTP ${revResp.status}`);
-  }
-
-  if (ptResp?.ok) {
-    try {
-      const json = await ptResp.json();
-      if (json && typeof json.targetMedian === 'number') {
-        priceTarget = json as FinnhubPriceTarget;
-      }
-    } catch (e: unknown) {
-      declare('price-target', e);
-    }
-  } else if (ptResp) {
-    declare('price-target', `HTTP ${ptResp.status}`);
-  }
-
-  if (udResp?.ok) {
-    try {
-      const json = await udResp.json();
-      upgradeDowngrade = Array.isArray(json) ? json : [];
-    } catch (e: unknown) {
-      declare('upgrade-downgrade', e);
-    }
-  } else if (udResp) {
-    declare('upgrade-downgrade', `HTTP ${udResp.status}`);
-  }
-
-  const result: FinnhubEstimateData = { epsEstimates, revenueEstimates, priceTarget, upgradeDowngrade, feedErrors };
-
-  // Only cache if we got meaningful data — prevents poisoning cache with empty results from rate limits / network errors
-  const hasData = epsEstimates.length > 0 || revenueEstimates.length > 0 || priceTarget !== null || upgradeDowngrade.length > 0;
-  if (hasData) {
-    estimateCache.set(symbol, { data: result, timestamp: Date.now() });
+  if (eps.ok) {
+    epsEstimates = Array.isArray(eps.data?.data) ? (eps.data.data as FinnhubEpsEstimate[]) : [];
+    took('eps-estimate', eps);
   } else {
-    // Clear any stale cached empty entry so next call retries
-    estimateCache.delete(symbol);
+    declare('eps-estimate', finnhubErrorLine(eps));
   }
 
-  console.log(`[DEBUG-ESTIMATES] ${symbol}: eps=${epsEstimates.length}, rev=${revenueEstimates.length}, pt=${priceTarget !== null}, ud=${upgradeDowngrade.length}, cached=${hasData}`);
+  if (rev.ok) {
+    revenueEstimates = Array.isArray(rev.data?.data) ? (rev.data.data as FinnhubRevenueEstimate[]) : [];
+    took('revenue-estimate', rev);
+  } else {
+    declare('revenue-estimate', finnhubErrorLine(rev));
+  }
 
-  return result;
+  if (pt.ok) {
+    if (pt.data && typeof pt.data.targetMedian === 'number') {
+      priceTarget = pt.data as unknown as FinnhubPriceTarget;
+    }
+    took('price-target', pt);
+  } else {
+    declare('price-target', finnhubErrorLine(pt));
+  }
+
+  if (ud.ok) {
+    upgradeDowngrade = Array.isArray(ud.data) ? (ud.data as FinnhubUpgradeDowngrade[]) : [];
+    took('upgrade-downgrade', ud);
+  } else {
+    declare('upgrade-downgrade', finnhubErrorLine(ud));
+  }
+
+  const hits = Object.values(fetchedAt).filter(m => m.servedFromCache).length;
+  console.log(`[DEBUG-ESTIMATES] ${symbol}: eps=${epsEstimates.length}, rev=${revenueEstimates.length}, pt=${priceTarget !== null}, ud=${upgradeDowngrade.length}, served-from-cache=${hits}/${Object.keys(fetchedAt).length}`);
+
+  return { epsEstimates, revenueEstimates, priceTarget, upgradeDowngrade, feedErrors, fetchedAt, storeErrors };
 }
 
 // ===== FINNHUB SINGLE-TICKER FETCHER =====
@@ -200,85 +185,70 @@ export async function fetchFinnhubTicker(
       earnings: [],
       estimateData: null,
       feedErrors: ['FINNHUB_API_KEY not configured — all Finnhub feeds unavailable'],
+      fetchedAt: {},
+      storeErrors: [],
     };
   }
 
   // Fetch all 5 endpoints, each resilient to failure.
   // KILL-4: every failure is DECLARED in feedErrors so a failed feed is
   // distinguishable from "fetched, empty" all the way downstream.
+  // TRADE-COST-01: metric is daily (bought every scan); recommendation,
+  // insider-sentiment and earnings read through the tiered store.
   let fundamentals: FinnhubFundamentals | null = null;
   let recommendations: FinnhubRecommendation[] = [];
   let insiderSentiment: FinnhubInsiderSentiment[] = [];
   let earnings: FinnhubEarnings[] = [];
   let estimateData: FinnhubEstimateData | null = null;
   const feedErrors: string[] = [];
-  const declareFeed = (feed: string, e: unknown) => {
-    const msg = e instanceof Error ? e.message : String(e);
+  const storeErrors: string[] = [];
+  const fetchedAt: FinnhubFetchedAt = {};
+  const declareFeed = (feed: string, msg: string) => {
     console.error(`[Finnhub] ${feed} ${symbol}:`, msg);
     feedErrors.push(`${feed}: ${msg}`);
   };
+  const took = (feed: string, a: Extract<FinnhubAnswer, { ok: true }>) => {
+    recordMeta(fetchedAt, a.meta);
+    const note = storeNote(feed, a);
+    if (note) storeErrors.push(note);
+  };
 
-  // 1. Fundamentals
-  try {
-    const resp = await fetchOnce(
-      `https://finnhub.io/api/v1/stock/metric?symbol=${symbol}&metric=all&token=${key}`,
-    );
-    if (resp.ok) {
-      const json = await resp.json();
-      const metric = json?.metric || {};
-      fundamentals = { metric, fieldCount: Object.keys(metric).length };
-    } else {
-      declareFeed('fundamentals', `HTTP ${resp.status}`);
-    }
-  } catch (e: unknown) {
-    declareFeed('fundamentals', e);
+  // 1. Fundamentals — daily tier, no cache (market cap and 52-week levels move every session)
+  const metric = await finnhubDirect<{ metric?: Record<string, number | string | null> }>({ endpoint: 'stock/metric', symbol, params: { metric: 'all' }, apiKey: key });
+  if (metric.ok) {
+    const m = metric.data?.metric || {};
+    fundamentals = { metric: m, fieldCount: Object.keys(m).length };
+    took('fundamentals', metric);
+  } else {
+    declareFeed('fundamentals', finnhubErrorLine(metric));
   }
 
-  // 2. Recommendations
-  try {
-    const resp = await fetchOnce(
-      `https://finnhub.io/api/v1/stock/recommendation?symbol=${symbol}&token=${key}`,
-    );
-    if (resp.ok) {
-      const json = await resp.json();
-      recommendations = Array.isArray(json) ? json : [];
-    } else {
-      declareFeed('recommendations', `HTTP ${resp.status}`);
-    }
-  } catch (e: unknown) {
-    declareFeed('recommendations', e);
+  // 2. Recommendations — weekly tier (24h)
+  const recs = await finnhubCached<unknown>({ endpoint: 'stock/recommendation', symbol, apiKey: key });
+  if (recs.ok) {
+    recommendations = Array.isArray(recs.data) ? (recs.data as FinnhubRecommendation[]) : [];
+    took('recommendations', recs);
+  } else {
+    declareFeed('recommendations', finnhubErrorLine(recs));
   }
 
-  // 3. Insider sentiment
-  // Rolling 18-month window for insider sentiment data
+  // 3. Insider sentiment — monthly tier (24h); rolling 18-month window, keyed relatively
   const insiderFrom = new Date(Date.now() - 18 * 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  try {
-    const resp = await fetchOnce(
-      `https://finnhub.io/api/v1/stock/insider-sentiment?symbol=${symbol}&from=${insiderFrom}&token=${key}`,
-    );
-    if (resp.ok) {
-      const json = await resp.json();
-      insiderSentiment = json?.data || [];
-    } else {
-      declareFeed('insider-sentiment', `HTTP ${resp.status}`);
-    }
-  } catch (e: unknown) {
-    declareFeed('insider-sentiment', e);
+  const insider = await finnhubCached<{ data?: unknown }>({ endpoint: 'stock/insider-sentiment', symbol, params: { from: insiderFrom }, keyParams: { from: '-540d' }, apiKey: key });
+  if (insider.ok) {
+    insiderSentiment = Array.isArray(insider.data?.data) ? (insider.data.data as FinnhubInsiderSentiment[]) : [];
+    took('insider-sentiment', insider);
+  } else {
+    declareFeed('insider-sentiment', finnhubErrorLine(insider));
   }
 
-  // 4. Earnings
-  try {
-    const resp = await fetchOnce(
-      `https://finnhub.io/api/v1/stock/earnings?symbol=${symbol}&token=${key}`,
-    );
-    if (resp.ok) {
-      const json = await resp.json();
-      earnings = Array.isArray(json) ? json : [];
-    } else {
-      declareFeed('earnings', `HTTP ${resp.status}`);
-    }
-  } catch (e: unknown) {
-    declareFeed('earnings', e);
+  // 4. Earnings — quarterly tier (7d)
+  const earn = await finnhubCached<unknown>({ endpoint: 'stock/earnings', symbol, apiKey: key });
+  if (earn.ok) {
+    earnings = Array.isArray(earn.data) ? (earn.data as FinnhubEarnings[]) : [];
+    took('earnings', earn);
+  } else {
+    declareFeed('earnings', finnhubErrorLine(earn));
   }
 
   // 5. Premium estimates (EPS, revenue, price target, upgrade/downgrade)
@@ -288,11 +258,15 @@ export async function fetchFinnhubTicker(
     if (estimateData.feedErrors && estimateData.feedErrors.length > 0) {
       feedErrors.push(...estimateData.feedErrors.map(f => `estimates/${f}`));
     }
+    if (estimateData.storeErrors && estimateData.storeErrors.length > 0) {
+      storeErrors.push(...estimateData.storeErrors.map(f => `estimates/${f}`));
+    }
+    Object.assign(fetchedAt, estimateData.fetchedAt ?? {});
   } catch (e: unknown) {
-    declareFeed('estimates', e);
+    declareFeed('estimates', e instanceof Error ? e.message : String(e));
   }
 
-  return { fundamentals, recommendations, insiderSentiment, earnings, estimateData, feedErrors };
+  return { fundamentals, recommendations, insiderSentiment, earnings, estimateData, feedErrors, fetchedAt, storeErrors };
 }
 
 // ===== FINNHUB BATCH FETCHER =====
@@ -303,11 +277,11 @@ export async function fetchFinnhubBatch(
   apiKey?: string,
 ): Promise<{ data: Map<string, FinnhubData>; stats: FinnhubBatchStats }> {
   const data = new Map<string, FinnhubData>();
-  const stats: FinnhubBatchStats = { calls_made: 0, errors: 0, retries: 0, error_messages: [] };
+  const stats: FinnhubBatchStats = { calls_made: 0, errors: 0, retries: 0, error_messages: [], store_errors: [] };
 
   for (let i = 0; i < symbols.length; i++) {
     const symbol = symbols[i];
-    stats.calls_made += 8; // 4 free + 4 premium endpoints per ticker
+    stats.calls_made += 8; // the ceiling: 4 free + 4 premium endpoints per ticker (TRADE-COST-01: the real count is the run's meter)
 
     try {
       const result = await fetchFinnhubTicker(symbol, apiKey);
@@ -316,6 +290,10 @@ export async function fetchFinnhubBatch(
       // KILL-4: declare every per-endpoint failure on the batch channel
       if (result.feedErrors.length > 0) {
         stats.error_messages.push(...result.feedErrors.map(f => `${symbol} ${f}`));
+      }
+      // TRADE-COST-01: a returned-but-unstored answer is declared on its own channel
+      if (result.storeErrors.length > 0) {
+        stats.store_errors.push(...result.storeErrors.map(f => `${symbol} ${f}`));
       }
 
       // Count errors: null fundamentals or empty arrays when we expected data
@@ -334,6 +312,8 @@ export async function fetchFinnhubBatch(
         earnings: [],
         estimateData: null,
         feedErrors: [`all: ${msg}`],
+        fetchedAt: {},
+        storeErrors: [],
       });
     }
 
@@ -390,23 +370,21 @@ function parseAnnualReport(report: ReportData, year: number): AnnualFinancialPer
 export async function fetchAnnualFinancials(
   symbol: string,
   apiKey?: string,
-): Promise<{ data: AnnualFinancials | null; error: string | null }> {
+): Promise<Fetched<AnnualFinancials>> {
   const key = apiKey || process.env.FINNHUB_API_KEY;
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
   try {
-    const resp = await fetchOnce(
-      `https://finnhub.io/api/v1/stock/financials-reported?symbol=${symbol}&freq=annual&token=${key}`,
-    );
-    if (!resp.ok) {
-      return { data: null, error: `financials-reported: HTTP ${resp.status}` };
+    // TRADE-COST-01: quarterly tier (7d) — a 10-K moves once a year
+    const ans = await finnhubCached<{ data?: unknown }>({ endpoint: 'stock/financials-reported', symbol, params: { freq: 'annual' }, apiKey: key });
+    if (!ans.ok) {
+      return { data: null, error: `financials-reported: ${finnhubErrorLine(ans)}` };
     }
-
-    const json = await resp.json();
-    const reports: { year: number; report: ReportData }[] = json?.data || [];
+    const fetchedAt: FinnhubFetchedAt = { [ans.meta.key]: ans.meta };
+    const reports: { year: number; report: ReportData }[] = Array.isArray(ans.data?.data) ? (ans.data.data as { year: number; report: ReportData }[]) : [];
 
     if (reports.length < 2) {
-      return { data: null, error: `financials-reported: only ${reports.length} annual report(s) available` };
+      return { data: null, error: `financials-reported: only ${reports.length} annual report(s) available`, fetchedAt };
     }
 
     // Sort descending by year to get the two most recent
@@ -415,16 +393,13 @@ export async function fetchAnnualFinancials(
     const currentYear = parseAnnualReport(reports[0].report, reports[0].year);
     const priorYear = parseAnnualReport(reports[1].report, reports[1].year);
 
-    return { data: { currentYear, priorYear }, error: null };
+    return { data: { currentYear, priorYear }, error: storeNote('financials-reported', ans), fetchedAt };
   } catch (e: unknown) {
     return { data: null, error: `financials-reported: ${e instanceof Error ? e.message : String(e)}` };
   }
 }
 
 // ===== QUARTERLY FINANCIALS FETCHER (bs/ic/cf, up to 40 quarters) =====
-
-const quarterlyFinancialsCache = new Map<string, { data: QuarterlyFinancials; fetchedAt: number }>();
-const QUARTERLY_FINANCIALS_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
 
 /**
  * Fetches up to 40 quarters of balance sheet, income statement, and cash flow
@@ -433,36 +408,37 @@ const QUARTERLY_FINANCIALS_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
 export async function fetchQuarterlyFinancials(
   symbol: string,
   apiKey?: string,
-): Promise<{ data: QuarterlyFinancials | null; error: string | null }> {
-  const cached = quarterlyFinancialsCache.get(symbol);
-  if (cached && Date.now() - cached.fetchedAt < QUARTERLY_FINANCIALS_CACHE_TTL) {
-    return { data: cached.data, error: null };
-  }
-
+): Promise<Fetched<QuarterlyFinancials>> {
   const key = apiKey || process.env.FINNHUB_API_KEY;
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
   try {
-    // Three calls: balance sheet, income statement, cash flow
+    // Three calls: balance sheet, income statement, cash flow — quarterly tier
+    // (7d), each statement its own row of the store.
     // KILL-4: a failed statement fetch is DECLARED — a partial join must not
-    // masquerade as complete financials.
-    const statementFailures: string[] = [];
-    const stmtFail = (stmt: string) => (e: unknown) => {
-      statementFailures.push(`${stmt}: ${e instanceof Error ? e.message : String(e)}`);
-      return null;
-    };
-    const [bsResp, icResp, cfResp] = await Promise.all([
-      fetchOnce(`https://finnhub.io/api/v1/stock/financials?symbol=${symbol}&statement=bs&freq=quarterly&token=${key}`).catch(stmtFail('bs')),
-      fetchOnce(`https://finnhub.io/api/v1/stock/financials?symbol=${symbol}&statement=ic&freq=quarterly&token=${key}`).catch(stmtFail('ic')),
-      fetchOnce(`https://finnhub.io/api/v1/stock/financials?symbol=${symbol}&statement=cf&freq=quarterly&token=${key}`).catch(stmtFail('cf')),
-    ]);
-
+    // masquerade as complete financials. (Before TRADE-COST-01 only a THROWN
+    // fetch was declared; a non-2xx statement was silently treated as empty.)
     type FinRow = Record<string, number | string | null | undefined>;
     type FinResp = { financials?: FinRow[] };
+    const statementFailures: string[] = [];
+    const fetchedAt: FinnhubFetchedAt = {};
+    const [bs, ic, cf] = await Promise.all((['bs', 'ic', 'cf'] as const).map((statement) =>
+      finnhubCached<FinResp>({ endpoint: 'stock/financials', symbol, params: { statement, freq: 'quarterly' }, apiKey: key }),
+    ));
+    const rowsOf = (stmt: string, a: FinnhubAnswer<FinResp>): FinRow[] => {
+      if (!a.ok) {
+        statementFailures.push(`${stmt}: ${finnhubErrorLine(a)}`);
+        return [];
+      }
+      recordMeta(fetchedAt, a.meta);
+      const note = storeNote(stmt, a);
+      if (note) statementFailures.push(note);
+      return a.data?.financials ?? [];
+    };
 
-    const bsData: FinRow[] = bsResp?.ok ? ((await bsResp.json()) as FinResp)?.financials ?? [] : [];
-    const icData: FinRow[] = icResp?.ok ? ((await icResp.json()) as FinResp)?.financials ?? [] : [];
-    const cfData: FinRow[] = cfResp?.ok ? ((await cfResp.json()) as FinResp)?.financials ?? [] : [];
+    const bsData: FinRow[] = rowsOf('bs', bs);
+    const icData: FinRow[] = rowsOf('ic', ic);
+    const cfData: FinRow[] = rowsOf('cf', cf);
 
     if (bsData.length === 0 && icData.length === 0 && cfData.length === 0) {
       return {
@@ -558,7 +534,6 @@ export async function fetchQuarterlyFinancials(
       quarterCount: periods.length,
     };
 
-    quarterlyFinancialsCache.set(symbol, { data: result, fetchedAt: Date.now() });
     // KILL-4: partial data is DECLARED — data + error both set means "usable
     // but degraded", never silently complete-looking.
     return {
@@ -566,6 +541,7 @@ export async function fetchQuarterlyFinancials(
       error: statementFailures.length > 0
         ? `quarterly-financials PARTIAL: statement fetch failed — ${statementFailures.join('; ')}`
         : null,
+      fetchedAt,
     };
   } catch (e: unknown) {
     return { data: null, error: `quarterly-financials: ${e instanceof Error ? e.message : String(e)}` };
@@ -1051,32 +1027,25 @@ export async function fetchSECFilingData(
 // Cohen, Malloy & Pomorski (2012): "opportunistic" insiders (infrequent traders)
 // predict +7.2% annual excess returns; "routine" traders predict nothing.
 
-const insiderTxCache = new Map<string, { data: SECForm4Data; fetchedAt: number }>();
-const INSIDER_TX_CACHE_TTL = 60 * 60 * 1000; // 1 hour
-
 export async function fetchInsiderTransactions(
   symbol: string,
   apiKey?: string,
-): Promise<{ data: SECForm4Data | null; error: string | null }> {
-  const cached = insiderTxCache.get(symbol);
-  if (cached && Date.now() - cached.fetchedAt < INSIDER_TX_CACHE_TTL) {
-    return { data: cached.data, error: null };
-  }
-
+): Promise<Fetched<SECForm4Data>> {
   const key = apiKey || process.env.FINNHUB_API_KEY;
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
   try {
-    // Fetch last 90 days of insider transactions
+    // Fetch last 90 days of insider transactions — monthly tier (24h); the
+    // rolling window is keyed relatively (from=-90d), the absolute date is sent.
     const fromDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const resp = await fetchOnce(
-      `https://finnhub.io/api/v1/stock/insider-transactions?symbol=${symbol}&from=${fromDate}&token=${key}`,
-    );
-    if (!resp.ok) {
-      return { data: null, error: `insider-transactions: HTTP ${resp.status}` };
+    const ans = await finnhubCached<{ data?: unknown }>({ endpoint: 'stock/insider-transactions', symbol, params: { from: fromDate }, keyParams: { from: '-90d' }, apiKey: key });
+    if (!ans.ok) {
+      return { data: null, error: `insider-transactions: ${finnhubErrorLine(ans)}` };
     }
+    const fetchedAt: FinnhubFetchedAt = { [ans.meta.key]: ans.meta };
+    const stored = storeNote('insider-transactions', ans);
 
-    const json = await resp.json();
+    const json = ans.data as { data?: unknown } | null;
     const rawTxs: Array<{
       name?: string;
       share?: number;
@@ -1085,7 +1054,7 @@ export async function fetchInsiderTransactions(
       transactionDate?: string;
       transactionPrice?: number;
       transactionCode?: string;
-    }> = json?.data ?? [];
+    }> = Array.isArray(json?.data) ? (json.data as Array<{ name?: string; share?: number; change?: number; filingDate?: string; transactionDate?: string; transactionPrice?: number; transactionCode?: string }>) : [];
 
     // Map Finnhub transactions to SECForm4Transaction[]
     const transactions: SECForm4Transaction[] = [];
@@ -1191,8 +1160,7 @@ export async function fetchInsiderTransactions(
         latestTransactionDate: null,
         opportunisticScore: null,
       };
-      insiderTxCache.set(symbol, { data: emptyResult, fetchedAt: Date.now() });
-      return { data: emptyResult, error: null };
+      return { data: emptyResult, error: stored, fetchedAt };
     }
 
     const result: SECForm4Data = {
@@ -1208,13 +1176,14 @@ export async function fetchInsiderTransactions(
       opportunisticScore,
     };
 
-    insiderTxCache.set(symbol, { data: result, fetchedAt: Date.now() });
     return {
       data: result,
       // KILL-7: dateless transactions are excluded from aggregation — declared
-      error: txSkippedNoDate > 0
-        ? `insider-transactions PARTIAL: ${txSkippedNoDate} transaction(s) excluded — no transaction/filing date (never placeholder-dated)`
-        : null,
+      error: [
+        txSkippedNoDate > 0 ? `insider-transactions PARTIAL: ${txSkippedNoDate} transaction(s) excluded — no transaction/filing date (never placeholder-dated)` : null,
+        stored,
+      ].filter((x): x is string => x !== null).join('; ') || null,
+      fetchedAt,
     };
   } catch (e: unknown) {
     return { data: null, error: `insider-transactions: ${e instanceof Error ? e.message : String(e)}` };
@@ -1225,30 +1194,22 @@ export async function fetchInsiderTransactions(
 // Uses Finnhub /stock/peers to get peer company tickers for expanding peer groups
 // beyond hard-filter survivors. Returns tickers in the same country/sector/industry.
 
-const peerTickerCache = new Map<string, { peers: string[]; fetchedAt: number }>();
-const PEER_TICKER_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours (peer lists change slowly)
-
 export async function fetchPeerTickers(
   symbol: string,
   apiKey?: string,
-): Promise<{ data: string[] | null; error: string | null }> {
-  const cached = peerTickerCache.get(symbol);
-  if (cached && Date.now() - cached.fetchedAt < PEER_TICKER_CACHE_TTL) {
-    return { data: cached.peers, error: null };
-  }
-
+): Promise<Fetched<string[]>> {
   const key = apiKey || process.env.FINNHUB_API_KEY;
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
   try {
-    const resp = await fetchOnce(
-      `https://finnhub.io/api/v1/stock/peers?symbol=${symbol}&grouping=industry&token=${key}`,
-    );
-    if (!resp.ok) {
-      return { data: null, error: `stock/peers: HTTP ${resp.status}` };
+    // TRADE-COST-01: daily tier as ruled — no cache (the 24h in-process Map is retired)
+    const ans = await finnhubDirect<unknown>({ endpoint: 'stock/peers', symbol, params: { grouping: 'industry' }, apiKey: key });
+    if (!ans.ok) {
+      return { data: null, error: `stock/peers: ${finnhubErrorLine(ans)}` };
     }
+    const fetchedAt: FinnhubFetchedAt = { [ans.meta.key]: ans.meta };
 
-    const json = await resp.json();
+    const json = ans.data;
     if (!Array.isArray(json)) {
       return { data: null, error: 'stock/peers: unexpected response format' };
     }
@@ -1258,8 +1219,7 @@ export async function fetchPeerTickers(
       typeof t === 'string' && t !== symbol
     );
 
-    peerTickerCache.set(symbol, { peers, fetchedAt: Date.now() });
-    return { data: peers, error: null };
+    return { data: peers, error: null, fetchedAt };
   } catch (e: unknown) {
     return { data: null, error: `stock/peers: ${e instanceof Error ? e.message : String(e)}` };
   }
@@ -1836,72 +1796,45 @@ function extractTopTerms(words: string[], n: number): string[] {
 type OwnershipEntry = { name?: string; share?: number; change?: number; filingDate?: string };
 
 /**
- * PIPE-01: the raw /stock/fund-ownership rows, cached per symbol so the scan
- * buys them ONCE. fetchFinnhubInstitutionalOwnership (Step E6) fetches them and
- * fills this; fetchFinnhubFundOwnership (Step I5) reads it instead of paying
- * again. Same TTL as the ownership cache it rides along with.
+ * PIPE-01 → TRADE-COST-01: ONE fund-ownership call per symbol per scan, for
+ * real this time. Step E6 (this function) and Step I5 (fetchFinnhubFundOwnership)
+ * both read the SAME store key (stock/fund-ownership, no params); the helper
+ * coalesces their in-flight fetch when they collide in the same tick and serves
+ * the stored row (24h, monthly tier) otherwise. The 1h in-process Maps that
+ * tried to do this — and lost the race for topSymbols[0] every cold scan — are gone.
  */
-const fundOwnershipRawCache = new Map<string, { rows: OwnershipEntry[]; fetchedAt: number }>();
-const FUND_OWNERSHIP_RAW_TTL = 60 * 60 * 1000; // 1 hour
-
-const institutionalOwnershipCache = new Map<string, { data: FinnhubInstitutionalOwnership; fetchedAt: number }>();
-const INSTITUTIONAL_OWNERSHIP_CACHE_TTL = 60 * 60 * 1000; // 1 hour
-
 export async function fetchFinnhubInstitutionalOwnership(
   symbol: string,
   apiKey?: string,
-): Promise<{ data: FinnhubInstitutionalOwnership | null; error: string | null }> {
-  const cached = institutionalOwnershipCache.get(symbol);
-  if (cached && Date.now() - cached.fetchedAt < INSTITUTIONAL_OWNERSHIP_CACHE_TTL) {
-    return { data: cached.data, error: null };
-  }
-
+): Promise<Fetched<FinnhubInstitutionalOwnership>> {
   const key = apiKey || process.env.FINNHUB_API_KEY;
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
   try {
-    // Fetch both ownership endpoints in parallel
+    // Fetch both ownership endpoints in parallel — monthly tier (24h)
     // KILL-4: endpoint failures are DECLARED — partial holders data must not
     // masquerade as the full ownership picture.
     const ownershipFailures: string[] = [];
-    const ownFail = (ep: string) => (e: unknown) => {
-      ownershipFailures.push(`${ep}: ${e instanceof Error ? e.message : String(e)}`);
-      return null;
-    };
-    const [ownershipResp, fundResp] = await Promise.all([
-      fetchOnce(`https://finnhub.io/api/v1/stock/ownership?symbol=${symbol}&token=${key}`).catch(ownFail('ownership')),
-      // PIPE-01: ONE fund-ownership call per symbol per scan. Step I5
-      // (fetchFinnhubFundOwnership) used to GET the same endpoint again; it now
-      // reads the array this call caches below.
-      fetchOnce(`https://finnhub.io/api/v1/stock/fund-ownership?symbol=${symbol}&token=${key}`).catch(ownFail('fund-ownership')),
+    const fetchedAt: FinnhubFetchedAt = {};
+    type OwnershipResp = { ownership?: unknown };
+    const [own, fund] = await Promise.all([
+      finnhubCached<OwnershipResp>({ endpoint: 'stock/ownership', symbol, apiKey: key }),
+      finnhubCached<OwnershipResp>({ endpoint: 'stock/fund-ownership', symbol, apiKey: key }),
     ]);
 
-
-    let holders: OwnershipEntry[] = [];
-
-    if (ownershipResp?.ok) {
-      try {
-        const json = await ownershipResp.json();
-        if (Array.isArray(json?.ownership)) holders.push(...(json.ownership as OwnershipEntry[]));
-      } catch (e: unknown) {
-        // KILL-4: parse failure declared, holders from this endpoint excluded
-        ownershipFailures.push(`ownership parse: ${e instanceof Error ? e.message : String(e)}`);
+    const holders: OwnershipEntry[] = [];
+    const takeRows = (ep: string, a: FinnhubAnswer<OwnershipResp>) => {
+      if (!a.ok) {
+        ownershipFailures.push(`${ep}: ${finnhubErrorLine(a)}`);
+        return;
       }
-    }
-
-    if (fundResp?.ok) {
-      try {
-        const json = await fundResp.json();
-        if (Array.isArray(json?.ownership)) {
-          // PIPE-01: cache the raw array for Step I5, which used to buy it twice.
-          fundOwnershipRawCache.set(symbol, { rows: json.ownership as OwnershipEntry[], fetchedAt: Date.now() });
-          holders.push(...(json.ownership as OwnershipEntry[]));
-        }
-      } catch (e: unknown) {
-        // KILL-4: parse failure declared, holders from this endpoint excluded
-        ownershipFailures.push(`fund-ownership parse: ${e instanceof Error ? e.message : String(e)}`);
-      }
-    }
+      recordMeta(fetchedAt, a.meta);
+      const note = storeNote(ep, a);
+      if (note) ownershipFailures.push(note);
+      if (Array.isArray(a.data?.ownership)) holders.push(...(a.data.ownership as OwnershipEntry[]));
+    };
+    takeRows('ownership', own);
+    takeRows('fund-ownership', fund);
 
     if (holders.length === 0) {
       return {
@@ -1938,7 +1871,6 @@ export async function fetchFinnhubInstitutionalOwnership(
       latestFilingDate,
     };
 
-    institutionalOwnershipCache.set(symbol, { data: result, fetchedAt: Date.now() });
     // KILL-4: partial data is DECLARED — one endpoint failing must not
     // silently present half the holders as the full picture.
     return {
@@ -1946,6 +1878,7 @@ export async function fetchFinnhubInstitutionalOwnership(
       error: ownershipFailures.length > 0
         ? `institutional-ownership PARTIAL: ${ownershipFailures.join('; ')}`
         : null,
+      fetchedAt,
     };
   } catch (e: unknown) {
     return { data: null, error: `institutional-ownership: ${e instanceof Error ? e.message : String(e)}` };
@@ -1954,31 +1887,23 @@ export async function fetchFinnhubInstitutionalOwnership(
 
 // ===== FINNHUB REVENUE BREAKDOWN FETCHER =====
 
-const revenueBreakdownCache = new Map<string, { data: FinnhubRevenueBreakdown; fetchedAt: number }>();
-const REVENUE_BREAKDOWN_CACHE_TTL = 60 * 60 * 1000; // 1 hour
-
 export async function fetchFinnhubRevenueBreakdown(
   symbol: string,
   apiKey?: string,
-): Promise<{ data: FinnhubRevenueBreakdown | null; error: string | null }> {
-  const cached = revenueBreakdownCache.get(symbol);
-  if (cached && Date.now() - cached.fetchedAt < REVENUE_BREAKDOWN_CACHE_TTL) {
-    return { data: cached.data, error: null };
-  }
-
+): Promise<Fetched<FinnhubRevenueBreakdown>> {
   const key = apiKey || process.env.FINNHUB_API_KEY;
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
   try {
     // v2 endpoint — granted under Premium Package 1 (v1 /stock/revenue-breakdown is NOT granted)
-    const resp = await fetchOnce(
-      `https://finnhub.io/api/v1/stock/revenue-breakdown2?symbol=${symbol}&token=${key}`,
-    );
-    if (!resp.ok) {
-      return { data: null, error: `revenue-breakdown2: HTTP ${resp.status}` };
+    // TRADE-COST-01: quarterly tier (7d)
+    const ans = await finnhubCached<{ data?: unknown }>({ endpoint: 'stock/revenue-breakdown2', symbol, apiKey: key });
+    if (!ans.ok) {
+      return { data: null, error: `revenue-breakdown2: ${finnhubErrorLine(ans)}` };
     }
+    const fetchedAt: FinnhubFetchedAt = { [ans.meta.key]: ans.meta };
 
-    const json = await resp.json();
+    const json = ans.data as { data?: Record<string, unknown> } | null;
     // v2 returns { symbol, currency, data: <object> } where data has dynamic keys.
     // Known structures:
     //   A) { "segmentName": number, ... }  — flat segment→revenue map
@@ -2050,8 +1975,7 @@ export async function fetchFinnhubRevenueBreakdown(
       hhi,
     };
 
-    revenueBreakdownCache.set(symbol, { data: result, fetchedAt: Date.now() });
-    return { data: result, error: null };
+    return { data: result, error: storeNote('revenue-breakdown2', ans), fetchedAt };
   } catch (e: unknown) {
     return { data: null, error: `revenue-breakdown2: ${e instanceof Error ? e.message : String(e)}` };
   }
@@ -2059,30 +1983,23 @@ export async function fetchFinnhubRevenueBreakdown(
 
 // ===== FINNHUB FINBERT SENTIMENT FETCHER =====
 
-const finbertCache = new Map<string, { data: FinnhubNewsSentiment; fetchedAt: number }>();
-const FINBERT_CACHE_TTL = 60 * 60 * 1000; // 1 hour
-
 export async function fetchFinnhubNewsSentiment(
   symbol: string,
   apiKey?: string,
-): Promise<{ data: FinnhubNewsSentiment | null; error: string | null }> {
-  const cached = finbertCache.get(symbol);
-  if (cached && Date.now() - cached.fetchedAt < FINBERT_CACHE_TTL) {
-    return { data: cached.data, error: null };
-  }
-
+): Promise<Fetched<FinnhubNewsSentiment>> {
   const key = apiKey || process.env.FINNHUB_API_KEY;
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
   try {
-    const resp = await fetchOnce(
-      `https://finnhub.io/api/v1/news-sentiment?symbol=${symbol}&token=${key}`,
-    );
-    if (!resp.ok) {
-      return { data: null, error: `news-sentiment: HTTP ${resp.status}` };
+    // TRADE-COST-01: daily tier as ruled — no cache (the 1h in-process Map is retired)
+    const ans = await finnhubDirect<Record<string, unknown>>({ endpoint: 'news-sentiment', symbol, apiKey: key });
+    if (!ans.ok) {
+      return { data: null, error: `news-sentiment: ${finnhubErrorLine(ans)}` };
     }
+    const fetchedAt: FinnhubFetchedAt = { [ans.meta.key]: ans.meta };
 
-    const json = await resp.json();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const json = ans.data as any;
     // Finnhub returns { buzz: {}, sentiment: {}, companyNewsScore, ... }
     const sentiment = json?.sentiment;
     const buzz = json?.buzz;
@@ -2100,8 +2017,7 @@ export async function fetchFinnhubNewsSentiment(
       bearishPercent: typeof sentiment?.bearishPercent === 'number' ? sentiment.bearishPercent : null,
     };
 
-    finbertCache.set(symbol, { data: result, fetchedAt: Date.now() });
-    return { data: result, error: null };
+    return { data: result, error: null, fetchedAt };
   } catch (e: unknown) {
     return { data: null, error: `news-sentiment: ${e instanceof Error ? e.message : String(e)}` };
   }
@@ -2109,30 +2025,22 @@ export async function fetchFinnhubNewsSentiment(
 
 // ===== FINNHUB EARNINGS QUALITY SCORE FETCHER =====
 
-const earningsQualityCache = new Map<string, { data: FinnhubEarningsQuality; fetchedAt: number }>();
-const EARNINGS_QUALITY_CACHE_TTL = 60 * 60 * 1000; // 1 hour
-
 export async function fetchFinnhubEarningsQuality(
   symbol: string,
   apiKey?: string,
-): Promise<{ data: FinnhubEarningsQuality | null; error: string | null }> {
-  const cached = earningsQualityCache.get(symbol);
-  if (cached && Date.now() - cached.fetchedAt < EARNINGS_QUALITY_CACHE_TTL) {
-    return { data: cached.data, error: null };
-  }
-
+): Promise<Fetched<FinnhubEarningsQuality>> {
   const key = apiKey || process.env.FINNHUB_API_KEY;
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
   try {
-    const resp = await fetchOnce(
-      `https://finnhub.io/api/v1/stock/earnings-quality-score?symbol=${symbol}&freq=quarterly&token=${key}`,
-    );
-    if (!resp.ok) {
-      return { data: null, error: `earnings-quality-score: HTTP ${resp.status}` };
+    // TRADE-COST-01: quarterly tier (7d)
+    const ans = await finnhubCached<{ data?: unknown }>({ endpoint: 'stock/earnings-quality-score', symbol, params: { freq: 'quarterly' }, apiKey: key });
+    if (!ans.ok) {
+      return { data: null, error: `earnings-quality-score: ${finnhubErrorLine(ans)}` };
     }
+    const fetchedAt: FinnhubFetchedAt = { [ans.meta.key]: ans.meta };
 
-    const json = await resp.json();
+    const json = ans.data;
     // Finnhub returns { data: [{ period, score, letterScore }], symbol }
     const entries = json?.data;
     if (!Array.isArray(entries) || entries.length === 0) {
@@ -2153,8 +2061,7 @@ export async function fetchFinnhubEarningsQuality(
       letterScore: typeof latest.letterScore === 'string' ? latest.letterScore : 'N/A',
     };
 
-    earningsQualityCache.set(symbol, { data: result, fetchedAt: Date.now() });
-    return { data: result, error: null };
+    return { data: result, error: storeNote('earnings-quality-score', ans), fetchedAt };
   } catch (e: unknown) {
     return { data: null, error: `earnings-quality-score: ${e instanceof Error ? e.message : String(e)}` };
   }
@@ -2165,7 +2072,7 @@ export async function fetchFinnhubEarningsQuality(
 export async function fetchNewsSentiment(
   symbol: string,
   apiKey?: string,
-): Promise<{ data: NewsSentimentData | null; error: string | null }> {
+): Promise<Fetched<NewsSentimentData>> {
   const key = apiKey || process.env.FINNHUB_API_KEY;
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
@@ -2192,25 +2099,22 @@ export async function fetchNewsSentiment(
       summary?: string;
     };
 
-    // Fetch both periods in parallel
-    const [resp7d, resp8_30d] = await Promise.all([
-      fetchOnce(
-        `https://finnhub.io/api/v1/company-news?symbol=${symbol}&from=${from7d}&to=${toDate}&token=${key}`,
-      ),
-      fetchOnce(
-        `https://finnhub.io/api/v1/company-news?symbol=${symbol}&from=${from30d}&to=${to8d}&token=${key}`,
-      ),
+    // Fetch both periods in parallel — daily tier, no cache: the windows ARE the signal
+    const [ans7d, ans8_30d] = await Promise.all([
+      finnhubDirect<RawArticle[]>({ endpoint: 'company-news', symbol, params: { from: from7d, to: toDate }, keyParams: { window: '7d' }, apiKey: key }),
+      finnhubDirect<RawArticle[]>({ endpoint: 'company-news', symbol, params: { from: from30d, to: to8d }, keyParams: { window: '8-30d' }, apiKey: key }),
     ]);
 
-    if (!resp7d.ok) {
-      return { data: null, error: `company-news 7d: HTTP ${resp7d.status}` };
+    if (!ans7d.ok) {
+      return { data: null, error: `company-news 7d: ${finnhubErrorLine(ans7d)}` };
     }
-    if (!resp8_30d.ok) {
-      return { data: null, error: `company-news 8-30d: HTTP ${resp8_30d.status}` };
+    if (!ans8_30d.ok) {
+      return { data: null, error: `company-news 8-30d: ${finnhubErrorLine(ans8_30d)}` };
     }
+    const fetchedAt: FinnhubFetchedAt = { [ans7d.meta.key]: ans7d.meta, [ans8_30d.meta.key]: ans8_30d.meta };
 
-    const articles7dRaw: RawArticle[] = await resp7d.json();
-    const articles8_30dRaw: RawArticle[] = await resp8_30d.json();
+    const articles7dRaw: RawArticle[] = ans7d.data;
+    const articles8_30dRaw: RawArticle[] = ans8_30d.data;
 
     if (!Array.isArray(articles7dRaw) || !Array.isArray(articles8_30dRaw)) {
       return { data: null, error: 'company-news: invalid response format' };
@@ -2305,7 +2209,7 @@ export async function fetchNewsSentiment(
       articles_skipped_no_headline: articlesSkippedNoHeadline,
     };
 
-    return { data: result, error: null };
+    return { data: result, error: null, fetchedAt };
   } catch (e: unknown) {
     return { data: null, error: `company-news: ${e instanceof Error ? e.message : String(e)}` };
   }
@@ -2451,18 +2355,17 @@ export async function fetchTTCandlesBatch(
 export async function fetchFinnhubEbitdaEstimates(
   symbol: string,
   apiKey?: string,
-): Promise<{ data: FinnhubEbitdaEstimate | null; error: string | null }> {
+): Promise<Fetched<FinnhubEbitdaEstimate>> {
   const key = apiKey || process.env.FINNHUB_API_KEY;
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
   try {
-    const resp = await fetchOnce(
-      `https://finnhub.io/api/v1/stock/ebitda-estimate?symbol=${symbol}&freq=quarterly&token=${key}`,
-    );
-    if (!resp.ok) return { data: null, error: `ebitda-estimate ${symbol}: HTTP ${resp.status}` };
+    // TRADE-COST-01: weekly tier (24h)
+    const ans = await finnhubCached<{ data?: unknown }>({ endpoint: 'stock/ebitda-estimate', symbol, params: { freq: 'quarterly' }, apiKey: key });
+    if (!ans.ok) return { data: null, error: `ebitda-estimate ${symbol}: ${finnhubErrorLine(ans)}` };
+    const fetchedAt: FinnhubFetchedAt = { [ans.meta.key]: ans.meta };
 
-    const json = await resp.json();
-    const raw = Array.isArray(json?.data) ? json.data : [];
+    const raw = Array.isArray(ans.data?.data) ? (ans.data.data as Record<string, unknown>[]) : [];
     const estimates: FinnhubEbitdaEstimateEntry[] = raw.map((e: Record<string, unknown>) => ({
       period: String(e.period ?? ''),
       ebitdaAvg: typeof e.ebitdaAvg === 'number' ? e.ebitdaAvg : null,
@@ -2471,7 +2374,7 @@ export async function fetchFinnhubEbitdaEstimates(
       numberAnalysts: typeof e.numberAnalysts === 'number' ? e.numberAnalysts : null,
     }));
 
-    return { data: { symbol, estimates }, error: null };
+    return { data: { symbol, estimates }, error: storeNote(`ebitda-estimate ${symbol}`, ans), fetchedAt };
   } catch (e: unknown) {
     return { data: null, error: `ebitda-estimate ${symbol}: ${e instanceof Error ? e.message : String(e)}` };
   }
@@ -2482,18 +2385,17 @@ export async function fetchFinnhubEbitdaEstimates(
 export async function fetchFinnhubEbitEstimates(
   symbol: string,
   apiKey?: string,
-): Promise<{ data: FinnhubEbitEstimate | null; error: string | null }> {
+): Promise<Fetched<FinnhubEbitEstimate>> {
   const key = apiKey || process.env.FINNHUB_API_KEY;
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
   try {
-    const resp = await fetchOnce(
-      `https://finnhub.io/api/v1/stock/ebit-estimate?symbol=${symbol}&freq=quarterly&token=${key}`,
-    );
-    if (!resp.ok) return { data: null, error: `ebit-estimate ${symbol}: HTTP ${resp.status}` };
+    // TRADE-COST-01: weekly tier (24h)
+    const ans = await finnhubCached<{ data?: unknown }>({ endpoint: 'stock/ebit-estimate', symbol, params: { freq: 'quarterly' }, apiKey: key });
+    if (!ans.ok) return { data: null, error: `ebit-estimate ${symbol}: ${finnhubErrorLine(ans)}` };
+    const fetchedAt: FinnhubFetchedAt = { [ans.meta.key]: ans.meta };
 
-    const json = await resp.json();
-    const raw = Array.isArray(json?.data) ? json.data : [];
+    const raw = Array.isArray(ans.data?.data) ? (ans.data.data as Record<string, unknown>[]) : [];
     const estimates: FinnhubEbitEstimateEntry[] = raw.map((e: Record<string, unknown>) => ({
       period: String(e.period ?? ''),
       ebitAvg: typeof e.ebitAvg === 'number' ? e.ebitAvg : null,
@@ -2502,7 +2404,7 @@ export async function fetchFinnhubEbitEstimates(
       numberAnalysts: typeof e.numberAnalysts === 'number' ? e.numberAnalysts : null,
     }));
 
-    return { data: { symbol, estimates }, error: null };
+    return { data: { symbol, estimates }, error: storeNote(`ebit-estimate ${symbol}`, ans), fetchedAt };
   } catch (e: unknown) {
     return { data: null, error: `ebit-estimate ${symbol}: ${e instanceof Error ? e.message : String(e)}` };
   }
@@ -2513,7 +2415,7 @@ export async function fetchFinnhubEbitEstimates(
 export async function fetchFinnhubDividendHistory(
   symbol: string,
   apiKey?: string,
-): Promise<{ data: FinnhubDividendHistory | null; error: string | null }> {
+): Promise<Fetched<FinnhubDividendHistory>> {
   const key = apiKey || process.env.FINNHUB_API_KEY;
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
@@ -2521,14 +2423,14 @@ export async function fetchFinnhubDividendHistory(
   const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
   try {
-    const resp = await fetchOnce(
-      `https://finnhub.io/api/v1/stock/dividend?symbol=${symbol}&from=${oneYearAgo}&to=${today}&token=${key}`,
-    );
-    if (!resp.ok) return { data: null, error: `dividend ${symbol}: HTTP ${resp.status}` };
+    // TRADE-COST-01: quarterly tier (7d); the rolling year is keyed relatively (from=-365d&to=+0d)
+    const ans = await finnhubCached<unknown>({ endpoint: 'stock/dividend', symbol, params: { from: oneYearAgo, to: today }, keyParams: { from: '-365d', to: '+0d' }, apiKey: key });
+    if (!ans.ok) return { data: null, error: `dividend ${symbol}: ${finnhubErrorLine(ans)}` };
+    const fetchedAt: FinnhubFetchedAt = { [ans.meta.key]: ans.meta };
 
-    const json = await resp.json();
+    const json = ans.data;
     console.log(`[DividendHistory RAW] ${symbol}:`, JSON.stringify(json).slice(0, 500));
-    const raw = Array.isArray(json) ? json : [];
+    const raw = Array.isArray(json) ? (json as Record<string, unknown>[]) : [];
     const dividends: FinnhubDividendEntry[] = raw.map((d: Record<string, unknown>) => ({
       date: String(d.date ?? ''),
       amount: typeof d.amount === 'number' ? d.amount : null,
@@ -2539,7 +2441,7 @@ export async function fetchFinnhubDividendHistory(
     }));
 
     console.log('[Dividend]', symbol, JSON.stringify(raw[0]).slice(0, 200));
-    return { data: { symbol, dividends }, error: null };
+    return { data: { symbol, dividends }, error: storeNote(`dividend ${symbol}`, ans), fetchedAt };
   } catch (e: unknown) {
     return { data: null, error: `dividend ${symbol}: ${e instanceof Error ? e.message : String(e)}` };
   }
@@ -2550,21 +2452,22 @@ export async function fetchFinnhubDividendHistory(
 export async function fetchFinnhubPriceMetrics(
   symbol: string,
   apiKey?: string,
-): Promise<{ data: FinnhubPriceMetrics | null; error: string | null }> {
+): Promise<Fetched<FinnhubPriceMetrics>> {
   const key = apiKey || process.env.FINNHUB_API_KEY;
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
   const today = new Date().toISOString().slice(0, 10);
 
   try {
-    const resp = await fetchOnce(
-      `https://finnhub.io/api/v1/stock/price-metric?symbol=${symbol}&date=${today}&token=${key}`,
-    );
-    if (!resp.ok) return { data: null, error: `price-metric ${symbol}: HTTP ${resp.status}` };
+    // TRADE-COST-01: daily tier — pinned to today's date, no cache. (Audit
+    // finding, unchanged here: no gate or panel reads priceMetricsMap.)
+    const ans = await finnhubDirect<{ metric?: Record<string, unknown> }>({ endpoint: 'stock/price-metric', symbol, params: { date: today }, keyParams: { date: '+0d' }, apiKey: key });
+    if (!ans.ok) return { data: null, error: `price-metric ${symbol}: ${finnhubErrorLine(ans)}` };
+    const fetchedAt: FinnhubFetchedAt = { [ans.meta.key]: ans.meta };
 
-    const json = await resp.json();
+    const json = ans.data;
     console.log(`[PriceMetric RAW] ${symbol}:`, JSON.stringify(json).slice(0, 500));
-    const m = json?.metric ?? {};
+    const m: Record<string, unknown> = json?.metric ?? {};
 
     console.log('[PriceMetric]', symbol, JSON.stringify(m).slice(0, 200));
     return {
@@ -2581,6 +2484,7 @@ export async function fetchFinnhubPriceMetrics(
         priceRelativeToSMA200: typeof m.priceRelativeToSMA200 === 'number' ? m.priceRelativeToSMA200 : null,
       },
       error: null,
+      fetchedAt,
     };
   } catch (e: unknown) {
     return { data: null, error: `price-metric ${symbol}: ${e instanceof Error ? e.message : String(e)}` };
@@ -2592,28 +2496,19 @@ export async function fetchFinnhubPriceMetrics(
 export async function fetchFinnhubFundOwnership(
   symbol: string,
   apiKey?: string,
-): Promise<{ data: FinnhubFundOwnership | null; error: string | null }> {
+): Promise<Fetched<FinnhubFundOwnership>> {
   const key = apiKey || process.env.FINNHUB_API_KEY;
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
   try {
-    // PIPE-01: Step E6 already bought these rows this scan — read them, don't
-    // buy them again. The shape below is unchanged: the first 10 rows, exactly
-    // what `limit=10` returned. Only when nothing filled the cache (E6 skipped
-    // or its call failed) does this fetch, and then it is the ONLY call.
-    const cached = fundOwnershipRawCache.get(symbol);
-    let raw: Record<string, unknown>[];
-    if (cached && Date.now() - cached.fetchedAt < FUND_OWNERSHIP_RAW_TTL) {
-      raw = cached.rows as unknown as Record<string, unknown>[];
-    } else {
-      const resp = await fetchOnce(
-        `https://finnhub.io/api/v1/stock/fund-ownership?symbol=${symbol}&token=${key}`,
-      );
-      if (!resp.ok) return { data: null, error: `fund-ownership ${symbol}: HTTP ${resp.status}` };
-      const json = await resp.json();
-      raw = Array.isArray(json?.ownership) ? json.ownership : [];
-      fundOwnershipRawCache.set(symbol, { rows: raw as unknown as OwnershipEntry[], fetchedAt: Date.now() });
-    }
+    // PIPE-01 → TRADE-COST-01: Step E6 bought these rows — this reads the SAME
+    // store key (stock/fund-ownership, monthly tier) and never buys them again:
+    // a hit inside 24h, or the in-flight fetch E6 started in this very tick.
+    // The shape below is unchanged: the first 10 rows.
+    const ans = await finnhubCached<{ ownership?: unknown }>({ endpoint: 'stock/fund-ownership', symbol, apiKey: key });
+    if (!ans.ok) return { data: null, error: `fund-ownership ${symbol}: ${finnhubErrorLine(ans)}` };
+    const fetchedAt: FinnhubFetchedAt = { [ans.meta.key]: ans.meta };
+    const raw: Record<string, unknown>[] = Array.isArray(ans.data?.ownership) ? (ans.data.ownership as Record<string, unknown>[]) : [];
     const top = raw.slice(0, 10);
     const funds: FinnhubFundOwnershipEntry[] = top.map((f: Record<string, unknown>) => ({
       name: String(f.name ?? ''),
@@ -2630,7 +2525,8 @@ export async function fetchFinnhubFundOwnership(
         funds,
         totalFunds: top.length,
       },
-      error: null,
+      error: storeNote(`fund-ownership ${symbol}`, ans),
+      fetchedAt,
     };
   } catch (e: unknown) {
     return { data: null, error: `fund-ownership ${symbol}: ${e instanceof Error ? e.message : String(e)}` };
@@ -2687,7 +2583,7 @@ export async function fetchSECEdgar8KScan(
 export async function fetchFinnhubEarningsCalendar(
   symbol: string,
   apiKey?: string,
-): Promise<{ data: FinnhubEarningsCalendar | null; error: string | null }> {
+): Promise<Fetched<FinnhubEarningsCalendar>> {
   const key = apiKey || process.env.FINNHUB_API_KEY;
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
@@ -2695,13 +2591,12 @@ export async function fetchFinnhubEarningsCalendar(
   const ninetyDaysAhead = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
   try {
-    const resp = await fetchOnce(
-      `https://finnhub.io/api/v1/calendar/earnings?symbol=${symbol}&from=${today}&to=${ninetyDaysAhead}&token=${key}`,
-    );
-    if (!resp.ok) return { data: null, error: `earnings-calendar ${symbol}: HTTP ${resp.status}` };
+    // TRADE-COST-01: daily tier (the ruling assigns it no slow tier; the window looks forward from today)
+    const ans = await finnhubDirect<{ earningsCalendar?: unknown }>({ endpoint: 'calendar/earnings', symbol, params: { from: today, to: ninetyDaysAhead }, keyParams: { from: '+0d', to: '+90d' }, apiKey: key });
+    if (!ans.ok) return { data: null, error: `earnings-calendar ${symbol}: ${finnhubErrorLine(ans)}` };
+    const fetchedAt: FinnhubFetchedAt = { [ans.meta.key]: ans.meta };
 
-    const json = await resp.json();
-    const raw = Array.isArray(json?.earningsCalendar) ? json.earningsCalendar : [];
+    const raw = Array.isArray(ans.data?.earningsCalendar) ? (ans.data.earningsCalendar as Record<string, unknown>[]) : [];
     const earningsCalendar: FinnhubEarningsCalendarEntry[] = raw.map((e: Record<string, unknown>) => ({
       date: typeof e.date === 'string' ? e.date : '',
       epsActual: typeof e.epsActual === 'number' ? e.epsActual : null,
@@ -2714,7 +2609,7 @@ export async function fetchFinnhubEarningsCalendar(
       year: typeof e.year === 'number' ? e.year : null,
     }));
 
-    return { data: { symbol, earningsCalendar }, error: null };
+    return { data: { symbol, earningsCalendar }, error: null, fetchedAt };
   } catch (e: unknown) {
     return { data: null, error: `earnings-calendar ${symbol}: ${e instanceof Error ? e.message : String(e)}` };
   }
