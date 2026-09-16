@@ -23,6 +23,7 @@ import { eraFor, MODEL_ERAS } from '../edge-read/eras';
 import { parseCboeHistory, windowReturn } from '../edge-read/cboe';
 import { buildReport, classifyTicket, secondaryBookReport, type Ticket, type TicketPositionLeg } from '../edge-read/report';
 import { honestFrame } from '../edge-read/frame';
+import { SELF_REPORTED_BIAS_NOTE } from '../tradeLog/ownership';
 
 // EDGE-01 STEP 3 — tests on fixtures. Every fixture is built in memory; no
 // database, no network.
@@ -293,12 +294,17 @@ test('the secondary book buckets closed trades by direction × position-string f
   assert.ok(line(lines, '"put-spread" → UNMAPPED ×1'));
 });
 
-test('the honest frame names the three biases and the 194-trade line', () => {
+test('the honest frame names the four biases and the 194-trade line', () => {
   const f = honestFrame().join('\n');
   assert.ok(f.includes('Selection'));
   assert.ok(f.includes('Survivorship'));
   assert.ok(f.includes('Small and correlated'));
   assert.ok(f.includes('About 194 INDEPENDENT trades'));
+  // TRADE-LOG-01: the fourth bias — a hand-entered book is entered by the
+  // person being measured, and the frame says so in the leaf's own words.
+  assert.ok(f.includes('Self-reported entry'));
+  assert.ok(f.includes(SELF_REPORTED_BIAS_NOTE));
+  assert.ok(f.includes('Four biases'));
 });
 
 test('LOG-01 — the candidate book reads direction from the card legs when told to, and TAKEN/UNTAKEN is one more bucket split', () => {

@@ -20,6 +20,7 @@ import { cboeHistoryUrl, fetchCboeHistory, type BenchmarkIndex, type SeriesPoint
 import { sideFromPositionLegs } from '../src/lib/edge-read/families';
 import { MIN_N } from '../src/lib/edge-read/stats';
 import { familyOf } from '../src/lib/edge-read/families';
+import { positionOwnershipWhere, isManualSource } from '../src/lib/tradeLog/ownership';
 
 type Args = { user: string | null; benchmark: boolean };
 
@@ -94,10 +95,26 @@ async function main(): Promise<number> {
   });
   const txns = await prisma.investment_transactions.findMany({ where: { accounts: { userId: user.id } }, select: { id: true } });
   const txnIds = txns.map((t) => t.id);
-  const positions = txnIds.length === 0 ? [] : await prisma.trading_positions.findMany({
-    where: { open_investment_txn_id: { in: txnIds } },
-    select: { id: true, trade_num: true, position_type: true, open_price: true, quantity: true, open_date: true, expiration_date: true, close_date: true, status: true, strategy: true, realized_pl: true },
+  // TRADE-LOG-01: the ownership predicate, not the arrivals chain alone — a
+  // hand-entered trade has no arrival, and this read would otherwise miss the
+  // whole book of a user who has never connected a brokerage. `source` comes
+  // back with every leg: it is the split below, never a filter.
+  const positions = await prisma.trading_positions.findMany({
+    where: positionOwnershipWhere(user.id, txnIds),
+    select: { id: true, trade_num: true, position_type: true, open_price: true, quantity: true, open_date: true, expiration_date: true, close_date: true, status: true, strategy: true, realized_pl: true, source: true },
   });
+
+  /**
+   * TRADE-LOG-01 — THE SOURCE SPLIT. A trade is HAND-ENTERED when every leg is;
+   * SYNCED when none is. A trade whose legs disagree is neither and says so —
+   * it is never quietly folded into one of the two.
+   */
+  const sourceSplit = (legs: readonly { source: string }[]): string => {
+    const manual = legs.filter((l) => isManualSource(l.source)).length;
+    if (manual === 0) return 'SYNCED';
+    if (manual === legs.length) return 'HAND-ENTERED';
+    return 'MIXED-SOURCE';
+  };
 
   const byTradeNum = new Map<string, typeof positions>();
   let nullTradeNum = 0;
@@ -117,6 +134,7 @@ async function main(): Promise<number> {
   say(`  trade_cards: ${cards.length} — by status: ${countBy(cards, (c) => c.status).map(([k, v]) => `${k} ${v}`).join(', ')}`);
   say(`  trade_card_links: ${linked.length}; with an outcome (actual_pl not null): ${graded.length}; with a grade: ${linked.filter((c) => c.link?.grade).length}; with thesis_results: ${linked.filter((c) => c.link?.thesis_results !== null).length}; with notes: ${linked.filter((c) => c.link?.notes).length}`);
   say(`  trading_positions rows: ${positions.length}; trades (distinct trade_num): ${byTradeNum.size}; legs with a null trade_num: ${nullTradeNum}; legs with trade_num 'AUTO': ${autoTradeNum}`);
+  say(`  by source (trading_positions.source): ${countBy(positions, (p) => p.source).map(([k, v]) => `${k} ${v}`).join(', ') || '—'} — hand-entered legs ${positions.filter((p) => isManualSource(p.source)).length}; every book below splits its buckets by source (bias 3 of the honest frame)`);
   say(`  CLOSED trades: ${closedTrades.length}; CLOSED trades never linked to a card: ${closedUnlinked.length} (the gap — scored or not, no prediction meets them)`);
   say(`  linked trades whose legs are not all CLOSED (no outcome yet): ${linked.length - graded.length}`);
   say(`  links by month (linked_at): ${countBy(linked, (c) => monthKey(c.link?.linked_at as Date)).map(([k, v]) => `${k} ${v}`).join(', ') || '—'}`);
@@ -179,6 +197,9 @@ async function main(): Promise<number> {
       actualPl: num(c.link?.actual_pl),
       grade: c.link?.grade ?? null,
       snapshot,
+      // TRADE-LOG-01: provenance is one more bucket dimension. A linked card
+      // with no position legs at all has no source to declare.
+      split: legs.length > 0 ? sourceSplit(legs) : undefined,
     });
   }
   say(`INPUT PRESENCE SOURCE: same-day scan_snapshots row found for ${snapshotsFound} of ${linked.length} linked cards (±36 h of generated_at, nearest); the card itself records gate-level nulls only — the composite's excluded_fields are not posted to trade_cards (ConvergenceIntelligence.tsx:4480-4540 omits data_confidence).`);
@@ -223,6 +244,7 @@ async function main(): Promise<number> {
       legs: legs.map((l) => ({ positionType: l.position_type, openPrice: num(l.open_price), quantity: num(l.quantity), openDate: l.open_date, expirationDate: l.expiration_date, closeDate: l.close_date, status: l.status, strategyRaw: l.strategy })),
       realizedPl: legs.reduce((s, l) => s + (l.realized_pl as number), 0),
       linked: linkedTradeNums.has(k),
+      split: sourceSplit(legs),
     });
   }
   say(`SECONDARY BOOK excludes ${excludedNullPl} closed trade${excludedNullPl === 1 ? '' : 's'} with a null realized_pl leg (declared, not imputed).`);
@@ -249,7 +271,7 @@ async function main(): Promise<number> {
   say(`  runs by model era: ${countBy(candRows, (c) => c.model_era).map(([k, v]) => `${k} ${v}`).join(', ') || '—'} · candidates by strategy: ${countBy(candRows, (c) => `${c.strategy_name} → ${familyOf(c.strategy_name).family}`).map(([k, v]) => `${k} ${v}`).join(', ') || '—'}`);
   const reasons = countBy(expiredUnsettled.filter((c) => c.outcome_reason), (c) => c.outcome_reason as string);
   if (reasons.length) say(`  unsettled reasons: ${reasons.map(([k, v]) => `"${k}" ×${v}`).join('; ')}`);
-  say(`  bucket = direction × family × era × TAKEN/UNTAKEN — the founder's picks beside the model's full output; direction for an untaken candidate is read from its own legs (no position exists); the same n floor, CI and frame as the primary book. Cards that were saved but never linked count as UNTAKEN.`);
+  say(`  bucket = direction × family × era × TAKEN/UNTAKEN × source — the founder's picks beside the model's full output; direction for an untaken candidate is read from its own legs (no position exists); the same n floor, CI and frame as the primary book. Cards that were saved but never linked count as UNTAKEN.`);
   const candTickets: Ticket[] = settled.map((c) => {
     const tradeNum = c.cards.map((k) => k.link?.trade_num).find((t): t is string => typeof t === 'string') ?? null;
     const legs = c.taken && tradeNum ? byTradeNum.get(tradeNum) ?? [] : [];
@@ -273,7 +295,9 @@ async function main(): Promise<number> {
       grade: null,
       snapshot: { excludedFields: Array.isArray(c.excluded_fields) ? (c.excluded_fields as unknown[]).filter((f): f is string => typeof f === 'string') : [], imputedCount: c.imputed_count },
       directionSource: c.taken && legs.length > 0 ? 'position_legs' : 'card_legs',
-      split: c.taken ? 'TAKEN' : 'UNTAKEN',
+      // TAKEN/UNTAKEN × source. An UNTAKEN candidate has no position and so no
+      // source: its outcome came from the price path, not from anyone's typing.
+      split: `${c.taken ? 'TAKEN' : 'UNTAKEN'}${legs.length > 0 ? ` × ${sourceSplit(legs)}` : ''}`,
       // a candidate's entry is the scan that scored it; an untaken one was held to its expiration
       entryDate: legs.length > 0 ? undefined : c.generated_at,
       closeDate: legs.length > 0 ? undefined : c.expiration,

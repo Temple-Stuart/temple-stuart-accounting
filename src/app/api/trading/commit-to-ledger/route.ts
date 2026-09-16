@@ -7,6 +7,7 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { assertPeriodOpen, PeriodClosedError } from '@/lib/period-close-guard';
 import { requireTabAccess } from '@/lib/auth-helpers';
 import { balanceDeltaOf, postJournal } from '@/lib/posting/postJournal';
+import { ownsEveryLeg } from '@/lib/tradeLog/ownership';
 
 function dollarsToCents(amount: number): bigint {
   return BigInt(Math.round(amount * 100));
@@ -68,6 +69,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // TRADE-LOG-01: this user's arrival ids, read once — the chain half of the
+    // ownership predicate (the other half is trading_positions.userId).
+    const userAccounts = await prisma.accounts.findMany({ where: { userId: user.id }, select: { id: true } });
+    const userArrivalTxnIds = userAccounts.length > 0
+      ? (await prisma.investment_transactions.findMany({
+          where: { accountId: { in: userAccounts.map((a) => a.id) } },
+          select: { id: true },
+        })).map((t) => t.id)
+      : [];
+
     let committed = 0;
     let skipped = 0;
     const errors: string[] = [];
@@ -98,18 +109,16 @@ export async function POST(request: NextRequest) {
         }
 
         // SEC-2: EVERY leg must belong to the user. The prior guard passed when
-        // AT LEAST ONE leg was owned (ownedTxns.length === 0), then netPL was
-        // summed across ALL fetched legs (line below) — a trade_num collision
-        // would post another user's realized_pl into this user's ledger. Require
-        // the full distinct owned set, mirroring
-        // investment-transactions/commit-to-ledger/route.ts:66-73.
-        const txnIds = positions.map(p => p.open_investment_txn_id);
-        const uniqueTxnIds = [...new Set(txnIds)];
-        const ownedTxns = await prisma.investment_transactions.findMany({
-          where: { id: { in: uniqueTxnIds }, accounts: { userId: user.id } },
-          select: { id: true },
-        });
-        if (ownedTxns.length !== uniqueTxnIds.length) {
+        // AT LEAST ONE leg was owned, then netPL was summed across ALL fetched
+        // legs — a trade_num collision would post another user's realized_pl
+        // into this user's ledger.
+        //
+        // TRADE-LOG-01: the rule is unchanged and now reads BOTH shapes of
+        // ownership (src/lib/tradeLog/ownership.ts). Before this PR the check
+        // resolved every leg through investment_transactions, so a hand-entered
+        // trade — which has no arrival — failed it outright and could never
+        // reach Books. A hand-entered trade posts exactly like a synced one.
+        if (!ownsEveryLeg(positions, user.id, userArrivalTxnIds)) {
           errors.push(`Trade #${tradeNum}: one or more legs do not belong to this user — not committed`);
           continue;
         }

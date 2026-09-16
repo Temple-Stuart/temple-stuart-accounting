@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { positionOwnershipWhere } from '@/lib/tradeLog/ownership';
 
 export async function GET() {
   try {
@@ -29,7 +30,7 @@ export async function GET() {
 
     const allOptionPositions = userInvestmentTxnIds.length > 0
       ? await prisma.trading_positions.findMany({
-          where: { open_investment_txn_id: { in: userInvestmentTxnIds } },
+          where: positionOwnershipWhere(user.id, userInvestmentTxnIds),
           orderBy: { open_date: 'asc' }
         })
       : [];

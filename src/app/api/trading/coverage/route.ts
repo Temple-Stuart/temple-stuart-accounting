@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
+import { positionOwnershipWhere } from '@/lib/tradeLog/ownership';
 
 /**
  * RISK-1 — GET /api/trading/coverage
@@ -51,7 +52,7 @@ export async function GET() {
     const closedPositions = userTxnIds.length === 0
       ? []
       : await prisma.trading_positions.findMany({
-          where: { status: 'CLOSED', open_investment_txn_id: { in: userTxnIds } },
+          where: { status: 'CLOSED', ...positionOwnershipWhere(user.id, userTxnIds) },
           select: { trade_num: true },
         });
 

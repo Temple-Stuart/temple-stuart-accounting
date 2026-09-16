@@ -363,6 +363,12 @@ export interface ClosedTrade {
   legs: TicketPositionLeg[];
   realizedPl: number;
   linked: boolean;
+  /**
+   * TRADE-LOG-01: an extra bucket dimension — the trade's PROVENANCE
+   * (trading_positions.source: SYNCED vs HAND-ENTERED). Undefined = none, and
+   * the bucket key is what it always was.
+   */
+  split?: string;
 }
 
 export function secondaryBookReport(trades: ClosedTrade[], opts: ReportOptions = {}): string[] {
@@ -380,7 +386,7 @@ export function secondaryBookReport(trades: ClosedTrade[], opts: ReportOptions =
   });
   const groups = new Map<string, typeof rows>();
   for (const r of rows) {
-    const k = `${r.direction} × ${r.family} × ${r.era.id}`;
+    const k = `${r.direction} × ${r.family} × ${r.era.id}${r.tr.split ? ` × ${r.tr.split}` : ''}`;
     groups.set(k, [...(groups.get(k) ?? []), r]);
   }
   lines.push(`SECONDARY BOOK — every CLOSED trade (${n(trades.length, 'trade')}; linked to a card ${trades.filter((t) => t.linked).length}; never linked ${trades.filter((t) => !t.linked).length}) — no prediction on the unlinked rows, so (a) (b) (g) (h) only:`);

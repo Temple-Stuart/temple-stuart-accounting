@@ -1645,6 +1645,127 @@ if (tsBrokerBody && !/FOUNDER_BROKER_LINE/.test(tsBrokerBody)) tsFail('/brokerag
 
 if (tsViolations === 0) console.log(`✔ The trade-split law passed — the grandfather list is EMPTY; ${TS_BROKERAGE} draws trade 01-03 and ${TS_TRADE_LOG} draws 04-06, one tool each, both registry homes; /trading is a redirect; phase 06 still hands to Books.`);
 
+// ── TRADE-LOG-01 — A TRADE CAN BE LOGGED BY HAND ────────────────────────────
+// Trade Log's work is a trade. Before this, a trading_positions row existed
+// only at the end of a three-tool chain — connect a brokerage in Banking, sync
+// it, commit its legs in Books — so the tool could not do its job for a
+// customer who had none of that. A trade can now be entered by hand, and it is
+// a FIRST-CLASS row: graded, linked, posted to Books, counted by EDGE-01.
+//
+// Three laws hold that in place:
+//   1. EVERY writer that CREATES a trading_positions row names its source. A
+//      row that falls through to the column's DEFAULT says "I predate the
+//      column" when it does not — provenance you cannot read is provenance you
+//      do not have.
+//   2. NO reader branches on source for CAPABILITY. Provenance decides how a
+//      row is DISPLAYED and how a read is SPLIT — never what the row can do.
+//      Ownership is the one predicate (src/lib/tradeLog/ownership.ts), and it
+//      never looks at source.
+//   3. The form's strategy list IS the builders' const (AVAILABLE_STRATEGIES).
+//      A strategy the scanner cannot build is one nothing can ever grade
+//      against, so the form offers no way to type one.
+const TL_OWNERSHIP = 'src/lib/tradeLog/ownership.ts';
+const TL_WRITER = 'src/app/api/trade-log/manual/route.ts';
+const TL_BUILDER = 'src/lib/tradeLog/manualTrade.ts';
+const TL_PNL = 'src/lib/tradeLog/optionPnl.ts';
+const TL_TRACKER = 'src/lib/position-tracker-service.ts';
+const TL_FORM = 'src/components/trading/LogTradeForm.tsx';
+const TL_PAGE = 'src/app/trade-log/page.tsx';
+// The readers whose answer must not depend on where a row came from. Each one
+// scopes through the ownership predicate and asks nothing about source.
+const TL_CAPABILITY_READERS: readonly string[] = [
+  'src/app/api/trade-card-links/route.ts',
+  'src/app/api/trading/route.ts',
+  'src/app/api/trading-positions/open/route.ts',
+  'src/app/api/trading/coverage/route.ts',
+  'src/app/api/positions/summary/route.ts',
+  'src/lib/convergence/undefined-risk.prisma.ts',
+];
+let tlViolations = 0;
+const tlFail = (msg: string) => { tlViolations += 1; violations.push(`trade-log law: ${msg} (TRADE-LOG-01)`); };
+const tlRead = (f: string) => (existsSync(resolve(ROOT, f)) ? readFileSync(resolve(ROOT, f), 'utf8') : '');
+// Comment lines are stripped: a citation in a comment can never satisfy a law.
+const tlCode = (f: string) => tlRead(f).split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
+
+// LAW 1 — every CREATE of a trading_positions row names its source.
+const tlSrcFiles = tsFiles(resolve(ROOT, 'src'));
+const tlCreateRe = /trading_positions\.(create|createMany|upsert)\s*\(/g;
+let tlCreators = 0;
+for (const abs of tlSrcFiles) {
+  const rel = abs.replace(`${ROOT}/`, '');
+  const body = tlCode(rel);
+  let m: RegExpExecArray | null;
+  tlCreateRe.lastIndex = 0;
+  while ((m = tlCreateRe.exec(body)) !== null) {
+    tlCreators += 1;
+    // The statement's own body: from the call to the end of its data object.
+    const window = body.slice(m.index, m.index + 1400);
+    if (!/source:/.test(window)) {
+      tlFail(`${rel} creates a trading_positions row without naming its source — a row that takes the column's DEFAULT cannot say where it came from`);
+    }
+  }
+}
+if (tlCreators === 0) tlFail('no trading_positions writer found at all — the law has nothing to hold');
+// The two values are named once, in the leaf, and the writers read them there.
+const tlOwn = tlCode(TL_OWNERSHIP);
+for (const name of ['MANUAL_SOURCE', 'SYNCED_SOURCE']) {
+  if (!new RegExp(`export const ${name} = '`).test(tlOwn)) tlFail(`${TL_OWNERSHIP} does not export ${name} — the source values are named once`);
+}
+if (!/SYNCED_SOURCE/.test(tlCode(TL_TRACKER))) tlFail(`${TL_TRACKER} does not name SYNCED_SOURCE — the synced writer reads the value from the leaf, never a retyped string`);
+if (!/MANUAL_SOURCE/.test(tlCode(TL_BUILDER))) tlFail(`${TL_BUILDER} does not name MANUAL_SOURCE`);
+
+// LAW 2 — no reader branches on source for capability.
+const tlSourceBranch = /source:\s*MANUAL_SOURCE|source:\s*SYNCED_SOURCE|source:\s*'(manual|plaid)'|isManualSource\s*\(/;
+for (const f of TL_CAPABILITY_READERS) {
+  const body = tlCode(f);
+  if (!body) { tlFail(`${f} is missing — it is one of the readers the law holds`); continue; }
+  if (!/positionOwnershipWhere\s*\(|ownsEveryLeg\s*\(|ownsPosition\s*\(/.test(body)) {
+    tlFail(`${f} does not scope trading_positions through src/lib/tradeLog/ownership.ts — ownership is one predicate, not a retyped where`);
+  }
+  if (tlSourceBranch.test(body)) {
+    tlFail(`${f} branches on source — provenance is display and the read's split, never what a row is allowed to do`);
+  }
+}
+// The predicate itself never reads source, and the ownership OR is both shapes.
+if (/\bsource\b/.test(tlOwn.split('MANUAL_SOURCE')[0] ?? '')) tlFail(`${TL_OWNERSHIP}'s ownership predicate reads source — ownership is provenance-blind`);
+if (!/OR: \[\{ userId \}, \{ open_investment_txn_id: \{ in: \[\.\.\.arrivalTxnIds\] \} \}\]/.test(tlOwn)) {
+  tlFail(`${TL_OWNERSHIP} no longer ORs the explicit owner with the arrivals chain — a hand-entered row has no arrival and an old row has no userId`);
+}
+
+// LAW 3 — the form's strategy list is the builders' const.
+const tlForm = tlCode(TL_FORM);
+if (!tlForm) tlFail(`${TL_FORM} is missing — phase 04 has no "Log a trade" surface`);
+else {
+  if (!/import \{ AVAILABLE_STRATEGIES \} from '@\/lib\/convergence\/filter-types'/.test(tlForm)) {
+    tlFail(`${TL_FORM} does not read AVAILABLE_STRATEGIES from filter-types — the form offers the strategies the scanner BUILDS, never a typed list`);
+  }
+  if (!/AVAILABLE_STRATEGIES\.map\(/.test(tlForm)) tlFail(`${TL_FORM} does not render AVAILABLE_STRATEGIES as its options`);
+  if (/<input[^>]*(id="ltf-strategy"|name="strategy")/.test(tlForm)) tlFail(`${TL_FORM} takes the strategy as free text — it is a select over the builders' const`);
+  // The server validates against the same const: a form is not a gate.
+  if (!/AVAILABLE_STRATEGIES/.test(tlCode(TL_WRITER))) tlFail(`${TL_WRITER} does not validate the strategy against AVAILABLE_STRATEGIES — the browser is not the gate`);
+}
+// The arithmetic is shared, not copied: the manual builder and the synced
+// tracker both call the same leaf, so a hand-entered close cannot drift.
+const tlPnl = tlCode(TL_PNL);
+for (const fn of ['openCostBasisCents', 'closeProceedsCents', 'realizedPlCents', 'proportionalCostCents']) {
+  if (!new RegExp(`export function ${fn}`).test(tlPnl)) tlFail(`${TL_PNL} does not export ${fn} — the shared P&L path is one leaf`);
+  if (!new RegExp(fn).test(tlCode(TL_TRACKER))) tlFail(`${TL_TRACKER} does not call ${fn} — the synced close must use the SAME function the hand-entered close does`);
+}
+// A hand-entered trade is visible AS hand-entered, and is the only kind that
+// can be corrected or removed here.
+for (const marker of ['data-hand-entered', 'data-correct-trade', 'data-delete-trade', 'data-log-trade-form']) {
+  if (!tlRead(TL_PAGE).includes(marker) && !tlRead(TL_FORM).includes(marker)) {
+    tlFail(`neither ${TL_PAGE} nor ${TL_FORM} carries ${marker} — provenance must be visible and a correction offered only on a hand-entered trade`);
+  }
+}
+// A delete never cascades: the linked card is named and the caller decides.
+const tlWriter = tlCode(TL_WRITER);
+if (!/status: 409/.test(tlWriter) || !/linked_card_id/.test(tlWriter)) {
+  tlFail(`${TL_WRITER} does not refuse a delete that would orphan a trade card — a cascade is silent data loss`);
+}
+
+if (tlViolations === 0) console.log(`✔ The trade-log laws passed — ${tlCreators} trading_positions creator(s), every one naming its source from ${TL_OWNERSHIP}; ${TL_CAPABILITY_READERS.length} readers scope through the one ownership predicate and none branches on provenance; the form's strategies ARE the builders' const, validated again server-side; the synced and the hand-entered close share one P&L leaf.`);
+
 // ── THE SECOND GATE ─────────────────────────────────────────────────────────
 // Every law below the first gate — kind views, arrivals, the rule book,
 // posting, env, the observatory, the offer — pushes onto `violations`. Without

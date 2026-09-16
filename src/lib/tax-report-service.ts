@@ -297,7 +297,12 @@ export async function generateForm8949WithMetadata(
       // the root-cause fix for Bug 3 (32 TastyTrade/Plaid positions showing
       // as Box B instead of Box A).
       const openTxnIds = Array.from(
-        new Set(closedOptions.map((p) => p.open_investment_txn_id).filter(Boolean))
+        // TRADE-LOG-01: a hand-entered position has NO opening arrival, so it has
+        // no account source to prefer — it falls through to its own
+        // source='manual', which is deliberately not in BROKER_IMPORTED_SOURCES
+        // and therefore lands in Box B/E. That is the honest box for a
+        // self-reported basis.
+        new Set(closedOptions.map((p) => p.open_investment_txn_id).filter((id): id is string => typeof id === 'string' && id.length > 0))
       );
       const openTxnRows = openTxnIds.length > 0
         ? await prisma.investment_transactions.findMany({
@@ -344,7 +349,7 @@ export async function generateForm8949WithMetadata(
         // Prefer the opening account's source (authoritative) over the
         // position's own source field (which commonly defaults to 'legacy').
         const effectiveSource =
-          openTxnSourceById.get(pos.open_investment_txn_id) ?? pos.source;
+          (pos.open_investment_txn_id ? openTxnSourceById.get(pos.open_investment_txn_id) : null) ?? pos.source;
         const box = determineBox(isLongTerm, effectiveSource);
         const reasoning = boxReasoning(isLongTerm, effectiveSource);
 

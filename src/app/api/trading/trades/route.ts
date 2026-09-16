@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
+import { MANUAL_SOURCE } from '@/lib/tradeLog/ownership';
 
 export async function GET() {
   try {
@@ -99,6 +100,7 @@ export async function GET() {
           closeDate: posData.closeDate ? posData.closeDate.toISOString() : null,
           legs: txns.length,
           realizedPL: posData.realizedPL,
+          handEntered: false,
           transactions: txns.map(t => ({
             id: t.id,
             date: t.date,
@@ -152,6 +154,7 @@ export async function GET() {
         closeDate: isClosed ? txns[txns.length - 1].date.toISOString() : null,
         legs: txns.length,
         realizedPL,
+        handEntered: false,
         transactions: txns.map(t => ({
           id: t.id,
           date: t.date,
@@ -215,6 +218,7 @@ export async function GET() {
         realizedPL,
         shortTermPL,
         longTermPL,
+        handEntered: false,
         unrealizedCostBasis: totalCostBasis - totalDisposedCostBasis,
         lots: lots.map(l => ({
           id: l.id,
@@ -237,8 +241,54 @@ export async function GET() {
       };
     });
 
+    // ========== TRADE-LOG-01: HAND-ENTERED TRADES ==========
+    // This route builds its list from investment_transactions — the arrivals
+    // table — so before this PR a hand-entered trade could not appear in it at
+    // all, and the whole RECORD phase (the Performance row, the P&L calendar,
+    // the Trade Journal) is fed from here. A hand-entered trade has no arrival,
+    // so it is read straight from its own trading_positions rows and grouped by
+    // trade_num exactly as a synced trade is.
+    const manualLegs = await prisma.trading_positions.findMany({
+      where: { userId: user.id, source: MANUAL_SOURCE, trade_num: { not: null } },
+      orderBy: [{ trade_num: 'asc' }, { open_date: 'asc' }],
+    });
+    const manualByTrade = new Map<string, typeof manualLegs>();
+    for (const leg of manualLegs) {
+      if (!leg.trade_num) continue;
+      manualByTrade.set(leg.trade_num, [...(manualByTrade.get(leg.trade_num) ?? []), leg]);
+    }
+    const manualTrades = [...manualByTrade.entries()].map(([tradeNum, legs]) => {
+      const first = legs[0];
+      const allClosed = legs.every((l) => l.status === 'CLOSED');
+      const closeDates = legs.map((l) => l.close_date).filter((d): d is Date => d instanceof Date);
+      return {
+        tradeNum,
+        type: 'option',
+        underlying: first.symbol,
+        strategy: first.strategy || 'unknown',
+        status: (allClosed ? 'CLOSED' : 'OPEN') as 'OPEN' | 'CLOSED',
+        openDate: first.open_date.toISOString(),
+        closeDate: allClosed && closeDates.length > 0
+          ? new Date(Math.max(...closeDates.map((d) => d.getTime()))).toISOString()
+          : null,
+        legs: legs.length,
+        // Every CLOSED hand-entered leg carries a real realized_pl — the writer
+        // refuses to produce one without it (manualTrade.ts), so this sum is
+        // never the silent zero trade-card-links/route.ts:79 would impute.
+        realizedPL: legs.reduce((sum, l) => sum + (l.realized_pl ?? 0), 0),
+        handEntered: true,
+        transactions: legs.map((l) => ({
+          id: l.id,
+          date: l.open_date,
+          name: `${l.position_type} ${l.quantity}x ${l.symbol} ${l.strike_price} ${l.option_type}`,
+          amount: l.cost_basis,
+          quantity: l.quantity,
+        })),
+      };
+    });
+
     // ========== COMBINE AND SORT ==========
-    const allTrades = [...optionTrades, ...stockPositions].sort((a, b) => {
+    const allTrades = [...optionTrades, ...stockPositions, ...manualTrades].sort((a, b) => {
       return new Date(a.openDate).getTime() - new Date(b.openDate).getTime();
     });
 
