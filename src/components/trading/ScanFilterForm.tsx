@@ -9,7 +9,7 @@ import { MIN_POP_MODEL_LABEL, MIN_EV_MODEL_LABEL, MIN_EV_PER_RISK_MODEL_LABEL } 
 // TRADE-SEGMENTS: the DS segmented-control + chip idioms. The converted
 // controls drop their themed() wrap: both idioms are token-native dark
 // classes with zero DARKEN_MAP-eligible tokens (themed() would be an
-// identity call), and both live mounts (/trading + the app trade tab)
+// identity call), and both live mounts (/brokerage + the app trade tab)
 // pass. themed() stays on every other element.
 import { SECTION_HEADER, SEGMENT, toggleChip } from '@/lib/ds';
 

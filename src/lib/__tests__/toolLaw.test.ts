@@ -82,13 +82,14 @@ test('the grandfather lists are closed, dated and shrink-only — and CLAUDE.md 
   assert.match(assertSrc, /MULTI_TOOL_ALLOWED/);
   assert.match(assertSrc, /FOREIGN_PHASE_ALLOWED/);
   assert.match(assertSrc, /THE ALLOWLIST MAY ONLY SHRINK/);
-  // One entry each, both dated.
-  assert.equal((assertSrc.match(/since: '2026-09-10 \(NAV-25\)'/g) ?? []).length, 2);
+  // TRADE-SPLIT: the multi-tool list is EMPTY; the foreign-phase list keeps its one dated entry.
+  assert.equal((assertSrc.match(/since: '2026-09-10 \(NAV-25\)'/g) ?? []).length, 1);
   assert.match(src('CLAUDE.md'), /The allowlist may only shrink/);
   assert.match(src('CLAUDE.md'), /One tool, one page \(TOOL-LAW-01\)/);
-  // Only /trading is a multi-tool page now.
+  // TRADE-SPLIT: NO page serves two tools — /trading was the last and it split
+  // into /brokerage (trade 01-03) and /trade-log (04-06).
   const byHref = new Map<string, string[]>();
   for (const t of navRows(TOOL_GATE)) if (t.href) byHref.set(t.href, [...(byHref.get(t.href) ?? []), t.name]);
   const multi = [...byHref.entries()].filter(([, v]) => v.length > 1).map(([k]) => k);
-  assert.deepEqual(multi, ['/trading']);
+  assert.deepEqual(multi, []);
 });

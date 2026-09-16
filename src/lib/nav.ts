@@ -239,7 +239,7 @@ export function navToolByName(name: string, gate: Readonly<Record<string, string
   return row;
 }
 
-/** Every tool whose screen is this href — several tools share /trading and /operations. */
+/** Every tool whose screen is this href — TRADE-SPLIT: no screen serves two tools any more. */
 export function navToolsOfScreen(href: string, gate: Readonly<Record<string, string | null>>): readonly NavTool[] {
   return navRows(gate).filter((t) => t.href === href);
 }
@@ -267,7 +267,8 @@ export const PHASES_RENDERED_AT: Readonly<Record<string, readonly PipePillarId[]
   // Declared EMPTY, each for a reason the audit verified:
   '/accounts': [],   // Banking owns books 01 (drawn on /books) and runway 01 (drawn nowhere — a state-only cell)
   '/budget': [],     // Budget owns runway 05, drawn in the cockpit's runway section
-  '/trading': [],    // Brokerage and Trade Log own trade 01-06; the trade strip is the cockpit's /trade tab, and this page has none
+  '/brokerage': ['trade'],  // TRADE-SPLIT: Brokerage draws trade 01-03 as its own strip (src/app/brokerage/page.tsx)
+  '/trade-log': ['trade'],  // TRADE-SPLIT: Trade Log draws trade 04-06 as its own strip (src/app/trade-log/page.tsx)
   '/compliance': [], // Compliance owns compliance 01-06; ComplianceWorkbench is the cockpit's tab, not this page
 };
 

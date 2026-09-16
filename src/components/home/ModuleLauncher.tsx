@@ -55,7 +55,7 @@ import SectionHeader from '@/components/ui/SectionHeader';
 import ProofStrip from '@/components/ui/ProofStrip';
 // TRADE-1: the queue viewer + reconcile/link/grade surface. Mounted BELOW the scanner on
 // the homepage Trade tab so the scan → queue → RECONCILE loop is complete here (was only on
-// standalone /trading). Reused verbatim — no restyle (that is TRADE-2).
+// standalone page, now /trade-log). Reused verbatim — no restyle (that is TRADE-2).
 import TradeLabPanel from '@/components/trading/TradeLabPanel';
 import ConvergenceIntelligence from '@/components/convergence/ConvergenceIntelligence';
 // BOOKS-1: cockpit bar + the 5 zero-prop, self-fetching Books surfaces (Option A — cockpit +
@@ -347,7 +347,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // TRADING-PR-2 / PR-Trade-inline: launcher-owned scan filter state (mirrors the
   // dashboard's lifted state + the same localStorage 'scanner-filters' key). The Trade
   // tab now mounts the full ConvergenceIntelligence INLINE (admin-gated), so the scan
-  // runs here on the tab — no redirect to /trading.
+  // runs here on the tab — no redirect to the standalone page.
   const [scannerFilters, setScannerFilters] = useState<ScannerFilters>(() => {
     try {
       const saved = typeof window !== 'undefined' ? localStorage.getItem('scanner-filters') : null;

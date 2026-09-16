@@ -70,7 +70,8 @@ test('the form says the line to a non-admin on both mounts, from the same const'
   // The cockpit mount hides the header, so the line lives in the form body, by the Scan button.
   assert.ok(form.indexOf('data-founder-broker') < form.indexOf('onClick={runScan}'), 'the line sits above the Scan button, inside formBody');
   assert.match(code('src/components/home/ModuleLauncher.tsx'), /founderBroker=\{authed === true && !isAdmin\}/);
-  assert.match(code('src/app/trading/page.tsx'), /founderBroker=\{!isOwner\}/);
+  // TRADE-SPLIT: the scan form moved to Brokerage's own page, gate unchanged.
+  assert.match(code('src/app/brokerage/page.tsx'), /founderBroker=\{!isOwner\}/);
 });
 
 test('connect already refuses a non-admin server-side (SEC4) — no placeholder row can be created by one', () => {

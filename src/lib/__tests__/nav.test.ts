@@ -93,7 +93,10 @@ test('a tool sharing a screen still has its own row and its own destination', ()
   assert.deepEqual(navToolsOfScreen('/operations', TOOL_GATE).map((t) => t.name), []);
   assert.deepEqual(navToolsOfScreen('/tasks', TOOL_GATE).map((t) => t.name), ['Tasks']);
   assert.deepEqual(navToolsOfScreen('/time', TOOL_GATE).map((t) => t.name), ['Time']);
-  assert.deepEqual(navToolsOfScreen('/trading', TOOL_GATE).map((t) => t.name), ['Brokerage', 'Trade Log']);
+  // TRADE-SPLIT: two tools, two pages — /trading is a redirect and is no tool's screen.
+  assert.deepEqual(navToolsOfScreen('/brokerage', TOOL_GATE).map((t) => t.name), ['Brokerage']);
+  assert.deepEqual(navToolsOfScreen('/trade-log', TOOL_GATE).map((t) => t.name), ['Trade Log']);
+  assert.deepEqual(navToolsOfScreen('/trading', TOOL_GATE).map((t) => t.name), []);
   // Compliance opens its OWN page, not the cockpit carve-out — nine child pages hang off it.
   assert.equal(navToolByName('Compliance', TOOL_GATE).href, '/compliance');
   assert.throws(() => navToolByName('Chart of accounts', TOOL_GATE), NavLawError);

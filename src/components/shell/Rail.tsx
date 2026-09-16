@@ -74,7 +74,7 @@ function covers(href: string, pathname: string): boolean {
  * The tool the viewer is in: the cockpit's own section first (its primary tool),
  * then the tool whose screen or owned page covers the path — the longest match
  * wins, so /budgets/trips/42 resolves to Travel and not to whatever else is
- * shallower. Several tools share /trading and /operations; the FIRST in registry
+ * shallower. Where several tools once shared a screen (/trading, /operations — both retired); the FIRST in registry
  * order is the one the rail marks, and both rows stay visible either way.
  */
 export function activeToolOf(pathname: string | null, activeModule?: string): NavTool | null {

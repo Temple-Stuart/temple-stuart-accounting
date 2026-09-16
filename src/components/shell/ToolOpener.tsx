@@ -5,7 +5,7 @@
  * opens by naming the TOOL it is: the family as eyebrow, the tool's name as the
  * title, and the tool's own registry line beneath it.
  *
- * A screen that serves several tools (/trading is Brokerage and Trade Log,
+ * A screen that serves several tools (TRADE-SPLIT emptied that list — /trading was the last, now /brokerage and /trade-log,
  * /operations is Tasks and Time) names each of them, with its own number, status
  * and registry line — so a customer reading the rail's row finds that row's name
  * on the screen it opens.

@@ -188,7 +188,8 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // Log's "Grade · on the Trade tab" link too: /trade keeps its door as a listed
   // guest route (the cockpit paths, scripts/assert-tool-registry.ts GUEST_ROUTES).
   Brokerage: {
-    slug: 'brokerage', status: 'PARTIAL', beats: some({ discover: true, decide: true }), home: '/trading',
+    slug: 'brokerage', status: 'PARTIAL', beats: some({ discover: true, decide: true }), home: '/brokerage',
+    why: "runs on the founder's broker until per-user connections ship (TT-02)",
     citation: 'src/app/api/tastytrade/chains/route.ts:58 · scanner/route.ts:205 · src/app/api/trade-cards/route.ts:72 (status queued :92); no order is ever sent (ConvergenceIntelligence.tsx:840)',
   },
   // SHELL-02: the "Grade · on the Trade tab" sub-link is gone. The room is
@@ -201,7 +202,8 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // saves the journal (page.tsx:733 → /api/trading-journal). The Books pipeline
   // still READS investment transactions; that is Bookkeeping's row, not this one.
   'Trade Log': {
-    slug: 'trade-log', status: 'PARTIAL', beats: some({ discover: true, commit: true, record: true }), home: '/trading',
+    slug: 'trade-log', status: 'PARTIAL', beats: some({ discover: true, commit: true, record: true }), home: '/trade-log',
+    why: 'a customer cannot log a trade: a position exists only once a Plaid-synced investment transaction is committed, and there is no manual entry — so the job is not done for a customer on production yet (TRADE-LOG-01)',
     citation: 'src/app/trading/page.tsx:640 → src/app/api/trading/commit-to-ledger/route.ts:168 · page.tsx:733 → /api/trading-journal · src/app/api/transactions/sync-complete/route.ts:185 → :242 · investment-transactions/commit-to-ledger/route.ts:106 → src/lib/position-tracker-service.ts:170, :307-311 · :601, :619; no persisted draft',
   },
   // ── WHAT YOU OWE ──

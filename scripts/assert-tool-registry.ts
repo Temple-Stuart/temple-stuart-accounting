@@ -961,8 +961,9 @@ else console.log(`✔ The founder-broker law passed — ${SCAN_DRIVERS.length} s
 //      CALENDAR clause names the MERGED GRID specifically — HubCalendar, the
 //      view over trip events, plan blocks and routine occurrences. Only that
 //      component may not be mounted outside /calendar. CalendarGrid is a SHARED
-//      PRIMITIVE and is excluded: /trading:887 has fed it Trade Log's own P&L
-//      rows since long before this law. EXPLICIT NON-VIOLATION: DayCalendarView
+//      PRIMITIVE and is excluded: Trade Log's own P&L rows have fed it since
+//      long before this law (TRADE-SPLIT moved that mount from /trading:887 to
+//      src/app/trade-log/page.tsx, phase 05 RECORD). EXPLICIT NON-VIOLATION: DayCalendarView
 //      (src/components/workbench/operations/content/DayCalendarView.tsx) renders
 //      the day's blocks as "a dense, ONE-LINE stacked list in clock order (NOT
 //      an hour-grid)" — its own words — as the content pipe's phase 03 surface.
@@ -970,13 +971,13 @@ else console.log(`✔ The founder-broker law passed — ${SCAN_DRIVERS.length} s
 //
 // THE GRANDFATHER LIST is closed. Each entry is named, dated and reasoned, and
 // THE ALLOWLIST MAY ONLY SHRINK — the build throws if it grows.
-const MULTI_TOOL_ALLOWED: ReadonlyArray<{ route: string; tools: readonly string[]; since: string; why: string; retire: string }> = [
-  {
-    route: '/trading', tools: ['Brokerage', 'Trade Log'], since: '2026-09-10 (NAV-25)',
-    why: 'the trade pipe is ONE StageStrip inside one page; 01-03 are Brokerage\'s and 04-06 Trade Log\'s, split at the existing phase boundary but rendered by one control',
-    retire: 'split the trade pipe\'s strip so each tool renders its own three phases — an interior change to src/app/trading/page.tsx',
-  },
-];
+// TRADE-SPLIT (2026-09-16): THE LIST IS EMPTY. Its last entry was /trading —
+// Brokerage (17) + Trade Log (18) on one page — and it retired the way its own
+// `retire` note said it would: each tool renders its own three phases, now on
+// its own page (src/app/brokerage/page.tsx trade 01-03, src/app/trade-log/page.tsx
+// trade 04-06). TOOL-LAW-01 has NO exceptions to rule 1 any more, and the law
+// below asserts the list stays empty — it may only shrink, and it cannot.
+const MULTI_TOOL_ALLOWED: ReadonlyArray<{ route: string; tools: readonly string[]; since: string; why: string; retire: string }> = [];
 // RULE 2's one exception: a page rendering a phase another tool owns. /books is
 // NOT a multi-tool page (Bookkeeping is its only tool — Banking's screen is
 // /accounts), so it is not grandfathered above; what it does is render books 01
@@ -996,8 +997,8 @@ const COCKPIT_COMPONENT = 'src/components/home/ModuleLauncher.tsx';
 // sources (trip events, daily-plan blocks, routine occurrences) and merges them.
 // CalendarGrid is NOT on this list and deliberately so: it is a SHARED
 // PRIMITIVE, and Trade Log's P&L calendar has fed it its own rows since long
-// before this law (src/app/trading/page.tsx:887 — plCalendarEvents,
-// PL_SOURCE_CONFIG). Naming it here would break /trading for no gain: a grid
+// before this law (src/app/trade-log/page.tsx — plCalendarEvents,
+// PL_SOURCE_CONFIG). Naming it here would break Trade Log for no gain: a grid
 // component is not a calendar, the three merged sources are.
 const MERGED_GRID = ['src/components/hub/HubCalendar.tsx'];
 const CALENDAR_HOME = '/calendar';
@@ -1033,9 +1034,10 @@ for (const a of MULTI_TOOL_ALLOWED) {
     if (!a[f]?.trim()) { toolViolations += 1; violations.push(`tool law 1: the grandfather entry ${a.route} has no ${f} — each entry is named, dated and reasoned (TOOL-LAW-01)`); }
   }
 }
-if (MULTI_TOOL_ALLOWED.length > 1) {
+// TRADE-SPLIT: closed AND EMPTY. One tool, one page, no exceptions.
+if (MULTI_TOOL_ALLOWED.length > 0) {
   toolViolations += 1;
-  violations.push(`tool law 1: the multi-tool grandfather list has ${MULTI_TOOL_ALLOWED.length} entries — TOOL-LAW-01 closed it at 1 and THE ALLOWLIST MAY ONLY SHRINK`);
+  violations.push(`tool law 1: the multi-tool grandfather list has ${MULTI_TOOL_ALLOWED.length} entr${MULTI_TOOL_ALLOWED.length === 1 ? 'y' : 'ies'} — TRADE-SPLIT emptied it on 2026-09-16 and THE ALLOWLIST MAY ONLY SHRINK; a two-tool page is a violation, never a new entry`);
 }
 if (FOREIGN_PHASE_ALLOWED.length > 1) {
   toolViolations += 1;
@@ -1069,6 +1071,31 @@ for (const gone of ['src/lib/operationsPhases.ts', 'src/app/operations/Operation
     violations.push(`tool law 4: ${gone} is back — /operations was six invented cells holding four tools' components; one tool, one page (TOOL-LAW-01)`);
   }
 }
+// TRADE-SPLIT: which phase NUMBERS of a pipe does one file's strip draw?
+// Before the split every page that drew a pipe drew all of it, so rule 2 could
+// work pipe-granular. /brokerage draws trade 01-03 and /trade-log 04-06, so the
+// rule now reads the numbers. The idiom it parses is the ratified one
+// (ModuleLauncher.tsx:46): destructure the pipe into named consts, then feed
+// `num: CONST.num` to StageStrip. A file that draws a pipe in some OTHER shape
+// is read conservatively as drawing ALL of that pipe's phases — a new idiom
+// never silently escapes the rule.
+function drawnNumsIn(body: string, pipe: string): Set<string> {
+  const all = new Set((PIPE_PHASES[pipe as keyof typeof PIPE_PHASES] as readonly { num: string }[]).map((p) => p.num));
+  const destructure = body.match(new RegExp(`const\\s*\\[([^\\]]*)\\]\\s*=\\s*PIPE_PHASES\\.${pipe}\\b`));
+  if (!destructure) return all;
+  const names = destructure[1].split(',').map((n) => n.trim());
+  const phases = PIPE_PHASES[pipe as keyof typeof PIPE_PHASES] as readonly { num: string }[];
+  const drawn = new Set<string>();
+  names.forEach((name, i) => {
+    if (!name || !phases[i]) return;
+    const bare = name.replace(/:.*$/, '').trim();
+    if (!/^[A-Za-z_$][\w$]*$/.test(bare)) return;
+    if (new RegExp(`\\b${bare}\\.num\\b`).test(body)) drawn.add(phases[i].num);
+  });
+  // A destructure that named nothing the strip uses tells us nothing — be conservative.
+  return drawn.size > 0 ? drawn : all;
+}
+
 // 2. a tool's page renders only ITS OWN phases (the strip may be page-level or
 // per row — this rule does not care which, only whose the phases are).
 for (const [route, tools] of screenTools) {
@@ -1076,17 +1103,24 @@ for (const [route, tools] of screenTools) {
   if (!page) continue;
   const seen = new Set<string>();
   const stack = [page.file];
-  const pipesHere = new Set<string>();
+  const pipesHere = new Map<string, Set<string>>();
   while (stack.length) {
     const f = stack.pop()!;
     if (seen.has(f)) continue;
     seen.add(f);
     const body = existsSync(resolve(ROOT, f)) ? readFileSync(resolve(ROOT, f), 'utf8') : '';
-    if (body.includes('<StageStrip')) for (const m of body.matchAll(/PIPE_PHASES\.([a-z]+)/g)) pipesHere.add(m[1]);
+    if (body.includes('<StageStrip')) {
+      for (const m of body.matchAll(/PIPE_PHASES\.([a-z]+)/g)) {
+        const pipe = m[1];
+        const into = pipesHere.get(pipe) ?? new Set<string>();
+        for (const n of drawnNumsIn(body, pipe)) into.add(n);
+        pipesHere.set(pipe, into);
+      }
+    }
     for (const next of importsFor(f)) stack.push(next);
   }
-  for (const pipe of pipesHere) {
-    for (const a of THE_SORT.filter((x) => x.pipe === pipe)) {
+  for (const [pipe, nums] of pipesHere) {
+    for (const a of THE_SORT.filter((x) => x.pipe === pipe && nums.has(x.num))) {
       if (tools.includes(a.owner)) continue;
       if (FOREIGN_PHASE_ALLOWED.some((x) => x.route === route && x.pipe === pipe && x.num === a.num && x.owner === a.owner)) continue;
       toolViolations += 1;
@@ -1557,6 +1591,59 @@ for (const f of ['src/components/convergence/FilterPanel.tsx', 'src/components/t
   if (!/AVAILABLE_STRATEGIES/.test(M01(f))) m02Fail('phantom law', `${f} no longer renders the strategy list from AVAILABLE_STRATEGIES`);
 }
 if (m02Violations === 0) console.log(`✔ The inputs-and-funnel laws passed — ${m02Writers.length} table writer(s) under src/lib/convergence carry no bare catch and the scan awaits its snapshot write (column ${SNAPSHOT_SUGGESTED_STRATEGY_MAX}); VVIX from Cboe with the term structure and SKEW at weight 0, every input dated; structure cut ${STRUCTURE_CUT} per side, deep fetch limit × ${DEEP_FETCH_MULTIPLIER} at limit ${SCAN_LIMIT_DEFAULT}; ${ETF_UNIVERSE_SYMBOLS.length} ETF members selectable and reported; ${m02Offered.length} strategies offered = ${m02Built.length} built, ${NOT_BUILT_STRATEGIES.length} named not built.`);
+
+// ── THE TRADE-SPLIT LAW (TRADE-SPLIT, 2026-09-16) ───────────────────────────
+// /trading was the last entry on the tool law's grandfather list: Brokerage (17)
+// and Trade Log (18) on one page. It retired the way its own `retire` note said
+// it would — each tool renders its own three phases on its own page. This law
+// holds the split in place so it cannot quietly re-merge:
+//   1. the grandfather list is EMPTY (asserted in the tool law above too);
+//   2. /brokerage draws trade 01-03 and NOTHING else; /trade-log draws 04-06;
+//   3. each is exactly one tool's registry home, and /trading is a redirect
+//      that renders no surface of its own;
+//   4. phase 06's hand-off to Books survives the move.
+const TS_BROKERAGE = '/brokerage';
+const TS_TRADE_LOG = '/trade-log';
+const TS_EXPECT: ReadonlyArray<{ route: string; tool: string; file: string; nums: readonly string[] }> = [
+  { route: TS_BROKERAGE, tool: 'Brokerage', file: 'src/app/brokerage/page.tsx', nums: ['01', '02', '03'] },
+  { route: TS_TRADE_LOG, tool: 'Trade Log', file: 'src/app/trade-log/page.tsx', nums: ['04', '05', '06'] },
+];
+let tsViolations = 0;
+const tsFail = (msg: string) => { tsViolations += 1; violations.push(`trade-split law: ${msg} (TRADE-SPLIT)`); };
+
+if (MULTI_TOOL_ALLOWED.length !== 0) tsFail(`the multi-tool grandfather list is not empty (${MULTI_TOOL_ALLOWED.length}) — TOOL-LAW-01 has no exceptions to rule 1 any more`);
+
+for (const e of TS_EXPECT) {
+  const body = existsSync(resolve(ROOT, e.file)) ? readFileSync(resolve(ROOT, e.file), 'utf8') : '';
+  if (!body) { tsFail(`${e.file} is missing — ${e.tool} has no page`); continue; }
+  if (!body.includes('<StageStrip')) tsFail(`${e.file} renders no StageStrip — a tool's page renders its own phases through the shared strip`);
+  const drawn = [...drawnNumsIn(body, 'trade')].sort();
+  if (drawn.join('|') !== [...e.nums].sort().join('|')) tsFail(`${e.route} draws trade [${drawn.join(' ') || '—'}] but ${e.tool} owns [${e.nums.join(' ')}] — each tool renders its own three phases, no more and no less`);
+  const home = TOOL_REGISTRY.find((t) => t.name === e.tool)?.home;
+  if (home !== e.route) tsFail(`the registry home for ${e.tool} is ${home ?? 'null'}, not ${e.route}`);
+  const served = screenTools.get(e.route) ?? [];
+  if (served.join('|') !== e.tool) tsFail(`${e.route} serves [${served.join(' + ') || '—'}] — one tool, one page`);
+}
+// THE SORT still draws the line this split was made on.
+for (const n of ['01', '02', '03']) if (!THE_SORT.some((x) => x.pipe === 'trade' && x.num === n && x.owner === 'Brokerage')) tsFail(`THE SORT no longer gives trade ${n} to Brokerage — the split follows THE SORT, never the other way round`);
+for (const n of ['04', '05', '06']) if (!THE_SORT.some((x) => x.pipe === 'trade' && x.num === n && x.owner === 'Trade Log')) tsFail(`THE SORT no longer gives trade ${n} to Trade Log`);
+// /trading is a redirect and renders nothing of its own.
+const tsOld = existsSync(resolve(ROOT, 'src/app/trading/page.tsx')) ? readFileSync(resolve(ROOT, 'src/app/trading/page.tsx'), 'utf8') : '';
+if (tsOld) {
+  if (!/redirect\('\/brokerage'\)/.test(tsOld)) tsFail('src/app/trading/page.tsx is not a redirect to /brokerage — the two tools moved out of it');
+  if (/<StageStrip|<ToolOpener|<ConvergenceIntelligence|<TradeLabPanel/.test(tsOld)) tsFail('src/app/trading/page.tsx still renders a tool surface — it is a redirect now');
+}
+if (screenTools.has('/trading')) tsFail('/trading is still a tool\'s registry home — Brokerage is /brokerage and Trade Log is /trade-log');
+// phase 06's hand-off to Books survives the move.
+const tsCommit = PIPE_PHASES.trade.find((p) => p.num === '06');
+if (!tsCommit?.link || tsCommit.link.target !== 'books') tsFail('trade 06 no longer hands off to books — phase 06\'s link is the pipe\'s own');
+const tsLogBody = existsSync(resolve(ROOT, 'src/app/trade-log/page.tsx')) ? readFileSync(resolve(ROOT, 'src/app/trade-log/page.tsx'), 'utf8') : '';
+if (tsLogBody && !/href="\/books"/.test(tsLogBody)) tsFail('/trade-log does not carry phase 06\'s hand-off to Books');
+if (tsLogBody && !/data-empty-room/.test(tsLogBody)) tsFail('/trade-log has no empty-room line — a room with no trade says what it needs, never a blank page');
+const tsBrokerBody = existsSync(resolve(ROOT, 'src/app/brokerage/page.tsx')) ? readFileSync(resolve(ROOT, 'src/app/brokerage/page.tsx'), 'utf8') : '';
+if (tsBrokerBody && !/FOUNDER_BROKER_LINE/.test(tsBrokerBody)) tsFail('/brokerage no longer states TT-01\'s line — the scan phase is the founder\'s broker only and says so');
+
+if (tsViolations === 0) console.log(`✔ The trade-split law passed — the grandfather list is EMPTY; ${TS_BROKERAGE} draws trade 01-03 and ${TS_TRADE_LOG} draws 04-06, one tool each, both registry homes; /trading is a redirect; phase 06 still hands to Books.`);
 
 // ── THE SECOND GATE ─────────────────────────────────────────────────────────
 // Every law below the first gate — kind views, arrivals, the rule book,

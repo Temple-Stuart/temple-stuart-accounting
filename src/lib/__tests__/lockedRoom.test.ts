@@ -87,7 +87,9 @@ test('the two gate twins ask the same question — keysGranting decides both', (
   // And the pages use one of the two twins — the law checks this, the census pins it.
   for (const [page, mark] of [
     ['src/app/dashboard/tax-filing/page.tsx', /roomGate\('tab:tax'\)/],
-    ['src/app/trading/page.tsx', /useTabLock\('tab:trade'\)/],
+    // TRADE-SPLIT: the trade key guards both of the pipe's tools, one page each.
+    ['src/app/brokerage/page.tsx', /useTabLock\('tab:trade'\)/],
+    ['src/app/trade-log/page.tsx', /useTabLock\('tab:trade'\)/],
     ['src/app/chart-of-accounts/page.tsx', /useTabLock\('tab:books'\)/],
     // /compliance is a SERVER component, so it uses the server twin.
     ['src/app/compliance/page.tsx', /roomGate\('tab:compliance'\)/],
