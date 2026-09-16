@@ -97,6 +97,7 @@ import { PIPE_PHASES } from '../src/lib/pipePhases';
 import { INPUT_SIGNS, buyerAdmittedInputs } from '../src/lib/convergence/input-signs';
 import { GATE_CARDS, NOT_BUILT_STRATEGIES, README_GATE_CARDS_END, README_GATE_CARDS_START, gateCardsMarkdown } from '../src/lib/convergence/gateCards';
 import { AVAILABLE_STRATEGIES } from '../src/lib/convergence/filter-types';
+import { CALENDAR_SOURCES, EXCLUDED_CALENDAR_SOURCES } from '../src/lib/calendar/sources';
 import { buildCboeRegimeInputs } from '../src/lib/convergence/regime';
 import { SNAPSHOT_SUGGESTED_STRATEGY_MAX } from '../src/lib/convergence/snapshot-logger';
 import { ETF_UNIVERSE_SYMBOLS } from '../src/lib/convergence/etf-universe';
@@ -1765,6 +1766,103 @@ if (!/status: 409/.test(tlWriter) || !/linked_card_id/.test(tlWriter)) {
 }
 
 if (tlViolations === 0) console.log(`✔ The trade-log laws passed — ${tlCreators} trading_positions creator(s), every one naming its source from ${TL_OWNERSHIP}; ${TL_CAPABILITY_READERS.length} readers scope through the one ownership predicate and none branches on provenance; the form's strategies ARE the builders' const, validated again server-side; the synced and the hand-entered close share one P&L leaf.`);
+
+// ── DAY-01 — THE DAY, WHOLE ─────────────────────────────────────────────────
+// HubCalendar held `raw.filter((e) => e.source === 'trip')`: one bare string
+// against one column, which threw away every home bill, planned purchase,
+// budget line and agenda item the app writes. Two laws stop that returning:
+//
+//   1. THE ALLOWLIST IS A NAMED CONST WITH A REASON PER ENTRY. No component
+//      filters calendar_events on a bare source string. A source renders
+//      because src/lib/calendar/sources.ts names it, cites its writer at
+//      file:line and says why; a source that does not render is named there
+//      too, with its reason. Exclusion by silence is what let the trip filter
+//      survive unexamined.
+//
+//   2. NO TOTAL WITHOUT ITS COVERAGE. A day's expected total is summed over the
+//      events that carried an amount; the ones that did not are counted, and the
+//      count ships with the number ("$340 planned across 5 of 8 events"). A bare
+//      total would read as the whole day, which it is not.
+const DAY_SOURCES = 'src/lib/calendar/sources.ts';
+const DAY_LEAF = 'src/lib/calendar/day.ts';
+const DAY_ACTUALS = 'src/lib/calendar/actuals.ts';
+const DAY_VIEW_FILE = 'src/components/hub/DayView.tsx';
+const DAY_HUB = 'src/components/hub/HubCalendar.tsx';
+let dayViolations = 0;
+const dayFail = (msg: string) => { dayViolations += 1; violations.push(`day law: ${msg} (DAY-01)`); };
+const dayRead = (f: string) => (existsSync(resolve(ROOT, f)) ? readFileSync(resolve(ROOT, f), 'utf8') : '');
+const dayCode = (f: string) => dayRead(f).split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
+
+// LAW 1 — the allowlist is the only thing that decides, and it is not bare.
+const dayList = dayCode(DAY_SOURCES);
+if (!dayList) dayFail(`${DAY_SOURCES} is missing — the calendar has no named source list`);
+else {
+  if (!/export const CALENDAR_SOURCES/.test(dayList)) dayFail(`${DAY_SOURCES} does not export CALENDAR_SOURCES`);
+  if (!/export const EXCLUDED_CALENDAR_SOURCES/.test(dayList)) dayFail(`${DAY_SOURCES} names nothing as EXCLUDED — a source that does not render is named, never omitted`);
+  if (!/calendarSourcesLaw\(\);/.test(dayList)) dayFail(`${DAY_SOURCES} does not run its own law at module scope`);
+}
+// The rendered set, read from the leaf itself so this law and the app agree.
+if (CALENDAR_SOURCES.length === 0) dayFail('the calendar renders no source at all');
+for (const r of CALENDAR_SOURCES) {
+  if (!/:\d+/.test(r.writtenBy)) dayFail(`${r.source} cites no writer at file:line`);
+  if (!r.why) dayFail(`${r.source} renders for no stated reason`);
+  // A tailwind class built from a template never reaches the stylesheet — the
+  // chip would render unstyled and nobody would be told.
+  for (const cls of Object.values(r.tint)) if (cls.includes('${')) dayFail(`${r.source} builds the class "${cls}" — Tailwind reads source text, so it would ship unstyled`);
+}
+for (const e of EXCLUDED_CALENDAR_SOURCES) if (!e.why) dayFail(`${e.source} is excluded with no reason`);
+
+// NO BARE SOURCE FILTER anywhere a calendar_events row is SELECTED for render.
+// The allowlist is the one place a source string decides WHETHER a row is drawn.
+//
+// This is deliberately about SELECTION, not about styling or geometry. A branch
+// that decides HOW an already-admitted row is drawn — CalendarGrid.tsx:250 draws
+// a flight's block from its true elapsed duration, because only trip rows carry
+// duration_minutes/start_at/start_zone — is not what threw the day away, and is
+// not caught here. What threw the day away was a `.filter(e => e.source === ...)`
+// deciding which rows survived, so that is exactly the shape this law hunts.
+const DAY_KNOWN_SOURCES = CALENDAR_SOURCES.map((r) => r.source).join('|');
+const dayBareFilter = new RegExp(`\\.filter\\([^;\\n]{0,160}?\\.source\\s*===\\s*'(${DAY_KNOWN_SOURCES})'`);
+for (const rel of walkSrc('src/components').concat(walkSrc('src/app'))) {
+  const body = dayCode(rel);
+  if (!body.includes('calendar')) continue;
+  const m = dayBareFilter.exec(body);
+  if (m) dayFail(`${rel} selects calendar events with a bare .filter on source '${m[1]}' — a source renders because ${DAY_SOURCES} names it with a reason, not because one component typed its name`);
+}
+const dayHubBody = dayCode(DAY_HUB);
+if (dayHubBody && !/isRenderedCalendarSource\(/.test(dayHubBody)) dayFail(`${DAY_HUB} does not ask the allowlist which sources render`);
+
+// LAW 2 — no total without its coverage.
+const dayLeaf = dayCode(DAY_LEAF);
+if (!dayLeaf) dayFail(`${DAY_LEAF} is missing — the day has no pure builder`);
+else {
+  if (!/covered: number;/.test(dayLeaf) || !/of: number;/.test(dayLeaf)) dayFail(`${DAY_LEAF}'s total carries no coverage count — a total that does not say what it covers reads as the whole day`);
+  if (!/export function coverageLine/.test(dayLeaf)) dayFail(`${DAY_LEAF} exports no coverageLine — the total and its coverage are one string, so they cannot be rendered apart`);
+}
+const dayViewBody = dayCode(DAY_VIEW_FILE);
+if (!dayViewBody) dayFail(`${DAY_VIEW_FILE} is missing — a day does not open`);
+else {
+  // Every total the day view prints goes through coverageLine.
+  const totalsRendered = (dayViewBody.match(/data-day-total|data-day-task-total/g) ?? []).length;
+  const covered = (dayViewBody.match(/coverageLine\(/g) ?? []).length;
+  if (totalsRendered === 0) dayFail(`${DAY_VIEW_FILE} renders no day total at all`);
+  if (covered < totalsRendered) dayFail(`${DAY_VIEW_FILE} renders ${totalsRendered} total(s) through ${covered} coverageLine call(s) — every total ships with its coverage count`);
+  // READ SURFACE: it never writes calendar_events, daily_plans or anything else.
+  if (/method:\s*'(POST|PATCH|PUT|DELETE)'/.test(dayViewBody)) dayFail(`${DAY_VIEW_FILE} writes — the day is a read surface (Trips, Budget, Agenda and Tasks own these rows)`);
+  // NO PROVIDER, NO GEOCODING (the ruling's FORBIDDEN): the map plots what is stored.
+  if (/googleapis|mapbox|openstreetmap|tile\.|geocod/i.test(dayViewBody)) dayFail(`${DAY_VIEW_FILE} reaches a map or geocoding provider — the day plots only the coordinates already stored`);
+  // The actuals finding is STATED, not silently omitted.
+  if (!/ACTUALS_JOIN_SOUND/.test(dayViewBody) || !/ACTUALS_NOT_JOINABLE_LINE/.test(dayViewBody)) {
+    dayFail(`${DAY_VIEW_FILE} does not state why an actual cost is missing — an empty column is a question the reader answers with a guess`);
+  }
+}
+const dayActuals = dayCode(DAY_ACTUALS);
+if (!dayActuals) dayFail(`${DAY_ACTUALS} is missing — the Books-join verdict is not recorded`);
+else if (!/export const ACTUALS_JOIN_SOUND/.test(dayActuals) || !/ACTUALS_JOIN_BLOCKERS/.test(dayActuals)) {
+  dayFail(`${DAY_ACTUALS} records no verdict and no blockers`);
+}
+
+if (dayViolations === 0) console.log(`✔ The day laws passed — ${CALENDAR_SOURCES.length} calendar sources rendered by name (${CALENDAR_SOURCES.map((s) => s.source).join(' · ')}), ${EXCLUDED_CALENDAR_SOURCES.length} excluded by name; no component filters a calendar event on a bare source; every day total ships with its coverage count; the day view writes nothing and reaches no map provider.`);
 
 // ── THE SECOND GATE ─────────────────────────────────────────────────────────
 // Every law below the first gate — kind views, arrivals, the rule book,

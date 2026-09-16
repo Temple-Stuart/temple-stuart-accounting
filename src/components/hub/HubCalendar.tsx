@@ -6,7 +6,10 @@
  * mounted on the public home page (account-gated) while /hub stays untouched.
  *
  * It fetches the SAME three sources the Hub merges and renders the SAME shared grid:
- *   • /api/calendar          → calendar_events (filtered to source 'trip')
+ *   • /api/calendar          → calendar_events (DAY-01: filtered to the NAMED
+ *     source allowlist in src/lib/calendar/sources.ts — was a bare `source === 'trip'`,
+ *     which threw away every home bill, planned purchase, budget line and agenda item
+ *     the app writes)
  *   • /api/operations/daily-plan/items → operations blocks (mapOperationsBlocks)
  *   • /api/hub/operations-routines     → routine occurrences (mapOperationsRoutines)
  * merged into CalendarGrid (the same component /hub + /trade-log use).
@@ -24,6 +27,9 @@ import EventDetailPanel from '@/components/hub/EventDetailPanel';
 import { mapOperationsBlocks } from '@/lib/hub/mapOperationsBlocks';
 import { mapOperationsRoutines, type RoutinesWindowResponse } from '@/lib/hub/mapOperationsRoutines';
 import type { DailyPlanItem, CalendarBlockSummary } from '@/components/workbench/operations/dailyplan/types';
+// DAY-01: which calendar_events sources render, by name and with a reason each.
+import { CALENDAR_SOURCES, isRenderedCalendarSource } from '@/lib/calendar/sources';
+import DayView from '@/components/hub/DayView';
 
 // The /api/calendar event shape (same as hub/page.tsx:25-35).
 interface CalendarEvent {
@@ -53,6 +59,18 @@ interface CalendarEvent {
   // PR-Hotel-Daily-Amortize: the COA code (e.g. 'P-9200'). From the raw SELECT *; carried to
   // the grid so the per-day footer can identify lodging (suffix '9200') for nightly amortization.
   coa_code: string | null;
+  // DAY-01: the stored coordinates. From the raw SELECT * these arrive as Prisma
+  // Decimals, which serialize to STRINGS over JSON — so they are typed as unknown
+  // here and converted once, where they are read.
+  latitude: unknown;
+  longitude: unknown;
+}
+
+/** A Decimal-from-JSON (string), a number, or null. Never NaN, never 0-for-absent. */
+function toCoord(v: unknown): number | null {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
 // Normalize a raw TIME value to "HH:MM" (what the grid's timeToMinutes expects), or null.
@@ -70,21 +88,29 @@ function toClock(v: string | null): string | null {
 // events; the legend now reads "Projects". One entry here gives a layer its legend
 // chip + grid color automatically (HUB_GRID_CONFIG below + CalendarGrid). Each layer
 // uses a distinct color scale: trip=cyan, project=indigo, routines=teal, trade=amber.
-const SOURCE_CONFIG: Record<string, { label?: string; icon: string; color: string; bgColor: string; dotColor: string; calendarColor: string }> = {
-  trip: { icon: '✈️', color: 'text-cyan-600', bgColor: 'bg-cyan-50', dotColor: 'bg-cyan-500', calendarColor: 'bg-cyan-400' },
+// The layers that do NOT come from calendar_events — Projects and Routines arrive
+// from their own loaders (that is why sources.ts excludes them by name), and Trade
+// is the /trade-log mount's layer. These three keep their existing styling verbatim.
+const NON_CALENDAR_LAYERS: Record<string, { label?: string; icon: string; color: string; bgColor: string; dotColor: string; calendarColor: string }> = {
   project: { label: 'Projects', icon: '🎯', color: 'text-indigo-600', bgColor: 'bg-indigo-50', dotColor: 'bg-indigo-500', calendarColor: 'bg-indigo-400' },
   routines: { icon: '🔁', color: 'text-teal-600', bgColor: 'bg-teal-50', dotColor: 'bg-teal-500', calendarColor: 'bg-teal-400' },
   trade: { icon: '📈', color: 'text-amber-600', bgColor: 'bg-amber-50', dotColor: 'bg-amber-500', calendarColor: 'bg-amber-400' },
 };
-const HUB_GRID_CONFIG: Record<string, SourceConfig> = Object.fromEntries(
-  Object.entries(SOURCE_CONFIG).map(([key, cfg]) => [key, {
+// DAY-01: every rendered calendar_events source gets its legend chip and grid colour
+// FROM THE ALLOWLIST — one list, never a second hand-kept map that could drift out of
+// step with what the filter admits. Trip keeps the cyan it always had.
+const HUB_GRID_CONFIG: Record<string, SourceConfig> = {
+  ...Object.fromEntries(CALENDAR_SOURCES.map((s) => [s.source, {
+    label: s.label, icon: s.icon, bg: s.tint.bg, dot: s.tint.dot, badge: s.tint.badge, text: s.tint.text,
+  }])),
+  ...Object.fromEntries(Object.entries(NON_CALENDAR_LAYERS).map(([key, cfg]) => [key, {
     label: cfg.label ?? (key.charAt(0).toUpperCase() + key.slice(1)),
-    icon: cfg.icon,
-    bg: cfg.bgColor,
-    dot: cfg.dotColor,
-    badge: cfg.calendarColor,
-    text: cfg.color,
-  }])
+    icon: cfg.icon, bg: cfg.bgColor, dot: cfg.dotColor, badge: cfg.calendarColor, text: cfg.color,
+  }])),
+};
+/** The per-source icon the day view falls back to when a row's own icon is null. */
+const SOURCE_ICON: Record<string, string> = Object.fromEntries(
+  Object.entries(HUB_GRID_CONFIG).map(([k, v]) => [k, v.icon ?? '']),
 );
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -122,6 +148,9 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
   // PR-HCR3: the clicked event for the read-only type-aware detail panel.
   const [detailEvent, setDetailEvent] = useState<GridEvent | null>(null);
 
+  // DAY-01 STEP 2: the day the reader opened, 'YYYY-MM-DD'. Null = no day panel.
+  const [openDay, setOpenDay] = useState<string | null>(null);
+
   // ── The 3 calendar loaders — SAME logic as hub/page.tsx:192-294. ──
   const loadCalendar = async () => {
     try {
@@ -129,7 +158,10 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
       if (res.ok) {
         const data = await res.json();
         const raw = (data.events || []) as CalendarEvent[];
-        setEvents(raw.filter((e) => e.source === 'trip'));
+        // DAY-01 STEP 1: the bare `e.source === 'trip'` is gone. Every source the
+        // app writes and the calendar renders is named in src/lib/calendar/sources.ts
+        // with its writer and its reason; what is not rendered is named there too.
+        setEvents(raw.filter((e) => isRenderedCalendarSource(e.source)));
       }
     } catch (err) { console.error('Failed to load calendar:', err); }
   };
@@ -202,6 +234,9 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
       // PR-Hotel-Daily-Amortize: pure passthrough (mirrors durationMinutes) — the footer reads
       // it to amortize lodging (coa_code suffix '9200') to a nightly rate.
       coaCode: e.coa_code ?? null,
+      // DAY-01: carried through so the day view can plot what is stored.
+      latitude: toCoord(e.latitude),
+      longitude: toCoord(e.longitude),
     }));
     // mapOperationsBlocks is SHARED with /hub and still emits source:'operations'
     // there; remap to 'project' HERE so these land on the renamed Projects layer
@@ -252,6 +287,9 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
         phoneDayOnly={true}
         onMonthChange={(year, month) => { setSelectedYear(year); setSelectedMonth(month); }}
         onRangeChange={(from, to) => setRange({ from, to })}
+        /* DAY-01: a day opens whole. The month cell already wore cursor-pointer
+           with nothing behind it; this is the click it advertised. */
+        onDayClick={(dateKey) => setOpenDay(dateKey)}
         flush={true}
       />
 
@@ -266,6 +304,41 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
 
       {detailEvent && (
         <EventDetailPanel event={detailEvent} onClose={() => setDetailEvent(null)} />
+      )}
+
+      {/* DAY-01: THE DAY, WHOLE. Every event on that date — whatever wrote it —
+          in time order, with its cost, its place and the day's plan beneath it.
+          It reads the SAME merged list the grid draws, so the panel can never
+          show a different day from the grid it opened from. */}
+      {openDay && (
+        <DayView
+          dateKey={openDay}
+          events={gridEvents
+            .filter((e) => {
+              const start = (e.startDate || '').slice(0, 10);
+              const end = (e.endDate || e.startDate || '').slice(0, 10);
+              // A multi-day row (a hotel stay) is on every day it spans, which is
+              // how the grid draws it — the day view agrees with the grid.
+              return start <= openDay && openDay <= end;
+            })
+            .map((e) => ({
+              id: e.id,
+              source: e.source,
+              title: e.title,
+              icon: e.icon,
+              startDate: e.startDate,
+              endDate: e.endDate,
+              startTime: e.startTime,
+              endTime: e.endTime,
+              location: e.location,
+              budgetAmount: e.budgetAmount,
+              coaCode: e.coaCode,
+              latitude: e.latitude,
+              longitude: e.longitude,
+            }))}
+          sourceIcon={SOURCE_ICON}
+          onClose={() => setOpenDay(null)}
+        />
       )}
     </div>
   );
