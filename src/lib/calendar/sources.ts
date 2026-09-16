@@ -24,6 +24,11 @@
  *               (:33 `const MODULE = mod`, gated by COLLAPSED_MODULES)
  * /api/calendar/route.ts:91-97 independently enumerates the same seven
  * money sources in its summary totals, which is the second witness for this list.
+ *
+ * EVENT-01 adds the ninth: `manual`, written by the route this repo did not have
+ * until then (src/app/api/calendar/events/route.ts). It is a NEW value, never a
+ * reuse — every other source names the system that produced the row, and a
+ * hand-entered event was produced by the person.
  */
 
 /** A source the calendar renders, and why. */
@@ -60,6 +65,7 @@ const TINTS = {
   slate:  { text: 'text-slate-600',  bg: 'bg-slate-50',  dot: 'bg-slate-500',  badge: 'bg-slate-400' },
   blue:   { text: 'text-blue-600',   bg: 'bg-blue-50',   dot: 'bg-blue-500',   badge: 'bg-blue-400' },
   green:  { text: 'text-green-600',  bg: 'bg-green-50',  dot: 'bg-green-500',  badge: 'bg-green-400' },
+  rose:   { text: 'text-rose-600',   bg: 'bg-rose-50',   dot: 'bg-rose-500',   badge: 'bg-rose-400' },
 } as const;
 
 /**
@@ -68,6 +74,14 @@ const TINTS = {
  * planned, what you owe.
  */
 export const CALENDAR_SOURCES: readonly CalendarSourceRule[] = [
+  {
+    source: 'manual',
+    icon: '\u270D\ufe0f',
+    tint: TINTS.rose,
+    label: 'Added by hand',
+    writtenBy: 'src/app/api/calendar/events/route.ts:91 (POST) · :127 (PATCH) · :152 (DELETE)',
+    why: 'an event the person entered themselves — food, the gym, a haircut, a ride, dinner. EVENT-01: before it, /api/calendar was GET-only and a day could be recorded but never planned',
+  },
   {
     source: 'trip',
     icon: '✈️',
@@ -163,6 +177,20 @@ const RENDERED = new Set(CALENDAR_SOURCES.map((s) => s.source));
 export function isRenderedCalendarSource(source: string | null | undefined): boolean {
   return source != null && RENDERED.has(source);
 }
+
+/**
+ * EVENT-01 — what a hand-entered event records. The one value that route writes.
+ * Named here, beside the allowlist, so the writer and the reader cannot drift.
+ */
+export const MANUAL_EVENT_SOURCE = 'manual';
+
+/** Is this row one the person entered themselves? DISPLAY and EDITABILITY only. */
+export function isManualEvent(source: string | null | undefined): boolean {
+  return source === MANUAL_EVENT_SOURCE;
+}
+
+/** The word a surface shows next to a hand-entered event — TRADE-LOG-01's own. */
+export const MANUAL_EVENT_BADGE = 'hand-entered';
 
 /** The day the allowlist was set, with the census behind it. */
 export const CALENDAR_SOURCES_SET_ON = '2026-09-16';

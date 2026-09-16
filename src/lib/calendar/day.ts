@@ -27,6 +27,9 @@ export interface DayEventInput {
   coaCode?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  /** EVENT-01: carried so a correction starts from what is stored. */
+  category?: string | null;
+  description?: string | null;
 }
 
 /** One row of the day, in reading order. */
@@ -46,6 +49,8 @@ export interface DayRow {
   pin: { lat: number; lon: number } | null;
   /** True when the event has no time THAT APPLIES TO THIS DAY — it groups at the top. */
   untimed: boolean;
+  /** EVENT-01: the account code, so a correction starts from what is stored. */
+  coaCodeRaw?: string | null;
   /**
    * How this row meets the day being viewed. A multi-day stay carries ONE
    * start_time (check-in, on its first day) and ONE end_time (check-out, on its
@@ -126,6 +131,7 @@ export function buildDay(events: readonly DayEventInput[], dayKey?: string): Day
       location: e.location ?? null,
       expected: amount(e.budgetAmount),
       coaCode: e.coaCode ?? null,
+      coaCodeRaw: e.coaCode ?? null,
       pin: pinOf(e),
       untimed: start === null,
       span,

@@ -97,7 +97,8 @@ import { PIPE_PHASES } from '../src/lib/pipePhases';
 import { INPUT_SIGNS, buyerAdmittedInputs } from '../src/lib/convergence/input-signs';
 import { GATE_CARDS, NOT_BUILT_STRATEGIES, README_GATE_CARDS_END, README_GATE_CARDS_START, gateCardsMarkdown } from '../src/lib/convergence/gateCards';
 import { AVAILABLE_STRATEGIES } from '../src/lib/convergence/filter-types';
-import { CALENDAR_SOURCES, EXCLUDED_CALENDAR_SOURCES } from '../src/lib/calendar/sources';
+import { CALENDAR_SOURCES, EXCLUDED_CALENDAR_SOURCES, MANUAL_EVENT_SOURCE } from '../src/lib/calendar/sources';
+import { EVENT_CATEGORIES } from '../src/lib/calendar/manualEvent';
 import { buildCboeRegimeInputs } from '../src/lib/convergence/regime';
 import { SNAPSHOT_SUGGESTED_STRATEGY_MAX } from '../src/lib/convergence/snapshot-logger';
 import { ETF_UNIVERSE_SYMBOLS } from '../src/lib/convergence/etf-universe';
@@ -1847,8 +1848,19 @@ else {
   const covered = (dayViewBody.match(/coverageLine\(/g) ?? []).length;
   if (totalsRendered === 0) dayFail(`${DAY_VIEW_FILE} renders no day total at all`);
   if (covered < totalsRendered) dayFail(`${DAY_VIEW_FILE} renders ${totalsRendered} total(s) through ${covered} coverageLine call(s) — every total ships with its coverage count`);
-  // READ SURFACE: it never writes calendar_events, daily_plans or anything else.
-  if (/method:\s*'(POST|PATCH|PUT|DELETE)'/.test(dayViewBody)) dayFail(`${DAY_VIEW_FILE} writes — the day is a read surface (Trips, Budget, Agenda and Tasks own these rows)`);
+  // WHAT THE DAY MAY WRITE. DAY-01 shipped it read-only. EVENT-01 STEP 5 added
+  // exactly ONE write: deleting a HAND-ENTERED event, through the manual-event
+  // route, which refuses every other source itself. Nothing else — it still
+  // creates nothing, updates nothing, and never writes daily_plans (Tasks owns
+  // that row) or calendar_events directly.
+  const dayViewMethods = [...dayViewBody.matchAll(/method:\s*'(\w+)'/g)].map((m) => m[1]);
+  const dayViewExtra = dayViewMethods.filter((m) => m !== 'DELETE');
+  if (dayViewExtra.length > 0) dayFail(`${DAY_VIEW_FILE} issues ${dayViewExtra.join(', ')} — the day creates and updates nothing (Trips, Budget, Agenda and Tasks own these rows)`);
+  if (dayViewMethods.length > 1) dayFail(`${DAY_VIEW_FILE} carries ${dayViewMethods.length} writes — the only one allowed is deleting a hand-entered event`);
+  if (dayViewMethods.length === 1 && !/\/api\/calendar\/events\?id=/.test(dayViewBody)) {
+    dayFail(`${DAY_VIEW_FILE} writes somewhere other than the manual-event route`);
+  }
+  if (/daily-plan[^)]*method:/.test(dayViewBody)) dayFail(`${DAY_VIEW_FILE} writes daily_plans — Tasks owns that row, the day only reads it`);
   // NO PROVIDER, NO GEOCODING (the ruling's FORBIDDEN): the map plots what is stored.
   if (/googleapis|mapbox|openstreetmap|tile\.|geocod/i.test(dayViewBody)) dayFail(`${DAY_VIEW_FILE} reaches a map or geocoding provider — the day plots only the coordinates already stored`);
   // The actuals finding is STATED, not silently omitted.
@@ -1862,7 +1874,127 @@ else if (!/export const ACTUALS_JOIN_SOUND/.test(dayActuals) || !/ACTUALS_JOIN_B
   dayFail(`${DAY_ACTUALS} records no verdict and no blockers`);
 }
 
-if (dayViolations === 0) console.log(`✔ The day laws passed — ${CALENDAR_SOURCES.length} calendar sources rendered by name (${CALENDAR_SOURCES.map((s) => s.source).join(' · ')}), ${EXCLUDED_CALENDAR_SOURCES.length} excluded by name; no component filters a calendar event on a bare source; every day total ships with its coverage count; the day view writes nothing and reaches no map provider.`);
+if (dayViolations === 0) console.log(`✔ The day laws passed — ${CALENDAR_SOURCES.length} calendar sources rendered by name (${CALENDAR_SOURCES.map((s) => s.source).join(' · ')}), ${EXCLUDED_CALENDAR_SOURCES.length} excluded by name; no component filters a calendar event on a bare source; every day total ships with its coverage count; the day view creates and updates nothing (its one write deletes a hand-entered event) and reaches no map provider.`);
+
+// ── EVENT-01 — AN EVENT CAN BE ADDED BY HAND ────────────────────────────────
+// DAY-01's audit found /api/calendar GET-only: no form, no route, no path wrote
+// a calendar_event by hand, so a trip could be planned and a Tuesday could not.
+// Three laws hold the hand-entered path honest:
+//
+//   1. EVERY calendar_events WRITER SETS user_id AND source. A row with a null
+//      user_id is invisible to every reader (all three SELECTs in
+//      api/calendar/route.ts are `WHERE user_id = …`), so it exists and nobody
+//      can ever see it — written and lost. A row with no source cannot be
+//      admitted by the allowlist and would never render either.
+//   2. THE MANUAL SOURCE IS IN THE ALLOWLIST. A source the writer invents but
+//      the allowlist does not name writes rows nothing draws — the exact shape
+//      of the agenda dead write DAY-01 reported.
+//   3. NO WRITER SETS A CATEGORY OUTSIDE THE CENSUS. The census is what the
+//      existing writers already put in the column; a category outside it has no
+//      icon and no colour anyone chose, and renders as a blank tile.
+const EV_CENSUS = 'src/lib/calendar/manualEvent.ts';
+const EV_ROUTE = 'src/app/api/calendar/events/route.ts';
+const EV_FORM = 'src/components/hub/AddEventForm.tsx';
+let evViolations = 0;
+const evFail = (msg: string) => { evViolations += 1; violations.push(`event law: ${msg} (EVENT-01)`); };
+
+// LAW 1 — every INSERT INTO calendar_events sets user_id and source.
+const evInsertRe = /INSERT INTO calendar_events\s*\(([\s\S]{0,600}?)\)/g;
+let evWriters = 0;
+for (const abs of tsFiles(resolve(ROOT, 'src'))) {
+  const rel = abs.replace(`${ROOT}/`, '');
+  const body = dayCode(rel);
+  evInsertRe.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = evInsertRe.exec(body)) !== null) {
+    evWriters += 1;
+    const cols = m[1];
+    if (!/\buser_id\b/.test(cols)) evFail(`${rel} writes a calendar_event with no user_id — every reader scopes on it, so the row would exist and be invisible to everyone`);
+    if (!/\bsource\b/.test(cols)) evFail(`${rel} writes a calendar_event with no source — the allowlist could never admit it, so nothing would draw it`);
+  }
+}
+if (evWriters === 0) evFail('no calendar_events writer found at all — the law has nothing to hold');
+
+// LAW 2 — the manual source is named in the allowlist, and the writer reads it
+// from there rather than typing the string a second time.
+if (!CALENDAR_SOURCES.some((r) => r.source === MANUAL_EVENT_SOURCE)) {
+  evFail(`the allowlist does not name '${MANUAL_EVENT_SOURCE}' — a hand-entered event would be written and never drawn (the agenda dead write, again)`);
+}
+const evRouteBody = dayCode(EV_ROUTE);
+if (!evRouteBody) evFail(`${EV_ROUTE} is missing — there is no way to add an event by hand`);
+else {
+  if (!/MANUAL_EVENT_SOURCE/.test(evRouteBody)) evFail(`${EV_ROUTE} does not read MANUAL_EVENT_SOURCE from the allowlist — the source value is named once`);
+  for (const verb of ['POST', 'PATCH', 'DELETE']) {
+    if (!new RegExp(`export async function ${verb}`).test(evRouteBody)) evFail(`${EV_ROUTE} has no ${verb}`);
+  }
+  // USER-SCOPED, always: the caller is resolved first and every statement that
+  // reaches a row carries the caller's id.
+  const evStatements = evRouteBody.match(/(SELECT|UPDATE|DELETE)[\s\S]{0,400}?calendar_events[\s\S]{0,400}?(?=`)/g) ?? [];
+  for (const st of evStatements) {
+    if (/WHERE/.test(st) && !/user_id = \$?\{?\w*user/.test(st.replace(/\$\d+/g, 'user'))) {
+      evFail(`${EV_ROUTE} reaches a calendar_event without the caller's user_id — another user's row must simply not be found`);
+    }
+  }
+  if ((evRouteBody.match(/status: 401/g) ?? []).length < 3) evFail(`${EV_ROUTE} does not answer 401 on every verb before touching the store`);
+  // A row another path owns is REFUSED WITH ITS REASON, never edited or deleted.
+  if (!/status: 409/.test(evRouteBody) || !/which owns it/.test(evRouteBody)) {
+    evFail(`${EV_ROUTE} does not refuse a row belonging to another source with its reason — a trip or budget row is its owner path's record`);
+  }
+  // NO RECURRENCE in this PR — the columns exist and stay false/null (EVENT-02).
+  if (/recurrence_rule\s*=\s*[^n]/.test(evRouteBody)) evFail(`${EV_ROUTE} writes a recurrence rule — a recurring hand-entered event is EVENT-02, and no reader expands occurrences today`);
+  // NO GEOCODER, NO METERED CALL.
+  if (/googleFetch\s*\(|maps\.googleapis|GOOGLE_PLACES_API_KEY|geocode\s*\(|nominatim|mapbox|opencage/i.test(evRouteBody)) evFail(`${EV_ROUTE} reaches a geocoder — EVENT-01 adds no provider and no metered call`);
+}
+if (/googleFetch\s*\(|maps\.googleapis|GOOGLE_PLACES_API_KEY|geocode\s*\(|nominatim|mapbox|opencage/i.test(dayCode(EV_FORM))) evFail(`${EV_FORM} reaches a geocoder — coordinates are typed, not looked up`);
+
+// LAW 3 — no writer sets a category outside the census.
+const evCensusBody = dayCode(EV_CENSUS);
+if (!evCensusBody) evFail(`${EV_CENSUS} is missing — there is no category census`);
+else if (!/export const EVENT_CATEGORIES/.test(evCensusBody)) evFail(`${EV_CENSUS} does not export EVENT_CATEGORIES`);
+// THE CENSUS IS COMPLETE. The categories the other writers actually put in the
+// column are read back out of their own files and held against the list, so the
+// census cannot silently fall behind a writer that grows a new one.
+const EV_CATEGORY_NAMES = new Set(EVENT_CATEGORIES.map((c) => c.category));
+const EV_CENSUS_SOURCES: ReadonlyArray<{ file: string; re: RegExp }> = [
+  // budget/[module]/[id]/route.ts MODULE_MARK — the source IS the category.
+  { file: 'src/app/api/budget/[module]/[id]/route.ts', re: /^\s*(\w+): \{ icon: '/gm },
+  // agenda/[id]/route.ts categoryIcons — the agenda item's own categories.
+  { file: 'src/app/api/agenda/[id]/route.ts', re: /(\w+): '\p{Extended_Pictographic}/gu },
+];
+for (const { file, re } of EV_CENSUS_SOURCES) {
+  const body = dayCode(file);
+  if (!body) { evFail(`${file} is missing — the census cannot be checked against its writer`); continue; }
+  for (const m of body.matchAll(re)) {
+    const name = m[1];
+    if (!EV_CATEGORY_NAMES.has(name)) {
+      evFail(`${file} writes the category '${name}', which ${EV_CENSUS} does not hold — a category outside the census has no icon and no colour anyone chose`);
+    }
+  }
+}
+for (const c of EVENT_CATEGORIES) {
+  if (!/:\d+/.test(c.evidence)) evFail(`the category '${c.category}' cites no writer at file:line — the census is gathered, not invented`);
+  if (!c.icon) evFail(`the category '${c.category}' has no icon — it would render as a blank tile`);
+}
+// The builder may only ever produce a census category, and the form may only
+// ever offer one: both read EVENT_CATEGORIES rather than a list of their own.
+if (evCensusBody && !/categoryOf\(input\?\.category\)/.test(evCensusBody)) {
+  evFail(`${EV_CENSUS} does not resolve the category through the census before building the row`);
+}
+const evFormBody = dayCode(EV_FORM);
+if (!evFormBody) evFail(`${EV_FORM} is missing — there is no form`);
+else {
+  if (!/EVENT_CATEGORIES\.map\(/.test(evFormBody)) evFail(`${EV_FORM} does not offer the census as its category options`);
+  // The category is the one field with no blank; a cost or a time left empty
+  // must post NOTHING rather than a zero or a midnight nobody chose.
+  if (!/typedNumber/.test(evFormBody)) evFail(`${EV_FORM} does not guard an empty number box — Number('') is 0, and a defaulted cost is a fabricated one`);
+  if (/value=\{0\}|\?\?\s*0\b/.test(evFormBody)) evFail(`${EV_FORM} defaults a number to 0 — an empty box is not a zero`);
+}
+// A hand-entered event is MARKED where it renders.
+const evDayView = dayCode(DAY_VIEW_FILE);
+if (evDayView && !/isManualEvent\(/.test(evDayView)) evFail(`${DAY_VIEW_FILE} does not mark a hand-entered event — provenance is visible, as TRADE-LOG-01 rules for a hand-entered trade`);
+if (evDayView && !/data-correct-event/.test(evDayView)) evFail(`${DAY_VIEW_FILE} offers no correction on a hand-entered event`);
+
+if (evViolations === 0) console.log(`✔ The event laws passed — ${evWriters} calendar_events writer(s), every one setting user_id and source; '${MANUAL_EVENT_SOURCE}' is in the allowlist and named once; ${EVENT_CATEGORIES.length} categories in the census, each citing the writer it was gathered from; the hand-entered route is user-scoped on every verb, refuses another source's row with its reason, writes no recurrence and reaches no geocoder.`);
 
 // ── THE SECOND GATE ─────────────────────────────────────────────────────────
 // Every law below the first gate — kind views, arrivals, the rule book,

@@ -25,6 +25,9 @@ import {
   type DayEventInput, type DayRow, type DayTask,
 } from '@/lib/calendar/day';
 import { ACTUALS_JOIN_SOUND, ACTUALS_NOT_JOINABLE_LINE } from '@/lib/calendar/actuals';
+// EVENT-01: a hand-entered event is marked, and is the only kind editable here.
+import { isManualEvent, MANUAL_EVENT_BADGE } from '@/lib/calendar/sources';
+import type { EditableEvent } from '@/components/hub/AddEventForm';
 import { SECTION_HEADER, STATE, chip } from '@/lib/ds';
 
 export interface DayViewProps {
@@ -34,6 +37,13 @@ export interface DayViewProps {
   events: readonly DayEventInput[];
   /** The legend icon per source, so a row wears the layer it came from. */
   sourceIcon?: Record<string, string>;
+  /**
+   * EVENT-01 STEP 5: correct a hand-entered event. Absent means the day view is
+   * read-only, which is what every other mount wants.
+   */
+  onCorrect?: (event: EditableEvent) => void;
+  /** Called after a hand-entered event is deleted, so the calendar reloads. */
+  onDeleted?: () => void;
   onClose: () => void;
 }
 
@@ -85,13 +95,26 @@ function DayMap({ pinned }: { pinned: readonly DayRow[] }) {
   );
 }
 
-export default function DayView({ dateKey, events, sourceIcon = {}, onClose }: DayViewProps) {
+export default function DayView({ dateKey, events, sourceIcon = {}, onCorrect, onDeleted, onClose }: DayViewProps) {
   const rows = buildDay(events, dateKey);
   const eventsTotal = expectedTotal(rows);
   const { pinned, unplaced } = mapSplit(rows);
 
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
+  // EVENT-01: the route's refusal, shown with its reason — a trip or budget row
+  // is its owner path's record and says so rather than failing silently.
+  const [deleteRefusal, setDeleteRefusal] = useState<string | null>(null);
+
+  const byId = new Map(events.map((e) => [e.id, e]));
+
+  const removeEvent = async (id: string) => {
+    setDeleteRefusal(null);
+    const res = await fetch(`/api/calendar/events?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) { setDeleteRefusal(data?.error ?? `The event was not deleted (HTTP ${res.status}).`); return; }
+    onDeleted?.();
+  };
 
   useEffect(() => {
     let live = true;
@@ -123,13 +146,16 @@ export default function DayView({ dateKey, events, sourceIcon = {}, onClose }: D
 
         {/* ── THE EVENTS ── */}
         <div className="px-4 py-3">
+          {deleteRefusal && (
+            <div className={`${STATE.errorCard} mb-2`} role="alert" data-delete-event-refusal>{deleteRefusal}</div>
+          )}
           {rows.length === 0 ? (
             <div className={STATE.empty} data-day-empty>Nothing on this day.</div>
           ) : (
             <table className="w-full text-xs" data-day-events>
               <thead className="bg-bg-row">
                 <tr>
-                  {['', 'Time', 'What', 'Expected', 'Where'].map((h, i) => (
+                  {['', 'Time', 'What', 'Expected', 'Where', ''].map((h, i) => (
                     <th key={i} className="px-2 py-1.5 text-left font-mono text-[9px] uppercase tracking-wider text-text-faint">{h}</th>
                   ))}
                 </tr>
@@ -142,7 +168,7 @@ export default function DayView({ dateKey, events, sourceIcon = {}, onClose }: D
                     <>
                       {(first || firstTimed) && (
                         <tr key={`${r.id}-group`} className="bg-bg-row/60">
-                          <td colSpan={5} className="px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-text-faint" data-day-group>
+                          <td colSpan={6} className="px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-text-faint" data-day-group>
                             {first ? 'no time set' : 'the day'}
                           </td>
                         </tr>
@@ -161,6 +187,12 @@ export default function DayView({ dateKey, events, sourceIcon = {}, onClose }: D
                         <td className="px-2 py-1.5">
                           <span className="font-medium">{r.title}</span>
                           <span className={`${chip('accent')} ml-1.5`}>{r.source}</span>
+                          {/* EVENT-01 STEP 5: marked the way TRADE-LOG-01 marks a
+                              hand-entered trade. Display only — a hand-entered
+                              event counts, totals and pins like any other. */}
+                          {isManualEvent(r.source) && (
+                            <span className={`${chip('neutral')} ml-1`} data-hand-entered>{MANUAL_EVENT_BADGE}</span>
+                          )}
                         </td>
                         {/* NULL renders BLANK. A zero here would be a number the app does not have. */}
                         <td className="px-2 py-1.5 text-right font-mono tabular-nums" data-day-expected>
@@ -170,6 +202,37 @@ export default function DayView({ dateKey, events, sourceIcon = {}, onClose }: D
                           {r.location ?? <span className="text-text-faint">—</span>}
                           {pinIndex.has(r.id) && <span className="ml-1 font-mono text-[9px] text-brand-purple">📍{pinIndex.get(r.id)}</span>}
                         </td>
+                        <td className="px-2 py-1.5 text-right whitespace-nowrap">
+                          {/* ONLY a hand-entered event is the person's to change here.
+                              A trip or budget row belongs to the path that wrote it. */}
+                          {isManualEvent(r.source) && (
+                            <>
+                              {onCorrect && (
+                                <button type="button" data-correct-event
+                                  onClick={() => {
+                                    const e = byId.get(r.id);
+                                    setDeleteRefusal(null);
+                                    onCorrect({
+                                      id: r.id,
+                                      title: r.title,
+                                      date: (e?.startDate ?? dateKey).slice(0, 10),
+                                      startTime: r.startTime,
+                                      endTime: r.endTime,
+                                      category: e?.category ?? '',
+                                      cost: r.expected,
+                                      location: r.location,
+                                      coaCode: r.coaCode,
+                                      latitude: r.pin?.lat ?? null,
+                                      longitude: r.pin?.lon ?? null,
+                                    });
+                                  }}
+                                  className="px-1.5 py-0.5 text-[10px] bg-bg-row text-text-muted hover:bg-border">Correct</button>
+                              )}
+                              <button type="button" data-delete-event onClick={() => removeEvent(r.id)}
+                                className="ml-1 px-1.5 py-0.5 text-[10px] bg-bg-row text-status-danger hover:bg-border">Delete</button>
+                            </>
+                          )}
+                        </td>
                       </tr>
                     </>
                   );
@@ -178,7 +241,7 @@ export default function DayView({ dateKey, events, sourceIcon = {}, onClose }: D
               <tfoot>
                 <tr className="border-t-2 border-border">
                   <td colSpan={3} className="px-2 py-2 font-mono text-[10px] uppercase tracking-wider text-text-faint">Events</td>
-                  <td colSpan={2} className="px-2 py-2 text-right font-mono text-xs font-semibold" data-day-total>
+                  <td colSpan={3} className="px-2 py-2 text-right font-mono text-xs font-semibold" data-day-total>
                     {/* A total NEVER ships without its coverage — a build law. */}
                     {coverageLine(eventsTotal)}
                   </td>
