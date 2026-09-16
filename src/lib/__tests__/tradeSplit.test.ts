@@ -62,14 +62,19 @@ test('a room with no trade says what it needs, and names the doors that actually
   assert.equal(tradeLogRoomIsEmpty(undefined), true);
   assert.equal(tradeLogRoomIsEmpty([{ tradeNum: '1' }]), false);
 
-  // The line is one sentence, it states the need, and it admits the gap.
+  // The line is one sentence and it states the need. TRADE-LOG-01 STEP 5: it
+  // no longer says "there is no manual entry yet" — there is one now, and that
+  // sentence would be the lie the room was written to avoid.
   assert.match(TRADE_LOG_EMPTY_ROOM, /^No trades yet/);
-  assert.match(TRADE_LOG_EMPTY_ROOM, /there is no manual entry yet\.$/);
+  assert.equal(/no manual entry/.test(TRADE_LOG_EMPTY_ROOM), false,
+    'manual entry exists — the room must not say it does not');
+  assert.match(TRADE_LOG_EMPTY_ROOM, /log one by hand/i);
 
-  // STEP 0.4: TastyTrade does NOT fill this room, so the line never sends a
-  // customer to Brokerage's connect — it names Banking (the Plaid sync) and
-  // Books (where the synced transactions are committed).
+  // STEP 0.4 still holds for the synced door: TastyTrade does NOT fill this
+  // room, so the line never sends a customer to Brokerage's connect — it names
+  // this page's own form first, then Banking (the Plaid sync) and Books.
   assert.deepEqual([...TRADE_LOG_EMPTY_ROOM_DOORS], [
+    { label: 'Log a trade →', href: '#log-a-trade' },
     { label: 'Banking →', href: '/accounts' },
     { label: 'Books →', href: '/books' },
   ]);

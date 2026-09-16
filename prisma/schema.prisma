@@ -424,7 +424,16 @@ model holdings {
 /// IRS-compliant position tracking for options trading
 model trading_positions {
   id                      String    @id @default(uuid()) @db.Uuid
-  open_investment_txn_id  String    @db.VarChar(255)
+  // TRADE-LOG-01: NULLABLE. A hand-entered trade has no arrival behind it, and
+  // a synthetic id would be a lie — null says "no investment transaction", which
+  // is the truth. Every synced row still carries its leg's id.
+  open_investment_txn_id  String?   @db.VarChar(255)
+  // TRADE-LOG-01: the row's OWNER, explicit. trading_positions had no userId —
+  // ownership ran open_investment_txn_id → investment_transactions.accountId →
+  // accounts.userId, which a hand-entered row (no arrival) cannot use. Null on
+  // the rows written before this column existed: they resolve through the chain,
+  // which is unchanged. src/lib/tradeLog/ownership.ts is the one predicate.
+  userId                  String?   @db.VarChar(255)
   symbol                  String    @db.VarChar(20)
   option_type             String?   @db.VarChar(10)
   strike_price            Float?
@@ -454,6 +463,8 @@ model trading_positions {
   @@index([symbol, expiration_date])
   @@index([status])
   @@index([trade_num])
+  @@index([userId])
+  @@index([userId, source])
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments

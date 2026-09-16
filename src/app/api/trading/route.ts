@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
+import { positionOwnershipWhere } from '@/lib/tradeLog/ownership';
 
 export async function GET() {
   try {
@@ -66,18 +67,13 @@ export async function GET() {
 
     // Get positions - filter by investment txns that belong to user
     const openPositions = await prisma.trading_positions.findMany({
-      where: { 
-        status: 'OPEN',
-        open_investment_txn_id: { in: userInvestmentTxnIds }
-      },
+      // TRADE-LOG-01: the arrivals chain OR this user's own hand-entered rows.
+      where: { status: 'OPEN', ...positionOwnershipWhere(user.id, userInvestmentTxnIds) },
       orderBy: { open_date: 'desc' }
     });
 
     const closedPositions = await prisma.trading_positions.findMany({
-      where: { 
-        status: 'CLOSED',
-        open_investment_txn_id: { in: userInvestmentTxnIds }
-      },
+      where: { status: 'CLOSED', ...positionOwnershipWhere(user.id, userInvestmentTxnIds) },
       orderBy: { close_date: 'desc' }
     });
 

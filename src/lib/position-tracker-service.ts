@@ -1,4 +1,8 @@
 import { randomUUID } from 'crypto';
+// TRADE-LOG-01: the option P&L arithmetic moved to a leaf so a hand-entered
+// close produces the SAME number as this synced one — one path, not a copy.
+import { closeProceedsCents, openCostBasisCents, positionTypeOf, proportionalCostCents, realizedPlCents } from '@/lib/tradeLog/optionPnl';
+import { SYNCED_SOURCE } from '@/lib/tradeLog/ownership';
 import { ValidationError } from '@/lib/errors/ValidationError';
 import { PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
@@ -145,15 +149,10 @@ export class PositionTrackerService {
     createdBy?: string
   ) {
     const TRADING_CASH = '1010';
-    const multiplier = 100;
-    let costBasis: number;
-    if (leg.action === 'buy') {
-      costBasis = Math.round((leg.price * leg.quantity * multiplier + leg.fees) * 100);
-    } else {
-      costBasis = Math.round((leg.price * leg.quantity * multiplier - leg.fees) * 100);
-    }
+    // TRADE-LOG-01: one arithmetic, in src/lib/tradeLog/optionPnl.ts.
+    const costBasis = openCostBasisCents({ action: leg.action as 'buy' | 'sell', price: leg.price, quantity: leg.quantity, fees: leg.fees });
     let positionAccount: string;
-    const positionType = leg.action === 'buy' ? 'LONG' : 'SHORT';
+    const positionType = positionTypeOf(leg.action as 'buy' | 'sell');
     if (leg.action === 'buy') {
       positionAccount = leg.contractType === 'call' ? '1200' : '1210';
     } else {
@@ -178,7 +177,14 @@ export class PositionTrackerService {
         open_investment_txn_id: leg.id, symbol: leg.symbol, option_type: leg.contractType?.toUpperCase() as string,
         strike_price: leg.strike, expiration_date: leg.expiry, position_type: positionType, quantity: leg.quantity, remaining_quantity: leg.quantity,
         open_price: leg.price, open_fees: leg.fees, open_date: leg.date, cost_basis: costBasis / 100,
-        status: 'OPEN', trade_num: tradeNum, strategy: strategy
+        status: 'OPEN', trade_num: tradeNum, strategy: strategy,
+        // TRADE-LOG-01: every writer of a trading_positions row names its own
+        // provenance. This row was built from an investment_transactions leg,
+        // which only the Plaid arrivals pass writes — so it says 'plaid'
+        // instead of falling through to the column's DEFAULT 'legacy'. Both
+        // are broker-imported for tax (tax-report-service.ts), so no Form 8949
+        // box moves; nothing about the arrivals pass itself changes.
+        source: SYNCED_SOURCE
       }
     });
     return { legId: leg.id, journalId: journalEntry.id, coaCode: positionAccount, costBasis, action: 'OPEN' };
@@ -234,8 +240,8 @@ export class PositionTrackerService {
     const effectiveCloseQty = isExerciseOrAssignment ? remainingQty : closeQty;
 
     // Proportional cost basis for partial close
-    const proportionalCostBasis = (effectiveCloseQty / positionQty) * openPosition.cost_basis;
-    const originalCost = Math.round(proportionalCostBasis * 100);
+    // TRADE-LOG-01: one arithmetic, in src/lib/tradeLog/optionPnl.ts.
+    const originalCost = proportionalCostCents({ closeQty: effectiveCloseQty, positionQty, costBasis: openPosition.cost_basis });
 
     // Calculate new remaining quantity
     const newRemainingQty = remainingQty - effectiveCloseQty;
@@ -272,19 +278,13 @@ export class PositionTrackerService {
         action: isFullClose ? 'CLOSE_EXERCISE' : 'PARTIAL_CLOSE_EXERCISE'
       };
     } else {
-      // Normal option close: calculate from price * quantity * multiplier
-      const multiplier = 100;
-      if (leg.action === 'sell') {
-        proceeds = Math.round((leg.price * closeQty * multiplier - leg.fees) * 100);
-      } else {
-        proceeds = Math.round((leg.price * closeQty * multiplier + leg.fees) * 100);
-      }
-
-      if (openPosition.position_type === 'LONG') {
-        realizedPL = proceeds - originalCost;
-      } else {
-        realizedPL = originalCost - proceeds;
-      }
+      // Normal option close: one arithmetic, in src/lib/tradeLog/optionPnl.ts.
+      proceeds = closeProceedsCents({ action: leg.action as 'buy' | 'sell', price: leg.price, quantity: closeQty, fees: leg.fees });
+      realizedPL = realizedPlCents({
+        positionType: openPosition.position_type as 'LONG' | 'SHORT',
+        proceedsCents: proceeds,
+        originalCostCents: originalCost,
+      });
     }
     const isGain = realizedPL > 0;
     const plAccount = isGain ? '4100' : '5100';

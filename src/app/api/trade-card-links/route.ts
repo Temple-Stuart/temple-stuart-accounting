@@ -3,6 +3,7 @@ import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
+import { positionOwnershipWhere } from '@/lib/tradeLog/ownership';
 
 /**
  * SEC-2: the user's investment_transaction ids — the ownership handle for
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
     // no other user's cost_basis/realized_pl is ever read.
     const userTxnIds = await getUserTxnIds(user.id);
     const positions = await prisma.trading_positions.findMany({
-      where: { trade_num, open_investment_txn_id: { in: userTxnIds } },
+      where: { trade_num, ...positionOwnershipWhere(user.id, userTxnIds) },
     });
     if (positions.length === 0) {
       return NextResponse.json({ error: 'No matching position found' }, { status: 404 });
@@ -194,7 +195,8 @@ export async function GET(request: NextRequest) {
       const where: Record<string, unknown> = {
         symbol: { contains: positionsFor.toUpperCase(), mode: 'insensitive' },
         trade_num: { not: null },
-        open_investment_txn_id: { in: userTxnIds },
+        // TRADE-LOG-01: the arrivals chain OR this user's own hand-entered rows.
+        ...positionOwnershipWhere(user.id, userTxnIds),
       };
       if (afterDate) {
         where.open_date = { gte: new Date(afterDate) };
@@ -238,7 +240,7 @@ export async function GET(request: NextRequest) {
       // sum another user's realized_pl/proceeds into this user's grade.
       const userTxnIds = await getUserTxnIds(user.id);
       const positions = await prisma.trading_positions.findMany({
-        where: { trade_num: card.link.trade_num, open_investment_txn_id: { in: userTxnIds } },
+        where: { trade_num: card.link.trade_num, ...positionOwnershipWhere(user.id, userTxnIds) },
       });
 
       const allClosed = positions.length > 0 && positions.every(p => p.status === 'CLOSED');

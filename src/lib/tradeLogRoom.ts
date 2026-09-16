@@ -23,14 +23,28 @@
  * at a door that cannot fill the room would be a fallback dressed as help.
  *
  * Building the missing manual entry is TRADE-LOG-01's job, not this PR's.
+ *
+ * ── TRADE-LOG-01 STEP 5 — THE ROOM NOW HAS TWO DOORS ────────────────────────
+ * The audit above still holds for a SYNCED trade: that path is untouched. What
+ * changed is that it is no longer the only path. src/app/api/trade-log/manual
+ * writes a `trading_positions` row directly, one per leg under one trade_num,
+ * with `source = 'manual'` and the owner's `userId` — and every reader treats
+ * it exactly as it treats a synced one.
+ *
+ * So the line no longer says "there is no manual entry yet", because that
+ * sentence is now false, and the first door it offers is the one that is right
+ * here on this page: log the trade. The brokerage door stays, because for a
+ * customer who already has a connection the sync is still the way to get a
+ * whole book in without typing it.
  */
 
 /** The one line an empty Trade Log shows. */
 export const TRADE_LOG_EMPTY_ROOM =
-  'No trades yet — a trade arrives when a brokerage connected in Banking is synced and its transactions are committed in Books; there is no manual entry yet.';
+  'No trades yet — log one by hand right here on LAB, or connect a brokerage in Banking, sync it and commit its transactions in Books.';
 
 /** The doors the line names, in the order it names them. */
 export const TRADE_LOG_EMPTY_ROOM_DOORS: ReadonlyArray<{ label: string; href: string }> = [
+  { label: 'Log a trade →', href: '#log-a-trade' },
   { label: 'Banking →', href: '/accounts' },
   { label: 'Books →', href: '/books' },
 ];

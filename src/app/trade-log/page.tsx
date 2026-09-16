@@ -39,10 +39,13 @@ import { navToolsOfScreen } from '@/lib/nav';
 import { TOOL_GATE } from '@/lib/offer';
 import CalendarGrid, { CalendarEvent, SourceConfig } from '@/components/shared/CalendarGrid';
 import TradeLabPanel from '@/components/trading/TradeLabPanel';
+import LogTradeForm from '@/components/trading/LogTradeForm';
 import COAManagementTable from '@/components/bookkeeping/COAManagementTable';
 import StageStrip, { type StagePhase } from '@/components/ui/StageStrip';
 import { PIPE_PHASES } from '@/lib/pipePhases';
 import { TRADE_LOG_EMPTY_ROOM, TRADE_LOG_EMPTY_ROOM_DOORS, tradeLogRoomIsEmpty } from '@/lib/tradeLogRoom';
+// TRADE-LOG-01: provenance is DISPLAY only — never a capability branch.
+import { MANUAL_BADGE } from '@/lib/tradeLog/ownership';
 // TRADE-SHELL-DARK: the one section-header idiom (ds.ts).
 import { MONEY_ACTION, SECTION_HEADER, STATE, chip } from '@/lib/ds';
 
@@ -77,6 +80,9 @@ interface Trade {
   proceeds?: number;
   shortTermPL?: number;
   longTermPL?: number;
+  /** TRADE-LOG-01: true when the trade was entered by hand, false when it came
+   *  from the broker's arrivals. /api/trading/trades sets it on every trade. */
+  handEntered?: boolean;
   transactions?: any[];
 }
 
@@ -169,6 +175,13 @@ export default function TradeLogPage() {
   // Expanded trade details
   const [expandedTrade, setExpandedTrade] = useState<string | null>(null);
 
+  // TRADE-LOG-01 STEP 4 — a hand-entered trade can be corrected or removed by
+  // its owner. A synced one cannot: it is the broker's record. Both actions go
+  // through /api/trade-log/manual, which checks ownership on every call.
+  const [correctingTrade, setCorrectingTrade] = useState<string | null>(null);
+  const [deleteRefusal, setDeleteRefusal] = useState<string | null>(null);
+
+
   const [maxTradeNum, setMaxTradeNum] = useState(0);
 
   const [tradingEntityId, setTradingEntityId] = useState<string | null>(null);
@@ -205,21 +218,38 @@ export default function TradeLogPage() {
     } catch { /* ignore */ }
   }, []);
 
-  useEffect(() => {
-    Promise.all([
+  // TRADE-LOG-01: the record read, named — a hand-entered trade lands through
+  // the same /api/trading/trades the synced ones come from (it unions the
+  // manual legs), so logging one reloads exactly this.
+  const loadRecord = useCallback(async () => {
+    const [tradesResult, journalResult, maxResult] = await Promise.all([
       fetch('/api/trading/trades').then(res => res.json()),
       fetch('/api/trading-journal').then(res => res.ok ? res.json() : { entries: [] }),
       fetch('/api/investment-transactions/max-trade-num').then(res => res.ok ? res.json() : { maxTradeNum: 0 })
-    ])
-      .then(([tradesResult, journalResult, maxResult]) => {
-        setTradesData(tradesResult);
-        setJournalEntries(journalResult.entries || []);
-        setMaxTradeNum(maxResult.maxTradeNum || 0);
-      })
+    ]);
+    setTradesData(tradesResult);
+    setJournalEntries(journalResult.entries || []);
+    setMaxTradeNum(maxResult.maxTradeNum || 0);
+  }, []);
+
+  useEffect(() => {
+    loadRecord()
       .catch(console.error)
       .finally(() => setLoading(false));
     loadCommittedTrades();
-  }, [loadCommittedTrades]);
+  }, [loadRecord, loadCommittedTrades]);
+  const deleteManualTrade = useCallback(async (tradeNum: string) => {
+    setDeleteRefusal(null);
+    const res = await fetch(`/api/trade-log/manual?trade_num=${encodeURIComponent(tradeNum)}`, { method: 'DELETE' });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      // NEVER a silent cascade — the route names the card that still holds the
+      // grade, and the refusal is shown with its reason.
+      setDeleteRefusal(data?.error ?? `Trade ${tradeNum} was not deleted (HTTP ${res.status}).`);
+      return;
+    }
+    await loadRecord().catch(console.error);
+  }, [loadRecord]);
 
   // Filtered trades based on date range
   const filteredTrades = useMemo(() => {
@@ -293,7 +323,9 @@ export default function TradeLogPage() {
       title: `${data.pl >= 0 ? '+' : ''}$${Math.abs(data.pl).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
       startDate: dateKey,
       budgetAmount: data.pl,
-      details: data.trades.map(t => `${t.underlying} | ${t.strategy.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}`),
+      // TRADE-LOG-01 STEP 3: the calendar marks a hand-entered trade too — the
+      // day's P&L says which of its trades the broker never confirmed.
+      details: data.trades.map(t => `${t.underlying} | ${t.strategy.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}${t.handEntered ? ` · ${MANUAL_BADGE}` : ''}`),
     }));
   }, [plByDate]);
 
@@ -455,14 +487,31 @@ export default function TradeLogPage() {
               </p>
               <div className="mt-2 flex items-center gap-3 font-mono text-[11px]">
                 {TRADE_LOG_EMPTY_ROOM_DOORS.map((d) => (
-                  <Link key={d.href} href={d.href} className="text-brand-purple hover:underline">{d.label}</Link>
+                  // TRADE-LOG-01: the first door is ON this page — it opens
+                  // phase 04 and the form, it does not navigate away.
+                  d.href.startsWith('#') ? (
+                    <button key={d.href} type="button" data-empty-room-door
+                      onClick={() => { setPhase('lab'); document.getElementById(d.href.slice(1))?.scrollIntoView({ behavior: 'smooth' }); }}
+                      className="text-brand-purple hover:underline">{d.label}</button>
+                  ) : (
+                    <Link key={d.href} href={d.href} data-empty-room-door className="text-brand-purple hover:underline">{d.label}</Link>
+                  )
                 ))}
               </div>
             </div>
           )}
 
-          {/* ── 04 LAB — link a position to a card, the thesis ── */}
+          {/* ── 04 LAB — log a trade by hand, link a position to a card, the thesis ── */}
           <div className={phase === 'lab' ? 'block' : 'hidden'}>
+            {/* TRADE-LOG-01: the other door. A trade can be logged by hand —
+                Trade Log needs nothing but a trade. */}
+            <div className="mb-4">
+              <LogTradeForm
+                editTradeNum={correctingTrade}
+                onEditDone={() => setCorrectingTrade(null)}
+                onLogged={() => { loadRecord().catch(console.error); }}
+              />
+            </div>
             <div className="mb-4">
               <TradeLabPanel
                 onCardsChange={() => {
@@ -522,6 +571,11 @@ export default function TradeLogPage() {
                     <span>Trade Journal</span>
                     <span className="text-xs text-text-faint">{filteredTrades.length} trades · {journalEntries.length} entries</span>
                   </div>
+                  {deleteRefusal && (
+                    <div className="bg-white px-4 py-2">
+                      <div className={STATE.errorCard} role="alert" data-delete-refusal>{deleteRefusal}</div>
+                    </div>
+                  )}
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
                       <thead className="bg-bg-row">
@@ -546,7 +600,14 @@ export default function TradeLogPage() {
                           return (
                             <>
                               <tr key={trade.tradeNum} className={`transition-colors hover:bg-white/5 ${isExpanded ? 'bg-brand-purple/10' : ''}`}>
-                                <td className="px-2 py-2 font-mono text-text-muted">#{trade.tradeNum}</td>
+                                <td className="px-2 py-2 font-mono text-text-muted">
+                                  #{trade.tradeNum}
+                                  {/* TRADE-LOG-01 STEP 3: provenance, visible. Display only —
+                                      a hand-entered trade does everything a synced one does. */}
+                                  {trade.handEntered && (
+                                    <span data-hand-entered className={`${chip('accent')} ml-1`}>{MANUAL_BADGE}</span>
+                                  )}
+                                </td>
                                 <td className="px-2 py-2 text-text-muted">{new Date(trade.openDate).toLocaleDateString()}</td>
                                 <td className="px-2 py-2 font-mono font-semibold">{trade.underlying}</td>
                                 <td className="px-2 py-2">
@@ -588,6 +649,20 @@ export default function TradeLogPage() {
                                       className="px-2 py-1 text-[10px] bg-brand-purple text-white hover:bg-brand-purple-hover">
                                       {journal ? 'Edit' : 'Add'}
                                     </button>
+                                    {/* STEP 4: only a hand-entered trade is the owner's to
+                                        correct or remove — a synced one is the broker's record. */}
+                                    {trade.handEntered && (
+                                      <>
+                                        <button data-correct-trade onClick={() => { setDeleteRefusal(null); setCorrectingTrade(trade.tradeNum); setPhase('lab'); }}
+                                          className="px-2 py-1 text-[10px] bg-bg-row text-text-muted hover:bg-border">
+                                          Correct
+                                        </button>
+                                        <button data-delete-trade onClick={() => deleteManualTrade(trade.tradeNum)}
+                                          className="px-2 py-1 text-[10px] bg-bg-row text-status-danger hover:bg-border">
+                                          Delete
+                                        </button>
+                                      </>
+                                    )}
                                     <button onClick={() => setExpandedTrade(isExpanded ? null : trade.tradeNum)}
                                       className="px-2 py-1 text-[10px] bg-bg-row text-text-muted hover:bg-border">
                                       {isExpanded ? '▲' : '▼'}
