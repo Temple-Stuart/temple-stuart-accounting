@@ -39,6 +39,14 @@ export interface CalendarEvent {
    *  calendar_events.coa_code (snake→camel like durationMinutes). Used in the per-day footer
    *  to identify lodging (suffix '9200') for nightly amortization. Null on non-trip/old rows. */
   coaCode?: string | null;
+  /**
+   *  DAY-01: the event's stored coordinates (calendar_events.latitude/longitude,
+   *  snake→camel like coaCode). Only the trip commit writes them today
+   *  (trips/[id]/commit/route.ts:189); every other source leaves them null. The
+   *  grid itself does not draw them — the day view plots what is stored.
+   */
+  latitude?: number | null;
+  longitude?: number | null;
   details?: string[];        // compact detail lines (e.g. "PYPL | Iron Condor", "B-6210 · $250")
   /**
    * Internal navigation target. When set, clicking the event routes to
@@ -112,6 +120,13 @@ export interface CalendarGridProps {
    * the other callers keep their floating card.
    */
   flush?: boolean;
+  /**
+   * DAY-01 STEP 2: clicking a DAY (a month cell, or the week view's day header)
+   * hands the parent that day's key, 'YYYY-MM-DD'. Additive and optional — the
+   * month cell already wore `cursor-pointer` with nothing behind it; every
+   * caller that does not pass this keeps exactly the behaviour it had.
+   */
+  onDayClick?: (dateKey: string) => void;
   /** CAL-DS-THEME: light default (byte-identical); HubCalendar passes 'dark'. */
 }
 
@@ -329,6 +344,7 @@ export default function CalendarGrid({
   showCategoryLegend = false,
   compact = false,
   enableDayView = false,
+  onDayClick,
   enableHubChrome = false,
   phoneDayOnly = false,
   onMonthChange,
@@ -693,7 +709,13 @@ export default function CalendarGrid({
                   const isToday = day.toDateString() === now.toDateString();
                   const hl = isInHighlight(day);
                   return (
-                    <div key={idx} className={`flex-1 text-center py-2 border-l border-border-light ${isToday ? 'bg-red-50' : hl ? 'bg-purple-50/40' : ''}`}>
+                    <div
+                      key={idx}
+                      /* DAY-01: the week/day header opens that day whole, the same as a month cell. */
+                      onClick={onDayClick ? () => onDayClick(dateToKey(day)) : undefined}
+                      data-day-cell={dateToKey(day)}
+                      className={`flex-1 text-center py-2 border-l border-border-light ${onDayClick ? 'cursor-pointer hover:bg-bg-row' : ''} ${isToday ? 'bg-red-50' : hl ? 'bg-purple-50/40' : ''}`}
+                    >
                       <div className="text-xs text-text-muted uppercase tracking-wide font-medium">{DAYS[day.getDay()]}</div>
                       <div className={`text-sm font-medium mt-0.5 ${isToday ? 'bg-red-500 text-white w-7 h-7 rounded-full flex items-center justify-center mx-auto' : 'text-text-primary'}`}>{day.getDate()}</div>
                     </div>
@@ -912,7 +934,15 @@ export default function CalendarGrid({
                   const allDetails = dayEvents.flatMap(e => e.details || []);
 
                   return (
-                    <div key={day} className={`min-h-[90px] p-1.5 rounded-lg border overflow-hidden transition-all cursor-pointer hover:border-border ${cellClass}`} style={cellStyle}>
+                    <div
+                      key={day}
+                      /* DAY-01: the month cell's cursor-pointer had nothing behind it — this is
+                         the click it always advertised. Without onDayClick nothing changes. */
+                      onClick={onDayClick ? () => onDayClick(dateToKey(date)) : undefined}
+                      data-day-cell={dateToKey(date)}
+                      className={`min-h-[90px] p-1.5 rounded-lg border overflow-hidden transition-all cursor-pointer hover:border-border ${cellClass}`}
+                      style={cellStyle}
+                    >
                       <div className="flex flex-col h-full">
                         <div className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-brand-purple' : 'text-text-secondary'}`}>{day}</div>
                         {dayEvents.length > 0 && (
