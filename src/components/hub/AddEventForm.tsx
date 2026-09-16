@@ -30,6 +30,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { EVENT_CATEGORIES } from '@/lib/calendar/manualEvent';
+// GEO-01: one Text Search, only on the press. The route is the only call site.
+import { atCapLine, type PlaceMatch, type FindPlaceResult } from '@/lib/calendar/findPlace';
 import { MANUAL_EVENT_BADGE } from '@/lib/calendar/sources';
 import { MONEY_ACTION, SECTION_HEADER, STATE } from '@/lib/ds';
 
@@ -86,6 +88,27 @@ export default function AddEventForm({ onAdded, editEvent, onEditDone }: AddEven
   const [coaCode, setCoaCode] = useState('');
   const [lat, setLat] = useState('');
   const [lon, setLon] = useState('');
+
+  // ── GEO-01 — "Find this place" ──────────────────────────────────────────
+  // ONE Google Places lookup, and ONLY from the button's handler below. There
+  // is no effect, no debounce and no onBlur here on purpose: a metered call
+  // must be something the person decided to spend, not something typing spent
+  // for them. A build law holds this.
+  const [finding, setFinding] = useState(false);
+  const [matches, setMatches] = useState<PlaceMatch[] | null>(null);
+  // The exact text the matches belong to. A pick is only offered while the
+  // typed location still equals this — otherwise the results are for something
+  // the person is no longer asking about, so they are cleared rather than
+  // reused against new text.
+  const [matchesFor, setMatchesFor] = useState<string | null>(null);
+  const [findError, setFindError] = useState<string | null>(null);
+  const [usage, setUsage] = useState<FindPlaceResult['usage'] | null>(null);
+  /** The picked match, so the form can say what filled the coordinates. */
+  const [picked, setPicked] = useState<PlaceMatch | null>(null);
+
+  const atCap = usage != null && usage.remaining <= 0;
+  // Results belong to the text that fetched them; typing past that drops them.
+  const staleMatches = matches !== null && matchesFor !== null && matchesFor !== location.trim();
   const [submitting, setSubmitting] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [landed, setLanded] = useState<{ title: string; start_date: string } | null>(null);
@@ -127,7 +150,58 @@ export default function AddEventForm({ onAdded, editEvent, onEditDone }: AddEven
     setTitle(''); setDate(''); setStartTime(''); setEndTime('');
     setCategory(EVENT_CATEGORIES[0].category); setCost(''); setLocation('');
     setCoaCode(''); setLat(''); setLon(''); setRefusal(null);
+    setMatches(null); setMatchesFor(null); setFindError(null); setPicked(null);
   }, []);
+
+  /**
+   * THE ONLY GEOCODE CALL SITE IN THE APP'S CALENDAR PATH. Invoked from the
+   * button's onClick and from nowhere else — not an effect, not the submit, not
+   * the edit prefill.
+   */
+  const findThisPlace = async () => {
+    const q = location.trim();
+    if (!q || finding || atCap) return;
+    setFinding(true);
+    setFindError(null);
+    setMatches(null);
+    setPicked(null);
+    try {
+      const res = await fetch(`/api/calendar/find-place?q=${encodeURIComponent(q)}`);
+      const data = await res.json().catch(() => null);
+      if (data?.usage) setUsage(data.usage);
+      if (!res.ok) {
+        // Every failure is NAMED — a refusal never comes back as "no matches".
+        setFindError(data?.error ?? `The place could not be looked up (HTTP ${res.status}).`);
+        return;
+      }
+      setMatches(data.matches ?? []);
+      setMatchesFor(q);
+    } catch (err) {
+      setFindError(err instanceof Error ? `The place could not be looked up: ${err.message}` : 'The place could not be looked up.');
+    } finally {
+      setFinding(false);
+    }
+  };
+
+  /** A pick fills all three fields at once. Nothing is auto-selected. */
+  const pick = (m: PlaceMatch) => {
+    setLocation(m.name);
+    setMatchesFor(m.name);
+    setLat(String(m.latitude));
+    setLon(String(m.longitude));
+    setPicked(m);
+    setMatches(null);
+    setFindError(null);
+  };
+
+  /** Drop the pick and keep the typed name with no coordinates — first-class. */
+  const clearPick = () => {
+    setPicked(null);
+    setLat('');
+    setLon('');
+    setMatches(null);
+    setFindError(null);
+  };
 
   /** A stored number back into the box it came from. Null stays empty, not "0". */
   const box = (v: number | null) => (v == null ? '' : String(v));
@@ -252,7 +326,27 @@ export default function AddEventForm({ onAdded, editEvent, onEditDone }: AddEven
             )}
             <div className="col-span-2">
               <label className={LABEL} htmlFor="aef-location">Location</label>
-              <input id="aef-location" className={INPUT} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Thonglor" />
+              <div className="flex items-center gap-1">
+                <input
+                  id="aef-location"
+                  className={INPUT}
+                  value={location}
+                  /* Typing NEVER calls anything — it only invalidates results
+                     that belonged to different text. */
+                  onChange={(e) => { setLocation(e.target.value); setFindError(null); if (picked && e.target.value.trim() !== picked.name) setPicked(null); }}
+                  placeholder="Thonglor barber"
+                />
+                <button
+                  type="button"
+                  data-find-place
+                  onClick={findThisPlace}
+                  disabled={finding || atCap || !location.trim()}
+                  title={atCap && usage ? atCapLine(usage.cap, usage.resetsOn) : 'One lookup, when you press it'}
+                  className="whitespace-nowrap rounded bg-brand-purple px-2 py-1 text-[10px] font-semibold text-white hover:bg-brand-purple-hover disabled:opacity-50"
+                >
+                  {finding ? 'Finding…' : atCap ? 'At the cap' : 'Find this place'}
+                </button>
+              </div>
             </div>
             <div>
               <label className={LABEL} htmlFor="aef-lat">Latitude</label>
@@ -264,12 +358,59 @@ export default function AddEventForm({ onAdded, editEvent, onEditDone }: AddEven
             </div>
           </div>
 
-          {/* STEP 4: this app adds NO geocoder in this PR, so the place name is
-              free text and the pin, if you want one, is two numbers you paste. */}
+          {/* ── GEO-01: the matches, the pick, the cap ── */}
+          {findError && (
+            <div className={STATE.errorCard} role="alert" data-find-place-error>{findError}</div>
+          )}
+          {atCap && usage && (
+            <p className="font-mono text-[10px] leading-relaxed text-status-warning" data-find-place-at-cap>
+              {atCapLine(usage.cap, usage.resetsOn)}
+            </p>
+          )}
+          {matches !== null && !staleMatches && (
+            <div data-find-place-matches>
+              {matches.length === 0 ? (
+                <p className="font-mono text-[10px] text-text-faint" data-find-place-none>
+                  Google found nothing for that. Save the typed name on its own, or try different words.
+                </p>
+              ) : (
+                <>
+                  <div className="mb-1 font-mono text-[9px] uppercase tracking-wider text-text-muted">
+                    {matches.length} match{matches.length === 1 ? '' : 'es'} — pick one, or keep what you typed
+                  </div>
+                  <ul className="divide-y divide-border rounded border border-border">
+                    {matches.map((m) => (
+                      <li key={m.placeId || `${m.latitude},${m.longitude}`}>
+                        {/* NOTHING is auto-selected — a pick is always a press. */}
+                        <button type="button" data-find-place-match onClick={() => pick(m)}
+                          className="w-full px-2 py-1.5 text-left text-[11px] hover:bg-bg-row">
+                          <span className="font-medium">{m.name}</span>
+                          {m.address && <span className="ml-1.5 text-text-muted">{m.address}</span>}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          )}
+          {picked && (
+            <p className="font-mono text-[10px] text-text-muted" data-find-place-picked>
+              Pinned to {picked.name} ({picked.latitude.toFixed(5)}, {picked.longitude.toFixed(5)}).
+              <button type="button" data-find-place-clear onClick={clearPick} className="ml-2 underline hover:text-text-primary">
+                Use the typed name with no coordinates
+              </button>
+            </p>
+          )}
+
+          {/* The place name saves on its own — coordinates are never required. */}
           <p className="font-mono text-[10px] leading-relaxed text-text-faint" data-add-event-coord-hint>
-            Coordinates are optional and typed, not looked up — nothing here calls a map service. Right-click a spot in any
-            maps app and copy the pair (latitude, longitude). With both, the event pins on the day map; with neither, it is
-            listed under the map as having no location set.
+            Coordinates are optional. Press <span className="font-semibold">Find this place</span> to look the typed name up
+            once — one lookup per press, never while you type — or paste a pair yourself. With both, the event pins on the
+            day map; with neither, it is listed under the map as having no location set.
+            {usage && !atCap && (
+              <span data-find-place-headroom> {usage.remaining} of {usage.cap} lookups left this month (resets {usage.resetsOn}).</span>
+            )}
           </p>
           {coaUnavailable && (
             <p className="font-mono text-[10px] text-text-faint" data-add-event-no-coa>{coaUnavailable}</p>

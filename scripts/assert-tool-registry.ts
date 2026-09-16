@@ -1945,7 +1945,10 @@ else {
   // NO GEOCODER, NO METERED CALL.
   if (/googleFetch\s*\(|maps\.googleapis|GOOGLE_PLACES_API_KEY|geocode\s*\(|nominatim|mapbox|opencage/i.test(evRouteBody)) evFail(`${EV_ROUTE} reaches a geocoder — EVENT-01 adds no provider and no metered call`);
 }
-if (/googleFetch\s*\(|maps\.googleapis|GOOGLE_PLACES_API_KEY|geocode\s*\(|nominatim|mapbox|opencage/i.test(dayCode(EV_FORM))) evFail(`${EV_FORM} reaches a geocoder — coordinates are typed, not looked up`);
+// The form must never call Google DIRECTLY — the API key stays on the server.
+// GEO-01 gave it a lookup, and that lookup is the app's own route
+// (/api/calendar/find-place), which is where the metered call lives.
+if (/googleFetch\s*\(|maps\.googleapis|GOOGLE_PLACES_API_KEY|geocode\s*\(|nominatim|mapbox|opencage/i.test(dayCode(EV_FORM))) evFail(`${EV_FORM} calls a geocoding provider directly — the key stays on the server, behind the app's own route`);
 
 // LAW 3 — no writer sets a category outside the census.
 const evCensusBody = dayCode(EV_CENSUS);
@@ -1994,7 +1997,101 @@ const evDayView = dayCode(DAY_VIEW_FILE);
 if (evDayView && !/isManualEvent\(/.test(evDayView)) evFail(`${DAY_VIEW_FILE} does not mark a hand-entered event — provenance is visible, as TRADE-LOG-01 rules for a hand-entered trade`);
 if (evDayView && !/data-correct-event/.test(evDayView)) evFail(`${DAY_VIEW_FILE} offers no correction on a hand-entered event`);
 
-if (evViolations === 0) console.log(`✔ The event laws passed — ${evWriters} calendar_events writer(s), every one setting user_id and source; '${MANUAL_EVENT_SOURCE}' is in the allowlist and named once; ${EVENT_CATEGORIES.length} categories in the census, each citing the writer it was gathered from; the hand-entered route is user-scoped on every verb, refuses another source's row with its reason, writes no recurrence and reaches no geocoder.`);
+if (evViolations === 0) console.log(`✔ The event laws passed — ${evWriters} calendar_events writer(s), every one setting user_id and source; '${MANUAL_EVENT_SOURCE}' is in the allowlist and named once; ${EVENT_CATEGORIES.length} categories in the census, each citing the writer it was gathered from; the hand-entered route is user-scoped on every verb, refuses another source's row with its reason, writes no recurrence and never calls a provider directly.`);
+
+// ── GEO-01 — ONE GEOCODE, ON PURPOSE ────────────────────────────────────────
+// EVENT-01 left the geocoder decision with the founder rather than wire a
+// daily-use form to a metered endpoint unasked. The answer was yes — ONE call,
+// only when the person presses the button. The whole risk of that answer is
+// that the call quietly migrates somewhere it fires without a press: an effect,
+// a debounce, an onBlur, the submit path, a render. This law is that boundary.
+//
+//   THE CALENDAR'S GEOCODE HAS EXACTLY ONE CALL SITE, and the form reaches it
+//   only from an onClick handler. No effect, no submit, no render, no typing.
+const GEO_ROUTE = 'src/app/api/calendar/find-place/route.ts';
+const GEO_LEAF = 'src/lib/calendar/findPlace.ts';
+const GEO_FORM = 'src/components/hub/AddEventForm.tsx';
+let geoViolations = 0;
+const geoFail = (msg: string) => { geoViolations += 1; violations.push(`geo law: ${msg} (GEO-01)`); };
+
+const geoRouteBody = dayCode(GEO_ROUTE);
+if (!geoRouteBody) geoFail(`${GEO_ROUTE} is missing — the calendar has no place lookup`);
+else {
+  // ONE call, through the quota guard, per request.
+  const googleCalls = (geoRouteBody.match(/googleFetch\s*\(/g) ?? []).length;
+  if (googleCalls !== 1) geoFail(`${GEO_ROUTE} makes ${googleCalls} googleFetch call(s) — the ruling is ONE per press`);
+  if (/fetch\s*\(\s*['"`]https:\/\/maps\.googleapis/.test(geoRouteBody)) {
+    geoFail(`${GEO_ROUTE} calls Google outside googleFetch — every outbound Google call is counted against the monthly cap`);
+  }
+  // The cap is READ and REPORTED, and refused at with its reset date.
+  if (!/getGoogleUsage\(/.test(geoRouteBody)) geoFail(`${GEO_ROUTE} never reads the cap — the person cannot see what they are spending`);
+  if (!/status: 429/.test(geoRouteBody) || !/capResetsOn\(/.test(geoRouteBody)) {
+    geoFail(`${GEO_ROUTE} does not refuse at the cap with its reset date`);
+  }
+  if (!/GooglePlacesQuotaError/.test(geoRouteBody)) geoFail(`${GEO_ROUTE} does not handle the quota guard's own throw`);
+  // A refusal is NAMED — never returned as an empty match list.
+  if (!/GooglePlacesApiError/.test(geoRouteBody) || !/status: 502/.test(geoRouteBody)) {
+    geoFail(`${GEO_ROUTE} does not name a provider refusal — a REQUEST_DENIED must never read as "no matches"`);
+  }
+  // ONE PROVIDER. No second geocoding service, paid or free.
+  for (const other of ['nominatim', 'openstreetmap', 'mapbox', 'opencage', 'positionstack', 'here.com', 'locationiq']) {
+    if (geoRouteBody.toLowerCase().includes(other)) geoFail(`${GEO_ROUTE} reaches ${other} — GEO-01 adds no second provider`);
+  }
+}
+
+// THE FORM: the lookup is reached ONLY from a press.
+const geoFormBody = dayCode(GEO_FORM);
+if (!geoFormBody) geoFail(`${GEO_FORM} is missing`);
+else {
+  const geoHits = [...geoFormBody.matchAll(/\/api\/calendar\/find-place/g)];
+  if (geoHits.length !== 1) geoFail(`${GEO_FORM} reaches the lookup from ${geoHits.length} place(s) — there is one handler`);
+  // The one fetch must sit inside the named handler, and that handler must be
+  // wired to an onClick and to nothing else.
+  const handlerAt = geoFormBody.indexOf('const findThisPlace = async () =>');
+  if (handlerAt === -1) geoFail(`${GEO_FORM} has no named findThisPlace handler to hold the call in`);
+  else if (geoHits.length === 1 && geoHits[0].index! < handlerAt) {
+    geoFail(`${GEO_FORM} reaches the lookup before its handler — the call must live inside findThisPlace`);
+  }
+  const wiredFrom = [...geoFormBody.matchAll(/(\w+)=\{findThisPlace\}/g)].map((m) => m[1]);
+  if (wiredFrom.length === 0) geoFail(`${GEO_FORM} never wires findThisPlace to anything`);
+  for (const prop of wiredFrom) {
+    if (prop !== 'onClick') geoFail(`${GEO_FORM} wires findThisPlace to ${prop} — a metered call is spent by a press, not by ${prop}`);
+  }
+  // NO EFFECT may reach it: a useEffect that calls it fires without a press.
+  for (const m of geoFormBody.matchAll(/useEffect\(\(\)\s*=>\s*\{([\s\S]*?)\n  \}/g)) {
+    if (/findThisPlace|find-place/.test(m[1])) geoFail(`${GEO_FORM} calls the lookup from a useEffect — that fires without a press`);
+  }
+  // NOR the submit path, NOR a debounce/timer.
+  const submitAt = geoFormBody.indexOf('const submit = async () =>');
+  if (submitAt > -1) {
+    const submitBody = geoFormBody.slice(submitAt, geoFormBody.indexOf('\n  };', submitAt));
+    if (/findThisPlace|find-place/.test(submitBody)) geoFail(`${GEO_FORM} looks the place up on submit — saving must never spend a call`);
+  }
+  if (/setTimeout[\s\S]{0,120}findThisPlace|debounce/i.test(geoFormBody)) {
+    geoFail(`${GEO_FORM} debounces or delays the lookup — that is typing spending the call`);
+  }
+  // NOTHING IS AUTO-SELECTED: a pick is always a press.
+  if (/matches\[0\]|results\[0\]/.test(geoFormBody)) geoFail(`${GEO_FORM} reaches for the first match — nothing is auto-selected`);
+  if (!/data-find-place-match/.test(geoFormBody)) geoFail(`${GEO_FORM} renders no pickable match`);
+  // The typed-name-only path stays first-class, and the cap is visible.
+  if (!/data-find-place-clear/.test(geoFormBody)) geoFail(`${GEO_FORM} offers no way back to the typed name with no coordinates`);
+  if (!/atCapLine\(/.test(geoFormBody)) geoFail(`${GEO_FORM} does not state the cap and its reset date`);
+  if (!/disabled=\{finding \|\| atCap/.test(geoFormBody)) geoFail(`${GEO_FORM} does not disable the button at the cap`);
+}
+
+// NO OTHER calendar surface looks a place up.
+for (const rel of walkSrc('src/components').concat(walkSrc('src/app'))) {
+  if (rel === GEO_FORM || rel === GEO_ROUTE) continue;
+  const body = dayCode(rel);
+  if (/\/api\/calendar\/find-place/.test(body)) {
+    geoFail(`${rel} reaches the calendar's place lookup — it has one call site, the form's button`);
+  }
+}
+if (dayCode(GEO_LEAF) && /fetch\s*\(/.test(dayCode(GEO_LEAF))) {
+  geoFail(`${GEO_LEAF} fetches — the leaf is pure so a test can check the query and the cap without a network`);
+}
+
+if (geoViolations === 0) console.log(`✔ The geo law passed — the calendar's place lookup has ONE call site (${GEO_ROUTE}, one googleFetch), reached only from the form's onClick; no effect, submit, debounce or render spends a call; nothing is auto-selected; the cap is read, reported and refused at with its reset date.`);
 
 // ── THE SECOND GATE ─────────────────────────────────────────────────────────
 // Every law below the first gate — kind views, arrivals, the rule book,
