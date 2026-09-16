@@ -141,11 +141,13 @@ test('an event with no coordinates is LISTED under the map, never dropped', () =
   const ns = projectPins([{ lat: 10, lon: 0 }, { lat: 20, lon: 0 }]);
   assert.ok(ns[1].y < ns[0].y);
 
-  // NO PROVIDER, NO GEOCODING — the day view fetches nothing but the day's plan.
+  // NO PROVIDER, NO GEOCODING — the day view reaches exactly two routes: the
+  // day's plan (a read) and, since EVENT-01, its own manual-event route to
+  // delete a hand-entered event. Nothing else, and no map service ever.
   const view = code(DAY_VIEW);
-  const fetches = view.match(/fetch\(/g) ?? [];
-  assert.equal(fetches.length, 1, 'the day view makes exactly one fetch');
+  assert.equal((view.match(/fetch\(/g) ?? []).length, 2, 'the day view reaches two routes and no more');
   assert.match(view, /\/api\/ops\/daily-plan\?date=/);
+  assert.match(view, /\/api\/calendar\/events\?id=/);
   assert.equal(/googleapis|mapbox|openstreetmap|tile|geocod/i.test(view), false, 'no map provider, no geocoding');
 });
 
@@ -170,9 +172,16 @@ test('the day\'s tasks are read from daily_plans, and the two totals are stated 
   assert.deepEqual(readTasks(null), []);
   assert.deepEqual(readTasks({}), []);
 
-  // READ-ONLY: this surface never writes calendar_events or daily_plans.
+  // The day view reads daily_plans and NEVER writes it — Tasks owns that row.
+  // EVENT-01 STEP 5 added exactly one write: DELETE of a hand-entered event,
+  // through the manual-event route. POST, PATCH and PUT remain absent.
   const view = code(DAY_VIEW);
-  assert.equal(/method:\s*'(POST|PATCH|PUT|DELETE)'/.test(view), false, 'the day view is a read surface');
+  assert.equal(/method:\s*'(POST|PATCH|PUT)'/.test(view), false, 'the day view creates and updates nothing');
+  const methods = [...view.matchAll(/method:\s*'(\w+)'/g)].map((m) => m[1]);
+  assert.deepEqual(methods, ['DELETE'], 'the day view has exactly one write, and it is a delete');
+  // …and it is on the manual-event route, not on daily_plans.
+  assert.match(view, /fetch\(`\/api\/calendar\/events\?id=\$\{encodeURIComponent\(id\)\}`, \{ method: 'DELETE' \}\)/);
+  assert.equal(/daily-plan[^)]*method:/.test(view), false, 'daily_plans is read, never written — Tasks owns it');
   // And the two totals are never merged into one number.
   assert.match(view, /data-day-total/);
   assert.match(view, /data-day-task-total/);

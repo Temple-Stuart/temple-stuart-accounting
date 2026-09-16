@@ -47,6 +47,12 @@ export interface CalendarEvent {
    */
   latitude?: number | null;
   longitude?: number | null;
+  /**
+   *  EVENT-01: the row's own category (calendar_events.category). The grid does
+   *  not read it — it colours by source — but the day view hands it back when a
+   *  hand-entered event is corrected, so the picker starts on what is stored.
+   */
+  category?: string | null;
   details?: string[];        // compact detail lines (e.g. "PYPL | Iron Condor", "B-6210 · $250")
   /**
    * Internal navigation target. When set, clicking the event routes to

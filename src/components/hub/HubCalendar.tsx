@@ -30,6 +30,8 @@ import type { DailyPlanItem, CalendarBlockSummary } from '@/components/workbench
 // DAY-01: which calendar_events sources render, by name and with a reason each.
 import { CALENDAR_SOURCES, isRenderedCalendarSource } from '@/lib/calendar/sources';
 import DayView from '@/components/hub/DayView';
+// EVENT-01: the door /api/calendar never had — an event, by hand.
+import AddEventForm, { type EditableEvent } from '@/components/hub/AddEventForm';
 
 // The /api/calendar event shape (same as hub/page.tsx:25-35).
 interface CalendarEvent {
@@ -64,6 +66,9 @@ interface CalendarEvent {
   // here and converted once, where they are read.
   latitude: unknown;
   longitude: unknown;
+  // EVENT-01: carried so a correction starts from what is stored.
+  category: string | null;
+  description: string | null;
 }
 
 /** A Decimal-from-JSON (string), a number, or null. Never NaN, never 0-for-absent. */
@@ -151,6 +156,9 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
   // DAY-01 STEP 2: the day the reader opened, 'YYYY-MM-DD'. Null = no day panel.
   const [openDay, setOpenDay] = useState<string | null>(null);
 
+  // EVENT-01: the hand-entered event being corrected. Null = the form adds a new one.
+  const [editEvent, setEditEvent] = useState<EditableEvent | null>(null);
+
   // ── The 3 calendar loaders — SAME logic as hub/page.tsx:192-294. ──
   const loadCalendar = async () => {
     try {
@@ -237,6 +245,8 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
       // DAY-01: carried through so the day view can plot what is stored.
       latitude: toCoord(e.latitude),
       longitude: toCoord(e.longitude),
+      category: e.category ?? null,
+      description: e.description ?? null,
     }));
     // mapOperationsBlocks is SHARED with /hub and still emits source:'operations'
     // there; remap to 'project' HERE so these land on the renamed Projects layer
@@ -275,6 +285,19 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
     <div>
       {/* Edge-to-edge day-view grid. On phone it's day-only with a week strip; the grid's
           nav drives this component's fetch month via onMonthChange. */}
+      {/* EVENT-01: the day is planned here, not just recorded. Hidden in demo
+          mode — a logged-out guest has no account to write to, and the zero-fetch
+          guarantee for a guest is absolute. */}
+      {!isDemo && (
+        <div className="mb-3">
+          <AddEventForm
+            editEvent={editEvent}
+            onEditDone={() => setEditEvent(null)}
+            onAdded={(dateKey) => { loadCalendar(); if (dateKey) setRange((r) => (dateKey >= r.from && dateKey <= r.to ? r : { from: dateKey, to: dateKey })); }}
+          />
+        </div>
+      )}
+
       <CalendarGrid
         events={gridEvents}
         sourceConfig={HUB_GRID_CONFIG}
@@ -335,8 +358,13 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
               coaCode: e.coaCode,
               latitude: e.latitude,
               longitude: e.longitude,
+              category: e.category,
             }))}
           sourceIcon={SOURCE_ICON}
+          /* EVENT-01 STEP 5: a hand-entered event is corrected and deleted from
+             the day it sits on. Both refuse any other source, with its reason. */
+          onCorrect={(ev) => { setEditEvent(ev); setOpenDay(null); }}
+          onDeleted={() => { loadCalendar(); }}
           onClose={() => setOpenDay(null)}
         />
       )}
