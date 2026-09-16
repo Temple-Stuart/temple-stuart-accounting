@@ -24,9 +24,11 @@ test('no tool\'s rendered line is a citation — a tool with no `why` gets no li
       assert.doesNotMatch(t.line, /src\//, `${t.name}: no source path in the line`);
     }
   }
-  // The seven that used to print a path now print none.
+  // The seven that used to print a path now print none — less Brokerage and
+  // Trade Log, which TRADE-SPLIT gave a `why` of their own (each says, in the
+  // customer's language, why it is still PARTIAL).
   const silent = navRows(TOOL_GATE).filter((t) => t.href && t.line === null).map((t) => t.name);
-  assert.deepEqual(silent, ['Travel', 'Banking', 'Brokerage', 'Trade Log', 'Bookkeeping', 'Tax', 'Compliance']);
+  assert.deepEqual(silent, ['Travel', 'Banking', 'Bookkeeping', 'Tax', 'Compliance']);
 });
 
 test('the opener renders no file path, for any tool, on any page', () => {
@@ -48,9 +50,16 @@ test('the opener lists only the phases its page draws', () => {
     ['books 02', 'books 03', 'books 04', 'books 05', 'books 06'], '/books lists only what it draws');
   // Banking owns books 01 (drawn on /books) and runway 01 (drawn nowhere).
   assert.deepEqual(phasesRenderedOn('/accounts', navToolByName('Banking', TOOL_GATE)), []);
-  // Brokerage and Trade Log own the trade pipe; /trading draws no strip at all.
+  // TRADE-SPLIT: each of the trade pipe's two tools draws its own three phases
+  // on its own page; /trading is a redirect and draws nothing.
   assert.equal(code('src/app/trading/page.tsx').includes('<StageStrip'), false);
   assert.deepEqual(phasesRenderedOn('/trading', navToolByName('Brokerage', TOOL_GATE)), []);
+  assert.equal(code('src/app/brokerage/page.tsx').includes('<StageStrip'), true);
+  assert.equal(code('src/app/trade-log/page.tsx').includes('<StageStrip'), true);
+  assert.deepEqual(phasesRenderedOn('/brokerage', navToolByName('Brokerage', TOOL_GATE)).map((p) => `${p.pipe} ${p.num}`),
+    ['trade 01', 'trade 02', 'trade 03']);
+  assert.deepEqual(phasesRenderedOn('/trade-log', navToolByName('Trade Log', TOOL_GATE)).map((p) => `${p.pipe} ${p.num}`),
+    ['trade 04', 'trade 05', 'trade 06']);
   // The three tools whose page draws their own pipe still list it, in pipe order.
   for (const [tool, route, pipe] of [['Calendar', '/calendar', 'routines'], ['Tasks', '/tasks', 'projects'], ['Time', '/time', 'content']] as const) {
     const listed = phasesRenderedOn(route, navToolByName(tool, TOOL_GATE));

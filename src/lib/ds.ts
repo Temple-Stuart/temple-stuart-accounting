@@ -182,7 +182,7 @@ export const EXPLAINER = 'border-l-2 border-brand-purple/40 pl-3 text-xs leading
 
 /** TRADE-ACTIONS-STATES: the money-action idiom — ruling: gold SURVIVES as
  *  the color reserved for money-moving actions — Commit to Ledger; Books
- *  commit inherits this idiom. Derivation: the /trading Commit-to-Ledger
+ *  commit inherits this idiom. Derivation: the Trade Log Commit-to-Ledger
  *  button's own classes verbatim (page.tsx Commit button), order
  *  normalized only — byte-equal render. */
 export const MONEY_ACTION =
@@ -200,7 +200,7 @@ export const STATE = {
 
 /** TRADE-SHELL-DARK: THE section-header bar — one idiom replacing the seven
  *  divergent `bg-brand-purple/80` header strips the TRADE-UI-DS audit found
- *  on /trading (+ DataObservatory). Dark-native: inset fill + hairline +
+ *  on the trade pages (+ DataObservatory). Dark-native: inset fill + hairline +
  *  the DATA.columnHeader micro-label voice at bar scale. */
 // REPAINT-3: the section-header bar goes light — cream row fill, lavender
 // hairline, aubergine mono ink (Direction C structure ink; the muted-ink

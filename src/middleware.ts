@@ -44,7 +44,7 @@ async function verifyCookieEdge(cookieValue: string): Promise<string | null> {
 /**
  * Middleware: Protect app routes.
  * Public: /, /api/auth/*, static assets
- * Protected: /hub, /dashboard, /trading, /business, etc.
+ * Protected: /hub, /dashboard, /brokerage, /trade-log, /business, etc.
  */
 
 const PUBLIC_PATHS = [

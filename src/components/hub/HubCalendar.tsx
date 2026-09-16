@@ -9,7 +9,7 @@
  *   • /api/calendar          → calendar_events (filtered to source 'trip')
  *   • /api/operations/daily-plan/items → operations blocks (mapOperationsBlocks)
  *   • /api/hub/operations-routines     → routine occurrences (mapOperationsRoutines)
- * merged into CalendarGrid (the same component /hub + /trading use).
+ * merged into CalendarGrid (the same component /hub + /trade-log use).
  *
  * AUTH: all three routes are account-gated (NOT public). Logged IN, the component
  * fetches and renders the viewer's real calendar. Logged OUT, the home page passes
