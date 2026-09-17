@@ -1844,10 +1844,21 @@ const dayViewBody = dayCode(DAY_VIEW_FILE);
 if (!dayViewBody) dayFail(`${DAY_VIEW_FILE} is missing — a day does not open`);
 else {
   // Every total the day view prints goes through coverageLine.
-  const totalsRendered = (dayViewBody.match(/data-day-total|data-day-task-total/g) ?? []).length;
-  const covered = (dayViewBody.match(/coverageLine\(/g) ?? []).length;
+  // ROUTINE-01: every total in the day view is NAMED and carries the coverage
+  // that earned it. DAY-01 checked that each total went through coverageLine;
+  // now each also has to say WHICH PART it is, because an unlabelled figure was
+  // exactly the defect — "Events" silently contained the routines too.
+  const totalsRendered = (dayViewBody.match(/data-day-total-part|data-day-total\b|data-day-task-total/g) ?? []).length;
+  const namedLines = (dayViewBody.match(/partLine\(|dayTotalLine\(/g) ?? []).length;
   if (totalsRendered === 0) dayFail(`${DAY_VIEW_FILE} renders no day total at all`);
-  if (covered < totalsRendered) dayFail(`${DAY_VIEW_FILE} renders ${totalsRendered} total(s) through ${covered} coverageLine call(s) — every total ships with its coverage count`);
+  if (namedLines < totalsRendered) dayFail(`${DAY_VIEW_FILE} renders ${totalsRendered} total(s) through ${namedLines} named line(s) — every total names its part and ships with its coverage count`);
+  // ONE SUMMATION. The parts and the grand total come from dayParts; a direct
+  // expectedTotal here would be a second sweep that could disagree with them.
+  if (/expectedTotal\(/.test(dayViewBody)) dayFail(`${DAY_VIEW_FILE} sums the day itself — the parts and their sum come from dayParts(), so they cannot disagree`);
+  if (!/dayParts\(rows, tasks\)/.test(dayViewBody)) dayFail(`${DAY_VIEW_FILE} does not build its totals from dayParts(rows, tasks)`);
+  // The parts are RENDERED FROM THE LIST, never three hand-written rows that
+  // could drift from what dayParts computed.
+  if (!/totals\.parts\.map\(/.test(dayViewBody)) dayFail(`${DAY_VIEW_FILE} does not render its parts from the parts list`);
   // WHAT THE DAY MAY WRITE. DAY-01 shipped it read-only. EVENT-01 STEP 5 added
   // exactly ONE write: deleting a HAND-ENTERED event, through the manual-event
   // route, which refuses every other source itself. Nothing else — it still
@@ -1874,7 +1885,7 @@ else if (!/export const ACTUALS_JOIN_SOUND/.test(dayActuals) || !/ACTUALS_JOIN_B
   dayFail(`${DAY_ACTUALS} records no verdict and no blockers`);
 }
 
-if (dayViolations === 0) console.log(`✔ The day laws passed — ${CALENDAR_SOURCES.length} calendar sources rendered by name (${CALENDAR_SOURCES.map((s) => s.source).join(' · ')}), ${EXCLUDED_CALENDAR_SOURCES.length} excluded by name; no component filters a calendar event on a bare source; every day total ships with its coverage count; the day view creates and updates nothing (its one write deletes a hand-entered event) and reaches no map provider.`);
+if (dayViolations === 0) console.log(`✔ The day laws passed — ${CALENDAR_SOURCES.length} calendar sources rendered by name (${CALENDAR_SOURCES.map((s) => s.source).join(' · ')}), ${EXCLUDED_CALENDAR_SOURCES.length} excluded by name; no component filters a calendar event on a bare source; every day total names its part and ships with its coverage count, summed once in dayParts(); the day view creates and updates nothing (its one write deletes a hand-entered event) and reaches no map provider.`);
 
 // ── EVENT-01 — AN EVENT CAN BE ADDED BY HAND ────────────────────────────────
 // DAY-01's audit found /api/calendar GET-only: no form, no route, no path wrote

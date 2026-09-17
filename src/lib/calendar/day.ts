@@ -256,3 +256,76 @@ export function readTasks(raw: unknown): DayTask[] {
 export function tasksTotal(tasks: readonly DayTask[]): CoveredTotal {
   return expectedTotal(tasks.map((t) => ({ expected: t.cost })));
 }
+
+// ── ROUTINE-01 — THE DAY'S TOTAL NAMES ITS PARTS ───────────────────────────
+// DAY-01 labelled two parts, "Events" and "Tasks", and summed ROUTINE
+// occurrences inside the Events figure with nothing saying so. The number was
+// right; the label was not, and DAY-01's own coverage rule exists to stop a
+// total that hides what it contains.
+//
+// Routine occurrences reach the day view through mapOperationsRoutines →
+// HubCalendar's gridEvents (they are NOT calendar_events rows — that is why
+// src/lib/calendar/sources.ts names 'routines' in EXCLUDED_CALENDAR_SOURCES,
+// so they are never drawn twice). They arrive already expanded from the RRULE
+// by the one expansion in the repo, src/lib/operations/rruleHelpers.ts:162.
+
+/**
+ * The source mapOperationsRoutines stamps on every occurrence
+ * (src/lib/hub/mapOperationsRoutines.ts:60 ROUTINES_SOURCE). Named here rather
+ * than imported so this leaf stays free of the grid's types; a test feeds a
+ * routine through the real mapper and asserts the two still agree, so the
+ * value cannot drift unnoticed.
+ */
+export const ROUTINE_PART_SOURCE = 'routines';
+
+/** One named part of the day's total, with the coverage that earned it. */
+export interface DayPart {
+  key: 'events' | 'routines' | 'tasks';
+  label: string;
+  total: CoveredTotal;
+  /** The words coverageLine uses for this part. */
+  noun: string;
+  verb: string;
+}
+
+/** The day's parts and their sum. */
+export interface DayTotals {
+  /** Only the parts that hold something — an empty part is omitted, never $0. */
+  parts: DayPart[];
+  /** The parts added. NOT a second pass over the rows — see below. */
+  total: number;
+}
+
+/**
+ * Split the day into its named parts. There is ONE summation in this file —
+ * `expectedTotal` — and the grand total is the PARTS ADDED, never an
+ * independent sweep of the rows, so the sum and its parts cannot disagree.
+ */
+export function dayParts(rows: readonly DayRow[], tasks: readonly DayTask[] = []): DayTotals {
+  const routineRows = rows.filter((r) => r.source === ROUTINE_PART_SOURCE);
+  const eventRows = rows.filter((r) => r.source !== ROUTINE_PART_SOURCE);
+
+  const all: DayPart[] = [
+    { key: 'events', label: 'Events', total: expectedTotal(eventRows), noun: 'event', verb: 'planned' },
+    { key: 'routines', label: 'Routines', total: expectedTotal(routineRows), noun: 'routine', verb: 'planned' },
+    { key: 'tasks', label: 'Tasks', total: tasksTotal(tasks), noun: 'task', verb: 'costed' },
+  ];
+  const parts = all.filter((p) => p.total.of > 0);
+  const total = parts.reduce((sum, p) => sum + p.total.total, 0);
+  return { parts, total: Math.round(total * 100) / 100 };
+}
+
+/** "Events: $210 planned across 3 of 5 events" — one part, named. */
+export function partLine(part: DayPart): string {
+  return `${part.label}: ${coverageLine(part.total, part.noun, part.verb)}`;
+}
+
+/**
+ * The day's sum, stating that it is the parts added: "$340 — Events $210 +
+ * Routines $130". With nothing on the day at all it says so rather than "$0".
+ */
+export function dayTotalLine(totals: DayTotals): string {
+  if (totals.parts.length === 0) return 'Nothing on this day to add up';
+  const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  return `${money(totals.total)} — ${totals.parts.map((p) => `${p.label} ${money(p.total.total)}`).join(' + ')}`;
+}
