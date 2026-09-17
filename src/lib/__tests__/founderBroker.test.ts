@@ -1,14 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+
 import { FOUNDER_BROKER_LINE, FOUNDER_BROKER_REASON, runScanForViewer, scanGate } from '../tastytrade/founderBroker';
+import { code } from '../sourceText';
 
 // TT-01 — the scanner runs on the founder's broker, and says so. Hermetic, the
 // discoveryGate.test.ts idiom (src/lib/__tests__/discoveryGate.test.ts:17-19):
 // "the call is a spy that must stay un-invoked when a gate refuses".
-
-const src = (f: string) => readFileSync(`${process.cwd()}/${f}`, 'utf8');
-const code = (f: string) => src(f).split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
 
 test('a non-admin is refused BEFORE the pipeline — the paid call is never invoked', async () => {
   let calls = 0;
@@ -52,7 +50,7 @@ test('the route refuses at both fire points with the ONE line, before the cache 
   assert.match(route, /NextResponse\.json\(\{ error: FOUNDER_BROKER_LINE, reason: FOUNDER_BROKER_REASON \}, \{ status: 403/);
   // No second copy of the sentence anywhere — one const, no drift.
   for (const f of ['src/app/api/trading/convergence/route.ts', 'src/components/trading/ScanFilterForm.tsx']) {
-    assert.ok(!src(f).includes("founder's broker until"), `${f} reads the const, it does not retype the line`);
+    assert.ok(!code(f).includes("founder's broker until"), `${f} reads the const, it does not retype the line`);
   }
 });
 
@@ -78,5 +76,5 @@ test('connect already refuses a non-admin server-side (SEC4) — no placeholder 
   const connect = code('src/app/api/tastytrade/connect/route.ts');
   assert.ok(connect.indexOf('requireAdmin()') < connect.indexOf('tastytrade_connections.upsert'), 'the gate precedes the write');
   // And what the row holds when it IS written: the literal marker, not a credential.
-  assert.match(src('src/app/api/tastytrade/connect/route.ts'), /sessionToken: encryptToken\('oauth'\)/);
+  assert.match(code('src/app/api/tastytrade/connect/route.ts'), /sessionToken: encryptToken\('oauth'\)/);
 });

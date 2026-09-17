@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+
 import {
   CALENDAR_SOURCES, EXCLUDED_CALENDAR_SOURCES, isRenderedCalendarSource,
   calendarSourcesLaw, CalendarSourcesLawError,
@@ -10,14 +10,13 @@ import {
   type DayEventInput,
 } from '../calendar/day';
 import { ACTUALS_JOIN_SOUND, ACTUALS_JOIN_BLOCKERS, ACTUALS_NOT_JOINABLE_LINE } from '../calendar/actuals';
+import { code } from '../sourceText';
 
 /**
  * DAY-01 — THE DAY, WHOLE. The tradeSplit.test.ts idiom: a source read strips
  * comment lines first, so a citation in a comment can never satisfy an assertion
  * about the code.
  */
-const src = (f: string) => readFileSync(`${process.cwd()}/${f}`, 'utf8');
-const code = (f: string) => src(f).split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
 
 const HUB = 'src/components/hub/HubCalendar.tsx';
 const GRID = 'src/components/shared/CalendarGrid.tsx';

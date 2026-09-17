@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+
 import {
   EVENT_CATEGORIES, categoryOf, buildManualEvent, type ManualEventInput,
 } from '../calendar/manualEvent';
@@ -8,13 +8,12 @@ import {
   CALENDAR_SOURCES, MANUAL_EVENT_SOURCE, MANUAL_EVENT_BADGE, isManualEvent, isRenderedCalendarSource,
 } from '../calendar/sources';
 import { buildDay, expectedTotal, coverageLine, mapSplit, type DayEventInput } from '../calendar/day';
+import { code } from '../sourceText';
 
 /**
  * EVENT-01 — AN EVENT CAN BE ADDED BY HAND. Source reads strip comment lines
  * first, so a citation in a comment can never satisfy an assertion about code.
  */
-const src = (f: string) => readFileSync(`${process.cwd()}/${f}`, 'utf8');
-const code = (f: string) => src(f).split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
 
 const ROUTE = 'src/app/api/calendar/events/route.ts';
 const FORM = 'src/components/hub/AddEventForm.tsx';

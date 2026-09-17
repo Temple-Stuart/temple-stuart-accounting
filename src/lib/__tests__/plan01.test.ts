@@ -1,17 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { THE_SORT, PHASES_RENDERED_AT, navRows, navToolByName, phasesRenderedOn } from '../nav';
 import { TOOL_GATE } from '../offer';
 import { PIPE_PHASES, PIPE_LABEL } from '../pipePhases';
 import { mapOperationsRoutines } from '../hub/mapOperationsRoutines';
+import { code, comments } from '../sourceText';
 
 /**
  * PLAN-01 — TASKS IS THE PLANNING TAB. Source reads strip comment lines first,
  * so a citation in a comment can never satisfy an assertion about the code.
  */
-const src = (f: string) => readFileSync(`${process.cwd()}/${f}`, 'utf8');
-const code = (f: string) => src(f).split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
 
 const TASKS = 'src/app/tasks/page.tsx';
 const CALENDAR = 'src/app/calendar/page.tsx';
@@ -34,8 +33,8 @@ test('THE SORT is the one place pipe ownership is declared, and it gives Tasks b
   ]);
   assert.deepEqual(navToolByName('Calendar', TOOL_GATE).phases, []);
   // nav.ts:201 is the derivation — the registry carries no `pipes` field of its own.
-  assert.match(src('src/lib/nav.ts'), /phases: phasesOf\(tool\.name, sort\)/);
-  assert.equal(/pipes:\s*\[/.test(src('src/lib/toolRegistry.ts')), false, 'a second ownership list would be two truths');
+  assert.match(code('src/lib/nav.ts'), /phases: phasesOf\(tool\.name, sort\)/);
+  assert.equal(/pipes:\s*\[/.test(code('src/lib/toolRegistry.ts')), false, 'a second ownership list would be two truths');
 });
 
 test('/tasks draws BOTH strips, each labelled with its pipe', () => {
@@ -75,8 +74,10 @@ test("EVENT-01's form stays on the calendar, because a calendar_event is the cal
   // this tool writes, and it writes THIS tool's object, not another tool's.
   assert.match(code('src/components/hub/HubCalendar.tsx'), /<AddEventForm/);
   assert.ok(existsSync(`${process.cwd()}/src/app/api/calendar/events/route.ts`));
-  // And the reason is recorded where the next reader will look.
-  assert.match(src(CALENDAR), /writes a calendar_event, which is THIS tool's own row/);
+  // And the reason is recorded where the next reader will look. TEST-TRUTH-01:
+  // that reason is PROSE — the page's header comment — and this now says so.
+  // The behaviour it explains is asserted from code, two lines above.
+  assert.match(comments(CALENDAR), /writes a calendar_event, which is THIS tool's own row/);
 });
 
 test('a routine authored on /tasks still appears as occurrences on the calendar — the mapper is untouched', () => {
@@ -106,17 +107,21 @@ test('a routine authored on /tasks still appears as occurrences on the calendar 
 });
 
 test('the amendment is written down: what it permits, and what it still forbids', () => {
-  const law = src(LAW);
-  assert.match(law, /TOOL-LAW-01 · AMENDMENT \(PLAN-01, 2026-09-17\)/);
-  assert.match(law, /WHAT IT PERMITS/);
-  assert.match(law, /WHAT IT STILL FORBIDS/);
+  // TEST-TRUTH-01: the amendment's WORDING is a dated comment, so it is read as
+  // one. Every line below that asserts what the law SAYS reads comments(); every
+  // line that asserts what the law DOES reads code(). Splitting them is the whole
+  // point — before, one raw read could not tell you which kind of claim it was.
+  const wording = comments(LAW);
+  assert.match(wording, /TOOL-LAW-01 · AMENDMENT \(PLAN-01, 2026-09-17\)/);
+  assert.match(wording, /WHAT IT PERMITS/);
+  assert.match(wording, /WHAT IT STILL FORBIDS/);
   // The three things it still refuses, named.
-  assert.match(law, /a FOREIGN pipe/);
-  assert.match(law, /a page serving two TOOLS/);
-  assert.match(law, /UNLABELLED multi-pipe/);
+  assert.match(wording, /a FOREIGN pipe/);
+  assert.match(wording, /a page serving two TOOLS/);
+  assert.match(wording, /UNLABELLED multi-pipe/);
   // And the STEP 0.1 answer recorded: no rule requires a page to draw a pipe.
-  assert.match(law, /No\s*\n\/\/ rule REQUIRES a tool's page to draw a pipe/);
-  // The amendment is enforced, not just described.
+  assert.match(wording, /No\s*\n\/\/ rule REQUIRES a tool's page to draw a pipe/);
+  // The amendment is ENFORCED, not just described — this half is code.
   assert.match(code(LAW), /a page may draw a second pipe only when its tool owns it/);
   assert.match(code(LAW), /data-pipe-label="\$\{pipe\}"/);
 });

@@ -86,9 +86,10 @@
  *
  * Run standalone:  npx tsx scripts/assert-tool-registry.ts
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { readdirSync, statSync } from 'node:fs';
+import { code as codeOf, comments as commentsOf, rejoin } from '../src/lib/sourceText';
 import { PROBLEM_SHEET } from '../src/lib/problemSheet';
 import { EXPECTED_STATUS_COUNTS, FAMILY_READS, TOOL_REGISTRY, registryLaw, statusCounts } from '../src/lib/toolRegistry';
 import { HOME_ANSWER, HOME_OWNER, HOME_PHASES, PHASES_RENDERED_AT, THE_SORT, navFamilies, navLaw, navRows } from '../src/lib/nav';
@@ -165,7 +166,7 @@ function doorCovers(door: string, route: string): boolean {
 }
 
 function redirectTarget(file: string): string | null {
-  const src = readFileSync(resolve(ROOT, file), 'utf8');
+  const src = codeOf(file);
   const m = src.match(/redirect\(\s*['"`]([^'"`]+)['"`]\s*\)/);
   return m ? m[1] : null;
 }
@@ -173,7 +174,7 @@ function redirectTarget(file: string): string | null {
 const ROOT = resolve(__dirname, '..');
 
 function tabAllowlist(): Set<string> {
-  const src = readFileSync(resolve(ROOT, 'src/app/[tab]/page.tsx'), 'utf8');
+  const src = codeOf('src/app/[tab]/page.tsx');
   const m = src.match(/const TAB_PATHS = new Set\(\[([\s\S]*?)\]\)/);
   if (!m) throw new Error('assert-tool-registry: TAB_PATHS not found in src/app/[tab]/page.tsx');
   return new Set(Array.from(m[1].matchAll(/'([a-z-]+)'/g), (x) => x[1]));
@@ -282,7 +283,7 @@ console.log(`pages: ${pages.length} · doors: ${doors.length}`);
 // SHELL-02: ShellFrame folded into AppLayout — one wrapper, one bar.
 const SHELLS = ['AppLayout', 'HomeClient', 'AnswersClient', 'ModulePageClient'];
 function mountsShell(pageFile: string): boolean {
-  const read = (f: string) => (existsSync(resolve(ROOT, f)) ? readFileSync(resolve(ROOT, f), 'utf8') : '');
+  const read = (f: string) => (existsSync(resolve(ROOT, f)) ? codeOf(f) : '');
   if (SHELLS.some((shell) => read(pageFile).includes(shell))) return true;
   let dir = pageFile.slice(0, pageFile.lastIndexOf('/'));
   while (dir.startsWith('src/app')) {
@@ -327,8 +328,8 @@ for (const gone of ['src/lib/steps.ts', 'src/components/shell/StepOpener.tsx', '
 // The rail and the sheet render FROM nav.ts, never a retyped list.
 const RAIL = 'src/components/shell/Rail.tsx';
 const SHEET = 'src/components/shell/TheSheet.tsx';
-const railSrc = existsSync(resolve(ROOT, RAIL)) ? readFileSync(resolve(ROOT, RAIL), 'utf8') : '';
-const sheetSrc = existsSync(resolve(ROOT, SHEET)) ? readFileSync(resolve(ROOT, SHEET), 'utf8') : '';
+const railSrc = existsSync(resolve(ROOT, RAIL)) ? codeOf(RAIL) : '';
+const sheetSrc = existsSync(resolve(ROOT, SHEET)) ? codeOf(SHEET) : '';
 if (!railSrc) violations.push(`${RAIL} is missing — it is the navigation`);
 for (const token of ['navFamilies(', "from '@/lib/nav'"]) {
   if (railSrc && !railSrc.includes(token)) violations.push(`${RAIL} must render from nav.ts (${token}) — never a retyped list`);
@@ -340,7 +341,7 @@ for (const token of ['navFamilies(', "from '@/lib/nav'"]) {
   if (sheetSrc && !sheetSrc.includes(token)) violations.push(`${SHEET} must render from nav.ts (${token}) — never a retyped list`);
 }
 const HOME_CLIENT = 'src/components/answers/AnswersClient.tsx';
-const homeSrc = readFileSync(resolve(ROOT, HOME_CLIENT), 'utf8');
+const homeSrc = codeOf(HOME_CLIENT);
 if (!homeSrc.includes('<TheSheet />')) violations.push(`${HOME_CLIENT} must render the sheet below the answers (SHELL-01)`);
 if (!homeSrc.includes('<Rail ')) violations.push(`${HOME_CLIENT} must render the rail`);
 
@@ -349,7 +350,7 @@ violations.push(...answersLaw({ throwOnFail: false }));
 const ANSWERS_PAGE = `src/app${ANSWERS_HOME}/page.tsx`;
 const ANSWERS_CLIENT = 'src/components/answers/AnswersClient.tsx';
 if (!existsSync(resolve(ROOT, ANSWERS_PAGE))) violations.push(`${ANSWERS_HOME} has no page file (${ANSWERS_PAGE})`);
-const clientSrc = existsSync(resolve(ROOT, ANSWERS_CLIENT)) ? readFileSync(resolve(ROOT, ANSWERS_CLIENT), 'utf8') : '';
+const clientSrc = existsSync(resolve(ROOT, ANSWERS_CLIENT)) ? codeOf(ANSWERS_CLIENT) : '';
 if (!clientSrc) violations.push(`${ANSWERS_CLIENT} is missing — /answers renders nothing`);
 if (clientSrc && !/from '@\/lib\/answers'/.test(clientSrc)) violations.push(`${ANSWERS_CLIENT} must import the answers from src/lib/answers.ts`);
 if (clientSrc && !clientSrc.includes('ANSWER_ROWS.map(')) violations.push(`${ANSWERS_CLIENT} must derive its cards from ANSWER_ROWS — never a retyped list`);
@@ -372,9 +373,9 @@ console.log(`counts: LIVE ${counts.LIVE} · PARTIAL ${counts.PARTIAL} · NOT_BUI
 
 // ── THE ARRIVALS LAW (REBUILD-01 PR-1) ──────────────────────────────────────
 violations.push(...providersLaw({ throwOnFail: false }));
-const schemaText = readFileSync(resolve(ROOT, 'prisma/schema.prisma'), 'utf8');
+const schemaText = codeOf('prisma/schema.prisma');
 const migrationDir = readdirSync(resolve(ROOT, 'prisma/migrations')).find((d) => d.endsWith('_arrivals'));
-const migrationSql = migrationDir ? readFileSync(resolve(ROOT, 'prisma/migrations', migrationDir, 'migration.sql'), 'utf8') : '';
+const migrationSql = migrationDir ? codeOf(`prisma/migrations/${migrationDir}/migration.sql`) : '';
 if (!migrationDir) violations.push('arrivals: no prisma/migrations/*_arrivals/migration.sql');
 
 const enumBlock = schemaText.match(/enum arrival_provider \{\n([\s\S]*?)\n\}/);
@@ -386,7 +387,9 @@ if (typeValues.join(',') !== PROVIDER_CODES.join(',')) violations.push(`arrivals
 /** Every migration.sql, in migration order — the ALTER TABLE … ADD COLUMN / SET NOT NULL a table gained after its CREATE TABLE. */
 const ALL_MIGRATIONS = readdirSync(resolve(ROOT, 'prisma/migrations')).sort()
   .filter((d) => existsSync(resolve(ROOT, 'prisma/migrations', d, 'migration.sql')))
-  .map((d) => ({ dir: d, sql: readFileSync(resolve(ROOT, 'prisma/migrations', d, 'migration.sql'), 'utf8') }));
+  // TEST-TRUTH-01: the kind-views law compares the WHOLE artefact (the generator
+  // emits `-- kind: tables` headers), so the two halves are read and rejoined.
+  .map((d) => ({ dir: d, sql: rejoin(codeOf(`prisma/migrations/${d}/migration.sql`), commentsOf(`prisma/migrations/${d}/migration.sql`)) }));
 
 /** SQL column → { name, type, nullable }: the CREATE TABLE body (constraints and indexes skipped) plus every later ADD COLUMN, with SET NOT NULL applied. */
 function sqlColumns(table: string): Array<{ name: string; type: string; nullable: boolean }> {
@@ -481,7 +484,7 @@ function tsFiles(dir: string): string[] {
   return out;
 }
 const landingConstants = new Map<string, string>();
-const srcFiles = tsFiles(resolve(ROOT, 'src')).map((abs) => ({ file: abs.replace(`${ROOT}/`, ''), src: readFileSync(abs, 'utf8') }));
+const srcFiles = tsFiles(resolve(ROOT, 'src')).map((abs) => ({ file: abs.replace(`${ROOT}/`, ''), src: codeOf(abs.replace(`${ROOT}/`, '')) }));
 for (const { src } of srcFiles) for (const m of src.matchAll(/export const ([A-Z_]+) = '([a-z_]+)';/g)) landingConstants.set(m[1], m[2]);
 const wordOf = (expr: string): string | undefined => (expr.startsWith("'") ? expr.slice(1, -1) : landingConstants.get(expr));
 const callSites: Array<{ file: string; provider: string; resource: string; kind: string }> = [];
@@ -515,12 +518,12 @@ for (const { file, src } of srcFiles) {
 const SELLING_SURFACES = ['src/components/home/LockedTabCard.tsx', 'src/app/modules/[pillar]/ModulePageClient.tsx', 'src/app/pricing/page.tsx', 'src/components/landing/Landing.tsx'];
 for (const f of SELLING_SURFACES) {
   if (!existsSync(resolve(ROOT, f))) { violations.push(`offer: ${f} is missing`); continue; }
-  const src = readFileSync(resolve(ROOT, f), 'utf8');
+  const src = codeOf(f);
   if (!src.includes("from '@/lib/offer'") || !src.includes("from '@/components/OfferCard'")) violations.push(`offer: ${f} must render the offer (import src/lib/offer.ts and OfferCard) — never a typed claim or price`);
 }
 if (existsSync(resolve(ROOT, 'src/config/pricingModel.ts'))) violations.push('offer: src/config/pricingModel.ts still exists — the offer is the one price source');
 if (existsSync(resolve(ROOT, 'docs/FREEMIUM-MODEL.md'))) violations.push('offer: docs/FREEMIUM-MODEL.md still exists — the offer (and /pricing) states the model');
-const pricingPage = readFileSync(resolve(ROOT, 'src/app/pricing/page.tsx'), 'utf8');
+const pricingPage = codeOf('src/app/pricing/page.tsx');
 if (/permanentRedirect|redirect\(/.test(pricingPage)) violations.push('offer: /pricing must render the offer, not redirect');
 console.log(`THE OFFER — ${OFFERS.length} offers, ${FREE_TOOLS.length} free tools`);
 for (const o of OFFERS) {
@@ -556,7 +559,7 @@ if (!/PostingNotLandedError/.test(postingHome)) violations.push('posting: postJo
 if (postingPaths.size < 12) violations.push(`posting: only ${postingPaths.size} files route through postJournal() — the audit counted 12`);
 
 // ─── THE ENV LAW (ENV-01) ────────────────────────────────────────────────────
-const readmeText = readFileSync(resolve(ROOT, 'README.md'), 'utf8');
+const readmeText = codeOf('README.md');
 const selfHosting = readmeText.split(/^## /m).find((section) => section.startsWith('Self-hosting')) ?? '';
 if (!selfHosting) violations.push('env: README.md has no "## Self-hosting" section');
 const documentedEnv = new Set([...selfHosting.matchAll(/`([A-Z][A-Z0-9_]+)`/g)].map((m) => m[1]));
@@ -613,7 +616,7 @@ for (const kind of ARRIVAL_KINDS) {
   const have = fields.map((f) => `${f.name} ${f.type}`).join(', ');
   if (want !== have) violations.push(`kind views: view ${kind} in schema.prisma is [${have}], not the common shape [${want}]`);
 }
-const landingSrc = readFileSync(resolve(ROOT, 'src/components/landing/Landing.tsx'), 'utf8');
+const landingSrc = codeOf('src/components/landing/Landing.tsx');
 if (!landingSrc.includes('{KIND_VIEWS_HONEST_LINE}')) violations.push("kind views: the deck's step 5 must render KIND_VIEWS_HONEST_LINE (never a retyped line)");
 console.log('THE KIND VIEWS — the census, each table once, the kind from the rule book');
 for (const t of KIND_VIEW_CENSUS) console.log(`${t.table.padEnd(26)} ${kindOfTable(t).padEnd(10)} ${Array.isArray(t.feed) ? `${t.feed[0]} · ${t.feed[1]}` : `by ${t.feed.column}: ${Object.values(t.feed.map).map(([p, r]) => `${p} · ${r}`).join(' | ')}`}`);
@@ -647,7 +650,7 @@ if (observatoryFiles.length === 0) violations.push(`observatory: ${OBSERVATORY_D
 let observatoryRowsTyped = 0;
 for (const f of observatoryFiles) {
   const rel = `${OBSERVATORY_DIR}/${f}`;
-  const src = readFileSync(resolve(ROOT, rel), 'utf8');
+  const src = codeOf(rel);
   // The doc comment names the deleted array on purpose; only real code counts.
   const code = src.split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
   const named = code.match(BANNED_NAMES);
@@ -662,7 +665,7 @@ for (const f of observatoryFiles) {
   }
 }
 const observatorySrc = observatoryFiles.includes('DataObservatory.tsx')
-  ? readFileSync(resolve(ROOT, `${OBSERVATORY_DIR}/DataObservatory.tsx`), 'utf8')
+  ? codeOf(`${OBSERVATORY_DIR}/DataObservatory.tsx`)
   : '';
 if (!observatorySrc) violations.push(`observatory: ${OBSERVATORY_DIR}/DataObservatory.tsx is missing — it is the screen`);
 else if (!observatorySrc.includes(NOT_MEASURED_MARK)) {
@@ -687,7 +690,7 @@ console.log(`✔ The observatory law passed — ${FEED_IDS.length}/${EXPECTED_FE
 // census.
 const FINNHUB_CACHE_HELPER = 'src/lib/convergence/finnhub-cache.ts';
 violations.push(...finnhubTtlLaw({ throwOnFail: false }).map((v) => `finnhub cache law (ttl const): ${v}`));
-const helperSrc = existsSync(resolve(ROOT, FINNHUB_CACHE_HELPER)) ? readFileSync(resolve(ROOT, FINNHUB_CACHE_HELPER), 'utf8') : '';
+const helperSrc = existsSync(resolve(ROOT, FINNHUB_CACHE_HELPER)) ? codeOf(FINNHUB_CACHE_HELPER) : '';
 if (!helperSrc) violations.push(`finnhub cache law: ${FINNHUB_CACHE_HELPER} is missing — the one place a Finnhub URL is built`);
 else {
   if (!/FINNHUB_BASE = 'https:\/\/finnhub\.io\/api\/v1'/.test(helperSrc)) violations.push(`finnhub cache law: ${FINNHUB_CACHE_HELPER} does not declare FINNHUB_BASE — the base and the path join here or nowhere`);
@@ -751,7 +754,7 @@ const MODULE_BAND = /MODULE_BANDS\s*\[/;
 let shellOffenders = 0;
 for (const f of shellFiles) {
   if (f === SHELL_BAR) continue;
-  const src = readFileSync(resolve(ROOT, f), 'utf8');
+  const src = codeOf(f);
   const code = src.split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
   if (!DECK_HEADER_FILES.includes(f)) {
     if (SIGN_OUT.test(code)) { shellOffenders += 1; violations.push(`shell: ${f} renders a sign-out — only ${SHELL_BAR} may (SHELL-02: one header)`); }
@@ -817,7 +820,7 @@ function importsFor(file: string): string[] {
   const hit = importsOf.get(file);
   if (hit) return hit;
   let src = '';
-  try { src = readFileSync(resolve(ROOT, file), 'utf8'); } catch { src = ''; }
+  try { src = codeOf(file); } catch { src = ''; }
   const out: string[] = [];
   for (const m of src.matchAll(IMPORT_SPEC)) {
     const r = resolveImport(file, m[1]);
@@ -838,7 +841,7 @@ function importsFor(file: string): string[] {
 function mountsOf(file: string): { header: boolean; rail: boolean } {
   if (file === APP_LAYOUT_FILE) return { header: false, rail: false };
   let src = '';
-  try { src = readFileSync(resolve(ROOT, file), 'utf8'); } catch { return { header: false, rail: false }; }
+  try { src = codeOf(file); } catch { return { header: false, rail: false }; }
   const code = src.split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
   let header = false;
   let rail = false;
@@ -920,12 +923,12 @@ function walkRoutes(dir: string, out: string[] = []): string[] {
 }
 const SCAN_DRIVERS: string[] = [];
 for (const f of walkRoutes('src/app/api')) {
-  const body = readFileSync(resolve(ROOT, f), 'utf8');
+  const body = codeOf(f);
   if (/from '@\/lib\/convergence\/pipeline'/.test(body) && /runPipeline\(/.test(body.split('\n').filter((l) => !/^\s*(\*|\/\/)/.test(l)).join('\n'))) SCAN_DRIVERS.push(f);
 }
 let brokerViolations = 0;
 for (const f of SCAN_DRIVERS) {
-  const code = readFileSync(resolve(ROOT, f), 'utf8').split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
+  const code = codeOf(f);
   const gateAt = code.indexOf('requireAdmin()');
   const runAt = code.indexOf('runPipeline(');
   const cacheAt = code.search(/(?<!function )getFromCache\(/);
@@ -1055,10 +1058,10 @@ for (const a of FOREIGN_PHASE_ALLOWED) {
   }
 }
 // 2 + 4. every StageStrip reads pipePhases.ts, and no other phase list is a strip
-const stripFiles = shellFiles.filter((f) => readFileSync(resolve(ROOT, f), 'utf8').includes('<StageStrip'));
+const stripFiles = shellFiles.filter((f) => codeOf(f).includes('<StageStrip'));
 console.log('THE TOOL LAW — every phase strip and the pipe it reads');
 for (const f of stripFiles.sort()) {
-  const src = readFileSync(resolve(ROOT, f), 'utf8');
+  const src = codeOf(f);
   const pipes = [...new Set([...src.matchAll(/PIPE_PHASES\.([a-z]+)/g)].map((m) => m[1]))];
   console.log(`  ${f.padEnd(62)} ${pipes.length ? pipes.join(' · ') : 'NO PIPE'}`);
   if (pipes.length === 0) {
@@ -1110,7 +1113,7 @@ for (const [route, tools] of screenTools) {
     const f = stack.pop()!;
     if (seen.has(f)) continue;
     seen.add(f);
-    const body = existsSync(resolve(ROOT, f)) ? readFileSync(resolve(ROOT, f), 'utf8') : '';
+    const body = existsSync(resolve(ROOT, f)) ? codeOf(f) : '';
     if (body.includes('<StageStrip')) {
       for (const m of body.matchAll(/PIPE_PHASES\.([a-z]+)/g)) {
         const pipe = m[1];
@@ -1166,7 +1169,7 @@ for (const [route, tools] of screenTools) {
     const f = stackMp.pop()!;
     if (seenMp.has(f)) continue;
     seenMp.add(f);
-    const body = existsSync(resolve(ROOT, f)) ? readFileSync(resolve(ROOT, f), 'utf8') : '';
+    const body = existsSync(resolve(ROOT, f)) ? codeOf(f) : '';
     if (body.includes('<StageStrip')) for (const m of body.matchAll(/PIPE_PHASES\.([a-z]+)/g)) pipesDrawn.add(m[1]);
     for (const next of importsFor(f)) stackMp.push(next);
   }
@@ -1181,7 +1184,7 @@ for (const [route, tools] of screenTools) {
   }
   // A page drawing two or more pipes must LABEL each one.
   if (pipesDrawn.size >= MULTI_PIPE_MIN) {
-    const pageBody = readFileSync(resolve(ROOT, page.file), 'utf8');
+    const pageBody = codeOf(page.file);
     for (const pipe of pipesDrawn) {
       if (!new RegExp(`data-pipe-label="${pipe}"`).test(pageBody)) {
         toolViolations += 1;
@@ -1242,7 +1245,7 @@ const REGISTRY_IMPORT = /from '@\/lib\/(toolRegistry|nav)'|from '\.\.?\/(toolReg
 let citationLeaks = 0;
 for (const f of shellFiles) {
   if (CITATION_ALLOWED.includes(f)) continue;
-  const body = readFileSync(resolve(ROOT, f), 'utf8');
+  const body = codeOf(f);
   if (!REGISTRY_IMPORT.test(body)) continue;
   const code = body.split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
   // Any read of the field, however it is reached: `t.citation`, `x?.citation`,
@@ -1255,7 +1258,7 @@ for (const f of shellFiles) {
 }
 // nav.ts must not hand it on either.
 const NAV_FILE = 'src/lib/nav.ts';
-const navBody = readFileSync(resolve(ROOT, NAV_FILE), 'utf8');
+const navBody = codeOf(NAV_FILE);
 if (/line:\s*tool\.why[^\n]*tool\.citation/.test(navBody)) {
   citationLeaks += 1;
   violations.push(`citation law: ${NAV_FILE} falls back to the citation for a tool's rendered line — a tool with no \`why\` gets no line (BOOKS-PIPE-01)`);
@@ -1279,7 +1282,7 @@ for (const [route, tools] of screenTools) {
     const f = stack.pop()!;
     if (seen.has(f)) continue;
     seen.add(f);
-    const body = existsSync(resolve(ROOT, f)) ? readFileSync(resolve(ROOT, f), 'utf8') : '';
+    const body = existsSync(resolve(ROOT, f)) ? codeOf(f) : '';
     if (body.includes('<StageStrip')) for (const m of body.matchAll(/PIPE_PHASES\.([a-z]+)/g)) drawn.add(m[1]);
     for (const next of importsFor(f)) stack.push(next);
   }
@@ -1341,7 +1344,7 @@ const OFFER_MOUNT = /<LockedTabCard\b/;
 let ungated = 0;
 let offerInApp = 0;
 for (const f of shellFiles) {
-  const src = readFileSync(resolve(ROOT, f), 'utf8');
+  const src = codeOf(f);
   const code = src.split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
   if (f.endsWith('/page.tsx')) {
     for (const { component, key } of PAID_COMPONENTS) {
@@ -1377,9 +1380,9 @@ console.log(`✔ The offer law passed — ${OFFERS.length} offers over ${new Set
 const LOG_PIPELINE = 'src/lib/convergence/pipeline.ts';
 const LOG_ROUTE = 'src/app/api/trading/convergence/route.ts';
 const LOG_MODULE = 'src/lib/convergence/candidate-log.ts';
-const logPipeline = existsSync(resolve(ROOT, LOG_PIPELINE)) ? readFileSync(resolve(ROOT, LOG_PIPELINE), 'utf8') : '';
-const logRoute = existsSync(resolve(ROOT, LOG_ROUTE)) ? readFileSync(resolve(ROOT, LOG_ROUTE), 'utf8') : '';
-const logModule = existsSync(resolve(ROOT, LOG_MODULE)) ? readFileSync(resolve(ROOT, LOG_MODULE), 'utf8') : '';
+const logPipeline = existsSync(resolve(ROOT, LOG_PIPELINE)) ? codeOf(LOG_PIPELINE) : '';
+const logRoute = existsSync(resolve(ROOT, LOG_ROUTE)) ? codeOf(LOG_ROUTE) : '';
+const logModule = existsSync(resolve(ROOT, LOG_MODULE)) ? codeOf(LOG_MODULE) : '';
 let logViolations = 0;
 const logFail = (msg: string) => { logViolations += 1; violations.push(`candidate log law: ${msg} (LOG-01)`); };
 if (!logModule) logFail(`${LOG_MODULE} is missing — nothing persists the scored candidates`);
@@ -1408,7 +1411,7 @@ if (logViolations === 0) console.log('✔ The candidate log law passed — the s
 //     (6) The gate cards: one per gate per side, every field said, README's
 //     block byte-equal to the generator, the tooltips rendering from the cards.
 //     (7) The pre-filter splits by side and every symbol is scored on ITS side.
-const M01 = (f: string) => (existsSync(resolve(ROOT, f)) ? readFileSync(resolve(ROOT, f), 'utf8') : '');
+const M01 = (f: string) => (existsSync(resolve(ROOT, f)) ? codeOf(f) : '');
 const m01Composite = M01('src/lib/convergence/composite.ts');
 const m01Cards = M01('src/lib/convergence/trade-cards.ts');
 const m01Log = M01('src/lib/convergence/candidate-log.ts');
@@ -1588,7 +1591,17 @@ if (!/const cboe = input\.cboeDaily \?\? null;/.test(m02Regime) || !/computeSurv
 if (!/fetchCboeDaily\(\)/.test(m01Pipeline)) m02Fail('inputs law', 'pipeline.ts Step H no longer fetches the Cboe daily files');
 const m02Threaded = (m01Pipeline.match(/^\s+cboeDaily,$/gm) ?? []).length;
 if (m02Threaded < 4) m02Fail('inputs law', `pipeline.ts threads cboeDaily into ${m02Threaded} ConvergenceInput literal(s) — every scoring input carries the Cboe read (4)`);
-const m02BuilderBody = m02Regime.slice(m02Regime.indexOf('export function buildCboeRegimeInputs('), m02Regime.indexOf('// ===== MAIN REGIME SCORER ====='));
+// TEST-TRUTH-01: this slice used to END at the comment `// ===== MAIN REGIME
+// SCORER =====`. Reading regime.ts comment-stripped made that marker vanish and
+// the slice ran to the end of the file, so the law failed against weights that
+// were never in this builder. A law may not use a comment as a structural
+// boundary: delete or reword the banner and the law silently changes what it
+// reads. The boundary is now CODE — the next exported function.
+const m02BuilderAt = m02Regime.indexOf('export function buildCboeRegimeInputs(');
+const m02BuilderEnd = m02Regime.indexOf('export function ', m02BuilderAt + 1);
+if (m02BuilderAt < 0) m02Fail('inputs law', 'regime.ts no longer exports buildCboeRegimeInputs');
+if (m02BuilderEnd < 0) m02Fail('inputs law', 'regime.ts has no export after buildCboeRegimeInputs — the law cannot bound the builder in code');
+const m02BuilderBody = m02Regime.slice(m02BuilderAt, m02BuilderEnd);
 if ((m02BuilderBody.match(/weight: 0,/g) ?? []).length !== 4 || /weight: (?!0,)/.test(m02BuilderBody)) m02Fail('inputs law', 'regime.ts buildCboeRegimeInputs puts a weight other than 0 on a new Cboe input — the term structure and SKEW are present and logged, tuned by nobody');
 for (const fx of [null, { vvix: null, vix9d: null, vix: null, vix3m: null, vix6m: null, skew: null, errors: ['VVIX: HTTP 404 from x'], fetched_at: '2026-09-16T00:00:00.000Z' }]) {
   const rows = buildCboeRegimeInputs(fx);
@@ -1680,7 +1693,7 @@ const tsFail = (msg: string) => { tsViolations += 1; violations.push(`trade-spli
 if (MULTI_TOOL_ALLOWED.length !== 0) tsFail(`the multi-tool grandfather list is not empty (${MULTI_TOOL_ALLOWED.length}) — TOOL-LAW-01 has no exceptions to rule 1 any more`);
 
 for (const e of TS_EXPECT) {
-  const body = existsSync(resolve(ROOT, e.file)) ? readFileSync(resolve(ROOT, e.file), 'utf8') : '';
+  const body = existsSync(resolve(ROOT, e.file)) ? codeOf(e.file) : '';
   if (!body) { tsFail(`${e.file} is missing — ${e.tool} has no page`); continue; }
   if (!body.includes('<StageStrip')) tsFail(`${e.file} renders no StageStrip — a tool's page renders its own phases through the shared strip`);
   const drawn = [...drawnNumsIn(body, 'trade')].sort();
@@ -1694,7 +1707,7 @@ for (const e of TS_EXPECT) {
 for (const n of ['01', '02', '03']) if (!THE_SORT.some((x) => x.pipe === 'trade' && x.num === n && x.owner === 'Brokerage')) tsFail(`THE SORT no longer gives trade ${n} to Brokerage — the split follows THE SORT, never the other way round`);
 for (const n of ['04', '05', '06']) if (!THE_SORT.some((x) => x.pipe === 'trade' && x.num === n && x.owner === 'Trade Log')) tsFail(`THE SORT no longer gives trade ${n} to Trade Log`);
 // /trading is a redirect and renders nothing of its own.
-const tsOld = existsSync(resolve(ROOT, 'src/app/trading/page.tsx')) ? readFileSync(resolve(ROOT, 'src/app/trading/page.tsx'), 'utf8') : '';
+const tsOld = existsSync(resolve(ROOT, 'src/app/trading/page.tsx')) ? codeOf('src/app/trading/page.tsx') : '';
 if (tsOld) {
   if (!/redirect\('\/brokerage'\)/.test(tsOld)) tsFail('src/app/trading/page.tsx is not a redirect to /brokerage — the two tools moved out of it');
   if (/<StageStrip|<ToolOpener|<ConvergenceIntelligence|<TradeLabPanel/.test(tsOld)) tsFail('src/app/trading/page.tsx still renders a tool surface — it is a redirect now');
@@ -1703,10 +1716,10 @@ if (screenTools.has('/trading')) tsFail('/trading is still a tool\'s registry ho
 // phase 06's hand-off to Books survives the move.
 const tsCommit = PIPE_PHASES.trade.find((p) => p.num === '06');
 if (!tsCommit?.link || tsCommit.link.target !== 'books') tsFail('trade 06 no longer hands off to books — phase 06\'s link is the pipe\'s own');
-const tsLogBody = existsSync(resolve(ROOT, 'src/app/trade-log/page.tsx')) ? readFileSync(resolve(ROOT, 'src/app/trade-log/page.tsx'), 'utf8') : '';
+const tsLogBody = existsSync(resolve(ROOT, 'src/app/trade-log/page.tsx')) ? codeOf('src/app/trade-log/page.tsx') : '';
 if (tsLogBody && !/href="\/books"/.test(tsLogBody)) tsFail('/trade-log does not carry phase 06\'s hand-off to Books');
 if (tsLogBody && !/data-empty-room/.test(tsLogBody)) tsFail('/trade-log has no empty-room line — a room with no trade says what it needs, never a blank page');
-const tsBrokerBody = existsSync(resolve(ROOT, 'src/app/brokerage/page.tsx')) ? readFileSync(resolve(ROOT, 'src/app/brokerage/page.tsx'), 'utf8') : '';
+const tsBrokerBody = existsSync(resolve(ROOT, 'src/app/brokerage/page.tsx')) ? codeOf('src/app/brokerage/page.tsx') : '';
 if (tsBrokerBody && !/FOUNDER_BROKER_LINE/.test(tsBrokerBody)) tsFail('/brokerage no longer states TT-01\'s line — the scan phase is the founder\'s broker only and says so');
 
 if (tsViolations === 0) console.log(`✔ The trade-split law passed — the grandfather list is EMPTY; ${TS_BROKERAGE} draws trade 01-03 and ${TS_TRADE_LOG} draws 04-06, one tool each, both registry homes; /trading is a redirect; phase 06 still hands to Books.`);
@@ -1749,7 +1762,7 @@ const TL_CAPABILITY_READERS: readonly string[] = [
 ];
 let tlViolations = 0;
 const tlFail = (msg: string) => { tlViolations += 1; violations.push(`trade-log law: ${msg} (TRADE-LOG-01)`); };
-const tlRead = (f: string) => (existsSync(resolve(ROOT, f)) ? readFileSync(resolve(ROOT, f), 'utf8') : '');
+const tlRead = (f: string) => (existsSync(resolve(ROOT, f)) ? codeOf(f) : '');
 // Comment lines are stripped: a citation in a comment can never satisfy a law.
 const tlCode = (f: string) => tlRead(f).split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
 
@@ -1855,7 +1868,7 @@ const DAY_VIEW_FILE = 'src/components/hub/DayView.tsx';
 const DAY_HUB = 'src/components/hub/HubCalendar.tsx';
 let dayViolations = 0;
 const dayFail = (msg: string) => { dayViolations += 1; violations.push(`day law: ${msg} (DAY-01)`); };
-const dayRead = (f: string) => (existsSync(resolve(ROOT, f)) ? readFileSync(resolve(ROOT, f), 'utf8') : '');
+const dayRead = (f: string) => (existsSync(resolve(ROOT, f)) ? codeOf(f) : '');
 const dayCode = (f: string) => dayRead(f).split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
 
 // LAW 1 — the allowlist is the only thing that decides, and it is not bare.
@@ -2279,7 +2292,7 @@ const orphanHomes = TOOL_REGISTRY.map((t) => t.home).filter((h): h is string => 
 const orphanLinks = TOOL_REGISTRY.flatMap((t) => (t.links ?? []).map((l) => l.href)).filter((h): h is string => !!h);
 /** A page whose whole body is one hop to another route. */
 const isDatedRedirect = (file: string): boolean => {
-  const body = existsSync(resolve(ROOT, file)) ? readFileSync(resolve(ROOT, file), 'utf8') : '';
+  const body = existsSync(resolve(ROOT, file)) ? codeOf(file) : '';
   return /redirect\(['"`]\//.test(body);
 };
 
@@ -2315,6 +2328,54 @@ for (const r of ORPHAN_REPOINTED) {
 }
 
 if (orphanViolations === 0) console.log(`✔ The orphan law passed — ${pages.length} pages, every one accounted for by the registry: ${orphanCounts.home} home-or-beneath, ${orphanCounts.link} registry-linked, ${orphanCounts.redirect} dated redirect(s), ${orphanCounts.guest} listed guest route(s), ${orphanCounts.shell} shell-doored, ${orphanCounts.exception} named exception(s) (closed, shrink-only, each naming the ruling that resolves it); the deleted room's two duplicate hops now point at ${ORPHAN_REPOINTED.map((r) => r.home).join(' and ')}.`);
+
+// ── THE READER LAW (TEST-TRUTH-01, 2026-09-17) ──────────────────────────────
+// NO TEST AND NO LAW MAY READ A SOURCE FILE RAW.
+//
+// TRUTH-CAL found calendarRoom.test.ts asserting that HubCalendar still held the
+// `source === 'trip'` filter DAY-01 had DELETED. It was green: the string lives
+// on in DAY-01's comments saying the filter is gone, and the assertion read the
+// raw file. A test that passes on a comment is worse than no test — it certifies
+// deleted behaviour as present, and every audit that cited it stood on nothing.
+//
+// So there are exactly two readers, both from src/lib/sourceText.ts:
+//   · code(file)     — comments stripped. Every assertion about BEHAVIOUR.
+//   · comments(file) — comments only. An assertion about PROSE, saying so.
+// A third way is the hole the whole law exists to close, so `readFileSync` (and
+// `readFile`, and `fs.promises.readFile`) is a build violation in any test or any
+// assert-*.ts law. Reading a DIRECTORY or asking whether a file EXISTS is not
+// reading source text: readdirSync, existsSync and statSync are untouched.
+//
+// sourceText.ts itself is the one file that calls readFileSync, because it is the
+// reader. It is neither a test nor a law, so it is out of scope by construction —
+// there is no allowlist here to grow.
+const READER_HELPER = 'src/lib/sourceText.ts';
+const RAW_READ = /\breadFileSync\s*\(|\breadFile\s*\(|fs\.promises\.readFile\b/;
+const readerFiles: string[] = [
+  ...tsFiles(resolve(ROOT, 'src/lib/__tests__')).map((abs) => abs.replace(`${ROOT}/`, '')),
+  ...readdirSync(resolve(ROOT, 'scripts')).filter((f) => /^assert-.*\.ts$/.test(f)).map((f) => `scripts/${f}`),
+];
+let readerViolations = 0;
+for (const f of readerFiles) {
+  // Read the reader law's own subjects through the reader, of course: a
+  // readFileSync NAMED IN A COMMENT (this block names several) is prose.
+  const body = codeOf(f);
+  for (const [i, line] of body.split('\n').entries()) {
+    if (!RAW_READ.test(line)) continue;
+    readerViolations += 1;
+    violations.push(`reader law: ${f}:${i + 1} reads a source file raw — a test or a law reads through code() or comments() from ${READER_HELPER}, never readFileSync, or it can pass on a comment (TEST-TRUTH-01)`);
+  }
+}
+// And the helper it all rests on must still export both halves.
+const helperBody = codeOf(READER_HELPER);
+for (const fn of ['export function code(', 'export function comments(', 'export function splitSource(']) {
+  if (!helperBody.includes(fn)) {
+    readerViolations += 1;
+    violations.push(`reader law: ${READER_HELPER} no longer exports ${fn.replace('export function ', '').replace('(', '')}() — every test and law reads through it (TEST-TRUTH-01)`);
+  }
+}
+if (readerViolations === 0) console.log(`✔ The reader law passed — ${readerFiles.length} tests and laws, every one reading source through code() or comments(); 0 raw reads.`);
+else console.log(`✖ The reader law FAILED — ${readerViolations} violation(s).`);
 
 // ── THE SECOND GATE ─────────────────────────────────────────────────────────
 // Every law below the first gate — kind views, arrivals, the rule book,

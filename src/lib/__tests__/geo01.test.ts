@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+
+import { code } from '../sourceText';
 import {
   textSearchUrl, searchText, readMatches, capResetsOn, remainingCalls, atCapLine, MAX_PLACE_MATCHES,
 } from '../calendar/findPlace';
@@ -9,8 +10,6 @@ import {
  * GEO-01 — ONE GEOCODE, ON PURPOSE. Source reads strip comment lines first, so a
  * citation in a comment can never satisfy an assertion about the code.
  */
-const src = (f: string) => readFileSync(`${process.cwd()}/${f}`, 'utf8');
-const code = (f: string) => src(f).split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
 
 const ROUTE = 'src/app/api/calendar/find-place/route.ts';
 const FORM = 'src/components/hub/AddEventForm.tsx';

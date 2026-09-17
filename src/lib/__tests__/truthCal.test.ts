@@ -1,14 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { COCKPIT_PRIMARY_TOOL, TOOL_REGISTRY, registryLaw } from '../toolRegistry';
 import { claimLine } from '../offer';
+import { code } from '../sourceText';
 
 // TRUTH-CAL — tool 01's row says what /calendar is after PLAN-01, and every
 // file:line it prints resolves to the line it names.
 
-const src = (f: string) => readFileSync(`${process.cwd()}/${f}`, 'utf8');
-const lineOf = (f: string, n: number) => src(f).split('\n')[n - 1] ?? '';
+const lineOf = (f: string, n: number) => code(f).split('\n')[n - 1] ?? '';
 const CAL = TOOL_REGISTRY.find((t) => t.name === 'Calendar')!;
 const ROW = `${CAL.why ?? ''} ${CAL.citation} ${CAL.note ?? ''}`;
 
@@ -17,14 +17,14 @@ test('the beats are what the page renders — discover, commit, record; no decid
   assert.equal(CAL.status, 'PARTIAL', 'the census does not move');
 
   // discover — three GETs in the grid, and the grid itself writes nothing.
-  const grid = src('src/components/hub/HubCalendar.tsx');
+  const grid = code('src/components/hub/HubCalendar.tsx');
   for (const feed of ['/api/calendar?', '/api/operations/daily-plan/items', '/api/hub/operations-routines']) {
     assert.ok(grid.includes(feed), `the grid reads ${feed}`);
   }
 
   // commit — the form reaches this tool's OWN row through its own route.
-  assert.match(src('src/components/hub/AddEventForm.tsx'), /fetch\('\/api\/calendar\/events'/);
-  const route = src('src/app/api/calendar/events/route.ts');
+  assert.match(code('src/components/hub/AddEventForm.tsx'), /fetch\('\/api\/calendar\/events'/);
+  const route = code('src/app/api/calendar/events/route.ts');
   for (const verb of ['POST', 'PATCH', 'DELETE']) {
     assert.match(route, new RegExp(`export async function ${verb}\\b`), `the events route answers ${verb}`);
   }
@@ -32,12 +32,12 @@ test('the beats are what the page renders — discover, commit, record; no decid
 
   // record — written, read back, badged.
   assert.match(grid, /isRenderedCalendarSource\(e\.source\)/);
-  assert.match(src('src/lib/calendar/sources.ts'), /source: 'manual'/);
-  assert.match(src('src/components/hub/DayView.tsx'), /MANUAL_EVENT_BADGE/);
+  assert.match(code('src/lib/calendar/sources.ts'), /source: 'manual'/);
+  assert.match(code('src/components/hub/DayView.tsx'), /MANUAL_EVENT_BADGE/);
 
   // decide — a draft event would have to be PERSISTED. Nothing writes one.
   for (const f of ['src/components/hub/AddEventForm.tsx', 'src/app/api/calendar/events/route.ts', 'src/lib/calendar/manualEvent.ts']) {
-    assert.doesNotMatch(src(f), /\bdraft\b/i, `${f} persists no draft event — decide stays unclaimed`);
+    assert.doesNotMatch(code(f), /\bdraft\b/i, `${f} persists no draft event — decide stays unclaimed`);
   }
 });
 

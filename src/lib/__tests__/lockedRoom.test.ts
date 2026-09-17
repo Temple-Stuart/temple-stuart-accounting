@@ -1,20 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+
 import * as React from 'react';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 Object.assign(globalThis, { React });
 import RoomLock, { LockedNote } from '@/components/shell/RoomLock';
 import { isTabLocked } from '../categoryLock';
+import { code } from '../sourceText';
 
 // LOCK-01 — a locked step shows its ROOM, not a sales pitch, and every paid
 // surface asks for its key.
 
-const src = (f: string) => readFileSync(`${process.cwd()}/${f}`, 'utf8');
-
 test('an unentitled viewer on /dashboard/tax-filing gets the locked room — the wizard is wrapped, never bare', () => {
-  const page = src('src/app/dashboard/tax-filing/page.tsx');
+  const page = code('src/app/dashboard/tax-filing/page.tsx');
   // The leak: this page mounted TaxFilingWizard with no check at all.
   assert.match(page, /roomGate\('tab:tax'\)/, 'it asks the Tax tab\'s own question');
   assert.match(page, /<RoomLock locked=\{locked\}/, 'and the answer wraps the room');
@@ -56,7 +55,7 @@ test('an UNLOCKED room is untouched — no note, no wrapper behaviour', () => {
 });
 
 test('an unentitled viewer on /accounts sees the accounts ROOM — its empty state — and no offer card', () => {
-  const client = src('src/components/accounts/AccountsClient.tsx');
+  const client = code('src/components/accounts/AccountsClient.tsx');
   // The room renders for a locked viewer, wrapped — not replaced by a card.
   assert.match(client, /<RoomLock locked=\{state === 'locked'\}/);
   assert.ok(!/<LockedTabCard/.test(client), 'no offer card inside the app');
@@ -94,6 +93,6 @@ test('the two gate twins ask the same question — keysGranting decides both', (
     // /compliance is a SERVER component, so it uses the server twin.
     ['src/app/compliance/page.tsx', /roomGate\('tab:compliance'\)/],
   ] as const) {
-    assert.match(src(page), mark, `${page} asks for its key`);
+    assert.match(code(page), mark, `${page} asks for its key`);
   }
 });

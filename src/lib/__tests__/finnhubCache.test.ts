@@ -1,21 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+
 import {
   canonicalParams, finnhubCached, finnhubDirect, finnhubErrorLine, finnhubKeyOf, finnhubUrl, formatAge,
   withFinnhubMeter, type FinnhubCacheRow, type FinnhubCacheStore, type FinnhubPorts,
 } from '../convergence/finnhub-cache';
 import { FINNHUB_TTL, TTL_24H, TTL_7D, finnhubCallsPerSymbol, finnhubTtlLaw, slowTierEndpoints, ttlRowOf } from '../convergence/finnhub-ttl';
 import { SCAN_COST, scanCostLine } from '../observatory/feedCost';
+import { code } from '../sourceText';
 
 // TRADE-COST-01 — slow data is fetched once. Hermetic: the store, fetch and
 // the clock are ports (Claude Code cannot reach Azure — CLAUDE.md); the vendor
 // is a spy that must stay un-invoked when a row serves.
 
-const ROOT = resolve(__dirname, '../../..');
-const src = (p: string) => readFileSync(resolve(ROOT, p), 'utf8');
-const code = (p: string) => src(p).split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
 
 function memoryStore(): FinnhubCacheStore & { rows: Map<string, FinnhubCacheRow>; puts: number } {
   const rows = new Map<string, FinnhubCacheRow>();
@@ -267,10 +264,10 @@ test('the fetchers build no Finnhub URL of their own and keep no Finnhub Map: ev
   assert.match(pipeline, /finnhub_calls_made: meter\.upstream/);
   assert.match(pipeline, /withFinnhubMeter\(\(\) => runPipelineMetered\(/);
   // the schema and its migration carry no user column — market data is not user-scoped
-  const model = src('prisma/schema.prisma').match(/model finnhub_responses \{[\s\S]*?\n\}/)![0];
+  const model = code('prisma/schema.prisma').match(/model finnhub_responses \{[\s\S]*?\n\}/)![0];
   assert.doesNotMatch(model, /userId|user_id/);
   assert.match(model, /@@id\(\[symbol, endpoint, params_hash\]\)/);
-  const migration = src('prisma/migrations/20260915000000_trade_cost_01_finnhub_responses/migration.sql');
+  const migration = code('prisma/migrations/20260915000000_trade_cost_01_finnhub_responses/migration.sql');
   assert.match(migration, /PRIMARY KEY \("symbol","endpoint","params_hash"\)/);
   const ddl = migration.split('\n').filter((l) => !l.startsWith('--')).join('\n');
   assert.doesNotMatch(ddl, /user/i, 'the DDL carries no user column');

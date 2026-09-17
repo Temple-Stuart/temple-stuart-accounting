@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+
 import { scoreAll } from '../convergence/composite';
 import { scoreRegime, buildCboeRegimeInputs } from '../convergence/regime';
 import { CBOE_INDICES, CBOE_TTL_MS, cboeDailyUrl, fetchCboeDaily, parseCboeDaily, resetCboeCache, type CboeIndex } from '../convergence/cboe-daily';
@@ -12,6 +11,7 @@ import { ETF_UNIVERSE, ETF_UNIVERSE_SET_ON, ETF_UNIVERSE_SYMBOLS, isEtfUniverseS
 import { DEEP_FETCH_MULTIPLIER, FUNNEL_SET_ON, SCAN_LIMIT_DEFAULT, STRUCTURE_CUT } from '../convergence/funnel';
 import { ETF_STRUCTURE_CUT_SET_ON, STRUCTURE_CUT_CONVERGENCE_MIN, STRUCTURE_CUT_QUALITY_FLOOR, convergenceRequiredOf, structureCutEligibility, type StructureCutRow } from '../convergence/structure-cut';
 import type { CboeDailyData, CboeDailyPoint, ConvergenceInput, FredMacroData } from '../convergence/types';
+import { code } from '../sourceText';
 
 // MODEL-02 STEP 6 — tests on fixtures. Pure modules: no database, no vendor.
 
@@ -207,10 +207,11 @@ test('the longest producible suggestion line fits the widened column with margin
   const buy = quiet(() => scoreAll(etfInput('SPY', -6, { fred: noBrakeLegs, cboe: null }), 'BUY'));
   assert.ok((buy.strategy_suggestion.suggested_strategy ?? '').length <= SNAPSHOT_SUGGESTED_STRATEGY_MAX);
   // the schema and the migration
-  const schema = readFileSync(resolve(__dirname, '../../../prisma/schema.prisma'), 'utf8');
+  // TEST-TRUTH-01: comment-stripped, so a commented-out column width cannot pass.
+  const schema = code('prisma/schema.prisma');
   const width = schema.match(/suggestedStrategy String\? @db\.VarChar\((\d+)\)/);
   assert.equal(Number(width?.[1]), SNAPSHOT_SUGGESTED_STRATEGY_MAX);
-  const migration = readFileSync(resolve(__dirname, '../../../prisma/migrations/20260916000000_model_02_snapshot_width/migration.sql'), 'utf8');
+  const migration = code('prisma/migrations/20260916000000_model_02_snapshot_width/migration.sql');
   assert.match(migration, new RegExp(`ALTER TABLE "scan_snapshots" ALTER COLUMN "suggestedStrategy" TYPE VARCHAR\\(${SNAPSHOT_SUGGESTED_STRATEGY_MAX}\\);`));
 });
 
@@ -249,7 +250,7 @@ test('the funnel constants are named and dated; the panel offers exactly the str
   assert.equal(DEEP_FETCH_MULTIPLIER, 2);
   assert.equal(SCAN_LIMIT_DEFAULT, 20);
   assert.equal(FUNNEL_SET_ON, '2026-09-16');
-  const builder = readFileSync(resolve(__dirname, '../strategy-builder.ts'), 'utf8');
+  const builder = code('src/lib/strategy-builder.ts');
   const built = [...new Set([...builder.matchAll(/buildCard\('([^']+)'/g)].map((m) => m[1]))].sort();
   assert.deepEqual([...AVAILABLE_STRATEGIES].sort(), built);
   assert.equal(AVAILABLE_STRATEGIES.length, 6);

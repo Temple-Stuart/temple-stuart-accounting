@@ -1,14 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { PIPE_PHASES } from '../pipePhases';
 import { THE_SORT, navRows, navToolByName } from '../nav';
 import { TOOL_GATE } from '../offer';
+import { code, comments } from '../sourceText';
 
 // TOOL-LAW-01 — one tool, one page, its own pipe.
 
-const src = (f: string) => readFileSync(`${process.cwd()}/${f}`, 'utf8');
-const code = (f: string) => src(f).split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
 
 test('THE WORK is three tools on three pages — the room is gone', () => {
   assert.equal(navToolByName('Calendar', TOOL_GATE).href, '/calendar');
@@ -22,15 +21,18 @@ test('THE WORK is three tools on three pages — the room is gone', () => {
   }
   // And the opener line I wrote for the room went with it.
   for (const f of ['src/app/tasks/page.tsx', 'src/app/time/page.tsx', 'src/app/calendar/page.tsx']) {
-    assert.ok(!src(f).includes('One day, top down'), `${f} carries no room prose`);
+    assert.ok(!code(f).includes('One day, top down'), `${f} carries no room prose`);
   }
 });
 
 test('each page renders its own pipe, in the pipe\'s own order', () => {
   // Tasks → projects (per project row, behind pipelineMode — recorded, not smoothed over).
   assert.match(code('src/components/workbench/operations/projects/TruthMachineView.tsx'), /PIPE_PHASES\.projects/);
-  assert.match(src('src/components/workbench/operations/projects/TruthMachineView.tsx'), /per-project strip/);
-  assert.match(src('src/components/workbench/operations/projects/ProjectRow.tsx'), /pipelineMode/);
+  // TEST-TRUTH-01: "per-project strip" is the DESCRIPTION beside that strip, not
+  // code. The behaviour is the line above (PIPE_PHASES.projects); this is the
+  // documented shape, read as prose.
+  assert.match(comments('src/components/workbench/operations/projects/TruthMachineView.tsx'), /per-project strip/);
+  assert.match(code('src/components/workbench/operations/projects/ProjectRow.tsx'), /pipelineMode/);
   // Time → content, a PAGE-LEVEL strip inside ContentPipeline.
   assert.match(code('src/components/workbench/operations/content/ContentPipeline.tsx'), /PIPE_PHASES\.content/);
   // PLAN-01: Tasks → routines too, the same page-level strip inside SectionE_Routines.
@@ -59,7 +61,7 @@ test('every redirect resolves to the tool that owns the work', () => {
     'src/app/operations/content/page.tsx': '/time',
   };
   for (const [f, target] of Object.entries(want)) {
-    const body = src(f);
+    const body = code(f);
     assert.ok(body.split('\n').filter((l) => l.trim()).length <= 10, `${f} is a redirect, not a page`);
     assert.ok(body.includes(`redirect('${target}')`), `${f} → ${target}`);
   }
@@ -85,14 +87,14 @@ test('/tasks and /time each render exactly one opener, and only /calendar holds 
 });
 
 test('the grandfather lists are closed, dated and shrink-only — and CLAUDE.md says so', () => {
-  const assertSrc = src('scripts/assert-tool-registry.ts');
+  const assertSrc = code('scripts/assert-tool-registry.ts');
   assert.match(assertSrc, /MULTI_TOOL_ALLOWED/);
   assert.match(assertSrc, /FOREIGN_PHASE_ALLOWED/);
   assert.match(assertSrc, /THE ALLOWLIST MAY ONLY SHRINK/);
   // TRADE-SPLIT: the multi-tool list is EMPTY; the foreign-phase list keeps its one dated entry.
   assert.equal((assertSrc.match(/since: '2026-09-10 \(NAV-25\)'/g) ?? []).length, 1);
-  assert.match(src('CLAUDE.md'), /The allowlist may only shrink/);
-  assert.match(src('CLAUDE.md'), /One tool, one page \(TOOL-LAW-01\)/);
+  assert.match(code('CLAUDE.md'), /The allowlist may only shrink/);
+  assert.match(code('CLAUDE.md'), /One tool, one page \(TOOL-LAW-01\)/);
   // TRADE-SPLIT: NO page serves two tools — /trading was the last and it split
   // into /brokerage (trade 01-03) and /trade-log (04-06).
   const byHref = new Map<string, string[]>();

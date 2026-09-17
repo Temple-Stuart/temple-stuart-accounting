@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+
 import * as React from 'react';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -9,11 +9,9 @@ import HubCalendar from '@/components/hub/HubCalendar';
 import { navLaw, navToolByName } from '../nav';
 import { TOOL_GATE } from '../offer';
 import { TOOL_REGISTRY } from '../toolRegistry';
+import { code } from '../sourceText';
 
 // CAL-01 — the calendar is the calendar; the agenda planner is Budget's.
-
-const src = (f: string) => readFileSync(`${process.cwd()}/${f}`, 'utf8');
-const code = (f: string) => src(f).split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
 
 test('/calendar mounts the SAME grid, bare — nothing only ModuleLauncher could supply', () => {
   const page = code('src/app/calendar/page.tsx');
@@ -24,8 +22,8 @@ test('/calendar mounts the SAME grid, bare — nothing only ModuleLauncher could
   // is the only other mount, and it passes nothing either.
   assert.match(code('src/components/home/ModuleLauncher.tsx'), /<HubCalendar \/>/, 'the cockpit mounts it bare too');
   // Every prop HubCalendar takes is optional, and the page passes none.
-  assert.match(src('src/components/hub/HubCalendar.tsx'), /demoEvents\?:/);
-  assert.match(src('src/components/hub/HubCalendar.tsx'), /onRequireAuth\?:/);
+  assert.match(code('src/components/hub/HubCalendar.tsx'), /demoEvents\?:/);
+  assert.match(code('src/components/hub/HubCalendar.tsx'), /onRequireAuth\?:/);
 });
 
 test('the grid needs nothing but a Next page — its one context is the app router', () => {
@@ -40,12 +38,12 @@ test('the grid needs nothing but a Next page — its one context is the app rout
     'the router is the one thing it needs, and a page is the only place that has one',
   );
   for (const f of ['src/components/shared/CalendarGrid.tsx', 'src/components/hub/HubEventCard.tsx']) {
-    assert.match(src(f), /useRouter\(\)/, `${f} is where the dependency lives`);
+    assert.match(code(f), /useRouter\(\)/, `${f} is where the dependency lives`);
   }
 });
 
 test('the three sources are the three routes — unchanged, no new data path', () => {
-  const hub = src('src/components/hub/HubCalendar.tsx');
+  const hub = code('src/components/hub/HubCalendar.tsx');
   for (const route of ['/api/calendar?', '/api/operations/daily-plan/items?', '/api/hub/operations-routines?']) {
     assert.ok(hub.includes(route), `${route} is still one of the three`);
   }
@@ -87,15 +85,15 @@ test('Calendar opens /calendar and owns no agenda page; Budget owns all three', 
 test('the agenda planner is untouched — the same pages, the same routes, the same tables', () => {
   // What made it Budget's: a cadence, a coa_code, a budget_amount, and a commit
   // that writes a `budgets` plan row.
-  const commit = src('src/app/api/agenda/[id]/route.ts');
+  const commit = code('src/app/api/agenda/[id]/route.ts');
   assert.match(commit, /INSERT INTO calendar_events/);
   assert.match(commit, /INSERT INTO budgets/);
   assert.match(commit, /coa_code/);
   assert.match(commit, /budget_amount/);
   // Still raw SQL over tables Prisma does not model — nothing migrated here.
-  assert.ok(!/model agenda/i.test(src('prisma/schema.prisma')), 'agenda_items is still not in the schema');
+  assert.ok(!/model agenda/i.test(code('prisma/schema.prisma')), 'agenda_items is still not in the schema');
   // The three pages still exist and still mount their own bodies.
   for (const f of ['src/app/agenda/page.tsx', 'src/app/agenda/new/page.tsx', 'src/app/agenda/[id]/page.tsx']) {
-    assert.ok(src(f).length > 0, `${f} still exists`);
+    assert.ok(code(f).length > 0, `${f} still exists`);
   }
 });
