@@ -22,12 +22,20 @@ test('the counts are the dated census — 2 LIVE · 9 PARTIAL · 14 NOT_BUILT �
   assert.deepEqual(TOOL_REGISTRY.filter((t) => t.status === 'LIVE').map((t) => t.name), ['Travel', 'Bookkeeping']);
 });
 
-test('the four four-beat PARTIALs each carry the census note; no LIVE or NOT_BUILT tool carries one', () => {
+test('the three four-beat PARTIALs each carry the census note; no LIVE or NOT_BUILT tool carries one', () => {
   const fourBeatPartials = TOOL_REGISTRY.filter((t) => t.status === 'PARTIAL' && beats(t) === 4).map((t) => t.name);
-  assert.deepEqual(fourBeatPartials, ['Calendar', 'Tasks', 'Time', 'Budget']);
-  // CAL-01: the why states what /calendar actually is — a read-only grid over
-  // three feeds it does not own, beside the routine builder it does write.
-  assert.equal(byName('Calendar').why, 'a read-only grid over three feeds it does not own, beside a routine builder whose occurrences are the only thing on it this tool writes');
+  // TRUTH-CAL: Calendar was the fourth. PLAN-01 moved the routine builder that
+  // carried its decide/commit/record to /tasks; the row is re-derived from the
+  // page — discover, commit and record through EVENT-01's hand-entered event,
+  // and no decide, because nothing persists a draft. PARTIAL is unchanged.
+  assert.deepEqual(fourBeatPartials, ['Tasks', 'Time', 'Budget']);
+  assert.equal(beats(byName('Calendar')), 3);
+  assert.equal(byName('Calendar').status, 'PARTIAL');
+  assert.deepEqual(byName('Calendar').beats, { discover: true, decide: false, commit: true, record: true });
+  // A three-beat row states what it DOES; the law does not require a why here,
+  // and the one it carries is customer copy with no source path in it.
+  assert.match(byName('Calendar').why ?? '', /^the view every tool logs to —/);
+  assert.doesNotMatch(byName('Calendar').why ?? '', /\.tsx?:|src\//);
   assert.equal(byName('Tasks').why, "the founder's build pipeline — accepting a task fires a paid Claude Code build; not a customer's task tool");
   assert.equal(byName('Time').why, 'day blocks and a daily log inside the Narrative pipeline; no time tool');
   assert.equal(byName('Budget').why, 'actuals by entity plus recurring lines on module_expenses; no plan vs actual; no personal · trade · travel roll-up');
@@ -35,10 +43,14 @@ test('the four four-beat PARTIALs each carry the census note; no LIVE or NOT_BUI
 });
 
 test('the law rejects a four-beat PARTIAL without `why`, a `why` on a non-PARTIAL, a LIVE short of four beats, a PARTIAL or LIVE with no beats, and a NOT_BUILT with beats or a home', () => {
-  const noWhy = registryLaw({ throwOnFail: false, registry: withTool('Calendar', { why: undefined }) }).join('\n');
-  assert.match(noWhy, /Calendar: PARTIAL with four beats must say why it is not LIVE/);
-  assert.match(registryLaw({ throwOnFail: false, registry: withTool('Calendar', { why: '   ' }) }).join('\n'), /Calendar: PARTIAL with four beats must say why/);
-  assert.throws(() => registryLaw({ registry: withTool('Calendar', { why: undefined }) }), /TOOL REGISTRY LAW failed/);
+  // TRUTH-CAL: Calendar is no longer a four-beat PARTIAL, so the four-beat rule is
+  // exercised through Tasks, which is. Calendar's own three-beat row is checked
+  // to be legal WITHOUT a why — the rule binds four beats, not three.
+  const noWhy = registryLaw({ throwOnFail: false, registry: withTool('Tasks', { why: undefined }) }).join('\n');
+  assert.match(noWhy, /Tasks: PARTIAL with four beats must say why it is not LIVE/);
+  assert.match(registryLaw({ throwOnFail: false, registry: withTool('Tasks', { why: '   ' }) }).join('\n'), /Tasks: PARTIAL with four beats must say why/);
+  assert.throws(() => registryLaw({ registry: withTool('Tasks', { why: undefined }) }), /TOOL REGISTRY LAW failed/);
+  assert.deepEqual(registryLaw({ throwOnFail: false, registry: withTool('Calendar', { why: undefined }) }), []);
   assert.match(registryLaw({ throwOnFail: false, registry: withTool('Travel', { why: 'not needed' }) }).join('\n'), /Travel: why belongs only to a PARTIAL tool/);
   assert.match(registryLaw({ throwOnFail: false, registry: withTool('Travel', { beats: { discover: true, decide: true, commit: true, record: false } }) }).join('\n'), /Travel: LIVE needs four beats and a home \(beats 3/);
   assert.match(registryLaw({ throwOnFail: false, registry: withTool('Banking', { beats: { discover: false, decide: false, commit: false, record: false } }) }).join('\n'), /Banking: PARTIAL with no beats — no beats is NOT_BUILT/);

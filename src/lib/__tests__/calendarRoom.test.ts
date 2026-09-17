@@ -49,11 +49,17 @@ test('the three sources are the three routes — unchanged, no new data path', (
   for (const route of ['/api/calendar?', '/api/operations/daily-plan/items?', '/api/hub/operations-routines?']) {
     assert.ok(hub.includes(route), `${route} is still one of the three`);
   }
-  // Read-only: three GETs, no write anywhere in the grid.
+  // Read-only: three GETs, no write anywhere in the GRID itself.
   assert.ok(!/method:\s*'(POST|PATCH|PUT|DELETE)'/.test(hub), 'the grid writes nothing');
-  // And it shows only 'trip' rows out of calendar_events — the registry note says so.
-  assert.match(hub, /source === 'trip'/);
-  assert.match(TOOL_REGISTRY.find((t) => t.name === 'Calendar')!.note ?? '', /source "trip"/);
+  // TRUTH-CAL: this used to assert the bare `source === 'trip'` filter and the
+  // registry note that described it. DAY-01 DELETED that filter — the only two
+  // mentions left in HubCalendar are comments saying it is gone, which is why the
+  // old assertion kept passing against a behaviour that no longer existed. It now
+  // reads the code with comments stripped, and asserts the allowlist that replaced
+  // it, in both places.
+  assert.doesNotMatch(code('src/components/hub/HubCalendar.tsx'), /source === 'trip'/);
+  assert.match(code('src/components/hub/HubCalendar.tsx'), /isRenderedCalendarSource\(e\.source\)/);
+  assert.match(TOOL_REGISTRY.find((t) => t.name === 'Calendar')!.note ?? '', /src\/lib\/calendar\/sources\.ts/);
 });
 
 test('Calendar opens /calendar and owns no agenda page; Budget owns all three', () => {
