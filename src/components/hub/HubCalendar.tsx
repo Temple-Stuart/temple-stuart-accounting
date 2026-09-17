@@ -360,7 +360,7 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
       )}
 
       {detailEvent && (
-        <EventDetailPanel row={detailEvent} onClose={() => setDetailEvent(null)} />
+        <EventDetailPanel row={detailEvent} linkable={!isDemo} onClose={() => setDetailEvent(null)} />
       )}
 
       {/* DAY-01: THE DAY, WHOLE. Every event on that date — whatever wrote it —

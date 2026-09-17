@@ -1,7 +1,8 @@
 'use client';
 
 /**
- * EventDetailPanel — DRILL-01: click anything on the day, see its whole chain.
+ * EventDetailPanel — DRILL-01 + LINK-01: click anything on the day, see its
+ * whole chain — and CLOSE it by linking the posting that settled it.
  *
  * ONE PANEL, EVERY KIND. A calendar_event (any admitted source), a routine
  * occurrence, a project block's task, a trade — each opens this, and each is
@@ -18,23 +19,39 @@
  * amount is never rendered without saying where it came from. A row with no
  * amounts shows no chain and no figures: a blank, never $0.
  *
- * ZERO FETCH, ZERO WRITE. It renders the DrillRow it is handed. Nothing here
- * calls a route, so it is safe on the logged-out demo, and the door it carries
+ * LINK-01. An item in NOT LINKED offers a link: the panel lists this user's
+ * postings near the item's date — date order, no score, nothing pre-selected —
+ * and the founder picks one. NOTHING IS SUGGESTED AS PROBABLE. The actual then
+ * becomes the SUM of what is linked, never an imputation, and unlinking returns
+ * the item to NOT LINKED rather than to $0. A linked posting whose amount cannot
+ * be read is named and excluded from the total — the EDGE-01 bug, inverted.
+ *
+ * IT READS its own links and writes only those links — no posting is altered,
+ * no journal entry is touched, and no task's typed actual_cost_usd is ever
+ * overwritten. In demo mode (`linkable={false}`) it reaches no route at all, so
+ * the logged-out guest's zero-fetch guarantee is untouched. The door it carries
  * is a link — the founder acts in the owning tool, not in this panel.
  *
  * Chrome is unchanged from PR-HCR3: a dimmed backdrop, a centered max-w-lg box,
  * click-outside + Escape to close, × button, brand-purple header.
  */
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ACTUAL_SOURCE_LABEL, type DrillRow } from '@/lib/calendar/chain';
+import { ACTUAL_SOURCE_LABEL, buildChain, type DrillRow } from '@/lib/calendar/chain';
+import { FREE_TEXT_RULE, linkedSourceLine, sumLinks, typedVsLinked, variance, type LinkedPosting } from '@/lib/calendar/links';
+import { parseRoutineTileId, type LinkableKind } from '@/lib/calendar/linkKeys';
 import { navToolByName } from '@/lib/nav';
 import { TOOL_GATE } from '@/lib/offer';
 
 interface Props {
   row: DrillRow;
   onClose: () => void;
+  /**
+   * LINK-01: false on the logged-out demo, where there is no account to link
+   * against. The panel then reaches no route at all.
+   */
+  linkable?: boolean;
 }
 
 /** The legend hues, unchanged — the panel wears the layer the row came from. */
@@ -93,10 +110,90 @@ function Row({ label, value, mono, testId }: { label: string; value: string; mon
   );
 }
 
-export default function EventDetailPanel({ row, onClose }: Props) {
+/** The (kind, id, instant) a link points at, or null when the row is not linkable. */
+function targetOf(row: DrillRow): { kind: LinkableKind; id: string; instant: string | null } | null {
+  if (!row.facts.linkable) return null;
+  if (row.kind === 'routine') {
+    const parsed = parseRoutineTileId(row.id);
+    // A routine tile whose id does not carry its instant cannot be addressed —
+    // and is NOT silently linked on its date, which would match the wrong
+    // occurrence. It offers no link and says nothing it cannot back up.
+    return parsed ? { kind: 'routine', id: parsed.routineId, instant: parsed.instant } : null;
+  }
+  if (row.kind === 'project_task') return { kind: 'project_task', id: row.id, instant: null };
+  return { kind: 'calendar_event', id: row.id, instant: null };
+}
+
+interface LinkRow extends LinkedPosting { linkedAt: string; linkedBy: string | null }
+
+export default function EventDetailPanel({ row, onClose, linkable = true }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const dot = KIND_DOT[row.source] ?? 'bg-border';
   const ownerTool = navToolByName(row.owner, TOOL_GATE);
+  // Memoised so the loader's dependency is the TARGET itself, not three fields
+  // of it — the row is a new object each render, its target is not.
+  const target = useMemo(() => targetOf(row), [row]);
+
+  const [links, setLinks] = useState<LinkRow[] | null>(null);
+  const [candidates, setCandidates] = useState<LinkedPosting[] | null>(null);
+  const [picking, setPicking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [refusal, setRefusal] = useState<string | null>(null);
+
+  const load = useCallback(async (withCandidates: boolean) => {
+    if (!target || !linkable) return;
+    const q = new URLSearchParams({ kind: target.kind, id: target.id });
+    if (target.instant) q.set('instant', target.instant);
+    if (withCandidates) q.set('near', row.startDate.slice(0, 10));
+    try {
+      const res = await fetch(`/api/calendar/links?${q.toString()}`);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) { setRefusal(data?.error ?? `Links could not be read (HTTP ${res.status}).`); return; }
+      setLinks(data.links ?? []);
+      if (withCandidates) setCandidates(data.candidates ?? []);
+    } catch { setRefusal('Links could not be read.'); }
+  }, [linkable, row.startDate, target]);
+
+  useEffect(() => { void load(false); }, [load]);
+
+  const linkPosting = async (journalEntryId: string) => {
+    if (!target) return;
+    setBusy(true); setRefusal(null);
+    try {
+      const res = await fetch('/api/calendar/links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: target.kind, id: target.id, instant: target.instant, journalEntryId }),
+      });
+      const data = await res.json().catch(() => null);
+      // The server's own words, verbatim — it names the rule it refused on.
+      if (!res.ok) { setRefusal(data?.error ?? `The link was not made (HTTP ${res.status}).`); return; }
+      setPicking(false);
+      await load(false);
+    } finally { setBusy(false); }
+  };
+
+  const unlink = async (journalEntryId: string) => {
+    setBusy(true); setRefusal(null);
+    try {
+      const res = await fetch(`/api/calendar/links?journalEntryId=${encodeURIComponent(journalEntryId)}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) { setRefusal(data?.error ?? `The link was not removed (HTTP ${res.status}).`); return; }
+      await load(false);
+    } finally { setBusy(false); }
+  };
+
+  // THE ACTUAL, FROM THE LINKS. Zero links → null, which reads NOT LINKED.
+  const summed = sumLinks(links ?? []);
+  const linkedActual = summed.actual;
+  const typedActual = row.actual;                       // the object's own column
+  const shownActual = linkedActual ?? typedActual;      // links win (STEP 0.4, proposed)
+  const shownSource = linkedActual !== null ? 'linked' : row.actualSource;
+  const conflict = typedVsLinked(typedActual, linkedActual);
+  const varianceUsd = variance(row.planned, shownActual);
+  const chain = linkedActual !== null
+    ? buildChain({ kind: row.kind, planned: row.planned, actual: linkedActual, actualSource: 'linked', linkLine: linkedSourceLine(summed) })
+    : row.chain;
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -117,7 +214,11 @@ export default function EventDetailPanel({ row, onClose }: Props) {
     : NONE;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+    /* LINK-01: z-60, ABOVE the day view's own z-50 modal. The walk found the day
+       view intercepting every click inside this panel — readable but inert —
+       which did not matter while the panel was read-only and does the moment it
+       carries Link and Unlink. The drill opens FROM the day, so it sits on top. */
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" data-drill-layer>
       <div
         ref={panelRef}
         data-drill-panel
@@ -154,29 +255,114 @@ export default function EventDetailPanel({ row, onClose }: Props) {
             <Row label="Category (COA)" value={row.coaCode ?? NONE} mono testId="coa" />
           </div>
 
-          {/* THE FIGURES. Each is blank when the object does not carry it. */}
+          {/* THE FIGURES. Each is blank when nothing knows it — never $0. */}
           <div className="mt-4 rounded-lg border border-border p-3">
             <Row label="Planned" value={money(row.planned)} mono testId="planned" />
-            <Row label="Actual" value={money(row.actual)} mono testId="actual" />
-            {row.actual !== null && row.actualSource && (
+            <Row label="Actual" value={money(shownActual)} mono testId="actual" />
+            <Row label="Variance" value={money(varianceUsd)} mono testId="variance" />
+            {shownActual !== null && shownSource && (
               <p className="pt-2 text-xs text-text-muted" data-drill-actual-source>
-                That actual is <span className="font-mono">{ACTUAL_SOURCE_LABEL[row.actualSource]}</span>.
+                That actual is <span className="font-mono">{ACTUAL_SOURCE_LABEL[shownSource]}</span>
+                {linkedActual !== null && <> — {linkedSourceLine(summed)}</>}.
+              </p>
+            )}
+            {/* STEP 0.4: the typed figure and the links disagree. Both are shown,
+                the rule is named, and NOTHING is overwritten. */}
+            {conflict && (
+              <p className="mt-2 rounded border border-amber-400/40 bg-amber-50 p-2 text-xs text-amber-800" data-drill-conflict>
+                This task also carries a typed actual of <span className="font-mono">{money(typedActual)}</span>, which
+                does not match its links. {FREE_TEXT_RULE}
               </p>
             )}
           </div>
 
+          {/* THE LINKED POSTINGS — each with its date and amount, each removable. */}
+          {links && links.length > 0 && (
+            <div className="mt-4 rounded-lg border border-border p-3" data-drill-links>
+              <p className={labelClass}>Linked postings in Books</p>
+              <ul className="mt-2 space-y-1">
+                {links.map((l) => (
+                  <li key={l.journalEntryId} className="flex items-center justify-between gap-2 text-xs" data-drill-link={l.journalEntryId}>
+                    <span className="min-w-0 flex-1 truncate">
+                      <span className="font-mono text-text-muted">{l.date ?? '—'}</span> {l.description ?? ''}
+                    </span>
+                    <span className="font-mono tabular-nums">
+                      {l.amountCents === null
+                        ? <span className="text-status-danger" data-drill-link-unreadable>no readable amount</span>
+                        : money(l.amountCents / 100)}
+                    </span>
+                    <button type="button" data-drill-unlink={l.journalEntryId} disabled={busy}
+                      onClick={() => unlink(l.journalEntryId)}
+                      className="shrink-0 px-1.5 py-0.5 text-[10px] text-status-danger hover:bg-bg-row">Unlink</button>
+                  </li>
+                ))}
+              </ul>
+              {summed.unreadable.length > 0 && (
+                <p className="mt-2 text-xs text-status-danger" data-drill-unreadable-note>
+                  {summed.unreadable.length} linked posting{summed.unreadable.length === 1 ? '' : 's'} carr
+                  {summed.unreadable.length === 1 ? 'ies' : 'y'} no readable amount and {summed.unreadable.length === 1 ? 'is' : 'are'} NOT
+                  in the total above. They are named here rather than counted as zero.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* THE CHAIN — one of three states, or nothing at all when there are no figures. */}
-          {row.chain ? (
-            <div className={`mt-4 rounded-lg border p-3 ${STATE_CLASS[row.chain.state] ?? 'border-border'}`}>
-              <p className="font-mono text-[11px] uppercase tracking-wider" data-drill-chain-state={row.chain.state}>
-                {row.chain.label}
+          {chain ? (
+            <div className={`mt-4 rounded-lg border p-3 ${STATE_CLASS[chain.state] ?? 'border-border'}`}>
+              <p className="font-mono text-[11px] uppercase tracking-wider" data-drill-chain-state={chain.state}>
+                {chain.label}
               </p>
-              <p className="mt-1 text-xs leading-relaxed" data-drill-chain-line>{row.chain.line}</p>
+              <p className="mt-1 text-xs leading-relaxed" data-drill-chain-line>{chain.line}</p>
             </div>
           ) : (
             <p className="mt-4 text-xs text-text-faint" data-drill-no-chain>
               This row carries no amount, so there is no chain to show.
             </p>
+          )}
+
+          {/* THE LINK. Offered on a linkable item; nothing is pre-selected and no
+              candidate is ranked or scored — the list is a convenience, not a guess. */}
+          {linkable && target && (
+            <div className="mt-4">
+              {!picking ? (
+                <button type="button" data-drill-link-open disabled={busy}
+                  onClick={() => { setPicking(true); void load(true); }}
+                  className="rounded border border-border px-3 py-1.5 text-xs text-text-muted hover:bg-bg-row">
+                  Link a posting from Books
+                </button>
+              ) : (
+                <div className="rounded-lg border border-border p-3" data-drill-candidates>
+                  <p className={labelClass}>Your postings near this date</p>
+                  <p className="mt-1 text-[11px] text-text-faint" data-drill-no-suggestion>
+                    In date order. Nothing is selected for you and no match is suggested — pick the one that settled this.
+                  </p>
+                  <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto">
+                    {(candidates ?? []).map((c) => (
+                      <li key={c.journalEntryId} className="flex items-center justify-between gap-2 text-xs" data-drill-candidate={c.journalEntryId}>
+                        <span className="min-w-0 flex-1 truncate">
+                          <span className="font-mono text-text-muted">{c.date}</span> {c.description}
+                        </span>
+                        <span className="font-mono tabular-nums">
+                          {c.amountCents === null ? <span className="text-status-danger">no readable amount</span> : money(c.amountCents / 100)}
+                        </span>
+                        <button type="button" data-drill-pick={c.journalEntryId} disabled={busy}
+                          onClick={() => linkPosting(c.journalEntryId)}
+                          className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-bg-row">Link</button>
+                      </li>
+                    ))}
+                    {candidates !== null && candidates.length === 0 && (
+                      <li className="text-xs text-text-faint" data-drill-no-candidates>
+                        No unlinked postings within the window. A posting already linked to another item is not offered.
+                      </li>
+                    )}
+                  </ul>
+                  <button type="button" onClick={() => setPicking(false)}
+                    className="mt-2 text-[11px] text-text-faint hover:text-text-muted">Cancel</button>
+                </div>
+              )}
+              {refusal && <p className="mt-2 text-xs text-status-danger" data-drill-refusal>{refusal}</p>}
+            </div>
           )}
 
           {/* THE DOOR — one link, to the tool that owns the object. */}
