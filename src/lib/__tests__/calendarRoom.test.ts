@@ -62,8 +62,15 @@ test('Calendar opens /calendar and owns no agenda page; Budget owns all three', 
   assert.equal(calendar.href, '/calendar');
   assert.equal(calendar.status, 'PARTIAL', 'the census does not move');
   assert.deepEqual(calendar.subRows.map((r) => r.door.href), [], 'no agenda row under Calendar');
-  // Its four phases are the routines pipe — NAV-25's sort, untouched.
-  assert.deepEqual(calendar.phases.map((p) => `${p.pipe} ${p.num}`), ['routines 01', 'routines 02', 'routines 03', 'routines 04']);
+  // PLAN-01: the routines pipe moved to Tasks — routines and projects are one
+  // act of planning, and the calendar is the view they log to. Calendar owns no
+  // pipe now; its page draws no strip, which no law forbids.
+  assert.deepEqual(calendar.phases.map((p) => `${p.pipe} ${p.num}`), []);
+  const tasks = navToolByName('Tasks', TOOL_GATE);
+  assert.deepEqual(tasks.phases.map((p) => `${p.pipe} ${p.num}`), [
+    'routines 01', 'routines 02', 'routines 03', 'routines 04',
+    'projects 01', 'projects 02', 'projects 03', 'projects 04', 'projects 05', 'projects 06',
+  ]);
 
   const budget = navToolByName('Budget', TOOL_GATE);
   assert.ok(budget.subRows.some((r) => r.door.href === '/agenda'), 'the planner hangs under Budget');

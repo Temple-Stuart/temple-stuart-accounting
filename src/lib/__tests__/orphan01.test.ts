@@ -22,7 +22,7 @@ const LAW = 'scripts/assert-tool-registry.ts';
 test('the two duplicates of the deleted room are one hop to their owner', () => {
   for (const [page, home] of [
     ['src/app/operations/projects/page.tsx', '/tasks'],
-    ['src/app/operations/routines/page.tsx', '/calendar'],
+    ['src/app/operations/routines/page.tsx', '/tasks'],  // PLAN-01: the builder moved
     ['src/app/operations/content/page.tsx', '/time'],
   ] as const) {
     assert.ok(existsSync(`${process.cwd()}/${page}`), `${page} must stay as the redirect that keeps old links working`);
