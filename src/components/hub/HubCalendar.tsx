@@ -24,6 +24,7 @@ import { useEffect, useMemo, useState } from 'react';
 import CalendarGrid, { type CalendarEvent as GridEvent, type SourceConfig } from '@/components/shared/CalendarGrid';
 import HubEventCard from '@/components/hub/HubEventCard';
 import EventDetailPanel from '@/components/hub/EventDetailPanel';
+import { buildDrill, type DrillRow, type TaskCosts } from '@/lib/calendar/chain';
 import { mapOperationsBlocks } from '@/lib/hub/mapOperationsBlocks';
 import { mapOperationsRoutines, type RoutinesWindowResponse } from '@/lib/hub/mapOperationsRoutines';
 import type { DailyPlanItem, CalendarBlockSummary } from '@/components/workbench/operations/dailyplan/types';
@@ -151,7 +152,7 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
   const [routinesWindow, setRoutinesWindow] = useState<RoutinesWindowResponse>({ routines: [], truncated: false });
   const [cardSelection, setCardSelection] = useState<{ item: DailyPlanItem; block: CalendarBlockSummary } | null>(null);
   // PR-HCR3: the clicked event for the read-only type-aware detail panel.
-  const [detailEvent, setDetailEvent] = useState<GridEvent | null>(null);
+  const [detailEvent, setDetailEvent] = useState<DrillRow | null>(null);
 
   // DAY-01 STEP 2: the day the reader opened, 'YYYY-MM-DD'. Null = no day panel.
   const [openDay, setOpenDay] = useState<string | null>(null);
@@ -273,8 +274,41 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
         if (block) { setCardSelection({ item, block }); return; }
       }
     }
-    setDetailEvent(event);
+    setDetailEvent(drillOf(event));
   };
+
+  /**
+   * DRILL-01: the two figures a project block's task carries, keyed by the BLOCK
+   * id the grid uses. mapOperationsBlocks collapses them into one `budgetAmount`
+   * (actual ?? estimated), so the panel reads the columns apart from the items
+   * this component already holds. Nothing is fetched for it.
+   */
+  const taskCostsByBlock = useMemo(() => {
+    const m = new Map<string, TaskCosts>();
+    const num = (v: string | null | undefined): number | null => {
+      if (v == null || String(v).trim() === '') return null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    for (const item of operationsItems) {
+      const costs: TaskCosts = {
+        estimated: num(item.task?.estimated_cost_usd),
+        actual: num(item.task?.actual_cost_usd),
+        coaCode: item.task?.coa_code ?? null,
+      };
+      for (const block of item.calendar_blocks) m.set(block.id, costs);
+    }
+    return m;
+  }, [operationsItems]);
+
+  /** One merged-grid row → the panel's input. Pure; it reads no route. */
+  const drillOf = (e: GridEvent): DrillRow => buildDrill({
+    id: e.id, source: e.source, title: e.title,
+    startDate: e.startDate, endDate: e.endDate,
+    startTime: e.startTime, endTime: e.endTime,
+    location: e.location, latitude: e.latitude, longitude: e.longitude,
+    coaCode: e.coaCode, budgetAmount: e.budgetAmount ?? null,
+  }, taskCostsByBlock.get(e.id) ?? null);
 
   // PR-Calendar-Flush: the descriptive caption + the parent purple band are gone — the
   // grid's toolbar flows flush under the tab row.
@@ -326,7 +360,7 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
       )}
 
       {detailEvent && (
-        <EventDetailPanel event={detailEvent} onClose={() => setDetailEvent(null)} />
+        <EventDetailPanel row={detailEvent} onClose={() => setDetailEvent(null)} />
       )}
 
       {/* DAY-01: THE DAY, WHOLE. Every event on that date — whatever wrote it —
@@ -363,6 +397,14 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
           sourceIcon={SOURCE_ICON}
           /* EVENT-01 STEP 5: a hand-entered event is corrected and deleted from
              the day it sits on. Both refuse any other source, with its reason. */
+          /* DRILL-01: every row on the day opens the panel — none navigates
+             away, none is inert. The row is looked up in the SAME merged list
+             the day view was handed, so the panel can never describe a
+             different object from the one clicked. */
+          onRowOpen={(id) => {
+            const e = gridEvents.find((x) => x.id === id);
+            if (e) setDetailEvent(drillOf(e));
+          }}
           onCorrect={(ev) => { setEditEvent(ev); setOpenDay(null); }}
           onDeleted={() => { loadCalendar(); }}
           onClose={() => setOpenDay(null)}

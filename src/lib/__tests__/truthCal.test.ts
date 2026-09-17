@@ -66,16 +66,16 @@ test('no registry string names a surface the tool no longer has', () => {
 test('every file:line the row prints resolves to the line it names', () => {
   // The table is the claim; the assertion is that the file really says so.
   const CITED: ReadonlyArray<readonly [string, number, string]> = [
-    ['src/components/hub/HubCalendar.tsx', 165, '/api/calendar?'],
-    ['src/components/hub/HubCalendar.tsx', 172, 'isRenderedCalendarSource'],
-    ['src/components/hub/HubCalendar.tsx', 181, '/api/operations/daily-plan/items'],
-    ['src/components/hub/HubCalendar.tsx', 193, '/api/hub/operations-routines'],
-    ['src/components/hub/HubCalendar.tsx', 296, 'onAdded'],
+    ['src/components/hub/HubCalendar.tsx', 166, '/api/calendar?'],
+    ['src/components/hub/HubCalendar.tsx', 173, 'isRenderedCalendarSource'],
+    ['src/components/hub/HubCalendar.tsx', 182, '/api/operations/daily-plan/items'],
+    ['src/components/hub/HubCalendar.tsx', 194, '/api/hub/operations-routines'],
+    ['src/components/hub/HubCalendar.tsx', 330, 'onAdded'],
     ['src/components/hub/AddEventForm.tsx', 247, "editEvent ? 'PATCH' : 'POST'"],
     ['src/app/api/calendar/events/route.ts', 75, 'export async function POST'],
     ['src/app/api/calendar/events/route.ts', 105, 'export async function PATCH'],
     ['src/app/api/calendar/events/route.ts', 146, 'export async function DELETE'],
-    ['src/components/hub/DayView.tsx', 197, 'MANUAL_EVENT_BADGE'],
+    ['src/components/hub/DayView.tsx', 221, 'MANUAL_EVENT_BADGE'],
     ['src/lib/calendar/sources.ts', 76, 'export const CALENDAR_SOURCES'],
     ['src/lib/calendar/sources.ts', 78, "source: 'manual'"],
     ['src/lib/calendar/sources.ts', 149, '] as const;'],
