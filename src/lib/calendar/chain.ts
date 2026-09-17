@@ -41,10 +41,13 @@ export const CHAIN_LABEL: Record<ChainState, string> = {
  *   hand-entered — a person typed it. True today of the ONLY actual the day can show.
  *   model        — a number the app computed or estimated.
  */
-export const ACTUAL_SOURCES = ['posted', 'hand-entered', 'model'] as const;
+export const ACTUAL_SOURCES = ['linked', 'posted', 'hand-entered', 'model'] as const;
 export type ActualSource = (typeof ACTUAL_SOURCES)[number];
 
 export const ACTUAL_SOURCE_LABEL: Record<ActualSource, string> = {
+  // LINK-01: the only actual that is EVIDENCE rather than a claim — it is the
+  // sum of postings a person linked to this item, and it names how many.
+  linked: 'the sum of the postings linked to it in Books',
   posted: 'posted to Books',
   'hand-entered': 'hand-entered',
   model: 'a model number',
@@ -53,6 +56,15 @@ export const ACTUAL_SOURCE_LABEL: Record<ActualSource, string> = {
 /** The kinds of thing that can appear on a day. */
 export const DRILL_KINDS = ['calendar_event', 'routine', 'project_task', 'trade', 'task'] as const;
 export type DrillKind = (typeof DRILL_KINDS)[number];
+
+/**
+ * LINK-01 (2026-09-17): every kind below still says what its OWN object knows —
+ * that census is unchanged and still true. What changed is that an actual no
+ * longer has to come from the object at all: a LINK to a posting in Books is an
+ * actual for any kind, and it is the only one that is evidence rather than a
+ * claim. `actualColumn` therefore still means "a column on the object itself";
+ * `linkable` says whether the founder can link a posting to it.
+ */
 
 /**
  * THE STEP 0.2 CENSUS, IN CODE. For each kind: the column that carries the
@@ -74,12 +86,20 @@ export interface KindFacts {
   readonly postedLink: string | null;
   /** The tool that owns the object — the panel's one door. */
   readonly owner: string;
+  /**
+   * LINK-01: can a posting be linked to this kind? It needs a stable target key
+   * (STEP 0.3). A daily-plan task is a line in a Json column with no id of its
+   * own, and no trade row reaches the grid — neither is linkable yet, and the
+   * panel says so rather than offering a button that cannot work.
+   */
+  readonly linkable: boolean;
   readonly note: string;
 }
 
 export const KIND_FACTS: readonly KindFacts[] = [
   {
     kind: 'calendar_event',
+    linkable: true,
     plannedColumn: 'calendar_events.budget_amount',
     actualColumn: null,
     actualSource: null,
@@ -90,6 +110,7 @@ export const KIND_FACTS: readonly KindFacts[] = [
   },
   {
     kind: 'routine',
+    linkable: true,
     plannedColumn: 'operations_routines.budget_amount (per occurrence)',
     actualColumn: null,
     actualSource: null,
@@ -100,6 +121,7 @@ export const KIND_FACTS: readonly KindFacts[] = [
   },
   {
     kind: 'project_task',
+    linkable: true,
     plannedColumn: 'operations_project_tasks.estimated_cost_usd',
     actualColumn: 'operations_project_tasks.actual_cost_usd',
     actualSource: 'hand-entered',
@@ -110,6 +132,7 @@ export const KIND_FACTS: readonly KindFacts[] = [
   },
   {
     kind: 'trade',
+    linkable: false,
     plannedColumn: null,
     actualColumn: null,
     actualSource: null,
@@ -120,6 +143,7 @@ export const KIND_FACTS: readonly KindFacts[] = [
   },
   {
     kind: 'task',
+    linkable: false,
     plannedColumn: 'daily_plans.tasks[].cost (when stored; null is the normal case)',
     actualColumn: null,
     actualSource: null,
@@ -150,6 +174,12 @@ export interface ChainInput {
   readonly actual: number | null;
   /** Required whenever `actual` is a number — an amount without its source throws. */
   readonly actualSource?: ActualSource | null;
+  /**
+   * LINK-01: the line a LINKED actual prints, which names how many postings it
+   * is the sum of and any that carried no readable amount. Built by
+   * linkedSourceLine() in src/lib/calendar/links.ts, never assembled here.
+   */
+  readonly linkLine?: string | null;
 }
 
 export interface Chain {
@@ -178,28 +208,40 @@ export function buildChain(input: ChainInput): Chain | null {
   if (!hasActual && input.actualSource) {
     throw new ChainLawError(`${input.kind}: an actual source "${input.actualSource}" with no actual — a label with nothing under it`);
   }
-  if (hasActual && facts.actualColumn === null) {
+  // LINK-01: an actual may now arrive one of two ways — from a column ON the
+  // object, or from the postings LINKED to it. A linked actual is legal for any
+  // linkable kind; anything else must still name the column it came from.
+  if (hasActual && input.actualSource !== 'linked' && facts.actualColumn === null) {
     throw new ChainLawError(`${input.kind}: carries an actual, but the census says no column holds one — one of the two is wrong`);
+  }
+  if (hasActual && input.actualSource === 'linked' && !facts.linkable) {
+    throw new ChainLawError(`${input.kind}: carries a LINKED actual, but nothing can be linked to it (no stable target key)`);
   }
   // No planned amount and no actual: there is no chain to show. NOT a fourth
   // state — the panel renders nothing here, which is how a blank stays a blank.
   if (!hasPlanned && !hasActual) return null;
 
   if (hasActual) {
+    const src = input.actualSource as ActualSource;
     return {
       state: 'PLANNED_AND_SETTLED',
       label: CHAIN_LABEL.PLANNED_AND_SETTLED,
-      line: `The actual is ${ACTUAL_SOURCE_LABEL[input.actualSource as ActualSource]}, from ${facts.actualColumn}.`,
-      actualSource: input.actualSource as ActualSource,
+      line: src === 'linked'
+        ? (input.linkLine ?? `The actual is ${ACTUAL_SOURCE_LABEL.linked}.`)
+        : `The actual is ${ACTUAL_SOURCE_LABEL[src]}, from ${facts.actualColumn}.`,
+      actualSource: src,
     };
   }
   // A planned amount, no actual. Which of the two remaining states depends on
-  // whether the OBJECT can ever carry one.
+  // whether the OBJECT ITSELF can carry one. LINK-01 does NOT move an item out
+  // of NOT LINKED by making linking possible — NOT LINKED is precisely the state
+  // an item is in until a posting is linked to it, and it is where the panel
+  // offers the link. Zero links means NOT LINKED, never $0.
   if (facts.actualColumn !== null) {
     return {
       state: 'PLANNED',
       label: CHAIN_LABEL.PLANNED,
-      line: `No actual recorded yet. When one is, it comes from ${facts.actualColumn} — ${ACTUAL_SOURCE_LABEL[facts.actualSource as ActualSource]}.`,
+      line: `No actual recorded yet. When one is, it comes from ${facts.actualColumn} \u2014 ${ACTUAL_SOURCE_LABEL[facts.actualSource as ActualSource]}${facts.linkable ? ', or from a posting you link to it in Books' : ''}. Nothing is matched for you.`,
       actualSource: null,
     };
   }
@@ -211,7 +253,9 @@ export function buildChain(input: ChainInput): Chain | null {
         // the verdict is ever overturned by a later ruling, this branch is the
         // one place that has to change — and it fails loud until it is.
         (() => { throw new ChainLawError('the actuals verdict changed; NOT LINKED must be re-derived'); })()
-      : ACTUALS_NOT_JOINABLE_LINE,
+      : facts.linkable
+        ? `${ACTUALS_NOT_JOINABLE_LINE} Link the posting that settled it and the actual becomes the sum of what you linked.`
+        : ACTUALS_NOT_JOINABLE_LINE,
     actualSource: null,
   };
 }

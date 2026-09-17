@@ -211,6 +211,7 @@ model journal_entries {
   reversed_by_entry journal_entries? @relation("reversal")
   ledger_entries    ledger_entries[]
   vendor            operations_vendor_directory? @relation(fields: [vendor_id], references: [id], onDelete: SetNull)
+  planned_item_links planned_item_links[]
 
   @@index([userId, date])
   @@index([source_type, source_id])
@@ -283,6 +284,55 @@ model ledger_line_links {
   @@index([routine_id])
   @@index([trip_id])
   @@index([module_key])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LINK-01: PLANNED ITEM LINKS — a budgeted item to the posting that settled it
+// ═══════════════════════════════════════════════════════════════════
+
+/// DAY-01 proved the automatic event→Books join by (date, coa_code) unsound for
+/// four independent reasons. LINK-01 does not fix the guess — it replaces it:
+/// the founder TAPS the item and TAPS the posting, the way a trade links to a
+/// card (trade_card_links :1887). Nothing here is ever written by a matcher.
+///
+/// THE TARGET KEY, PER KIND (LINK-01 STEP 0.3):
+///   calendar_event → target_id = calendar_events.id,           target_instant NULL
+///   project_task   → target_id = operations_project_tasks.id,  target_instant NULL
+///   routine        → target_id = operations_routines.id,        target_instant SET
+/// A routine OCCURRENCE has no row — it is computed from an RRULE — so it is
+/// addressed the way operations_routine_completions already addresses one:
+/// @@unique([routine_id, expected_at]) on the INSTANT (:3390). A link keyed on
+/// YYYY-MM-DD would silently miss a 07:00 occurrence in another zone, so the
+/// instant is the key and the migration's CHECK makes it mandatory for a
+/// routine and forbidden for anything else.
+///
+/// CARDINALITY (LINK-01 STEP 0.5): one item may have MANY postings (a hotel
+/// posts as a deposit and a balance); one posting belongs to AT MOST ONE item.
+/// journal_entry_id is therefore UNIQUE. The ฿2,400 grocery run that belongs to
+/// a month of meal routines is not a link — it is an ALLOCATION, and the repo
+/// already has that dimension (ledger_line_links.percent, :265). Attempting to
+/// link one posting twice FAILS LOUD at the database rather than double-counting.
+///
+/// onDelete: journal entry RESTRICT — a posting that something is attributed to
+/// cannot vanish (the ledger_entries doctrine :234 and DIM-1's :276). user
+/// Cascade — a deleted user's attributions go with them.
+model planned_item_links {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id          String
+  target_kind      String    @db.VarChar(20)
+  target_id        String
+  /// The occurrence INSTANT. Set for a routine, NULL for everything else — a CHECK, not a convention.
+  target_instant   DateTime? @db.Timestamptz(6)
+  journal_entry_id String    @unique
+  linked_at        DateTime  @default(now()) @db.Timestamptz(6)
+  linked_by        String?   @db.VarChar(255)
+
+  user          users          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  journal_entry journal_entries @relation(fields: [journal_entry_id], references: [id], onDelete: Restrict)
+
+  @@index([user_id, target_kind, target_id])
+  @@index([user_id, target_instant])
+  @@map("planned_item_links")
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -607,6 +657,7 @@ model users {
   reservations            reservations[]
   commission_ledger       commission_ledger[]
   transaction_reservation_links transaction_reservation_links[]
+  planned_item_links            planned_item_links[]
   provider_responses      provider_responses[]
   arrivals                arrivals[]
   verification_tokens     verification_tokens[]

@@ -91,6 +91,8 @@ import { resolve } from 'node:path';
 import { readdirSync, statSync } from 'node:fs';
 import { code as codeOf, comments as commentsOf, rejoin } from '../src/lib/sourceText';
 import { CHAIN_STATES, KIND_FACTS, EVENT_SOURCE_OWNER, buildChain } from '../src/lib/calendar/chain';
+import { LINKABLE_KINDS, requiresInstant } from '../src/lib/calendar/linkKeys';
+import { sumLinks } from '../src/lib/calendar/links';
 import { PROBLEM_SHEET } from '../src/lib/problemSheet';
 import { EXPECTED_STATUS_COUNTS, FAMILY_READS, TOOL_REGISTRY, registryLaw, statusCounts } from '../src/lib/toolRegistry';
 import { HOME_ANSWER, HOME_OWNER, HOME_PHASES, PHASES_RENDERED_AT, THE_SORT, navFamilies, navLaw, navRows } from '../src/lib/nav';
@@ -2347,17 +2349,28 @@ const drillFail = (m: string) => { drillViolations += 1; violations.push(`drill 
 const drillPanel = codeOf(DRILL_PANEL);
 
 // 1. The state on the screen is the LEAF'S state, not a string typed here.
-if (!/data-drill-chain-state=\{row\.chain\.state\}/.test(drillPanel)) drillFail(`${DRILL_PANEL} does not render the state from the chain leaf`);
-if (!/row\.chain\.label/.test(drillPanel)) drillFail(`${DRILL_PANEL} does not render the leaf's label`);
+if (!/data-drill-chain-state=\{chain\.state\}/.test(drillPanel)) drillFail(`${DRILL_PANEL} does not render the state from the chain leaf`);
+if (!/\{chain\.label\}/.test(drillPanel)) drillFail(`${DRILL_PANEL} does not render the leaf's label`);
+// LINK-01: and that `chain` is the LEAF'S, whether the row's own or rebuilt from
+// its links — never a chain literal assembled in the component.
+if (!/buildChain\(\{ kind: row\.kind/.test(drillPanel)) drillFail(`${DRILL_PANEL} does not rebuild its chain through buildChain when links supply the actual`);
+if (/state:\s*'(PLANNED|NOT_LINKED|PLANNED_AND_SETTLED)'/.test(drillPanel)) drillFail(`${DRILL_PANEL} assembles a chain literal instead of asking the leaf`);
 // 2. Its per-state styling map may name the three states and NO fourth.
 const styleKeys = [...(/const STATE_CLASS[^=]*= \{([\s\S]*?)\};/.exec(drillPanel)?.[1] ?? '').matchAll(/^\s*([A-Z_]+):/gm)].map((m) => m[1]);
 for (const k of styleKeys) if (!(CHAIN_STATES as readonly string[]).includes(k)) drillFail(`${DRILL_PANEL} styles a state "${k}" that is not one of ${CHAIN_STATES.join(' · ')}`);
 for (const st of CHAIN_STATES) if (!styleKeys.includes(st)) drillFail(`${DRILL_PANEL} does not style ${st}`);
 // 3. An actual is never printed without its source label beside it.
-if (!/ACTUAL_SOURCE_LABEL\[row\.actualSource\]/.test(drillPanel)) drillFail(`${DRILL_PANEL} renders an actual with no source label — a hand-typed number and a posted one must never look alike`);
-// 4. It reads no route and writes nothing.
-if (/\bfetch\s*\(/.test(drillPanel)) drillFail(`${DRILL_PANEL} reaches a route — the panel renders what it is handed`);
-if (/method:\s*'(POST|PATCH|PUT|DELETE)'/.test(drillPanel)) drillFail(`${DRILL_PANEL} writes`);
+if (!/ACTUAL_SOURCE_LABEL\[shownSource\]/.test(drillPanel)) drillFail(`${DRILL_PANEL} renders an actual with no source label — a hand-typed number and a posted one must never look alike`);
+// 4. LINK-01 narrowed this rather than dropping it: the panel may reach exactly
+// ONE route — its own links — and may create or delete a link there and nothing
+// else. It still alters no posting, no journal entry and no typed actual.
+for (const m of drillPanel.matchAll(/fetch\(\s*['"`]([^'"`]*)/g)) {
+  if (!/^\/api\/calendar\/links/.test(m[1])) drillFail(`${DRILL_PANEL} reaches ${m[1]} — the only route it may touch is its own links`);
+}
+if (/method:\s*'(PATCH|PUT)'/.test(drillPanel)) drillFail(`${DRILL_PANEL} edits an existing row — it may only create and delete its own links`);
+for (const forbidden of ['actual_cost_usd', 'journal-entries', 'ledger_entries']) {
+  if (drillPanel.includes(forbidden)) drillFail(`${DRILL_PANEL} touches ${forbidden} — a link is written, a posting never is`);
+}
 // 5. Its door comes from the registry, never a typed href.
 if (!/navToolByName\(row\.owner, TOOL_GATE\)/.test(drillPanel)) drillFail(`${DRILL_PANEL} does not resolve its owner door from the registry`);
 // 6. Every row on the day opens it — a row that did nothing was a promise unkept.
@@ -2381,6 +2394,73 @@ for (const f of KIND_FACTS) if (f.postedLink !== null) drillFail(`${f.kind} clai
 try { buildChain({ kind: 'project_task', planned: 1, actual: 1 }); drillFail('the chain leaf accepted an actual with no source'); } catch { /* the throw is the law working */ }
 if (drillViolations === 0) console.log(`✔ The drill law passed — ${CHAIN_STATES.length} chain states and no fourth; every amount names its source; ${drillOwners.size} owner door(s) resolve; 0 claimed links to a posting.`);
 else console.log(`✖ The drill law FAILED — ${drillViolations} violation(s).`);
+
+// ── THE LINK LAW (LINK-01, 2026-09-17) ──────────────────────────────────────
+// THE ACTUAL IS LINKED, NOT GUESSED — AND NOTHING SUMS AN UNKNOWN AS ZERO.
+//
+// DAY-01 ruled the automatic event→Books join unsound. The answer is not a
+// better matcher: it is a link the founder makes by hand. This law holds the
+// three things that would quietly turn it back into a guess — a suggested
+// match, a link row that cannot say whose or what it is, and a null amount
+// counted as zero (the exact EDGE-01 bug in the trade link route).
+const LINK_ROUTE = 'src/app/api/calendar/links/route.ts';
+const LINK_MIGRATION = 'prisma/migrations/20260917120000_link_01_planned_item_links/migration.sql';
+let linkViolations = 0;
+const linkFail = (m: string) => { linkViolations += 1; violations.push(`link law: ${m} (LINK-01)`); };
+const linkRoute = codeOf(LINK_ROUTE);
+
+// 1. NO MATCHER. The candidate list may not score, rank by amount, or pre-select.
+for (const banned of ['confidence', 'matchRationale', 'score', 'probable', 'suggest', 'bestMatch', 'autoMatch']) {
+  if (new RegExp(`\\b${banned}`, 'i').test(linkRoute)) linkFail(`${LINK_ROUTE} carries "${banned}" — a candidate list is a convenience, never a guess; transaction_reservation_links is the shape this deliberately does NOT copy`);
+}
+// The candidates come back in DATE order, never ordered by closeness of amount.
+if (!/orderBy:\s*\{ date: 'desc' \}/.test(linkRoute)) linkFail(`${LINK_ROUTE} does not return candidates in date order`);
+if (/orderBy[\s\S]{0,80}amount/.test(linkRoute)) linkFail(`${LINK_ROUTE} orders candidates by amount — that is a ranked guess`);
+
+// 2. EVERY VERB IS USER-SCOPED, and a stranger's row is a defensive 404.
+for (const verb of ['GET', 'POST', 'DELETE']) {
+  const at = linkRoute.indexOf(`export async function ${verb}(`);
+  if (at < 0) { linkFail(`${LINK_ROUTE} has no ${verb}`); continue; }
+  const body = linkRoute.slice(at, linkRoute.indexOf('export async function', at + 1) < 0 ? undefined : linkRoute.indexOf('export async function', at + 1));
+  if (!/const user = await caller\(\)/.test(body)) linkFail(`${LINK_ROUTE} ${verb} does not identify the caller`);
+  if (!/status: 401/.test(body)) linkFail(`${LINK_ROUTE} ${verb} does not refuse an anonymous caller`);
+  if (!/user_id: user\.id|userId: user\.id/.test(body)) linkFail(`${LINK_ROUTE} ${verb} runs a query that is not user-scoped`);
+  if (/status: 403/.test(body)) linkFail(`${LINK_ROUTE} ${verb} answers 403 — a cross-user read is a defensive 404, which does not confirm the row exists`);
+}
+
+// 3. NOTHING SUMS A NULL. EDGE-01 found `sum + (p.realized_pl ?? 0)` in the
+// trade link route, twice. The pattern may not reappear here or in the leaf.
+for (const f of [LINK_ROUTE, 'src/lib/calendar/links.ts']) {
+  if (/\?\?\s*0\s*\)/.test(codeOf(f))) linkFail(`${f} coerces a null amount to 0 — an unknown is reported, never summed (the EDGE-01 bug at src/app/api/trade-card-links/route.ts:80)`);
+}
+// And the leaf proves it here, at build time.
+const linkProbe = sumLinks([
+  { journalEntryId: 'a', date: '2026-01-01', description: 'x', amountCents: 30000 },
+  { journalEntryId: 'b', date: '2026-01-02', description: 'y', amountCents: null },
+]);
+if (linkProbe.actual !== 300) linkFail(`the link leaf summed ${linkProbe.actual} — the readable posting alone is 300`);
+if (linkProbe.complete) linkFail('the link leaf called a sum complete while a posting carried no readable amount');
+if (!linkProbe.unreadable.includes('b')) linkFail('the link leaf did not name the posting it could not read');
+if (sumLinks([]).actual !== null) linkFail('the link leaf returned a number for zero links — zero links is NOT LINKED, never $0');
+
+// 4. THE ROW ALWAYS SAYS WHOSE IT IS AND WHAT IT POINTS AT.
+const linkMigration = codeOf(LINK_MIGRATION);
+for (const col of ['"user_id"', '"target_kind"', '"target_id"', '"journal_entry_id"']) {
+  if (!new RegExp(`${col}\\s+\\w+[^,]*NOT NULL`).test(linkMigration)) linkFail(`${LINK_MIGRATION} lets ${col} be null — a link that cannot say whose or what it is`);
+}
+// 5. THE OCCURRENCE KEY is the INSTANT, mandatory for a routine and forbidden otherwise.
+if (!/CHECK \(\("target_kind" = 'routine'\) = \("target_instant" IS NOT NULL\)\)/.test(linkMigration)) {
+  linkFail(`${LINK_MIGRATION} does not make target_instant mandatory for a routine and forbidden for everything else — a routine link keyed on a date silently misses`);
+}
+if (!LINKABLE_KINDS.every((k) => linkMigration.includes(`'${k}'`))) linkFail(`${LINK_MIGRATION}'s kind CHECK does not name ${LINKABLE_KINDS.join(', ')}`);
+if (!requiresInstant('routine')) linkFail('the key leaf no longer requires an instant for a routine');
+// 6. THE CARDINALITY IS THE DATABASE'S, not a convention.
+if (!/CREATE UNIQUE INDEX "planned_item_links_one_item_per_posting"[\s\S]{0,120}\("journal_entry_id"\)/.test(linkMigration)) {
+  linkFail(`${LINK_MIGRATION} does not enforce one item per posting — two items would each claim the whole amount`);
+}
+if (!/ON DELETE RESTRICT/.test(linkMigration)) linkFail(`${LINK_MIGRATION} lets a linked posting be deleted — financial attribution never vanishes`);
+if (linkViolations === 0) console.log(`✔ The link law passed — ${LINKABLE_KINDS.length} linkable kinds, the occurrence keyed on its instant, one item per posting enforced in SQL; no matcher, no score, and no null summed as zero.`);
+else console.log(`✖ The link law FAILED — ${linkViolations} violation(s).`);
 
 // ── THE READER LAW (TEST-TRUTH-01, 2026-09-17) ──────────────────────────────
 // NO TEST AND NO LAW MAY READ A SOURCE FILE RAW.

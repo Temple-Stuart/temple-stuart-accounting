@@ -35,7 +35,12 @@ test('a planned amount with no actual, on an object that can never carry one, re
   for (const kind of ['calendar_event', 'routine', 'task'] as const) {
     const chain = buildChain({ kind, planned: 100, actual: null })!;
     assert.equal(chain.state, 'NOT_LINKED', `${kind} has no column an actual could live in`);
-    assert.equal(chain.line, ACTUALS_NOT_JOINABLE_LINE, `${kind} quotes the verdict, never a guess`);
+    // LINK-01: the verdict is quoted VERBATIM and unchanged; a linkable kind
+    // gains one sentence after it saying the chain can be closed by hand.
+    assert.ok(chain.line.startsWith(ACTUALS_NOT_JOINABLE_LINE), `${kind} quotes the verdict, never a guess`);
+    if (chain.line !== ACTUALS_NOT_JOINABLE_LINE) {
+      assert.match(chain.line, /Link the posting that settled it/, `${kind} offers the by-hand link`);
+    }
     assert.equal(chain.actualSource, null);
   }
   // The verdict itself is untouched by this PR.
@@ -153,15 +158,24 @@ test('the grid\'s source names map to the right kind', () => {
 test('the panel renders a chain state from the named set and nothing else, and writes nothing', () => {
   const panel = code(PANEL);
   // It renders the leaf's label, never a typed state string.
-  assert.match(panel, /row\.chain\.label/);
-  assert.match(panel, /data-drill-chain-state=\{row\.chain\.state\}/);
+  assert.match(panel, /\{chain\.label\}/);
+  assert.match(panel, /data-drill-chain-state=\{chain\.state\}/);
+  // LINK-01: when links supply the actual the chain is REBUILT by the leaf.
+  assert.match(panel, /buildChain\(\{ kind: row\.kind/);
   for (const forbidden of [/'PLANNED'/, /'NOT_LINKED'/, /'PLANNED_AND_SETTLED'/]) {
     assert.doesNotMatch(panel.replace(/STATE_CLASS[\s\S]*?\};/, ''), forbidden, 'a state is not typed into the render');
   }
-  // Zero fetch, zero write.
-  for (const w of [/fetch\s*\(/, /method:\s*'(POST|PATCH|PUT|DELETE)'/]) assert.doesNotMatch(panel, w, 'the panel reaches no route');
+  // LINK-01 narrowed this, it did not drop it: the panel may reach exactly ONE
+  // route — its own links — and may write only there. It still touches no
+  // posting, no journal entry and no task's typed actual.
+  const fetches = [...panel.matchAll(/fetch\(\s*['"`]([^'"`]*)/g)].map((m) => m[1]);
+  for (const f of fetches) assert.match(f, /^\/api\/calendar\/links/, `the panel reaches ${f}, which is not its own links route`);
+  assert.doesNotMatch(panel, /method:\s*'(PATCH|PUT)'/, 'the panel never edits an existing row');
+  for (const forbidden of [/journal-entries/, /actual_cost_usd/, /ledger/]) {
+    assert.doesNotMatch(panel, forbidden, 'the panel touches no posting and no typed actual');
+  }
   // An amount is never rendered without its source label.
-  assert.match(panel, /ACTUAL_SOURCE_LABEL\[row\.actualSource\]/);
+  assert.match(panel, /ACTUAL_SOURCE_LABEL\[shownSource\]/);
   // The door comes from the registry, never a typed href.
   assert.match(panel, /navToolByName\(row\.owner, TOOL_GATE\)/);
   assert.doesNotMatch(panel, /href="\/(tasks|travel|trade-log|budget|calendar)"/, 'no typed door');
