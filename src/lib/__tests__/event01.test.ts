@@ -211,7 +211,8 @@ test('the category census is gathered from the existing writers, and the form of
   const form = code(FORM);
   assert.match(form, /EVENT_CATEGORIES\.map\(/);
   assert.equal(/<input[^>]*id="aef-category"/.test(form), false, 'the category is a select over the census, never free text');
-  // No geocoder is reached, and the coordinates are typed with a hint.
+  // The form never calls a provider DIRECTLY — the key stays on the server.
+  // GEO-01 gave it a lookup, and that lookup is the app's own route.
   assert.equal(/googleFetch\s*\(|maps\.googleapis|GOOGLE_PLACES_API_KEY/.test(form), false);
   assert.match(form, /data-add-event-coord-hint/);
   // An empty number box posts nothing.
