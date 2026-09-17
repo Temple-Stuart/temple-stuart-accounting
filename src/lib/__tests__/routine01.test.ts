@@ -1,20 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+
 import {
   buildDay, expectedTotal, coverageLine, readTasks,
   dayParts, partLine, dayTotalLine, ROUTINE_PART_SOURCE,
   type DayEventInput,
 } from '../calendar/day';
 import { mapOperationsRoutines } from '../hub/mapOperationsRoutines';
+import { code } from '../sourceText';
 
 /**
  * ROUTINE-01 — THE DAY'S TOTAL NAMES ITS PARTS. The defect DAY-01's own audit
  * found: routine occurrences were summed inside the "Events" figure with
  * nothing saying so. Right number, wrong label.
  */
-const src = (f: string) => readFileSync(`${process.cwd()}/${f}`, 'utf8');
-const code = (f: string) => src(f).split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
 
 const DAY_VIEW = 'src/components/hub/DayView.tsx';
 const DAY = '2026-08-14';

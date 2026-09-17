@@ -13,14 +13,22 @@
  * hook, an "/api/" string, or an import of a live self-fetching container. It is a
  * plain Node script — no test runner or extra dependency required.
  *
- * Run standalone:  node scripts/assert-showroom-fetch-free.mjs
+ * TEST-TRUTH-01 (2026-09-17): this was a .mjs reading each file RAW, and the
+ * FORBIDDEN patterns carried hand-tuned quote anchors "so prose in doc comments
+ * (e.g. \"no /api/* call\") never trips them" — a workaround for reading
+ * comments as if they were code. It is a .ts now so it can use the one reader
+ * every test and law uses, and it reads code(). The anchors stay (they are also
+ * what keeps a *View import from matching its live container), but they are no
+ * longer load-bearing against prose: a comment cannot trip this law at all.
+ *
+ * Run standalone:  npx tsx scripts/assert-showroom-fetch-free.ts
  */
 
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+import { code as codeOf } from '../src/lib/sourceText';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = resolve(__dirname, '..');
 const BASE = 'src/components/workbench/operations/projects';
 const OPS = 'src/components/workbench/operations';
 
@@ -62,21 +70,20 @@ const FORBIDDEN = [
   },
 ];
 
-const violations = [];
+const violations: string[] = [];
 
 for (const rel of SUBTREE_FILES) {
-  const abs = resolve(ROOT, rel);
-  let src;
-  try {
-    src = readFileSync(abs, 'utf8');
-  } catch {
+  if (!existsSync(resolve(ROOT, rel))) {
     // A missing subtree file is itself a failure — the guardrail must know its
     // exact surface. Fail loud rather than silently skipping.
     violations.push(`${rel}: MISSING (subtree file not found — update the guardrail list)`);
     continue;
   }
+  // TEST-TRUTH-01: comments stripped. A forbidden pattern quoted in a comment is
+  // prose, not a call — it cannot leak data, and it may not fail the build.
+  const src = codeOf(rel);
   const lines = src.split('\n');
-  lines.forEach((line, i) => {
+  lines.forEach((line: string, i: number) => {
     for (const { name, re } of FORBIDDEN) {
       if (re.test(line)) {
         violations.push(`${rel}:${i + 1}  [${name}]  ${line.trim()}`);

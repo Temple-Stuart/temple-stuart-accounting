@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { SYNC_COMPLETE_PATH, syncThroughOneWriter } from '../plaid/oneWriter';
+import { code } from '../sourceText';
 
 // REBUILD-01 PR-3 — ONE PLAID WRITER. Hermetic: a fake fetch stands in for the browser; the
 // outcome line is the HYG-01 / HYG-03 reader's, byte for byte.
@@ -44,12 +45,15 @@ test('the outcome line is the HYG-03 reader\'s: 207 → partial with one line pe
 
 test('ImportDataSection posts through syncThroughOneWriter and renders the outcome line; nothing in src names the three retired routes or plaid-sync-fix', () => {
   const root = resolve(__dirname, '../../..');
-  const src = readFileSync(resolve(root, 'src/components/dashboard/ImportDataSection.tsx'), 'utf8');
+  // TEST-TRUTH-01: comment-stripped. A retired route named in a comment saying it
+  // is retired must not satisfy "the per-item loop is gone" — nor the reverse.
+  const src = code('src/components/dashboard/ImportDataSection.tsx');
   assert.ok(src.includes("from '@/lib/plaid/oneWriter'"), 'imports the one-writer helper');
   assert.ok(src.includes('await syncThroughOneWriter()'), 'the Sync button posts through it');
   assert.ok(src.includes('{syncOutcome.text}') && src.includes('syncOutcome.lines.map('), 'renders the outcome text and its lines');
   assert.ok(!src.includes('/api/plaid/sync') && !src.includes('/api/plaid/items'), 'the per-item loop over the retired route is gone');
   for (const gone of ['src/app/api/plaid/sync/route.ts', 'src/app/api/transactions/sync/route.ts', 'src/app/api/transactions/sync-full/route.ts', 'src/lib/plaid-sync-fix.ts']) {
-    assert.throws(() => readFileSync(resolve(root, gone)), `${gone} is deleted`);
+    // An EXISTENCE check, not a read of source text — existsSync says so plainly.
+    assert.equal(existsSync(resolve(root, gone)), false, `${gone} is deleted`);
   }
 });

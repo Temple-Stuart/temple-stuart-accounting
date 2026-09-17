@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { ADDED_RULES, ARRIVAL_KINDS, NoRuleError, PROVIDERS, PROVIDER_CODES, PROVIDER_MENU, ROUTING_RULES, RULE_BOOK, kindOf, providerByCode, providerByDeck, providerCode, providersLaw, ruleFor, type Rule } from '../providers';
+import { code } from '../sourceText';
 
 // REBUILD-01 PR-1 — the provider vocabulary. Deck words ↔ codes round-trip, no
 // duplicates, every rule-book pair resolves, and the schema's enum carries the
@@ -99,14 +100,16 @@ test('the law rejects a book missing a deck row, a deck row with another kind, t
 });
 
 test("the Prisma enum arrival_kind and the migration's CREATE TYPE carry the six kinds in the deck's order; the migration's UPDATEs are rules the book holds", () => {
-  const schema = readFileSync(resolve(ROOT, 'prisma/schema.prisma'), 'utf8');
+  // TEST-TRUTH-01: schema and migration are read comment-stripped — a `//` note
+  // in the schema or a `--` line in the SQL cannot satisfy an assertion here.
+  const schema = code('prisma/schema.prisma');
   const enumBlock = schema.match(/enum arrival_kind \{\n([\s\S]*?)\n\}/);
   assert.ok(enumBlock, 'enum arrival_kind exists');
   assert.deepEqual(enumBlock[1].split('\n').map((l) => l.trim()).filter(Boolean), [...ARRIVAL_KINDS]);
   assert.match(schema, /\n  kind          arrival_kind\n/, 'arrivals.kind is NOT NULL (no ?)');
   const dir = readdirSync(resolve(ROOT, 'prisma/migrations')).find((d) => d.endsWith('_arrival_kind'));
   assert.ok(dir, 'the arrival_kind migration exists');
-  const sql = readFileSync(resolve(ROOT, 'prisma/migrations', dir, 'migration.sql'), 'utf8');
+  const sql = code(`prisma/migrations/${dir}/migration.sql`);
   assert.deepEqual(sql.match(/CREATE TYPE arrival_kind AS ENUM \((.*?)\);/)?.[1].split(', ').map((v) => v.replace(/^'|'$/g, '')), [...ARRIVAL_KINDS]);
   const applied = [...sql.matchAll(/UPDATE arrivals SET kind = '([a-z]+)'\s+WHERE kind IS NULL AND provider = '([a-z_]+)' AND resource = '([a-z_]+)';/g)].map((m) => [m[2], m[3], m[1]]);
   assert.deepEqual(applied, [['plaid', 'transaction', 'event'], ['plaid', 'investment_transaction', 'event'], ['plaid', 'security', 'reference']]);
@@ -117,14 +120,14 @@ test("the Prisma enum arrival_kind and the migration's CREATE TYPE carry the six
 });
 
 test("the Prisma enum arrival_provider and the migration's CREATE TYPE carry the code set exactly, alphabetical", () => {
-  const schema = readFileSync(resolve(ROOT, 'prisma/schema.prisma'), 'utf8');
+  const schema = code('prisma/schema.prisma');
   const enumBlock = schema.match(/enum arrival_provider \{\n([\s\S]*?)\n\}/);
   assert.ok(enumBlock, 'enum arrival_provider exists');
   const enumValues = enumBlock[1].split('\n').map((l) => l.trim()).filter(Boolean);
   assert.deepEqual(enumValues, PROVIDER_CODES);
   const dir = readdirSync(resolve(ROOT, 'prisma/migrations')).find((d) => d.endsWith('_arrivals'));
   assert.ok(dir, 'the arrivals migration exists');
-  const sql = readFileSync(resolve(ROOT, 'prisma/migrations', dir, 'migration.sql'), 'utf8');
+  const sql = code(`prisma/migrations/${dir}/migration.sql`);
   const typeValues = sql.match(/CREATE TYPE arrival_provider AS ENUM \((.*?)\);/)?.[1].split(', ').map((v) => v.replace(/^'|'$/g, ''));
   assert.deepEqual(typeValues, PROVIDER_CODES);
 });

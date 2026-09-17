@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+
 import { buildManualTrade, type ManualTradeInput } from '../tradeLog/manualTrade';
 import { openCostBasisCents, closeProceedsCents, realizedPlCents, proportionalCostCents, positionTypeOf, OPTION_MULTIPLIER } from '../tradeLog/optionPnl';
 import { positionOwnershipWhere, ownsPosition, ownsEveryLeg, isManualSource, MANUAL_SOURCE, MANUAL_BADGE, SELF_REPORTED_BIAS_NOTE } from '../tradeLog/ownership';
@@ -8,6 +8,7 @@ import { AVAILABLE_STRATEGIES } from '../convergence/filter-types';
 import { countUndefinedRiskPositions, checkUndefinedRiskCap, UNDEFINED_RISK_OPEN_POSITION_CAP, type OpenOptionPosition } from '../convergence/undefined-risk';
 import { buildReport, secondaryBookReport, bucketKey, classifyTicket, type Ticket, type ClosedTrade, type TicketPositionLeg } from '../edge-read/report';
 import { honestFrame } from '../edge-read/frame';
+import { code } from '../sourceText';
 
 /**
  * TRADE-LOG-01 — A TRADE CAN BE LOGGED BY HAND.
@@ -15,8 +16,6 @@ import { honestFrame } from '../edge-read/frame';
  * The tradeSplit.test.ts idiom: a source read strips comment lines first, so a
  * citation written in a comment can never satisfy an assertion about the code.
  */
-const src = (f: string) => readFileSync(`${process.cwd()}/${f}`, 'utf8');
-const code = (f: string) => src(f).split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
 
 const MANUAL_ROUTE = 'src/app/api/trade-log/manual/route.ts';
 const TRACKER = 'src/lib/position-tracker-service.ts';

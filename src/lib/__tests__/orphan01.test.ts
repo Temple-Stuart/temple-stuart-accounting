@@ -1,16 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { mapOperationsRoutines } from '../hub/mapOperationsRoutines';
 import { TOOL_REGISTRY } from '../toolRegistry';
+import { code, comments } from '../sourceText';
 
 /**
  * ORPHAN-01 — THE ROOM WAS DELETED AND SIX PAGES SURVIVED IT. Source reads strip
  * comment lines first, so a citation in a comment can never satisfy an
  * assertion about the code.
  */
-const src = (f: string) => readFileSync(`${process.cwd()}/${f}`, 'utf8');
-const code = (f: string) => src(f).split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
 
 const MAPPER = 'src/lib/hub/mapOperationsRoutines.ts';
 const CARD = 'src/components/hub/HubEventCard.tsx';
@@ -118,12 +117,21 @@ test('the survivors are the registry\'s, and the registry still says so', () => 
 });
 
 test('why the law missed them, recorded where the next reader will look', () => {
-  const law = src(LAW);
+  // TEST-TRUTH-01: the law's RECORD of why it missed them is prose by nature —
+  // read it as prose and say so. The law's behaviour is asserted from code below.
+  // All three of these are the law's WRITTEN RECORD of why it missed the six —
+  // every one lives in a comment, and every one was asserted against the raw file.
+  const lawNotes = comments(LAW);
   // The predicate that made an unregistered page invisible, named in the law.
-  assert.match(law, /screenTools` is built ONLY from registry rows/);
-  assert.match(law, /not a tool's page/);
+  assert.match(lawNotes, /screenTools` is built ONLY from registry rows/);
+  assert.match(lawNotes, /not a tool's page/);
   // And the gap this law fills: reachability fires at the first gate, so a
   // page with no door never reaches here — the new case is a DOORED page that
   // belongs to nobody.
-  assert.match(law, /fires at the FIRST gate/);
+  assert.match(lawNotes, /fires at the FIRST gate/);
+  // The record is not the law. What the law DOES is asserted from its code: the
+  // orphan pass exists, and its two lists are the ones ORPHAN-01 named.
+  const law = code(LAW);
+  assert.match(law, /SHELL_PAGES/);
+  assert.match(law, /ORPHAN_EXCEPTIONS/);
 });

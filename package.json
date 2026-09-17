@@ -5,9 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "dev:inngest": "npx inngest-cli@latest dev -u http://localhost:3000/api/inngest",
-    "assert:showroom": "node scripts/assert-showroom-fetch-free.mjs",
+    "assert:showroom": "tsx scripts/assert-showroom-fetch-free.ts",
     "assert:registry": "tsx scripts/assert-tool-registry.ts",
-    "build": "node scripts/assert-showroom-fetch-free.mjs && tsx scripts/assert-tool-registry.ts && prisma generate && prisma migrate deploy && next build",
+    "build": "tsx scripts/assert-showroom-fetch-free.ts && tsx scripts/assert-tool-registry.ts && prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "test": "tsx --test src/lib/__tests__/*.test.ts",
     "lint": "eslint .",

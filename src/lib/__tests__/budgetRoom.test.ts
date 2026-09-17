@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import {
   BUDGET_CATEGORIES, BUDGET_HOME, COLLAPSED_MODULES, BudgetCategoriesLawError,
   budgetCategoriesLaw, budgetHref, categoryFor,
@@ -8,10 +8,10 @@ import {
 import { navLaw, navToolByName, navRows } from '../nav';
 import { TOOL_GATE } from '../offer';
 import { TOOL_REGISTRY } from '../toolRegistry';
+import { code } from '../sourceText';
 
 // ROOM-01 — Budget is ONE room: six category pages became a switcher.
 
-const src = (f: string) => readFileSync(`${process.cwd()}/${f}`, 'utf8');
 
 test('the six categories are one const, and the law holds on them', () => {
   assert.deepEqual(budgetCategoriesLaw({ throwOnFail: false }), []);
@@ -23,7 +23,7 @@ test('the six categories are one const, and the law holds on them', () => {
 });
 
 test('the switcher renders every category from the const — no retyped list in the page', () => {
-  const page = src('src/app/budget/page.tsx');
+  const page = code('src/app/budget/page.tsx');
   assert.match(page, /BUDGET_CATEGORIES\.map\(/, 'the switcher maps the const');
   assert.match(page, /data-budget-switcher/);
   // Not one category name is typed into the page.
@@ -41,15 +41,15 @@ test('an unknown ?category= falls to the FIRST and says so — never an empty ro
   assert.equal(bogus.category.slug, 'business', 'the first, not nothing');
   assert.equal(bogus.fellBack, true, 'and the room is told to say so');
   // The page renders that statement rather than silently correcting the URL.
-  assert.match(src('src/app/budget/page.tsx'), /data-category-fellback/);
-  assert.match(src('src/app/budget/page.tsx'), /There is no/);
+  assert.match(code('src/app/budget/page.tsx'), /data-category-fellback/);
+  assert.match(code('src/app/budget/page.tsx'), /There is no/);
 });
 
 test('the six legacy routes are redirects to the room, and each one resolves', () => {
   for (const c of BUDGET_CATEGORIES) {
     const file = `src/app${c.legacyPath}/page.tsx`;
     assert.ok(existsSync(`${process.cwd()}/${file}`), `${file} still exists — no page is deleted`);
-    const body = src(file);
+    const body = code(file);
     assert.match(body, new RegExp(`redirect\\('${BUDGET_HOME}\\?category=${c.slug}'\\)`), `${c.legacyPath} redirects to its category`);
     assert.ok(body.split('\n').filter((l) => l.trim()).length <= 10, `${c.legacyPath} is a short redirect`);
     assert.ok(!body.includes('BudgetingPage'), `${c.legacyPath} no longer mounts the room`);
@@ -79,8 +79,8 @@ test('only the PROVABLY identical routes were collapsed — business and home ke
   // DIFFERENT TABLE. Both routes are untouched and still exist.
   assert.ok(existsSync(`${process.cwd()}/src/app/api/business/route.ts`));
   assert.ok(existsSync(`${process.cwd()}/src/app/api/home/route.ts`));
-  assert.match(src('src/app/api/business/route.ts'), /coaAccounts/);
-  assert.match(src('src/app/api/home/route.ts'), /home_expenses/);
+  assert.match(code('src/app/api/business/route.ts'), /coaAccounts/);
+  assert.match(code('src/app/api/home/route.ts'), /home_expenses/);
   // And the four that collapsed are gone, replaced by one parameterised route.
   for (const m of COLLAPSED_MODULES) {
     assert.ok(!existsSync(`${process.cwd()}/src/app/api/${m}/route.ts`), `/api/${m}/route.ts collapsed`);
@@ -88,7 +88,7 @@ test('only the PROVABLY identical routes were collapsed — business and home ke
   assert.ok(existsSync(`${process.cwd()}/src/app/api/budget/[module]/route.ts`));
   assert.ok(existsSync(`${process.cwd()}/src/app/api/budget/[module]/[id]/route.ts`));
   // The gate is preserved verbatim, and an unknown module is a 404, never a query.
-  const shared = src('src/app/api/budget/[module]/route.ts');
+  const shared = code('src/app/api/budget/[module]/route.ts');
   assert.match(shared, /getVerifiedEmail\(\)/);
   assert.match(shared, /COLLAPSED_MODULES\.includes/);
   assert.match(shared, /status: 404/);

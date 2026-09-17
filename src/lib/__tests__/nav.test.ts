@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import {
   HOME_ANSWER, HOME_PHASES, NavLawError, THE_SORT,
   navFamilies, navLaw, navRows, navToolByName, navToolsOfScreen, phasesOf,
@@ -8,11 +8,10 @@ import {
 import { PIPE_PHASES } from '../pipePhases';
 import { TOOL_GATE } from '../offer';
 import { TOOL_REGISTRY } from '../toolRegistry';
+import { code, comments } from '../sourceText';
 
 // NAV-25 — the rail is the sheet: six families, twenty-five tools, one pipe per tool.
 
-const src = (f: string) => readFileSync(`${process.cwd()}/${f}`, 'utf8');
-const code = (f: string) => src(f).split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
 const model = () => navFamilies(TOOL_GATE).map((f) => ({ name: f.name, tools: [...f.tools] }));
 
 test('the rail IS the registry — twenty-five rows, six families, both in registry order', () => {
@@ -84,8 +83,16 @@ test('the two phases that render no surface say so, and cite where the code decl
   for (const a of silent) {
     assert.match(a.surfaceNote ?? '', /ModuleLauncher\.tsx:\d+/, 'the citation names the file and line');
   }
-  // And the code still says it — the citation is not a memory of one.
-  assert.match(src('src/components/home/ModuleLauncher.tsx'), /STATE-ONLY cells/);
+  // TEST-TRUTH-01: this read the file RAW and said "the code still says it". It
+  // never did: "STATE-ONLY cells" is the note ModuleLauncher carries ABOUT those
+  // cells, and it lives in a comment. The assertion is about PROSE and now says
+  // so — and it is stronger for it: the marker must sit inside the very line
+  // range the surfaceNote cites, so the citation cannot rot into a memory.
+  const launcherComments = comments('src/components/home/ModuleLauncher.tsx');
+  assert.match(launcherComments, /STATE-ONLY cells/, 'the documented note is still there');
+  const markerLine = launcherComments.split('\n').findIndex((l) => l.includes('STATE-ONLY cells')) + 1;
+  const [from, to] = /ModuleLauncher\.tsx:(\d+)-(\d+)/.exec(silent[0].surfaceNote ?? '')!.slice(1).map(Number);
+  assert.ok(markerLine >= from && markerLine <= to, `the note is at :${markerLine}, cited as :${from}-${to}`);
 });
 
 test('a tool sharing a screen still has its own row and its own destination', () => {

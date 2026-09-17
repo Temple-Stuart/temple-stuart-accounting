@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+
 import * as React from 'react';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -9,11 +9,9 @@ import { PHASES_RENDERED_AT, navRows, navToolByName, phasesRenderedOn } from '..
 import { PIPE_PHASES } from '../pipePhases';
 import { TOOL_GATE } from '../offer';
 import { TOOL_REGISTRY } from '../toolRegistry';
+import { code } from '../sourceText';
 
 // BOOKS-PIPE-01 — the pipeline is the page, and the opener stops printing citations.
-
-const src = (f: string) => readFileSync(`${process.cwd()}/${f}`, 'utf8');
-const code = (f: string) => src(f).split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
 
 test('no tool\'s rendered line is a citation — a tool with no `why` gets no line', () => {
   for (const t of navRows(TOOL_GATE)) {
@@ -39,7 +37,7 @@ test('the opener renders no file path, for any tool, on any page', () => {
   for (const f of ['src/components/shell/ToolOpener.tsx', 'src/lib/nav.ts', 'src/components/shell/TheSheet.tsx']) {
     assert.doesNotMatch(code(f), READS_FIELD, `${f} does not read the registry's citation`);
   }
-  assert.match(src('src/components/shell/TheSheet.tsx'), /No note in the registry for this job\./);
+  assert.match(code('src/components/shell/TheSheet.tsx'), /No note in the registry for this job\./);
 });
 
 test('the opener lists only the phases its page draws', () => {
@@ -91,7 +89,7 @@ test('the opener\'s rendered output carries no source path', () => {
 });
 
 test('the pipeline is the page — the strip renders on first run, above the entity card', () => {
-  const body = src('src/components/home/BooksPipeline.tsx');
+  const body = code('src/components/home/BooksPipeline.tsx');
   // The strip is hoisted into a const, so both the first-run branch and the
   // main return draw it — it used to sit below an early return.
   assert.match(body, /const strip = \(/);

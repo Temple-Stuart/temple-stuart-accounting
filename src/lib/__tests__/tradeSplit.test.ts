@@ -1,18 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+
 import { navToolByName, navToolsOfScreen, phasesRenderedOn } from '../nav';
 import { TOOL_GATE } from '../offer';
 import { PIPE_PHASES } from '../pipePhases';
 import { FOUNDER_BROKER_LINE } from '../tastytrade/founderBroker';
 import { TRADE_LOG_EMPTY_ROOM, TRADE_LOG_EMPTY_ROOM_DOORS, tradeLogRoomIsEmpty } from '../tradeLogRoom';
+import { code } from '../sourceText';
 
 // TRADE-SPLIT — Brokerage (17) and Trade Log (18) are two tools on two pages.
 // The founderBroker.test.ts idiom: source reads strip comments first, so a
 // citation in a comment can never satisfy an assertion about the code.
-
-const src = (f: string) => readFileSync(`${process.cwd()}/${f}`, 'utf8');
-const code = (f: string) => src(f).split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
 
 const BROKERAGE = 'src/app/brokerage/page.tsx';
 const TRADE_LOG = 'src/app/trade-log/page.tsx';
@@ -122,7 +120,7 @@ test('phase 06 still hands off to Books — the pipe\'s own link, carried to the
 });
 
 test('the grandfather list is empty — TOOL-LAW-01 has no exceptions to rule 1', () => {
-  const law = src('scripts/assert-tool-registry.ts');
+  const law = code('scripts/assert-tool-registry.ts');
   assert.match(law, /const MULTI_TOOL_ALLOWED: ReadonlyArray<\{[^}]*\}> = \[\];/);
   assert.match(law, /if \(MULTI_TOOL_ALLOWED\.length > 0\) \{/);
   // No page serves two tools.

@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { ARRIVAL_KINDS, kindOf } from '../providers';
 import { KIND_VIEWS_HONEST_LINE, KIND_VIEW_CENSUS, STOPPED_TABLES, VIEW_COLUMNS, kindOfTable, kindViewSql, kindViewsHonestLine, kindViewsLaw, kindViewsSql, latestViews, latestViewsSql, parseViews, tablesOfKind, type FeedTable } from '../kindViews';
+import { code, comments, commentsOf, rejoin, stripComments } from '../sourceText';
 
 // TABLES-01 — six views, one per kind, generated from the census; the kind per table from the rule book.
 // REBUILD-01 PR-2d — a view is redefined by a later migration (the snapshot view over holdings); the law reads each view's newest text.
@@ -11,11 +12,15 @@ import { KIND_VIEWS_HONEST_LINE, KIND_VIEW_CENSUS, STOPPED_TABLES, VIEW_COLUMNS,
 const ROOT = resolve(__dirname, '../../..');
 const allMigrations = () => readdirSync(resolve(ROOT, 'prisma/migrations')).sort()
   .filter((d) => existsSync(resolve(ROOT, 'prisma/migrations', d, 'migration.sql')))
-  .map((d) => ({ dir: d, sql: readFileSync(resolve(ROOT, 'prisma/migrations', d, 'migration.sql'), 'utf8') }));
+  // TEST-TRUTH-01: a migration's SQL is read with its `--` comments stripped, so
+  // a view definition quoted in a comment can never stand in for the real one.
+  // `notes` carries the other half — the generator also EMITS `-- kind: tables`
+  // headers, and those are prose, checked as prose below.
+  .map((d) => ({ dir: d, sql: code(`prisma/migrations/${d}/migration.sql`), notes: comments(`prisma/migrations/${d}/migration.sql`) }));
 const migration = () => {
   const dir = readdirSync(resolve(ROOT, 'prisma/migrations')).find((d) => d.endsWith('_kind_views'));
   assert.ok(dir, 'the kind_views migration exists');
-  return readFileSync(resolve(ROOT, 'prisma/migrations', dir, 'migration.sql'), 'utf8');
+  return rejoin(code(`prisma/migrations/${dir}/migration.sql`), comments(`prisma/migrations/${dir}/migration.sql`));
 };
 
 test('the census: every table once, its kind from the rule book (never typed), and the deck\'s honest line names exactly those tables', () => {
@@ -76,8 +81,21 @@ test('the SQL: one CREATE VIEW per kind in the deck\'s order, the common columns
 
 test('the effective views — each view\'s newest CREATE VIEW across the migrations — are the generator\'s text verbatim, and the law passes over them; the first migration alone no longer is (the snapshot view was redefined by a later one)', () => {
   const all = allMigrations();
-  assert.equal(latestViewsSql(all), kindViewsSql(), 'never typed twice');
-  assert.deepEqual(kindViewsLaw({ throwOnFail: false, migrationSql: latestViewsSql(all) }), []);
+  // TEST-TRUTH-01: this was one byte-for-byte equality against the RAW migration.
+  // The generator emits header comments as well as SQL, so the comparison is made
+  // in two halves that each say what they are — and neither can be satisfied by
+  // the other. Both halves equal ⇒ the old single equality held.
+  const generated = latestViewsSql([{ dir: 'generated', sql: stripComments(kindViewsSql(), 'sql') }]);
+  assert.equal(latestViewsSql(all), generated, 'never typed twice — the SQL the database runs');
+  const wantHeaders = commentsOf(kindViewsSql(), 'sql').split('\n').map((l) => l.trim()).filter(Boolean);
+  const haveHeaders = all.map((m) => m.notes).join('\n');
+  assert.ok(wantHeaders.length >= ARRIVAL_KINDS.length - 1, 'the generator writes a header per view');
+  for (const h of wantHeaders) assert.ok(haveHeaders.includes(h), `the generator's header "${h}" is written in a migration`);
+  // kindViewsLaw compares the WHOLE artefact — headers and all — against the
+  // generator, so it is handed the artefact, rejoined from the two halves this
+  // test already read. An exact equality cannot be satisfied by a comment.
+  const whole = all.map((m) => ({ dir: m.dir, sql: rejoin(m.sql, m.notes) }));
+  assert.deepEqual(kindViewsLaw({ throwOnFail: false, migrationSql: latestViewsSql(whole) }), []);
   const sources = Object.fromEntries(latestViews(all).map((v) => [v.kind, v.dir]));
   assert.ok(sources.event.endsWith('_kind_views'), 'the five untouched views still come from the first migration');
   assert.ok(sources.reference.endsWith('_kind_views'));
