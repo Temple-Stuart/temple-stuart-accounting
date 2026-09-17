@@ -104,7 +104,18 @@ export const THE_SORT: readonly PhaseAssignment[] = [
   // the five pipes that belong whole to one tool
   ...(['01', '02', '03', '04', '05', '06', '07'] as const).map((num): PhaseAssignment => ({ pipe: 'tax', num, owner: 'Tax', rendersSurface: true })),
   ...(['01', '02', '03', '04', '05', '06'] as const).map((num): PhaseAssignment => ({ pipe: 'compliance', num, owner: 'Compliance', rendersSurface: true })),
-  ...(['01', '02', '03', '04'] as const).map((num): PhaseAssignment => ({ pipe: 'routines', num, owner: 'Calendar', rendersSurface: true })),
+  // PLAN-01 (2026-09-17): routines were CALENDAR's. Tasks owns them now, beside
+  // the projects pipe — the two are one act of planning: a routine is a
+  // recurring commitment that generates recurring spend (operations_routines
+  // carries a per-occurrence budget_amount + COA, HB-4a), a project is a body of
+  // work whose tasks generate spend (operations_project_tasks carries
+  // estimated_cost_usd, actual_cost_usd and coa_code). The calendar authors
+  // nothing: everything in the app logs TO it.
+  //
+  // THIS LINE IS THE ONE PLACE PIPE OWNERSHIP IS DECLARED. The registry's per-tool
+  // `phases` are DERIVED from it (nav.ts:201 `phases: phasesOf(tool.name, sort)`),
+  // so there is no second list to keep in step — see the PR body's STEP 1.
+  ...(['01', '02', '03', '04'] as const).map((num): PhaseAssignment => ({ pipe: 'routines', num, owner: 'Tasks', rendersSurface: true })),
   ...(['01', '02', '03', '04', '05', '06'] as const).map((num): PhaseAssignment => ({ pipe: 'projects', num, owner: 'Tasks', rendersSurface: true })),
   ...(['01', '02', '03', '04'] as const).map((num): PhaseAssignment => ({ pipe: 'content', num, owner: 'Time', rendersSurface: true })),
 ];
@@ -259,8 +270,7 @@ export function navToolsOfScreen(href: string, gate: Readonly<Record<string, str
  */
 export const PHASES_RENDERED_AT: Readonly<Record<string, readonly PipePillarId[]>> = {
   '/books': ['books'],           // BooksPipeline.tsx:328
-  '/calendar': ['routines'],     // SectionE_Routines.tsx:47
-  '/tasks': ['projects'],        // TruthMachineView.tsx:376, per project row
+  '/tasks': ['projects', 'routines'], // PLAN-01: projects per project row (TruthMachineView.tsx:376) + routines page-level (SectionE_Routines.tsx:47)
   '/time': ['content'],          // ContentPipeline.tsx:371
   '/travel': ['travel'],         // ModuleLauncher.tsx:758 — /travel IS the cockpit tab
   '/tax': ['tax'],               // TaxFilingWizard.tsx, through TaxHandoffGate
@@ -270,6 +280,12 @@ export const PHASES_RENDERED_AT: Readonly<Record<string, readonly PipePillarId[]
   '/brokerage': ['trade'],  // TRADE-SPLIT: Brokerage draws trade 01-03 as its own strip (src/app/brokerage/page.tsx)
   '/trade-log': ['trade'],  // TRADE-SPLIT: Trade Log draws trade 04-06 as its own strip (src/app/trade-log/page.tsx)
   '/compliance': [], // Compliance owns compliance 01-06; ComplianceWorkbench is the cockpit's tab, not this page
+  // PLAN-01: the calendar authors NOTHING. It was ['routines'] until the routine
+  // builder moved to /tasks; the grid and the day view are reads over three feeds
+  // this tool does not own, so this page draws no strip at all. No law requires a
+  // tool's page to draw a pipe — tool law 2 iterates the pipes a page DRAWS, and
+  // the opener law only asks that the declaration match the code.
+  '/calendar': [],
 };
 
 /** The phases a tool owns THAT THIS ROUTE DRAWS — what an opener may honestly list. */

@@ -1131,6 +1131,70 @@ for (const [route, tools] of screenTools) {
   }
 }
 
+// ── TOOL-LAW-01 · AMENDMENT (PLAN-01, 2026-09-17) ───────────────────────────
+// WHAT IT PERMITS. A page may draw MORE THAN ONE pipe — but only when THE SORT
+// (src/lib/nav.ts:118-119, the one place pipe ownership is declared) names that
+// page's tool as the owner of every pipe it draws, and only when each strip is
+// LABELLED with its pipe's name so a reader knows which body of work it belongs
+// to. /tasks is the first: PLAN-01 gave Tasks the routines pipe beside the
+// projects pipe, because a routine and a project are one act of planning — a
+// recurring commitment that generates recurring spend, and a body of work whose
+// tasks generate spend. The calendar authors nothing; everything logs to it.
+//
+// WHAT IT STILL FORBIDS, unchanged:
+//   · a FOREIGN pipe — a page drawing a pipe its tool does not own still fails
+//     (rule 2 above, which this amendment does not relax by one line);
+//   · a page serving two TOOLS (rule 1, grandfather list closed and empty);
+//   · an invented phase list rendered as a strip (rule 4);
+//   · UNLABELLED multi-pipe — two strips on one page with nothing saying which
+//     is which is exactly the "grouping layer" TOOL-LAW-01 deleted /operations
+//     for. Drawing two pipes is a privilege that costs a label.
+//
+// WHY NO SECOND AMENDMENT WAS NEEDED FOR /calendar (the STEP 0.1 answer). No
+// rule REQUIRES a tool's page to draw a pipe: rule 2 iterates the pipes a page
+// DRAWS (empty ⇒ the loop body never runs), rule 4 iterates files CONTAINING a
+// StageStrip, and the opener law only asks that PHASES_RENDERED_AT match the
+// code. /calendar drawing nothing is legal and is declared as [].
+const MULTI_PIPE_MIN = 2;
+for (const [route, tools] of screenTools) {
+  const page = pages.find((p) => p.route === route);
+  if (!page) continue;
+  const pipesDrawn = new Set<string>();
+  const seenMp = new Set<string>();
+  const stackMp = [page.file];
+  while (stackMp.length) {
+    const f = stackMp.pop()!;
+    if (seenMp.has(f)) continue;
+    seenMp.add(f);
+    const body = existsSync(resolve(ROOT, f)) ? readFileSync(resolve(ROOT, f), 'utf8') : '';
+    if (body.includes('<StageStrip')) for (const m of body.matchAll(/PIPE_PHASES\.([a-z]+)/g)) pipesDrawn.add(m[1]);
+    for (const next of importsFor(f)) stackMp.push(next);
+  }
+  // EVERY pipe drawn here is owned by THIS page's tool — the amendment's
+  // condition, stated over the whole page rather than phase by phase.
+  for (const pipe of pipesDrawn) {
+    const owners = [...new Set(THE_SORT.filter((x) => x.pipe === pipe).map((x) => x.owner))];
+    if (!owners.some((o) => tools.includes(o))) {
+      toolViolations += 1;
+      violations.push(`tool law 2 (PLAN-01 amendment): ${route} (${tools.join(' + ')}) draws the ${pipe} pipe, which THE SORT gives to ${owners.join(' / ')} — a page may draw a second pipe only when its tool owns it (TOOL-LAW-01)`);
+    }
+  }
+  // A page drawing two or more pipes must LABEL each one.
+  if (pipesDrawn.size >= MULTI_PIPE_MIN) {
+    const pageBody = readFileSync(resolve(ROOT, page.file), 'utf8');
+    for (const pipe of pipesDrawn) {
+      if (!new RegExp(`data-pipe-label="${pipe}"`).test(pageBody)) {
+        toolViolations += 1;
+        violations.push(`tool law 2 (PLAN-01 amendment): ${route} draws ${pipesDrawn.size} pipes and does not label the ${pipe} strip — two strips on one page with nothing saying which is which is the grouping layer TOOL-LAW-01 deleted /operations for (TOOL-LAW-01)`);
+      }
+    }
+    if (!pageBody.includes('PIPE_LABEL')) {
+      toolViolations += 1;
+      violations.push(`tool law 2 (PLAN-01 amendment): ${route} labels its strips with typed text rather than PIPE_LABEL from src/lib/pipePhases.ts — a pipe's name comes from the pipe (TOOL-LAW-01)`);
+    }
+  }
+}
+
 // 5. the merged grid mounts in exactly ONE place: Calendar's page
 const calendarPage = pages.find((p) => p.route === CALENDAR_HOME);
 for (const p of pages) {
@@ -2236,6 +2300,10 @@ for (const p of pages) {
 
 // The two duplicates of the deleted room point at their owners, not at a survivor.
 const ORPHAN_REPOINTED: ReadonlyArray<{ file: string; gone: string; home: string }> = [
+  // PLAN-01 (2026-09-17): the routine BUILDER moved to /tasks, but this href is
+  // an OCCURRENCE TILE on the grid — a routine's occurrence lives on the
+  // calendar, so a click on one stays there. The two legacy /routines URLs (the
+  // authoring surface) were repointed at /tasks instead; see those pages.
   { file: 'src/lib/hub/mapOperationsRoutines.ts', gone: '/operations/routines', home: '/calendar' },
   { file: 'src/components/hub/HubEventCard.tsx', gone: '/operations/projects', home: '/tasks' },
 ];

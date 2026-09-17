@@ -180,3 +180,25 @@ export const PIPE_PHASES = {
     { num: '04', name: 'Script', subLabel: 'ANSWERS → REEL VOICEOVER' },
   ],
 } as const satisfies Record<PipePillarId, readonly PipePhase[]>;
+
+/**
+ * PLAN-01 — THE NAME A PIPE WEARS ON A PAGE. Display only: this says what a
+ * strip is CALLED, never who owns it. Ownership is declared once, in
+ * src/lib/nav.ts THE_SORT, and everything else derives from it.
+ *
+ * It exists because /tasks draws TWO pipes (projects and routines, both Tasks'
+ * after PLAN-01), and two unlabelled strips on one page leave a reader guessing
+ * which body of work each belongs to. Every pipe is named so the labelling
+ * cannot be partial.
+ */
+export const PIPE_LABEL = {
+  travel: 'Travel',
+  runway: 'Runway',
+  books: 'Books',
+  trade: 'Trade',
+  tax: 'Tax',
+  compliance: 'Compliance',
+  routines: 'Routines',
+  projects: 'Projects',
+  content: 'Content',
+} as const satisfies Record<PipePillarId, string>;

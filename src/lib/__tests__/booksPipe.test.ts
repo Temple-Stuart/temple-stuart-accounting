@@ -60,9 +60,11 @@ test('the opener lists only the phases its page draws', () => {
     ['trade 01', 'trade 02', 'trade 03']);
   assert.deepEqual(phasesRenderedOn('/trade-log', navToolByName('Trade Log', TOOL_GATE)).map((p) => `${p.pipe} ${p.num}`),
     ['trade 04', 'trade 05', 'trade 06']);
-  // The three tools whose page draws their own pipe still list it, in pipe order.
-  for (const [tool, route, pipe] of [['Calendar', '/calendar', 'routines'], ['Tasks', '/tasks', 'projects'], ['Time', '/time', 'content']] as const) {
-    const listed = phasesRenderedOn(route, navToolByName(tool, TOOL_GATE));
+  // The tools whose page draws their own pipe still list it, in pipe order.
+  // PLAN-01: Calendar is no longer among them — it draws nothing now; Tasks
+  // draws BOTH projects and routines, so it is checked for each.
+  for (const [tool, route, pipe] of [['Tasks', '/tasks', 'projects'], ['Tasks', '/tasks', 'routines'], ['Time', '/time', 'content']] as const) {
+    const listed = phasesRenderedOn(route, navToolByName(tool, TOOL_GATE)).filter((p) => p.pipe === pipe);
     assert.deepEqual(listed.map((p) => p.num), PIPE_PHASES[pipe].map((p) => p.num), `${tool} lists ${pipe} in order`);
   }
 });
@@ -70,7 +72,9 @@ test('the opener lists only the phases its page draws', () => {
 test('what a route declares it draws is what the page\'s strip reads', () => {
   // The declaration is cross-checked at build; here, that it is not empty prose.
   assert.deepEqual(PHASES_RENDERED_AT['/books'], ['books']);
-  assert.deepEqual(PHASES_RENDERED_AT['/calendar'], ['routines']);
+  // PLAN-01: the calendar authors nothing, so it declares — and draws — no pipe.
+  assert.deepEqual(PHASES_RENDERED_AT['/calendar'], []);
+  assert.deepEqual(PHASES_RENDERED_AT['/tasks'], ['projects', 'routines']);
   assert.deepEqual(PHASES_RENDERED_AT['/budget'], []);
   // Every route named is a real tool screen.
   const screens = new Set(navRows(TOOL_GATE).map((t) => t.href).filter(Boolean));

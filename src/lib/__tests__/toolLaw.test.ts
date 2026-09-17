@@ -33,7 +33,7 @@ test('each page renders its own pipe, in the pipe\'s own order', () => {
   assert.match(src('src/components/workbench/operations/projects/ProjectRow.tsx'), /pipelineMode/);
   // Time → content, a PAGE-LEVEL strip inside ContentPipeline.
   assert.match(code('src/components/workbench/operations/content/ContentPipeline.tsx'), /PIPE_PHASES\.content/);
-  // Calendar → routines, a page-level strip inside SectionE_Routines.
+  // PLAN-01: Tasks → routines too, the same page-level strip inside SectionE_Routines.
   assert.match(code('src/components/workbench/operations/SectionE_Routines.tsx'), /PIPE_PHASES\.routines/);
   // The order is the pipe's, never retyped.
   assert.deepEqual(PIPE_PHASES.projects.map((p) => p.num), ['01', '02', '03', '04', '05', '06']);
@@ -45,16 +45,17 @@ test('the phases each page renders belong to that page\'s tool', () => {
   const owners = (pipe: string) => [...new Set(THE_SORT.filter((a) => a.pipe === pipe).map((a) => a.owner))];
   assert.deepEqual(owners('projects'), ['Tasks']);
   assert.deepEqual(owners('content'), ['Time']);
-  assert.deepEqual(owners('routines'), ['Calendar']);
+  // PLAN-01: Tasks owns BOTH planning pipes now.
+  assert.deepEqual(owners('routines'), ['Tasks']);
 });
 
 test('every redirect resolves to the tool that owns the work', () => {
   const want: Record<string, string> = {
     'src/app/projects/page.tsx': '/tasks',
-    'src/app/routines/page.tsx': '/calendar',
+    'src/app/routines/page.tsx': '/tasks',
     'src/app/content/page.tsx': '/time',
     'src/app/operations/projects/page.tsx': '/tasks',
-    'src/app/operations/routines/page.tsx': '/calendar',
+    'src/app/operations/routines/page.tsx': '/tasks',
     'src/app/operations/content/page.tsx': '/time',
   };
   for (const [f, target] of Object.entries(want)) {
@@ -73,8 +74,14 @@ test('/tasks and /time each render exactly one opener, and only /calendar holds 
   for (const f of ['src/app/tasks/page.tsx', 'src/app/time/page.tsx']) {
     assert.ok(!code(f).includes('HubCalendar'), `${f} does not mount the merged grid`);
   }
-  // Calendar's own writing surface came with it.
-  assert.match(code('src/app/calendar/page.tsx'), /<SectionE_Routines \/>/);
+  // PLAN-01: the routine builder moved to Tasks. The calendar authors NOTHING
+  // now — no routine surface, no strip — and Tasks holds it instead.
+  assert.equal(code('src/app/calendar/page.tsx').includes('SectionE_Routines'), false);
+  assert.match(code('src/app/tasks/page.tsx'), /<SectionE_Routines \/>/);
+  // EVENT-01's form STAYS on the calendar: it writes a calendar_event, this
+  // tool's OWN row, not another tool's object.
+  assert.match(code('src/app/calendar/page.tsx'), /<HubCalendar \/>/);
+  assert.match(code('src/components/hub/HubCalendar.tsx'), /<AddEventForm/);
 });
 
 test('the grandfather lists are closed, dated and shrink-only — and CLAUDE.md says so', () => {
