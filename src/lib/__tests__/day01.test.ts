@@ -182,8 +182,11 @@ test('the day\'s tasks are read from daily_plans, and the two totals are stated 
   // …and it is on the manual-event route, not on daily_plans.
   assert.match(view, /fetch\(`\/api\/calendar\/events\?id=\$\{encodeURIComponent\(id\)\}`, \{ method: 'DELETE' \}\)/);
   assert.equal(/daily-plan[^)]*method:/.test(view), false, 'daily_plans is read, never written — Tasks owns it');
-  // And the two totals are never merged into one number.
-  assert.match(view, /data-day-total/);
+  // And the parts are never merged into one unlabelled number. ROUTINE-01:
+  // there are three named parts now — events, routines, tasks — and the day's
+  // sum says which of them it added.
+  assert.match(view, /data-day-total-part/);
+  assert.match(view, /data-day-total\b/);
   assert.match(view, /data-day-task-total/);
 });
 
@@ -237,10 +240,15 @@ test('a day opens whole from the grid, and no total renders without its coverage
   assert.equal(t.covered, 1);
   assert.equal(t.of, 2);
   assert.match(coverageLine(t), /\d+ of \d+/);
-  // and the day view prints the line, never a bare figure.
+  // …and the day view prints the line, never a bare figure. ROUTINE-01 made
+  // this stricter: every total also NAMES its part, so the figures go through
+  // partLine/dayTotalLine, which are coverageLine with the part's label on it.
   const view = code(DAY_VIEW);
-  assert.match(view, /\{coverageLine\(eventsTotal\)\}/);
-  assert.match(view, /coverageLine\(taskTotal, 'task', 'costed'\)/);
+  assert.match(view, /\{partLine\(part\)\}/);
+  assert.match(view, /\{dayTotalLine\(totals\)\}/);
+  assert.match(view, /dayParts\(rows, tasks\)/);
+  // No bare figure, and no second summation that could disagree with the parts.
+  assert.equal(/expectedTotal\(/.test(view), false);
 });
 
 test('a multi-day stay is on every day it spans — and shows only the times that apply to THAT day', () => {

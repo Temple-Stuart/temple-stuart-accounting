@@ -21,7 +21,8 @@
 
 import { useEffect, useState } from 'react';
 import {
-  buildDay, expectedTotal, coverageLine, mapSplit, projectPins, readTasks, tasksTotal,
+  buildDay, mapSplit, projectPins, readTasks,
+  dayParts, partLine, dayTotalLine,
   type DayEventInput, type DayRow, type DayTask,
 } from '@/lib/calendar/day';
 import { ACTUALS_JOIN_SOUND, ACTUALS_NOT_JOINABLE_LINE } from '@/lib/calendar/actuals';
@@ -97,7 +98,6 @@ function DayMap({ pinned }: { pinned: readonly DayRow[] }) {
 
 export default function DayView({ dateKey, events, sourceIcon = {}, onCorrect, onDeleted, onClose }: DayViewProps) {
   const rows = buildDay(events, dateKey);
-  const eventsTotal = expectedTotal(rows);
   const { pinned, unplaced } = mapSplit(rows);
 
   const [plan, setPlan] = useState<PlanResponse | null>(null);
@@ -132,7 +132,10 @@ export default function DayView({ dateKey, events, sourceIcon = {}, onCorrect, o
   }, [dateKey]);
 
   const tasks: DayTask[] = readTasks(plan?.plan?.tasks);
-  const taskTotal = tasksTotal(tasks);
+  // ROUTINE-01: the day's total, split into the parts it is actually made of.
+  // ONE summation: dayParts sums each part once and adds the parts for the
+  // grand total, so the sum and its parts cannot disagree.
+  const totals = dayParts(rows, tasks);
 
   const pinIndex = new Map(pinned.map((r, i) => [r.id, i + 1]));
 
@@ -239,11 +242,22 @@ export default function DayView({ dateKey, events, sourceIcon = {}, onCorrect, o
                 })}
               </tbody>
               <tfoot>
+                {/* ROUTINE-01: every part is NAMED, each with the coverage that
+                    earned it, and the day's sum says which parts it added. A
+                    part with nothing in it is omitted, never shown as $0. */}
+                {totals.parts.map((part) => (
+                  <tr key={part.key} className="border-t border-border">
+                    <td colSpan={3} className="px-2 py-1.5 font-mono text-[10px] uppercase tracking-wider text-text-faint">{part.label}</td>
+                    <td colSpan={3} className="px-2 py-1.5 text-right font-mono text-xs" data-day-total-part={part.key}>
+                      {/* A total NEVER ships without its coverage — a build law. */}
+                      {partLine(part)}
+                    </td>
+                  </tr>
+                ))}
                 <tr className="border-t-2 border-border">
-                  <td colSpan={3} className="px-2 py-2 font-mono text-[10px] uppercase tracking-wider text-text-faint">Events</td>
+                  <td colSpan={3} className="px-2 py-2 font-mono text-[10px] uppercase tracking-wider text-text-faint">The day</td>
                   <td colSpan={3} className="px-2 py-2 text-right font-mono text-xs font-semibold" data-day-total>
-                    {/* A total NEVER ships without its coverage — a build law. */}
-                    {coverageLine(eventsTotal)}
+                    {dayTotalLine(totals)}
                   </td>
                 </tr>
               </tfoot>
@@ -303,9 +317,15 @@ export default function DayView({ dateKey, events, sourceIcon = {}, onCorrect, o
                       </li>
                     ))}
                   </ul>
-                  {/* The two totals are stated SEPARATELY — never one merged figure. */}
+                  {/* ROUTINE-01: the tasks' figure is one of the day's NAMED
+                      parts now, summed once in dayParts and shown in the footer
+                      above beside Events and Routines. Repeating it here would
+                      be a second summation, so this states where it is. */}
                   <div className="mt-2 font-mono text-[11px] text-text-muted" data-day-task-total>
-                    Tasks: {coverageLine(taskTotal, 'task', 'costed')}
+                    {(() => {
+                      const part = totals.parts.find((p) => p.key === 'tasks');
+                      return part ? partLine(part) : 'Tasks: no task on this day carries a cost';
+                    })()}
                   </div>
                 </>
               ) : (
