@@ -90,6 +90,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { readdirSync, statSync } from 'node:fs';
 import { code as codeOf, comments as commentsOf, rejoin } from '../src/lib/sourceText';
+import { CHAIN_STATES, KIND_FACTS, EVENT_SOURCE_OWNER, buildChain } from '../src/lib/calendar/chain';
 import { PROBLEM_SHEET } from '../src/lib/problemSheet';
 import { EXPECTED_STATUS_COUNTS, FAMILY_READS, TOOL_REGISTRY, registryLaw, statusCounts } from '../src/lib/toolRegistry';
 import { HOME_ANSWER, HOME_OWNER, HOME_PHASES, PHASES_RENDERED_AT, THE_SORT, navFamilies, navLaw, navRows } from '../src/lib/nav';
@@ -2328,6 +2329,58 @@ for (const r of ORPHAN_REPOINTED) {
 }
 
 if (orphanViolations === 0) console.log(`✔ The orphan law passed — ${pages.length} pages, every one accounted for by the registry: ${orphanCounts.home} home-or-beneath, ${orphanCounts.link} registry-linked, ${orphanCounts.redirect} dated redirect(s), ${orphanCounts.guest} listed guest route(s), ${orphanCounts.shell} shell-doored, ${orphanCounts.exception} named exception(s) (closed, shrink-only, each naming the ruling that resolves it); the deleted room's two duplicate hops now point at ${ORPHAN_REPOINTED.map((r) => r.home).join(' and ')}.`);
+
+// ── THE DRILL LAW (DRILL-01, 2026-09-17) ────────────────────────────────────
+// THE PANEL SHOWS A CHAIN STATE FROM THE NAMED SET AND NO OTHER, AND NO AMOUNT
+// IS RENDERED WITHOUT SAYING WHERE IT CAME FROM.
+//
+// Clicking a row on the day says what was budgeted and what actually hit Books.
+// The objects know different parts of that chain, so the temptation is to fill
+// the gap — to match an event to a posting by date and code, or to print $0 for
+// an unknown. DAY-01 ruled that join unsound for four independent reasons and
+// this law keeps the ruling: the panel may render PLANNED, PLANNED AND SETTLED
+// or NOT LINKED, each from src/lib/calendar/chain.ts, and nothing else.
+const DRILL_PANEL = 'src/components/hub/EventDetailPanel.tsx';
+const DRILL_DAYVIEW = 'src/components/hub/DayView.tsx';
+let drillViolations = 0;
+const drillFail = (m: string) => { drillViolations += 1; violations.push(`drill law: ${m} (DRILL-01)`); };
+const drillPanel = codeOf(DRILL_PANEL);
+
+// 1. The state on the screen is the LEAF'S state, not a string typed here.
+if (!/data-drill-chain-state=\{row\.chain\.state\}/.test(drillPanel)) drillFail(`${DRILL_PANEL} does not render the state from the chain leaf`);
+if (!/row\.chain\.label/.test(drillPanel)) drillFail(`${DRILL_PANEL} does not render the leaf's label`);
+// 2. Its per-state styling map may name the three states and NO fourth.
+const styleKeys = [...(/const STATE_CLASS[^=]*= \{([\s\S]*?)\};/.exec(drillPanel)?.[1] ?? '').matchAll(/^\s*([A-Z_]+):/gm)].map((m) => m[1]);
+for (const k of styleKeys) if (!(CHAIN_STATES as readonly string[]).includes(k)) drillFail(`${DRILL_PANEL} styles a state "${k}" that is not one of ${CHAIN_STATES.join(' · ')}`);
+for (const st of CHAIN_STATES) if (!styleKeys.includes(st)) drillFail(`${DRILL_PANEL} does not style ${st}`);
+// 3. An actual is never printed without its source label beside it.
+if (!/ACTUAL_SOURCE_LABEL\[row\.actualSource\]/.test(drillPanel)) drillFail(`${DRILL_PANEL} renders an actual with no source label — a hand-typed number and a posted one must never look alike`);
+// 4. It reads no route and writes nothing.
+if (/\bfetch\s*\(/.test(drillPanel)) drillFail(`${DRILL_PANEL} reaches a route — the panel renders what it is handed`);
+if (/method:\s*'(POST|PATCH|PUT|DELETE)'/.test(drillPanel)) drillFail(`${DRILL_PANEL} writes`);
+// 5. Its door comes from the registry, never a typed href.
+if (!/navToolByName\(row\.owner, TOOL_GATE\)/.test(drillPanel)) drillFail(`${DRILL_PANEL} does not resolve its owner door from the registry`);
+// 6. Every row on the day opens it — a row that did nothing was a promise unkept.
+const drillDay = codeOf(DRILL_DAYVIEW);
+// The ROW'S OWN click must open it — a keyboard handler alone is not a click,
+// and a stub that swallows the click is exactly the inert row this law forbids.
+if (!/onClick:\s*\(\)\s*=>\s*onRowOpen\(r\.id\)/.test(drillDay)) drillFail(`${DRILL_DAYVIEW} has a row whose click opens nothing`);
+if (!/onKeyDown[\s\S]{0,160}onRowOpen\(r\.id\)/.test(drillDay)) drillFail(`${DRILL_DAYVIEW}'s row cannot be opened from the keyboard`);
+for (const btn of ['data-correct-event', 'data-delete-event']) {
+  if (!new RegExp(`${btn}[\\s\\S]{0,140}stopPropagation\\(\\)`).test(drillDay)) drillFail(`${DRILL_DAYVIEW}'s ${btn} would also open the drill — it must stop the row's click`);
+}
+// 7. Every owner the census names has a door in the registry.
+const drillOwners = new Set<string>([...Object.values(EVENT_SOURCE_OWNER), ...KIND_FACTS.map((f) => f.owner).filter((o) => o !== 'by source')]);
+for (const name of drillOwners) {
+  const tool = navRows(TOOL_GATE).find((t) => t.name === name);
+  if (!tool?.href) drillFail(`the census sends a row to "${name}", which has no door`);
+}
+// 8. Nothing claims a link to a posted transaction, because nothing has one.
+for (const f of KIND_FACTS) if (f.postedLink !== null) drillFail(`${f.kind} claims a posted link — DAY-01's verdict stands until a ruling overturns it`);
+// 9. The leaf refuses an unlabelled amount, here, at build time.
+try { buildChain({ kind: 'project_task', planned: 1, actual: 1 }); drillFail('the chain leaf accepted an actual with no source'); } catch { /* the throw is the law working */ }
+if (drillViolations === 0) console.log(`✔ The drill law passed — ${CHAIN_STATES.length} chain states and no fourth; every amount names its source; ${drillOwners.size} owner door(s) resolve; 0 claimed links to a posting.`);
+else console.log(`✖ The drill law FAILED — ${drillViolations} violation(s).`);
 
 // ── THE READER LAW (TEST-TRUTH-01, 2026-09-17) ──────────────────────────────
 // NO TEST AND NO LAW MAY READ A SOURCE FILE RAW.

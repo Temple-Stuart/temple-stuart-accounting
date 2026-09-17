@@ -45,6 +45,12 @@ export interface DayViewProps {
   onCorrect?: (event: EditableEvent) => void;
   /** Called after a hand-entered event is deleted, so the calendar reloads. */
   onDeleted?: () => void;
+  /**
+   * DRILL-01: open the drill panel for this row. Every row on the day is
+   * clickable — a row that did nothing was a promise the day view did not keep.
+   * Absent means the day view is a plain read (the leaf's own tests mount it so).
+   */
+  onRowOpen?: (id: string) => void;
   onClose: () => void;
 }
 
@@ -96,7 +102,7 @@ function DayMap({ pinned }: { pinned: readonly DayRow[] }) {
   );
 }
 
-export default function DayView({ dateKey, events, sourceIcon = {}, onCorrect, onDeleted, onClose }: DayViewProps) {
+export default function DayView({ dateKey, events, sourceIcon = {}, onCorrect, onDeleted, onRowOpen, onClose }: DayViewProps) {
   const rows = buildDay(events, dateKey);
   const { pinned, unplaced } = mapSplit(rows);
 
@@ -176,7 +182,25 @@ export default function DayView({ dateKey, events, sourceIcon = {}, onCorrect, o
                           </td>
                         </tr>
                       )}
-                      <tr key={r.id} data-day-row data-source={r.source}>
+                      <tr
+                        key={r.id}
+                        data-day-row
+                        data-source={r.source}
+                        /* DRILL-01: the whole row opens the drill. The two action
+                           buttons stop the event, so Correct and Delete still do
+                           their own job. Keyboard reaches it the same way. */
+                        {...(onRowOpen ? {
+                          onClick: () => onRowOpen(r.id),
+                          onKeyDown: (e: React.KeyboardEvent) => {
+                            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onRowOpen(r.id); }
+                          },
+                          tabIndex: 0,
+                          role: 'button',
+                          'aria-label': `Open ${r.title}`,
+                          'data-day-row-opens': '',
+                          className: 'cursor-pointer hover:bg-bg-row',
+                        } : {})}
+                      >
                         <td className="px-2 py-1.5">{r.icon ?? sourceIcon[r.source] ?? ''}</td>
                         <td className="px-2 py-1.5 font-mono text-text-muted whitespace-nowrap" data-day-time>
                           {r.startTime
@@ -212,7 +236,8 @@ export default function DayView({ dateKey, events, sourceIcon = {}, onCorrect, o
                             <>
                               {onCorrect && (
                                 <button type="button" data-correct-event
-                                  onClick={() => {
+                                  onClick={(ev) => {
+                                    ev.stopPropagation();
                                     const e = byId.get(r.id);
                                     setDeleteRefusal(null);
                                     onCorrect({
@@ -231,7 +256,7 @@ export default function DayView({ dateKey, events, sourceIcon = {}, onCorrect, o
                                   }}
                                   className="px-1.5 py-0.5 text-[10px] bg-bg-row text-text-muted hover:bg-border">Correct</button>
                               )}
-                              <button type="button" data-delete-event onClick={() => removeEvent(r.id)}
+                              <button type="button" data-delete-event onClick={(ev) => { ev.stopPropagation(); removeEvent(r.id); }}
                                 className="ml-1 px-1.5 py-0.5 text-[10px] bg-bg-row text-status-danger hover:bg-border">Delete</button>
                             </>
                           )}
