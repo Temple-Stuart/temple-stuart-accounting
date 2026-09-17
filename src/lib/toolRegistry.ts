@@ -97,16 +97,34 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // CAL-01: the calendar is THE CALENDAR. Its home was /agenda — a recurring-spend
   // planner (cadence + coa_code + budget_amount, committing a `budgets` row) that
   // is Budget's work and is Budget's now. The merged grid had no room of its own;
-  // it has one at /calendar. The four beats are the ROUTINES pipe, which is what
-  // NAV-25's sort gives this tool: define, schedule, run, prove. The grid itself
-  // is READ-ONLY — three GETs, no write anywhere in it or in EventDetailPanel —
-  // so it carries discover and nothing more, and the citation says which is which.
+  // it has one at /calendar.
+  //
+  // TRUTH-CAL (2026-09-17): this row claimed four beats cited to the ROUTINES
+  // pipe — the routine builder's own routes. PLAN-01 moved that builder to
+  // /tasks, so the row was naming a surface this tool no longer has. The beats
+  // are re-derived from the page as it now stands, and they are NOT one.
+  //
+  // The loop's Calendar cells are about an EVENT, not a routine:
+  // 'open time on the calendar' · 'a draft event' · 'the event is set, invites
+  // go out' · 'event recorded' (src/components/landing/Landing.tsx:810). EVENT-01
+  // put a hand-entered event form on this page and GEO-01 gave it a place, so:
+  //   · discover — the three GETs, the grid itself writing nothing;
+  //   · commit   — an event is created, edited and deleted through this tool's
+  //                OWN row, calendar_events (not another tool's object);
+  //   · record   — the row is read back, badged and counted into the day total.
+  // `decide` is NOT claimed: there is no persisted draft event. The form holds
+  // React state and POSTs on submit — the same standard Trade Log's row applies
+  // ("no persisted draft"). Three beats, not four, and not discover alone.
+  //
+  // It stays PARTIAL: the loop's commit cell ends "invites go out", and no invite
+  // goes out. TRUTH-01b's four-beat `why` requirement does not bind a three-beat
+  // row; the `why` here says what the calendar IS, which is what the sheet prints.
   Calendar: {
-    slug: 'calendar', status: 'PARTIAL', beats: ALL, home: '/calendar',
-    why: 'a read-only grid over three feeds it does not own, beside a routine builder whose occurrences are the only thing on it this tool writes',
+    slug: 'calendar', status: 'PARTIAL', beats: some({ discover: true, commit: true, record: true }), home: '/calendar',
+    why: 'the view every tool logs to — trips, routine occurrences, project blocks and the days you enter by hand, on one grid, with the day\'s total naming each part; an event can be added, edited and deleted here, but nothing holds a draft and no invite goes out',
     links: [],
-    citation: 'discover: src/components/hub/HubCalendar.tsx:128 (/api/calendar) · :141 (/api/operations/daily-plan/items) · :153 (/api/hub/operations-routines) — three GETs, no write · decide/commit/record: src/app/api/operations/routines/route.ts:264 (create) · routines/[id]/route.ts (edit) · routines/[id]/completions/route.ts (record)',
-    note: 'The grid shows only calendar_events with source "trip" (HubCalendar.tsx:132) — the agenda planner\'s own "agenda" rows are written and never read back.',
+    citation: 'discover: src/components/hub/HubCalendar.tsx:165 (/api/calendar) · :181 (/api/operations/daily-plan/items) · :193 (/api/hub/operations-routines) — three GETs, the grid writes nothing · commit: src/components/hub/AddEventForm.tsx:247 → src/app/api/calendar/events/route.ts:75 (POST, INSERT INTO calendar_events) · :105 (PATCH) · :146 (DELETE) · record: src/components/hub/HubCalendar.tsx:172 (the rendered-source filter) · :296 (the grid refetches on save) · src/lib/calendar/sources.ts:78 (manual) · src/components/hub/DayView.tsx:197 (the hand-entered badge) · no decide: no persisted draft event',
+    note: 'Nine calendar_events sources render, each named with its writer and its reason in src/lib/calendar/sources.ts:76-149; "project" and "routines" are named EXCLUDED at :162-171 because they reach the grid already through their own loaders, and admitting them would draw every block twice. DAY-01 deleted the bare source === "trip" filter this note used to describe.',
   },
   Tasks: {
     // TOOL-LAW-01: one tool, one page. /operations was Tasks AND Time on one
@@ -247,9 +265,18 @@ export const TOOL_REGISTRY: readonly ToolEntry[] = PROBLEM_SHEET.flatMap((f) =>
   f.tools.map((name): ToolEntry => ({ name, family: f.header, order: 0, ...FACTS[name] })),
 ).map((t, i) => ({ ...t, order: i + 1 }));
 
-/** The cockpit section a deep link lands on → the tool the family nav should open to. */
+/**
+ * The cockpit section a deep link lands on → the tool the family nav should open to.
+ *
+ * TRUTH-CAL (2026-09-17): `routines` pointed at Calendar. PLAN-01 gave the
+ * routines pipe to Tasks, so a visitor on the cockpit's Routines showcase had the
+ * rail marking a tool that does not own routines — the same untruth as the row
+ * above, in a different place. It points at the owner now. Nothing renders from
+ * this entry today (claimForCockpit('routines') has no caller), so the change
+ * costs nothing and restores the truth.
+ */
 export const COCKPIT_PRIMARY_TOOL: Readonly<Record<string, ToolName>> = {
-  projects: 'Tasks', content: 'Time', travel: 'Travel', calendar: 'Budget', routines: 'Calendar',
+  projects: 'Tasks', content: 'Time', travel: 'Travel', calendar: 'Budget', routines: 'Tasks',
   books: 'Bookkeeping', trade: 'Brokerage', tax: 'Tax', compliance: 'Compliance',
 };
 

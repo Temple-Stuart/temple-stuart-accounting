@@ -63,17 +63,20 @@ test('claim lines come from the registry: "built and running" for LIVE only, "pa
   assert.equal(claimLine(tool('Trade Log')), 'partial — discover · commit · record');
   assert.equal(claimLine(tool('Banking')), 'partial — discover');
   assert.throws(() => claimLine(tool('Payroll')), /Payroll is NOT_BUILT — it cannot be sold/);
-  // TRUTH-01b: a four-beat PARTIAL says why — the registry's note verbatim, never the four beats
-  for (const name of ['Calendar', 'Tasks', 'Time', 'Budget'] as const) {
+  // TRUTH-01b: a four-beat PARTIAL says why — the registry's note verbatim, never the four beats.
+  // TRUTH-CAL: Calendar left this set. PLAN-01 moved the routine builder to /tasks,
+  // so the row no longer claims decide; three beats keep the beats form.
+  for (const name of ['Tasks', 'Time', 'Budget'] as const) {
     const t = tool(name);
     assert.equal(t.status, 'PARTIAL');
     assert.equal(claimLine(t), `partial — ${t.why}`);
     assert.ok(!claimLine(t).includes('discover'), `${name}: the why, not the beats`);
   }
-  assert.equal(claimLine(tool('Calendar')), 'partial — a read-only grid over three feeds it does not own, beside a routine builder whose occurrences are the only thing on it this tool writes');
+  assert.equal(claimLine(tool('Calendar')), 'partial — discover · commit · record');
+  assert.equal(tool('Calendar').status, 'PARTIAL', 'the census did not move with the beats');
   // a four-beat PARTIAL with no why is thrown, not rendered as the beats form
-  assert.throws(() => claimLine({ ...tool('Calendar'), why: undefined }), /Calendar is PARTIAL with four beats and no why/);
-  assert.throws(() => claimLine({ ...tool('Calendar'), why: '  ' }), /Calendar is PARTIAL with four beats and no why/);
+  assert.throws(() => claimLine({ ...tool('Tasks'), why: undefined }), /Tasks is PARTIAL with four beats and no why/);
+  assert.throws(() => claimLine({ ...tool('Tasks'), why: '  ' }), /Tasks is PARTIAL with four beats and no why/);
   // fewer than four beats keeps the beats form even when a why is present
   assert.equal(claimLine({ ...tool('Tax'), why: 'not used' }), 'partial — discover · decide');
   const card = offerCard(books(), {});
