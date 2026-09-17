@@ -252,7 +252,7 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
     // there; remap to 'project' HERE so these land on the renamed Projects layer
     // without touching the shared mapper or /hub (PR-HCR-LAYERS).
     const projectEvents: GridEvent[] = mapOperationsBlocks(operationsItems).map((e) => ({ ...e, source: 'project' }));
-    // mapOperationsRoutines sets href:'/operations/routines'; on the master calendar
+    // mapOperationsRoutines sets href:'/calendar' (ORPHAN-01); on the master calendar
     // we want a routine click to open the detail panel, not navigate away. Drop the
     // href HERE (PR-HCR3.2) so CalendarGrid falls through to onEventClick — same
     // local-remap pattern as the project source above. The shared mapper is untouched,

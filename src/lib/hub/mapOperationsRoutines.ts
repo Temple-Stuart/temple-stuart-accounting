@@ -58,7 +58,11 @@ export interface RoutinesWindowResponse {
 }
 
 const ROUTINES_SOURCE = 'routines';
-const ROUTINES_HREF = '/operations/routines';
+// ORPHAN-01 (2026-09-17): was '/operations/routines'. That page is a redirect to
+// /calendar, so a routine click on /hub took TWO hops to reach the tool that owns
+// it — and the hop pointed at a survivor of the deleted /operations room rather
+// than at Calendar's registered home. One hop, to the owner.
+const ROUTINES_HREF = '/calendar';
 
 /**
  * Convert a UTC ISO instant to YYYY-MM-DD in the given IANA timezone.

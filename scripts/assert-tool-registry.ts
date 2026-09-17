@@ -2104,6 +2104,150 @@ if (dayCode(GEO_LEAF) && /fetch\s*\(/.test(dayCode(GEO_LEAF))) {
 
 if (geoViolations === 0) console.log(`✔ The geo law passed — the calendar's place lookup has ONE call site (${GEO_ROUTE}, one googleFetch), reached only from the form's onClick; no effect, submit, debounce or render spends a call; nothing is auto-selected; the cap is read, reported and refused at with its reset date.`);
 
+// ── ORPHAN-01 — NO PAGE OUTSIDE THE REGISTRY ────────────────────────────────
+// TOOL-LAW-01 deleted /operations as a ROOM-02 invention, and TRADE-SPLIT closed
+// the last grandfather entry — yet pages under src/app/operations/ survived the
+// room's deletion. The tool law could not see them: EVERY one of its checks gates
+// on `screenTools.get(route)`, and `screenTools` is built ONLY from registry rows
+// that carry an href (:1013-1014). Tool law 5 says so out loud —
+// "if (!tools) continue; // not a tool's page". An UNREGISTERED page is therefore
+// never selected, and the law has nothing to say about it.
+//
+// The reachability law walks every page, but it asks a different question: does
+// this page have a DOOR? A survivor with a door passes it honestly. Neither law
+// asked the question this one asks:
+//
+//   IS THIS PAGE ACCOUNTED FOR BY THE REGISTRY?
+//
+// A page is accounted for when it is, in this order:
+//   0. named on ORPHAN_EXCEPTIONS below, with a reason and the ruling that will
+//      resolve it — checked FIRST so a declared survivor is governed by its
+//      entry and cannot drift into passing by some other branch;
+//   1. a registered tool home, or a page beneath one (/compliance/citations);
+//   2. a page a registry entry LINKS to, or beneath one — a tool naming a page
+//      is the registry accounting for it;
+//   3. a dated redirect — one hop to the owner, carrying no UI (the /trading
+//      idiom from TRADE-SPLIT);
+//   4. a listed guest / marketing / flow route (GUEST_ROUTES above, each cited);
+//   5. NAMED on SHELL_PAGES below — a page the shell itself doors (the rail,
+//      the sheet's family reads, the utilities menu, an answer card) that
+//      belongs to no tool. These are legitimate and permanent, so they carry a
+//      cited door and no TODO. They are LISTED rather than waved through: being
+//      doored is not the same as being accounted for, and a blanket "the shell
+//      doors it" branch would swallow the very case this law exists to catch.
+// Anything else fails the build.
+//
+// WHAT THIS LAW CATCHES THAT THE REACHABILITY LAW DOES NOT. Reachability asks
+// "does this page have a door?" and fires at the FIRST gate (:589), so a page
+// with NO door never reaches this law at all. The gap it leaves is a page that
+// HAS a door and belongs to nobody — doored, working, and owned by no tool and
+// no ruling. That is precisely what the /operations survivors were, and it is
+// what this law refuses: every such page is named, on one list or the other.
+interface OrphanException { route: string; why: string; todo: string }
+/**
+ * THE EXCEPTION LIST. Like the tool law's grandfather list it is CLOSED and may
+ * only SHRINK — the build throws if it grows. Each entry names the page, why it
+ * still exists, and the ruling that will resolve it.
+ *
+ * Both entries are the last real pages of the deleted /operations room. They
+ * would pass branch 2 on their own (toolRegistry.ts:120 — Tasks links both), but
+ * ORPHAN-01 names them here deliberately: a survivor should be declared, not
+ * merely tolerated by a branch that happens to cover it.
+ */
+const ORPHAN_EXCEPTIONS: readonly OrphanException[] = [
+  {
+    route: '/operations/audit-log',
+    why: 'the operations-filtered hash-chained audit tail (SectionK_AuditTail) — real, working content, and the source phase 06 read before the room was deleted. Tasks links it (src/lib/toolRegistry.ts:120) and src/lib/__tests__/nav.test.ts:110 already records that ownership.',
+    todo: 'ORPHAN-02 decides whether it earns a home of its own, moves under /tasks, or belongs to Compliance beside /compliance/audit-log.',
+  },
+  {
+    route: '/operations/issues',
+    why: 'an UNBUILT PlaceholderCard ("ISSUE LOG", PR-Ops-6) — it renders no tool and holds no state. Tasks links it (src/lib/toolRegistry.ts:120).',
+    todo: 'ORPHAN-02 decides whether the issue log is built under a tool or the page is deleted; a placeholder is not a tool.',
+  },
+] as const;
+const ORPHAN_EXCEPTIONS_SET_ON = '2026-09-17';
+const ORPHAN_EXCEPTIONS_MAX = 2; // shrink-only, exactly as MULTI_TOOL_ALLOWED is
+
+let orphanViolations = 0;
+const orphanFail = (msg: string) => { orphanViolations += 1; violations.push(`orphan law: ${msg} (ORPHAN-01)`); };
+
+if (ORPHAN_EXCEPTIONS.length > ORPHAN_EXCEPTIONS_MAX) {
+  orphanFail(`the exception list grew to ${ORPHAN_EXCEPTIONS.length} (set ${ORPHAN_EXCEPTIONS_SET_ON} at ${ORPHAN_EXCEPTIONS_MAX}) — it may only shrink, like the tool law's grandfather list`);
+}
+for (const e of ORPHAN_EXCEPTIONS) {
+  if (!e.why) orphanFail(`${e.route} is excepted with no reason`);
+  if (!e.todo) orphanFail(`${e.route} is excepted with no ruling named to resolve it — an exception without an end is a permanent one`);
+  if (!pages.some((p) => p.route === e.route)) orphanFail(`${e.route} is on the exception list but no such page exists — the list may only shrink, so remove it`);
+}
+
+/**
+ * Pages the SHELL doors that are no tool's — the app map's own. Each names the
+ * door that opens it, verified below against the reachability law's `reach` map
+ * so a listing cannot claim a door the shell does not actually provide.
+ * Permanent and legitimate: no TODO, and this list MAY grow when the shell
+ * genuinely gains a page. ORPHAN_EXCEPTIONS is the one that may only shrink.
+ */
+const SHELL_PAGES: ReadonlyArray<{ route: string; door: string }> = [
+  { route: '/home', door: 'rail — Home, the rail\'s first entry' },
+  { route: '/owner', door: 'utilities menu — Owner · proposals inbox (src/lib/shellMenu.ts OWNER_UTILITIES)' },
+  { route: '/developer', door: 'utilities menu — Developer console' },
+  { route: '/data-observatory', door: 'utilities menu — Data observatory' },
+  { route: '/income', door: 'sheet — MONEY IN · read "Income · a read" (nav.ts FAMILY_READS)' },
+  { route: '/net-worth', door: 'sheet — WHAT YOU OWN · read "Net worth · a read"' },
+];
+const SHELL_DOOR_KINDS = ['rail', 'sheet', 'utilities menu', 'answers'];
+
+// A SHELL_PAGES entry must name a page that exists and that the shell REALLY
+// doors — a listing cannot invent a door the app map does not provide.
+for (const sp of SHELL_PAGES) {
+  const page = pages.find((p) => p.route === sp.route);
+  if (!page) { orphanFail(`${sp.route} is on SHELL_PAGES but no such page exists`); continue; }
+  const d = reach.get(sp.route);
+  if (!d || !SHELL_DOOR_KINDS.includes(d.kind)) {
+    orphanFail(`${sp.route} is on SHELL_PAGES claiming "${sp.door}", but the shell doors it ${d ? `as a ${d.kind}` : 'nowhere'} — the list may not invent a door`);
+  }
+  if (!sp.door) orphanFail(`${sp.route} is on SHELL_PAGES with no door cited`);
+}
+
+// The registry's own anchors: every home, and every page a tool LINKS to.
+const orphanHomes = TOOL_REGISTRY.map((t) => t.home).filter((h): h is string => !!h);
+const orphanLinks = TOOL_REGISTRY.flatMap((t) => (t.links ?? []).map((l) => l.href)).filter((h): h is string => !!h);
+/** A page whose whole body is one hop to another route. */
+const isDatedRedirect = (file: string): boolean => {
+  const body = existsSync(resolve(ROOT, file)) ? readFileSync(resolve(ROOT, file), 'utf8') : '';
+  return /redirect\(['"`]\//.test(body);
+};
+
+const orphanCounts = { exception: 0, home: 0, link: 0, redirect: 0, guest: 0, shell: 0 };
+for (const p of pages) {
+  if (ORPHAN_EXCEPTIONS.some((e) => e.route === p.route)) { orphanCounts.exception += 1; continue; }
+  if (orphanHomes.some((h) => doorCovers(h, p.route))) { orphanCounts.home += 1; continue; }
+  if (orphanLinks.some((l) => doorCovers(l, p.route))) { orphanCounts.link += 1; continue; }
+  if (isDatedRedirect(p.file)) { orphanCounts.redirect += 1; continue; }
+  if (GUEST_ROUTES.some((g) => doorCovers(g.route, p.route))) { orphanCounts.guest += 1; continue; }
+  if (SHELL_PAGES.some((sp) => sp.route === p.route)) { orphanCounts.shell += 1; continue; }
+  const shellDoor = reach.get(p.route);
+  const doored = shellDoor && SHELL_DOOR_KINDS.includes(shellDoor.kind)
+    ? ` The shell does door it (${shellDoor.kind}: ${shellDoor.via}) — if it is the app map's own page, name it on SHELL_PAGES with that door.`
+    : '';
+  orphanFail(`${p.route} (${p.file}) is outside the registry — it is no tool's home, no tool links it, it is not a redirect and it is not a listed guest route, and it is on neither SHELL_PAGES nor ORPHAN_EXCEPTIONS.${doored} Give it a home, redirect it to its owner, or name it with its reason`);
+}
+
+// The two duplicates of the deleted room point at their owners, not at a survivor.
+const ORPHAN_REPOINTED: ReadonlyArray<{ file: string; gone: string; home: string }> = [
+  { file: 'src/lib/hub/mapOperationsRoutines.ts', gone: '/operations/routines', home: '/calendar' },
+  { file: 'src/components/hub/HubEventCard.tsx', gone: '/operations/projects', home: '/tasks' },
+];
+for (const r of ORPHAN_REPOINTED) {
+  const body = dayCode(r.file);
+  if (!body) { orphanFail(`${r.file} is missing`); continue; }
+  if (body.includes(`'${r.gone}'`)) orphanFail(`${r.file} still sends a click to ${r.gone} — that page is a redirect, so the click takes two hops to reach ${r.home}, which owns it`);
+  if (!body.includes(`'${r.home}'`)) orphanFail(`${r.file} no longer points at ${r.home} — the owner's home is where the click goes`);
+}
+
+if (orphanViolations === 0) console.log(`✔ The orphan law passed — ${pages.length} pages, every one accounted for by the registry: ${orphanCounts.home} home-or-beneath, ${orphanCounts.link} registry-linked, ${orphanCounts.redirect} dated redirect(s), ${orphanCounts.guest} listed guest route(s), ${orphanCounts.shell} shell-doored, ${orphanCounts.exception} named exception(s) (closed, shrink-only, each naming the ruling that resolves it); the deleted room's two duplicate hops now point at ${ORPHAN_REPOINTED.map((r) => r.home).join(' and ')}.`);
+
 // ── THE SECOND GATE ─────────────────────────────────────────────────────────
 // Every law below the first gate — kind views, arrivals, the rule book,
 // posting, env, the observatory, the offer — pushes onto `violations`. Without

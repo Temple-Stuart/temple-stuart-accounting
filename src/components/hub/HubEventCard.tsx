@@ -465,7 +465,10 @@ export default function HubEventCard({ item, block, onClose, onUpdated }: Props)
           </button>
           <button
             type="button"
-            onClick={() => router.push('/operations/projects')}
+            /* ORPHAN-01 (2026-09-17): was '/operations/projects', a redirect to
+               /tasks — two hops into a survivor of the deleted room. Tasks is
+               the registered home of the projects pipe; go straight there. */
+            onClick={() => router.push('/tasks')}
             className="px-3 py-1.5 text-xs font-mono border border-border rounded hover:bg-white text-text-primary"
           >
             Open in Projects →
