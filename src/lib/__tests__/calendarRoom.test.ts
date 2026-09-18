@@ -17,7 +17,10 @@ test('/calendar mounts the SAME grid, bare — nothing only ModuleLauncher could
   const page = code('src/app/calendar/page.tsx');
   assert.match(page, /<HubCalendar \/>/, 'the same component, mounted with no props');
   assert.match(page, /<AppLayout page>/, 'it wears the one shell');
-  assert.match(page, /navToolByName\('Calendar'/, 'its opener names the tool from the registry');
+  // CAL-OPEN-01: no opener — the page names no tool and explains nothing; the
+  // registry names it on the rail and the sheet.
+  assert.doesNotMatch(page, /navToolByName\('Calendar'/, 'no opener names the tool here');
+  assert.doesNotMatch(page, /<ToolOpener/, 'no opener at all');
   // TOOL-LAW-01: the room's mount went with the room. The cockpit's runway tab
   // is the only other mount, and it passes nothing either.
   assert.match(code('src/components/home/ModuleLauncher.tsx'), /<HubCalendar \/>/, 'the cockpit mounts it bare too');

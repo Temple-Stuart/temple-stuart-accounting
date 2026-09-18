@@ -67,10 +67,13 @@ test('every redirect resolves to the tool that owns the work', () => {
   }
 });
 
-test('/tasks and /time each render exactly one opener, and only /calendar holds the merged grid', () => {
-  for (const f of ['src/app/tasks/page.tsx', 'src/app/time/page.tsx', 'src/app/calendar/page.tsx']) {
+test('/tasks and /time each render exactly one opener, /calendar none, and only /calendar holds the merged grid', () => {
+  for (const f of ['src/app/tasks/page.tsx', 'src/app/time/page.tsx']) {
     assert.equal((code(f).match(/<ToolOpener/g) ?? []).length, 1, `${f} has one opener`);
   }
+  // CAL-OPEN-01: the calendar explains nothing — no opener above the grid. The
+  // enforced opener law never required one (calOpen01.test.ts pins that).
+  assert.equal((code('src/app/calendar/page.tsx').match(/<ToolOpener/g) ?? []).length, 0, 'the calendar has no opener');
   // The merged grid: HubCalendar, on /calendar and nowhere else among the three.
   assert.match(code('src/app/calendar/page.tsx'), /<HubCalendar \/>/);
   for (const f of ['src/app/tasks/page.tsx', 'src/app/time/page.tsx']) {

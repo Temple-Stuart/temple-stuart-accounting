@@ -963,6 +963,11 @@ else console.log(`✔ The founder-broker law passed — ${SCAN_DRIVERS.length} s
 //   3. A tool's page opens with its family, its name and its registry line. No
 //      other prose. (ToolOpener is the one opener; a `line` prop is the room's
 //      own words about itself, never a second heading for a grouping layer.)
+//      CAL-OPEN-01 (2026-09-18): /calendar mounts NO opener. The founder ruled
+//      the tab self-evident and its two paragraphs — the registry `why` and a
+//      `line` prop — gone. This rule's enforced check is THE OPENER LAW below,
+//      which compares PHASES_RENDERED_AT with the phases a page's tree draws;
+//      it never required an opener to be mounted, and still does not.
 //   4. A phase list defined OUTSIDE pipePhases.ts and rendered as a strip is a
 //      violation. This is what killed /operations: six cells named in
 //      src/lib/operationsPhases.ts that existed in no pipe.
