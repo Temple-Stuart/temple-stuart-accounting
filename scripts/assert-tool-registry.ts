@@ -94,6 +94,7 @@ import { CHAIN_STATES, KIND_FACTS, EVENT_SOURCE_OWNER, buildChain } from '../src
 import { LINKABLE_KINDS, requiresInstant } from '../src/lib/calendar/linkKeys';
 import { sumLinks } from '../src/lib/calendar/links';
 import { routinePlanned } from '../src/lib/operations/routineLines';
+import { MARKER_MINUTES, assignLanes, blockExtent, unverifiedDurationExtent } from '../src/lib/calendar/extent';
 import { classifyCadence, compileFormToRRule, expandBetween, expandForward, scheduleAnchor } from '../src/lib/operations/rruleHelpers';
 import { DEFAULT_ROUTINE_FORM } from '../src/components/workbench/operations/routines/types';
 import { PROBLEM_SHEET } from '../src/lib/problemSheet';
@@ -2848,6 +2849,97 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
 
 if (twoListsViolations === 0) console.log(`✔ The two-lists law passed — /tasks' tree mounts no StageStrip and no ProofStrip, and the page labels no pipe; ${STREAK_WRITERS.length} streak writers untouched while no page or component reads or draws a streak; a project delete runs the one deletion leaf inside its transaction, refuses 409 naming the task on any of five live links, and the row previews before it confirms; no operations header wears a letter; the Tasks why is a customer's line.`);
 else console.log(`✖ The two-lists law FAILED — ${twoListsViolations} violation(s).`);
+
+// ── THE EXTENT LAW (GRID-01, 2026-09-18) ─────────────────────────────────────
+// A BLOCK IS AS LONG AS IT SAYS, AND TWO BLOCKS NEVER HIDE EACH OTHER.
+//
+//   1. THE LEAF IS THE ONLY PLACE AN EXTENT IS DECIDED, AND IT NEVER INVENTS ONE.
+//      src/lib/calendar/extent.ts: an end is drawn exactly; no end is a flagged
+//      marker of MARKER_MINUTES; an end before its start is a flagged marker.
+//   2. NO EXPRESSION IN CalendarGrid ADDS MINUTES TO A START TO PRODUCE AN END.
+//      The block builder holds no Math.max and adds no literal minutes to a
+//      minute value; both the trip path and the non-trip path call the leaf.
+//      The render floor is one text line, compared against pixels only.
+//   3. BLOCKS ARE LAID OUT IN LANES — the leaf's interval partition, positioned
+//      by lane, each block naming its lane; a lane never changes a block's data.
+//   4. NOTHING ELSE DECIDES AN EXTENT: no mapper, the day view and the panel
+//      print a start-only row with no derived end, and no writer defaults an end.
+const EXTENT_LEAF = 'src/lib/calendar/extent.ts';
+const EXTENT_GRID = 'src/components/shared/CalendarGrid.tsx';
+const EXTENT_READERS = [
+  'src/lib/hub/mapOperationsRoutines.ts',
+  'src/lib/hub/mapOperationsBlocks.ts',
+  'src/components/hub/HubCalendar.tsx',
+  'src/components/hub/DayView.tsx',
+  'src/components/hub/EventDetailPanel.tsx',
+  'src/lib/calendar/day.ts',
+];
+let extentViolations = 0;
+const extentFail = (m: string) => { extentViolations += 1; violations.push(`extent law: ${m} (GRID-01)`); };
+
+// 1. the leaf: exports, and probed on plain numbers.
+{
+  const leaf = codeOf(EXTENT_LEAF);
+  for (const fn of ['export function blockExtent(', 'export function unverifiedDurationExtent(', 'export function assignLanes<', 'export const MARKER_MINUTES = 30;']) {
+    if (!leaf.includes(fn)) extentFail(`${EXTENT_LEAF} no longer holds ${fn.replace('export ', '').replace(/[(<=].*$/, '')} — the one leaf every extent comes from`);
+  }
+  const exact = blockExtent(600, 645);
+  if (exact.endMin !== 645 || exact.flag !== null) extentFail(`the leaf changed a real end — blockExtent(600, 645) gave ${exact.endMin} with flag ${exact.flag}`);
+  const none = blockExtent(600, null);
+  if (none.endMin !== 600 + MARKER_MINUTES || none.flag !== 'no-end') extentFail(`the leaf invented a length for a row with no end — blockExtent(600, null) gave ${none.endMin} with flag ${none.flag}`);
+  const trip = unverifiedDurationExtent(540);
+  if (trip.endMin !== 570 || trip.flag !== 'duration-unverified') extentFail('the trip marker is no longer the same flagged 30-minute marker');
+  const two = assignLanes([{ s: 360, e: 660 }, { s: 420, e: 600 }], (b) => b.s, (b) => b.e);
+  if (two[0].lane !== 0 || two[1].lane !== 1 || two[0].lanes !== 2 || two[1].lanes !== 2) extentFail('two overlapping blocks do not land in two lanes');
+  const three = assignLanes([{ s: 360, e: 600 }, { s: 420, e: 700 }, { s: 620, e: 680 }], (b) => b.s, (b) => b.e);
+  if (three[2].lane !== 0) extentFail('a block that starts after the first has ended does not reuse the first lane');
+  const floor = assignLanes([{ s: 600, e: 600 }, { s: 600, e: 600 }], (b) => b.s, (b) => b.e, 30);
+  if (floor[1].lane !== 1) extentFail('two slivers that would overlap on screen share a lane — the drawn floor is ignored');
+  for (const f of tsFiles(resolve(ROOT, 'src')).map((abs) => abs.replace(`${ROOT}/`, ''))) {
+    if (f === EXTENT_LEAF) continue;
+    if (/\bMARKER_MINUTES\s*=/.test(codeOf(f))) extentFail(`${f} defines its own marker length — MARKER_MINUTES lives in ${EXTENT_LEAF} alone`);
+  }
+}
+
+// 2. the grid adds no minutes to a start; both paths call the leaf; the floor is pixels.
+{
+  const grid = codeOf(EXTENT_GRID);
+  if (!/from '@\/lib\/calendar\/extent'/.test(grid)) extentFail(`${EXTENT_GRID} does not read the extent leaf`);
+  const from = grid.indexOf('function getBlocksForDay(');
+  const to = grid.indexOf('export default function CalendarGrid(');
+  if (from < 0 || to < from) extentFail(`${EXTENT_GRID} no longer has getBlocksForDay before the component — the builder this law reads`);
+  const builder = from >= 0 && to > from ? grid.slice(from, to) : grid;
+  const adds = [...builder.matchAll(/\b\w*Min\s*\+\s*\d+\b/g)].map((m) => m[0]);
+  if (adds.length) extentFail(`${EXTENT_GRID} adds literal minutes to a start to produce an end: ${adds.join(', ')} — an extent is read, never invented`);
+  if (/Math\.max\(/.test(builder)) extentFail(`${EXTENT_GRID}'s block builder clamps a minute value — a clamp that adds time is an invented duration`);
+  if (!/blockExtent\(startMin, storedEndMin\)/.test(builder)) extentFail(`${EXTENT_GRID}'s non-trip path does not read blockExtent() — the two-hour default is the bug`);
+  if (!/blockExtent\(0, storedEndMin\)/.test(builder)) extentFail(`${EXTENT_GRID}'s arrival day does not read blockExtent()`);
+  if (!/unverifiedDurationExtent\(tripStartMin\)/.test(builder)) extentFail(`${EXTENT_GRID}'s trip path does not read the leaf's marker`);
+  if (!/endMin: segEnd, flag: null/.test(builder)) extentFail(`${EXTENT_GRID} stretches a flight segment — it is as long as its duration says`);
+  if (/HOUR_HEIGHT \* 1\.5|MIN_EVENT_HEIGHT/.test(grid)) extentFail(`${EXTENT_GRID} floors a block at 1.5 hours again — the floor is one text line`);
+  if (!/Math\.max\(\(\(block\.endMin - block\.startMin\) \/ 60\) \* HOUR_HEIGHT, MIN_BLOCK_PX\)/.test(grid)) extentFail(`${EXTENT_GRID}'s render floor is not a pixel floor against MIN_BLOCK_PX`);
+  if (!/data-block-flag=\{block\.flag \?\? undefined\}/.test(grid)) extentFail(`${EXTENT_GRID} does not mark a flagged block`);
+  if (!/⚠ \$\{title\} · \$\{FLAG_TEXT\[ext\.flag\]\}/.test(grid)) extentFail(`${EXTENT_GRID} does not say "no end time" on a no-end marker the way the trip marker is flagged`);
+  // 3. lanes.
+  if (!/assignLanes\(blocks, \(b\) => b\.startMin, \(b\) => b\.endMin, MIN_BLOCK_MINUTES\)/.test(grid)) extentFail(`${EXTENT_GRID} does not lay blocks out in lanes through the leaf`);
+  if (!/data-block-lane=\{lane\}/.test(grid) || !/data-block-lanes=\{laneCount\}/.test(grid)) extentFail(`${EXTENT_GRID} does not name each block's lane`);
+  if (!/left: `calc\(\$\{\(lane \/ laneCount\) \* 100\}% \+ 2px\)`, width: `calc\(\$\{100 \/ laneCount\}% - 4px\)`/.test(grid)) extentFail(`${EXTENT_GRID} does not position a block by its lane`);
+  if (/className=\{`absolute left-0\.5 right-0\.5/.test(grid)) extentFail(`${EXTENT_GRID} still draws every block across the whole column — a second block hides the first`);
+  if (!/title=\{hoverTitle\}/.test(grid)) extentFail(`${EXTENT_GRID}'s block carries no hover title — a marker too short for its title would be an empty block`);
+}
+
+// 4. nothing else decides an extent.
+for (const f of EXTENT_READERS) {
+  const body = codeOf(f);
+  if (/\bMARKER_MINUTES\b|blockExtent\(|\+\s*120\b|\+\s*60\b/.test(body)) extentFail(`${f} decides an extent — only the grid, through the leaf, draws one`);
+}
+if (!/\$\{clock\(r\.startTime\)\}\$\{r\.endTime \? ` – \$\{clock\(r\.endTime\)\}` : ''\}/.test(codeOf('src/components/hub/DayView.tsx'))) extentFail('the day view no longer prints a start-only row with the start alone (DAY-01)');
+if (!/\$\{clock\(row\.startTime\)\}\$\{row\.endTime \? ` – \$\{clock\(row\.endTime\)\}` : ''\}/.test(codeOf('src/components/hub/EventDetailPanel.tsx'))) extentFail('the panel no longer prints a start-only row with the start alone (DAY-01)');
+if (!/if \(endTime !== null && startTime === null\) return/.test(codeOf('src/lib/calendar/manualEvent.ts'))) extentFail('the manual writer no longer admits a start without an end as it did — or defaults one');
+if (/end_time: startTime|end_time:\s*\w+\s*\?\?\s*\w*start/i.test(codeOf('src/app/api/operations/routines/route.ts'))) extentFail('the routine writer defaults an end time from the start — no default end is written anywhere');
+
+if (extentViolations === 0) console.log(`✔ The extent law passed — one leaf decides every extent and invents none (an end exact, no end a flagged ${MARKER_MINUTES}-minute marker); the grid's builder adds no minutes and holds no clamp, both paths read the leaf, the floor is one text line in pixels; blocks are laid out in lanes by the leaf's partition and each names its lane; ${EXTENT_READERS.length} readers decide no extent and the day view prints a start-only row with the start alone.`);
+else console.log(`✖ The extent law FAILED — ${extentViolations} violation(s).`);
 
 // ── THE READER LAW (TEST-TRUTH-01, 2026-09-17) ──────────────────────────────
 // NO TEST AND NO LAW MAY READ A SOURCE FILE RAW.
