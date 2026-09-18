@@ -89,7 +89,8 @@ test('claim lines come from the registry: "built and running" for LIVE only, "pa
   assert.equal(card.includesAnswers, true);
   // the free showcases' CTAs read the registry through the cockpit key
   // TRUTH-01: Tasks and Time are four-beat PARTIALs (the job is not done for a customer), so the showcase CTAs no longer say built and running.
-  assert.equal(claimForCockpit('projects'), "partial — the founder's build pipeline — accepting a task fires a paid Claude Code build; not a customer's task tool");
+  // TASKS-01: Tasks' why is a customer's line now; the founder note is a code comment.
+  assert.equal(claimForCockpit('projects'), "partial — the work, planned: projects with costed tasks and routines with costed lines, both landing on the calendar and linkable to a posting — a task's actual cost is still typed by hand; nothing posts it from the books");
   assert.equal(claimForCockpit('content'), 'partial — day blocks and a daily log inside the Narrative pipeline; no time tool');
   assert.equal(claimForCockpit('calendar'), 'partial — actuals by entity plus recurring lines on module_expenses; no plan vs actual; no personal · trade · travel roll-up'); // Budget, a four-beat PARTIAL since TRUTH-01
   assert.throws(() => claimForCockpit('nope'), OfferLawError);

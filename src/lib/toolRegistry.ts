@@ -139,9 +139,8 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   },
   Tasks: {
     // TOOL-LAW-01: one tool, one page. /operations was Tasks AND Time on one
-    // screen behind six invented cells; Tasks has /tasks now, rendering only
-    // the projects pipe (per project row, where that strip already lives).
-    // The Issue log and Audit tail return as Tasks' own sub-rows: they are THE
+    // screen behind six invented cells; Tasks has /tasks now.
+    // The Issue log and Audit trail return as Tasks' own sub-rows: they are THE
     // WORK's pages, and the /operations prefix that doored them is gone with
     // the room. Neither is any tool's screen, so navLaw rule 7 holds.
     // NORTH-01 (2026-09-18): the North Star joins them. It is Tasks' own input —
@@ -149,12 +148,24 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     // rendered inline at the top of /tasks, which is not how its two siblings
     // are reached. It has its own page now, doored the same way: a link here,
     // a sub-row in the rail. Nothing about the North Star itself changed.
+    // TASKS-01 (2026-09-18): /tasks is two lists — projects and routines — and
+    // the `why` below is a customer's line. The founder's note that stood here
+    // ("the founder's build pipeline — accepting a task fires a paid Claude Code
+    // build; not a customer's task tool") is a fact about the code, not a
+    // customer's line, and it lives here now: accepting a pending_review task
+    // (the pending_review → open transition, tasks/[taskId]/route.ts) fires
+    // fireExecutionRoutine — a Claude Code Routine that builds THIS repository
+    // and opens a PR, cost-capped per user (requireExecBudget) but gated to any
+    // signed-in owner, not to the founder. Where that pipeline should live for a
+    // customer (a gated section, its own page, or gone) is Alex's call — put in
+    // the TASKS-01 PR body, not decided here. "Audit tail" → "Audit trail": the
+    // label said tail, the page is the trail.
     slug: 'tasks', status: 'PARTIAL', beats: ALL, home: '/tasks',
-    why: "the founder's build pipeline — accepting a task fires a paid Claude Code build; not a customer's task tool",
+    why: "the work, planned: projects with costed tasks and routines with costed lines, both landing on the calendar and linkable to a posting — a task's actual cost is still typed by hand; nothing posts it from the books",
     links: [
       { label: 'North Star', href: '/operations/north-star' },
       { label: 'Issue log', href: '/operations/issues' },
-      { label: 'Audit tail', href: '/operations/audit-log' },
+      { label: 'Audit trail', href: '/operations/audit-log' },
     ],
     citation: 'src/app/api/operations/projects/[id]/tasks/route.ts:43 · generate-tasks/route.ts:42 · tasks/bulk-create/route.ts:117 · tasks/[taskId]/route.ts:82 → :339, :370; accepting a pending_review task fires the paid build at tasks/[taskId]/route.ts:392-402',
   },

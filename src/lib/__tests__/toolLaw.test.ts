@@ -26,18 +26,18 @@ test('THE WORK is three tools on three pages — the room is gone', () => {
 });
 
 test('each page renders its own pipe, in the pipe\'s own order', () => {
-  // Tasks → projects (per project row, behind pipelineMode — recorded, not smoothed over).
-  assert.match(code('src/components/workbench/operations/projects/TruthMachineView.tsx'), /PIPE_PHASES\.projects/);
-  // TEST-TRUTH-01: "per-project strip" is the DESCRIPTION beside that strip, not
-  // code. The behaviour is the line above (PIPE_PHASES.projects); this is the
-  // documented shape, read as prose.
-  assert.match(comments('src/components/workbench/operations/projects/TruthMachineView.tsx'), /per-project strip/);
+  // TASKS-01 (2026-09-18): Tasks draws NO pipe. The per-project strip
+  // (TruthMachineView) and the page-level routines strip (SectionE_Routines)
+  // are gone; the pipeline is a plain control behind the row's "pipeline"
+  // button, still behind pipelineMode. tasks01.test.ts pins the absence.
+  assert.doesNotMatch(code('src/components/workbench/operations/projects/TruthMachineView.tsx'), /PIPE_PHASES|<StageStrip/);
+  assert.doesNotMatch(code('src/components/workbench/operations/SectionE_Routines.tsx'), /PIPE_PHASES|<StageStrip/);
+  assert.match(comments('src/components/workbench/operations/projects/TruthMachineView.tsx'), /the per-project StageStrip and the ProofStrip receipts are GONE/);
   assert.match(code('src/components/workbench/operations/projects/ProjectRow.tsx'), /pipelineMode/);
   // Time → content, a PAGE-LEVEL strip inside ContentPipeline.
   assert.match(code('src/components/workbench/operations/content/ContentPipeline.tsx'), /PIPE_PHASES\.content/);
-  // PLAN-01: Tasks → routines too, the same page-level strip inside SectionE_Routines.
-  assert.match(code('src/components/workbench/operations/SectionE_Routines.tsx'), /PIPE_PHASES\.routines/);
-  // The order is the pipe's, never retyped.
+  // The order is the pipe's, never retyped (the two Tasks pipes stay DEFINED
+  // until PIPES-01 retires them).
   assert.deepEqual(PIPE_PHASES.projects.map((p) => p.num), ['01', '02', '03', '04', '05', '06']);
   assert.deepEqual(PIPE_PHASES.content.map((p) => p.num), ['01', '02', '03', '04']);
   assert.deepEqual(PIPE_PHASES.routines.map((p) => p.num), ['01', '02', '03', '04']);

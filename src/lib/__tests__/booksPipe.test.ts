@@ -59,12 +59,14 @@ test('the opener lists only the phases its page draws', () => {
   assert.deepEqual(phasesRenderedOn('/trade-log', navToolByName('Trade Log', TOOL_GATE)).map((p) => `${p.pipe} ${p.num}`),
     ['trade 04', 'trade 05', 'trade 06']);
   // The tools whose page draws their own pipe still list it, in pipe order.
-  // PLAN-01: Calendar is no longer among them — it draws nothing now; Tasks
-  // draws BOTH projects and routines, so it is checked for each.
-  for (const [tool, route, pipe] of [['Tasks', '/tasks', 'projects'], ['Tasks', '/tasks', 'routines'], ['Time', '/time', 'content']] as const) {
+  // PLAN-01: Calendar is no longer among them — it draws nothing now.
+  // TASKS-01: nor is Tasks — /tasks is two lists and draws no strip, so its
+  // opener lists nothing (tasks01.test.ts pins that); Time still draws content.
+  for (const [tool, route, pipe] of [['Time', '/time', 'content']] as const) {
     const listed = phasesRenderedOn(route, navToolByName(tool, TOOL_GATE)).filter((p) => p.pipe === pipe);
     assert.deepEqual(listed.map((p) => p.num), PIPE_PHASES[pipe].map((p) => p.num), `${tool} lists ${pipe} in order`);
   }
+  assert.deepEqual(phasesRenderedOn('/tasks', navToolByName('Tasks', TOOL_GATE)), []);
 });
 
 test('what a route declares it draws is what the page\'s strip reads', () => {
@@ -72,7 +74,8 @@ test('what a route declares it draws is what the page\'s strip reads', () => {
   assert.deepEqual(PHASES_RENDERED_AT['/books'], ['books']);
   // PLAN-01: the calendar authors nothing, so it declares — and draws — no pipe.
   assert.deepEqual(PHASES_RENDERED_AT['/calendar'], []);
-  assert.deepEqual(PHASES_RENDERED_AT['/tasks'], ['projects', 'routines']);
+  // TASKS-01: two lists, no strip.
+  assert.deepEqual(PHASES_RENDERED_AT['/tasks'], []);
   assert.deepEqual(PHASES_RENDERED_AT['/budget'], []);
   // Every route named is a real tool screen.
   const screens = new Set(navRows(TOOL_GATE).map((t) => t.href).filter(Boolean));

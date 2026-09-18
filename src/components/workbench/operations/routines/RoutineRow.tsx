@@ -2,7 +2,7 @@
  * RoutineRow — single routine in the cadence-grouped list.
  *
  * Three modes (mirrors ProjectRow's pattern at routine scale):
- *   1. Compact: name + cadence-group pill + streaks + next-due
+ *   1. Compact: name + cadence-group pill + the planned figure + next-due
  *   2. Expanded: + description + ideal time + last completed + delete
  *   3. Edit: full RRULEBuilder + name/description fields
  *
@@ -265,10 +265,9 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
               )}
             </>
           )}
-          <span title="completion streak / miss streak">
-            🔥 {routine.consecutive_completion_streak} ✓ / {routine.consecutive_miss_streak} ✗
-          </span>
-          <span title="next scheduled occurrence">
+          {/* TASKS-01: no streak counter renders here — the columns and the
+              evaluator are untouched; the row shows what is planned and when. */}
+          <span title="next scheduled occurrence" data-routine-next-due>
             next: {formatDateTime(routine.next_due_at, routine.timezone)}
           </span>
           {(routine.start_date || routine.end_date) && (

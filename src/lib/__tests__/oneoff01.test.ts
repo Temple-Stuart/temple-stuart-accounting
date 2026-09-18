@@ -425,8 +425,11 @@ test('the Calendar row lost commit and kept record; Tasks\' row gained nothing',
   assert.doesNotMatch(cal.citation, /AddEventForm|POST, INSERT/);
   const tasks = TOOL_REGISTRY.find((t) => t.name === 'Tasks')!;
   assert.deepEqual(tasks.beats, { discover: true, decide: true, commit: true, record: true });
-  assert.equal(tasks.why, "the founder's build pipeline — accepting a task fires a paid Claude Code build; not a customer's task tool");
-  assert.deepEqual(tasks.links?.map((l) => l.label), ['North Star', 'Issue log', 'Audit tail']);
+  // TASKS-01 (2026-09-18): the why became a customer's line and the third
+  // link reads "Audit trail" — pinned in tasks01.test.ts; here only that the
+  // row's shape did not move with ONEOFF-01.
+  assert.doesNotMatch(tasks.why ?? '', /founder|Claude Code/);
+  assert.deepEqual(tasks.links?.map((l) => l.label), ['North Star', 'Issue log', 'Audit trail']);
 });
 
 // ───────────────────────────────────────────────────────────────────────────

@@ -79,9 +79,6 @@ export function DailyPlanRoutineRow({ entry }: Props & { }) {
                 })()}
               </span>
             )}
-            <span>
-              🔥 {entry.routine.consecutive_completion_streak} ✓ / {entry.routine.consecutive_miss_streak} ✗
-            </span>
             {hasSteps && (
               <button
                 type="button"

@@ -7,8 +7,16 @@
  *          as operations_project_updated. SOC 2 evidence-of-state-change
  *          control: status transitions are evidentiarily distinct from
  *          content edits.
- * DELETE — hard delete. CASCADE removes tasks and dependencies. Full
- *          payload_before captured in audit_log for replay.
+ * DELETE — hard delete: the project, its tasks and its dependencies go in ONE
+ *          transaction. TASKS-01 (2026-09-18): NEVER through a live link — the
+ *          delete is refused with 409, naming the task and the reason, when a
+ *          ledger line is allocated to the project, a posting is linked to a
+ *          task, a task carries a posted actual, or a calendar block / hub
+ *          schedule line references the project or a task (the rules live in
+ *          src/lib/operations/projectDeletion.ts, re-run INSIDE the transaction;
+ *          the GET at [id]/deletion is the same check for the confirm dialog).
+ *          Archive is the path for those. Full payload_before captured in
+ *          audit_log for replay, with the counts of what the cascade removed.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -18,6 +26,7 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { recordTaskStatusChange } from '@/lib/operations/recordTaskStatusChange';
+import { describeBlockers, projectDeletionCheck, type DeletionPreview } from '@/lib/operations/projectDeletion';
 
 // Active task statuses that an archive cascade retires to 'archived'. Terminal
 // states (completed, cancelled, superseded) are LEFT UNTOUCHED — they are the
@@ -339,7 +348,24 @@ export async function DELETE(
     const existing = await loadAuthorizedProject(id, user.id);
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    await prisma.operations_projects.delete({ where: { id } });
+    // TASKS-01: the check and the delete are ONE transaction — a link made
+    // between the preview and the click still refuses the delete.
+    const outcome = await prisma.$transaction(async (tx): Promise<
+      { kind: 'missing' } | { kind: 'blocked'; preview: DeletionPreview } | { kind: 'deleted'; preview: DeletionPreview }
+    > => {
+      const preview = await projectDeletionCheck(tx, id, user.id);
+      if (!preview) return { kind: 'missing' };
+      if (preview.blockers.length > 0) return { kind: 'blocked', preview };
+      await tx.operations_projects.delete({ where: { id } });
+      return { kind: 'deleted', preview };
+    });
+    if (outcome.kind === 'missing') return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (outcome.kind === 'blocked') {
+      return NextResponse.json(
+        { error: 'ProjectHasLiveLinks', message: describeBlockers(outcome.preview), blockers: outcome.preview.blockers },
+        { status: 409 }
+      );
+    }
 
     await writeAuditLog({
       actor: {
@@ -357,15 +383,21 @@ export async function DELETE(
       },
       payload: {
         before: existing,
+        metadata: {
+          cascade_removed: outcome.preview.removes,
+          links_severed: outcome.preview.severs,
+        },
       },
     });
 
-    return NextResponse.json({ deleted: true, id: existing.id });
+    return NextResponse.json({ deleted: true, id: existing.id, removed: outcome.preview.removes, severed: outcome.preview.severs });
   } catch (error) {
     // Translate DB constraint violations into a clear, non-leaky message
     // instead of forwarding the raw Postgres string (no-silent-failure:
     // surface WHY legibly). Covers FK (P2003) + other constraint (P2004)
-    // violations and raw check-constraint errors.
+    // violations and raw check-constraint errors. TASKS-01: every link the
+    // schema restricts is named by the check above BEFORE this can fire; this
+    // stays for a constraint added later that the leaf does not yet know.
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       (error.code === 'P2003' || error.code === 'P2004')

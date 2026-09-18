@@ -7,7 +7,10 @@ import { TOOL_REGISTRY } from '../toolRegistry';
 import { toNorthStarContext, formatNorthStarBlock } from '../ai/northStarContext';
 import { code, comments } from '../sourceText';
 
-// NORTH-01 — the North Star lives under Tasks, beside Issue log and Audit tail.
+// NORTH-01 — the North Star lives under Tasks, beside Issue log and Audit trail.
+// TASKS-01 (2026-09-18): "Audit tail" → "Audit trail" on the registry link, and
+// the section header lost its letter (B · NORTH STAR → NORTH STAR) — the letters
+// were the deleted room's; the component is otherwise untouched.
 
 const PAGE = 'src/app/operations/north-star/page.tsx';
 const TASKS = 'src/app/tasks/page.tsx';
@@ -19,17 +22,17 @@ test('the registry row names all three, and each is a rail sub-row of Tasks', ()
   assert.deepEqual((tasks.links ?? []).map((l) => [l.label, l.href]), [
     ['North Star', '/operations/north-star'],
     ['Issue log', '/operations/issues'],
-    ['Audit tail', '/operations/audit-log'],
+    ['Audit trail', '/operations/audit-log'],
   ]);
   const rail = navToolByName('Tasks', TOOL_GATE);
-  assert.deepEqual(rail.subRows.map((r) => r.label), ['North Star', 'Issue log', 'Audit tail']);
+  assert.deepEqual(rail.subRows.map((r) => r.label), ['North Star', 'Issue log', 'Audit trail']);
   assert.deepEqual(rail.subRows.map((r) => r.door.href), ['/operations/north-star', '/operations/issues', '/operations/audit-log']);
   // The door is nobody's screen (navLaw rule 7), and the law is clean.
   assert.deepEqual(navLaw({ throwOnFail: false }), []);
   assert.equal(TOOL_REGISTRY.some((t) => t.home === '/operations/north-star'), false);
 });
 
-test('North Star renders under Tasks by the SAME idiom as Audit tail — one page, one component, nothing else', () => {
+test('North Star renders under Tasks by the SAME idiom as Audit trail — one page, one component, nothing else', () => {
   assert.ok(existsSync(`${process.cwd()}/${PAGE}`));
   const page = code(PAGE);
   assert.match(page, /<SectionB_NorthStar \/>/);
@@ -49,7 +52,10 @@ test('its edit and review actions are intact — the component is not rewritten'
   assert.match(s, /I reviewed — still holds/);
   assert.match(s, /review overdue by/, 'the overdue banner');
   assert.match(s, /daysUntil\(northStar\.next_review_at\)/, 'the cadence computes from the row');
-  assert.match(s, /B · NORTH STAR/, "the header is the component's own and is untouched (FORBIDDEN: no rewrite)");
+  // TASKS-01: the header lost its letter and nothing else — the one line this
+  // pin moved for.
+  assert.match(s, />\s*NORTH STAR\s*</, "the header is the component's own, without the deleted room's letter");
+  assert.doesNotMatch(s, /B · NORTH STAR/);
 });
 
 test('the cockpit does not render it — and never did', () => {

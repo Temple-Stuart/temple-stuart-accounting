@@ -272,15 +272,10 @@ export default function AgendaDetailPage({ params }: { params: Promise<{ id: str
               </div>
             </Card>
 
-            {/* Streak (placeholder) */}
-            <Card className="p-6 bg-bg-row">
-              <h2 className="text-terminal-lg font-semibold text-text-primary mb-4">Streak</h2>
-              <div className="text-center">
-                <div className="text-4xl mb-2">🔥</div>
-                <div className="text-sm font-bold text-text-primary">0 days</div>
-                <div className="text-sm text-text-muted">Check in to start your streak</div>
-              </div>
-            </Card>
+            {/* TASKS-01: the "Streak (placeholder)" card that stood here — a
+                hard-coded "0 days / Check in to start your streak" — is gone.
+                No streak renders on any customer surface, and a placeholder
+                never did. */}
           </div>
         </div>
       </div>

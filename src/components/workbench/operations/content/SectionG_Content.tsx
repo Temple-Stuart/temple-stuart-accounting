@@ -200,7 +200,7 @@ export default function SectionG_Content({ }: { } = {}) {
   return (
     <section className="bg-white rounded border border-border shadow-sm p-5 space-y-4">
       <h2 className="font-mono text-sm font-bold tracking-wide text-text-primary">
-        G · CONTENT
+        CONTENT
       </h2>
 
       {loading ? (

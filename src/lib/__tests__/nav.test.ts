@@ -77,11 +77,22 @@ test('THE SORT splits a pipe only at an existing phase boundary — no phase cut
   }
 });
 
-test('the two phases that render no surface say so, and cite where the code declares it', () => {
+test('the phases that render no surface say so, and cite where the code declares it', () => {
   const silent = THE_SORT.filter((a) => !a.rendersSurface);
-  assert.deepEqual(silent.map((a) => `${a.pipe} ${a.num}`), ['runway 01', 'runway 02']);
-  for (const a of silent) {
+  // TASKS-01 (2026-09-18): Tasks' two pipes joined the runway pair — /tasks is
+  // two lists and draws no strip, so every routines and projects phase is
+  // declared undrawn, each citing the page and the component that holds the
+  // capability as a plain control. PIPES-01 retires them outright.
+  assert.deepEqual(silent.map((a) => `${a.pipe} ${a.num}`), [
+    'runway 01', 'runway 02',
+    'routines 01', 'routines 02', 'routines 03', 'routines 04',
+    'projects 01', 'projects 02', 'projects 03', 'projects 04', 'projects 05', 'projects 06',
+  ]);
+  for (const a of silent.filter((x) => x.pipe === 'runway')) {
     assert.match(a.surfaceNote ?? '', /ModuleLauncher\.tsx:\d+/, 'the citation names the file and line');
+  }
+  for (const a of silent.filter((x) => x.pipe !== 'runway')) {
+    assert.match(a.surfaceNote ?? '', /TASKS-01 \(2026-09-18\): drawn nowhere — \/tasks renders no StageStrip \(src\/app\/tasks\/page\.tsx\)/);
   }
   // TEST-TRUTH-01: this read the file RAW and said "the code still says it". It
   // never did: "STATE-ONLY cells" is the note ModuleLauncher carries ABOUT those
@@ -112,7 +123,7 @@ test('a tool sharing a screen still has its own row and its own destination', ()
 test('every legacy page hangs under the tool that OWNS it — never another tool\'s screen', () => {
   const subs = Object.fromEntries(navRows(TOOL_GATE).filter((t) => t.subRows.length).map((t) => [t.name, t.subRows.map((r) => r.door.href)]));
   assert.deepEqual(subs, {
-    // TOOL-LAW-01: the Issue log and Audit tail return as Tasks' own sub-rows —
+    // TOOL-LAW-01: the Issue log and Audit trail return as Tasks' own sub-rows —
     // the /operations prefix that doored them went with the room.
     // NORTH-01: the North Star joins them, by the same door.
     Tasks: ['/operations/north-star', '/operations/issues', '/operations/audit-log'],

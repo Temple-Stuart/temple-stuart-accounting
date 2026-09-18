@@ -2698,6 +2698,157 @@ for (const rel of walkSrc('src/components/workbench/operations/routines')) {
 if (oneoffViolations === 0) console.log(`✔ The one-off law passed — /calendar's tree mounts no add form, no add control, no place lookup and no POST to the events route, and the route exports none; the routines surface picks from one entity's chart; cadence once compiles to COUNT=1 and expands to exactly one occurrence on its date through the one anchored expansion, passed at ${ONEOFF_CALLERS.length} call sites and nowhere else; the migration adds three place columns with the pair and the date CHECKs and moves nothing.`);
 else console.log(`✖ The one-off law FAILED — ${oneoffViolations} violation(s).`);
 
+// ── THE TWO-LISTS LAW (TASKS-01, 2026-09-18) ────────────────────────────────
+// TASKS IS TWO LISTS — PROJECTS AND ROUTINES — AND EVERYTHING ELSE COMES OFF.
+// Five laws:
+//
+//   1. /tasks RENDERS NO STAGESTRIP. Nothing in the page's import tree mounts
+//      one, and the page carries no pipe label — the two lists and the daily
+//      plan, each with its plain controls. (What each phase held survives as a
+//      control; a phase only filtered the same list.)
+//   2. NO STREAK RENDERS ON A CUSTOMER SURFACE. No component and no page reads
+//      consecutive_completion_streak / consecutive_miss_streak, and none draws
+//      the 🔥 counter — while the columns stay and the two writers (the
+//      completions route and the nightly evaluator) are untouched.
+//   3. A PROJECT DELETE REFUSES ON ANY LIVE LINK. The route re-runs the one
+//      deletion leaf INSIDE its transaction, the leaf names the four link kinds
+//      the ruling lists, the refusal is 409 naming the task, and the row asks
+//      for the preview before it confirms. Cross-user stays a defensive 404.
+//   4. NO LETTERED HEADER. The room's letters (B · / C · / K · / G ·) are gone
+//      from every operations section header; the registry link says trail.
+//   5. THE REGISTRY WHY IS A CUSTOMER'S LINE — no founder note, no build note.
+const TWO_LISTS_PAGE = 'src/app/tasks/page.tsx';
+const TWO_LISTS_LEAF = 'src/lib/operations/projectDeletion.ts';
+const TWO_LISTS_ROUTE = 'src/app/api/operations/projects/[id]/route.ts';
+const TWO_LISTS_PREVIEW = 'src/app/api/operations/projects/[id]/deletion/route.ts';
+const TWO_LISTS_ROW = 'src/components/workbench/operations/projects/ProjectRow.tsx';
+const STREAK_WRITERS = [
+  'src/app/api/operations/routines/[id]/completions/route.ts',
+  'src/inngest/functions/routine-evaluator.ts',
+];
+let twoListsViolations = 0;
+const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`two-lists law: ${m} (TASKS-01)`); };
+
+// 1. no strip in the page's tree, no pipe label on the page.
+{
+  const seen = new Set<string>();
+  const stack = [TWO_LISTS_PAGE];
+  while (stack.length) {
+    const f = stack.pop()!;
+    if (seen.has(f)) continue;
+    seen.add(f);
+    const body = existsSync(resolve(ROOT, f)) ? codeOf(f) : '';
+    if (body.includes('<StageStrip')) twoListsFail(`${f} renders a StageStrip inside /tasks' tree — Tasks is two lists, and a phase is a filter over a list it already shows`);
+    if (body.includes('<ProofStrip')) twoListsFail(`${f} renders a ProofStrip inside /tasks' tree — the receipts repeated counts the surfaces already show`);
+    for (const next of importsFor(f)) stack.push(next);
+  }
+  const page = codeOf(TWO_LISTS_PAGE);
+  if (/data-pipe-label|PIPE_LABEL|PIPE_PHASES/.test(page)) twoListsFail(`${TWO_LISTS_PAGE} labels a pipe — there is no strip to label`);
+  for (const section of ['<SectionD_ProjectBacklog />', '<SectionE_Routines />', '<SectionC_DailyPlan />']) {
+    if (!page.includes(section)) twoListsFail(`${TWO_LISTS_PAGE} no longer mounts ${section} — the page is the projects list, the routines list and the daily plan`);
+  }
+  if ((PHASES_RENDERED_AT['/tasks'] ?? ['?']).length !== 0) twoListsFail(`nav.ts declares /tasks draws [${(PHASES_RENDERED_AT['/tasks'] ?? []).join(' ')}] — it draws nothing`);
+  // Every control the strips held is still a control: the list headers' create
+  // buttons, the row's edit/archive/delete and its pipeline door, Today's mark-done.
+  const controls: Array<[string, RegExp, string]> = [
+    ['src/components/workbench/operations/SectionD_ProjectBacklog.tsx', /\+ new project/, 'the projects list has no "+ new project"'],
+    ['src/components/workbench/operations/SectionD_ProjectBacklog.tsx', /show archived/, 'the projects list has no "show archived"'],
+    ['src/components/workbench/operations/projects/ProjectRowView.tsx', /onClick=\{onEnterEdit\}/, 'the project row has no edit control'],
+    ['src/components/workbench/operations/projects/ProjectRowView.tsx', /onClick=\{onDelete\}/, 'the project row has no delete control'],
+    ['src/components/workbench/operations/projects/ProjectRowView.tsx', /onClick=\{onEnterPipeline\}/, 'the project row has no door to its pipeline — the capability the strip held must survive as a control'],
+    ['src/components/workbench/operations/projects/TruthMachineView.tsx', /onClick=\{onRunResearch\}/, 'the pipeline lost "run deep research"'],
+    ['src/components/workbench/operations/projects/TruthMachineView.tsx', /onClick=\{onGenerateTasks\}/, 'the pipeline lost "generate tasks"'],
+    ['src/components/workbench/operations/projects/TruthMachineView.tsx', /onClick=\{onRunPipe\}/, 'the pipeline lost "run pipe"'],
+    ['src/components/workbench/operations/projects/TruthMachineView.tsx', /onClick=\{onEvolveStart\}/, 'the pipeline lost "evolve"'],
+    ['src/components/workbench/operations/routines/RoutineList.tsx', /\+ new routine/, 'the routines list has no "+ new routine"'],
+    ['src/components/workbench/operations/routines/RoutineList.tsx', /show inactive/, 'the routines list has no "show inactive"'],
+    ['src/components/workbench/operations/routines/TodaysStrip.tsx', /✓ mark done/, 'Today lost "mark done"'],
+    ['src/components/workbench/operations/routines/TodaysStrip.tsx', /\{totalDone\} done · \{totalDue\} due · \{totalMissed\} missed/, 'Today lost its done · due · missed line'],
+    ['src/components/workbench/operations/SectionE_Routines.tsx', /<TodaysStrip/, 'the routines section no longer mounts Today'],
+    ['src/components/workbench/operations/SectionE_Routines.tsx', /<RoutineList/, 'the routines section no longer mounts the list'],
+  ];
+  for (const [f, re, why] of controls) if (!re.test(codeOf(f))) twoListsFail(`${f}: ${why}`);
+}
+
+// 2. no streak on a customer surface; the writers stay.
+{
+  const surfaces = [...tsFiles(resolve(ROOT, 'src/app')), ...tsFiles(resolve(ROOT, 'src/components'))]
+    .map((abs) => abs.replace(`${ROOT}/`, ''))
+    .filter((f) => !f.startsWith('src/app/api/'));
+  for (const f of surfaces) {
+    const body = codeOf(f);
+    if (/\.consecutive_(completion|miss)_streak\b/.test(body)) twoListsFail(`${f} reads a streak counter — no streak renders on a customer surface; the columns and the evaluator stay`);
+    if (body.includes('🔥')) twoListsFail(`${f} draws the 🔥 counter — no streak renders on a customer surface`);
+  }
+  for (const f of STREAK_WRITERS) {
+    if (!/consecutive_completion_streak/.test(codeOf(f))) twoListsFail(`${f} no longer writes the streak columns — TASKS-01 removes the RENDER, never the record`);
+  }
+  const schema = codeOf('prisma/schema.prisma');
+  for (const col of ['consecutive_completion_streak', 'consecutive_miss_streak']) {
+    if (!schema.includes(col)) twoListsFail(`schema.prisma lost ${col} — no data is deleted by the streak change`);
+  }
+}
+
+// 3. delete refuses on any live link, inside the transaction, naming the task.
+{
+  const leaf = codeOf(TWO_LISTS_LEAF);
+  for (const [needle, why] of [
+    ['ledger_line_links', 'a ledger line allocated to the project'],
+    ["target_kind: 'project_task'", 'a posting linked to a task (planned_item_links)'],
+    ['actual_cost_usd', 'a posted actual on a task'],
+    ['operations_calendar_blocks', 'a calendar block on a task'],
+    ['hub_scheduled_items', 'a hub schedule line on the project or a task'],
+  ] as const) {
+    if (!leaf.includes(needle)) twoListsFail(`${TWO_LISTS_LEAF} no longer checks ${why} — the delete would cascade through a live link`);
+  }
+  if (!/export function assessDeletion\(/.test(leaf)) twoListsFail(`${TWO_LISTS_LEAF} no longer exports assessDeletion() — the decision must be a pure function the tests can probe`);
+  if (!/task "\$\{/.test(leaf)) twoListsFail(`${TWO_LISTS_LEAF} no longer names the task in a blocker — the 409 names the reason`);
+  if (!/Archive it instead/.test(leaf)) twoListsFail(`${TWO_LISTS_LEAF} no longer points at archive — the refusal names the door that stays open`);
+  const route = codeOf(TWO_LISTS_ROUTE);
+  const del = route.slice(route.indexOf('export async function DELETE('));
+  if (!/prisma\.\$transaction\(/.test(del)) twoListsFail(`${TWO_LISTS_ROUTE} DELETE runs outside a transaction — the check and the delete are one`);
+  const txAt = del.indexOf('prisma.$transaction(');
+  const checkAt = del.indexOf('projectDeletionCheck(tx');
+  const deleteAt = del.indexOf('tx.operations_projects.delete(');
+  if (checkAt < 0 || deleteAt < 0 || !(txAt < checkAt && checkAt < deleteAt)) twoListsFail(`${TWO_LISTS_ROUTE} DELETE does not run projectDeletionCheck(tx) before tx.operations_projects.delete() inside the transaction`);
+  if (!/status: 409/.test(del)) twoListsFail(`${TWO_LISTS_ROUTE} DELETE has no 409 — a live link refuses with its reason (the TRADE-LOG-01 precedent, trade-log/manual/route.ts)`);
+  if (!/describeBlockers\(/.test(del)) twoListsFail(`${TWO_LISTS_ROUTE} DELETE does not name the blockers in its refusal`);
+  if (!/loadAuthorizedProject\(id, user\.id\)/.test(del) || !/status: 404/.test(del)) twoListsFail(`${TWO_LISTS_ROUTE} DELETE is not user-scoped to a defensive 404`);
+  if (/status: 403/.test(del)) twoListsFail(`${TWO_LISTS_ROUTE} DELETE answers 403 — cross-user is a defensive 404, never a 403`);
+  const preview = codeOf(TWO_LISTS_PREVIEW);
+  if (!/projectDeletionCheck\(prisma, id, user\.id\)/.test(preview)) twoListsFail(`${TWO_LISTS_PREVIEW} does not read the same leaf the delete runs — the dialog and the delete could disagree`);
+  if (/method:\s*'(POST|PATCH|PUT|DELETE)'|\.delete\(|\.update\(|\.create\(/.test(preview)) twoListsFail(`${TWO_LISTS_PREVIEW} writes — the preview is read-only`);
+  const row = codeOf(TWO_LISTS_ROW);
+  const del2 = row.slice(row.indexOf('const handleDelete'));
+  const previewAt = del2.indexOf('/deletion`');
+  const confirmAt = del2.indexOf('confirm(preview.summary)');
+  const fireAt = del2.indexOf("method: 'DELETE'");
+  if (previewAt < 0 || confirmAt < 0 || fireAt < 0 || !(previewAt < confirmAt && confirmAt < fireAt)) twoListsFail(`${TWO_LISTS_ROW} does not fetch the preview, confirm with what will go, and only then DELETE — in that order`);
+  if (!/preview\.blockers\.length > 0\) \{\s*setError\(preview\.message\)/.test(del2)) twoListsFail(`${TWO_LISTS_ROW} does not surface a refused delete's reason on the row`);
+}
+
+// 4. no lettered header; the link says trail.
+{
+  const sections = tsFiles(resolve(ROOT, 'src/components/workbench/operations')).map((abs) => abs.replace(`${ROOT}/`, ''));
+  for (const f of sections) {
+    const m = codeOf(f).match(/<h2[^>]*>\s*[A-Z] · [A-Z][A-Z ]+/);
+    if (m) twoListsFail(`${f} still wears the deleted room's letter in its header ("${m[0].replace(/<h2[^>]*>\s*/, '')}") — every lettered header loses its letter`);
+  }
+  const tasksRow = TOOL_REGISTRY.find((t) => t.name === 'Tasks');
+  if (!tasksRow?.links?.some((l) => l.label === 'Audit trail' && l.href === '/operations/audit-log')) twoListsFail(`the Tasks registry row does not link "Audit trail" → /operations/audit-log`);
+  if (tasksRow?.links?.some((l) => /tail/i.test(l.label))) twoListsFail(`the Tasks registry row still says "tail"`);
+}
+
+// 5. the why is a customer's line.
+{
+  const why = TOOL_REGISTRY.find((t) => t.name === 'Tasks')?.why ?? '';
+  if (/founder|Claude Code|paid|build pipeline/i.test(why)) twoListsFail(`the Tasks registry why carries the founder's build note — it is a customer's line; the note is a code comment beside the row`);
+  if (!why.trim()) twoListsFail('the Tasks registry why is empty — a four-beat PARTIAL says what is not done for a customer');
+}
+
+if (twoListsViolations === 0) console.log(`✔ The two-lists law passed — /tasks' tree mounts no StageStrip and no ProofStrip, and the page labels no pipe; ${STREAK_WRITERS.length} streak writers untouched while no page or component reads or draws a streak; a project delete runs the one deletion leaf inside its transaction, refuses 409 naming the task on any of five live links, and the row previews before it confirms; no operations header wears a letter; the Tasks why is a customer's line.`);
+else console.log(`✖ The two-lists law FAILED — ${twoListsViolations} violation(s).`);
+
 // ── THE READER LAW (TEST-TRUTH-01, 2026-09-17) ──────────────────────────────
 // NO TEST AND NO LAW MAY READ A SOURCE FILE RAW.
 //
