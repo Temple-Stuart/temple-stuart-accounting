@@ -110,7 +110,8 @@ test('the survivors are the registry\'s, and the registry still says so', () => 
   // STEP 0.3's answer: Tasks owns both, by its own links — not Compliance,
   // not nothing.
   const tasks = TOOL_REGISTRY.find((t) => t.name === 'Tasks');
-  assert.deepEqual((tasks?.links ?? []).map((l) => l.href), ['/operations/issues', '/operations/audit-log']);
+  // NORTH-01: the North Star is the third, reached the same way.
+  assert.deepEqual((tasks?.links ?? []).map((l) => l.href), ['/operations/north-star', '/operations/issues', '/operations/audit-log']);
   // /operations itself is gone — no page, and no tool claims it.
   assert.equal(existsSync(`${process.cwd()}/src/app/operations/page.tsx`), false);
   assert.equal(TOOL_REGISTRY.some((t) => t.home === '/operations'), false);

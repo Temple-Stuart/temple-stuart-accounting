@@ -133,9 +133,18 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     // The Issue log and Audit tail return as Tasks' own sub-rows: they are THE
     // WORK's pages, and the /operations prefix that doored them is gone with
     // the room. Neither is any tool's screen, so navLaw rule 7 holds.
+    // NORTH-01 (2026-09-18): the North Star joins them. It is Tasks' own input —
+    // src/lib/ai/northStarContext.ts feeds every project generator — and it was
+    // rendered inline at the top of /tasks, which is not how its two siblings
+    // are reached. It has its own page now, doored the same way: a link here,
+    // a sub-row in the rail. Nothing about the North Star itself changed.
     slug: 'tasks', status: 'PARTIAL', beats: ALL, home: '/tasks',
     why: "the founder's build pipeline — accepting a task fires a paid Claude Code build; not a customer's task tool",
-    links: [{ label: 'Issue log', href: '/operations/issues' }, { label: 'Audit tail', href: '/operations/audit-log' }],
+    links: [
+      { label: 'North Star', href: '/operations/north-star' },
+      { label: 'Issue log', href: '/operations/issues' },
+      { label: 'Audit tail', href: '/operations/audit-log' },
+    ],
     citation: 'src/app/api/operations/projects/[id]/tasks/route.ts:43 · generate-tasks/route.ts:42 · tasks/bulk-create/route.ts:117 · tasks/[taskId]/route.ts:82 → :339, :370; accepting a pending_review task fires the paid build at tasks/[taskId]/route.ts:392-402',
   },
   Time: {
