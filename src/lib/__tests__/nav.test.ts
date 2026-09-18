@@ -114,7 +114,8 @@ test('every legacy page hangs under the tool that OWNS it — never another tool
   assert.deepEqual(subs, {
     // TOOL-LAW-01: the Issue log and Audit tail return as Tasks' own sub-rows —
     // the /operations prefix that doored them went with the room.
-    Tasks: ['/operations/issues', '/operations/audit-log'],
+    // NORTH-01: the North Star joins them, by the same door.
+    Tasks: ['/operations/north-star', '/operations/issues', '/operations/audit-log'],
     Travel: ['/budgets/trips'],
     Budget: ['/agenda', '/shopping', '/hub/itinerary', '/runway'],
     Bookkeeping: ['/chart-of-accounts'],

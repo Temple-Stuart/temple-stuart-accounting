@@ -35,13 +35,18 @@
  * and projects/[id]/generate-design (phase 01 Input); SectionC_DailyPlan writes
  * /api/operations/daily-plan/items (:130), which the grid reads back as blocks
  * (HubCalendar.tsx:141) — phase 05 Plan.
+ *
+ * NORTH-01 (2026-09-18): the North Star is no longer rendered INLINE here. It is
+ * still Tasks' — it is reached the way Issue log and Audit tail are, as a
+ * sub-row of this tool's rail entry (a `links` entry on the registry row) that
+ * opens its own page, src/app/operations/north-star/page.tsx. The component
+ * itself is untouched.
  */
 import AppLayout from '@/components/ui/AppLayout';
 import ToolOpener from '@/components/shell/ToolOpener';
 import { navToolByName } from '@/lib/nav';
 import { TOOL_GATE } from '@/lib/offer';
 import { OperationsEntityProvider } from '@/components/workbench/operations/EntitySelector';
-import SectionB_NorthStar from '@/components/workbench/operations/SectionB_NorthStar';
 import SectionC_DailyPlan from '@/components/workbench/operations/SectionC_DailyPlan';
 import SectionD_ProjectBacklog from '@/components/workbench/operations/SectionD_ProjectBacklog';
 import SectionE_Routines from '@/components/workbench/operations/SectionE_Routines';
@@ -53,7 +58,6 @@ export default function TasksPage() {
       <ToolOpener tools={[navToolByName('Tasks', TOOL_GATE)]} />
       <OperationsEntityProvider>
         <div className="space-y-3" data-tool-page="Tasks">
-          <SectionB_NorthStar />
           {/* PLAN-01: each pipe's surface says WHICH pipe it is, so a reader is
               never left guessing which strip belongs to which body of work. */}
           <div data-pipe-section="projects">
