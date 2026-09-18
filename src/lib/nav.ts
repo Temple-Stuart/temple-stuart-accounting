@@ -115,8 +115,15 @@ export const THE_SORT: readonly PhaseAssignment[] = [
   // THIS LINE IS THE ONE PLACE PIPE OWNERSHIP IS DECLARED. The registry's per-tool
   // `phases` are DERIVED from it (nav.ts:201 `phases: phasesOf(tool.name, sort)`),
   // so there is no second list to keep in step — see the PR body's STEP 1.
-  ...(['01', '02', '03', '04'] as const).map((num): PhaseAssignment => ({ pipe: 'routines', num, owner: 'Tasks', rendersSurface: true })),
-  ...(['01', '02', '03', '04', '05', '06'] as const).map((num): PhaseAssignment => ({ pipe: 'projects', num, owner: 'Tasks', rendersSurface: true })),
+  // TASKS-01 (2026-09-18): Tasks still OWNS both pipes, and neither is DRAWN.
+  // /tasks is two lists; what each phase held survives as a plain control on a
+  // row (SectionE_Routines.tsx, TruthMachineView.tsx), never as a phase. The
+  // flag says so rather than letting the opener or the sheet imply a strip —
+  // hidden, not lying — until PIPES-01 retires the two pipes outright.
+  ...(['01', '02', '03', '04'] as const).map((num): PhaseAssignment => ({ pipe: 'routines', num, owner: 'Tasks', rendersSurface: false,
+    surfaceNote: 'TASKS-01 (2026-09-18): drawn nowhere — /tasks renders no StageStrip (src/app/tasks/page.tsx); the capability is plain controls in src/components/workbench/operations/SectionE_Routines.tsx' })),
+  ...(['01', '02', '03', '04', '05', '06'] as const).map((num): PhaseAssignment => ({ pipe: 'projects', num, owner: 'Tasks', rendersSurface: false,
+    surfaceNote: 'TASKS-01 (2026-09-18): drawn nowhere — /tasks renders no StageStrip (src/app/tasks/page.tsx); the capability is plain controls in src/components/workbench/operations/projects/TruthMachineView.tsx behind the row\'s "pipeline" button' })),
   ...(['01', '02', '03', '04'] as const).map((num): PhaseAssignment => ({ pipe: 'content', num, owner: 'Time', rendersSurface: true })),
 ];
 
@@ -270,7 +277,13 @@ export function navToolsOfScreen(href: string, gate: Readonly<Record<string, str
  */
 export const PHASES_RENDERED_AT: Readonly<Record<string, readonly PipePillarId[]>> = {
   '/books': ['books'],           // BooksPipeline.tsx:328
-  '/tasks': ['projects', 'routines'], // PLAN-01: projects per project row (TruthMachineView.tsx:376) + routines page-level (SectionE_Routines.tsx:47)
+  // TASKS-01 (2026-09-18): /tasks draws NO strip. It is two lists — projects
+  // and routines — whose capability is plain controls on the rows; the two
+  // strips PLAN-01 declared here (projects per project row, routines
+  // page-level) are gone, and the two-lists law refuses a StageStrip anywhere
+  // in the page's tree. The pipes stay DEFINED (pipePhases.ts, THE SORT) until
+  // PIPES-01 retires them — see that ruling's scope in the TASKS-01 PR body.
+  '/tasks': [],
   '/time': ['content'],          // ContentPipeline.tsx:371
   '/travel': ['travel'],         // ModuleLauncher.tsx:758 — /travel IS the cockpit tab
   '/tax': ['tax'],               // TaxFilingWizard.tsx, through TaxHandoffGate

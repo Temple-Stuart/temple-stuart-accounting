@@ -24,11 +24,14 @@
  *
  * Plus the two demo-day time-block routines carried from the Runway deck's
  * calendar seed (RunwayShowcaseSections.tsx:136,139):
- *   Morning coffee and plan the day   07:00–07:30 · daily        · streak 12 ✓ / 0 ✗
- *   Prep the truck for the lunch rush 10:30–11:30 · weekly Mo–Fr · streak 4 ✓ / 1 ✗
- * Streak/next-due values are declared demo-day narrative data (like the Runway
- * deck's merchants/dates) — never presented as anyone's real history. The
- * monthly routines' streaks (6/0, 3/0, 5/1) are likewise declared here.
+ *   Morning coffee and plan the day   07:00–07:30 · daily
+ *   Prep the truck for the lunch rush 10:30–11:30 · weekly Mo–Fr
+ * Next-due values are declared demo-day narrative data (like the Runway
+ * deck's merchants/dates) — never presented as anyone's real history.
+ * TASKS-01 (2026-09-18): the streak counters this deck mirrored ("🔥 N ✓ / N ✗")
+ * are gone from the product — no streak renders on any customer surface — so
+ * the list slide mirrors what the row shows now: the cadence group and the
+ * next occurrence.
  *
  * ── VERBATIM STRINGS CARRIED (inventory §3, §8) ──────────────────────────────
  *   "N done · N due · N missed"            TodaysStrip.tsx:135
@@ -36,8 +39,7 @@
  *                                          TodaysStrip.tsx:41-53, today/route.ts:14-22
  *   "✓ mark done"                          TodaysStrip.tsx:181
  *   "Δ N min"                              TodaysStrip.tsx:166-170
- *   "🔥 N ✓ / N ✗"                          RoutineRow.tsx:216
- *   "next: <datetime>"                     RoutineRow.tsx:218-219
+ *   "next: <datetime>"                     RoutineRow.tsx (the next-due cell)
  *   cadence groups Daily…Custom            types.ts:220-231
  *   "no routines scheduled for today."     TodaysStrip.tsx:126
  *   "show inactive"                        RoutineList.tsx:149
@@ -63,7 +65,7 @@
  * ── BANNED (inventory §8 — zero rendered hits) ──────────────────────────────
  * "3 patterns" · any next-N-occurrences preview (the /upcoming route has zero
  * UI consumers) · hub_scheduled_items · automation dashboards / Inngest
- * evaluator UI (only its OUTPUTS render: pills, streaks) · "Claude Code
+ * evaluator UI (only its OUTPUTS render: pills) · "Claude Code
  * Routines" naming · Scenify-as-free (it is under the AI daily cap; mirrored inert +
  * labeled) · travel-COA budget claims · retired content surfaces
  * (AvailableRoutinesList/SectionG/ContentTable) · guest-transfer claims ·
@@ -83,16 +85,16 @@ const EX = {
   // The Runway deck's three budget lines as routines (values identical to
   // RunwayShowcaseSections.tsx:92-99; mapping declared in the header comment).
   monthly: [
-    { routine: 'Pay the rent', coa: '6100', coaName: 'Rent (Business)', budget: 400, cadence: 'monthly (day of month) · day 1', rrule: 'FREQ=MONTHLY;BYMONTHDAY=1;BYHOUR=9;BYMINUTE=0;BYSECOND=0', planned: 400, actual: 400.0, pct: '0.0%', done: 6, missed: 0, next: 'Aug 1, 9:00 AM' },
-    { routine: 'Restock supplies', coa: '6120', coaName: 'Supplies', budget: 300, cadence: 'monthly (day of month) · day 15', rrule: 'FREQ=MONTHLY;BYMONTHDAY=15;BYHOUR=9;BYMINUTE=0;BYSECOND=0', planned: 300, actual: 312.45, pct: '+4.2%', done: 3, missed: 0, next: 'Jul 15, 9:00 AM' },
-    { routine: 'Service the truck', coa: '6010', coaName: 'Car & Truck Expenses', budget: 150, cadence: 'monthly (day of month) · day 20', rrule: 'FREQ=MONTHLY;BYMONTHDAY=20;BYHOUR=8;BYMINUTE=0;BYSECOND=0', planned: 150, actual: 138.2, pct: '-7.9%', done: 5, missed: 1, next: 'Jul 20, 8:00 AM' },
+    { routine: 'Pay the rent', coa: '6100', coaName: 'Rent (Business)', budget: 400, cadence: 'monthly (day of month) · day 1', rrule: 'FREQ=MONTHLY;BYMONTHDAY=1;BYHOUR=9;BYMINUTE=0;BYSECOND=0', planned: 400, actual: 400.0, pct: '0.0%', next: 'Aug 1, 9:00 AM' },
+    { routine: 'Restock supplies', coa: '6120', coaName: 'Supplies', budget: 300, cadence: 'monthly (day of month) · day 15', rrule: 'FREQ=MONTHLY;BYMONTHDAY=15;BYHOUR=9;BYMINUTE=0;BYSECOND=0', planned: 300, actual: 312.45, pct: '+4.2%', next: 'Jul 15, 9:00 AM' },
+    { routine: 'Service the truck', coa: '6010', coaName: 'Car & Truck Expenses', budget: 150, cadence: 'monthly (day of month) · day 20', rrule: 'FREQ=MONTHLY;BYMONTHDAY=20;BYHOUR=8;BYMINUTE=0;BYSECOND=0', planned: 150, actual: 138.2, pct: '-7.9%', next: 'Jul 20, 8:00 AM' },
   ],
   totalPlanned: 850.0,
   totalActual: 850.65,
   // The Runway deck's demo-day time-block routines (RunwayShowcaseSections.tsx:136,139).
   daily: [
-    { routine: 'Morning coffee and plan the day', time: '07:00–07:30', cadence: 'daily', done: 12, missed: 0 },
-    { routine: 'Prep the truck for the lunch rush', time: '10:30–11:30', cadence: 'weekly · Mo Tu We Th Fr', done: 4, missed: 1 },
+    { routine: 'Morning coffee and plan the day', time: '07:00–07:30', cadence: 'daily', next: 'tomorrow, 7:00 AM' },
+    { routine: 'Prep the truck for the lunch rush', time: '10:30–11:30', cadence: 'weekly · Mo Tu We Th Fr', next: 'Mon, 10:30 AM' },
   ],
   // The prep-truck routine's ordered steps (slide 2) — auto-filled at 15-min
   // intervals from the 10:30 start (RoutineStepList.tsx:20,71-81).
@@ -214,8 +216,8 @@ function StepsPanel() {
 
 /** 3. TODAY'S STRIP — mirrors TodaysStrip: the summary line (:135), rows
  *  (:145-187), pills (:41-53), Δ minutes (:166-170), ✓ mark done (:173-183).
- *  Live-pill semantics from today/route.ts:14-22; durable misses + streaks are
- *  written by the nightly evaluator (routine-evaluator.ts:34,103-153). */
+ *  Live-pill semantics from today/route.ts:14-22; durable misses are written
+ *  by the nightly evaluator (routine-evaluator.ts:34,103-153). */
 function TodayPanel() {
   return (
     <DarkSlide title="Today — what's due, done, slipped">
@@ -230,32 +232,33 @@ function TodayPanel() {
           <Pill status="pending" /> <span className="float-right rounded border border-green-400/40 px-1.5 text-green-300">✓ mark done</span>
         </p>
         <p className="pt-1 text-[10px] italic text-text-faint">
-          Past its grace window the pill turns <span className="not-italic"><Pill status="missed" /></span> on the spot; each night the evaluator writes the miss durably and the streak feels it. Nothing is forgotten.
+          Past its grace window the pill turns <span className="not-italic"><Pill status="missed" /></span> on the spot; each night the evaluator writes the miss durably into the record. Nothing is forgotten.
         </p>
       </div>
     </DarkSlide>
   );
 }
 
-/** 4. STREAKS — mirrors RoutineList's cadence groups (:190-213) + RoutineRow's
- *  compact row: 🔥 streaks (:214-217) and next-due (:218-219). */
-function StreaksPanel() {
+/** 4. THE LIST — mirrors RoutineList's cadence groups + RoutineRow's compact
+ *  row: the next-due cell. TASKS-01: no streak counter — the row shows what
+ *  is planned and when it is next due. */
+function ListPanel() {
   return (
-    <DarkSlide title="The list — cadence-grouped, streaks both ways">
+    <DarkSlide title="The list — cadence-grouped, the next one always on the row">
       <div className="space-y-1 text-text-secondary">
         <p className="text-text-faint">5 routines <span className="float-right">☐ show inactive</span></p>
         <p className="border-t border-border pt-1 text-[10px] uppercase tracking-wide text-text-faint">Daily (1)</p>
-        <p><span className="text-text-primary">Morning coffee and plan the day</span> <span className="float-right text-text-muted">🔥 12 ✓ / 0 ✗</span></p>
+        <p><span className="text-text-primary">{EX.daily[0].routine}</span> <span className="float-right text-text-muted">next: {EX.daily[0].next}</span></p>
         <p className="text-[10px] uppercase tracking-wide text-text-faint">Weekly (1)</p>
-        <p><span className="text-text-primary">Prep the truck for the lunch rush</span> <span className="float-right text-text-muted">🔥 4 ✓ / <span className="text-red-300">1 ✗</span></span></p>
+        <p><span className="text-text-primary">{EX.daily[1].routine}</span> <span className="float-right text-text-muted">next: {EX.daily[1].next}</span></p>
         <p className="text-[10px] uppercase tracking-wide text-text-faint">Monthly (3)</p>
         {EX.monthly.map((r) => (
           <p key={r.coa}>
             <span className="text-text-primary">{r.routine}</span>
-            <span className="float-right text-text-muted">🔥 {r.done} ✓ / {r.missed > 0 ? <span className="text-red-300">{r.missed} ✗</span> : `${r.missed} ✗`} · next: {r.next}</span>
+            <span className="float-right text-text-muted">{r.coa} · {usd0(r.budget)} / occurrence · next: {r.next}</span>
           </p>
         ))}
-        <p className="pt-1 text-[10px] italic text-text-faint">Completions increment ✓ and zero ✗; the nightly evaluator does the reverse on a miss. The counter can&rsquo;t flatter you.</p>
+        <p className="pt-1 text-[10px] italic text-text-faint">Edit, deactivate or delete from the row; “show inactive” brings a paused routine back into view.</p>
       </div>
     </DarkSlide>
   );
@@ -402,10 +405,10 @@ export default function RoutinesShowcase({ onRequireAuth }: Props) {
           panelSide: 'left',
         },
         {
-          title: 'The streak counts both ways.',
+          title: 'One list, grouped by cadence, the next occurrence always on the row.',
           copy:
-            'Every routine carries a completion streak AND a miss streak — marking done bumps one and zeroes the other, and the nightly evaluation does the reverse when you slip. Grouped daily to custom, with the next occurrence always on the row. Honest scorekeeping, not gamification.',
-          panel: <StreaksPanel />,
+            'Every routine sits in its cadence group — once, daily, weekly, monthly, quarterly, yearly, custom — with its budget per occurrence and the next time it is due. Done, due and missed live on today’s strip and in the record; the list is for what you planned. No streak counter, no gamification.',
+          panel: <ListPanel />,
           panelSide: 'right',
         },
         {

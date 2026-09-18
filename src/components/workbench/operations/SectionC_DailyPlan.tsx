@@ -160,7 +160,7 @@ export default function SectionC_DailyPlan({ }: { } = {}) {
     <section className="bg-white rounded border border-border shadow-sm p-5">
       <div className="flex items-center justify-between mb-3">
         <h2 className="font-mono text-sm font-bold tracking-wide text-text-primary">
-          C · DAILY PLAN
+          DAILY PLAN
         </h2>
         <div className="flex items-center gap-3 text-xs font-mono">
           <span className="text-text-muted">

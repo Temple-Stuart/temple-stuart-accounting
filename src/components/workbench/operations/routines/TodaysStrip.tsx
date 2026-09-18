@@ -12,7 +12,9 @@
  *   upcoming  — expected_at > now
  *
  * On successful completion, the parent's onCommitted callback fires so the
- * cadence-grouped list refetches its streak counters too.
+ * cadence-grouped list refetches (next-due moves on). TASKS-01: it refetches
+ * itself when refreshKey changes — a routine created or edited in the list
+ * shows up here without a reload.
  */
 
 'use client';
@@ -29,8 +31,6 @@ interface TodayEntry {
     name: string;
     timezone: string;
     fail_threshold_minutes: number;
-    consecutive_completion_streak: number;
-    consecutive_miss_streak: number;
     // ROUTINES-UX-2: ALREADY in the payload as merged — the today route
     // returns FULL operations_routines rows (findMany with include, no
     // select; today/route.ts entries push `routine: r`), so budget_amount
@@ -50,14 +50,11 @@ interface TodayEntry {
 
 interface Props {
   onCommitted?: () => void;
-  /** ROUTINES-PIPE: today's tallies reported up after each successful fetch
-   *  (the Books onTotals idiom — zero new fetches; the parent's stable
-   *  setter is the callback). Feeds the StageStrip's derived states + the
-   *  ProofStrip receipts. */
-  onTotals?: (t: { entries: number; due: number; done: number; missed: number }) => void;
+  /** TASKS-01: a change of this value refetches today's occurrences. */
+  refreshKey?: number;
   /** ZERO-STATE-1: the Today empty state's next action — the parent
-   *  (SectionE_Routines) switches the toggler to the All-routines tab,
-   *  where creation lives. Absent → the plain sentence renders alone. */
+   *  (SectionE_Routines) opens the list's create form, where creation
+   *  lives. Absent → the plain sentence renders alone. */
   onCreateRequest?: () => void;
 }
 
@@ -83,7 +80,7 @@ function formatTime(iso: string, tz: string): string {
   });
 }
 
-export default function TodaysStrip({ onCommitted, onCreateRequest, onTotals }: Props & { }) {
+export default function TodaysStrip({ onCommitted, onCreateRequest, refreshKey = 0 }: Props & { }) {
   const [entries, setEntries] = useState<TodayEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -102,12 +99,6 @@ export default function TodaysStrip({ onCommitted, onCreateRequest, onTotals }: 
       }
       const list: TodayEntry[] = body.entries ?? [];
       setEntries(list);
-      onTotals?.({
-        entries: list.length,
-        due: list.filter((e) => e.status === 'pending' || e.status === 'upcoming').length,
-        done: list.filter((e) => e.status === 'completed').length,
-        missed: list.filter((e) => e.status === 'missed').length,
-      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'failed to load today');
     } finally {
@@ -117,7 +108,7 @@ export default function TodaysStrip({ onCommitted, onCreateRequest, onTotals }: 
 
   useEffect(() => {
     fetchToday();
-  }, []);
+  }, [refreshKey]);
 
   const handleComplete = async (routineId: string, expectedAt: string) => {
     setCompletingId(routineId);
@@ -152,9 +143,8 @@ export default function TodaysStrip({ onCommitted, onCreateRequest, onTotals }: 
 
   if (entries.length === 0) {
     // ZERO-STATE-1: the dead-end dies — the empty state offers the next
-    // action (switch to All routines, where the create form lives). Button
-    // idiom = RoutineList's own "+ new routine" (RoutineList.tsx:158),
-    // byte-reused for one vocabulary.
+    // action (open the list's create form). Button idiom = RoutineList's own
+    // "+ new routine", byte-reused for one vocabulary.
     return (
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-xs text-text-muted italic">

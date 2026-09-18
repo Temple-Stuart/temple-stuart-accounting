@@ -2,12 +2,21 @@
  * TruthMachineView — the TRANSPARENT pipeline render of a project, as a clean white
  * "finance" pipe (PR-TM-redesign restyle of TM-1/TM-2).
  *
- * Visible top-to-bottom FLOW: inputs → research → audit → fusion → tasks. Each stage is a
- * white card with a COLORED LEFT-STRIPE (purple/teal/blue/amber/purple) on a soft tint
- * canvas, separated by ↓ chevrons. Prompts render the SAME interpolated text the live call
- * fires — fixed template text in black, the user's INJECTED INPUTS in RED. The red is
- * builder-declared (server `segments` with kind:'input'|'template'), verified to rebuild
- * the exact fired string — never a regex guess.
+ * Visible top-to-bottom FLOW: inputs → research → audit → fusion → tasks → evolve. Each
+ * stage is a white card with a COLORED LEFT-STRIPE (purple/teal/blue/amber/purple) on a
+ * soft tint canvas. Prompts render the SAME interpolated text the live call fires — fixed
+ * template text in black, the user's INJECTED INPUTS in RED. The red is builder-declared
+ * (server `segments` with kind:'input'|'template'), verified to rebuild the exact fired
+ * string — never a regex guess.
+ *
+ * TASKS-01 (2026-09-18): the per-project StageStrip and the ProofStrip receipts are GONE.
+ * The strip had become six CSS show/hide tabs over this one render — a filter, not a
+ * capability — and the receipts repeated counts the cards already show. Every stage now
+ * renders in flow, as plain controls: "✨ run deep research", the audit paste box,
+ * "save research + audit", "↑ generate tasks" with its accept gate, the live task list,
+ * "↻ evolve" and "⚡ run pipe (auto)". Nothing a phase offered was dropped. This view is
+ * reached from the project row by a plain "pipeline" button (ProjectRowView) and leaves
+ * by "standard view"; it no longer opens by default.
  *
  * REUSE, no rebuild — the engines are untouched: the research agent (onRunResearch), the
  * fusion engine (onGenerateTasks → tasksPreview → <AITaskPreview /> human-accept gate), the
@@ -19,21 +28,8 @@
 
 import { useState } from 'react';
 import type { Project } from './types';
-// PROJECTS-PIPE (Option A ruling): the per-project StageStrip — INDICATOR +
-// JUMP-NAV only, never a show/hide controller. The one-document flow, the
-// ↓ chevrons, and the cross-stage run-pipe wiring stay byte-preserved.
-import StageStrip, { type StagePhase } from '@/components/ui/StageStrip';
-import ProofStrip from '@/components/ui/ProofStrip';
-import { PIPE_PHASES, type PipePhase } from '@/lib/pipePhases';
 import AITaskPreview, { type AIGeneratedTask } from './AITaskPreview';
 import { type InspectionData } from '../ai/InspectionDrawer';
-
-
-// Widened to the interface so optional fields type-check across the union
-// of literal rows (the Travel precedent).
-const [PIPE_INPUT, PIPE_RESEARCH, PIPE_AUDIT, PIPE_TASKS, PIPE_PLAN, PIPE_EVOLVE] = PIPE_PHASES.projects as readonly PipePhase[];
-
-type ProjectPhaseKey = 'input' | 'research' | 'audit' | 'tasks' | 'plan' | 'evolve';
 
 /** A prompt span: 'input' = user-injected (rendered red), 'template' = fixed scaffold. */
 export interface PromptSegmentDTO {
@@ -105,10 +101,6 @@ export interface TruthMachineViewProps {
   onTasksDiscarded: () => void;
   /** The live <TaskList /> slot — same element ProjectRowView receives. */
   taskSection: React.ReactNode;
-  /** PROJECTS-PIPE: TaskList's reported tallies (via ProjectRow — the Books
-   *  onTotals idiom, zero new fetches). null = not reported yet → pending /
-   *  honest empty, never imputed. */
-  taskStats?: { pendingReview: number; planTasks: number } | null;
 }
 
 // ── palette (the clean finance look — deliberate hex per the redesign spec) ──
@@ -289,58 +281,10 @@ export default function TruthMachineView({ project,
   onEvolveGoalsChange,
   onEvolveConfirm,
   onEvolveCancel,
-  taskStats,
 }: TruthMachineViewProps & { }) {
   const goalItems = asStringArray(project.goal_items);
   const problemItems = asStringArray(project.problem_items);
   const diagnosisItems = asStringArray(project.diagnosis_items);
-
-  // PROJECTS-PIPE: per-phase done-signals — DERIVED INDICATORS from the
-  // project's own artifacts + the live controlled inputs, never locks:
-  //   input    ⇐ goals present (goal_items / legacy goal)
-  //   research ⇐ the research output field is non-empty (deep_research_input)
-  //   audit    ⇐ the audit output field is non-empty (claude_code_audit_input)
-  //   tasks    ⇐ tasks exist (queue-list task_count) or a preview is open
-  //   plan     ⇐ any task accepted into the plan (TaskList report-up:
-  //              status open/in_progress/blocked/completed)
-  //   evolve   ⇐ the pipe has run more than once (queue-list run_count)
-  // Unreported signals (task_count/run_count absent off the queue list;
-  // taskStats not yet reported) render pending — honestly underivable.
-  const doneByPhase: Record<ProjectPhaseKey, boolean> = {
-    input: goalItems.length > 0 || (project.goal ?? '').trim().length > 0,
-    research: researchInput.trim().length > 0,
-    audit: auditInput.trim().length > 0,
-    tasks: (project.task_count ?? 0) > 0 || tasksPreview !== null,
-    plan: (taskStats?.planTasks ?? 0) > 0,
-    evolve: (project.run_count ?? 0) > 1,
-  };
-  const PHASE_ORDER: ProjectPhaseKey[] = ['input', 'research', 'audit', 'tasks', 'plan', 'evolve'];
-  // R2: active = the project's FRONTIER on expand — the first not-done phase
-  // (all done → the last). Computed ONCE at mount (this view mounts on
-  // expand); a strip click overrides.
-  const [activePhase, setActivePhase] = useState<ProjectPhaseKey>(
-    () => PHASE_ORDER.find((k) => !doneByPhase[k]) ?? 'evolve',
-  );
-  // PHASE-TABS: the strip is a REAL phase controller now — onSelect sets
-  // the active phase; the scroll-jump and its anchors retired (zero
-  // consumers). Surfaces are CSS show/hide, KEEP-MOUNTED (the Books/Travel
-  // idiom — the Travel strip's survival-contract precedent): the controlled
-  // research/audit textareas hold unsaved drafts across switches BY
-  // CONSTRUCTION (React state in ProjectRow :117-118, filled only via
-  // setters — :334 and the onChange chains; no DOM writes anywhere).
-  const selectPhase = (k: ProjectPhaseKey) => setActivePhase(k);
-  const stripPhases: StagePhase[] = (
-    [
-      ['input', PIPE_INPUT], ['research', PIPE_RESEARCH], ['audit', PIPE_AUDIT],
-      ['tasks', PIPE_TASKS], ['plan', PIPE_PLAN], ['evolve', PIPE_EVOLVE],
-    ] as const
-  ).map(([key, pipe]) => ({
-    key,
-    num: pipe.num,
-    label: pipe.name,
-    subLabel: pipe.subLabel,
-    state: activePhase === key ? 'active' : doneByPhase[key] ? 'done' : 'pending',
-  }));
 
   return (
     <div className="rounded-lg p-3 sm:p-4 space-y-2" style={{ backgroundColor: CANVAS }}>
@@ -371,10 +315,6 @@ export default function TruthMachineView({ project,
           </button>
         </div>
       </div>
-      {/* PROJECTS-PIPE: the per-project strip — position indicator +
-          scroll-jump nav (R1/R2). It never mounts or hides anything. */}
-      <StageStrip phases={stripPhases} onSelect={(k) => selectPhase(k as ProjectPhaseKey)} />
-
       {pipeQueued && (
         <div className="px-1 text-[11px] text-gray-500">
           Running research → audit → fusion automatically. New tasks will appear below as <span className="text-purple-800 font-medium">pending review</span> — accept or reject each when they land. Progress is checked automatically every 5 seconds (gives up after 5 minutes).
@@ -382,8 +322,7 @@ export default function TruthMachineView({ project,
       )}
       {pipeError && <div className="px-1 text-[11px] text-red-600">{pipeError}</div>}
 
-      {/* 1 · INPUTS — the 01 phase surface (keep-mounted, CSS-hidden off-phase). */}
-      <div className={activePhase === 'input' ? 'block' : 'hidden'}>
+      {/* 1 · INPUTS */}
       <Stage n={1} label="inputs" color={STRIPE.inputs}>
         <div>
           <div className={sub}>goal</div>
@@ -404,10 +343,8 @@ export default function TruthMachineView({ project,
           </div>
         )}
       </Stage>
-      </div>
 
-      {/* 2 · RESEARCH — the 02 phase surface. */}
-      <div className={activePhase === 'research' ? 'block' : 'hidden'}>
+      {/* 2 · RESEARCH */}
       <Stage
         n={2}
         label="research"
@@ -446,12 +383,9 @@ export default function TruthMachineView({ project,
           {researchError && <div className="mt-1 text-[11px] text-red-700">{researchError}</div>}
         </div>
       </Stage>
-      </div>
 
-      {/* 3 · AUDIT — the 03 phase surface; the save-research+audit row rides
-          HERE (it persists both reality inputs and its saved-hint points
-          forward to task generation — placement declared). */}
-      <div className={activePhase === 'audit' ? 'block' : 'hidden'}>
+      {/* 3 · AUDIT — the save-research+audit row rides HERE (it persists both
+          reality inputs and its saved-hint points forward to task generation). */}
       <Stage n={3} label="audit" color={STRIPE.audit} badge="paste" badgeTone="paste">
         <div className="text-gray-500 text-[11px]">Runs automatically when you run the pipe — the audit Routine fires with the run and its findings land here. Working step-by-step instead? Copy this prompt → run it in Claude Code (read-only) → paste the findings into the output below.</div>
         <PromptBox segments={prompts?.audit.segments} copyText={prompts?.audit.text} loading={promptsLoading} />
@@ -480,10 +414,8 @@ export default function TruthMachineView({ project,
         </button>
         {inputsSaved && <span className="text-gray-400 text-[11px]">saved — generate tasks to use these</span>}
       </div>
-      </div>
 
-      {/* 4 · FUSION → tasks — the 04 phase surface. */}
-      <div className={activePhase === 'tasks' ? 'block' : 'hidden'}>
+      {/* 4 · FUSION → tasks */}
       <Stage
         n={4}
         label="fusion → tasks"
@@ -535,23 +467,18 @@ export default function TruthMachineView({ project,
           </div>
         )}
       </Stage>
-      </div>
 
-      {/* 5 · TASK LIST (live) — the 05 phase surface. */}
-      <div className={activePhase === 'plan' ? 'block' : 'hidden'}>
+      {/* 5 · TASK LIST (live) */}
       <Stage n={5} label="plan" color={STRIPE.plan}>
         {taskSection}
       </Stage>
-      </div>
 
       {/* EVOLVE-1: loop the pipe again with new goals. Edit the goals → re-run the
           WHOLE pipe (research→audit→fusion) on the evolved state. Append-only — the
           prior tasks stay in the evolution timeline; this adds a new version. Reuses
           run-pipe (no new pipe logic). Shown only when the container wires onEvolveStart. */}
-      {/* ↻ EVOLVE — the 06 phase surface. Unwired (no onEvolveStart) → the
-          file's own honest-empty idiom ("(none yet)", the ItemList string);
-          the strip state stays pending as-is (R4 — no invented copy). */}
-      <div className={activePhase === 'evolve' ? 'block' : 'hidden'}>
+      {/* ↻ EVOLVE. Unwired (no onEvolveStart) → the file's own honest-empty
+          idiom ("(none yet)", the ItemList string). */}
       {onEvolveStart ? (
           <section
             className="rounded-md border border-gray-200 bg-white p-3 sm:p-4 space-y-2.5 border-l-4 shadow-sm"
@@ -621,24 +548,6 @@ export default function TruthMachineView({ project,
       ) : (
         <div className="text-gray-400 italic">(none yet)</div>
       )}
-      </div>
-
-      {/* PROJECTS-PIPE (R3): the per-project receipts — existing state only,
-          honest empties. GOALS counts the structured items (legacy goal = 1);
-          PIPE RUNS / EST. COST come from the queue-list Project fields and
-          render the honest empty when the fetch shape omits them. EST. COST
-          appends only when the field is present ("cost if present" — R3). */}
-      <ProofStrip
-        receipts={[
-          { label: 'GOALS', value: String(goalItems.length > 0 ? goalItems.length : (project.goal ?? '').trim() ? 1 : 0) },
-          { label: 'TASKS PENDING REVIEW', value: taskStats ? String(taskStats.pendingReview) : undefined, emptyLabel: 'not loaded yet' },
-          { label: 'TASKS IN THE PLAN', value: taskStats ? String(taskStats.planTasks) : undefined, emptyLabel: 'not loaded yet' },
-          { label: 'PIPE RUNS', value: project.run_count != null ? String(project.run_count) : undefined },
-          ...(project.estimated_total_cost_usd != null && project.estimated_total_cost_usd !== ''
-            ? [{ label: 'EST. COST', value: `$${project.estimated_total_cost_usd}` }]
-            : []),
-        ]}
-      />
     </div>
   );
 }

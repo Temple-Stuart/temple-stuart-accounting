@@ -98,10 +98,6 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   const [pipeError, setPipeError] = useState<string | null>(null);
   // PHASE2-5: bump to force the live <TaskList /> to re-fetch (mirrors promptsRefresh).
   const [taskRefresh, setTaskRefresh] = useState(0);
-  // PROJECTS-PIPE: the live task tallies TaskList reports up (the Books
-  // onTotals idiom — TaskList's own existing fetch; zero new fetches). Feeds
-  // the truth machine's strip states + ProofStrip receipts.
-  const [taskStats, setTaskStats] = useState<{ pendingReview: number; planTasks: number } | null>(null);
   // EVOLVE-1: the "loop again with new goals" affordance (edit goals → re-run the pipe).
   const [evolving, setEvolving] = useState(false);
   const [evolveGoalsText, setEvolveGoalsText] = useState('');
@@ -120,10 +116,11 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   const [inputsSaved, setInputsSaved] = useState(false);
   // PR-TM-1: render the project as the transparent Truth Machine pipeline instead of
   // the standard row. Pure UI toggle — same container state + handlers feed both views.
-  // PR-TM-1 / PD-3a: the Truth Machine pipe is the DEFAULT project detail — opening a
-  // project shows the clean pipe-step layout (with the interpolated prompts surfaced for
-  // review). "standard view" (TruthMachineView onExit) returns to ProjectRowView read/edit.
-  const [pipelineMode, setPipelineMode] = useState(true);
+  // TASKS-01 (2026-09-18): the STANDARD row is the default again — the list's row with
+  // its own controls (edit / archive / delete / pipeline). The pipeline opens from the
+  // row's "pipeline" button and closes with "standard view"; PD-3a's pipe-by-default
+  // went with the phase strip it opened onto.
+  const [pipelineMode, setPipelineMode] = useState(false);
   // PR-TM-2: the live interpolated prompts (research / audit / fusion), fetched from the
   // read-only preview endpoint (NO Anthropic call). promptsRefresh re-pulls them after a
   // research run / save so the fusion preview never drifts from the DB state that fires.
@@ -460,11 +457,26 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
     }
   };
 
+  // TASKS-01: delete asks the server FIRST what would go. A live link (a
+  // posting, a planned-item link, a posted actual, a calendar block) refuses
+  // the delete with the reason, naming the task — the row shows it and archive
+  // stays the door. Otherwise the confirm dialog names what will be removed,
+  // and the DELETE re-runs the same check inside its transaction.
   const handleDelete = async () => {
-    if (!confirm(`Delete project "${project.title}"? This will also delete its tasks and dependencies.`)) return;
     setDeleting(true);
     setError(null);
     try {
+      const pre = await fetch(`/api/operations/projects/${project.id}/deletion`);
+      const preview = await pre.json();
+      if (!pre.ok) {
+        setError(preview?.message ?? preview?.error ?? 'failed to check the project');
+        return;
+      }
+      if (Array.isArray(preview.blockers) && preview.blockers.length > 0) {
+        setError(preview.message);
+        return;
+      }
+      if (!confirm(preview.summary)) return;
       const res = await fetch(`/api/operations/projects/${project.id}`, { method: 'DELETE' });
       const body = await res.json();
       if (!res.ok) {
@@ -577,8 +589,7 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
           onGenerateTasks={handleGenerateTasks}
           onTasksAccepted={() => { setTasksPreview(null); setTasksGenError(null); }}
           onTasksDiscarded={() => { setTasksPreview(null); setTasksGenError(null); }}
-          taskSection={<TaskList projectId={project.id} entity_id={project.entity_id} refreshKey={taskRefresh} onTotals={setTaskStats} />}
-          taskStats={taskStats}
+          taskSection={<TaskList projectId={project.id} entity_id={project.entity_id} refreshKey={taskRefresh} />}
           onRunPipe={handleRunPipe}
           runningPipe={runningPipe}
           pipeQueued={pipeQueued}
@@ -659,6 +670,7 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
       onDelete={handleDelete}
       onArchive={handleArchive}
       onUnarchive={handleUnarchive}
+      onEnterPipeline={() => setPipelineMode(true)}
     />
   );
 }

@@ -1,36 +1,26 @@
 /**
- * Section E · Routines — the ROUTINES PIPE FRAME (first of the seven
- * future strips; the Trade/Books pattern).
+ * Section E · Routines — THE ROUTINES LIST (TASKS-01, 2026-09-18).
  *
- * Control: the ratified StageStrip reading PIPE_PHASES.routines (01 Define ·
- * 02 Scheduled · 03 Run · 04 Proven — the shared config is the single
- * source; subLabel derivations cited there). The ROUTINES-V2 icon-tab
- * toggler RETIRED with its Today/All labels (the ToggleStrip precedent —
- * strings in git history).
+ * One list, grouped by cadence, with its controls: "+ new routine", edit,
+ * deactivate, delete, "show inactive" (RoutineList / RoutineRow). Above it,
+ * TODAY: the occurrences due today with "✓ mark done" and the honest line
+ * "{done} done · {due} due · {missed} missed" (TodaysStrip).
  *
- * Phase → surface (the audit's map, the Trade multi-phase-one-surface
- * precedent):
- *   01 Define    = RoutineList (inline create form + edit affordances)
- *   02 Scheduled = RoutineList (the cadence-grouped schedule view)
- *   03 Run       = TodaysStrip (due today + mark-complete)
- *   04 Proven    = RoutineList (RoutineRow's streak counters, :239-240)
+ * What came off, and where its capability went:
+ *   · the four-phase StageStrip (01 Define · 02 Scheduled · 03 Run · 04 Proven)
+ *     — 01, 02 and 04 were filters over this same RoutineList (the create
+ *     form, the cadence grouping the list already shows, the streak counters);
+ *     03 was TodaysStrip. Filters die; the two surfaces render together.
+ *   · the ProofStrip receipts (ACTIVE ROUTINES / DUE TODAY / DONE TODAY /
+ *     MISSED TODAY) — the same counts render on the surfaces themselves
+ *     ("{n} routines" in the list header, the done/due/missed line in Today).
+ *   · the streak counters (🔥) — not rendered anywhere now; the columns and
+ *     the evaluator are untouched.
  *
- * MOUNT GRAPH PRESERVED: both panels stay simple conditional mounts (the
- * file's own ROUTINES-V2 contract — each refetches via bump on mutation);
- * the strip changes the CONTROL only. Define/Scheduled/Proven share the
- * mounted RoutineList (stable branch → no remount switching among them).
- * Default phase = 'run' — preserving the old default ('today' opened the
- * TodaysStrip surface; declared).
- *
- * States are DERIVED INDICATORS, never locks (the ratified amendment):
- *   define    done ⇐ an active routine exists      (RoutineList onTotals)
- *   scheduled done ⇐ today's occurrence list ≠ ∅   (TodaysStrip onTotals)
- *   run       done ⇐ a completion happened today   (TodaysStrip onTotals)
- *   proven    done ⇐ a completion streak exists    (RoutineList onTotals)
- * A signal that hasn't reported yet (its surface not yet mounted this
- * session) renders pending — honestly underivable, never imputed (the
- * Books 06 Export precedent). Same for the ProofStrip receipts: absent
- * data renders the honest dashed empty, never a faked value.
+ * The two surfaces refetch each other on a commit: a routine created, edited
+ * or deleted in the list refreshes Today (listVersion); an occurrence marked
+ * done in Today refreshes the list (todayVersion). Two counters, so neither
+ * child refetches its own commit twice.
  */
 
 'use client';
@@ -39,73 +29,33 @@ import { useState } from 'react';
 import { useOperationsEntity } from './EntitySelector';
 import TodaysStrip from './routines/TodaysStrip';
 import RoutineList from './routines/RoutineList';
-import StageStrip, { type StagePhase } from '@/components/ui/StageStrip';
-import SectionHeader from '@/components/ui/SectionHeader';
-import ProofStrip from '@/components/ui/ProofStrip';
-import { PIPE_PHASES } from '@/lib/pipePhases';
-
-const [PIPE_DEFINE, PIPE_SCHEDULED, PIPE_RUN, PIPE_PROVEN] = PIPE_PHASES.routines;
-
-type RoutinePhase = 'define' | 'scheduled' | 'run' | 'proven';
 
 export default function SectionE_Routines() {
   const { entities } = useOperationsEntity();
-  // Bumping this counter forces both children to refetch. Each child
-  // takes onCommitted as a stable callback that increments this counter
-  // after a successful mutation.
-  const [, setRefreshCounter] = useState(0);
-  const bump = () => setRefreshCounter((n) => n + 1);
-
-  const [phase, setPhase] = useState<RoutinePhase>('run');
-  // The children's reported tallies (the Books onTotals idiom — zero new
-  // fetches). null = not reported yet → the derived states render pending
-  // and the receipts render the honest empty.
-  const [listTotals, setListTotals] = useState<{ activeCount: number; hasStreak: boolean } | null>(null);
-  const [todayTotals, setTodayTotals] = useState<{ entries: number; due: number; done: number; missed: number } | null>(null);
-
-  const activePipe =
-    phase === 'define' ? PIPE_DEFINE : phase === 'scheduled' ? PIPE_SCHEDULED : phase === 'run' ? PIPE_RUN : PIPE_PROVEN;
+  const [listVersion, setListVersion] = useState(0);
+  const [todayVersion, setTodayVersion] = useState(0);
+  // Today's zero-state offers "+ create a routine"; it opens the list's own
+  // create form (the one door to creation) rather than a second form.
+  const [createRequest, setCreateRequest] = useState(0);
 
   return (
-    <section className="space-y-5">
-      <StageStrip
-        phases={([
-          { key: 'define', num: PIPE_DEFINE.num, label: PIPE_DEFINE.name, subLabel: PIPE_DEFINE.subLabel,
-            state: phase === 'define' ? 'active' : (listTotals?.activeCount ?? 0) > 0 ? 'done' : 'pending' },
-          { key: 'scheduled', num: PIPE_SCHEDULED.num, label: PIPE_SCHEDULED.name, subLabel: PIPE_SCHEDULED.subLabel,
-            state: phase === 'scheduled' ? 'active' : (todayTotals?.entries ?? 0) > 0 ? 'done' : 'pending' },
-          { key: 'run', num: PIPE_RUN.num, label: PIPE_RUN.name, subLabel: PIPE_RUN.subLabel,
-            state: phase === 'run' ? 'active' : (todayTotals?.done ?? 0) > 0 ? 'done' : 'pending' },
-          { key: 'proven', num: PIPE_PROVEN.num, label: PIPE_PROVEN.name, subLabel: PIPE_PROVEN.subLabel,
-            state: phase === 'proven' ? 'active' : listTotals?.hasStreak ? 'done' : 'pending' },
-        ] as StagePhase[])}
-        onSelect={(k) => setPhase(k as RoutinePhase)}
-      />
-
-      {phase === 'run' ? (
-        <div className="space-y-3">
-          <SectionHeader kicker={`${PIPE_RUN.num} / ${PIPE_RUN.name}`} right={`PHASE ${PIPE_RUN.num} OF 04`} />
-          {/* ZERO-STATE-1 wiring preserved: the empty state's create button
-              now lands on the Define phase (where the create form lives). */}
-          <TodaysStrip onCommitted={bump} onCreateRequest={() => setPhase('define')} onTotals={setTodayTotals} />
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <SectionHeader kicker={`${activePipe.num} / ${activePipe.name}`} right={`PHASE ${activePipe.num} OF 04`} />
-          <RoutineList entities={entities} onCommitted={bump} onTotals={setListTotals} />
-        </div>
-      )}
-
-      {/* ROUTINES-PIPE: the receipts rail — existing state only, honest
-          empties (ProofStrip's own dashed treatment; "not loaded yet" is
-          the truthful wording for a surface not yet visited this session). */}
-      <ProofStrip
-        receipts={[
-          { label: 'ACTIVE ROUTINES', value: listTotals ? String(listTotals.activeCount) : undefined, emptyLabel: 'not loaded yet' },
-          { label: 'DUE TODAY', value: todayTotals ? String(todayTotals.due) : undefined, emptyLabel: 'not loaded yet' },
-          { label: 'DONE TODAY', value: todayTotals ? String(todayTotals.done) : undefined, emptyLabel: 'not loaded yet' },
-          { label: 'MISSED TODAY', value: todayTotals ? String(todayTotals.missed) : undefined, emptyLabel: 'not loaded yet' },
-        ]}
+    <section className="space-y-3" data-routines-list>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-bold text-brand-purple">Routines</h2>
+      </div>
+      <div className="space-y-1" data-routines-today>
+        <div className="text-xs text-text-faint uppercase tracking-wide">Today</div>
+        <TodaysStrip
+          refreshKey={listVersion}
+          onCommitted={() => setTodayVersion((n) => n + 1)}
+          onCreateRequest={() => setCreateRequest((n) => n + 1)}
+        />
+      </div>
+      <RoutineList
+        entities={entities}
+        refreshKey={todayVersion}
+        createRequest={createRequest}
+        onCommitted={() => setListVersion((n) => n + 1)}
       />
     </section>
   );

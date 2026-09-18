@@ -37,23 +37,24 @@ test('THE SORT is the one place pipe ownership is declared, and it gives Tasks b
   assert.equal(/pipes:\s*\[/.test(code('src/lib/toolRegistry.ts')), false, 'a second ownership list would be two truths');
 });
 
-test('/tasks draws BOTH strips, each labelled with its pipe', () => {
+test('/tasks holds BOTH surfaces — and, since TASKS-01, draws neither as a strip', () => {
   const page = code(TASKS);
   assert.match(page, /<SectionD_ProjectBacklog \/>/);
   assert.match(page, /<SectionE_Routines \/>/);
-  // Each labelled, and from the pipe's own name — never typed twice.
-  assert.match(page, /data-pipe-label="projects"/);
-  assert.match(page, /data-pipe-label="routines"/);
-  assert.match(page, /\{PIPE_LABEL\.projects\}/);
-  assert.match(page, /\{PIPE_LABEL\.routines\}/);
+  // TASKS-01 (2026-09-18): the two labelled strips PLAN-01 put here are gone —
+  // the page is two lists, and the pipe labels went with the strips they
+  // labelled. The amendment's labelling rule still stands for any page that
+  // draws two pipes; none does today.
+  assert.doesNotMatch(page, /data-pipe-label|PIPE_LABEL|<StageStrip/);
   assert.equal(PIPE_LABEL.routines, 'Routines');
   assert.equal(PIPE_LABEL.projects, 'Projects');
-  // The declaration matches, in the order the page renders them.
-  assert.deepEqual(PHASES_RENDERED_AT['/tasks'], ['projects', 'routines']);
-  // Both pipes' phases are listed for the opener, each whole and in pipe order.
+  // The declaration matches the page: nothing drawn, nothing listed.
+  assert.deepEqual(PHASES_RENDERED_AT['/tasks'], []);
+  assert.deepEqual(phasesRenderedOn('/tasks', navToolByName('Tasks', TOOL_GATE)), []);
+  // Ownership did not move: Tasks still owns every phase of both pipes.
   for (const pipe of ['projects', 'routines'] as const) {
-    const listed = phasesRenderedOn('/tasks', navToolByName('Tasks', TOOL_GATE)).filter((p) => p.pipe === pipe);
-    assert.deepEqual(listed.map((p) => p.num), PIPE_PHASES[pipe].map((p) => p.num));
+    const owned = navToolByName('Tasks', TOOL_GATE).phases.filter((p) => p.pipe === pipe);
+    assert.deepEqual(owned.map((p) => p.num), PIPE_PHASES[pipe].map((p) => p.num));
   }
 });
 

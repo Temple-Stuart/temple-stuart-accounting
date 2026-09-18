@@ -143,6 +143,9 @@ export const PIPE_PHASES = {
   // routines/types.ts); Run ⇐ TodaysStrip's own summary row "{done} done ·
   // {due} due · {missed} missed"; Proven ⇐ RoutineRow's streak render + its
   // title "completion streak / miss streak" (RoutineRow.tsx:239-240).
+  // TASKS-01 (2026-09-18): NOT DRAWN. /tasks renders no strip — both of Tasks'
+  // pipes below are defined for the logged-out showcases and THE SORT only,
+  // until PIPES-01 retires them. The streak render this comment cited is gone.
   routines: [
     { num: '01', name: 'Define', subLabel: 'CREATE + EDIT' },
     { num: '02', name: 'Scheduled', subLabel: 'CADENCE GROUPS' },

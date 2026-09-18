@@ -31,14 +31,15 @@ interface Entity {
 interface Props {
   entities: Entity[];
   onCommitted?: () => void;
-  /** ROUTINES-PIPE: the list's tallies reported up after each successful
-   *  fetch (the Books onTotals idiom — zero new fetches). activeCount is
-   *  ALWAYS the is_active subset (the fetch may include inactive rows when
-   *  the show-inactive toggle is on); hasStreak spans every fetched row. */
-  onTotals?: (t: { activeCount: number; hasStreak: boolean }) => void;
+  /** TASKS-01: a change of this value refetches the list — the parent bumps it
+   *  when Today marks an occurrence done, so next-due stays current. */
+  refreshKey?: number;
+  /** TASKS-01: a change of this value opens the create form — Today's
+   *  zero-state "+ create a routine" lands on the list's own form. */
+  createRequest?: number;
 }
 
-export default function RoutineList({ entities, onCommitted, onTotals }: Props & { }) {
+export default function RoutineList({ entities, onCommitted, refreshKey = 0, createRequest = 0 }: Props & { }) {
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,10 +66,6 @@ export default function RoutineList({ entities, onCommitted, onTotals }: Props &
       }
       const rows: Routine[] = body.routines ?? [];
       setRoutines(rows);
-      onTotals?.({
-        activeCount: rows.filter((r) => r.is_active).length,
-        hasStreak: rows.some((r) => r.consecutive_completion_streak > 0),
-      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'failed to load routines');
     } finally {
@@ -79,7 +76,7 @@ export default function RoutineList({ entities, onCommitted, onTotals }: Props &
   useEffect(() => {
     fetchRoutines();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showInactive]);
+  }, [showInactive, refreshKey]);
 
   const refresh = () => {
     fetchRoutines();
@@ -118,6 +115,12 @@ export default function RoutineList({ entities, onCommitted, onTotals }: Props &
     setCreateDefaultEntityId(initialEntity);
     setShowCreate(true);
   };
+
+  // TASKS-01: Today's zero-state asks for the create form; it opens here.
+  useEffect(() => {
+    if (createRequest > 0 && entities.length > 0) startCreate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createRequest]);
 
   // Group routines by classifyCadence-equivalent client-side bucketing.
   // We approximate by inspecting RRULE prefix; server's classifyCadence is

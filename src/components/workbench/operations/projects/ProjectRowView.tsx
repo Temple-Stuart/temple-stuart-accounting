@@ -132,6 +132,9 @@ export interface ProjectRowViewProps {
   onDelete: () => void;
   onArchive: () => void;
   onUnarchive: () => void;
+  /** TASKS-01: opens the project's pipeline (TruthMachineView) — a plain
+   *  control on the row, never a phase. Absent (the showroom) → no button. */
+  onEnterPipeline?: () => void;
 }
 
 const STATUS_OPTIONS: ProjectStatus[] = [
@@ -204,6 +207,7 @@ export default function ProjectRowView({ project,
   onDelete,
   onArchive,
   onUnarchive,
+  onEnterPipeline,
 }: ProjectRowViewProps & { }) {
   const inputClass =
     'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
@@ -433,6 +437,14 @@ export default function ProjectRowView({ project,
               </div>
             )}
           </div>
+          {/* TASKS-01: a refused delete (409 — a live link) or a failed one
+              renders HERE, on the read view where the button is. Before, the
+              error slot existed only in edit mode and a refusal was silent. */}
+          {error && (
+            <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800" data-project-error>
+              {error}
+            </div>
+          )}
           <div className="flex items-center gap-2 pt-2 border-t border-border-light">
             <button
               type="button"
@@ -441,6 +453,17 @@ export default function ProjectRowView({ project,
             >
               edit
             </button>
+            {onEnterPipeline && (
+              <button
+                type="button"
+                onClick={onEnterPipeline}
+                title="Open this project's pipeline: research → audit → tasks → plan → evolve"
+                className="px-2 py-1 border border-border rounded hover:bg-bg-row"
+                data-project-pipeline
+              >
+                pipeline
+              </button>
+            )}
             {project.status === 'archived' ? (
               <button
                 type="button"
