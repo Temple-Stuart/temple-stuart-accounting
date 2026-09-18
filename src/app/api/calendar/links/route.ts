@@ -77,7 +77,7 @@ function readTarget(kind: string | null, id: string | null, instant: string | nu
   }
   if (!id) return { ok: false, reason: 'a target id is required' };
   if (requiresInstant(kind)) {
-    if (!instant) return { ok: false, reason: 'a routine occurrence is addressed by its INSTANT, not its date — pass instant' };
+    if (!instant) return { ok: false, reason: `a ${kind === 'routine_line' ? 'routine line' : 'routine occurrence'} is addressed by its INSTANT, not its date — pass instant` };
     const d = new Date(instant);
     if (Number.isNaN(d.getTime())) return { ok: false, reason: 'instant is not a valid timestamp' };
     return { ok: true, kind, id, instant: d };

@@ -93,6 +93,7 @@ import { code as codeOf, comments as commentsOf, rejoin } from '../src/lib/sourc
 import { CHAIN_STATES, KIND_FACTS, EVENT_SOURCE_OWNER, buildChain } from '../src/lib/calendar/chain';
 import { LINKABLE_KINDS, requiresInstant } from '../src/lib/calendar/linkKeys';
 import { sumLinks } from '../src/lib/calendar/links';
+import { routinePlanned } from '../src/lib/operations/routineLines';
 import { PROBLEM_SHEET } from '../src/lib/problemSheet';
 import { EXPECTED_STATUS_COUNTS, FAMILY_READS, TOOL_REGISTRY, registryLaw, statusCounts } from '../src/lib/toolRegistry';
 import { HOME_ANSWER, HOME_OWNER, HOME_PHASES, PHASES_RENDERED_AT, THE_SORT, navFamilies, navLaw, navRows } from '../src/lib/nav';
@@ -2452,7 +2453,8 @@ for (const col of ['"user_id"', '"target_kind"', '"target_id"', '"journal_entry_
 if (!/CHECK \(\("target_kind" = 'routine'\) = \("target_instant" IS NOT NULL\)\)/.test(linkMigration)) {
   linkFail(`${LINK_MIGRATION} does not make target_instant mandatory for a routine and forbidden for everything else — a routine link keyed on a date silently misses`);
 }
-if (!LINKABLE_KINDS.every((k) => linkMigration.includes(`'${k}'`))) linkFail(`${LINK_MIGRATION}'s kind CHECK does not name ${LINKABLE_KINDS.join(', ')}`);
+// LINES-01 added 'routine_line' in its OWN migration; LINK-01's names the original three.
+if (!LINKABLE_KINDS.filter((k) => k !== 'routine_line').every((k) => linkMigration.includes(`'${k}'`))) linkFail(`${LINK_MIGRATION}'s kind CHECK does not name ${LINKABLE_KINDS.join(', ')}`);
 if (!requiresInstant('routine')) linkFail('the key leaf no longer requires an instant for a routine');
 // 6. THE CARDINALITY IS THE DATABASE'S, not a convention.
 if (!/CREATE UNIQUE INDEX "planned_item_links_one_item_per_posting"[\s\S]{0,120}\("journal_entry_id"\)/.test(linkMigration)) {
@@ -2461,6 +2463,80 @@ if (!/CREATE UNIQUE INDEX "planned_item_links_one_item_per_posting"[\s\S]{0,120}
 if (!/ON DELETE RESTRICT/.test(linkMigration)) linkFail(`${LINK_MIGRATION} lets a linked posting be deleted — financial attribution never vanishes`);
 if (linkViolations === 0) console.log(`✔ The link law passed — ${LINKABLE_KINDS.length} linkable kinds, the occurrence keyed on its instant, one item per posting enforced in SQL; no matcher, no score, and no null summed as zero.`);
 else console.log(`✖ The link law FAILED — ${linkViolations} violation(s).`);
+
+// ── THE LINES LAW (LINES-01, 2026-09-18) ────────────────────────────────────
+// A ROUTINE'S FIGURE IS THE SUM OF ITS LINES, OR ITS OWN WHEN IT HAS NONE — AND
+// NO READER ADDS THE TWO.
+//
+// The founder's morning is a gym line, a coffee line and a dining line. The
+// rule lives in ONE leaf (src/lib/operations/routineLines.ts): when any active
+// line carries an amount, the routine's planned figure is the sum of its lines
+// and the routine-level budget_amount is set aside — reported, never added. A
+// second summation anywhere, or a reader that reaches for the routine-level
+// column directly, would let the month and the day disagree.
+const LINES_LEAF = 'src/lib/operations/routineLines.ts';
+const LINES_READERS = [
+  'src/lib/operations/routineBudget.ts',
+  'src/lib/hub/mapOperationsRoutines.ts',
+  'src/components/workbench/operations/routines/RoutineRow.tsx',
+  'src/components/workbench/operations/routines/TodaysStrip.tsx',
+  'src/components/hub/HubCalendar.tsx',
+];
+let linesViolations = 0;
+const linesFail = (m: string) => { linesViolations += 1; violations.push(`lines law: ${m} (LINES-01)`); };
+
+// 0. The leaf itself still states the rule and exports it — and it is the ONLY
+//    file that reads both grains' columns to decide a figure.
+const linesLeaf = codeOf(LINES_LEAF);
+if (!/export function routinePlanned\(/.test(linesLeaf)) linesFail(`${LINES_LEAF} no longer exports routinePlanned() — the one leaf every reader depends on`);
+if (!/ignoredRoutineLevel: routineLevel/.test(linesLeaf)) linesFail(`${LINES_LEAF} no longer reports the routine-level figure it sets aside`);
+// 1. Every planned figure for a routine comes from the leaf.
+for (const f of LINES_READERS) {
+  const body = codeOf(f);
+  if (!/routinePlanned\(/.test(body)) linesFail(`${f} does not read routinePlanned() — every planned figure for a routine comes from the one leaf`);
+}
+// The bridge reads it through routinesMonthlyByCoa, and may not pre-filter on the routine-level column.
+const linesBridge = codeOf('src/app/api/hub/business-budget/route.ts');
+if (!/routinesMonthlyByCoa\(/.test(linesBridge)) linesFail('the HB-4d bridge no longer reads the monthly figure through routineBudget.ts');
+if (/budget_amount:\s*\{\s*not:\s*null\s*\}/.test(linesBridge)) linesFail('the HB-4d bridge filters routines on the routine-level budget_amount — that hides a lined routine with blank routine-level fields');
+if (!/steps:\s*\{\s*where:\s*\{\s*is_active:\s*true\s*\}/.test(linesBridge)) linesFail('the HB-4d bridge does not hand the leaf the routine\'s active lines');
+
+// 2. No reader adds routine-level and line-level amounts. The only place the two
+//    columns meet is the leaf, and the leaf itself is probed here.
+for (const f of LINES_READERS) {
+  const body = codeOf(f);
+  if (/routine\.budget_amount\s*\+|budget_amount\s*\+\s*[\w.]*steps/.test(body)) linesFail(`${f} adds a routine-level amount to something — the two grains are never added`);
+}
+const linesProbe = routinePlanned({ budget_amount: 15, coa_code: '5200', steps: [
+  { id: 'gym', budget_amount: null, coa_code: null },
+  { id: 'coffee', budget_amount: 80, coa_code: '5200' },
+  { id: 'dine', budget_amount: 200, coa_code: null },
+] });
+if (linesProbe.amount !== 280) linesFail(`the leaf summed ${linesProbe.amount} for a three-line routine — 80 + 200 is 280, and the routine-level 15 is never added`);
+if (linesProbe.ignoredRoutineLevel !== 15) linesFail('the leaf silently dropped the routine-level figure instead of reporting it as set aside');
+if (linesProbe.coverage.counted !== 2 || linesProbe.coverage.of !== 3) linesFail('the leaf miscounted the coverage — an uncosted line is counted OUT, never as $0');
+if (linesProbe.lines.find((l) => l.id === 'gym')?.amount !== null) linesFail('the leaf turned a blank line into a number');
+const steplessProbe = routinePlanned({ budget_amount: 15, coa_code: '5200', steps: [] });
+if (steplessProbe.amount !== 15 || steplessProbe.from !== 'routine') linesFail('the leaf dropped a stepless routine\'s own figure');
+
+// 3. A routine_line link always carries an instant — the leaf, the route and the migration agree.
+if (!requiresInstant('routine_line')) linesFail('a routine_line link may be made without an instant — it would silently miss the occurrence');
+const linesMigration = codeOf('prisma/migrations/20260918090000_lines_01_step_cost_and_coa/migration.sql');
+if (!/CHECK \(\("target_kind" IN \('routine', 'routine_line'\)\) = \("target_instant" IS NOT NULL\)\)/.test(linesMigration)) linesFail('the migration does not make the instant mandatory for a routine_line link');
+if (!/'routine_line'/.test(linesMigration)) linesFail('the migration does not admit the routine_line kind');
+// No line amount is imputed and nothing is dropped.
+if (/DEFAULT 0/.test(linesMigration)) linesFail('the migration defaults a line amount to 0 — blank is blank');
+if (/DROP COLUMN/.test(linesMigration)) linesFail('the migration drops a column — the routine-level field stays for a stepless routine');
+if (/(^|\n)\s*UPDATE\s+"/.test(linesMigration)) linesFail('the migration rewrites rows — no link is migrated and no amount is imputed');
+
+// 4. The panel lists lines with per-line links, and drops the routine-level category for a lined routine.
+const linesPanel = codeOf('src/components/hub/EventDetailPanel.tsx');
+if (!/data-drill-lines-total/.test(linesPanel)) linesFail('the panel does not print a lined routine\'s total with its coverage');
+if (!/data-drill-line-link-open/.test(linesPanel)) linesFail('a line in the panel carries no Link');
+if (!/!\(row\.lines && row\.lines\.length > 0\) && \(\s*<Row label="Category \(COA\)"/.test(linesPanel)) linesFail('the panel keeps a routine-level Category row for a routine that has one per line');
+if (!/if \(row\.lines && row\.lines\.length > 0\) return null;/.test(linesPanel)) linesFail('a lined occurrence can still be linked at the routine grain — the coffee posting must link to the coffee LINE');
+if (linesViolations === 0) console.log(`✔ The lines law passed — ${LINES_READERS.length + 1} readers read the one leaf; $280 across 2 of 3 with the routine-level $15 set aside, never added; a stepless routine keeps its own; a routine_line link carries its instant.`);
+else console.log(`✖ The lines law FAILED — ${linesViolations} violation(s).`);
 
 // ── THE READER LAW (TEST-TRUTH-01, 2026-09-17) ──────────────────────────────
 // NO TEST AND NO LAW MAY READ A SOURCE FILE RAW.

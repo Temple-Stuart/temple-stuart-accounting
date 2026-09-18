@@ -1,4 +1,5 @@
 import { expandBetween } from './rruleHelpers';
+import { routinePlanned, type RoutineLineInput } from './routineLines';
 
 /**
  * routineBudget (HB-4c) — turn a budgeted routine into a MONTHLY budget figure by COUNTING its
@@ -23,6 +24,13 @@ export interface RoutineBudgetInput {
   coa_code: string | null;
   schedule_rrule: string;
   timezone: string;
+  /**
+   * LINES-01: the routine's active lines. When any carries an amount, the
+   * monthly figure is built from the LINES (each to its own COA) and the two
+   * fields above are set aside — the rule in routineLines.ts, read here, not
+   * restated. Absent or empty ⇒ the routine-level fields stand, as before.
+   */
+  steps?: readonly RoutineLineInput[] | null;
 }
 
 /** UTC bounds of a calendar month: [first instant, last instant]. monthIdx is 0-indexed. The
@@ -35,28 +43,36 @@ function monthBounds(year: number, monthIdx: number): { from: Date; to: Date } {
 }
 
 /**
- * The monthly budget a SINGLE routine contributes, attributed to its COA. Returns null when the
- * routine has no budget, no COA, a malformed/empty schedule, or zero occurrences that month.
+ * The monthly budget a SINGLE routine contributes, PER COA. Returns an empty map when the routine
+ * has nothing attributable, a malformed/empty schedule, or zero occurrences that month.
+ *
+ * LINES-01: per-occurrence money comes from routinePlanned() — the sum of the lines when any
+ * carries an amount (each line to its own account; a costed line with no account is in the
+ * routine's total but attributable to nothing), else the routine-level pair. The two are never
+ * added. This function used to return ONE (coa, amount); a lined routine can span several
+ * accounts, so it returns the map and routinesMonthlyByCoa merges it.
  */
 export function routineMonthlyByCoa(
   routine: RoutineBudgetInput,
   year: number,
   monthIdx: number,
-): { coaCode: string; amount: number } | null {
-  const perOccurrence = routine.budget_amount == null ? null : Number(routine.budget_amount);
-  if (perOccurrence == null || !Number.isFinite(perOccurrence) || perOccurrence <= 0) return null; // no budget
-  if (!routine.coa_code) return null; // no COA → can't attribute → skip (no default account)
+): Record<string, number> {
+  const planned = routinePlanned({ budget_amount: routine.budget_amount, coa_code: routine.coa_code, steps: routine.steps ?? null });
+  const attributable = Object.entries(planned.byCoa).filter(([, amt]) => Number.isFinite(amt) && amt > 0);
+  if (attributable.length === 0) return {}; // no budget, or money with no account → nothing to attribute
 
   const { from, to } = monthBounds(year, monthIdx);
   let count: number;
   try {
     count = expandBetween(routine.schedule_rrule, routine.timezone, from, to).length;
   } catch {
-    return null; // malformed rrule → contributes nothing (mirrors the feed's skip-malformed)
+    return {}; // malformed rrule → contributes nothing (mirrors the feed's skip-malformed)
   }
-  if (count <= 0) return null;
+  if (count <= 0) return {};
 
-  return { coaCode: routine.coa_code, amount: Math.round(perOccurrence * count * 100) / 100 };
+  const out: Record<string, number> = {};
+  for (const [coa, perOccurrence] of attributable) out[coa] = Math.round(perOccurrence * count * 100) / 100;
+  return out;
 }
 
 /**
@@ -70,8 +86,9 @@ export function routinesMonthlyByCoa(
 ): Record<string, number> {
   const out: Record<string, number> = {};
   for (const r of routines) {
-    const c = routineMonthlyByCoa(r, year, monthIdx);
-    if (c) out[c.coaCode] = Math.round(((out[c.coaCode] || 0) + c.amount) * 100) / 100;
+    for (const [coa, amount] of Object.entries(routineMonthlyByCoa(r, year, monthIdx))) {
+      out[coa] = Math.round(((out[coa] || 0) + amount) * 100) / 100;
+    }
   }
   return out;
 }

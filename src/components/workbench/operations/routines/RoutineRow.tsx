@@ -20,6 +20,7 @@ import { DEFAULT_ROUTINE_FORM, formatBudgetPerOccurrence } from './types';
 import RRULEBuilder from './RRULEBuilder';
 import CoaSelect from './CoaSelect';
 import { RoutineStepList } from './RoutineStepList';
+import { ignoredLine, plannedLine, routinePlanned } from '@/lib/operations/routineLines';
 import ScenifyButton from '../content/ScenifyButton';
 import type { Scene, Take } from '../content/ContentTable';
 
@@ -96,6 +97,8 @@ function formatTime12h(hhmm: string): string {
 }
 
 export default function RoutineRow({ routine, entities, onUpdate, onDelete, onScenify, onTakeify }: Props & { }) {
+  // LINES-01: ONE leaf decides the routine's figure. Read here, rendered below.
+  const planned = routinePlanned({ budget_amount: routine.budget_amount ?? null, coa_code: routine.coa_code ?? null, steps: routine.steps });
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<RoutineForm>(() => routineToForm(routine));
@@ -218,20 +221,24 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
               edit pre-fill, never shown). Null budget → NOTHING renders
               (absence is honest — no dashes); the COA micro-chip rides beside
               the money cell only. Label lifted from the forms via title. */}
-          {routine.budget_amount != null && (
+          {/* LINES-01: the figure is the leaf's — the sum of the lines when any
+              carries an amount, else the routine-level pair. A lined routine
+              shows its coverage and NO single COA chip: it has one per line. */}
+          {planned.amount !== null && (
             <>
               <span
                 className="font-mono tabular-nums font-bold text-text-primary"
-                title="budget / occurrence"
+                title={planned.from === 'lines' ? 'sum of the lines / occurrence' : 'budget / occurrence'}
+                data-routine-planned={planned.from}
               >
-                {formatBudgetPerOccurrence(routine.budget_amount)} / occurrence
+                {planned.from === 'lines' ? plannedLine(planned) : `${formatBudgetPerOccurrence(String(planned.amount))} / occurrence`}
               </span>
-              {routine.coa_code && (
+              {planned.coaCode && (
                 <span
                   className="font-mono text-[10px] border border-border rounded px-1.5 py-0.5"
                   title="COA"
                 >
-                  {routine.coa_code}
+                  {planned.coaCode}
                 </span>
               )}
             </>
@@ -419,6 +426,13 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
           {/* ROUTINES-UX-1: the anchor pair gets the same strongest-cell
               treatment as the create form (see RoutineCreateForm) — the
               edit form is the other of the tab's two money renders. */}
+          {/* LINES-01: the routine-level figure is REPORTED as set aside when the
+              lines carry amounts — never silently ignored, never added. */}
+          {ignoredLine(planned) && (
+            <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800" data-routine-level-ignored>
+              {ignoredLine(planned)}
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <div className="font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs">budget / occurrence (optional)</div>

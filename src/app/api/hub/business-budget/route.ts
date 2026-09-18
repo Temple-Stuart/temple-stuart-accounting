@@ -79,15 +79,21 @@ export async function GET(request: Request) {
     // a COA with no budgeted routine simply has no planned figure — nothing fills it.
     // ═══════════════════════════════════════════════════════════════════
     if (businessEntity) {
+      // LINES-01: the `budget_amount/coa_code: { not: null }` filter is GONE. A
+      // lined routine may carry blank routine-level fields and costed lines, and
+      // that filter would have hidden it from the month. Every active routine is
+      // read with its active lines, and routinePlanned() (through
+      // routinesMonthlyByCoa) decides what, if anything, it contributes.
       const budgetedRoutines = await prisma.operations_routines.findMany({
         where: {
           user_id: user.id,
           entity_id: businessEntity.id,
           is_active: true,
-          budget_amount: { not: null },
-          coa_code: { not: null },
         },
-        select: { budget_amount: true, coa_code: true, schedule_rrule: true, timezone: true },
+        select: {
+          budget_amount: true, coa_code: true, schedule_rrule: true, timezone: true,
+          steps: { where: { is_active: true }, select: { id: true, is_active: true, budget_amount: true, coa_code: true, step_order: true } },
+        },
       });
       if (budgetedRoutines.length > 0) {
         const routineInputs = budgetedRoutines.map(r => ({
@@ -95,6 +101,7 @@ export async function GET(request: Request) {
           coa_code: r.coa_code,
           schedule_rrule: r.schedule_rrule,
           timezone: r.timezone,
+          steps: r.steps.map((s) => ({ id: s.id, is_active: s.is_active, budget_amount: s.budget_amount != null ? Number(s.budget_amount) : null, coa_code: s.coa_code, step_order: s.step_order })),
         }));
         for (let m = 0; m < 12; m++) {
           const byCoa = routinesMonthlyByCoa(routineInputs, year, m);

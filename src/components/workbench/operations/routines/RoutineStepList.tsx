@@ -16,6 +16,8 @@ import { useState } from 'react';
 import type { Routine, RoutineStep } from './types';
 import type { Take } from '../content/ContentTable';
 import TakeifyButton from '../content/TakeifyButton';
+import CoaSelect from './CoaSelect';
+import { formatBudgetPerOccurrence } from './types';
 
 
 const STEP_DEFAULT_INTERVAL_MINUTES = 15;
@@ -31,6 +33,9 @@ interface StepForm {
   sub_activity: string;
   duration_minutes: string;
   notes: string;
+  // LINES-01: the line's own cost and category. '' is blank — never 0.
+  budget_amount: string;
+  coa_code: string;
 }
 
 const EMPTY_FORM: StepForm = {
@@ -40,6 +45,8 @@ const EMPTY_FORM: StepForm = {
   sub_activity: '',
   duration_minutes: '',
   notes: '',
+  budget_amount: '',
+  coa_code: '',
 };
 
 function stepToForm(s: RoutineStep): StepForm {
@@ -50,6 +57,8 @@ function stepToForm(s: RoutineStep): StepForm {
     sub_activity: s.sub_activity ?? '',
     duration_minutes: s.duration_minutes !== null ? String(s.duration_minutes) : '',
     notes: s.notes ?? '',
+    budget_amount: s.budget_amount ?? '',
+    coa_code: s.coa_code ?? '',
   };
 }
 
@@ -61,6 +70,9 @@ function formToBody(f: StepForm) {
     sub_activity: f.sub_activity || null,
     duration_minutes: f.duration_minutes !== '' ? Number(f.duration_minutes) : null,
     notes: f.notes || null,
+    // '' → null on the wire: a blank line has NO amount and NO account.
+    budget_amount: f.budget_amount.trim() !== '' ? f.budget_amount.trim() : null,
+    coa_code: f.coa_code || null,
   };
 }
 
@@ -310,6 +322,28 @@ export function RoutineStepList({ routine, onUpdate, onTakeify }: Props & { }) {
                     maxLength={200}
                   />
                 </div>
+                <div>
+                  <div className={labelClass}>amount (optional)</div>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={editForm.budget_amount}
+                    onChange={(e) => setEditForm({ ...editForm, budget_amount: e.target.value })}
+                    className={`${inputClass} font-mono tabular-nums`}
+                    placeholder="blank = no amount"
+                    data-step-amount
+                  />
+                </div>
+                <div>
+                  <div className={labelClass}>COA (optional)</div>
+                  <CoaSelect
+                    entityId={routine.entity_id}
+                    value={editForm.coa_code}
+                    onChange={(code) => setEditForm({ ...editForm, coa_code: code })}
+                    className={inputClass}
+                  />
+                </div>
                 <div className="col-span-2">
                   <div className={labelClass}>notes</div>
                   <textarea
@@ -377,6 +411,17 @@ export function RoutineStepList({ routine, onUpdate, onTakeify }: Props & { }) {
                   )}
                   {step.duration_minutes !== null && (
                     <span className="text-text-muted shrink-0">{step.duration_minutes} min</span>
+                  )}
+                  {/* LINES-01: the line's own money and account. Blank → nothing renders. */}
+                  {step.budget_amount != null && (
+                    <span className="font-mono tabular-nums font-bold text-text-primary shrink-0" data-step-planned>
+                      {formatBudgetPerOccurrence(step.budget_amount)}
+                    </span>
+                  )}
+                  {step.coa_code && (
+                    <span className="font-mono text-[10px] border border-border rounded px-1.5 py-0.5 shrink-0" title="COA" data-step-coa>
+                      {step.coa_code}
+                    </span>
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -459,6 +504,28 @@ export function RoutineStepList({ routine, onUpdate, onTakeify }: Props & { }) {
                 onChange={(e) => setAddForm({ ...addForm, sub_activity: e.target.value })}
                 className={inputClass}
                 maxLength={200}
+              />
+            </div>
+            <div>
+              <div className={labelClass}>amount (optional)</div>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                value={addForm.budget_amount}
+                onChange={(e) => setAddForm({ ...addForm, budget_amount: e.target.value })}
+                className={`${inputClass} font-mono tabular-nums`}
+                placeholder="blank = no amount"
+                data-step-amount
+              />
+            </div>
+            <div>
+              <div className={labelClass}>COA (optional)</div>
+              <CoaSelect
+                entityId={routine.entity_id}
+                value={addForm.coa_code}
+                onChange={(code) => setAddForm({ ...addForm, coa_code: code })}
+                className={inputClass}
               />
             </div>
             <div className="col-span-2">
