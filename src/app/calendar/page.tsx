@@ -23,11 +23,6 @@
  * page draws no phase strip at all now (nav.ts PHASES_RENDERED_AT['/calendar']
  * is []), which no law forbids — tool law 2 iterates the pipes a page DRAWS.
  *
- * EVENT-01's "Add an event" form STAYS, and is not an exception to the rule
- * above: it writes a calendar_event, which is THIS tool's own row, not another
- * tool's object. A routine, a project, a trip and a trade are other tools' —
- * they log their occurrences here and are authored where they live.
- *
  * CAL-OPEN-01 (2026-09-18) — THE CALENDAR EXPLAINS NOTHING. A ToolOpener sat
  * above the grid and printed two paragraphs: the registry `why` (the tool's
  * line, nav.ts `line: tool.why`) and a `line` prop of this page's own, in the
@@ -39,6 +34,15 @@
  * opener is REMOVED, not reduced. The registry row is untouched: its `why`
  * renders on the sheet (TheSheet.tsx proofLine), which is where it belongs.
  * Nothing renders here but the shell and the grid.
+ *
+ * ONEOFF-01 (2026-09-18) — THE CALENDAR AUTHORS NOTHING, AN EVENT INCLUDED.
+ * EVENT-01's "Add an event" form and its POST are gone from this page: a
+ * one-off is a routine that happens once, planned in Tasks with its lines and
+ * its place, and it logs here like every other routine. What stays is the
+ * correction of an event entered by hand BEFORE this ruling — the calendar's
+ * own row (calendar_events, source 'manual'), which its owner may re-state or
+ * remove from the day it sits on or from its chain panel. PATCH and DELETE
+ * remain on the route; POST does not.
  */
 import AppLayout from '@/components/ui/AppLayout';
 import HubCalendar from '@/components/hub/HubCalendar';

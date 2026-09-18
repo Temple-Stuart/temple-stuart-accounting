@@ -29,6 +29,12 @@
  * until then (src/app/api/calendar/events/route.ts). It is a NEW value, never a
  * reuse — every other source names the system that produced the row, and a
  * hand-entered event was produced by the person.
+ *
+ * ONEOFF-01 closes that writer: the calendar authors nothing, and a one-off is
+ * a routine planned in Tasks. `manual` STAYS in the allowlist because the rows
+ * it already has are the calendar's own — they render, and their owner may
+ * correct or remove them. The census below is untouched: it describes what
+ * exists.
  */
 
 /** A source the calendar renders, and why. */
@@ -79,8 +85,10 @@ export const CALENDAR_SOURCES: readonly CalendarSourceRule[] = [
     icon: '\u270D\ufe0f',
     tint: TINTS.rose,
     label: 'Added by hand',
-    writtenBy: 'src/app/api/calendar/events/route.ts:91 (POST) · :127 (PATCH) · :152 (DELETE)',
-    why: 'an event the person entered themselves — food, the gym, a haircut, a ride, dinner. EVENT-01: before it, /api/calendar was GET-only and a day could be recorded but never planned',
+    // ONEOFF-01: no writer INSERTS this source any more — POST is gone. The two
+    // citations are the correction and the removal of a row that already exists.
+    writtenBy: 'src/app/api/calendar/events/route.ts:107 (PATCH) · :134 (DELETE) — no POST since ONEOFF-01',
+    why: 'an event the person entered by hand before ONEOFF-01 — food, the gym, a haircut. No new rows since ONEOFF-01; existing rows render and remain editable. A one-off is a routine planned in Tasks now, and it logs here like every other routine',
   },
   {
     source: 'trip',

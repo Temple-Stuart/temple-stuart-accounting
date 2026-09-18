@@ -19,8 +19,11 @@ import type { Routine, RoutineForm } from './types';
 import { DEFAULT_ROUTINE_FORM, formatBudgetPerOccurrence } from './types';
 import RRULEBuilder from './RRULEBuilder';
 import CoaSelect from './CoaSelect';
+import FindThisPlace from './FindThisPlace';
 import { RoutineStepList } from './RoutineStepList';
 import { ignoredLine, plannedLine, routinePlanned } from '@/lib/operations/routineLines';
+import { isOnceRRule } from '@/lib/operations/rruleHelpers';
+import type { PlaceMatch } from '@/lib/calendar/findPlace';
 import ScenifyButton from '../content/ScenifyButton';
 import type { Scene, Take } from '../content/ContentTable';
 
@@ -44,6 +47,11 @@ function routineToForm(r: Routine): RoutineForm {
   // user is shown the live cadence_mode as 'custom' with the existing rrule
   // pre-populated. They can switch to a structured mode if desired (which
   // overrides the rrule on save).
+  // ONEOFF-01: a one-off (COUNT=1) opens as cadence "once" — its date is the
+  // one field that matters, and its hour/minute are read back off the rule.
+  const once = isOnceRRule(r.schedule_rrule);
+  const hour = /(?:^|;)BYHOUR=(\d+)/.exec(r.schedule_rrule)?.[1];
+  const minute = /(?:^|;)BYMINUTE=(\d+)/.exec(r.schedule_rrule)?.[1];
   return {
     ...DEFAULT_ROUTINE_FORM,
     name: r.name,
@@ -57,11 +65,17 @@ function routineToForm(r: Routine): RoutineForm {
     start_time: r.start_time ? r.start_time.slice(11, 16) : '',
     end_time: r.end_time ? r.end_time.slice(11, 16) : '',
     is_active: r.is_active,
-    cadence_mode: 'custom',
+    cadence_mode: once ? 'once' : 'custom',
     custom_rrule: r.schedule_rrule,
+    ...(once && hour !== undefined ? { byhour: hour.padStart(2, '0') } : {}),
+    ...(once && minute !== undefined ? { byminute: minute.padStart(2, '0') } : {}),
     // HB-4b: pre-fill budget + COA on edit (null → '' empty input/no selection).
     budget_amount: r.budget_amount != null ? String(r.budget_amount) : '',
     coa_code: r.coa_code ?? '',
+    // ONEOFF-01: the place, as stored (null → '').
+    location: r.location ?? '',
+    latitude: r.latitude != null ? String(r.latitude) : '',
+    longitude: r.longitude != null ? String(r.longitude) : '',
   };
 }
 
@@ -106,6 +120,9 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // ONEOFF-01: the place picked from a lookup while editing.
+  const [picked, setPicked] = useState<PlaceMatch | null>(null);
+  const onceForm = form.cadence_mode === 'once';
 
   const enterEdit = () => {
     setForm(routineToForm(routine));
@@ -129,9 +146,14 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
         body: JSON.stringify({
           ...form,
           start_date: form.start_date || null,
-          end_date: form.end_date || null,
+          // ONEOFF-01: a one-off's window is its day.
+          end_date: onceForm ? (form.start_date || null) : (form.end_date || null),
           start_time: form.start_time || null,
           end_time: form.end_time || null,
+          // ONEOFF-01: the place; '' → null, never 0.
+          location: form.location || null,
+          latitude: form.latitude || null,
+          longitude: form.longitude || null,
         }),
       });
       const body = await res.json();
@@ -344,6 +366,25 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
             </div>
           )}
 
+          {/* ONEOFF-01: the routine's place, when it has one — the name and, with
+              both coordinates stored, the pin the day map plots. */}
+          {(routine.location || (routine.latitude != null && routine.longitude != null)) && (
+            <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border-light" data-routine-place-view>
+              <div>
+                <div className={labelClass}>place</div>
+                <div className="text-text-primary" data-routine-place-text>{routine.location ?? '—'}</div>
+              </div>
+              {routine.latitude != null && routine.longitude != null && (
+                <div>
+                  <div className={labelClass}>pin</div>
+                  <div className="text-text-primary font-mono" data-routine-pin>
+                    {Number(routine.latitude).toFixed(5)}, {Number(routine.longitude).toFixed(5)}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <RoutineStepList routine={routine} onUpdate={onUpdate} onTakeify={onTakeify} />
 
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border-light">
@@ -459,26 +500,41 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
 
           <RRULEBuilder form={form} setForm={setForm} />
 
-          <div className="grid grid-cols-2 gap-3">
+          {/* ONEOFF-01: a one-off has ONE date — the occurrence is counted from it. */}
+          {onceForm ? (
             <div>
-              <div className={labelClass}>start date (optional)</div>
+              <div className={labelClass}>date</div>
               <input
                 type="date"
                 value={form.start_date}
-                onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+                onChange={(e) => setForm({ ...form, start_date: e.target.value, end_date: e.target.value })}
                 className={inputClass}
+                required
+                data-routine-once-date
               />
             </div>
-            <div>
-              <div className={labelClass}>end date (optional)</div>
-              <input
-                type="date"
-                value={form.end_date}
-                onChange={(e) => setForm({ ...form, end_date: e.target.value })}
-                className={inputClass}
-              />
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className={labelClass}>start date (optional)</div>
+                <input
+                  type="date"
+                  value={form.start_date}
+                  onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <div className={labelClass}>end date (optional)</div>
+                <input
+                  type="date"
+                  value={form.end_date}
+                  onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -486,7 +542,11 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
               <input
                 type="time"
                 value={form.start_time}
-                onChange={(e) => setForm({ ...form, start_time: e.target.value })}
+                /* ONEOFF-01: on a one-off the start time is the occurrence's hour and minute. */
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setForm({ ...form, start_time: v, ...(onceForm && v ? { byhour: v.slice(0, 2), byminute: v.slice(3, 5) } : {}) });
+                }}
                 className={inputClass}
               />
             </div>
@@ -498,6 +558,42 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
                 onChange={(e) => setForm({ ...form, end_time: e.target.value })}
                 className={inputClass}
               />
+            </div>
+          </div>
+
+          {/* ONEOFF-01: THE PLACE — the same three fields and the same one-press
+              lookup the create form has. */}
+          <div className="space-y-2 pt-2 border-t border-border-light" data-routine-place>
+            <div>
+              <div className={labelClass}>location (optional)</div>
+              <input
+                type="text"
+                value={form.location}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setForm({ ...form, location: v });
+                  if (picked && v.trim() !== picked.name) setPicked(null);
+                }}
+                className={inputClass}
+                maxLength={255}
+                data-routine-location
+              />
+            </div>
+            <FindThisPlace
+              location={form.location}
+              picked={picked}
+              onPick={(m) => { setForm({ ...form, location: m.name, latitude: String(m.latitude), longitude: String(m.longitude) }); setPicked(m); }}
+              onClear={() => { setForm({ ...form, latitude: '', longitude: '' }); setPicked(null); }}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className={labelClass}>latitude</div>
+                <input inputMode="decimal" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: e.target.value })} className={`${inputClass} font-mono`} placeholder="optional" data-routine-latitude />
+              </div>
+              <div>
+                <div className={labelClass}>longitude</div>
+                <input inputMode="decimal" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: e.target.value })} className={`${inputClass} font-mono`} placeholder="optional" data-routine-longitude />
+              </div>
             </div>
           </div>
 

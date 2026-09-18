@@ -72,15 +72,18 @@ test('/calendar authors nothing — no routines strip, no routine surface', () =
   assert.match(page, /<HubCalendar \/>/);
 });
 
-test("EVENT-01's form stays on the calendar, because a calendar_event is the calendar's own row", () => {
-  // It is mounted inside HubCalendar, which /calendar renders — the one thing
-  // this tool writes, and it writes THIS tool's object, not another tool's.
-  assert.match(code('src/components/hub/HubCalendar.tsx'), /<AddEventForm/);
+test("ONEOFF-01: the calendar authors nothing — EVENT-01's add form is gone; a pre-ruling row is still corrected", () => {
+  // PLAN-01 kept the add-event form as the one thing this tool wrote. ONEOFF-01
+  // closed it: a one-off is a routine planned in Tasks. What HubCalendar mounts
+  // now is the edit-only correction of an existing hand-entered row.
+  const hub = code('src/components/hub/HubCalendar.tsx');
+  assert.doesNotMatch(hub, /AddEventForm/);
+  assert.match(hub, /<CorrectEventForm/);
   assert.ok(existsSync(`${process.cwd()}/src/app/api/calendar/events/route.ts`));
   // And the reason is recorded where the next reader will look. TEST-TRUTH-01:
   // that reason is PROSE — the page's header comment — and this now says so.
-  // The behaviour it explains is asserted from code, two lines above.
-  assert.match(comments(CALENDAR), /writes a calendar_event, which is THIS tool's own row/);
+  // The behaviour it explains is asserted from code, three lines above.
+  assert.match(comments(CALENDAR), /the calendar's\s+\*?\s*own row \(calendar_events, source 'manual'\)/);
 });
 
 test('a routine authored on /tasks still appears as occurrences on the calendar — the mapper is untouched', () => {

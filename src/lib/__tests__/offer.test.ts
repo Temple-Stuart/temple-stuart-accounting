@@ -72,7 +72,8 @@ test('claim lines come from the registry: "built and running" for LIVE only, "pa
     assert.equal(claimLine(t), `partial — ${t.why}`);
     assert.ok(!claimLine(t).includes('discover'), `${name}: the why, not the beats`);
   }
-  assert.equal(claimLine(tool('Calendar')), 'partial — discover · commit · record');
+  // ONEOFF-01: the calendar authors nothing — commit is lost with the add form; two beats.
+  assert.equal(claimLine(tool('Calendar')), 'partial — discover · record');
   assert.equal(tool('Calendar').status, 'PARTIAL', 'the census did not move with the beats');
   // a four-beat PARTIAL with no why is thrown, not rendered as the beats form
   assert.throws(() => claimLine({ ...tool('Tasks'), why: undefined }), /Tasks is PARTIAL with four beats and no why/);

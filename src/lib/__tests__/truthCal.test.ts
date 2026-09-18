@@ -7,13 +7,15 @@ import { code } from '../sourceText';
 
 // TRUTH-CAL — tool 01's row says what /calendar is after PLAN-01, and every
 // file:line it prints resolves to the line it names.
+// ONEOFF-01 — the calendar authors nothing: the commit beat is lost with the
+// add form and its POST; record is kept by the same standard; two beats.
 
 const lineOf = (f: string, n: number) => code(f).split('\n')[n - 1] ?? '';
 const CAL = TOOL_REGISTRY.find((t) => t.name === 'Calendar')!;
 const ROW = `${CAL.why ?? ''} ${CAL.citation} ${CAL.note ?? ''}`;
 
-test('the beats are what the page renders — discover, commit, record; no decide', () => {
-  assert.deepEqual(CAL.beats, { discover: true, decide: false, commit: true, record: true });
+test('the beats are what the page renders — discover and record; no commit since ONEOFF-01, no decide', () => {
+  assert.deepEqual(CAL.beats, { discover: true, decide: false, commit: false, record: true });
   assert.equal(CAL.status, 'PARTIAL', 'the census does not move');
 
   // discover — three GETs in the grid, and the grid itself writes nothing.
@@ -22,21 +24,25 @@ test('the beats are what the page renders — discover, commit, record; no decid
     assert.ok(grid.includes(feed), `the grid reads ${feed}`);
   }
 
-  // commit — the form reaches this tool's OWN row through its own route.
-  assert.match(code('src/components/hub/AddEventForm.tsx'), /fetch\('\/api\/calendar\/events'/);
+  // NO commit — ONEOFF-01: nothing is set here. The add form is gone, the route
+  // exports no POST and inserts nothing; what remains re-states an existing row.
+  assert.doesNotMatch(grid, /AddEventForm/);
   const route = code('src/app/api/calendar/events/route.ts');
-  for (const verb of ['POST', 'PATCH', 'DELETE']) {
-    assert.match(route, new RegExp(`export async function ${verb}\\b`), `the events route answers ${verb}`);
+  assert.doesNotMatch(route, /export async function POST\b/, 'the events route no longer answers POST');
+  assert.doesNotMatch(route, /INSERT INTO calendar_events/);
+  for (const verb of ['PATCH', 'DELETE']) {
+    assert.match(route, new RegExp(`export async function ${verb}\\b`), `the events route still answers ${verb} for a pre-ruling row`);
   }
-  assert.match(route, /INSERT INTO calendar_events/);
+  assert.match(code('src/components/hub/CorrectEventForm.tsx'), /method: 'PATCH'/);
 
-  // record — written, read back, badged.
+  // record — read back through the allowlist, counted into a named part, badged.
   assert.match(grid, /isRenderedCalendarSource\(e\.source\)/);
+  assert.match(code('src/lib/calendar/day.ts'), /export function dayParts/);
   assert.match(code('src/lib/calendar/sources.ts'), /source: 'manual'/);
   assert.match(code('src/components/hub/DayView.tsx'), /MANUAL_EVENT_BADGE/);
 
   // decide — a draft event would have to be PERSISTED. Nothing writes one.
-  for (const f of ['src/components/hub/AddEventForm.tsx', 'src/app/api/calendar/events/route.ts', 'src/lib/calendar/manualEvent.ts']) {
+  for (const f of ['src/components/hub/CorrectEventForm.tsx', 'src/app/api/calendar/events/route.ts', 'src/lib/calendar/manualEvent.ts']) {
     assert.doesNotMatch(code(f), /\bdraft\b/i, `${f} persists no draft event — decide stays unclaimed`);
   }
 });
@@ -49,6 +55,9 @@ test('no registry string names a surface the tool no longer has', () => {
     /api\/operations\/routines/,
     /routines\/\[id\]/,
     /completions/,
+    // ONEOFF-01: the add form is gone too.
+    /AddEventForm/,
+    /Add an event/i,
   ]) assert.doesNotMatch(ROW, dead, `the Calendar row still names a surface it lost: ${dead}`);
 
   // DAY-01 deleted the bare source filter; the note may only mention it as history.
@@ -66,21 +75,19 @@ test('no registry string names a surface the tool no longer has', () => {
 test('every file:line the row prints resolves to the line it names', () => {
   // The table is the claim; the assertion is that the file really says so.
   const CITED: ReadonlyArray<readonly [string, number, string]> = [
-    ['src/components/hub/HubCalendar.tsx', 168, '/api/calendar?'],
-    ['src/components/hub/HubCalendar.tsx', 175, 'isRenderedCalendarSource'],
-    ['src/components/hub/HubCalendar.tsx', 184, '/api/operations/daily-plan/items'],
-    ['src/components/hub/HubCalendar.tsx', 196, '/api/hub/operations-routines'],
-    ['src/components/hub/HubCalendar.tsx', 349, 'onAdded'],
-    ['src/components/hub/AddEventForm.tsx', 247, "editEvent ? 'PATCH' : 'POST'"],
-    ['src/app/api/calendar/events/route.ts', 75, 'export async function POST'],
-    ['src/app/api/calendar/events/route.ts', 105, 'export async function PATCH'],
-    ['src/app/api/calendar/events/route.ts', 146, 'export async function DELETE'],
+    ['src/components/hub/HubCalendar.tsx', 186, '/api/calendar?'],
+    ['src/components/hub/HubCalendar.tsx', 193, 'isRenderedCalendarSource'],
+    ['src/components/hub/HubCalendar.tsx', 202, '/api/operations/daily-plan/items'],
+    ['src/components/hub/HubCalendar.tsx', 214, '/api/hub/operations-routines'],
+    ['src/lib/calendar/day.ts', 304, 'export function dayParts'],
+    ['src/lib/calendar/sources.ts', 84, "source: 'manual'"],
     ['src/components/hub/DayView.tsx', 221, 'MANUAL_EVENT_BADGE'],
-    ['src/lib/calendar/sources.ts', 76, 'export const CALENDAR_SOURCES'],
-    ['src/lib/calendar/sources.ts', 78, "source: 'manual'"],
-    ['src/lib/calendar/sources.ts', 149, '] as const;'],
-    ['src/lib/calendar/sources.ts', 162, 'export const EXCLUDED_CALENDAR_SOURCES'],
-    ['src/lib/calendar/sources.ts', 171, '] as const;'],
+    ['src/app/api/calendar/events/route.ts', 82, 'export async function PATCH'],
+    ['src/app/api/calendar/events/route.ts', 123, 'export async function DELETE'],
+    ['src/lib/calendar/sources.ts', 82, 'export const CALENDAR_SOURCES'],
+    ['src/lib/calendar/sources.ts', 157, '] as const;'],
+    ['src/lib/calendar/sources.ts', 170, 'export const EXCLUDED_CALENDAR_SOURCES'],
+    ['src/lib/calendar/sources.ts', 179, '] as const;'],
   ];
   for (const [file, n, token] of CITED) {
     assert.ok(existsSync(`${process.cwd()}/${file}`), `${file} exists`);
@@ -108,5 +115,6 @@ test('the row still satisfies the registry law, and its claim line follows the b
   assert.deepEqual(registryLaw({ throwOnFail: false }), []);
   // TRUTH-01b: fewer than four beats keeps the beats form, so the claim line is
   // the beats — the `why` is what the rail and the sheet print (nav.ts).
-  assert.equal(claimLine(CAL), 'partial — discover · commit · record');
+  // ONEOFF-01: two beats now.
+  assert.equal(claimLine(CAL), 'partial — discover · record');
 });

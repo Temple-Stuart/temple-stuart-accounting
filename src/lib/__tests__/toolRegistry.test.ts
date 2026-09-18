@@ -29,10 +29,12 @@ test('the three four-beat PARTIALs each carry the census note; no LIVE or NOT_BU
   // page — discover, commit and record through EVENT-01's hand-entered event,
   // and no decide, because nothing persists a draft. PARTIAL is unchanged.
   assert.deepEqual(fourBeatPartials, ['Tasks', 'Time', 'Budget']);
-  assert.equal(beats(byName('Calendar')), 3);
+  // ONEOFF-01: the calendar authors nothing — the add form and its POST are
+  // gone, so commit is lost; record is kept by TRUTH-CAL's standard. Two beats.
+  assert.equal(beats(byName('Calendar')), 2);
   assert.equal(byName('Calendar').status, 'PARTIAL');
-  assert.deepEqual(byName('Calendar').beats, { discover: true, decide: false, commit: true, record: true });
-  // A three-beat row states what it DOES; the law does not require a why here,
+  assert.deepEqual(byName('Calendar').beats, { discover: true, decide: false, commit: false, record: true });
+  // A two-beat row states what it DOES; the law does not require a why here,
   // and the one it carries is customer copy with no source path in it.
   assert.match(byName('Calendar').why ?? '', /^the view every tool logs to —/);
   assert.doesNotMatch(byName('Calendar').why ?? '', /\.tsx?:|src\//);

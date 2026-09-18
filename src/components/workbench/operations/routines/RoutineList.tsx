@@ -5,7 +5,7 @@
  * is_active=true by default with a "show inactive" toggle.
  *
  * Renders rows grouped by classifyCadence(schedule_rrule):
- *   Daily / Weekly / Monthly / Quarterly / Yearly / Custom
+ *   Once (ONEOFF-01) / Daily / Weekly / Monthly / Quarterly / Yearly / Custom
  *
  * "+ new routine" button opens an inline create form using the same
  * RRULEBuilder as the edit form.
@@ -20,6 +20,7 @@ import type { CadenceGroup, Routine } from './types';
 import { CADENCE_GROUP_LABELS, CADENCE_GROUP_ORDER } from './types';
 import type { Scene, Take } from '../content/ContentTable';
 import { SETUP_DOOR } from '@/lib/entities/kinds';
+import { isOnceRRule } from '@/lib/operations/rruleHelpers';
 
 
 interface Entity {
@@ -124,6 +125,9 @@ export default function RoutineList({ entities, onCommitted, onTotals }: Props &
   // approximation is sufficient.
   const groupOf = (rrule: string): CadenceGroup => {
     const upper = rrule.toUpperCase();
+    // ONEOFF-01: one occurrence is its own group, whatever its FREQ — the same
+    // test the server's classifyCadence applies.
+    if (isOnceRRule(upper)) return 'once';
     if (upper.includes('FREQ=DAILY')) return 'daily';
     if (upper.includes('FREQ=WEEKLY')) return 'weekly';
     if (upper.includes('FREQ=YEARLY')) {

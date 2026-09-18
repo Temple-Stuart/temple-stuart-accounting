@@ -58,6 +58,20 @@ export interface RoutineWindowEntry {
    * pair. Never both. Absent ⇒ a stepless routine, as before.
    */
   steps?: RoutineLineInput[] | null;
+  /**
+   * ONEOFF-01: the routine's place, carried onto every occurrence tile so the
+   * day view pins it and the drill panel prints Where and Pin — exactly as a
+   * calendar_events row's are. Absent or null ⇒ no place, never 0,0.
+   */
+  location?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  /**
+   * ONEOFF-01: the cadence group the window route classified (rruleHelpers
+   * classifyCadence). 'once' is one occurrence, so its tile wears no recurrence
+   * glyph. Absent ⇒ recurring, as every tile was before.
+   */
+  cadence?: string | null;
 }
 
 export interface RoutinesWindowResponse {
@@ -108,6 +122,11 @@ export function mapOperationsRoutines(response: RoutinesWindowResponse): Calenda
     const planned = routinePlanned({ budget_amount: routine.budget_amount, coa_code: routine.coa_code, steps: routine.steps ?? null });
     const coaCode = planned.coaCode;
     const budgetAmount = planned.amount ?? undefined;
+    // ONEOFF-01: the place rides on every occurrence; a one-off is not recurring.
+    const location = routine.location ?? null;
+    const latitude = routine.latitude ?? null;
+    const longitude = routine.longitude ?? null;
+    const isRecurring = routine.cadence !== 'once';
 
     for (const occISO of routine.occurrences) {
       const startDate = formatDateInZone(occISO, routine.timezone);
@@ -121,10 +140,13 @@ export function mapOperationsRoutines(response: RoutinesWindowResponse): Calenda
           startDate,
           startTime,
           endTime: endTime ?? undefined,
-          isRecurring: true,
+          isRecurring,
           href: ROUTINES_HREF,
           coaCode,
           budgetAmount,
+          location,
+          latitude,
+          longitude,
         });
       } else {
         // Time-less routine → all-day event at the top of the calendar.
@@ -140,10 +162,13 @@ export function mapOperationsRoutines(response: RoutinesWindowResponse): Calenda
           title: routine.name,
           startDate,
           // startTime intentionally omitted → CalendarGrid renders all-day
-          isRecurring: true,
+          isRecurring,
           href: ROUTINES_HREF,
           coaCode,
           budgetAmount,
+          location,
+          latitude,
+          longitude,
         });
       }
     }

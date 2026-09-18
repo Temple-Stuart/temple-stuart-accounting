@@ -16,7 +16,9 @@ import { code } from '../sourceText';
  */
 
 const ROUTE = 'src/app/api/calendar/events/route.ts';
-const FORM = 'src/components/hub/AddEventForm.tsx';
+// ONEOFF-01: the add-event form became the edit-only correction form. The
+// calendar authors nothing; a one-off is a routine planned in Tasks.
+const FORM = 'src/components/hub/CorrectEventForm.tsx';
 const DAY_VIEW = 'src/components/hub/DayView.tsx';
 const HUB = 'src/components/hub/HubCalendar.tsx';
 const USER_A = 'user-a';
@@ -66,10 +68,13 @@ test('a manual event round-trips: it builds, carries every field the person chos
   assert.equal(edited.row.end_time, '16:15');
   assert.equal(edited.row.source, MANUAL_EVENT_SOURCE);
 
-  // All four verbs exist, and every one answers 401 before touching the store.
+  // ONEOFF-01: PATCH and DELETE exist and each answers 401 before touching the
+  // store; POST is GONE — the calendar authors nothing.
   const route = code(ROUTE);
-  for (const verb of ['POST', 'PATCH', 'DELETE']) assert.match(route, new RegExp(`export async function ${verb}`));
-  assert.equal((route.match(/status: 401/g) ?? []).length, 3);
+  for (const verb of ['PATCH', 'DELETE']) assert.match(route, new RegExp(`export async function ${verb}`));
+  assert.doesNotMatch(route, /export async function POST\b/, 'no new hand-entered row is written by the calendar');
+  assert.doesNotMatch(route, /INSERT INTO calendar_events/);
+  assert.equal((route.match(/status: 401/g) ?? []).length, 2);
 });
 
 test('nothing is defaulted — an empty cost, time or coordinate stays empty, and a bad one is refused by name', () => {
@@ -209,14 +214,20 @@ test('the category census is gathered from the existing writers, and the form of
 
   const form = code(FORM);
   assert.match(form, /EVENT_CATEGORIES\.map\(/);
-  assert.equal(/<input[^>]*id="aef-category"/.test(form), false, 'the category is a select over the census, never free text');
-  // The form never calls a provider DIRECTLY — the key stays on the server.
-  // GEO-01 gave it a lookup, and that lookup is the app's own route.
-  assert.equal(/googleFetch\s*\(|maps\.googleapis|GOOGLE_PLACES_API_KEY/.test(form), false);
-  assert.match(form, /data-add-event-coord-hint/);
+  assert.equal(/<input[^>]*id="cef-category"/.test(form), false, 'the category is a select over the census, never free text');
+  // The form never calls a provider — ONEOFF-01 moved the lookup to Tasks, and
+  // the correction form has no lookup at all. The key stays on the server.
+  assert.equal(/googleFetch\s*\(|maps\.googleapis|GOOGLE_PLACES_API_KEY|find-place/.test(form), false);
+  assert.match(form, /data-correct-event-coord-hint/);
   // An empty number box posts nothing.
   assert.match(form, /if \(s === ''\) return undefined;/);
   assert.match(form, /cost: typedNumber\(cost\) \?\? null/);
+  // ONEOFF-01: edit-only — it PATCHes an existing row and never POSTs; and it
+  // carries the stored account back as stored, never from a merged chart.
+  assert.match(form, /method: 'PATCH'/);
+  assert.doesNotMatch(form, /method: 'POST'/);
+  assert.doesNotMatch(form, /\/api\/chart-of-accounts/, 'no chart is fetched — the merged list is gone');
+  assert.match(form, /coaCode: event\.coaCode \?\? null/);
 });
 
 test('the day view marks a hand-entered event and offers correct/delete on it alone', () => {
@@ -231,10 +242,12 @@ test('the day view marks a hand-entered event and offers correct/delete on it al
   assert.match(view, /setDeleteRefusal\(data\?\.error/);
   assert.equal(MANUAL_EVENT_BADGE, 'hand-entered');
 
-  // The form is mounted for a signed-in viewer only — a guest's demo calendar
-  // never calls a personal route (HubCalendar's zero-fetch guarantee).
+  // The correction form is mounted for a signed-in viewer only, and only while
+  // a row is being corrected — a guest's demo calendar never calls a personal
+  // route (HubCalendar's zero-fetch guarantee). ONEOFF-01: nothing is ADDED.
   const hub = code(HUB);
-  assert.match(hub, /\{!isDemo && \(/);
-  assert.match(hub, /<AddEventForm/);
+  assert.match(hub, /\{!isDemo && editEvent && \(/);
+  assert.match(hub, /<CorrectEventForm/);
+  assert.doesNotMatch(hub, /AddEventForm/);
   assert.match(hub, /onCorrect=\{\(ev\) => \{ setEditEvent\(ev\); setOpenDay\(null\); \}\}/);
 });

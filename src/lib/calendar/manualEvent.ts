@@ -11,6 +11,11 @@
  * WHAT IT NEVER DOES. It never defaults a cost, a time or a category. A field
  * the user did not choose is NULL, and null renders blank in DAY-01's day view
  * and is counted out of the day's total. An empty box is not a zero.
+ *
+ * ONEOFF-01: the calendar authors nothing, and POST is gone from the route.
+ * This builder now serves ONE verb — PATCH, the correction of a row that
+ * already exists — and the category census below is untouched: it describes
+ * what the existing writers put in the column, which is what those rows hold.
  */
 
 import { MANUAL_EVENT_SOURCE } from './sources';

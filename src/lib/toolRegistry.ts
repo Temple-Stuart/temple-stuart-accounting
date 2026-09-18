@@ -119,12 +119,23 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // It stays PARTIAL: the loop's commit cell ends "invites go out", and no invite
   // goes out. TRUTH-01b's four-beat `why` requirement does not bind a three-beat
   // row; the `why` here says what the calendar IS, which is what the sheet prints.
+  //
+  // ONEOFF-01 (2026-09-18): THE CALENDAR AUTHORS NOTHING. EVENT-01's add form
+  // and its POST are gone — a one-off is a routine that happens once, planned in
+  // Tasks with its lines and its place — so the COMMIT beat TRUTH-CAL cited to
+  // that form is LOST: the loop's commit cell is "the event is set, invites go
+  // out", and nothing is set here now. RECORD is KEPT, by TRUTH-CAL's own
+  // standard ("the row is read back, badged and counted into the day total"):
+  // every source's rows are read back through the allowlist and counted into
+  // the day's named parts, and a row entered by hand before the ruling is read
+  // back after its correction (PATCH returns the row, the grid reloads, the badge
+  // marks it). Two beats — discover · record — and still PARTIAL.
   Calendar: {
-    slug: 'calendar', status: 'PARTIAL', beats: some({ discover: true, commit: true, record: true }), home: '/calendar',
-    why: 'the view every tool logs to — trips, routine occurrences, project blocks and the days you enter by hand, on one grid, with the day\'s total naming each part; an event can be added, edited and deleted here, but nothing holds a draft and no invite goes out',
+    slug: 'calendar', status: 'PARTIAL', beats: some({ discover: true, record: true }), home: '/calendar',
+    why: 'the view every tool logs to — trips, routine occurrences and one-offs, project blocks and the days entered by hand before ONEOFF-01, on one grid, with the day\'s total naming each part; nothing is authored here — a one-off is a routine planned in Tasks — and an event entered by hand before the ruling can still be corrected or removed',
     links: [],
-    citation: 'discover: src/components/hub/HubCalendar.tsx:168 (/api/calendar) · :184 (/api/operations/daily-plan/items) · :196 (/api/hub/operations-routines) — three GETs, the grid writes nothing · commit: src/components/hub/AddEventForm.tsx:247 → src/app/api/calendar/events/route.ts:75 (POST, INSERT INTO calendar_events) · :105 (PATCH) · :146 (DELETE) · record: src/components/hub/HubCalendar.tsx:175 (the rendered-source filter) · :349 (the grid refetches on save) · src/lib/calendar/sources.ts:78 (manual) · src/components/hub/DayView.tsx:221 (the hand-entered badge) · no decide: no persisted draft event',
-    note: 'Nine calendar_events sources render, each named with its writer and its reason in src/lib/calendar/sources.ts:76-149; "project" and "routines" are named EXCLUDED at :162-171 because they reach the grid already through their own loaders, and admitting them would draw every block twice. DAY-01 deleted the bare source === "trip" filter this note used to describe.',
+    citation: 'discover: src/components/hub/HubCalendar.tsx:186 (/api/calendar) · :202 (/api/operations/daily-plan/items) · :214 (/api/hub/operations-routines) — three GETs, the grid writes nothing · record: src/components/hub/HubCalendar.tsx:193 (the rendered-source filter) · src/lib/calendar/day.ts:304 (dayParts — every row counted into its named part) · src/lib/calendar/sources.ts:84 (manual) · src/components/hub/DayView.tsx:221 (the hand-entered badge) · src/app/api/calendar/events/route.ts:82 (PATCH — a pre-ruling row re-stated and read back) · :123 (DELETE) · no commit: no POST since ONEOFF-01, nothing is authored on the calendar · no decide: no persisted draft',
+    note: 'Nine calendar_events sources render, each named with its writer and its reason in src/lib/calendar/sources.ts:82-157; "project" and "routines" are named EXCLUDED at :170-179 because they reach the grid already through their own loaders, and admitting them would draw every block twice. DAY-01 deleted the bare source === "trip" filter this note used to describe. ONEOFF-01 closed the manual writer — its rows are pre-ruling and stay editable; a new one-off is a routine.',
   },
   Tasks: {
     // TOOL-LAW-01: one tool, one page. /operations was Tasks AND Time on one

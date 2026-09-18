@@ -92,6 +92,8 @@ export async function GET(request: Request) {
         },
         select: {
           budget_amount: true, coa_code: true, schedule_rrule: true, timezone: true,
+          // ONEOFF-01: the anchor the month's occurrence count is built on.
+          start_date: true,
           steps: { where: { is_active: true }, select: { id: true, is_active: true, budget_amount: true, coa_code: true, step_order: true } },
         },
       });
@@ -101,6 +103,7 @@ export async function GET(request: Request) {
           coa_code: r.coa_code,
           schedule_rrule: r.schedule_rrule,
           timezone: r.timezone,
+          start_date: r.start_date,
           steps: r.steps.map((s) => ({ id: s.id, is_active: s.is_active, budget_amount: s.budget_amount != null ? Number(s.budget_amount) : null, coa_code: s.coa_code, step_order: s.step_order })),
         }));
         for (let m = 0; m < 12; m++) {

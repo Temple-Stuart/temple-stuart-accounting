@@ -17,27 +17,10 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { isValidUuid } from '@/lib/operations/parseUuid';
 import { parseTimeOrNull } from '@/lib/operations/parseTime';
+// ONEOFF-01: the LINES-01 amount rule lives in one leaf now — this writer, its
+// sibling and the create route (which writes lines with the routine) read it.
+import { parseBudgetAmountOrNull, trimNullable } from '@/lib/operations/routineInput';
 
-function trimNullable(v: unknown): string | null {
-  if (typeof v !== 'string') return null;
-  const t = v.trim();
-  return t.length > 0 ? t : null;
-}
-
-/**
- * LINES-01: the line's own amount and account. Blank → null, never 0. The amount
- * is validated like the routine's (HB-4a: a non-negative decimal); the code is
- * trimmed and length-checked here and validated against the entity's chart by
- * the SAME picker the routine uses (CoaSelect), so a code never arrives typed.
- */
-function parseBudgetAmountOrNull(v: unknown): { value: string | null } | { error: NextResponse } {
-  if (v === undefined || v === null || v === '') return { value: null };
-  const s = typeof v === 'number' ? String(v) : typeof v === 'string' ? v.trim() : '';
-  if (!/^\d+(\.\d{1,2})?$/.test(s)) {
-    return { error: NextResponse.json({ error: 'Validation', field: 'budget_amount', message: 'must be a non-negative amount with at most 2 decimals' }, { status: 400 }) };
-  }
-  return { value: s };
-}
 
 export async function POST(
   request: NextRequest,
@@ -115,7 +98,7 @@ export async function POST(
     if (timeResult.error) return timeResult.error;
 
     const amount = parseBudgetAmountOrNull(body.budget_amount);
-    if ('error' in amount) return amount.error;
+    if ('error' in amount) return NextResponse.json({ error: 'Validation', ...amount.error }, { status: 400 });
     const coaCode = trimNullable(body.coa_code);
     if (coaCode && coaCode.length > 50) {
       return NextResponse.json({ error: 'Validation', field: 'coa_code', message: 'coa_code exceeds 50 characters' }, { status: 400 });

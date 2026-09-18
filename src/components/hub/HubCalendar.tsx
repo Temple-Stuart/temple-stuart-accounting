@@ -33,8 +33,10 @@ import type { DailyPlanItem, CalendarBlockSummary } from '@/components/workbench
 // DAY-01: which calendar_events sources render, by name and with a reason each.
 import { CALENDAR_SOURCES, isRenderedCalendarSource } from '@/lib/calendar/sources';
 import DayView from '@/components/hub/DayView';
-// EVENT-01: the door /api/calendar never had — an event, by hand.
-import AddEventForm, { type EditableEvent } from '@/components/hub/AddEventForm';
+// ONEOFF-01: the calendar AUTHORS nothing. EVENT-01's add-event form is gone
+// from here; what stays is the correction of an event entered by hand before
+// the ruling — the calendar's own row — opened from the day or the chain panel.
+import CorrectEventForm, { type EditableEvent } from '@/components/hub/CorrectEventForm';
 
 // The /api/calendar event shape (same as hub/page.tsx:25-35).
 interface CalendarEvent {
@@ -159,8 +161,24 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
   // DAY-01 STEP 2: the day the reader opened, 'YYYY-MM-DD'. Null = no day panel.
   const [openDay, setOpenDay] = useState<string | null>(null);
 
-  // EVENT-01: the hand-entered event being corrected. Null = the form adds a new one.
+  // EVENT-01 → ONEOFF-01: the hand-entered event being corrected. Null = no
+  // correction open. Nothing is ever ADDED from here.
   const [editEvent, setEditEvent] = useState<EditableEvent | null>(null);
+
+  /** One merged-grid row → what the correction form needs. Pure; it reads no route. */
+  const editableOf = (e: GridEvent): EditableEvent => ({
+    id: e.id,
+    title: e.title,
+    date: (e.startDate ?? '').slice(0, 10),
+    startTime: e.startTime ?? null,
+    endTime: e.endTime ?? null,
+    category: e.category ?? '',
+    cost: e.budgetAmount ?? null,
+    location: e.location ?? null,
+    coaCode: e.coaCode ?? null,
+    latitude: e.latitude ?? null,
+    longitude: e.longitude ?? null,
+  });
 
   // ── The 3 calendar loaders — SAME logic as hub/page.tsx:192-294. ──
   const loadCalendar = async () => {
@@ -338,19 +356,8 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
     <div>
       {/* Edge-to-edge day-view grid. On phone it's day-only with a week strip; the grid's
           nav drives this component's fetch month via onMonthChange. */}
-      {/* EVENT-01: the day is planned here, not just recorded. Hidden in demo
-          mode — a logged-out guest has no account to write to, and the zero-fetch
-          guarantee for a guest is absolute. */}
-      {!isDemo && (
-        <div className="mb-3">
-          <AddEventForm
-            editEvent={editEvent}
-            onEditDone={() => setEditEvent(null)}
-            onAdded={(dateKey) => { loadCalendar(); if (dateKey) setRange((r) => (dateKey >= r.from && dateKey <= r.to ? r : { from: dateKey, to: dateKey })); }}
-          />
-        </div>
-      )}
-
+      {/* ONEOFF-01: NOTHING is authored above the grid. A one-off is a routine
+          planned in Tasks, and it logs here like every other routine. */}
       <CalendarGrid
         events={gridEvents}
         sourceConfig={HUB_GRID_CONFIG}
@@ -379,7 +386,35 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
       )}
 
       {detailEvent && (
-        <EventDetailPanel row={detailEvent} linkable={!isDemo} onClose={() => setDetailEvent(null)} />
+        <EventDetailPanel
+          row={detailEvent}
+          linkable={!isDemo}
+          onClose={() => setDetailEvent(null)}
+          /* ONEOFF-01: a hand-entered row (pre-ruling) is corrected or removed
+             from its chain panel too. The row is looked up in the SAME merged
+             list the panel was built from. */
+          onCorrect={(id) => {
+            const e = gridEvents.find((x) => x.id === id);
+            if (e) { setEditEvent(editableOf(e)); setDetailEvent(null); }
+          }}
+          onRemoved={() => { setDetailEvent(null); loadCalendar(); }}
+        />
+      )}
+
+      {/* ONEOFF-01: the correction of an event entered by hand BEFORE the ruling —
+          the calendar's own row, re-stated by its owner. Opened from the day view
+          or the chain panel, never empty, never adding. Hidden in demo mode: a
+          logged-out guest has no account to write to. */}
+      {!isDemo && editEvent && (
+        <CorrectEventForm
+          event={editEvent}
+          onCancel={() => setEditEvent(null)}
+          onCorrected={(dateKey) => {
+            setEditEvent(null);
+            loadCalendar();
+            if (dateKey) setRange((r) => (dateKey >= r.from && dateKey <= r.to ? r : { from: dateKey, to: dateKey }));
+          }}
+        />
       )}
 
       {/* DAY-01: THE DAY, WHOLE. Every event on that date — whatever wrote it —
@@ -414,8 +449,9 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
               category: e.category,
             }))}
           sourceIcon={SOURCE_ICON}
-          /* EVENT-01 STEP 5: a hand-entered event is corrected and deleted from
-             the day it sits on. Both refuse any other source, with its reason. */
+          /* EVENT-01 STEP 5 → ONEOFF-01: an event entered by hand before the
+             ruling is corrected and deleted from the day it sits on. Both refuse
+             any other source, with its reason. Nothing is added here. */
           /* DRILL-01: every row on the day opens the panel — none navigates
              away, none is inert. The row is looked up in the SAME merged list
              the day view was handed, so the panel can never describe a

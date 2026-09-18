@@ -23,8 +23,11 @@ const LINE_OPENS = 'The day as it actually is';
 const LINE_CLOSES = 'routines and projects are planned in Tasks';
 // String #2, verbatim — the registry row CAL-OPEN-01 forbids changing. In source
 // text its apostrophe is escaped, so source scans look for its opening clause.
+// ONEOFF-01 (2026-09-18, the ruling after this one) REWROTE the why by its own
+// STEP 3 — the calendar authors nothing — so the pin below is that text now. What
+// this test holds is unchanged: the why renders on the sheet, never on /calendar.
 const WHY_OPENS = 'the view every tool logs to';
-const WHY = 'the view every tool logs to — trips, routine occurrences, project blocks and the days you enter by hand, on one grid, with the day\'s total naming each part; an event can be added, edited and deleted here, but nothing holds a draft and no invite goes out';
+const WHY = 'the view every tool logs to — trips, routine occurrences and one-offs, project blocks and the days entered by hand before ONEOFF-01, on one grid, with the day\'s total naming each part; nothing is authored here — a one-off is a routine planned in Tasks — and an event entered by hand before the ruling can still be corrected or removed';
 
 function tsFilesUnder(dir: string): string[] {
   const out: string[] = [];
@@ -70,7 +73,7 @@ test('the prose moved nowhere — string #1 is in no rendered file, string #2 on
 
 test('the registry why-note is untouched, and it still renders on the sheet, not on /calendar', () => {
   const row = TOOL_REGISTRY.find((t) => t.name === 'Calendar')!;
-  assert.equal(row.why, WHY, 'the row CAL-OPEN-01 forbids changing');
+  assert.equal(row.why, WHY, 'the row CAL-OPEN-01 left untouched; ONEOFF-01 rewrote it by ruling');
   assert.equal(row.status, 'PARTIAL');
   assert.equal(row.home, '/calendar');
   // nav.ts still hands the why on as the tool's line — the rail and the sheet read it.

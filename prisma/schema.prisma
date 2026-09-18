@@ -3297,6 +3297,14 @@ model operations_routines {
   end_date                      DateTime? @db.Date
   start_time                    DateTime? @db.Time(6)
   end_time                      DateTime? @db.Time(6)
+  // ONEOFF-01: the routine's PLACE, at the routine level — the same three columns
+  // a calendar_events row carries (GEO-01), so a one-off's occurrence pins on the
+  // day map. All nullable; the coordinate pair is all-or-nothing by a CHECK in
+  // the migration, and a COUNT=1 rule (cadence "once") requires start_date by
+  // another — the anchor every expansion of it is built on.
+  location                      String?   @db.VarChar(255)
+  latitude                      Decimal?  @db.Decimal(10, 7)
+  longitude                     Decimal?  @db.Decimal(10, 7)
   is_active                     Boolean   @default(true)
   // HB-4a: a budgeted routine carries a PER-OCCURRENCE amount + a COA. Both nullable — a routine
   // with no budget stays null (never 0). The monthly budget figure is computed on-read later
