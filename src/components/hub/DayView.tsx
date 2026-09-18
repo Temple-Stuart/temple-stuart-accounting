@@ -28,7 +28,7 @@ import {
 import { ACTUALS_JOIN_SOUND, ACTUALS_NOT_JOINABLE_LINE } from '@/lib/calendar/actuals';
 // EVENT-01: a hand-entered event is marked, and is the only kind editable here.
 import { isManualEvent, MANUAL_EVENT_BADGE } from '@/lib/calendar/sources';
-import type { EditableEvent } from '@/components/hub/AddEventForm';
+import type { EditableEvent } from '@/components/hub/CorrectEventForm';
 import { SECTION_HEADER, STATE, chip } from '@/lib/ds';
 
 export interface DayViewProps {

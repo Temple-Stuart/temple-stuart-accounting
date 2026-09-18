@@ -11,6 +11,11 @@
  *            * everything else → operations_routine_updated
  * DELETE — hard delete. Cascades to operations_routine_completions via FK.
  *          Audits operations_routine_deleted with full payload_before.
+ *
+ * ONEOFF-01: start_date is the ANCHOR every expansion is built on, so patching
+ * it recomputes next_due_at; a one-off (COUNT=1) must keep a date and ends on
+ * it; the routine's place (location + coordinate pair) is patchable, the pair
+ * all-or-nothing.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -19,7 +24,8 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
-import { compileFormToRRule, expandForward } from '@/lib/operations/rruleHelpers';
+import { compileFormToRRule, expandForward, isOnceRRule, scheduleAnchor } from '@/lib/operations/rruleHelpers';
+import { parsePlaceInput } from '@/lib/operations/routineInput';
 import type { RoutineForm } from '@/components/workbench/operations/routines/types';
 import { parseTimeOrNull } from '@/lib/operations/parseTime';
 
@@ -205,6 +211,43 @@ export async function PATCH(
       scheduleChanged = true;
     }
 
+    let activationToggle: 'deactivated' | 'reactivated' | null = null;
+    if (body.is_active !== undefined) {
+      const incoming = Boolean(body.is_active);
+      if (incoming !== existing.is_active) {
+        activationToggle = incoming ? 'reactivated' : 'deactivated';
+      }
+      data.is_active = incoming;
+    }
+
+    // Date bounds: validate against the effective (post-patch) values so a
+    // single-sided patch is checked against the stored counterpart.
+    // ONEOFF-01: read BEFORE the cadence compile, because start_date is the
+    // anchor every expansion is built on and the date a one-off is counted from.
+    let effectiveStart = existing.start_date;
+    let effectiveEnd = existing.end_date;
+    if ('start_date' in body) {
+      const r = parseDateOrNull(body.start_date, 'start_date');
+      if (r.error) return r.error;
+      effectiveStart = r.value;
+      data.start_date = r.value;
+      // The anchor moved, so every occurrence may have — recompute next_due_at.
+      scheduleChanged = true;
+    }
+    if ('end_date' in body) {
+      const r = parseDateOrNull(body.end_date, 'end_date');
+      if (r.error) return r.error;
+      effectiveEnd = r.value;
+      data.end_date = r.value;
+    }
+    if (effectiveStart && effectiveEnd && effectiveStart > effectiveEnd) {
+      return NextResponse.json(
+        { error: 'Validation', field: 'end_date', message: 'end_date must be on or after start_date' },
+        { status: 400 }
+      );
+    }
+    const effectiveStartStr = effectiveStart ? effectiveStart.toISOString().slice(0, 10) : '';
+
     // Recompile RRULE if any cadence-related field is supplied.
     const cadenceFieldsPresent =
       body.cadence_mode !== undefined ||
@@ -218,7 +261,9 @@ export async function PATCH(
 
     if (cadenceFieldsPresent) {
       try {
-        const compiled = compileFormToRRule(body as RoutineForm);
+        // ONEOFF-01: the compile sees the EFFECTIVE start_date, so a one-off
+        // patched without re-sending its date still has one.
+        const compiled = compileFormToRRule({ ...body, start_date: effectiveStartStr } as RoutineForm);
         data.schedule_rrule = compiled;
         scheduleChanged = true;
       } catch (e) {
@@ -233,36 +278,37 @@ export async function PATCH(
       }
     }
 
-    let activationToggle: 'deactivated' | 'reactivated' | null = null;
-    if (body.is_active !== undefined) {
-      const incoming = Boolean(body.is_active);
-      if (incoming !== existing.is_active) {
-        activationToggle = incoming ? 'reactivated' : 'deactivated';
+    // ONEOFF-01: a one-off (COUNT=1) — whether it just became one or already was —
+    // needs its date and ends on it. The window IS the day.
+    const nextRrule = (data.schedule_rrule as string | undefined) ?? existing.schedule_rrule;
+    if (isOnceRRule(nextRrule)) {
+      if (!effectiveStart) {
+        return NextResponse.json(
+          { error: 'Validation', field: 'start_date', message: 'a one-off needs its date — it cannot be cleared while the cadence is once' },
+          { status: 400 }
+        );
       }
-      data.is_active = incoming;
+      if (effectiveEnd && effectiveEnd.getTime() !== effectiveStart.getTime()) {
+        return NextResponse.json(
+          { error: 'Validation', field: 'end_date', message: 'a one-off ends on the day it happens — leave end_date empty or equal to start_date' },
+          { status: 400 }
+        );
+      }
+      data.end_date = effectiveStart;
     }
 
-    // Date bounds: validate against the effective (post-patch) values so a
-    // single-sided patch is checked against the stored counterpart.
-    let effectiveStart = existing.start_date;
-    let effectiveEnd = existing.end_date;
-    if ('start_date' in body) {
-      const r = parseDateOrNull(body.start_date, 'start_date');
-      if (r.error) return r.error;
-      effectiveStart = r.value;
-      data.start_date = r.value;
-    }
-    if ('end_date' in body) {
-      const r = parseDateOrNull(body.end_date, 'end_date');
-      if (r.error) return r.error;
-      effectiveEnd = r.value;
-      data.end_date = r.value;
-    }
-    if (effectiveStart && effectiveEnd && effectiveStart > effectiveEnd) {
-      return NextResponse.json(
-        { error: 'Validation', field: 'end_date', message: 'end_date must be on or after start_date' },
-        { status: 400 }
-      );
+    // ONEOFF-01: the place. Any of the three sent → the effective triple is
+    // validated whole (the pair is all-or-nothing) and all three are written.
+    if ('location' in body || 'latitude' in body || 'longitude' in body) {
+      const place = parsePlaceInput({
+        location: 'location' in body ? body.location : existing.location,
+        latitude: 'latitude' in body ? body.latitude : existing.latitude != null ? Number(existing.latitude) : null,
+        longitude: 'longitude' in body ? body.longitude : existing.longitude != null ? Number(existing.longitude) : null,
+      });
+      if ('error' in place) return NextResponse.json({ error: 'Validation', ...place.error }, { status: 400 });
+      data.location = place.value.location;
+      data.latitude = place.value.latitude;
+      data.longitude = place.value.longitude;
     }
 
     // Time window: validate against effective (post-patch) values.
@@ -287,12 +333,12 @@ export async function PATCH(
       );
     }
 
-    // If cadence/timezone changed, recompute next_due_at.
+    // If cadence/timezone/anchor changed, recompute next_due_at — anchored on
+    // the effective start_date (ONEOFF-01: the one mechanism).
     if (scheduleChanged) {
-      const nextRrule = (data.schedule_rrule as string | undefined) ?? existing.schedule_rrule;
       const nextTz = (data.timezone as string | undefined) ?? existing.timezone;
       try {
-        const upcoming = expandForward(nextRrule, nextTz, new Date(), 1);
+        const upcoming = expandForward(nextRrule, nextTz, new Date(), 1, scheduleAnchor(effectiveStart));
         data.next_due_at = upcoming[0] ?? null;
       } catch (e) {
         console.error('[Routine PATCH] next_due_at recompute failed', e);

@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { expandForward } from '@/lib/operations/rruleHelpers';
+import { expandForward, scheduleAnchor } from '@/lib/operations/rruleHelpers';
 
 /**
  * Format a Date as YYYY-MM-DD in a specific timezone. Used to compare an
@@ -59,7 +59,7 @@ export async function GET(
 
     let upcoming: Date[] = [];
     try {
-      upcoming = expandForward(routine.schedule_rrule, routine.timezone, new Date(), count);
+      upcoming = expandForward(routine.schedule_rrule, routine.timezone, new Date(), count, scheduleAnchor(routine.start_date));
     } catch (e) {
       return failClosedResponse('Upcoming expand', 'Could not expand the schedule', e);
     }

@@ -30,7 +30,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { expandBetween } from '@/lib/operations/rruleHelpers';
+import { classifyCadence, expandBetween, scheduleAnchor } from '@/lib/operations/rruleHelpers';
+import type { CadenceGroup } from '@/components/workbench/operations/routines/types';
 
 const MAX_WINDOW_DAYS = 92;
 const MAX_OCCURRENCES = 500;
@@ -126,6 +127,12 @@ export async function GET(request: NextRequest) {
       // LINES-01: each active line with its own amount and account. The tile's
       // money is decided by routinePlanned() in the mapper, not here.
       steps: { id: string; is_active: boolean; step_order: number; activity: string; time_of_day: string | null; budget_amount: number | null; coa_code: string | null }[];
+      // ONEOFF-01: the routine's place, so the occurrence pins on the day map;
+      // and its cadence, so a one-off is not drawn with a recurrence glyph.
+      location: string | null;
+      latitude: number | null;
+      longitude: number | null;
+      cadence: CadenceGroup;
     };
 
     const out: RoutineWindowEntry[] = [];
@@ -156,7 +163,9 @@ export async function GET(request: NextRequest) {
 
       let occurrences: Date[] = [];
       try {
-        occurrences = expandBetween(r.schedule_rrule, r.timezone, from, windowEnd);
+        // ONEOFF-01: anchored on the routine's start_date — a one-off is one
+        // occurrence on its date to this reader as to every other.
+        occurrences = expandBetween(r.schedule_rrule, r.timezone, from, windowEnd, scheduleAnchor(r.start_date));
       } catch (e) {
         // Skip malformed rrule rather than failing the whole request —
         // log so the gap is visible. Same idiom as /today endpoint.
@@ -202,6 +211,10 @@ export async function GET(request: NextRequest) {
           budget_amount: st.budget_amount != null ? Number(st.budget_amount) : null,
           coa_code: st.coa_code,
         })),
+        location: r.location,
+        latitude: r.latitude != null ? Number(r.latitude) : null,
+        longitude: r.longitude != null ? Number(r.longitude) : null,
+        cadence: classifyCadence(r.schedule_rrule),
       });
     }
 

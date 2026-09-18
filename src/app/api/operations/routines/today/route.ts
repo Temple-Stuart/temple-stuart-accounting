@@ -26,7 +26,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { expandBetween } from '@/lib/operations/rruleHelpers';
+import { expandBetween, scheduleAnchor } from '@/lib/operations/rruleHelpers';
 import type { TodayStatus } from '@/components/workbench/operations/routines/types';
 
 /**
@@ -138,7 +138,8 @@ export async function GET(_request: NextRequest) {
 
       let occurrences: Date[] = [];
       try {
-        occurrences = expandBetween(r.schedule_rrule, r.timezone, start, end);
+        // ONEOFF-01: anchored on the routine's start_date — the one mechanism.
+        occurrences = expandBetween(r.schedule_rrule, r.timezone, start, end, scheduleAnchor(r.start_date));
       } catch (e) {
         console.error(`[Today GET] RRULE parse failed for ${r.id}: ${e}`);
         continue;

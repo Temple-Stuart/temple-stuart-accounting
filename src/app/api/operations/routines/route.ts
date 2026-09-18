@@ -11,6 +11,17 @@
  *        Server-side note: schedule_rrule is computed from the form, never
  *        accepted as a string from the client. This guarantees every routine
  *        in the DB has a parseable, validated RRULE.
+ *
+ *        ONEOFF-01 — a one-off is a routine that happens once, authored here
+ *        like everything else. Cadence 'once' compiles to FREQ=DAILY;COUNT=1,
+ *        anchored on the routine's start_date (rruleHelpers.ts scheduleAnchor),
+ *        so it expands to exactly one occurrence through the same expansion as
+ *        every other cadence. Its window is that day (end_date = start_date).
+ *        The routine may be created WITH its lines (LINES-01 steps — activity,
+ *        amount, account each) and WITH its place (location + a coordinate
+ *        pair, found through GEO-01's one-press lookup, now on Tasks), all in
+ *        one transaction. Nothing is defaulted: a blank amount is null, half a
+ *        coordinate pair is refused, and a one-off with no date is refused.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -19,7 +30,8 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
-import { compileFormToRRule, expandForward } from '@/lib/operations/rruleHelpers';
+import { compileFormToRRule, expandForward, isOnceRRule, scheduleAnchor } from '@/lib/operations/rruleHelpers';
+import { parseLinesInput, parsePlaceInput } from '@/lib/operations/routineInput';
 import type { RoutineForm } from '@/components/workbench/operations/routines/types';
 import { parseTimeOrNull } from '@/lib/operations/parseTime';
 
@@ -208,6 +220,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ONEOFF-01: a one-off is one occurrence on its date, and its active window
+    // IS that day. The compile already refused a once without a start_date; the
+    // end date, if sent, must be the same day — and is stored as that day.
+    const once = isOnceRRule(schedule_rrule);
+    let endDate = endResult.value;
+    if (once) {
+      if (!startResult.value) {
+        return NextResponse.json(
+          { error: 'Validation', field: 'start_date', message: 'a one-off needs its date' },
+          { status: 400 }
+        );
+      }
+      if (endResult.value && endResult.value.getTime() !== startResult.value.getTime()) {
+        return NextResponse.json(
+          { error: 'Validation', field: 'end_date', message: 'a one-off ends on the day it happens — leave end_date empty or equal to start_date' },
+          { status: 400 }
+        );
+      }
+      endDate = startResult.value;
+    }
+
+    // ONEOFF-01: the routine's place. Location text saves on its own; the
+    // coordinate pair is all-or-nothing and in range (routineInput.ts).
+    const place = parsePlaceInput({ location: body.location, latitude: body.latitude, longitude: body.longitude });
+    if ('error' in place) {
+      return NextResponse.json({ error: 'Validation', ...place.error }, { status: 400 });
+    }
+
+    // ONEOFF-01: the lines the routine is created with — each an activity with
+    // its own amount and account, validated by the one leaf the step writers use.
+    const lines = parseLinesInput(body.lines);
+    if ('error' in lines) {
+      return NextResponse.json({ error: 'Validation', ...lines.error }, { status: 400 });
+    }
+    if (once && lines.value.length === 0) {
+      return NextResponse.json(
+        { error: 'Validation', field: 'lines', message: 'a one-off is made of lines — give it at least one, the thing itself, with or without an amount' },
+        { status: 400 }
+      );
+    }
+
     const failThreshold = parseInt(body.fail_threshold_minutes ?? '0', 10);
     if (!Number.isInteger(failThreshold) || failThreshold < 0) {
       return NextResponse.json(
@@ -241,10 +294,11 @@ export async function POST(request: NextRequest) {
       ? body.coa_code.trim()
       : null;
 
-    // Compute initial next_due_at.
+    // Compute initial next_due_at. ONEOFF-01: anchored on the routine's
+    // start_date, the one mechanism every expansion of it shares.
     let nextDueAt: Date | null = null;
     try {
-      const upcoming = expandForward(schedule_rrule, body.timezone, new Date(), 1);
+      const upcoming = expandForward(schedule_rrule, body.timezone, new Date(), 1, scheduleAnchor(startResult.value));
       nextDueAt = upcoming[0] ?? null;
     } catch (e) {
       console.error('[Routines POST] next_due_at compute failed', e);
@@ -261,27 +315,49 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const routine = await prisma.operations_routines.create({
-      data: {
-        user_id: user.id,
-        entity_id: entityId,
-        name,
-        description,
-        schedule_rrule,
-        timezone: body.timezone,
-        ideal_time_label: idealTimeLabel,
-        fail_threshold_minutes: failThreshold,
-        start_date: startResult.value,
-        end_date: endResult.value,
-        start_time: startTimeResult.value,
-        end_time: endTimeResult.value,
-        is_active: body.is_active !== false,
-        next_due_at: nextDueAt,
-        // HB-4a: nullable money fields — null when unset (no fake 0 / no default COA).
-        budget_amount: budgetAmount,
-        coa_code: coaCode,
-        created_by: userEmail,
-      },
+    // ONEOFF-01: the routine and its lines land together or not at all.
+    const routine = await prisma.$transaction(async (tx) => {
+      const created = await tx.operations_routines.create({
+        data: {
+          user_id: user.id,
+          entity_id: entityId,
+          name,
+          description,
+          schedule_rrule,
+          timezone: body.timezone,
+          ideal_time_label: idealTimeLabel,
+          fail_threshold_minutes: failThreshold,
+          start_date: startResult.value,
+          end_date: endDate,
+          start_time: startTimeResult.value,
+          end_time: endTimeResult.value,
+          is_active: body.is_active !== false,
+          next_due_at: nextDueAt,
+          // HB-4a: nullable money fields — null when unset (no fake 0 / no default COA).
+          budget_amount: budgetAmount,
+          coa_code: coaCode,
+          // ONEOFF-01: the place, or nulls. Never 0,0.
+          location: place.value.location,
+          latitude: place.value.latitude,
+          longitude: place.value.longitude,
+          created_by: userEmail,
+        },
+      });
+      if (lines.value.length > 0) {
+        await tx.operations_routine_steps.createMany({
+          data: lines.value.map((l, i) => ({
+            routine_id: created.id,
+            user_id: user.id,
+            entity_id: entityId,
+            step_order: i,
+            activity: l.activity,
+            budget_amount: l.budget_amount,
+            coa_code: l.coa_code,
+            created_by: userEmail,
+          })),
+        });
+      }
+      return created;
     });
 
     await writeAuditLog({
@@ -304,11 +380,14 @@ export async function POST(request: NextRequest) {
           entity_id: entityId,
           schedule_rrule,
           timezone: body.timezone,
+          // ONEOFF-01: what was authored with it.
+          once,
+          lines: lines.value.length,
         },
       },
     });
 
-    return NextResponse.json({ routine, isCreate: true }, { status: 201 });
+    return NextResponse.json({ routine, lines: lines.value.length, isCreate: true }, { status: 201 });
   } catch (error) {
     return failClosedResponse('Routines POST', 'Failed to create routine', error);
   }

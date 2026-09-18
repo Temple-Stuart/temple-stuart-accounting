@@ -83,10 +83,12 @@ test('/tasks and /time each render exactly one opener, /calendar none, and only 
   // now — no routine surface, no strip — and Tasks holds it instead.
   assert.equal(code('src/app/calendar/page.tsx').includes('SectionE_Routines'), false);
   assert.match(code('src/app/tasks/page.tsx'), /<SectionE_Routines \/>/);
-  // EVENT-01's form STAYS on the calendar: it writes a calendar_event, this
-  // tool's OWN row, not another tool's object.
+  // ONEOFF-01: EVENT-01's add-event form is GONE — the calendar authors
+  // nothing, a one-off is a routine planned in Tasks. The grid mounts only
+  // the correction of a row entered by hand before the ruling.
   assert.match(code('src/app/calendar/page.tsx'), /<HubCalendar \/>/);
-  assert.match(code('src/components/hub/HubCalendar.tsx'), /<AddEventForm/);
+  assert.doesNotMatch(code('src/components/hub/HubCalendar.tsx'), /AddEventForm/);
+  assert.match(code('src/components/hub/HubCalendar.tsx'), /<CorrectEventForm/);
 });
 
 test('the grandfather lists are closed, dated and shrink-only — and CLAUDE.md says so', () => {

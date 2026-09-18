@@ -25,7 +25,7 @@
 import { inngest } from '../client';
 import { prisma } from '@/lib/prisma';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
-import { expandBetween, expandForward } from '@/lib/operations/rruleHelpers';
+import { expandBetween, expandForward, scheduleAnchor } from '@/lib/operations/rruleHelpers';
 
 export const routineEvaluator = inngest.createFunction(
   {
@@ -46,6 +46,8 @@ export const routineEvaluator = inngest.createFunction(
           name: true,
           schedule_rrule: true,
           timezone: true,
+          // ONEOFF-01: the anchor every expansion is built on.
+          start_date: true,
           fail_threshold_minutes: true,
           last_evaluated_at: true,
           created_at: true,
@@ -72,7 +74,7 @@ export const routineEvaluator = inngest.createFunction(
         // Expand RRULE within the (windowStart, now] interval.
         let expectedOccurrences: Date[] = [];
         try {
-          expectedOccurrences = expandBetween(r.schedule_rrule, r.timezone, windowStart, now);
+          expectedOccurrences = expandBetween(r.schedule_rrule, r.timezone, windowStart, now, scheduleAnchor(r.start_date));
         } catch (err) {
           console.error(`[routine-evaluator] RRULE parse failed for routine ${r.id}: ${err}`);
           totalErrors += 1;
@@ -131,7 +133,7 @@ export const routineEvaluator = inngest.createFunction(
         // Recompute next_due_at: next occurrence at or after now().
         let nextDueAt: Date | null = null;
         try {
-          const upcoming = expandForward(r.schedule_rrule, r.timezone, now, 1);
+          const upcoming = expandForward(r.schedule_rrule, r.timezone, now, 1, scheduleAnchor(r.start_date));
           nextDueAt = upcoming[0] ?? null;
         } catch (err) {
           console.error(`[routine-evaluator] next_due_at recompute failed for ${r.id}: ${err}`);

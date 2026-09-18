@@ -18,6 +18,48 @@ import { ValidationError } from '@/lib/errors/ValidationError';
 import type { CadenceGroup, CadenceMode, RoutineForm, WeekDay } from '@/components/workbench/operations/routines/types';
 
 /**
+ * ONEOFF-01 — A ONE-OFF IS A ROUTINE THAT HAPPENS ONCE.
+ *
+ * Cadence 'once' compiles to FREQ=DAILY;COUNT=1. A COUNT counts from DTSTART,
+ * and every expansion here used to anchor DTSTART at a fixed 1971 instant — so
+ * a COUNT=1 rule expanded to ONE occurrence in 1971 and nothing in any window a
+ * reader ever asks for. The audit proved that on the library itself.
+ *
+ * THE ONE MECHANISM: an expansion is anchored on the ROUTINE'S OWN start_date
+ * when it has one (scheduleAnchor), and on the fixed anchor when it has none.
+ * Every call site passes it — the create and update routes, the completion
+ * route, the upcoming and today routes, the calendar's window route and the
+ * evaluator — so a one-off is one occurrence on its date to all of them, with
+ * no second expansion path and no reader-side bound logic. A rule that names
+ * its own components (BYDAY, BYMONTHDAY, BYHOUR — everything the builder
+ * writes) expands identically on and after its start date under either anchor;
+ * the audit's probe holds daily, weekly BYDAY and monthly BYMONTHDAY equal.
+ */
+export const ONCE_RRULE = /(^|;)COUNT=1(;|$)/;
+
+/** Is this rule a one-off — a single occurrence, counted from its anchor? */
+export function isOnceRRule(rruleString: string): boolean {
+  return ONCE_RRULE.test(rruleString);
+}
+
+const FLOATING_ANCHOR = new Date(Date.UTC(1971, 0, 1, 0, 0, 0));
+
+/**
+ * The DTSTART every expansion of a routine is built on: its start_date at UTC
+ * midnight (the @db.Date column stores that instant), or undefined when it has
+ * none — in which case rruleFromString keeps the fixed anchor. A one-off MUST
+ * have one; the migration's CHECK refuses a COUNT=1 row without a start_date.
+ */
+export function scheduleAnchor(startDate: Date | string | null | undefined): Date | undefined {
+  if (startDate == null || startDate === '') return undefined;
+  const d = typeof startDate === 'string'
+    ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(startDate) ? `${startDate}T00:00:00.000Z` : startDate)
+    : startDate;
+  if (Number.isNaN(d.getTime())) throw new ValidationError('start_date is not a date', { field: 'start_date' });
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0));
+}
+
+/**
  * Compile a RoutineForm's structured fields into an RFC 5545 RRULE string.
  *
  * For 'custom' mode, the raw form.custom_rrule is returned as-is (after
@@ -35,12 +77,21 @@ export function compileFormToRRule(form: RoutineForm): string {
     }
     // Validate it parses; rrulestr throws on malformed input.
     rrulestr(trimmed.startsWith('RRULE:') ? trimmed : `RRULE:${trimmed}`);
-    return trimmed.startsWith('RRULE:') ? trimmed.slice('RRULE:'.length) : trimmed;
+    const bare = trimmed.startsWith('RRULE:') ? trimmed.slice('RRULE:'.length) : trimmed;
+    // ONEOFF-01: a hand-written COUNT=1 is a one-off too, and a one-off has its date.
+    if (isOnceRRule(bare)) requireOnceDate(form);
+    return bare;
   }
 
   const parts: string[] = [];
 
-  if (form.cadence_mode === 'daily') {
+  if (form.cadence_mode === 'once') {
+    // ONEOFF-01: one occurrence, counted from the routine's start_date (the
+    // anchor). Without the date the count would run from 1971.
+    requireOnceDate(form);
+    parts.push('FREQ=DAILY');
+    parts.push('COUNT=1');
+  } else if (form.cadence_mode === 'daily') {
     parts.push('FREQ=DAILY');
   } else if (form.cadence_mode === 'weekly') {
     if (form.weekly_byday.length === 0) {
@@ -69,10 +120,18 @@ export function compileFormToRRule(form: RoutineForm): string {
   return rrule;
 }
 
+/** ONEOFF-01: the one thing a one-off cannot be without. */
+function requireOnceDate(form: Pick<RoutineForm, 'start_date'>): void {
+  if (typeof form.start_date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(form.start_date)) {
+    throw new ValidationError('a one-off needs its date (start_date, YYYY-MM-DD) — the single occurrence is counted from it', { field: 'start_date' });
+  }
+}
+
 /**
  * Classify an RRULE string into a cadence group for UI grouping.
  *
  * Heuristic — looks at FREQ + BYMONTH for quarterly detection:
+ *   COUNT=1 (ONEOFF-01)                               → 'once'
  *   FREQ=DAILY                                        → 'daily'
  *   FREQ=WEEKLY                                       → 'weekly'
  *   FREQ=MONTHLY                                      → 'monthly'
@@ -87,6 +146,9 @@ export function classifyCadence(rruleString: string): CadenceGroup {
   } catch {
     return 'custom';
   }
+
+  // ONEOFF-01: one occurrence is its own group, whatever its FREQ.
+  if (parsed.options.count === 1) return 'once';
 
   switch (parsed.options.freq) {
     case Frequency.DAILY:
@@ -112,14 +174,16 @@ export function classifyCadence(rruleString: string): CadenceGroup {
  * the RRULE as floating local time unless DTSTART is supplied; we use a
  * synthetic DTSTART anchor to make BYHOUR/BYMINUTE deterministic.
  *
- * The anchor date is intentionally distant in the past (epoch + 1 year)
+ * The fixed anchor date is intentionally distant in the past (epoch + 1 year)
  * so it never accidentally coincides with the current evaluation window.
+ * ONEOFF-01: a routine WITH a start_date is anchored on it (scheduleAnchor) —
+ * that is what makes COUNT=1 mean "once, on that date".
  */
-export function rruleFromString(rruleString: string): RRule {
+export function rruleFromString(rruleString: string, anchor?: Date): RRule {
   // rrulestr can return either RRule or RRuleSet depending on input; for
   // single-RRULE strings we expect RRule.
   const parsed = rrulestr(`RRULE:${rruleString.replace(/^RRULE:/, '')}`, {
-    dtstart: new Date(Date.UTC(1971, 0, 1, 0, 0, 0)),
+    dtstart: anchor ?? FLOATING_ANCHOR,
   });
   if (parsed instanceof RRuleSet) {
     throw new ValidationError('RRuleSet not supported; provide a single RRULE', { field: 'schedule_rrule' });
@@ -145,9 +209,11 @@ export function expandForward(
   rruleString: string,
   timezone: string,
   after: Date,
-  count: number
+  count: number,
+  /** ONEOFF-01: the routine's start_date anchor (scheduleAnchor), or undefined. */
+  anchor?: Date
 ): Date[] {
-  const rule = rruleFromString(rruleString);
+  const rule = rruleFromString(rruleString, anchor);
   // Get UTC-anchored occurrences then shift to timezone.
   const rawOccurrences = rule.between(after, addYears(after, 5), true, (_, i) => i < count);
   return rawOccurrences.map((d) => shiftFloatingToZone(d, timezone));
@@ -163,9 +229,11 @@ export function expandBetween(
   rruleString: string,
   timezone: string,
   from: Date,
-  to: Date
+  to: Date,
+  /** ONEOFF-01: the routine's start_date anchor (scheduleAnchor), or undefined. */
+  anchor?: Date
 ): Date[] {
-  const rule = rruleFromString(rruleString);
+  const rule = rruleFromString(rruleString, anchor);
   const raw = rule.between(from, to, true);
   return raw.map((d) => shiftFloatingToZone(d, timezone));
 }

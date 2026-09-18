@@ -6,16 +6,23 @@ import { MANUAL_EVENT_SOURCE } from '@/lib/calendar/sources';
 
 /**
  * EVENT-01 — the ONE writer of a hand-entered calendar event.
+ * ONEOFF-01 (2026-09-18) — THE CALENDAR AUTHORS NOTHING: POST IS GONE.
  *
  * Before this route, src/app/api/calendar/route.ts was GET-ONLY: no form, no
- * route and no programmatic path wrote a calendar_event by hand. Every event on
- * the calendar arrived from a trip commit, an agenda item or a budget-module
- * row — so a trip could be planned and a Tuesday could not.
+ * route and no programmatic path wrote a calendar_event by hand. EVENT-01 gave
+ * it POST, PATCH and DELETE. The founder then ruled that the calendar is the
+ * VIEW and nothing is authored there: a one-off is a routine that happens once
+ * (cadence "once", /api/operations/routines), planned in Tasks with its lines
+ * and its place, and it logs here like every other routine. So:
  *
- *   POST   add an event (title + date + category required; everything else the
- *          person chose, and nothing they did not).
- *   PATCH  correct one — the owner re-states it and the row is replaced in place.
+ *   POST   — REMOVED. A method the route does not export answers 405. No new
+ *            row with source 'manual' is written by anything in the repo.
+ *   PATCH  correct an EXISTING hand-entered row — the owner re-states it and
+ *          the row is replaced in place.
  *   DELETE remove one.
+ *
+ * Existing manual rows are the calendar's own; nothing here migrates or
+ * deletes them, and their links (LINK-01) stay valid.
  *
  * USER-SCOPED THROUGHOUT. Every read and every write carries BOTH
  * `user_id = the caller` AND `source = 'manual'`:
@@ -70,36 +77,6 @@ async function refusalFor(id: string, userId: string): Promise<{ status: number;
     };
   }
   return null;
-}
-
-export async function POST(request: NextRequest) {
-  const user = await caller();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  let input: ManualEventInput;
-  try {
-    input = (await request.json()) as ManualEventInput;
-  } catch {
-    return NextResponse.json({ error: 'A JSON body is required.' }, { status: 400 });
-  }
-
-  const built = buildManualEvent(input, user.id);
-  if (!built.ok) return NextResponse.json({ error: built.reason }, { status: 400 });
-  const r = built.row;
-
-  const rows = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(
-    `INSERT INTO calendar_events (
-       user_id, source, source_id, title, description, category, icon, color,
-       start_date, start_time, end_time, location, latitude, longitude,
-       coa_code, budget_amount, is_recurring, recurrence_rule
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::date,$10::time,$11::time,$12,$13,$14,$15,$16,$17,$18)
-     RETURNING ${SELECT}`,
-    r.user_id, r.source, r.source_id, r.title, r.description, r.category, r.icon, r.color,
-    r.start_date, r.start_time, r.end_time, r.location, r.latitude, r.longitude,
-    r.coa_code, r.budget_amount, r.is_recurring, r.recurrence_rule,
-  );
-
-  return NextResponse.json({ event: rows[0] }, { status: 201 });
 }
 
 export async function PATCH(request: NextRequest) {

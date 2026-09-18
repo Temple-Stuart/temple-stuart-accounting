@@ -12,7 +12,11 @@ import {
  */
 
 const ROUTE = 'src/app/api/calendar/find-place/route.ts';
-const FORM = 'src/components/hub/AddEventForm.tsx';
+// ONEOFF-01: the button moved to Tasks, intact — its new home is its own
+// component, mounted by the routine creator (and the row's edit form).
+const FORM = 'src/components/workbench/operations/routines/FindThisPlace.tsx';
+const CREATOR = 'src/components/workbench/operations/routines/RoutineCreateForm.tsx';
+const ROW = 'src/components/workbench/operations/routines/RoutineRow.tsx';
 const LEAF = 'src/lib/calendar/findPlace.ts';
 
 /** Google's Text Search shape, as placesSearch.ts:160-175 reads it. */
@@ -48,24 +52,31 @@ test('the press makes exactly ONE call, and it is the only call site in the app'
 
 test('typing makes no call — no effect, no debounce, no blur, no submit spends one', () => {
   const form = code(FORM);
-  // The location input's onChange only sets state and invalidates a stale pick.
-  const onChange = form.match(/onChange=\{\(e\) => \{ setLocation\(e\.target\.value\)[^}]*\}\}/)?.[0] ?? '';
-  assert.ok(onChange.length > 0, 'the location field has an onChange');
-  assert.equal(/find-place|findThisPlace/.test(onChange), false, 'typing must not look anything up');
-  // No onBlur on the location field at all.
-  assert.equal(/id="aef-location"[\s\S]{0,400}onBlur/.test(form), false);
-  // No effect and no timer reaches it.
-  for (const m of form.matchAll(/useEffect\(\(\)\s*=>\s*\{([\s\S]*?)\n  \}/g)) {
+  const creator = code(CREATOR);
+  // The component holds no effect at all, and no timer reaches the lookup.
+  assert.equal(/useEffect\(/.test(form), false, 'the button component has no effect — nothing fires without a press');
+  assert.equal(/setTimeout[\s\S]{0,120}findThisPlace|debounce/i.test(form), false);
+  // The location input lives in the creator; its onChange only sets state and
+  // drops a pick the text no longer matches.
+  const locAt = creator.indexOf('data-routine-location');
+  assert.ok(locAt > -1, 'the creator has the location field');
+  const locInput = creator.slice(creator.lastIndexOf('<input', locAt), locAt);
+  assert.ok(locInput.includes('onChange'), 'the location field has an onChange');
+  assert.equal(/find-place|findThisPlace/.test(locInput), false, 'typing must not look anything up');
+  assert.equal(/onBlur/.test(locInput), false, 'no onBlur on the location field at all');
+  // No effect in the creator reaches it either.
+  for (const m of creator.matchAll(/useEffect\(\(\)\s*=>\s*\{([\s\S]*?)\n  \}/g)) {
     assert.equal(/findThisPlace|find-place/.test(m[1]), false, 'an effect fires without a press');
   }
-  assert.equal(/setTimeout[\s\S]{0,120}findThisPlace|debounce/i.test(form), false);
   // The submit path does not look anything up — saving never spends a call.
-  const submitAt = form.indexOf('const submit = async () =>');
-  const submitBody = form.slice(submitAt, form.indexOf('\n  };', submitAt));
+  const submitAt = creator.indexOf('const handleCreate = async () =>');
+  assert.ok(submitAt > -1);
+  const submitBody = creator.slice(submitAt, creator.indexOf('\n  };', submitAt));
   assert.equal(/findThisPlace|find-place/.test(submitBody), false);
-  // Nor does the edit prefill.
-  const editEffect = form.match(/if \(!editEvent\) return;[\s\S]*?setOpen\(true\);/)?.[0] ?? '';
-  assert.equal(/findThisPlace|find-place/.test(editEffect), false);
+  // Nor does the edit prefill in the row.
+  const row = code(ROW);
+  const prefill = row.slice(row.indexOf('function routineToForm'), row.indexOf('function formatDateTime'));
+  assert.equal(/findThisPlace|find-place/.test(prefill), false);
 });
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -83,11 +94,12 @@ test('a pick fills location, latitude and longitude — and nothing is auto-sele
   });
 
   const form = code(FORM);
-  // A pick sets all three at once.
+  // A pick hands the match up, and the creator sets all three fields at once.
   const pick = form.slice(form.indexOf('const pick = (m: PlaceMatch)'), form.indexOf('const clearPick'));
-  assert.match(pick, /setLocation\(m\.name\)/);
-  assert.match(pick, /setLat\(String\(m\.latitude\)\)/);
-  assert.match(pick, /setLon\(String\(m\.longitude\)\)/);
+  assert.match(pick, /onPick\(m\)/);
+  const creator = code(CREATOR);
+  const onPick = creator.slice(creator.indexOf('onPick={(m) => {'), creator.indexOf('onClear={() => {'));
+  assert.match(onPick, /location: m\.name, latitude: String\(m\.latitude\), longitude: String\(m\.longitude\)/);
   // NOTHING is auto-selected: no reach for the first result anywhere.
   assert.equal(/matches\[0\]|results\[0\]|\.at\(0\)/.test(form), false);
   assert.match(form, /data-find-place-match/);
@@ -97,15 +109,18 @@ test('declining the pick keeps the typed name with no coordinates, and the event
   const form = code(FORM);
   const clearAt = form.indexOf('const clearPick = ()');
   const clear = form.slice(clearAt, form.indexOf('\n  };', clearAt));
-  // The typed name SURVIVES — only the coordinates go.
-  assert.equal(/setLocation\(/.test(clear), false, 'clearing a pick must not erase what was typed');
-  assert.match(clear, /setLat\(''\)/);
-  assert.match(clear, /setLon\(''\)/);
+  assert.match(clear, /onClear\(\)/);
   assert.match(form, /data-find-place-clear/);
-  // An empty coordinate box posts null, so the event saves without a pin — the
-  // path EVENT-01 shipped, still first-class.
-  assert.match(form, /latitude: typedNumber\(lat\) \?\? null/);
-  assert.match(form, /longitude: typedNumber\(lon\) \?\? null/);
+  // The typed name SURVIVES in the creator — only the coordinates go.
+  const creator = code(CREATOR);
+  const onClearAt = creator.indexOf('onClear={() => {');
+  const onClear = creator.slice(onClearAt, creator.indexOf('/>', onClearAt));
+  assert.equal(/location:/.test(onClear), false, 'clearing a pick must not erase what was typed');
+  assert.match(onClear, /latitude: '', longitude: ''/);
+  // An empty coordinate box posts null, so the routine saves without a pin —
+  // the typed-name-only path, still first-class.
+  assert.match(creator, /latitude: createForm\.latitude \|\| null/);
+  assert.match(creator, /longitude: createForm\.longitude \|\| null/);
 });
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -132,9 +147,11 @@ test('at the cap the button is disabled and says so with the reset date; the typ
   assert.match(form, /disabled=\{finding \|\| atCap \|\| !location\.trim\(\)\}/);
   assert.match(form, /data-find-place-at-cap/);
   assert.match(form, /atCapLine\(usage\.cap, usage\.resetsOn\)/);
-  // The cap disables the LOOKUP only — the submit button is untouched by it.
-  const submitBtn = form.match(/data-add-event-submit[\s\S]{0,200}/)?.[0] ?? form;
-  assert.equal(/atCap/.test(submitBtn), false, 'the cap must not block saving the event');
+  // The cap disables the LOOKUP only — the creator's submit is untouched by it.
+  const creator = code(CREATOR);
+  const submitBtn = creator.slice(creator.lastIndexOf('<button', creator.indexOf('data-routine-create-submit')), creator.indexOf('data-routine-create-submit'));
+  assert.equal(/atCap/.test(submitBtn), false, 'the cap must not block saving the routine');
+  assert.equal(/atCap/.test(creator), false, 'the creator never even sees the cap — the component owns it');
 
   // The route refuses at the cap BEFORE spending, and names the reset.
   const route = code(ROUTE);
@@ -207,8 +224,11 @@ test('results belong to the text that fetched them — none is reused against di
   // The matches carry the query they are for, and go stale when it changes.
   assert.match(form, /const staleMatches = matches !== null && matchesFor !== null && matchesFor !== location\.trim\(\);/);
   assert.match(form, /\{matches !== null && !staleMatches && \(/);
-  // A pick that no longer matches what is typed is dropped as you type.
-  assert.match(form, /if \(picked && e\.target\.value\.trim\(\) !== picked\.name\) setPicked\(null\)/);
+  // A pick that no longer matches what is typed is dropped as you type — in the
+  // creator and in the row's edit form alike.
+  for (const f of [CREATOR, ROW]) {
+    assert.match(code(f), /if \(picked && v\.trim\(\) !== picked\.name\) setPicked\(null\)/, `${f} drops a stale pick`);
+  }
   // The leaf is pure — no fetch in it, so the query and the cap are testable.
   assert.equal(/fetch\s*\(/.test(code(LEAF)), false);
 });

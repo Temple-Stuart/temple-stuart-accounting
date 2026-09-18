@@ -169,8 +169,11 @@ test('the panel renders a chain state from the named set and nothing else, and w
   // route — its own links — and may write only there. It still touches no
   // posting, no journal entry and no task's typed actual.
   const fetches = [...panel.matchAll(/fetch\(\s*['"`]([^'"`]*)/g)].map((m) => m[1]);
-  for (const f of fetches) assert.match(f, /^\/api\/calendar\/links/, `the panel reaches ${f}, which is not its own links route`);
+  // ONEOFF-01: ONE other route — removing a hand-entered row (pre-ruling), the
+  // same DELETE the day view was already allowed, behind isManualEvent.
+  for (const f of fetches) assert.match(f, /^\/api\/calendar\/(links|events\?id=)/, `the panel reaches ${f}, which is not its own links route nor the manual-event remove`);
   assert.doesNotMatch(panel, /method:\s*'(PATCH|PUT)'/, 'the panel never edits an existing row');
+  assert.match(panel, /isManualEvent\(row\.source\) && \(/, 'Correct/Remove are offered on a hand-entered row only');
   for (const forbidden of [/journal-entries/, /actual_cost_usd/, /ledger/]) {
     assert.doesNotMatch(panel, forbidden, 'the panel touches no posting and no typed actual');
   }

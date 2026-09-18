@@ -1,4 +1,4 @@
-import { expandBetween } from './rruleHelpers';
+import { expandBetween, scheduleAnchor } from './rruleHelpers';
 import { routinePlanned, type RoutineLineInput } from './routineLines';
 
 /**
@@ -8,7 +8,8 @@ import { routinePlanned, type RoutineLineInput } from './routineLines';
  *   monthly = expandBetween(schedule_rrule, timezone, monthStart, monthEnd).length × budget_amount
  *
  * Reuses the SAME recurrence helper the calendar feed uses (rruleHelpers.expandBetween,
- * /api/hub/operations-routines/route.ts:147) — no new recurrence logic. budget_amount is
+ * /api/hub/operations-routines/route.ts) — no new recurrence logic, and (ONEOFF-01) the same
+ * start_date anchor every other reader passes, so a one-off is one occurrence here too. budget_amount is
  * PER-OCCURRENCE (operations_routines schema + the routine form's "budget / occurrence" label).
  *
  * NO FALLBACK: a routine with no budget_amount OR no coa_code contributes NOTHING (returns null) —
@@ -24,6 +25,13 @@ export interface RoutineBudgetInput {
   coa_code: string | null;
   schedule_rrule: string;
   timezone: string;
+  /**
+   * ONEOFF-01: the routine's start_date — the anchor every expansion of it is
+   * built on (rruleHelpers.ts scheduleAnchor). A one-off (COUNT=1) counts from
+   * it, so its lines land in the month it happens and in no other. Absent or
+   * null ⇒ the fixed anchor, as before, for a routine with no start date.
+   */
+  start_date?: Date | string | null;
   /**
    * LINES-01: the routine's active lines. When any carries an amount, the
    * monthly figure is built from the LINES (each to its own COA) and the two
@@ -64,7 +72,8 @@ export function routineMonthlyByCoa(
   const { from, to } = monthBounds(year, monthIdx);
   let count: number;
   try {
-    count = expandBetween(routine.schedule_rrule, routine.timezone, from, to).length;
+    // ONEOFF-01: anchored on the routine's start_date — the one mechanism.
+    count = expandBetween(routine.schedule_rrule, routine.timezone, from, to, scheduleAnchor(routine.start_date ?? null)).length;
   } catch {
     return {}; // malformed rrule → contributes nothing (mirrors the feed's skip-malformed)
   }

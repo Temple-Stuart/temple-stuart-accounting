@@ -50,6 +50,7 @@ import { ACTUAL_SOURCE_LABEL, buildChain, type DrillRow } from '@/lib/calendar/c
 import { FREE_TEXT_RULE, linkedSourceLine, sumLinks, typedVsLinked, variance, type LinkedPosting } from '@/lib/calendar/links';
 import { useLineLinks } from '@/components/hub/useLineLinks';
 import { parseRoutineTileId, type LinkableKind } from '@/lib/calendar/linkKeys';
+import { isManualEvent } from '@/lib/calendar/sources';
 import { navToolByName } from '@/lib/nav';
 import { TOOL_GATE } from '@/lib/offer';
 
@@ -61,6 +62,16 @@ interface Props {
    * against. The panel then reaches no route at all.
    */
   linkable?: boolean;
+  /**
+   * ONEOFF-01: an event entered by hand BEFORE the ruling is the calendar's
+   * own row, and its owner may still correct or remove it from here. Correct
+   * hands the row's id up (the caller opens the correction form — this panel
+   * PATCHes nothing); Remove is the ONE write the day view was already allowed
+   * (DELETE on the manual-event route, which refuses every other source itself),
+   * and the caller reloads on onRemoved. Nothing is authored.
+   */
+  onCorrect?: (id: string) => void;
+  onRemoved?: () => void;
 }
 
 /** The legend hues, unchanged — the panel wears the layer the row came from. */
@@ -139,7 +150,7 @@ function targetOf(row: DrillRow): { kind: LinkableKind; id: string; instant: str
 
 interface LinkRow extends LinkedPosting { linkedAt: string; linkedBy: string | null }
 
-export default function EventDetailPanel({ row, onClose, linkable = true }: Props) {
+export default function EventDetailPanel({ row, onClose, linkable = true, onCorrect, onRemoved }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const dot = KIND_DOT[row.source] ?? 'bg-border';
   const ownerTool = navToolByName(row.owner, TOOL_GATE);
@@ -152,6 +163,23 @@ export default function EventDetailPanel({ row, onClose, linkable = true }: Prop
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
+  // ONEOFF-01: the manual-event route's refusal on Remove, shown with its reason.
+  const [removeRefusal, setRemoveRefusal] = useState<string | null>(null);
+
+  /**
+   * ONEOFF-01: remove a hand-entered row (pre-ruling). The route is
+   * user-scoped and refuses any other source with its reason; the panel shows
+   * the reason rather than swallowing it.
+   */
+  const removeEvent = async () => {
+    setBusy(true); setRemoveRefusal(null);
+    try {
+      const res = await fetch(`/api/calendar/events?id=${encodeURIComponent(row.id)}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) { setRemoveRefusal(data?.error ?? `The event was not removed (HTTP ${res.status}).`); return; }
+      onRemoved?.();
+    } finally { setBusy(false); }
+  };
 
   const load = useCallback(async (withCandidates: boolean) => {
     if (!target || !linkable) return;
@@ -353,6 +381,24 @@ export default function EventDetailPanel({ row, onClose, linkable = true }: Prop
                 </p>
               )}
               {lineLinks.refusal && <p className="mt-2 text-xs text-status-danger" data-drill-refusal>{lineLinks.refusal}</p>}
+            </div>
+          )}
+
+          {/* ONEOFF-01: a hand-entered row (pre-ruling) is the calendar's own —
+              its owner corrects or removes it from here. Nothing is added. */}
+          {linkable && isManualEvent(row.source) && (
+            <div className="mt-4 flex flex-wrap items-center gap-2" data-drill-manual-actions>
+              {onCorrect && (
+                <button type="button" data-drill-correct disabled={busy} onClick={() => onCorrect(row.id)}
+                  className="rounded border border-border px-3 py-1.5 text-xs text-text-muted hover:bg-bg-row">
+                  Correct this event
+                </button>
+              )}
+              <button type="button" data-drill-remove disabled={busy} onClick={removeEvent}
+                className="rounded border border-border px-3 py-1.5 text-xs text-status-danger hover:bg-bg-row">
+                Remove this event
+              </button>
+              {removeRefusal && <span className="text-xs text-status-danger" data-drill-remove-refusal>{removeRefusal}</span>}
             </div>
           )}
 

@@ -94,6 +94,8 @@ import { CHAIN_STATES, KIND_FACTS, EVENT_SOURCE_OWNER, buildChain } from '../src
 import { LINKABLE_KINDS, requiresInstant } from '../src/lib/calendar/linkKeys';
 import { sumLinks } from '../src/lib/calendar/links';
 import { routinePlanned } from '../src/lib/operations/routineLines';
+import { classifyCadence, compileFormToRRule, expandBetween, expandForward, scheduleAnchor } from '../src/lib/operations/rruleHelpers';
+import { DEFAULT_ROUTINE_FORM } from '../src/components/workbench/operations/routines/types';
 import { PROBLEM_SHEET } from '../src/lib/problemSheet';
 import { EXPECTED_STATUS_COUNTS, FAMILY_READS, TOOL_REGISTRY, registryLaw, statusCounts } from '../src/lib/toolRegistry';
 import { HOME_ANSWER, HOME_OWNER, HOME_PHASES, PHASES_RENDERED_AT, THE_SORT, navFamilies, navLaw, navRows } from '../src/lib/nav';
@@ -1989,9 +1991,14 @@ if (dayViolations === 0) console.log(`✔ The day laws passed — ${CALENDAR_SOU
 //   3. NO WRITER SETS A CATEGORY OUTSIDE THE CENSUS. The census is what the
 //      existing writers already put in the column; a category outside it has no
 //      icon and no colour anyone chose, and renders as a blank tile.
+//
+// ONEOFF-01 (2026-09-18): THE CALENDAR AUTHORS NOTHING. The add form became the
+// edit-only correction form and POST left the route: no writer INSERTS a
+// 'manual' row any more. The three laws hold on what remains — the correction
+// and the removal of a row entered by hand before the ruling.
 const EV_CENSUS = 'src/lib/calendar/manualEvent.ts';
 const EV_ROUTE = 'src/app/api/calendar/events/route.ts';
-const EV_FORM = 'src/components/hub/AddEventForm.tsx';
+const EV_FORM = 'src/components/hub/CorrectEventForm.tsx';
 let evViolations = 0;
 const evFail = (msg: string) => { evViolations += 1; violations.push(`event law: ${msg} (EVENT-01)`); };
 
@@ -2008,6 +2015,8 @@ for (const abs of tsFiles(resolve(ROOT, 'src'))) {
     const cols = m[1];
     if (!/\buser_id\b/.test(cols)) evFail(`${rel} writes a calendar_event with no user_id — every reader scopes on it, so the row would exist and be invisible to everyone`);
     if (!/\bsource\b/.test(cols)) evFail(`${rel} writes a calendar_event with no source — the allowlist could never admit it, so nothing would draw it`);
+    // ONEOFF-01: no writer inserts a hand-entered row — the calendar authors nothing.
+    if (/MANUAL_EVENT_SOURCE|source:\s*'manual'/.test(body)) evFail(`${rel} inserts a calendar_event with the manual source — the calendar authors nothing; a one-off is a routine planned in Tasks (ONEOFF-01)`);
   }
 }
 if (evWriters === 0) evFail('no calendar_events writer found at all — the law has nothing to hold');
@@ -2021,9 +2030,12 @@ const evRouteBody = dayCode(EV_ROUTE);
 if (!evRouteBody) evFail(`${EV_ROUTE} is missing — there is no way to add an event by hand`);
 else {
   if (!/MANUAL_EVENT_SOURCE/.test(evRouteBody)) evFail(`${EV_ROUTE} does not read MANUAL_EVENT_SOURCE from the allowlist — the source value is named once`);
-  for (const verb of ['POST', 'PATCH', 'DELETE']) {
-    if (!new RegExp(`export async function ${verb}`).test(evRouteBody)) evFail(`${EV_ROUTE} has no ${verb}`);
+  for (const verb of ['PATCH', 'DELETE']) {
+    if (!new RegExp(`export async function ${verb}`).test(evRouteBody)) evFail(`${EV_ROUTE} has no ${verb} — a row entered by hand before ONEOFF-01 stays correctable and removable`);
   }
+  // ONEOFF-01: and NO POST. A method the route does not export answers 405.
+  if (/export async function POST\b/.test(evRouteBody)) evFail(`${EV_ROUTE} exports POST — the calendar authors nothing; a one-off is a routine planned in Tasks (ONEOFF-01)`);
+  if (/INSERT INTO calendar_events/.test(evRouteBody)) evFail(`${EV_ROUTE} inserts a calendar_event — no new hand-entered row is written by the calendar (ONEOFF-01)`);
   // USER-SCOPED, always: the caller is resolved first and every statement that
   // reaches a row carries the caller's id.
   const evStatements = evRouteBody.match(/(SELECT|UPDATE|DELETE)[\s\S]{0,400}?calendar_events[\s\S]{0,400}?(?=`)/g) ?? [];
@@ -2032,7 +2044,7 @@ else {
       evFail(`${EV_ROUTE} reaches a calendar_event without the caller's user_id — another user's row must simply not be found`);
     }
   }
-  if ((evRouteBody.match(/status: 401/g) ?? []).length < 3) evFail(`${EV_ROUTE} does not answer 401 on every verb before touching the store`);
+  if ((evRouteBody.match(/status: 401/g) ?? []).length < 2) evFail(`${EV_ROUTE} does not answer 401 on every verb before touching the store`);
   // A row another path owns is REFUSED WITH ITS REASON, never edited or deleted.
   if (!/status: 409/.test(evRouteBody) || !/which owns it/.test(evRouteBody)) {
     evFail(`${EV_ROUTE} does not refuse a row belonging to another source with its reason — a trip or budget row is its owner path's record`);
@@ -2094,7 +2106,7 @@ const evDayView = dayCode(DAY_VIEW_FILE);
 if (evDayView && !/isManualEvent\(/.test(evDayView)) evFail(`${DAY_VIEW_FILE} does not mark a hand-entered event — provenance is visible, as TRADE-LOG-01 rules for a hand-entered trade`);
 if (evDayView && !/data-correct-event/.test(evDayView)) evFail(`${DAY_VIEW_FILE} offers no correction on a hand-entered event`);
 
-if (evViolations === 0) console.log(`✔ The event laws passed — ${evWriters} calendar_events writer(s), every one setting user_id and source; '${MANUAL_EVENT_SOURCE}' is in the allowlist and named once; ${EVENT_CATEGORIES.length} categories in the census, each citing the writer it was gathered from; the hand-entered route is user-scoped on every verb, refuses another source's row with its reason, writes no recurrence and never calls a provider directly.`);
+if (evViolations === 0) console.log(`✔ The event laws passed — ${evWriters} calendar_events writer(s), every one setting user_id and source, none of them the manual source (ONEOFF-01: the calendar authors nothing, POST is gone); '${MANUAL_EVENT_SOURCE}' stays in the allowlist for its pre-ruling rows; ${EVENT_CATEGORIES.length} categories in the census, each citing the writer it was gathered from; the correction route is user-scoped on both verbs, refuses another source's row with its reason, writes no recurrence and never calls a provider directly.`);
 
 // ── GEO-01 — ONE GEOCODE, ON PURPOSE ────────────────────────────────────────
 // EVENT-01 left the geocoder decision with the founder rather than wire a
@@ -2107,7 +2119,10 @@ if (evViolations === 0) console.log(`✔ The event laws passed — ${evWriters} 
 //   only from an onClick handler. No effect, no submit, no render, no typing.
 const GEO_ROUTE = 'src/app/api/calendar/find-place/route.ts';
 const GEO_LEAF = 'src/lib/calendar/findPlace.ts';
-const GEO_FORM = 'src/components/hub/AddEventForm.tsx';
+// ONEOFF-01: the button MOVED to Tasks, intact — its own component, mounted by
+// the routine creator and the row's edit form. The same one-press rule, the
+// same cap, the same laws; only the home changed.
+const GEO_FORM = 'src/components/workbench/operations/routines/FindThisPlace.tsx';
 let geoViolations = 0;
 const geoFail = (msg: string) => { geoViolations += 1; violations.push(`geo law: ${msg} (GEO-01)`); };
 
@@ -2187,8 +2202,16 @@ for (const rel of walkSrc('src/components').concat(walkSrc('src/app'))) {
 if (dayCode(GEO_LEAF) && /fetch\s*\(/.test(dayCode(GEO_LEAF))) {
   geoFail(`${GEO_LEAF} fetches — the leaf is pure so a test can check the query and the cap without a network`);
 }
+// ONEOFF-01: ONE component in the repo renders the button, and it is Tasks'.
+const geoButtonFiles = walkSrc('src/components').concat(walkSrc('src/app')).filter((rel) => /data-find-place(?![\w-])/.test(dayCode(rel)));
+if (geoButtonFiles.length !== 1 || geoButtonFiles[0] !== GEO_FORM) {
+  geoFail(`Find this place is rendered by ${geoButtonFiles.join(', ') || 'nothing'} — exactly one component renders it, ${GEO_FORM} (ONEOFF-01)`);
+}
+if (!/<FindThisPlace/.test(dayCode('src/components/workbench/operations/routines/RoutineCreateForm.tsx'))) {
+  geoFail('the routine creator does not mount FindThisPlace — a one-off is planned in Tasks, and its place is found there (ONEOFF-01)');
+}
 
-if (geoViolations === 0) console.log(`✔ The geo law passed — the calendar's place lookup has ONE call site (${GEO_ROUTE}, one googleFetch), reached only from the form's onClick; no effect, submit, debounce or render spends a call; nothing is auto-selected; the cap is read, reported and refused at with its reset date.`);
+if (geoViolations === 0) console.log(`✔ The geo law passed — the place lookup has ONE call site (${GEO_ROUTE}, one googleFetch), reached only from the onClick of the one component that renders the button (${GEO_FORM}, in Tasks since ONEOFF-01); no effect, submit, debounce or render spends a call; nothing is auto-selected; the cap is read, reported and refused at with its reset date.`);
 
 // ── ORPHAN-01 — NO PAGE OUTSIDE THE REGISTRY ────────────────────────────────
 // TOOL-LAW-01 deleted /operations as a ROOM-02 invention, and TRADE-SPLIT closed
@@ -2371,9 +2394,19 @@ if (!/ACTUAL_SOURCE_LABEL\[shownSource\]/.test(drillPanel)) drillFail(`${DRILL_P
 // ONE route — its own links — and may create or delete a link there and nothing
 // else. It still alters no posting, no journal entry and no typed actual.
 for (const m of drillPanel.matchAll(/fetch\(\s*['"`]([^'"`]*)/g)) {
-  if (!/^\/api\/calendar\/links/.test(m[1])) drillFail(`${DRILL_PANEL} reaches ${m[1]} — the only route it may touch is its own links`);
+  if (/^\/api\/calendar\/links/.test(m[1])) continue;
+  // ONEOFF-01: ONE other route — removing a row entered by hand before the
+  // ruling, the same DELETE DAY-01's day view was already allowed, behind
+  // isManualEvent. The route refuses every other source itself.
+  if (/^\/api\/calendar\/events\?id=/.test(m[1])) continue;
+  drillFail(`${DRILL_PANEL} reaches ${m[1]} — the only routes it may touch are its own links and the manual-event remove (ONEOFF-01)`);
 }
 if (/method:\s*'(PATCH|PUT)'/.test(drillPanel)) drillFail(`${DRILL_PANEL} edits an existing row — it may only create and delete its own links`);
+if (/\/api\/calendar\/events\?id=/.test(drillPanel)) {
+  if (!/\/api\/calendar\/events\?id=[^\n]*method: 'DELETE'/.test(drillPanel)) drillFail(`${DRILL_PANEL} reaches the manual-event route with something other than DELETE (ONEOFF-01)`);
+  if (!/isManualEvent\(row\.source\) && \(/.test(drillPanel)) drillFail(`${DRILL_PANEL} offers Correct/Remove without checking the row is hand-entered — a trip or budget row is its owner path's record (ONEOFF-01)`);
+  if (!/data-drill-correct/.test(drillPanel) || !/data-drill-remove\b/.test(drillPanel)) drillFail(`${DRILL_PANEL} does not offer both Correct and Remove on a hand-entered row (ONEOFF-01)`);
+}
 for (const forbidden of ['actual_cost_usd', 'journal-entries', 'ledger_entries']) {
   if (drillPanel.includes(forbidden)) drillFail(`${DRILL_PANEL} touches ${forbidden} — a link is written, a posting never is`);
 }
@@ -2542,6 +2575,128 @@ if (!/!\(row\.lines && row\.lines\.length > 0\) && \(\s*<Row label="Category \(C
 if (!/if \(row\.lines && row\.lines\.length > 0\) return null;/.test(linesPanel)) linesFail('a lined occurrence can still be linked at the routine grain — the coffee posting must link to the coffee LINE');
 if (linesViolations === 0) console.log(`✔ The lines law passed — ${LINES_READERS.length + 1} readers read the one leaf; $280 across 2 of 3 with the routine-level $15 set aside, never added; a stepless routine keeps its own; a routine_line link carries its instant.`);
 else console.log(`✖ The lines law FAILED — ${linesViolations} violation(s).`);
+
+// ── THE ONE-OFF LAW (ONEOFF-01, 2026-09-18) ─────────────────────────────────
+// A ONE-OFF IS A ROUTINE THAT HAPPENS ONCE — AUTHORED IN TASKS, LIKE EVERYTHING
+// ELSE. The calendar is the view; nothing is authored there. Three laws:
+//
+//   1. /calendar IMPORTS NO AUTHORING FORM. Nothing in the page's import tree
+//      mounts the old add-event form, POSTs to the events route, renders an
+//      add-event control or mounts the place lookup; the route exports no POST.
+//   2. ONLY ONE COMPONENT RENDERS "FIND THIS PLACE" (held in the geo law above,
+//      and it is Tasks' FindThisPlace).
+//   3. A ROUTINE WITH CADENCE "ONCE" EXPANDS TO EXACTLY ONE OCCURRENCE — on its
+//      date, never again — through the SAME expansion every cadence uses, which
+//      is anchored on the routine's start_date at EVERY call site. No second
+//      RRULE path, no reader-side bound logic.
+//   + the migration is additive and nothing moves; no merged chart on either tree.
+const ONEOFF_CAL_PAGE = 'src/app/calendar/page.tsx';
+const ONEOFF_EV_ROUTE = 'src/app/api/calendar/events/route.ts';
+const ONEOFF_HELPERS = 'src/lib/operations/rruleHelpers.ts';
+const ONEOFF_MIGRATION = 'prisma/migrations/20260918150000_oneoff_01_a_routine_that_happens_once/migration.sql';
+const ONEOFF_CALLERS = [
+  'src/app/api/operations/routines/route.ts',
+  'src/app/api/operations/routines/[id]/route.ts',
+  'src/app/api/operations/routines/[id]/completions/route.ts',
+  'src/app/api/operations/routines/[id]/upcoming/route.ts',
+  'src/app/api/operations/routines/today/route.ts',
+  'src/app/api/hub/operations-routines/route.ts',
+  'src/inngest/functions/routine-evaluator.ts',
+  'src/lib/operations/routineBudget.ts',
+];
+let oneoffViolations = 0;
+const oneoffFail = (m: string) => { oneoffViolations += 1; violations.push(`one-off law: ${m} (ONEOFF-01)`); };
+
+// 1. The calendar's import tree authors nothing.
+{
+  const seen = new Set<string>();
+  const stack = [ONEOFF_CAL_PAGE];
+  while (stack.length) {
+    const f = stack.pop()!;
+    if (seen.has(f)) continue;
+    seen.add(f);
+    const body = existsSync(resolve(ROOT, f)) ? codeOf(f) : '';
+    if (/AddEventForm/.test(body)) oneoffFail(`${f} still names the add-event form — the calendar authors nothing`);
+    if (/data-add-event/.test(body)) oneoffFail(`${f} renders an add-event control`);
+    if (/<FindThisPlace/.test(body)) oneoffFail(`${f} mounts the place lookup — that press belongs to planning a one-off in Tasks`);
+    for (const m of body.matchAll(/fetch\(\s*['"`]\/api\/calendar\/events['"`][\s\S]{0,200}?method:\s*'(\w+)'/g)) {
+      if (m[1] === 'POST') oneoffFail(`${f} POSTs to the events route — no new hand-entered row is written by the calendar`);
+    }
+    if (/fetch\(\s*['"`]\/api\/chart-of-accounts['"`]/.test(body)) oneoffFail(`${f} reads every entity's chart merged — a picker is entity-scoped (CoaSelect), and the calendar picks nothing`);
+    for (const next of importsFor(f)) stack.push(next);
+  }
+  if (existsSync(resolve(ROOT, 'src/components/hub/AddEventForm.tsx'))) oneoffFail('src/components/hub/AddEventForm.tsx is back — the calendar authors nothing');
+  const evRoute = codeOf(ONEOFF_EV_ROUTE);
+  if (/export async function POST\b/.test(evRoute)) oneoffFail(`${ONEOFF_EV_ROUTE} exports POST`);
+  if (/INSERT INTO calendar_events/.test(evRoute)) oneoffFail(`${ONEOFF_EV_ROUTE} inserts a row`);
+}
+// The routines surface picks from ONE entity's chart, never a merged list.
+for (const rel of walkSrc('src/components/workbench/operations/routines')) {
+  if (/fetch\(\s*['"`]\/api\/chart-of-accounts['"`]/.test(codeOf(rel))) oneoffFail(`${rel} reads every entity's chart merged — the picker is entity-scoped`);
+}
+
+// 3. Cadence "once" is one occurrence, on its date, through the one expansion.
+{
+  const localDay = (d: Date, tz: string) => new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+  const onceForm = { ...DEFAULT_ROUTINE_FORM, cadence_mode: 'once' as const, start_date: '2026-09-24', byhour: '14', byminute: '00', timezone: 'Asia/Bangkok' };
+  let onceRule = '';
+  try { onceRule = compileFormToRRule(onceForm); } catch (e) { oneoffFail(`cadence once does not compile: ${e instanceof Error ? e.message : String(e)}`); }
+  if (onceRule && !/(^|;)COUNT=1(;|$)/.test(onceRule)) oneoffFail(`cadence once compiled to "${onceRule}" — a one-off is COUNT=1`);
+  if (onceRule && classifyCadence(onceRule) !== 'once') oneoffFail(`classifyCadence("${onceRule}") is ${classifyCadence(onceRule)}, not once`);
+  if (onceRule) {
+    const anchor = scheduleAnchor(onceForm.start_date);
+    const decade = expandBetween(onceRule, onceForm.timezone, new Date(Date.UTC(2020, 0, 1)), new Date(Date.UTC(2031, 0, 1)), anchor);
+    if (decade.length !== 1) oneoffFail(`a once rule expanded to ${decade.length} occurrence(s) over a decade — exactly one`);
+    else if (localDay(decade[0], onceForm.timezone) !== '2026-09-24') oneoffFail(`the one occurrence fell on ${localDay(decade[0], onceForm.timezone)}, not on its date`);
+    const after = expandForward(onceRule, onceForm.timezone, new Date(Date.UTC(2026, 8, 25)), 5, anchor);
+    if (after.length !== 0) oneoffFail(`a once rule has ${after.length} occurrence(s) after its date — never again`);
+    // Without the anchor the occurrence is nowhere: that is the defect the anchor closes.
+    const unanchored = expandBetween(onceRule, onceForm.timezone, new Date(Date.UTC(2020, 0, 1)), new Date(Date.UTC(2031, 0, 1)));
+    if (unanchored.length !== 0) oneoffFail('a once rule expanded WITHOUT its anchor — the anchor is what puts the occurrence on its date; a second path is forming');
+  }
+  try { compileFormToRRule({ ...onceForm, start_date: '' }); oneoffFail('a one-off with no date compiled — the count would run from 1971'); } catch { /* the refusal is the law working */ }
+  // The helper's anchor is the routine's own start_date, and every call site passes it.
+  const helpers = codeOf(ONEOFF_HELPERS);
+  if (!/export function scheduleAnchor\(/.test(helpers)) oneoffFail(`${ONEOFF_HELPERS} exports no scheduleAnchor`);
+  if (!/dtstart: anchor \?\? FLOATING_ANCHOR/.test(helpers)) oneoffFail(`${ONEOFF_HELPERS} does not build the rule on the routine's anchor`);
+  const callerSet = new Set(ONEOFF_CALLERS);
+  for (const rel of ONEOFF_CALLERS) {
+    const body = codeOf(rel);
+    const calls = [...body.matchAll(/expand(?:Forward|Between)\([^;]*;/g)].map((m) => m[0]);
+    if (calls.length === 0) oneoffFail(`${rel} no longer expands a schedule — remove it from ONEOFF_CALLERS or restore the call`);
+    for (const c of calls) if (!/scheduleAnchor\(/.test(c)) oneoffFail(`${rel} expands a schedule without the routine's anchor: ${c.slice(0, 80)} — a one-off would fall in 1971 for this reader (a second path)`);
+  }
+  // .ts AND .tsx — the budget bridge leaf is a .ts file, and it expands too.
+  for (const abs of tsFiles(resolve(ROOT, 'src'))) {
+    const rel = abs.replace(`${ROOT}/`, '');
+    if (callerSet.has(rel) || rel === ONEOFF_HELPERS || rel.includes('__tests__')) continue;
+    if (/\bexpand(?:Forward|Between)\(/.test(codeOf(rel))) oneoffFail(`${rel} expands a schedule outside the anchored call sites — add it to ONEOFF_CALLERS and pass scheduleAnchor(start_date)`);
+  }
+}
+
+// + The migration is additive and nothing moves.
+{
+  const m = existsSync(resolve(ROOT, ONEOFF_MIGRATION)) ? codeOf(ONEOFF_MIGRATION) : '';
+  if (!m) oneoffFail(`${ONEOFF_MIGRATION} is missing — the routine has no place columns`);
+  else {
+    for (const col of ['"location"', '"latitude"', '"longitude"']) {
+      if (!new RegExp(`ADD COLUMN\\s+${col.replace(/"/g, '\\"')}`).test(m)) oneoffFail(`the migration does not add ${col} to operations_routines`);
+    }
+    if (!/CHECK \(\("latitude" IS NULL\) = \("longitude" IS NULL\)\)/.test(m)) oneoffFail('the migration does not make the coordinate pair all-or-nothing');
+    if (!/COUNT=1/.test(m) || !/"start_date" IS NOT NULL/.test(m)) oneoffFail('the migration does not require a date on a COUNT=1 routine');
+    if (/DEFAULT 0/.test(m)) oneoffFail('the migration defaults a coordinate to 0 — 0,0 is the Atlantic');
+    if (/(^|\n)\s*(UPDATE|DELETE|INSERT)\s/.test(m)) oneoffFail('the migration moves or deletes rows — no manual event is migrated and none is deleted');
+    if (/DROP (COLUMN|TABLE)/.test(m)) oneoffFail('the migration drops something — it is additive');
+  }
+  const schema = codeOf('prisma/schema.prisma');
+  const model = schema.slice(schema.indexOf('model operations_routines {'), schema.indexOf('@@map("operations_routines")'));
+  for (const col of ['location', 'latitude', 'longitude']) {
+    if (!new RegExp(`\\n\\s+${col}\\s`).test(model)) oneoffFail(`schema.prisma's operations_routines has no ${col} — the schema and the migration move together`);
+  }
+}
+
+if (oneoffViolations === 0) console.log(`✔ The one-off law passed — /calendar's tree mounts no add form, no add control, no place lookup and no POST to the events route, and the route exports none; the routines surface picks from one entity's chart; cadence once compiles to COUNT=1 and expands to exactly one occurrence on its date through the one anchored expansion, passed at ${ONEOFF_CALLERS.length} call sites and nowhere else; the migration adds three place columns with the pair and the date CHECKs and moves nothing.`);
+else console.log(`✖ The one-off law FAILED — ${oneoffViolations} violation(s).`);
 
 // ── THE READER LAW (TEST-TRUTH-01, 2026-09-17) ──────────────────────────────
 // NO TEST AND NO LAW MAY READ A SOURCE FILE RAW.

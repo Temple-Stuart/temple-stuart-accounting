@@ -2,7 +2,10 @@
  * RRULEBuilder — structured cadence input that compiles to RFC 5545 RRULE.
  *
  * Users do NOT type RRULE strings directly. They pick:
- *   - cadence_mode (daily / weekly / monthly day-of-month / monthly Nth-weekday / custom)
+ *   - cadence_mode (daily / weekly / monthly day-of-month / monthly Nth-weekday /
+ *     once / custom). ONEOFF-01: 'once' is a routine that happens one time, on
+ *     the date the form's date field holds — it compiles to FREQ=DAILY;COUNT=1
+ *     anchored on that date, through the same compiler as every other mode.
  *   - byhour + byminute (when in the day)
  *   - mode-specific fields (weekday chips, day number, Nth + weekday, raw RRULE)
  *
@@ -30,6 +33,7 @@ const CADENCE_MODES: CadenceMode[] = [
   'weekly',
   'monthly_day_of_month',
   'monthly_nth_weekday',
+  'once',
   'custom',
 ];
 
@@ -135,6 +139,13 @@ export default function RRULEBuilder({ form, setForm }: Props & { }) {
               ))}
             </select>
           </div>
+        </div>
+      )}
+
+      {form.cadence_mode === 'once' && (
+        <div className="text-text-faint text-xs italic" data-cadence-once-note>
+          One occurrence, on the date below, at the hour and minute here. The
+          start time fills the hour and minute when you set it.
         </div>
       )}
 

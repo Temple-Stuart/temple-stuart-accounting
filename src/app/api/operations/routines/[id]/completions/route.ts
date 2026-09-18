@@ -18,7 +18,7 @@ import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
-import { expandForward } from '@/lib/operations/rruleHelpers';
+import { expandForward, scheduleAnchor } from '@/lib/operations/rruleHelpers';
 
 export async function POST(
   request: NextRequest,
@@ -101,7 +101,7 @@ export async function POST(
     // Recompute next_due_at: next occurrence after completedAt.
     let nextDueAt: Date | null = null;
     try {
-      const upcoming = expandForward(routine.schedule_rrule, routine.timezone, completedAt, 1);
+      const upcoming = expandForward(routine.schedule_rrule, routine.timezone, completedAt, 1, scheduleAnchor(routine.start_date));
       nextDueAt = upcoming[0] ?? null;
     } catch (e) {
       console.error('[Completion POST] next_due_at recompute failed', e);

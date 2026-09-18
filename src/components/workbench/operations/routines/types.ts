@@ -60,6 +60,14 @@ export interface Routine {
   // bare chart_of_accounts.code (e.g. "B-9200") or null.
   budget_amount: string | null;
   coa_code: string | null;
+  /**
+   * ONEOFF-01: the routine's place — location text and, when both are stored,
+   * a coordinate pair (Decimal → JSON string, like budget_amount). Null is no
+   * place; a pair is all-or-nothing (a CHECK in the migration).
+   */
+  location?: string | null;
+  latitude?: string | null;
+  longitude?: string | null;
   steps: RoutineStep[];
   /**
    * The content scene this routine has been scenified into, if any.
@@ -144,7 +152,13 @@ export interface TodayRoutineEntry {
  * RFC 5545 RRULE string under the hood. Users do not write RRULE strings
  * directly (except via the "custom" escape hatch).
  */
-export type CadenceMode = 'daily' | 'weekly' | 'monthly_day_of_month' | 'monthly_nth_weekday' | 'custom';
+/**
+ * ONEOFF-01: 'once' — a routine that happens ONE time, on its start_date. It
+ * compiles to FREQ=DAILY;COUNT=1 and is anchored on that date (rruleHelpers.ts
+ * scheduleAnchor), so it expands to exactly one occurrence through the SAME
+ * expansion every other cadence uses. No second path.
+ */
+export type CadenceMode = 'daily' | 'weekly' | 'monthly_day_of_month' | 'monthly_nth_weekday' | 'once' | 'custom';
 
 export type WeekDay = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU';
 
@@ -173,7 +187,25 @@ export interface RoutineForm {
   // seeds (DEFAULT_ROUTINE_FORM) and consumers are unaffected until the HB-4b picker lands.
   budget_amount?: string;             // per-occurrence amount; '' = unset
   coa_code?: string;                  // chart_of_accounts.code; '' = none
+  // ONEOFF-01: the routine's place. location text; latitude/longitude typed or
+  // picked (FindThisPlace) as strings — '' = none; the pair is all-or-nothing.
+  location: string;
+  latitude: string;
+  longitude: string;
+  // ONEOFF-01: the lines (LINES-01) a routine is created WITH, so a one-off can
+  // be authored whole — "one line $300 / 8150" — in one act. Each line is a
+  // routine step; the create route writes them with the routine.
+  lines: RoutineLineForm[];
 }
+
+/** One line authored with the routine: an activity, and its own amount and account ('' = none). */
+export interface RoutineLineForm {
+  activity: string;
+  budget_amount: string;
+  coa_code: string;
+}
+
+export const EMPTY_LINE_FORM: RoutineLineForm = { activity: '', budget_amount: '', coa_code: '' };
 
 export const DEFAULT_ROUTINE_FORM: RoutineForm = {
   name: '',
@@ -195,6 +227,10 @@ export const DEFAULT_ROUTINE_FORM: RoutineForm = {
   start_time: '',
   end_time: '',
   is_active: true,
+  location: '',
+  latitude: '',
+  longitude: '',
+  lines: [],
 };
 
 export const WEEKDAY_LABELS: Record<WeekDay, string> = {
@@ -214,6 +250,7 @@ export const CADENCE_MODE_LABELS: Record<CadenceMode, string> = {
   weekly: 'weekly',
   monthly_day_of_month: 'monthly (day of month)',
   monthly_nth_weekday: 'monthly (Nth weekday)',
+  once: 'once (a single date)',
   custom: 'custom (raw RRULE)',
 };
 
@@ -221,9 +258,10 @@ export const CADENCE_MODE_LABELS: Record<CadenceMode, string> = {
  * Cadence group buckets for cadence-grouped list rendering.
  * Derived from the RRULE's FREQ component server-side.
  */
-export type CadenceGroup = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly' | 'custom';
+export type CadenceGroup = 'once' | 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly' | 'custom';
 
 export const CADENCE_GROUP_LABELS: Record<CadenceGroup, string> = {
+  once: 'Once',
   daily: 'Daily',
   weekly: 'Weekly',
   monthly: 'Monthly',
@@ -233,7 +271,7 @@ export const CADENCE_GROUP_LABELS: Record<CadenceGroup, string> = {
 };
 
 export const CADENCE_GROUP_ORDER: CadenceGroup[] = [
-  'daily', 'weekly', 'monthly', 'quarterly', 'yearly', 'custom',
+  'once', 'daily', 'weekly', 'monthly', 'quarterly', 'yearly', 'custom',
 ];
 
 // ROUTINES-UX-2: display formatter for the per-occurrence budget (a Decimal
