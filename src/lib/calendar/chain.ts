@@ -111,13 +111,13 @@ export const KIND_FACTS: readonly KindFacts[] = [
   {
     kind: 'routine',
     linkable: true,
-    plannedColumn: 'operations_routines.budget_amount (per occurrence)',
+    plannedColumn: 'routinePlanned() over operations_routine_steps.budget_amount (the lines) or operations_routines.budget_amount (stepless) — never both',
     actualColumn: null,
     actualSource: null,
-    coaColumn: 'operations_routines.coa_code',
+    coaColumn: 'operations_routine_steps.coa_code per line; operations_routines.coa_code only for a stepless routine',
     postedLink: null,
     owner: 'Tasks',
-    note: 'An occurrence is synthesised for the window (id `routine:<id>:<iso>`), not a stored row, so there is nothing an actual could even be written against yet.',
+    note: 'An occurrence is synthesised for the window (id `routine:<id>:<iso>`), not a stored row. LINES-01: a lined occurrence links its postings to the LINE (kind routine_line, keyed on the step and the instant); its actual is the sum of its lines\u2019 actuals.',
   },
   {
     kind: 'project_task',
@@ -320,6 +320,23 @@ export interface DrillRow {
   readonly actualSource: ActualSource | null;
   readonly chain: Chain | null;
   readonly facts: KindFacts;
+  /**
+   * LINES-01: a routine occurrence's lines, each with its time, activity, amount
+   * (or null) and account (or null), plus the coverage that earned the total.
+   * Absent for every other kind and for a stepless routine.
+   */
+  readonly lines?: readonly DrillLine[];
+  readonly lineCoverage?: { counted: number; of: number };
+  /** The routine-level figure set aside because lines carry amounts. */
+  readonly ignoredRoutineLevel?: number | null;
+}
+
+export interface DrillLine {
+  readonly stepId: string;
+  readonly activity: string;
+  readonly timeOfDay: string | null;
+  readonly amount: number | null;
+  readonly coaCode: string | null;
 }
 
 export interface DrillEventInput {
@@ -360,7 +377,14 @@ export interface TaskCosts {
   coaCode: string | null;
 }
 
-export function buildDrill(e: DrillEventInput, taskCosts?: TaskCosts | null): DrillRow {
+/** LINES-01: what the window feed knows about a routine's lines, keyed by routine id. */
+export interface RoutineLines {
+  lines: readonly DrillLine[];
+  coverage: { counted: number; of: number };
+  ignoredRoutineLevel: number | null;
+}
+
+export function buildDrill(e: DrillEventInput, taskCosts?: TaskCosts | null, routineLines?: RoutineLines | null): DrillRow {
   const kind = kindOfSource(e.source);
   const facts = factsOf(kind);
   const num = (v: number | null | undefined): number | null => (v == null || !Number.isFinite(v) ? null : v);
@@ -387,5 +411,8 @@ export function buildDrill(e: DrillEventInput, taskCosts?: TaskCosts | null): Dr
     actualSource,
     chain: buildChain({ kind, planned, actual, actualSource }),
     facts,
+    ...(kind === 'routine' && routineLines && routineLines.lines.length > 0
+      ? { lines: routineLines.lines, lineCoverage: routineLines.coverage, ignoredRoutineLevel: routineLines.ignoredRoutineLevel }
+      : {}),
   };
 }

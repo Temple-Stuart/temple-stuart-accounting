@@ -89,6 +89,12 @@ export interface RoutineStep {
   sub_activity: string | null;
   location: string | null;
   duration_minutes: number | null;
+  /**
+   * LINES-01: the line's own cost and account. Prisma Decimal → JSON string;
+   * null = no amount (blank, never 0). coa_code is a bare chart code or null.
+   */
+  budget_amount?: string | null;
+  coa_code?: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;

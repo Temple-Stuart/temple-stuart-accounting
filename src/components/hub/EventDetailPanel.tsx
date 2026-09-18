@@ -26,6 +26,14 @@
  * the item to NOT LINKED rather than to $0. A linked posting whose amount cannot
  * be read is named and excluded from the total — the EDGE-01 bug, inverted.
  *
+ * LINES-01. A routine occurrence made of lines lists them — each line with its
+ * time, activity, amount (or —) and account (or "no category") — then the total
+ * with its coverage ("$280 across 2 of 3 lines"). The routine-level Category
+ * row is REMOVED for a lined routine: one chip would be a lie about a routine
+ * that has three. Each line carries its own Link / Unlink on kind 'routine_line'
+ * keyed on (step, instant); a line's actual is the sum of its links, and the
+ * occurrence's actual is the sum of its lines' actuals. Never both grains.
+ *
  * IT READS its own links and writes only those links — no posting is altered,
  * no journal entry is touched, and no task's typed actual_cost_usd is ever
  * overwritten. In demo mode (`linkable={false}`) it reaches no route at all, so
@@ -40,6 +48,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ACTUAL_SOURCE_LABEL, buildChain, type DrillRow } from '@/lib/calendar/chain';
 import { FREE_TEXT_RULE, linkedSourceLine, sumLinks, typedVsLinked, variance, type LinkedPosting } from '@/lib/calendar/links';
+import { useLineLinks } from '@/components/hub/useLineLinks';
 import { parseRoutineTileId, type LinkableKind } from '@/lib/calendar/linkKeys';
 import { navToolByName } from '@/lib/nav';
 import { TOOL_GATE } from '@/lib/offer';
@@ -114,6 +123,10 @@ function Row({ label, value, mono, testId }: { label: string; value: string; mon
 function targetOf(row: DrillRow): { kind: LinkableKind; id: string; instant: string | null } | null {
   if (!row.facts.linkable) return null;
   if (row.kind === 'routine') {
+    // LINES-01: a LINED occurrence links at the LINE, never at the routine — the
+    // coffee posting to the coffee line. The occurrence-level target is only for
+    // a stepless routine, and the 'routine' kind is never repurposed.
+    if (row.lines && row.lines.length > 0) return null;
     const parsed = parseRoutineTileId(row.id);
     // A routine tile whose id does not carry its instant cannot be addressed —
     // and is NOT silently linked on its date, which would match the wrong
@@ -183,8 +196,14 @@ export default function EventDetailPanel({ row, onClose, linkable = true }: Prop
     } finally { setBusy(false); }
   };
 
+  // LINES-01: a lined occurrence's actual is the SUM OF ITS LINES' ACTUALS, each
+  // line's being the sum of its own links. The hook reads every line's links
+  // and never adds the routine grain in — there is no routine-grain target here.
+  const instant = row.kind === 'routine' ? parseRoutineTileId(row.id)?.instant ?? null : null;
+  const lineLinks = useLineLinks(linkable && row.lines ? row.lines.map((l) => l.stepId) : [], instant);
+
   // THE ACTUAL, FROM THE LINKS. Zero links → null, which reads NOT LINKED.
-  const summed = sumLinks(links ?? []);
+  const summed = row.lines && row.lines.length > 0 ? lineLinks.summed : sumLinks(links ?? []);
   const linkedActual = summed.actual;
   const typedActual = row.actual;                       // the object's own column
   const shownActual = linkedActual ?? typedActual;      // links win (STEP 0.4, proposed)
@@ -252,8 +271,90 @@ export default function EventDetailPanel({ row, onClose, linkable = true }: Prop
               <Row label="Pin" mono testId="pin"
                 value={`${row.pin.lat.toFixed(5)}, ${row.pin.lon.toFixed(5)}`} />
             )}
-            <Row label="Category (COA)" value={row.coaCode ?? NONE} mono testId="coa" />
+            {/* LINES-01: a lined routine has a category PER LINE, listed below —
+                one routine-level chip would be a lie about a routine that has three. */}
+            {!(row.lines && row.lines.length > 0) && (
+              <Row label="Category (COA)" value={row.coaCode ?? NONE} mono testId="coa" />
+            )}
           </div>
+
+          {/* THE LINES — LINES-01. Each with its time, activity, amount (or —) and
+              account (or "no category"), then the total with its coverage. */}
+          {row.lines && row.lines.length > 0 && (
+            <div className="mt-4 rounded-lg border border-border p-3" data-drill-lines>
+              <p className={labelClass}>Lines</p>
+              <ul className="mt-2 divide-y divide-border">
+                {row.lines.map((l) => {
+                  const own = lineLinks.byStep.get(l.stepId);
+                  return (
+                    <li key={l.stepId} className="py-1.5 text-xs" data-drill-line={l.stepId} data-drill-line-amount={l.amount === null ? '' : String(l.amount)}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="min-w-0 flex-1 truncate">
+                          <span className="font-mono text-text-muted">{l.timeOfDay ?? '—'}</span> {l.activity}
+                          <span className="ml-1.5 font-mono text-[10px] text-text-faint" data-drill-line-coa>
+                            {l.coaCode ?? 'no category'}
+                          </span>
+                        </span>
+                        <span className="font-mono tabular-nums" data-drill-line-planned>{money(l.amount)}</span>
+                        {own && own.summed.actual !== null && (
+                          <span className="font-mono tabular-nums text-emerald-700" data-drill-line-actual>{money(own.summed.actual)}</span>
+                        )}
+                        {linkable && instant && (
+                          <button type="button" data-drill-line-link-open={l.stepId} disabled={busy}
+                            onClick={() => { void lineLinks.openPicker(l.stepId, row.startDate.slice(0, 10)); }}
+                            className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] text-text-muted hover:bg-bg-row">Link</button>
+                        )}
+                      </div>
+                      {own && own.links.length > 0 && (
+                        <ul className="mt-1 space-y-0.5 pl-4">
+                          {own.links.map((k) => (
+                            <li key={k.journalEntryId} className="flex items-center justify-between gap-2 text-[11px]" data-drill-line-linked={k.journalEntryId}>
+                              <span className="min-w-0 flex-1 truncate"><span className="font-mono text-text-muted">{k.date ?? '—'}</span> {k.description ?? ''}</span>
+                              <span className="font-mono tabular-nums">{k.amountCents === null ? <span className="text-status-danger">no readable amount</span> : money(k.amountCents / 100)}</span>
+                              <button type="button" data-drill-line-unlink={k.journalEntryId} disabled={busy}
+                                onClick={() => { void lineLinks.unlink(l.stepId, k.journalEntryId); }}
+                                className="shrink-0 px-1.5 py-0.5 text-[10px] text-status-danger hover:bg-bg-row">Unlink</button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {lineLinks.picking === l.stepId && (
+                        <div className="mt-2 rounded border border-border p-2" data-drill-line-candidates={l.stepId}>
+                          <p className="text-[11px] text-text-faint" data-drill-no-suggestion>
+                            In date order. Nothing is selected for you and no match is suggested — pick the one that settled this line.
+                          </p>
+                          <ul className="mt-1 max-h-40 space-y-0.5 overflow-y-auto">
+                            {(lineLinks.candidates ?? []).map((c) => (
+                              <li key={c.journalEntryId} className="flex items-center justify-between gap-2 text-[11px]" data-drill-line-candidate={c.journalEntryId}>
+                                <span className="min-w-0 flex-1 truncate"><span className="font-mono text-text-muted">{c.date}</span> {c.description}</span>
+                                <span className="font-mono tabular-nums">{c.amountCents === null ? 'no readable amount' : money(c.amountCents / 100)}</span>
+                                <button type="button" data-drill-line-pick={c.journalEntryId} disabled={busy}
+                                  onClick={() => { void lineLinks.link(l.stepId, c.journalEntryId); }}
+                                  className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-bg-row">Link</button>
+                              </li>
+                            ))}
+                            {lineLinks.candidates !== null && lineLinks.candidates.length === 0 && (
+                              <li className="text-[11px] text-text-faint">No unlinked postings within the window.</li>
+                            )}
+                          </ul>
+                          <button type="button" onClick={() => lineLinks.closePicker()} className="mt-1 text-[11px] text-text-faint hover:text-text-muted">Cancel</button>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="mt-2 font-mono text-xs" data-drill-lines-total>
+                {row.planned === null ? 'no amount on any line' : `${money(row.planned)} across ${row.lineCoverage?.counted ?? 0} of ${row.lineCoverage?.of ?? row.lines.length} lines`}
+              </p>
+              {row.ignoredRoutineLevel != null && (
+                <p className="mt-1 text-[11px] text-amber-800" data-drill-routine-level-ignored>
+                  The routine-level {money(row.ignoredRoutineLevel)} is set aside: this occurrence&rsquo;s figure is the sum of its lines.
+                </p>
+              )}
+              {lineLinks.refusal && <p className="mt-2 text-xs text-status-danger" data-drill-refusal>{lineLinks.refusal}</p>}
+            </div>
+          )}
 
           {/* THE FIGURES. Each is blank when nothing knows it — never $0. */}
           <div className="mt-4 rounded-lg border border-border p-3">

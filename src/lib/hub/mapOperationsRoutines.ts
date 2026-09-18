@@ -39,6 +39,7 @@
  */
 
 import type { CalendarEvent } from '@/components/shared/CalendarGrid';
+import { routinePlanned, type RoutineLineInput } from '@/lib/operations/routineLines';
 
 export interface RoutineWindowEntry {
   routine_id: string;
@@ -50,6 +51,13 @@ export interface RoutineWindowEntry {
   occurrences: string[];      // ISO instants from expandBetween
   coa_code: string | null;    // routine's COA (soft ref to chart_of_accounts.code) or null
   budget_amount: number | null; // per-occurrence budget, or null if the routine has no budget
+  /**
+   * LINES-01: the routine's active lines, each with its own amount and account.
+   * The tile's money is routinePlanned() over these and the two fields above —
+   * the sum of the lines when any carries an amount, else the routine-level
+   * pair. Never both. Absent ⇒ a stepless routine, as before.
+   */
+  steps?: RoutineLineInput[] | null;
 }
 
 export interface RoutinesWindowResponse {
@@ -95,8 +103,11 @@ export function mapOperationsRoutines(response: RoutinesWindowResponse): Calenda
     // them (snake→camel, mirroring the lodging feed at HubCalendar.tsx:201,204). Real values
     // only — coaCode passes null truthfully; budgetAmount is number-or-absent (CalendarEvent's
     // budgetAmount is `number?`, so a null budget maps to undefined = "no budget", never 0).
-    const coaCode = routine.coa_code;
-    const budgetAmount = routine.budget_amount ?? undefined;
+    // LINES-01: ONE leaf decides the figure. A lined routine's COA is null here —
+    // it has several, one per line, and a single chip would be a lie about it.
+    const planned = routinePlanned({ budget_amount: routine.budget_amount, coa_code: routine.coa_code, steps: routine.steps ?? null });
+    const coaCode = planned.coaCode;
+    const budgetAmount = planned.amount ?? undefined;
 
     for (const occISO of routine.occurrences) {
       const startDate = formatDateInZone(occISO, routine.timezone);

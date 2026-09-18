@@ -5,7 +5,12 @@
  * point at. The kinds are the linkable ones from DRILL-01's census, and the
  * migration's CHECK holds the same set at the database.
  */
-export const LINKABLE_KINDS = ['calendar_event', 'project_task', 'routine'] as const;
+/**
+ * LINES-01 adds 'routine_line': a posting linked to the LINE it settled, keyed
+ * on (operations_routine_steps.id, the occurrence instant). 'routine' STAYS for
+ * a stepless routine and is never repurposed.
+ */
+export const LINKABLE_KINDS = ['calendar_event', 'project_task', 'routine', 'routine_line'] as const;
 export type LinkableKind = (typeof LINKABLE_KINDS)[number];
 
 export function isLinkableKind(k: string): k is LinkableKind {
@@ -19,7 +24,8 @@ export function isLinkableKind(k: string): k is LinkableKind {
  * a 07:00 Asia/Bangkok occurrence read from another zone.
  */
 export function requiresInstant(kind: LinkableKind): boolean {
-  return kind === 'routine';
+  // A line of an occurrence is still an occurrence: the same instant discipline.
+  return kind === 'routine' || kind === 'routine_line';
 }
 
 /** The (routine id, instant) a grid tile id encodes: `routine:<id>:<iso>`. */

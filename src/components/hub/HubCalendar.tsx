@@ -24,7 +24,9 @@ import { useEffect, useMemo, useState } from 'react';
 import CalendarGrid, { type CalendarEvent as GridEvent, type SourceConfig } from '@/components/shared/CalendarGrid';
 import HubEventCard from '@/components/hub/HubEventCard';
 import EventDetailPanel from '@/components/hub/EventDetailPanel';
-import { buildDrill, type DrillRow, type TaskCosts } from '@/lib/calendar/chain';
+import { buildDrill, type DrillRow, type RoutineLines, type TaskCosts } from '@/lib/calendar/chain';
+import { routinePlanned } from '@/lib/operations/routineLines';
+import { parseRoutineTileId } from '@/lib/calendar/linkKeys';
 import { mapOperationsBlocks } from '@/lib/hub/mapOperationsBlocks';
 import { mapOperationsRoutines, type RoutinesWindowResponse } from '@/lib/hub/mapOperationsRoutines';
 import type { DailyPlanItem, CalendarBlockSummary } from '@/components/workbench/operations/dailyplan/types';
@@ -301,6 +303,23 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
     return m;
   }, [operationsItems]);
 
+  /**
+   * LINES-01: a routine's lines, keyed by routine id, from the window feed this
+   * component already holds. The panel lists them and links postings to them.
+   */
+  const routineLinesById = useMemo(() => {
+    const m = new Map<string, RoutineLines>();
+    for (const r of routinesWindow.routines) {
+      const p = routinePlanned({ budget_amount: r.budget_amount, coa_code: r.coa_code, steps: r.steps ?? null });
+      m.set(r.routine_id, {
+        lines: p.lines.map((l) => ({ stepId: l.id, activity: l.activity, timeOfDay: l.timeOfDay ? l.timeOfDay.slice(11, 16) : null, amount: l.amount, coaCode: l.coaCode })),
+        coverage: p.coverage,
+        ignoredRoutineLevel: p.ignoredRoutineLevel,
+      });
+    }
+    return m;
+  }, [routinesWindow]);
+
   /** One merged-grid row → the panel's input. Pure; it reads no route. */
   const drillOf = (e: GridEvent): DrillRow => buildDrill({
     id: e.id, source: e.source, title: e.title,
@@ -308,7 +327,7 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
     startTime: e.startTime, endTime: e.endTime,
     location: e.location, latitude: e.latitude, longitude: e.longitude,
     coaCode: e.coaCode, budgetAmount: e.budgetAmount ?? null,
-  }, taskCostsByBlock.get(e.id) ?? null);
+  }, taskCostsByBlock.get(e.id) ?? null, routineLinesById.get(parseRoutineTileId(e.id)?.routineId ?? '') ?? null);
 
   // PR-Calendar-Flush: the descriptive caption + the parent purple band are gone — the
   // grid's toolbar flows flush under the tab row.

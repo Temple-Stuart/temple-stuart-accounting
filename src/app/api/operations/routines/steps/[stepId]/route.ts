@@ -2,7 +2,8 @@
  * /api/operations/routines/steps/[stepId]
  *
  * PATCH  — update a routine step. Mutable: step_order, time_of_day, activity,
- *          sub_activity, location, duration_minutes, notes. Immutable:
+ *          sub_activity, location, duration_minutes, notes, and (LINES-01)
+ *          budget_amount, coa_code. Immutable:
  *          id, routine_id, user_id, entity_id, created_by, created_at.
  *          Reordering is a step_order PATCH (audits as _updated).
  * DELETE — OPS-CE-1: NON-DESTRUCTIVE. Soft-deletes (is_active=false) instead
@@ -27,6 +28,21 @@ function trimNullable(v: unknown): string | null {
   if (typeof v !== 'string') return null;
   const t = v.trim();
   return t.length > 0 ? t : null;
+}
+
+/**
+ * LINES-01: the line's own amount and account. Blank → null, never 0. The amount
+ * is validated like the routine's (HB-4a: a non-negative decimal); the code is
+ * trimmed and length-checked here and validated against the entity's chart by
+ * the SAME picker the routine uses (CoaSelect), so a code never arrives typed.
+ */
+function parseBudgetAmountOrNull(v: unknown): { value: string | null } | { error: NextResponse } {
+  if (v === undefined || v === null || v === '') return { value: null };
+  const s = typeof v === 'number' ? String(v) : typeof v === 'string' ? v.trim() : '';
+  if (!/^\d+(\.\d{1,2})?$/.test(s)) {
+    return { error: NextResponse.json({ error: 'Validation', field: 'budget_amount', message: 'must be a non-negative amount with at most 2 decimals' }, { status: 400 }) };
+  }
+  return { value: s };
 }
 
 export async function PATCH(
@@ -129,6 +145,20 @@ export async function PATCH(
       const timeResult = parseTimeOrNull(body.time_of_day, 'time_of_day');
       if (timeResult.error) return timeResult.error;
       data.time_of_day = timeResult.value;
+    }
+
+    // LINES-01: the line's cost and category.
+    if (body.budget_amount !== undefined) {
+      const amount = parseBudgetAmountOrNull(body.budget_amount);
+      if ('error' in amount) return amount.error;
+      data.budget_amount = amount.value;
+    }
+    if (body.coa_code !== undefined) {
+      const c = trimNullable(body.coa_code);
+      if (c && c.length > 50) {
+        return NextResponse.json({ error: 'Validation', field: 'coa_code', message: 'coa_code exceeds 50 characters' }, { status: 400 });
+      }
+      data.coa_code = c;
     }
 
     const step = await prisma.operations_routine_steps.update({

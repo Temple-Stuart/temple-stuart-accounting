@@ -299,6 +299,10 @@ model ledger_line_links {
 ///   calendar_event → target_id = calendar_events.id,           target_instant NULL
 ///   project_task   → target_id = operations_project_tasks.id,  target_instant NULL
 ///   routine        → target_id = operations_routines.id,        target_instant SET
+///   routine_line   → target_id = operations_routine_steps.id,   target_instant SET  (LINES-01)
+/// LINES-01: a routine made of lines links its postings to the LINE — the coffee
+/// posting to the coffee line — keyed on (step_id, the occurrence instant). The
+/// 'routine' kind STAYS for a stepless routine and is never repurposed.
 /// A routine OCCURRENCE has no row — it is computed from an RRULE — so it is
 /// addressed the way operations_routine_completions already addresses one:
 /// @@unique([routine_id, expected_at]) on the INSTANT (:3390). A link keyed on
@@ -3333,6 +3337,16 @@ model operations_routine_steps {
   location         String?   @db.VarChar(200)
   duration_minutes Int?
   notes            String?   @db.Text
+  // LINES-01: the line carries the triple. A step already holds time and place;
+  // it now holds its own cost and category, so the founder's morning routine can
+  // be a gym line (no amount), a coffee line ($80 / 5200) and a dining-out line
+  // ($200, no category). Both NULLABLE — blank is blank, never 0 — and both
+  // validated the way HB-4a validates the routine's own (CoaSelect, entity chart).
+  // THE RULE (src/lib/operations/routineLines.ts): when any active line carries
+  // an amount, the routine's planned figure is the SUM of its lines and the
+  // routine-level budget_amount is ignored for it — reported, never added.
+  budget_amount    Decimal?  @db.Decimal(12, 2)
+  coa_code         String?   @db.VarChar(50)
   // OPS-CE-1: soft-delete flag. Removing a step ARCHIVES it (is_active=false)
   // instead of hard-deleting, so its content_scene row + every logged take
   // (answer) survive. Active routine/grid views filter is_active=true. Mirrors

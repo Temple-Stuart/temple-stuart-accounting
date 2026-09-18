@@ -85,7 +85,11 @@ test('a routine occurrence is addressed on its INSTANT, and a link on the wrong 
 
 test('the kinds that can be linked are exactly the census\'s linkable ones', () => {
   const linkable = KIND_FACTS.filter((f) => f.linkable).map((f) => f.kind).sort();
-  assert.deepEqual(linkable, [...LINKABLE_KINDS].sort());
+  // LINES-01: 'routine_line' is a finer GRAIN of the 'routine' kind — a line of an
+  // occurrence — not a kind of row on the day, so it has no census row of its own.
+  // Every census-linkable kind is a link kind, and the one extra is that grain.
+  for (const k of linkable) assert.ok((LINKABLE_KINDS as readonly string[]).includes(k), `${k} is a link kind`);
+  assert.deepEqual([...LINKABLE_KINDS].filter((k) => !(linkable as string[]).includes(k)), ['routine_line']);
   for (const k of LINKABLE_KINDS) assert.ok(isLinkableKind(k));
   assert.equal(isLinkableKind('task'), false, 'a daily-plan task is a Json line with no id of its own');
   assert.equal(isLinkableKind('trade'), false, 'no trade row reaches the grid');

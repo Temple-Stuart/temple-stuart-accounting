@@ -1,7 +1,8 @@
 /**
  * POST /api/operations/routines/[id]/steps
  *
- * Creates an ordered sub-step on a routine. user_id and entity_id are
+ * Creates an ordered sub-step on a routine. LINES-01: the step may carry its
+ * own budget_amount and coa_code — the line's cost and category. user_id and entity_id are
  * inherited from the parent routine (server-derived, client values ignored).
  * step_order is server-computed as max+1 within the routine (α-1 race-
  * acceptance: concurrent creates can collide, resolvable via PATCH).
@@ -21,6 +22,21 @@ function trimNullable(v: unknown): string | null {
   if (typeof v !== 'string') return null;
   const t = v.trim();
   return t.length > 0 ? t : null;
+}
+
+/**
+ * LINES-01: the line's own amount and account. Blank → null, never 0. The amount
+ * is validated like the routine's (HB-4a: a non-negative decimal); the code is
+ * trimmed and length-checked here and validated against the entity's chart by
+ * the SAME picker the routine uses (CoaSelect), so a code never arrives typed.
+ */
+function parseBudgetAmountOrNull(v: unknown): { value: string | null } | { error: NextResponse } {
+  if (v === undefined || v === null || v === '') return { value: null };
+  const s = typeof v === 'number' ? String(v) : typeof v === 'string' ? v.trim() : '';
+  if (!/^\d+(\.\d{1,2})?$/.test(s)) {
+    return { error: NextResponse.json({ error: 'Validation', field: 'budget_amount', message: 'must be a non-negative amount with at most 2 decimals' }, { status: 400 }) };
+  }
+  return { value: s };
 }
 
 export async function POST(
@@ -98,6 +114,13 @@ export async function POST(
     const timeResult = parseTimeOrNull(body.time_of_day, 'time_of_day');
     if (timeResult.error) return timeResult.error;
 
+    const amount = parseBudgetAmountOrNull(body.budget_amount);
+    if ('error' in amount) return amount.error;
+    const coaCode = trimNullable(body.coa_code);
+    if (coaCode && coaCode.length > 50) {
+      return NextResponse.json({ error: 'Validation', field: 'coa_code', message: 'coa_code exceeds 50 characters' }, { status: 400 });
+    }
+
     // step_order = max+1 within the routine (α-1 documented race-acceptance).
     const maxOrder = await prisma.operations_routine_steps.findFirst({
       where: { routine_id: routine.id },
@@ -118,6 +141,8 @@ export async function POST(
         location,
         duration_minutes: durationMinutes,
         notes,
+        budget_amount: amount.value,
+        coa_code: coaCode,
         created_by: userEmail,
       },
     });

@@ -20,6 +20,7 @@
 import { useEffect, useState } from 'react';
 import type { TodayStatus } from './types';
 import { formatBudgetPerOccurrence } from './types';
+import { plannedLine, routinePlanned } from '@/lib/operations/routineLines';
 
 
 interface TodayEntry {
@@ -38,6 +39,9 @@ interface TodayEntry {
     // fetches, zero route changes.
     budget_amount?: string | null;
     coa_code?: string | null;
+    // LINES-01: the today feed includes active steps (today/route.ts:108); the
+    // occurrence's money is routinePlanned() over them.
+    steps?: { id: string; is_active: boolean; step_order: number; budget_amount?: string | null; coa_code?: string | null }[];
   };
   expected_at: string;
   status: TodayStatus;
@@ -216,14 +220,20 @@ export default function TodaysStrip({ onCommitted, onCreateRequest, onTotals }: 
                     item the amount IS this occurrence's budget, so the bare
                     figure is the tightest honest form; the lifted form label
                     rides the title. Null → nothing renders. */}
-                {e.routine.budget_amount != null && (
-                  <span
-                    className="font-mono tabular-nums font-bold text-text-primary"
-                    title="budget / occurrence"
-                  >
-                    {formatBudgetPerOccurrence(e.routine.budget_amount)}
-                  </span>
-                )}
+                {/* LINES-01: the leaf's figure — the lines' sum when any carries
+                    an amount, else the routine-level one. Null → nothing renders. */}
+                {(() => {
+                  const p = routinePlanned({ budget_amount: e.routine.budget_amount ?? null, coa_code: e.routine.coa_code ?? null, steps: e.routine.steps ?? null });
+                  return p.amount !== null ? (
+                    <span
+                      className="font-mono tabular-nums font-bold text-text-primary"
+                      title={p.from === 'lines' ? plannedLine(p) : 'budget / occurrence'}
+                      data-today-planned={p.from}
+                    >
+                      {formatBudgetPerOccurrence(String(p.amount))}
+                    </span>
+                  ) : null;
+                })()}
                 {canComplete && (
                   <button
                     type="button"
