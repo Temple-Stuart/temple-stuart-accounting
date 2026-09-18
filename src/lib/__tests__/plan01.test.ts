@@ -62,9 +62,12 @@ test('/calendar authors nothing — no routines strip, no routine surface', () =
   assert.equal(page.includes('SectionE_Routines'), false);
   assert.equal(page.includes('OperationsEntityProvider'), false, 'the provider left with its only consumer');
   assert.deepEqual(PHASES_RENDERED_AT['/calendar'], []);
-  // The opener says what the page now is, and claims nothing it does not meet.
-  assert.match(page, /line="The day as it actually is/);
-  assert.match(page, /routines and projects are planned in Tasks/);
+  // CAL-OPEN-01: the opener line PLAN-01 wrote here went with the opener — the
+  // calendar explains nothing. The claim it made (routines and projects are
+  // planned in Tasks) is now only the header comment's, read as prose.
+  assert.doesNotMatch(page, /line="The day as it actually is/);
+  assert.doesNotMatch(page, /routines and projects are planned in Tasks/);
+  assert.match(comments(CALENDAR), /one act of planning, and the calendar is the VIEW everything logs to/);
   // The grid and the day view stay — that is the whole tool.
   assert.match(page, /<HubCalendar \/>/);
 });

@@ -27,20 +27,25 @@
  * above: it writes a calendar_event, which is THIS tool's own row, not another
  * tool's object. A routine, a project, a trip and a trade are other tools' —
  * they log their occurrences here and are authored where they live.
+ *
+ * CAL-OPEN-01 (2026-09-18) — THE CALENDAR EXPLAINS NOTHING. A ToolOpener sat
+ * above the grid and printed two paragraphs: the registry `why` (the tool's
+ * line, nav.ts `line: tool.why`) and a `line` prop of this page's own, in the
+ * room's words. The tab is self-evident and the prose took space from the
+ * view, so the opener is gone and both paragraphs with it. The ruled test was
+ * the opener law: its enforced check (scripts/assert-tool-registry.ts, THE
+ * OPENER LAW) compares PHASES_RENDERED_AT[route] with the phases a page's
+ * import tree draws, and never required a page to mount an opener — so the
+ * opener is REMOVED, not reduced. The registry row is untouched: its `why`
+ * renders on the sheet (TheSheet.tsx proofLine), which is where it belongs.
+ * Nothing renders here but the shell and the grid.
  */
 import AppLayout from '@/components/ui/AppLayout';
 import HubCalendar from '@/components/hub/HubCalendar';
-import ToolOpener from '@/components/shell/ToolOpener';
-import { navToolByName } from '@/lib/nav';
-import { TOOL_GATE } from '@/lib/offer';
 
 export default function CalendarPage() {
   return (
     <AppLayout page>
-      <ToolOpener
-        tools={[navToolByName('Calendar', TOOL_GATE)]}
-        line="The day as it actually is — your trips, the blocks you planned, and the routines that come round, on one grid. Everything else in the app logs to it; routines and projects are planned in Tasks."
-      />
       <div data-calendar-room>
         <HubCalendar />
       </div>
