@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import ResponsiveViewController from './ResponsiveViewController';
 import { formatMoney, moneyColorClass, kindForSource } from '@/lib/money';
 import { instantToZoned } from '@/lib/time';
+import { FLAG_TEXT, assignLanes, blockExtent, unverifiedDurationExtent, type ExtentFlag } from '@/lib/calendar/extent';
 
 // RUNWAY-DEEP: house toolbar treatments for the DARK mount (HubCalendar).
 
@@ -147,7 +148,15 @@ const HOUR_HEIGHT = 52; // Calendar redesign: roomier rows, day-view spacing
 const START_HOUR = 0;   // 12 AM
 const END_HOUR = 24;    // 12 AM next day
 const TOTAL_HOURS = END_HOUR - START_HOUR; // 24
-const MIN_EVENT_HEIGHT = HOUR_HEIGHT * 1.5; // 60px minimum
+// GRID-01 (2026-09-18): the render FLOOR is ONE TEXT LINE. A block shorter than
+// that is drawn one line tall so its first characters show (the whole label rides
+// its hover). It prevents an unreadable sliver and claims no time — the subtitle
+// never prints an end the row does not have. The old floor was 1.5 hours
+// (HOUR_HEIGHT * 1.5): every block shorter than 90 minutes was drawn as 90.
+const MIN_BLOCK_PX = 26;
+// The same floor in minutes at this scale — what the lane layout treats as a
+// block's drawn span, so two slivers that would overlap on screen share no lane.
+const MIN_BLOCK_MINUTES = (MIN_BLOCK_PX / HOUR_HEIGHT) * 60;
 
 const parseDate = (dateStr: string): Date => {
   const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
@@ -222,6 +231,8 @@ interface DayBlock {
   event: CalendarEvent;
   startMin: number;  // minutes from midnight
   endMin: number;    // minutes from midnight
+  /** GRID-01: null = the extent is the row's own; else why this block is a marker (src/lib/calendar/extent.ts). */
+  flag: ExtentFlag | null;
   label: string;     // display label
   isDepart: boolean; // true = departure half
   isArrive: boolean; // true = arrival half
@@ -288,9 +299,12 @@ function getBlocksForDay(dayKey: string, events: CalendarEvent[], tzMode: TzMode
       if (event.durationMinutes == null) {
         // POLICY (decided): unknown duration → a MINIMAL fixed-height marker on the depart
         // day ONLY, visibly flagged. NEVER reconstruct start→end (that is the 34h bug). This
-        // is an explicit "we don't trust this" state, not a silent fallback.
+        // is an explicit "we don't trust this" state, not a silent fallback. GRID-01: the
+        // marker's extent comes from the one leaf (unverifiedDurationExtent), which the
+        // non-trip path shares now.
         if (dayOffset === 0) {
-          blocks.push({ event, startMin: tripStartMin, endMin: tripStartMin + 30, label: `⚠ duration unverified · ${event.title}`, isDepart: true, isArrive: false, startLabel: subStart, endLabel: subEnd });
+          const ext = unverifiedDurationExtent(tripStartMin);
+          blocks.push({ event, startMin: ext.startMin, endMin: ext.endMin, flag: ext.flag, label: `⚠ duration unverified · ${event.title}`, isDepart: true, isArrive: false, startLabel: subStart, endLabel: subEnd });
         }
         continue;
       }
@@ -304,30 +318,48 @@ function getBlocksForDay(dayKey: string, events: CalendarEvent[], tzMode: TzMode
       const label = isArriveSeg
         ? `arr ${arriveLabelTime} ${event.title.replace(/^\d+:\d+\s*(AM|PM)\s*/i, '')}`.trim()
         : event.title;
-      blocks.push({ event, startMin: segStart, endMin: Math.max(segEnd, segStart + 30), label, isDepart: dayOffset === 0, isArrive: isArriveSeg, startLabel: subStart, endLabel: subEnd });
+      // GRID-01: the segment is exactly as long as the duration says — the old
+      // `Math.max(segEnd, segStart + 30)` stretched a short final segment to 30
+      // minutes. Legibility is the render floor's job, not the extent's.
+      blocks.push({ event, startMin: segStart, endMin: segEnd, flag: null, label, isDepart: dayOffset === 0, isArrive: isArriveSeg, startLabel: subStart, endLabel: subEnd });
       continue;
     }
 
-    // ── Non-trip (operations / project / routine) — UNCHANGED start→end behavior. ──
+    // ── Non-trip (operations / project / routine / manual) ──
+    // GRID-01 (2026-09-18): A BLOCK IS AS LONG AS IT SAYS. The extent comes from the
+    // one leaf (src/lib/calendar/extent.ts): a row with an end draws start → end,
+    // exactly; a row with NO end draws the minimal marker, flagged "no end time",
+    // its subtitle carrying the start only. Gone: the silent `startMin + 120` a
+    // no-end row used to get, and the `Math.max(endMin, startMin + 60)` that
+    // stretched every block shorter than an hour to an hour.
     // PR-tz-4: non-trip rows have no zones (null start_zone/end_zone) — the toggle has nothing to
     // localize, so the subtitle stays the naive stored clock (same as the pre-tz-4 render).
-    const endMin = event.endTime ? timeToMinutes(event.endTime) : startMin + 120;
+    const storedEndMin = event.endTime ? timeToMinutes(event.endTime) : null;
     const naiveStart = event.startTime ? formatTime12h(event.startTime) : undefined;
     const naiveEnd = event.endTime ? formatTime12h(event.endTime) : undefined;
+    // A flagged marker says so in its label — the trip marker's own idiom — with the
+    // title's first characters right after the glyph, so a narrow lane still names it.
+    const flagged = (ext: { flag: ExtentFlag | null }, title: string) => (ext.flag ? `⚠ ${title} · ${FLAG_TEXT[ext.flag]}` : title);
 
     if (evtStartKey === evtEndKey || !event.endDate) {
       // Same-day event — only show on its start date
       if (dayKey === evtStartKey) {
-        blocks.push({ event, startMin, endMin: Math.max(endMin, startMin + 60), label: event.title, isDepart: false, isArrive: false, startLabel: naiveStart, endLabel: naiveEnd });
+        const ext = blockExtent(startMin, storedEndMin);
+        blocks.push({ event, startMin: ext.startMin, endMin: ext.endMin, flag: ext.flag, label: flagged(ext, event.title), isDepart: false, isArrive: false, startLabel: naiveStart, endLabel: ext.flag ? undefined : naiveEnd });
       }
     } else {
       // Multi-day event
       if (dayKey === evtStartKey) {
-        // Departure day: from departure time to end of day
-        blocks.push({ event, startMin, endMin: 24 * 60, label: event.title, isDepart: true, isArrive: false, startLabel: naiveStart, endLabel: naiveEnd });
+        // Departure day: from departure time to end of day — the row continues past
+        // midnight, so this is its extent on this day, not an invented one.
+        blocks.push({ event, startMin, endMin: 24 * 60, flag: null, label: event.title, isDepart: true, isArrive: false, startLabel: naiveStart, endLabel: naiveEnd });
       } else if (dayKey === evtEndKey) {
-        // Arrival day: from start of day to arrival time
-        blocks.push({ event, startMin: 0, endMin: Math.max(endMin, 60), label: `arr ${event.endTime ? formatTime12h(event.endTime) : ''} ${event.title.replace(/^\d+:\d+\s*(AM|PM)\s*/i, '')}`.trim(), isDepart: false, isArrive: true, startLabel: naiveStart, endLabel: naiveEnd });
+        // Arrival day: from start of day to the stored arrival time, exactly. No end
+        // time → the marker at midnight, flagged (the old code drew the DEPARTURE
+        // start + 120 minutes from midnight here, then stretched it to an hour).
+        const ext = blockExtent(0, storedEndMin);
+        const arrTitle = `arr ${event.endTime ? formatTime12h(event.endTime) : ''} ${event.title.replace(/^\d+:\d+\s*(AM|PM)\s*/i, '')}`.trim();
+        blocks.push({ event, startMin: ext.startMin, endMin: ext.endMin, flag: ext.flag, label: flagged(ext, arrTitle), isDepart: false, isArrive: true, startLabel: naiveStart, endLabel: ext.flag ? undefined : naiveEnd });
       }
     }
   }
@@ -787,9 +819,13 @@ export default function CalendarGrid({
                     const dayKey = dateToKey(day);
                     const dayEvents = getEventsForDate(day);
                     const blocks = getBlocksForDay(dayKey, dayEvents, tzMode);
+                    // GRID-01: blocks that intersect share the column side by side — the
+                    // interval partition in the extent leaf. Geometry only; the order is
+                    // the blocks' own.
+                    const lanes = assignLanes(blocks, (b) => b.startMin, (b) => b.endMin, MIN_BLOCK_MINUTES);
 
                     return (
-                      <div key={dayIdx} className={`flex-1 relative border-l border-border-light ${isToday ? 'bg-red-50/20' : hl ? 'bg-purple-50/10' : ''}`}>
+                      <div key={dayIdx} data-day-column={dayKey} className={`flex-1 relative border-l border-border-light ${isToday ? 'bg-red-50/20' : hl ? 'bg-purple-50/10' : ''}`}>
                         {/* Hour grid lines */}
                         {hours.map(hour => (
                           <div key={hour} className="absolute w-full border-t border-border-light/60" style={{ top: `${(hour - START_HOUR) * HOUR_HEIGHT}px` }} />
@@ -818,19 +854,32 @@ export default function CalendarGrid({
                         {/* Timed events as positioned blocks */}
                         {blocks.map((block, blockIdx) => {
                           const top = (block.startMin / 60) * HOUR_HEIGHT;
-                          const height = Math.max(((block.endMin - block.startMin) / 60) * HOUR_HEIGHT, MIN_EVENT_HEIGHT);
+                          // The drawn height is the extent's, floored at one text line (GRID-01).
+                          const height = Math.max(((block.endMin - block.startMin) / 60) * HOUR_HEIGHT, MIN_BLOCK_PX);
+                          const { lane, lanes: laneCount } = lanes[blockIdx];
                           const config = sourceConfig[block.event.source] || { badge: 'bg-gray-400', dot: 'bg-gray-400' };
                           const badgeColor = config.badge || config.dot;
                           // No rounding on split edges
                           const roundClass = block.isDepart ? 'rounded-t' : block.isArrive ? 'rounded-b' : 'rounded';
+                          // The whole label rides the hover/focus title, so a marker too short
+                          // for its title at this scale is never an empty block (GRID-01).
+                          const hoverTitle = `${block.label}${block.startLabel ? ` · ${block.startLabel}${block.endLabel ? ` — ${block.endLabel}` : ''}` : ''}${block.event.budgetAmount ? ' · ' + formatMoney(block.event.budgetAmount, { kind: kindForSource(block.event.source), fractionDigits: 0 }) : ''}`;
 
                           return (
                             <div
                               key={`${block.event.id}-${blockIdx}`}
                               onClick={(e) => handleTileClick(block.event, e.nativeEvent)}
-                              className={`absolute left-0.5 right-0.5 ${badgeColor} text-white ${roundClass} overflow-hidden z-10 ${(block.event.href || onEventClick) ? 'cursor-pointer hover:opacity-90' : ''} transition-opacity`}
-                              style={{ top: `${top}px`, height: `${height}px` }}
-                              title={`${block.label}${block.event.budgetAmount ? ' · ' + formatMoney(block.event.budgetAmount, { kind: kindForSource(block.event.source), fractionDigits: 0 }) : ''}`}
+                              className={`absolute ${badgeColor} text-white ${roundClass} overflow-hidden z-10 ${(block.event.href || onEventClick) ? 'cursor-pointer hover:opacity-90' : ''} transition-opacity`}
+                              style={{ top: `${top}px`, height: `${height}px`, left: `calc(${(lane / laneCount) * 100}% + 2px)`, width: `calc(${100 / laneCount}% - 4px)` }}
+                              title={hoverTitle}
+                              aria-label={hoverTitle}
+                              tabIndex={0}
+                              data-block={block.event.id}
+                              data-block-lane={lane}
+                              data-block-lanes={laneCount}
+                              data-block-flag={block.flag ?? undefined}
+                              data-block-start={block.startMin}
+                              data-block-end={block.endMin}
                             >
                               <div className="px-2 py-1.5 h-full overflow-hidden">
                                 <div className="text-[11px] font-semibold leading-tight truncate">{block.label}</div>
