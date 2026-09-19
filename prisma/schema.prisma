@@ -870,8 +870,13 @@ model trip_itinerary {
   vendorOptionType String?  @db.VarChar(20)
   createdAt        DateTime @default(now())
 
-  // Itinerary-as-time-blocks foundation (schema only; nothing reads/writes these
-  // yet — see prisma/migrations-manual/itinerary_time_blocks.sql).
+  // Itinerary-as-time-blocks. TRAVEL-01 (2026-09-19): the comment that stood here
+  // ("schema only; nothing reads/writes these yet") was stale — vendor-commit
+  // writes the window (route.ts:360-381), the itinerary PATCH edits it,
+  // /api/trips/day-blocks and the calendar feed's overlay (src/lib/calendar/tripItem.ts)
+  // read it. The columns were created by prisma/migrations-manual/itinerary_time_blocks.sql
+  // and never recorded in prisma/migrations; 20260919100000_travel_01_block_times_recorded
+  // records them idempotently (IF NOT EXISTS) — Alex confirms they exist on Azure.
   recurrence       String    @default("once") @db.VarChar(10) // 'once' | 'daily'
   block_start_time DateTime? @db.Time(6) // daily window start (time-of-day)
   block_end_time   DateTime? @db.Time(6) // daily window end (time-of-day)

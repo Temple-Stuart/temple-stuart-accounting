@@ -37,7 +37,7 @@ export const ACTUALS_JOIN_BLOCKERS: readonly ActualsBlocker[] = [
     detail:
       "calendar_events.coa_code is written PREFIXED by the trip path ('P-9200'), while chart_of_accounts.code is a bare four digits ('9200'). An equality join matches nothing at all for a trip event, and the module sources write the bare code — so the two halves of the same column are in two different formats.",
     evidence:
-      "src/app/api/trips/[id]/commit/route.ts:53-71 writes `${prefix}-9200`; src/lib/coa/seedSets.ts:140 is the law that every chart code is /^\\d{4}$/; src/components/shared/CalendarGrid.tsx:194-200 already documents the stored form as '<prefix>-<number>' and matches on the SUFFIX to find lodging",
+      "src/app/api/trips/[id]/commit/route.ts:53-71 writes `${prefix}-9200`; src/lib/coa/seedSets.ts:140 is the law that every chart code is /^\\d{4}$/; src/components/shared/CalendarGrid.tsx:210-216 already documents the stored form as '<prefix>-<number>' and matches on the SUFFIX to find lodging",
   },
   {
     name: 'an event carries no entity',

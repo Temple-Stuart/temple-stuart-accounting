@@ -38,7 +38,7 @@ const RoomLockContext = createContext(false);
  * LOCK-01: the CLIENT gate for a room whose page is a client component. It asks
  * the SAME question the tab asks, with the SAME helper — isTabLocked over
  * /api/auth/me's entitledCategories and the server's isAdmin verdict
- * (ModuleLauncher.tsx:340-341 does exactly this). A server page uses roomGate
+ * (ModuleLauncher.tsx:343-344 does exactly this). A server page uses roomGate
  * (src/lib/roomGate.ts → hasTabAccess); both resolve through keysGranting, so
  * the two twins cannot disagree.
  *

@@ -24,7 +24,7 @@
  *    (execFireBudget.ts:16) — each env-tunable.
  *  • CTA truth: there is NO tab:projects entitlement (categoryKeys.ts:23-28)
  *    and no isTabLocked check on this tab — a FREE account gets the real
- *    Projects tab (ModuleLauncher.tsx:470-475). The CTA is therefore the
+ *    Projects tab (ModuleLauncher.tsx:473-478). The CTA is therefore the
  *    free-account signup (the old showroom's own honest CTA), NOT a
  *    "Subscribe to unlock" card that would advertise a paywall that doesn't
  *    exist.

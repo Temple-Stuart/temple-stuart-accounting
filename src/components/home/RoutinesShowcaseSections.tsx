@@ -51,7 +51,7 @@
  * ── CTA RULING (inventory §12, pre-verified) ────────────────────────────────
  * No tab:routines entitlement exists (categoryKeys.ts TAB_ENTITLEMENT_KEYS); the
  * old tab:operations key gated nothing and left the vocabulary (SELL-05); the tab mount carries no lock
- * (ModuleLauncher.tsx:513-531). Auth-only tab → honest "Make my free account".
+ * (ModuleLauncher.tsx:516-534). Auth-only tab → honest "Make my free account".
  * NO subscribe card.
  *
  * ── SLIDES-1 → SLIDES-2 (Alex's rulings, override the Jul-16 design) ────────
@@ -266,7 +266,7 @@ function ListPanel() {
 
 /** 5. FEED 1 — THE CALENDAR: mirrors the operations-routines expansion (route
  *  :104-189 — occurrences + coa_code/budget_amount on every entry) and the
- *  teal 🔁 layer (HubCalendar.tsx:76; mapOperationsRoutines.ts:94-112). */
+ *  teal 🔁 layer (HubCalendar.tsx:82; mapOperationsRoutines.ts:94-112). */
 function CalendarFeedPanel() {
   return (
     <DarkSlide title="Feed 1 · the calendar — every occurrence, priced">
@@ -287,7 +287,7 @@ function CalendarFeedPanel() {
 /** 6. FEED 2 — THE BUDGET: the SAME table the Runway deck's slide 6 mirrored —
  *  identical rows/numbers (RunwayShowcaseSections.tsx:92-99). Planned =
  *  routinesMonthlyByCoa = budget × occurrences (routineBudget.ts:41-77), the
- *  SOLE planned source (year-calendar/route.ts:66-73). */
+ *  SOLE planned source (year-calendar/route.ts:67-74). */
 function BudgetFeedPanel() {
   return (
     <DarkSlide title="Feed 2 · the budget — the Runway tab's planned column">

@@ -30,7 +30,7 @@ test('/calendar mounts the SAME grid, bare — nothing only ModuleLauncher could
 });
 
 test('the grid needs nothing but a Next page — its one context is the app router', () => {
-  // It cannot be rendered in a bare node test: CalendarGrid.tsx:338 and
+  // It cannot be rendered in a bare node test: CalendarGrid.tsx:359 and
   // HubEventCard.tsx:111 both call useRouter(), which throws "invariant expected
   // app router to be mounted" outside Next. That is not a blocker for /calendar —
   // every Next page provides it — but it IS why this proof is structural and the

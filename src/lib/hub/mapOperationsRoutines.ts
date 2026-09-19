@@ -20,7 +20,7 @@
  *
  *   TIME-LESS routines (routine.start_time is null — cadence-only):
  *     - Emitted WITHOUT startTime, which CalendarGrid interprets as an all-day
- *       event (CalendarGrid.tsx:109 skips timed-block builder for events
+ *       event (CalendarGrid.tsx:125 skips timed-block builder for events
  *       without startTime; :350 collects them into the all-day row at the
  *       top of the calendar, same mechanism as the existing AT&T / Food /
  *       Coffee sources).
@@ -114,7 +114,7 @@ export function mapOperationsRoutines(response: RoutinesWindowResponse): Calenda
     const startTime = routine.start_time ? routine.start_time.slice(11, 16) : null;
     const endTime = routine.end_time ? routine.end_time.slice(11, 16) : null;
     // Carry the routine's COA + budget onto every occurrence tile so the detail panel can show
-    // them (snake→camel, mirroring the lodging feed at HubCalendar.tsx:201,204). Real values
+    // them (snake→camel, mirroring the lodging feed at HubCalendar.tsx:207,204). Real values
     // only — coaCode passes null truthfully; budgetAmount is number-or-absent (CalendarEvent's
     // budgetAmount is `number?`, so a null budget maps to undefined = "no budget", never 0).
     // LINES-01: ONE leaf decides the figure. A lined routine's COA is null here —
@@ -151,7 +151,7 @@ export function mapOperationsRoutines(response: RoutinesWindowResponse): Calenda
       } else {
         // Time-less routine → all-day event at the top of the calendar.
         // CalendarGrid uses the absence of startTime as the all-day signal
-        // (CalendarGrid.tsx:350 — `dayEvts.filter(e => !e.startTime)`).
+        // (CalendarGrid.tsx:371 — `dayEvts.filter(e => !e.startTime)`).
         // Deliberate per PR-Ops-5.8: a routine with no intent-window start
         // is not a timed event; rendering it in the hourly grid would assert
         // a time it doesn't have. Same visual treatment as the existing

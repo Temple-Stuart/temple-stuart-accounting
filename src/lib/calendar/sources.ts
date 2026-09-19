@@ -22,7 +22,7 @@
  *   personal · auto · growth · health
  *             — budget/[module]/[id]/route.ts:104, where the source IS the module
  *               (:33 `const MODULE = mod`, gated by COLLAPSED_MODULES)
- * /api/calendar/route.ts:91-97 independently enumerates the same seven
+ * /api/calendar/route.ts:113-119 independently enumerates the same seven
  * money sources in its summary totals, which is the second witness for this list.
  *
  * EVENT-01 adds the ninth: `manual`, written by the route this repo did not have

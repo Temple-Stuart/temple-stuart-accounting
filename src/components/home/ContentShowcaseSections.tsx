@@ -21,7 +21,7 @@
  *    QuestionLibrary manager as a feature. Content has NO publish workflow —
  *    the deck describes a data-completeness progression, nothing more.
  *  • CTA truth: no tab:content entitlement exists (categoryKeys.ts:23-28); a
- *    FREE account gets the real Content tab (ModuleLauncher.tsx:489-494) —
+ *    FREE account gets the real Content tab (ModuleLauncher.tsx:492-497) —
  *    the CTA is the free-account signup, not a subscription card.
  *
  * SLIDES-1 → SLIDES-2 (Alex's rulings, override the Jul-16 faithful-mirror

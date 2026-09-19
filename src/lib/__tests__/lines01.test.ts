@@ -133,7 +133,8 @@ test('a coffee posting linked to the coffee LINE moves the line and the occurren
 });
 
 test("the link's new kind is 'routine_line', keyed on the instant like 'routine' — and 'routine' is never repurposed", () => {
-  assert.deepEqual([...LINKABLE_KINDS], ['calendar_event', 'project_task', 'routine', 'routine_line']);
+  // TRAVEL-01 (2026-09-19) added 'trip_item' after it, in its own migration (travel01.test.ts).
+  assert.deepEqual([...LINKABLE_KINDS], ['calendar_event', 'project_task', 'routine', 'routine_line', 'trip_item']);
   assert.equal(requiresInstant('routine_line'), true);
   assert.equal(requiresInstant('routine'), true);
   const m = code(MIGRATION);

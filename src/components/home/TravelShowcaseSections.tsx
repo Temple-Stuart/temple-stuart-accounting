@@ -67,7 +67,7 @@
  * ── BANNED (inventory §9 — zero rendered hits in DECK copy) ──────────────────
  * "book flights now" (real money) · in-app activity/transfer booking ·
  * "AI trip planner" / "AI trip & flight planning" (the existing MODULES blurb's
- * own tension, ModuleLauncher.tsx:99 — flagged, not propagated here) · eSIM/
+ * own tension, ModuleLauncher.tsx:103 — flagged, not propagated here) · eSIM/
  * Mozio/insurance/events as features (their honest coming-soon rows below stay
  * untouched) · the trip scan (free with an account, under the AI daily cap — SELL-05b) as available · travelers persistence ·
  * Booked/Project columns · ledger auto-posting · confirmation emails · a Travel
@@ -213,7 +213,7 @@ function FlightCheckoutMirror() {
 /** 4. THE TRIP IS THE CONTAINER — the trip model (trips + budget_line_items,
  *  schema :515-564, :1050-1075) with the carried Portland example
  *  (RunwayShowcaseSections.tsx:143). Save = the register gate
- *  (gateGuestCreate, ModuleLauncher.tsx:370-377). */
+ *  (gateGuestCreate, ModuleLauncher.tsx:373-380). */
 function TripContainerPanel() {
   return (
     <DarkSlide title="The trip — where finds become a plan" tag="Example set">

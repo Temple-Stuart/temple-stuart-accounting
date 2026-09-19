@@ -26,6 +26,9 @@ export interface TripItineraryRow {
   recurrence?: string | null;
   block_start_time?: string | null;
   block_end_time?: string | null;
+  /** TRAVEL-01: the row's own clock ('HH:MM' VarChar) — a flight's depart/arrive; vendor-commit writes a flight no block window. */
+  homeTime?: string | null;
+  destTime?: string | null;
   coa_code?: string | null;
   location?: string | null;
   vendorOptionId?: string | null;
@@ -75,6 +78,8 @@ const monthKey = (ymdStr: string): string => ymdStr.slice(0, 7);
 // @db.Time ISO ("1970-01-01T22:00:00.000Z") → "22:00" (wall-clock as set).
 const clockFromTimeIso = (iso: string | null | undefined): string =>
   iso?.match(/T(\d{2}:\d{2})/)?.[1] ?? '';
+/** A stored 'HH:MM' (VarChar) clock → 'HH:MM', or null when the row has none. */
+const clockOfVarChar = (v: string | null | undefined): string | null => v?.match(/^(\d{2}:\d{2})/)?.[1] ?? null;
 
 function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -128,6 +133,8 @@ interface DayBlock {
   endHHMM: string;
   timeText: string;
   name: string;
+  /** TRAVEL-01: vendor · category · place, each only when the row carries it. */
+  meta: string;
   amortLabel: string | null;
   daySpendShare: number;
 }
@@ -135,19 +142,32 @@ interface DayBlock {
 function buildBlock(row: TripItineraryRow): DayBlock {
   const isDaily = row.recurrence === 'daily';
   const total = Number(row.cost);
-  const minute = minuteOfDayFromTime(row.block_start_time ?? null);
-  const startHHMM = clockFromTimeIso(row.block_start_time);
-  const endHHMM = clockFromTimeIso(row.block_end_time);
+  // TRAVEL-01: a row with no block window still has a clock when its own
+  // homeTime/destTime carry one — the flight branch of vendor-commit writes
+  // depart/arrive there and never a window. That clock is shown and orders the
+  // day, exactly as stored; a row with neither stays untimed. Nothing is defaulted.
+  const ownStart = row.block_start_time ? null : clockOfVarChar(row.homeTime);
+  const ownEnd = ownStart ? clockOfVarChar(row.destTime) : null;
+  const minute = row.block_start_time
+    ? minuteOfDayFromTime(row.block_start_time)
+    : ownStart ? Number(ownStart.slice(0, 2)) * 60 + Number(ownStart.slice(3, 5)) : null;
+  const startHHMM = clockFromTimeIso(row.block_start_time) || ownStart || '';
+  const endHHMM = row.block_start_time ? clockFromTimeIso(row.block_end_time) : (ownEnd ?? '');
   const timeText = startHHMM ? `${startHHMM}${endHHMM ? `–${endHHMM}` : ''}` : '';
-  const name = row.vendor_name || row.vendor;
+  // TRAVEL-01: the row is named by the ITEM (trip_itinerary.vendor is the item's
+  // title — vendor-commit writes details.title there); the clean vendor
+  // (vendor_name, PR 3), the category and the place ride a meta line beneath.
+  const name = row.vendor;
+  const vendorName = row.vendor_name && row.vendor_name !== row.vendor ? row.vendor_name : null;
+  const meta = [vendorName, row.category, row.location].filter((v): v is string => !!v && v.trim().length > 0).join(' · ');
   if (isDaily) {
     const days = coveredDays(row.homeDate, row.destDate);
     const share = total / days;
     const unit = row.vendorOptionType === 'lodging' ? 'night' : 'day';
     const amortLabel = `$${Math.round(share)}/${unit} · part of ${money(total)} total`;
-    return { row, isDaily, minute, startHHMM, endHHMM, timeText, name, amortLabel, daySpendShare: share };
+    return { row, isDaily, minute, startHHMM, endHHMM, timeText, name, meta, amortLabel, daySpendShare: share };
   }
-  return { row, isDaily, minute, startHHMM, endHHMM, timeText, name, amortLabel: null, daySpendShare: total };
+  return { row, isDaily, minute, startHHMM, endHHMM, timeText, name, meta, amortLabel: null, daySpendShare: total };
 }
 
 export default function TripTimelineView({ itinerary, startDate, endDate, onUncommit, onChanged, onPatchItem }: TripTimelineViewProps) {
@@ -392,9 +412,11 @@ function BlockRow({
           </button>
         )}
       </span>
-      <span className="text-white font-medium break-words" title={block.name}>
+      <span className="text-white font-medium break-words" title={block.name} data-itinerary-item={row.id}>
         {block.name}
+        {block.meta && <span className="block text-[11px] font-normal text-white/85" data-itinerary-meta>{block.meta}</span>}
         {block.amortLabel && <span className="block text-[11px] font-normal text-white/85">{block.amortLabel}</span>}
+        <span className="block text-[11px] font-normal text-white/85 tabular-nums" data-itinerary-planned>{money(block.daySpendShare)}{block.isDaily ? ' today' : ''}</span>
       </span>
       <span className="hidden lg:block text-white/85 break-words" title={row.coa_code ?? ''}>{row.coa_code ?? ''}</span>
       <span className="justify-self-start">
