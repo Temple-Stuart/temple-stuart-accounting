@@ -9,7 +9,7 @@
  *
  * THE CALENDAR is the merged grid: trip events, daily-plan blocks and routine
  * occurrences over one CalendarGrid. It had no room of its own — it rendered
- * only inside the cockpit's Runway tab (ModuleLauncher.tsx:688) and, since
+ * only inside the cockpit's Runway tab (ModuleLauncher.tsx:691) and, since
  * ROOM-02, as Operations' phase 02. This page gives it one.
  *
  * The SAME component, the SAME three sources, no interior edit and no new data

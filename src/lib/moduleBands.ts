@@ -13,7 +13,7 @@
 //
 // ONE RATIFIED DIVERGENCE — trade.bullets: NOT the deck's three. They are the
 // module's own verified-facts trust row (the retired TRADE_TRUST_CHIPS,
-// pre-4df0b06e ModuleLauncher.tsx:154-164, restored verbatim by Alex's
+// pre-4df0b06e ModuleLauncher.tsx:158-168, restored verbatim by Alex's
 // ruling). Per-chip basis as originally cited there: live TastyTrade prices
 // (tastytrade.ts client + api/tastytrade/quotes), broker sync
 // (api/tastytrade/positions), trades commit to the ledger

@@ -86,7 +86,7 @@ const DASH = '—';
 
 function fmtDate(s: string | null): string {
   if (!s) return DASH;
-  // Parse the DATE-PORTION only (mirrors CalendarGrid.parseDate, CalendarGrid.tsx:104-107)
+  // Parse the DATE-PORTION only (mirrors CalendarGrid.parseDate, CalendarGrid.tsx:120-123)
   // so a UTC-midnight stored value isn't localized BACKWARD a day. Building a LOCAL-midnight
   // Date from the Y-M-D parts formats to the true calendar date in any viewer zone — unlike
   // `new Date(isoString)`, which rolls a 00:00Z value back a day west of UTC. Malformed

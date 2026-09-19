@@ -6,6 +6,7 @@ import ResponsiveViewController from './ResponsiveViewController';
 import { formatMoney, moneyColorClass, kindForSource } from '@/lib/money';
 import { instantToZoned } from '@/lib/time';
 import { FLAG_TEXT, assignLanes, blockExtent, unverifiedDurationExtent, type ExtentFlag } from '@/lib/calendar/extent';
+import { isDateOnlyTripType } from '@/lib/calendar/tripItem';
 
 // RUNWAY-DEEP: house toolbar treatments for the DARK mount (HubCalendar).
 
@@ -54,6 +55,21 @@ export interface CalendarEvent {
    *  hand-entered event is corrected, so the picker starts on what is stored.
    */
   category?: string | null;
+  /**
+   *  TRAVEL-01: a committed trip item's vendor, the provider it was booked
+   *  through, and its trip_itinerary id — overlaid by the calendar feed. The
+   *  grid draws none of them itself (the vendor rides `details`); the panel does.
+   */
+  vendor?: string | null;
+  provider?: string | null;
+  tripItemId?: string | null;
+  /**
+   *  TRAVEL-01: the item's type (trip_itinerary.vendorOptionType). The grid reads
+   *  THIS one: a date-only type (activity, transfer, vehicle) carries the block
+   *  window the feed overlaid — a same-zone clock, drawn exactly as stored by the
+   *  non-trip path; only a flight takes the duration path.
+   */
+  itemType?: string | null;
   details?: string[];        // compact detail lines (e.g. "PYPL | Iron Condor", "B-6210 · $250")
   /**
    * Internal navigation target. When set, clicking the event routes to
@@ -264,7 +280,12 @@ function getBlocksForDay(dayKey: string, events: CalendarEvent[], tzMode: TzMode
     // DERIVED end (start + duration), so the block lives only on the days the duration
     // actually covers — no phantom on the stored end_date. Zone reconciliation of the
     // arrival LABEL vs the geometry is PR-4, intentionally NOT done here.
-    if (event.source === 'trip') {
+    // TRAVEL-01 (2026-09-19): a DATE-ONLY trip item (an activity, a transfer, a
+    // vehicle) reaches here with the block window the calendar feed overlaid —
+    // a same-zone clock, so it takes the non-trip path below and draws exactly
+    // as stored (blockExtent). Only a FLIGHT takes the duration path: its stored
+    // end is an arrival in another zone, never a length.
+    if (event.source === 'trip' && !isDateOnlyTripType(event.itemType)) {
       // PR-tz-3b: when the true UTC instant is stored, position the block by the HOME_ANCHOR
       // wall-clock — the depart DAY + depart MINUTE + arrival LABEL all move to the anchor, so
       // geometry and label agree on one timeline. durationMinutes (elapsed time) is zone-

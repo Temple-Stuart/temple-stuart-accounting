@@ -10,7 +10,13 @@
  * on (operations_routine_steps.id, the occurrence instant). 'routine' STAYS for
  * a stepless routine and is never repurposed.
  */
-export const LINKABLE_KINDS = ['calendar_event', 'project_task', 'routine', 'routine_line'] as const;
+/**
+ * TRAVEL-01 adds 'trip_item': a posting linked to a committed trip item, keyed on
+ * trip_itinerary.id (a stored cuid — no instant). The whole-trip row stays a
+ * calendar_event. The migration's CHECK gains the kind in
+ * prisma/migrations/20260919100100_travel_01_trip_item_link_kind.
+ */
+export const LINKABLE_KINDS = ['calendar_event', 'project_task', 'routine', 'routine_line', 'trip_item'] as const;
 export type LinkableKind = (typeof LINKABLE_KINDS)[number];
 
 export function isLinkableKind(k: string): k is LinkableKind {

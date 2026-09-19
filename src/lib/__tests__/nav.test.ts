@@ -83,7 +83,10 @@ test('the phases that render no surface say so, and cite where the code declares
   // two lists and draws no strip, so every routines and projects phase is
   // declared undrawn, each citing the page and the component that holds the
   // capability as a plain control. PIPES-01 retires them outright.
+  // TRAVEL-01 (2026-09-19): the five travel phases joined them — the cockpit's
+  // travel tab is plain sections and draws no strip; Travel still owns all five.
   assert.deepEqual(silent.map((a) => `${a.pipe} ${a.num}`), [
+    'travel 01', 'travel 02', 'travel 03', 'travel 04', 'travel 05',
     'runway 01', 'runway 02',
     'routines 01', 'routines 02', 'routines 03', 'routines 04',
     'projects 01', 'projects 02', 'projects 03', 'projects 04', 'projects 05', 'projects 06',
@@ -91,8 +94,12 @@ test('the phases that render no surface say so, and cite where the code declares
   for (const a of silent.filter((x) => x.pipe === 'runway')) {
     assert.match(a.surfaceNote ?? '', /ModuleLauncher\.tsx:\d+/, 'the citation names the file and line');
   }
-  for (const a of silent.filter((x) => x.pipe !== 'runway')) {
+  for (const a of silent.filter((x) => x.pipe === 'routines' || x.pipe === 'projects')) {
     assert.match(a.surfaceNote ?? '', /TASKS-01 \(2026-09-18\): drawn nowhere — \/tasks renders no StageStrip \(src\/app\/tasks\/page\.tsx\)/);
+  }
+  for (const a of silent.filter((x) => x.pipe === 'travel')) {
+    assert.equal(a.owner, 'Travel');
+    assert.match(a.surfaceNote ?? '', /TRAVEL-01 \(2026-09-19\): drawn nowhere — the travel tab renders no StageStrip \(src\/components\/home\/ModuleLauncher\.tsx, data-travel-section\)/);
   }
   // TEST-TRUTH-01: this read the file RAW and said "the code still says it". It
   // never did: "STATE-ONLY cells" is the note ModuleLauncher carries ABOUT those
@@ -102,7 +109,8 @@ test('the phases that render no surface say so, and cite where the code declares
   const launcherComments = comments('src/components/home/ModuleLauncher.tsx');
   assert.match(launcherComments, /STATE-ONLY cells/, 'the documented note is still there');
   const markerLine = launcherComments.split('\n').findIndex((l) => l.includes('STATE-ONLY cells')) + 1;
-  const [from, to] = /ModuleLauncher\.tsx:(\d+)-(\d+)/.exec(silent[0].surfaceNote ?? '')!.slice(1).map(Number);
+  const runway01 = silent.find((a) => a.pipe === 'runway' && a.num === '01')!;
+  const [from, to] = /ModuleLauncher\.tsx:(\d+)-(\d+)/.exec(runway01.surfaceNote ?? '')!.slice(1).map(Number);
   assert.ok(markerLine >= from && markerLine <= to, `the note is at :${markerLine}, cited as :${from}-${to}`);
 });
 

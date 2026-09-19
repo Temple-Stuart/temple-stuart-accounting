@@ -145,6 +145,8 @@ function targetOf(row: DrillRow): { kind: LinkableKind; id: string; instant: str
     return parsed ? { kind: 'routine', id: parsed.routineId, instant: parsed.instant } : null;
   }
   if (row.kind === 'project_task') return { kind: 'project_task', id: row.id, instant: null };
+  // TRAVEL-01: a trip item links on its trip_itinerary id, not the calendar row's.
+  if (row.kind === 'trip_item') return row.tripItemId ? { kind: 'trip_item', id: row.tripItemId, instant: null } : null;
   return { kind: 'calendar_event', id: row.id, instant: null };
 }
 
@@ -295,6 +297,12 @@ export default function EventDetailPanel({ row, onClose, linkable = true, onCorr
             {row.endDate && row.endDate !== row.startDate && <Row label="Through" value={formatDate(row.endDate)} testId="through" />}
             <Row label="Time" value={when} testId="time" />
             <Row label="Where" value={row.location ?? NONE} testId="where" />
+            {/* TRAVEL-01: a trip item names its vendor and the provider it was booked
+                through — labelled the way a hand-entered actual is, never guessed. */}
+            {row.kind === 'trip_item' && <Row label="Vendor" value={row.vendor ?? NONE} testId="vendor" />}
+            {row.kind === 'trip_item' && (
+              <Row label="Source" value={row.provider ? `booked through ${row.provider}` : 'added by hand — no booking provider'} testId="source" />
+            )}
             {row.pin && (
               <Row label="Pin" mono testId="pin"
                 value={`${row.pin.lat.toFixed(5)}, ${row.pin.lon.toFixed(5)}`} />
