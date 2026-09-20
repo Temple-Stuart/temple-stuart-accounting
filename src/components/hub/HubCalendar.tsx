@@ -50,6 +50,12 @@ interface CalendarEvent {
   // From a raw SELECT these come back either as "HH:MM:SS" or an ISO time
   // ("1970-01-01THH:MM:SS.000Z") — toClock() normalizes both to "HH:MM".
   start_time: string | null;
+  // TRAVEL-01: the calendar feed's trip-item overlay (src/lib/calendar/tripItem.ts).
+  trip_item_id?: string | null;
+  vendor_name?: string | null;
+  item_category?: string | null;
+  item_type?: string | null;
+  provider?: string | null;
   end_time: string | null;
   // PR-Flight-Duration-Render: a flight's TRUE elapsed minutes (from the flight provider). Null for
   // non-flights / older rows. The grid draws depart+duration from this, not a naive span.
@@ -268,6 +274,17 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
       longitude: toCoord(e.longitude),
       category: e.category ?? null,
       description: e.description ?? null,
+      // TRAVEL-01: the calendar feed overlays a committed trip item's own row onto
+      // its vendor calendar row — its id, vendor, place, provider and (for a
+      // date-only category) its block window. Carried as-is; the block's detail
+      // line names the vendor beside the category so the grid reads it.
+      vendor: e.vendor_name ?? null,
+      provider: e.provider ?? null,
+      tripItemId: e.trip_item_id ?? null,
+      itemType: e.item_type ?? null,
+      ...(e.trip_item_id
+        ? { details: [[e.vendor_name, e.item_category].filter(Boolean).join(' · ')].filter((d) => d.length > 0) }
+        : {}),
     }));
     // mapOperationsBlocks is SHARED with /hub and still emits source:'operations'
     // there; remap to 'project' HERE so these land on the renamed Projects layer
@@ -345,6 +362,7 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
     startTime: e.startTime, endTime: e.endTime,
     location: e.location, latitude: e.latitude, longitude: e.longitude,
     coaCode: e.coaCode, budgetAmount: e.budgetAmount ?? null,
+    vendor: e.vendor ?? null, provider: e.provider ?? null, tripItemId: e.tripItemId ?? null,
   }, taskCostsByBlock.get(e.id) ?? null, routineLinesById.get(parseRoutineTileId(e.id)?.routineId ?? '') ?? null);
 
   // PR-Calendar-Flush: the descriptive caption + the parent purple band are gone — the

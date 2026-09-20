@@ -95,6 +95,8 @@ import { LINKABLE_KINDS, requiresInstant } from '../src/lib/calendar/linkKeys';
 import { sumLinks } from '../src/lib/calendar/links';
 import { routinePlanned } from '../src/lib/operations/routineLines';
 import { MARKER_MINUTES, assignLanes, blockExtent, unverifiedDurationExtent } from '../src/lib/calendar/extent';
+import { clockOfTime, overlayTripItems, type TripItemRow, type TripOverlayEvent } from '../src/lib/calendar/tripItem';
+import { BOOKING_FLOW_BASE, BOOKING_FLOW_FILES, bookingFlowSha256 } from '../src/lib/travelBookingFlow';
 import { classifyCadence, compileFormToRRule, expandBetween, expandForward, scheduleAnchor } from '../src/lib/operations/rruleHelpers';
 import { DEFAULT_ROUTINE_FORM } from '../src/components/workbench/operations/routines/types';
 import { PROBLEM_SHEET } from '../src/lib/problemSheet';
@@ -1092,7 +1094,7 @@ for (const gone of ['src/lib/operationsPhases.ts', 'src/app/operations/Operation
 // Before the split every page that drew a pipe drew all of it, so rule 2 could
 // work pipe-granular. /brokerage draws trade 01-03 and /trade-log 04-06, so the
 // rule now reads the numbers. The idiom it parses is the ratified one
-// (ModuleLauncher.tsx:46): destructure the pipe into named consts, then feed
+// (ModuleLauncher.tsx:50): destructure the pipe into named consts, then feed
 // `num: CONST.num` to StageStrip. A file that draws a pipe in some OTHER shape
 // is read conservatively as drawing ALL of that pipe's phases — a new idiom
 // never silently escapes the rule.
@@ -1906,7 +1908,7 @@ for (const e of EXCLUDED_CALENDAR_SOURCES) if (!e.why) dayFail(`${e.source} is e
 // The allowlist is the one place a source string decides WHETHER a row is drawn.
 //
 // This is deliberately about SELECTION, not about styling or geometry. A branch
-// that decides HOW an already-admitted row is drawn — CalendarGrid.tsx:250 draws
+// that decides HOW an already-admitted row is drawn — CalendarGrid.tsx:266 draws
 // a flight's block from its true elapsed duration, because only trip rows carry
 // duration_minutes/start_at/start_zone — is not what threw the day away, and is
 // not caught here. What threw the day away was a `.filter(e => e.source === ...)`
@@ -2492,8 +2494,8 @@ for (const col of ['"user_id"', '"target_kind"', '"target_id"', '"journal_entry_
 if (!/CHECK \(\("target_kind" = 'routine'\) = \("target_instant" IS NOT NULL\)\)/.test(linkMigration)) {
   linkFail(`${LINK_MIGRATION} does not make target_instant mandatory for a routine and forbidden for everything else — a routine link keyed on a date silently misses`);
 }
-// LINES-01 added 'routine_line' in its OWN migration; LINK-01's names the original three.
-if (!LINKABLE_KINDS.filter((k) => k !== 'routine_line').every((k) => linkMigration.includes(`'${k}'`))) linkFail(`${LINK_MIGRATION}'s kind CHECK does not name ${LINKABLE_KINDS.join(', ')}`);
+// LINES-01 added 'routine_line' and TRAVEL-01 'trip_item', each in its OWN migration; LINK-01's names the original three.
+if (!LINKABLE_KINDS.filter((k) => k !== 'routine_line' && k !== 'trip_item').every((k) => linkMigration.includes(`'${k}'`))) linkFail(`${LINK_MIGRATION}'s kind CHECK does not name ${LINKABLE_KINDS.join(', ')}`);
 if (!requiresInstant('routine')) linkFail('the key leaf no longer requires an instant for a routine');
 // 6. THE CARDINALITY IS THE DATABASE'S, not a convention.
 if (!/CREATE UNIQUE INDEX "planned_item_links_one_item_per_posting"[\s\S]{0,120}\("journal_entry_id"\)/.test(linkMigration)) {
@@ -2940,6 +2942,182 @@ if (/end_time: startTime|end_time:\s*\w+\s*\?\?\s*\w*start/i.test(codeOf('src/ap
 
 if (extentViolations === 0) console.log(`✔ The extent law passed — one leaf decides every extent and invents none (an end exact, no end a flagged ${MARKER_MINUTES}-minute marker); the grid's builder adds no minutes and holds no clamp, both paths read the leaf, the floor is one text line in pixels; blocks are laid out in lanes by the leaf's partition and each names its lane; ${EXTENT_READERS.length} readers decide no extent and the day view prints a start-only row with the start alone.`);
 else console.log(`✖ The extent law FAILED — ${extentViolations} violation(s).`);
+
+// ── THE TRAVEL LAW (TRAVEL-01, 2026-09-19) ───────────────────────────────────
+// TRAVEL READS TOP-DOWN, AND EVERY PLANNED ITEM TAKES ITS TIME ON THE DAY.
+//
+//   1. /travel RENDERS NO STAGESTRIP. The cockpit's travel tab is plain sections
+//      in one order — header · trips · itinerary · search · booked · ledger ·
+//      unattached — holding no travel phase state; PHASES_RENDERED_AT['/travel']
+//      is empty and every travel phase is declared drawn nowhere. The itinerary
+//      is mounted, and the booking surfaces still mount under Search.
+//   2. THE BOOKING FLOW IS BYTE-IDENTICAL. Every file of search → prebook → pay
+//      (src/lib/travelBookingFlow.ts) hashes, its whole text through the
+//      reader's two halves rejoined, to its pin from main — and every route
+//      under src/app/api/travel is in that census.
+//   3. AN ITEM WITH TIMES DRAWS START-TO-END. The overlay leaf copies a date-only
+//      item's block window onto its calendar row and nothing else's — probed: an
+//      activity 14:00–16:00 lands at that extent with vendor and place; a start
+//      alone stays a start alone (GRID-01's marker); a flight and a stay are
+//      untouched; the leaf holds no literal clock and copies no amount; the
+//      calendar feed applies it, scoped to the caller's trips, joining no posting.
+//   4. A TRIP ITEM IS A KIND. KIND_FACTS and LINKABLE_KINDS name 'trip_item' with
+//      no instant and no actual of its own; its migration names it in the kind
+//      CHECK and leaves the instant CHECK alone; the block-time migration records
+//      columns with IF NOT EXISTS and defaults no clock; neither touches a row;
+//      the panel opens a trip block as that kind with its vendor and its source.
+const TRAVEL_LAUNCHER = 'src/components/home/ModuleLauncher.tsx';
+const TRAVEL_SECTIONS = ['header', 'trips', 'itinerary', 'search', 'booked', 'ledger', 'unattached'];
+const TRAVEL_LEAF = 'src/lib/calendar/tripItem.ts';
+const TRAVEL_FEED = 'src/app/api/calendar/route.ts';
+const TRAVEL_ITINERARY = 'src/components/trips/TripItinerarySection.tsx';
+const TRAVEL_PANEL = 'src/components/hub/EventDetailPanel.tsx';
+const TRAVEL_HUB = 'src/components/hub/HubCalendar.tsx';
+const TRAVEL_LINK_MIGRATION = 'prisma/migrations/20260919100100_travel_01_trip_item_link_kind/migration.sql';
+const TRAVEL_BLOCK_MIGRATION = 'prisma/migrations/20260919100000_travel_01_block_times_recorded/migration.sql';
+let travelViolations = 0;
+const travelFail = (m: string) => { travelViolations += 1; violations.push(`travel law: ${m} (TRAVEL-01)`); };
+
+// 1. no strip: the sections, in order, holding what the phases held.
+{
+  const launcher = codeOf(TRAVEL_LAUNCHER);
+  const sections = [...launcher.matchAll(/data-travel-section="([a-z]+)"/g)].map((m) => m[1]);
+  if (sections.join(' · ') !== TRAVEL_SECTIONS.join(' · ')) travelFail(`${TRAVEL_LAUNCHER} renders the travel sections as [${sections.join(', ')}] — the order is ${TRAVEL_SECTIONS.join(' · ')}`);
+  for (const banned of ['PIPE_PHASES.travel', 'travelPhase', 'PIPE_TRIP']) {
+    if (launcher.includes(banned)) travelFail(`${TRAVEL_LAUNCHER} holds "${banned}" — the travel tab has no phase`);
+  }
+  const at = (name: string) => launcher.indexOf(`data-travel-section="${name}"`);
+  const from = at('header');
+  const to = at('unattached') >= 0 ? launcher.indexOf('</section>', at('unattached')) : -1;
+  const region = from >= 0 && to > from ? launcher.slice(from, to) : '';
+  if (!region) travelFail(`${TRAVEL_LAUNCHER} has no travel region from the header to the unattached section`);
+  if (/<StageStrip|<ProofStrip/.test(region)) travelFail(`${TRAVEL_LAUNCHER} draws a StageStrip or a ProofStrip on the travel tab — it is plain sections`);
+  const slice = (a: string, b: string) => (at(a) >= 0 && at(b) > at(a) ? launcher.slice(at(a), at(b)) : '');
+  if (!/<ToolOpener tools=\{\[navToolByName\('Travel', TOOL_GATE\)\]\}/.test(slice('header', 'trips'))) travelFail(`${TRAVEL_LAUNCHER}'s travel header is not the registry's own Travel opener`);
+  if (!/<AllTripsList/.test(slice('trips', 'itinerary'))) travelFail(`${TRAVEL_LAUNCHER}'s Trips section lost the trip list`);
+  if (!/<TripItinerarySection/.test(slice('itinerary', 'search'))) travelFail(`${TRAVEL_LAUNCHER} does not mount the itinerary on the travel tab`);
+  const search = slice('search', 'booked');
+  if (!/travelStripModes\(\{/.test(search) || !/<PublicCategorySearch/.test(search)) travelFail(`${TRAVEL_LAUNCHER}'s Search section no longer mounts the booking surfaces (travelStripModes + PublicCategorySearch)`);
+  if (!/<TripBookings/.test(slice('booked', 'ledger'))) travelFail(`${TRAVEL_LAUNCHER}'s Booked section lost TripBookings`);
+  if (!/<TripBudgetActual/.test(slice('ledger', 'unattached'))) travelFail(`${TRAVEL_LAUNCHER}'s Ledger section lost TripBudgetActual`);
+  if (!/<UnattachedBookings/.test(region.slice(region.indexOf('data-travel-section="unattached"')))) travelFail(`${TRAVEL_LAUNCHER}'s Unattached section lost UnattachedBookings`);
+  const travelDrawn = PHASES_RENDERED_AT['/travel'] ?? [];
+  if (travelDrawn.length !== 0) travelFail(`PHASES_RENDERED_AT['/travel'] names ${travelDrawn.length} phase(s) — the travel tab draws none`);
+  const travelPhases = THE_SORT.filter((a) => a.pipe === 'travel');
+  if (travelPhases.length !== 5) travelFail(`THE_SORT holds ${travelPhases.length} travel phases — Travel still owns all five`);
+  for (const a of travelPhases) {
+    if (a.rendersSurface || !/TRAVEL-01 \(2026-09-19\): drawn nowhere/.test(a.surfaceNote ?? '')) travelFail(`travel ${a.num} is not declared drawn nowhere by TRAVEL-01`);
+    if (a.owner !== 'Travel') travelFail(`travel ${a.num} is ${a.owner}'s — the five stay Travel's`);
+  }
+}
+
+// 2. the booking flow is byte-identical to main.
+{
+  if (BOOKING_FLOW_FILES.length < 49) travelFail(`the booking-flow census names ${BOOKING_FLOW_FILES.length} files — the audit named 49; the list may not shrink`);
+  const pinned = new Set<string>();
+  for (const pin of BOOKING_FLOW_FILES) {
+    if (pinned.has(pin.file)) travelFail(`${pin.file} is pinned twice`);
+    pinned.add(pin.file);
+    if (!/^[0-9a-f]{64}$/.test(pin.sha256)) travelFail(`${pin.file}'s pin is not a sha256`);
+    if (!existsSync(resolve(ROOT, pin.file))) { travelFail(`${pin.file} is gone — a booking-flow file was deleted`); continue; }
+    const whole = rejoin(codeOf(pin.file), commentsOf(pin.file));
+    const h = bookingFlowSha256(whole);
+    if (h !== pin.sha256) travelFail(`${pin.file} is not byte-identical to ${BOOKING_FLOW_BASE} — sha256 ${h}, pinned ${pin.sha256}; a change to the booking flow needs its own ruling and a dated re-pin`);
+  }
+  for (const f of tsFiles(resolve(ROOT, 'src/app/api/travel')).map((abs) => abs.replace(`${ROOT}/`, ''))) {
+    if (!pinned.has(f)) travelFail(`${f} is a travel provider route the booking-flow census does not pin`);
+  }
+}
+
+// 3. an item with times draws start-to-end — the overlay, probed on the demo's three items.
+{
+  const clockAt = (hhmm: string) => new Date(`1970-01-01T${hhmm}:00.000Z`);
+  const items: TripItemRow[] = [
+    { id: 'ti-act', tripId: 't1', vendorOptionId: 'act-1', vendorOptionType: 'activity', category: 'activities', vendor: 'Ubud rice walk', vendor_name: 'Viator', location: 'Tegallalang', block_start_time: clockAt('14:00'), block_end_time: clockAt('16:00') },
+    { id: 'ti-open', tripId: 't1', vendorOptionId: 'act-2', vendorOptionType: 'activity', category: 'activities', vendor: 'Sunrise trek', vendor_name: 'Viator', location: 'Batur', block_start_time: clockAt('04:00'), block_end_time: null },
+    { id: 'ti-fl', tripId: 't1', vendorOptionId: 'fl-1', vendorOptionType: 'flight', category: 'flights', vendor: 'SIN → DPS', vendor_name: 'Singapore Airlines', location: null, block_start_time: null, block_end_time: null },
+    { id: 'ti-lo', tripId: 't1', vendorOptionId: 'ho-1', vendorOptionType: 'lodging', category: 'accommodation', vendor: 'Alila Ubud', vendor_name: 'Alila', location: 'Ubud', block_start_time: clockAt('15:00'), block_end_time: clockAt('11:00') },
+  ];
+  const rows: Array<TripOverlayEvent & { id: string }> = [
+    { id: 'e-act', source: 'trip', source_id: 'trip:t1:vendor:act-1', start_time: null, end_time: null, location: null },
+    { id: 'e-open', source: 'trip', source_id: 'trip:t1:vendor:act-2', start_time: null, end_time: null, location: null },
+    { id: 'e-fl', source: 'trip', source_id: 'trip:t1:vendor:fl-1', start_time: '08:00:00', end_time: '13:00:00', location: null },
+    { id: 'e-lo', source: 'trip', source_id: 'trip:t1:vendor:ho-1', start_time: null, end_time: null, location: null },
+    { id: 'e-trip', source: 'trip', source_id: 'trip:t1', start_time: null, end_time: null, location: null },
+    { id: 'e-man', source: 'manual', source_id: null, start_time: '10:00:00', end_time: null, location: 'Home' },
+  ];
+  const before = JSON.stringify(rows);
+  const out = overlayTripItems(rows, items);
+  if (JSON.stringify(rows) !== before) travelFail('the overlay mutated its input — it is pure');
+  const rowOf = (id: string) => out.find((e) => e.id === id)!;
+  const act = rowOf('e-act');
+  if (act.start_time !== '14:00' || act.end_time !== '16:00') travelFail(`an activity with a 14:00–16:00 window drew ${act.start_time}–${act.end_time} — it takes its time on the day`);
+  if (act.trip_item_id !== 'ti-act' || act.vendor_name !== 'Viator' || act.location !== 'Tegallalang' || act.item_category !== 'activities' || act.item_type !== 'activity' || act.provider !== 'Viator') travelFail('an activity row does not carry its item, vendor, place, category, type and provider');
+  // The grid draws it by the NON-TRIP path — exactly as stored — and a flight by its duration still.
+  const travelGrid = codeOf('src/components/shared/CalendarGrid.tsx');
+  if (!/if \(event\.source === 'trip' && !isDateOnlyTripType\(event\.itemType\)\) \{/.test(travelGrid)) travelFail("CalendarGrid takes every timed trip row for a flight — a date-only item's window must draw exactly as stored, not as an unverified-duration marker");
+  if (!/itemType: e\.item_type \?\? null/.test(codeOf(TRAVEL_HUB))) travelFail(`${TRAVEL_HUB} does not carry the item's type to the grid`);
+  const ext = blockExtent(14 * 60, 16 * 60);
+  if (ext.endMin - ext.startMin !== 120 || ext.flag !== null) travelFail('GRID-01 no longer draws a 14:00–16:00 window as exactly two hours');
+  const open = rowOf('e-open');
+  if (open.start_time !== '04:00' || open.end_time !== null) travelFail(`a window with a start and no end drew ${open.start_time}–${open.end_time} — a start alone stays a start alone`);
+  if (blockExtent(4 * 60, null).flag !== 'no-end') travelFail('GRID-01 no longer flags a start-only block as a marker');
+  const fl = rowOf('e-fl');
+  if (fl.start_time !== '08:00:00' || fl.end_time !== '13:00:00') travelFail(`a flight's own clock changed to ${fl.start_time}–${fl.end_time} — a flight keeps its duration geometry`);
+  if (fl.provider !== 'LiteAPI flights' || fl.trip_item_id !== 'ti-fl') travelFail('a flight row does not name the provider it was booked through');
+  const lo = rowOf('e-lo');
+  if (lo.start_time !== null || lo.end_time !== null) travelFail(`a stay was given a clock (${lo.start_time}–${lo.end_time}) — lodging stays all-day`);
+  if (lo.location !== 'Ubud' || lo.provider !== 'LiteAPI') travelFail('a stay row does not carry its place and provider');
+  if ('trip_item_id' in rowOf('e-trip') || 'trip_item_id' in rowOf('e-man')) travelFail('the overlay touched a row that is not a trip vendor row');
+  if (clockOfTime('1970-01-01T09:30:00.000Z') !== '09:30' || clockOfTime(null) !== null) travelFail('clockOfTime no longer reads a @db.Time value to HH:MM');
+  const leaf = codeOf(TRAVEL_LEAF);
+  if (/'\d{1,2}:\d{2}'|"\d{1,2}:\d{2}"/.test(leaf)) travelFail(`${TRAVEL_LEAF} holds a literal clock — no default time, ever`);
+  if (/\bcost\b|budget_amount|\bamount\b/.test(leaf)) travelFail(`${TRAVEL_LEAF} copies money — the overlay carries time, vendor and place, never an amount`);
+  const feed = codeOf(TRAVEL_FEED);
+  if (!/events = overlayTripItems\(events, items\)/.test(feed)) travelFail(`${TRAVEL_FEED} does not apply the overlay`);
+  const q = feed.slice(feed.indexOf('prisma.trip_itinerary.findMany('), feed.indexOf('events = overlayTripItems'));
+  if (!/trip: \{ userId: user\.id \}/.test(q)) travelFail(`${TRAVEL_FEED} reads trip items that are not scoped to the caller's trips`);
+  if (/planned_item_links|transaction_reservation_links|journal_entries/.test(feed)) travelFail(`${TRAVEL_FEED} joins a trip row to a posting or a reservation — no automatic match`);
+}
+
+// 4. a trip item is a kind.
+{
+  const facts = KIND_FACTS.find((f) => f.kind === 'trip_item');
+  if (!facts) travelFail("KIND_FACTS does not name 'trip_item'");
+  else {
+    if (!facts.linkable) travelFail("'trip_item' is not linkable — the chain closes only through LINK-01");
+    if (facts.actualColumn !== null || facts.actualSource !== null || facts.postedLink !== null) travelFail("'trip_item' claims an actual or a posted link — the reservation lens is a bank transaction against a reservation, not this kind's actual");
+    if (!/trip_itinerary\.cost/.test(facts.plannedColumn ?? '')) travelFail("'trip_item' does not cite trip_itinerary.cost as its planned column");
+    if (facts.owner !== 'Travel') travelFail("'trip_item' is not Travel's");
+  }
+  if (!LINKABLE_KINDS.includes('trip_item')) travelFail("LINKABLE_KINDS does not name 'trip_item'");
+  if (requiresInstant('trip_item')) travelFail('a trip_item link requires an instant — a trip item is a stored row, keyed on its id');
+  const chain = buildChain({ kind: 'trip_item', planned: 45, actual: null });
+  if (!chain || chain.state !== 'NOT_LINKED') travelFail(`a trip item with a planned amount and no link reads ${chain?.state} — it is NOT LINKED until a posting is linked by hand`);
+  const link = codeOf(TRAVEL_LINK_MIGRATION);
+  if (!/CHECK \("target_kind" IN \('calendar_event', 'project_task', 'routine', 'routine_line', 'trip_item'\)\)/.test(link)) travelFail(`${TRAVEL_LINK_MIGRATION} does not admit the trip_item kind beside the four`);
+  if (/planned_item_links_instant_iff_routine/.test(link)) travelFail(`${TRAVEL_LINK_MIGRATION} touches the instant CHECK — LINES-01's stands`);
+  const block = codeOf(TRAVEL_BLOCK_MIGRATION);
+  const adds = (block.match(/ADD COLUMN/g) ?? []).length;
+  if (adds === 0 || adds !== (block.match(/ADD COLUMN IF NOT EXISTS/g) ?? []).length) travelFail(`${TRAVEL_BLOCK_MIGRATION} adds a column without IF NOT EXISTS — it records columns production may already hold`);
+  if (!/"block_start_time"\s+TIME\(6\),/.test(block) || !/"block_end_time"\s+TIME\(6\),/.test(block)) travelFail(`${TRAVEL_BLOCK_MIGRATION} gives a block time a default — blank is blank, never midnight`);
+  for (const m of [TRAVEL_LINK_MIGRATION, TRAVEL_BLOCK_MIGRATION]) {
+    const body = codeOf(m);
+    if (/(^|\n)\s*(UPDATE|INSERT INTO|DELETE FROM)\s/.test(body) || /DROP COLUMN|DROP TABLE/.test(body)) travelFail(`${m} rewrites or drops rows — a TRAVEL-01 migration is additive and touches no row`);
+  }
+  const panel = codeOf(TRAVEL_PANEL);
+  if (!/if \(row\.kind === 'trip_item'\) return row\.tripItemId \? \{ kind: 'trip_item', id: row\.tripItemId, instant: null \} : null;/.test(panel)) travelFail(`${TRAVEL_PANEL} does not open a trip item as the 'trip_item' link target`);
+  if (!/testId="vendor"/.test(panel) || !/testId="source"/.test(panel)) travelFail(`${TRAVEL_PANEL} does not show a trip item's vendor and its booking source`);
+  if (!/booked through \$\{row\.provider\}/.test(panel)) travelFail(`${TRAVEL_PANEL} does not name the provider an item was booked through`);
+  const hub = codeOf(TRAVEL_HUB);
+  if (!/tripItemId: e\.trip_item_id \?\? null/.test(hub) || !/tripItemId: e\.tripItemId \?\? null/.test(hub)) travelFail(`${TRAVEL_HUB} does not carry the trip item id from the feed to the panel`);
+  if (!/details: \[\[e\.vendor_name, e\.item_category\]\.filter\(Boolean\)\.join\(' · '\)\]/.test(hub)) travelFail(`${TRAVEL_HUB} does not put a trip item's vendor and category on its block`);
+  const section = codeOf(TRAVEL_ITINERARY);
+  const calls = [...section.matchAll(/fetch\(`([^`]+)`/g)].map((m) => m[1]);
+  if (calls.join(' ') !== '/api/trips/${trip.id}/itinerary /api/trips/${trip.id}/vendor-commit') travelFail(`${TRAVEL_ITINERARY} calls [${calls.join(', ')}] — it reads the itinerary and uncommits, and books nothing`);
+}
+if (travelViolations === 0) console.log(`✔ The travel law passed — /travel is ${TRAVEL_SECTIONS.length} plain sections and no strip; ${BOOKING_FLOW_FILES.length} booking-flow files byte-identical to ${BOOKING_FLOW_BASE}; an activity's window draws start-to-end, a start alone stays a marker, a flight and a stay untouched; 'trip_item' is a linkable kind with no instant, NOT LINKED until linked by hand.`);
+else console.log(`✖ The travel law FAILED — ${travelViolations} violation(s).`);
 
 // ── THE READER LAW (TEST-TRUTH-01, 2026-09-17) ──────────────────────────────
 // NO TEST AND NO LAW MAY READ A SOURCE FILE RAW.

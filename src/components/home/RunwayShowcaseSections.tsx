@@ -278,7 +278,7 @@ function BudgetPanel() {
 }
 
 /** 7. THE WHOLE PLATFORM, ONE CALENDAR — the four layers + their sources
- *  (HubCalendar.tsx:73-88; inventory §5). */
+ *  (HubCalendar.tsx:79-94; inventory §5). */
 function CalendarPanel() {
   return (
     <DarkSlide title="One calendar — everything you planned everywhere" tag="Example day">

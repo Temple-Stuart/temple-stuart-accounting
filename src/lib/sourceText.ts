@@ -153,5 +153,12 @@ export function comments(file: string): string {
  * one. A pattern match may never use this; a whole-artefact equality may.
  */
 export function rejoin(codeHalf: string, commentHalf: string): string {
-  return [...codeHalf].map((ch, i) => (commentHalf[i] === ' ' ? ch : commentHalf[i])).join('');
+  // TRAVEL-01 (2026-09-19): by CODE UNIT, the way splitSource emits. `[...codeHalf]`
+  // walked code points while `commentHalf[i]` indexed code units, so every
+  // character after an astral one (an emoji in a string) was shifted by one and
+  // the "exact" rejoin dropped a byte — HotelPicker.tsx rejoined to a different
+  // file. The two halves are the same code-unit length as the file, always.
+  let out = '';
+  for (let i = 0; i < codeHalf.length; i += 1) out += commentHalf[i] === ' ' ? codeHalf[i] : commentHalf[i];
+  return out;
 }

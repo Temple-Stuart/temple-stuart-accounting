@@ -16,7 +16,7 @@
  *
  * The strip is this tool's OWN three phases (PIPE_PHASES.trade 01-03) through
  * the shared StageStrip. 01-03 are one continuous surface — the ratified
- * cockpit idiom (ModuleLauncher.tsx:1079-1082 renders setup/scan/review as one
+ * cockpit idiom (ModuleLauncher.tsx:1058-1061 renders setup/scan/review as one
  * block with a phase label), not a new invention.
  *
  * TT-01 is UNCHANGED: the scanner is the founder's broker only. isOwner gates

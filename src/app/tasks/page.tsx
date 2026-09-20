@@ -26,7 +26,7 @@
  *
  * The Daily Plan is Tasks' — verified, not assumed: SectionC_DailyPlan writes
  * /api/operations/daily-plan/items (:130), which the grid reads back as blocks
- * (HubCalendar.tsx:141).
+ * (HubCalendar.tsx:147).
  *
  * NORTH-01 (2026-09-18): the North Star is not rendered inline here. It is
  * still Tasks' — reached the way Issue log and Audit trail are, as a sub-row

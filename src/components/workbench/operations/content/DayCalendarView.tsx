@@ -28,7 +28,7 @@ import type { TimelineRow, Entity } from './dayCalendarTypes';
 const sectionHeader = 'text-sm font-medium tracking-wide text-brand-purple';
 
 // House calendar block colors — adopted from the shared CalendarGrid's filled blocks
-// (CalendarGrid.tsx:516 renders `${calendarColor} text-white`), with the per-source
+// (CalendarGrid.tsx:537 renders `${calendarColor} text-white`), with the per-source
 // tokens defined at hub/page.tsx:69-70: routines → bg-teal-400, operations → bg-indigo-400.
 // Scene/routine rows take the teal (aqua) fill; task rows take the indigo (purple) fill.
 const SCENE_FILL = 'bg-teal-400 text-white';

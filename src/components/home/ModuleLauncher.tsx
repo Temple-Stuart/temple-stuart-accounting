@@ -16,6 +16,10 @@ import UnattachedBookings from '@/components/trips/UnattachedBookings';
 import AllTripsList, { type TripRow } from '@/components/trips/AllTripsList';
 import TripFormModal from '@/components/trips/TripFormModal';
 import TripBudgetActual from '@/components/trips/TripBudgetActual';
+import TripItinerarySection from '@/components/trips/TripItinerarySection';
+import ToolOpener from '@/components/shell/ToolOpener';
+import { navToolByName } from '@/lib/nav';
+import { TOOL_GATE } from '@/lib/offer';
 import HubCalendar from '@/components/hub/HubCalendar';
 import RunwayDataProvider from '@/components/hub/RunwayDataProvider';
 import RunwayBudgetPanel, { type RunwayReceipts } from '@/components/hub/RunwayBudgetPanel';
@@ -44,10 +48,10 @@ import StageStrip, { type StagePhase } from '@/components/ui/StageStrip';
 import { PIPE_PHASES, type PipePhase } from '@/lib/pipePhases';
 
 const [PIPE_SETUP, PIPE_SCAN, PIPE_REVIEW, PIPE_LAB, PIPE_RECORD, PIPE_COMMIT] = PIPE_PHASES.trade;
-// TRAVEL-PIPE: the travel strip's five phases from the same shared config —
-// widened to the interface so the deliberately-absent Search subLabel
-// type-checks across the union of literal rows (the Landing precedent).
-const [PIPE_TRIP, PIPE_SEARCH, PIPE_BOOK, PIPE_LEDGER, PIPE_RECONCILE] = PIPE_PHASES.travel as readonly PipePhase[];
+// TRAVEL-01 (2026-09-19): the travel tab draws NO pipe — the five-phase strip
+// and its `PIPE_PHASES.travel` destructure are gone; the tab is plain sections
+// (see the travel block below). THE SORT still names Travel the owner of the
+// five phases, declared undrawn (src/lib/nav.ts).
 // RUNWAY-PIPE: the runway strip's five phases (widened, same idiom).
 const [PIPE_RW_SOURCE, PIPE_RW_HISTORY, PIPE_RW_BURN, PIPE_RW_MATCH, PIPE_RW_PROJECT] =
   PIPE_PHASES.runway as readonly PipePhase[];
@@ -209,6 +213,11 @@ interface Props {
   /** SELL-02: per offer key, is its Stripe price id set — server-computed (page.tsx), passed down to the locked cards; never read here. */
 }
 
+/** TRAVEL-01: a plain section heading on the travel tab's dark surface — a name, never a phase. */
+function TravelHeading({ children }: { children: React.ReactNode }) {
+  return <h2 className="font-mono text-[11px] font-bold uppercase tracking-wider text-white/70" data-travel-heading>{children}</h2>;
+}
+
 export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // Auth state: null = unknown (initial), true/false once /api/auth/me resolves.
   const [authed, setAuthed] = useState<boolean | null>(null);
@@ -231,17 +240,11 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // table (the table is the primary view; creating is one tap → modal). This is open
   // when the "+ Create a trip" button is tapped; a successful create closes it.
   const [showCreate, setShowCreate] = useState(false);
-  // TRAVEL-PIPE: the tab-level phase control's state. Default 'search' —
-  // preserving the tab's existing lead surface (the ToggleStrip sat first
-  // in the body; the tab's live guest core is the search stack — declared).
-  // States below are the children's reported tallies (the Books onTotals
-  // idiom — zero new fetches); null = not reported yet → pending/honest
-  // empty, never imputed.
-  const [travelPhase, setTravelPhase] = useState<'trip' | 'search' | 'book' | 'ledger' | 'reconcile'>('search');
-  const [travelTrips, setTravelTrips] = useState<{ trips: number } | null>(null);
-  const [travelBookings, setTravelBookings] = useState<{ bookings: number } | null>(null);
-  const [travelLedger, setTravelLedger] = useState<{ budgetLines: number } | null>(null);
-  const [travelOrphans, setTravelOrphans] = useState<{ unattached: number } | null>(null);
+  // TRAVEL-01 (2026-09-19): the tab's phase state and the four reported tallies
+  // that fed its strip and receipts are gone with them. One count stays: the
+  // unattached bookings report theirs so their heading can say "none" instead of
+  // standing over a component that hides itself at zero rows.
+  const [unattachedCount, setUnattachedCount] = useState<number | null>(null);
   // RUNWAY-PIPE: the Runway tab's phase control + reported tallies (the same
   // Books onTotals idiom). The phase UNION carries only the three phases with
   // real surfaces — 01 Source / 02 History are STATE-ONLY strip cells (no
@@ -754,45 +757,79 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 review. Auth resolving (null) → no card. */}
             {authed === false && <ModulePointerCard pillarId="travel" />}
 
-            {/* TRAVEL-PIPE: the tab-level PHASE control — StageStrip reading
-                PIPE_PHASES.travel (the shared config; subLabel derivations
-                cited there). The MODE strip below is a CATEGORY control on a
-                different axis — it survives INSIDE the Search phase surface.
-                Phase surfaces are CSS show/hide (the Books keep-mounted idiom
-                and this section's own block/hidden pattern) — NEVER
-                conditional mounts: the ToggleStrip's survival contract (all
-                panels mounted, results survive toggling) holds across phase
-                switches. States are DERIVED INDICATORS, never locks; a signal
-                not yet reported renders pending (the Books-06 precedent).
-                Search carries no derived done-state: the search panels are the
-                FENCED shared public components — no report-up may touch them,
-                so the phase is honestly underivable (declared). */}
-            <StageStrip
-              phases={([
-                { key: 'trip', num: PIPE_TRIP.num, label: PIPE_TRIP.name, subLabel: PIPE_TRIP.subLabel,
-                  state: travelPhase === 'trip' ? 'active' : (travelTrips?.trips ?? 0) > 0 ? 'done' : 'pending' },
-                { key: 'search', num: PIPE_SEARCH.num, label: PIPE_SEARCH.name, subLabel: PIPE_SEARCH.subLabel,
-                  state: travelPhase === 'search' ? 'active' : 'pending' },
-                { key: 'book', num: PIPE_BOOK.num, label: PIPE_BOOK.name, subLabel: PIPE_BOOK.subLabel,
-                  state: travelPhase === 'book' ? 'active' : currentTrip && (travelBookings?.bookings ?? 0) > 0 ? 'done' : 'pending' },
-                { key: 'ledger', num: PIPE_LEDGER.num, label: PIPE_LEDGER.name, subLabel: PIPE_LEDGER.subLabel,
-                  state: travelPhase === 'ledger' ? 'active' : currentTrip && (travelLedger?.budgetLines ?? 0) > 0 ? 'done' : 'pending' },
-                { key: 'reconcile', num: PIPE_RECONCILE.num, label: PIPE_RECONCILE.name, subLabel: PIPE_RECONCILE.subLabel,
-                  state: travelPhase === 'reconcile' ? 'active'
-                    : travelOrphans !== null && travelOrphans.unattached === 0 && (travelBookings?.bookings ?? 0) > 0 ? 'done' : 'pending' },
-              ] as StagePhase[])}
-              onSelect={(k) => setTravelPhase(k as typeof travelPhase)}
-            />
+            {/* TRAVEL-01 (2026-09-19): TRAVEL READS TOP-DOWN, PLAN TO ACTUAL. The
+                five-phase StageStrip (Trip · Search · Book · Ledger · Reconcile),
+                its five show/hide surfaces and the receipts rail are gone. The tab
+                is plain sections, in order: the tool header; the trips (+ create,
+                the selected trip); the selected trip's ITINERARY — every planned
+                item in date order with its vendor, place, category, planned
+                amount and, where it has one, its time; SEARCH — the live booking
+                surfaces exactly as they were (the travel law pins their files
+                byte-for-byte); then BOOKED, the LEDGER and the UNATTACHED
+                bookings. Every control a phase held survives on its section; a
+                phase only hid the others. The four receipts (TRIPS / BOOKED ON
+                TRIP / BUDGET LINES / UNATTACHED) were counts the surfaces show
+                themselves. */}
+            <div className="rounded-lg border border-border bg-ts-white px-4 pt-4" data-travel-section="header">
+              <ToolOpener tools={[navToolByName('Travel', TOOL_GATE)]} />
+            </div>
 
-            {/* ── 02 Search — the mode strip + panels, KEPT MOUNTED (hidden,
-                  never unmounted, off-phase — the survival contract). */}
-            <div className={travelPhase === 'search' ? 'block space-y-6' : 'hidden'}>
-              <SectionHeader kicker={`${PIPE_SEARCH.num} / ${PIPE_SEARCH.name}`} right={`PHASE ${PIPE_SEARCH.num} OF 05`} />
-            {/* DS-1: the consolidated toggle — the SAME <ToggleStrip> the landing
-                consumes (LandingBookingSection). One surface visible at a time, all
-                panels mounted (results survive toggling). Five live searches +
-                Premium as a sixth chip. Every panel keeps its exact props/handlers
-                from the old stacked layout — composition-only, zero logic change. */}
+            <section className="space-y-3" data-travel-section="trips">
+              <TravelHeading>Trips</TravelHeading>
+              <div className="rounded-lg border border-border bg-ts-white">
+                <div className={`${SECTION_HEADER} rounded-t-lg`}>YOUR TRIPS</div>
+                <div className="p-4">
+                  <div className="space-y-3">
+                    {authed === true ? (
+                      <>
+                        <AllTripsList
+                          refreshSignal={tripsRefresh}
+                          onSelect={setCurrentTrip}
+                          selectedTripId={currentTrip?.id ?? null}
+                          onDeleted={(deletedId) => {
+                            setTripsRefresh((n) => n + 1);
+                            setCurrentTrip((cur) => (cur?.id === deletedId ? null : cur));
+                          }}
+                          headerAction={createTripButton}
+                        />
+                        {currentTrip && (
+                          <p className="text-sm text-text-secondary">
+                            Selected: <span className="font-semibold text-text-primary">{currentTrip.name}</span>
+                            <span className="text-text-faint"> — hotel and flight bookings attach to this trip, and saved flights budget into it.</span>
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <div>
+                        <div className="mb-2 flex items-center justify-end gap-3">
+                          {createTripButton}
+                        </div>
+                        <p className="rounded-lg border border-border bg-bg-row p-4 text-sm text-text-muted">
+                          Sign up free to save trips here — tap &ldquo;+ Create a trip&rdquo; to start one.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* The selected trip's planned days — the same timeline the trip page
+                mounts, reading the same itinerary route. */}
+            <section className="space-y-3" data-travel-section="itinerary">
+              <TravelHeading>Itinerary</TravelHeading>
+              {authed === true ? (
+                <TripItinerarySection trip={currentTrip} refreshSignal={tripsRefresh} onChanged={() => setTripsRefresh((n) => n + 1)} />
+              ) : (
+                <span className="text-xs text-text-muted italic">sign in to plan a trip&rsquo;s days.</span>
+              )}
+            </section>
+
+            {/* SEARCH — the mode strip + the live booking panels, exactly as they
+                were (DS-1 / PR-ELEV-1 / SELL-05 below). Their files are pinned
+                byte-for-byte by the travel law; only the heading above them is new. */}
+            <section className="space-y-3" data-travel-section="search">
+              <TravelHeading>Search</TravelHeading>
             <ToggleStrip
               // ONE-BAND: the band + trust props retired (the LandingBookingSection
               // V5 precedent — the strip renders its plain card form; per-mode
@@ -835,95 +872,50 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 ) },
               ]) as ToggleMode[]}
             />
-            </div>
+            </section>
 
-            {/* ── 01 Trip — the YOUR TRIPS card (the old renderBody travel
-                  branch's trips core, markup preserved; TripBookings /
-                  TripBudgetActual / UnattachedBookings re-seated on their own
-                  phases below, gates + keys identical). */}
-            <div className={travelPhase === 'trip' ? 'block space-y-6' : 'hidden'}>
-              <SectionHeader kicker={`${PIPE_TRIP.num} / ${PIPE_TRIP.name}`} right={`PHASE ${PIPE_TRIP.num} OF 05`} />
-              <div className="rounded-lg border border-border bg-ts-white">
-                <div className={`${SECTION_HEADER} rounded-t-lg`}>YOUR TRIPS</div>
-                <div className="p-4">
-                  <div className="space-y-3">
-                    {authed === true ? (
-                      <>
-                        <AllTripsList
-                          refreshSignal={tripsRefresh}
-                          onSelect={setCurrentTrip}
-                          selectedTripId={currentTrip?.id ?? null}
-                          onDeleted={(deletedId) => {
-                            setTripsRefresh((n) => n + 1);
-                            setCurrentTrip((cur) => (cur?.id === deletedId ? null : cur));
-                          }}
-                          headerAction={createTripButton}
-                          onTotals={setTravelTrips}
-                        />
-                        {currentTrip && (
-                          <p className="text-sm text-text-secondary">
-                            Selected: <span className="font-semibold text-text-primary">{currentTrip.name}</span>
-                            <span className="text-text-faint"> — hotel and flight bookings attach to this trip, and saved flights budget into it.</span>
-                          </p>
-                        )}
-                      </>
-                    ) : (
-                      <div>
-                        <div className="mb-2 flex items-center justify-end gap-3">
-                          {createTripButton}
-                        </div>
-                        <p className="rounded-lg border border-border bg-bg-row p-4 text-sm text-text-muted">
-                          Sign up free to save trips here — tap &ldquo;+ Create a trip&rdquo; to start one.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ── 03 Book — the selected trip's BOOKED reservations (gate +
-                  tripsRefresh key identical to the old mount). No trip →
-                  the honest next-action line (ZERO-STATE-1 idiom). */}
-            <div className={travelPhase === 'book' ? 'block space-y-6' : 'hidden'}>
-              <SectionHeader kicker={`${PIPE_BOOK.num} / ${PIPE_BOOK.name}`} right={`PHASE ${PIPE_BOOK.num} OF 05`} />
+            {/* BOOKED — the selected trip's paid reservations (gate + key as before). */}
+            <section className="space-y-3" data-travel-section="booked">
+              <TravelHeading>Booked</TravelHeading>
               {authed === true && currentTrip ? (
                 <TripBookings
                   key={`bk-${tripsRefresh}`}
                   tripId={currentTrip.id}
                   onChanged={() => setTripsRefresh((n) => n + 1)}
-                  onTotals={setTravelBookings}
                 />
               ) : (
-                <span className="text-xs text-text-muted italic">no trip selected — pick one in 01 / Trip.</span>
+                <span className="text-xs text-text-muted italic">no trip selected — pick one above.</span>
               )}
-            </div>
+            </section>
 
-            {/* ── 04 Ledger — the trip's budget ledger (gate + key identical). */}
-            <div className={travelPhase === 'ledger' ? 'block space-y-6' : 'hidden'}>
-              <SectionHeader kicker={`${PIPE_LEDGER.num} / ${PIPE_LEDGER.name}`} right={`PHASE ${PIPE_LEDGER.num} OF 05`} />
+            {/* LEDGER — the trip's budget ledger: planned lines and the bank lens (gate + key as before). */}
+            <section className="space-y-3" data-travel-section="ledger">
+              <TravelHeading>Ledger</TravelHeading>
               {authed === true && currentTrip ? (
-                <TripBudgetActual key={tripsRefresh} trip={currentTrip} onTotals={setTravelLedger} />
+                <TripBudgetActual key={tripsRefresh} trip={currentTrip} />
               ) : (
-                <span className="text-xs text-text-muted italic">no trip selected — pick one in 01 / Trip.</span>
+                <span className="text-xs text-text-muted italic">no trip selected — pick one above.</span>
               )}
-            </div>
+            </section>
 
-            {/* ── 05 Reconcile — the adoptable orphans (authed-only, exactly
-                  as before; the block hides itself at zero rows). */}
-            <div className={travelPhase === 'reconcile' ? 'block space-y-6' : 'hidden'}>
-              <SectionHeader kicker={`${PIPE_RECONCILE.num} / ${PIPE_RECONCILE.name}`} right={`PHASE ${PIPE_RECONCILE.num} OF 05`} />
-              {authed === true && (
+            {/* UNATTACHED — bookings on the account that belong to no trip, adoptable
+                into the selected one (authed-only; the component hides itself at
+                zero rows, so the heading says so from its own count). */}
+            <section className="space-y-3" data-travel-section="unattached">
+              <TravelHeading>Unattached bookings{unattachedCount === 0 ? ' · none' : ''}</TravelHeading>
+              {authed === true ? (
                 <UnattachedBookings
                   key={`ub-${tripsRefresh}`}
                   selectedTrip={currentTrip}
                   onChanged={() => setTripsRefresh((n) => n + 1)}
-                  onTotals={setTravelOrphans}
+                  onTotals={(t) => setUnattachedCount(t.unattached)}
                 />
+              ) : (
+                <span className="text-xs text-text-muted italic">sign in to see bookings that belong to no trip.</span>
               )}
-            </div>
+            </section>
 
-            {/* The create form modal — phase-independent (the old renderBody
+            {/* The create form modal — section-independent (the old renderBody
                 mount, verbatim). */}
             {showCreate && (
               <TripFormModal
@@ -942,19 +934,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 />
               </TripFormModal>
             )}
-
-            {/* TRAVEL-PIPE: the receipts rail — existing reported state only,
-                honest empties (trip-scoped receipts say so without a trip). */}
-            <ProofStrip
-              receipts={[
-                { label: 'TRIPS', value: travelTrips ? String(travelTrips.trips) : undefined, emptyLabel: 'not loaded yet' },
-                { label: 'BOOKED ON TRIP', value: currentTrip && travelBookings ? String(travelBookings.bookings) : undefined,
-                  emptyLabel: currentTrip ? 'not loaded yet' : 'no trip selected' },
-                { label: 'BUDGET LINES', value: currentTrip && travelLedger ? String(travelLedger.budgetLines) : undefined,
-                  emptyLabel: currentTrip ? 'not loaded yet' : 'no trip selected' },
-                { label: 'UNATTACHED', value: travelOrphans ? String(travelOrphans.unattached) : undefined, emptyLabel: 'not loaded yet' },
-              ]}
-            />
 
             {/* PR-ELEV-1: the coming-soon tiles became badged "Soon" CHIPS inside
                 the strip above (travelStripModes) — the tile row is gone. */}

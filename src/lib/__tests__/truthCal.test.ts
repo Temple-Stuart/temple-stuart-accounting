@@ -75,10 +75,10 @@ test('no registry string names a surface the tool no longer has', () => {
 test('every file:line the row prints resolves to the line it names', () => {
   // The table is the claim; the assertion is that the file really says so.
   const CITED: ReadonlyArray<readonly [string, number, string]> = [
-    ['src/components/hub/HubCalendar.tsx', 186, '/api/calendar?'],
-    ['src/components/hub/HubCalendar.tsx', 193, 'isRenderedCalendarSource'],
-    ['src/components/hub/HubCalendar.tsx', 202, '/api/operations/daily-plan/items'],
-    ['src/components/hub/HubCalendar.tsx', 214, '/api/hub/operations-routines'],
+    ['src/components/hub/HubCalendar.tsx', 192, '/api/calendar?'],
+    ['src/components/hub/HubCalendar.tsx', 199, 'isRenderedCalendarSource'],
+    ['src/components/hub/HubCalendar.tsx', 208, '/api/operations/daily-plan/items'],
+    ['src/components/hub/HubCalendar.tsx', 220, '/api/hub/operations-routines'],
     ['src/lib/calendar/day.ts', 304, 'export function dayParts'],
     ['src/lib/calendar/sources.ts', 84, "source: 'manual'"],
     ['src/components/hub/DayView.tsx', 221, 'MANUAL_EVENT_BADGE'],

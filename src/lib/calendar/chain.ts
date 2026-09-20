@@ -54,7 +54,7 @@ export const ACTUAL_SOURCE_LABEL: Record<ActualSource, string> = {
 };
 
 /** The kinds of thing that can appear on a day. */
-export const DRILL_KINDS = ['calendar_event', 'routine', 'project_task', 'trade', 'task'] as const;
+export const DRILL_KINDS = ['calendar_event', 'routine', 'project_task', 'trip_item', 'trade', 'task'] as const;
 export type DrillKind = (typeof DRILL_KINDS)[number];
 
 /**
@@ -129,6 +129,27 @@ export const KIND_FACTS: readonly KindFacts[] = [
     postedLink: null,
     owner: 'Tasks',
     note: 'The ONLY actual a day row can show. It is hand-entered: the one writer is PATCH /api/operations/projects/[id]/tasks/[taskId] (route.ts:206-226), fed by two text inputs (TaskRowView.tsx:607, HubEventCard.tsx:136). It is not posted and it is not a model number, and the panel says so.',
+  },
+  {
+    // TRAVEL-01 (2026-09-19): a committed trip ITEM — a flight, a hotel stay, an
+    // activity, a transfer — is its own kind. The grid row is the calendar_events
+    // row vendor-commit wrote (source 'trip', source_id trip:<trip>:vendor:<option>);
+    // the calendar feed overlays the trip_itinerary row behind it (its id, vendor,
+    // place, provider and — for a date-only category — its block window), and the
+    // panel links postings to trip_itinerary.id. The whole-trip row the trip commit
+    // writes stays a calendar_event. The trip ledger's "bank actual" is NOT this
+    // kind's actual: it is a bank TRANSACTION accepted against a RESERVATION
+    // (transaction_reservation_links, MATCH-0) — a different link to a different
+    // object — so this kind starts NOT LINKED and settles only through LINK-01.
+    kind: 'trip_item',
+    linkable: true,
+    plannedColumn: 'trip_itinerary.cost (calendar_events.budget_amount carries Math.round of it)',
+    actualColumn: null,
+    actualSource: null,
+    coaColumn: 'trip_itinerary.coa_code (calendar_events.coa_code carries the same P-/B- prefixed code)',
+    postedLink: null,
+    owner: 'Travel',
+    note: 'Written by POST /api/trips/[id]/vendor-commit (route.ts:315-381 the itinerary row, :425 the calendar row); times edited by PATCH /api/trips/[id]/itinerary/[itineraryId]. The reservation lens (GET /api/trips/[id]/actuals) sums bank transactions accepted against reservations, not postings — it is reported beside this kind, never as its actual.',
   },
   {
     kind: 'trade',
@@ -284,6 +305,17 @@ export const EVENT_SOURCE_OWNER: Readonly<Record<string, string>> = {
   health: 'Budget',
 };
 
+/**
+ * TRAVEL-01: a trip row that carries its trip_itinerary id is a trip ITEM, not a
+ * plain calendar_event — the kind is decided by the row's own key, never by
+ * guessing from a title. A trip row with no item id (the whole-trip row the
+ * trip commit writes) stays a calendar_event owned by Travel.
+ */
+export function kindOf(e: { source: string; tripItemId?: string | null }): DrillKind {
+  if (e.tripItemId) return 'trip_item';
+  return kindOfSource(e.source);
+}
+
 /** The tool that owns a row — by source for a calendar_event, by kind otherwise. */
 export function ownerOf(kind: DrillKind, source: string): string {
   if (kind !== 'calendar_event') return factsOf(kind).owner;
@@ -315,6 +347,10 @@ export interface DrillRow {
   readonly location: string | null;
   readonly pin: { lat: number; lon: number } | null;
   readonly coaCode: string | null;
+  /** TRAVEL-01: a trip item's vendor, the provider it was booked through (or null when hand-added), and its trip_itinerary id. */
+  readonly vendor: string | null;
+  readonly provider: string | null;
+  readonly tripItemId: string | null;
   readonly planned: number | null;
   readonly actual: number | null;
   readonly actualSource: ActualSource | null;
@@ -352,6 +388,10 @@ export interface DrillEventInput {
   longitude?: number | null;
   coaCode?: string | null;
   budgetAmount?: number | null;
+  /** TRAVEL-01: set on a trip vendor row by the calendar feed's overlay. */
+  vendor?: string | null;
+  provider?: string | null;
+  tripItemId?: string | null;
 }
 
 /**
@@ -385,7 +425,7 @@ export interface RoutineLines {
 }
 
 export function buildDrill(e: DrillEventInput, taskCosts?: TaskCosts | null, routineLines?: RoutineLines | null): DrillRow {
-  const kind = kindOfSource(e.source);
+  const kind = kindOf(e);
   const facts = factsOf(kind);
   const num = (v: number | null | undefined): number | null => (v == null || !Number.isFinite(v) ? null : v);
 
@@ -406,6 +446,9 @@ export function buildDrill(e: DrillEventInput, taskCosts?: TaskCosts | null, rou
     location: e.location ?? null,
     pin: e.latitude != null && e.longitude != null ? { lat: e.latitude, lon: e.longitude } : null,
     coaCode: (kind === 'project_task' && taskCosts ? taskCosts.coaCode : e.coaCode) ?? null,
+    vendor: e.vendor ?? null,
+    provider: e.provider ?? null,
+    tripItemId: e.tripItemId ?? null,
     planned,
     actual,
     actualSource,

@@ -61,8 +61,10 @@ export interface PhaseAssignment {
  *  · travel 04 Ledger / 05 Reconcile were ruled to Expenses. The registry's own
  *    Expenses row says the opposite in as many words — "trip cost split on the
  *    trip planner … is Travel's, not an expenses tool" (toolRegistry.ts:140) —
- *    and Expenses is NOT_BUILT with no home. Both phases render inside the
- *    travel tab's own strip (ModuleLauncher.tsx:758). CODE WINS: they are
+ *    and Expenses is NOT_BUILT with no home. Both phases rendered inside the
+ *    travel tab's own strip; since TRAVEL-01 (2026-09-19) that strip is gone and
+ *    they are the tab's Ledger and Unattached sections (ModuleLauncher.tsx,
+ *    data-travel-section="ledger" / "unattached"). CODE WINS: they are
  *    Travel's, and Expenses stays a not-built row with no phases.
  *
  *  · runway 01 Source and 02 History render NO SURFACE. ModuleLauncher declares
@@ -88,16 +90,16 @@ export const THE_SORT: readonly PhaseAssignment[] = [
   { pipe: 'trade', num: '05', owner: 'Trade Log', rendersSurface: true },
   { pipe: 'trade', num: '06', owner: 'Trade Log', rendersSurface: true },
   // travel — all five are Travel's (the correction above).
-  { pipe: 'travel', num: '01', owner: 'Travel', rendersSurface: true },
-  { pipe: 'travel', num: '02', owner: 'Travel', rendersSurface: true },
-  { pipe: 'travel', num: '03', owner: 'Travel', rendersSurface: true },
-  { pipe: 'travel', num: '04', owner: 'Travel', rendersSurface: true },
-  { pipe: 'travel', num: '05', owner: 'Travel', rendersSurface: true },
+  // TRAVEL-01 (2026-09-19): Travel still OWNS all five, and none is DRAWN — the
+  // cockpit's travel tab is plain sections now (ModuleLauncher.tsx, the travel
+  // block); what each phase held survives as a section, never a phase.
+  ...(['01', '02', '03', '04', '05'] as const).map((num): PhaseAssignment => ({ pipe: 'travel', num, owner: 'Travel', rendersSurface: false,
+    surfaceNote: 'TRAVEL-01 (2026-09-19): drawn nowhere — the travel tab renders no StageStrip (src/components/home/ModuleLauncher.tsx, data-travel-section); its sections hold the capability' })),
   // runway — the four-way split as ruled, with the two declared state-only cells.
   { pipe: 'runway', num: '01', owner: 'Banking', rendersSurface: false,
-    surfaceNote: 'src/components/home/ModuleLauncher.tsx:619-626 — "STATE-ONLY cells (no surface exists in this tab: accounts link in Books 01 Feed)"; the handler excludes its key at :646-648' },
+    surfaceNote: 'src/components/home/ModuleLauncher.tsx:622-629 — "STATE-ONLY cells (no surface exists in this tab: accounts link in Books 01 Feed)"; the handler excludes its key at :649-651' },
   { pipe: 'runway', num: '02', owner: HOME_OWNER, rendersSurface: false,
-    surfaceNote: 'src/components/home/ModuleLauncher.tsx:619-626 — "ledger history renders only THROUGH the burn/budget figures"; the handler excludes its key at :646-648' },
+    surfaceNote: 'src/components/home/ModuleLauncher.tsx:622-629 — "ledger history renders only THROUGH the burn/budget figures"; the handler excludes its key at :649-651' },
   { pipe: 'runway', num: '03', owner: HOME_OWNER, rendersSurface: true },
   { pipe: 'runway', num: '04', owner: 'Bookkeeping', rendersSurface: true },
   { pipe: 'runway', num: '05', owner: 'Budget', rendersSurface: true },
@@ -285,7 +287,12 @@ export const PHASES_RENDERED_AT: Readonly<Record<string, readonly PipePillarId[]
   // PIPES-01 retires them — see that ruling's scope in the TASKS-01 PR body.
   '/tasks': [],
   '/time': ['content'],          // ContentPipeline.tsx:371
-  '/travel': ['travel'],         // ModuleLauncher.tsx:758 — /travel IS the cockpit tab
+  // TRAVEL-01 (2026-09-19): the travel tab draws NO strip. It is the cockpit's
+  // tab (src/app/[tab]/page.tsx → ModuleLauncher), now plain sections top-down:
+  // header, trips, itinerary, search, booked, ledger, unattached. The travel
+  // pipe stays DEFINED and owned (THE SORT), declared undrawn — the TASKS-01
+  // idiom — until a PIPES ruling retires it.
+  '/travel': [],
   '/tax': ['tax'],               // TaxFilingWizard.tsx, through TaxHandoffGate
   // Declared EMPTY, each for a reason the audit verified:
   '/accounts': [],   // Banking owns books 01 (drawn on /books) and runway 01 (drawn nowhere — a state-only cell)
