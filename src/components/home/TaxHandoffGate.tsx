@@ -74,7 +74,8 @@ export default function TaxHandoffGate({ onGoToBooks }: Props) {
 
   if (state === 'loading') {
     return (
-      <div className={'rounded-xl border-2 border-panel-border bg-panel-surface px-4 py-3 text-sm text-white/60'}>
+      // REPAINT-04 (2026-09-21): the retired dark card on the cream tax tab → white card, lavender hairline, muted ink.
+      <div className={'rounded-xl border-2 border-border bg-white px-4 py-3 text-sm text-text-muted'}>
         Checking your books…
       </div>
     );
@@ -107,8 +108,9 @@ export default function TaxHandoffGate({ onGoToBooks }: Props) {
             message IS the derivation story pre-close, so it gets the
             display-scale treatment (TYPE.display idiom; the RUNWAY/TRADE
             precedent). Same sentence, zero new copy. */}
-        <h3 className={'text-2xl lg:text-3xl font-light tracking-tight text-white'}>Tax begins at completed books</h3>
-        <p className={'mx-auto mt-2 max-w-md text-sm text-white/70'}>
+        {/* REPAINT-04: white display ink on the gold wash was invisible on cream — primary / secondary ink (the DARKEN_MAP pairs). */}
+        <h3 className={'text-2xl lg:text-3xl font-light tracking-tight text-text-primary'}>Tax begins at completed books</h3>
+        <p className={'mx-auto mt-2 max-w-md text-sm text-text-secondary'}>
           Your tax figures come straight from your ledger, so the filing wizard opens once you&rsquo;ve
           closed at least one accounting period. {periodCount > 0
             ? `You have ${periodCount} period${periodCount === 1 ? '' : 's'} on record, but none are closed yet.`
@@ -157,11 +159,12 @@ export default function TaxHandoffGate({ onGoToBooks }: Props) {
           </button>
         </div>
       )}
-      <div className={'rounded-xl border-2 border-panel-border bg-panel-surface px-6 py-5'}>
-        <p className={'font-mono text-[10px] font-semibold uppercase tracking-wider text-white/60'}>
+      {/* REPAINT-04 (2026-09-21): the dossier anchor wore the retired dark card — white card, muted eyebrow, primary display ink. */}
+      <div className={'rounded-xl border-2 border-border bg-white px-6 py-5'}>
+        <p className={'font-mono text-[10px] font-semibold uppercase tracking-wider text-text-muted'}>
           Derived from your actual closed books
         </p>
-        <div className={'mt-1 text-2xl lg:text-3xl font-light tracking-tight text-white'}>
+        <div className={'mt-1 text-2xl lg:text-3xl font-light tracking-tight text-text-primary'}>
           The whole return, derived — not typed.
         </div>
       </div>

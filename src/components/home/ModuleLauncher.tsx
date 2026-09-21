@@ -213,9 +213,13 @@ interface Props {
   /** SELL-02: per offer key, is its Stripe price id set — server-computed (page.tsx), passed down to the locked cards; never read here. */
 }
 
-/** TRAVEL-01: a plain section heading on the travel tab's dark surface — a name, never a phase. */
+/** TRAVEL-01: a plain section heading on the travel tab — a name, never a phase.
+ *  REPAINT-04 (2026-09-21): it wears the shell's own section-label bar, SECTION_HEADER
+ *  (src/lib/ds.ts) — the idiom every other tool's section label uses (the trade log,
+ *  the day view, the bookkeeping section, this launcher's YOUR TRIPS bar). TRAVEL-01 wrote text-white/70
+ *  for a "dark surface" REPAINT-3 had already retired — white on cream. */
 function TravelHeading({ children }: { children: React.ReactNode }) {
-  return <h2 className="font-mono text-[11px] font-bold uppercase tracking-wider text-white/70" data-travel-heading>{children}</h2>;
+  return <h2 className={SECTION_HEADER} data-travel-heading>{children}</h2>;
 }
 
 export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {

@@ -97,6 +97,7 @@ import { routinePlanned } from '../src/lib/operations/routineLines';
 import { MARKER_MINUTES, assignLanes, blockExtent, unverifiedDurationExtent } from '../src/lib/calendar/extent';
 import { clockOfTime, overlayTripItems, type TripItemRow, type TripOverlayEvent } from '../src/lib/calendar/tripItem';
 import { BOOKING_FLOW_BASE, BOOKING_FLOW_FILES, bookingFlowSha256 } from '../src/lib/travelBookingFlow';
+import { PANEL_TOKEN_ALLOWLIST, SECTION_HEADER, WHITE_INK_ON_DARK_ANCESTOR } from '../src/lib/ds';
 import { classifyCadence, compileFormToRRule, expandBetween, expandForward, scheduleAnchor } from '../src/lib/operations/rruleHelpers';
 import { DEFAULT_ROUTINE_FORM } from '../src/components/workbench/operations/routines/types';
 import { PROBLEM_SHEET } from '../src/lib/problemSheet';
@@ -3118,6 +3119,110 @@ const travelFail = (m: string) => { travelViolations += 1; violations.push(`trav
 }
 if (travelViolations === 0) console.log(`✔ The travel law passed — /travel is ${TRAVEL_SECTIONS.length} plain sections and no strip; ${BOOKING_FLOW_FILES.length} booking-flow files byte-identical to ${BOOKING_FLOW_BASE}; an activity's window draws start-to-end, a start alone stays a marker, a flight and a stay untouched; 'trip_item' is a linkable kind with no instant, NOT LINKED until linked by hand.`);
 else console.log(`✖ The travel law FAILED — ${travelViolations} violation(s).`);
+
+// ── THE REPAINT LAW (REPAINT-04, 2026-09-21) ─────────────────────────────────
+// THE DEAD SURFACE'S PAINT COMES OFF EVERY WALL IT IS STILL ON.
+//
+// REPAINT-3 retired the cockpit's dark surface ("the dark surface passes died",
+// ModuleLauncher.tsx) and re-pointed the design system to cream paper, white
+// cards, lavender hairlines and aubergine ink (src/lib/ds.ts). Its palette
+// survived it: tailwind.config.ts still defined the panel family and eleven
+// files still painted with it — a near-black trip row on the cream travel tab,
+// white/80 table headers on a white table, TRAVEL-01's white section labels on
+// cream. REPAINT-04 repainted every miss; this law keeps them off.
+//
+//   1. NO PANEL-* TOKEN OUTSIDE THE ALLOWLIST. A panel token is admitted only in
+//      src/lib/ds.ts PANEL_TOKEN_ALLOWLIST — the surfaces that still declare
+//      themselves dark or purple by their own classes (read from the file) —
+//      and the list may only shrink. The family stays defined exactly while an
+//      admitted surface needs it.
+//   2. NO WHITE INK ON CREAM ON THE TRAVEL TAB. Every string literal carrying
+//      text-white(/N) in the launcher's travel region and in every component the
+//      region mounts (the import closure under src/components) carries a solid
+//      dark or purple background in the same literal — except in
+//      WHITE_INK_ON_DARK_ANCESTOR, where the cited ancestor fill is read from
+//      the declaring file, and every exception is a file the tab really mounts.
+const REPAINT_TOKEN = /\bpanel-(?:surface|border|hover|highlight)\b|\bbg-panel\b/g;
+const REPAINT_DARK_BG = /\b(?:bg-brand-purple|bg-brand-purple-hover|bg-brand-gold|bg-brand-gold-bright|bg-brand-green|bg-brand-red|bg-cyan-[5-9]00|bg-panel|bg-panel-surface|bg-black|bg-status-(?:success|danger|info|warning))\b(?!\/)/;
+const REPAINT_STRING = /(['"`])((?:\\.|(?!\1)[^\\])*)\1/g;
+const REPAINT_ALLOWLIST_LEAF = 'src/lib/ds.ts';
+let repaintViolations = 0;
+const repaintFail = (m: string) => { repaintViolations += 1; violations.push(`repaint law: ${m} (REPAINT-04)`); };
+
+// 1. the panel family, admitted by name only.
+{
+  const admitted = new Map(PANEL_TOKEN_ALLOWLIST.map((a) => [a.file, a]));
+  const found = new Set<string>();
+  for (const f of tsFiles(resolve(ROOT, 'src')).map((abs) => abs.replace(`${ROOT}/`, ''))) {
+    // The allowlist leaf quotes each surface's declaring classes (`declaredBy`) — a citation, not paint.
+    if (f === REPAINT_ALLOWLIST_LEAF) continue;
+    const body = codeOf(f);
+    const hits = body.match(REPAINT_TOKEN) ?? [];
+    if (hits.length === 0) continue;
+    found.add(f);
+    const a = admitted.get(f);
+    if (!a) repaintFail(`${f} paints ${hits.length} panel token(s) (${[...new Set(hits)].join(', ')}) — the retired dark surface's paint; repaint to the cream token REPAINT-3 established, or name the still-dark surface in PANEL_TOKEN_ALLOWLIST`);
+    else if (!body.includes(a.declaredBy)) repaintFail(`${f} no longer declares its dark surface by its own classes (${a.declaredBy}) — the allowlist entry stands on nothing`);
+  }
+  for (const a of PANEL_TOKEN_ALLOWLIST) {
+    if (!existsSync(resolve(ROOT, a.file))) repaintFail(`${a.file} is allowlisted but gone`);
+    else if (!found.has(a.file)) repaintFail(`${a.file} is allowlisted but paints no panel token — the list may only shrink; drop it`);
+  }
+  if (PANEL_TOKEN_ALLOWLIST.length > 3) repaintFail(`PANEL_TOKEN_ALLOWLIST grew to ${PANEL_TOKEN_ALLOWLIST.length} — REPAINT-04 named three and the list may only shrink`);
+  const tailwind = codeOf('tailwind.config.ts');
+  if (PANEL_TOKEN_ALLOWLIST.length > 0 && !/\bpanel:\s*\{/.test(tailwind)) repaintFail('tailwind.config.ts no longer defines the panel family while an allowlisted surface still paints with it');
+  if (PANEL_TOKEN_ALLOWLIST.length === 0 && /\bpanel:\s*\{/.test(tailwind)) repaintFail('no surface needs the panel family any more — remove it from tailwind.config.ts');
+}
+
+// 2. the travel tab: white ink only on a solid dark or purple element, or on a cited ancestor fill.
+{
+  const launcher = codeOf(TRAVEL_LAUNCHER);
+  const at = (name: string) => launcher.indexOf(`data-travel-section="${name}"`);
+  const regionFrom = at('header');
+  const regionTo = at('unattached') >= 0 ? launcher.indexOf('</section>', at('unattached')) : -1;
+  const region = regionFrom >= 0 && regionTo > regionFrom ? launcher.slice(regionFrom, regionTo) : '';
+  if (!region) repaintFail(`${TRAVEL_LAUNCHER} has no travel region to read`);
+  const importsByName = new Map<string, string>();
+  for (const m of launcher.matchAll(/import\s+([^;]*?)\s+from\s+'([^']+)'/g)) {
+    for (const raw of m[1].replace(/[{}]/g, ',').split(',')) {
+      const name = raw.trim().replace(/^type\s+/, '').split(/\s+as\s+/).pop()?.trim();
+      if (name) importsByName.set(name, m[2]);
+    }
+  }
+  const closure = new Set<string>();
+  const queue: string[] = [];
+  for (const [name, spec] of importsByName) {
+    if (!new RegExp(`\\b${name}\\b`).test(region)) continue;
+    const r = resolveImport(TRAVEL_LAUNCHER, spec);
+    if (r && r.startsWith('src/components/')) queue.push(r);
+  }
+  while (queue.length) {
+    const f = queue.shift()!;
+    if (closure.has(f)) continue;
+    closure.add(f);
+    for (const dep of importsFor(f)) if (dep.startsWith('src/components/')) queue.push(dep);
+  }
+  const excepted = new Map(WHITE_INK_ON_DARK_ANCESTOR.map((e) => [e.file, e]));
+  const scan = (file: string, body: string, offset: number, whole: string) => {
+    for (const m of body.matchAll(REPAINT_STRING)) {
+      const lit = m[2];
+      if (!/\btext-white(?:\/\d+)?\b/.test(lit) || REPAINT_DARK_BG.test(lit)) continue;
+      const line = whole.slice(0, offset + (m.index ?? 0)).split('\n').length;
+      const e = excepted.get(file);
+      if (!e) repaintFail(`${file}:${line} paints white ink ("${lit.slice(0, 90)}") on an element whose own classes carry no solid dark or purple background — white on cream`);
+      else if (!codeOf(e.ancestorFile).includes(e.declaredBy)) repaintFail(`${file}:${line} leans on an ancestor fill ${e.ancestorFile} no longer declares (${e.declaredBy})`);
+    }
+  };
+  scan(TRAVEL_LAUNCHER, region, regionFrom, launcher);
+  for (const f of [...closure].sort()) scan(f, codeOf(f), 0, codeOf(f));
+  for (const e of WHITE_INK_ON_DARK_ANCESTOR) if (!closure.has(e.file)) repaintFail(`${e.file} is excepted but the travel tab does not mount it — the exception is stale`);
+  if (closure.size < 20) repaintFail(`the travel closure holds ${closure.size} component files — REPAINT-04 walked 29; the import walk is broken`);
+  // The labels themselves: the shell's own section-label bar, never a second definition.
+  if (!/<h2 className=\{SECTION_HEADER\} data-travel-heading>/.test(launcher)) repaintFail(`${TRAVEL_LAUNCHER}'s TravelHeading no longer wears SECTION_HEADER — the shell's one section-label idiom`);
+  if (/text-white/.test(SECTION_HEADER) || !/text-brand-purple/.test(SECTION_HEADER)) repaintFail('SECTION_HEADER is no longer aubergine ink on cream');
+}
+if (repaintViolations === 0) console.log(`✔ The repaint law passed — the panel family is painted by ${PANEL_TOKEN_ALLOWLIST.length} self-declared dark surface(s) and nowhere else; on the travel tab every white-ink literal sits on a solid dark or purple element, or on one of ${WHITE_INK_ON_DARK_ANCESTOR.length} cited ancestor fills; the section labels wear SECTION_HEADER.`);
+else console.log(`✖ The repaint law FAILED — ${repaintViolations} violation(s).`);
 
 // ── THE READER LAW (TEST-TRUTH-01, 2026-09-17) ──────────────────────────────
 // NO TEST AND NO LAW MAY READ A SOURCE FILE RAW.

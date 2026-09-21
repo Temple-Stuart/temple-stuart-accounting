@@ -45,12 +45,14 @@ function BannerInner() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 pt-4 lg:px-8">
+      {/* REPAINT-04 (2026-09-21): the not-unlocked state wore the retired dark surface on cream
+          pages (white/70 ink on cream) → the cream row, the lavender hairline, secondary ink. */}
       <div
         role="status"
         className={`flex items-center justify-between gap-3 rounded-lg border p-3 text-xs ${
           unlockedKey
             ? 'border-status-success/30 bg-status-success/10 text-status-success'
-            : 'border-panel-border bg-white/5 text-white/70'
+            : 'border-border bg-bg-row text-text-secondary'
         }`}
       >
         <span>

@@ -117,7 +117,8 @@ export default function TradeRecord({ onStats }: {
 
   if (state === 'loading') {
     return (
-      <div className={'rounded-lg border border-panel-border bg-panel-surface px-3 py-2 text-xs text-white/60'}>
+      // REPAINT-04 (2026-09-21): the loading card wore the retired dark surface on the cream trade tab → white card, muted ink.
+      <div className={'rounded-lg border border-border bg-white px-3 py-2 text-xs text-text-muted'}>
         Building your track record…
       </div>
     );

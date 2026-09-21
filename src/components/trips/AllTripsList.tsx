@@ -139,18 +139,23 @@ export default function AllTripsList({ refreshSignal = 0, onSelect, selectedTrip
               </tr>
             </thead>
             <tbody>
+              {/* REPAINT-04 (2026-09-21): the rows wore the retired dark surface (bg-panel-surface /
+                  border-panel-border / hover:bg-panel-hover — a near-black row on the cream page, the
+                  name invisible on it). Cream-shell tokens now: white row, lavender hairline, the
+                  cream-row hover (ds SURFACE.hover); the selected row keeps its aubergine wash. */}
               {trips.map((trip) => (
                 <tr
                   key={trip.id}
                   onClick={() => onSelect?.(trip)}
                   aria-selected={selectedTripId === trip.id}
-                  className={`cursor-pointer border-t transition-colors hover:bg-panel-hover ${selectedTripId === trip.id ? 'border-brand-purple bg-brand-purple/10' : 'border-panel-border bg-panel-surface'}`}
+                  className={`cursor-pointer border-t transition-colors hover:bg-bg-row ${selectedTripId === trip.id ? 'border-brand-purple bg-brand-purple/10' : 'border-border bg-white'}`}
                 >
                   <td className="px-3 py-3 font-medium text-text-primary">{trip.name}</td>
                   <td className="px-3 py-3 text-text-muted">{trip.destination || '—'}</td>
                   <td className="px-3 py-3 text-text-muted">{formatRange(trip.startDate, trip.endDate)}</td>
                   <td className="px-3 py-3">
-                    <span className="rounded-full bg-brand-purple/10 px-2 py-0.5 text-xs font-medium text-white">
+                    {/* REPAINT-04: the status chip — aubergine ink on the aubergine wash (the PublicCategorySearch idiom), not white on it. */}
+                    <span className="rounded-full bg-brand-purple/10 px-2 py-0.5 text-xs font-medium text-brand-purple">
                       {trip.status}
                     </span>
                   </td>
