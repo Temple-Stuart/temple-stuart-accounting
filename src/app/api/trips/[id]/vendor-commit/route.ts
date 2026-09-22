@@ -11,6 +11,9 @@ import { getHotelContent } from '@/lib/liteapiClient';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
 import { LiteApiError, MissingLiteApiKeyError } from '@/lib/travelErrors';
 import { propertyClockOf, propertyClockStatement, type PropertyClock } from '@/lib/hotels/stayTimes';
+// ACTIVITY-01 STEP 4 (2026-09-22): a tour's Save carries the operator's published clock, the stated figures and the vendor's rate; the commit re-reads and recomputes them.
+import { readViatorSave, verifyViatorSave, type ViatorSave } from '@/lib/activities/save';
+import { ACTIVITY_SEARCH_CURRENCY } from '@/lib/activities/searchContract';
 
 /** A commit time the caller actually sent (HH:MM text) — null, '' and undefined are absence. */
 function sentClock(v: unknown): boolean {
@@ -145,7 +148,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       originZone: originZoneInput, destZone: destZoneInput,
       // HOTEL-02 (2026-09-22): the vendor's id of the hotel being booked — a LiteAPI stay names it
       // so the commit reads the property's own clock once; a stay from elsewhere sends none.
-      liteapiHotelId: liteapiHotelIdInput } = await request.json();
+      liteapiHotelId: liteapiHotelIdInput,
+      // ACTIVITY-01 STEP 4 (2026-09-22): a Viator tour's Save — the marker that a 0 is a price the
+      // operator stated, and the facts the plan line is computed from (src/lib/activities/save.ts).
+      priceStatedBy: priceStatedByInput, viatorSave: viatorSaveInput } = await request.json();
+    const now = new Date();
+    let viatorSave: ViatorSave | null = null;
+    if (viatorSaveInput !== undefined && viatorSaveInput !== null) {
+      if (optionType !== 'activity' || synthetic !== true) {
+        return NextResponse.json({ error: 'viatorSave belongs to a synthetic activity commit only.' }, { status: 400 });
+      }
+      const read = readViatorSave(viatorSaveInput);
+      if ('refused' in read) return NextResponse.json({ error: `${read.refused}; nothing was saved.` }, { status: 400 });
+      // trip_itinerary.vendor and vendor_name are VarChar(255) (prisma/schema.prisma) — a title
+      // the operator states longer than the column is REFUSED by name, never truncated.
+      if (read.title.length > 255) return NextResponse.json({ error: `the operator's title is ${read.title.length} characters and the line's title column holds 255; nothing was saved.` }, { status: 400 });
+      if (read.date !== String(startDate).slice(0, 10)) return NextResponse.json({ error: 'viatorSave.date must be the startDate; nothing was saved.' }, { status: 400 });
+      if (sentClock(startTime) && startTime !== read.startTime) return NextResponse.json({ error: 'startTime must be the published start time viatorSave names; nothing was saved.' }, { status: 400 });
+      if (sentClock(endTime) && endTime !== read.endTime) return NextResponse.json({ error: 'endTime must be the end viatorSave derives from the stated fixed duration; nothing was saved.' }, { status: 400 });
+      if (!sentClock(startTime) && read.startTime !== null) return NextResponse.json({ error: 'the published start time viatorSave names must be sent as startTime; nothing was saved.' }, { status: 400 });
+      viatorSave = read;
+    }
     const durationMinutes = optionType === 'flight' && Number.isFinite(durationMinutesInput)
       ? Math.round(durationMinutesInput)
       : null;
@@ -158,8 +181,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (blockEndParse.error) return blockEndParse.error;
     // Flight-only zone passthrough (mirrors the durationMinutes gate). A non-flight commit
     // has no airport zone → null (genuinely absent, not a substitute).
-    const startZone = optionType === 'flight' && typeof originZoneInput === 'string' ? originZoneInput : null;
-    const endZone = optionType === 'flight' && typeof destZoneInput === 'string' ? destZoneInput : null;
+    // ACTIVITY-01 STEP 4 (2026-09-22): a Viator tour states the zone it operates in
+    // (product.timeZone, e.g. Asia/Bangkok) — the instant is computed the flight way,
+    // naive wall-clock + the STATED IANA zone, ONLY when the operator states the zone;
+    // the block window stays the naive local clock. Never a zone guessed.
+    const activityZone = viatorSave?.timeZone ?? null;
+    const startZone = optionType === 'flight' && typeof originZoneInput === 'string' ? originZoneInput : activityZone;
+    const endZone = optionType === 'flight' && typeof destZoneInput === 'string' ? destZoneInput : activityZone;
     // PR-tz-2-fill: the true UTC instant = naive wall-clock + the airport IANA zone, via the
     // canonical converter. Computed ONLY when both the zone (flight-only) AND the date+time are
     // present → else null (no zone, no instant — an honest null, not a fallback). end_at uses
@@ -169,8 +197,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const startAt = startZone && startDate && startTime
       ? zonedToInstant(String(startDate).slice(0, 10), String(startTime).slice(0, 5), startZone)
       : null;
-    const endAt = endZone && arriveDate && endTime
-      ? zonedToInstant(String(arriveDate).slice(0, 10), String(endTime).slice(0, 5), endZone)
+    // A flight's end is on its arrival date; a tour's end is on its own day (a fixed duration inside the day).
+    const endAt = endZone && (activityZone ? startDate : arriveDate) && endTime
+      ? zonedToInstant(String(activityZone ? startDate : arriveDate).slice(0, 10), String(endTime).slice(0, 5), endZone)
       : null;
 
     // PR 3: validate the user-selected COA against the canonical travel account
@@ -217,8 +246,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         return NextResponse.json({ error: 'A valid category is required to commit this place.' }, { status: 400 });
       }
       const amt = Number(requestAmount);
-      if (!Number.isFinite(amt) || amt <= 0) {
-        return NextResponse.json({ error: 'A positive amount is required — Google places have no price, so enter the expected cost.' }, { status: 400 });
+      // ACTIVITY-01 (2026-09-22): a stated 0 is a price. A 0 is accepted ONLY when the
+      // request marks it priceStatedBy 'operator' and names the product option it was
+      // stated for (a Viator Save); the Google path (no marker) keeps its > 0 rule.
+      const operatorStated = priceStatedByInput === 'operator' && viatorSave !== null;
+      if (!Number.isFinite(amt) || amt < 0 || (amt === 0 && !operatorStated)) {
+        return NextResponse.json({ error: 'A positive amount is required — Google places have no price, so enter the expected cost; a 0 is accepted only as a price the operator stated (priceStatedBy \'operator\' with its product option code).' }, { status: 400 });
+      }
+      // A Viator Save's total is RECOMPUTED from the stated figures × the stated rate, the
+      // rate checked against the clock, the note checked against the facts — refused by name.
+      if (viatorSave) {
+        const verdict = verifyViatorSave(viatorSave, amt, notes, ACTIVITY_SEARCH_CURRENCY, now);
+        if ('refused' in verdict) return NextResponse.json({ error: verdict.refused, source: 'viator' }, { status: 400 });
       }
       if (!endDate) {
         return NextResponse.json({ error: 'Start and end dates are required.' }, { status: 400 });
@@ -314,8 +353,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       // A. Verify option exists and get details
       // PR-32: flights AND synthetic lodging (detail-page hotels) build details
       // from the payload directly — no DB option row required.
+      // ACTIVITY-01 STEP 4 (2026-09-22): a tour's line is TITLED by the operator's own product
+      // title (viatorSave.title) — its note carries the option, the clock, the party, the rate and
+      // the calculated figure, and is far longer than the VarChar(255) title column. Every other
+      // synthetic commit keeps titling itself from its note, exactly as before.
       const details = (optionType === 'flight' || isSyntheticLodging || isSyntheticActivity)
-        ? { title: notes || (isSyntheticLodging ? 'Lodging' : isSyntheticActivity ? 'Place' : 'Flight'), amount: Number(requestAmount || 0), tripId: id }
+        ? { title: viatorSave ? viatorSave.title : (notes || (isSyntheticLodging ? 'Lodging' : isSyntheticActivity ? 'Place' : 'Flight')), amount: Number(requestAmount || 0), tripId: id }
         : await getOptionDetails(tx, optionType, optionId, id);
       if (!details) throw new ValidationError('Vendor option not found', { status: 404 });
 
@@ -467,6 +510,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             recurrence: recurrenceOverride ?? (isRange ? 'daily' : 'once'),
             block_start_time: blockStart,
             block_end_time: blockEnd,
+            // ACTIVITY-01 STEP 4: the operator's stated zone and the instant it fixes (a tour), else null.
+            start_zone: activityZone,
+            end_zone: activityZone,
+            start_at: activityZone ? startAt : null,
+            end_at: activityZone ? endAt : null,
+            duration_minutes: viatorSave?.durationMinutes ?? null,
             // PR 3: clean vendor name + COA captured on the itinerary row.
             vendor_name: vendorNameInput || details.title,
             coa_code: coaCode,
@@ -525,6 +574,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       // stated check-in / check-out, or its silence named. Null for anything but a stay
       // that named its hotel.
       stayTimes: propertyClock ? { ...propertyClock, source: 'property', statement: propertyClockStatement(propertyClock) } : null,
+      // ACTIVITY-01 STEP 4: what the commit stored for a tour — the published clock, the stated figures, the rate, the calculated total, the note.
+      viatorSave: viatorSave ? { startTime: viatorSave.startTime, endTime: viatorSave.endTime, timeZone: viatorSave.timeZone, native: viatorSave.native, extra: viatorSave.extra, rate: viatorSave.rate, total: viatorSave.total, note: notes } : null,
     });
   } catch (error) {
     return failClosedResponse('Vendor commit', 'Failed to commit vendor option', error);
@@ -557,10 +608,11 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     // have NO option row: the commit POST builds them from the payload and skips
     // the option-row update via its guard (route.ts:158). Mirror that guard here so
     // the uncommit never looks the placeholder up in a @db.Uuid option table (which
-    // throws "Error creating UUID"). These `place-`/`hotel-` prefixes are the only
-    // two synthetic optionId constructors in the codebase. NON-synthetic optionIds
+    // throws "Error creating UUID"). These `place-`/`hotel-`/`viator-` prefixes are the
+    // only three synthetic optionId constructors in the codebase. NON-synthetic optionIds
     // are untouched, so a genuinely malformed UUID still surfaces its error below.
-    const isSynthetic = optionId.startsWith('place-') || optionId.startsWith('hotel-');
+    // ACTIVITY-01 STEP 4 (2026-09-22): a Viator tour's Save is the third synthetic constructor (`viator-`, PublicActivitySearch.tsx).
+    const isSynthetic = optionId.startsWith('place-') || optionId.startsWith('hotel-') || optionId.startsWith('viator-');
 
     // SEC-2: for a real option row, verify it belongs to THIS trip before the
     // uncommit mutates it (flights/synthetic have no option row — skip, same as

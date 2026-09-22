@@ -66,6 +66,13 @@ const PROVIDER_SAFE_DEFAULT_CAP: Record<string, number> = {
   // 'flightbooking' bucket is gone with its route.) Raise via
   // TRAVEL_SEARCH_DAILY_CAP_LITEAPIFLIGHTBOOKING on a real volume plan.
   liteapiflightbooking: 25,
+  // ACTIVITY-01 STEP 4 (2026-09-22): the Things-to-do SAVE reads Viator three times per
+  // attempt — GET /products/{code}, GET /availability/schedules/{code}, POST
+  // /exchange-rates (skipped on a cache hit or a same-currency schedule) — each reserved
+  // once here from the ONE authed options route. 300/day = ~100 Save attempts, the
+  // prebook precedent (hotelprebook / flightprebook: 100 quotes a day) scaled by the
+  // three calls. Raise via TRAVEL_SEARCH_DAILY_CAP_VIATORSAVE on a real volume plan.
+  viatorsave: 300,
 };
 
 /** Per-provider daily cap. Precedence: TRAVEL_SEARCH_DAILY_CAP_<PROVIDER> env →

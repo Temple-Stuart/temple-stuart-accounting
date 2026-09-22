@@ -10,6 +10,7 @@ import { ACTIVITY_LABELS } from './activities';
 import { TRAVEL_COA } from './travelCOA';
 import { MissingViatorKeyError, ViatorApiError } from './travelErrors';
 import type { ProductSearchBody } from './activities/searchContract';
+import { isExpired, type RateRecord } from './activities/fx';
 
 const VIATOR_V2_BASE = 'https://api.viator.com/partner';
 
@@ -340,6 +341,61 @@ export async function searchProductsRaw(body: ProductSearchBody): Promise<unknow
     throw new ViatorApiError('V2 /products/search', res.status, await res.text());
   }
   return res.json();
+}
+
+/**
+ * ACTIVITY-01 STEP 4 (2026-09-22, the Basic-access path): the Save's three reads, raw.
+ * Each has ONE call site — the authed options route (src/app/api/travel/activities/
+ * options/route.ts) — reserved there under 'viatorsave' before the call; the search
+ * route, the picker and the planner never call them. Every answer is returned AS
+ * THE VENDOR SENT IT for the pure leaves (product.ts, schedule.ts, fx.ts) to read.
+ * A non-2xx answer throws ViatorApiError with the endpoint and status; the route
+ * turns that into a fixed reason — the vendor's body never reaches the browser.
+ */
+async function getRaw(path: string, endpoint: string): Promise<unknown> {
+  const res = await fetch(`${VIATOR_V2_BASE}${path}`, { method: 'GET', headers: v2Headers() });
+  if (!res.ok) throw new ViatorApiError(endpoint, res.status, await res.text());
+  return res.json();
+}
+
+/** GET /products/{product-code} — the ACTIVE product's stated facts (bands, requirements, zone, options, cancellation). */
+export async function getProductRaw(productCode: string): Promise<unknown> {
+  return getRaw(`/products/${encodeURIComponent(productCode)}`, `/products/${productCode}`);
+}
+
+/** GET /availability/schedules/{product-code} — published start times, unavailable dates, per-band prices in the SUPPLIER's currency. */
+export async function getScheduleRaw(productCode: string): Promise<unknown> {
+  return getRaw(`/availability/schedules/${encodeURIComponent(productCode)}`, `/availability/schedules/${productCode}`);
+}
+
+/** POST /exchange-rates — the vendor's own rate for one pair, with its lastUpdated and expiry. */
+export async function fetchExchangeRatesRaw(sourceCurrency: string, targetCurrency: string): Promise<unknown> {
+  const res = await fetch(`${VIATOR_V2_BASE}/exchange-rates`, {
+    method: 'POST',
+    headers: v2Headers(),
+    body: JSON.stringify({ sourceCurrencies: [sourceCurrency], targetCurrencies: [targetCurrency] }),
+  });
+  if (!res.ok) throw new ViatorApiError('/exchange-rates', res.status, await res.text());
+  return res.json();
+}
+
+// The rate cache the docs instruct ("Exchange rates should be cached and refreshed
+// based on the expiry timestamp"): per pair, held until ITS OWN expiry, never past
+// it — a cache with an expiry the vendor stated is not a fallback. In-process (per
+// lambda on Vercel); a miss or an expired entry makes the route fetch again.
+const exchangeRateCache = new Map<string, RateRecord>();
+
+/** The cached rate for a pair when it has not expired at `now`; null otherwise (the caller fetches). */
+export function cachedExchangeRate(sourceCurrency: string, targetCurrency: string, now: Date): RateRecord | null {
+  const hit = exchangeRateCache.get(`${sourceCurrency}→${targetCurrency}`);
+  if (!hit) return null;
+  if (isExpired(hit, now)) { exchangeRateCache.delete(`${sourceCurrency}→${targetCurrency}`); return null; }
+  return hit;
+}
+
+/** Remember a freshly read rate until its expiry. */
+export function rememberExchangeRate(rate: RateRecord): void {
+  exchangeRateCache.set(`${rate.sourceCurrency}→${rate.targetCurrency}`, rate);
 }
 
 /** V2 /search/freetext — best for keyword-based searching */
