@@ -217,11 +217,13 @@ export default function UnattachedBookings({ selectedTrip, onChanged, onTotals }
                         </button>
                       )}
                       {selectedTrip ? (
+                        // REPAINT-04 (2026-09-21): the ghost button's label was white on cream (invisible);
+                        // aubergine ink, the ds CONTROL.ghostButton idiom. Paint only — one class.
                         <button
                           type="button"
                           disabled={busyId === r.id}
                           onClick={() => attach(r.id)}
-                          className="rounded border border-brand-purple/40 px-2 py-1 text-xs font-medium text-white hover:bg-brand-purple/10 disabled:opacity-50"
+                          className="rounded border border-brand-purple/40 px-2 py-1 text-xs font-medium text-brand-purple hover:bg-brand-purple/10 disabled:opacity-50"
                         >
                           {busyId === r.id ? 'Attaching…' : `Add to ${selectedTrip.name || 'selected trip'}`}
                         </button>

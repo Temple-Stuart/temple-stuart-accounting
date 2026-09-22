@@ -168,7 +168,8 @@ export default function HubBudgetSection({ preview = false }: { preview?: boolea
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="border-b border-panel-border bg-white/5">
+              {/* REPAINT-04 (2026-09-21): the retired dark hairline + white/5 tint → lavender hairline, cream-row fill. */}
+              <tr className="border-b border-border bg-bg-row">
                 <th className={`py-2 px-3 text-left ${DATA.columnHeader}`}>Category</th>
                 <th className={`py-2 px-3 text-left ${DATA.columnHeader}`}>COA</th>
                 <th className={`py-2 px-3 text-right ${DATA.columnHeader}`}>Budget</th>

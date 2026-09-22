@@ -155,12 +155,13 @@ function youTubeEmbedUrl(url: string): string | null {
   return m ? `https://www.youtube.com/embed/${m[1]}` : null;
 }
 
-/** FD-1f v3: a stacked CODE + MEANING cell — the schedule teaches the taxonomy. */
+/** FD-1f v3: a stacked CODE + MEANING cell — the schedule teaches the taxonomy.
+ *  REPAINT-04 (2026-09-21): its ink follows the receipt off the retired dark sheet — primary / faint. */
 function DimCell({ code, label }: { code: string; label: string }) {
   return (
     <div>
-      <div className="font-mono text-xs text-white whitespace-nowrap">{code}</div>
-      <div className="text-[10px] leading-tight text-white/50">{label}</div>
+      <div className="font-mono text-xs text-text-primary whitespace-nowrap">{code}</div>
+      <div className="text-[10px] leading-tight text-text-faint">{label}</div>
     </div>
   );
 }
@@ -1844,13 +1845,16 @@ export function ModuleCostBreakdown({ projectName, zeroCostVendor }: { projectNa
   const zeroFact = zeroCostVendor ? NO_COST_STRIP.find((f) => f.vendor === zeroCostVendor) : undefined;
   return (
     <div className="px-4 pb-4">
-      <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-white/70">
+      {/* REPAINT-04 (2026-09-21): the receipt (unmounted, preserved for HPW-1) wore the retired dark sheet's
+          paint — bg-panel-surface, panel hairlines, the white ladder. Cream-shell tokens now, so a remount lands
+          on the cream landing readable. Structure and copy untouched. */}
+      <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
         Entered ${total.toFixed(2)} · {entered.length} of {rows.length} amounts
       </p>
-      <div className="mt-2 overflow-x-auto rounded-lg border border-panel-border bg-panel-surface">
+      <div className="mt-2 overflow-x-auto rounded-lg border border-border bg-white">
         <table className="w-full min-w-[1080px] text-sm">
           <thead>
-            <tr className="border-b border-panel-border text-left font-mono text-[10px] uppercase tracking-wider text-white/40">
+            <tr className="border-b border-border text-left font-mono text-[10px] uppercase tracking-wider text-text-faint">
               <th className="px-3 py-2 font-semibold">Entity</th>
               <th className="px-3 py-2 font-semibold">Account</th>
               <th className="px-3 py-2 font-semibold">Sub</th>
@@ -1865,7 +1869,7 @@ export function ModuleCostBreakdown({ projectName, zeroCostVendor }: { projectNa
           </thead>
           <tbody>
             {rows.map((r: ScheduleAllocationRow) => (
-              <tr key={`${r.vendor}-${r.target.type}-${r.target.name}`} className="border-b border-panel-border last:border-0">
+              <tr key={`${r.vendor}-${r.target.type}-${r.target.name}`} className="border-b border-border last:border-0">
                 <td className="px-3 py-2 align-top"><DimCell code={r.entity} label={ENTITY_DIM[r.entity]} /></td>
                 <td className="px-3 py-2 align-top"><DimCell code={r.account} label={ACCOUNT_DIM[r.account]} /></td>
                 <td className="px-3 py-2 align-top"><DimCell code={r.sub} label={SUB_DIM[r.account]?.[r.sub] ?? ''} /></td>

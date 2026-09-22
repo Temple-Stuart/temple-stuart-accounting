@@ -18,6 +18,12 @@
  * light vocabulary — cream paper, white/card-cream cards, lavender hairlines,
  * aubergine structure ink. The dark panel-family values retire with the dk
  * machinery in Slice 5. */
+/* REPAINT-04 (2026-09-21): they never did. tailwind.config.ts still defines the
+ * panel family and eleven files still painted with it — most on the cream shell
+ * (a near-black trip row on the cream travel tab, white/80 table headers on a
+ * white table). Every miss is repainted; the three surfaces in
+ * PANEL_TOKEN_ALLOWLIST below still declare themselves dark or purple by their
+ * own classes and keep the token, so the family stays defined for them. */
 export const SURFACE = {
   /** The page background — the cream paper (was bg-page, REPAINT-3). */
   page: 'bg-bg-terminal',
@@ -246,6 +252,57 @@ export const LAYOUT = {
 
 /* REPAINT-5: the CAL-DS-THEME machinery (Surface, DARKEN_MAP, themed) retired —
  * one theme, one truth. Dark-native components carry their dark classes inline. */
+
+/* ─── REPAINT-04 (2026-09-21): THE DEAD SURFACE'S PAINT ─────────────────────
+ * The repaint law (scripts/assert-tool-registry.ts) admits a panel-* token in
+ * these files only, and each must still declare the surface it paints dark or
+ * purple by its own classes (`declaredBy` is read from the file). Whether each
+ * stays dark is Alex's call — not decided here. THE LIST MAY ONLY SHRINK.
+ */
+export const PANEL_TOKEN_ALLOWLIST: ReadonlyArray<{ file: string; surface: string; declaredBy: string }> = [
+  {
+    file: 'src/app/modules/[pillar]/ModulePageClient.tsx',
+    surface: 'the /modules deck and access bands — full-width bands on the cream page that paint themselves bg-panel / bg-panel-surface and carry the white ladder inside; REPAINT-3 did not touch /modules',
+    declaredBy: 'border-b border-panel-border bg-panel',
+  },
+  {
+    file: 'src/components/OfferCard.tsx',
+    surface: "the offer card's dark tone — consumed only by ModulePageClient's access band (tone=\"dark\")",
+    declaredBy: "tone === 'dark'",
+  },
+  {
+    file: 'src/components/dashboard/BudgetBuilder.tsx',
+    surface: 'the Budget Review table header — a purple row (bg-brand-purple text-white) on which the Annual column is highlighted darker',
+    declaredBy: 'bg-brand-purple text-white',
+  },
+];
+
+/**
+ * REPAINT-04: white ink on the travel tab is admitted only where the element's
+ * own classes carry a solid dark or purple background — except in these files,
+ * whose white ink sits on a fill an ANCESTOR declares (cited, and read from the
+ * declaring file by the law). Nothing else on the tab may be white on cream.
+ */
+export const WHITE_INK_ON_DARK_ANCESTOR: ReadonlyArray<{ file: string; ancestorFile: string; declaredBy: string; why: string }> = [
+  {
+    file: 'src/components/trips/TripTimelineView.tsx',
+    ancestorFile: 'src/components/trips/TripTimelineView.tsx',
+    declaredBy: "const TRAVEL_FILL = 'bg-cyan-500 text-white';",
+    why: 'every white span sits in a day block filled TRAVEL_FILL (the trip cyan the grid draws trip events in)',
+  },
+  {
+    file: 'src/components/ui/ToggleStrip.tsx',
+    ancestorFile: 'src/components/ui/ToggleStrip.tsx',
+    declaredBy: 'style={{ background: DS.BAND_BG }}',
+    why: 'the strip\'s headline sits in the aubergine band (BAND_BG, a style, not a class)',
+  },
+  {
+    file: 'src/components/trips/travelStripModes.tsx',
+    ancestorFile: 'src/components/ui/ToggleStrip.tsx',
+    declaredBy: '{trust && <div className="mt-4">{trust}</div>}',
+    why: 'the trust-chip row renders in ToggleStrip\'s `trust` slot, inside the same aubergine band',
+  },
+];
 
 /** The whole system under one import for terse call sites. */
 export const DS = {

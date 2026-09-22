@@ -39,6 +39,9 @@ const config: Config = {
         },
         // BG-DEPTH: the page canvas — its own token so page and cards move
         // independently (same plain-var pattern as `panel`).
+        // REPAINT-04 (2026-09-21): the retired dark surface's family. It stays
+        // defined for the three self-declared dark/purple surfaces in
+        // src/lib/ds.ts PANEL_TOKEN_ALLOWLIST; the repaint law refuses it anywhere else.
         panel: {
           DEFAULT: 'var(--ts-panel)',              // #11131b (BG-DEPTH lift; was #0d1117)
           surface: 'var(--ts-panel-surface)',      // #161b22

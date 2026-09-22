@@ -262,7 +262,8 @@ function TradeLog({ result }: { result: BacktestResult }) {
             </thead>
             <tbody>
               {trades.map((t, i) => (
-                <tr key={i} className="border-b border-panel-hover hover:bg-bg-row">
+                // REPAINT-04 (2026-09-21): the retired dark hairline on a cream table → the lavender hairline.
+                <tr key={i} className="border-b border-border hover:bg-bg-row">
                   <td className="px-2 py-1 text-text-muted font-mono">{i + 1}</td>
                   <td className="px-2 py-1 text-text-faint font-mono">{t.entryDate}</td>
                   <td className="px-2 py-1 text-text-faint font-mono">{t.exitDate}</td>

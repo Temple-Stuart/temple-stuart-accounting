@@ -23,7 +23,7 @@
 
 import { createHash } from 'node:crypto';
 
-export const BOOKING_FLOW_BASE = 'main @ b9eac34a (2026-09-19)';
+export const BOOKING_FLOW_BASE = 'main @ b9eac34a (2026-09-19); UnattachedBookings.tsx re-pinned by REPAINT-04 (2026-09-21), paint only';
 
 export interface BookingFlowPin {
   readonly file: string;
@@ -71,7 +71,10 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: 'c018712700fe9e24c0ff51b417ab3658060f8dbe8784a459b33da4eb6a70365d' },
   { file: 'src/components/trips/CancelBookingDialog.tsx', sha256: '7e50c4ece72171929446f4734622ccdf8b6b75bb87c2c6c3c5aa101ec26fd95d' },
   { file: 'src/components/trips/TripBookings.tsx', sha256: '1c74ce7438ea6ce7013a4c8de4bbd685f2865e2fe0f8d3c3a7f4a119435cc5bd' },
-  { file: 'src/components/trips/UnattachedBookings.tsx', sha256: 'd5f8e0be428de6054eb756c0301c1e064e825f6ddb013d45cc332b7ca6157492' },
+  // REPAINT-04 (2026-09-21): re-pinned — one class on the "Add to <trip>" ghost button
+  // (text-white → text-brand-purple, invisible on cream). Paint only; no call changed.
+  // Was d5f8e0be428de6054eb756c0301c1e064e825f6ddb013d45cc332b7ca6157492 at main b9eac34a.
+  { file: 'src/components/trips/UnattachedBookings.tsx', sha256: '09d7767b9a1679d0481efd506da7002b4ecfa4ee6a68f539a53e997726bda44b' },
   { file: 'src/components/trips/TripPlannerAI.tsx', sha256: '8c5bf217bf1a2c2b65f3f969be5c02016455d53d9977fa5406600d14cb894ed5' },
   // the provider clients and their helpers
   { file: 'src/lib/liteapiClient.ts', sha256: '9806e3b58ab2b8d4845e7870f89078d473d27007cae0adb247af0673907f176a' },

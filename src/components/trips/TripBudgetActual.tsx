@@ -374,7 +374,8 @@ export default function TripBudgetActual({ trip, onTotals }: { trip: TripRow;
                   {/* Every budget line is Saved (planned). Booked (paid) is not derivable
                       from budget_line_items yet — see the file header. */}
                   <td className={td}>
-                    <span className="rounded-full bg-brand-purple/10 px-2 py-0.5 text-xs font-medium text-white">Saved</span>
+                    {/* REPAINT-04 (2026-09-21): aubergine ink on the wash — white on a 10% wash was invisible on cream. */}
+                    <span className="rounded-full bg-brand-purple/10 px-2 py-0.5 text-xs font-medium text-brand-purple">Saved</span>
                   </td>
                   <td className={td}><EditableCell kind="date" value={it.startDate} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'startDate', v)} /></td>
                   <td className={td}><EditableCell kind="time" value={it.startTime} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'startTime', v)} /></td>

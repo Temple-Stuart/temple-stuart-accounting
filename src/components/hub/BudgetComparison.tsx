@@ -194,12 +194,15 @@ export default function BudgetComparison({ initialYear, preview = false }: { ini
         <div className="border border-border bg-white overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="bg-white/5 text-white/80">
-                <th className="text-left py-2 px-3 font-medium border-r border-panel-border w-36">Category</th>
+              {/* REPAINT-04 (2026-09-21): the header and footer rows wore the retired dark surface's paint on a
+                  white table (white/80 ink on white — invisible): cream-row fill + secondary ink (the Trips row's own
+                  idiom below), lavender hairlines, and the travel-month highlight as the aubergine wash. */}
+              <tr className="bg-bg-row text-text-secondary">
+                <th className="text-left py-2 px-3 font-medium border-r border-border w-36">Category</th>
                 {MONTHS_SHORT.map((m, i) => (
-                  <th key={m} className={`py-2 px-2 font-medium border-r border-panel-border text-right min-w-[55px] ${travelMonths.includes(i) ? 'bg-panel-highlight' : ''}`}>{m}</th>
+                  <th key={m} className={`py-2 px-2 font-medium border-r border-border text-right min-w-[55px] ${travelMonths.includes(i) ? 'bg-brand-purple/10' : ''}`}>{m}</th>
                 ))}
-                <th className="py-2 px-3 font-medium text-right bg-panel-highlight min-w-[70px]">FY Total</th>
+                <th className="py-2 px-3 font-medium text-right bg-brand-purple/10 min-w-[70px]">FY Total</th>
               </tr>
             </thead>
             <tbody>
@@ -234,17 +237,17 @@ export default function BudgetComparison({ initialYear, preview = false }: { ini
               </tr>
             </tbody>
             <tfoot>
-              <tr className="bg-white/5 text-white font-semibold">
-                <td className="py-2 px-3 border-r border-panel-border">Monthly Total</td>
+              <tr className="bg-bg-row text-text-primary font-semibold">
+                <td className="py-2 px-3 border-r border-border">Monthly Total</td>
                 {MONTHS_SHORT.map((_, i) => {
                   const homebase = Object.values(homebaseBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                   const business = Object.values(businessBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                   const travel = Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                   const isTraveling = travelMonths.includes(i);
                   const effective = isTraveling ? (travel + business) : (homebase + travel + business);
-                  return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-panel-border ${isTraveling ? 'bg-panel-highlight' : ''}`}>{fmt(effective)}</td>);
+                  return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-border ${isTraveling ? 'bg-brand-purple/10' : ''}`}>{fmt(effective)}</td>);
                 })}
-                <td className="py-2 px-3 text-right font-mono bg-panel-highlight">{fmt(effectiveYearlyCost)}</td>
+                <td className="py-2 px-3 text-right font-mono bg-brand-purple/10">{fmt(effectiveYearlyCost)}</td>
               </tr>
               <tr className="bg-bg-row text-text-secondary text-[10px]">
                 <td className="py-1.5 px-3 border-r border-border">Trips</td>
