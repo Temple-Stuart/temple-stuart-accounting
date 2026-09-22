@@ -36,10 +36,24 @@
 //     → writes src/lib/__tests__/fixtureViatorCheck.<product-code>.<date>.json
 //
 //   npx tsx scripts/probe-viator.ts schedule <product-code>
-//     → GET /availability/schedules/{product-code}. Diagnostic only: the endpoint
-//       answers in the SUPPLIER's currency (THB for Phuket), so the app does not
-//       call it (ruling B, 2026-09-22) and its fixture is NOT in the tree (ruling C).
+//     → GET /availability/schedules/{product-code} (✅ for a Basic-access
+//       Affiliate): the product's options, start times, per-band prices in the
+//       SUPPLIER's currency (THB for Phuket), sold-out dates and extra charges.
+//       The Basic-access path of the Save (the STEP 4 ruling by tier, 2026-09-22)
+//       reads this capture beside the product's, with /exchange-rates for the
+//       conversion; the Full-access path reads /availability/check instead.
 //     → writes src/lib/__tests__/fixtureViatorSchedule.<product-code>.json
+//       (commission redacted since 0c — the earlier capture never landed).
+//
+//   npx tsx scripts/probe-viator.ts fx <SOURCE> <TARGET>      e.g. fx THB USD
+//     → POST /exchange-rates { sourceCurrencies: [SOURCE], targetCurrencies:
+//       [TARGET] } (operationId exchangeRates; ✅ for a Basic-access Affiliate;
+//       the docs: "all pricing is denominated in the currency of the supplier …
+//       perform the currency conversion based on the exchange rates given in the
+//       response … valid at the time of conversion (as given in the expiry
+//       field)"). 200 = { rates[] { sourceCurrency, targetCurrency, rate ("value
+//       of targetCurrency per unit of sourceCurrency"), lastUpdated, expiry } }.
+//     → writes src/lib/__tests__/fixtureViatorExchangeRates.<source>-<target>.json
 //
 // Each mode prints the HTTP status (plus the RateLimit-Limit / -Remaining /
 // -Reset and X-Unique-ID headers the docs say a metered response carries) and
@@ -309,6 +323,22 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (mode === 'fx') {
+    const source = (a ?? '').trim().toUpperCase();
+    const target = (b ?? '').trim().toUpperCase();
+    if (!/^[A-Z]{3}$/.test(source) || !/^[A-Z]{3}$/.test(target)) { console.log('usage: fx <SOURCE> <TARGET>   e.g. fx THB USD'); process.exit(2); }
+    const body = { sourceCurrencies: [source], targetCurrencies: [target] };
+    banner(`POST /exchange-rates — ${source} → ${target}`);
+    console.log(`body=${JSON.stringify(body)}`);
+    const answer = await postJson(`${VIATOR_V2_BASE}/exchange-rates`, body);
+    printAnswer(answer);
+    if (!answer.ok) process.exit(1);
+    const d = answer.json as { rates?: Array<{ sourceCurrency?: string; targetCurrency?: string; rate?: number; lastUpdated?: string; expiry?: string }> } | null;
+    for (const r of d?.rates ?? []) console.log(`  rate ${r.sourceCurrency}→${r.targetCurrency}=${r.rate} lastUpdated=${r.lastUpdated} expiry=${r.expiry}`);
+    writeFixture(`src/lib/__tests__/fixtureViatorExchangeRates.${slugOf(`${source}-${target}`)}.json`, answer);
+    return;
+  }
+
   if (mode === 'schedule') {
     const code = (a ?? '').trim();
     if (!code) { console.log('usage: schedule <product-code>'); process.exit(2); }
@@ -321,7 +351,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  console.log('usage:\n  npx tsx scripts/probe-viator.ts search <city> <country> [start]\n  npx tsx scripts/probe-viator.ts product <product-code>\n  npx tsx scripts/probe-viator.ts check <product-code> <YYYY-MM-DD> <BAND=n ...>\n  npx tsx scripts/probe-viator.ts schedule <product-code>');
+  console.log('usage:\n  npx tsx scripts/probe-viator.ts search <city> <country> [start]\n  npx tsx scripts/probe-viator.ts product <product-code>\n  npx tsx scripts/probe-viator.ts check <product-code> <YYYY-MM-DD> <BAND=n ...>\n  npx tsx scripts/probe-viator.ts schedule <product-code>\n  npx tsx scripts/probe-viator.ts fx <SOURCE> <TARGET>');
   process.exit(2);
 }
 
