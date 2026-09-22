@@ -116,7 +116,10 @@ import { extraChargesFor, partyCost, startTimesOn, type RawSchedule } from '../s
 import { CALCULATED, convert, isExpired, rateOf, type RawExchangeRates } from '../src/lib/activities/fx';
 import { activitySaveNoteOf, endTimeOf, totalOf } from '../src/lib/activities/save';
 import { QUOTE_MAX_AGE_MINUTES, endOfQuote, priceQuote, quoteAgeMinutes, quotesForOption, readViatorQuote, saveFromQuote, type ViatorQuote } from '../src/lib/activities/quote';
-import { QUOTE_SEAL_DOMAIN, canonicalJson, sealHolds, sealOf } from '../src/lib/activities/quoteSeal';
+// ACTIVITY-01 STEP 4c (2026-09-22): the law seals under a PROBE key of its own
+// (quoteKeyFrom + sealWith/sealHoldsWith). It never calls sealOf/sealHolds, which
+// read JWT_SECRET — no law reads a deployment secret, and the build needs none.
+import { QUOTE_SEAL_DOMAIN, canonicalJson, quoteKeyFrom, sealHoldsWith, sealWith } from '../src/lib/activities/quoteSeal';
 import PHUKET_PRODUCT from '../src/lib/__tests__/fixtureViatorProduct.27424p2.json';
 import PHUKET_SCHEDULE from '../src/lib/__tests__/fixtureViatorSchedule.27424p2.json';
 import THB_USD from '../src/lib/__tests__/fixtureViatorExchangeRates.thb-usd.json';
@@ -228,6 +231,177 @@ function pageFor(route: string, tabs: Set<string>): string | null {
 }
 
 const violations = registryLaw({ throwOnFail: false });
+
+// ─── EACH LAW IN ITS OWN GUARD (ACTIVITY-01 STEP 4c, 2026-09-22) ─────────────
+// Before this, a law that THREW took the whole suite with it. STEP 4b's seal
+// probe called sealOf(); src/lib/activities/quoteSeal.ts threw for want of
+// JWT_SECRET; the process died after 38 verdicts and the remaining laws never
+// ran — so `npm run build`, which runs the laws before it builds, could not
+// build at all in an environment without that DEPLOYMENT secret. Two fixes: no
+// law reads a credential any more (the seal probes derive under a key of the
+// law's own, below), and a throw is now that law's own FAILURE — named, with
+// its message, pushed onto `violations` like any other — so every remaining law
+// still runs and the gate at the foot of the file still exits non-zero. The
+// suite's exit code and its verdict lines are otherwise unchanged.
+//
+// The granularity is the file's own: 30 regions, each ending in the verdict
+// line(s) it prints (the four earliest laws share one region — their bodies
+// interleave above the first gate).
+function lawGuard(name: string, run: () => void): void {
+  try {
+    run();
+  } catch (error) {
+    const first = (error instanceof Error ? (error.stack ?? error.message) : String(error)).split('\n')[0];
+    violations.push(`${name}: THREW — ${first}`);
+    console.log(`✖ ${name} FAILED — it threw: ${first}`);
+  }
+}
+
+type Door = { route: string; kind: string; via: string };
+// Declared here, above the guards, because more than one law reads them: a
+// guarded region is a scope, and a reader declared inside one is invisible to
+// the next. Nothing about what they do changed — only where they are declared.
+const pages = pageRoutes();
+const ALL_MIGRATIONS = readdirSync(resolve(ROOT, 'prisma/migrations')).sort()
+  .filter((d) => existsSync(resolve(ROOT, 'prisma/migrations', d, 'migration.sql')))
+  // TEST-TRUTH-01: the kind-views law compares the WHOLE artefact (the generator
+  // emits `-- kind: tables` headers), so the two halves are read and rejoined.
+  .map((d) => ({ dir: d, sql: rejoin(codeOf(`prisma/migrations/${d}/migration.sql`), commentsOf(`prisma/migrations/${d}/migration.sql`)) }));
+function tsFiles(dir: string): string[] {
+  const out: string[] = [];
+  for (const name of readdirSync(dir)) {
+    const abs = `${dir}/${name}`;
+    if (statSync(abs).isDirectory()) { if (name !== '__tests__' && name !== 'node_modules') out.push(...tsFiles(abs)); continue; }
+    if (name.endsWith('.ts') || name.endsWith('.tsx')) out.push(abs);
+  }
+  return out;
+}
+const srcFiles = tsFiles(resolve(ROOT, 'src')).map((abs) => ({ file: abs.replace(`${ROOT}/`, ''), src: codeOf(abs.replace(`${ROOT}/`, '')) }));
+function walkSrc(dir: string, out: string[] = []): string[] {
+  for (const e of readdirSync(resolve(ROOT, dir), { withFileTypes: true })) {
+    const rel = `${dir}/${e.name}`;
+    if (e.isDirectory()) walkSrc(rel, out);
+    else if (e.name.endsWith('.tsx')) out.push(rel);
+  }
+  return out;
+}
+const shellFiles = [...walkSrc('src/app'), ...walkSrc('src/components')];
+function importsFor(file: string): string[] {
+  const hit = importsOf.get(file);
+  if (hit) return hit;
+  let src = '';
+  try { src = codeOf(file); } catch { src = ''; }
+  const out: string[] = [];
+  for (const m of src.matchAll(IMPORT_SPEC)) {
+    const r = resolveImport(file, m[1]);
+    if (r) out.push(r);
+  }
+  importsOf.set(file, out);
+  return out;
+}
+const MULTI_TOOL_ALLOWED: ReadonlyArray<{ route: string; tools: readonly string[]; since: string; why: string; retire: string }> = [];
+const screenTools = new Map<string, string[]>();
+const m01Walk = (dir: string): string[] => readdirSync(resolve(ROOT, dir)).flatMap((n) => {
+  const p = `${dir}/${n}`;
+  if (statSync(resolve(ROOT, p)).isDirectory()) return m01Walk(p);
+  return /\.(tsx?|md)$/.test(n) && !/__tests__/.test(p) ? [p] : [];
+});
+const dayCode = (f: string) => dayRead(f).split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
+const HOTEL_COMMIT = 'src/app/api/trips/[id]/vendor-commit/route.ts';
+const staySrcFiles = (): string[] => {
+  const out: string[] = [];
+  const walk = (dir: string) => {
+    for (const name of readdirSync(dir)) {
+      const abs = `${dir}/${name}`;
+      if (statSync(abs).isDirectory()) { if (name !== '__tests__') walk(abs); continue; }
+      if (/\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name)) out.push(abs.replace(`${ROOT}/`, ''));
+    }
+  };
+  walk(resolve(ROOT, 'src'));
+  return out;
+};
+
+const reach = new Map<string, Door | null>();
+const schemaText = codeOf('prisma/schema.prisma');
+const SELLING_SURFACES = ['src/components/home/LockedTabCard.tsx', 'src/app/modules/[pillar]/ModulePageClient.tsx', 'src/app/pricing/page.tsx', 'src/components/landing/Landing.tsx'];
+const importsOf = new Map<string, string[]>();
+function drawnNumsIn(body: string, pipe: string): Set<string> {
+  const all = new Set((PIPE_PHASES[pipe as keyof typeof PIPE_PHASES] as readonly { num: string }[]).map((p) => p.num));
+  const destructure = body.match(new RegExp(`const\\s*\\[([^\\]]*)\\]\\s*=\\s*PIPE_PHASES\\.${pipe}\\b`));
+  if (!destructure) return all;
+  const names = destructure[1].split(',').map((n) => n.trim());
+  const phases = PIPE_PHASES[pipe as keyof typeof PIPE_PHASES] as readonly { num: string }[];
+  const drawn = new Set<string>();
+  names.forEach((name, i) => {
+    if (!name || !phases[i]) return;
+    const bare = name.replace(/:.*$/, '').trim();
+    if (!/^[A-Za-z_$][\w$]*$/.test(bare)) return;
+    if (new RegExp(`\\b${bare}\\.num\\b`).test(body)) drawn.add(phases[i].num);
+  });
+  // A destructure that named nothing the strip uses tells us nothing — be conservative.
+  return drawn.size > 0 ? drawn : all;
+}
+const M01 = (f: string) => (existsSync(resolve(ROOT, f)) ? codeOf(f) : '');
+const dayRead = (f: string) => (existsSync(resolve(ROOT, f)) ? codeOf(f) : '');
+const TRAVEL_LAUNCHER = 'src/components/home/ModuleLauncher.tsx';
+function noteBlockOver(pins: string, notes: string, pinLine: number): string {
+  const codeLines = pins.split('\n');
+  const noteLines = notes.split('\n');
+  const block: string[] = [];
+  for (let i = pinLine - 2; i >= 0 && codeLines[i].trim() === ''; i--) block.unshift(noteLines[i]);
+  return block.join('\n');
+}
+const HOTEL_CONTAINER = 'src/components/trips/PublicHotelSearch.tsx';
+
+const arrivalsRows: string[] = [];
+function resolveImport(fromFile: string, spec: string): string | null {
+  let base: string;
+  if (spec.startsWith('@/')) base = `src/${spec.slice(2)}`;
+  else if (spec.startsWith('.')) {
+    const dir = fromFile.split('/').slice(0, -1);
+    for (const part of spec.split('/')) {
+      if (part === '.') continue;
+      else if (part === '..') dir.pop();
+      else dir.push(part);
+    }
+    base = dir.join('/');
+  } else return null; // a package, not our code
+  for (const cand of [`${base}.tsx`, `${base}.ts`, `${base}/index.tsx`, `${base}/index.ts`]) {
+    if (existsSync(resolve(ROOT, cand))) return cand;
+  }
+  return null;
+}
+const IMPORT_SPEC = /(?:^|\n)\s*(?:import|export)[\s\S]{0,400}?from\s+['"]([^'"]+)['"]/g;
+const m01Pipeline = M01('src/lib/convergence/pipeline.ts');
+const DAY_VIEW_FILE = 'src/components/hub/DayView.tsx';
+const HOTEL_VIEW = 'src/components/trips/HotelResultsView.tsx';
+
+const callSites: Array<{ file: string; provider: string; resource: string; kind: string }> = [];
+const toolRows = navRows(TOOL_GATE);
+const m01Builder = M01('src/lib/strategy-builder.ts');
+const HOTEL_CLIENT = 'src/lib/liteapiClient.ts';
+
+const applied: Array<{ provider: string; resource: string; kind: string }> = [];
+let toolViolations = 0;
+const HOTEL_ROUTE = 'src/app/api/travel/hotels/search/route.ts';
+
+const postingPaths = new Set<string>();
+const stripFiles = shellFiles.filter((f) => codeOf(f).includes('<StageStrip'));
+
+const srcEnv = new Set<string>();
+const CALENDAR_HOME = '/calendar';
+
+const libraryEnv = new Set(LIBRARY_READ_ENV.map((e) => e.name));
+
+// ─── THE READERS EVERY LAW SHARES ───────────────────────────────────────────
+// Declared here, above the guards, because more than one law reads them: a
+// guarded region is a scope, and a reader declared inside one is invisible to
+// the next. Nothing about what they do changed — only where they are declared.
+const dynamicEnv = new Set(DYNAMIC_READ_ENV.map((e) => e.name));
+
+/** Where the second gate starts reading — set inside the first guarded region, read by the gate at the foot of the file. */
+let raised = 0;
+lawGuard('The tool registry law', () => {
 const tabs = tabAllowlist();
 const rows: string[] = [];
 
@@ -250,7 +424,6 @@ for (const t of TOOL_REGISTRY) {
 }
 
 // ── THE REACHABILITY LAW (NAV-01b) ──────────────────────────────────────────
-type Door = { route: string; kind: string; via: string };
 const doors: Door[] = [];
 // SHELL-01: the rail's doors are what it RENDERS — Home first, then every step
 // (its room, or /step/<slug> when it has none) and, inside the open step, each
@@ -278,8 +451,6 @@ for (const g of GUEST_ROUTES) doors.push({ route: g.route, kind: 'listed route',
 for (const [q, r] of Object.entries(ANSWER_READS)) if (r.computed) doors.push({ route: r.home, kind: 'answers', via: `"${q}" · Open · ${r.home}` });
 doors.push({ route: NET_WORTH_READ.home, kind: 'answers', via: `Net worth · Open · ${NET_WORTH_READ.home}` });
 
-const pages = pageRoutes();
-const reach = new Map<string, Door | null>();
 // Prefer the most specific door: an exact route match first, listed routes before
 // prefix matches, so `/` reads as the front door and `/[tab]` as the cockpit paths.
 const findDoor = (route: string) => {
@@ -409,7 +580,6 @@ console.log(`counts: LIVE ${counts.LIVE} · PARTIAL ${counts.PARTIAL} · NOT_BUI
 
 // ── THE ARRIVALS LAW (REBUILD-01 PR-1) ──────────────────────────────────────
 violations.push(...providersLaw({ throwOnFail: false }));
-const schemaText = codeOf('prisma/schema.prisma');
 const migrationDir = readdirSync(resolve(ROOT, 'prisma/migrations')).find((d) => d.endsWith('_arrivals'));
 const migrationSql = migrationDir ? codeOf(`prisma/migrations/${migrationDir}/migration.sql`) : '';
 if (!migrationDir) violations.push('arrivals: no prisma/migrations/*_arrivals/migration.sql');
@@ -421,11 +591,6 @@ const typeValues = migrationSql.match(/CREATE TYPE arrival_provider AS ENUM \((.
 if (typeValues.join(',') !== PROVIDER_CODES.join(',')) violations.push(`arrivals: migration CREATE TYPE arrival_provider [${typeValues.join(' ')}] ≠ providers.ts codes`);
 
 /** Every migration.sql, in migration order — the ALTER TABLE … ADD COLUMN / SET NOT NULL a table gained after its CREATE TABLE. */
-const ALL_MIGRATIONS = readdirSync(resolve(ROOT, 'prisma/migrations')).sort()
-  .filter((d) => existsSync(resolve(ROOT, 'prisma/migrations', d, 'migration.sql')))
-  // TEST-TRUTH-01: the kind-views law compares the WHOLE artefact (the generator
-  // emits `-- kind: tables` headers), so the two halves are read and rejoined.
-  .map((d) => ({ dir: d, sql: rejoin(codeOf(`prisma/migrations/${d}/migration.sql`), commentsOf(`prisma/migrations/${d}/migration.sql`)) }));
 
 /** SQL column → { name, type, nullable }: the CREATE TABLE body (constraints and indexes skipped) plus every later ADD COLUMN, with SET NOT NULL applied. */
 function sqlColumns(table: string): Array<{ name: string; type: string; nullable: boolean }> {
@@ -469,7 +634,6 @@ function modelColumns(model: string): Array<{ name: string; type: string; nullab
   }
   return out;
 }
-const arrivalsRows: string[] = [];
 for (const [table] of [['provider_responses'], ['arrivals']]) {
   const sql = sqlColumns(table);
   const model = modelColumns(table);
@@ -498,7 +662,6 @@ if (kindEnumValues.join(',') !== ARRIVAL_KINDS.join(',')) violations.push(`rule 
 const kindTypeValues = kindMigrationSql.match(/CREATE TYPE arrival_kind AS ENUM \((.*?)\);/)?.[1].split(', ').map((v) => v.replace(/^'|'$/g, '')) ?? [];
 if (kindTypeValues.join(',') !== ARRIVAL_KINDS.join(',')) violations.push(`rule book: migration CREATE TYPE arrival_kind [${kindTypeValues.join(' ')}] ≠ providers.ts ARRIVAL_KINDS`);
 // The migration applies the book, it invents nothing: every UPDATE it runs is a rule the book holds, with the book's kind.
-const applied: Array<{ provider: string; resource: string; kind: string }> = [];
 for (const m of kindMigrationSql.matchAll(/UPDATE arrivals SET kind = '([a-z]+)'\s+WHERE kind IS NULL AND provider = '([a-z_]+)' AND resource = '([a-z_]+)';/g)) {
   const [, kind, provider, resource] = m;
   applied.push({ provider, resource, kind });
@@ -510,20 +673,9 @@ if (kindMigration && applied.length === 0) violations.push('rule book: the arriv
 if (kindMigration && !/ALTER TABLE arrivals ALTER COLUMN kind SET NOT NULL/.test(kindMigrationSql)) violations.push('rule book: the arrival_kind migration never sets kind NOT NULL');
 if (kindMigration && !/OR NEW\.kind\s+IS DISTINCT FROM OLD\.kind/.test(kindMigrationSql)) violations.push('rule book: the promise-1 trigger does not freeze kind');
 // Every landing call site's (provider, resource) has a rule — the files under src that call landObjects, the words they pass.
-function tsFiles(dir: string): string[] {
-  const out: string[] = [];
-  for (const name of readdirSync(dir)) {
-    const abs = `${dir}/${name}`;
-    if (statSync(abs).isDirectory()) { if (name !== '__tests__' && name !== 'node_modules') out.push(...tsFiles(abs)); continue; }
-    if (name.endsWith('.ts') || name.endsWith('.tsx')) out.push(abs);
-  }
-  return out;
-}
 const landingConstants = new Map<string, string>();
-const srcFiles = tsFiles(resolve(ROOT, 'src')).map((abs) => ({ file: abs.replace(`${ROOT}/`, ''), src: codeOf(abs.replace(`${ROOT}/`, '')) }));
 for (const { src } of srcFiles) for (const m of src.matchAll(/export const ([A-Z_]+) = '([a-z_]+)';/g)) landingConstants.set(m[1], m[2]);
 const wordOf = (expr: string): string | undefined => (expr.startsWith("'") ? expr.slice(1, -1) : landingConstants.get(expr));
-const callSites: Array<{ file: string; provider: string; resource: string; kind: string }> = [];
 for (const { file, src } of srcFiles) {
   if (!src.includes('landObjects(') || file === 'src/lib/arrivals/land.ts') continue;
   const providers = [...new Set([...src.matchAll(/provider: ([A-Z_]+|'[a-z_]+')/g)].map((m) => wordOf(m[1])))];
@@ -551,7 +703,6 @@ violations.push(...offerLaw({ throwOnFail: false, purchasable: PURCHASABLE_ENTIT
 for (const { file, src } of srcFiles) {
   if (file !== 'src/lib/offer.ts' && src.includes('built and running')) violations.push(`offer: ${file} types "built and running" — a claim line comes from claimLine() only`);
 }
-const SELLING_SURFACES = ['src/components/home/LockedTabCard.tsx', 'src/app/modules/[pillar]/ModulePageClient.tsx', 'src/app/pricing/page.tsx', 'src/components/landing/Landing.tsx'];
 for (const f of SELLING_SURFACES) {
   if (!existsSync(resolve(ROOT, f))) { violations.push(`offer: ${f} is missing`); continue; }
   const src = codeOf(f);
@@ -579,7 +730,6 @@ console.log(`hero: ${heroCountsLine()}`);
 const POSTING_HOME = 'src/lib/posting/postJournal.ts';
 // A word boundary before the table name: trade_journal_entries (a different table) is not the ledger.
 const POSTING_WRITES = [/(?<![A-Za-z0-9_])journal_entries\s*\.\s*create(?:Many)?\s*\(/, /(?<![A-Za-z0-9_])ledger_entries\s*\.\s*create(?:Many)?\s*\(/, /(?<![A-Za-z0-9_])ledger_entries\s*:\s*\{\s*create\b/];
-const postingPaths = new Set<string>();
 for (const { file, src } of srcFiles) {
   if (file === POSTING_HOME) continue;
   for (const re of POSTING_WRITES) {
@@ -599,10 +749,7 @@ const readmeText = codeOf('README.md');
 const selfHosting = readmeText.split(/^## /m).find((section) => section.startsWith('Self-hosting')) ?? '';
 if (!selfHosting) violations.push('env: README.md has no "## Self-hosting" section');
 const documentedEnv = new Set([...selfHosting.matchAll(/`([A-Z][A-Z0-9_]+)`/g)].map((m) => m[1]));
-const srcEnv = new Set<string>();
 for (const { src } of srcFiles) for (const m of src.matchAll(/process\.env\.([A-Z][A-Z0-9_]+)/g)) srcEnv.add(m[1]);
-const libraryEnv = new Set(LIBRARY_READ_ENV.map((e) => e.name));
-const dynamicEnv = new Set(DYNAMIC_READ_ENV.map((e) => e.name));
 for (const name of libraryEnv) if (srcEnv.has(name)) violations.push(`env: ${name} is declared library-read (src/lib/envLaw.ts) but src reads process.env.${name} as a literal — not library-read`);
 const readKind = (name: string) => (srcEnv.has(name) ? 'a src literal' : libraryEnv.has(name) ? 'a library' : 'a computed key');
 for (const name of [...new Set([...srcEnv, ...libraryEnv, ...dynamicEnv])].sort()) {
@@ -629,11 +776,13 @@ if (violations.length) {
 }
 // Nothing above survived unreported (the gate exits), so this is 0 — it marks
 // where the second gate starts reading, and says so rather than assuming it.
-const raised = violations.length;
+raised = violations.length;
 console.log('✔ Tool registry law passed — 25/25 cells, homes resolve to page files, counts match the census.');
 console.log(`✔ Reachability law passed — ${pages.length} pages, every one has a door (the rail, the sheet, the utilities menu, a listed route, or a redirect to one).`);
 console.log(`✔ The nav law passed — ${navFamilies(TOOL_GATE).length} families and ${navRows(TOOL_GATE).length} tools, both in TOOL_REGISTRY's order; ${PHASE_TOTAL} phases from pipePhases.ts each owned by exactly one of them or by ${HOME_OWNER}; every built tool's screen is a page file that wears the shell; the rail and the sheet render from nav.ts.`);
 console.log(`✔ The answers law passed — ${ANSWER_ROWS.length}/4 questions on ${ANSWERS_HOME}, every number sourced.`);
+});
+lawGuard('The arrivals law', () => {
 // ── THE KIND-VIEWS LAW (TABLES-01) ──────────────────────────────────────────
 const viewsMigration = ALL_MIGRATIONS.find((m) => m.dir.endsWith('_kind_views'));
 if (!viewsMigration) violations.push('kind views: no prisma/migrations/*_kind_views/migration.sql');
@@ -665,6 +814,8 @@ console.log(`✔ The rule book law passed — ${RULE_BOOK.length} rules, ${callS
 console.log(`✔ The kind views law passed — ${ARRIVAL_KINDS.length} views over ${KIND_VIEW_CENSUS.length} feed tables, each once, the kind from the rule book; posting unions nothing; ${STOPPED_TABLES.length} tables reported, not viewed.`);
 console.log(`✔ The posting law passed — every journal and ledger row is created by postJournal.ts (SET CONSTRAINTS ALL IMMEDIATE first, one statement for the lines, read back after commit); ${postingPaths.size} files post through it.`);
 console.log(`✔ The env law passed — ${srcEnv.size} names read as src literals, ${libraryEnv.size} read by a library (src/lib/envLaw.ts), ${dynamicEnv.size} by a computed key; every one documented in README.md, nothing documented that nothing reads.`);
+});
+lawGuard('The observatory law', () => {
 // ── THE OBSERVATORY LAW (OBSERVATORY-01) ──────────────────────────
 // The observatory measures or says nothing. It rendered a 33-row
 // HARDCODED_SOURCES array — typed statuses, typed latencies, typed values, dates
@@ -714,6 +865,8 @@ for (const id of FEED_IDS) {
 }
 console.log(scanCostLine());
 console.log(`✔ The observatory law passed — ${FEED_IDS.length}/${EXPECTED_FEED_COUNT} feeds each carry provider, metered, calls and scan use; ${observatoryFiles.length} file(s) under ${OBSERVATORY_DIR} hold ${observatoryRowsTyped} typed measurement(s); the screen renders a not-measured state. One scan of one symbol: ${SCAN_COST.filter((c) => (c.callsPerSymbol ?? 0) > 0).map((c) => `${c.callsPerSymbol} ${c.provider}`).join(' · ')}.`);
+});
+lawGuard('The shell law', () => {
 // ── THE FINNHUB CACHE LAW (TRADE-COST-01) ──────────────────────────────────
 // Slow data is fetched once. Every slow-tier Finnhub endpoint named in the TTL
 // const (src/lib/convergence/finnhub-ttl.ts) is called ONLY through the cache
@@ -773,15 +926,6 @@ const DECK_HEADER_FILES = [
   'src/components/home/HomeClient.tsx',
 ];
 const SHELL_BAR = 'src/components/ui/ShellBar.tsx';
-function walkSrc(dir: string, out: string[] = []): string[] {
-  for (const e of readdirSync(resolve(ROOT, dir), { withFileTypes: true })) {
-    const rel = `${dir}/${e.name}`;
-    if (e.isDirectory()) walkSrc(rel, out);
-    else if (e.name.endsWith('.tsx')) out.push(rel);
-  }
-  return out;
-}
-const shellFiles = [...walkSrc('src/app'), ...walkSrc('src/components')];
 // A sign-out: the words a viewer clicks to leave. A brand bar: the wordmark
 // inside a <header>. Both are ShellBar's alone.
 const SIGN_OUT = /(Sign out|Log out)</;
@@ -832,39 +976,7 @@ const MOUNT_SHELL_BAR = /<ShellBar[\s/>]/;
 const MOUNT_RAIL = /<Rail[\s/>]/;
 
 /** Resolve an import specifier to a file under src/, or null when it leaves the tree. */
-function resolveImport(fromFile: string, spec: string): string | null {
-  let base: string;
-  if (spec.startsWith('@/')) base = `src/${spec.slice(2)}`;
-  else if (spec.startsWith('.')) {
-    const dir = fromFile.split('/').slice(0, -1);
-    for (const part of spec.split('/')) {
-      if (part === '.') continue;
-      else if (part === '..') dir.pop();
-      else dir.push(part);
-    }
-    base = dir.join('/');
-  } else return null; // a package, not our code
-  for (const cand of [`${base}.tsx`, `${base}.ts`, `${base}/index.tsx`, `${base}/index.ts`]) {
-    if (existsSync(resolve(ROOT, cand))) return cand;
-  }
-  return null;
-}
 
-const IMPORT_SPEC = /(?:^|\n)\s*(?:import|export)[\s\S]{0,400}?from\s+['"]([^'"]+)['"]/g;
-const importsOf = new Map<string, string[]>();
-function importsFor(file: string): string[] {
-  const hit = importsOf.get(file);
-  if (hit) return hit;
-  let src = '';
-  try { src = codeOf(file); } catch { src = ''; }
-  const out: string[] = [];
-  for (const m of src.matchAll(IMPORT_SPEC)) {
-    const r = resolveImport(file, m[1]);
-    if (r) out.push(r);
-  }
-  importsOf.set(file, out);
-  return out;
-}
 
 /**
  * Does this one file mount a header / a rail? At most ONE of each per file, on
@@ -934,6 +1046,8 @@ const shellLine = `${shellFiles.length} files scanned, ${shellOffenders} outside
 // line above it is the kind of output that reads as green in a build log.
 if (shellOffenders || nestedShells) console.log(`✖ The shell law FAILED — ${shellLine} ${nestedShells} tree(s) mount more than one shell.`);
 else console.log(`✔ The shell law passed — ${shellLine} Every tree mounts at most one header and one rail.`);
+});
+lawGuard('The founder-broker law', () => {
 
 // ── THE FOUNDER-BROKER LAW (TT-01) ──────────────────────────────────────────
 // The convergence scanner's TastyTrade client is the ENV client — the founder's
@@ -976,6 +1090,8 @@ for (const f of SCAN_DRIVERS) {
 if (SCAN_DRIVERS.length === 0) { brokerViolations += 1; violations.push('founder-broker law: no route drives runPipeline — the scan entry moved and this law no longer watches it (TT-01)'); }
 if (brokerViolations) console.log(`✖ The founder-broker law FAILED — ${brokerViolations} violation(s).`);
 else console.log(`✔ The founder-broker law passed — ${SCAN_DRIVERS.length} scan driver(s) gate on requireAdmin() before the cache and the pipeline, and key the cache by user. The convergence-import law is DEFERRED to TT-02 (no per-user client exists to import).`);
+});
+lawGuard('The citation law', () => {
 
 
 // ── THE TOOL LAW (TOOL-LAW-01) ──────────────────────────────────────────────
@@ -1023,7 +1139,6 @@ else console.log(`✔ The founder-broker law passed — ${SCAN_DRIVERS.length} s
 // its own page (src/app/brokerage/page.tsx trade 01-03, src/app/trade-log/page.tsx
 // trade 04-06). TOOL-LAW-01 has NO exceptions to rule 1 any more, and the law
 // below asserts the list stays empty — it may only shrink, and it cannot.
-const MULTI_TOOL_ALLOWED: ReadonlyArray<{ route: string; tools: readonly string[]; since: string; why: string; retire: string }> = [];
 // RULE 2's one exception: a page rendering a phase another tool owns. /books is
 // NOT a multi-tool page (Bookkeeping is its only tool — Banking's screen is
 // /accounts), so it is not grandfathered above; what it does is render books 01
@@ -1047,14 +1162,10 @@ const COCKPIT_COMPONENT = 'src/components/home/ModuleLauncher.tsx';
 // PL_SOURCE_CONFIG). Naming it here would break Trade Log for no gain: a grid
 // component is not a calendar, the three merged sources are.
 const MERGED_GRID = ['src/components/hub/HubCalendar.tsx'];
-const CALENDAR_HOME = '/calendar';
 // /accounts was on NAV-25's list as Banking + Books' Feed; with 01 Feed recorded
 // against /books above it serves ONE tool, so it is NOT grandfathered here.
 
-let toolViolations = 0;
-const toolRows = navRows(TOOL_GATE);
 // 1. one tool, one page
-const screenTools = new Map<string, string[]>();
 for (const t of toolRows) if (t.href) screenTools.set(t.href, [...(screenTools.get(t.href) ?? []), t.name]);
 for (const [route, tools] of screenTools) {
   if (tools.length === 1) continue;
@@ -1099,7 +1210,6 @@ for (const a of FOREIGN_PHASE_ALLOWED) {
   }
 }
 // 2 + 4. every StageStrip reads pipePhases.ts, and no other phase list is a strip
-const stripFiles = shellFiles.filter((f) => codeOf(f).includes('<StageStrip'));
 console.log('THE TOOL LAW — every phase strip and the pipe it reads');
 for (const f of stripFiles.sort()) {
   const src = codeOf(f);
@@ -1125,22 +1235,6 @@ for (const gone of ['src/lib/operationsPhases.ts', 'src/app/operations/Operation
 // `num: CONST.num` to StageStrip. A file that draws a pipe in some OTHER shape
 // is read conservatively as drawing ALL of that pipe's phases — a new idiom
 // never silently escapes the rule.
-function drawnNumsIn(body: string, pipe: string): Set<string> {
-  const all = new Set((PIPE_PHASES[pipe as keyof typeof PIPE_PHASES] as readonly { num: string }[]).map((p) => p.num));
-  const destructure = body.match(new RegExp(`const\\s*\\[([^\\]]*)\\]\\s*=\\s*PIPE_PHASES\\.${pipe}\\b`));
-  if (!destructure) return all;
-  const names = destructure[1].split(',').map((n) => n.trim());
-  const phases = PIPE_PHASES[pipe as keyof typeof PIPE_PHASES] as readonly { num: string }[];
-  const drawn = new Set<string>();
-  names.forEach((name, i) => {
-    if (!name || !phases[i]) return;
-    const bare = name.replace(/:.*$/, '').trim();
-    if (!/^[A-Za-z_$][\w$]*$/.test(bare)) return;
-    if (new RegExp(`\\b${bare}\\.num\\b`).test(body)) drawn.add(phases[i].num);
-  });
-  // A destructure that named nothing the strip uses tells us nothing — be conservative.
-  return drawn.size > 0 ? drawn : all;
-}
 
 // 2. a tool's page renders only ITS OWN phases (the strip may be page-level or
 // per row — this rule does not care which, only whose the phases are).
@@ -1306,6 +1400,8 @@ if (/line:\s*tool\.why[^\n]*tool\.citation/.test(navBody)) {
 }
 if (citationLeaks) console.log(`✖ The citation law FAILED — ${citationLeaks} file(s) can render a registry citation.`);
 else console.log(`✔ The citation law passed — ${shellFiles.length} rendered files scanned, 0 read a registry citation; ${CITATION_ALLOWED.length} declared holders of the field.`);
+});
+lawGuard('The opener law', () => {
 
 // ── THE OPENER LAW (BOOKS-PIPE-01) ──────────────────────────────────────────
 // An opener lists only the phases ITS PAGE DRAWS. nav.ts declares that per
@@ -1348,6 +1444,8 @@ else console.log(`✔ The opener law passed — ${screenTools.size} tool pages, 
 
 if (toolViolations) console.log(`✖ The tool law FAILED — ${toolViolations} violation(s).`);
 else console.log(`✔ The tool law passed — ${screenTools.size} tool pages, ${MULTI_TOOL_ALLOWED.length} grandfathered (closed, shrink-only); ${stripFiles.length} phase strips, every one reading src/lib/pipePhases.ts; the merged grid mounts only on ${CALENDAR_HOME}.`);
+});
+lawGuard('The lock law', () => {
 
 // ── THE LOCK LAW (LOCK-01) ────────────────────────────────────────────────
 // (a) EVERY page that mounts a paid module's root component asks for its key
@@ -1408,6 +1506,8 @@ for (const f of shellFiles) {
 }
 console.log(`✔ The lock law passed — ${PAID_COMPONENTS.length} paid components mapped to their keys, ${ungated} page(s) mount one without a check; ${offerInApp} file(s) outside /pricing and the deck carry an offer or billing copy.`);
 console.log(`✔ The offer law passed — ${OFFERS.length} offers over ${new Set(OFFERS.flatMap((o) => o.tools)).size} tools (LIVE or PARTIAL only), ${FREE_TOOLS.length} free; the purchasable keys are the offers'; "built and running" typed nowhere but offer.ts; ${SELLING_SURFACES.length} selling surfaces render the offer.`);
+});
+lawGuard('The candidate log law', () => {
 
 // ── THE CANDIDATE LOG LAW (LOG-01) ──────────────────────────────────────────
 // Every scored candidate the scan returns was persisted first: the write and
@@ -1437,6 +1537,8 @@ if (!/a card left the log without a candidate_id/.test(logModule)) logFail(`${LO
 const logBuilders = (logPipeline.match(/full_trade_cards_per_ticker: (?!Record<)/g) ?? []).length; // the type line declares, it does not build
 if (logBuilders !== 1) logFail(`${LOG_PIPELINE} builds full_trade_cards_per_ticker ${logBuilders} times — exactly one list leaves the pipeline`);
 if (logViolations === 0) console.log('✔ The candidate log law passed — the scan persists every scored candidate before it returns it, from one list; a failed write withholds and declares.');
+});
+lawGuard('The two-scores laws', () => {
 
 // ── THE TWO-SCORES LAWS (MODEL-01) ──────────────────────────────────────────
 // (1) A card's score_model and model era are never null: the composite sets
@@ -1452,13 +1554,10 @@ if (logViolations === 0) console.log('✔ The candidate log law passed — the s
 //     (6) The gate cards: one per gate per side, every field said, README's
 //     block byte-equal to the generator, the tooltips rendering from the cards.
 //     (7) The pre-filter splits by side and every symbol is scored on ITS side.
-const M01 = (f: string) => (existsSync(resolve(ROOT, f)) ? codeOf(f) : '');
 const m01Composite = M01('src/lib/convergence/composite.ts');
 const m01Cards = M01('src/lib/convergence/trade-cards.ts');
 const m01Log = M01('src/lib/convergence/candidate-log.ts');
 const m01Types = M01('src/lib/convergence/types.ts');
-const m01Builder = M01('src/lib/strategy-builder.ts');
-const m01Pipeline = M01('src/lib/convergence/pipeline.ts');
 const m01Rules = M01('src/lib/convergence/side-rules.ts');
 const m01Cap = M01('src/lib/convergence/undefined-risk.ts');
 const m01Filters = M01('src/lib/convergence/filter-types.ts');
@@ -1525,11 +1624,6 @@ for (const f of M01_SURFACES) {
   }
 }
 // bare PoP labels anywhere else a customer reads
-const m01Walk = (dir: string): string[] => readdirSync(resolve(ROOT, dir)).flatMap((n) => {
-  const p = `${dir}/${n}`;
-  if (statSync(resolve(ROOT, p)).isDirectory()) return m01Walk(p);
-  return /\.(tsx?|md)$/.test(n) && !/__tests__/.test(p) ? [p] : [];
-});
 for (const f of [...m01Walk('src/components'), ...m01Walk('src/app')]) {
   if (M01_SURFACES.includes(f) || f === 'src/lib/convergence/modelLabels.ts') continue;
   const body = M01(f);
@@ -1572,6 +1666,8 @@ if (/scoreAll\(convergenceInput\)/.test(m01Pipeline)) m01Fail('side law', 'pipel
 if (!/scoreAll\(convergenceInput, side\)/.test(m01Pipeline) || (m01Pipeline.match(/scoreAll\(convergenceInput, ticker\.side\)/g) ?? []).length !== 2) m01Fail('side law', 'pipeline.ts must score every symbol (first pass and both re-scores) on the side it came through Step C on');
 if (!/rankAndDiversifyBySide\(/.test(m01Pipeline)) m01Fail('side law', 'pipeline.ts ranks the two sides as one book — a seller score and a buyer score are not comparable');
 if (m01Violations === 0) console.log(`✔ The two-scores laws passed — score_model and era stamped on every card; the sign table admits ${m01Admitted.length} components to the buy score and buyerScore reads each by name; ${M01_SURFACES.length} model-number surfaces label from the leaf; a BUY candidate needs a catalyst; an unbounded structure needs the cap; ${GATE_CARDS.length} gate cards, README byte-stable; every symbol scored on its side.`);
+});
+lawGuard('The inputs-and-funnel laws', () => {
 
 // ── THE INPUTS-AND-FUNNEL LAWS (MODEL-02) ───────────────────────────────────
 // (1) The log never lies: no bare catch in any src/lib/convergence file that
@@ -1711,6 +1807,8 @@ for (const f of ['src/components/convergence/FilterPanel.tsx', 'src/components/t
   if (!/AVAILABLE_STRATEGIES/.test(M01(f))) m02Fail('phantom law', `${f} no longer renders the strategy list from AVAILABLE_STRATEGIES`);
 }
 if (m02Violations === 0) console.log(`✔ The inputs-and-funnel laws passed — ${m02Writers.length} table writer(s) under src/lib/convergence carry no bare catch and the scan awaits its snapshot write (column ${SNAPSHOT_SUGGESTED_STRATEGY_MAX}); VVIX from Cboe with the term structure and SKEW at weight 0, every input dated; structure cut ${STRUCTURE_CUT} per side, deep fetch limit × ${DEEP_FETCH_MULTIPLIER} at limit ${SCAN_LIMIT_DEFAULT}; ${ETF_UNIVERSE_SYMBOLS.length} ETF members selectable and reported; ${m02Offered.length} strategies offered = ${m02Built.length} built, ${NOT_BUILT_STRATEGIES.length} named not built.`);
+});
+lawGuard('The trade-split law', () => {
 
 // ── THE TRADE-SPLIT LAW (TRADE-SPLIT, 2026-09-16) ───────────────────────────
 // /trading was the last entry on the tool law's grandfather list: Brokerage (17)
@@ -1764,6 +1862,8 @@ const tsBrokerBody = existsSync(resolve(ROOT, 'src/app/brokerage/page.tsx')) ? c
 if (tsBrokerBody && !/FOUNDER_BROKER_LINE/.test(tsBrokerBody)) tsFail('/brokerage no longer states TT-01\'s line — the scan phase is the founder\'s broker only and says so');
 
 if (tsViolations === 0) console.log(`✔ The trade-split law passed — the grandfather list is EMPTY; ${TS_BROKERAGE} draws trade 01-03 and ${TS_TRADE_LOG} draws 04-06, one tool each, both registry homes; /trading is a redirect; phase 06 still hands to Books.`);
+});
+lawGuard('The trade-log laws', () => {
 
 // ── TRADE-LOG-01 — A TRADE CAN BE LOGGED BY HAND ────────────────────────────
 // Trade Log's work is a trade. Before this, a trading_positions row existed
@@ -1885,6 +1985,8 @@ if (!/status: 409/.test(tlWriter) || !/linked_card_id/.test(tlWriter)) {
 }
 
 if (tlViolations === 0) console.log(`✔ The trade-log laws passed — ${tlCreators} trading_positions creator(s), every one naming its source from ${TL_OWNERSHIP}; ${TL_CAPABILITY_READERS.length} readers scope through the one ownership predicate and none branches on provenance; the form's strategies ARE the builders' const, validated again server-side; the synced and the hand-entered close share one P&L leaf.`);
+});
+lawGuard('The day laws', () => {
 
 // ── DAY-01 — THE DAY, WHOLE ─────────────────────────────────────────────────
 // HubCalendar held `raw.filter((e) => e.source === 'trip')`: one bare string
@@ -1905,12 +2007,9 @@ if (tlViolations === 0) console.log(`✔ The trade-log laws passed — ${tlCreat
 const DAY_SOURCES = 'src/lib/calendar/sources.ts';
 const DAY_LEAF = 'src/lib/calendar/day.ts';
 const DAY_ACTUALS = 'src/lib/calendar/actuals.ts';
-const DAY_VIEW_FILE = 'src/components/hub/DayView.tsx';
 const DAY_HUB = 'src/components/hub/HubCalendar.tsx';
 let dayViolations = 0;
 const dayFail = (msg: string) => { dayViolations += 1; violations.push(`day law: ${msg} (DAY-01)`); };
-const dayRead = (f: string) => (existsSync(resolve(ROOT, f)) ? codeOf(f) : '');
-const dayCode = (f: string) => dayRead(f).split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
 
 // LAW 1 — the allowlist is the only thing that decides, and it is not bare.
 const dayList = dayCode(DAY_SOURCES);
@@ -2004,6 +2103,8 @@ else if (!/export const ACTUALS_JOIN_SOUND/.test(dayActuals) || !/ACTUALS_JOIN_B
 }
 
 if (dayViolations === 0) console.log(`✔ The day laws passed — ${CALENDAR_SOURCES.length} calendar sources rendered by name (${CALENDAR_SOURCES.map((s) => s.source).join(' · ')}), ${EXCLUDED_CALENDAR_SOURCES.length} excluded by name; no component filters a calendar event on a bare source; every day total names its part and ships with its coverage count, summed once in dayParts(); the day view creates and updates nothing (its one write deletes a hand-entered event) and reaches no map provider.`);
+});
+lawGuard('The event laws', () => {
 
 // ── EVENT-01 — AN EVENT CAN BE ADDED BY HAND ────────────────────────────────
 // DAY-01's audit found /api/calendar GET-only: no form, no route, no path wrote
@@ -2137,6 +2238,8 @@ if (evDayView && !/isManualEvent\(/.test(evDayView)) evFail(`${DAY_VIEW_FILE} do
 if (evDayView && !/data-correct-event/.test(evDayView)) evFail(`${DAY_VIEW_FILE} offers no correction on a hand-entered event`);
 
 if (evViolations === 0) console.log(`✔ The event laws passed — ${evWriters} calendar_events writer(s), every one setting user_id and source, none of them the manual source (ONEOFF-01: the calendar authors nothing, POST is gone); '${MANUAL_EVENT_SOURCE}' stays in the allowlist for its pre-ruling rows; ${EVENT_CATEGORIES.length} categories in the census, each citing the writer it was gathered from; the correction route is user-scoped on both verbs, refuses another source's row with its reason, writes no recurrence and never calls a provider directly.`);
+});
+lawGuard('The geo law', () => {
 
 // ── GEO-01 — ONE GEOCODE, ON PURPOSE ────────────────────────────────────────
 // EVENT-01 left the geocoder decision with the founder rather than wire a
@@ -2242,6 +2345,8 @@ if (!/<FindThisPlace/.test(dayCode('src/components/workbench/operations/routines
 }
 
 if (geoViolations === 0) console.log(`✔ The geo law passed — the place lookup has ONE call site (${GEO_ROUTE}, one googleFetch), reached only from the onClick of the one component that renders the button (${GEO_FORM}, in Tasks since ONEOFF-01); no effect, submit, debounce or render spends a call; nothing is auto-selected; the cap is read, reported and refused at with its reset date.`);
+});
+lawGuard('The orphan law', () => {
 
 // ── ORPHAN-01 — NO PAGE OUTSIDE THE REGISTRY ────────────────────────────────
 // TOOL-LAW-01 deleted /operations as a ROOM-02 invention, and TRADE-SPLIT closed
@@ -2390,6 +2495,8 @@ for (const r of ORPHAN_REPOINTED) {
 }
 
 if (orphanViolations === 0) console.log(`✔ The orphan law passed — ${pages.length} pages, every one accounted for by the registry: ${orphanCounts.home} home-or-beneath, ${orphanCounts.link} registry-linked, ${orphanCounts.redirect} dated redirect(s), ${orphanCounts.guest} listed guest route(s), ${orphanCounts.shell} shell-doored, ${orphanCounts.exception} named exception(s) (closed, shrink-only, each naming the ruling that resolves it); the deleted room's two duplicate hops now point at ${ORPHAN_REPOINTED.map((r) => r.home).join(' and ')}.`);
+});
+lawGuard('The drill law', () => {
 
 // ── THE DRILL LAW (DRILL-01, 2026-09-17) ────────────────────────────────────
 // THE PANEL SHOWS A CHAIN STATE FROM THE NAMED SET AND NO OTHER, AND NO AMOUNT
@@ -2463,6 +2570,8 @@ for (const f of KIND_FACTS) if (f.postedLink !== null) drillFail(`${f.kind} clai
 try { buildChain({ kind: 'project_task', planned: 1, actual: 1 }); drillFail('the chain leaf accepted an actual with no source'); } catch { /* the throw is the law working */ }
 if (drillViolations === 0) console.log(`✔ The drill law passed — ${CHAIN_STATES.length} chain states and no fourth; every amount names its source; ${drillOwners.size} owner door(s) resolve; 0 claimed links to a posting.`);
 else console.log(`✖ The drill law FAILED — ${drillViolations} violation(s).`);
+});
+lawGuard('The link law', () => {
 
 // ── THE LINK LAW (LINK-01, 2026-09-17) ──────────────────────────────────────
 // THE ACTUAL IS LINKED, NOT GUESSED — AND NOTHING SUMS AN UNKNOWN AS ZERO.
@@ -2531,6 +2640,8 @@ if (!/CREATE UNIQUE INDEX "planned_item_links_one_item_per_posting"[\s\S]{0,120}
 if (!/ON DELETE RESTRICT/.test(linkMigration)) linkFail(`${LINK_MIGRATION} lets a linked posting be deleted — financial attribution never vanishes`);
 if (linkViolations === 0) console.log(`✔ The link law passed — ${LINKABLE_KINDS.length} linkable kinds, the occurrence keyed on its instant, one item per posting enforced in SQL; no matcher, no score, and no null summed as zero.`);
 else console.log(`✖ The link law FAILED — ${linkViolations} violation(s).`);
+});
+lawGuard('The lines law', () => {
 
 // ── THE LINES LAW (LINES-01, 2026-09-18) ────────────────────────────────────
 // A ROUTINE'S FIGURE IS THE SUM OF ITS LINES, OR ITS OWN WHEN IT HAS NONE — AND
@@ -2605,6 +2716,8 @@ if (!/!\(row\.lines && row\.lines\.length > 0\) && \(\s*<Row label="Category \(C
 if (!/if \(row\.lines && row\.lines\.length > 0\) return null;/.test(linesPanel)) linesFail('a lined occurrence can still be linked at the routine grain — the coffee posting must link to the coffee LINE');
 if (linesViolations === 0) console.log(`✔ The lines law passed — ${LINES_READERS.length + 1} readers read the one leaf; $280 across 2 of 3 with the routine-level $15 set aside, never added; a stepless routine keeps its own; a routine_line link carries its instant.`);
 else console.log(`✖ The lines law FAILED — ${linesViolations} violation(s).`);
+});
+lawGuard('The one-off law', () => {
 
 // ── THE ONE-OFF LAW (ONEOFF-01, 2026-09-18) ─────────────────────────────────
 // A ONE-OFF IS A ROUTINE THAT HAPPENS ONCE — AUTHORED IN TASKS, LIKE EVERYTHING
@@ -2727,6 +2840,8 @@ for (const rel of walkSrc('src/components/workbench/operations/routines')) {
 
 if (oneoffViolations === 0) console.log(`✔ The one-off law passed — /calendar's tree mounts no add form, no add control, no place lookup and no POST to the events route, and the route exports none; the routines surface picks from one entity's chart; cadence once compiles to COUNT=1 and expands to exactly one occurrence on its date through the one anchored expansion, passed at ${ONEOFF_CALLERS.length} call sites and nowhere else; the migration adds three place columns with the pair and the date CHECKs and moves nothing.`);
 else console.log(`✖ The one-off law FAILED — ${oneoffViolations} violation(s).`);
+});
+lawGuard('The two-lists law', () => {
 
 // ── THE TWO-LISTS LAW (TASKS-01, 2026-09-18) ────────────────────────────────
 // TASKS IS TWO LISTS — PROJECTS AND ROUTINES — AND EVERYTHING ELSE COMES OFF.
@@ -2878,6 +2993,8 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
 
 if (twoListsViolations === 0) console.log(`✔ The two-lists law passed — /tasks' tree mounts no StageStrip and no ProofStrip, and the page labels no pipe; ${STREAK_WRITERS.length} streak writers untouched while no page or component reads or draws a streak; a project delete runs the one deletion leaf inside its transaction, refuses 409 naming the task on any of five live links, and the row previews before it confirms; no operations header wears a letter; the Tasks why is a customer's line.`);
 else console.log(`✖ The two-lists law FAILED — ${twoListsViolations} violation(s).`);
+});
+lawGuard('The extent law', () => {
 
 // ── THE EXTENT LAW (GRID-01, 2026-09-18) ─────────────────────────────────────
 // A BLOCK IS AS LONG AS IT SAYS, AND TWO BLOCKS NEVER HIDE EACH OTHER.
@@ -2969,6 +3086,8 @@ if (/end_time: startTime|end_time:\s*\w+\s*\?\?\s*\w*start/i.test(codeOf('src/ap
 
 if (extentViolations === 0) console.log(`✔ The extent law passed — one leaf decides every extent and invents none (an end exact, no end a flagged ${MARKER_MINUTES}-minute marker); the grid's builder adds no minutes and holds no clamp, both paths read the leaf, the floor is one text line in pixels; blocks are laid out in lanes by the leaf's partition and each names its lane; ${EXTENT_READERS.length} readers decide no extent and the day view prints a start-only row with the start alone.`);
 else console.log(`✖ The extent law FAILED — ${extentViolations} violation(s).`);
+});
+lawGuard('The travel law', () => {
 
 // ── THE TRAVEL LAW (TRAVEL-01, 2026-09-19) ───────────────────────────────────
 // TRAVEL READS TOP-DOWN, AND EVERY PLANNED ITEM TAKES ITS TIME ON THE DAY.
@@ -2993,7 +3112,6 @@ else console.log(`✖ The extent law FAILED — ${extentViolations} violation(s)
 //      CHECK and leaves the instant CHECK alone; the block-time migration records
 //      columns with IF NOT EXISTS and defaults no clock; neither touches a row;
 //      the panel opens a trip block as that kind with its vendor and its source.
-const TRAVEL_LAUNCHER = 'src/components/home/ModuleLauncher.tsx';
 const TRAVEL_SECTIONS = ['header', 'trips', 'itinerary', 'search', 'booked', 'ledger', 'unattached'];
 const TRAVEL_LEAF = 'src/lib/calendar/tripItem.ts';
 const TRAVEL_FEED = 'src/app/api/calendar/route.ts';
@@ -3148,6 +3266,8 @@ const travelFail = (m: string) => { travelViolations += 1; violations.push(`trav
 }
 if (travelViolations === 0) console.log(`✔ The travel law passed — /travel is ${TRAVEL_SECTIONS.length} plain sections and no strip; ${BOOKING_FLOW_FILES.length} booking-flow files byte-identical to ${BOOKING_FLOW_BASE}; an activity's window draws start-to-end, a start alone stays a marker, a flight and a stay untouched; 'trip_item' is a linkable kind with no instant, NOT LINKED until linked by hand.`);
 else console.log(`✖ The travel law FAILED — ${travelViolations} violation(s).`);
+});
+lawGuard('The repaint law', () => {
 
 // ── THE REPAINT LAW (REPAINT-04, 2026-09-21) ─────────────────────────────────
 // THE DEAD SURFACE'S PAINT COMES OFF EVERY WALL IT IS STILL ON.
@@ -3252,6 +3372,8 @@ const repaintFail = (m: string) => { repaintViolations += 1; violations.push(`re
 }
 if (repaintViolations === 0) console.log(`✔ The repaint law passed — the panel family is painted by ${PANEL_TOKEN_ALLOWLIST.length} self-declared dark surface(s) and nowhere else; on the travel tab every white-ink literal sits on a solid dark or purple element, or on one of ${WHITE_INK_ON_DARK_ANCESTOR.length} cited ancestor fills; the section labels wear SECTION_HEADER.`);
 else console.log(`✖ The repaint law FAILED — ${repaintViolations} violation(s).`);
+});
+lawGuard('The flight law', () => {
 
 // ── THE FLIGHT LAW (FLIGHT-01, 2026-09-22) ───────────────────────────────────
 // A FLIGHT APPEARS ONCE, AND A FARE SAYS WHAT IT BUYS.
@@ -3503,6 +3625,8 @@ const flightFnBody = (src: string, name: string): string => {
 }
 if (flightViolations === 0) console.log(`✔ The flight law passed — the search route forwards ${FLIGHT_CALL_KEYS.length} validated keys and nothing else, the contract refuses an unknown filter or sort by name and invents no default; every fare attribute is tri-state from the payload and renders "${NOT_STATED}" when absent; BKK→HKT groups ${BKK_HKT_EXPECTED.fares} fares into ${BKK_HKT_EXPECTED.flights} flights with the Hahn Air row operated by Thai Vietjet Air; one onSearchLeg, no effect, six filter controls that only write the leg; ${FLIGHT_REPINNED.length} search-path files re-pinned, dated.`);
 else console.log(`✖ The flight law FAILED — ${flightViolations} violation(s).`);
+});
+lawGuard('The hotel law', () => {
 
 // ── THE HOTEL LAW (HOTEL-01, 2026-09-22) ─────────────────────────────────────
 // A HOTEL APPEARS ONCE, A RATE SAYS WHAT IT BUYS, AND NOTHING ON THE SCREEN IS
@@ -3545,20 +3669,8 @@ else console.log(`✖ The flight law FAILED — ${flightViolations} violation(s)
 //      cancel and their parsers, plus the paid content reads — hash BODY-FOR-BODY
 //      to what they were on main d56b2cc9. (The whole-file hashes are the travel law's.)
 /** The comment block stacked directly over a pin: every comment-only line above it (blank in the code half), nearest first. HOTEL-02 (2026-09-22): a pin's notes are the lines over IT, never a neighbour's. */
-function noteBlockOver(pins: string, notes: string, pinLine: number): string {
-  const codeLines = pins.split('\n');
-  const noteLines = notes.split('\n');
-  const block: string[] = [];
-  for (let i = pinLine - 2; i >= 0 && codeLines[i].trim() === ''; i--) block.unshift(noteLines[i]);
-  return block.join('\n');
-}
-const HOTEL_ROUTE = 'src/app/api/travel/hotels/search/route.ts';
 const HOTEL_CONTRACT = 'src/lib/hotels/searchContract.ts';
 const HOTEL_LEAF = 'src/lib/hotels/rates.ts';
-const HOTEL_VIEW = 'src/components/trips/HotelResultsView.tsx';
-const HOTEL_CONTAINER = 'src/components/trips/PublicHotelSearch.tsx';
-const HOTEL_CLIENT = 'src/lib/liteapiClient.ts';
-const HOTEL_COMMIT = 'src/app/api/trips/[id]/vendor-commit/route.ts';
 const HOTEL_TRIP_ITEM = 'src/lib/calendar/tripItem.ts';
 const HOTEL_PANEL = 'src/components/hub/EventDetailPanel.tsx';
 const HOTEL_GRID = 'src/components/shared/CalendarGrid.tsx';
@@ -3770,6 +3882,8 @@ const hotelFail = (m: string) => { hotelViolations += 1; violations.push(`hotel 
 }
 if (hotelViolations === 0) console.log(`✔ The hotel law passed — ${HOTEL_SURFACES.length} hotel surfaces name no provider but the env's (LiteAPI; the sandbox footer from LITEAPI_MODE); one tri-state helper and every rate attribute through it; Phuket's five items group to ${PHUKET_EXPECTED.hotels} hotels · ${PHUKET_EXPECTED.rates} rates with the lowest-rate and difference lines verbatim; vendor-commit invents no check-in time and a stay draws its stated window or stays all-day, flagged; five filter controls that only write the filters and one counted search; the route forwards the vendor's contract by name; ${HOTEL_REPINNED.length} files re-pinned, dated, and ${Object.keys(HOTEL_BOOKING_FUNCTIONS).length} booking functions byte-identical to main.`);
 else console.log(`✖ The hotel law FAILED — ${hotelViolations} violation(s).`);
+});
+lawGuard('The stay law', () => {
 
 // ── THE STAY LAW (HOTEL-02, 2026-09-22) ──────────────────────────────────────
 // THE STAY'S TIMES ARE THE PROPERTY'S, NOT OURS.
@@ -3823,18 +3937,6 @@ const STAY_CONTENT_CALLERS = [STAY_CONTENT_ROUTE, STAY_DETAIL, HOTEL_COMMIT];
 const STAY_REDATED = [HOTEL_CONTAINER, HOTEL_VIEW, STAY_CHECKOUT, STAY_PLANNER, HOTEL_CLIENT];
 let stayViolations = 0;
 const stayFail = (m: string) => { stayViolations += 1; violations.push(`stay law: ${m} (HOTEL-02)`); };
-const staySrcFiles = (): string[] => {
-  const out: string[] = [];
-  const walk = (dir: string) => {
-    for (const name of readdirSync(dir)) {
-      const abs = `${dir}/${name}`;
-      if (statSync(abs).isDirectory()) { if (name !== '__tests__') walk(abs); continue; }
-      if (/\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name)) out.push(abs.replace(`${ROOT}/`, ''));
-    }
-  };
-  walk(resolve(ROOT, 'src'));
-  return out;
-};
 
 // 1. no lodging time is written that the vendor or the user did not state.
 {
@@ -3949,6 +4051,8 @@ const staySrcFiles = (): string[] => {
 }
 if (stayViolations === 0) console.log(`✔ The stay law passed — the commit resolves a stay's clock once (the property's, read at commit, or the caller's stated one) and writes it to both columns or null; no clock literal in the commit, the button or the planner; the content read's callers are the closed set of ${STAY_CONTENT_CALLERS.length} (the route, the detail page, the commit) with one call and one reservation per commit and explicit 502 / 503 reasons; the itinerary PATCH pairs every block write with the ledger's clock and refuses a flight's; the content rating renders /5 and the catalog's /10, nothing re-scales; ${STAY_REDATED.length} files re-dated, dated.`);
 else console.log(`✖ The stay law FAILED — ${stayViolations} violation(s).`);
+});
+lawGuard('The activity law', () => {
 
 // ── THE ACTIVITY LAW (ACTIVITY-01, 2026-09-22) ──────────────────────────────
 // ONE ACTIVITY, WHAT THE OPERATOR STATES; A TOUR TAKES ITS TIME ON THE DAY.
@@ -4053,6 +4157,14 @@ const ACTIVITY_SAVE_LEAF = 'src/lib/activities/save.ts';
 const ACTIVITY_QUOTE_LEAF = 'src/lib/activities/quote.ts';
 /** The law's own clock for the captures — the read's as-of, stated once. */
 const ACTIVITY_AS_OF = '2026-09-22T12:00:00.000Z';
+/**
+ * The law's OWN probe secrets — never the deployment secret, which this file does
+ * not read and does not need. Two of them, because "a different secret derives a
+ * different key" is what proves the derivation is a derivation rather than the
+ * secret handed through.
+ */
+const ACTIVITY_PROBE_SECRET_A = 'activity-law-probe-secret-A-not-a-deployment-value';
+const ACTIVITY_PROBE_SECRET_B = 'activity-law-probe-secret-B-not-a-deployment-value';
 const ACTIVITY_SEAL_LEAF = 'src/lib/activities/quoteSeal.ts';
 const ACTIVITY_PLANNER = 'src/components/trips/TripPlannerAI.tsx';
 const ACTIVITY_REDATED = [ACTIVITY_ROUTE, ACTIVITY_STRIP, ACTIVITY_CONTAINER, ACTIVITY_OLD_VIEW, ACTIVITY_CLIENT, ACTIVITY_QUOTA];
@@ -4304,15 +4416,22 @@ const activityResolvers = { validateUrl: (u: string) => validatedAffiliateUrl(u,
         if (endTimeOf('07:30', { kind: 'fixed', minutes: 540 }) !== '16:30') activityFail('the fixed end no longer follows from the stated duration');
         if (!('refused' in totalOf({ native: { amount: 1, currency: 'THB' }, extra: null, rate: null }, 'USD', now))) activityFail('a native figure in another currency converts with no rate');
       }
-      // The seal: canonical, verified in constant time, and every changed byte refused.
-      const seal = sealOf(q);
-      if (!/^[0-9a-f]{64}$/.test(seal) || !sealHolds(q, seal)) activityFail('the quote does not seal and verify');
+      // The seal, probed under the LAW'S OWN key: canonical, verified in constant
+      // time, every changed byte refused — and a different secret derives a
+      // different key, which is what proves the derivation.
+      const probeA = quoteKeyFrom(ACTIVITY_PROBE_SECRET_A);
+      const probeB = quoteKeyFrom(ACTIVITY_PROBE_SECRET_B);
+      const seal = sealWith(probeA, q);
+      if (!/^[0-9a-f]{64}$/.test(seal) || !sealHoldsWith(probeA, q, seal)) activityFail('the quote does not seal and verify');
+      if (sealWith(probeB, q) === seal || sealHoldsWith(probeB, q, seal)) activityFail('a different secret derives the same quote key — the seal is not keyed');
+      if (probeA.equals(Buffer.from(ACTIVITY_PROBE_SECRET_A))) activityFail('the quote key is the secret itself, not a derivation over the domain');
+      if (probeA.length !== 32) activityFail(`the quote key is ${probeA.length} bytes — HMAC-SHA256 gives 32`);
       if (canonicalJson({ b: 1, a: [2, { d: 3, c: 4 }] }) !== '{"a":[2,{"c":4,"d":3}],"b":1}') activityFail('the sealed form is not canonical (sorted keys, no whitespace)');
-      if (sealOf(JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(q).reverse())))) !== seal) activityFail('a quote seals differently when its keys arrive in another order');
+      if (sealWith(probeA, JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(q).reverse())))) !== seal) activityFail('a quote seals differently when its keys arrive in another order');
       for (const tampered of [{ ...q, bands: q.bands.map((b) => ({ ...b, unitPrice: 1 })) }, { ...q, rate: { ...q.rate!, rate: 1 } }, { ...q, timeZone: 'Europe/London' }, { ...q, userId: 'someone-else' }, { ...q, asOf: new Date(Date.parse(q.asOf) + 1000).toISOString() }]) {
-        if (sealHolds(tampered, seal)) activityFail('a changed quote still carries the old seal');
+        if (sealHoldsWith(probeA, tampered, seal)) activityFail('a changed quote still carries the old seal');
       }
-      for (const bad of [undefined, null, '', 'not-hex', seal.slice(0, 63), seal.toUpperCase()]) if (sealHolds(q, bad)) activityFail(`a seal of the wrong shape verified: ${String(bad)}`);
+      for (const bad of [undefined, null, '', 'not-hex', seal.slice(0, 63), seal.toUpperCase()]) if (sealHoldsWith(probeA, q, bad)) activityFail(`a seal of the wrong shape verified: ${String(bad)}`);
       if (canonicalJson(readViatorQuote(JSON.parse(JSON.stringify(q)))) !== canonicalJson(q)) activityFail('the commit does not read back the quote it sealed');
       if (!('refused' in readViatorQuote({ ...JSON.parse(JSON.stringify(q)), v: 2 }))) activityFail('a quote of another version was read');
       // The party and the clock are checked against the SEALED limits.
@@ -4337,15 +4456,23 @@ const activityResolvers = { validateUrl: (u: string) => validatedAffiliateUrl(u,
 {
   const seal = codeOf(ACTIVITY_SEAL_LEAF);
   if (!/const secret = process\.env\.JWT_SECRET;\n\s+if \(!secret\) throw new Error\('JWT_SECRET environment variable is required to seal a Viator quote'\);/.test(seal)) activityFail(`${ACTIVITY_SEAL_LEAF} does not fail closed when JWT_SECRET is absent`);
-  if (!/return crypto\.createHmac\('sha256', secret\)\.update\(QUOTE_SEAL_DOMAIN\)\.digest\(\);/.test(seal)) activityFail(`${ACTIVITY_SEAL_LEAF}'s key is not HMAC-SHA256(JWT_SECRET, the domain) — an undomained key is the session cookie's`);
-  if (QUOTE_SEAL_DOMAIN !== 'temple-stuart/viator-quote/v1') activityFail(`the quote's domain reads ${QUOTE_SEAL_DOMAIN}`);
+  if (!/return crypto\.createHmac\('sha256', secret\)\.update\(QUOTE_SEAL_DOMAIN\)\.digest\(\);/.test(seal)) activityFail(`${ACTIVITY_SEAL_LEAF}'s key is not HMAC-SHA256(the secret, the domain) — an undomained key is the session cookie's`);
+  if (!/return quoteKeyFrom\(secret\);/.test(seal)) activityFail(`${ACTIVITY_SEAL_LEAF}'s deployment key is not the same derivation the probes use`);
+  if (QUOTE_SEAL_DOMAIN !== 'temple-stuart/viator-quote/v1') activityFail(`the quote's domain reads ${QUOTE_SEAL_DOMAIN} — the pinned domain is 'temple-stuart/viator-quote/v1'`);
   if (!/return crypto\.timingSafeEqual\(expected, given\);/.test(seal) || !/if \(expected\.length !== given\.length\) return false;/.test(seal)) activityFail(`${ACTIVITY_SEAL_LEAF} does not compare seals in constant time over equal-length buffers`);
   if (!/if \(typeof seal !== 'string' \|\| !\/\^\[0-9a-f\]\{64\}\$\/\.test\(seal\)\) return false;/.test(seal)) activityFail(`${ACTIVITY_SEAL_LEAF} lets a seal of the wrong shape reach the comparison`);
-  // The seal is made in ONE place (the options route) and checked in ONE place (the commit).
-  for (const [fn, callers] of [['sealOf(', [ACTIVITY_OPTIONS_ROUTE]], ['sealHolds(', [ACTIVITY_COMMIT]]] as Array<[string, string[]]>) {
+  // The seal is made in ONE place (the options route) and checked in ONE place (the commit);
+  // the key-taking pair is for a test or a law, and is called from no production file.
+  for (const [fn, callers] of [['sealOf(', [ACTIVITY_OPTIONS_ROUTE]], ['sealHolds(', [ACTIVITY_COMMIT]], ['sealWith(', []], ['sealHoldsWith(', []], ['quoteKeyFrom(', []]] as Array<[string, string[]]>) {
     const found = staySrcFiles().filter((f) => f !== ACTIVITY_SEAL_LEAF && codeOf(f).includes(fn)).sort();
     if (JSON.stringify(found) !== JSON.stringify(callers)) activityFail(`${fn} is called from ${JSON.stringify(found)} — one place, ${JSON.stringify(callers)}`);
   }
+  // ACTIVITY-01 STEP 4c: NO LAW READS A CREDENTIAL. The suite must run, and pass,
+  // in an environment that holds no deployment secret at all — `npm run build`
+  // runs the laws before it builds anything.
+  const lawSource = codeOf('scripts/assert-tool-registry.ts');
+  if (/process\.env\.JWT_SECRET|process\.env\[/.test(lawSource)) activityFail('the law reads a deployment secret — the seal probes derive under a probe key of the law\'s own');
+  if (/\bsealOf\(|\bsealHolds\(/.test(lawSource.replace(/'[^']*'/g, "''"))) activityFail('the law calls the deployment-keyed seal — the probes use sealWith / sealHoldsWith');
   const route = codeOf(ACTIVITY_OPTIONS_ROUTE);
   if (!/seal: row\.quote === null \? null : sealOf\(row\.quote\)/.test(route)) activityFail(`${ACTIVITY_OPTIONS_ROUTE} hands out a quote it did not seal`);
   if (!/quotesForOption\(user\.id, product, option, date, currency, extraPerTraveller\?\.perTraveller \?\? null, rate, asOf\)/.test(route)) activityFail(`${ACTIVITY_OPTIONS_ROUTE} does not seal the quote to the signed-in user and its own read`);
@@ -4405,6 +4532,8 @@ const activityResolvers = { validateUrl: (u: string) => validatedAffiliateUrl(u,
 }
 if (activityViolations === 0) console.log(`✔ The activity law passed — the route forwards the vendor's /products/search contract by name between its guards (unknown → 400, currency the one constant, the start cursor for SHOW THEM ALL) and makes one raw call; the leaf reads the captured Phuket answer whole (${PHUKET_ACTIVITY_EXPECTED.cards} of ${PHUKET_ACTIVITY_EXPECTED.total}, ${PHUKET_ACTIVITY_EXPECTED.extraCharges} with extra charges, ${PHUKET_ACTIVITY_EXPECTED.unrated.length} unrated and present) tri-state; no "Price on request", no googleRating, no sign-up Book, no slice; the benchmark ranks on the all-in figure and says so; the Save's ${ACTIVITY_SAVE_READS.length} reads have one authed call site each under 'viatorsave' (300/day), the rate cached to its own expiry, every converted figure labelled calculated, a stated 0 admitted under the marker, the instant from the operator's zone; the route SEALS what it read (HMAC-SHA256 under a key derived from JWT_SECRET, '${QUOTE_SEAL_DOMAIN}', verified in constant time) and the commit takes no figure, note or clock from the caller — the old viatorSave field refused by name, another account's quote refused, one read over ${QUOTE_MAX_AGE_MINUTES} minutes ago refused, a variable end bounded by the stated range; ${ACTIVITY_REDATED.length} files re-dated and ${ACTIVITY_PINNED_NEW.length} pinned, dated, ${Object.keys(ACTIVITY_CLIENT_FUNCTIONS).length} client functions byte-identical to main.`);
 else console.log(`✖ The activity law FAILED — ${activityViolations} violation(s).`);
+});
+lawGuard('The reader law', () => {
 
 // ── THE READER LAW (TEST-TRUTH-01, 2026-09-17) ──────────────────────────────
 // NO TEST AND NO LAW MAY READ A SOURCE FILE RAW.
@@ -4453,6 +4582,7 @@ for (const fn of ['export function code(', 'export function comments(', 'export 
 }
 if (readerViolations === 0) console.log(`✔ The reader law passed — ${readerFiles.length} tests and laws, every one reading source through code() or comments(); 0 raw reads.`);
 else console.log(`✖ The reader law FAILED — ${readerViolations} violation(s).`);
+});
 
 // ── THE SECOND GATE ─────────────────────────────────────────────────────────
 // Every law below the first gate — kind views, arrivals, the rule book,

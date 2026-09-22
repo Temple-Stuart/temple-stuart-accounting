@@ -42,11 +42,23 @@ import crypto from 'crypto';
 /** The domain the quote key is derived under — bumped, never reused, if the quote's shape changes meaning. */
 export const QUOTE_SEAL_DOMAIN = 'temple-stuart/viator-quote/v1';
 
-/** The quote key: HMAC-SHA256(JWT_SECRET, the domain). Throws when JWT_SECRET is absent — fail closed. */
+/**
+ * The derivation, over any secret: HMAC-SHA256(secret, the domain). Exported so a
+ * TEST or a LAW can seal under a key of its own and never touch the deployment
+ * secret — ACTIVITY-01 STEP 4c: the law's seal probes call this with a probe
+ * secret, and assert that a DIFFERENT secret derives a DIFFERENT key, which is
+ * what proves the derivation is a derivation. Production never calls it directly.
+ */
+export function quoteKeyFrom(secret: string): Buffer {
+  if (!secret) throw new Error('a quote key needs a secret');
+  return crypto.createHmac('sha256', secret).update(QUOTE_SEAL_DOMAIN).digest();
+}
+
+/** The quote key: the derivation over JWT_SECRET. Throws when JWT_SECRET is absent — fail closed. */
 function quoteSealKey(): Buffer {
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error('JWT_SECRET environment variable is required to seal a Viator quote');
-  return crypto.createHmac('sha256', secret).update(QUOTE_SEAL_DOMAIN).digest();
+  return quoteKeyFrom(secret);
 }
 
 /**
@@ -70,19 +82,30 @@ export function canonicalJson(value: unknown): string {
   throw new Error(`a quote may not carry a ${typeof value}`);
 }
 
-/** The seal for a quote: 64 lowercase hex characters. */
+/** The seal for a quote under a given key: 64 lowercase hex characters. */
+export function sealWith(key: Buffer, quote: unknown): string {
+  return crypto.createHmac('sha256', key).update(canonicalJson(quote)).digest('hex');
+}
+
+/** The seal for a quote under the deployment key. */
 export function sealOf(quote: unknown): string {
-  return crypto.createHmac('sha256', quoteSealKey()).update(canonicalJson(quote)).digest('hex');
+  return sealWith(quoteSealKey(), quote);
 }
 
 /**
- * Does this seal belong to this quote? A constant-time comparison over equal-length
- * buffers; a seal that is not 64 hex characters is false before any comparison.
+ * Does this seal belong to this quote under this key? A constant-time comparison
+ * over equal-length buffers; a seal that is not 64 hex characters is false before
+ * any comparison.
  */
-export function sealHolds(quote: unknown, seal: unknown): boolean {
+export function sealHoldsWith(key: Buffer, quote: unknown, seal: unknown): boolean {
   if (typeof seal !== 'string' || !/^[0-9a-f]{64}$/.test(seal)) return false;
-  const expected = Buffer.from(sealOf(quote), 'hex');
+  const expected = Buffer.from(sealWith(key, quote), 'hex');
   const given = Buffer.from(seal, 'hex');
   if (expected.length !== given.length) return false;
   return crypto.timingSafeEqual(expected, given);
+}
+
+/** Does this seal belong to this quote under the deployment key? */
+export function sealHolds(quote: unknown, seal: unknown): boolean {
+  return sealHoldsWith(quoteSealKey(), quote, seal);
 }
