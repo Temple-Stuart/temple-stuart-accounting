@@ -806,8 +806,12 @@ export default function CalendarGrid({
                               <div key={event.id || i}
                                 onClick={(e) => handleTileClick(event, e.nativeEvent)}
                                 className={`${config.badge || config.dot} text-white text-[10px] px-1.5 py-0.5 rounded truncate mb-0.5 ${(event.href || onEventClick) ? 'cursor-pointer hover:opacity-90' : ''}`}
-                                title={event.title}>
-                                {event.title}
+                                title={event.title}
+                                data-lodging-unstated={event.itemType === 'lodging' ? 'true' : undefined}>
+                                {/* HOTEL-01 (2026-09-22): a stay here has NO stated check-in time (a stated
+                                    one draws below at its clock) — flagged, exactly as GRID-01 flags a row
+                                    without a stated end; no clock is invented to draw a marker at. */}
+                                {event.itemType === 'lodging' ? `⚠ ${event.title} · check-in time not stated` : event.title}
                               </div>
                             );
                           })}

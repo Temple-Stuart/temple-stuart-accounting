@@ -11,20 +11,26 @@
  * This leaf is the overlay the calendar feed applies: for every trip vendor row
  * it finds the item behind it and copies onto the row what the item knows —
  * its id, its vendor, its place, the provider it was booked through, and, for a
- * DATE-ONLY category (not a flight, not a stay), its block window as the row's
+ * DATE-ONLY category (not a flight), its block window as the row's
  * start_time / end_time. GRID-01's extent leaf then draws it true, and a window
- * with a start and no end is the flagged marker it already is. Flights and
- * lodging are untouched: a flight keeps its duration geometry, a stay keeps its
- * all-day span. Nothing is written; no time is defaulted; an item with no
+ * with a start and no end is the flagged marker it already is. A flight is
+ * untouched: it keeps its duration geometry. HOTEL-01 (2026-09-22): a stay is
+ * timed the same way — a stated check-in / check-out window draws on its days,
+ * an unstated one leaves the stay all-day and the panel says the property did
+ * not state it. Nothing is written; no time is defaulted; an item with no
  * window stays all-day.
  */
 
 import { SOURCE_BY_CATEGORY } from '@/lib/travelSourceRegistry';
 
-/** The categories whose calendar row carries no clock of its own — the ones the overlay times. */
-export const DATE_ONLY_TRIP_TYPES = ['activity', 'transfer', 'vehicle'] as const;
-/** The categories the overlay never times: a flight draws by its duration, a stay is all-day. */
-export const TIMED_BY_THEMSELVES = ['flight', 'lodging'] as const;
+/** The categories whose calendar row carries no clock of its own — the ones the overlay times.
+ *  HOTEL-01 (2026-09-22): a STAY joins them — its row carries no clock (vendor-commit
+ *  writes none for lodging), so a stated check-in / check-out window is copied onto it
+ *  exactly like an activity's, and a stay with no stated window stays all-day; the
+ *  15:00 / 11:00 a stay used to be given is gone, so nothing is drawn at an invented clock. */
+export const DATE_ONLY_TRIP_TYPES = ['activity', 'transfer', 'vehicle', 'lodging'] as const;
+/** The categories the overlay never times: a flight draws by its duration. */
+export const TIMED_BY_THEMSELVES = ['flight'] as const;
 
 export function isDateOnlyTripType(vendorOptionType: string | null | undefined): boolean {
   return (DATE_ONLY_TRIP_TYPES as readonly string[]).includes(vendorOptionType ?? '');

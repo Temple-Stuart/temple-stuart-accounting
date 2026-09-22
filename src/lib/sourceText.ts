@@ -162,3 +162,32 @@ export function rejoin(codeHalf: string, commentHalf: string): string {
   for (let i = 0; i < codeHalf.length; i += 1) out += commentHalf[i] === ' ' ? codeHalf[i] : commentHalf[i];
   return out;
 }
+
+/**
+ * HOTEL-01 (2026-09-22): the text of one top-level `export [async] function
+ * NAME(` in a source — from the keyword to the matching close brace — so a law
+ * can pin a FUNCTION byte-for-byte inside a file that also holds other things
+ * (the LiteAPI client holds the search AND the booking calls). Reads the text it
+ * is given; pass code(file) for behaviour. Returns null when the function is
+ * not there. The parameter list is skipped by paren-balance, so a `{` inside a
+ * parameter type never opens the body.
+ */
+export function functionBody(source: string, name: string): string | null {
+  const m = new RegExp(`export (?:async )?function ${name.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\(`).exec(source);
+  if (!m) return null;
+  const start = m.index;
+  let i = start + m[0].length;
+  let depth = 1;
+  for (; i < source.length && depth > 0; i++) {
+    if (source[i] === '(') depth += 1;
+    else if (source[i] === ')') depth -= 1;
+  }
+  const open = source.indexOf('{', i);
+  if (open < 0) return null;
+  depth = 0;
+  for (let j = open; j < source.length; j++) {
+    if (source[j] === '{') depth += 1;
+    else if (source[j] === '}') { depth -= 1; if (depth === 0) return source.slice(start, j + 1); }
+  }
+  return null;
+}

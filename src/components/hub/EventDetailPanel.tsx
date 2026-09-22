@@ -258,9 +258,13 @@ export default function EventDetailPanel({ row, onClose, linkable = true, onCorr
     return () => document.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
+  // HOTEL-01 (2026-09-22): a stay without a stated check-in time says so — the
+  // 15:00 nobody stated is gone, and its absence is named, never blank.
   const when = row.startTime
     ? `${clock(row.startTime)}${row.endTime ? ` – ${clock(row.endTime)}` : ''}`
-    : NONE;
+    : row.kind === 'trip_item' && row.itemType === 'lodging'
+      ? 'check-in time not stated by the property'
+      : NONE;
 
   return (
     /* LINK-01: z-60, ABOVE the day view's own z-50 modal. The walk found the day

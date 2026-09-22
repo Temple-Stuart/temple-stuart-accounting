@@ -2,28 +2,37 @@
 
 /**
  * PublicHotelSearch — the LIVE, logged-out hotel search on the public travel
- * card (PR-H3). It mirrors PublicFlightSearch: a guest types a destination +
- * dates and sees REAL, image-rich hotels from the now-PUBLIC PR-H1 route
+ * card (PR-H3). It mirrors PublicFlightSearch: a guest picks a destination +
+ * dates and sees REAL hotels from the now-PUBLIC PR-H1 route
  * (/api/travel/hotels/search — no auth, bounded by per-IP rate-limit + the daily
  * LiteAPI cap). Results render through the pure <HotelResultsView/> (PR-H2).
  *
- * SEARCH is always free + public. Two actions per stay: "Book" (pay now → a real
- * guest reservation via CheckoutPanel, no login) and "Save to trip" (plan → a
- * budgeted line). Save follows the freemium model (PR-Hotel-Commit): a guest gets
- * the sign-up nudge; a logged-in user with a selected trip commits to
- * /api/trips/[id]/vendor-commit as synthetic lodging (budget line + itinerary +
- * calendar event, the SAME path the discover "Add to trip" uses); a logged-in user
- * with no trip picked is told to pick or create one. No fake results.
+ * HOTEL-01 (2026-09-22): A HOTEL APPEARS ONCE, A RATE SAYS WHAT IT BUYS. The
+ * answer's `cards` (one per hotel, every quoted rate beneath it, tri-state from
+ * the payload) render instead of the one-price rows; the screen's filters ride
+ * the request as the vendor's own contract (src/lib/hotels/rates.ts
+ * hotelSearchParamsOf — a control at "any" sends nothing) and a search fires
+ * ONLY here, on the SEARCH press, counted for the session. Book and Save act on
+ * the SELECTED rate: Book with that rate's offerId, Save with that rate's total
+ * and the property's stated check-in / check-out times when the payload carried
+ * them — never the 15:00 / 11:00 nobody stated.
+ *
+ * SEARCH is always free + public. "Book" (pay now → a real guest reservation via
+ * CheckoutPanel, no login) and "Save to trip" (plan → a budgeted line) follow the
+ * freemium model (PR-Hotel-Commit): a guest gets the sign-up nudge; a logged-in
+ * user with a selected trip commits to /api/trips/[id]/vendor-commit as synthetic
+ * lodging; a logged-in user with no trip picked is told to pick one. No fake results.
  */
 
 import { useState } from 'react';
-import HotelResultsView, { type HotelResult } from './HotelResultsView';
+import HotelResultsView, { type HotelCardView, type HotelRateView } from './HotelResultsView';
 import CheckoutPanel from './CheckoutPanel';
 import CountryCityPicker from './CountryCityPicker';
 // PR-STRIP-DESIGN-2: icon-inside-field (TravelField) — Calendar on dates,
 // Users on guests (the ruled field anatomy; lucide = house vocabulary).
 import { Calendar, Users } from 'lucide-react';
 import TravelSectionShell, { TravelField, TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS, TRAVEL_LABEL_CLASS } from './travelSection';
+import { DEFAULT_HOTEL_FILTERS, hhmmOf, hotelSearchParamsOf, type HotelUiFilters } from '@/lib/hotels/rates';
 
 interface Props {
   /** Opens the existing home register/login modal (saving requires sign-in). */
@@ -50,13 +59,20 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
   const [checkout, setCheckout] = useState(defaultDate(33));
   const [adults, setAdults] = useState(2);
 
-
-  const [results, setResults] = useState<HotelResult[]>([]);
+  const [cards, setCards] = useState<HotelCardView[]>([]);
+  const [env, setEnv] = useState<'live' | 'sandbox' | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searched, setSearched] = useState(false);
+  // HOTEL-01: the screen's filters — a control writes them here and nothing else happens.
+  const [filters, setFilters] = useState<HotelUiFilters>(DEFAULT_HOTEL_FILTERS);
+  // HOTEL-01: how many metered searches this session has sent — shown beside the controls.
+  const [searchCount, setSearchCount] = useState(0);
+  // HOTEL-01: the selected rate — Book and Save act on it.
+  const [selected, setSelected] = useState<{ hotelId: string; rateId: string } | null>(null);
 
-  // ── LIVE search against the PUBLIC /api/travel/hotels/search (PR-H1). ──
+  // ── LIVE search against the PUBLIC /api/travel/hotels/search (PR-H1). The ONLY
+  //    place a search fires — a filter change never does. ──
   const search = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -71,7 +87,8 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
 
     setLoading(true);
     setError('');
-    setResults([]);
+    setCards([]);
+    setSelected(null);
     setSearched(true);
 
     try {
@@ -84,15 +101,19 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
         checkin,
         checkout,
         adults: String(adults),
+        // HOTEL-01: the vendor's own filter and sort names — only what the screen set.
+        ...hotelSearchParamsOf(filters),
       });
 
+      setSearchCount((n) => n + 1);
       const res = await fetch(`/api/travel/hotels/search?${params}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Failed to search hotels');
       }
       const data = await res.json();
-      setResults((data.results || []) as HotelResult[]);
+      setCards((data.cards || []) as HotelCardView[]);
+      setEnv(data.env === 'live' ? 'live' : data.env === 'sandbox' ? 'sandbox' : null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Hotel search failed');
     } finally {
@@ -100,48 +121,44 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
     }
   };
 
-  // PR-G3: BOOKING is now GUEST-FRIENDLY — tapping "Book" opens the real checkout
-  // panel right here (no login). Guests book end-to-end (no trip); the routes
-  // persist a guest reservation + commission. (onRequireAuth is kept for a future
-  // "save to a trip — sign in" upsell, PR-G4.) A hotel with no bookable offer
-  // can't be booked — surface that honestly instead of opening an empty checkout.
-  const [checkoutHotel, setCheckoutHotel] = useState<HotelResult | null>(null);
-  const book = (hotel: HotelResult) => {
-    if (!hotel.liteapiOfferId) {
-      setError(`${hotel.name} can't be booked right now — try another stay.`);
+  // PR-G3: BOOKING is GUEST-FRIENDLY — Book opens the real checkout panel right
+  // here (no login) on the SELECTED rate's offerId. A rate with no offerId can't
+  // be booked — the view's Book button says so instead of opening an empty checkout.
+  const [checkoutOf, setCheckoutOf] = useState<{ card: HotelCardView; rate: HotelRateView; offerId: string } | null>(null);
+  const book = (card: HotelCardView, rate: HotelRateView) => {
+    if (rate.offerId === null) {
+      setError(`${card.name}'s ${rate.roomName ?? 'rate'} can't be booked right now — try another rate.`);
       return;
     }
     setError('');
-    setCheckoutHotel(hotel);
+    setCheckoutOf({ card, rate, offerId: rate.offerId });
   };
 
   // ── Save to trip (budget) — the three freemium states (mirrors flights). ──
-  // Guest → sign-up nudge. Logged in + no trip → "pick a trip" (NOT a login prompt).
-  // Logged in + a trip → POST the SAME synthetic-lodging vendor-commit the discover
-  // "Add to trip" uses (budget line + itinerary + calendar), against currentTrip.id.
   const [savingId, setSavingId] = useState<string | null>(null);
   const [saveNote, setSaveNote] = useState<{ kind: 'ok' | 'err' | 'info'; text: string } | null>(null);
 
-  const saveToTrip = async (hotel: HotelResult) => {
+  const saveToTrip = async (card: HotelCardView, rate: HotelRateView) => {
     if (authed !== true) { onRequireAuth(); return; }
     if (!currentTrip) {
       setSaveNote({ kind: 'info', text: 'Pick or create a trip above first, then save this stay to it.' });
       return;
     }
-    const amount = hotel.priceTotal ?? hotel.price;
-    if (amount == null) {
-      setSaveNote({ kind: 'err', text: `${hotel.name} has no price to save — try another stay.` });
-      return;
-    }
 
-    setSavingId(hotel.liteapiHotelId);
+    setSavingId(card.hotelId);
     setSaveNote(null);
     try {
       const detail = [
-        hotel.pricePerNight != null ? `$${hotel.pricePerNight}/night` : null,
-        hotel.nights != null ? `${hotel.nights} night${hotel.nights === 1 ? '' : 's'}` : null,
-        hotel.liteapiHotelId ? `hotel:${hotel.liteapiHotelId}` : null,
+        rate.roomName,
+        rate.boardName ?? rate.boardType,
+        rate.perNight !== null ? `$${rate.perNight}/night` : null,
+        card.nights !== null ? `${card.nights} night${card.nights === 1 ? '' : 's'}` : null,
+        `hotel:${card.hotelId}`,
       ].filter(Boolean).join(' · ');
+      // HOTEL-01: the property's STATED check-in / check-out clocks, when the payload
+      // carried them — else the keys are absent and the commit stores no time.
+      const startTime = hhmmOf(card.checkinTime);
+      const endTime = hhmmOf(card.checkoutTime);
 
       const res = await fetch(`/api/trips/${currentTrip.id}/vendor-commit`, {
         method: 'POST',
@@ -149,20 +166,22 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
         body: JSON.stringify({
           optionType: 'lodging',
           synthetic: true,                  // no DB option row — build from this payload
-          optionId: `hotel-${hotel.liteapiHotelId || 'manual'}-${Date.now()}`,
+          optionId: `hotel-${card.hotelId}-${Date.now()}`,
           startDate: checkin,
           endDate: checkout,
-          amount,                            // whole-stay total — not recomputed
-          notes: detail ? `${hotel.name} | ${detail}` : hotel.name,
+          amount: rate.total,                // the selected rate's whole-stay total — not recomputed
+          notes: detail ? `${card.name} | ${detail}` : card.name,
           recurrence: 'daily',              // a stay is a nightly recurring block
-          location: hotel.city || hotel.address || undefined,
+          location: card.city ?? card.address ?? undefined,
+          ...(startTime ? { startTime } : {}),
+          ...(endTime ? { endTime } : {}),
         }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         throw new Error(d.error || 'Save failed');
       }
-      setSaveNote({ kind: 'ok', text: `Saved ${hotel.name} to ${currentTrip.name ?? 'your trip'}.` });
+      setSaveNote({ kind: 'ok', text: `Saved ${card.name} to ${currentTrip.name ?? 'your trip'}.` });
       onCommitted?.();
     } catch (err) {
       setSaveNote({ kind: 'err', text: err instanceof Error ? err.message : 'Save failed' });
@@ -231,7 +250,7 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
           <button
             type="submit"
             // SEARCH-ALWAYS-ON: full-strength at rest — search() already
-            // errors loudly on the missing pieces (:63-69) and clears on a
+            // errors loudly on the missing pieces and clears on a
             // valid attempt; only loading dims.
             disabled={loading}
             className={`${TRAVEL_BUTTON_CLASS} w-full`}
@@ -257,12 +276,18 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
         </div>
       )}
 
-      {/* Results: only after the first search. Empty/loading/error live in the view. */}
+      {/* Results (and the controls above them): only after the first search. */}
       {searched && (
         <HotelResultsView
-          results={results}
+          cards={cards}
           loading={loading}
           error={error}
+          env={env}
+          filters={filters}
+          onFiltersChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
+          searchCount={searchCount}
+          selected={selected}
+          onSelect={(card, rate) => setSelected(rate ? { hotelId: card.hotelId, rateId: rate.rateId } : null)}
           onBook={book}
           onSave={saveToTrip}
           savingId={savingId}
@@ -280,18 +305,18 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
           ONLY under authed === true && currentTrip — provable from this
           component's own props (currentTrip is also only settable from the
           authed-gated trips list). A guest always books standalone, unchanged. */}
-      {checkoutHotel && checkoutHotel.liteapiOfferId && (
+      {checkoutOf && (
         <CheckoutPanel
           tripId={authed === true && currentTrip ? currentTrip.id : undefined}
           tripName={authed === true && currentTrip ? currentTrip.name : undefined}
           authed={authed}
-          offerId={checkoutHotel.liteapiOfferId}
-          hotelId={checkoutHotel.liteapiHotelId}
-          images={checkoutHotel.images}
-          hotelName={checkoutHotel.name}
+          offerId={checkoutOf.offerId}
+          hotelId={checkoutOf.card.hotelId}
+          images={checkoutOf.card.images}
+          hotelName={checkoutOf.card.name}
           checkin={checkin}
           checkout={checkout}
-          onClose={() => setCheckoutHotel(null)}
+          onClose={() => setCheckoutOf(null)}
           onBooked={() => { /* confirmation shows in-panel; nothing to persist here */ }}
         />
       )}

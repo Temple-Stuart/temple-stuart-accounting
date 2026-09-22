@@ -362,7 +362,7 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
     startTime: e.startTime, endTime: e.endTime,
     location: e.location, latitude: e.latitude, longitude: e.longitude,
     coaCode: e.coaCode, budgetAmount: e.budgetAmount ?? null,
-    vendor: e.vendor ?? null, provider: e.provider ?? null, tripItemId: e.tripItemId ?? null,
+    vendor: e.vendor ?? null, provider: e.provider ?? null, tripItemId: e.tripItemId ?? null, itemType: e.itemType ?? null,
   }, taskCostsByBlock.get(e.id) ?? null, routineLinesById.get(parseRoutineTileId(e.id)?.routineId ?? '') ?? null);
 
   // PR-Calendar-Flush: the descriptive caption + the parent purple band are gone — the
