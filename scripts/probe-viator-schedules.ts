@@ -23,10 +23,18 @@
 //
 // Each mode prints the HTTP status (plus the RateLimit-Limit / -Remaining /
 // -Reset and X-Unique-ID headers the docs say a metered response carries) and
-// writes the RAW response JSON to the fixture path — after asserting that no
-// character run of the API key (the whole key, and every 8-character window of
-// it) appears anywhere in the text. A body that fails that assertion is NOT
-// written. Non-2xx bodies are printed (first 600 chars) and NOT written.
+// writes the response JSON to the fixture path, after two guards:
+//   REDACTION (STEP 0b, ruled 2026-09-22): every key named partnerNetPrice,
+//   bookingFee or partnerTotalPrice is removed at ANY depth — the docs do not
+//   say an affiliate key is spared the PriceObject's commercial terms, and the
+//   fixture lands in a PUBLIC repository. A top-level `_redacted` records the
+//   distinct key names removed, the count, and the reason; the script prints
+//   what it removed. The app and the tests read recommendedRetailPrice only.
+//   THE KEY-RUN ASSERTION: no character run of the API key (the whole key, and
+//   every 8-character window of it) may appear anywhere in the text.
+// A body that fails the key-run assertion is NOT written. Non-2xx bodies are
+// printed (first 600 chars) and NOT written. A body that is not a JSON object
+// is NOT written (both documented answers are objects).
 //
 // Mirrors src/lib/viatorClient.ts EXACTLY (same base / key / headers as the app):
 //   VIATOR_V2_BASE (:13), getApiKey() (:15-19), v2Headers() (:22-29).
@@ -115,9 +123,32 @@ function slugOf(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
+// ── The redaction: the vendor's commercial terms never enter the public tree. ──
+const REDACTED_KEYS: readonly string[] = ['partnerNetPrice', 'bookingFee', 'partnerTotalPrice'];
+const REDACTION_REASON = "commercial terms — not the traveller's price";
+/** Returns a copy of `value` with every REDACTED_KEYS-named key removed at any depth; pushes each removal onto `removed`. */
+function redact(value: unknown, removed: string[]): unknown {
+  if (Array.isArray(value)) return value.map((v) => redact(v, removed));
+  if (value !== null && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (REDACTED_KEYS.includes(k)) { removed.push(k); continue; }
+      out[k] = redact(v, removed);
+    }
+    return out;
+  }
+  return value;
+}
+
 function writeFixture(path: string, answer: Answer): void {
   if (answer.json === null) { console.log(`NOT WRITTEN — the body is not JSON. First 600 chars: ${answer.text.slice(0, 600)}`); return; }
-  const pretty = JSON.stringify(answer.json, null, 2) + '\n';
+  if (Array.isArray(answer.json) || typeof answer.json !== 'object') { console.log(`NOT WRITTEN — the body is not a JSON object (${Array.isArray(answer.json) ? 'array' : typeof answer.json}); the documented answer is an object.`); return; }
+  const removed: string[] = [];
+  const body = redact(answer.json, removed) as Record<string, unknown>;
+  const keys = [...new Set(removed)].sort();
+  body._redacted = { keys, count: removed.length, reason: REDACTION_REASON };
+  console.log(`redacted: count=${removed.length} keys=${JSON.stringify(keys)} (${REDACTION_REASON})`);
+  const pretty = JSON.stringify(body, null, 2) + '\n';
   const runs = keyRunsIn(pretty);
   if (runs.length > 0) {
     console.log(`NOT WRITTEN — a run of the API key appears in the body: ${runs.join('; ')}`);
