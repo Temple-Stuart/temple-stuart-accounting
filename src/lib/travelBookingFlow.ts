@@ -19,11 +19,20 @@
  * list: it is the itinerary and calendar WRITER a committed option lands
  * through, not a booking, a prebook, a payment or a provider call. TRAVEL-01
  * did not touch it either, but it is not the booking flow's file.
+ *
+ * FLIGHT-01 (2026-09-22) — SEARCH IS NOT BOOKING. The pin protects what moves
+ * money and holds: prebook, verify, book, pay, cancel, the reservation routes
+ * and the checkout panels. The flights SEARCH route and the picker that renders
+ * its answer are on the list because the census named every travel route and
+ * surface, not because a search is a booking; FLIGHT-01 changed the search's
+ * request body (the vendor's own filters and sort, validated) and the picker
+ * (one row per flight, its fares) and re-pinned those five files below, each
+ * dated with the reason. No prebook, verify, book, pay or cancel file changed.
  */
 
 import { createHash } from 'node:crypto';
 
-export const BOOKING_FLOW_BASE = 'main @ b9eac34a (2026-09-19); UnattachedBookings.tsx re-pinned by REPAINT-04 (2026-09-21), paint only';
+export const BOOKING_FLOW_BASE = 'main @ b9eac34a (2026-09-19); UnattachedBookings.tsx re-pinned by REPAINT-04 (2026-09-21), paint only; the flights search route, the adapter and the two flight pickers re-pinned by FLIGHT-01 (2026-09-22), search is not booking';
 
 export interface BookingFlowPin {
   readonly file: string;
@@ -40,7 +49,9 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   { file: 'src/app/api/travel/liteapi/book/route.ts', sha256: '69abc595d70da025ac088ec85dc136ca6d6a6576a504d3c4b441e0434508b567' },
   { file: 'src/app/api/travel/liteapi/flights/book/route.ts', sha256: 'cd8fa37b2d950f98063b7562d3d5347dc1c5e1edcf04df695db41306f8400ab3' },
   { file: 'src/app/api/travel/liteapi/flights/prebook/route.ts', sha256: 'ed9b0d2afe376769e42a99a80fc3ce33755324add6a25e4104a5f5c193289c7a' },
-  { file: 'src/app/api/travel/liteapi/flights/search/route.ts', sha256: 'cbd59f8394b0f9fb52b3df446ba5183e99eb8b62c07cbb4afdbf63d50b6b86d1' },
+  // FLIGHT-01 (2026-09-22): re-pinned — the request body gains the vendor's filters and sort, validated by name between the two guards. Search is not booking; no prebook/verify/book/pay/cancel call changed.
+  // Was cbd59f8394b0f9fb52b3df446ba5183e99eb8b62c07cbb4afdbf63d50b6b86d1 at main b9eac34a.
+  { file: 'src/app/api/travel/liteapi/flights/search/route.ts', sha256: 'e4535e859762c570a894e9fdf2e5e0ca452e395f6a5e8ab51b55221bc9c2fa0b' },
   { file: 'src/app/api/travel/liteapi/flights/verify/route.ts', sha256: '5143ffafee8ed954d5edc7c639857622375c6b177b9ac067f79553794674d589' },
   { file: 'src/app/api/travel/liteapi/prebook/route.ts', sha256: 'dd6e8c9a0f1437a0661283bb91dc00aeb6dcaf6c227cefc180a3e01f1a60f351' },
   { file: 'src/app/api/travel/locations/cities/route.ts', sha256: 'b6329f0a6c24ee53a683467800f91692fa17ca210f7e31db7dc54b73157e731a' },
@@ -55,7 +66,9 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // the surfaces the Search section mounts, and the panels they open
   { file: 'src/components/trips/travelStripModes.tsx', sha256: '4eaae575daae7dcbf0795a40547cf1613af7aa03e2e675bf4aed9ad182642522' },
   { file: 'src/components/trips/PublicHotelSearch.tsx', sha256: 'f2c48b9a3e8aff1ec2fd64a3ead5b1d03f6e4d9f66a60777b25ec1b37da3bb27' },
-  { file: 'src/components/trips/PublicFlightSearch.tsx', sha256: 'fac335657e50b3fda3be9cf82053fce7f56f04f2c079a1f1a6c6f2c125d11359' },
+  // FLIGHT-01 (2026-09-22): re-pinned — the leg carries the screen's filters; the search request carries them; a session search count. Search is not booking; no prebook/verify/book/pay/cancel call changed.
+  // Was fac335657e50b3fda3be9cf82053fce7f56f04f2c079a1f1a6c6f2c125d11359 at main b9eac34a.
+  { file: 'src/components/trips/PublicFlightSearch.tsx', sha256: '4d7573d8600f0502fa42bfaadec3375d4d220dfaf2c357a9ceef2244ec9c7099' },
   { file: 'src/components/trips/PublicActivitySearch.tsx', sha256: '0251b470ea74f8cd787f0b5f6436f32e44615c29f00b6a757ea70bf79c1e2e03' },
   { file: 'src/components/trips/PublicTransferSearch.tsx', sha256: 'b508381f1a7c388eded9c139e7d5b76bd560e36d8db085e440a2eac0cb84a9c4' },
   { file: 'src/components/trips/PublicVisaCheck.tsx', sha256: 'd18df6a909cbd6bbb4332ce84648f7f87b7df6936b2523223f8f5575fb40b507' },
@@ -64,8 +77,12 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   { file: 'src/components/trips/HotelPicker.tsx', sha256: '91e32a6df274f9f92a39329181d5ba3c7980c2a389a49044126f819f1e55284a' },
   { file: 'src/components/trips/HotelGallery.tsx', sha256: '64e34a08a092e0b8aed934fdf1fe5dc4416212bcc4cc4a2d3dcd855ab011b810' },
   { file: 'src/components/trips/HotelMap.tsx', sha256: '59b57e947baaec731a14f226b9f95434445e56286cebfd5f0ac1e234aa0cac3a' },
-  { file: 'src/components/trips/FlightPicker.tsx', sha256: '6495e6f8900cf80d357eb8b0b09d09bf91019b48882bf697c559136eb46ecbea' },
-  { file: 'src/components/trips/FlightPickerView.tsx', sha256: 'd0f24e94fc1714dc514a18b3b84e445f1d9b75c150252f46c8b76698e9bc9587' },
+  // FLIGHT-01 (2026-09-22): re-pinned — the same as PublicFlightSearch — filters on the leg, sent on Search, counted. Search is not booking; no prebook/verify/book/pay/cancel call changed.
+  // Was 6495e6f8900cf80d357eb8b0b09d09bf91019b48882bf697c559136eb46ecbea at main b9eac34a.
+  { file: 'src/components/trips/FlightPicker.tsx', sha256: 'fab753b0ba0166c634fd82b95c69fa009965c170ca7f07f795105214c5429d73' },
+  // FLIGHT-01 (2026-09-22): re-pinned — one row per flight with its fares, the filter bar, the lowest-fare line, the difference line. Search is not booking; no prebook/verify/book/pay/cancel call changed.
+  // Was d0f24e94fc1714dc514a18b3b84e445f1d9b75c150252f46c8b76698e9bc9587 at main b9eac34a.
+  { file: 'src/components/trips/FlightPickerView.tsx', sha256: '5ec7d6289a40f4f78457e5c381609d9d65686148b352eef4a1c9f5f55a1176a3' },
   { file: 'src/components/trips/ActivityResultsView.tsx', sha256: 'f389031ad67caa345a912a41b45aeced4538fb407a91dea89acb98f6f515c97b' },
   { file: 'src/components/trips/CheckoutPanel.tsx', sha256: '417cf3e6cfced5f38dda66fc047218437703edbc2fd5b459a9d5f0189f15c3b6' },
   { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: 'c018712700fe9e24c0ff51b417ab3658060f8dbe8784a459b33da4eb6a70365d' },
@@ -79,7 +96,9 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // the provider clients and their helpers
   { file: 'src/lib/liteapiClient.ts', sha256: '9806e3b58ab2b8d4845e7870f89078d473d27007cae0adb247af0673907f176a' },
   { file: 'src/lib/liteapiFlightsClient.ts', sha256: 'f5ecffcfa0b71b8cbe4ba8868a2f8aabd4e326129bacbf9a675e79b17e63fd2f' },
-  { file: 'src/lib/liteapiFlightAdapter.ts', sha256: 'd851de5d68fada3cffddd88ddcc38005b5a9c739e73c0920c213f282c30fa879' },
+  // FLIGHT-01 (2026-09-22): re-pinned — tri-state fare attributes, segment views with the operating carrier, the flight identity; the `!!terms` coercion gone. Search is not booking; no prebook/verify/book/pay/cancel call changed.
+  // Was d851de5d68fada3cffddd88ddcc38005b5a9c739e73c0920c213f282c30fa879 at main b9eac34a.
+  { file: 'src/lib/liteapiFlightAdapter.ts', sha256: 'e808226d162022fce929170a104ee63dd715825c933bf9d7b371e754c533aef7' },
   { file: 'src/lib/viatorClient.ts', sha256: '4232b6fc9b14e860ad3c5f9a9e6777152f2ef5b3b98ae920b58952dd0a65ce14' },
   { file: 'src/lib/travelBuddyClient.ts', sha256: 'b745272d633d5322d7768c755fa96571a76f7e170e182474e4660fd94f2351f1' },
   { file: 'src/lib/flightsLane.ts', sha256: 'c39972d6fd517124ca841487c994013583f5faeb05e2001080f1bf80d6352cee' },

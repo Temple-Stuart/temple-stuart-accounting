@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
-import { searchFlightRates, FlightLeg, FlightCabinClass } from '@/lib/liteapiFlightsClient';
+import { searchFlightRates, FlightLeg, FlightCabinClass, FlightSearchFilters, FlightSort } from '@/lib/liteapiFlightsClient';
+import { parseFilters, parseSort } from '@/lib/flights/searchContract';
 import { MissingLiteApiKeyError, LiteApiError } from '@/lib/travelErrors';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
@@ -34,6 +35,8 @@ export async function POST(request: NextRequest) {
       adults?: unknown;
       currency?: unknown;
       cabinClass?: unknown;
+      filters?: unknown;
+      sort?: unknown;
     };
     try {
       body = await request.json();
@@ -104,6 +107,24 @@ export async function POST(request: NextRequest) {
       cabinClass = c;
     }
 
+    // FLIGHT-01 (2026-09-22): the vendor's own filter and sort contract, forwarded
+    // UNCHANGED once validated. Only the keys below are accepted — an unknown key
+    // is refused BY NAME, a bad value is refused by name, and an absent key is
+    // simply not sent, so the vendor's own default applies (no default invented
+    // here). Still between the guards: a 400 never consumes a daily-cap slot.
+    let filters: FlightSearchFilters | undefined;
+    if (body.filters !== undefined) {
+      const parsed = parseFilters(body.filters);
+      if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
+      filters = parsed.filters;
+    }
+    let sort: FlightSort | undefined;
+    if (body.sort !== undefined) {
+      const parsed = parseSort(body.sort);
+      if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
+      sort = parsed.sort;
+    }
+
     // GUARD 2 — durable daily provider cap, immediately before the LiteAPI call.
     await reserveTravelSearch('liteapi');
 
@@ -112,6 +133,8 @@ export async function POST(request: NextRequest) {
       adults: adults as number,
       currency,
       ...(cabinClass ? { cabinClass } : {}),
+      ...(filters ? { filters } : {}),
+      ...(sort ? { sort } : {}),
     });
     return NextResponse.json({ results });
   } catch (err) {
