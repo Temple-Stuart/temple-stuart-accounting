@@ -111,10 +111,12 @@ import { DEFAULT_ACTIVITY_FILTERS, NOT_STATED as ACTIVITY_NOT_STATED, activityCa
 import { validatedAffiliateUrl } from '../src/config/affiliates';
 import { cityForViatorDestId } from '../src/lib/destinations';
 import PHUKET_ACTIVITIES from '../src/lib/__tests__/fixtureViatorSearch.phuket-thailand.json';
-import { cancellationStatement, optionTitleOf, partyMeetsProduct, productFactsOf, type RawProduct } from '../src/lib/activities/product';
+import { optionTitleOf, partyMeetsProduct, productFactsOf, type RawProduct } from '../src/lib/activities/product';
 import { extraChargesFor, partyCost, startTimesOn, type RawSchedule } from '../src/lib/activities/schedule';
 import { CALCULATED, convert, isExpired, rateOf, type RawExchangeRates } from '../src/lib/activities/fx';
-import { activitySaveNoteOf, endTimeOf, readViatorSave, totalOf, verifyViatorSave, type ViatorSave } from '../src/lib/activities/save';
+import { activitySaveNoteOf, endTimeOf, totalOf } from '../src/lib/activities/save';
+import { QUOTE_MAX_AGE_MINUTES, endOfQuote, priceQuote, quoteAgeMinutes, quotesForOption, readViatorQuote, saveFromQuote, type ViatorQuote } from '../src/lib/activities/quote';
+import { QUOTE_SEAL_DOMAIN, canonicalJson, sealHolds, sealOf } from '../src/lib/activities/quoteSeal';
 import PHUKET_PRODUCT from '../src/lib/__tests__/fixtureViatorProduct.27424p2.json';
 import PHUKET_SCHEDULE from '../src/lib/__tests__/fixtureViatorSchedule.27424p2.json';
 import THB_USD from '../src/lib/__tests__/fixtureViatorExchangeRates.thb-usd.json';
@@ -4006,13 +4008,27 @@ else console.log(`✖ The stay law FAILED — ${stayViolations} violation(s).`);
 //      both windows, the rate with its expiry.
 //   5. THE FIGURE IS CALCULATED AND SAYS SO. Every converted figure carries the label
 //      'calculated' with the native amount, the currency, the rate, its source, its
-//      lastUpdated and its expiry; the note names them all; vendor-commit re-reads the
-//      Save and RECOMPUTES the total from the stated figures × the stated rate, refuses
-//      an expired rate, a total that does not follow, a note that is not the facts',
+//      lastUpdated and its expiry; the note names them all; vendor-commit DERIVES the
+//      total from the sealed quote (clause 7) and takes no figure from the caller,
 //      admits a stated 0 only under the 'operator' marker with its option code, and
 //      fixes the instant from the operator's stated zone alone. Reconciled: the
 //      schedule's from-price × the rate = the search's 77.66; its extra charges × the
 //      rate = 12.33, not the search's 12.03 — both facts, neither explained.
+//   7. THE SERVER SEALS THE FIGURES IT READ (STEP 4b, 2026-09-22). STEP 4 let the
+//      browser post the figures and could only check them against each other — the
+//      band unit prices were never posted, so the native cost could not be recomputed
+//      at all. Now the options route seals its own Viator read per bookable pick, key
+//      = HMAC-SHA256(JWT_SECRET, 'temple-stuart/viator-quote/v1') — domain-separated
+//      from the session cookie's HMAC(JWT_SECRET, email) and throwing when the secret
+//      is absent — seal = HMAC-SHA256(key, the canonical JSON), verified with
+//      crypto.timingSafeEqual. vendor-commit refuses the old `viatorSave` field BY
+//      NAME, refuses an amount / note / clock sent beside a quote, verifies the seal,
+//      refuses another account's quote and one read more than QUOTE_MAX_AGE_MINUTES
+//      ago, and then DERIVES the price, the note, the start and the end from the
+//      sealed quote alone. A variable duration takes the founder's end only inside the
+//      operator's stated range; an empty pick draws a flagged marker and the note says
+//      the range. The quote's leaves are pure, type a rate nowhere, and the container
+//      posts the sealed pair, the party and that end — and nothing else.
 //   6. THE PIN HOLDS, DATED. Six files re-dated by ACTIVITY-01 carry a dated note
 //      with the hash they had on main dfc02881 and the options route is pinned new,
 //      dated; no other file carries one; the transfers route's pin is unchanged;
@@ -4034,6 +4050,10 @@ const ACTIVITY_PRODUCT_LEAF = 'src/lib/activities/product.ts';
 const ACTIVITY_SCHEDULE_LEAF = 'src/lib/activities/schedule.ts';
 const ACTIVITY_FX_LEAF = 'src/lib/activities/fx.ts';
 const ACTIVITY_SAVE_LEAF = 'src/lib/activities/save.ts';
+const ACTIVITY_QUOTE_LEAF = 'src/lib/activities/quote.ts';
+/** The law's own clock for the captures — the read's as-of, stated once. */
+const ACTIVITY_AS_OF = '2026-09-22T12:00:00.000Z';
+const ACTIVITY_SEAL_LEAF = 'src/lib/activities/quoteSeal.ts';
 const ACTIVITY_PLANNER = 'src/components/trips/TripPlannerAI.tsx';
 const ACTIVITY_REDATED = [ACTIVITY_ROUTE, ACTIVITY_STRIP, ACTIVITY_CONTAINER, ACTIVITY_OLD_VIEW, ACTIVITY_CLIENT, ACTIVITY_QUOTA];
 const ACTIVITY_PINNED_NEW = [ACTIVITY_OPTIONS_ROUTE];
@@ -4200,11 +4220,11 @@ const activityResolvers = { validateUrl: (u: string) => validatedAffiliateUrl(u,
   if (/error\.message|error\.body|err\.body/.test(route)) activityFail(`${ACTIVITY_OPTIONS_ROUTE} quotes the vendor's body to the browser (HYG-02)`);
   const client = codeOf(ACTIVITY_CLIENT);
   if (!/const exchangeRateCache = new Map<string, RateRecord>\(\);/.test(client) || !/if \(isExpired\(hit, now\)\) \{ exchangeRateCache\.delete/.test(client)) activityFail(`${ACTIVITY_CLIENT}'s rate cache does not honour the vendor's expiry`);
-  for (const f of [ACTIVITY_CLIENT, ACTIVITY_OPTIONS_ROUTE, ACTIVITY_FX_LEAF, ACTIVITY_SAVE_LEAF, ACTIVITY_SCHEDULE_LEAF, ACTIVITY_CONTAINER, ACTIVITY_COMMIT]) {
+  for (const f of [ACTIVITY_CLIENT, ACTIVITY_OPTIONS_ROUTE, ACTIVITY_FX_LEAF, ACTIVITY_SAVE_LEAF, ACTIVITY_SCHEDULE_LEAF, ACTIVITY_QUOTE_LEAF, ACTIVITY_CONTAINER, ACTIVITY_COMMIT]) {
     if (/rate:\s*[0-9]|0\.030818/.test(codeOf(f))) activityFail(`${f} types a rate`);
   }
   if (!/viatorsave: 300,/.test(codeOf(ACTIVITY_QUOTA))) activityFail(`${ACTIVITY_QUOTA} does not carry the 'viatorsave' safe cap of 300`);
-  for (const f of [ACTIVITY_PRODUCT_LEAF, ACTIVITY_SCHEDULE_LEAF, ACTIVITY_FX_LEAF, ACTIVITY_SAVE_LEAF]) {
+  for (const f of [ACTIVITY_PRODUCT_LEAF, ACTIVITY_SCHEDULE_LEAF, ACTIVITY_FX_LEAF, ACTIVITY_SAVE_LEAF, ACTIVITY_QUOTE_LEAF]) {
     if (/\bfetch\(|process\.env/.test(codeOf(f)) || !/PURE: no fetch, no env/.test(commentsOf(f))) activityFail(`${f} is not pure`);
   }
   // Probed on the captures.
@@ -4238,7 +4258,7 @@ const activityResolvers = { validateUrl: (u: string) => validatedAffiliateUrl(u,
   const commit = codeOf(ACTIVITY_COMMIT);
   if (!/const operatorStated = priceStatedByInput === 'operator' && viatorSave !== null;/.test(commit) || !/if \(!Number\.isFinite\(amt\) \|\| amt < 0 \|\| \(amt === 0 && !operatorStated\)\) \{/.test(commit)) activityFail(`${ACTIVITY_COMMIT} does not admit a stated 0 under the 'operator' marker alone`);
   if (!/Google places have no price/.test(commit) || !/a 0 is accepted only as a price the operator stated/.test(commit)) activityFail(`${ACTIVITY_COMMIT}'s amount guard does not name both cases`);
-  if (!/const read = readViatorSave\(viatorSaveInput\);/.test(commit) || !/const verdict = verifyViatorSave\(viatorSave, amt, notes, ACTIVITY_SEARCH_CURRENCY, now\);/.test(commit)) activityFail(`${ACTIVITY_COMMIT} does not re-read and recompute the Save`);
+  if (!/const derived = saveFromQuote\(read, partyInput as Record<string, number>, endTimeChosenInput, ACTIVITY_SEARCH_CURRENCY, now\);/.test(commit) || !/viatorNote = activitySaveNoteOf\(derived\);/.test(commit)) activityFail(`${ACTIVITY_COMMIT} does not derive the line and its note from the sealed quote`);
   if (!/const activityZone = viatorSave\?\.timeZone \?\? null;/.test(commit) || !/start_zone: activityZone,\n\s+end_zone: activityZone,\n\s+start_at: activityZone \? startAt : null,\n\s+end_at: activityZone \? endAt : null,/.test(commit)) activityFail(`${ACTIVITY_COMMIT} does not fix the instant from the operator's stated zone alone`);
   if (/'Asia\/|'America\/|'Europe\//.test(commit)) activityFail(`${ACTIVITY_COMMIT} types a zone`);
   if (!/optionId\.startsWith\('viator-'\)/.test(commit)) activityFail(`${ACTIVITY_COMMIT} cannot uncommit a tour`);
@@ -4248,40 +4268,101 @@ const activityResolvers = { validateUrl: (u: string) => validatedAffiliateUrl(u,
   const optionReads = container.split('fetch(' + '`' + '/api/travel/activities/options?').length - 1;
   if (optionReads !== 1) activityFail(`${ACTIVITY_CONTAINER} reads the options ${optionReads} time(s) — once, at the press`);
   if (!/if \(authed !== true\) \{ onRequireAuth\(\); return; \}/.test(container)) activityFail(`${ACTIVITY_CONTAINER} reads the schedule for a guest`);
-  if (!/priceStatedBy: 'operator',/.test(container) || !/viatorSave: draft,/.test(container) || !/const note = activitySaveNoteOf\(draft\);/.test(container)) activityFail(`${ACTIVITY_CONTAINER}'s Save does not carry the marker, the draft and the facts' note`);
+  if (!/priceStatedBy: 'operator',/.test(container) || !/viatorQuote: chosen\.quote,/.test(container) || !/viatorSeal: chosen\.seal,/.test(container)) activityFail(`${ACTIVITY_CONTAINER}'s Save does not carry the marker and the sealed pair`);
   if (!/initial\[b\.ageBand\] = b\.minTravelersPerBooking \?\? 0;/.test(container)) activityFail(`${ACTIVITY_CONTAINER}'s party form is not the operator's bands at their stated minimum`);
-  if (!/endTime: endTimeOf\(startTime, answer\.product\.duration\),/.test(container) || !/timeZone: answer\.product\.timeZone,/.test(container)) activityFail(`${ACTIVITY_CONTAINER} derives the end or the zone from somewhere other than the product`);
+  if (!/const end = endOfQuote\(chosen\.quote, endPick\);/.test(container) || !/return priceQuote\(quote, party, answer\.targetCurrency, new Date\(\)\);/.test(container)) activityFail(`${ACTIVITY_CONTAINER} prices or ends a tour outside the sealed quote's own leaf`);
   if (/'09:00'|'17:00'|'0[0-9]:[0-9]{2}'|'1[0-9]:[0-9]{2}'/.test(container) || /'0[0-9]:[0-9]{2}'|'1[0-9]:[0-9]{2}'|'2[0-3]:[0-9]{2}'/.test(codeOf(ACTIVITY_SAVE_LEAF))) activityFail('a clock literal stands on the Save path');
   for (const f of [ACTIVITY_CONTAINER, ACTIVITY_VIEW, ACTIVITY_SAVE_LEAF, ACTIVITY_FX_LEAF, ACTIVITY_COMMIT]) {
     if (/Intl\.NumberFormat\([^)]*currency/.test(codeOf(f))) activityFail(`${f} re-formats a converted figure through a currency formatter`);
   }
   if (!/label: CALCULATED,/.test(codeOf(ACTIVITY_FX_LEAF)) || !/\$\{calc\.label\}/.test(codeOf(ACTIVITY_FX_LEAF))) activityFail(`${ACTIVITY_FX_LEAF} does not label a converted figure calculated in the line it writes`);
-  if (!/<span data-activity-option-total=\{draft\.total\.amount\}>\{conversionText\(draft\)\}<\/span>/.test(container)) activityFail(`${ACTIVITY_CONTAINER} shows a plan figure without its conversion line`);
-  // Probed: the draft the screen prices is what the commit recomputes; a wrong total, an expired rate, an edited note refuse.
+  if (!/<span data-activity-option-total=\{priced\.total\.amount\}>\{conversionText\(\{ native: priced\.native, extra: priced\.extra, rate: st\.quote\?\.rate \?\? null, total: priced\.total \}\)\}<\/span>/.test(container)) activityFail(`${ACTIVITY_CONTAINER} shows a plan figure without its conversion line`);
+  // Probed on the captures: the sealed quote the route would issue, and the line it derives.
   const facts = productFactsOf(PHUKET_PRODUCT as unknown as RawProduct);
-  const details = (PHUKET_SCHEDULE as unknown as RawSchedule).bookableItems!.find((b) => b.productOptionCode === 'TG14')!.seasons![0].pricingRecords![0].pricingDetails!;
-  const rate = rateOf(THB_USD as unknown as RawExchangeRates, 'THB', 'USD');
-  const cost = partyCost(details, { ADULT: 2 }, '2026-09-23', '2026-09-22T12:00:00Z', 'THB');
-  if (!('refused' in rate) && !('refused' in cost)) {
-    const now = new Date('2026-09-22T12:00:00Z');
-    const extra = extraChargesFor(PHUKET_SCHEDULE as unknown as RawSchedule, 2);
-    const total = totalOf({ native: { amount: cost.total, currency: 'THB' }, extra, rate }, 'USD', now);
-    if ('refused' in total || total.amount !== 241 || total.label !== CALCULATED) activityFail(`two adults on TG14 with the extra charges read ${JSON.stringify(total)} — USD 241.00, calculated`);
+  const onDate = startTimesOn(PHUKET_SCHEDULE as unknown as RawSchedule, '2026-09-23', ACTIVITY_AS_OF);
+  const rate5 = rateOf(THB_USD as unknown as RawExchangeRates, 'THB', 'USD');
+  const extraPer = extraChargesFor(PHUKET_SCHEDULE as unknown as RawSchedule, 1);
+  if (!('refused' in rate5) && extraPer !== null) {
+    const now = new Date(ACTIVITY_AS_OF);
+    const quoteOf = (code_: string): ViatorQuote | null => quotesForOption('u-law', facts, onDate.find((o) => o.productOptionCode === code_)!, '2026-09-23', 'THB', extraPer.perTraveller, rate5, ACTIVITY_AS_OF)[0]?.quote ?? null;
+    const q = quoteOf('TG14');
+    if (q === null) activityFail('the captured TG14 option issues no quote');
     else {
-      const draft: ViatorSave = { productCode: '27424P2', productOptionCode: 'TG14', optionTitle: optionTitleOf(facts, 'TG14'), title: facts.title ?? '', date: '2026-09-23', startTime: '07:30', endTime: endTimeOf('07:30', facts.duration), timeZone: facts.timeZone, durationMinutes: 540, party: { ADULT: 2 }, native: { amount: cost.total, currency: 'THB' }, extra, rate, total, cancellation: cancellationStatement(facts), asOf: now.toISOString() };
-      const note = activitySaveNoteOf(draft);
-      if (draft.endTime !== '16:30') activityFail(`07:30 + 540 minutes reads ${draft.endTime}`);
-      if (!/× 0\.0308188425 \(Viator rate as of 2026-09-21T23:59:59Z, expires 2026-09-23T01:09:59Z\) = USD 241\.00 · calculated · cancellation: STANDARD/.test(note)) activityFail(`the note does not name the rate, its dates and the calculated figure: ${note}`);
-      const canon = (v: unknown): string => JSON.stringify(v, (_k, x) => (x && typeof x === 'object' && !Array.isArray(x)) ? Object.fromEntries(Object.entries(x as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b))) : x);
-      if (canon(readViatorSave(JSON.parse(JSON.stringify(draft)))) !== canon(draft)) activityFail('the commit does not read back the draft the screen priced');
-      if ('refused' in verifyViatorSave(draft, 241, note, 'USD', now)) activityFail('the commit refuses the honest Save');
-      if (!('refused' in verifyViatorSave(draft, 241, note, 'USD', new Date('2026-09-24T00:00:00Z')))) activityFail('the commit accepts an expired rate');
-      if (!('refused' in verifyViatorSave(draft, 240, note, 'USD', now))) activityFail('the commit accepts an amount that is not the calculated total');
-      if (!('refused' in verifyViatorSave(draft, 241, `${note} edited`, 'USD', now))) activityFail('the commit accepts a note that is not the facts\'');
-      const free: ViatorSave = { ...draft, native: { amount: 0, currency: 'THB' }, extra: null, total: { amount: 0, currency: 'USD', label: CALCULATED } };
-      if ('refused' in verifyViatorSave(free, 0, activitySaveNoteOf(free), 'USD', now)) activityFail('a stated 0 is refused as a price');
+      const band = q.bands.find((b) => b.ageBand === 'ADULT');
+      // The sealed band carries the price that applied, why it applied, AND the operator's own limits —
+      // the per-price minimum/maximum from the pricing record and the per-booking pair from the product.
+      if (!band || band.unitPrice !== 3510 || band.basis !== 'special' || band.offerEndDate !== '2026-09-30' || band.travelEndDate !== '2026-10-15') activityFail(`the sealed ADULT band reads ${JSON.stringify(band)} — 3,510 THB, the special, with the windows that made it apply`);
+      if (!band || band.min !== 1 || band.max !== null || band.minPerBooking !== 1 || band.maxPerBooking !== 28) activityFail(`the sealed ADULT band's limits read min ${band?.min} max ${band?.max} perBooking ${band?.minPerBooking}–${band?.maxPerBooking} — the operator states 1 for this price, none above it, and 1–28 per booking`);
+      const priced = priceQuote(q, { ADULT: 2 }, 'USD', now);
+      if ('refused' in priced || priced.total.amount !== 241 || priced.total.label !== CALCULATED) activityFail(`two adults on the sealed TG14 quote read ${JSON.stringify(priced)} — USD 241.00, calculated`);
+      const save = saveFromQuote(q, { ADULT: 2 }, undefined, 'USD', now);
+      if ('refused' in save) activityFail(`the honest Save is refused: ${save.refused}`);
+      else {
+        if (save.endTime !== '16:30') activityFail(`07:30 + the stated 540 minutes reads ${save.endTime}`);
+        const note = activitySaveNoteOf(save);
+        if (!/× 0\.0308188425 \(Viator rate as of 2026-09-21T23:59:59Z, expires 2026-09-23T01:09:59Z\) = USD 241\.00 · calculated · cancellation: STANDARD/.test(note)) activityFail(`the note does not name the rate, its dates and the calculated figure: ${note}`);
+        if (endTimeOf('07:30', { kind: 'fixed', minutes: 540 }) !== '16:30') activityFail('the fixed end no longer follows from the stated duration');
+        if (!('refused' in totalOf({ native: { amount: 1, currency: 'THB' }, extra: null, rate: null }, 'USD', now))) activityFail('a native figure in another currency converts with no rate');
+      }
+      // The seal: canonical, verified in constant time, and every changed byte refused.
+      const seal = sealOf(q);
+      if (!/^[0-9a-f]{64}$/.test(seal) || !sealHolds(q, seal)) activityFail('the quote does not seal and verify');
+      if (canonicalJson({ b: 1, a: [2, { d: 3, c: 4 }] }) !== '{"a":[2,{"c":4,"d":3}],"b":1}') activityFail('the sealed form is not canonical (sorted keys, no whitespace)');
+      if (sealOf(JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(q).reverse())))) !== seal) activityFail('a quote seals differently when its keys arrive in another order');
+      for (const tampered of [{ ...q, bands: q.bands.map((b) => ({ ...b, unitPrice: 1 })) }, { ...q, rate: { ...q.rate!, rate: 1 } }, { ...q, timeZone: 'Europe/London' }, { ...q, userId: 'someone-else' }, { ...q, asOf: new Date(Date.parse(q.asOf) + 1000).toISOString() }]) {
+        if (sealHolds(tampered, seal)) activityFail('a changed quote still carries the old seal');
+      }
+      for (const bad of [undefined, null, '', 'not-hex', seal.slice(0, 63), seal.toUpperCase()]) if (sealHolds(q, bad)) activityFail(`a seal of the wrong shape verified: ${String(bad)}`);
+      if (canonicalJson(readViatorQuote(JSON.parse(JSON.stringify(q)))) !== canonicalJson(q)) activityFail('the commit does not read back the quote it sealed');
+      if (!('refused' in readViatorQuote({ ...JSON.parse(JSON.stringify(q)), v: 2 }))) activityFail('a quote of another version was read');
+      // The party and the clock are checked against the SEALED limits.
+      if (!('refused' in saveFromQuote(q, { CHILD: 1 }, undefined, 'USD', now))) activityFail('a party with no adult passed the sealed rules');
+      if (!('refused' in saveFromQuote(q, { ADULT: 29 }, undefined, 'USD', now))) activityFail('a party past the sealed maximum passed');
+      if (!('refused' in saveFromQuote(q, { ADULT: 2 }, undefined, 'USD', new Date('2026-09-24T00:00:00Z')))) activityFail('an expired rate passed the derivation');
+      const soldOut = quoteOf('TG29');
+      if (soldOut === null || soldOut.unavailable !== 'SOLD_OUT' || !('refused' in saveFromQuote(soldOut, { ADULT: 2 }, undefined, 'USD', now))) activityFail('a start time the operator states as SOLD_OUT was saved');
+      if (Math.round(quoteAgeMinutes(q, new Date(Date.parse(q.asOf) + QUOTE_MAX_AGE_MINUTES * 60000 + 60000))) !== QUOTE_MAX_AGE_MINUTES + 1) activityFail('the quote\'s age is not measured from its own read');
+      // A variable duration: the end sits inside the operator's stated range, or none is drawn.
+      const variable: ViatorQuote = { ...q, duration: { kind: 'variable', fromMinutes: 420, toMinutes: 480 } };
+      if (JSON.stringify(endOfQuote(variable, '15:00')) !== JSON.stringify({ endTime: '15:00', flagged: false })) activityFail('an end inside the stated range was refused');
+      if (!('refused' in endOfQuote(variable, '16:00'))) activityFail('an end outside the operator\'s stated range was accepted');
+      if (!('refused' in endOfQuote(q, '15:00'))) activityFail('an end was chosen where the operator states a fixed duration');
+      const loose = saveFromQuote(variable, { ADULT: 2 }, undefined, 'USD', now);
+      if ('refused' in loose || loose.endTime !== null || !/7h–8h \(variable, stated by the operator\) · no end chosen/.test(activitySaveNoteOf(loose))) activityFail('a variable tour with no end does not draw a flagged marker naming the range');
     }
   }
+}
+
+// 7. the server seals what it read; the commit takes no figure from the caller.
+{
+  const seal = codeOf(ACTIVITY_SEAL_LEAF);
+  if (!/const secret = process\.env\.JWT_SECRET;\n\s+if \(!secret\) throw new Error\('JWT_SECRET environment variable is required to seal a Viator quote'\);/.test(seal)) activityFail(`${ACTIVITY_SEAL_LEAF} does not fail closed when JWT_SECRET is absent`);
+  if (!/return crypto\.createHmac\('sha256', secret\)\.update\(QUOTE_SEAL_DOMAIN\)\.digest\(\);/.test(seal)) activityFail(`${ACTIVITY_SEAL_LEAF}'s key is not HMAC-SHA256(JWT_SECRET, the domain) — an undomained key is the session cookie's`);
+  if (QUOTE_SEAL_DOMAIN !== 'temple-stuart/viator-quote/v1') activityFail(`the quote's domain reads ${QUOTE_SEAL_DOMAIN}`);
+  if (!/return crypto\.timingSafeEqual\(expected, given\);/.test(seal) || !/if \(expected\.length !== given\.length\) return false;/.test(seal)) activityFail(`${ACTIVITY_SEAL_LEAF} does not compare seals in constant time over equal-length buffers`);
+  if (!/if \(typeof seal !== 'string' \|\| !\/\^\[0-9a-f\]\{64\}\$\/\.test\(seal\)\) return false;/.test(seal)) activityFail(`${ACTIVITY_SEAL_LEAF} lets a seal of the wrong shape reach the comparison`);
+  // The seal is made in ONE place (the options route) and checked in ONE place (the commit).
+  for (const [fn, callers] of [['sealOf(', [ACTIVITY_OPTIONS_ROUTE]], ['sealHolds(', [ACTIVITY_COMMIT]]] as Array<[string, string[]]>) {
+    const found = staySrcFiles().filter((f) => f !== ACTIVITY_SEAL_LEAF && codeOf(f).includes(fn)).sort();
+    if (JSON.stringify(found) !== JSON.stringify(callers)) activityFail(`${fn} is called from ${JSON.stringify(found)} — one place, ${JSON.stringify(callers)}`);
+  }
+  const route = codeOf(ACTIVITY_OPTIONS_ROUTE);
+  if (!/seal: row\.quote === null \? null : sealOf\(row\.quote\)/.test(route)) activityFail(`${ACTIVITY_OPTIONS_ROUTE} hands out a quote it did not seal`);
+  if (!/quotesForOption\(user\.id, product, option, date, currency, extraPerTraveller\?\.perTraveller \?\? null, rate, asOf\)/.test(route)) activityFail(`${ACTIVITY_OPTIONS_ROUTE} does not seal the quote to the signed-in user and its own read`);
+  if (/pricingDetails/.test(route)) activityFail(`${ACTIVITY_OPTIONS_ROUTE} hands the raw pricing records to the browser — the sealed unit price is what leaves`);
+  const commit = codeOf(ACTIVITY_COMMIT);
+  if (!/if \(viatorSaveInput !== undefined\) \{/.test(commit) || !/viatorSave is no longer accepted/.test(commit)) activityFail(`${ACTIVITY_COMMIT} does not refuse the posted-figures shape by name`);
+  if (/readViatorSave|verifyViatorSave/.test(commit)) activityFail(`${ACTIVITY_COMMIT} still reads figures the browser posted`);
+  if (!/if \(requestAmountInput !== undefined \|\| notesInput !== undefined \|\| sentClock\(startTimeInput\) \|\| sentClock\(endTimeInput\)\) \{/.test(commit)) activityFail(`${ACTIVITY_COMMIT} lets an amount, a note or a clock ride along with a quote`);
+  const order7 = ['if (!sealHolds(viatorQuoteInput, viatorSealInput)) {', 'const read = readViatorQuote(viatorQuoteInput);', 'if (read.userId !== user.id) {', 'const age = quoteAgeMinutes(read, now);', 'if (age > QUOTE_MAX_AGE_MINUTES)', 'const derived = saveFromQuote('].map((n) => commit.indexOf(n));
+  if (order7.some((i) => i < 0) || order7.some((v, i) => i > 0 && v < order7[i - 1])) activityFail(`${ACTIVITY_COMMIT}'s order is not seal → read → whose → how old → derive (${order7.join(', ')})`);
+  if (!/const startTime = viatorSave \? \(viatorSave\.startTime \?\? undefined\) : startTimeInput;/.test(commit) || !/const requestAmount = viatorSave \? viatorSave\.total\.amount : requestAmountInput;/.test(commit) || !/const notes = viatorNote \?\? notesInput;/.test(commit)) activityFail(`${ACTIVITY_COMMIT} writes a figure, a note or a clock the caller sent`);
+  // The browser posts the sealed pair, the party and the chosen end — and no figure.
+  const container = codeOf(ACTIVITY_CONTAINER);
+  const bodyAt = container.indexOf('body: JSON.stringify({', container.indexOf('/vendor-commit'));
+  const postBody = bodyAt < 0 ? '' : container.slice(bodyAt, container.indexOf('}),', bodyAt));
+  if (postBody === '' || /amount:|notes:|startTime:|endTime:|viatorSave:/.test(postBody)) activityFail(`${ACTIVITY_CONTAINER} states a figure, a note or a clock to the commit`);
+  if (!/party,/.test(postBody) || !/endTimeChosen: endPick \|\| undefined,/.test(postBody)) activityFail(`${ACTIVITY_CONTAINER} does not post the party and the end it picked`);
 }
 
 // 6. the pin holds, dated.
@@ -4322,7 +4403,7 @@ const activityResolvers = { validateUrl: (u: string) => validatedAffiliateUrl(u,
   }
   if (!/export async function searchProductsRaw\(body: ProductSearchBody\): Promise<unknown> \{/.test(client)) activityFail(`${ACTIVITY_CLIENT} lacks the one raw call the route uses`);
 }
-if (activityViolations === 0) console.log(`✔ The activity law passed — the route forwards the vendor's /products/search contract by name between its guards (unknown → 400, currency the one constant, the start cursor for SHOW THEM ALL) and makes one raw call; the leaf reads the captured Phuket answer whole (${PHUKET_ACTIVITY_EXPECTED.cards} of ${PHUKET_ACTIVITY_EXPECTED.total}, ${PHUKET_ACTIVITY_EXPECTED.extraCharges} with extra charges, ${PHUKET_ACTIVITY_EXPECTED.unrated.length} unrated and present) tri-state; no "Price on request", no googleRating, no sign-up Book, no slice; the benchmark ranks on the all-in figure and says so; the Save's ${ACTIVITY_SAVE_READS.length} reads have one authed call site each under 'viatorsave' (300/day), the rate cached to its own expiry, every converted figure labelled calculated and recomputed by the commit, a stated 0 admitted under the marker, the instant from the operator's zone; ${ACTIVITY_REDATED.length} files re-dated and ${ACTIVITY_PINNED_NEW.length} pinned, dated, ${Object.keys(ACTIVITY_CLIENT_FUNCTIONS).length} client functions byte-identical to main.`);
+if (activityViolations === 0) console.log(`✔ The activity law passed — the route forwards the vendor's /products/search contract by name between its guards (unknown → 400, currency the one constant, the start cursor for SHOW THEM ALL) and makes one raw call; the leaf reads the captured Phuket answer whole (${PHUKET_ACTIVITY_EXPECTED.cards} of ${PHUKET_ACTIVITY_EXPECTED.total}, ${PHUKET_ACTIVITY_EXPECTED.extraCharges} with extra charges, ${PHUKET_ACTIVITY_EXPECTED.unrated.length} unrated and present) tri-state; no "Price on request", no googleRating, no sign-up Book, no slice; the benchmark ranks on the all-in figure and says so; the Save's ${ACTIVITY_SAVE_READS.length} reads have one authed call site each under 'viatorsave' (300/day), the rate cached to its own expiry, every converted figure labelled calculated, a stated 0 admitted under the marker, the instant from the operator's zone; the route SEALS what it read (HMAC-SHA256 under a key derived from JWT_SECRET, '${QUOTE_SEAL_DOMAIN}', verified in constant time) and the commit takes no figure, note or clock from the caller — the old viatorSave field refused by name, another account's quote refused, one read over ${QUOTE_MAX_AGE_MINUTES} minutes ago refused, a variable end bounded by the stated range; ${ACTIVITY_REDATED.length} files re-dated and ${ACTIVITY_PINNED_NEW.length} pinned, dated, ${Object.keys(ACTIVITY_CLIENT_FUNCTIONS).length} client functions byte-identical to main.`);
 else console.log(`✖ The activity law FAILED — ${activityViolations} violation(s).`);
 
 // ── THE READER LAW (TEST-TRUTH-01, 2026-09-17) ──────────────────────────────

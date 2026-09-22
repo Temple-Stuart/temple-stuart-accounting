@@ -10,6 +10,8 @@ import { ACTIVITY_SEARCH_CURRENCY } from '@/lib/activities/searchContract';
 import { productFactsOf, type RawProduct } from '@/lib/activities/product';
 import { extraChargesFor, isDateText, startTimesOn, type RawSchedule } from '@/lib/activities/schedule';
 import { isExpired, rateOf, type RateRecord, type RawExchangeRates } from '@/lib/activities/fx';
+import { quotesForOption } from '@/lib/activities/quote';
+import { sealOf } from '@/lib/activities/quoteSeal';
 
 // ─── AUTHED activity OPTIONS (ACTIVITY-01 STEP 4, 2026-09-22 — the Basic-access path) ──
 // Shape A: the reads that price a tour fire ONLY at Save, for a signed-in user, and
@@ -33,6 +35,16 @@ import { isExpired, rateOf, type RateRecord, type RawExchangeRates } from '@/lib
 // body (HYG-02). An expired rate the vendor hands back, or a rate it does not
 // state, REFUSES by name: nothing is coded around the rate. CHECK-01 replaces this
 // path with /availability/check when Full-access is granted.
+//
+// STEP 4b (2026-09-22): what this route READ, it SEALS. Every bookable pick leaves
+// here as a { quote, seal } pair (src/lib/activities/quote.ts, quoteSeal.ts): the
+// band unit price that applies on the date and which one it is, the operator's
+// limits, the stated zone, duration and cancellation, the supplier's currency, the
+// in-destination charge and the vendor's rate with its own expiry — sealed under a
+// key derived from JWT_SECRET for THIS user. The browser prices parties against the
+// quote and posts it back with its seal and the party; vendor-commit takes NO figure
+// from the caller and recomputes the line from the sealed quote alone. Nothing the
+// browser can edit reaches the ledger.
 
 const PRODUCT_CODE = /^[A-Za-z0-9]{2,32}$/;
 
@@ -89,11 +101,21 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Every pick the operator publishes, sealed for this user — the pricingDetails
+    // stay on the server: the browser gets the unit price that applies, nothing raw.
+    const quoted = options.map((option) => ({
+      productOptionCode: option.productOptionCode,
+      refused: option.refused,
+      dayUnavailable: option.dayUnavailable,
+      startTimes: quotesForOption(user.id, product, option, date, currency, extraPerTraveller?.perTraveller ?? null, rate, asOf)
+        .map((row) => ({ startTime: row.startTime, unavailable: row.unavailable, refused: row.refused, quote: row.quote, seal: row.quote === null ? null : sealOf(row.quote) })),
+    }));
+
     return NextResponse.json({
       product,
       date,
       currency,
-      options,
+      options: quoted,
       extraChargesPerTraveller: extraPerTraveller?.perTraveller ?? null,
       summary: { fromPrice: typeof schedule.summary?.fromPrice === 'number' ? schedule.summary.fromPrice : null },
       rate,

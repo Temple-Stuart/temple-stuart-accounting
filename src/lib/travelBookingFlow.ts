@@ -37,6 +37,15 @@
  * quota's new bucket) and the options route is pinned new. No booking call changed —
  * the activity law hashes the client's existing function bodies.
  *
+ * ACTIVITY-01 STEP 4b (2026-09-22): THE SAVE'S FIGURES ARE SEALED BY THE SERVER THAT
+ * READ THEM. The options route now seals its own Viator read per bookable pick
+ * (HMAC-SHA256 under a key derived from JWT_SECRET, domain-separated from the session
+ * cookie) and vendor-commit takes NO figure, note or clock from the caller — it
+ * verifies the seal and derives the line. Two pinned files are re-dated for it, the
+ * options route and the Things-to-do container; the two new leaves (quote.ts,
+ * quoteSeal.ts) are pure readers of what the route already read, not booking files,
+ * and stay off the census as save.ts, schedule.ts, fx.ts and product.ts do.
+ *
  * FLIGHT-01 (2026-09-22) — SEARCH IS NOT BOOKING. The pin protects what moves
  * money and holds: prebook, verify, book, pay, cancel, the reservation routes
  * and the checkout panels. The flights SEARCH route and the picker that renders
@@ -49,7 +58,7 @@
 
 import { createHash } from 'node:crypto';
 
-export const BOOKING_FLOW_BASE = 'main @ b9eac34a (2026-09-19); UnattachedBookings.tsx re-pinned by REPAINT-04 (2026-09-21), paint only; the flights search route, the adapter and the two flight pickers re-pinned by FLIGHT-01 (2026-09-22), search is not booking; the hotels search route, the two hotel surfaces, the showroom picker, the client, the flight adapter and the flight view re-pinned by HOTEL-01 (2026-09-22), search and display are not booking; the two hotel surfaces, the checkout panel, the planner and the client re-dated by HOTEL-02 (2026-09-22), the stay\'s clock is the property\'s; the activities search route, the strip, the Things-to-do container, the transfers-only results view, the Viator client and the travel-search quota re-dated and the options route pinned by ACTIVITY-01 (2026-09-22), a tour takes its time on the day';
+export const BOOKING_FLOW_BASE = 'main @ b9eac34a (2026-09-19); UnattachedBookings.tsx re-pinned by REPAINT-04 (2026-09-21), paint only; the flights search route, the adapter and the two flight pickers re-pinned by FLIGHT-01 (2026-09-22), search is not booking; the hotels search route, the two hotel surfaces, the showroom picker, the client, the flight adapter and the flight view re-pinned by HOTEL-01 (2026-09-22), search and display are not booking; the two hotel surfaces, the checkout panel, the planner and the client re-dated by HOTEL-02 (2026-09-22), the stay\'s clock is the property\'s; the activities search route, the strip, the Things-to-do container, the transfers-only results view, the Viator client and the travel-search quota re-dated and the options route pinned by ACTIVITY-01 (2026-09-22), a tour takes its time on the day; the options route and the Things-to-do container re-dated again by ACTIVITY-01 STEP 4b (2026-09-22), the Save\'s figures are sealed by the server that read them';
 
 export interface BookingFlowPin {
   readonly file: string;
@@ -61,8 +70,8 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // ACTIVITY-01 (2026-09-22): re-dated — the query carries the vendor's own /products/search filters, sort and count, validated by name between the two guards; one raw call; the answer through the pure leaf, tri-state; no re-sort, no rating drop. A tour takes its time on the day; no prebook/book/pay/cancel call changed.
   // Was 8d147c3988d5ec89efd4961128e0a45cd2980358e2fb46843771dbbe4194cb48 at main dfc02881.
   { file: 'src/app/api/travel/activities/search/route.ts', sha256: '571e8ccfb64553f27f33d36d0d9061717217877bcebddcd72d3127b44e5e79a6' },
-  // ACTIVITY-01 (2026-09-22): pinned — the Save's three reads (GET /products/{code}, GET /availability/schedules/{code}, POST /exchange-rates), each once, behind getVerifiedEmail and a per-user limit, each reserved under 'viatorsave'; not a public path. A tour takes its time on the day; no prebook/book/pay/cancel call changed.
-  { file: 'src/app/api/travel/activities/options/route.ts', sha256: 'e39b6f85febd2b8e0f7513e0c307213f66b1fe39e3116a11b831741a3871607b' },
+  // ACTIVITY-01 (2026-09-22): pinned — the Save's three reads (GET /products/{code}, GET /availability/schedules/{code}, POST /exchange-rates), each once, behind getVerifiedEmail and a per-user limit, each reserved under 'viatorsave'; not a public path. STEP 4b: what it read, it SEALS — every bookable pick leaves as a { quote, seal } pair keyed to the signed-in user, and the raw pricing records stay on the server. A tour takes its time on the day; no prebook/book/pay/cancel call changed.
+  { file: 'src/app/api/travel/activities/options/route.ts', sha256: '5185fd21d8a1dd2df49e1dc2e393d4a4fc1073031077d10465a0ac02ea171aef' },
   { file: 'src/app/api/travel/flights/lane/route.ts', sha256: '9ad617a3320f5abf6c0fc24ef2b38308f100389e4b98cf9a68a50ef9f2ab6b1e' },
   { file: 'src/app/api/travel/hotels/content/route.ts', sha256: '7923035f88437325994e957e73943cd4817ee72b2a9bf2908b0afba0803503e7' },
   { file: 'src/app/api/travel/hotels/reviews/route.ts', sha256: 'c548e5cc1f16808c119711395144ddbc0f4307d22bd67890185b59479000d39d' },
@@ -98,9 +107,9 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // FLIGHT-01 (2026-09-22): re-pinned — the leg carries the screen's filters; the search request carries them; a session search count. Search is not booking; no prebook/verify/book/pay/cancel call changed.
   // Was fac335657e50b3fda3be9cf82053fce7f56f04f2c079a1f1a6c6f2c125d11359 at main b9eac34a.
   { file: 'src/components/trips/PublicFlightSearch.tsx', sha256: '4d7573d8600f0502fa42bfaadec3375d4d220dfaf2c357a9ceef2244ec9c7099' },
-  // ACTIVITY-01 (2026-09-22): re-dated — the filters on the screen, sent on Search as the vendor's names, counted; the vendor's start cursor pages through its total; the picker view renders the cards; the nonce fan-out and the sign-up Book are gone; STEP 4 adds the Save — a date inside the trip, the ONE authed options read, the party from the operator's stated bands, the priced options and the commit. A tour takes its time on the day; no prebook/book/pay/cancel call changed.
+  // ACTIVITY-01 (2026-09-22): re-dated — the filters on the screen, sent on Search as the vendor's names, counted; the vendor's start cursor pages through its total; the picker view renders the cards; the nonce fan-out and the sign-up Book are gone; STEP 4 adds the Save — a date inside the trip, the ONE authed options read, the party from the operator's stated bands, the priced options and the commit. STEP 4b: the screen prices the SEALED quote and posts it back with its seal, the party and (for a variable duration) the end it picked inside the operator's stated range — no figure, no note, no clock. A tour takes its time on the day; no prebook/book/pay/cancel call changed.
   // Was 0251b470ea74f8cd787f0b5f6436f32e44615c29f00b6a757ea70bf79c1e2e03 at main dfc02881.
-  { file: 'src/components/trips/PublicActivitySearch.tsx', sha256: '91d180f3bdf7b2640b5ccba96dc29bd3f157d16a66af009096f315362b3284ec' },
+  { file: 'src/components/trips/PublicActivitySearch.tsx', sha256: '2616ed37333062113444952b570e492da46267e58149bf497a21f125051a9416' },
   { file: 'src/components/trips/PublicTransferSearch.tsx', sha256: 'b508381f1a7c388eded9c139e7d5b76bd560e36d8db085e440a2eac0cb84a9c4' },
   { file: 'src/components/trips/PublicVisaCheck.tsx', sha256: 'd18df6a909cbd6bbb4332ce84648f7f87b7df6936b2523223f8f5575fb40b507' },
   { file: 'src/components/trips/PublicCategorySearch.tsx', sha256: '26c51b4c613f0011b5aa7d7015d839eceb26c10616960c82010986b708023771' },
