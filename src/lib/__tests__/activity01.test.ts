@@ -220,8 +220,16 @@ test('the route forwards the contract between its guards, makes ONE raw call, an
 
 test('the container fires a search only on the SEARCH press, counted, with the screen\'s filters; the view states every attribute and has no sign-up Book', () => {
   const container = code(CONTAINER);
-  assert.equal((container.match(/fetch\(/g) ?? []).length, 1);
-  assert.doesNotMatch(container, /useEffect|searchNonce|sharedCity|onRequireAuth|onBook|ActivityResultsView|\.slice\(/);
+  // Three fetches, each named: the public search, STEP 4's one authed options read, and the commit. No fourth.
+  const countOf = (needle: string) => container.split(needle).length - 1;
+  assert.equal((container.match(/fetch\(/g) ?? []).length, 3);
+  assert.equal(countOf('fetch(' + '`' + '/api/travel/activities/search?'), 1);
+  assert.equal(countOf('fetch(' + '`' + '/api/travel/activities/options?'), 1);
+  assert.equal(countOf('/vendor-commit'), 1);
+  // No search that fires without the press, no sign-up Book, no client cap on the rows.
+  // (onRequireAuth is STEP 4's SAVE gate — the search itself stays public.)
+  assert.doesNotMatch(container, /useEffect|searchNonce|sharedCity|onBook|ActivityResultsView/);
+  assert.doesNotMatch(container, /\b(cards|products|results|rows)\s*\.slice\(/);
   // SHOW THEM ALL: Next repeats the filters the pages were asked with, at the vendor's cursor; a filter change waits for a fresh SEARCH from page one; nothing is capped.
   assert.match(container, /const page = await fetchPage\(sentFilters, cards\.length \+ 1\);/);
   assert.match(container, /\.\.\.\(start > 1 \? \{ start: String\(start\) \} : \{\}\),/);
@@ -234,7 +242,7 @@ test('the container fires a search only on the SEARCH press, counted, with the s
   assert.doesNotMatch(view, /Price on request|googleRating|onRequireAuth|onBook|fetch\(|useEffect|non-refundable|Intl\.NumberFormat/);
   assert.doesNotMatch(view, /\.slice\(/, 'no client cap on the rows');
   assert.match(view, /disabled=\{!hasMore \|\| filtersChanged \|\| loadingMore\}/);
-  for (const must of ['Plan here; book on Viator.', 'no booking link stated by the operator', 'data-activity-llf', 'data-activity-count', 'data-price-difference', 'data-search-count', 'cancellationText(card)', 'ratingText(card)', 'durationText(card.duration)', 'priceText(card)', 'extraChargesText(card)', 'card.priceBasis ?? `basis ${NOT_STATED}`', 'data-activity-next={pageSize}', 'filters changed — Search starts from page one', 'countLine(cards, totalCount)']) {
+  for (const must of ['Plan here; book on Viator.', 'no booking link stated by the operator', 'data-activity-llf', 'data-activity-count', 'data-price-difference', 'data-search-count', 'cancellationText(card)', 'ratingText(card)', 'durationText(card.duration)', 'priceText(card)', 'extraChargesText(card)', 'card.priceBasis ?? `basis ${NOT_STATED}`', 'data-activity-next={pageSize}', 'filters changed — Search starts from page one', 'countLine(cards, totalCount, previousTotal)']) {
     assert.ok(view.includes(must) || code('src/components/trips/SearchCount.tsx').includes(must), must);
   }
   assert.match(view, /rel="noopener noreferrer sponsored"/);
@@ -242,7 +250,8 @@ test('the container fires a search only on the SEARCH press, counted, with the s
   const old = code(OLD_VIEW);
   assert.doesNotMatch(old, /onBook/);
   assert.match(code(TRANSFERS_ROUTE), /searchViatorProductsByTags\(/, 'the transfers route keeps its path');
-  assert.match(code(STRIP), /panel: <PublicActivitySearch \/> \}/);
+  // STEP 4: the mount carries the trip props the Save needs — and still no fan-out nonce.
+  assert.match(code(STRIP), /<PublicActivitySearch\n\s+onRequireAuth=\{onRequireAuth\}\n\s+authed=\{authed\}\n\s+currentTrip=\{currentTrip\}\n\s+onCommitted=\{onCommitted\}/);
   assert.match(code(STRIP), /<PublicTransferSearch\n\s+onRequireAuth=\{onRequireAuth\}\n\s+sharedCity=\{sharedCity\}/, 'the transfers mount is untouched');
   // The client: one raw call for this route; the old paths (and their re-sort) stay for the transfers route and the planner, untouched.
   const client = code(CLIENT);
@@ -250,10 +259,10 @@ test('the container fires a search only on the SEARCH press, counted, with the s
   assert.match(client, /\.filter\(p => p\.rating > 0\)/, 'the old re-sort still serves the planner');
 });
 
-test('the pin holds, dated: five files re-dated by ACTIVITY-01 with the hash they had on main dfc02881; the transfers route and the commit are not among them', () => {
+test('the pin holds, dated: six files re-dated by ACTIVITY-01 with the hash they had on main dfc02881; the transfers route and the commit are not among them', () => {
   const notes = comments('src/lib/travelBookingFlow.ts');
   const pins = code('src/lib/travelBookingFlow.ts');
-  const redated = [ROUTE, STRIP, CONTAINER, OLD_VIEW, CLIENT];
+  const redated = [ROUTE, STRIP, CONTAINER, OLD_VIEW, CLIENT, 'src/lib/travelSearchQuota.ts'];
   assert.equal((notes.match(/ACTIVITY-01 \(2026-09-22\): re-dated/g) ?? []).length, redated.length);
   for (const f of redated) {
     const pinAt = pins.indexOf(`{ file: '${f}', sha256: '`);
@@ -262,7 +271,7 @@ test('the pin holds, dated: five files re-dated by ACTIVITY-01 with the hash the
     const above = notes.split('\n').slice(Math.max(0, pinLine - 3), pinLine - 1).join('\n');
     assert.match(above, /ACTIVITY-01 \(2026-09-22\): re-dated — [^\n]+\. A tour takes its time on the day; no prebook\/book\/pay\/cancel call changed\.\n[^\n]*Was [0-9a-f]{64} at main dfc02881\./, `${f}'s note`);
   }
-  assert.match(BOOKING_FLOW_BASE, /re-dated by ACTIVITY-01 \(2026-09-22\), a tour takes its time on the day/);
+  assert.match(BOOKING_FLOW_BASE, /re-dated and the options route pinned by ACTIVITY-01 \(2026-09-22\), a tour takes its time on the day/);
   assert.ok(!BOOKING_FLOW_FILES.some((p) => p.file === 'src/app/api/trips/[id]/vendor-commit/route.ts'));
-  assert.equal(BOOKING_FLOW_FILES.length, 49, 'the census did not shrink');
+  assert.equal(BOOKING_FLOW_FILES.length, 50, 'the census grew by the options route (STEP 4) and did not shrink');
 });

@@ -1,0 +1,5 @@
+{
+  "_provenance": "POST /availability/check for 27424P2 on 2026-09-23 (ADULT=2) from Alex's probe run of scripts/probe-viator.ts, 2026-09-22 21:50 — the status line and body as pasted in the STEP 4 ruling; the probe writes no non-2xx body, so this file was written from that paste verbatim. The key is a Basic-access Affiliate; the docs' access table marks /availability/check ❌ for that tier.",
+  "status": 403,
+  "body": {"code":"FORBIDDEN","message":"Endpoint access denied"}
+}

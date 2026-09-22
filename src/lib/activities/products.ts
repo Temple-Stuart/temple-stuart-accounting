@@ -237,11 +237,13 @@ export function activityCardsOf(raw: RawProductSearch, resolvers: ActivityCardRe
  * "1–50 · total not stated by the vendor" when it stated none; "0 of 1,915 …" when
  * the page held nothing.
  */
-export function countLine(cards: readonly ActivityCardView[], totalCount: Stated<number>): string {
+export function countLine(cards: readonly ActivityCardView[], totalCount: Stated<number>, previousTotal: Stated<number> = null): string {
   const n = cards.length;
   const shown = n === 0 ? '0' : `1–${n.toLocaleString('en-US')}`;
   if (totalCount === null) return `${shown} · total not stated by the vendor`;
-  return `${shown} of ${totalCount.toLocaleString('en-US')} stated by the vendor`;
+  // The vendor's total can move between pages (the captured Phuket pages: 1,915 then 1,917) — the latest is shown and the one before is named.
+  const moved = previousTotal !== null && previousTotal !== totalCount ? ` (${previousTotal.toLocaleString('en-US')} a page ago)` : '';
+  return `${shown} of ${totalCount.toLocaleString('en-US')} stated by the vendor${moved}`;
 }
 
 /** The rows one "Next" press asks for: the screen's count, else the vendor's documented default. */

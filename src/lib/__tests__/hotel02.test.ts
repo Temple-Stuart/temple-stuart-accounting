@@ -127,5 +127,5 @@ test('the pin holds, dated: five files re-dated by HOTEL-02 with the hash they h
   }
   assert.match(BOOKING_FLOW_BASE, /re-dated by HOTEL-02 \(2026-09-22\), the stay's clock is the property's/);
   assert.ok(!BOOKING_FLOW_FILES.some((p) => p.file === COMMIT), 'vendor-commit is the itinerary writer, not the booking flow');
-  assert.equal(BOOKING_FLOW_FILES.length, 49, 'the census did not shrink');
+  assert.equal(BOOKING_FLOW_FILES.length, 50, 'the census did not shrink (ACTIVITY-01 STEP 4 pinned the options route: 49 → 50)');
 });

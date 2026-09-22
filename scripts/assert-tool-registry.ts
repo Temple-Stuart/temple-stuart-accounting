@@ -111,6 +111,13 @@ import { DEFAULT_ACTIVITY_FILTERS, NOT_STATED as ACTIVITY_NOT_STATED, activityCa
 import { validatedAffiliateUrl } from '../src/config/affiliates';
 import { cityForViatorDestId } from '../src/lib/destinations';
 import PHUKET_ACTIVITIES from '../src/lib/__tests__/fixtureViatorSearch.phuket-thailand.json';
+import { cancellationStatement, optionTitleOf, partyMeetsProduct, productFactsOf, type RawProduct } from '../src/lib/activities/product';
+import { extraChargesFor, partyCost, startTimesOn, type RawSchedule } from '../src/lib/activities/schedule';
+import { CALCULATED, convert, isExpired, rateOf, type RawExchangeRates } from '../src/lib/activities/fx';
+import { activitySaveNoteOf, endTimeOf, readViatorSave, totalOf, verifyViatorSave, type ViatorSave } from '../src/lib/activities/save';
+import PHUKET_PRODUCT from '../src/lib/__tests__/fixtureViatorProduct.27424p2.json';
+import PHUKET_SCHEDULE from '../src/lib/__tests__/fixtureViatorSchedule.27424p2.json';
+import THB_USD from '../src/lib/__tests__/fixtureViatorExchangeRates.thb-usd.json';
 import { parseHotelFilters } from '../src/lib/hotels/searchContract';
 import { PHUKET_EXPECTED, PHUKET_RATES } from '../src/lib/__tests__/fixtureHotelRatesPhuket';
 import { DATE_ONLY_TRIP_TYPES, TIMED_BY_THEMSELVES } from '../src/lib/calendar/tripItem';
@@ -3982,19 +3989,35 @@ else console.log(`✖ The stay law FAILED — ${stayViolations} violation(s).`);
 //      "Next" press with the same filters; the count line derives from the vendor's
 //      totalCount and the rows shown; no `.slice(` narrows the result set on the
 //      route, the leaf, the container or the view.
-//   4. THE SAVE READS THE DATED CHECK, NOT THE SCHEDULE (ruling B, 2026-09-22) —
-//      pending the captured /products/{code} and /availability/check payloads.
-//      The schedule endpoint answers in the supplier's currency (the captured
-//      Phuket schedule: THB), so the app never calls it: no file under src names
-//      availability/schedules (clause 4d, in force now). The two Save calls, their
-//      one call site each behind getVerifiedEmail, the 'viatorsave' reservation
-//      and the currency-mismatch refusal land with the captures.
-//   5. THE SAVE — with clause 4.
-//   6. THE PIN HOLDS, DATED. Five files re-dated by ACTIVITY-01 carry a dated note
-//      with the hash they had on main dfc02881; no other file carries one; the
-//      transfers route's pin is unchanged; every existing function of the Viator
-//      client is byte-identical to main (the planner and the transfers rail keep
-//      their paths); BOOKING_FLOW_BASE records it.
+//   4. THE SAVE READS THE PRODUCT, THE SCHEDULE AND THE VENDOR'S STATED RATE (the
+//      STEP 4 ruling by tier, 2026-09-22: /availability/check answered 403 FORBIDDEN
+//      "Endpoint access denied" — a Basic-access key; CHECK-01 replaces this path
+//      when Full-access is granted). The three reads have ONE call site each — the
+//      authed options route — behind getVerifiedEmail → the user → the query by
+//      name → the per-user limit, each reserved once under 'viatorsave' (safe cap
+//      300/day: three reservations per attempt, ~100 attempts, the prebook
+//      precedent) immediately before the call; the route is not a public path; the
+//      search route, the picker and the planner never call them. The rate is cached
+//      per pair until ITS OWN expiry and never past it; an expired rate the vendor
+//      hands back, or a rate it does not state, refuses by name; a schedule already
+//      in the plan's currency skips the rate and says so. Probed on the captures:
+//      the product's bands and zone, the schedule's start times with the vendor's
+//      reason verbatim, the open-ended season's 384 days, the special price inside
+//      both windows, the rate with its expiry.
+//   5. THE FIGURE IS CALCULATED AND SAYS SO. Every converted figure carries the label
+//      'calculated' with the native amount, the currency, the rate, its source, its
+//      lastUpdated and its expiry; the note names them all; vendor-commit re-reads the
+//      Save and RECOMPUTES the total from the stated figures × the stated rate, refuses
+//      an expired rate, a total that does not follow, a note that is not the facts',
+//      admits a stated 0 only under the 'operator' marker with its option code, and
+//      fixes the instant from the operator's stated zone alone. Reconciled: the
+//      schedule's from-price × the rate = the search's 77.66; its extra charges × the
+//      rate = 12.33, not the search's 12.03 — both facts, neither explained.
+//   6. THE PIN HOLDS, DATED. Six files re-dated by ACTIVITY-01 carry a dated note
+//      with the hash they had on main dfc02881 and the options route is pinned new,
+//      dated; no other file carries one; the transfers route's pin is unchanged;
+//      every existing function of the Viator client is byte-identical to main (the
+//      planner and the transfers rail keep their paths); BOOKING_FLOW_BASE records it.
 const ACTIVITY_ROUTE = 'src/app/api/travel/activities/search/route.ts';
 const ACTIVITY_CONTRACT = 'src/lib/activities/searchContract.ts';
 const ACTIVITY_LEAF = 'src/lib/activities/products.ts';
@@ -4004,7 +4027,18 @@ const ACTIVITY_OLD_VIEW = 'src/components/trips/ActivityResultsView.tsx';
 const ACTIVITY_STRIP = 'src/components/trips/travelStripModes.tsx';
 const ACTIVITY_CLIENT = 'src/lib/viatorClient.ts';
 const ACTIVITY_TRANSFERS_ROUTE = 'src/app/api/travel/transfers/search/route.ts';
-const ACTIVITY_REDATED = [ACTIVITY_ROUTE, ACTIVITY_STRIP, ACTIVITY_CONTAINER, ACTIVITY_OLD_VIEW, ACTIVITY_CLIENT];
+const ACTIVITY_OPTIONS_ROUTE = 'src/app/api/travel/activities/options/route.ts';
+const ACTIVITY_COMMIT = 'src/app/api/trips/[id]/vendor-commit/route.ts';
+const ACTIVITY_QUOTA = 'src/lib/travelSearchQuota.ts';
+const ACTIVITY_PRODUCT_LEAF = 'src/lib/activities/product.ts';
+const ACTIVITY_SCHEDULE_LEAF = 'src/lib/activities/schedule.ts';
+const ACTIVITY_FX_LEAF = 'src/lib/activities/fx.ts';
+const ACTIVITY_SAVE_LEAF = 'src/lib/activities/save.ts';
+const ACTIVITY_PLANNER = 'src/components/trips/TripPlannerAI.tsx';
+const ACTIVITY_REDATED = [ACTIVITY_ROUTE, ACTIVITY_STRIP, ACTIVITY_CONTAINER, ACTIVITY_OLD_VIEW, ACTIVITY_CLIENT, ACTIVITY_QUOTA];
+const ACTIVITY_PINNED_NEW = [ACTIVITY_OPTIONS_ROUTE];
+/** The Save's three reads: each has one call site under src — the options route. */
+const ACTIVITY_SAVE_READS = ['getProductRaw(', 'getScheduleRaw(', 'fetchExchangeRatesRaw('];
 /** The Viator client's existing functions, code half, signature to closing brace — the sha256 each had on main dfc02881. */
 const ACTIVITY_CLIENT_FUNCTIONS: Record<string, string> = {
   'function getApiKey(': 'edec61c24b2b35bc5b970cbb46603620eb81fee3c02636ba8415a7194416e88d',
@@ -4070,12 +4104,13 @@ const activityResolvers = { validateUrl: (u: string) => validatedAffiliateUrl(u,
   if (!('filters' in page2) || JSON.stringify(activitySearchBodyOf('349', page2.filters).pagination) !== JSON.stringify({ start: 51 })) activityFail('a start cursor is not forwarded as the vendor\'s pagination.start');
   if (!/start: filters\.start \?\? 1,/.test(route)) activityFail(`${ACTIVITY_ROUTE} does not name the page it answers`);
   for (const f of [ACTIVITY_ROUTE, ACTIVITY_LEAF, ACTIVITY_VIEW, ACTIVITY_CONTAINER]) {
-    if (/\.slice\(/.test(codeOf(f))) activityFail(`${f} slices the result set — no client cap; the vendor's pages reveal its total`);
+    // A slice of the RESULT SET is the client cap SHOW THEM ALL forbids; a slice of a date string is not.
+    if (/\b(cards|products|results|rows|displayed)\s*\.slice\(/.test(codeOf(f))) activityFail(`${f} slices the result set — no client cap; the vendor's pages reveal its total`);
   }
   const container = codeOf(ACTIVITY_CONTAINER);
   if (!/const page = await fetchPage\(sentFilters, cards\.length \+ 1\);/.test(container)) activityFail(`${ACTIVITY_CONTAINER}'s Next does not ask for the next page with the filters the pages were asked with`);
   if (!/const filtersChanged = sentFilters !== null && JSON\.stringify\(filters\) !== JSON\.stringify\(sentFilters\);/.test(container)) activityFail(`${ACTIVITY_CONTAINER} does not reset to page one on a filter change`);
-  if (!/countLine\(cards, totalCount\)/.test(codeOf(ACTIVITY_VIEW))) activityFail(`${ACTIVITY_VIEW}'s count line does not derive from the vendor's totalCount`);
+  if (!/countLine\(cards, totalCount, previousTotal\)/.test(codeOf(ACTIVITY_VIEW))) activityFail(`${ACTIVITY_VIEW}'s count line does not derive from the vendor's totalCount`);
 }
 
 // 2. one leaf per job, pure, every attribute through stated.ts.
@@ -4121,13 +4156,16 @@ const activityResolvers = { validateUrl: (u: string) => validatedAffiliateUrl(u,
     if (/'09:00'|'17:00'|'10:00'|'15:00'|'11:00'/.test(src)) activityFail(`${f} holds a clock literal — a time nobody stated`);
     if (/Intl\.NumberFormat|toLocaleString\('en-US', \{ style: 'currency'/.test(src)) activityFail(`${f} re-formats a price through a currency formatter — a conversion in disguise`);
   }
-  if (/onRequireAuth|onBook/.test(view) || /onRequireAuth|onBook|useEffect|searchNonce/.test(container)) activityFail('the activities path still holds a sign-up Book or a search that fires without the SEARCH press');
-  if ((container.match(/fetch\(/g) ?? []).length !== 1 || !/setSearchCount\(\(n\) => n \+ 1\);/.test(container) || !/\.\.\.activitySearchParamsOf\(asked\),/.test(container) || !/await fetchPage\(filters, 1\);/.test(container)) activityFail(`${ACTIVITY_CONTAINER} does not fire one counted search carrying the screen's filters`);
+  // The picker is pure: no auth callback, no Book. The container may open sign-in for the SAVE (STEP 4) — never for a Book, and never a search that fires without the press.
+  if (/onRequireAuth|onBook/.test(view)) activityFail(`${ACTIVITY_VIEW} holds an auth callback or a Book — the picker is pure`);
+  if (/onBook|useEffect|searchNonce/.test(container)) activityFail('the activities path still holds a sign-up Book or a search that fires without the SEARCH press');
+  const searchFetches = container.split('fetch(' + '`' + '/api/travel/activities/search?').length - 1;
+  if (searchFetches !== 1 || !/setSearchCount\(\(n\) => n \+ 1\);/.test(container) || !/\.\.\.activitySearchParamsOf\(asked\),/.test(container) || !/await fetchPage\(filters, 1\);/.test(container)) activityFail(`${ACTIVITY_CONTAINER} does not fire one counted search carrying the screen's filters (${searchFetches} search fetch(es))`);
   for (const must of ['Plan here; book on Viator.', 'no booking link stated by the operator', 'data-activity-llf', 'data-price-difference', 'cancellationText(card)', 'ratingText(card)', 'durationText(card.duration)', 'priceText(card)', 'extraChargesText(card)']) {
     if (!view.includes(must)) activityFail(`${ACTIVITY_VIEW} lacks ${must}`);
   }
   if (/onBook/.test(codeOf(ACTIVITY_OLD_VIEW))) activityFail(`${ACTIVITY_OLD_VIEW} still carries the sign-up Book`);
-  if (!/panel: <PublicActivitySearch \/> \}/.test(codeOf(ACTIVITY_STRIP))) activityFail(`${ACTIVITY_STRIP} mounts the Things-to-do search with props it no longer takes`);
+  if (!/<PublicActivitySearch\n\s+onRequireAuth=\{onRequireAuth\}\n\s+authed=\{authed\}\n\s+currentTrip=\{currentTrip\}\n\s+onCommitted=\{onCommitted\}/.test(codeOf(ACTIVITY_STRIP))) activityFail(`${ACTIVITY_STRIP} does not mount the Things-to-do search with the trip props the Save needs (authed, currentTrip, onCommitted) — or mounts it with props it does not take`);
   if (!/searchViatorProductsByTags\(/.test(codeOf(ACTIVITY_TRANSFERS_ROUTE))) activityFail(`${ACTIVITY_TRANSFERS_ROUTE} no longer keeps its own path`);
   const { cards } = activityCardsOf(PHUKET_ACTIVITIES as RawProductSearch, activityResolvers);
   const low = lowestPrice(cards);
@@ -4138,9 +4176,111 @@ const activityResolvers = { validateUrl: (u: string) => validatedAffiliateUrl(u,
   if (d.delta !== 68.12 || !/duration 9h vs 1h/.test(d.line) || !/private tour, skip the line — reason not stated by the operator/.test(d.line)) activityFail(`27424P2's difference reads "${d.line}" — +$68.12 on the all-in figure, from stated attributes, the unstated named`);
   const x = priceDifference({ ...cards[0], currency: 'THB' }, low!.card);
   if (x.delta !== null || !/no conversion, no comparison/.test(x.line)) activityFail(`two currencies were compared: "${x.line}"`);
-  // 4d. the app never calls the schedule endpoint — it answers in the supplier's currency.
-  for (const f of staySrcFiles()) {
-    if (/availability\/schedules/.test(codeOf(f))) activityFail(`${f} names the schedule endpoint — the app never calls it (ruling B, 2026-09-22)`);
+}
+
+// 4. the save reads the product, the schedule and the vendor's stated rate — one call site each, authed, reserved, cached by expiry.
+{
+  const route = codeOf(ACTIVITY_OPTIONS_ROUTE);
+  const at = (s: string) => route.indexOf(s);
+  const order = [at('await getVerifiedEmail()'), at('prisma.users.findFirst'), at('is not a supported parameter (supported: productCode, date)'), at('await rateLimit(`activity-options:${user.id}`'), at("await reserveTravelSearch('viatorsave');"), at('await getProductRaw(productCode)'), at('await getScheduleRaw(productCode)'), at('cachedExchangeRate(currency, ACTIVITY_SEARCH_CURRENCY, now)'), at('await fetchExchangeRatesRaw(currency, ACTIVITY_SEARCH_CURRENCY)'), at('rememberExchangeRate(read)')];
+  if (order.some((i) => i < 0) || order.some((v, i) => i > 0 && v < order[i - 1])) activityFail(`${ACTIVITY_OPTIONS_ROUTE}'s order is not user → query by name → per-user limit → reserve → product → schedule → cache → rate → remember (${order.join(', ')})`);
+  if ((route.match(/reserveTravelSearch\('viatorsave'\)/g) ?? []).length !== 3) activityFail(`${ACTIVITY_OPTIONS_ROUTE} reserves 'viatorsave' ${(route.match(/reserveTravelSearch\('viatorsave'\)/g) ?? []).length} time(s) — three, one before each read`);
+  for (const call of ACTIVITY_SAVE_READS) {
+    const re = new RegExp(call.replace('(', '\\('), 'g');
+    if ((route.match(re) ?? []).length !== 1) activityFail(`${ACTIVITY_OPTIONS_ROUTE} calls ${call} ${(route.match(re) ?? []).length} time(s) — once`);
+    const callers = staySrcFiles().filter((f) => f !== ACTIVITY_CLIENT && re.test(codeOf(f))).sort();
+    if (JSON.stringify(callers) !== JSON.stringify([ACTIVITY_OPTIONS_ROUTE])) activityFail(`${call} is called from ${JSON.stringify(callers)} — one call site, the options route`);
+  }
+  for (const f of [ACTIVITY_ROUTE, ACTIVITY_VIEW, ACTIVITY_PLANNER, ACTIVITY_CONTAINER, ACTIVITY_LEAF, 'src/app/api/travel/transfers/search/route.ts']) {
+    if (/availability\/schedules|exchange-rates|\/products\/\$\{/.test(codeOf(f))) activityFail(`${f} names one of the Save's endpoints — the search route, the picker and the planner never call them`);
+  }
+  if (codeOf('src/middleware.ts').includes("'/api/travel/activities/options'")) activityFail('the options route is a public path — the Save\'s reads are authed');
+  if (!/if \(isExpired\(read, now\)\) return NextResponse\.json\(\{ error: `Viator's \$\{currency\}→\$\{ACTIVITY_SEARCH_CURRENCY\} rate had already expired at/.test(route)) activityFail(`${ACTIVITY_OPTIONS_ROUTE} does not refuse an expired rate the vendor hands back, by name`);
+  if (!/if \(currency !== ACTIVITY_SEARCH_CURRENCY\) \{/.test(route)) activityFail(`${ACTIVITY_OPTIONS_ROUTE} reads a rate for a schedule already in the plan's currency`);
+  if (/error\.message|error\.body|err\.body/.test(route)) activityFail(`${ACTIVITY_OPTIONS_ROUTE} quotes the vendor's body to the browser (HYG-02)`);
+  const client = codeOf(ACTIVITY_CLIENT);
+  if (!/const exchangeRateCache = new Map<string, RateRecord>\(\);/.test(client) || !/if \(isExpired\(hit, now\)\) \{ exchangeRateCache\.delete/.test(client)) activityFail(`${ACTIVITY_CLIENT}'s rate cache does not honour the vendor's expiry`);
+  for (const f of [ACTIVITY_CLIENT, ACTIVITY_OPTIONS_ROUTE, ACTIVITY_FX_LEAF, ACTIVITY_SAVE_LEAF, ACTIVITY_SCHEDULE_LEAF, ACTIVITY_CONTAINER, ACTIVITY_COMMIT]) {
+    if (/rate:\s*[0-9]|0\.030818/.test(codeOf(f))) activityFail(`${f} types a rate`);
+  }
+  if (!/viatorsave: 300,/.test(codeOf(ACTIVITY_QUOTA))) activityFail(`${ACTIVITY_QUOTA} does not carry the 'viatorsave' safe cap of 300`);
+  for (const f of [ACTIVITY_PRODUCT_LEAF, ACTIVITY_SCHEDULE_LEAF, ACTIVITY_FX_LEAF, ACTIVITY_SAVE_LEAF]) {
+    if (/\bfetch\(|process\.env/.test(codeOf(f)) || !/PURE: no fetch, no env/.test(commentsOf(f))) activityFail(`${f} is not pure`);
+  }
+  // Probed on the captures.
+  const facts = productFactsOf(PHUKET_PRODUCT as unknown as RawProduct);
+  if (facts.timeZone !== 'Asia/Bangkok' || facts.requiresAdultForBooking !== true || optionTitleOf(facts, 'TG14') !== 'Small Group Only 20 People' || facts.duration?.kind !== 'fixed' || facts.duration.minutes !== 540) activityFail('the captured product does not read as Asia/Bangkok, an adult required, TG14 "Small Group Only 20 People", 540 minutes');
+  if (!('refused' in partyMeetsProduct(facts, { CHILD: 1 }))) activityFail('a party with no adult passes a product that requires one');
+  const on = startTimesOn(PHUKET_SCHEDULE as unknown as RawSchedule, '2026-09-23', '2026-09-22T12:00:00Z');
+  const tg29 = on.find((o) => o.productOptionCode === 'TG29'); const tg14 = on.find((o) => o.productOptionCode === 'TG14');
+  if (!tg29 || tg29.startTimes[0]?.unavailable !== 'SOLD_OUT' || !tg14 || tg14.startTimes[0]?.startTime !== '07:30' || tg14.startTimes[0]?.unavailable !== null) activityFail('the captured schedule on 2026-09-23 does not read TG29 04:30 SOLD_OUT (verbatim) and TG14 07:30 available');
+  if (startTimesOn(PHUKET_SCHEDULE as unknown as RawSchedule, '2027-10-12', '2026-09-22T12:00:00Z')[0].refused !== 'no season stated by the operator holds 2027-10-12') activityFail('an open-ended season holds past the docs\' 384 days');
+  const details = (PHUKET_SCHEDULE as unknown as RawSchedule).bookableItems!.find((b) => b.productOptionCode === 'TG14')!.seasons![0].pricingRecords![0].pricingDetails!;
+  const cost = partyCost(details, { ADULT: 2 }, '2026-09-23', '2026-09-22T12:00:00Z', 'THB');
+  if ('refused' in cost || cost.total !== 7020 || cost.lines[0].basis !== 'special') activityFail(`two adults on TG14 price as ${JSON.stringify(cost)} — 7,020 THB at the special price inside both windows`);
+  const later = partyCost(details, { ADULT: 2 }, '2026-09-23', '2026-10-05T00:00:00Z', 'THB');
+  if ('refused' in later || later.total !== 7800 || later.lines[0].basis !== 'original') activityFail('a read after the offer window still takes the special price');
+  if (!('refused' in partyCost([{ ...details[0], pricingPackageType: 'PER_GROUP' }], { ADULT: 1 }, '2026-09-23', '2026-09-22T12:00:00Z', 'THB'))) activityFail('an unknown pricing package type was priced');
+  const rate = rateOf(THB_USD as unknown as RawExchangeRates, 'THB', 'USD');
+  if ('refused' in rate) { activityFail(`the captured rate does not read: ${rate.refused}`); }
+  else {
+    const fromPrice = convert({ amount: 2520, currency: 'THB' }, rate, new Date('2026-09-22T12:00:00Z'));
+    if ('refused' in fromPrice || fromPrice.amount !== 77.66 || fromPrice.label !== CALCULATED) activityFail(`2,520 THB at the captured rate reads ${JSON.stringify(fromPrice)} — 77.66, labelled calculated`);
+    const extra = convert({ amount: 400, currency: 'THB' }, rate, new Date('2026-09-22T12:00:00Z'));
+    if ('refused' in extra || extra.amount !== 12.33) activityFail(`400 THB at the captured rate reads ${JSON.stringify(extra)} — 12.33 (the search's 12.03 is a different figure; both stand)`);
+    if (!isExpired(rate, new Date('2026-09-23T01:09:59Z')) || isExpired(rate, new Date('2026-09-22T12:00:00Z'))) activityFail('the rate\'s expiry is not honoured to the second');
+    if (!('refused' in convert({ amount: 1, currency: 'USD' }, rate, new Date('2026-09-22T12:00:00Z')))) activityFail('a rate was applied to the wrong currency');
+  }
+}
+
+// 5. the figure is calculated and says so; the commit recomputes; a stated 0 is a price; the instant is the operator's zone.
+{
+  const commit = codeOf(ACTIVITY_COMMIT);
+  if (!/const operatorStated = priceStatedByInput === 'operator' && viatorSave !== null;/.test(commit) || !/if \(!Number\.isFinite\(amt\) \|\| amt < 0 \|\| \(amt === 0 && !operatorStated\)\) \{/.test(commit)) activityFail(`${ACTIVITY_COMMIT} does not admit a stated 0 under the 'operator' marker alone`);
+  if (!/Google places have no price/.test(commit) || !/a 0 is accepted only as a price the operator stated/.test(commit)) activityFail(`${ACTIVITY_COMMIT}'s amount guard does not name both cases`);
+  if (!/const read = readViatorSave\(viatorSaveInput\);/.test(commit) || !/const verdict = verifyViatorSave\(viatorSave, amt, notes, ACTIVITY_SEARCH_CURRENCY, now\);/.test(commit)) activityFail(`${ACTIVITY_COMMIT} does not re-read and recompute the Save`);
+  if (!/const activityZone = viatorSave\?\.timeZone \?\? null;/.test(commit) || !/start_zone: activityZone,\n\s+end_zone: activityZone,\n\s+start_at: activityZone \? startAt : null,\n\s+end_at: activityZone \? endAt : null,/.test(commit)) activityFail(`${ACTIVITY_COMMIT} does not fix the instant from the operator's stated zone alone`);
+  if (/'Asia\/|'America\/|'Europe\//.test(commit)) activityFail(`${ACTIVITY_COMMIT} types a zone`);
+  if (!/optionId\.startsWith\('viator-'\)/.test(commit)) activityFail(`${ACTIVITY_COMMIT} cannot uncommit a tour`);
+  if (!/title: viatorSave \? viatorSave\.title : \(notes \|\|/.test(commit)) activityFail(`${ACTIVITY_COMMIT} titles a tour's line from its note — the operator's own title names it`);
+  if (!/the line's title column holds 255; nothing was saved/.test(commit)) activityFail(`${ACTIVITY_COMMIT} does not refuse a title longer than the column — a truncation would drop what the operator stated`);
+  const container = codeOf(ACTIVITY_CONTAINER);
+  const optionReads = container.split('fetch(' + '`' + '/api/travel/activities/options?').length - 1;
+  if (optionReads !== 1) activityFail(`${ACTIVITY_CONTAINER} reads the options ${optionReads} time(s) — once, at the press`);
+  if (!/if \(authed !== true\) \{ onRequireAuth\(\); return; \}/.test(container)) activityFail(`${ACTIVITY_CONTAINER} reads the schedule for a guest`);
+  if (!/priceStatedBy: 'operator',/.test(container) || !/viatorSave: draft,/.test(container) || !/const note = activitySaveNoteOf\(draft\);/.test(container)) activityFail(`${ACTIVITY_CONTAINER}'s Save does not carry the marker, the draft and the facts' note`);
+  if (!/initial\[b\.ageBand\] = b\.minTravelersPerBooking \?\? 0;/.test(container)) activityFail(`${ACTIVITY_CONTAINER}'s party form is not the operator's bands at their stated minimum`);
+  if (!/endTime: endTimeOf\(startTime, answer\.product\.duration\),/.test(container) || !/timeZone: answer\.product\.timeZone,/.test(container)) activityFail(`${ACTIVITY_CONTAINER} derives the end or the zone from somewhere other than the product`);
+  if (/'09:00'|'17:00'|'0[0-9]:[0-9]{2}'|'1[0-9]:[0-9]{2}'/.test(container) || /'0[0-9]:[0-9]{2}'|'1[0-9]:[0-9]{2}'|'2[0-3]:[0-9]{2}'/.test(codeOf(ACTIVITY_SAVE_LEAF))) activityFail('a clock literal stands on the Save path');
+  for (const f of [ACTIVITY_CONTAINER, ACTIVITY_VIEW, ACTIVITY_SAVE_LEAF, ACTIVITY_FX_LEAF, ACTIVITY_COMMIT]) {
+    if (/Intl\.NumberFormat\([^)]*currency/.test(codeOf(f))) activityFail(`${f} re-formats a converted figure through a currency formatter`);
+  }
+  if (!/label: CALCULATED,/.test(codeOf(ACTIVITY_FX_LEAF)) || !/\$\{calc\.label\}/.test(codeOf(ACTIVITY_FX_LEAF))) activityFail(`${ACTIVITY_FX_LEAF} does not label a converted figure calculated in the line it writes`);
+  if (!/<span data-activity-option-total=\{draft\.total\.amount\}>\{conversionText\(draft\)\}<\/span>/.test(container)) activityFail(`${ACTIVITY_CONTAINER} shows a plan figure without its conversion line`);
+  // Probed: the draft the screen prices is what the commit recomputes; a wrong total, an expired rate, an edited note refuse.
+  const facts = productFactsOf(PHUKET_PRODUCT as unknown as RawProduct);
+  const details = (PHUKET_SCHEDULE as unknown as RawSchedule).bookableItems!.find((b) => b.productOptionCode === 'TG14')!.seasons![0].pricingRecords![0].pricingDetails!;
+  const rate = rateOf(THB_USD as unknown as RawExchangeRates, 'THB', 'USD');
+  const cost = partyCost(details, { ADULT: 2 }, '2026-09-23', '2026-09-22T12:00:00Z', 'THB');
+  if (!('refused' in rate) && !('refused' in cost)) {
+    const now = new Date('2026-09-22T12:00:00Z');
+    const extra = extraChargesFor(PHUKET_SCHEDULE as unknown as RawSchedule, 2);
+    const total = totalOf({ native: { amount: cost.total, currency: 'THB' }, extra, rate }, 'USD', now);
+    if ('refused' in total || total.amount !== 241 || total.label !== CALCULATED) activityFail(`two adults on TG14 with the extra charges read ${JSON.stringify(total)} — USD 241.00, calculated`);
+    else {
+      const draft: ViatorSave = { productCode: '27424P2', productOptionCode: 'TG14', optionTitle: optionTitleOf(facts, 'TG14'), title: facts.title ?? '', date: '2026-09-23', startTime: '07:30', endTime: endTimeOf('07:30', facts.duration), timeZone: facts.timeZone, durationMinutes: 540, party: { ADULT: 2 }, native: { amount: cost.total, currency: 'THB' }, extra, rate, total, cancellation: cancellationStatement(facts), asOf: now.toISOString() };
+      const note = activitySaveNoteOf(draft);
+      if (draft.endTime !== '16:30') activityFail(`07:30 + 540 minutes reads ${draft.endTime}`);
+      if (!/× 0\.0308188425 \(Viator rate as of 2026-09-21T23:59:59Z, expires 2026-09-23T01:09:59Z\) = USD 241\.00 · calculated · cancellation: STANDARD/.test(note)) activityFail(`the note does not name the rate, its dates and the calculated figure: ${note}`);
+      const canon = (v: unknown): string => JSON.stringify(v, (_k, x) => (x && typeof x === 'object' && !Array.isArray(x)) ? Object.fromEntries(Object.entries(x as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b))) : x);
+      if (canon(readViatorSave(JSON.parse(JSON.stringify(draft)))) !== canon(draft)) activityFail('the commit does not read back the draft the screen priced');
+      if ('refused' in verifyViatorSave(draft, 241, note, 'USD', now)) activityFail('the commit refuses the honest Save');
+      if (!('refused' in verifyViatorSave(draft, 241, note, 'USD', new Date('2026-09-24T00:00:00Z')))) activityFail('the commit accepts an expired rate');
+      if (!('refused' in verifyViatorSave(draft, 240, note, 'USD', now))) activityFail('the commit accepts an amount that is not the calculated total');
+      if (!('refused' in verifyViatorSave(draft, 241, `${note} edited`, 'USD', now))) activityFail('the commit accepts a note that is not the facts\'');
+      const free: ViatorSave = { ...draft, native: { amount: 0, currency: 'THB' }, extra: null, total: { amount: 0, currency: 'USD', label: CALCULATED } };
+      if ('refused' in verifyViatorSave(free, 0, activitySaveNoteOf(free), 'USD', now)) activityFail('a stated 0 is refused as a price');
+    }
   }
 }
 
@@ -4149,7 +4289,15 @@ const activityResolvers = { validateUrl: (u: string) => validatedAffiliateUrl(u,
   const notes = commentsOf('src/lib/travelBookingFlow.ts');
   const pins = codeOf('src/lib/travelBookingFlow.ts');
   const count = (notes.match(/ACTIVITY-01 \(2026-09-22\): re-dated/g) ?? []).length;
-  if (count !== ACTIVITY_REDATED.length) activityFail(`src/lib/travelBookingFlow.ts carries ${count} ACTIVITY-01 note(s) — ${ACTIVITY_REDATED.length}: the search route, the strip, the container, the transfers-only results view and the client`);
+  if (count !== ACTIVITY_REDATED.length) activityFail(`src/lib/travelBookingFlow.ts carries ${count} ACTIVITY-01 re-dated note(s) — ${ACTIVITY_REDATED.length}: the search route, the strip, the container, the transfers-only results view, the client and the quota`);
+  const pinnedNew = (notes.match(/ACTIVITY-01 \(2026-09-22\): pinned — /g) ?? []).length;
+  if (pinnedNew !== ACTIVITY_PINNED_NEW.length) activityFail(`src/lib/travelBookingFlow.ts carries ${pinnedNew} ACTIVITY-01 pinned note(s) — ${ACTIVITY_PINNED_NEW.length}: the options route`);
+  for (const f of ACTIVITY_PINNED_NEW) {
+    const pinAt = pins.indexOf(`{ file: '${f}', sha256: '`);
+    if (pinAt < 0) { activityFail(`src/lib/travelBookingFlow.ts does not pin ${f}`); continue; }
+    const pinLine = pins.slice(0, pinAt).split('\n').length;
+    if (!/ACTIVITY-01 \(2026-09-22\): pinned — [^\n]+\. A tour takes its time on the day; no prebook\/book\/pay\/cancel call changed\.$/.test(noteBlockOver(pins, notes, pinLine))) activityFail(`${f}'s pin does not sit directly under a dated ACTIVITY-01 note naming why`);
+  }
   for (const f of ACTIVITY_REDATED) {
     const pinAt = pins.indexOf(`{ file: '${f}', sha256: '`);
     if (pinAt < 0) { activityFail(`src/lib/travelBookingFlow.ts no longer pins ${f}`); continue; }
@@ -4158,14 +4306,14 @@ const activityResolvers = { validateUrl: (u: string) => validatedAffiliateUrl(u,
     if (!/ACTIVITY-01 \(2026-09-22\): re-dated — [^\n]+\. A tour takes its time on the day; no prebook\/book\/pay\/cancel call changed\.\n[^\n]*Was [0-9a-f]{64} at main dfc02881\.$/.test(above)) activityFail(`${f}'s pin does not sit directly under a dated ACTIVITY-01 note naming why and the hash it had on main dfc02881`);
   }
   for (const pin of BOOKING_FLOW_FILES) {
-    if (ACTIVITY_REDATED.includes(pin.file)) continue;
+    if (ACTIVITY_REDATED.includes(pin.file) || ACTIVITY_PINNED_NEW.includes(pin.file)) continue;
     const pinAt = pins.indexOf(`{ file: '${pin.file}', sha256: '`);
     const pinLine = pins.slice(0, pinAt).split('\n').length;
-    if (/ACTIVITY-01/.test(noteBlockOver(pins, notes, pinLine))) activityFail(`${pin.file} carries an ACTIVITY-01 note — ACTIVITY-01 re-dated ${ACTIVITY_REDATED.length} files and nothing else`);
+    if (/ACTIVITY-01/.test(noteBlockOver(pins, notes, pinLine))) activityFail(`${pin.file} carries an ACTIVITY-01 note — ACTIVITY-01 re-dated ${ACTIVITY_REDATED.length} files, pinned ${ACTIVITY_PINNED_NEW.length}, and nothing else`);
   }
   const transfersPin = BOOKING_FLOW_FILES.find((p) => p.file === ACTIVITY_TRANSFERS_ROUTE);
   if (!transfersPin || transfersPin.sha256 !== 'b55f3bd99f64b07f64d078063f3b408028f2531eae69ddbd82f939687ff2a66e') activityFail(`${ACTIVITY_TRANSFERS_ROUTE}'s pin changed — ACTIVITY-01 does not touch the transfers route`);
-  if (!/re-dated by ACTIVITY-01 \(2026-09-22\), a tour takes its time on the day/.test(BOOKING_FLOW_BASE)) activityFail('BOOKING_FLOW_BASE does not record the ACTIVITY-01 re-dating');
+  if (!/re-dated and the options route pinned by ACTIVITY-01 \(2026-09-22\), a tour takes its time on the day/.test(BOOKING_FLOW_BASE)) activityFail('BOOKING_FLOW_BASE does not record the ACTIVITY-01 re-dating and the options route\'s pin');
   const client = codeOf(ACTIVITY_CLIENT);
   for (const [head, sha] of Object.entries(ACTIVITY_CLIENT_FUNCTIONS)) {
     const slice = functionSlice(client, head);
@@ -4174,7 +4322,7 @@ const activityResolvers = { validateUrl: (u: string) => validatedAffiliateUrl(u,
   }
   if (!/export async function searchProductsRaw\(body: ProductSearchBody\): Promise<unknown> \{/.test(client)) activityFail(`${ACTIVITY_CLIENT} lacks the one raw call the route uses`);
 }
-if (activityViolations === 0) console.log(`✔ The activity law passed — the route forwards the vendor's /products/search contract by name between its guards (unknown → 400, currency the one constant) and makes one raw call; the leaf reads the captured Phuket answer whole (${PHUKET_ACTIVITY_EXPECTED.cards} of ${PHUKET_ACTIVITY_EXPECTED.total}, ${PHUKET_ACTIVITY_EXPECTED.extraCharges} with extra charges, ${PHUKET_ACTIVITY_EXPECTED.unrated.length} unrated and present) tri-state; no "Price on request", no googleRating, no sign-up Book, no conversion; the benchmark ranks on the all-in figure and says so; ${ACTIVITY_REDATED.length} files re-dated, dated, ${Object.keys(ACTIVITY_CLIENT_FUNCTIONS).length} client functions byte-identical to main; the schedule and the Save wait on CURRENCY-01.`);
+if (activityViolations === 0) console.log(`✔ The activity law passed — the route forwards the vendor's /products/search contract by name between its guards (unknown → 400, currency the one constant, the start cursor for SHOW THEM ALL) and makes one raw call; the leaf reads the captured Phuket answer whole (${PHUKET_ACTIVITY_EXPECTED.cards} of ${PHUKET_ACTIVITY_EXPECTED.total}, ${PHUKET_ACTIVITY_EXPECTED.extraCharges} with extra charges, ${PHUKET_ACTIVITY_EXPECTED.unrated.length} unrated and present) tri-state; no "Price on request", no googleRating, no sign-up Book, no slice; the benchmark ranks on the all-in figure and says so; the Save's ${ACTIVITY_SAVE_READS.length} reads have one authed call site each under 'viatorsave' (300/day), the rate cached to its own expiry, every converted figure labelled calculated and recomputed by the commit, a stated 0 admitted under the marker, the instant from the operator's zone; ${ACTIVITY_REDATED.length} files re-dated and ${ACTIVITY_PINNED_NEW.length} pinned, dated, ${Object.keys(ACTIVITY_CLIENT_FUNCTIONS).length} client functions byte-identical to main.`);
 else console.log(`✖ The activity law FAILED — ${activityViolations} violation(s).`);
 
 // ── THE READER LAW (TEST-TRUTH-01, 2026-09-17) ──────────────────────────────

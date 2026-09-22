@@ -32,7 +32,7 @@
  * container searches; the view reports what the user pressed.
  */
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { DATA } from '@/lib/ds';
 import SearchCount from './SearchCount';
 import {
@@ -46,8 +46,9 @@ export type { ActivityCardView, ActivityUiFilters };
 
 interface Props {
   cards: ActivityCardView[];
-  /** The vendor's total for the filters, when it stated one. */
+  /** The vendor's total for the filters, when it stated one — and the total the page before stated, when it moved. */
   totalCount: Stated<number>;
+  previousTotal: Stated<number>;
   loading: boolean;
   error: string;
   filters: ActivityUiFilters;
@@ -69,6 +70,10 @@ interface Props {
   loadingMore: boolean;
   /** One more counted search with the same filters and the next start — the container sends it. */
   onNextPage: () => void;
+  /** What the last Next answered: the products the page held and how many were already shown. */
+  lastPage: { answered: number; alreadyShown: number } | null;
+  /** STEP 4: the Save panel the container renders under a selected row (a signed-in user with a trip). */
+  savePanel?: ReactNode;
 }
 
 /** Per-row thumbnail: the photo when present + loadable, else a neutral placeholder — never a broken <img>. */
@@ -96,7 +101,7 @@ const LABEL_CLASS = 'font-mono text-[9.5px] tracking-widest text-text-faint';
 
 const DURATION_LABEL: Record<ActivityUiFilters['duration'], string> = { any: 'any', under2h: 'up to 2h', '2to6h': '2h to 6h', over6h: '6h and up' };
 
-export default function ActivityPickerView({ cards, totalCount, loading, error, filters, onFiltersChange, searchCount, sentCurrency, selected, onSelect, pageSize, hasMore, filtersChanged, loadingMore, onNextPage }: Props) {
+export default function ActivityPickerView({ cards, totalCount, previousTotal, loading, error, filters, onFiltersChange, searchCount, sentCurrency, selected, onSelect, pageSize, hasMore, filtersChanged, loadingMore, onNextPage, lastPage, savePanel }: Props) {
   // The controls: each writes the container's filters and nothing else.
   const bar = (
     <div className="space-y-1" data-activity-filters>
@@ -197,7 +202,7 @@ export default function ActivityPickerView({ cards, totalCount, loading, error, 
     <div className="space-y-2" data-activity-results>
       {bar}
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs text-text-faint">
-        <span data-activity-count>{countLine(cards, totalCount)} — click a row to compare it</span>
+        <span data-activity-count>{countLine(cards, totalCount, previousTotal)} — click a row to compare it</span>
         <span data-activity-plan-line>Plan here; book on Viator.</span>
       </div>
       {llf && (
@@ -277,7 +282,8 @@ export default function ActivityPickerView({ cards, totalCount, loading, error, 
             {loadingMore ? 'Asking…' : `Next ${pageSize}`}
           </button>
           <span data-activity-page-note>
-            {filtersChanged ? 'filters changed — Search starts from page one' : !hasMore ? (totalCount !== null && cards.length >= totalCount ? 'every product the vendor stated is shown' : 'the vendor returned no more products') : countLine(cards, totalCount)}
+            {filtersChanged ? 'filters changed — Search starts from page one' : !hasMore ? (totalCount !== null && cards.length >= totalCount ? 'every product the vendor stated is shown' : 'the vendor returned no more products') : countLine(cards, totalCount, previousTotal)}
+            {lastPage && lastPage.alreadyShown > 0 ? ` · last page: ${lastPage.answered} answered, ${lastPage.alreadyShown} already shown` : ''}
           </span>
         </div>
       </div>
@@ -294,6 +300,7 @@ export default function ActivityPickerView({ cards, totalCount, loading, error, 
           <div className="flex items-center gap-2">
             <button type="button" onClick={() => onSelect(null)} className="rounded border border-border px-2 py-1 text-xs text-text-secondary hover:bg-white">Clear</button>
           </div>
+          {savePanel && <div className="basis-full" data-activity-save-panel>{savePanel}</div>}
         </div>
       )}
     </div>
