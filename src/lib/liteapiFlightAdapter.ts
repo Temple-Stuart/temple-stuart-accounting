@@ -11,9 +11,21 @@
 // count as outbound). Offers WITHOUT a display price cannot render in the
 // picker (price is required) and are skipped with a loud count — never shown
 // with a fabricated price.
+//
+// FLIGHT-01 (2026-09-22): A FARE SAYS WHAT IT BUYS. Each offer now carries
+// `fare` — cabin, fare family, fare basis, checked bag, carry-on, changeable,
+// refundable, the stated fees — as TRI-STATE values: a field the payload did
+// not carry is null (the picker renders "not stated by the carrier"), never a
+// coerced false. The old `conditions` (`!!terms.refundable`, which turned the
+// carrier's silence into "not refundable") is no longer written here. Each
+// offer also carries its segments as the row shows them (marketing AND
+// operating carrier, flight numbers, airports with the names the payload
+// gives) and `flightKey`, the identity src/lib/flights/fares.ts groups by.
 
-import type { FlightSearchResult, FlightSegment, FlightJourney } from './liteapiFlightsClient';
+import type { FlightSearchResult, FlightSegment, FlightJourney, FlightOffer as LiteApiOffer } from './liteapiFlightsClient';
 import type { FlightOffer } from '@/components/trips/FlightPickerView';
+import type { FareAttributes, FlightSegmentView, Stated } from '@/lib/flights/fares';
+import { flightIdentityOf } from '@/lib/flights/fares';
 
 /** "PT7H45M" → "7h 45m"; falls back to minutes; '' when neither exists. */
 function formatDuration(iso8601?: string, minutes?: number): string {
@@ -95,6 +107,76 @@ function journeyDirectionDuration(j: FlightJourney, direction: 'OUTBOUND' | 'INB
   return { duration: '' };
 }
 
+// ─── FLIGHT-01: the stated attributes, tri-state ─────────────────────────────
+
+const statedString = (v: unknown): Stated<string> => (typeof v === 'string' && v.trim() !== '' ? v : null);
+const statedBoolean = (v: unknown): Stated<boolean> => (typeof v === 'boolean' ? v : null);
+
+/** The vendor's included-bag line for one bag type, as it states it — pieces · weight, or its own description. */
+function includedBagDetail(o: LiteApiOffer, bagType: 'cabin' | 'checked'): Stated<string> {
+  const rows = (o.baggage?.included ?? []).filter((b) => b?.bagType === bagType);
+  if (rows.length === 0) return null;
+  const parts = rows.map((b) => {
+    if (typeof b.description === 'string' && b.description.trim()) return b.description.trim();
+    const pieces = typeof b.pieces === 'number' ? `${b.pieces} piece${b.pieces === 1 ? '' : 's'}` : null;
+    const weight = typeof b.weightKg === 'number' ? `${b.weightKg} ${b.unit ?? 'kg'}` : null;
+    return [pieces, weight].filter(Boolean).join(' · ');
+  }).filter((s) => s.length > 0);
+  return parts.length ? parts.join('; ') : null;
+}
+
+/** A fee the vendor states — its amount and currency, or its label. Null when unstated. */
+function statedFee(fee: unknown): Stated<string> {
+  if (!fee || typeof fee !== 'object') return null;
+  const f = fee as { pricing?: { display?: { amount?: unknown; currency?: unknown } }; label?: unknown; applicability?: unknown };
+  const amount = f.pricing?.display?.amount;
+  const currency = f.pricing?.display?.currency;
+  const money = typeof amount === 'number' && typeof currency === 'string' ? `${amount} ${currency}` : null;
+  const label = typeof f.label === 'string' ? f.label : (typeof f.applicability === 'string' ? f.applicability : null);
+  if (money && label) return `${money} (${label})`;
+  return money ?? label;
+}
+
+/** The cabin the segment fares state — one value, 'mixed' when the segments differ, null when unstated. */
+function statedCabin(o: LiteApiOffer): Stated<string> {
+  const cabins = [...new Set((o.segmentFares ?? []).map((f) => statedString(f?.cabin)).filter((c): c is string => c !== null))];
+  if (cabins.length === 0) return null;
+  return cabins.length === 1 ? cabins[0] : 'mixed';
+}
+
+export function fareAttributesOf(o: LiteApiOffer): FareAttributes {
+  return {
+    cabin: statedCabin(o),
+    fareFamily: statedString(o.fare?.family),
+    fareBasisCode: statedString(o.segmentFares?.[0]?.fareBasisCode),
+    checkedBag: statedBoolean(o.baggage?.hasCheckedBag),
+    checkedBagDetail: includedBagDetail(o, 'checked'),
+    carryOnBag: statedBoolean(o.baggage?.hasCarryOnBag),
+    carryOnDetail: includedBagDetail(o, 'cabin'),
+    changeable: statedBoolean(o.terms?.changeable),
+    refundable: statedBoolean(o.terms?.refundable),
+    changeFee: statedFee(o.terms?.changeFee),
+    refundFee: statedFee(o.terms?.refundFee),
+  };
+}
+
+export function segmentViewOf(s: FlightSegment): FlightSegmentView {
+  return {
+    marketingCode: statedString(s.carrier?.marketingCode),
+    marketingName: statedString(s.carrier?.marketingName),
+    operatingCode: statedString(s.carrier?.operatingCode),
+    operatingName: statedString(s.carrier?.operatingName),
+    marketingNumber: statedString(s.flight?.marketingNumber),
+    operatingNumber: statedString(s.flight?.operatingNumber),
+    originCode: statedString(s.originCode),
+    originName: statedString(s.originName),
+    destinationCode: statedString(s.destinationCode),
+    destinationName: statedString(s.destinationName),
+    departureTime: statedString(s.departureTime),
+    arrivalTime: statedString(s.arrivalTime),
+  };
+}
+
 /** Flatten LiteAPI search results into picker-consumable offers. Each journey's
  *  offers become one FlightOffer per offer, sharing that journey's segment
  *  blocks. Insertion order is preserved (the API's own ranking). */
@@ -109,6 +191,9 @@ export function liteApiResultsToFlightOffers(results: FlightSearchResult[]): Fli
       const inSegs = segs.filter((s) => s.direction === 'INBOUND');
       const outDur = journeyDirectionDuration(j, 'OUTBOUND');
       const inDur = journeyDirectionDuration(j, 'INBOUND');
+      const outboundSegments = outSegs.map(segmentViewOf);
+      const returnSegments = inSegs.map(segmentViewOf);
+      const flightKey = flightIdentityOf(outboundSegments, returnSegments);
 
       for (const o of j.offers ?? []) {
         const total = o.pricing?.display?.total;
@@ -134,8 +219,11 @@ export function liteApiResultsToFlightOffers(results: FlightSearchResult[]): Fli
                 carriers: ret.carriers,
               }
             : null,
-          ...(o.terms ? { conditions: { refundable: !!o.terms.refundable, changeable: !!o.terms.changeable } } : {}),
           expiresAt: o.expiration ?? null,
+          fare: fareAttributesOf(o),
+          outboundSegments,
+          returnSegments,
+          flightKey,
         });
       }
     }

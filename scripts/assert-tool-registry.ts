@@ -98,6 +98,10 @@ import { MARKER_MINUTES, assignLanes, blockExtent, unverifiedDurationExtent } fr
 import { clockOfTime, overlayTripItems, type TripItemRow, type TripOverlayEvent } from '../src/lib/calendar/tripItem';
 import { BOOKING_FLOW_BASE, BOOKING_FLOW_FILES, bookingFlowSha256 } from '../src/lib/travelBookingFlow';
 import { PANEL_TOKEN_ALLOWLIST, SECTION_HEADER, WHITE_INK_ON_DARK_ANCESTOR } from '../src/lib/ds';
+import { FILTER_KEYS, SORT_BY, parseFilters, parseSort } from '../src/lib/flights/searchContract';
+import { DEFAULT_UI_FILTERS, NOT_STATED, carrierLineOf, countLine, fareDifference, filtersStatement, groupFlights, lowestFare, lowestFareLine, searchRequestOf } from '../src/lib/flights/fares';
+import { liteApiResultsToFlightOffers } from '../src/lib/liteapiFlightAdapter';
+import { BKK_HKT_EXPECTED, BKK_HKT_RATES } from '../src/lib/__tests__/fixtureFlightRatesBkkHkt';
 import { classifyCadence, compileFormToRRule, expandBetween, expandForward, scheduleAnchor } from '../src/lib/operations/rruleHelpers';
 import { DEFAULT_ROUTINE_FORM } from '../src/components/workbench/operations/routines/types';
 import { PROBLEM_SHEET } from '../src/lib/problemSheet';
@@ -3223,6 +3227,252 @@ const repaintFail = (m: string) => { repaintViolations += 1; violations.push(`re
 }
 if (repaintViolations === 0) console.log(`✔ The repaint law passed — the panel family is painted by ${PANEL_TOKEN_ALLOWLIST.length} self-declared dark surface(s) and nowhere else; on the travel tab every white-ink literal sits on a solid dark or purple element, or on one of ${WHITE_INK_ON_DARK_ANCESTOR.length} cited ancestor fills; the section labels wear SECTION_HEADER.`);
 else console.log(`✖ The repaint law FAILED — ${repaintViolations} violation(s).`);
+
+// ── THE FLIGHT LAW (FLIGHT-01, 2026-09-22) ───────────────────────────────────
+// A FLIGHT APPEARS ONCE, AND A FARE SAYS WHAT IT BUYS.
+//
+// BKK→HKT on 2026-10-25 returned 360 rows: the same Vietjet 06:50 six times at six
+// prices with "Refundable" the only word between them, "Hahn Air Systems" listed
+// as the carrier (an intermediary — the operating airline hidden), and no cabin,
+// stops, duration or sort control. The vendor's contract already carried filters,
+// sort, the operating carrier, the flight number, the cabin, the bags and the
+// terms; the route forwarded none of the first two and the adapter dropped the
+// rest, coercing the carrier's silence on refundability into "not refundable".
+//
+//   1. THE ROUTE FORWARDS NO FIELD IT DID NOT VALIDATE. The search route's
+//      provider call carries legs, adults, currency, cabinClass, filters and
+//      sort and nothing else; filters and sort reach it only through
+//      parseFilters/parseSort, which refuse an unknown key BY NAME and a bad
+//      value by name; the body is never spread; the order stays rateLimit →
+//      validate → reserveTravelSearch → searchFlightRates, so a 400 costs no
+//      slot. Every key the contract admits is a key the vendor's type declares.
+//      A control left at "any" sends nothing — the vendor's own default applies,
+//      and the screen says so.
+//   2. NO FARE ATTRIBUTE IS RENDERED FROM A VALUE THE PAYLOAD DID NOT CARRY. The
+//      adapter writes each attribute tri-state (true / false / null) and never
+//      coerces with `!!`; fareAttributesOf reads no price; the view renders every
+//      attribute cell through statedText() or `?? NOT_STATED`; the difference
+//      line's loop compares stated attributes only. Probed on the captured-shape
+//      BKK→HKT payload: six Vietjet rows become one flight with six fares, the
+//      Hahn Air row says "operated by Thai Vietjet Air", a fare without baggage
+//      or terms is null there, the lowest fare and the difference line read as
+//      the ruling wrote them.
+//   3. NO SEARCH FIRES ON A FILTER CHANGE. The view calls onSearchLeg exactly
+//      once — from the SEARCH button — and runs no effect; the filter bar only
+//      writes the leg's filters; neither container's effects call searchLeg;
+//      the search request carries searchRequestOf(leg.filters) and the session's
+//      search count increments in searchLeg alone.
+//   4. THE BOOKING-FLOW PIN HOLDS, DATED. The five search-path files carry a
+//      dated FLIGHT-01 re-pin note with the hash they had on main; no other file
+//      was re-pinned by FLIGHT-01. (The hashes themselves are the travel law's.)
+const FLIGHT_ROUTE = 'src/app/api/travel/liteapi/flights/search/route.ts';
+const FLIGHT_CONTRACT = 'src/lib/flights/searchContract.ts';
+const FLIGHT_LEAF = 'src/lib/flights/fares.ts';
+const FLIGHT_ADAPTER = 'src/lib/liteapiFlightAdapter.ts';
+const FLIGHT_CLIENT = 'src/lib/liteapiFlightsClient.ts';
+const FLIGHT_VIEW = 'src/components/trips/FlightPickerView.tsx';
+const FLIGHT_CONTAINERS = ['src/components/trips/FlightPicker.tsx', 'src/components/trips/PublicFlightSearch.tsx'];
+const FLIGHT_PIN_FILE = 'src/lib/travelBookingFlow.ts';
+const FLIGHT_REPINNED = [FLIGHT_ROUTE, 'src/components/trips/PublicFlightSearch.tsx', 'src/components/trips/FlightPicker.tsx', FLIGHT_VIEW, FLIGHT_ADAPTER];
+const FLIGHT_CALL_KEYS = ['legs', 'adults', 'currency', 'cabinClass', 'filters', 'sort'];
+let flightViolations = 0;
+const flightFail = (m: string) => { flightViolations += 1; violations.push(`flight law: ${m} (FLIGHT-01)`); };
+/** The body of a top-level `export function name(` — from its opening brace to the matching close. */
+const flightFnBody = (src: string, name: string): string => {
+  const at = src.indexOf(`export function ${name}(`);
+  if (at < 0) return '';
+  const open = src.indexOf('{', at);
+  let depth = 0;
+  for (let i = open; i < src.length; i++) {
+    if (src[i] === '{') depth += 1;
+    else if (src[i] === '}') { depth -= 1; if (depth === 0) return src.slice(open, i + 1); }
+  }
+  return '';
+};
+
+// 1. the route forwards no field it did not validate.
+{
+  const route = codeOf(FLIGHT_ROUTE);
+  const callAt = route.indexOf('await searchFlightRates({');
+  const callEnd = callAt >= 0 ? route.indexOf('});', callAt) : -1;
+  const call = callAt >= 0 && callEnd > callAt ? route.slice(callAt + 'await searchFlightRates({'.length, callEnd) : '';
+  if (!call) flightFail(`${FLIGHT_ROUTE} no longer calls searchFlightRates with an object literal — the call must be readable`);
+  const sent: string[] = [];
+  for (const raw of call.split('\n').map((l) => l.trim()).filter(Boolean)) {
+    const plain = /^([a-zA-Z]+)(?::\s*[^,]+)?,?$/.exec(raw);
+    const spread = /^\.\.\.\(([a-zA-Z]+) \? \{ \1 \} : \{\}\),?$/.exec(raw);
+    const key = plain?.[1] ?? spread?.[1];
+    if (!key) { flightFail(`${FLIGHT_ROUTE} forwards a line the law cannot read: "${raw}" — the provider call carries named keys and \`...(x ? { x } : {})\` spreads only`); continue; }
+    if (!FLIGHT_CALL_KEYS.includes(key)) flightFail(`${FLIGHT_ROUTE} forwards "${key}" to the provider — the call carries ${FLIGHT_CALL_KEYS.join(', ')} and nothing else`);
+    sent.push(key);
+  }
+  for (const k of ['legs', 'adults', 'currency', 'filters', 'sort']) if (!sent.includes(k)) flightFail(`${FLIGHT_ROUTE} no longer forwards ${k}`);
+  if (/\.\.\.body\b|\.\.\.\(body/.test(route)) flightFail(`${FLIGHT_ROUTE} spreads the request body — nothing unvalidated reaches the provider`);
+  if (!/const parsed = parseFilters\(body\.filters\);[\s\S]{0,200}filters = parsed\.filters;/.test(route)) flightFail(`${FLIGHT_ROUTE} does not take filters from parseFilters(body.filters)`);
+  if (!/const parsed = parseSort\(body\.sort\);[\s\S]{0,200}sort = parsed\.sort;/.test(route)) flightFail(`${FLIGHT_ROUTE} does not take sort from parseSort(body.sort)`);
+  if (/filters:\s*body\.filters|sort:\s*body\.sort|\{ filters: body|\{ sort: body/.test(route)) flightFail(`${FLIGHT_ROUTE} forwards body.filters or body.sort raw`);
+  const order = ['rateLimit(`liteapi-flight-search', 'parseFilters(', 'parseSort(', "reserveTravelSearch('liteapi')", 'await searchFlightRates({'];
+  const idx = order.map((s) => route.indexOf(s));
+  for (let i = 0; i < idx.length; i++) {
+    if (idx[i] < 0) flightFail(`${FLIGHT_ROUTE} lost ${order[i]}`);
+    else if (i > 0 && idx[i] <= idx[i - 1]) flightFail(`${FLIGHT_ROUTE} runs ${order[i]} before ${order[i - 1]} — the order is rateLimit → validate → reserve → call, so a 400 costs no slot`);
+  }
+  // The contract refuses by name and admits only keys the vendor's type declares.
+  const bad = parseFilters({ maxPrice: 5 });
+  if (!('error' in bad) || !/^filters\.maxPrice is not a supported filter \(supported: /.test(bad.error)) flightFail(`parseFilters admits an unknown key or refuses it without its name — got ${JSON.stringify(bad)}`);
+  const badCabin = parseFilters({ cabinClass: 'COACH' });
+  if (!('error' in badCabin) || !/^filters\.cabinClass must be one of ECONOMY, PREMIUM_ECONOMY, BUSINESS, FIRST$/.test(badCabin.error)) flightFail(`parseFilters admits cabinClass COACH — got ${JSON.stringify(badCabin)}`);
+  const biz = parseFilters({ cabinClass: 'business', cabinClassMatch: 'exactly' });
+  if (!('filters' in biz) || biz.filters.cabinClass !== 'BUSINESS' || biz.filters.cabinClassMatch !== 'exactly') flightFail(`parseFilters does not forward cabinClass BUSINESS unchanged — got ${JSON.stringify(biz)}`);
+  const badSort = parseSort({ sortBy: 'colour' });
+  if (!('error' in badSort) || !/^sort\.sortBy must be one of /.test(badSort.error)) flightFail(`parseSort admits sortBy colour — got ${JSON.stringify(badSort)}`);
+  const badSortKey = parseSort({ sortBy: 'price', direction: 'asc' });
+  if (!('error' in badSortKey) || !/^sort\.direction is not a supported sort field/.test(badSortKey.error)) flightFail(`parseSort admits an unknown key or refuses it without its name — got ${JSON.stringify(badSortKey)}`);
+  const empty = parseFilters({});
+  if (!('filters' in empty) || Object.keys(empty.filters).length !== 0) flightFail(`parseFilters invents a default — {} must forward {} so the vendor's own default applies; got ${JSON.stringify(empty)}`);
+  const client = codeOf(FLIGHT_CLIENT);
+  const typeAt = client.indexOf('export interface FlightSearchFilters {');
+  const typeBody = typeAt >= 0 ? client.slice(typeAt, client.indexOf('\n}', typeAt)) : '';
+  const declared = new Set([...typeBody.matchAll(/^\s+([a-zA-Z]+)\?:/gm)].map((m) => m[1]));
+  for (const k of FILTER_KEYS) if (!declared.has(k)) flightFail(`${FLIGHT_CONTRACT} admits filter "${k}", which ${FLIGHT_CLIENT}'s FlightSearchFilters does not declare`);
+  const sortAt = client.indexOf('export interface FlightSort {');
+  const sortBody = sortAt >= 0 ? client.slice(sortAt, client.indexOf('\n}', sortAt)) : '';
+  for (const s of SORT_BY) if (!sortBody.includes(`'${s}'`)) flightFail(`${FLIGHT_CONTRACT} admits sortBy "${s}", which ${FLIGHT_CLIENT}'s FlightSort does not declare`);
+  // "Any" sends nothing; every control the screen offers round-trips through the contract.
+  const none = searchRequestOf(DEFAULT_UI_FILTERS);
+  if (Object.keys(none).length !== 0) flightFail(`searchRequestOf(DEFAULT_UI_FILTERS) sends ${JSON.stringify(none)} — a control at "any" sends nothing, so the vendor's default applies`);
+  if (!/the vendor's default/.test(filtersStatement(DEFAULT_UI_FILTERS))) flightFail('filtersStatement(DEFAULT_UI_FILTERS) does not say the vendor\'s default applies — a default the screen does not state is a silent narrowing');
+  const full = searchRequestOf({ cabin: 'BUSINESS', stops: 'nonstop', refundableOnly: true, checkedBag: true, departure: 'morning', sort: 'price' });
+  const fullParsed = full.filters ? parseFilters(full.filters) : { error: 'no filters' };
+  const fullSort = full.sort ? parseSort(full.sort) : { error: 'no sort' };
+  if ('error' in fullParsed || 'error' in fullSort) flightFail(`the screen's own request is refused by the route's contract: ${JSON.stringify(full)}`);
+  else {
+    const f = fullParsed.filters;
+    if (f.cabinClass !== 'BUSINESS' || f.cabinClassMatch !== 'exactly' || f.maxStops !== 0 || f.refundableOnly !== true || f.includesCheckedBag !== true || f.departureTimeAfter !== '05:00' || f.departureTimeBefore !== '11:59' || fullSort.sort.sortBy !== 'price') flightFail(`the screen's request does not survive the contract unchanged: ${JSON.stringify({ filters: f, sort: fullSort.sort })}`);
+  }
+  for (const stops of ['one'] as const) { const r = searchRequestOf({ ...DEFAULT_UI_FILTERS, stops }); if (r.filters?.maxStops !== 1) flightFail(`stops "${stops}" does not send maxStops 1`); }
+}
+
+// 2. no fare attribute is rendered from a value the payload did not carry — probed on the captured-shape payload.
+{
+  const adapter = codeOf(FLIGHT_ADAPTER);
+  if (/!!/.test(adapter)) flightFail(`${FLIGHT_ADAPTER} coerces with !! — an attribute the payload did not carry is null, never false`);
+  if (/\bconditions\b/.test(adapter)) flightFail(`${FLIGHT_ADAPTER} still writes \`conditions\` — the coerced booleans FLIGHT-01 retired`);
+  const attrs = flightFnBody(adapter, 'fareAttributesOf');
+  if (!attrs) flightFail(`${FLIGHT_ADAPTER} no longer exports fareAttributesOf`);
+  else if (/pric|total|amount/i.test(attrs)) flightFail(`${FLIGHT_ADAPTER}'s fareAttributesOf reads a price — an attribute is what the carrier states, never inferred from money`);
+  for (const k of ['cabin', 'fareFamily', 'fareBasisCode', 'checkedBag', 'carryOnBag', 'changeable', 'refundable', 'changeFee', 'refundFee']) {
+    if (!new RegExp(`\\b${k}: stated(String|Boolean|Fee|Cabin)\\(`).test(attrs)) flightFail(`${FLIGHT_ADAPTER}'s fareAttributesOf does not read ${k} through a stated*() reader`);
+  }
+  const leaf = codeOf(FLIGHT_LEAF);
+  const diff = flightFnBody(leaf, 'fareDifference');
+  const loopAt = diff.indexOf('for (const { key, label } of DIFFERENCE_ATTRIBUTES)');
+  const loop = loopAt >= 0 ? diff.slice(loopAt, diff.indexOf('\n  }', loopAt)) : '';
+  if (!loop) flightFail(`${FLIGHT_LEAF}'s fareDifference no longer walks DIFFERENCE_ATTRIBUTES`);
+  else if (/price|total|delta/.test(loop)) flightFail(`${FLIGHT_LEAF}'s fareDifference reasons from a price — the reasons are the stated attributes only`);
+  if (!/unstated\.push\(label\); continue;/.test(loop)) flightFail(`${FLIGHT_LEAF}'s fareDifference no longer sets an unstated attribute aside — it must never count as a reason`);
+  if (NOT_STATED !== 'not stated by the carrier') flightFail(`NOT_STATED reads "${NOT_STATED}" — the ruling's words are "not stated by the carrier"`);
+  const view = codeOf(FLIGHT_VIEW);
+  const cells = [...view.matchAll(/data-fare-field="([a-zA-Z]+)"[^\n]*/g)];
+  if (cells.length < 7) flightFail(`${FLIGHT_VIEW} renders ${cells.length} fare cells — price, family, cabin, checked bag, carry-on, changeable, refundable`);
+  for (const m of cells) {
+    if (m[1] === 'price' || m[1] === 'family') continue; // the fare's price and its name — shown as carried, no tri-state
+    if (!/statedText\(|NOT_STATED/.test(m[0])) flightFail(`${FLIGHT_VIEW} renders the ${m[1]} cell without statedText() or NOT_STATED — an unstated attribute reads "not stated by the carrier", never a default`);
+  }
+  if (/conditions\??\.refundable|conditions\??\.changeable/.test(view)) flightFail(`${FLIGHT_VIEW} still reads the retired coerced conditions`);
+  if (!/data-flight-operated-by>operated by \{carrier\.operatedBy\}/.test(view)) flightFail(`${FLIGHT_VIEW} does not say "operated by" when the marketing carrier is not the operating one`);
+  if (!/data-flight-llf/.test(view) || !/lowestFareLine\(/.test(view)) flightFail(`${FLIGHT_VIEW} does not render the lowest-fare line`);
+  if (!/data-fare-difference=\{diff\.delta\}>\{diff\.line\}/.test(view) || !/fareDifference\(leg\.selectedOffer!, low\.fare\)/.test(view)) flightFail(`${FLIGHT_VIEW} does not render the selection's difference over the lowest fare`);
+  // The captured-shape payload: the founder's rows, grouped.
+  const offers = liteApiResultsToFlightOffers(BKK_HKT_RATES);
+  const groups = groupFlights(offers);
+  if (groups.length !== BKK_HKT_EXPECTED.flights || offers.length !== BKK_HKT_EXPECTED.fares) flightFail(`BKK→HKT groups to ${groups.length} flights · ${offers.length} fares — the captured payload holds ${BKK_HKT_EXPECTED.flights} flights · ${BKK_HKT_EXPECTED.fares} fares`);
+  const vz = groups.find((g) => g.representative.outboundSegments?.[0]?.marketingCode === 'VZ' && g.representative.outboundSegments?.[0]?.marketingNumber === '300');
+  if (!vz || vz.fares.length !== BKK_HKT_EXPECTED.vietjetFares) flightFail(`Vietjet 300 at 06:50 is ${vz ? vz.fares.length : 0} fare(s) under one flight — the founder's six rows are one flight with six fares`);
+  if (countLine(groups) !== `${BKK_HKT_EXPECTED.flights} flights · ${BKK_HKT_EXPECTED.fares} fares`) flightFail(`the count line reads "${countLine(groups)}"`);
+  const hahn = offers.find((o) => o.outboundSegments?.[0]?.marketingCode === 'H1');
+  const hahnLine = hahn?.outboundSegments?.[0] ? carrierLineOf(hahn.outboundSegments[0]) : null;
+  if (!hahnLine || hahnLine.name !== 'Hahn Air Systems' || hahnLine.operatedBy !== 'Thai Vietjet Air') flightFail(`the Hahn Air row reads ${JSON.stringify(hahnLine)} — it is Hahn Air Systems, operated by Thai Vietjet Air`);
+  const byId = (id: string) => offers.find((o) => o.id === id);
+  const noBag = byId('vz300-deluxe-nobag'), noTerms = byId('vz300-deluxe-noterms'), sky = byId(BKK_HKT_EXPECTED.skyboss.offerId);
+  if (!noBag || noBag.fare?.checkedBag !== null || noBag.fare?.carryOnBag !== null) flightFail(`a fare whose payload carries no baggage reads checkedBag ${JSON.stringify(noBag?.fare?.checkedBag)} — null, "not stated by the carrier"`);
+  if (!noTerms || noTerms.fare?.refundable !== null || noTerms.fare?.changeable !== null) flightFail(`a fare whose payload carries no terms reads refundable ${JSON.stringify(noTerms?.fare?.refundable)} — null, never "not refundable"`);
+  if (!sky || sky.fare?.refundable !== true || sky.fare?.checkedBag !== true) flightFail('the SkyBoss fare does not carry the refundable and checked-bag attributes its payload states');
+  const low = lowestFare(groups);
+  if (!low || low.fare.id !== BKK_HKT_EXPECTED.lowest.offerId || low.fare.price !== BKK_HKT_EXPECTED.lowest.price) flightFail(`the lowest fare is ${low?.fare.id} at ${low?.fare.price} — ${BKK_HKT_EXPECTED.lowest.offerId} at ${BKK_HKT_EXPECTED.lowest.price}`);
+  if (low && lowestFareLine(low) !== BKK_HKT_EXPECTED.lowest.line) flightFail(`the lowest-fare line reads "${lowestFareLine(low)}" — "${BKK_HKT_EXPECTED.lowest.line}"`);
+  if (low && sky && fareDifference(sky, low.fare).line !== BKK_HKT_EXPECTED.skyboss.difference) flightFail(`the SkyBoss difference reads "${fareDifference(sky, low.fare).line}" — "${BKK_HKT_EXPECTED.skyboss.difference}"`);
+  if (low && noTerms && !/reason not stated by the carrier/.test(fareDifference(noTerms, low.fare).line)) flightFail(`a fare with unstated terms reads "${fareDifference(noTerms, low.fare).line}" — its reason is not stated by the carrier`);
+  if (low && fareDifference(low.fare, low.fare).line !== 'This is the lowest fare meeting your filters.') flightFail('the lowest fare selected does not say it is the lowest');
+}
+
+// 3. no search fires on a filter change.
+{
+  const view = codeOf(FLIGHT_VIEW);
+  const searchCalls = view.match(/onSearchLeg\(/g) ?? [];
+  if (searchCalls.length !== 1) flightFail(`${FLIGHT_VIEW} calls onSearchLeg ${searchCalls.length} time(s) — exactly once, from the SEARCH button`);
+  if (!/<button onClick=\{\(\) => onSearchLeg\(leg\.id\)\}/.test(view)) flightFail(`${FLIGHT_VIEW}'s one onSearchLeg call is not the SEARCH button's onClick`);
+  if (/useEffect|useLayoutEffect/.test(view)) flightFail(`${FLIGHT_VIEW} runs an effect — the view is fully controlled and fires nothing`);
+  if (/\bfetch\(/.test(view)) flightFail(`${FLIGHT_VIEW} fetches — the view calls no route`);
+  const barFrom = view.indexOf('data-flight-filters>');
+  const barTo = view.indexOf('data-flight-filters-stated');
+  const bar = barFrom >= 0 && barTo > barFrom ? view.slice(barFrom, barTo) : '';
+  if (!bar) flightFail(`${FLIGHT_VIEW} has no filter bar between data-flight-filters and data-flight-filters-stated`);
+  const changes = bar.match(/onChange=\{/g) ?? [];
+  const writes = bar.match(/setFilters\(leg, \{/g) ?? [];
+  if (changes.length !== 6 || writes.length !== 6) flightFail(`the filter bar has ${changes.length} onChange handler(s) and ${writes.length} setFilters write(s) — six controls, each writing the leg's filters and nothing else`);
+  if (/onSearchLeg|onUpdateLeg\(leg\.id, \{ offers|loading: true/.test(bar)) flightFail('the filter bar reaches the search — a filter change only writes the leg');
+  if (!/data-flight-filters-stated>[\s\S]{0,200}filtersStatement\(leg\.filters\)/.test(view)) flightFail(`${FLIGHT_VIEW} does not state, under the bar, what the next search will ask`);
+  if (!/data-search-count=\{searchCount\}/.test(view)) flightFail(`${FLIGHT_VIEW} does not show the session's search count beside the button`);
+  for (const f of FLIGHT_CONTAINERS) {
+    const c = codeOf(f);
+    let effects = 0;
+    for (const m of c.matchAll(/useEffect\(\(\) => \{/g)) {
+      effects += 1;
+      const open = c.indexOf('{', m.index!);
+      let depth = 0, end = -1;
+      for (let i = open; i < c.length; i++) { if (c[i] === '{') depth += 1; else if (c[i] === '}') { depth -= 1; if (depth === 0) { end = i; break; } } }
+      const body = c.slice(open, end + 1);
+      if (/searchLeg\(|flights\/search/.test(body)) flightFail(`${f}: an effect runs the search — a search fires only on the SEARCH press`);
+    }
+    if (effects === 0) flightFail(`${f} has no readable effects — the law reads \`useEffect(() => {\``);
+    const bodies = [...c.matchAll(/body: JSON\.stringify\(\{ legs: searchLegs, adults: [^,]+, currency: 'USD', \.\.\.searchRequestOf\(leg\.filters\) \}\)/g)];
+    if (bodies.length !== 1) flightFail(`${f} builds the search body ${bodies.length} way(s) — one body: legs, adults, currency, ...searchRequestOf(leg.filters)`);
+    const counts = c.match(/setSearchCount\(\(n\) => n \+ 1\)/g) ?? [];
+    if (counts.length !== 1) flightFail(`${f} increments the search count ${counts.length} time(s) — once, in searchLeg`);
+    const fnAt = c.indexOf('const searchLeg = ');
+    const countAt = c.indexOf('setSearchCount((n) => n + 1)');
+    const fetchAt = c.indexOf("flights/search'");
+    if (fnAt < 0 || countAt < fnAt || fetchAt < countAt) flightFail(`${f}'s search count is not incremented inside searchLeg before its fetch`);
+    if (!/filters: DEFAULT_UI_FILTERS/.test(c)) flightFail(`${f} does not start a leg at DEFAULT_UI_FILTERS — every control at "any"`);
+    if (!/searchCount=\{searchCount\}/.test(c)) flightFail(`${f} does not hand the search count to the view`);
+  }
+}
+
+// 4. the booking-flow pin holds, dated.
+{
+  const notes = commentsOf(FLIGHT_PIN_FILE);
+  const pins = codeOf(FLIGHT_PIN_FILE);
+  const noteLines = [...notes.matchAll(/FLIGHT-01 \(2026-09-22\): re-pinned[^\n]*/g)];
+  if (noteLines.length !== FLIGHT_REPINNED.length) flightFail(`${FLIGHT_PIN_FILE} carries ${noteLines.length} FLIGHT-01 re-pin note(s) — five: the route, the two containers, the view, the adapter`);
+  for (const f of FLIGHT_REPINNED) {
+    const pinAt = pins.indexOf(`{ file: '${f}', sha256: '`);
+    if (pinAt < 0) { flightFail(`${FLIGHT_PIN_FILE} no longer pins ${f}`); continue; }
+    const pinLine = pins.slice(0, pinAt).split('\n').length;
+    const noteBlock = notes.split('\n').slice(Math.max(0, pinLine - 3), pinLine - 1).join('\n');
+    if (!/FLIGHT-01 \(2026-09-22\): re-pinned — [^\n]+\. Search is not booking; no prebook\/verify\/book\/pay\/cancel call changed\.\n[^\n]*Was [0-9a-f]{64} at main b9eac34a\./.test(noteBlock)) flightFail(`${f}'s pin does not sit under a dated FLIGHT-01 note naming why, that search is not booking, and the hash it had on main`);
+  }
+  if (!/FLIGHT-01 \(2026-09-22\), search is not booking/.test(BOOKING_FLOW_BASE)) flightFail('BOOKING_FLOW_BASE does not record the FLIGHT-01 re-pin');
+  for (const pin of BOOKING_FLOW_FILES) {
+    if (FLIGHT_REPINNED.includes(pin.file)) continue;
+    const pinAt = pins.indexOf(`{ file: '${pin.file}', sha256: '`);
+    const pinLine = pins.slice(0, pinAt).split('\n').length;
+    const above = notes.split('\n').slice(Math.max(0, pinLine - 3), pinLine - 1).join('\n');
+    if (/FLIGHT-01/.test(above)) flightFail(`${pin.file} carries a FLIGHT-01 note — FLIGHT-01 re-pinned the five search-path files and nothing else`);
+  }
+}
+if (flightViolations === 0) console.log(`✔ The flight law passed — the search route forwards ${FLIGHT_CALL_KEYS.length} validated keys and nothing else, the contract refuses an unknown filter or sort by name and invents no default; every fare attribute is tri-state from the payload and renders "${NOT_STATED}" when absent; BKK→HKT groups ${BKK_HKT_EXPECTED.fares} fares into ${BKK_HKT_EXPECTED.flights} flights with the Hahn Air row operated by Thai Vietjet Air; one onSearchLeg, no effect, six filter controls that only write the leg; ${FLIGHT_REPINNED.length} search-path files re-pinned, dated.`);
+else console.log(`✖ The flight law FAILED — ${flightViolations} violation(s).`);
 
 // ── THE READER LAW (TEST-TRUTH-01, 2026-09-17) ──────────────────────────────
 // NO TEST AND NO LAW MAY READ A SOURCE FILE RAW.

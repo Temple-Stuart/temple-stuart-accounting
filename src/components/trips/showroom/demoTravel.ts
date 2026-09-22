@@ -16,6 +16,7 @@
 // proves each export conforms.
 
 import type { FlightOffer, FlightLeg, FlightPickerViewProps } from '../FlightPickerView';
+import { DEFAULT_UI_FILTERS } from '@/lib/flights/fares';
 import type { TripItineraryRow } from '../TripTimeline';
 import HotelPicker from '../HotelPicker';
 import TransferPicker from '../TransferPicker';
@@ -67,7 +68,8 @@ export const demoFlightOffers: FlightOffer[] = [
       stops: 1,
       carriers: ['Volaris'],
     },
-    conditions: { refundable: false, changeable: true },
+    // FLIGHT-01: the demo states what the demo states — the rest is unstated (null).
+    fare: { cabin: 'Economy', fareFamily: null, fareBasisCode: null, checkedBag: null, checkedBagDetail: null, carryOnBag: null, carryOnDetail: null, changeable: true, refundable: false, changeFee: null, refundFee: null },
   },
   {
     id: 'demo-flight-2',
@@ -87,7 +89,7 @@ export const demoFlightOffers: FlightOffer[] = [
       stops: 1,
       carriers: ['Aeroméxico'],
     },
-    conditions: { refundable: true, changeable: true },
+    fare: { cabin: 'Economy', fareFamily: null, fareBasisCode: null, checkedBag: true, checkedBagDetail: null, carryOnBag: null, carryOnDetail: null, changeable: true, refundable: true, changeFee: null, refundFee: null },
   },
 ];
 
@@ -111,6 +113,7 @@ export const demoFlightLegs: FlightLeg[] = [
     manualDepartTime: '',
     manualArriveTime: '',
     manualArriveDate: '',
+    filters: DEFAULT_UI_FILTERS,
   },
 ];
 

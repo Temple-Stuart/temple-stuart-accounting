@@ -22,6 +22,7 @@ import FlightPickerView, { type FlightLeg, type FlightOffer } from './FlightPick
 import LiteApiFlightCheckoutPanel from './LiteApiFlightCheckoutPanel';
 import { FLIGHTS_LANES, type FlightsLane } from '@/lib/flightsLane';
 import { liteApiResultsToFlightOffers } from '@/lib/liteapiFlightAdapter';
+import { DEFAULT_UI_FILTERS, searchRequestOf } from '@/lib/flights/fares';
 import TravelSectionShell from './travelSection';
 
 interface Props {
@@ -63,6 +64,8 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
     manualDepartTime: '',
     manualArriveTime: '',
     manualArriveDate: '',
+    // FLIGHT-01: every control at "any" — nothing sent, the vendor's defaults apply.
+    filters: DEFAULT_UI_FILTERS,
     ...overrides,
   }), []);
 
@@ -94,6 +97,8 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
   const [legs, setLegs] = useState<FlightLeg[]>([]);
   // The leg currently committing (its button shows a pending state) — same as FlightPicker.
   const [committing, setCommitting] = useState<string | null>(null);
+  // FLIGHT-01: how many metered searches this session has sent — shown beside SEARCH.
+  const [searchCount, setSearchCount] = useState(0);
   // The offer being booked (pay now). Set when a card's "Book" is tapped; mounts the
   // LiteAPI checkout panel (passenger form → Nuitee-Stripe Elements). Guest-ok — NO
   // auth gate (booking is never locked, like hotels). The leg id is tracked alongside
@@ -177,10 +182,14 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
           ? [{ origin: leg.destination.trim().toUpperCase(), destination: leg.origin.trim().toUpperCase(), date: leg.returnDate }]
           : []),
       ];
+      // FLIGHT-01: the screen's filters and sort ride the request as the vendor's
+      // own contract (searchRequestOf omits every control left at "any"). This
+      // is the ONLY place a search fires — a filter change never does.
+      setSearchCount((n) => n + 1);
       const res = await fetch('/api/travel/liteapi/flights/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ legs: searchLegs, adults: 1, currency: 'USD' }),
+        body: JSON.stringify({ legs: searchLegs, adults: 1, currency: 'USD', ...searchRequestOf(leg.filters) }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -306,6 +315,7 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
         onUncommitLeg={uncommitLeg}
         onBookLeg={bookLeg}
         providerLabel="LiteAPI"
+        searchCount={searchCount}
       />
 
       {/* Book opens the LiteAPI checkout (FL-4/4b panel — passenger form →

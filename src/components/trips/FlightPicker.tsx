@@ -20,6 +20,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import FlightPickerView, { type FlightOffer, type FlightLeg } from './FlightPickerView';
 import { liteApiResultsToFlightOffers } from '@/lib/liteapiFlightAdapter';
+import { DEFAULT_UI_FILTERS, searchRequestOf } from '@/lib/flights/fares';
 
 interface Props {
   tripId: string;
@@ -67,11 +68,15 @@ export default function FlightPicker({
     manualDepartTime: '',
     manualArriveTime: '',
     manualArriveDate: '',
+    // FLIGHT-01: every control at "any" — nothing sent, the vendor's defaults apply.
+    filters: DEFAULT_UI_FILTERS,
     ...overrides,
   }), [originAirport, destinationAirport, departureDate, returnDate]);
 
   const [legs, setLegs] = useState<FlightLeg[]>([]);
   const [committing, setCommitting] = useState<string | null>(null);
+  // FLIGHT-01: how many metered searches this session has sent — shown beside SEARCH.
+  const [searchCount, setSearchCount] = useState(0);
 
   // Initialize first leg once airports are available
   useEffect(() => {
@@ -186,10 +191,14 @@ export default function FlightPicker({
           ? [{ origin: leg.destination.trim().toUpperCase(), destination: leg.origin.trim().toUpperCase(), date: leg.returnDate }]
           : []),
       ];
+      // FLIGHT-01: the screen's filters and sort ride the request as the vendor's
+      // own contract (searchRequestOf omits every control left at "any"). This
+      // is the ONLY place a search fires — a filter change never does.
+      setSearchCount((n) => n + 1);
       const res = await fetch('/api/travel/liteapi/flights/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ legs: searchLegs, adults: passengers, currency: 'USD' }),
+        body: JSON.stringify({ legs: searchLegs, adults: passengers, currency: 'USD', ...searchRequestOf(leg.filters) }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -354,6 +363,7 @@ export default function FlightPicker({
       onCommitLeg={commitLeg}
       onUncommitLeg={uncommitLeg}
       providerLabel="LiteAPI"
+      searchCount={searchCount}
     />
   );
 }
