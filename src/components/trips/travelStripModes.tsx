@@ -147,14 +147,10 @@ export function travelStripModes(opts: TravelStripOptions): ToggleMode[] {
     { key: 'activities', label: 'Things to do', icon: <Compass className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />,
       headline: 'Real tours & experiences.',
       explainer: 'Real tours & experiences. Book on Viator.',
-      panel: (
-      <PublicActivitySearch
-        onRequireAuth={onRequireAuth}
-        sharedCity={sharedCity}
-        sharedCountry={sharedCountry}
-        searchNonce={searchNonce}
-      />
-    ) },
+      // ACTIVITY-01 (2026-09-22): the search fires only on the SEARCH press — the
+      // unified-bar fan-out props are gone from this mount, and the public search
+      // takes no auth callback (a row links out or says no link is stated).
+      panel: <PublicActivitySearch /> },
     { key: 'visa', label: 'Visa', icon: <FileCheck className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />,
       headline: 'The visa rule — and the official place to apply.',
       explainer: 'The rule, how long you can stay, and the official place to apply.',

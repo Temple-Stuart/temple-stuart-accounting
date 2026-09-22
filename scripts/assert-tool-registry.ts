@@ -105,6 +105,12 @@ import { BKK_HKT_EXPECTED, BKK_HKT_RATES } from '../src/lib/__tests__/fixtureFli
 import { DEFAULT_HOTEL_FILTERS, NOT_STATED as HOTEL_NOT_STATED, countLine as hotelCountLine, hotelCardsOf, hotelFiltersStatement, hotelSearchParamsOf, lowestRate, lowestRateLine, rateDifference } from '../src/lib/hotels/rates';
 // HOTEL-02 (2026-09-22): the vendor's 12-hour clock reader and the property's clock live with the stay's times.
 import { hhmmOf, propertyClockOf, propertyClockStatement } from '../src/lib/hotels/stayTimes';
+// ACTIVITY-01 (2026-09-22): the Things-to-do contract and leaf, probed on the captured Phuket answer.
+import { ACTIVITY_FILTER_PARAMS, ACTIVITY_SEARCH_CURRENCY, activitySearchBodyOf, parseActivityFilters } from '../src/lib/activities/searchContract';
+import { DEFAULT_ACTIVITY_FILTERS, NOT_STATED as ACTIVITY_NOT_STATED, activityCardOf, activityCardsOf, activitySearchParamsOf, cancellationText, countLine as activityCountLine, lowestPrice, lowestPriceLine, priceDifference, ratingText, type RawProductSearch } from '../src/lib/activities/products';
+import { validatedAffiliateUrl } from '../src/config/affiliates';
+import { cityForViatorDestId } from '../src/lib/destinations';
+import PHUKET_ACTIVITIES from '../src/lib/__tests__/fixtureViatorSearch.phuket-thailand.json';
 import { parseHotelFilters } from '../src/lib/hotels/searchContract';
 import { PHUKET_EXPECTED, PHUKET_RATES } from '../src/lib/__tests__/fixtureHotelRatesPhuket';
 import { DATE_ONLY_TRIP_TYPES, TIMED_BY_THEMSELVES } from '../src/lib/calendar/tripItem';
@@ -3934,6 +3940,242 @@ const staySrcFiles = (): string[] => {
 }
 if (stayViolations === 0) console.log(`✔ The stay law passed — the commit resolves a stay's clock once (the property's, read at commit, or the caller's stated one) and writes it to both columns or null; no clock literal in the commit, the button or the planner; the content read's callers are the closed set of ${STAY_CONTENT_CALLERS.length} (the route, the detail page, the commit) with one call and one reservation per commit and explicit 502 / 503 reasons; the itinerary PATCH pairs every block write with the ledger's clock and refuses a flight's; the content rating renders /5 and the catalog's /10, nothing re-scales; ${STAY_REDATED.length} files re-dated, dated.`);
 else console.log(`✖ The stay law FAILED — ${stayViolations} violation(s).`);
+
+// ── THE ACTIVITY LAW (ACTIVITY-01, 2026-09-22) ──────────────────────────────
+// ONE ACTIVITY, WHAT THE OPERATOR STATES; A TOUR TAKES ITS TIME ON THE DAY.
+//
+// The Things-to-do tab forwarded nothing to the vendor (sort DEFAULT, count 12
+// fixed), and the client normalized the answer with `|| 0` and `|| null` — a 0
+// price collapsed to "Price on request", an unrated product became a 0 rating and
+// was then DROPPED by a hidden rating×log re-sort, a Viator rating was typed
+// googleRating, a variable duration was an empty cell, the flags, the currency
+// and the extra charges were never read — and a "Book" that opened sign-up booked
+// nothing. ACTIVITY-01 gives the tab the vendor's own contract, a pure leaf and a
+// picker that states every attribute or the operator's silence.
+//
+//   1. THE ROUTE FORWARDS THE CONTRACT BY NAME. The query carries the vendor's
+//      documented /products/search names (src/lib/activities/searchContract.ts);
+//      an unknown name — `currency` among them — is a 400 naming it, a bad value a
+//      400 naming it, an absent name is not sent so the vendor's default applies;
+//      validation runs between the two guards; the currency is sent from ONE named
+//      constant (no plan column carries a currency) and the answer names it; the
+//      route makes ONE raw call, answers through the leaf, and never re-sorts,
+//      drops an unrated product, or quotes the vendor's body.
+//   2. ONE LEAF PER JOB, PURE, EVERY ATTRIBUTE THROUGH stated.ts. The products
+//      leaf reads the captured Phuket answer whole: one product per row in the
+//      vendor's order; price with its own currency and documented basis; extra
+//      charges and the all-in figure stated beside the from-price, never
+//      collapsed; duration fixed / variable / the operator's text / not stated;
+//      a present flag is true and an absent one is the operator's silence — never
+//      false; rating and review count with the sources named; the two unrated
+//      products present and said so. No fetch, no env, no `|| 0`.
+//   3. NO CLOCK LITERAL, NO DEFAULT, NO CONVERSION, NO "PRICE ON REQUEST", NO
+//      googleRating, NO SIGN-UP BOOK on the activities path. The picker and the
+//      container carry none of them; the container's one fetch fires only from the
+//      SEARCH press, counted; a row links out on the validated productUrl or says
+//      "no booking link stated by the operator"; the old results view (the
+//      transfers rail's) has no onBook; the benchmark ranks on the all-in figure
+//      where stated and says so; two currencies are never compared.
+//   3b. SHOW THEM ALL (the founder's ruling, 2026-09-22). The vendor states a
+//      totalCount; the screen reveals it page by page — the vendor's own `start`
+//      cursor, validated by name (an integer ≥ 1), one more counted search per
+//      "Next" press with the same filters; the count line derives from the vendor's
+//      totalCount and the rows shown; no `.slice(` narrows the result set on the
+//      route, the leaf, the container or the view.
+//   4. THE SAVE READS THE DATED CHECK, NOT THE SCHEDULE (ruling B, 2026-09-22) —
+//      pending the captured /products/{code} and /availability/check payloads.
+//      The schedule endpoint answers in the supplier's currency (the captured
+//      Phuket schedule: THB), so the app never calls it: no file under src names
+//      availability/schedules (clause 4d, in force now). The two Save calls, their
+//      one call site each behind getVerifiedEmail, the 'viatorsave' reservation
+//      and the currency-mismatch refusal land with the captures.
+//   5. THE SAVE — with clause 4.
+//   6. THE PIN HOLDS, DATED. Five files re-dated by ACTIVITY-01 carry a dated note
+//      with the hash they had on main dfc02881; no other file carries one; the
+//      transfers route's pin is unchanged; every existing function of the Viator
+//      client is byte-identical to main (the planner and the transfers rail keep
+//      their paths); BOOKING_FLOW_BASE records it.
+const ACTIVITY_ROUTE = 'src/app/api/travel/activities/search/route.ts';
+const ACTIVITY_CONTRACT = 'src/lib/activities/searchContract.ts';
+const ACTIVITY_LEAF = 'src/lib/activities/products.ts';
+const ACTIVITY_VIEW = 'src/components/trips/ActivityPickerView.tsx';
+const ACTIVITY_CONTAINER = 'src/components/trips/PublicActivitySearch.tsx';
+const ACTIVITY_OLD_VIEW = 'src/components/trips/ActivityResultsView.tsx';
+const ACTIVITY_STRIP = 'src/components/trips/travelStripModes.tsx';
+const ACTIVITY_CLIENT = 'src/lib/viatorClient.ts';
+const ACTIVITY_TRANSFERS_ROUTE = 'src/app/api/travel/transfers/search/route.ts';
+const ACTIVITY_REDATED = [ACTIVITY_ROUTE, ACTIVITY_STRIP, ACTIVITY_CONTAINER, ACTIVITY_OLD_VIEW, ACTIVITY_CLIENT];
+/** The Viator client's existing functions, code half, signature to closing brace — the sha256 each had on main dfc02881. */
+const ACTIVITY_CLIENT_FUNCTIONS: Record<string, string> = {
+  'function getApiKey(': 'edec61c24b2b35bc5b970cbb46603620eb81fee3c02636ba8415a7194416e88d',
+  'function v2Headers(': '803097811688e32c9cf35ff21fc447966fb0665ebd488314d243bf104fc7170d',
+  'export async function findDestinationId(': '0e2992461214508567656d2754a1c46f89600c09a8a4bf4db899ca434e0e1666',
+  'function normalizeV2Product(': 'b7a9cb9ad6574f185e383600fe4f1c8daff80524138cd5c8f7a6d6c26fc0d325',
+  'async function searchV2Products(': 'f05125f023ce32de923ab30905c9f19af0e8f2f495a6dee0a3d7db13126046b4',
+  'async function searchV2Freetext(': 'ce6a92acf3ca8172d76e26670864b02bfecbf53a31c0626ff7249f78ded693dc',
+  'export async function searchViatorProducts(': '60e398e7f350b440fb13b68b11bf02e473100293ec9bf7704754270f331aca9f',
+  'export async function searchViatorProductsByTags(': '3c94d0596fa8aa3082090609c9b7c881b3cd148980dc0839ce3738ae50bfbf09',
+  'export function viatorProductToRecommendation(': '47c42632dd3d732072bfa8a4c6e5ce3c432d27db02021a57b35327cc730e2b24',
+};
+/** The captured Phuket answer's facts (Alex's probe, 2026-09-22): 50 of 1,915; the lowest ranks; the flags; the durations; the unrated. */
+const PHUKET_ACTIVITY_EXPECTED = { cards: 50, total: 1915, lowest: '198310P2', lowestFigure: 21.57, fixed: 34, variable: 16, freeCancellation: 47, unrated: ['110534P1165', '103612P66'], extraCharges: 6 };
+let activityViolations = 0;
+const activityFail = (m: string) => { activityViolations += 1; violations.push(`activity law: ${m} (ACTIVITY-01)`); };
+/** A function's text from its signature line to its closing brace at column 0 (code half). */
+const functionSlice = (src: string, head: string): string | null => {
+  const i = src.indexOf(head);
+  if (i < 0) return null;
+  const j = src.indexOf('\n}\n', i);
+  return j < 0 ? null : src.slice(i, j + 3);
+};
+const activityResolvers = { validateUrl: (u: string) => validatedAffiliateUrl(u, 'viator'), destinationNameOf: cityForViatorDestId };
+
+// 1. the route forwards the contract by name.
+{
+  const route = codeOf(ACTIVITY_ROUTE);
+  const at = (s: string) => route.indexOf(s);
+  const order = [at('await rateLimit('), at('if (!city || !country)'), at('parseActivityFilters([...params.keys()], (n) => params.get(n))'), at("await reserveTravelSearch('viator')"), at('searchProductsRaw(activitySearchBodyOf(String(destId), filters))'), at('activityCardsOf(raw as RawProductSearch, {')];
+  if (order.some((i) => i < 0) || order.some((v, i) => i > 0 && v < order[i - 1])) activityFail(`${ACTIVITY_ROUTE}'s order is not rate limit → presence → the contract → reserve → the one call → the leaf (${order.join(', ')})`);
+  if ((route.match(/searchProductsRaw\(/g) ?? []).length !== 1) activityFail(`${ACTIVITY_ROUTE} makes ${(route.match(/searchProductsRaw\(/g) ?? []).length} raw calls — one`);
+  if (!/currency: ACTIVITY_SEARCH_CURRENCY,/.test(route)) activityFail(`${ACTIVITY_ROUTE} does not answer with the currency it sent, by its one name`);
+  if (/searchViatorProducts\(|viatorProductToRecommendation|googleRating|\.sort\(|\.slice\(0|ACTIVITY_MAX_RESULTS/.test(route)) activityFail(`${ACTIVITY_ROUTE} still re-sorts, slices, maps through the old normalizer or types a Viator rating googleRating`);
+  if (/error\.message|error\.body|err\.body/.test(route)) activityFail(`${ACTIVITY_ROUTE} quotes the vendor's body or a thrown message to the browser (HYG-02)`);
+  if (!/error instanceof ViatorApiError/.test(route) || !/error instanceof MissingViatorKeyError/.test(route)) activityFail(`${ACTIVITY_ROUTE} lacks the explicit 502 branches — the catch-all strips the reason`);
+  const q = (o: Record<string, string>) => parseActivityFilters(Object.keys(o), (n) => (n in o ? o[n] : null));
+  for (const [name, o] of [['currency', { city: 'x', country: 'y', currency: 'THB' }], ['tags', { city: 'x', country: 'y', tags: '1' }], ['minRating', { city: 'x', country: 'y', minRating: '4' }]] as const) {
+    const r = q(o as Record<string, string>);
+    if (!('error' in r) || !r.error.startsWith(`${name} is not a supported search parameter`)) activityFail(`the contract admits or misnames "${name}" — ${JSON.stringify(r)}`);
+  }
+  for (const [o, re] of [[{ sort: 'DEFAULT', order: 'ASCENDING' }, /order may not be sent with sort DEFAULT/], [{ sort: 'TRAVELER_RATING', order: 'ASCENDING' }, /takes only order DESCENDING/], [{ count: '51' }, /^count must be/], [{ highestPrice: '0' }, /^highestPrice must be/], [{ flags: 'REFUNDABLE' }, /^flags must be/]] as const) {
+    const r = q({ city: 'x', country: 'y', ...o });
+    if (!('error' in r) || !re.test(r.error)) activityFail(`the contract does not refuse ${JSON.stringify(o)} by name — ${JSON.stringify(r)}`);
+  }
+  const bare = q({ city: 'Phuket', country: 'Thailand' });
+  const body = 'filters' in bare ? activitySearchBodyOf('349', bare.filters) : null;
+  if (JSON.stringify(body) !== JSON.stringify({ filtering: { destination: '349' }, currency: ACTIVITY_SEARCH_CURRENCY })) activityFail(`an empty screen sends ${JSON.stringify(body)} — the destination and the one currency, nothing else (the vendor's defaults)`);
+  if (ACTIVITY_SEARCH_CURRENCY !== 'USD') activityFail(`the search currency constant is ${ACTIVITY_SEARCH_CURRENCY} — every plan amount is USD (the invariant)`);
+  if (!/THE CURRENCY INVARIANT/.test(commentsOf(ACTIVITY_CONTRACT))) activityFail(`${ACTIVITY_CONTRACT} no longer states the currency invariant`);
+  if (/\bfetch\(|process\.env|from '@\/lib\/viatorClient'/.test(codeOf(ACTIVITY_CONTRACT))) activityFail(`${ACTIVITY_CONTRACT} is not pure`);
+  if (JSON.stringify(ACTIVITY_FILTER_PARAMS) !== JSON.stringify(['lowestPrice', 'highestPrice', 'ratingFrom', 'ratingTo', 'durationFrom', 'durationTo', 'flags', 'sort', 'order', 'count', 'start'])) activityFail(`the contract's names drifted: ${ACTIVITY_FILTER_PARAMS.join(', ')}`);
+  const sent = activitySearchParamsOf({ ...DEFAULT_ACTIVITY_FILTERS, priceMin: '20', rating: '4', duration: 'over6h', freeCancellation: true, sort: 'PRICE', count: '25' });
+  if (!('filters' in q({ city: 'x', country: 'y', ...sent }))) activityFail(`what the screen sends does not pass the route's contract: ${JSON.stringify(sent)}`);
+  if (Object.keys(activitySearchParamsOf(DEFAULT_ACTIVITY_FILTERS)).length !== 0) activityFail('a screen at "any" sends a filter');
+  // 3b. SHOW THEM ALL: the cursor by name, the count line from the vendor's total, no slice.
+  if (!(ACTIVITY_FILTER_PARAMS as readonly string[]).includes('start')) activityFail("the contract does not carry the vendor's start cursor by name");
+  for (const [o, ok] of [[{ start: '51' }, true], [{ start: '0' }, false], [{ start: '1.5' }, false], [{ start: 'two' }, false]] as const) {
+    const r = q({ city: 'x', country: 'y', ...o });
+    if (('filters' in r) !== ok) activityFail(`start ${JSON.stringify(o)} was ${ok ? 'refused' : 'admitted'} — an integer ≥ 1 by name`);
+  }
+  const page2 = q({ city: 'x', country: 'y', start: '51' });
+  if (!('filters' in page2) || JSON.stringify(activitySearchBodyOf('349', page2.filters).pagination) !== JSON.stringify({ start: 51 })) activityFail('a start cursor is not forwarded as the vendor\'s pagination.start');
+  if (!/start: filters\.start \?\? 1,/.test(route)) activityFail(`${ACTIVITY_ROUTE} does not name the page it answers`);
+  for (const f of [ACTIVITY_ROUTE, ACTIVITY_LEAF, ACTIVITY_VIEW, ACTIVITY_CONTAINER]) {
+    if (/\.slice\(/.test(codeOf(f))) activityFail(`${f} slices the result set — no client cap; the vendor's pages reveal its total`);
+  }
+  const container = codeOf(ACTIVITY_CONTAINER);
+  if (!/const page = await fetchPage\(sentFilters, cards\.length \+ 1\);/.test(container)) activityFail(`${ACTIVITY_CONTAINER}'s Next does not ask for the next page with the filters the pages were asked with`);
+  if (!/const filtersChanged = sentFilters !== null && JSON\.stringify\(filters\) !== JSON\.stringify\(sentFilters\);/.test(container)) activityFail(`${ACTIVITY_CONTAINER} does not reset to page one on a filter change`);
+  if (!/countLine\(cards, totalCount\)/.test(codeOf(ACTIVITY_VIEW))) activityFail(`${ACTIVITY_VIEW}'s count line does not derive from the vendor's totalCount`);
+}
+
+// 2. one leaf per job, pure, every attribute through stated.ts.
+{
+  const leaf = codeOf(ACTIVITY_LEAF);
+  if (!/import \{ type Stated, stated, statedBoolean, statedNumber, statedString \} from '@\/lib\/travel\/stated';/.test(leaf)) activityFail(`${ACTIVITY_LEAF} does not read the one tri-state helper`);
+  if (/\bfetch\(|process\.env|googleRating|\|\| 0\b|\|\| null\b/.test(leaf)) activityFail(`${ACTIVITY_LEAF} is not pure or coerces the vendor's silence`);
+  if (!/PURE: no fetch, no env/.test(commentsOf(ACTIVITY_LEAF))) activityFail(`${ACTIVITY_LEAF} no longer declares itself pure`);
+  // Every vendor field the card reads passes through the one helper on the line it is read — never a bare read, never `??`.
+  const cardFn = functionSlice(leaf, 'export function activityCardOf(') ?? '';
+  const VENDOR_FIELDS = /(?:\?\.|\.)(combinedAverageRating|totalReviews|averageRating|fromPrice|fromPriceBeforeDiscount|extraCharges|currency|confirmationType|itineraryType|containsMachineTranslatedText|productUrl|description|title|provider|totalCount)\b/;
+  for (const line of cardFn.split('\n')) {
+    if (VENDOR_FIELDS.test(line) && !/stated(Number|String|Boolean)\(/.test(line)) activityFail(`${ACTIVITY_LEAF} reads a vendor field outside the one helper: ${line.trim().slice(0, 90)}`);
+  }
+  const { cards, totalCount } = activityCardsOf(PHUKET_ACTIVITIES as RawProductSearch, activityResolvers);
+  const E = PHUKET_ACTIVITY_EXPECTED;
+  if (cards.length !== E.cards || totalCount !== E.total) activityFail(`the captured Phuket answer reads as ${cards.length} of ${totalCount} — ${E.cards} of ${E.total}`);
+  if (activityCountLine(cards, totalCount) !== '1–50 of 1,915 stated by the vendor') activityFail(`the count line reads "${activityCountLine(cards, totalCount)}" — the rows shown against the vendor's total`);
+  const first = cards[0];
+  if (!first || first.productCode !== '27424P2' || first.price !== 77.66 || first.currency !== 'USD' || first.extraCharges !== 12.03 || first.allInPrice !== 89.69) activityFail(`27424P2 reads as ${JSON.stringify(first && { code: first.productCode, price: first.price, currency: first.currency, extra: first.extraCharges, allIn: first.allInPrice })} — from $77.66 USD, +$12.03 extra, $89.69 all-in`);
+  if (cards.filter((c) => c.duration?.kind === 'fixed').length !== E.fixed || cards.filter((c) => c.duration?.kind === 'variable').length !== E.variable) activityFail('the durations do not read 34 fixed and 16 variable');
+  if (cards.filter((c) => c.freeCancellation === true).length !== E.freeCancellation || cards.some((c) => c.freeCancellation === false)) activityFail(`free cancellation reads ${cards.filter((c) => c.freeCancellation === true).length} true and ${cards.filter((c) => c.freeCancellation === false).length} false — 47 true, an absent flag is silence, never false`);
+  for (const code_ of E.unrated) {
+    const c = cards.find((x) => x.productCode === code_);
+    if (!c) { activityFail(`unrated ${code_} is missing — an unrated product is never dropped`); continue; }
+    if (c.rating !== null || ratingText(c) !== `rating ${ACTIVITY_NOT_STATED}`) activityFail(`unrated ${code_} reads rating ${c.rating} — the operator's silence, never 0`);
+  }
+  if (cards.filter((c) => c.extraCharges !== null).length !== E.extraCharges) activityFail('the extra charges are not read on the six products that state them');
+  if (cards.some((c) => c.productUrl === null)) activityFail('a captured productUrl failed the affiliate gate — every one carries our partner id');
+  if (cards.some((c) => c.currency !== 'USD')) activityFail('a captured product is not priced in USD — the leaf must carry the answer\'s own currency');
+  const zero = activityCardOf({ ...(PHUKET_ACTIVITIES as RawProductSearch).products![0], pricing: { summary: { fromPrice: 0 }, currency: 'USD' } }, 0, activityResolvers);
+  if (zero.price !== 0 || zero.priceBasis === null) activityFail(`a stated 0 reads as ${zero.price} — a 0 is a price`);
+  const silent = activityCardOf({ productCode: 'X', title: 'x' }, 0, activityResolvers);
+  if (silent.price !== null || silent.freeCancellation !== null || silent.rating !== null || silent.duration !== null || cancellationText(silent) !== `cancellation policy ${ACTIVITY_NOT_STATED}`) activityFail('a product that states nothing does not read as the operator\'s silence');
+}
+
+// 3. no clock literal, no default, no conversion, no "Price on request", no googleRating, no sign-up Book.
+{
+  const view = codeOf(ACTIVITY_VIEW);
+  const container = codeOf(ACTIVITY_CONTAINER);
+  for (const [f, src] of [[ACTIVITY_VIEW, view], [ACTIVITY_CONTAINER, container], [ACTIVITY_LEAF, codeOf(ACTIVITY_LEAF)], [ACTIVITY_ROUTE, codeOf(ACTIVITY_ROUTE)]] as const) {
+    if (/Price on request|googleRating/.test(src)) activityFail(`${f} still says "Price on request" or types a Viator rating googleRating`);
+    if (/'09:00'|'17:00'|'10:00'|'15:00'|'11:00'/.test(src)) activityFail(`${f} holds a clock literal — a time nobody stated`);
+    if (/Intl\.NumberFormat|toLocaleString\('en-US', \{ style: 'currency'/.test(src)) activityFail(`${f} re-formats a price through a currency formatter — a conversion in disguise`);
+  }
+  if (/onRequireAuth|onBook/.test(view) || /onRequireAuth|onBook|useEffect|searchNonce/.test(container)) activityFail('the activities path still holds a sign-up Book or a search that fires without the SEARCH press');
+  if ((container.match(/fetch\(/g) ?? []).length !== 1 || !/setSearchCount\(\(n\) => n \+ 1\);/.test(container) || !/\.\.\.activitySearchParamsOf\(asked\),/.test(container) || !/await fetchPage\(filters, 1\);/.test(container)) activityFail(`${ACTIVITY_CONTAINER} does not fire one counted search carrying the screen's filters`);
+  for (const must of ['Plan here; book on Viator.', 'no booking link stated by the operator', 'data-activity-llf', 'data-price-difference', 'cancellationText(card)', 'ratingText(card)', 'durationText(card.duration)', 'priceText(card)', 'extraChargesText(card)']) {
+    if (!view.includes(must)) activityFail(`${ACTIVITY_VIEW} lacks ${must}`);
+  }
+  if (/onBook/.test(codeOf(ACTIVITY_OLD_VIEW))) activityFail(`${ACTIVITY_OLD_VIEW} still carries the sign-up Book`);
+  if (!/panel: <PublicActivitySearch \/> \}/.test(codeOf(ACTIVITY_STRIP))) activityFail(`${ACTIVITY_STRIP} mounts the Things-to-do search with props it no longer takes`);
+  if (!/searchViatorProductsByTags\(/.test(codeOf(ACTIVITY_TRANSFERS_ROUTE))) activityFail(`${ACTIVITY_TRANSFERS_ROUTE} no longer keeps its own path`);
+  const { cards } = activityCardsOf(PHUKET_ACTIVITIES as RawProductSearch, activityResolvers);
+  const low = lowestPrice(cards);
+  if (!low || low.card.productCode !== PHUKET_ACTIVITY_EXPECTED.lowest || low.figure !== PHUKET_ACTIVITY_EXPECTED.lowestFigure) activityFail(`the benchmark is ${low?.card.productCode} at ${low?.figure} — 198310P2 at $21.57`);
+  const llf = lowestPriceLine(low);
+  if (!llf || !/Ranked on the all-in figure where the operator states extra charges\.$/.test(llf)) activityFail(`the lowest line does not say what it ranks on: ${llf}`);
+  const d = priceDifference(cards[0], low!.card);
+  if (d.delta !== 68.12 || !/duration 9h vs 1h/.test(d.line) || !/private tour, skip the line — reason not stated by the operator/.test(d.line)) activityFail(`27424P2's difference reads "${d.line}" — +$68.12 on the all-in figure, from stated attributes, the unstated named`);
+  const x = priceDifference({ ...cards[0], currency: 'THB' }, low!.card);
+  if (x.delta !== null || !/no conversion, no comparison/.test(x.line)) activityFail(`two currencies were compared: "${x.line}"`);
+  // 4d. the app never calls the schedule endpoint — it answers in the supplier's currency.
+  for (const f of staySrcFiles()) {
+    if (/availability\/schedules/.test(codeOf(f))) activityFail(`${f} names the schedule endpoint — the app never calls it (ruling B, 2026-09-22)`);
+  }
+}
+
+// 6. the pin holds, dated.
+{
+  const notes = commentsOf('src/lib/travelBookingFlow.ts');
+  const pins = codeOf('src/lib/travelBookingFlow.ts');
+  const count = (notes.match(/ACTIVITY-01 \(2026-09-22\): re-dated/g) ?? []).length;
+  if (count !== ACTIVITY_REDATED.length) activityFail(`src/lib/travelBookingFlow.ts carries ${count} ACTIVITY-01 note(s) — ${ACTIVITY_REDATED.length}: the search route, the strip, the container, the transfers-only results view and the client`);
+  for (const f of ACTIVITY_REDATED) {
+    const pinAt = pins.indexOf(`{ file: '${f}', sha256: '`);
+    if (pinAt < 0) { activityFail(`src/lib/travelBookingFlow.ts no longer pins ${f}`); continue; }
+    const pinLine = pins.slice(0, pinAt).split('\n').length;
+    const above = noteBlockOver(pins, notes, pinLine);
+    if (!/ACTIVITY-01 \(2026-09-22\): re-dated — [^\n]+\. A tour takes its time on the day; no prebook\/book\/pay\/cancel call changed\.\n[^\n]*Was [0-9a-f]{64} at main dfc02881\.$/.test(above)) activityFail(`${f}'s pin does not sit directly under a dated ACTIVITY-01 note naming why and the hash it had on main dfc02881`);
+  }
+  for (const pin of BOOKING_FLOW_FILES) {
+    if (ACTIVITY_REDATED.includes(pin.file)) continue;
+    const pinAt = pins.indexOf(`{ file: '${pin.file}', sha256: '`);
+    const pinLine = pins.slice(0, pinAt).split('\n').length;
+    if (/ACTIVITY-01/.test(noteBlockOver(pins, notes, pinLine))) activityFail(`${pin.file} carries an ACTIVITY-01 note — ACTIVITY-01 re-dated ${ACTIVITY_REDATED.length} files and nothing else`);
+  }
+  const transfersPin = BOOKING_FLOW_FILES.find((p) => p.file === ACTIVITY_TRANSFERS_ROUTE);
+  if (!transfersPin || transfersPin.sha256 !== 'b55f3bd99f64b07f64d078063f3b408028f2531eae69ddbd82f939687ff2a66e') activityFail(`${ACTIVITY_TRANSFERS_ROUTE}'s pin changed — ACTIVITY-01 does not touch the transfers route`);
+  if (!/re-dated by ACTIVITY-01 \(2026-09-22\), a tour takes its time on the day/.test(BOOKING_FLOW_BASE)) activityFail('BOOKING_FLOW_BASE does not record the ACTIVITY-01 re-dating');
+  const client = codeOf(ACTIVITY_CLIENT);
+  for (const [head, sha] of Object.entries(ACTIVITY_CLIENT_FUNCTIONS)) {
+    const slice = functionSlice(client, head);
+    const now = slice === null ? null : createHash('sha256').update(slice, 'utf8').digest('hex');
+    if (now !== sha) activityFail(`${ACTIVITY_CLIENT}'s ${head.replace(/^export |^async |^function |^async function /g, '').replace('(', '')} is not byte-identical to main dfc02881 — ACTIVITY-01 adds one raw call and changes no existing function`);
+  }
+  if (!/export async function searchProductsRaw\(body: ProductSearchBody\): Promise<unknown> \{/.test(client)) activityFail(`${ACTIVITY_CLIENT} lacks the one raw call the route uses`);
+}
+if (activityViolations === 0) console.log(`✔ The activity law passed — the route forwards the vendor's /products/search contract by name between its guards (unknown → 400, currency the one constant) and makes one raw call; the leaf reads the captured Phuket answer whole (${PHUKET_ACTIVITY_EXPECTED.cards} of ${PHUKET_ACTIVITY_EXPECTED.total}, ${PHUKET_ACTIVITY_EXPECTED.extraCharges} with extra charges, ${PHUKET_ACTIVITY_EXPECTED.unrated.length} unrated and present) tri-state; no "Price on request", no googleRating, no sign-up Book, no conversion; the benchmark ranks on the all-in figure and says so; ${ACTIVITY_REDATED.length} files re-dated, dated, ${Object.keys(ACTIVITY_CLIENT_FUNCTIONS).length} client functions byte-identical to main; the schedule and the Save wait on CURRENCY-01.`);
+else console.log(`✖ The activity law FAILED — ${activityViolations} violation(s).`);
 
 // ── THE READER LAW (TEST-TRUTH-01, 2026-09-17) ──────────────────────────────
 // NO TEST AND NO LAW MAY READ A SOURCE FILE RAW.

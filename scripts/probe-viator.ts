@@ -1,40 +1,61 @@
-// Diagnostic only — ACTIVITY-01 STEP 0 (2026-09-22). Alex runs it; the session
-// makes NO metered call. Two modes, ONE vendor call each:
+// Diagnostic only — ACTIVITY-01 STEP 0 / 0b / 0c (2026-09-22). Alex runs it; the
+// session makes NO metered call. Modes, ONE vendor call each:
 //
-//   npx tsx scripts/probe-viator-schedules.ts search <city> <country>
+//   npx tsx scripts/probe-viator.ts search <city> <country> [start]
 //     → POST /products/search with the SAME body the app sends for Things to do
-//       (viatorClient.ts:295-303 via :442-446 — destination as a string, sort
-//       DEFAULT, pagination start 1 / count 50 (PAGE_SIZE :433), currency USD).
-//       The destination id comes from the app's own static map
-//       (destinations.ts:568-585, findViatorDestIdFor) — a city outside the map
-//       STOPS rather than spend a second call on /destinations.
-//     → writes src/lib/__tests__/fixtureViatorSearch.<city-country>.json
+//       (viatorClient.ts:296-303 via :446 — destination as a string, sort DEFAULT,
+//       pagination start (1, or the optional 1-based cursor) / count 50, currency
+//       USD). The destination id comes from the app's own static map
+//       (destinations.ts findViatorDestIdFor) — a city outside the map STOPS rather
+//       than spend a second call on /destinations.
+//     → writes src/lib/__tests__/fixtureViatorSearch.<city-country>[.p<start>].json
 //
-//   npx tsx scripts/probe-viator-schedules.ts schedule <product-code>
-//     → GET /availability/schedules/{product-code}
-//       (docs.viator.com/partner-api/technical, operationId availabilitySchedules:
-//       parameters = the Accept header + the product-code path param, NO currency
-//       parameter; "The pricing is returned in the supplier's currency"; 200 body =
-//       ProductAvailabilitySchedule { productCode, bookableItems[], currency,
-//       summary.fromPrice }; the endpoint is ✅ for a Basic-access Affiliate key
-//       in the docs' "Access to endpoints" table; a 401/403 here means the key's
-//       tier does not reach it.)
+//   npx tsx scripts/probe-viator.ts product <product-code>
+//     → GET /products/{product-code} (docs.viator.com/partner-api/technical,
+//       operationId products; ✅ for a Basic-access Affiliate key): the ACTIVE
+//       product's pricingInfo { type PER_PERSON | UNIT, ageBands[] { ageBand,
+//       startAge, endAge, minTravelersPerBooking, maxTravelersPerBooking } },
+//       bookingRequirements { minTravelersPerBooking, maxTravelersPerBooking,
+//       requiresAdultForBooking }, cancellationPolicy { type, description,
+//       refundEligibility[] }, productOptions[], timeZone, itinerary.duration,
+//       inclusions / exclusions — what the Save's party form is built from.
+//     → writes src/lib/__tests__/fixtureViatorProduct.<product-code>.json
+//
+//   npx tsx scripts/probe-viator.ts check <product-code> <YYYY-MM-DD> <BAND=n ...>
+//     e.g. check 27424P2 2026-09-25 ADULT=2 CHILD=1
+//     → POST /availability/check { productCode, travelDate, currency: 'USD' (the
+//       app's one search currency, src/lib/activities/searchContract.ts), paxMix:
+//       [{ ageBand, numberOfTravelers }] } (operationId availabilityCheck —
+//       parameters: the Accept header; body required: productCode, paxMix,
+//       currency, travelDate). The docs' "Access to endpoints" table marks this
+//       endpoint ❌ for a Basic-access Affiliate and ✅ from Full-access up: a
+//       401/403 here means the key's tier does not reach it. 200 = { currency (as
+//       requested), productCode, travelDate, bookableItems[] { productOptionCode,
+//       startTime, available, unavailableReason, totalPrice.price.
+//       recommendedRetailPrice, lineItems[], extraChargesSummary? } }.
+//     → writes src/lib/__tests__/fixtureViatorCheck.<product-code>.<date>.json
+//
+//   npx tsx scripts/probe-viator.ts schedule <product-code>
+//     → GET /availability/schedules/{product-code}. Diagnostic only: the endpoint
+//       answers in the SUPPLIER's currency (THB for Phuket), so the app does not
+//       call it (ruling B, 2026-09-22) and its fixture is NOT in the tree (ruling C).
 //     → writes src/lib/__tests__/fixtureViatorSchedule.<product-code>.json
 //
 // Each mode prints the HTTP status (plus the RateLimit-Limit / -Remaining /
 // -Reset and X-Unique-ID headers the docs say a metered response carries) and
 // writes the response JSON to the fixture path, after two guards:
-//   REDACTION (STEP 0b, ruled 2026-09-22): every key named partnerNetPrice,
-//   bookingFee or partnerTotalPrice is removed at ANY depth — the docs do not
-//   say an affiliate key is spared the PriceObject's commercial terms, and the
-//   fixture lands in a PUBLIC repository. A top-level `_redacted` records the
-//   distinct key names removed, the count, and the reason; the script prints
-//   what it removed. The app and the tests read recommendedRetailPrice only.
+//   REDACTION (STEP 0b, ruled 2026-09-22; `commission` added 0c): every key named
+//   partnerNetPrice, bookingFee, partnerTotalPrice or commission is removed at ANY
+//   depth — the docs do not say an affiliate key is spared the PriceObject's
+//   commercial terms, and the fixture lands in a PUBLIC repository. A top-level
+//   `_redacted` records the distinct key names removed, the count, and the reason;
+//   the script prints what it removed. The app and the tests read
+//   recommendedRetailPrice only.
 //   THE KEY-RUN ASSERTION: no character run of the API key (the whole key, and
 //   every 8-character window of it) may appear anywhere in the text.
 // A body that fails the key-run assertion is NOT written. Non-2xx bodies are
 // printed (first 600 chars) and NOT written. A body that is not a JSON object
-// is NOT written (both documented answers are objects).
+// is NOT written (every documented answer is an object).
 //
 // Mirrors src/lib/viatorClient.ts EXACTLY (same base / key / headers as the app):
 //   VIATOR_V2_BASE (:13), getApiKey() (:15-19), v2Headers() (:22-29).
@@ -124,7 +145,7 @@ function slugOf(s: string): string {
 }
 
 // ── The redaction: the vendor's commercial terms never enter the public tree. ──
-const REDACTED_KEYS: readonly string[] = ['partnerNetPrice', 'bookingFee', 'partnerTotalPrice'];
+const REDACTED_KEYS: readonly string[] = ['partnerNetPrice', 'bookingFee', 'partnerTotalPrice', 'commission'];
 const REDACTION_REASON = "commercial terms — not the traveller's price";
 /** Returns a copy of `value` with every REDACTED_KEYS-named key removed at any depth; pushes each removal onto `removed`. */
 function redact(value: unknown, removed: string[]): unknown {
@@ -183,6 +204,27 @@ function describeSearch(json: unknown): void {
   console.log(`first product codes: ${codes.join(', ')}`);
 }
 
+function describeProduct(json: unknown): void {
+  const d = json as { status?: string; productCode?: string; title?: string; timeZone?: string; pricingInfo?: { type?: string; ageBands?: Array<{ ageBand?: string; startAge?: number; endAge?: number; minTravelersPerBooking?: number; maxTravelersPerBooking?: number }> }; bookingRequirements?: unknown; cancellationPolicy?: { type?: string; description?: string; refundEligibility?: unknown[] }; productOptions?: Array<{ productOptionCode?: string; title?: string }>; itinerary?: { itineraryType?: string; duration?: unknown }; inclusions?: unknown[]; exclusions?: unknown[] } | null;
+  console.log(`status=${d?.status} productCode=${d?.productCode} title=${String(d?.title).slice(0, 80)} timeZone=${d?.timeZone}`);
+  console.log(`pricingInfo.type=${d?.pricingInfo?.type} ageBands=${JSON.stringify(d?.pricingInfo?.ageBands)}`);
+  console.log(`bookingRequirements=${JSON.stringify(d?.bookingRequirements)}`);
+  console.log(`cancellationPolicy.type=${d?.cancellationPolicy?.type} refundEligibility=${JSON.stringify(d?.cancellationPolicy?.refundEligibility)}`);
+  console.log(`productOptions=${JSON.stringify((d?.productOptions ?? []).map((o) => ({ code: o.productOptionCode, title: o.title })))}`);
+  console.log(`itinerary.itineraryType=${d?.itinerary?.itineraryType} duration=${JSON.stringify(d?.itinerary?.duration)}`);
+  console.log(`inclusions=${(d?.inclusions ?? []).length} exclusions=${(d?.exclusions ?? []).length}`);
+}
+
+function describeCheck(json: unknown): void {
+  const d = json as { currency?: string; productCode?: string; travelDate?: string; bookableItems?: Array<{ productOptionCode?: string; startTime?: string; available?: boolean; unavailableReason?: string; totalPrice?: { price?: { recommendedRetailPrice?: number } }; lineItems?: unknown[]; extraChargesSummary?: unknown }> } | null;
+  console.log(`currency=${d?.currency} productCode=${d?.productCode} travelDate=${d?.travelDate}`);
+  const items = Array.isArray(d?.bookableItems) ? d!.bookableItems! : [];
+  console.log(`bookableItems=${items.length}`);
+  for (const it of items) {
+    console.log(`  option ${it.productOptionCode ?? '(none)'} start=${it.startTime ?? '(none)'} available=${it.available} reason=${it.unavailableReason ?? '-'} totalRRP=${it.totalPrice?.price?.recommendedRetailPrice ?? '-'} lineItems=${(it.lineItems ?? []).length} extraCharges=${it.extraChargesSummary ? 'stated' : 'absent'}`);
+  }
+}
+
 function describeSchedule(json: unknown): void {
   const d = json as { productCode?: string; currency?: string; summary?: { fromPrice?: number }; bookableItems?: unknown[] } | null;
   console.log(`productCode=${d?.productCode}  currency=${d?.currency}  summary.fromPrice=${d?.summary?.fromPrice}`);
@@ -207,7 +249,9 @@ async function main(): Promise<void> {
   if (mode === 'search') {
     const city = (a ?? '').trim();
     const country = (b ?? '').trim();
-    if (!city || !country) { console.log('usage: search <city> <country>'); process.exit(2); }
+    const startArg = (process.argv[5] ?? '').trim();
+    const start = startArg === '' ? 1 : Number(startArg);
+    if (!city || !country || !Number.isInteger(start) || start < 1) { console.log('usage: search <city> <country> [start ≥ 1]'); process.exit(2); }
     const destId = findViatorDestIdFor(city, country); // destinations.ts:568-585 — the route's own resolver (activities/search/route.ts:80)
     if (destId === null) {
       console.log(`!! "${city}" is not in the static destination map (destinations.ts) — the app would spend a /destinations call to resolve it; this probe makes ONE call and stops instead.`);
@@ -217,7 +261,7 @@ async function main(): Promise<void> {
     const body = {
       filtering: { destination: String(destId) },
       sorting: { sort: 'DEFAULT' },
-      pagination: { start: 1, count: 50 },
+      pagination: { start, count: 50 },
       currency: 'USD',
     };
     banner(`POST /products/search — destination ${destId} (${city}, ${country})`);
@@ -226,7 +270,42 @@ async function main(): Promise<void> {
     printAnswer(answer);
     if (!answer.ok) process.exit(1);
     describeSearch(answer.json);
-    writeFixture(`src/lib/__tests__/fixtureViatorSearch.${slugOf(`${city}-${country}`)}.json`, answer);
+    writeFixture(`src/lib/__tests__/fixtureViatorSearch.${slugOf(`${city}-${country}`)}${start > 1 ? `.p${start}` : ''}.json`, answer);
+    return;
+  }
+
+  if (mode === 'product') {
+    const code = (a ?? '').trim();
+    if (!code) { console.log('usage: product <product-code>'); process.exit(2); }
+    banner(`GET /products/${code}`);
+    const answer = await getJson(`${VIATOR_V2_BASE}/products/${encodeURIComponent(code)}`);
+    printAnswer(answer);
+    if (!answer.ok) process.exit(1);
+    describeProduct(answer.json);
+    writeFixture(`src/lib/__tests__/fixtureViatorProduct.${slugOf(code)}.json`, answer);
+    return;
+  }
+
+  if (mode === 'check') {
+    const code = (a ?? '').trim();
+    const date = (b ?? '').trim();
+    const bandArgs = process.argv.slice(5);
+    const paxMix: Array<{ ageBand: string; numberOfTravelers: number }> = [];
+    for (const arg of bandArgs) {
+      const m = /^([A-Z]+)=(\d+)$/.exec(arg.trim());
+      if (!m) { console.log(`bad band "${arg}" — use BAND=n, e.g. ADULT=2 CHILD=1`); process.exit(2); }
+      paxMix.push({ ageBand: m[1], numberOfTravelers: Number(m[2]) });
+    }
+    if (!code || !/^\d{4}-\d{2}-\d{2}$/.test(date) || paxMix.length === 0) { console.log('usage: check <product-code> <YYYY-MM-DD> <BAND=n ...>   e.g. check 27424P2 2026-09-25 ADULT=2'); process.exit(2); }
+    // The body the app will send (ruling B): the product, the date, the app's one search currency, the party per stated band.
+    const body = { productCode: code, travelDate: date, currency: 'USD', paxMix };
+    banner(`POST /availability/check — ${code} on ${date}, ${paxMix.map((p) => `${p.ageBand}=${p.numberOfTravelers}`).join(' ')}`);
+    console.log(`body=${JSON.stringify(body)}`);
+    const answer = await postJson(`${VIATOR_V2_BASE}/availability/check`, body);
+    printAnswer(answer);
+    if (!answer.ok) process.exit(1);
+    describeCheck(answer.json);
+    writeFixture(`src/lib/__tests__/fixtureViatorCheck.${slugOf(code)}.${date}.json`, answer);
     return;
   }
 
@@ -242,7 +321,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  console.log('usage:\n  npx tsx scripts/probe-viator-schedules.ts search <city> <country>\n  npx tsx scripts/probe-viator-schedules.ts schedule <product-code>');
+  console.log('usage:\n  npx tsx scripts/probe-viator.ts search <city> <country> [start]\n  npx tsx scripts/probe-viator.ts product <product-code>\n  npx tsx scripts/probe-viator.ts check <product-code> <YYYY-MM-DD> <BAND=n ...>\n  npx tsx scripts/probe-viator.ts schedule <product-code>');
   process.exit(2);
 }
 

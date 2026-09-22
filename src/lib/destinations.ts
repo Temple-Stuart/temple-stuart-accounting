@@ -592,6 +592,19 @@ export function findViatorDestIdFor(cityName: string, _country?: string): number
  * filter is brittle for parenthesised labels (e.g. "Bali (Canggu)") and
  * city/neighborhood ambiguity. PR-9 Fix 5.
  */
+/**
+ * ACTIVITY-01 (2026-09-22): the city the app's verified map names for a Viator
+ * destination ref — the product answer carries only the numeric ref
+ * (destinations[].ref, "only the primary destination ID is returned"). Null when
+ * the map holds no city for it: the screen then names the ref, never a guess.
+ */
+export function cityForViatorDestId(ref: string | number): string | null {
+  const id = Number(ref);
+  if (!Number.isInteger(id)) return null;
+  const match = ALL_DESTINATIONS.find(d => d.type === 'city' && d.viatorDestId === id);
+  return match?.name ?? null;
+}
+
 export function findDestinationCoords(cityName: string, country?: string): { lat: number; lng: number } | null {
   const q = cityName.trim().toLowerCase();
   if (!q) return null;
