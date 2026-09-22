@@ -137,6 +137,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const durationMinutes = optionType === 'flight' && Number.isFinite(durationMinutesInput)
       ? Math.round(durationMinutesInput)
       : null;
+    // HOTEL-01 (2026-09-22): a commit time is HH:MM or absent — a malformed one is a
+    // 400 naming the field (the itinerary PATCH's own idiom), never silently nulled.
+    // Parsed here, before the transaction, so the refusal can be returned.
+    const blockStartParse = parseTimeOrNull(startTime, 'block_start_time');
+    if (blockStartParse.error) return blockStartParse.error;
+    const blockEndParse = parseTimeOrNull(endTime, 'block_end_time');
+    if (blockEndParse.error) return blockEndParse.error;
     // Flight-only zone passthrough (mirrors the durationMinutes gate). A non-flight commit
     // has no airport zone → null (genuinely absent, not a substitute).
     const startZone = optionType === 'flight' && typeof originZoneInput === 'string' ? originZoneInput : null;
@@ -353,26 +360,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const isRange = totalDays > 1;
         const dayNum = Math.round((start.getTime() - tripStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-        // Daily time window (@db.Time(6), 1970-anchored): use the commit's time
-        // inputs when present; lodging falls back to hotel-standard check-in 15:00 /
-        // check-out 11:00; other types stay NULL (no fabricated window).
-        const blockStart =
-          parseTimeOrNull(startTime, 'block_start_time').value ??
-          (optionType === 'lodging' ? parseTimeOrNull('15:00', 'block_start_time').value : null);
-        const blockEnd =
-          parseTimeOrNull(endTime, 'block_end_time').value ??
-          (optionType === 'lodging' ? parseTimeOrNull('11:00', 'block_end_time').value : null);
+        // Daily time window (@db.Time(6), 1970-anchored): the commit's time inputs
+        // when present, else NULL for every type. HOTEL-01 (2026-09-22): the
+        // hotel-standard 15:00 / 11:00 a lodging block used to be given is GONE —
+        // an invented time, the class GRID-01 removed. A property's check-in and
+        // check-out times come from its payload when stated; when not stated the
+        // window is null and the calendar says so, never a clock nobody stated.
+        const blockStart = blockStartParse.value;
+        const blockEnd = blockEndParse.value;
 
         const entry = await tx.trip_itinerary.create({
           data: {
             tripId: id, day: dayNum, homeDate: start,
-            // PR-Hotel-Default-Times: lodging with no commit times gets hotel-standard
-            // check-in 15:00 / check-out 11:00, so the ledger shows them (not "—") and there
-            // is a clock to map to the calendar later. Other date-range types (gym, multi-day
-            // activity) keep null — no fabricated times. These are plain VarChar(10) strings,
-            // the same format the flight branch writes.
-            homeTime: startTime || (optionType === 'lodging' ? '15:00' : null),
-            destDate: end, destTime: endTime || (optionType === 'lodging' ? '11:00' : null),
+            // HOTEL-01 (2026-09-22): the ledger's homeTime / destTime are the commit's
+            // stated times or null — the "—" a ledger shows for an unstated check-in is
+            // the truth. (PR-Hotel-Default-Times' 15:00 / 11:00 is gone.) Plain
+            // VarChar(10) strings, the same format the flight branch writes.
+            homeTime: startTime || null,
+            destDate: end, destTime: endTime || null,
             category: optionType, vendor: details.title, cost: Math.round(details.amount * 100) / 100,
             note: notes || null, location: activityLocation, vendorOptionId: optionId, vendorOptionType: optionType,
             // PR 3: the user's recurrence choice wins; absent → span default.

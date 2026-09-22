@@ -181,6 +181,22 @@ export interface SearchHotelsParams {
   /** Search radius in meters. Defaults to 25_000 (25km) — covers a metro
    *  area plus its nearby beach towns / suburbs. */
   radiusMeters?: number;
+  // ── HOTEL-01 (2026-09-22): the vendor's own filter and sort contract, forwarded
+  //    UNCHANGED from the route once validated by name (src/lib/hotels/searchContract.ts).
+  //    Absent → not sent → the vendor's default. starRating rides BOTH calls (the
+  //    /data/hotels catalog documents it, so the priced fifty are the filtered
+  //    fifty; /hotels/rates documents it too); the rest ride /hotels/rates. The
+  //    vendor's minRating is documented on two scales and is not carried.
+  /** Whole and half stars the vendor admits (".0 and .5 only"). */
+  starRating?: number[];
+  /** Keep RFN rates only. */
+  refundableRatesOnly?: boolean;
+  /** Comma list of RO · BI · HB · FB · AI. */
+  boardType?: string;
+  /** The vendor's sort: a field (top_picks · price · revenue) with a direction. */
+  sort?: Array<{ field: 'top_picks' | 'price' | 'revenue'; direction: 'ascending' | 'descending' }>;
+  /** Rates per hotel, cheapest first — absent = the vendor's default. */
+  maxRatesPerHotel?: number;
 }
 
 /** Raw hotel + rate as LiteAPI returns it. Keep loose — LiteAPI's V3 response
@@ -268,6 +284,9 @@ async function getCityHotelCatalog(params: SearchHotelsParams, countryCode: stri
       ? { latitude: String(params.latitude), longitude: String(params.longitude), radius: String(radius), countryCode }
       : { cityName: extractCityName(params.city), countryCode },
   );
+  // HOTEL-01: the catalog's own documented filters — so the fifty we price are the
+  // fifty that meet them (a filter applied only at pricing would empty the page).
+  if (params.starRating?.length) qs.set('starRating', params.starRating.map((n) => n.toFixed(1)).join(','));
   const mode = getMode();
   const keyPrefix = (mode === 'production' ? process.env.LITEAPI_PRODUCTION_KEY : process.env.LITEAPI_SANDBOX_KEY)?.slice(0, 4) ?? 'none';
   console.log(`[LiteAPI] data/hotels: mode=${mode} keyPrefix=${keyPrefix} ${useCoords ? `coords=${params.latitude},${params.longitude}` : `cityName=${extractCityName(params.city)}`} country=${countryCode}`);
@@ -325,6 +344,12 @@ export async function searchHotelRates(params: SearchHotelsParams): Promise<Lite
     occupancies: params.occupancies,
     currency: params.currency || 'USD',
     guestNationality: params.guestNationality || 'US',
+    // HOTEL-01: the vendor's filter and sort fields, verbatim, only when set.
+    ...(params.starRating?.length ? { starRating: params.starRating } : {}),
+    ...(params.refundableRatesOnly ? { refundableRatesOnly: true } : {}),
+    ...(params.boardType ? { boardType: params.boardType } : {}),
+    ...(params.sort?.length ? { sort: params.sort } : {}),
+    ...(typeof params.maxRatesPerHotel === 'number' ? { maxRatesPerHotel: params.maxRatesPerHotel } : {}),
   };
   const mode = getMode();
   const keyPrefix = (mode === 'production' ? process.env.LITEAPI_PRODUCTION_KEY : process.env.LITEAPI_SANDBOX_KEY)?.slice(0, 4) ?? 'none';

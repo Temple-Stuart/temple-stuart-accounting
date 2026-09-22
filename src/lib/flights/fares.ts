@@ -27,12 +27,15 @@
 
 import type { FlightSearchFilters, FlightSort } from '@/lib/liteapiFlightsClient';
 import type { FlightOffer } from '@/components/trips/FlightPickerView';
+// HOTEL-01 (2026-09-22): the tri-state type and its words come from the ONE helper
+// (src/lib/travel/stated.ts) — this leaf binds them to the carrier's phrase.
+import { type Stated, stated } from '@/lib/travel/stated';
 
 /** What a fare shows when the payload carried no value for a field. */
 export const NOT_STATED = 'not stated by the carrier';
 
-/** True / false / null — null is the carrier's silence, never a default. */
-export type Stated<T> = T | null;
+/** True / false / null — null is the carrier's silence, never a default (the one helper's type). */
+export type { Stated };
 
 export interface FareAttributes {
   /** segmentFares[].cabin — the cabin of the first segment, or 'mixed' when segments differ. */
@@ -286,9 +289,7 @@ export function filtersStatement(ui: FlightUiFilters): string {
   return parts.join(' · ');
 }
 
-/** The words a tri-state attribute renders as. */
+/** The words a tri-state attribute renders as — the one helper, bound to the carrier's phrase. */
 export function statedText(v: Stated<boolean> | undefined, yes: string, no: string): string {
-  if (v === true) return yes;
-  if (v === false) return no;
-  return NOT_STATED;
+  return stated(v, yes, no, NOT_STATED);
 }

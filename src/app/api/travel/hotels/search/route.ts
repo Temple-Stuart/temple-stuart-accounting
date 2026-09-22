@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
-import { searchHotelRates, liteApiHotelToRecommendation } from '@/lib/liteapiClient';
+import { searchHotelRates, liteApiHotelToRecommendation, liteApiPaymentEnv } from '@/lib/liteapiClient';
 import { findDestinationCoords } from '@/lib/destinations';
+import { parseHotelFilters } from '@/lib/hotels/searchContract';
+import { hotelCardsOf } from '@/lib/hotels/rates';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
 
@@ -63,6 +65,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // HOTEL-01 (2026-09-22): the vendor's own filter and sort contract — star
+    // rating, guest-rating floor, refundable only, board type, sort — validated BY
+    // NAME between the guards and forwarded unchanged. An unknown query name is
+    // refused by name, a bad value by name; an absent one is not sent, so the
+    // vendor's own default applies. A 400 here never consumes a daily-cap slot.
+    const parsed = parseHotelFilters([...params.keys()], (n) => params.get(n));
+    if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
+    const filters = parsed.filters;
+
     // GUARD 2 — daily provider spend cap, immediately before the provider call.
     await reserveTravelSearch('liteapi');
 
@@ -92,15 +103,24 @@ export async function GET(request: NextRequest) {
       ...(guestNationality ? { guestNationality } : {}),
       ...(coords ? { latitude: coords.lat, longitude: coords.lng } : {}),
       ...(Number.isFinite(radiusMeters) ? { radiusMeters } : {}),
+      ...filters,
     });
 
     // Map into the canonical, image-rich recommendation shape (same mapper the
     // tier-gated AI assistant uses — exported lib fn, no TripPlannerAI coupling).
     const results = hotels.map((h, idx) => liteApiHotelToRecommendation(h, idx, 'accommodation'));
+    // HOTEL-01: A HOTEL APPEARS ONCE, A RATE SAYS WHAT IT BUYS — every rate the
+    // vendor quoted, tri-state from the payload (src/lib/hotels/rates.ts), beside
+    // the one-price recommendation shape the other readers still consume.
+    const cards = hotelCardsOf(hotels);
 
     return NextResponse.json({
       results,
+      cards,
       count: results.length,
+      // HOTEL-01: which LiteAPI environment priced this answer — from the env the
+      // client resolves (sandbox by default), so the screen can say so honestly.
+      env: liteApiPaymentEnv(),
     });
 
   } catch (error) {

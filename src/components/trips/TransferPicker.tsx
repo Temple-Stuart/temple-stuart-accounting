@@ -346,11 +346,6 @@ export default function TransferPicker({
             </div>
           ))}
 
-          {currentTransfers.length > 0 && (
-            <div className="p-3 bg-white text-xs text-text-faint text-center">
-              ⚠️ Test data from Amadeus API — prices may not reflect actual rates
-            </div>
-          )}
         </div>
       )}
     </div>

@@ -351,6 +351,8 @@ export interface DrillRow {
   readonly vendor: string | null;
   readonly provider: string | null;
   readonly tripItemId: string | null;
+  /** HOTEL-01: a trip item's vendorOptionType (lodging, flight, activity…), so a stay's unstated check-in can be named. */
+  readonly itemType: string | null;
   readonly planned: number | null;
   readonly actual: number | null;
   readonly actualSource: ActualSource | null;
@@ -392,6 +394,7 @@ export interface DrillEventInput {
   vendor?: string | null;
   provider?: string | null;
   tripItemId?: string | null;
+  itemType?: string | null;
 }
 
 /**
@@ -449,6 +452,7 @@ export function buildDrill(e: DrillEventInput, taskCosts?: TaskCosts | null, rou
     vendor: e.vendor ?? null,
     provider: e.provider ?? null,
     tripItemId: e.tripItemId ?? null,
+    itemType: e.itemType ?? null,
     planned,
     actual,
     actualSource,

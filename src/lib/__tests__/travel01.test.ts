@@ -141,7 +141,7 @@ test('an item with a start and no end is a flagged marker, never given a length'
   assert.doesNotMatch(code(LEAF), /'\d{1,2}:\d{2}'|"\d{1,2}:\d{2}"/, 'no literal clock in the leaf');
 });
 
-test("a flight's geometry is unchanged, and a stay stays all-day", () => {
+test("a flight's geometry is unchanged, and a stay takes its stated window (HOTEL-01, 2026-09-22)", () => {
   const by = overlaid();
   const fl = by('e-fl');
   assert.equal(fl.start_time, '08:00:00');
@@ -149,12 +149,21 @@ test("a flight's geometry is unchanged, and a stay stays all-day", () => {
   assert.equal(fl.provider, 'LiteAPI flights');
   assert.equal(fl.trip_item_id, 'ti-fl');
   const lo = by('e-lo');
-  assert.equal(lo.start_time, null, 'a stay is never given the lodging window as a clock');
-  assert.equal(lo.end_time, null);
+  // HOTEL-01 (2026-09-22): a stay with a STATED check-in / check-out window takes it on
+  // the day like any date-only item; the 15:00 / 11:00 vendor-commit used to invent is
+  // gone, so a stored window is a stated one. An unstated one stays all-day (below).
+  assert.equal(lo.start_time, '15:00', 'a stay with a stated window takes it');
+  assert.equal(lo.end_time, '11:00');
+  const unstatedStay = overlayTripItems(
+    [{ id: 'e-lo2', source: 'trip', source_id: 'trip:bali:vendor:ho-2', start_time: null, end_time: null, location: null } as TripOverlayEvent & { id: string }],
+    [{ id: 'ti-lo2', tripId: 'bali', vendorOptionId: 'ho-2', vendorOptionType: 'lodging', category: 'accommodation', vendor: 'Ibis', vendor_name: 'Ibis', location: 'Kata', block_start_time: null, block_end_time: null }],
+  )[0];
+  assert.equal(unstatedStay.start_time, null, 'a stay with no stated window stays all-day — no clock is invented');
+  assert.equal(unstatedStay.end_time, null);
   assert.equal(lo.location, 'Ubud');
   assert.equal(lo.provider, 'LiteAPI');
-  assert.deepEqual([...DATE_ONLY_TRIP_TYPES], ['activity', 'transfer', 'vehicle']);
-  assert.deepEqual([...TIMED_BY_THEMSELVES], ['flight', 'lodging']);
+  assert.deepEqual([...DATE_ONLY_TRIP_TYPES], ['activity', 'transfer', 'vehicle', 'lodging']);
+  assert.deepEqual([...TIMED_BY_THEMSELVES], ['flight']);
   assert.equal(isDateOnlyTripType('flight'), false);
   assert.equal(isDateOnlyTripType('activity'), true);
   // Rows that are not a trip vendor row are returned as they were; the input is untouched.

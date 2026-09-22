@@ -105,7 +105,10 @@ test('a null baggage field renders "not stated by the carrier" — never a coerc
   // The adapter no longer coerces the carrier's silence into "not refundable".
   const adapter = code(ADAPTER);
   assert.doesNotMatch(adapter, /!!o\.terms|conditions:/);
-  assert.match(adapter, /const statedBoolean = \(v: unknown\): Stated<boolean> => \(typeof v === 'boolean' \? v : null\);/);
+  // HOTEL-01 (2026-09-22): the readers come from the ONE tri-state helper — no local copy in the adapter.
+  assert.match(adapter, /import \{ statedBoolean, statedString \} from '@\/lib\/travel\/stated';/);
+  assert.doesNotMatch(adapter, /const statedBoolean =|const statedString =/);
+  assert.match(code('src/lib/travel/stated.ts'), /export function statedBoolean\(v: unknown\): Stated<boolean> \{\n  return typeof v === 'boolean' \? v : null;\n\}/);
   const attrs = adapter.slice(adapter.indexOf('export function fareAttributesOf('), adapter.indexOf('export function segmentViewOf('));
   assert.doesNotMatch(attrs, /price|total/, 'no attribute is read from a price');
   // The view renders every attribute through the tri-state text, "not stated" for null.
@@ -206,7 +209,9 @@ test('no search fires on a filter change — the SEARCH press is the only trigge
   const bar = view.slice(view.indexOf('data-flight-filters>'), view.indexOf('data-flight-filters-stated'));
   assert.doesNotMatch(bar, /onSearchLeg|fetch\(/, 'the filter controls change the leg only');
   assert.equal((bar.match(/setFilters\(leg, \{/g) ?? []).length, 6, 'six controls: cabin, stops, refundable, checked bag, departure, sort');
-  assert.match(view, /data-search-count=\{searchCount\}/);
+  // HOTEL-01 (2026-09-22): the count is the shared SearchCount control.
+  assert.match(view, /<SearchCount count=\{searchCount\} \/>/);
+  assert.match(code('src/components/trips/SearchCount.tsx'), /data-search-count=\{count\}/);
   for (const f of CONTAINERS) {
     const c = code(f);
     assert.match(c, /body: JSON\.stringify\(\{ legs: searchLegs, adults: [^,]+, currency: 'USD', \.\.\.searchRequestOf\(leg\.filters\) \}\)/, `${f} sends the screen's filters`);

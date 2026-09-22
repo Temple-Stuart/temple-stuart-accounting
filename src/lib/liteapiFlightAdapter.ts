@@ -26,6 +26,8 @@ import type { FlightSearchResult, FlightSegment, FlightJourney, FlightOffer as L
 import type { FlightOffer } from '@/components/trips/FlightPickerView';
 import type { FareAttributes, FlightSegmentView, Stated } from '@/lib/flights/fares';
 import { flightIdentityOf } from '@/lib/flights/fares';
+// HOTEL-01 (2026-09-22): the tri-state readers come from the ONE helper — no local copy.
+import { statedBoolean, statedString } from '@/lib/travel/stated';
 
 /** "PT7H45M" → "7h 45m"; falls back to minutes; '' when neither exists. */
 function formatDuration(iso8601?: string, minutes?: number): string {
@@ -107,10 +109,7 @@ function journeyDirectionDuration(j: FlightJourney, direction: 'OUTBOUND' | 'INB
   return { duration: '' };
 }
 
-// ─── FLIGHT-01: the stated attributes, tri-state ─────────────────────────────
-
-const statedString = (v: unknown): Stated<string> => (typeof v === 'string' && v.trim() !== '' ? v : null);
-const statedBoolean = (v: unknown): Stated<boolean> => (typeof v === 'boolean' ? v : null);
+// ─── FLIGHT-01: the stated attributes, tri-state (readers: src/lib/travel/stated.ts) ──
 
 /** The vendor's included-bag line for one bag type, as it states it — pieces · weight, or its own description. */
 function includedBagDetail(o: LiteApiOffer, bagType: 'cabin' | 'checked'): Stated<string> {

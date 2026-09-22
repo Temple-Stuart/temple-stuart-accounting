@@ -6,6 +6,8 @@
 // DATA.columnHeader micro-label is the one shared class string (ds.ts:225).
 import { useState } from 'react';
 import { DATA } from '@/lib/ds';
+// HOTEL-01 (2026-09-22): the session search count is one shared control.
+import SearchCount from './SearchCount';
 import {
   CABIN_LABEL, CABIN_OPTIONS, DEPARTURE_OPTIONS, NOT_STATED, SORT_OPTIONS, STOPS_OPTIONS,
   carrierLineOf, countLine, fareDifference, filtersStatement, groupFlights, lowestFare, lowestFareLine, money, statedText,
@@ -289,9 +291,7 @@ export default function FlightPickerView({
                       )}
                       {/* FLIGHT-01: the ONLY control that fires a search — a filter change never does.
                           The count beside it is how many metered searches this session has sent. */}
-                      <span className="font-mono text-[10px] text-text-faint" data-search-count={searchCount}>
-                        {searchCount} search{searchCount === 1 ? '' : 'es'} this session
-                      </span>
+                      <SearchCount count={searchCount} />
                       <button onClick={() => onSearchLeg(leg.id)} disabled={leg.loading}
                         className="bg-brand-gold px-5 py-3.5 lg:py-2.5 font-mono text-xs lg:text-[10.5px] font-semibold tracking-widest text-white hover:bg-brand-gold/90 disabled:opacity-50">
                         {leg.loading ? 'SEARCHING…' : 'SEARCH'}

@@ -89,7 +89,7 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { readdirSync, statSync } from 'node:fs';
-import { code as codeOf, comments as commentsOf, rejoin } from '../src/lib/sourceText';
+import { code as codeOf, comments as commentsOf, functionBody, rejoin } from '../src/lib/sourceText';
 import { CHAIN_STATES, KIND_FACTS, EVENT_SOURCE_OWNER, buildChain } from '../src/lib/calendar/chain';
 import { LINKABLE_KINDS, requiresInstant } from '../src/lib/calendar/linkKeys';
 import { sumLinks } from '../src/lib/calendar/links';
@@ -102,6 +102,11 @@ import { FILTER_KEYS, SORT_BY, parseFilters, parseSort } from '../src/lib/flight
 import { DEFAULT_UI_FILTERS, NOT_STATED, carrierLineOf, countLine, fareDifference, filtersStatement, groupFlights, lowestFare, lowestFareLine, searchRequestOf } from '../src/lib/flights/fares';
 import { liteApiResultsToFlightOffers } from '../src/lib/liteapiFlightAdapter';
 import { BKK_HKT_EXPECTED, BKK_HKT_RATES } from '../src/lib/__tests__/fixtureFlightRatesBkkHkt';
+import { DEFAULT_HOTEL_FILTERS, NOT_STATED as HOTEL_NOT_STATED, countLine as hotelCountLine, hhmmOf, hotelCardsOf, hotelFiltersStatement, hotelSearchParamsOf, lowestRate, lowestRateLine, rateDifference } from '../src/lib/hotels/rates';
+import { parseHotelFilters } from '../src/lib/hotels/searchContract';
+import { PHUKET_EXPECTED, PHUKET_RATES } from '../src/lib/__tests__/fixtureHotelRatesPhuket';
+import { DATE_ONLY_TRIP_TYPES, TIMED_BY_THEMSELVES } from '../src/lib/calendar/tripItem';
+import { createHash } from 'crypto';
 import { classifyCadence, compileFormToRRule, expandBetween, expandForward, scheduleAnchor } from '../src/lib/operations/rruleHelpers';
 import { DEFAULT_ROUTINE_FORM } from '../src/components/workbench/operations/routines/types';
 import { PROBLEM_SHEET } from '../src/lib/problemSheet';
@@ -3071,7 +3076,10 @@ const travelFail = (m: string) => { travelViolations += 1; violations.push(`trav
   if (fl.start_time !== '08:00:00' || fl.end_time !== '13:00:00') travelFail(`a flight's own clock changed to ${fl.start_time}–${fl.end_time} — a flight keeps its duration geometry`);
   if (fl.provider !== 'LiteAPI flights' || fl.trip_item_id !== 'ti-fl') travelFail('a flight row does not name the provider it was booked through');
   const lo = rowOf('e-lo');
-  if (lo.start_time !== null || lo.end_time !== null) travelFail(`a stay was given a clock (${lo.start_time}–${lo.end_time}) — lodging stays all-day`);
+  // HOTEL-01 (2026-09-22): a stay with a STATED window takes it on the day (the invented
+  // 15:00 / 11:00 is gone from vendor-commit, so a stored window is a stated one); a stay
+  // with none stays all-day — asserted by the hotel law below.
+  if (lo.start_time !== '15:00' || lo.end_time !== '11:00') travelFail(`a stay with a stated window drew ${lo.start_time}–${lo.end_time} — it takes its stated check-in and check-out on the day (HOTEL-01)`);
   if (lo.location !== 'Ubud' || lo.provider !== 'LiteAPI') travelFail('a stay row does not carry its place and provider');
   if ('trip_item_id' in rowOf('e-trip') || 'trip_item_id' in rowOf('e-man')) travelFail('the overlay touched a row that is not a trip vendor row');
   if (clockOfTime('1970-01-01T09:30:00.000Z') !== '09:30' || clockOfTime(null) !== null) travelFail('clockOfTime no longer reads a @db.Time value to HH:MM');
@@ -3423,7 +3431,9 @@ const flightFnBody = (src: string, name: string): string => {
   if (changes.length !== 6 || writes.length !== 6) flightFail(`the filter bar has ${changes.length} onChange handler(s) and ${writes.length} setFilters write(s) — six controls, each writing the leg's filters and nothing else`);
   if (/onSearchLeg|onUpdateLeg\(leg\.id, \{ offers|loading: true/.test(bar)) flightFail('the filter bar reaches the search — a filter change only writes the leg');
   if (!/data-flight-filters-stated>[\s\S]{0,200}filtersStatement\(leg\.filters\)/.test(view)) flightFail(`${FLIGHT_VIEW} does not state, under the bar, what the next search will ask`);
-  if (!/data-search-count=\{searchCount\}/.test(view)) flightFail(`${FLIGHT_VIEW} does not show the session's search count beside the button`);
+  // HOTEL-01 (2026-09-22): the count is the one shared SearchCount control (src/components/trips/SearchCount.tsx).
+  if (!/<SearchCount count=\{searchCount\} \/>/.test(view)) flightFail(`${FLIGHT_VIEW} does not show the session's search count beside the button (the shared SearchCount control)`);
+  if (!/data-search-count=\{count\}/.test(codeOf('src/components/trips/SearchCount.tsx'))) flightFail('SearchCount no longer renders data-search-count');
   for (const f of FLIGHT_CONTAINERS) {
     const c = codeOf(f);
     let effects = 0;
@@ -3459,7 +3469,10 @@ const flightFnBody = (src: string, name: string): string => {
     const pinAt = pins.indexOf(`{ file: '${f}', sha256: '`);
     if (pinAt < 0) { flightFail(`${FLIGHT_PIN_FILE} no longer pins ${f}`); continue; }
     const pinLine = pins.slice(0, pinAt).split('\n').length;
-    const noteBlock = notes.split('\n').slice(Math.max(0, pinLine - 3), pinLine - 1).join('\n');
+    // HOTEL-01 (2026-09-22): a later ruling's dated re-pin note may stack ABOVE this
+    // one — the FLIGHT-01 note and its "Was" line must still stand, consecutive, in
+    // the comment block over the pin (up to three stacked notes).
+    const noteBlock = notes.split('\n').slice(Math.max(0, pinLine - 7), pinLine - 1).join('\n');
     if (!/FLIGHT-01 \(2026-09-22\): re-pinned — [^\n]+\. Search is not booking; no prebook\/verify\/book\/pay\/cancel call changed\.\n[^\n]*Was [0-9a-f]{64} at main b9eac34a\./.test(noteBlock)) flightFail(`${f}'s pin does not sit under a dated FLIGHT-01 note naming why, that search is not booking, and the hash it had on main`);
   }
   if (!/FLIGHT-01 \(2026-09-22\), search is not booking/.test(BOOKING_FLOW_BASE)) flightFail('BOOKING_FLOW_BASE does not record the FLIGHT-01 re-pin');
@@ -3473,6 +3486,256 @@ const flightFnBody = (src: string, name: string): string => {
 }
 if (flightViolations === 0) console.log(`✔ The flight law passed — the search route forwards ${FLIGHT_CALL_KEYS.length} validated keys and nothing else, the contract refuses an unknown filter or sort by name and invents no default; every fare attribute is tri-state from the payload and renders "${NOT_STATED}" when absent; BKK→HKT groups ${BKK_HKT_EXPECTED.fares} fares into ${BKK_HKT_EXPECTED.flights} flights with the Hahn Air row operated by Thai Vietjet Air; one onSearchLeg, no effect, six filter controls that only write the leg; ${FLIGHT_REPINNED.length} search-path files re-pinned, dated.`);
 else console.log(`✖ The flight law FAILED — ${flightViolations} violation(s).`);
+
+// ── THE HOTEL LAW (HOTEL-01, 2026-09-22) ─────────────────────────────────────
+// A HOTEL APPEARS ONCE, A RATE SAYS WHAT IT BUYS, AND NOTHING ON THE SCREEN IS
+// FROM A DEAD PROVIDER.
+//
+// FLIGHT-01's standard, applied to hotels. The search route forwarded city,
+// country, dates and adults and nothing else while the vendor's contract took
+// star rating, a guest-rating floor, refundable-only, board type and sort; the
+// mapper kept ONE rate per hotel (the first with a price) and dropped the rest
+// with every attribute; the showroom's picker hard-coded a null rating and named
+// a retired provider under its prices; vendor-commit gave every stay a 15:00 /
+// 11:00 nobody stated — an invented time, the class GRID-01 removed.
+//
+//   1. NO HOTEL SURFACE NAMES A PROVIDER OTHER THAN THE ONE THE ENV SELECTS. No
+//      hotel surface's code names Amadeus or Duffel, or attributes what it shows
+//      to any provider but LiteAPI; the results caption names LiteAPI; the
+//      sandbox footer reads the env the route sends, which reads LITEAPI_MODE.
+//   2. NO RATE ATTRIBUTE IS RENDERED FROM A VALUE THE PAYLOAD DID NOT CARRY. The
+//      hotel leaf reads every attribute through the ONE tri-state helper
+//      (src/lib/travel/stated.ts — no second reader anywhere), never `!!`; the
+//      view renders stars, the guest rating and every rate cell through
+//      starsText / statedText / NOT_STATED; the difference loop reads no price.
+//      Probed on the Phuket payload: five items → four hotels, the Ibis's four
+//      rates under one card cheapest first, a silent property all-null, the
+//      lowest-rate line and the difference lines verbatim.
+//   3. NO INVENTED CHECK-IN / CHECK-OUT TIME. vendor-commit holds no 15:00 / 11:00
+//      and writes the caller's stated clock or null; a stay is overlaid like any
+//      date-only item (a stated window draws on its days, an unstated one stays
+//      all-day); the panel and the grid name the property's silence; the
+//      container sends the property's clock only when the payload carried it.
+//   4. NO SEARCH FIRES ON A FILTER CHANGE. The view runs no effect and fetches
+//      nothing; its five controls write the filters and nothing else; the
+//      container fetches the search once, from its one search function, counted
+//      once; the route parses the contract between the guards and forwards it
+//      unchanged; the contract refuses an unknown name and a bad value by name and
+//      invents no default.
+//   5. THE BOOKING-FLOW PIN HOLDS, DATED. The seven files HOTEL-01 touched carry a
+//      dated HOTEL-01 re-pin note with the hash they had on main; no other file
+//      carries one; and the client's booking functions — prebook, book, status,
+//      cancel and their parsers, plus the paid content reads — hash BODY-FOR-BODY
+//      to what they were on main d56b2cc9. (The whole-file hashes are the travel law's.)
+const HOTEL_ROUTE = 'src/app/api/travel/hotels/search/route.ts';
+const HOTEL_CONTRACT = 'src/lib/hotels/searchContract.ts';
+const HOTEL_LEAF = 'src/lib/hotels/rates.ts';
+const HOTEL_VIEW = 'src/components/trips/HotelResultsView.tsx';
+const HOTEL_CONTAINER = 'src/components/trips/PublicHotelSearch.tsx';
+const HOTEL_CLIENT = 'src/lib/liteapiClient.ts';
+const HOTEL_COMMIT = 'src/app/api/trips/[id]/vendor-commit/route.ts';
+const HOTEL_TRIP_ITEM = 'src/lib/calendar/tripItem.ts';
+const HOTEL_PANEL = 'src/components/hub/EventDetailPanel.tsx';
+const HOTEL_GRID = 'src/components/shared/CalendarGrid.tsx';
+const STATED_LEAF = 'src/lib/travel/stated.ts';
+const HOTEL_SURFACES = [HOTEL_VIEW, HOTEL_CONTAINER, 'src/components/trips/HotelPicker.tsx', 'src/components/trips/CheckoutPanel.tsx', 'src/components/trips/HotelGallery.tsx', 'src/components/trips/HotelMap.tsx', 'src/components/trips/LodgingOptions.tsx', 'src/components/trips/TransferPicker.tsx'];
+const HOTEL_REPINNED = [HOTEL_ROUTE, HOTEL_VIEW, HOTEL_CONTAINER, 'src/components/trips/HotelPicker.tsx', HOTEL_CLIENT, 'src/lib/liteapiFlightAdapter.ts', 'src/components/trips/FlightPickerView.tsx'];
+/** The client's booking functions and paid content reads, hashed body-for-body on main d56b2cc9 (code half). */
+const HOTEL_BOOKING_FUNCTIONS: Record<string, string> = {
+  prebookRate: '4dd7916a01b7e0d6305a98f6c64d3d9878e24bc41f99e8564826e6a2b366d405',
+  bookRate: 'ba5ce89952e481bd596f410b1aba271b5125db44c59dcb5fdb4327db572cb965',
+  getBookingStatus: '4aa6e75fdacd576f8523bc8be6c3ba88a9df64fa13ac0a725f88ee6945836a2d',
+  cancelBooking: '709d32f1029c90aaabb5dc33d4819e333281987642b762bee196817b85dbfe03',
+  bookingObjectOf: 'f90ae8bfd4d9c3bfe5eb8ed8199e1d1f095c8d7c8a71a55b7b6ad29f9a66c789',
+  parseBookResult: 'a927130764815e4d5cfe1ad90f7a16df44f2c0a0222934fbf4b3e19f2a6bf61b',
+  cancellationObjectOf: '8d7b73a8d26ae00af2108a21964f15667ae3e0d9f39009b3893a538710ec3f2c',
+  parseCancelResult: 'd1b7e6430a29ada04033cf2e8f00ee0bf7cded39dcd3fbc96830eb642d335afd',
+  getHotelContent: '29a889449fb4bb36bc093ae6a314d92f227dbf341c715eb1b1fb0da01671cff2',
+  getHotelReviews: 'ce98b7ecc9a5b4de8443d0c443a95c0fa50f0853bf6a39a03cbbec2ddbb95531',
+};
+let hotelViolations = 0;
+const hotelFail = (m: string) => { hotelViolations += 1; violations.push(`hotel law: ${m} (HOTEL-01)`); };
+
+// 1. no hotel surface names a provider other than the one the env selects.
+{
+  for (const f of HOTEL_SURFACES) {
+    if (!existsSync(resolve(ROOT, f))) { hotelFail(`${f} is gone`); continue; }
+    const body = codeOf(f);
+    const dead = body.match(/amadeus|duffel/i);
+    if (dead) hotelFail(`${f} names ${dead[0]} — a retired provider on a hotel surface`);
+    const other = /(from|via|powered by|data from)\s+(?!liteapi)[A-Za-z.]+\s+API/i.exec(body);
+    if (other) hotelFail(`${f} attributes the screen to another provider: "${other[0]}"`);
+  }
+  const view = codeOf(HOTEL_VIEW);
+  if (!/TRAVEL \/ HOTEL SEARCH — LIVE PRICES VIA LITEAPI/.test(view)) hotelFail(`${HOTEL_VIEW} no longer names LiteAPI as the provider`);
+  if (!/env === 'sandbox' \? 'Sandbox prices — not bookable'/.test(view)) hotelFail(`${HOTEL_VIEW} does not say "Sandbox prices — not bookable" from the env`);
+  if (!/setEnv\(data\.env === 'live' \? 'live' : data\.env === 'sandbox' \? 'sandbox' : null\);/.test(codeOf(HOTEL_CONTAINER))) hotelFail(`${HOTEL_CONTAINER} does not take the env from the route's answer`);
+  if (!/env: liteApiPaymentEnv\(\),/.test(codeOf(HOTEL_ROUTE))) hotelFail(`${HOTEL_ROUTE} does not send the env it prices in`);
+  if (!/return process\.env\.LITEAPI_MODE === 'production' \? 'production' : 'sandbox';/.test(codeOf(HOTEL_CLIENT))) hotelFail(`${HOTEL_CLIENT} no longer resolves the mode from LITEAPI_MODE alone`);
+}
+
+// 2. no rate attribute from a value the payload did not carry — one tri-state helper.
+{
+  const leaf = codeOf(HOTEL_LEAF);
+  if (/!!/.test(leaf)) hotelFail(`${HOTEL_LEAF} coerces with !! — silence is null, never false`);
+  if (!/import \{ type Stated, stated, statedBoolean, statedNumber, statedString \} from '@\/lib\/travel\/stated';/.test(leaf)) hotelFail(`${HOTEL_LEAF} does not read the one tri-state helper`);
+  for (const f of tsFiles(resolve(ROOT, 'src')).map((abs) => abs.replace(`${ROOT}/`, ''))) {
+    if (f === STATED_LEAF) continue;
+    if (/(function|const) stated(Boolean|String|Number) ?[=(]/.test(codeOf(f))) hotelFail(`${f} defines a second tri-state reader — there is one, in ${STATED_LEAF}`);
+  }
+  for (const fn of ['statedString', 'statedBoolean', 'statedNumber', 'stated']) if (!new RegExp(`export function ${fn}\\(`).test(codeOf(STATED_LEAF))) hotelFail(`${STATED_LEAF} no longer exports ${fn}()`);
+  const attrs = functionBody(leaf, 'rateViewOf') ?? '';
+  if (!attrs) hotelFail(`${HOTEL_LEAF} no longer exports rateViewOf`);
+  for (const k of ['roomName: statedString(', 'boardType,', 'boardName: statedString(', 'breakfast: breakfastOf(', 'refundable: refundableOf(', 'cancelDeadline: cancelDeadlineOf(', 'taxesIncluded: taxesIncludedOf(', 'maxOccupancy: statedNumber(']) {
+    if (!attrs.includes(k)) hotelFail(`${HOTEL_LEAF}'s rateViewOf does not read "${k.replace(/[:(,].*$/, '')}" through a stated reader`);
+  }
+  const diff = functionBody(leaf, 'rateDifference') ?? '';
+  const loopAt = diff.indexOf('for (const { key, label } of DIFFERENCE_ATTRIBUTES)');
+  const loop = loopAt >= 0 ? diff.slice(loopAt, diff.indexOf('if (selected.roomName', loopAt)) : '';
+  if (!loop) hotelFail(`${HOTEL_LEAF}'s rateDifference no longer walks DIFFERENCE_ATTRIBUTES`);
+  else if (/total|perNight|price|delta/.test(loop)) hotelFail(`${HOTEL_LEAF}'s rateDifference reasons from a price`);
+  if (!/unstated\.push\(label\); continue;/.test(loop)) hotelFail(`${HOTEL_LEAF}'s rateDifference no longer sets an unstated attribute aside`);
+  if (HOTEL_NOT_STATED !== 'not stated by the property') hotelFail(`the hotel NOT_STATED reads "${HOTEL_NOT_STATED}"`);
+  const view = codeOf(HOTEL_VIEW);
+  if (!/data-hotel-stars>\{starsText\(card\.stars\)\}/.test(view)) hotelFail(`${HOTEL_VIEW} renders the stars without starsText() — a null must read "not stated"`);
+  if (!/card\.guestRating === null \? `rating \$\{NOT_STATED\}`/.test(view)) hotelFail(`${HOTEL_VIEW} renders a null guest rating as something other than "not stated"`);
+  for (const m of view.matchAll(/data-rate-field="([a-zA-Z]+)"[^\n]*/g)) {
+    if (m[1] === 'price') continue;
+    if (!/statedText\(|NOT_STATED/.test(m[0])) hotelFail(`${HOTEL_VIEW} renders the ${m[1]} cell without statedText() or NOT_STATED`);
+  }
+  if ((view.match(/data-rate-field="/g) ?? []).length < 6) hotelFail(`${HOTEL_VIEW} renders fewer than six rate cells — price, room, board, cancellation, taxes, guests`);
+  // Probed on the Phuket payload.
+  const cards = hotelCardsOf(PHUKET_RATES);
+  if (cards.length !== PHUKET_EXPECTED.hotels || cards.reduce((n, c) => n + c.rates.length, 0) !== PHUKET_EXPECTED.rates) hotelFail(`Phuket groups to ${hotelCountLine(cards)} — the payload holds ${PHUKET_EXPECTED.hotels} hotels · ${PHUKET_EXPECTED.rates} rates (five items)`);
+  const ibis = cards.find((c) => c.hotelId === 'lp-ibis');
+  if (!ibis || ibis.rates.length !== PHUKET_EXPECTED.ibisRates || ibis.rates[0].rateId !== PHUKET_EXPECTED.lowest.rateId) hotelFail(`the Ibis holds ${ibis?.rates.length ?? 0} rates under one card, cheapest ${ibis?.rates[0]?.rateId} — four, cheapest first`);
+  const gh = cards.find((c) => c.hotelId === 'lp-guesthouse');
+  if (!gh || gh.stars !== null || gh.guestRating !== null || gh.rates[0]?.refundable !== null || gh.rates[0]?.breakfast !== null || gh.rates[0]?.roomName !== null) hotelFail('a property that states no stars, rating, room, board or policy reads something other than null');
+  const low = lowestRate(cards);
+  if (!low || lowestRateLine(low) !== PHUKET_EXPECTED.lowest.line) hotelFail(`the lowest-rate line reads "${lowestRateLine(low)}"`);
+  const rateOf = (id: string) => cards.flatMap((c) => c.rates).find((r) => r.rateId === id);
+  for (const k of ['breakfast', 'villa', 'guesthouse'] as const) {
+    const r = rateOf(PHUKET_EXPECTED[k].rateId);
+    if (low && (!r || rateDifference(r, low.rate).line !== PHUKET_EXPECTED[k].difference)) hotelFail(`the ${k} difference reads "${r && low ? rateDifference(r, low.rate).line : '(none)'}"`);
+  }
+}
+
+// 3. no invented check-in / check-out time.
+{
+  const commit = codeOf(HOTEL_COMMIT);
+  if (/'15:00'|'11:00'/.test(commit)) hotelFail(`${HOTEL_COMMIT} still holds the hotel-standard 15:00 / 11:00 — an invented time`);
+  if (!/const blockStart = blockStartParse\.value;\n\s+const blockEnd = blockEndParse\.value;/.test(commit)) hotelFail(`${HOTEL_COMMIT} does not write the caller's stated window or null`);
+  if (!/homeTime: startTime \|\| null,\n\s+destDate: end, destTime: endTime \|\| null,/.test(commit)) hotelFail(`${HOTEL_COMMIT} does not write the ledger's clock as stated or null`);
+  if (!(DATE_ONLY_TRIP_TYPES as readonly string[]).includes('lodging')) hotelFail(`${HOTEL_TRIP_ITEM} does not overlay a stay's stated window`);
+  if ((TIMED_BY_THEMSELVES as readonly string[]).includes('lodging')) hotelFail(`${HOTEL_TRIP_ITEM} still treats a stay as timed by itself`);
+  const clockAt = (hhmm: string) => new Date(`1970-01-01T${hhmm}:00.000Z`);
+  const stays: TripItemRow[] = [
+    { id: 'ti-s', tripId: 't', vendorOptionId: 'h-s', vendorOptionType: 'lodging', category: 'accommodation', vendor: 'Kata Rocks', vendor_name: 'LiteAPI', location: 'Phuket', block_start_time: clockAt('16:00'), block_end_time: clockAt('11:00') },
+    { id: 'ti-u', tripId: 't', vendorOptionId: 'h-u', vendorOptionType: 'lodging', category: 'accommodation', vendor: 'Kata Guesthouse', vendor_name: 'LiteAPI', location: 'Phuket', block_start_time: null, block_end_time: null },
+  ];
+  const stayRows: Array<TripOverlayEvent & { id: string }> = [
+    { id: 'e-s', source: 'trip', source_id: 'trip:t:vendor:h-s', start_time: null, end_time: null, location: null },
+    { id: 'e-u', source: 'trip', source_id: 'trip:t:vendor:h-u', start_time: null, end_time: null, location: null },
+  ];
+  const overlaid = overlayTripItems(stayRows, stays);
+  if (overlaid[0].start_time !== '16:00' || overlaid[0].end_time !== '11:00') hotelFail(`a stay with a stated 16:00 / 11:00 window drew ${overlaid[0].start_time}–${overlaid[0].end_time}`);
+  if (overlaid[1].start_time !== null || overlaid[1].end_time !== null) hotelFail(`a stay with no stated window was given ${overlaid[1].start_time}–${overlaid[1].end_time} — a clock nobody stated`);
+  if (hhmmOf('04:00 PM') !== '16:00' || hhmmOf('11:00 AM') !== '11:00' || hhmmOf('12:00 AM') !== '00:00' || hhmmOf('noon') !== null) hotelFail("hhmmOf no longer reads the vendor's 12-hour clock to HH:MM (and nothing else)");
+  const container = codeOf(HOTEL_CONTAINER);
+  if (!/const startTime = hhmmOf\(card\.checkinTime\);\n\s+const endTime = hhmmOf\(card\.checkoutTime\);/.test(container) || !/\.\.\.\(startTime \? \{ startTime \} : \{\}\),\n\s+\.\.\.\(endTime \? \{ endTime \} : \{\}\),/.test(container)) hotelFail(`${HOTEL_CONTAINER} does not send the property's stated clock — and only that`);
+  if (!/row\.kind === 'trip_item' && row\.itemType === 'lodging'\n\s+\? 'check-in time not stated by the property'/.test(codeOf(HOTEL_PANEL))) hotelFail(`${HOTEL_PANEL} does not name an unstated check-in time`);
+  if (!/event\.itemType === 'lodging' \? `⚠ \$\{event\.title\} · check-in time not stated` : event\.title/.test(codeOf(HOTEL_GRID))) hotelFail(`${HOTEL_GRID} does not flag a stay without a stated check-in`);
+  if (!/checkinTime: statedString\(times\?\.checkin_start\),\n\s+checkoutTime: statedString\(times\?\.checkout\),/.test(codeOf(HOTEL_LEAF))) hotelFail(`${HOTEL_LEAF} does not read the property's stated clock by the vendor's documented keys (checkin_start, checkout)`);
+  if (!/const blockStartParse = parseTimeOrNull\(startTime, 'block_start_time'\);\n\s+if \(blockStartParse\.error\) return blockStartParse\.error;/.test(commit)) hotelFail(`${HOTEL_COMMIT} does not refuse a malformed commit time by name — a silently nulled time is a time nobody stated`);
+}
+
+// 4. no search on a filter change; the route forwards the contract by name.
+{
+  const view = codeOf(HOTEL_VIEW);
+  if (/useEffect|useLayoutEffect/.test(view)) hotelFail(`${HOTEL_VIEW} runs an effect`);
+  if (/\bfetch\(/.test(view)) hotelFail(`${HOTEL_VIEW} fetches`);
+  const barFrom = view.indexOf('data-hotel-filters>');
+  const barTo = view.indexOf('data-hotel-filters-stated');
+  const bar = barFrom >= 0 && barTo > barFrom ? view.slice(barFrom, barTo) : '';
+  if (!bar) hotelFail(`${HOTEL_VIEW} has no filter bar between data-hotel-filters and data-hotel-filters-stated`);
+  const changes = (bar.match(/onChange=\{/g) ?? []).length;
+  const writes = (bar.match(/onFiltersChange\(\{/g) ?? []).length;
+  if (changes !== 5 || writes !== 5) hotelFail(`the filter bar has ${changes} onChange handler(s) and ${writes} onFiltersChange write(s) — five controls, each writing the filters and nothing else`);
+  if (/onBook|onSave|onSelect|onSubmit|\bfetch\(/.test(bar)) hotelFail('the filter bar reaches beyond the filters');
+  if (!/<SearchCount count=\{searchCount\} \/>/.test(view)) hotelFail(`${HOTEL_VIEW} does not show the session's search count (the shared SearchCount control)`);
+  if (!/data-hotel-filters-stated>[\s\S]{0,120}hotelFiltersStatement\(filters\)/.test(view)) hotelFail(`${HOTEL_VIEW} does not state what the next search asks`);
+  const container = codeOf(HOTEL_CONTAINER);
+  if (/useEffect/.test(container)) hotelFail(`${HOTEL_CONTAINER} runs an effect`);
+  if ((container.match(/fetch\(`\/api\/travel\/hotels\/search/g) ?? []).length !== 1) hotelFail(`${HOTEL_CONTAINER} fetches the search other than once`);
+  if ((container.match(/setSearchCount\(\(n\) => n \+ 1\)/g) ?? []).length !== 1) hotelFail(`${HOTEL_CONTAINER} counts a search other than once`);
+  const searchAt = container.indexOf('const search = async');
+  const countAt = container.indexOf('setSearchCount((n) => n + 1)');
+  const fetchAt = container.indexOf('fetch(`/api/travel/hotels/search');
+  if (searchAt < 0 || countAt < searchAt || fetchAt < countAt) hotelFail(`${HOTEL_CONTAINER}'s count is not inside search(), before its fetch`);
+  if (!/\.\.\.hotelSearchParamsOf\(filters\),/.test(container)) hotelFail(`${HOTEL_CONTAINER} does not send the screen's filters as the vendor's names`);
+  if (Object.keys(hotelSearchParamsOf(DEFAULT_HOTEL_FILTERS)).length !== 0) hotelFail('a control at "any" sends something — the vendor\'s default must apply');
+  if (!/the vendor's default/.test(hotelFiltersStatement(DEFAULT_HOTEL_FILTERS))) hotelFail('the filters statement does not say the vendor\'s default applies');
+  const route = codeOf(HOTEL_ROUTE);
+  const order = ["rateLimit(`hotel-search:", 'parseHotelFilters([...params.keys()]', "reserveTravelSearch('liteapi')", 'searchHotelRates({'];
+  const idx = order.map((s) => route.indexOf(s));
+  for (let i = 0; i < idx.length; i++) {
+    if (idx[i] < 0) hotelFail(`${HOTEL_ROUTE} lost ${order[i]}`);
+    else if (i > 0 && idx[i] <= idx[i - 1]) hotelFail(`${HOTEL_ROUTE} runs ${order[i]} before ${order[i - 1]} — rateLimit → validate → reserve → call`);
+  }
+  if (!/\.\.\.\(Number\.isFinite\(radiusMeters\) \? \{ radiusMeters \} : \{\}\),\n\s+\.\.\.filters,\n\s+\}\);/.test(route)) hotelFail(`${HOTEL_ROUTE} does not forward the parsed filters unchanged, and only them`);
+  // The contract file itself: the accepted names are the vendor's, and only those.
+  const contract = codeOf(HOTEL_CONTRACT);
+  if (!/export const HOTEL_FILTER_PARAMS = \['starRating', 'refundableRatesOnly', 'boardType', 'sort', 'sortDirection'\] as const;/.test(contract)) hotelFail(`${HOTEL_CONTRACT} admits a filter name the vendor does not document on one scale, or lost one`);
+  if (/minRating/.test(contract)) hotelFail(`${HOTEL_CONTRACT} accepts minRating — documented on two scales (0–5 and out of 10); one number cannot ride both calls`);
+  if (/minPrice|maxPrice|priceRange/.test(contract)) hotelFail(`${HOTEL_CONTRACT} names a price range — the vendor documents none; the range narrows on the page`);
+  if (!/export function parseHotelFilters\(names: readonly string\[\], get: \(name: string\) => string \| null\)/.test(contract)) hotelFail(`${HOTEL_CONTRACT} no longer exports parseHotelFilters(names, get)`);
+  const get = (o: Record<string, string>) => (n: string) => (n in o ? o[n] : null);
+  const unknown = parseHotelFilters(['city', 'maxPrice'], get({ city: 'x', maxPrice: '5' }));
+  if (!('error' in unknown) || !/^maxPrice is not a supported search parameter \(supported: /.test(unknown.error)) hotelFail(`parseHotelFilters admits an unknown name or refuses it without its name — ${JSON.stringify(unknown)}`);
+  const bad = parseHotelFilters(['starRating'], get({ starRating: '4.2' }));
+  if (!('error' in bad) || !/^starRating must be a comma list of /.test(bad.error)) hotelFail(`parseHotelFilters admits starRating 4.2 — ${JSON.stringify(bad)}`);
+  const badSort = parseHotelFilters(['sort'], get({ sort: 'rating' }));
+  if (!('error' in badSort) || !/^sort must be one of top_picks, price, revenue$/.test(badSort.error)) hotelFail(`parseHotelFilters admits sort rating — the vendor documents no rating sort — ${JSON.stringify(badSort)}`);
+  const none = parseHotelFilters(['city'], get({ city: 'x' }));
+  if (!('filters' in none) || Object.keys(none.filters).length !== 0) hotelFail(`parseHotelFilters invents a default — ${JSON.stringify(none)}`);
+  const full = parseHotelFilters(['starRating', 'refundableRatesOnly', 'sort'], get({ starRating: '4,4.5,5', refundableRatesOnly: 'true', sort: 'price' }));
+  if (!('filters' in full) || JSON.stringify(full.filters) !== JSON.stringify({ starRating: [4, 4.5, 5], refundableRatesOnly: true, sort: [{ field: 'price', direction: 'ascending' }] })) hotelFail(`the screen's request does not survive the contract unchanged — ${JSON.stringify(full)}`);
+  const client = codeOf(HOTEL_CLIENT);
+  for (const k of ['starRating', 'refundableRatesOnly', 'boardType', 'sort', 'maxRatesPerHotel']) {
+    if (!new RegExp(`\\.\\.\\.\\([^)]*params\\.${k}[^)]*\\? \\{ ${k}: `).test(client)) hotelFail(`${HOTEL_CLIENT} does not carry ${k} to /hotels/rates verbatim, only when set`);
+  }
+}
+
+// 5. the pin holds, dated; the booking functions byte-identical to main.
+{
+  const notes = commentsOf('src/lib/travelBookingFlow.ts');
+  const pins = codeOf('src/lib/travelBookingFlow.ts');
+  const count = (notes.match(/HOTEL-01 \(2026-09-22\): re-pinned/g) ?? []).length;
+  if (count !== HOTEL_REPINNED.length) hotelFail(`src/lib/travelBookingFlow.ts carries ${count} HOTEL-01 re-pin note(s) — ${HOTEL_REPINNED.length}: the route, the two hotel surfaces, the showroom picker, the client, the flight adapter and the flight view`);
+  for (const f of HOTEL_REPINNED) {
+    const pinAt = pins.indexOf(`{ file: '${f}', sha256: '`);
+    if (pinAt < 0) { hotelFail(`src/lib/travelBookingFlow.ts no longer pins ${f}`); continue; }
+    const pinLine = pins.slice(0, pinAt).split('\n').length;
+    const above = notes.split('\n').slice(Math.max(0, pinLine - 3), pinLine - 1).join('\n');
+    if (!/HOTEL-01 \(2026-09-22\): re-pinned — [^\n]+\. Search and display are not booking; no prebook\/book\/pay\/cancel call changed\.\n[^\n]*Was [0-9a-f]{64} at main d56b2cc9\./.test(above)) hotelFail(`${f}'s pin does not sit directly under a dated HOTEL-01 note naming why, that search and display are not booking, and the hash it had on main d56b2cc9`);
+  }
+  for (const pin of BOOKING_FLOW_FILES) {
+    if (HOTEL_REPINNED.includes(pin.file)) continue;
+    const pinAt = pins.indexOf(`{ file: '${pin.file}', sha256: '`);
+    const pinLine = pins.slice(0, pinAt).split('\n').length;
+    if (/HOTEL-01/.test(notes.split('\n').slice(Math.max(0, pinLine - 3), pinLine - 1).join('\n'))) hotelFail(`${pin.file} carries a HOTEL-01 note — HOTEL-01 re-pinned ${HOTEL_REPINNED.length} files and nothing else`);
+  }
+  if (!/HOTEL-01 \(2026-09-22\), search and display are not booking/.test(BOOKING_FLOW_BASE)) hotelFail('BOOKING_FLOW_BASE does not record the HOTEL-01 re-pin');
+  const client = codeOf(HOTEL_CLIENT);
+  for (const [name, expected] of Object.entries(HOTEL_BOOKING_FUNCTIONS)) {
+    const body = functionBody(client, name);
+    if (!body) { hotelFail(`${HOTEL_CLIENT} no longer exports ${name}() — a booking function is gone`); continue; }
+    const h = createHash('sha256').update(body).digest('hex');
+    if (h !== expected) hotelFail(`${HOTEL_CLIENT}'s ${name}() is not byte-identical to main d56b2cc9 (sha256 ${h}) — a booking call changed under a search ruling`);
+  }
+}
+if (hotelViolations === 0) console.log(`✔ The hotel law passed — ${HOTEL_SURFACES.length} hotel surfaces name no provider but the env's (LiteAPI; the sandbox footer from LITEAPI_MODE); one tri-state helper and every rate attribute through it; Phuket's five items group to ${PHUKET_EXPECTED.hotels} hotels · ${PHUKET_EXPECTED.rates} rates with the lowest-rate and difference lines verbatim; vendor-commit invents no check-in time and a stay draws its stated window or stays all-day, flagged; five filter controls that only write the filters and one counted search; the route forwards the vendor's contract by name; ${HOTEL_REPINNED.length} files re-pinned, dated, and ${Object.keys(HOTEL_BOOKING_FUNCTIONS).length} booking functions byte-identical to main.`);
+else console.log(`✖ The hotel law FAILED — ${hotelViolations} violation(s).`);
 
 // ── THE READER LAW (TEST-TRUTH-01, 2026-09-17) ──────────────────────────────
 // NO TEST AND NO LAW MAY READ A SOURCE FILE RAW.
