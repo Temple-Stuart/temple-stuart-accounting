@@ -20,6 +20,11 @@
  *     range narrows the rates on this page and the screen says so, because the
  *     vendor documents no price range.
  *
+ * HOTEL-02 (2026-09-22): the rates answer carries NO check-in / check-out clock —
+ * the vendor states a property's times only in its per-hotel content, which the
+ * commit reads once (src/lib/hotels/stayTimes.ts). The card fields that modelled
+ * a clock the search never had are gone; nothing on this leaf is a time.
+ *
  * PURE: no fetch, no env. The one tri-state helper is src/lib/travel/stated.ts.
  */
 
@@ -64,10 +69,6 @@ export interface RawHotelRates {
     main_photo?: string;
     thumbnail?: string;
     hotelImages?: Array<{ url: string }>;
-    /** The vendor's documented keys (GET /data/hotel: checkin_start, checkin_end, checkout — 12-hour text). Only
-     *  the paid per-hotel content carries this object; the /data/hotels catalog the scan joins never does, so on
-     *  the scan path it is absent and the clock reads "not stated" — read here wherever the join carries it. */
-    checkinCheckoutTimes?: { checkin_start?: string; checkin_end?: string; checkout?: string };
   };
   nights?: number;
   checkinDate?: string;
@@ -113,28 +114,8 @@ export interface HotelCardView {
   nights: Stated<number>;
   checkinDate: Stated<string>;
   checkoutDate: Stated<string>;
-  /** As the vendor states them (only its per-hotel content carries them today) — null otherwise. */
-  checkinTime: Stated<string>;
-  checkoutTime: Stated<string>;
   /** The hotel's rates, cheapest first. */
   rates: HotelRateView[];
-}
-
-/** The vendor's clock ("04:00 PM", "16:00", "11:00 AM") → "HH:MM", or null when it is not a clock. */
-export function hhmmOf(v: Stated<string>): Stated<string> {
-  if (v === null) return null;
-  const m = /^\s*(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?\s*$/.exec(v);
-  if (!m) return null;
-  let h = Number(m[1]);
-  const min = Number(m[2]);
-  const ap = m[3]?.toUpperCase();
-  if (min > 59) return null;
-  if (ap) {
-    if (h < 1 || h > 12) return null;
-    if (ap === 'AM') h = h === 12 ? 0 : h;
-    else h = h === 12 ? 12 : h + 12;
-  } else if (h > 23) return null;
-  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
 }
 
 /** The stay total a rate quotes — total, else the suggested price, else the offer price; null when none. */
@@ -217,7 +198,6 @@ export function hotelCardOf(h: RawHotelRates): HotelCardView {
     }
   }
   rates.sort((a, b) => a.total - b.total);
-  const times = meta.checkinCheckoutTimes;
   return {
     hotelId: h.hotelId,
     name: statedString(meta.name) ?? h.hotelId,
@@ -231,8 +211,6 @@ export function hotelCardOf(h: RawHotelRates): HotelCardView {
     nights,
     checkinDate: statedString(h.checkinDate),
     checkoutDate: statedString(h.checkoutDate),
-    checkinTime: statedString(times?.checkin_start),
-    checkoutTime: statedString(times?.checkout),
     rates,
   };
 }

@@ -12,9 +12,11 @@ import assert from 'node:assert/strict';
 import { code, comments, rejoin } from '../sourceText';
 import {
   DEFAULT_HOTEL_FILTERS, DIFFERENCE_ATTRIBUTES, NOT_STATED,
-  applyRange, breakfastOf, countLine, hhmmOf, hotelCardsOf, hotelFiltersOf, hotelFiltersStatement, hotelSearchParamsOf,
+  applyRange, breakfastOf, countLine, hotelCardsOf, hotelFiltersOf, hotelFiltersStatement, hotelSearchParamsOf,
   lowestRate, lowestRateLine, rateDifference, refundableOf, starsText, statedText,
 } from '../hotels/rates';
+// HOTEL-02 (2026-09-22): the vendor's 12-hour clock reader lives with the stay's times now.
+import { hhmmOf } from '../hotels/stayTimes';
 import { HOTEL_FILTER_PARAMS, parseHotelFilters } from '../hotels/searchContract';
 import { stated, statedBoolean, statedString } from '../travel/stated';
 import { NOT_STATED as FLIGHT_NOT_STATED, statedText as flightStatedText } from '../flights/fares';
@@ -152,9 +154,9 @@ test('the route forwards the vendor\'s contract by name — unknown refused by n
 test('a stated check-in time draws the block from it; an unstated one is flagged and no clock is invented', () => {
   assert.equal(hhmmOf('04:00 PM'), '16:00'); assert.equal(hhmmOf('11:00 AM'), '11:00'); assert.equal(hhmmOf('12:00 AM'), '00:00'); assert.equal(hhmmOf('12:30 PM'), '12:30');
   assert.equal(hhmmOf('16:00'), '16:00'); assert.equal(hhmmOf('noon'), null); assert.equal(hhmmOf(null), null); assert.equal(hhmmOf('13:00 PM'), null);
-  const kata = cards().find((c) => c.hotelId === 'lp-kata-rocks')!;
-  assert.equal(kata.checkinTime, '04:00 PM'); assert.equal(kata.checkoutTime, '11:00 AM');
-  assert.equal(cards().find((c) => c.hotelId === 'lp-ibis')!.checkinTime, null, 'the catalog states no time → null, never 15:00');
+  // HOTEL-02 (2026-09-22): the rates answer carries no clock — no card holds one; the
+  // property's clock is read from its content at commit (hotel02.test.ts).
+  for (const c of cards()) assert.ok(!('checkinTime' in c) && !('checkoutTime' in c), `${c.hotelId} carries no clock from the rates answer`);
   // The overlay: a stay's stated window is copied onto its row; an unstated one leaves the row all-day.
   const clockAt = (hhmm: string) => new Date(`1970-01-01T${hhmm}:00.000Z`);
   const items: TripItemRow[] = [
@@ -174,12 +176,14 @@ test('a stated check-in time draws the block from it; an unstated one is flagged
   const commit = code(COMMIT);
   assert.doesNotMatch(commit, /'15:00'|'11:00'/, 'the hotel-standard default is gone');
   assert.match(commit, /const blockStartParse = parseTimeOrNull\(startTime, 'block_start_time'\);\n\s+if \(blockStartParse\.error\) return blockStartParse\.error;/, 'a malformed time is refused by name');
-  assert.match(commit, /const blockStart = blockStartParse\.value;\n\s+const blockEnd = blockEndParse\.value;/);
-  assert.match(commit, /homeTime: startTime \|\| null,\n\s+destDate: end, destTime: endTime \|\| null,/);
-  // The container sends the property's stated clock, else no key at all.
+  // HOTEL-02 (2026-09-22): the stay's clock is resolved once before the transaction — the
+  // property's (read at commit) or the caller's stated one — and written to both columns.
+  assert.match(commit, /const blockStart = stayStart\.value;\n\s+const blockEnd = stayEnd\.value;/);
+  assert.match(commit, /homeTime: ledgerStart,\n\s+destDate: end, destTime: ledgerEnd,/);
+  // HOTEL-02: the container names the hotel and sends NO clock — the commit reads the property's.
   const container = code(CONTAINER);
-  assert.match(container, /const startTime = hhmmOf\(card\.checkinTime\);\n\s+const endTime = hhmmOf\(card\.checkoutTime\);/);
-  assert.match(container, /\.\.\.\(startTime \? \{ startTime \} : \{\}\),\n\s+\.\.\.\(endTime \? \{ endTime \} : \{\}\),/);
+  assert.match(container, /liteapiHotelId: card\.hotelId,/);
+  assert.doesNotMatch(container, /hhmmOf|startTime|endTime/, 'no clock leaves the search');
   // The panel and the grid say so.
   assert.match(code(PANEL), /row\.kind === 'trip_item' && row\.itemType === 'lodging'\n\s+\? 'check-in time not stated by the property'/);
   assert.match(code(GRID), /event\.itemType === 'lodging' \? `⚠ \$\{event\.title\} · check-in time not stated` : event\.title/);
@@ -228,11 +232,12 @@ test('the booking-flow pin holds for every file still on it, with dated HOTEL-01
   const repinned = ['hotels/search/route.ts', 'HotelResultsView.tsx', 'PublicHotelSearch.tsx', 'HotelPicker.tsx', 'liteapiClient.ts', 'liteapiFlightAdapter.ts', 'FlightPickerView.tsx'];
   assert.equal((notes.match(/HOTEL-01 \(2026-09-22\): re-pinned/g) ?? []).length, repinned.length);
   for (const f of repinned) assert.match(code('src/lib/travelBookingFlow.ts'), new RegExp(`\\{ file: '[^']*${f.replace(/[.\[\]]/g, '\\$&')}', sha256: '[0-9a-f]{64}' \\}`));
-  // The booking files keep their TRAVEL-01 hashes.
+  // The booking files keep their TRAVEL-01 hashes — CheckoutPanel at its HOTEL-02 (2026-09-22)
+  // hash: one label ("/5", was "/10") on the content rating, paint only, re-dated in the pin file.
   const booking: Record<string, string> = {
     'src/app/api/travel/liteapi/prebook/route.ts': 'dd6e8c9a0f1437a0661283bb91dc00aeb6dcaf6c227cefc180a3e01f1a60f351',
     'src/app/api/travel/liteapi/book/route.ts': '69abc595d70da025ac088ec85dc136ca6d6a6576a504d3c4b441e0434508b567',
-    'src/components/trips/CheckoutPanel.tsx': '417cf3e6cfced5f38dda66fc047218437703edbc2fd5b459a9d5f0189f15c3b6',
+    'src/components/trips/CheckoutPanel.tsx': '77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5',
     'src/app/api/travel/hotels/content/route.ts': '7923035f88437325994e957e73943cd4817ee72b2a9bf2908b0afba0803503e7',
     'src/app/api/travel/hotels/reviews/route.ts': 'c548e5cc1f16808c119711395144ddbc0f4307d22bd67890185b59479000d39d',
   };

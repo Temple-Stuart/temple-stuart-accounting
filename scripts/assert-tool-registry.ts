@@ -102,7 +102,9 @@ import { FILTER_KEYS, SORT_BY, parseFilters, parseSort } from '../src/lib/flight
 import { DEFAULT_UI_FILTERS, NOT_STATED, carrierLineOf, countLine, fareDifference, filtersStatement, groupFlights, lowestFare, lowestFareLine, searchRequestOf } from '../src/lib/flights/fares';
 import { liteApiResultsToFlightOffers } from '../src/lib/liteapiFlightAdapter';
 import { BKK_HKT_EXPECTED, BKK_HKT_RATES } from '../src/lib/__tests__/fixtureFlightRatesBkkHkt';
-import { DEFAULT_HOTEL_FILTERS, NOT_STATED as HOTEL_NOT_STATED, countLine as hotelCountLine, hhmmOf, hotelCardsOf, hotelFiltersStatement, hotelSearchParamsOf, lowestRate, lowestRateLine, rateDifference } from '../src/lib/hotels/rates';
+import { DEFAULT_HOTEL_FILTERS, NOT_STATED as HOTEL_NOT_STATED, countLine as hotelCountLine, hotelCardsOf, hotelFiltersStatement, hotelSearchParamsOf, lowestRate, lowestRateLine, rateDifference } from '../src/lib/hotels/rates';
+// HOTEL-02 (2026-09-22): the vendor's 12-hour clock reader and the property's clock live with the stay's times.
+import { hhmmOf, propertyClockOf, propertyClockStatement } from '../src/lib/hotels/stayTimes';
 import { parseHotelFilters } from '../src/lib/hotels/searchContract';
 import { PHUKET_EXPECTED, PHUKET_RATES } from '../src/lib/__tests__/fixtureHotelRatesPhuket';
 import { DATE_ONLY_TRIP_TYPES, TIMED_BY_THEMSELVES } from '../src/lib/calendar/tripItem';
@@ -3527,6 +3529,14 @@ else console.log(`✖ The flight law FAILED — ${flightViolations} violation(s)
 //      carries one; and the client's booking functions — prebook, book, status,
 //      cancel and their parsers, plus the paid content reads — hash BODY-FOR-BODY
 //      to what they were on main d56b2cc9. (The whole-file hashes are the travel law's.)
+/** The comment block stacked directly over a pin: every comment-only line above it (blank in the code half), nearest first. HOTEL-02 (2026-09-22): a pin's notes are the lines over IT, never a neighbour's. */
+function noteBlockOver(pins: string, notes: string, pinLine: number): string {
+  const codeLines = pins.split('\n');
+  const noteLines = notes.split('\n');
+  const block: string[] = [];
+  for (let i = pinLine - 2; i >= 0 && codeLines[i].trim() === ''; i--) block.unshift(noteLines[i]);
+  return block.join('\n');
+}
 const HOTEL_ROUTE = 'src/app/api/travel/hotels/search/route.ts';
 const HOTEL_CONTRACT = 'src/lib/hotels/searchContract.ts';
 const HOTEL_LEAF = 'src/lib/hotels/rates.ts';
@@ -3624,8 +3634,10 @@ const hotelFail = (m: string) => { hotelViolations += 1; violations.push(`hotel 
 {
   const commit = codeOf(HOTEL_COMMIT);
   if (/'15:00'|'11:00'/.test(commit)) hotelFail(`${HOTEL_COMMIT} still holds the hotel-standard 15:00 / 11:00 — an invented time`);
-  if (!/const blockStart = blockStartParse\.value;\n\s+const blockEnd = blockEndParse\.value;/.test(commit)) hotelFail(`${HOTEL_COMMIT} does not write the caller's stated window or null`);
-  if (!/homeTime: startTime \|\| null,\n\s+destDate: end, destTime: endTime \|\| null,/.test(commit)) hotelFail(`${HOTEL_COMMIT} does not write the ledger's clock as stated or null`);
+  // HOTEL-02 (2026-09-22): the stay's clock is resolved ONCE before the transaction — the
+  // property's own (read at commit) or the caller's stated one — and written to both columns.
+  if (!/const blockStart = stayStart\.value;\n\s+const blockEnd = stayEnd\.value;/.test(commit)) hotelFail(`${HOTEL_COMMIT} does not write the stay's resolved clock (the property's or the caller's stated one) or null`);
+  if (!/homeTime: ledgerStart,\n\s+destDate: end, destTime: ledgerEnd,/.test(commit)) hotelFail(`${HOTEL_COMMIT} does not write the ledger's clock as the same clock the block window holds`);
   if (!(DATE_ONLY_TRIP_TYPES as readonly string[]).includes('lodging')) hotelFail(`${HOTEL_TRIP_ITEM} does not overlay a stay's stated window`);
   if ((TIMED_BY_THEMSELVES as readonly string[]).includes('lodging')) hotelFail(`${HOTEL_TRIP_ITEM} still treats a stay as timed by itself`);
   const clockAt = (hhmm: string) => new Date(`1970-01-01T${hhmm}:00.000Z`);
@@ -3641,11 +3653,15 @@ const hotelFail = (m: string) => { hotelViolations += 1; violations.push(`hotel 
   if (overlaid[0].start_time !== '16:00' || overlaid[0].end_time !== '11:00') hotelFail(`a stay with a stated 16:00 / 11:00 window drew ${overlaid[0].start_time}–${overlaid[0].end_time}`);
   if (overlaid[1].start_time !== null || overlaid[1].end_time !== null) hotelFail(`a stay with no stated window was given ${overlaid[1].start_time}–${overlaid[1].end_time} — a clock nobody stated`);
   if (hhmmOf('04:00 PM') !== '16:00' || hhmmOf('11:00 AM') !== '11:00' || hhmmOf('12:00 AM') !== '00:00' || hhmmOf('noon') !== null) hotelFail("hhmmOf no longer reads the vendor's 12-hour clock to HH:MM (and nothing else)");
+  // HOTEL-02 (2026-09-22): the container names the vendor's hotel and sends NO clock — the
+  // commit reads the property's own; the rates answer never carried one.
   const container = codeOf(HOTEL_CONTAINER);
-  if (!/const startTime = hhmmOf\(card\.checkinTime\);\n\s+const endTime = hhmmOf\(card\.checkoutTime\);/.test(container) || !/\.\.\.\(startTime \? \{ startTime \} : \{\}\),\n\s+\.\.\.\(endTime \? \{ endTime \} : \{\}\),/.test(container)) hotelFail(`${HOTEL_CONTAINER} does not send the property's stated clock — and only that`);
+  if (!/liteapiHotelId: card\.hotelId,/.test(container)) hotelFail(`${HOTEL_CONTAINER} does not name the vendor's hotel on Save`);
+  if (/hhmmOf|startTime|endTime|checkinTime|checkoutTime/.test(container)) hotelFail(`${HOTEL_CONTAINER} sends a clock from the search — the property states it at commit`);
   if (!/row\.kind === 'trip_item' && row\.itemType === 'lodging'\n\s+\? 'check-in time not stated by the property'/.test(codeOf(HOTEL_PANEL))) hotelFail(`${HOTEL_PANEL} does not name an unstated check-in time`);
   if (!/event\.itemType === 'lodging' \? `⚠ \$\{event\.title\} · check-in time not stated` : event\.title/.test(codeOf(HOTEL_GRID))) hotelFail(`${HOTEL_GRID} does not flag a stay without a stated check-in`);
-  if (!/checkinTime: statedString\(times\?\.checkin_start\),\n\s+checkoutTime: statedString\(times\?\.checkout\),/.test(codeOf(HOTEL_LEAF))) hotelFail(`${HOTEL_LEAF} does not read the property's stated clock by the vendor's documented keys (checkin_start, checkout)`);
+  // HOTEL-02 (2026-09-22): the rates leaf holds no clock at all — the vendor's documented keys are read by the stay-times leaf, at commit.
+  if (/checkinCheckoutTimes|checkinTime|checkoutTime|hhmmOf/.test(codeOf(HOTEL_LEAF))) hotelFail(`${HOTEL_LEAF} models a clock the rates answer never carries`);
   if (!/const blockStartParse = parseTimeOrNull\(startTime, 'block_start_time'\);\n\s+if \(blockStartParse\.error\) return blockStartParse\.error;/.test(commit)) hotelFail(`${HOTEL_COMMIT} does not refuse a malformed commit time by name — a silently nulled time is a time nobody stated`);
 }
 
@@ -3716,14 +3732,17 @@ const hotelFail = (m: string) => { hotelViolations += 1; violations.push(`hotel 
     const pinAt = pins.indexOf(`{ file: '${f}', sha256: '`);
     if (pinAt < 0) { hotelFail(`src/lib/travelBookingFlow.ts no longer pins ${f}`); continue; }
     const pinLine = pins.slice(0, pinAt).split('\n').length;
-    const above = notes.split('\n').slice(Math.max(0, pinLine - 3), pinLine - 1).join('\n');
-    if (!/HOTEL-01 \(2026-09-22\): re-pinned — [^\n]+\. Search and display are not booking; no prebook\/book\/pay\/cancel call changed\.\n[^\n]*Was [0-9a-f]{64} at main d56b2cc9\./.test(above)) hotelFail(`${f}'s pin does not sit directly under a dated HOTEL-01 note naming why, that search and display are not booking, and the hash it had on main d56b2cc9`);
+    // HOTEL-02 (2026-09-22): a later ruling's dated note may stack BELOW this one (directly
+    // over the pin) — the HOTEL-01 note and its "Was" line must still stand, consecutive, in
+    // the comment block over the pin (noteBlockOver: the pin's own lines, never a neighbour's).
+    const above = noteBlockOver(pins, notes, pinLine);
+    if (!/HOTEL-01 \(2026-09-22\): re-pinned — [^\n]+\. Search and display are not booking; no prebook\/book\/pay\/cancel call changed\.\n[^\n]*Was [0-9a-f]{64} at main d56b2cc9\./.test(above)) hotelFail(`${f}'s pin does not sit under a dated HOTEL-01 note naming why, that search and display are not booking, and the hash it had on main d56b2cc9`);
   }
   for (const pin of BOOKING_FLOW_FILES) {
     if (HOTEL_REPINNED.includes(pin.file)) continue;
     const pinAt = pins.indexOf(`{ file: '${pin.file}', sha256: '`);
     const pinLine = pins.slice(0, pinAt).split('\n').length;
-    if (/HOTEL-01/.test(notes.split('\n').slice(Math.max(0, pinLine - 3), pinLine - 1).join('\n'))) hotelFail(`${pin.file} carries a HOTEL-01 note — HOTEL-01 re-pinned ${HOTEL_REPINNED.length} files and nothing else`);
+    if (/HOTEL-01/.test(noteBlockOver(pins, notes, pinLine))) hotelFail(`${pin.file} carries a HOTEL-01 note — HOTEL-01 re-pinned ${HOTEL_REPINNED.length} files and nothing else`);
   }
   if (!/HOTEL-01 \(2026-09-22\), search and display are not booking/.test(BOOKING_FLOW_BASE)) hotelFail('BOOKING_FLOW_BASE does not record the HOTEL-01 re-pin');
   const client = codeOf(HOTEL_CLIENT);
@@ -3736,6 +3755,185 @@ const hotelFail = (m: string) => { hotelViolations += 1; violations.push(`hotel 
 }
 if (hotelViolations === 0) console.log(`✔ The hotel law passed — ${HOTEL_SURFACES.length} hotel surfaces name no provider but the env's (LiteAPI; the sandbox footer from LITEAPI_MODE); one tri-state helper and every rate attribute through it; Phuket's five items group to ${PHUKET_EXPECTED.hotels} hotels · ${PHUKET_EXPECTED.rates} rates with the lowest-rate and difference lines verbatim; vendor-commit invents no check-in time and a stay draws its stated window or stays all-day, flagged; five filter controls that only write the filters and one counted search; the route forwards the vendor's contract by name; ${HOTEL_REPINNED.length} files re-pinned, dated, and ${Object.keys(HOTEL_BOOKING_FUNCTIONS).length} booking functions byte-identical to main.`);
 else console.log(`✖ The hotel law FAILED — ${hotelViolations} violation(s).`);
+
+// ── THE STAY LAW (HOTEL-02, 2026-09-22) ──────────────────────────────────────
+// THE STAY'S TIMES ARE THE PROPERTY'S, NOT OURS.
+//
+// HOTEL-01 removed vendor-commit's invented 15:00 / 11:00 and found the vendor
+// states a property's check-in / check-out only in its per-hotel content (GET
+// /data/hotel), never in the rates answer. Three invented lodging times remained
+// (AddToTripButton's 22:00–07:00 prefill, the planner's dead lodging default, the
+// timeline's edit that moved the block alone while the ledger kept its clock), and
+// the checkout panel labelled the content rating "/10" while the client typed it 0-5.
+//
+//   1. NO LODGING TIME IS WRITTEN THAT THE VENDOR OR THE USER DID NOT STATE.
+//      vendor-commit resolves a stay's clock ONCE — the property's, read at commit
+//      for a stay that names its hotel, or the caller's stated one — and writes it
+//      to both columns or null; no clock literal stands in the commit, the button
+//      or the planner; the button has no time input and no prefill; the planner's
+//      dead default is gone; the search sends no clock. Probed on the documented
+//      content shape: a stated clock reads to HH:MM, silence reads null, words the
+//      reader cannot read are refused — never nulled.
+//   2. THE CONTENT CALL THAT SETS A STAY'S CLOCK FIRES ONLY FROM COMMIT, ONCE. The
+//      commit makes exactly one getHotelContent call, guarded by the hotel id and a
+//      lodging commit, after validation and the row check, preceded by exactly one
+//      'hotelcontent' reservation, before the transaction; its failure is an explicit
+//      502 / 503 with a fixed reason before the catch-all. The callers of the content
+//      read under src are a CLOSED set: the content route (the checkout's read), the
+//      discover detail page (one hotel opened — grandfathered, dated, reported: it
+//      reserves no cap and swallows its failure) and the commit; no search route, no
+//      results view, no planner list, no assistant reads it. "Once per booking" is a
+//      code shape (one call site per commit POST), not a runtime dedupe — said so.
+//   3. TIMELINE EDITS KEEP THE TWO TIMES EQUAL. The itinerary PATCH pairs every write
+//      of block_start_time with homeTime and block_end_time with destTime, in the one
+//      update; the two keys of one clock may not disagree; a flight row, which has no
+//      block window, refuses the timeline's keys by name.
+//   4. THE RATING SCALE IS ONE. The checkout panel renders the content rating on the
+//      scale the client types (/5, never /10); the detail page holds no runtime guess
+//      at that scale; the results view names the catalog's documented /10; no file
+//      under src re-scales a content rating; the client's comments name what is and
+//      is not verified.
+//   5. THE PIN HOLDS, DATED. Five files re-dated by HOTEL-02 carry a dated note with
+//      the hash they had on main 81045434; no other file carries one; the booking
+//      functions stay body-for-body (the hotel law); BOOKING_FLOW_BASE records it.
+const STAY_LEAF = 'src/lib/hotels/stayTimes.ts';
+const STAY_PATCH = 'src/app/api/trips/[id]/itinerary/[itineraryId]/route.ts';
+const STAY_BUTTON = 'src/app/budgets/trips/[id]/discover/[category]/[rank]/AddToTripButton.tsx';
+const STAY_PLANNER = 'src/components/trips/TripPlannerAI.tsx';
+const STAY_CHECKOUT = 'src/components/trips/CheckoutPanel.tsx';
+const STAY_DETAIL = 'src/app/budgets/trips/[id]/discover/[category]/[rank]/page.tsx';
+const STAY_CONTENT_ROUTE = 'src/app/api/travel/hotels/content/route.ts';
+/** The closed set of content readers (dated 2026-09-22): the route the checkout fetches, the detail page (grandfathered), the commit. */
+const STAY_CONTENT_CALLERS = [STAY_CONTENT_ROUTE, STAY_DETAIL, HOTEL_COMMIT];
+const STAY_REDATED = [HOTEL_CONTAINER, HOTEL_VIEW, STAY_CHECKOUT, STAY_PLANNER, HOTEL_CLIENT];
+let stayViolations = 0;
+const stayFail = (m: string) => { stayViolations += 1; violations.push(`stay law: ${m} (HOTEL-02)`); };
+const staySrcFiles = (): string[] => {
+  const out: string[] = [];
+  const walk = (dir: string) => {
+    for (const name of readdirSync(dir)) {
+      const abs = `${dir}/${name}`;
+      if (statSync(abs).isDirectory()) { if (name !== '__tests__') walk(abs); continue; }
+      if (/\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name)) out.push(abs.replace(`${ROOT}/`, ''));
+    }
+  };
+  walk(resolve(ROOT, 'src'));
+  return out;
+};
+
+// 1. no lodging time is written that the vendor or the user did not state.
+{
+  const commit = codeOf(HOTEL_COMMIT);
+  for (const [f, src] of [[HOTEL_COMMIT, commit], [STAY_BUTTON, codeOf(STAY_BUTTON)], [STAY_PLANNER, codeOf(STAY_PLANNER)]] as const) {
+    if (/'15:00'|'11:00'|'22:00'|'07:00'|'16:00'/.test(src)) stayFail(`${f} holds a lodging clock literal — a time nobody stated`);
+  }
+  if (!/const stayStart = propertyClock \? parseTimeOrNull\(propertyClock\.checkin, 'block_start_time'\) : blockStartParse;/.test(commit)) stayFail(`${HOTEL_COMMIT} does not resolve the stay's start from the property's clock or the caller's stated one`);
+  if (!/const ledgerStart: string \| null = propertyClock \? propertyClock\.checkin : \(startTime \|\| null\);/.test(commit)) stayFail(`${HOTEL_COMMIT} does not write the ledger's clock from the same resolution`);
+  if (!/if \(sentClock\(startTime\) \|\| sentClock\(endTime\)\) \{/.test(commit)) stayFail(`${HOTEL_COMMIT} accepts a caller's clock beside the hotel id — two sources for one stay`);
+  const button = codeOf(STAY_BUTTON);
+  if (/type="time"|windowStart|windowEnd|startTime|endTime/.test(button)) stayFail(`${STAY_BUTTON} still offers or sends a stay time — the property states it at commit`);
+  if (!/\.\.\.\(liteapiHotelId \? \{ liteapiHotelId \} : \{\}\),/.test(button)) stayFail(`${STAY_BUTTON} does not name the vendor's hotel on commit`);
+  const planner = codeOf(STAY_PLANNER);
+  if (/CATEGORY_DEFAULT_TIMES/.test(planner)) stayFail(`${STAY_PLANNER} still holds the dead lodging default`);
+  if (!/catInfo\.optionType === 'lodging' && rec\.liteapiHotelId \? \{ liteapiHotelId: rec\.liteapiHotelId \} : \{\}/.test(planner)) stayFail(`${STAY_PLANNER} does not name the vendor's hotel on a lodging commit`);
+  const stated = propertyClockOf({ checkin_start: '02:00 PM', checkout: '12:00 PM', checkin_end: '12:00 AM' });
+  if (!('clock' in stated) || stated.clock.checkin !== '14:00' || stated.clock.checkout !== '12:00') stayFail(`a stated 02:00 PM / 12:00 PM read as ${JSON.stringify(stated)}`);
+  const silent = propertyClockOf(undefined);
+  if (!('clock' in silent) || silent.clock.checkin !== null || silent.clock.checkout !== null) stayFail(`a property that states no clock read as ${JSON.stringify(silent)} — a clock nobody stated`);
+  const odd = propertyClockOf({ checkin_start: 'from 16h', checkout: '11:00 AM' });
+  if (!('unreadable' in odd) || odd.unreadable !== 'the property stated a check-in time this reader cannot read: "from 16h"') stayFail(`words the reader cannot read were not refused by name — ${JSON.stringify(odd)}`);
+  if (propertyClockStatement({ checkin: null, checkout: null }) !== 'check-in time not stated by the property; check-out time not stated by the property') stayFail('the statement does not name the property\'s silence');
+  if (propertyClockStatement({ checkin: '14:00', checkout: '12:00' }) !== 'check-in 14:00 stated by the property; check-out 12:00 stated by the property') stayFail('the statement does not repeat the property\'s clock');
+  if (hhmmOf('02:00 PM') !== '14:00') stayFail('hhmmOf no longer reads the vendor\'s 12-hour clock');
+  if (!/PURE: no fetch, no env/.test(commentsOf(STAY_LEAF)) || /\bfetch\(|process\.env/.test(codeOf(STAY_LEAF))) stayFail(`${STAY_LEAF} is not pure`);
+}
+
+// 2. the content call that sets a stay's clock fires only from commit, once.
+{
+  const commit = codeOf(HOTEL_COMMIT);
+  const calls = (commit.match(/getHotelContent\(/g) ?? []).length;
+  if (calls !== 1) stayFail(`${HOTEL_COMMIT} calls getHotelContent ${calls} time(s) — one content call per commit`);
+  const reserves = (commit.match(/reserveTravelSearch\('hotelcontent'\)/g) ?? []).length;
+  if (reserves !== 1) stayFail(`${HOTEL_COMMIT} reserves the content cap ${reserves} time(s) — once, under the existing 'hotelcontent' cap`);
+  if (!/if \(optionType === 'lodging' && liteapiHotelId\) \{/.test(commit)) stayFail(`${HOTEL_COMMIT} does not gate the content call on a lodging commit that names its hotel`);
+  const rowCheckAt = commit.indexOf('if (!isSyntheticLodging) {\n        const row = await prisma.trip_lodging_options.findFirst');
+  const reserveAt = commit.indexOf("reserveTravelSearch('hotelcontent')");
+  const callAt = commit.indexOf('getHotelContent(liteapiHotelId)');
+  const txAt = commit.indexOf('const result = await prisma.$transaction(');
+  const validAt = commit.indexOf("if (!validTypes.includes(optionType))");
+  if (!(validAt >= 0 && validAt < rowCheckAt && rowCheckAt < reserveAt && reserveAt < callAt && callAt < txAt)) stayFail(`${HOTEL_COMMIT}'s order is not validate → row check → reserve → call → transaction (${validAt}, ${rowCheckAt}, ${reserveAt}, ${callAt}, ${txAt})`);
+  for (const branch of ['err instanceof TravelSearchQuotaError', 'err instanceof LiteApiError', 'err instanceof MissingLiteApiKeyError', "'unreadable' in read", 'if (!content) {']) {
+    if (!commit.includes(branch)) stayFail(`${HOTEL_COMMIT} lacks the explicit failure branch ${branch} — the catch-all strips the reason`);
+  }
+  if (/err\.message/.test(commit.slice(callAt, txAt))) stayFail(`${HOTEL_COMMIT} quotes a thrown message to the browser — the reason is a fixed line (HYG-02)`);
+  if (!/stayTimes: propertyClock \? \{ \.\.\.propertyClock, source: 'property', statement: propertyClockStatement\(propertyClock\) \} : null,/.test(commit)) stayFail(`${HOTEL_COMMIT} does not answer with the clock it stored`);
+  const callers = staySrcFiles().filter((f) => f !== HOTEL_CLIENT && /getHotelContent\(/.test(codeOf(f))).sort();
+  const expected = [...STAY_CONTENT_CALLERS].sort();
+  if (JSON.stringify(callers) !== JSON.stringify(expected)) stayFail(`the content read's callers are ${JSON.stringify(callers)} — the closed set is ${JSON.stringify(expected)}`);
+  const fetchers = staySrcFiles().filter((f) => /api\/travel\/hotels\/content/.test(codeOf(f)) && !/travelBookingFlow\.ts$|middleware\.ts$/.test(f)).sort();
+  if (JSON.stringify(fetchers) !== JSON.stringify([STAY_CHECKOUT])) stayFail(`the content route is fetched by ${JSON.stringify(fetchers)} — only the checkout panel reads it from the browser`);
+  for (const f of [HOTEL_ROUTE, HOTEL_VIEW, HOTEL_CONTAINER, 'src/app/api/trips/[id]/ai-assistant/route.ts']) {
+    if (/getHotelContent\(|hotels\/content/.test(codeOf(f))) stayFail(`${f} reads the content — a search, a list or a view may not`);
+  }
+}
+
+// 3. timeline edits keep the two times equal.
+{
+  const patch = codeOf(STAY_PATCH);
+  if (!/data\.block_start_time = t\.block;[^\n]*\n\s+data\.homeTime = t\.str;/.test(patch)) stayFail(`${STAY_PATCH} writes block_start_time without homeTime on the timeline's key`);
+  if (!/data\.block_end_time = t\.block;\n\s+data\.destTime = t\.str;/.test(patch)) stayFail(`${STAY_PATCH} writes block_end_time without destTime on the timeline's key`);
+  const pairs: Array<[string, string]> = [['data.block_start_time =', 'data.homeTime ='], ['data.block_end_time =', 'data.destTime =']];
+  for (const [a, b] of pairs) {
+    const na = patch.split(a).length - 1, nb = patch.split(b).length - 1;
+    if (na !== nb || na < 2) stayFail(`${STAY_PATCH} writes ${a} ${na} time(s) and ${b} ${nb} time(s) — one clock, two columns, always together`);
+  }
+  if (!/are one clock — they were sent with different values/.test(patch)) stayFail(`${STAY_PATCH} does not refuse two different clocks for one column`);
+  if (!/existing\.vendorOptionType === 'flight' && \(body\.blockStartTime !== undefined \|\| body\.blockEndTime !== undefined\)/.test(patch)) stayFail(`${STAY_PATCH} lets the timeline write a block window onto a flight — a third clock`);
+  if (!/prisma\.trip_itinerary\.update\(\{ where: \{ id: itineraryId \}, data \}\)/.test(patch)) stayFail(`${STAY_PATCH} does not write in the one update`);
+  const timeline = codeOf('src/components/trips/TripTimelineView.tsx');
+  if (!/blockStartTime: start \|\| null,\n\s+blockEndTime: end \|\| null,/.test(timeline) || !/patch\(\{ blockStartTime: null, blockEndTime: null \}\)/.test(timeline)) stayFail('the timeline\'s save and clear no longer send the timeline\'s keys (the route pairs them)');
+}
+
+// 4. the rating scale is one.
+{
+  const checkout = codeOf(STAY_CHECKOUT);
+  if (!/\{content\.rating\}<\/span>\/5/.test(checkout)) stayFail(`${STAY_CHECKOUT} does not render the content rating on the client's typed scale (/5)`);
+  if (/\{content\.rating\}<\/span>\/10/.test(checkout)) stayFail(`${STAY_CHECKOUT} renders the content rating /10 — a second scale for one number`);
+  const detail = codeOf(STAY_DETAIL);
+  if (/content\.rating <= 5|content\.rating \* |enrichedScore/.test(detail)) stayFail(`${STAY_DETAIL} guesses the content rating's scale at runtime`);
+  if (!/\$\{card\.guestRating\}\/10/.test(codeOf(HOTEL_VIEW))) stayFail(`${HOTEL_VIEW} renders the catalog's guest rating without its documented scale (/10)`);
+  const clientNotes = commentsOf(HOTEL_CLIENT);
+  if (!/0-5 in observed responses/.test(clientNotes) || !/Not verified by a captured payload/.test(clientNotes)) stayFail(`${HOTEL_CLIENT} no longer names the content rating's observed scale and that no captured payload verifies it`);
+  if (!/documented out of 10/.test(clientNotes)) stayFail(`${HOTEL_CLIENT} no longer names the catalog rating's documented scale`);
+  for (const f of staySrcFiles()) {
+    if (/content\.rating\s*[*/]|content\.rating <= 5/.test(codeOf(f))) stayFail(`${f} re-scales a content rating`);
+  }
+}
+
+// 5. the pin holds, dated.
+{
+  const notes = commentsOf('src/lib/travelBookingFlow.ts');
+  const pins = codeOf('src/lib/travelBookingFlow.ts');
+  const count = (notes.match(/HOTEL-02 \(2026-09-22\): re-dated/g) ?? []).length;
+  if (count !== STAY_REDATED.length) stayFail(`src/lib/travelBookingFlow.ts carries ${count} HOTEL-02 note(s) — ${STAY_REDATED.length}: the two hotel surfaces, the checkout panel, the planner and the client`);
+  for (const f of STAY_REDATED) {
+    const pinAt = pins.indexOf(`{ file: '${f}', sha256: '`);
+    if (pinAt < 0) { stayFail(`src/lib/travelBookingFlow.ts no longer pins ${f}`); continue; }
+    const pinLine = pins.slice(0, pinAt).split('\n').length;
+    const above = noteBlockOver(pins, notes, pinLine);
+    if (!/HOTEL-02 \(2026-09-22\): re-dated — [^\n]+\. The stay's clock is the property's, read once at commit; no prebook\/book\/pay\/cancel call changed\.\n[^\n]*Was [0-9a-f]{64} at main 81045434\.$/.test(above)) stayFail(`${f}'s pin does not sit directly under a dated HOTEL-02 note naming why and the hash it had on main 81045434`);
+  }
+  for (const pin of BOOKING_FLOW_FILES) {
+    if (STAY_REDATED.includes(pin.file)) continue;
+    const pinAt = pins.indexOf(`{ file: '${pin.file}', sha256: '`);
+    const pinLine = pins.slice(0, pinAt).split('\n').length;
+    if (/HOTEL-02/.test(noteBlockOver(pins, notes, pinLine))) stayFail(`${pin.file} carries a HOTEL-02 note — HOTEL-02 re-dated ${STAY_REDATED.length} files and nothing else`);
+  }
+  if (!/re-dated by HOTEL-02 \(2026-09-22\), the stay's clock is the property's/.test(BOOKING_FLOW_BASE)) stayFail('BOOKING_FLOW_BASE does not record the HOTEL-02 re-dating');
+  if (BOOKING_FLOW_FILES.some((p) => p.file === HOTEL_COMMIT)) stayFail(`${HOTEL_COMMIT} is pinned — it is the itinerary writer, not the booking flow (TRAVEL-01)`);
+}
+if (stayViolations === 0) console.log(`✔ The stay law passed — the commit resolves a stay's clock once (the property's, read at commit, or the caller's stated one) and writes it to both columns or null; no clock literal in the commit, the button or the planner; the content read's callers are the closed set of ${STAY_CONTENT_CALLERS.length} (the route, the detail page, the commit) with one call and one reservation per commit and explicit 502 / 503 reasons; the itinerary PATCH pairs every block write with the ledger's clock and refuses a flight's; the content rating renders /5 and the catalog's /10, nothing re-scales; ${STAY_REDATED.length} files re-dated, dated.`);
+else console.log(`✖ The stay law FAILED — ${stayViolations} violation(s).`);
 
 // ── THE READER LAW (TEST-TRUTH-01, 2026-09-17) ──────────────────────────────
 // NO TEST AND NO LAW MAY READ A SOURCE FILE RAW.

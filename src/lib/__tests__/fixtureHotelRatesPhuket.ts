@@ -14,8 +14,9 @@
  * reviewCount, address, city, main_photo) — with the founder's problem in it: a
  * hotel with MANY rates (room × board × cancellation), the same hotel arriving
  * twice, a property that states no stars and no rating, a rate that states no
- * room, no board and no cancellation policy. Kata Rocks alone carries the
- * per-hotel content's checkinCheckoutTimes, so the stated-time path is walked.
+ * room, no board and no cancellation policy. HOTEL-02 (2026-09-22): no item
+ * carries a check-in / check-out clock — the rates answer never does; the
+ * property's clock is read from its content at commit (fixtureHotelContent.ts).
  */
 
 import type { RawHotelRates } from '../hotels/rates';
@@ -50,7 +51,6 @@ export const PHUKET_RATES: RawHotelRates[] = [
     hotelId: 'lp-kata-rocks',
     hotel: {
       name: 'Kata Rocks', address: '186/22 Kok Tanode Road', city: 'Phuket', stars: 5, rating: 9.2, reviewCount: 610, main_photo: 'https://img.example/katarocks.jpg',
-      checkinCheckoutTimes: { checkin_start: '04:00 PM', checkout: '11:00 AM' },
     },
     ...STAY,
     roomTypes: [

@@ -99,7 +99,7 @@ interface HotelContentData {
   hotelImportantInformation?: string;
   facilities?: Array<{ name?: string }>;
   starRating?: number;
-  rating?: number;        // 0–10 guest score (probe-confirmed)
+  rating?: number;        // 0-5 — the ONE scale the client types (liteapiClient.ts HotelContent.rating); HOTEL-02 (2026-09-22): "/10" was a second scale for the same number
   reviewCount?: number;
   address?: string;
   city?: string;
@@ -351,7 +351,7 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
                   <div className="flex items-center gap-2 text-sm text-text-secondary">
                     {content.starRating ? <span className="text-brand-gold" aria-label={`${content.starRating} star`}>{'★'.repeat(Math.min(5, Math.round(content.starRating)))}</span> : null}
                     {content.rating != null && (
-                      <span><span className="font-semibold text-text-primary">{content.rating}</span>/10{content.reviewCount ? ` · ${content.reviewCount.toLocaleString()} reviews` : ''}</span>
+                      <span><span className="font-semibold text-text-primary">{content.rating}</span>/5{content.reviewCount ? ` · ${content.reviewCount.toLocaleString()} reviews` : ''}</span>
                     )}
                   </div>
                 )}
