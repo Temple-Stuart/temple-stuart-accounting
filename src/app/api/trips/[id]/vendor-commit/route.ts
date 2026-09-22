@@ -7,6 +7,15 @@ import { getCOACode } from '@/lib/travelCategories';
 import { TRAVEL_COA, isValidTravelCoaCode } from '@/lib/travelCOA';
 import { parseTimeOrNull } from '@/lib/operations/parseTime';
 import { zonedToInstant } from '@/lib/time';
+import { getHotelContent } from '@/lib/liteapiClient';
+import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
+import { LiteApiError, MissingLiteApiKeyError } from '@/lib/travelErrors';
+import { propertyClockOf, propertyClockStatement, type PropertyClock } from '@/lib/hotels/stayTimes';
+
+/** A commit time the caller actually sent (HH:MM text) — null, '' and undefined are absence. */
+function sentClock(v: unknown): boolean {
+  return typeof v === 'string' && v.trim() !== '';
+}
 
 // Travel COA codes: P-9xxx (personal) / B-9xxx (business)
 // Maps vendor optionType to the 9xxx travel COA number
@@ -133,7 +142,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       durationMinutes: durationMinutesInput,
       // PR-tz-1: departure/arrival airport IANA zones (tz-0b sends them). Persisted as
       // passthrough below — flight-only; null otherwise. NEVER defaulted to a hardcoded zone.
-      originZone: originZoneInput, destZone: destZoneInput } = await request.json();
+      originZone: originZoneInput, destZone: destZoneInput,
+      // HOTEL-02 (2026-09-22): the vendor's id of the hotel being booked — a LiteAPI stay names it
+      // so the commit reads the property's own clock once; a stay from elsewhere sends none.
+      liteapiHotelId: liteapiHotelIdInput } = await request.json();
     const durationMinutes = optionType === 'flight' && Number.isFinite(durationMinutesInput)
       ? Math.round(durationMinutesInput)
       : null;
@@ -226,6 +238,77 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       // personal-only category as business.
       placePrefix = businessCapable && (trip.tripType === 'business' || trip.tripType === 'mixed') ? 'B' : 'P';
     }
+
+    // ─── HOTEL-02 (2026-09-22): THE STAY'S TIMES ARE THE PROPERTY'S, NOT OURS ───────────
+    // A lodging commit that names the vendor's hotel reads the property's own check-in and
+    // check-out HERE — the one content call per booking (GET /data/hotel), reserved once
+    // under the existing 'hotelcontent' cap, after validation and before any write. The
+    // clock the property states is written to the block window AND the ledger; the clock it
+    // does not state is null and the calendar flags it; a call that fails fails the commit
+    // loudly with the reason — never a silent null, never a time nobody stated. A caller may
+    // not send its own startTime / endTime beside the hotel id: the property states them.
+    // A stay that names no hotel (a hand-entered or scanned lodging) keeps the caller's
+    // stated clock or null, exactly as HOTEL-01 left it.
+    const liteapiHotelId = typeof liteapiHotelIdInput === 'string' && liteapiHotelIdInput.trim() !== '' ? liteapiHotelIdInput.trim() : null;
+    let propertyClock: PropertyClock | null = null;
+    if (optionType === 'lodging' && liteapiHotelId) {
+      if (sentClock(startTime) || sentClock(endTime)) {
+        return NextResponse.json(
+          { error: 'Validation', field: 'startTime', message: 'startTime / endTime may not be sent with liteapiHotelId — the property states its own check-in and check-out; the commit reads them.' },
+          { status: 400 },
+        );
+      }
+      // A row-based stay (the planner's trip_lodging_options row) is checked for existence,
+      // ownership and a whole-stay total BEFORE the paid call — a commit that would be refused
+      // inside the transaction must not spend a reservation and a vendor read first.
+      if (!isSyntheticLodging) {
+        const row = await prisma.trip_lodging_options.findFirst({ where: { id: optionId, trip_id: id }, select: { total_price: true } });
+        if (!row) return NextResponse.json({ error: 'Option not found' }, { status: 404 });
+        const total = Number(row.total_price);
+        if (!Number.isFinite(total) || total <= 0) {
+          return NextResponse.json({ error: `Lodging option ${optionId} has no total_price — re-save the stay with a total before committing it.` }, { status: 400 });
+        }
+      }
+      try {
+        await reserveTravelSearch('hotelcontent');
+      } catch (err) {
+        if (err instanceof TravelSearchQuotaError) {
+          return NextResponse.json({ error: 'Hotel details are temporarily paused (the daily cap is reached) — the stay was not committed. Please try again later.', source: 'liteapi' }, { status: 503 });
+        }
+        throw err;
+      }
+      let content;
+      try {
+        content = await getHotelContent(liteapiHotelId);
+      } catch (err) {
+        // The reason, in a fixed line: the endpoint and the status — never the vendor's
+        // response body (HYG-02 / SEC-02b: a thrown message does not reach the browser).
+        if (err instanceof LiteApiError) {
+          return NextResponse.json({ error: `The property's check-in and check-out could not be read from LiteAPI — ${err.endpoint} answered ${err.status}. Nothing was committed.`, source: 'liteapi', status: err.status }, { status: 502 });
+        }
+        if (err instanceof MissingLiteApiKeyError) {
+          return NextResponse.json({ error: `The property's check-in and check-out could not be read — no LiteAPI key is configured for ${err.mode}. Nothing was committed.`, source: 'liteapi', kind: 'missing_key' }, { status: 502 });
+        }
+        throw err;
+      }
+      if (!content) {
+        return NextResponse.json({ error: `LiteAPI returned no content for hotel ${liteapiHotelId} — the property's check-in and check-out could not be read. Nothing was committed.`, source: 'liteapi' }, { status: 502 });
+      }
+      const read = propertyClockOf(content.checkinCheckoutTimes);
+      if ('unreadable' in read) {
+        return NextResponse.json({ error: `${read.unreadable} — nothing was committed.`, source: 'liteapi' }, { status: 502 });
+      }
+      propertyClock = read.clock;
+    }
+    // The stay's clock as stored — the property's (a LiteAPI stay) or the caller's stated one
+    // (any other lodging, any other date-range type), or null. One clock, two columns: the
+    // @db.Time block window the calendar draws and the VarChar ledger clock the budget shows.
+    const stayStart = propertyClock ? parseTimeOrNull(propertyClock.checkin, 'block_start_time') : blockStartParse;
+    if (stayStart.error) return stayStart.error;
+    const stayEnd = propertyClock ? parseTimeOrNull(propertyClock.checkout, 'block_end_time') : blockEndParse;
+    if (stayEnd.error) return stayEnd.error;
+    const ledgerStart: string | null = propertyClock ? propertyClock.checkin : (startTime || null);
+    const ledgerEnd: string | null = propertyClock ? propertyClock.checkout : (endTime || null);
 
     const result = await prisma.$transaction(async (tx) => {
       // A. Verify option exists and get details
@@ -360,24 +443,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const isRange = totalDays > 1;
         const dayNum = Math.round((start.getTime() - tripStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-        // Daily time window (@db.Time(6), 1970-anchored): the commit's time inputs
-        // when present, else NULL for every type. HOTEL-01 (2026-09-22): the
-        // hotel-standard 15:00 / 11:00 a lodging block used to be given is GONE —
-        // an invented time, the class GRID-01 removed. A property's check-in and
-        // check-out times come from its payload when stated; when not stated the
-        // window is null and the calendar says so, never a clock nobody stated.
-        const blockStart = blockStartParse.value;
-        const blockEnd = blockEndParse.value;
+        // Daily time window (@db.Time(6), 1970-anchored): the stay's clock resolved
+        // above — HOTEL-02 (2026-09-22): the property's own, read once at commit, or
+        // the caller's stated one for a lodging that names no hotel, or NULL. HOTEL-01
+        // (2026-09-22) removed the hotel-standard 15:00 / 11:00 a lodging block used
+        // to be given — an invented time, the class GRID-01 removed; when nothing is
+        // stated the window is null and the calendar says so.
+        const blockStart = stayStart.value;
+        const blockEnd = stayEnd.value;
 
         const entry = await tx.trip_itinerary.create({
           data: {
             tripId: id, day: dayNum, homeDate: start,
-            // HOTEL-01 (2026-09-22): the ledger's homeTime / destTime are the commit's
-            // stated times or null — the "—" a ledger shows for an unstated check-in is
-            // the truth. (PR-Hotel-Default-Times' 15:00 / 11:00 is gone.) Plain
-            // VarChar(10) strings, the same format the flight branch writes.
-            homeTime: startTime || null,
-            destDate: end, destTime: endTime || null,
+            // HOTEL-01 (2026-09-22): the ledger's homeTime / destTime are the stated times
+            // or null — the "—" a ledger shows for an unstated check-in is the truth.
+            // HOTEL-02: the same clock the block window holds (one clock, two columns).
+            // Plain VarChar(10) strings, the same format the flight branch writes.
+            homeTime: ledgerStart,
+            destDate: end, destTime: ledgerEnd,
             category: optionType, vendor: details.title, cost: Math.round(details.amount * 100) / 100,
             note: notes || null, location: activityLocation, vendorOptionId: optionId, vendorOptionType: optionType,
             // PR 3: the user's recurrence choice wins; absent → span default.
@@ -438,6 +521,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       success: true,
       budgetItemId: result.budgetItem.id,
       itineraryCount: result.itineraryEntries.length,
+      // HOTEL-02: what the commit stored for the stay's clock, in words — the property's
+      // stated check-in / check-out, or its silence named. Null for anything but a stay
+      // that named its hotel.
+      stayTimes: propertyClock ? { ...propertyClock, source: 'property', statement: propertyClockStatement(propertyClock) } : null,
     });
   } catch (error) {
     return failClosedResponse('Vendor commit', 'Failed to commit vendor option', error);

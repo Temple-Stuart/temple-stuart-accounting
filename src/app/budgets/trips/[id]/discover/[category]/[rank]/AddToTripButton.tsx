@@ -38,10 +38,12 @@ export function AddToTripButton({
 }: Props) {
   const [state, setState] = useState<'idle' | 'adding' | 'added' | 'failed'>('idle');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  // New capture (PR 3): hotels are always DAILY (nightly stay). Daily window
-  // defaults to the overnight 22:00–07:00; COA + clean vendor name overridable.
-  const [windowStart, setWindowStart] = useState('22:00');
-  const [windowEnd, setWindowEnd] = useState('07:00');
+  // HOTEL-02 (2026-09-22): the stay's clock is the property's, read by the commit
+  // from the vendor's content — the 22:00–07:00 "overnight window" this button
+  // used to prefill and send was a time nobody stated. There is no time input
+  // here; the commit answers with what the property stated, shown below.
+  const [stayTimes, setStayTimes] = useState<string | null>(null);
+  // PR 3 capture: hotels are always DAILY (nightly stay); COA + clean vendor name overridable.
   const [coaCode, setCoaCode] = useState(suggestedCoaCode ?? '');
   const [vendorName, setVendorName] = useState(hotelName);
 
@@ -92,8 +94,9 @@ export function AddToTripButton({
           amount: amount ?? 0,              // rec.price (whole-stay total) — not recomputed
           notes: detail ? `${hotelName} | ${detail}` : hotelName,
           recurrence: 'daily',              // a hotel stay is a nightly recurring block
-          startTime: windowStart || undefined,  // daily window start (block_start_time)
-          endTime: windowEnd || undefined,      // daily window end (block_end_time)
+          // HOTEL-02: the vendor's hotel id — the commit reads the property's own check-in /
+          // check-out once and writes that clock or null; no time is sent from here.
+          ...(liteapiHotelId ? { liteapiHotelId } : {}),
           coa_code: coaCode || undefined,        // user-selected COA; server validates, else derives
           vendor_name: vendorName || undefined,  // clean hotel name → trip_itinerary.vendor_name
           location,                         // destinationLabel → itinerary.location → Country
@@ -102,8 +105,11 @@ export function AddToTripButton({
 
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        throw new Error(d.error || `Commit failed (HTTP ${res.status})`);
+        throw new Error(d.message || d.error || `Commit failed (HTTP ${res.status})`);
       }
+      const d = await res.json();
+      // HOTEL-02: the commit says what clock it stored — the property's, or its silence named.
+      setStayTimes(liteapiHotelId ? (d.stayTimes?.statement ?? 'the commit reported no clock for this stay') : 'no vendor hotel named — no clock stated');
       setState('added');
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Add to trip failed');
@@ -113,12 +119,15 @@ export function AddToTripButton({
 
   if (state === 'added') {
     return (
-      <a
-        href={`/budgets/trips/${tripId}`}
-        className="px-4 py-2 bg-emerald-100 border border-emerald-300 text-emerald-800 text-sm font-medium rounded hover:bg-emerald-200"
-      >
-        ✓ Added to trip — view budget
-      </a>
+      <div className="flex flex-col gap-1">
+        <a
+          href={`/budgets/trips/${tripId}`}
+          className="self-start px-4 py-2 bg-emerald-100 border border-emerald-300 text-emerald-800 text-sm font-medium rounded hover:bg-emerald-200"
+        >
+          ✓ Added to trip — view budget
+        </a>
+        {stayTimes && <span className="text-xs text-text-muted" data-stay-times>{stayTimes}</span>}
+      </div>
     );
   }
 
@@ -129,23 +138,18 @@ export function AddToTripButton({
 
   return (
     <div className="flex flex-col gap-2">
-      {/* PR 3 capture — daily window, vendor name, COA account (all inline, no modal).
-          Recurrence is fixed 'daily' for a nightly hotel stay. */}
+      {/* PR 3 capture — vendor name, COA account (all inline, no modal). Recurrence is
+          fixed 'daily' for a nightly hotel stay. HOTEL-02: no time inputs — the
+          property's check-in / check-out are read at commit and stated back. */}
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
           <span className="text-[11px] text-text-muted">Recurrence</span>
           <span className="px-3 py-1.5 text-sm rounded border border-border bg-white text-text-secondary">Daily (nightly stay)</span>
         </div>
-        <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-text-muted">Window start</span>
-          <input type="time" value={windowStart} onChange={e => setWindowStart(e.target.value)}
-            aria-label="Window start" className={inputCls} />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-text-muted">Window end</span>
-          <input type="time" value={windowEnd} onChange={e => setWindowEnd(e.target.value)}
-            aria-label="Window end" className={inputCls} />
-        </label>
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] text-text-muted">Check-in / check-out</span>
+          <span className="px-3 py-1.5 text-sm rounded border border-border bg-white text-text-secondary">as the property states them — read when you add</span>
+        </div>
         <label className="flex flex-col gap-1 min-w-[10rem]">
           <span className="text-[11px] text-text-muted">Vendor name</span>
           <input type="text" value={vendorName} onChange={e => setVendorName(e.target.value)}

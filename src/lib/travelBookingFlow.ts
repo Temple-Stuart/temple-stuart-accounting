@@ -15,6 +15,12 @@
  * their helpers. A change to any of them is a change to the booking flow and
  * needs its own ruling — the ruling that changes it re-pins it here, dated.
  *
+ * HOTEL-02 (2026-09-22): THE STAY'S TIMES ARE THE PROPERTY'S, NOT OURS. vendor-commit
+ * (unpinned, below) now makes the ONE content call for a stay that names its hotel
+ * and writes the property's clock or null; five pinned files are re-dated for the
+ * paint and the plumbing around it (a hotel id sent, a scale named, a dead constant
+ * gone, a type). No booking call changed — the hotel law hashes them body-for-body.
+ *
  * vendor-commit (POST/DELETE /api/trips/[id]/vendor-commit) is NOT in the
  * list: it is the itinerary and calendar WRITER a committed option lands
  * through, not a booking, a prebook, a payment or a provider call. TRAVEL-01
@@ -32,7 +38,7 @@
 
 import { createHash } from 'node:crypto';
 
-export const BOOKING_FLOW_BASE = 'main @ b9eac34a (2026-09-19); UnattachedBookings.tsx re-pinned by REPAINT-04 (2026-09-21), paint only; the flights search route, the adapter and the two flight pickers re-pinned by FLIGHT-01 (2026-09-22), search is not booking; the hotels search route, the two hotel surfaces, the showroom picker, the client, the flight adapter and the flight view re-pinned by HOTEL-01 (2026-09-22), search and display are not booking';
+export const BOOKING_FLOW_BASE = 'main @ b9eac34a (2026-09-19); UnattachedBookings.tsx re-pinned by REPAINT-04 (2026-09-21), paint only; the flights search route, the adapter and the two flight pickers re-pinned by FLIGHT-01 (2026-09-22), search is not booking; the hotels search route, the two hotel surfaces, the showroom picker, the client, the flight adapter and the flight view re-pinned by HOTEL-01 (2026-09-22), search and display are not booking; the two hotel surfaces, the checkout panel, the planner and the client re-dated by HOTEL-02 (2026-09-22), the stay\'s clock is the property\'s';
 
 export interface BookingFlowPin {
   readonly file: string;
@@ -69,7 +75,9 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   { file: 'src/components/trips/travelStripModes.tsx', sha256: '4eaae575daae7dcbf0795a40547cf1613af7aa03e2e675bf4aed9ad182642522' },
   // HOTEL-01 (2026-09-22): re-pinned — the filters on the screen, sent on Search, counted; Book and Save act on the selected rate; the property's stated clock on commit. Search and display are not booking; no prebook/book/pay/cancel call changed.
   // Was f2c48b9a3e8aff1ec2fd64a3ead5b1d03f6e4d9f66a60777b25ec1b37da3bb27 at main d56b2cc9.
-  { file: 'src/components/trips/PublicHotelSearch.tsx', sha256: '1924a700c5f1e412a019ccaf09804eb1f8ab39984f9c2343f07d8e50aed6fced' },
+  // HOTEL-02 (2026-09-22): re-dated — Save names the vendor's hotel and sends no clock; the note repeats what the commit stored. The stay's clock is the property's, read once at commit; no prebook/book/pay/cancel call changed.
+  // Was 1924a700c5f1e412a019ccaf09804eb1f8ab39984f9c2343f07d8e50aed6fced at main 81045434.
+  { file: 'src/components/trips/PublicHotelSearch.tsx', sha256: 'b397182c40ff6f5e96c712f1bbbfefe5d27993c7c2480138b0a00a2cee8ea062' },
   // FLIGHT-01 (2026-09-22): re-pinned — the leg carries the screen's filters; the search request carries them; a session search count. Search is not booking; no prebook/verify/book/pay/cancel call changed.
   // Was fac335657e50b3fda3be9cf82053fce7f56f04f2c079a1f1a6c6f2c125d11359 at main b9eac34a.
   { file: 'src/components/trips/PublicFlightSearch.tsx', sha256: '4d7573d8600f0502fa42bfaadec3375d4d220dfaf2c357a9ceef2244ec9c7099' },
@@ -79,7 +87,9 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   { file: 'src/components/trips/PublicCategorySearch.tsx', sha256: '26c51b4c613f0011b5aa7d7015d839eceb26c10616960c82010986b708023771' },
   // HOTEL-01 (2026-09-22): re-pinned — one card per hotel with its rates, the filter bar, the lowest-rate line, the difference line, the env-honest footer. Search and display are not booking; no prebook/book/pay/cancel call changed.
   // Was c73147fe7242acc8a3f70e9471beaafa43b65a479e1ee6b02019c37187734a95 at main d56b2cc9.
-  { file: 'src/components/trips/HotelResultsView.tsx', sha256: '3520aeb26fb0be39ee4c108583cb92da4a6e843f91029411bd63030a26924f20' },
+  // HOTEL-02 (2026-09-22): re-dated — the catalog's guest rating names its documented scale (/10). The stay's clock is the property's, read once at commit; no prebook/book/pay/cancel call changed.
+  // Was 3520aeb26fb0be39ee4c108583cb92da4a6e843f91029411bd63030a26924f20 at main 81045434.
+  { file: 'src/components/trips/HotelResultsView.tsx', sha256: '54594766ceda7c43d3caa055c91490ed4202896eea92ce3d1254c815f6876122' },
   // HOTEL-01 (2026-09-22): re-pinned — the dead provider's two lines deleted; a null rating says so (the showroom's picker, mounted nowhere). Search and display are not booking; no prebook/book/pay/cancel call changed.
   // Was 91e32a6df274f9f92a39329181d5ba3c7980c2a389a49044126f819f1e55284a at main d56b2cc9.
   { file: 'src/components/trips/HotelPicker.tsx', sha256: 'e869b851fb14b80d4a73e01f8113a902004498822d0f2af128f1215394972c41' },
@@ -94,7 +104,9 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // Was 5ec7d6289a40f4f78457e5c381609d9d65686148b352eef4a1c9f5f55a1176a3 at main d56b2cc9.
   { file: 'src/components/trips/FlightPickerView.tsx', sha256: 'e85e7187bed9099999b041ae6a05a9d87f0672ebca1b5ae4fc1451df8d64e853' },
   { file: 'src/components/trips/ActivityResultsView.tsx', sha256: 'f389031ad67caa345a912a41b45aeced4538fb407a91dea89acb98f6f515c97b' },
-  { file: 'src/components/trips/CheckoutPanel.tsx', sha256: '417cf3e6cfced5f38dda66fc047218437703edbc2fd5b459a9d5f0189f15c3b6' },
+  // HOTEL-02 (2026-09-22): re-dated — the content rating renders on the scale the client types (/5, was /10) — paint only. The stay's clock is the property's, read once at commit; no prebook/book/pay/cancel call changed.
+  // Was 417cf3e6cfced5f38dda66fc047218437703edbc2fd5b459a9d5f0189f15c3b6 at main 81045434.
+  { file: 'src/components/trips/CheckoutPanel.tsx', sha256: '77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5' },
   { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: 'c018712700fe9e24c0ff51b417ab3658060f8dbe8784a459b33da4eb6a70365d' },
   { file: 'src/components/trips/CancelBookingDialog.tsx', sha256: '7e50c4ece72171929446f4734622ccdf8b6b75bb87c2c6c3c5aa101ec26fd95d' },
   { file: 'src/components/trips/TripBookings.tsx', sha256: '1c74ce7438ea6ce7013a4c8de4bbd685f2865e2fe0f8d3c3a7f4a119435cc5bd' },
@@ -102,11 +114,15 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // (text-white → text-brand-purple, invisible on cream). Paint only; no call changed.
   // Was d5f8e0be428de6054eb756c0301c1e064e825f6ddb013d45cc332b7ca6157492 at main b9eac34a.
   { file: 'src/components/trips/UnattachedBookings.tsx', sha256: '09d7767b9a1679d0481efd506da7002b4ecfa4ee6a68f539a53e997726bda44b' },
-  { file: 'src/components/trips/TripPlannerAI.tsx', sha256: '8c5bf217bf1a2c2b65f3f969be5c02016455d53d9977fa5406600d14cb894ed5' },
+  // HOTEL-02 (2026-09-22): re-dated — the dead lodging default constant deleted; the lodging commit names the vendor's hotel. The stay's clock is the property's, read once at commit; no prebook/book/pay/cancel call changed.
+  // Was 8c5bf217bf1a2c2b65f3f969be5c02016455d53d9977fa5406600d14cb894ed5 at main 81045434.
+  { file: 'src/components/trips/TripPlannerAI.tsx', sha256: '9cdf491def14615d0f5b0d8ba168bb7026131b05c12b3d3a113be0b3ee3ddf9d' },
   // the provider clients and their helpers
   // HOTEL-01 (2026-09-22): re-pinned — the search half carries the vendor's filter and sort fields; every booking function is byte-identical (the hotel law pins each body). Search and display are not booking; no prebook/book/pay/cancel call changed.
   // Was 9806e3b58ab2b8d4845e7870f89078d473d27007cae0adb247af0673907f176a at main d56b2cc9.
-  { file: 'src/lib/liteapiClient.ts', sha256: 'bbb4c9afb8a5cd6237088ce3a750bb9a22c2ef4fcbbadb25bf99db9b17413ac2' },
+  // HOTEL-02 (2026-09-22): re-dated — HotelContent types the vendor's documented check-in / check-out object; the two rating comments name their scales — types and comments only, no function body changed. The stay's clock is the property's, read once at commit; no prebook/book/pay/cancel call changed.
+  // Was bbb4c9afb8a5cd6237088ce3a750bb9a22c2ef4fcbbadb25bf99db9b17413ac2 at main 81045434.
+  { file: 'src/lib/liteapiClient.ts', sha256: '9840759972a7b97231ddaf0a3b51e766d78cd4922621f38519a5cbd81234f8cf' },
   { file: 'src/lib/liteapiFlightsClient.ts', sha256: 'f5ecffcfa0b71b8cbe4ba8868a2f8aabd4e326129bacbf9a675e79b17e63fd2f' },
   // FLIGHT-01 (2026-09-22): re-pinned — tri-state fare attributes, segment views with the operating carrier, the flight identity; the `!!terms` coercion gone. Search is not booking; no prebook/verify/book/pay/cancel call changed.
   // Was d851de5d68fada3cffddd88ddcc38005b5a9c739e73c0920c213f282c30fa879 at main b9eac34a.

@@ -13,9 +13,11 @@
  * the request as the vendor's own contract (src/lib/hotels/rates.ts
  * hotelSearchParamsOf — a control at "any" sends nothing) and a search fires
  * ONLY here, on the SEARCH press, counted for the session. Book and Save act on
- * the SELECTED rate: Book with that rate's offerId, Save with that rate's total
- * and the property's stated check-in / check-out times when the payload carried
- * them — never the 15:00 / 11:00 nobody stated.
+ * the SELECTED rate: Book with that rate's offerId, Save with that rate's total.
+ * HOTEL-02 (2026-09-22): Save names the vendor's hotel and sends NO clock — the
+ * commit reads the property's own check-in / check-out once from its content and
+ * answers with what it stored; the note repeats it. Never the 15:00 / 11:00
+ * nobody stated.
  *
  * SEARCH is always free + public. "Book" (pay now → a real guest reservation via
  * CheckoutPanel, no login) and "Save to trip" (plan → a budgeted line) follow the
@@ -32,7 +34,7 @@ import CountryCityPicker from './CountryCityPicker';
 // Users on guests (the ruled field anatomy; lucide = house vocabulary).
 import { Calendar, Users } from 'lucide-react';
 import TravelSectionShell, { TravelField, TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS, TRAVEL_LABEL_CLASS } from './travelSection';
-import { DEFAULT_HOTEL_FILTERS, hhmmOf, hotelSearchParamsOf, type HotelUiFilters } from '@/lib/hotels/rates';
+import { DEFAULT_HOTEL_FILTERS, hotelSearchParamsOf, type HotelUiFilters } from '@/lib/hotels/rates';
 
 interface Props {
   /** Opens the existing home register/login modal (saving requires sign-in). */
@@ -155,10 +157,6 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
         card.nights !== null ? `${card.nights} night${card.nights === 1 ? '' : 's'}` : null,
         `hotel:${card.hotelId}`,
       ].filter(Boolean).join(' · ');
-      // HOTEL-01: the property's STATED check-in / check-out clocks, when the payload
-      // carried them — else the keys are absent and the commit stores no time.
-      const startTime = hhmmOf(card.checkinTime);
-      const endTime = hhmmOf(card.checkoutTime);
 
       const res = await fetch(`/api/trips/${currentTrip.id}/vendor-commit`, {
         method: 'POST',
@@ -173,15 +171,21 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
           notes: detail ? `${card.name} | ${detail}` : card.name,
           recurrence: 'daily',              // a stay is a nightly recurring block
           location: card.city ?? card.address ?? undefined,
-          ...(startTime ? { startTime } : {}),
-          ...(endTime ? { endTime } : {}),
+          // HOTEL-02: the vendor's hotel id — the commit reads the property's own
+          // check-in / check-out once; no clock is sent from the search.
+          liteapiHotelId: card.hotelId,
         }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        throw new Error(d.error || 'Save failed');
+        throw new Error(d.message || d.error || 'Save failed');
       }
-      setSaveNote({ kind: 'ok', text: `Saved ${card.name} to ${currentTrip.name ?? 'your trip'}.` });
+      const saved = await res.json();
+      // HOTEL-02: the note repeats what the commit stored for the stay's clock — the
+      // property's stated check-in / check-out, or its silence named. A commit that
+      // reported no clock at all is said so, never papered over.
+      const clock: string = saved.stayTimes?.statement ?? 'the commit reported no clock for this stay';
+      setSaveNote({ kind: 'ok', text: `Saved ${card.name} to ${currentTrip.name ?? 'your trip'} — ${clock}.` });
       onCommitted?.();
     } catch (err) {
       setSaveNote({ kind: 'err', text: err instanceof Error ? err.message : 'Save failed' });
@@ -271,6 +275,7 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
                 ? 'border-brand-red/40 text-brand-red'
                 : 'border-border text-text-secondary'
           }`}
+          data-save-note={saveNote.kind}
         >
           {saveNote.text}
         </div>

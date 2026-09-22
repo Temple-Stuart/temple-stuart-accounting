@@ -225,7 +225,7 @@ export default function HotelResultsView({ cards, loading, error, env, filters, 
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 text-xs text-text-secondary" data-hotel-stars>{starsText(card.stars)}</td>
                       <td className="whitespace-nowrap px-3 py-2 text-xs text-text-secondary" data-hotel-guest-rating>
-                        {card.guestRating === null ? `rating ${NOT_STATED}` : `${card.guestRating}${card.reviewCount !== null ? ` · ${card.reviewCount} reviews` : ''}`}
+                        {card.guestRating === null ? `rating ${NOT_STATED}` : `${card.guestRating}/10${card.reviewCount !== null ? ` · ${card.reviewCount} reviews` : ''}`}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 text-right">
                         <div className="font-mono text-sm font-semibold text-brand-gold" data-hotel-headline>{cheapest.perNight === null ? `${money(cheapest.total, cheapest.currency)} total` : `${money(cheapest.perNight, cheapest.currency)}`}</div>

@@ -15,6 +15,7 @@
 
 import { MissingLiteApiKeyError, LiteApiError } from './travelErrors';
 import type { LiteApiAnswer } from './arrivals/liteapiBooking';
+import type { CheckinCheckoutTimes } from './hotels/stayTimes';
 
 // LiteAPI uses two hosts:
 //   - api.liteapi.travel  → search + prebook
@@ -209,6 +210,7 @@ interface LiteApiHotelRate {
     city?: string;
     country?: string;
     stars?: number;
+    /** The catalog's guest rating — documented out of 10 (GET /data/hotels: "e.g., 8.5 out of 10"; HOTEL-02). */
     rating?: number;
     reviewCount?: number;
     main_photo?: string;
@@ -905,9 +907,16 @@ export interface HotelContent {
   zip?: string;
   location?: { latitude?: number; longitude?: number };
   starRating?: number;
-  rating?: number;       // guest review score (0-5 in observed responses)
+  /** Guest review score — 0-5 in observed responses (the vendor's own example: rating 4.1 beside
+   *  starRating 4; its doc names no scale). HOTEL-02 (2026-09-22): this typed scale is the ONE
+   *  scale a reader renders it on. Not verified by a captured payload — scripts/probe-liteapi-
+   *  content-reviews.ts prints the live value for Alex to confirm. */
+  rating?: number;
   reviewCount?: number;
   stars?: number;
+  /** HOTEL-02 (2026-09-22): the property's check-in / check-out as the vendor documents them on
+   *  GET /data/hotel — 12-hour text, read by src/lib/hotels/stayTimes.ts at commit and nowhere else. */
+  checkinCheckoutTimes?: CheckinCheckoutTimes;
 }
 
 /** Hit `GET /v3.0/data/hotel?hotelId=…`. Throws MissingLiteApiKeyError on no key,

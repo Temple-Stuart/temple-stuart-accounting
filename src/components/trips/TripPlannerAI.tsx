@@ -157,16 +157,10 @@ function formatFreqLabel(frequency: string): string {
   return FREQUENCY_OPTIONS.find(f => f.value === frequency)?.label || frequency;
 }
 
-// Default start/end times by category
-const CATEGORY_DEFAULT_TIMES: Record<string, { startTime: string; endTime: string }> = {
-  lodging: { startTime: '15:00', endTime: '11:00' },
-  dinner: { startTime: '19:00', endTime: '21:00' },
-  brunchCoffee: { startTime: '09:00', endTime: '10:30' },
-  activities: { startTime: '10:00', endTime: '12:00' },
-  nightlife: { startTime: '21:00', endTime: '00:00' },
-  coworking: { startTime: '09:00', endTime: '17:00' },
-  wellness: { startTime: '10:00', endTime: '11:30' },
-};
+// HOTEL-02 (2026-09-22): CATEGORY_DEFAULT_TIMES (lodging 15:00 / 11:00 and six
+// more) stood here, referenced nowhere — a dead constant holding an invented
+// time. Gone. A stay's clock is the property's, read at commit; nothing here
+// defaults one.
 
 // Maps scanner categories to vendor option API endpoints
 const CATEGORY_TO_VENDOR_API: Record<string, string> = {
@@ -587,6 +581,10 @@ function useTripScanState(input: Props) {
           startTime: times?.startTime || null,
           endTime: times?.endTime || null,
           location: rec.address || null,
+          // HOTEL-02 (2026-09-22): a LiteAPI stay names its hotel so the commit reads the
+          // property's own check-in / check-out once; a stay from elsewhere names none
+          // and takes no clock nobody stated.
+          ...(catInfo.optionType === 'lodging' && rec.liteapiHotelId ? { liteapiHotelId: rec.liteapiHotelId } : {}),
         }),
       });
       if (!commitRes.ok) { const d = await commitRes.json(); throw new Error(d.error || 'Commit failed'); }

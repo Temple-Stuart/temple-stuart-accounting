@@ -197,19 +197,16 @@ export default async function DiscoverDetailPage({
       const content = await getHotelContent(rec.liteapiHotelId);
       if (content) {
         const gallery = content.hotelImages?.map(im => im.urlHd || im.url).filter(Boolean) ?? [];
-        // Content `rating` is a 0-5 guest score in observed responses; the rec's
-        // reviewScore is 0-10. Normalise to 0-10 (mirrors the rates mapper's
-        // ">5 means already-10" convention) so the aggregate badge reads right.
-        const enrichedScore = content.rating != null
-          ? (content.rating <= 5 ? Math.round(content.rating * 2 * 10) / 10 : content.rating)
-          : undefined;
+        // HOTEL-02 (2026-09-22): the content's `rating` is typed 0-5 and the badge below
+        // is the catalog's 0-10 score — two scales, one field. The runtime guess that
+        // doubled a "<= 5" number is gone: the badge keeps the rec's own reviewScore and
+        // the content's rating is not re-scaled into it. The rating scale is one.
         rec = {
           ...rec,
           images: gallery.length ? gallery : rec.images,
           facilitiesAll: content.hotelFacilities?.length ? content.hotelFacilities : rec.facilitiesAll,
           latitude: content.location?.latitude ?? rec.latitude,
           longitude: content.location?.longitude ?? rec.longitude,
-          reviewScore: enrichedScore ?? rec.reviewScore,
           reviewCount: content.reviewCount ?? rec.reviewCount,
           descriptionFull: content.hotelDescription
             ? content.hotelDescription.replace(/<[^>]*>/g, '')
