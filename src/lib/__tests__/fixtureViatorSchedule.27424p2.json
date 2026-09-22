@@ -1,0 +1,434 @@
+{
+  "productCode": "27424P2",
+  "bookableItems": [
+    {
+      "productOptionCode": "TG14",
+      "seasons": [
+        {
+          "startDate": "2022-02-20",
+          "pricingRecords": [
+            {
+              "daysOfWeek": [
+                "MONDAY",
+                "TUESDAY",
+                "WEDNESDAY",
+                "THURSDAY",
+                "FRIDAY",
+                "SATURDAY",
+                "SUNDAY"
+              ],
+              "timedEntries": [
+                {
+                  "startTime": "07:30"
+                }
+              ],
+              "pricingDetails": [
+                {
+                  "pricingPackageType": "PER_PERSON",
+                  "minTravelers": 1,
+                  "ageBand": "ADULT",
+                  "price": {
+                    "original": {
+                      "recommendedRetailPrice": 3900
+                    },
+                    "special": {
+                      "recommendedRetailPrice": 3510,
+                      "offerStartDate": "2026-09-01",
+                      "offerEndDate": "2026-09-30",
+                      "travelStartDate": "2026-09-01",
+                      "travelEndDate": "2026-10-15"
+                    }
+                  }
+                },
+                {
+                  "pricingPackageType": "PER_PERSON",
+                  "minTravelers": 0,
+                  "ageBand": "CHILD",
+                  "price": {
+                    "original": {
+                      "recommendedRetailPrice": 2700
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "productOptionCode": "TG15",
+      "seasons": [
+        {
+          "startDate": "2022-02-20",
+          "pricingRecords": [
+            {
+              "daysOfWeek": [
+                "MONDAY",
+                "TUESDAY",
+                "WEDNESDAY",
+                "THURSDAY",
+                "FRIDAY",
+                "SATURDAY",
+                "SUNDAY"
+              ],
+              "timedEntries": [
+                {
+                  "startTime": "07:30"
+                }
+              ],
+              "pricingDetails": [
+                {
+                  "pricingPackageType": "PER_PERSON",
+                  "minTravelers": 1,
+                  "ageBand": "ADULT",
+                  "price": {
+                    "original": {
+                      "recommendedRetailPrice": 4500
+                    },
+                    "special": {
+                      "recommendedRetailPrice": 4050,
+                      "offerStartDate": "2026-09-01",
+                      "offerEndDate": "2026-09-30",
+                      "travelStartDate": "2026-09-01",
+                      "travelEndDate": "2026-10-15"
+                    }
+                  }
+                },
+                {
+                  "pricingPackageType": "PER_PERSON",
+                  "minTravelers": 0,
+                  "ageBand": "CHILD",
+                  "price": {
+                    "original": {
+                      "recommendedRetailPrice": 2500
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "productOptionCode": "TG17",
+      "seasons": [
+        {
+          "startDate": "2022-02-17",
+          "pricingRecords": [
+            {
+              "daysOfWeek": [
+                "MONDAY",
+                "TUESDAY",
+                "WEDNESDAY",
+                "THURSDAY",
+                "FRIDAY",
+                "SATURDAY",
+                "SUNDAY"
+              ],
+              "timedEntries": [
+                {
+                  "startTime": "08:00"
+                }
+              ],
+              "pricingDetails": [
+                {
+                  "pricingPackageType": "PER_PERSON",
+                  "minTravelers": 1,
+                  "ageBand": "ADULT",
+                  "price": {
+                    "original": {
+                      "recommendedRetailPrice": 3900
+                    },
+                    "special": {
+                      "recommendedRetailPrice": 3510,
+                      "offerStartDate": "2026-09-01",
+                      "offerEndDate": "2026-09-30",
+                      "travelStartDate": "2026-09-01",
+                      "travelEndDate": "2026-10-15"
+                    }
+                  }
+                },
+                {
+                  "pricingPackageType": "PER_PERSON",
+                  "minTravelers": 0,
+                  "ageBand": "CHILD",
+                  "price": {
+                    "original": {
+                      "recommendedRetailPrice": 2600
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "productOptionCode": "TG23",
+      "seasons": [
+        {
+          "startDate": "2022-04-30",
+          "pricingRecords": [
+            {
+              "daysOfWeek": [
+                "MONDAY",
+                "TUESDAY",
+                "WEDNESDAY",
+                "THURSDAY",
+                "FRIDAY",
+                "SATURDAY",
+                "SUNDAY"
+              ],
+              "timedEntries": [
+                {
+                  "startTime": "08:00"
+                }
+              ],
+              "pricingDetails": [
+                {
+                  "pricingPackageType": "PER_PERSON",
+                  "minTravelers": 1,
+                  "ageBand": "ADULT",
+                  "price": {
+                    "original": {
+                      "recommendedRetailPrice": 7000
+                    },
+                    "special": {
+                      "recommendedRetailPrice": 6300,
+                      "offerStartDate": "2026-09-01",
+                      "offerEndDate": "2026-09-30",
+                      "travelStartDate": "2026-09-01",
+                      "travelEndDate": "2026-10-15"
+                    }
+                  }
+                },
+                {
+                  "pricingPackageType": "PER_PERSON",
+                  "minTravelers": 0,
+                  "ageBand": "CHILD",
+                  "price": {
+                    "original": {
+                      "recommendedRetailPrice": 4500
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "productOptionCode": "TG24",
+      "seasons": [
+        {
+          "startDate": "2022-06-28",
+          "pricingRecords": [
+            {
+              "daysOfWeek": [
+                "MONDAY",
+                "TUESDAY",
+                "WEDNESDAY",
+                "THURSDAY",
+                "FRIDAY",
+                "SATURDAY",
+                "SUNDAY"
+              ],
+              "timedEntries": [
+                {
+                  "startTime": "07:30"
+                }
+              ],
+              "pricingDetails": [
+                {
+                  "pricingPackageType": "PER_PERSON",
+                  "minTravelers": 1,
+                  "ageBand": "ADULT",
+                  "price": {
+                    "original": {
+                      "recommendedRetailPrice": 2800
+                    },
+                    "special": {
+                      "recommendedRetailPrice": 2520,
+                      "offerStartDate": "2026-09-01",
+                      "offerEndDate": "2026-09-30",
+                      "travelStartDate": "2026-09-01",
+                      "travelEndDate": "2026-10-15"
+                    }
+                  }
+                },
+                {
+                  "pricingPackageType": "PER_PERSON",
+                  "minTravelers": 0,
+                  "ageBand": "CHILD",
+                  "price": {
+                    "original": {
+                      "recommendedRetailPrice": 2200
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "productOptionCode": "TG29",
+      "seasons": [
+        {
+          "startDate": "2025-05-26",
+          "pricingRecords": [
+            {
+              "daysOfWeek": [
+                "MONDAY",
+                "TUESDAY",
+                "WEDNESDAY",
+                "THURSDAY",
+                "FRIDAY",
+                "SATURDAY",
+                "SUNDAY"
+              ],
+              "timedEntries": [
+                {
+                  "startTime": "04:30",
+                  "unavailableDates": [
+                    {
+                      "date": "2026-09-22",
+                      "reason": "SOLD_OUT"
+                    },
+                    {
+                      "date": "2026-09-24",
+                      "reason": "SOLD_OUT"
+                    },
+                    {
+                      "date": "2026-09-23",
+                      "reason": "SOLD_OUT"
+                    }
+                  ]
+                }
+              ],
+              "pricingDetails": [
+                {
+                  "pricingPackageType": "PER_PERSON",
+                  "minTravelers": 1,
+                  "ageBand": "ADULT",
+                  "price": {
+                    "original": {
+                      "recommendedRetailPrice": 4500
+                    },
+                    "special": {
+                      "recommendedRetailPrice": 4050,
+                      "offerStartDate": "2026-09-01",
+                      "offerEndDate": "2026-09-30",
+                      "travelStartDate": "2026-09-01",
+                      "travelEndDate": "2026-10-15"
+                    }
+                  }
+                },
+                {
+                  "pricingPackageType": "PER_PERSON",
+                  "minTravelers": 0,
+                  "ageBand": "CHILD",
+                  "price": {
+                    "original": {
+                      "recommendedRetailPrice": 3000
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "productOptionCode": "TG30",
+      "seasons": [
+        {
+          "startDate": "2026-07-31",
+          "pricingRecords": [
+            {
+              "daysOfWeek": [
+                "MONDAY",
+                "TUESDAY",
+                "WEDNESDAY",
+                "THURSDAY",
+                "FRIDAY",
+                "SATURDAY",
+                "SUNDAY"
+              ],
+              "timedEntries": [
+                {
+                  "startTime": "07:30",
+                  "unavailableDates": [
+                    {
+                      "date": "2026-09-23",
+                      "reason": "SOLD_OUT"
+                    },
+                    {
+                      "date": "2026-10-25",
+                      "reason": "SOLD_OUT"
+                    }
+                  ]
+                }
+              ],
+              "pricingDetails": [
+                {
+                  "pricingPackageType": "PER_PERSON",
+                  "minTravelers": 1,
+                  "ageBand": "ADULT",
+                  "price": {
+                    "original": {
+                      "recommendedRetailPrice": 3900
+                    },
+                    "special": {
+                      "recommendedRetailPrice": 3510,
+                      "offerStartDate": "2026-09-01",
+                      "offerEndDate": "2026-09-30",
+                      "travelStartDate": "2026-09-01",
+                      "travelEndDate": "2026-10-15"
+                    }
+                  }
+                },
+                {
+                  "pricingPackageType": "PER_PERSON",
+                  "minTravelers": 0,
+                  "ageBand": "CHILD",
+                  "price": {
+                    "original": {
+                      "recommendedRetailPrice": 2900
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "currency": "THB",
+  "summary": {
+    "fromPrice": 2520,
+    "fromPriceBeforeDiscount": 2800
+  },
+  "extraChargesSummary": {
+    "fromPrice": 2920,
+    "fromPriceBeforeDiscount": 3200,
+    "extraCharges": 400
+  },
+  "_redacted": {
+    "keys": [
+      "bookingFee",
+      "commission",
+      "partnerNetPrice",
+      "partnerTotalPrice"
+    ],
+    "count": 84,
+    "reason": "commercial terms — not the traveller's price"
+  }
+}
