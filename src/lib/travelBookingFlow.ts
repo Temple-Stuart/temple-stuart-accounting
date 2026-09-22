@@ -26,6 +26,13 @@
  * through, not a booking, a prebook, a payment or a provider call. TRAVEL-01
  * did not touch it either, but it is not the booking flow's file.
  *
+ * ACTIVITY-01 (2026-09-22): ONE ACTIVITY, WHAT THE OPERATOR STATES. The Things-to-do
+ * search forwards the vendor's own /products/search contract and answers through a
+ * pure leaf, tri-state; five pinned files are re-dated for it (the search route, the
+ * strip's mount, the container, the transfers-only results view, the client's one
+ * added raw call). No booking call changed — the activity law hashes the client's
+ * existing function bodies.
+ *
  * FLIGHT-01 (2026-09-22) — SEARCH IS NOT BOOKING. The pin protects what moves
  * money and holds: prebook, verify, book, pay, cancel, the reservation routes
  * and the checkout panels. The flights SEARCH route and the picker that renders
@@ -38,7 +45,7 @@
 
 import { createHash } from 'node:crypto';
 
-export const BOOKING_FLOW_BASE = 'main @ b9eac34a (2026-09-19); UnattachedBookings.tsx re-pinned by REPAINT-04 (2026-09-21), paint only; the flights search route, the adapter and the two flight pickers re-pinned by FLIGHT-01 (2026-09-22), search is not booking; the hotels search route, the two hotel surfaces, the showroom picker, the client, the flight adapter and the flight view re-pinned by HOTEL-01 (2026-09-22), search and display are not booking; the two hotel surfaces, the checkout panel, the planner and the client re-dated by HOTEL-02 (2026-09-22), the stay\'s clock is the property\'s';
+export const BOOKING_FLOW_BASE = 'main @ b9eac34a (2026-09-19); UnattachedBookings.tsx re-pinned by REPAINT-04 (2026-09-21), paint only; the flights search route, the adapter and the two flight pickers re-pinned by FLIGHT-01 (2026-09-22), search is not booking; the hotels search route, the two hotel surfaces, the showroom picker, the client, the flight adapter and the flight view re-pinned by HOTEL-01 (2026-09-22), search and display are not booking; the two hotel surfaces, the checkout panel, the planner and the client re-dated by HOTEL-02 (2026-09-22), the stay\'s clock is the property\'s; the activities search route, the strip, the Things-to-do container, the transfers-only results view and the Viator client re-dated by ACTIVITY-01 (2026-09-22), a tour takes its time on the day';
 
 export interface BookingFlowPin {
   readonly file: string;
@@ -47,7 +54,9 @@ export interface BookingFlowPin {
 
 export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // the provider routes — search, content, prebook, book, verify, cancel
-  { file: 'src/app/api/travel/activities/search/route.ts', sha256: '8d147c3988d5ec89efd4961128e0a45cd2980358e2fb46843771dbbe4194cb48' },
+  // ACTIVITY-01 (2026-09-22): re-dated — the query carries the vendor's own /products/search filters, sort and count, validated by name between the two guards; one raw call; the answer through the pure leaf, tri-state; no re-sort, no rating drop. A tour takes its time on the day; no prebook/book/pay/cancel call changed.
+  // Was 8d147c3988d5ec89efd4961128e0a45cd2980358e2fb46843771dbbe4194cb48 at main dfc02881.
+  { file: 'src/app/api/travel/activities/search/route.ts', sha256: '571e8ccfb64553f27f33d36d0d9061717217877bcebddcd72d3127b44e5e79a6' },
   { file: 'src/app/api/travel/flights/lane/route.ts', sha256: '9ad617a3320f5abf6c0fc24ef2b38308f100389e4b98cf9a68a50ef9f2ab6b1e' },
   { file: 'src/app/api/travel/hotels/content/route.ts', sha256: '7923035f88437325994e957e73943cd4817ee72b2a9bf2908b0afba0803503e7' },
   { file: 'src/app/api/travel/hotels/reviews/route.ts', sha256: 'c548e5cc1f16808c119711395144ddbc0f4307d22bd67890185b59479000d39d' },
@@ -72,7 +81,9 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   { file: 'src/app/api/reservations/unattached/route.ts', sha256: '632107557b1fb4b7de840fb2ff0785bf643a3a28f3e5a2a6d337fed4c71720d0' },
   { file: 'src/app/api/trips/[id]/reservations/route.ts', sha256: '4d58cfc052f756c30c749383654a5de88184d8cda068a3c00342abba4dbf07da' },
   // the surfaces the Search section mounts, and the panels they open
-  { file: 'src/components/trips/travelStripModes.tsx', sha256: '4eaae575daae7dcbf0795a40547cf1613af7aa03e2e675bf4aed9ad182642522' },
+  // ACTIVITY-01 (2026-09-22): re-dated — the Things-to-do mount loses the inert fan-out props and the auth callback — the search fires only on the SEARCH press. A tour takes its time on the day; no prebook/book/pay/cancel call changed.
+  // Was 4eaae575daae7dcbf0795a40547cf1613af7aa03e2e675bf4aed9ad182642522 at main dfc02881.
+  { file: 'src/components/trips/travelStripModes.tsx', sha256: '29d2a7199fa4c685a051b0270c9b617a4ee680f907c2fa831692260f527a3d50' },
   // HOTEL-01 (2026-09-22): re-pinned — the filters on the screen, sent on Search, counted; Book and Save act on the selected rate; the property's stated clock on commit. Search and display are not booking; no prebook/book/pay/cancel call changed.
   // Was f2c48b9a3e8aff1ec2fd64a3ead5b1d03f6e4d9f66a60777b25ec1b37da3bb27 at main d56b2cc9.
   // HOTEL-02 (2026-09-22): re-dated — Save names the vendor's hotel and sends no clock; the note repeats what the commit stored. The stay's clock is the property's, read once at commit; no prebook/book/pay/cancel call changed.
@@ -81,7 +92,9 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // FLIGHT-01 (2026-09-22): re-pinned — the leg carries the screen's filters; the search request carries them; a session search count. Search is not booking; no prebook/verify/book/pay/cancel call changed.
   // Was fac335657e50b3fda3be9cf82053fce7f56f04f2c079a1f1a6c6f2c125d11359 at main b9eac34a.
   { file: 'src/components/trips/PublicFlightSearch.tsx', sha256: '4d7573d8600f0502fa42bfaadec3375d4d220dfaf2c357a9ceef2244ec9c7099' },
-  { file: 'src/components/trips/PublicActivitySearch.tsx', sha256: '0251b470ea74f8cd787f0b5f6436f32e44615c29f00b6a757ea70bf79c1e2e03' },
+  // ACTIVITY-01 (2026-09-22): re-dated — the filters on the screen, sent on Search as the vendor's names, counted; the picker view renders the cards; the nonce fan-out and the sign-up Book are gone. A tour takes its time on the day; no prebook/book/pay/cancel call changed.
+  // Was 0251b470ea74f8cd787f0b5f6436f32e44615c29f00b6a757ea70bf79c1e2e03 at main dfc02881.
+  { file: 'src/components/trips/PublicActivitySearch.tsx', sha256: '52d31c42033d9c6756f06119da899e84172a7d894e7849dcdadcdb09b076e190' },
   { file: 'src/components/trips/PublicTransferSearch.tsx', sha256: 'b508381f1a7c388eded9c139e7d5b76bd560e36d8db085e440a2eac0cb84a9c4' },
   { file: 'src/components/trips/PublicVisaCheck.tsx', sha256: 'd18df6a909cbd6bbb4332ce84648f7f87b7df6936b2523223f8f5575fb40b507' },
   { file: 'src/components/trips/PublicCategorySearch.tsx', sha256: '26c51b4c613f0011b5aa7d7015d839eceb26c10616960c82010986b708023771' },
@@ -103,7 +116,9 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // HOTEL-01 (2026-09-22): re-pinned — the session search count is the shared SearchCount control; no other change. Search and display are not booking; no prebook/book/pay/cancel call changed.
   // Was 5ec7d6289a40f4f78457e5c381609d9d65686148b352eef4a1c9f5f55a1176a3 at main d56b2cc9.
   { file: 'src/components/trips/FlightPickerView.tsx', sha256: 'e85e7187bed9099999b041ae6a05a9d87f0672ebca1b5ae4fc1451df8d64e853' },
-  { file: 'src/components/trips/ActivityResultsView.tsx', sha256: 'f389031ad67caa345a912a41b45aeced4538fb407a91dea89acb98f6f515c97b' },
+  // ACTIVITY-01 (2026-09-22): re-dated — the sign-up Book (onBook) deleted; the view serves the transfers rail only and its header says so. A tour takes its time on the day; no prebook/book/pay/cancel call changed.
+  // Was f389031ad67caa345a912a41b45aeced4538fb407a91dea89acb98f6f515c97b at main dfc02881.
+  { file: 'src/components/trips/ActivityResultsView.tsx', sha256: '8ff4b85bd317d0d94bf68c9fda888b9eb600a8606581ab664e5b63bdf1285026' },
   // HOTEL-02 (2026-09-22): re-dated — the content rating renders on the scale the client types (/5, was /10) — paint only. The stay's clock is the property's, read once at commit; no prebook/book/pay/cancel call changed.
   // Was 417cf3e6cfced5f38dda66fc047218437703edbc2fd5b459a9d5f0189f15c3b6 at main 81045434.
   { file: 'src/components/trips/CheckoutPanel.tsx', sha256: '77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5' },
@@ -129,7 +144,9 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // HOTEL-01 (2026-09-22): re-pinned — the tri-state readers come from the one helper, src/lib/travel/stated.ts; no other change. Search and display are not booking; no prebook/book/pay/cancel call changed.
   // Was e808226d162022fce929170a104ee63dd715825c933bf9d7b371e754c533aef7 at main d56b2cc9.
   { file: 'src/lib/liteapiFlightAdapter.ts', sha256: 'dbd95eb79c6a0bd2f561e8b8a9a537f71533e6e2ad22b65893ffd174482fa31a' },
-  { file: 'src/lib/viatorClient.ts', sha256: '4232b6fc9b14e860ad3c5f9a9e6777152f2ef5b3b98ae920b58952dd0a65ce14' },
+  // ACTIVITY-01 (2026-09-22): re-dated — one raw /products/search call added for the Things-to-do route (searchProductsRaw) and its type import; every existing function body byte-identical (the activity law hashes them). A tour takes its time on the day; no prebook/book/pay/cancel call changed.
+  // Was 4232b6fc9b14e860ad3c5f9a9e6777152f2ef5b3b98ae920b58952dd0a65ce14 at main dfc02881.
+  { file: 'src/lib/viatorClient.ts', sha256: '347728f18cde38acb9440aa80e2005ee07ec3ba7648ced999195afe174f255c0' },
   { file: 'src/lib/travelBuddyClient.ts', sha256: 'b745272d633d5322d7768c755fa96571a76f7e170e182474e4660fd94f2351f1' },
   { file: 'src/lib/flightsLane.ts', sha256: 'c39972d6fd517124ca841487c994013583f5faeb05e2001080f1bf80d6352cee' },
   { file: 'src/lib/arrivals/liteapiBooking.ts', sha256: '2297a1c8cf1e0de4e3255545835a909b367cc27aeaf18bf14533803f1f954aff' },

@@ -9,6 +9,7 @@ import { viatorAffiliateUrl } from '@/config/affiliates';
 import { ACTIVITY_LABELS } from './activities';
 import { TRAVEL_COA } from './travelCOA';
 import { MissingViatorKeyError, ViatorApiError } from './travelErrors';
+import type { ProductSearchBody } from './activities/searchContract';
 
 const VIATOR_V2_BASE = 'https://api.viator.com/partner';
 
@@ -317,6 +318,28 @@ async function searchV2Products(destId: number, maxCount: number, tagIds?: numbe
 
   const data = await res.json();
   return (data.products || []).map(normalizeV2Product);
+}
+
+/**
+ * ACTIVITY-01 (2026-09-22): the ONE raw /products/search call for the Things-to-do
+ * search route. The body is the vendor's documented request as the route's contract
+ * built it (src/lib/activities/searchContract.ts activitySearchBodyOf — the
+ * validated filters, sort and count, the one currency constant); the answer is
+ * returned AS THE VENDOR SENT IT — no normalization, no `|| 0`, no re-sort, no
+ * rating drop (the pure leaf src/lib/activities/products.ts reads it). A non-2xx
+ * answer throws ViatorApiError with the endpoint and status; the route turns that
+ * into a fixed reason. The transfers route and the planner keep the paths above.
+ */
+export async function searchProductsRaw(body: ProductSearchBody): Promise<unknown> {
+  const res = await fetch(`${VIATOR_V2_BASE}/products/search`, {
+    method: 'POST',
+    headers: v2Headers(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new ViatorApiError('V2 /products/search', res.status, await res.text());
+  }
+  return res.json();
 }
 
 /** V2 /search/freetext — best for keyword-based searching */
