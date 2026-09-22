@@ -42,12 +42,13 @@ import ActivityPickerView, { type ActivityCardView } from './ActivityPickerView'
 // PR-STRIP-DESIGN-2: icon-inside-field — MapPin marks the destination.
 import { MapPin } from 'lucide-react';
 import TravelSectionShell, { TravelField, TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS, TRAVEL_LABEL_CLASS } from './travelSection';
-import { DEFAULT_ACTIVITY_FILTERS, activitySearchParamsOf, moreStated, pageSizeOf, type ActivityUiFilters } from '@/lib/activities/products';
+import { DEFAULT_ACTIVITY_FILTERS, activitySearchParamsOf, durationText, moreStated, pageSizeOf, type ActivityUiFilters } from '@/lib/activities/products';
 import { ACTIVITY_SEARCH_CURRENCY } from '@/lib/activities/searchContract';
-import { cancellationStatement, optionTitleOf, partyMeetsProduct, partySize, partyText, type Party, type ProductFacts } from '@/lib/activities/product';
-import { partyCost, priceLineText, type OptionOn } from '@/lib/activities/schedule';
+import { cancellationStatement, optionTitleOf, partyText, type Party, type ProductFacts } from '@/lib/activities/product';
+import { priceLineText } from '@/lib/activities/schedule';
 import type { RateRecord } from '@/lib/activities/fx';
-import { activitySaveNoteOf, conversionText, endTimeOf, totalOf, type ViatorSave } from '@/lib/activities/save';
+import { conversionText } from '@/lib/activities/save';
+import { endOfQuote, priceQuote, type QuotePrice, type ViatorQuote } from '@/lib/activities/quote';
 import type { Stated } from '@/lib/travel/stated';
 
 interface Props {
@@ -62,11 +63,27 @@ interface Props {
 }
 
 /** The options route's answer, as the screen reads it. */
+/** One bookable pick as the server sealed it: the quote and its seal, or the reason there is none. */
+interface QuotedStart {
+  startTime: string | null;
+  unavailable: string | null;
+  refused: string | null;
+  quote: ViatorQuote | null;
+  seal: string | null;
+}
+
+interface QuotedOption {
+  productOptionCode: string | null;
+  refused: string | null;
+  dayUnavailable: string | null;
+  startTimes: QuotedStart[];
+}
+
 interface OptionsAnswer {
   product: ProductFacts;
   date: string;
   currency: string;
-  options: OptionOn[];
+  options: QuotedOption[];
   extraChargesPerTraveller: number | null;
   rate: RateRecord | null;
   rateFrom: 'cache' | 'vendor' | 'not needed';
@@ -75,6 +92,14 @@ interface OptionsAnswer {
 }
 
 const dateOnly = (v: string | null | undefined): string => (typeof v === 'string' && v.length >= 10 ? v.slice(0, 10) : '');
+
+/** A published start time plus the operator's stated minutes, as a clock — the bounds a variable end sits between. */
+const clockPlus = (startTime: string, minutes: number): string => {
+  const [h, m] = startTime.split(':').map(Number);
+  const t = h * 60 + m + minutes;
+  if (t >= 24 * 60) return '23:59';
+  return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+};
 
 export default function PublicActivitySearch({ onRequireAuth, authed, currentTrip, onCommitted }: Props) {
   // Guest has no trip/destination props — start empty so they search by typing a
@@ -190,11 +215,15 @@ export default function PublicActivitySearch({ onRequireAuth, authed, currentTri
   const [party, setParty] = useState<Party>({});
   const [checking, setChecking] = useState(false);
   const [checkError, setCheckError] = useState('');
-  const [chosen, setChosen] = useState<{ productOptionCode: string; startTime: string | null } | null>(null);
+  const [chosen, setChosen] = useState<{ productOptionCode: string; startTime: string | null; quote: ViatorQuote; seal: string } | null>(null);
+  // A VARIABLE-duration tour: the operator states a range, not an end. The founder picks
+  // one inside it (or none — the block then draws as a flagged marker). Bounded here for
+  // the screen; the commit checks it against the SEALED range and refuses anything outside.
+  const [endPick, setEndPick] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveNote, setSaveNote] = useState<{ kind: 'ok' | 'err' | 'info'; text: string } | null>(null);
   const [savedFor, setSavedFor] = useState<Record<string, string>>({});
-  const resetSave = () => { setSaveDate(''); setAnswer(null); setParty({}); setChecking(false); setCheckError(''); setChosen(null); setSaveNote(null); };
+  const resetSave = () => { setSaveDate(''); setAnswer(null); setParty({}); setChecking(false); setCheckError(''); setChosen(null); setEndPick(''); setSaveNote(null); };
   const selectRow = (card: ActivityCardView | null) => { setSelected(card ? card.productCode : null); resetSave(); };
 
   const tripStart = dateOnly(currentTrip?.startDate);
@@ -231,66 +260,43 @@ export default function PublicActivitySearch({ onRequireAuth, authed, currentTri
     }
   };
 
-  // The draft the screen prices and the commit recomputes — one method (src/lib/activities/save.ts).
-  const draftOf = (opt: OptionOn, startTime: string | null): ViatorSave | { refused: string } => {
-    if (!answer || !selectedCard) return { refused: 'no schedule read' };
-    if (opt.productOptionCode === null) return { refused: 'the operator states no option code' };
-    const rules = partyMeetsProduct(answer.product, party);
-    if ('refused' in rules) return rules;
-    const cost = partyCost(opt.pricingDetails, party, answer.date, answer.asOf, answer.currency);
-    if ('refused' in cost) return cost;
-    const travellers = partySize(party);
-    const extra = answer.extraChargesPerTraveller === null ? null : { perTraveller: answer.extraChargesPerTraveller, travellers, total: Math.round(answer.extraChargesPerTraveller * travellers * 100) / 100 };
-    const base = { native: { amount: cost.total, currency: answer.currency }, extra, rate: answer.rate };
-    const total = totalOf(base, answer.targetCurrency, new Date());
-    if ('refused' in total) return total;
-    return {
-      productCode: selectedCard.productCode,
-      productOptionCode: opt.productOptionCode,
-      optionTitle: optionTitleOf(answer.product, opt.productOptionCode),
-      title: answer.product.title ?? selectedCard.name,
-      date: answer.date,
-      startTime,
-      endTime: endTimeOf(startTime, answer.product.duration),
-      timeZone: answer.product.timeZone,
-      durationMinutes: answer.product.duration?.kind === 'fixed' ? answer.product.duration.minutes : null,
-      party,
-      ...base,
-      total,
-      cancellation: cancellationStatement(answer.product),
-      asOf: answer.asOf,
-    };
+  // The screen prices the SEALED quote — the same leaf the commit recomputes through
+  // (src/lib/activities/quote.ts). No price, rate or clock is read from anywhere else.
+  const pricedOf = (quote: ViatorQuote | null): QuotePrice | { refused: string } => {
+    if (!answer) return { refused: 'no schedule read' };
+    if (quote === null) return { refused: 'the operator states no priced option here' };
+    return priceQuote(quote, party, answer.targetCurrency, new Date());
   };
 
   const save = async () => {
     if (authed !== true) { onRequireAuth(); return; }
     if (!currentTrip || !answer || !selectedCard || !chosen) return;
-    const opt = answer.options.find((o) => o.productOptionCode === chosen.productOptionCode);
-    if (!opt) return;
-    const draft = draftOf(opt, chosen.startTime);
-    if ('refused' in draft) { setSaveNote({ kind: 'err', text: `${draft.refused} — nothing was saved.` }); return; }
+    const priced = pricedOf(chosen.quote);
+    if ('refused' in priced) { setSaveNote({ kind: 'err', text: `${priced.refused} — nothing was saved.` }); return; }
+    const end = endOfQuote(chosen.quote, endPick);
+    if ('refused' in end) { setSaveNote({ kind: 'err', text: end.refused }); return; }
     setSaving(true);
     setSaveNote(null);
     try {
-      const note = activitySaveNoteOf(draft);
+      // The quote, its seal and the party — and NO figure, note or clock: the commit
+      // derives every one of them from what this server sealed when it read Viator.
       const res = await fetch(`/api/trips/${currentTrip.id}/vendor-commit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           optionType: 'activity',
-          synthetic: true,                                  // no DB option row — built from this payload
-          optionId: `viator-${draft.productCode}-${draft.productOptionCode}-${Date.now()}`,
-          startDate: draft.date,
-          endDate: draft.date,
-          startTime: draft.startTime ?? undefined,          // the published start time, or nothing
-          endTime: draft.endTime ?? undefined,              // start + the stated fixed duration, or nothing
-          amount: draft.total.amount,                       // the calculated plan figure — recomputed by the commit
-          notes: note,
+          synthetic: true,                                  // no DB option row — built from the sealed quote
+          optionId: `viator-${chosen.quote.productCode}-${chosen.quote.productOptionCode}-${Date.now()}`,
+          startDate: chosen.quote.date,
+          endDate: chosen.quote.date,
           recurrence: 'once',
           category: 'activities',                           // TRAVEL_COA.activities — P-9400 / B-9400
           location: selectedCard.destinationName ?? undefined,
           priceStatedBy: 'operator',                        // a stated 0 is a price (the marker)
-          viatorSave: draft,
+          viatorQuote: chosen.quote,
+          viatorSeal: chosen.seal,
+          party,
+          endTimeChosen: endPick || undefined,              // a variable duration only; the commit bounds it
         }),
       });
       if (!res.ok) {
@@ -300,11 +306,11 @@ export default function PublicActivitySearch({ onRequireAuth, authed, currentTri
       const saved = await res.json();
       const stored = saved.viatorSave as { startTime: string | null; endTime: string | null; timeZone: string | null; total: { amount: number; currency: string; label: string } } | null;
       const clock = !stored ? 'the commit reported no clock for this tour'
-        : stored.startTime === null ? `no start time stated by the operator for ${draft.date} — the block draws as a flagged marker with no end`
+        : stored.startTime === null ? `no start time stated by the operator for ${chosen.quote.date} — the block draws as a flagged marker with no end`
         : `starts ${stored.startTime}${stored.timeZone ? ` ${stored.timeZone}` : ''}${stored.endTime ? `, ends ${stored.endTime}` : ', no end stated (the block draws as a flagged marker)'}`;
       const figure = stored ? `${stored.total.currency} ${stored.total.amount.toFixed(2)} ${stored.total.label}` : '';
-      setSavedFor((m) => ({ ...m, [draft.productCode]: clock }));
-      setSaveNote({ kind: 'ok', text: `Saved ${draft.title} to ${currentTrip.name ?? 'your trip'} — ${clock}${figure ? ` · ${figure}` : ''}.` });
+      setSavedFor((m) => ({ ...m, [chosen.quote.productCode]: clock }));
+      setSaveNote({ kind: 'ok', text: `Saved ${chosen.quote.title} to ${currentTrip.name ?? 'your trip'} — ${clock}${figure ? ` · ${figure}` : ''}.` });
       onCommitted?.();
     } catch (err) {
       setSaveNote({ kind: 'err', text: err instanceof Error ? err.message : 'Save failed' });
@@ -358,25 +364,44 @@ export default function PublicActivitySearch({ onRequireAuth, authed, currentTri
                   {answer.options.map((opt) => {
                     const code = opt.productOptionCode ?? '(no code)';
                     const title = opt.productOptionCode ? optionTitleOf(answer.product, opt.productOptionCode) : null;
-                    const starts: Array<{ startTime: string | null; unavailable: string | null }> = opt.refused !== null && opt.startTimes.length === 0 ? [{ startTime: null, unavailable: opt.refused }] : opt.startTimes;
+                    const starts: QuotedStart[] = opt.startTimes.length === 0
+                      ? [{ startTime: null, unavailable: opt.dayUnavailable, refused: opt.refused, quote: null, seal: null }]
+                      : opt.startTimes;
                     return starts.map((st, i) => {
-                      const draft = opt.productOptionCode ? draftOf(opt, st.startTime) : { refused: 'no option code' };
+                      const priced = pricedOf(st.quote);
                       const isChosen = chosen?.productOptionCode === opt.productOptionCode && chosen?.startTime === st.startTime;
-                      const pickable = st.unavailable === null && !('refused' in draft);
+                      const pickable = st.unavailable === null && st.quote !== null && st.seal !== null && !('refused' in priced);
                       return (
-                        <tr key={`${code}:${st.startTime ?? 'none'}:${i}`} data-activity-option={code} data-activity-option-start={st.startTime ?? 'none'} data-activity-option-state={st.unavailable !== null ? 'unavailable' : 'refused' in draft ? 'refused' : 'available'}
-                          onClick={() => { if (pickable && opt.productOptionCode) setChosen({ productOptionCode: opt.productOptionCode, startTime: st.startTime }); }}
+                        <tr key={`${code}:${st.startTime ?? 'none'}:${i}`} data-activity-option={code} data-activity-option-start={st.startTime ?? 'none'} data-activity-option-state={st.unavailable !== null ? 'unavailable' : 'refused' in priced ? 'refused' : 'available'}
+                          onClick={() => { if (pickable && opt.productOptionCode && st.quote && st.seal) { setChosen({ productOptionCode: opt.productOptionCode, startTime: st.startTime, quote: st.quote, seal: st.seal }); setEndPick(''); } }}
                           className={`${pickable ? 'cursor-pointer' : 'cursor-default'} ${isChosen ? 'bg-brand-purple-wash/40' : ''}`}>
                           <td className="px-2 py-1"><span className="font-mono">{code}</span> {title ?? <span className="text-text-faint">title not stated by the operator</span>}</td>
-                          <td className="px-2 py-1 font-mono">{st.startTime ?? <span className="text-text-faint">{opt.refused}</span>}{st.unavailable !== null && <span className="ml-1 text-brand-red" data-activity-option-reason>{st.unavailable}</span>}</td>
-                          <td className="px-2 py-1 text-text-secondary">{'refused' in draft ? <span className="text-brand-red">{draft.refused}</span> : (() => { const cost = partyCost(opt.pricingDetails, party, answer.date, answer.asOf, answer.currency); return 'refused' in cost ? cost.refused : `${cost.lines.map((l) => priceLineText(l, answer.currency)).join('; ')}${draft.extra ? ` + ${draft.extra.total.toFixed(2)} ${answer.currency} in-destination charges stated by the operator (${draft.extra.perTraveller.toFixed(2)} × ${draft.extra.travellers})` : ''}`; })()}</td>
-                          <td className="px-2 py-1 font-mono">{'refused' in draft ? '—' : <span data-activity-option-total={draft.total.amount}>{conversionText(draft)}</span>}</td>
+                          <td className="px-2 py-1 font-mono">{st.startTime ?? <span className="text-text-faint">{st.refused ?? opt.refused}</span>}{st.unavailable !== null && <span className="ml-1 text-brand-red" data-activity-option-reason>{st.unavailable}</span>}</td>
+                          <td className="px-2 py-1 text-text-secondary">{'refused' in priced ? <span className="text-brand-red">{priced.refused}</span> : `${priced.lines.map((l) => priceLineText(l, answer.currency)).join('; ')}${priced.extra ? ` + ${priced.extra.total.toFixed(2)} ${answer.currency} in-destination charges stated by the operator (${priced.extra.perTraveller.toFixed(2)} × ${priced.extra.travellers})` : ''}`}</td>
+                          <td className="px-2 py-1 font-mono">{'refused' in priced ? '—' : <span data-activity-option-total={priced.total.amount}>{conversionText({ native: priced.native, extra: priced.extra, rate: st.quote?.rate ?? null, total: priced.total })}</span>}</td>
                         </tr>
                       );
                     });
                   })}
                 </tbody>
               </table>
+              {chosen && chosen.quote.duration !== null && chosen.quote.duration.kind === 'variable' && (
+                <label className="flex flex-col gap-1" data-activity-end-pick>
+                  <span className={TRAVEL_LABEL_CLASS}>
+                    End (the operator states {durationText(chosen.quote.duration)} — pick one inside it, or leave it empty and the day draws a flagged marker)
+                  </span>
+                  <input
+                    type="time"
+                    value={endPick}
+                    min={chosen.startTime ? clockPlus(chosen.startTime, chosen.quote.duration.fromMinutes) : undefined}
+                    max={chosen.startTime ? clockPlus(chosen.startTime, chosen.quote.duration.toMinutes) : undefined}
+                    onChange={(e) => setEndPick(e.target.value)}
+                    className={`${TRAVEL_INPUT_CLASS} w-32`}
+                    aria-label="Tour end time"
+                    data-activity-end-input
+                  />
+                </label>
+              )}
               <div className="flex flex-wrap items-center gap-2">
                 <button type="button" onClick={save} disabled={saving || !chosen} className="rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-purple-hover disabled:opacity-50" data-activity-save-button>
                   {saving ? 'Saving…' : chosen ? `Save ${chosen.productOptionCode} ${chosen.startTime ?? '(no start time)'} to ${currentTrip.name ?? 'the trip'}` : 'Pick an option and a start time'}

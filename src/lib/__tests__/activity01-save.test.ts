@@ -16,7 +16,9 @@ import { code, comments } from '../sourceText';
 import { cancellationStatement, optionTitleOf, partyMeetsProduct, partySize, partyText, productFactsOf, type RawProduct } from '../activities/product';
 import { extraChargesFor, partyCost, plusDays, seasonHolds, startTimesOn, weekdayOf, type RawPricingRecord, type RawSchedule } from '../activities/schedule';
 import { CALCULATED, RATE_SOURCE, conversionLine, convert, isExpired, rateOf, roundHalfUpCents, type RawExchangeRates } from '../activities/fx';
-import { activitySaveNoteOf, endTimeOf, readViatorSave, totalOf, verifyViatorSave, type ViatorSave } from '../activities/save';
+import { activitySaveNoteOf, endTimeOf, totalOf } from '../activities/save';
+import { QUOTE_MAX_AGE_MINUTES, endOfQuote, priceQuote, quoteAgeMinutes, quotesForOption, readViatorQuote, saveFromQuote, type ViatorQuote } from '../activities/quote';
+import { QUOTE_SEAL_DOMAIN, canonicalJson, sealHolds, sealOf } from '../activities/quoteSeal';
 import { ACTIVITY_SEARCH_CURRENCY } from '../activities/searchContract';
 import { activityCardsOf, countLine, type RawProductSearch } from '../activities/products';
 import { validatedAffiliateUrl } from '../../config/affiliates';
@@ -40,6 +42,9 @@ const PLANNER = 'src/components/trips/TripPlannerAI.tsx';
 const STRIP = 'src/components/trips/travelStripModes.tsx';
 const QUOTA = 'src/lib/travelSearchQuota.ts';
 
+// The seal needs the app's own secret; the suite states one rather than depending on the shell.
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-not-real';
+
 const product = () => productFactsOf(PRODUCT as unknown as RawProduct);
 const schedule = SCHEDULE as unknown as RawSchedule;
 const rates = RATES as unknown as RawExchangeRates;
@@ -48,6 +53,12 @@ const AS_OF = NOW.toISOString();
 const DATE = '2026-09-23';
 const rate = () => { const r = rateOf(rates, 'THB', 'USD'); if ('refused' in r) throw new Error(r.refused); return r; };
 const record = (code_: string): RawPricingRecord => schedule.bookableItems!.find((b) => b.productOptionCode === code_)!.seasons![0].pricingRecords![0];
+/** The quote the options route would seal for this option's first published start time, from the captures. */
+const quoteFor = (code_: string): ViatorQuote => {
+  const option = startTimesOn(schedule, DATE, AS_OF).find((o) => o.productOptionCode === code_)!;
+  const rows = quotesForOption('u-walk', product(), option, DATE, 'THB', extraChargesFor(schedule, 1)!.perTraveller, rate(), AS_OF);
+  return rows[0].quote!;
+};
 
 test('the product states the party form, the zone, the option titles, the cancellation and the duration — read from the 2.6 MB capture', () => {
   const p = product();
@@ -142,38 +153,126 @@ test('the rate: the vendor\'s own, with its expiry; a converted figure is labell
   assert.doesNotMatch(code('src/lib/activities/fx.ts'), /\bfetch\(|process\.env|new Date\(\)|0\.03|Intl\./, 'no rate typed, no clock of its own');
 });
 
-test('the Save: the draft the screen prices is the one the commit re-reads and recomputes; the note names every figure; an expired rate or a wrong total is refused', () => {
+test('the Save: the line is DERIVED from the sealed quote — TG14, 2 adults, 2026-09-23 → USD 241.00 calculated, and the note names every figure', () => {
   const p = product();
+  const q = quoteFor('TG14');
+  assert.equal(q.startTime, '07:30'); assert.equal(q.unavailable, null); assert.equal(q.currency, 'THB'); assert.equal(q.timeZone, 'Asia/Bangkok');
+  assert.deepEqual(q.duration, { kind: 'fixed', minutes: 540 });
+  assert.equal(q.extraPerTraveller, 400); assert.equal(q.requiresAdultForBooking, true);
+  assert.deepEqual(q.bands.find((b) => b.ageBand === 'ADULT'), {
+    ageBand: 'ADULT', pricingPackageType: 'PER_PERSON', unitPrice: 3510, basis: 'special',
+    offerStartDate: '2026-09-01', offerEndDate: '2026-09-30', travelStartDate: '2026-09-01', travelEndDate: '2026-10-15',
+    min: 1, max: null, minPerBooking: 1, maxPerBooking: 28,
+  }, 'the price that applies on the date, which one it is, and the windows that made it apply');
+  // The recompute from the SEALED bands — the only method the screen and the commit share.
+  const priced = priceQuote(q, { ADULT: 2 }, ACTIVITY_SEARCH_CURRENCY, NOW);
+  assert.ok(!('refused' in priced));
+  assert.deepEqual(priced.lines, [{ ageBand: 'ADULT', count: 2, pricingPackageType: 'PER_PERSON', unitPrice: 3510, basis: 'special', subtotal: 7020 }]);
+  assert.deepEqual(priced.native, { amount: 7020, currency: 'THB' });
+  assert.deepEqual(priced.extra, { perTraveller: 400, travellers: 2, total: 800 });
+  assert.deepEqual(priced.total, { amount: 241.00, currency: 'USD', label: CALCULATED }, '7,020 + 800 = 7,820 THB × 0.0308188425 = 241.00');
+  // The same figure the STEP 4 method reached, from the raw record — the leaves agree.
   const cost = partyCost(record('TG14').pricingDetails!, { ADULT: 2 }, DATE, AS_OF, 'THB'); assert.ok(!('refused' in cost));
-  const extra = extraChargesFor(schedule, 2)!;
-  const total = totalOf({ native: { amount: cost.total, currency: 'THB' }, extra, rate: rate() }, ACTIVITY_SEARCH_CURRENCY, NOW);
-  assert.deepEqual(total, { amount: 241.00, currency: 'USD', label: CALCULATED }, '7,020 + 800 = 7,820 THB × 0.0308188425 = 241.00');
-  const draft: ViatorSave = {
-    productCode: '27424P2', productOptionCode: 'TG14', optionTitle: optionTitleOf(p, 'TG14'), title: p.title!, date: DATE, startTime: '07:30', endTime: endTimeOf('07:30', p.duration), timeZone: p.timeZone, durationMinutes: 540,
-    party: { ADULT: 2 }, native: { amount: cost.total, currency: 'THB' }, extra, rate: rate(), total, cancellation: cancellationStatement(p), asOf: AS_OF,
-  };
-  assert.equal(draft.endTime, '16:30'); assert.equal(endTimeOf('04:30', p.duration), '13:30'); assert.equal(endTimeOf('20:00', p.duration), null, 'past midnight — no end derived'); assert.equal(endTimeOf('07:30', { kind: 'variable', fromMinutes: 60, toMinutes: 120 }), null); assert.equal(endTimeOf(null, p.duration), null);
-  const note = activitySaveNoteOf(draft);
-  assert.equal(note, `Phi Phi Islands Adventure Day Trip w/ Seaview Lunch by V. Marine · option TG14 Small Group Only 20 People · 07:30 Asia/Bangkok · 2 adults · THB 7,820.00 (7020.00 + 800.00 in-destination charges stated by the operator, 400.00 × 2) × 0.0308188425 (Viator rate as of 2026-09-21T23:59:59Z, expires 2026-09-23T01:09:59Z) = USD 241.00 · calculated · cancellation: STANDARD — For a full refund, cancel at least 24 hours before the scheduled departure time. · schedule as published by the operator ${AS_OF} · book on Viator`);
-  const back = readViatorSave(JSON.parse(JSON.stringify(draft)));
-  assert.deepEqual(back, draft, 'the commit reads back exactly what the screen priced');
-  assert.deepEqual(verifyViatorSave(draft, 241, note, 'USD', NOW), { ok: true });
-  assert.match((verifyViatorSave(draft, 241, note, 'USD', new Date('2026-09-24T00:00:00Z')) as { refused: string }).refused, /^the Viator THB→USD rate expired at 2026-09-23T01:09:59Z/);
-  assert.match((verifyViatorSave({ ...draft, total: { ...total, amount: 250 } }, 250, note, 'USD', NOW) as { refused: string }).refused, /^the total 250 USD \(calculated\) does not follow/);
-  assert.match((verifyViatorSave(draft, 240, note, 'USD', NOW) as { refused: string }).refused, /^the line's amount 240 is not the calculated total 241/);
-  assert.match((verifyViatorSave(draft, 241, `${note} — edited`, 'USD', NOW) as { refused: string }).refused, /^the note is not the one/);
-  assert.match((verifyViatorSave({ ...draft, endTime: '17:00' }, 241, activitySaveNoteOf({ ...draft, endTime: '17:00' }), 'USD', NOW) as { refused: string }).refused, /^the end time does not follow/);
+  assert.deepEqual(totalOf({ native: { amount: cost.total, currency: 'THB' }, extra: extraChargesFor(schedule, 2)!, rate: rate() }, ACTIVITY_SEARCH_CURRENCY, NOW), priced.total);
+  const save = saveFromQuote(q, { ADULT: 2 }, undefined, ACTIVITY_SEARCH_CURRENCY, NOW);
+  assert.ok(!('refused' in save));
+  assert.equal(save.endTime, '16:30'); assert.equal(endTimeOf('04:30', p.duration), '13:30'); assert.equal(endTimeOf('20:00', p.duration), null, 'past midnight — no end derived'); assert.equal(endTimeOf(null, p.duration), null);
+  assert.equal(activitySaveNoteOf(save), `Phi Phi Islands Adventure Day Trip w/ Seaview Lunch by V. Marine · option TG14 Small Group Only 20 People · 07:30 Asia/Bangkok · 2 adults · THB 7,820.00 (7020.00 + 800.00 in-destination charges stated by the operator, 400.00 × 2) × 0.0308188425 (Viator rate as of 2026-09-21T23:59:59Z, expires 2026-09-23T01:09:59Z) = USD 241.00 · calculated · cancellation: STANDARD — For a full refund, cancel at least 24 hours before the scheduled departure time. · schedule as published by the operator ${AS_OF} · book on Viator`);
   // No conversion when the schedule already answers in the plan's currency; a rate to another currency refuses.
   assert.deepEqual(totalOf({ native: { amount: 50, currency: 'USD' }, extra: null, rate: null }, 'USD', NOW), { amount: 50, currency: 'USD', label: 'as stated' });
   assert.deepEqual(totalOf({ native: { amount: 50, currency: 'THB' }, extra: null, rate: null }, 'USD', NOW), { refused: 'the schedule answers in THB, the plan is USD, and no rate was read' });
-  // The reader refuses by name.
-  assert.deepEqual(readViatorSave({ ...JSON.parse(JSON.stringify(draft)), rate: { ...draft.rate, source: 'typed' } }), { refused: `viatorSave.rate must be the vendor's own rate (${RATE_SOURCE}) with its lastUpdated and expiry` });
-  assert.deepEqual(readViatorSave({ ...JSON.parse(JSON.stringify(draft)), party: { ADULT: 0 } }), { refused: 'viatorSave.party holds no travellers' });
-  assert.deepEqual(readViatorSave({ ...JSON.parse(JSON.stringify(draft)), total: { amount: 241, currency: 'USD', label: 'estimated' } }), { refused: `viatorSave.total must carry an amount, its currency and the label '${CALCULATED}' or 'as stated'` });
-  // A stated 0 is a price: a 0-cost option reads and verifies.
-  const free: ViatorSave = { ...draft, native: { amount: 0, currency: 'THB' }, extra: null, total: { amount: 0, currency: 'USD', label: CALCULATED } };
-  assert.deepEqual(verifyViatorSave(free, 0, activitySaveNoteOf(free), 'USD', NOW), { ok: true });
+  // A stated 0 is a price: a 0-priced band derives a 0 total, labelled calculated.
+  const free: ViatorQuote = { ...q, bands: q.bands.map((b) => ({ ...b, unitPrice: 0 })), extraPerTraveller: null };
+  const freeSave = saveFromQuote(free, { ADULT: 2 }, undefined, ACTIVITY_SEARCH_CURRENCY, NOW);
+  assert.ok(!('refused' in freeSave)); assert.deepEqual(freeSave.total, { amount: 0, currency: 'USD', label: CALCULATED });
   assert.doesNotMatch(code('src/lib/activities/save.ts'), /\bfetch\(|process\.env|new Date\(\)/);
+  assert.doesNotMatch(code('src/lib/activities/quote.ts'), /\bfetch\(|process\.env|new Date\(\)|0\.03|'Asia\//);
+});
+
+test('the seal: the key is derived from JWT_SECRET under its own domain, the quote is sealed canonically, and one changed byte does not verify', () => {
+  const q = quoteFor('TG14');
+  const seal = sealOf(q);
+  assert.match(seal, /^[0-9a-f]{64}$/);
+  assert.equal(sealHolds(q, seal), true);
+  // Canonical: key order does not matter, whitespace does not matter — the same quote seals the same.
+  const reordered = JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(q).reverse())));
+  assert.equal(canonicalJson(reordered), canonicalJson(q));
+  assert.equal(sealOf(reordered), seal, 'a round trip through JSON seals identically');
+  assert.equal(canonicalJson({ b: 1, a: [2, { d: 3, c: 4 }] }), '{"a":[2,{"c":4,"d":3}],"b":1}', 'keys sorted, arrays in their own order, no whitespace');
+  assert.throws(() => canonicalJson({ x: Number.NaN }), /non-finite/);
+  // One byte of the quote changed — any byte — and the seal does not hold.
+  for (const tampered of [
+    { ...q, bands: q.bands.map((b) => ({ ...b, unitPrice: 1 })) },
+    { ...q, rate: { ...q.rate!, rate: 1 } },
+    { ...q, extraPerTraveller: 0 },
+    { ...q, timeZone: 'Europe/London' },
+    { ...q, title: `${q.title} ` },
+    { ...q, startTime: '04:30' },
+    { ...q, unavailable: null, userId: 'someone-else' },
+    { ...q, asOf: new Date(Date.parse(q.asOf) + 1000).toISOString() },
+  ]) assert.equal(sealHolds(tampered, seal), false, `a changed quote must not carry the old seal: ${canonicalJson(tampered).slice(0, 60)}`);
+  // A seal that is not the server's own shape never reaches the comparison.
+  for (const bad of [undefined, null, '', 'not-hex', seal.slice(0, 63), `${seal}0`, seal.toUpperCase()]) assert.equal(sealHolds(q, bad), false);
+  // Domain separation from the session cookie, and fail closed with no secret.
+  assert.equal(QUOTE_SEAL_DOMAIN, 'temple-stuart/viator-quote/v1');
+  assert.match(code('src/lib/activities/quoteSeal.ts'), /crypto\.createHmac\('sha256', secret\)\.update\(QUOTE_SEAL_DOMAIN\)\.digest\(\)/);
+  assert.match(code('src/lib/activities/quoteSeal.ts'), /crypto\.timingSafeEqual\(expected, given\)/);
+  const held = process.env.JWT_SECRET;
+  delete process.env.JWT_SECRET;
+  assert.throws(() => sealOf(q), /JWT_SECRET environment variable is required/, 'no secret, no seal — never an unsealed quote');
+  process.env.JWT_SECRET = held;
+});
+
+test('the sealed quote refuses by name: another user\'s, a stale read, an expired rate, a sold-out start time, a party the operator does not allow', () => {
+  const q = quoteFor('TG14');
+  // The reader types every field.
+  assert.deepEqual(readViatorQuote({ ...JSON.parse(JSON.stringify(q)), v: 2 }), { refused: 'viatorQuote.v must be 1' });
+  assert.deepEqual(readViatorQuote({ ...JSON.parse(JSON.stringify(q)), bands: [] }), { refused: 'viatorQuote.bands must hold at least one priced age band' });
+  assert.deepEqual(readViatorQuote({ ...JSON.parse(JSON.stringify(q)), rate: { ...q.rate, source: 'typed' } }), { refused: `viatorQuote.rate must be the vendor's own rate (${RATE_SOURCE}) with its lastUpdated and expiry` });
+  assert.deepEqual(readViatorQuote({ ...JSON.parse(JSON.stringify(q)), bands: [{ ...q.bands[0], pricingPackageType: 'PER_GROUP' }] }), { refused: 'ADULT: viatorQuote.bands[].pricingPackageType must be PER_PERSON or UNIT' });
+  const back = readViatorQuote(JSON.parse(JSON.stringify(q)));
+  assert.deepEqual(back, q, 'the commit reads back exactly the quote it sealed');
+  // The age the commit checks: the stated window, measured from the read.
+  assert.equal(QUOTE_MAX_AGE_MINUTES, 30);
+  assert.equal(Math.round(quoteAgeMinutes(q, new Date(Date.parse(AS_OF) + 31 * 60000))), 31);
+  // A sold-out start time carries the vendor's own reason and cannot be saved.
+  const soldOut = quoteFor('TG29');
+  assert.equal(soldOut.unavailable, 'SOLD_OUT');
+  assert.deepEqual(saveFromQuote(soldOut, { ADULT: 2 }, undefined, ACTIVITY_SEARCH_CURRENCY, NOW), { refused: 'the operator states 04:30 as SOLD_OUT; nothing was saved' });
+  // The rate's own expiry outlives nothing: past it the Save is refused by name.
+  assert.deepEqual(saveFromQuote(q, { ADULT: 2 }, undefined, ACTIVITY_SEARCH_CURRENCY, new Date('2026-09-24T00:00:00Z')), { refused: 'the Viator THB→USD rate expired at 2026-09-23T01:09:59Z — check availability again for a current rate; nothing was saved' });
+  // The party is checked against the SEALED limits.
+  assert.deepEqual(saveFromQuote(q, { CHILD: 1 }, undefined, ACTIVITY_SEARCH_CURRENCY, NOW), { refused: 'ADULT: the operator requires at least 1; nothing was saved' });
+  assert.deepEqual(saveFromQuote(q, { ADULT: 29 }, undefined, ACTIVITY_SEARCH_CURRENCY, NOW), { refused: 'ADULT: the operator allows at most 28; nothing was saved' });
+  assert.deepEqual(saveFromQuote(q, { SENIOR: 1 }, undefined, ACTIVITY_SEARCH_CURRENCY, NOW), { refused: 'SENIOR: the operator states no such age band; nothing was saved' });
+  const capped: ViatorQuote = { ...q, bands: q.bands.map((b) => ({ ...b, max: 2, maxPerBooking: null })) };
+  assert.deepEqual(saveFromQuote(capped, { ADULT: 3 }, undefined, ACTIVITY_SEARCH_CURRENCY, NOW), { refused: 'ADULT: the operator allows at most 2 for this price; nothing was saved' });
+});
+
+test('a variable-duration tour: the end must sit inside the operator\'s stated range, an empty pick draws a flagged marker, and the note says the range', () => {
+  const fixed = quoteFor('TG14');
+  // The operator states a fixed duration: the end is derived, and a chosen one is refused.
+  assert.deepEqual(endOfQuote(fixed, ''), { endTime: '16:30', flagged: false });
+  assert.match((endOfQuote(fixed, '15:00') as { refused: string }).refused, /^the operator states a fixed duration of 540 minutes, so the end is 16:30 — an end time may not be chosen/);
+  // Derived from the captured quote: the same tour with the variable duration 44720P2 states (7h–8h).
+  const variable: ViatorQuote = { ...fixed, duration: { kind: 'variable', fromMinutes: 420, toMinutes: 480 } };
+  assert.deepEqual(endOfQuote(variable, '15:00'), { endTime: '15:00', flagged: false }, '07:30 + 7h = 14:30, + 8h = 15:30');
+  assert.deepEqual(endOfQuote(variable, '14:30'), { endTime: '14:30', flagged: false }, 'the lower bound holds');
+  assert.deepEqual(endOfQuote(variable, '15:30'), { endTime: '15:30', flagged: false }, 'the upper bound holds');
+  assert.deepEqual(endOfQuote(variable, '14:29'), { refused: 'the operator states 7h–8h (variable, stated by the operator), so the end must sit between 14:30 and 15:30 — 14:29 does not; nothing was saved' });
+  assert.deepEqual(endOfQuote(variable, '16:00'), { refused: 'the operator states 7h–8h (variable, stated by the operator), so the end must sit between 14:30 and 15:30 — 16:00 does not; nothing was saved' });
+  assert.deepEqual(endOfQuote(variable, '3pm'), { refused: 'endTimeChosen must be HH:MM; nothing was saved' });
+  assert.deepEqual(endOfQuote(variable, undefined), { endTime: null, flagged: true }, 'no pick — the block draws as a flagged marker');
+  // The note names the stated range either way.
+  const picked = saveFromQuote(variable, { ADULT: 2 }, '15:00', ACTIVITY_SEARCH_CURRENCY, NOW); assert.ok(!('refused' in picked));
+  assert.match(activitySaveNoteOf(picked), / · 7h–8h \(variable, stated by the operator\) · ends 15:00, chosen inside it · 2 adults · /);
+  const unpicked = saveFromQuote(variable, { ADULT: 2 }, undefined, ACTIVITY_SEARCH_CURRENCY, NOW); assert.ok(!('refused' in unpicked));
+  assert.equal(unpicked.endTime, null);
+  assert.match(activitySaveNoteOf(unpicked), / · 7h–8h \(variable, stated by the operator\) · no end chosen — the block draws as a flagged marker · 2 adults · /);
+  // An unstructured duration draws no end, and no end may be chosen for it.
+  const words: ViatorQuote = { ...fixed, duration: { kind: 'unstructured', text: 'most of the day' } };
+  assert.deepEqual(endOfQuote(words, ''), { endTime: null, flagged: true });
+  assert.match((endOfQuote(words, '15:00') as { refused: string }).refused, /^the operator states most of the day \(as stated by the operator\), so no end time may be chosen/);
 });
 
 test('the rate cache holds a pair until the vendor\'s own expiry and not a moment past it — in-process, as the docs instruct', () => {
@@ -223,31 +322,64 @@ test('the options route: the user first, the query by name, the per-user limit, 
   assert.match(code(QUOTA), /viatorsave: 300,/); assert.match(comments(QUOTA), /three calls|three reads|3 calls/i);
 });
 
-test('the commit: the marker admits a stated 0, the Save is re-read and recomputed, the stated zone fixes the instant, the tour prefix uncommits', () => {
+test('the commit: no figure from the caller — the seal, the user, the age, then the line DERIVED; the stated zone fixes the instant; the tour prefix uncommits', () => {
   const commit = code(COMMIT);
+  // The old shape, where the browser posted the figures, is refused BY NAME — one method.
+  assert.match(commit, /if \(viatorSaveInput !== undefined\) \{/);
+  assert.match(commit, /viatorSave is no longer accepted — a tour\\'s figures are the ones this server sealed when it read them \(send viatorQuote \+ viatorSeal \+ party\)/);
+  // Nothing priced or clocked may ride along with a quote.
+  assert.match(commit, /if \(requestAmountInput !== undefined \|\| notesInput !== undefined \|\| sentClock\(startTimeInput\) \|\| sentClock\(endTimeInput\)\) \{/);
+  assert.match(commit, /amount, notes, startTime and endTime may not be sent with viatorQuote/);
+  // The order: the seal, then the typed read, then whose it is, then how old, then the derivation.
+  const at = (needle: string) => { const i = commit.indexOf(needle); assert.ok(i >= 0, `missing: ${needle}`); return i; };
+  const order = [
+    at('if (!sealHolds(viatorQuoteInput, viatorSealInput)) {'),
+    at('const read = readViatorQuote(viatorQuoteInput);'),
+    at('if (read.userId !== user.id) {'),
+    at('const age = quoteAgeMinutes(read, now);'),
+    at('if (age > QUOTE_MAX_AGE_MINUTES)'),
+    at('const derived = saveFromQuote(read, partyInput as Record<string, number>, endTimeChosenInput, ACTIVITY_SEARCH_CURRENCY, now);'),
+    at('viatorNote = activitySaveNoteOf(derived);'),
+  ];
+  assert.deepEqual([...order].sort((a, b) => a - b), order, 'seal → read → whose → how old → derive → the note');
+  // The figures the line is written with come from the derivation, never from the body.
+  assert.match(commit, /const startTime = viatorSave \? \(viatorSave\.startTime \?\? undefined\) : startTimeInput;/);
+  assert.match(commit, /const endTime = viatorSave \? \(viatorSave\.endTime \?\? undefined\) : endTimeInput;/);
+  assert.match(commit, /const notes = viatorNote \?\? notesInput;/);
+  assert.match(commit, /const requestAmount = viatorSave \? viatorSave\.total\.amount : requestAmountInput;/);
+  // The marker still admits a stated 0, and the Google path keeps its > 0 rule.
   assert.match(commit, /const operatorStated = priceStatedByInput === 'operator' && viatorSave !== null;/);
   assert.match(commit, /if \(!Number\.isFinite\(amt\) \|\| amt < 0 \|\| \(amt === 0 && !operatorStated\)\) \{/);
   assert.match(commit, /a 0 is accepted only as a price the operator stated/);
   assert.match(commit, /with its product option code/);
-  assert.match(commit, /const read = readViatorSave\(viatorSaveInput\);/);
-  assert.match(commit, /const verdict = verifyViatorSave\(viatorSave, amt, notes, ACTIVITY_SEARCH_CURRENCY, now\);/);
   assert.match(commit, /const activityZone = viatorSave\?\.timeZone \?\? null;/);
-  assert.match(commit, /start_zone: activityZone,\n\s+end_zone: activityZone,\n\s+start_at: activityZone \? startAt : null,\n\s+end_at: activityZone \? endAt : null,\n\s+duration_minutes: viatorSave\?\.durationMinutes \?\? null,/);
+  assert.match(commit, /start_zone: activityZone,\n\s+end_zone: activityZone,\n\s+start_at: activityZone \? startAt : null,\n\s+end_at: activityZone \? endAt : null,\n\s+duration_minutes: viatorSave\?\.duration\?\.kind === 'fixed' \? viatorSave\.duration\.minutes : null,/);
   assert.match(commit, /zonedToInstant\(String\(startDate\)\.slice\(0, 10\), String\(startTime\)\.slice\(0, 5\), startZone\)/, 'the flight pattern: naive clock + the stated IANA zone');
   assert.match(commit, /optionId\.startsWith\('viator-'\)/);
-  // The line is titled by the operator's product title (the note is far longer than the VarChar(255) column); a longer title is refused, never truncated.
+  // The line is titled by the operator's product title; a longer title is refused, never truncated.
   assert.match(commit, /title: viatorSave \? viatorSave\.title : \(notes \|\|/);
   assert.match(commit, /the line's title column holds 255; nothing was saved/);
   assert.doesNotMatch(commit, /\.slice\(0, 255\)|substring\(0, 255\)/);
   assert.doesNotMatch(commit, /'Asia\/|'America\/|'Europe\//, 'no zone typed');
+  assert.doesNotMatch(commit, /readViatorSave|verifyViatorSave/, 'the posted-figures reader is gone');
   const container = code(CONTAINER);
   const countOf = (needle: string) => container.split(needle).length - 1;
   assert.equal(countOf('fetch(' + '`' + '/api/travel/activities/options?'), 1, 'the one authed read, from the Save panel');
   assert.equal(countOf('fetch(' + '`' + '/api/travel/activities/search?'), 1);
   assert.equal(countOf('/vendor-commit'), 1);
-  assert.match(container, /priceStatedBy: 'operator',/); assert.match(container, /viatorSave: draft,/); assert.match(container, /category: 'activities',/); assert.match(container, /const note = activitySaveNoteOf\(draft\);/);
+  // The browser posts the sealed pair, the party and the end it picked — and no figure.
+  assert.match(container, /viatorQuote: chosen\.quote,/); assert.match(container, /viatorSeal: chosen\.seal,/);
+  assert.match(container, /\n\s+party,\n/); assert.match(container, /endTimeChosen: endPick \|\| undefined,/);
+  assert.match(container, /priceStatedBy: 'operator',/); assert.match(container, /category: 'activities',/);
+  // Scoped to the POST body itself: the browser names no amount, note, clock or figure object.
+  const bodyStart = container.indexOf('body: JSON.stringify({', container.indexOf('/vendor-commit'));
+  assert.ok(bodyStart > 0, 'the commit body is built here');
+  const postBody = container.slice(bodyStart, container.indexOf('}),', bodyStart));
+  assert.doesNotMatch(postBody, /amount:|notes:|startTime:|endTime:|viatorSave:|activitySaveNoteOf/, 'the container states no figure, no note and no clock to the commit');
+  assert.match(postBody, /viatorQuote: chosen\.quote,/);
+  assert.match(container, /return priceQuote\(quote, party, answer\.targetCurrency, new Date\(\)\);/, 'the screen prices the sealed quote, through the commit\'s own leaf');
   assert.match(container, /if \(authed !== true\) \{ onRequireAuth\(\); return; \}/); assert.match(container, /initial\[b\.ageBand\] = b\.minTravelersPerBooking \?\? 0;/, 'the party form from the stated bands, the operator\'s minimum');
-  assert.match(container, /endTime: endTimeOf\(startTime, answer\.product\.duration\),/); assert.match(container, /timeZone: answer\.product\.timeZone,/);
+  assert.match(container, /const end = endOfQuote\(chosen\.quote, endPick\);/, 'a variable duration is bounded before the post too');
   assert.doesNotMatch(container, /'09:00'|'17:00'|value=\{['"]20/, 'no preselected date or clock');
   assert.match(code(STRIP), /<PublicActivitySearch\n\s+onRequireAuth=\{onRequireAuth\}\n\s+authed=\{authed\}\n\s+currentTrip=\{currentTrip\}\n\s+onCommitted=\{onCommitted\}/);
 });

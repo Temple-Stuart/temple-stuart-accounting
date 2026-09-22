@@ -11,8 +11,12 @@ import { getHotelContent } from '@/lib/liteapiClient';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
 import { LiteApiError, MissingLiteApiKeyError } from '@/lib/travelErrors';
 import { propertyClockOf, propertyClockStatement, type PropertyClock } from '@/lib/hotels/stayTimes';
-// ACTIVITY-01 STEP 4 (2026-09-22): a tour's Save carries the operator's published clock, the stated figures and the vendor's rate; the commit re-reads and recomputes them.
-import { readViatorSave, verifyViatorSave, type ViatorSave } from '@/lib/activities/save';
+// ACTIVITY-01 STEP 4 (2026-09-22): a tour's line carries the operator's published clock, the stated figures and the vendor's rate.
+// STEP 4b (2026-09-22): and the commit takes NONE of them from the caller — it verifies the seal the options
+// route put on its own Viator read, then DERIVES the figures, the note and the clock from that sealed quote.
+import { activitySaveNoteOf, type ViatorSave } from '@/lib/activities/save';
+import { QUOTE_MAX_AGE_MINUTES, quoteAgeMinutes, readViatorQuote, saveFromQuote } from '@/lib/activities/quote';
+import { sealHolds } from '@/lib/activities/quoteSeal';
 import { ACTIVITY_SEARCH_CURRENCY } from '@/lib/activities/searchContract';
 
 /** A commit time the caller actually sent (HH:MM text) — null, '' and undefined are absence. */
@@ -138,7 +142,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });
     if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
 
-    const { optionType, optionId, startDate, endDate, startTime, endTime, arriveDate, notes, amount: requestAmount, location: requestLocation, synthetic, category,
+    const { optionType, optionId, startDate, endDate, startTime: startTimeInput, endTime: endTimeInput, arriveDate, notes: notesInput, amount: requestAmountInput, location: requestLocation, synthetic, category,
       // PR 3 — commit-time capture (all optional; absent = old client → derive/default):
       recurrence: recurrenceInput, coa_code: coaCodeInput, vendor_name: vendorNameInput,
       // PR-Flight-Duration-1: the flight's true elapsed minutes (from the flight provider). Flights only; null otherwise.
@@ -150,25 +154,60 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       // so the commit reads the property's own clock once; a stay from elsewhere sends none.
       liteapiHotelId: liteapiHotelIdInput,
       // ACTIVITY-01 STEP 4 (2026-09-22): a Viator tour's Save — the marker that a 0 is a price the
-      // operator stated, and the facts the plan line is computed from (src/lib/activities/save.ts).
-      priceStatedBy: priceStatedByInput, viatorSave: viatorSaveInput } = await request.json();
+      // operator stated. STEP 4b (2026-09-22): the facts come from the SEALED quote this server issued
+      // (viatorQuote + viatorSeal) plus the party and, for a variable-duration tour, the end the founder
+      // picked inside the operator's stated range. `viatorSave` — the STEP 4 shape, where the browser
+      // posted the figures — is refused by name: one method, and it is this one.
+      priceStatedBy: priceStatedByInput, viatorQuote: viatorQuoteInput, viatorSeal: viatorSealInput,
+      party: partyInput, endTimeChosen: endTimeChosenInput, viatorSave: viatorSaveInput } = await request.json();
     const now = new Date();
+    // ─── ACTIVITY-01 STEP 4b: THE FIGURES ARE THE SERVER'S, SEALED ──────────────────
+    // The caller sends the quote this server issued, its seal, and the party. It sends
+    // NO amount, NO note and NO clock: every one of them is derived below from the
+    // sealed quote, so the line's "Viator rate as of … · calculated" is provable by the
+    // server that wrote it. A quote whose bytes changed does not verify; a quote issued
+    // to another account is refused; one older than the stated window is refused.
     let viatorSave: ViatorSave | null = null;
-    if (viatorSaveInput !== undefined && viatorSaveInput !== null) {
+    let viatorNote: string | null = null;
+    if (viatorSaveInput !== undefined) {
+      return NextResponse.json({ error: 'viatorSave is no longer accepted — a tour\'s figures are the ones this server sealed when it read them (send viatorQuote + viatorSeal + party); nothing was saved.' }, { status: 400 });
+    }
+    if (viatorQuoteInput !== undefined && viatorQuoteInput !== null) {
       if (optionType !== 'activity' || synthetic !== true) {
-        return NextResponse.json({ error: 'viatorSave belongs to a synthetic activity commit only.' }, { status: 400 });
+        return NextResponse.json({ error: 'viatorQuote belongs to a synthetic activity commit only.' }, { status: 400 });
       }
-      const read = readViatorSave(viatorSaveInput);
+      if (requestAmountInput !== undefined || notesInput !== undefined || sentClock(startTimeInput) || sentClock(endTimeInput)) {
+        return NextResponse.json({ error: 'amount, notes, startTime and endTime may not be sent with viatorQuote — the sealed quote states them; nothing was saved.' }, { status: 400 });
+      }
+      if (!sealHolds(viatorQuoteInput, viatorSealInput)) {
+        return NextResponse.json({ error: 'this quote is not the one this server sealed — read the operator\'s availability again; nothing was saved.', source: 'viator' }, { status: 400 });
+      }
+      const read = readViatorQuote(viatorQuoteInput);
       if ('refused' in read) return NextResponse.json({ error: `${read.refused}; nothing was saved.` }, { status: 400 });
+      if (read.userId !== user.id) {
+        return NextResponse.json({ error: 'this quote was issued to another account; nothing was saved.' }, { status: 400 });
+      }
+      if (read.date !== String(startDate).slice(0, 10)) return NextResponse.json({ error: 'viatorQuote.date must be the startDate; nothing was saved.' }, { status: 400 });
+      // A sealed quote holds for one Save session against a PUBLISHED timetable — past that
+      // the founder checks availability again (the vendor's own rate expiry is honoured
+      // separately, inside the derivation, and is usually the shorter of the two).
+      const age = quoteAgeMinutes(read, now);
+      if (age > QUOTE_MAX_AGE_MINUTES) return NextResponse.json({ error: `this availability was read ${Math.round(age)} minutes ago and a quote holds for ${QUOTE_MAX_AGE_MINUTES} — check availability again; nothing was saved.`, source: 'viator' }, { status: 400 });
+      if (age < -1) return NextResponse.json({ error: 'this availability is stamped in the future; nothing was saved.' }, { status: 400 });
       // trip_itinerary.vendor and vendor_name are VarChar(255) (prisma/schema.prisma) — a title
       // the operator states longer than the column is REFUSED by name, never truncated.
       if (read.title.length > 255) return NextResponse.json({ error: `the operator's title is ${read.title.length} characters and the line's title column holds 255; nothing was saved.` }, { status: 400 });
-      if (read.date !== String(startDate).slice(0, 10)) return NextResponse.json({ error: 'viatorSave.date must be the startDate; nothing was saved.' }, { status: 400 });
-      if (sentClock(startTime) && startTime !== read.startTime) return NextResponse.json({ error: 'startTime must be the published start time viatorSave names; nothing was saved.' }, { status: 400 });
-      if (sentClock(endTime) && endTime !== read.endTime) return NextResponse.json({ error: 'endTime must be the end viatorSave derives from the stated fixed duration; nothing was saved.' }, { status: 400 });
-      if (!sentClock(startTime) && read.startTime !== null) return NextResponse.json({ error: 'the published start time viatorSave names must be sent as startTime; nothing was saved.' }, { status: 400 });
-      viatorSave = read;
+      const derived = saveFromQuote(read, partyInput as Record<string, number>, endTimeChosenInput, ACTIVITY_SEARCH_CURRENCY, now);
+      if ('refused' in derived) return NextResponse.json({ error: derived.refused, source: 'viator' }, { status: 400 });
+      viatorSave = derived;
+      viatorNote = activitySaveNoteOf(derived);
     }
+    // The clock, the words and the figure the line is written with: the sealed quote's
+    // when a tour was saved, the caller's otherwise (a flight, a stay, a hand-entered place).
+    const startTime = viatorSave ? (viatorSave.startTime ?? undefined) : startTimeInput;
+    const endTime = viatorSave ? (viatorSave.endTime ?? undefined) : endTimeInput;
+    const notes = viatorNote ?? notesInput;
+    const requestAmount = viatorSave ? viatorSave.total.amount : requestAmountInput;
     const durationMinutes = optionType === 'flight' && Number.isFinite(durationMinutesInput)
       ? Math.round(durationMinutesInput)
       : null;
@@ -252,12 +291,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const operatorStated = priceStatedByInput === 'operator' && viatorSave !== null;
       if (!Number.isFinite(amt) || amt < 0 || (amt === 0 && !operatorStated)) {
         return NextResponse.json({ error: 'A positive amount is required — Google places have no price, so enter the expected cost; a 0 is accepted only as a price the operator stated (priceStatedBy \'operator\' with its product option code).' }, { status: 400 });
-      }
-      // A Viator Save's total is RECOMPUTED from the stated figures × the stated rate, the
-      // rate checked against the clock, the note checked against the facts — refused by name.
-      if (viatorSave) {
-        const verdict = verifyViatorSave(viatorSave, amt, notes, ACTIVITY_SEARCH_CURRENCY, now);
-        if ('refused' in verdict) return NextResponse.json({ error: verdict.refused, source: 'viator' }, { status: 400 });
       }
       if (!endDate) {
         return NextResponse.json({ error: 'Start and end dates are required.' }, { status: 400 });
@@ -515,7 +548,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             end_zone: activityZone,
             start_at: activityZone ? startAt : null,
             end_at: activityZone ? endAt : null,
-            duration_minutes: viatorSave?.durationMinutes ?? null,
+            duration_minutes: viatorSave?.duration?.kind === 'fixed' ? viatorSave.duration.minutes : null,
             // PR 3: clean vendor name + COA captured on the itinerary row.
             vendor_name: vendorNameInput || details.title,
             coa_code: coaCode,
@@ -575,7 +608,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       // that named its hotel.
       stayTimes: propertyClock ? { ...propertyClock, source: 'property', statement: propertyClockStatement(propertyClock) } : null,
       // ACTIVITY-01 STEP 4: what the commit stored for a tour — the published clock, the stated figures, the rate, the calculated total, the note.
-      viatorSave: viatorSave ? { startTime: viatorSave.startTime, endTime: viatorSave.endTime, timeZone: viatorSave.timeZone, native: viatorSave.native, extra: viatorSave.extra, rate: viatorSave.rate, total: viatorSave.total, note: notes } : null,
+      viatorSave: viatorSave ? { startTime: viatorSave.startTime, endTime: viatorSave.endTime, timeZone: viatorSave.timeZone, duration: viatorSave.duration, native: viatorSave.native, extra: viatorSave.extra, rate: viatorSave.rate, total: viatorSave.total, note: viatorNote } : null,
     });
   } catch (error) {
     return failClosedResponse('Vendor commit', 'Failed to commit vendor option', error);
