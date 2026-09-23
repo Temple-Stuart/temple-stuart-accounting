@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback, Fragment } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { CoverageLine, EntrySourcePanel, EntrySourceWords } from '@/components/books/EntrySourceCell';
+import { coverageOf } from '@/lib/books/entrySource';
 
 
 /* ------------------------------------------------------------------ */
@@ -32,6 +34,12 @@ interface LedgerEntry {
   journal_id: string;
   is_reversal: boolean;
   reversed_by_transaction_id: string | null;
+  // DRILL-01 (2026-09-23): WHERE THE ENTRY CAME FROM. /api/ledger already pulled the
+  // whole journal_entry (route.ts:37) and dropped these three when it mapped its rows;
+  // the route now carries them and this type reads them.
+  source_type: string | null;
+  source_id: string | null;
+  reverses_entry_id: string | null;
 }
 
 interface LedgerAccount {
@@ -94,6 +102,9 @@ const entryStatus = (e: LedgerEntry): 'Active' | 'Reversed' | 'Reversal' => {
 
 export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerProps & { }) {
   /* ---- state ---- */
+  // DRILL-01: which entry's source is open. The rows are virtualized at a fixed
+  // height, so the panel is rendered UNDER the table rather than inside a row.
+  const [sourceFor, setSourceFor] = useState<string | null>(null);
   const [ledgers, setLedgers] = useState<LedgerAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -561,6 +572,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
                       {accounts.map((acct, idx) => (
                         <tr
                           key={acct.accountCode}
+                          data-ledger-account={acct.accountCode}
                           onClick={() => setSelectedCode(acct.accountCode)}
                           className={`cursor-pointer hover:bg-brand-purple/[.07] ${
                             idx % 2 === 0 ? 'bg-white' : 'bg-bg-row'
@@ -664,6 +676,8 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
                   Balance{sortArrow('balance')}
                 </button>
                 <div className="py-1 px-2 text-center w-[90px] shrink-0">Status</div>
+                {/* DRILL-01: where it came from. */}
+                <div className="py-1 px-2 text-left w-[220px] shrink-0">Source</div>
               </div>
 
               {/* Scroll container */}
@@ -748,6 +762,19 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
                             </span>
                           )}
                         </div>
+
+                        {/* DRILL-01: where it came from, in the customer's words. The
+                            row is a fixed-height virtual row, so the opened panel is
+                            rendered under the table — the words stay on the line. */}
+                        <div className="py-1 px-2 w-[220px] shrink-0 truncate" data-entry-source-row={entry.journal_id}>
+                          <EntrySourceWords
+                            entryId={entry.journal_id}
+                            entry={{ source_type: entry.source_type, source_id: entry.source_id, reverses_entry_id: entry.reverses_entry_id }}
+                            opened={sourceFor === entry.journal_id}
+                            onOpen={(id) => setSourceFor((cur) => (cur === id ? null : id))}
+                            compact
+                          />
+                        </div>
                       </div>
                     );
                   })}
@@ -756,11 +783,27 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
             </div>
           </div>
 
+          {/* DRILL-01: the opened source, under the virtualized table. */}
+          {sourceFor && (
+            <div className="border-x border-b border-border px-3 py-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-text-faint">
+                  Where entry {sourceFor.substring(0, 8)} came from
+                </span>
+                <button type="button" onClick={() => setSourceFor(null)} className="text-[11px] text-text-secondary hover:text-text-primary">Close</button>
+              </div>
+              <EntrySourcePanel entryId={sourceFor} />
+            </div>
+          )}
+
           {/* Footer summary */}
-          <div className="px-3 py-1.5 bg-bg-row border-t flex justify-between text-terminal-sm">
+          <div className="px-3 py-1.5 bg-bg-row border-t flex flex-wrap items-center justify-between gap-2 text-terminal-sm">
             <span className="text-text-secondary">
               {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
             </span>
+            {/* COVERAGE IS DECLARED over the rows shown — the same filteredEntries the
+                table renders, derived by coverageOf(), never typed. */}
+            <CoverageLine line={coverageOf(filteredEntries.map((e) => ({ source_type: e.source_type, source_id: e.source_id, reverses_entry_id: e.reverses_entry_id }))).line} />
             <span className="text-text-secondary">
               Total Debits:{' '}
               <span className="font-semibold text-brand-red">{fmtMoney(totalDebits)}</span>

@@ -241,12 +241,14 @@ export const CAPABILITY_GROUPS: readonly CapabilityGroup[] = [
       // names and the plan law forbids the whole word in this file — and "transaction" is
       // the exacter word anyway, since source_id IS a transactions row id.
       //
-      // THE LABEL SAYS "KEEPS", NOT "CLICK". Measured while reading: the pointer is written
-      // but rendered on NO screen — JournalEntryEngine.tsx:22-37's JournalTxn carries no
-      // source_type or source_id, and GeneralLedger.tsx renders none. So the row claims the
-      // provenance the entry actually carries, and claims no click the surface does not
-      // offer. Surfacing it is a later ruling.
-      { label: 'Every entry keeps the bank transaction it was posted from', tools: ['Bookkeeping'], from: 'personal' },
+      // THE LABEL SAYS "OPEN" NOW (DRILL-01, 2026-09-23). OFFER-02 wrote "keeps, not
+      // click" because the pointer was written and rendered on no screen. DRILL-01 put it
+      // on both book surfaces: the journal's expanded row and the ledger's Source column
+      // say where each entry came from, and a bank-transaction entry opens the row it
+      // points at through /api/journal-entries/<id>/source. The label is the click the
+      // product now offers — the derivation is unchanged, and the cell is still ✓ only
+      // because Bookkeeping is the registry's LIVE tool.
+      { label: 'Open the bank transaction any entry was posted from', tools: ['Bookkeeping'], from: 'personal' },
       // THE TWO-TOOL ROW: filing on time needs both the filings tool and the
       // compliance state. Ent Filings is NOT_BUILT and Compliance is PARTIAL, so the
       // weakest wins and the cell reads "Coming" in every plan — the customer is told

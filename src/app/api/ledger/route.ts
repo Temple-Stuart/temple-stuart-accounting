@@ -73,7 +73,15 @@ export async function GET(request: NextRequest) {
         runningBalance: account.runningBalance / 100,
         journal_id: entry.journal_entry.id,
         is_reversal: entry.journal_entry.is_reversal ?? false,
-        reversed_by_entry_id: entry.journal_entry.reversed_by_entry_id ?? null
+        reversed_by_entry_id: entry.journal_entry.reversed_by_entry_id ?? null,
+        // DRILL-01 (2026-09-23): the three columns the ledger dropped. The include
+        // at :37 already pulled the whole journal_entry — this map simply never
+        // carried where the entry came from, so the ledger could not say it.
+        // Passed through verbatim: source_type is NOT NULL (schema.prisma:192) and
+        // source_id is nullable (:193), and neither is defaulted here.
+        source_type: entry.journal_entry.source_type,
+        source_id: entry.journal_entry.source_id ?? null,
+        reverses_entry_id: entry.journal_entry.reverses_entry_id ?? null
       });
     });
 

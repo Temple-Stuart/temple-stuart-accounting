@@ -152,6 +152,8 @@ import { KIND_VIEWS_HONEST_LINE, KIND_VIEW_CENSUS, STOPPED_TABLES, VIEW_COLUMNS,
 import { FREE_TOOLS, OFFERS, TOOL_GATE, heroCountsLine, offerCard, offerLaw, priceEnvName } from '../src/lib/offer';
 // OFFER-01: the plans leaf — the public offer's one source.
 import { CAPABILITY_GROUPS, EARLY_ACCESS_CTA, LAUNCH_PLACEHOLDER, PLANS, PLAN_ORDER, STATUS_TO_CELL, cellState, planLaw, priceSlot, weakestStatus } from '../src/lib/offer/plans';
+// DRILL-01: where an entry came from — the pure mapping the book surfaces render.
+import { NO_SOURCE_WORDS, SOURCE_RULES, coverageOf, entrySourceOf, statedFacts } from '../src/lib/books/entrySource';
 import { DYNAMIC_READ_ENV, LIBRARY_READ_ENV } from '../src/lib/envLaw';
 import { EXPECTED_FEED_COUNT, FEED_COST, FEED_IDS, SCAN_COST, feedCostLaw, scanCostLine } from '../src/lib/observatory/feedCost';
 import { FINNHUB_TTL, finnhubCallsPerSymbol, finnhubTtlLaw, slowTierEndpoints } from '../src/lib/convergence/finnhub-ttl';
@@ -4698,6 +4700,169 @@ lawGuard('The lockfile law', () => {
 // It reads the plan surfaces, the section and the leaf through code() and
 // comments(), and runs the leaf's own planLaw over the live registry. No render,
 // no network, no metered call.
+// ── THE DRILL LAW (DRILL-01, 2026-09-23) ─────────────────────────────────────
+// EVERY ENTRY ON A BOOK SURFACE SAYS WHERE IT CAME FROM.
+//
+// WHAT IT CLOSES. Every posted entry is born with a pointer — journal-entry-service.ts
+// :138-139 writes source_type 'plaid_txn' and source_id = the bank transaction's id,
+// and :236-237 writes 'reversal' with a null id. The columns are on the table
+// (schema.prisma:192-193), indexed together (:217) and IMMUTABLE after posting (the
+// SOC 2 trigger, 20260227000100_protect_journal_entries/migration.sql:16-17, :34).
+// /api/journal-transactions has put both on the wire since route.ts:46-47. And no
+// screen read them: JournalEntryEngine's row type carried neither, GeneralLedger
+// rendered none, and /api/ledger dropped them when it mapped its rows. The audit
+// trail the product is sold on existed in the data and on no screen.
+//
+// FOUR CLAUSES: every rendered entry shows a source or names its absence; no
+// component invents one; the coverage line derives from the rows shown and is never
+// typed; the leaf is pure.
+//
+// It reads four files through code() and runs the leaf over every kind. No render,
+// no database, no network, no metered call.
+lawGuard('The entry-source law', () => {
+  let drillViolations = 0;
+  const drillFail = (m: string) => { drillViolations += 1; violations.push(`entry-source law: ${m} (DRILL-01)`); };
+
+  const DRILL_LEAF = 'src/lib/books/entrySource.ts';
+  const DRILL_CELL = 'src/components/books/EntrySourceCell.tsx';
+  // The two book surfaces that render entries, and the routes that feed them.
+  const DRILL_SURFACES = ['src/components/dashboard/JournalEntryEngine.tsx', 'src/components/dashboard/GeneralLedger.tsx'];
+  const DRILL_ROUTES = ['src/app/api/journal-transactions/route.ts', 'src/app/api/ledger/route.ts'];
+  /** The three columns a book surface hands to the source cell. */
+  const SOURCE_COLUMNS = ['source_type', 'source_id', 'reverses_entry_id'] as const;
+
+  for (const f of [DRILL_LEAF, DRILL_CELL, ...DRILL_SURFACES, ...DRILL_ROUTES]) {
+    if (!existsSync(resolve(ROOT, f))) drillFail(`${f} is missing`);
+  }
+
+  // ── CLAUSE 1. EVERY RENDERED ENTRY SHOWS A SOURCE OR NAMES ITS ABSENCE. ──
+  // Both surfaces read the three columns and render them through the one cell.
+  for (const f of DRILL_SURFACES) {
+    const src = codeOf(f);
+    // A field DECLARED on a row type is not a field READ, and a field read for the
+    // COVERAGE COUNT is not a field shown on the line. The whole fault this law closes
+    // was three columns sitting in the payload with nothing rendering them — so the
+    // clause wants the row handed to the source cell itself, carrying all three.
+    const handed = [...src.matchAll(/entry=\{\{([^}]*)\}\}/g)].map((m) => m[1]);
+    const carries = handed.find((props) => SOURCE_COLUMNS.every((field) => new RegExp(`${field}:\\s*\\w+\\.${field}\\b`).test(props)));
+    if (!carries) {
+      drillFail(`${f} does not read source_type, source_id and reverses_entry_id off its rows into the source cell — a book surface says where each entry came from, and a column nothing renders is the fault this law closes`);
+    }
+    if (!/EntrySource(Cell|Words)/.test(src)) drillFail(`${f} does not render the entry's source through ${DRILL_CELL}`);
+  }
+  // And the routes carry them, or the surfaces have nothing to read.
+  for (const f of DRILL_ROUTES) {
+    const src = codeOf(f);
+    for (const field of ['source_type', 'source_id']) {
+      if (!src.includes(field)) drillFail(`${f} does not put ${field} on the wire — the columns exist and the screen cannot read what the route drops`);
+    }
+  }
+  // The leaf answers for EVERY kind, and names the absence rather than going blank.
+  const KINDS = ['plaid_txn', 'manual', 'reversal', 'investment_txn', 'trading_position', 'year_end_close'];
+  for (const type of KINDS) {
+    if (!SOURCE_RULES.some((r) => r.type === type)) drillFail(`${DRILL_LEAF} holds no rule for source_type "${type}" — it is written under src and the surface must have words for it`);
+    const s = entrySourceOf({ source_type: type, source_id: 'x', reverses_entry_id: 'e' });
+    if (!('words' in s) || !s.words.trim()) drillFail(`${type} renders no words`);
+  }
+  const silent = entrySourceOf({ source_type: null, source_id: null });
+  if (silent.kind !== 'none' || silent.words !== NO_SOURCE_WORDS) drillFail(`an entry with no source_type reads ${JSON.stringify(silent)} — it must say "${NO_SOURCE_WORDS}", never a blank`);
+  for (const blank of ['', '   ']) {
+    if (entrySourceOf({ source_type: blank }).kind !== 'none') drillFail(`a blank source_type (${JSON.stringify(blank)}) is not named as absent`);
+  }
+
+  // ── CLAUSE 2. NO COMPONENT INVENTS A SOURCE. ──
+  // An unknown source_type renders AS ITSELF, and the cell types no source word of
+  // its own: every one comes from the leaf.
+  const unknown = entrySourceOf({ source_type: 'a_kind_nobody_wrote_yet', source_id: 'z' });
+  if (unknown.kind !== 'unknown' || unknown.words !== 'a_kind_nobody_wrote_yet') {
+    drillFail(`an unknown source_type reads ${JSON.stringify(unknown)} — it renders as itself, never as a guess`);
+  }
+  const cellSrc = codeOf(DRILL_CELL);
+  for (const rule of SOURCE_RULES) {
+    if (cellSrc.includes(rule.words)) drillFail(`${DRILL_CELL} types "${rule.words}" — every source word comes from ${DRILL_LEAF}`);
+  }
+  if (cellSrc.includes(NO_SOURCE_WORDS)) drillFail(`${DRILL_CELL} types "${NO_SOURCE_WORDS}" — the words live in the leaf`);
+  if (!cellSrc.includes('entrySourceOf(')) drillFail(`${DRILL_CELL} does not call entrySourceOf() — a source is derived from the row, never decided here`);
+  if (!cellSrc.includes('statedFacts(')) drillFail(`${DRILL_CELL} does not render through statedFacts() — a null column is dropped, never shown as 0 or ""`);
+  // A source the surface cannot verify is never substituted for: no default, no "Unknown".
+  // The EntrySource kind tags ('opens' · 'entry' · 'stated' · 'unknown' · 'none') are
+  // the leaf's discriminants — code the cell switches on, never words it renders.
+  const KIND_TAGS = new Set(['opens', 'entry', 'stated', 'unknown', 'none']);
+  for (const m of cellSrc.matchAll(/(['"`])((?:\\.|(?!\1)[^\\])*)\1/g)) {
+    const lit = m[2].trim();
+    if (KIND_TAGS.has(lit)) continue;
+    if (/^(unknown|n\/a|not available|—|-)$/i.test(lit)) drillFail(`${DRILL_CELL} carries the stand-in "${m[2]}" — an absent source is named in words, never filled in`);
+  }
+  // statedFacts drops what the row does not carry, and keeps a stated 0 / false.
+  const dropped = statedFacts({
+    transactionId: 't1', date: null, name: null, merchantName: null, amount: 0, accountName: null,
+    accountMask: null, category: null, pending: false, paymentChannel: null, transactionType: null,
+    authorizedDate: null, website: null,
+  });
+  if (dropped.some((f) => f.label === 'Date' || f.label === 'Merchant')) drillFail('statedFacts renders a field the row does not carry');
+  if (!dropped.some((f) => f.label === 'Amount' && f.value === '0')) drillFail('statedFacts drops a stated 0 — a zero the vendor sent is a value, not a silence');
+  if (!dropped.some((f) => f.label === 'Pending' && f.value === 'no')) drillFail('statedFacts drops a stated false');
+
+  // ── CLAUSE 3. THE COVERAGE LINE DERIVES FROM THE ROWS SHOWN, NEVER TYPED. ──
+  const probe = [
+    { source_type: 'plaid_txn', source_id: 'a' },
+    { source_type: 'manual', source_id: null },
+    { source_type: 'reversal', source_id: null, reverses_entry_id: 'e1' },
+    { source_type: '', source_id: null },
+  ];
+  const cov = coverageOf(probe);
+  if (cov.total !== 4 || cov.sourced !== 2 || cov.byHand !== 1 || cov.unrecorded !== 1) {
+    drillFail(`coverageOf counted ${JSON.stringify(cov)} over a bank entry, a hand entry, a reversal and a silent row — expected 4 total, 2 sourced, 1 by hand, 1 unrecorded`);
+  }
+  if (!cov.line.startsWith(`${cov.sourced} of ${cov.total} `)) drillFail(`the coverage line reads "${cov.line}" — it states N of M over the rows shown`);
+  if (coverageOf([]).total !== 0) drillFail('coverageOf invents rows for an empty list');
+  for (const f of DRILL_SURFACES) {
+    const src = codeOf(f);
+    if (!src.includes('coverageOf(')) drillFail(`${f} does not derive its coverage line with coverageOf() — a typed count on a proof surface is the fault this law exists for`);
+    if (!src.includes('<CoverageLine')) drillFail(`${f} renders no coverage line`);
+    // A typed "N of M" anywhere on a book surface is the thing the clause forbids.
+    for (const m of src.matchAll(/(['"`])((?:\\.|(?!\1)[^\\])*)\1/g)) {
+      if (/\b\d+\s+of\s+\d+\b/.test(m[2])) drillFail(`${f} types "${m[2]}" — the coverage line is counted from the rows shown`);
+    }
+  }
+
+  // ── CLAUSE 4. THE LEAF IS PURE. ──
+  // No fetch, no env, no clock, no Prisma, no React: it maps a source_type to words.
+  const leafSrc = codeOf(DRILL_LEAF);
+  const IMPURE: ReadonlyArray<[RegExp, string]> = [
+    [/\bfetch\s*\(/, 'fetches'],
+    [/process\.env/, 'reads the environment'],
+    [/new Date\s*\(|Date\.now\s*\(/, 'reads the clock'],
+    [/from 'react'|from "react"/, 'imports React'],
+    [/prisma|PrismaClient/, 'reaches the database'],
+    [/\bimport\s+[^\n]*\bfrom\s+'(?!\.)/, 'imports a module outside its own folder'],
+  ];
+  for (const [re, what] of IMPURE) {
+    if (re.test(leafSrc)) drillFail(`${DRILL_LEAF} ${what} — the mapping is pure: a source_type in, words out`);
+  }
+  // And the ONE read behind the open is authed, tab-gated and user-scoped.
+  const SOURCE_ROUTE = 'src/app/api/journal-entries/[id]/source/route.ts';
+  if (!existsSync(resolve(ROOT, SOURCE_ROUTE))) drillFail(`${SOURCE_ROUTE} is missing — the open has no read`);
+  else {
+    const routeSrc = codeOf(SOURCE_ROUTE);
+    for (const [needle, why] of [
+      ['getVerifiedEmail()', 'verifies the cookie'],
+      ["requireTabAccess(user.id, 'tab:books')", 'gates on the books tab'],
+      ['userId: user.id', 'scopes the entry to its owner'],
+      ['accounts: { userId: user.id }', "scopes the transaction through its account's owner"],
+    ] as const) {
+      if (!routeSrc.includes(needle)) drillFail(`${SOURCE_ROUTE} no longer ${why} (${needle})`);
+    }
+    if (!/status: 404/.test(routeSrc)) drillFail(`${SOURCE_ROUTE} has no defensive 404 — another account's entry must answer as an unknown one does`);
+  }
+
+  if (drillViolations === 0) {
+    console.log(`✔ The entry-source law passed — ${SOURCE_RULES.length} source kinds, every one with words; an unknown kind renders as itself and a silent row says "${NO_SOURCE_WORDS}"; ${DRILL_SURFACES.length} book surfaces read the three columns through one cell and derive their coverage line from the rows shown; the leaf is pure and the one read behind the open is authed, tab-gated and user-scoped.`);
+  } else {
+    console.log(`✖ The entry-source law FAILED — ${drillViolations} violation(s).`);
+  }
+});
+
 lawGuard('The plan law', () => {
   let planViolations = 0;
   const planFail = (m: string) => { planViolations += 1; violations.push(`plan law: ${m} (OFFER-01)`); };
