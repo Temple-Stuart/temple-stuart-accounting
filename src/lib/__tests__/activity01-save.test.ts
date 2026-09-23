@@ -384,7 +384,7 @@ test('the commit: no figure from the caller — the seal, the user, the age, the
   assert.match(code(STRIP), /<PublicActivitySearch\n\s+onRequireAuth=\{onRequireAuth\}\n\s+authed=\{authed\}\n\s+currentTrip=\{currentTrip\}\n\s+onCommitted=\{onCommitted\}/);
 });
 
-test('the pin holds, dated: six files re-dated and one pinned by ACTIVITY-01; the census grew to 50', () => {
+test('the pin holds, dated: six files re-dated and one pinned by ACTIVITY-01; the census grew to 50, and to 51 with TRAVEL-ROW-01\'s strip', () => {
   const notes = comments('src/lib/travelBookingFlow.ts');
   const pins = code('src/lib/travelBookingFlow.ts');
   const redated = [SEARCH_ROUTE, STRIP, CONTAINER, 'src/components/trips/ActivityResultsView.tsx', CLIENT, QUOTA];
@@ -393,5 +393,5 @@ test('the pin holds, dated: six files re-dated and one pinned by ACTIVITY-01; th
   assert.equal((notes.match(/ACTIVITY-01 \(2026-09-22\): pinned — /g) ?? []).length, 1);
   assert.ok(pins.includes(`{ file: '${OPTIONS_ROUTE}', sha256: '`), 'the options route joins the census');
   assert.match(BOOKING_FLOW_BASE, /the options route pinned by ACTIVITY-01/);
-  assert.equal(BOOKING_FLOW_FILES.length, 50, 'the census grew by the options route');
+  assert.equal(BOOKING_FLOW_FILES.length, 51, 'the census grew by the options route (ACTIVITY-01) and by RowActionStrip.tsx (TRAVEL-ROW-01)');
 });

@@ -296,35 +296,35 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
           onBook={book}
           onSave={saveToTrip}
           savingId={savingId}
+          checkout={checkoutOf ? (
+            <CheckoutPanel
+              tripId={authed === true && currentTrip ? currentTrip.id : undefined}
+              tripName={authed === true && currentTrip ? currentTrip.name : undefined}
+              authed={authed}
+              offerId={checkoutOf.offerId}
+              hotelId={checkoutOf.card.hotelId}
+              images={checkoutOf.card.images}
+              hotelName={checkoutOf.card.name}
+              checkin={checkin}
+              checkout={checkout}
+              onClose={() => setCheckoutOf(null)}
+              onBooked={() => { /* confirmation shows in-panel; nothing to persist here */ }}
+            />
+          ) : null}
+          onCloseCheckout={() => setCheckoutOf(null)}
         />
       )}
       {!searched && error && (
         <div className="rounded-lg border border-border bg-white p-4 text-sm text-brand-red">{error}</div>
       )}
 
-      {/* PR-G3 + T2a: checkout opens directly on Book, guest-ok. For an AUTHED
-          user with a trip selected above, the trip's id threads through the
-          already-complete chain (returnUrl → /booking/confirm → liteapi/book
-          ownership gate) so the booking is born attached. GUEST SAFETY: the
-          liteapi/book route 401s a guest-with-tripId by design, so tripId passes
-          ONLY under authed === true && currentTrip — provable from this
-          component's own props (currentTrip is also only settable from the
-          authed-gated trips list). A guest always books standalone, unchanged. */}
-      {checkoutOf && (
-        <CheckoutPanel
-          tripId={authed === true && currentTrip ? currentTrip.id : undefined}
-          tripName={authed === true && currentTrip ? currentTrip.name : undefined}
-          authed={authed}
-          offerId={checkoutOf.offerId}
-          hotelId={checkoutOf.card.hotelId}
-          images={checkoutOf.card.images}
-          hotelName={checkoutOf.card.name}
-          checkin={checkin}
-          checkout={checkout}
-          onClose={() => setCheckoutOf(null)}
-          onBooked={() => { /* confirmation shows in-panel; nothing to persist here */ }}
-        />
-      )}
+      {/* TRAVEL-ROW-01 (2026-09-23): the checkout no longer mounts here, after the
+          results. It is passed into <HotelResultsView/>'s `checkout` slot above and
+          renders inside the action strip DIRECTLY BENEATH the selected rate, so the
+          founder books at the line instead of scrolling past the table. The panel
+          itself is unchanged and takes the same props — PR-G3 + T2a's guest safety
+          still holds: tripId passes ONLY under authed === true && currentTrip, so a
+          guest always books standalone. */}
     </TravelSectionShell>
   );
 }

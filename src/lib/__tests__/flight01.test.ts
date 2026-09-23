@@ -197,8 +197,11 @@ test('the LLF line names the cheapest fare meeting the filters, and the differen
   // The view prints both lines from the leaf.
   const view = code(VIEW);
   assert.match(view, /data-flight-llf>\s*\{llf\}/);
-  assert.match(view, /const diff = fareDifference\(leg\.selectedOffer!, low\.fare\);/);
-  assert.match(view, /data-fare-difference=\{diff\.delta\}>\{diff\.line\}/);
+  // TRAVEL-ROW-01 (2026-09-23): the difference line moved from the leg's bar into the
+  // strip under the selected fare row, so it is now computed per fare against that leg's
+  // lowest — the leaf that computes it is unchanged; only where the view reads it moved.
+  assert.match(view, /const fareDiff = selected && lowFare \? fareDifference\(fare, lowFare\.fare\) : null;/);
+  assert.match(view, /data-fare-difference=\{fareDiff\.delta\}>\{fareDiff\.line\}/);
 });
 
 test('no search fires on a filter change — the SEARCH press is the only trigger, and the request carries the filters', () => {

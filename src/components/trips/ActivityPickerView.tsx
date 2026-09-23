@@ -32,7 +32,8 @@
  * container searches; the view reports what the user pressed.
  */
 
-import { useState, type ReactNode } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
+import RowActionStrip from './RowActionStrip';
 import { DATA } from '@/lib/ds';
 import SearchCount from './SearchCount';
 import {
@@ -231,10 +232,12 @@ export default function ActivityPickerView({ cards, totalCount, previousTotal, l
                 const extra = extraChargesText(card);
                 const place = card.destinationName ?? (card.destinationRef !== null ? `destination ref ${card.destinationRef}` : `place ${NOT_STATED}`);
                 return (
-                  <tr key={card.productCode}
+                  <Fragment key={card.productCode}>
+                  <tr
                     data-activity-row={card.productCode}
+                    tabIndex={-1}
                     onClick={() => onSelect(isSelected ? null : card)}
-                    className={`cursor-pointer transition-colors ${isSelected ? 'bg-brand-purple-wash/40' : 'odd:bg-bg-row hover:bg-brand-purple-wash/40'}`}>
+                    className={`cursor-pointer outline-none transition-colors ${isSelected ? 'bg-brand-purple-wash/40' : 'odd:bg-bg-row hover:bg-brand-purple-wash/40'}`}>
                     <td className="px-2 py-2">
                       <div className="h-14 w-20 overflow-hidden rounded"><ActivityCardImage photoUrl={card.photoUrl} name={card.name} /></div>
                     </td>
@@ -269,6 +272,25 @@ export default function ActivityPickerView({ cards, totalCount, previousTotal, l
                       )}
                     </td>
                   </tr>
+                  {/* TRAVEL-ROW-01: the strip sits DIRECTLY beneath the product it acts on.
+                      A tour's Save and its Book are at the OPTION line inside this strip —
+                      the operator sells option by option, and the price is the option's. */}
+                  {isSelected && (
+                    <RowActionStrip
+                      rowId={card.productCode}
+                      colSpan={7}
+                      summary={<>
+                        <span className="font-medium">{card.name}</span>
+                        <span className="ml-2 font-bold text-brand-gold">{priceText(card)}</span>
+                        {extra && <span className="ml-2 text-xs text-text-secondary">{extra}</span>}
+                      </>}
+                      difference={diff ? <div className="mt-1 font-mono text-[11px] text-text-secondary" data-price-difference={diff.delta ?? 'none'}>{diff.line}</div> : undefined}
+                      onClear={() => onSelect(null)}
+                    >
+                      {savePanel && <div data-activity-save-panel>{savePanel}</div>}
+                    </RowActionStrip>
+                  )}
+                  </Fragment>
                 );
               })}
             </tbody>
@@ -288,21 +310,6 @@ export default function ActivityPickerView({ cards, totalCount, previousTotal, l
         </div>
       </div>
 
-      {selectedCard && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-border bg-bg-row p-3" data-activity-selection>
-          <div className="text-sm">
-            <span className="font-medium">{selectedCard.name}</span>
-            <span className="ml-2 font-bold text-brand-gold">{priceText(selectedCard)}</span>
-            {extraChargesText(selectedCard) && <span className="ml-2 text-xs text-text-secondary">{extraChargesText(selectedCard)}</span>}
-            {/* THE BENCHMARK — the selection against the lowest from-price meeting the filters, from stated attributes only. */}
-            {diff && <div className="mt-1 font-mono text-[11px] text-text-secondary" data-price-difference={diff.delta ?? 'none'}>{diff.line}</div>}
-          </div>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => onSelect(null)} className="rounded border border-border px-2 py-1 text-xs text-text-secondary hover:bg-white">Clear</button>
-          </div>
-          {savePanel && <div className="basis-full" data-activity-save-panel>{savePanel}</div>}
-        </div>
-      )}
     </div>
   );
 }

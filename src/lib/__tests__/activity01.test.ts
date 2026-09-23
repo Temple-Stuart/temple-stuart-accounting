@@ -32,6 +32,25 @@ const STRIP = 'src/components/trips/travelStripModes.tsx';
 const CLIENT = 'src/lib/viatorClient.ts';
 const TRANSFERS_ROUTE = 'src/app/api/travel/transfers/search/route.ts';
 
+/**
+ * The contiguous comment block directly above a pin line — TRAVEL-ROW-01 (2026-09-23).
+ *
+ * The window used to be the two lines immediately above the pin, which held exactly one
+ * ruling's note and its `Was <hash>` line. A later ruling's dated note STACKS BELOW an
+ * earlier one (travelBookingFlow.ts documents the convention, and assert-tool-registry.ts
+ * reads the same block through its own `noteBlockOver`), so the two-line window now reads
+ * the newest note and misses the one this test is about. This reads the whole block, the
+ * pin's own lines and never a neighbour's: comments() blanks the code lines, so the block
+ * ends at the first line that is code in the `pins` channel.
+ */
+function noteBlockOver(pins: string, notes: string, pinLine: number): string {
+  const codeLines = pins.split('\n');
+  const noteLines = notes.split('\n');
+  const block: string[] = [];
+  for (let i = pinLine - 2; i >= 0 && codeLines[i].trim() === ''; i--) block.unshift(noteLines[i]);
+  return block.join('\n');
+}
+
 /** The same resolvers the route injects: the affiliate gate and the app's destination map. */
 const RESOLVERS: ActivityCardResolvers = { validateUrl: (u) => validatedAffiliateUrl(u, 'viator'), destinationNameOf: cityForViatorDestId };
 const answer = () => activityCardsOf(PHUKET as RawProductSearch, RESOLVERS);
@@ -268,10 +287,10 @@ test('the pin holds, dated: six files re-dated by ACTIVITY-01 with the hash they
     const pinAt = pins.indexOf(`{ file: '${f}', sha256: '`);
     assert.ok(pinAt >= 0, `${f} is pinned`);
     const pinLine = pins.slice(0, pinAt).split('\n').length;
-    const above = notes.split('\n').slice(Math.max(0, pinLine - 3), pinLine - 1).join('\n');
+    const above = noteBlockOver(pins, notes, pinLine);
     assert.match(above, /ACTIVITY-01 \(2026-09-22\): re-dated — [^\n]+\. A tour takes its time on the day; no prebook\/book\/pay\/cancel call changed\.\n[^\n]*Was [0-9a-f]{64} at main dfc02881\./, `${f}'s note`);
   }
   assert.match(BOOKING_FLOW_BASE, /re-dated and the options route pinned by ACTIVITY-01 \(2026-09-22\), a tour takes its time on the day/);
   assert.ok(!BOOKING_FLOW_FILES.some((p) => p.file === 'src/app/api/trips/[id]/vendor-commit/route.ts'));
-  assert.equal(BOOKING_FLOW_FILES.length, 50, 'the census grew by the options route (STEP 4) and did not shrink');
+  assert.equal(BOOKING_FLOW_FILES.length, 51, 'the census grew by the options route (STEP 4) and by TRAVEL-ROW-01\'s RowActionStrip.tsx, and did not shrink');
 });
