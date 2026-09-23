@@ -24,6 +24,7 @@ import Link from 'next/link';
 import { DATA } from '@/lib/ds';
 import {
   CAPABILITY_GROUPS, CELL_LABEL, CELL_MARK, PLANS,
+  PLANS_HEADLINE, PLANS_SUBHEAD,
   BEST_VALUE_WORDS, capabilityNotes, cellState, priceSlot, travelFreeLine,
   type CapabilityRow, type Plan,
 } from '@/lib/offer/plans';
@@ -133,9 +134,13 @@ export default function PlansSection({ door, headingId = 'modules' }: {
         <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">
           PLANS <span className="text-brand-gold">·</span> WHAT EACH ONE IS FOR
         </p>
-        <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">
-          One base, two modules. Take the one you need.
+        {/* THE HEADING (OFFER-04) — both lines are the leaf's; this file types no
+            copy. "base" and "module" were the codebase's words for how the plans
+            are assembled, and "two" beside four cards read as a contradiction. */}
+        <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple" data-plans-headline>
+          {PLANS_HEADLINE}
         </h2>
+        <p className="mt-2 text-sm text-text-secondary" data-plans-subhead>{PLANS_SUBHEAD}</p>
 
         {/* THE CARDS — NOT four identical columns. The base reads first and says so;
             the two modules read as what they add to it; the bundle closes the row in
@@ -151,7 +156,7 @@ export default function PlansSection({ door, headingId = 'modules' }: {
             >
               <div>
                 <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint" data-plan-role>
-                  {plan.id === 'personal' ? 'The base' : plan.id === 'everything' ? 'The bundle' : 'The base + one module'}
+                  {plan.role}
                 </p>
                 <h3 className="mt-1 text-lg font-semibold text-brand-purple" data-plan-name>{plan.name}</h3>
                 <p className="mt-1 text-sm text-text-primary" data-plan-positioning>{plan.positioning}</p>
