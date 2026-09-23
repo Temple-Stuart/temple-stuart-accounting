@@ -4537,6 +4537,90 @@ const activityResolvers = { validateUrl: (u: string) => validatedAffiliateUrl(u,
 if (activityViolations === 0) console.log(`✔ The activity law passed — the route forwards the vendor's /products/search contract by name between its guards (unknown → 400, currency the one constant, the start cursor for SHOW THEM ALL) and makes one raw call; the leaf reads the captured Phuket answer whole (${PHUKET_ACTIVITY_EXPECTED.cards} of ${PHUKET_ACTIVITY_EXPECTED.total}, ${PHUKET_ACTIVITY_EXPECTED.extraCharges} with extra charges, ${PHUKET_ACTIVITY_EXPECTED.unrated.length} unrated and present) tri-state; no "Price on request", no googleRating, no sign-up Book, no slice; the benchmark ranks on the all-in figure and says so; the Save's ${ACTIVITY_SAVE_READS.length} reads have one authed call site each under 'viatorsave' (300/day), the rate cached to its own expiry, every converted figure labelled calculated, a stated 0 admitted under the marker, the instant from the operator's zone; the route SEALS what it read (HMAC-SHA256 under a key derived from JWT_SECRET, '${QUOTE_SEAL_DOMAIN}', verified in constant time) and the commit takes no figure, note or clock from the caller — the old viatorSave field refused by name, another account's quote refused, one read over ${QUOTE_MAX_AGE_MINUTES} minutes ago refused, a variable end bounded by the stated range; ${ACTIVITY_REDATED.length} files re-dated and ${ACTIVITY_PINNED_NEW.length} pinned, dated, ${Object.keys(ACTIVITY_CLIENT_FUNCTIONS).length} client functions byte-identical to main.`);
 else console.log(`✖ The activity law FAILED — ${activityViolations} violation(s).`);
 });
+// ─── THE LOCKFILE LAW (LOCK-02, 2026-09-23) ─────────────────────────────────
+// THE LOCKFILE AND package.json AGREE, OR THE BUILD STOPS.
+//
+// LOCK-01 synced a package-lock.json that had been out of step since PIPE-01
+// (8358dc28, 2026-09-10) dropped the Grok rail from package.json and left the
+// lockfile still carrying xai-sdk. Nothing caught it for two weeks. The drift
+// surfaced only because an unrelated PR happened to run `npm install`, which
+// pruned the orphan and dragged seven lines of churn into that PR — where it had
+// to be reverted so the PR carried only its own change.
+//
+// The lockfile's ROOT package entry, `packages[""]`, is a mirror of what
+// package.json declares. While the two disagree, every install silently rewrites
+// the lockfile, so the next PR carries a change nobody asked for and a reviewer
+// cannot tell the sync from the intent. That is the class this closes.
+//
+// It reads TWO FILES and nothing else — package.json and package-lock.json,
+// through the one reader. code() returns both byte-for-byte: JSON carries no
+// comments, and a `//` inside a double-quoted registry URL is string content to
+// splitSource, not a comment. NO install, NO network, NO node_modules, NO
+// registry: a name or a range that differs is arithmetic over two files already
+// in the repo, and it costs milliseconds.
+lawGuard('The lockfile law', () => {
+  /** The blocks package.json declares and the lockfile's root entry mirrors. */
+  const LOCK_BLOCKS = ['dependencies', 'devDependencies', 'optionalDependencies'] as const;
+  // npm rewrites the whole file when the format moves, so the version this repo is
+  // on is PINNED here rather than read back from the file it is meant to judge.
+  const LOCKFILE_VERSION = 3;
+  let lockViolations = 0;
+  const lockFail = (m: string) => { lockViolations += 1; violations.push(`lockfile law: ${m} (LOCK-02)`); };
+
+  /** One of the two files, parsed. A file that does not parse is a NAMED failure, never a throw. */
+  const readJson = (file: string): Record<string, unknown> => {
+    let parsed: unknown;
+    try { parsed = JSON.parse(codeOf(file)); } catch (error) {
+      lockFail(`${file} does not parse as JSON: ${error instanceof Error ? error.message : String(error)}`);
+      return {};
+    }
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) { lockFail(`${file} is not a JSON object`); return {}; }
+    return parsed as Record<string, unknown>;
+  };
+  /** A block as a name → range map, or a named failure when it is something else. */
+  const blockOf = (holder: Record<string, unknown>, block: string, where: string): Record<string, string> => {
+    const raw = holder[block];
+    if (raw === undefined) return {};
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) { lockFail(`${where} carries a ${block} that is not an object`); return {}; }
+    const out: Record<string, string> = {};
+    for (const [name, range] of Object.entries(raw as Record<string, unknown>)) {
+      if (typeof range !== 'string') { lockFail(`${where} states ${block}.${name} as ${typeof range}, not a version range`); continue; }
+      out[name] = range;
+    }
+    return out;
+  };
+
+  const pkg = readJson('package.json');
+  const lock = readJson('package-lock.json');
+  const packages = lock.packages;
+  const root = (typeof packages === 'object' && packages !== null && !Array.isArray(packages))
+    ? (packages as Record<string, unknown>)['']
+    : undefined;
+  const counted: string[] = [];
+  if (typeof root !== 'object' || root === null || Array.isArray(root)) {
+    lockFail('package-lock.json has no root package entry ("" in packages) — that entry is the mirror this law reads');
+  } else {
+    for (const block of LOCK_BLOCKS) {
+      const declared = blockOf(pkg, block, 'package.json');
+      const mirrored = blockOf(root as Record<string, unknown>, block, 'package-lock.json\'s root entry');
+      counted.push(`${Object.keys(declared).length} ${block}`);
+      // package.json → the lockfile: a dependency added without an install.
+      for (const [name, range] of Object.entries(declared)) {
+        if (!(name in mirrored)) lockFail(`package.json declares ${block} "${name}": "${range}" and package-lock.json's root entry does not carry it — run npm install and commit the lockfile`);
+        else if (mirrored[name] !== range) lockFail(`"${name}" is "${range}" in package.json's ${block} and "${mirrored[name]}" in package-lock.json's root entry — one range, both files`);
+      }
+      // The lockfile → package.json: a dependency removed from package.json alone (PIPE-01's xai-sdk).
+      for (const [name, range] of Object.entries(mirrored)) {
+        if (!(name in declared)) lockFail(`package-lock.json's root entry carries ${block} "${name}": "${range}" and package.json does not declare it — a dependency removed from package.json alone leaves the lockfile holding it, and the next install prunes it into an unrelated PR`);
+      }
+    }
+  }
+  if (lock.lockfileVersion !== LOCKFILE_VERSION) lockFail(`package-lock.json states lockfileVersion ${JSON.stringify(lock.lockfileVersion)} — this repo is on ${LOCKFILE_VERSION}, and npm rewrites the whole file when that moves`);
+
+  if (lockViolations === 0) console.log(`✔ The lockfile law passed — package-lock.json's root entry mirrors package.json exactly (${counted.join(' · ')}), name for name and range for range in both directions, at lockfileVersion ${LOCKFILE_VERSION}; two files read, no install, no network, no node_modules.`);
+  else console.log(`✖ The lockfile law FAILED — ${lockViolations} violation(s).`);
+});
+
 lawGuard('The reader law', () => {
 
 // ── THE READER LAW (TEST-TRUTH-01, 2026-09-17) ──────────────────────────────
