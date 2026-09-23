@@ -67,25 +67,26 @@ export default function GuestLanding({ offerAvailability, logoAvailability }: {
     }
   };
 
-  const onBuyModule = (key: string) => {
-    setBuyError(null);
-    setPendingBuyKey(key);
-    setLoginMode('register');
-    setShowLogin(true);
-  };
-
   // SELL-02: the `?module=<key>` door — a link from /pricing, a /modules page or
   // anywhere else opens the sign-up modal with the key pending; after sign-up
   // the same resume runs checkout. Read once on mount: page.tsx renders this
   // only for guests, so the plan is always the register one.
+  //
+  // OFFER-01 (2026-09-23): the availability check moved HERE. It used to be the
+  // deck's own doing — the offer act hid Select for a key whose Stripe price id
+  // was unset, so the resume could not 400. OFFER-01 replaced that act with the
+  // plans, so the guarantee is enforced at the door instead: an unavailable key
+  // opens the sign-up modal with NOTHING pending, and no checkout is started for
+  // a price that does not exist. onBuyModule went with the act — the button it
+  // fed renders only when a price is live, and none is.
   useEffect(() => {
     const plan = moduleDoorPlan(window.location.search, false);
     if (plan.kind !== 'register') return;
     setBuyError(null);
-    setPendingBuyKey(plan.key);
+    if (offerAvailability[plan.key] === true) setPendingBuyKey(plan.key);
     setLoginMode('register');
     setShowLogin(true);
-  }, []);
+  }, [offerAvailability]);
 
   return (
     <>
@@ -95,11 +96,9 @@ export default function GuestLanding({ offerAvailability, logoAvailability }: {
       {/* SELL-03b: a bad verification link lands here with ?verify=<state> — the declared error and the resend. */}
       <VerifyResultBanner />
       <Landing
-        offerAvailability={offerAvailability}
         logoAvailability={logoAvailability}
         onRequireAuth={() => { setLoginMode('register'); setShowLogin(true); }}
         onRequireLogin={() => { setLoginMode('login'); setShowLogin(true); }}
-        onBuyModule={onBuyModule}
       />
       {/* PR-PRICE-3: checkout failure after the auth resume — the house red
           alert vocabulary (PricingClient :193 / ModuleLauncher books-error

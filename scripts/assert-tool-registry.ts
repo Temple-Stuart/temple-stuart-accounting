@@ -150,6 +150,8 @@ import { ARRIVAL_KINDS, PROVIDERS, PROVIDER_CODES, ROUTING_RULES, RULE_BOOK, pro
 import { KIND_VIEWS_HONEST_LINE, KIND_VIEW_CENSUS, STOPPED_TABLES, VIEW_COLUMNS, kindOfTable, kindViewsLaw, latestViews, latestViewsSql, parseViews } from '../src/lib/kindViews';
 // SELL-02: the offer law — every sales claim from the registry, every price from one source.
 import { FREE_TOOLS, OFFERS, TOOL_GATE, heroCountsLine, offerCard, offerLaw, priceEnvName } from '../src/lib/offer';
+// OFFER-01: the plans leaf — the public offer's one source.
+import { CAPABILITY_GROUPS, EARLY_ACCESS_CTA, LAUNCH_PLACEHOLDER, PLANS, PLAN_ORDER, STATUS_TO_CELL, cellState, planLaw, priceSlot, weakestStatus } from '../src/lib/offer/plans';
 import { DYNAMIC_READ_ENV, LIBRARY_READ_ENV } from '../src/lib/envLaw';
 import { EXPECTED_FEED_COUNT, FEED_COST, FEED_IDS, SCAN_COST, feedCostLaw, scanCostLine } from '../src/lib/observatory/feedCost';
 import { FINNHUB_TTL, finnhubCallsPerSymbol, finnhubTtlLaw, slowTierEndpoints } from '../src/lib/convergence/finnhub-ttl';
@@ -322,7 +324,24 @@ const staySrcFiles = (): string[] => {
 
 const reach = new Map<string, Door | null>();
 const schemaText = codeOf('prisma/schema.prisma');
-const SELLING_SURFACES = ['src/components/home/LockedTabCard.tsx', 'src/app/modules/[pillar]/ModulePageClient.tsx', 'src/app/pricing/page.tsx', 'src/components/landing/Landing.tsx'];
+/**
+ * OFFER-01 (2026-09-23): the selling surfaces split in two.
+ *
+ * PLAN_SURFACES are the PUBLIC offer — the landing and /pricing. They render the
+ * three plans (src/components/offer/PlansSection.tsx over src/lib/offer/plans.ts)
+ * and nothing of the builder's view: no tool count, no beat vocabulary, no
+ * persona grid. THE PLAN LAW below holds them to it.
+ *
+ * OFFER_CARD_SURFACES are the two IN-APP surfaces that still render the shared
+ * <OfferCard/> from src/lib/offer.ts: the cockpit's locked-tab card and the
+ * /modules access block. They still carry the registry claim lines, beats and
+ * all — OFFER-01 restructured the public offer and did not touch them, and
+ * extending the plans to them is a later ruling. Named here so the split is
+ * explicit rather than an omission.
+ */
+const PLAN_SURFACES = ['src/components/landing/Landing.tsx', 'src/app/pricing/page.tsx'];
+const OFFER_CARD_SURFACES = ['src/components/home/LockedTabCard.tsx', 'src/app/modules/[pillar]/ModulePageClient.tsx'];
+const SELLING_SURFACES = [...OFFER_CARD_SURFACES, ...PLAN_SURFACES];
 const importsOf = new Map<string, string[]>();
 function drawnNumsIn(body: string, pipe: string): Set<string> {
   const all = new Set((PIPE_PHASES[pipe as keyof typeof PIPE_PHASES] as readonly { num: string }[]).map((p) => p.num));
@@ -702,10 +721,16 @@ violations.push(...offerLaw({ throwOnFail: false, purchasable: PURCHASABLE_ENTIT
 for (const { file, src } of srcFiles) {
   if (file !== 'src/lib/offer.ts' && src.includes('built and running')) violations.push(`offer: ${file} types "built and running" — a claim line comes from claimLine() only`);
 }
-for (const f of SELLING_SURFACES) {
+for (const f of OFFER_CARD_SURFACES) {
   if (!existsSync(resolve(ROOT, f))) { violations.push(`offer: ${f} is missing`); continue; }
   const src = codeOf(f);
   if (!src.includes("from '@/lib/offer'") || !src.includes("from '@/components/OfferCard'")) violations.push(`offer: ${f} must render the offer (import src/lib/offer.ts and OfferCard) — never a typed claim or price`);
+}
+// OFFER-01: a plan surface renders the plans section, and never types the offer itself.
+for (const f of PLAN_SURFACES) {
+  if (!existsSync(resolve(ROOT, f))) { violations.push(`offer: ${f} is missing`); continue; }
+  const src = codeOf(f);
+  if (!src.includes("from '@/components/offer/PlansSection'")) violations.push(`offer: ${f} must render the offer through <PlansSection/> (src/components/offer/PlansSection.tsx) — never a typed claim or price`);
 }
 if (existsSync(resolve(ROOT, 'src/config/pricingModel.ts'))) violations.push('offer: src/config/pricingModel.ts still exists — the offer is the one price source');
 if (existsSync(resolve(ROOT, 'docs/FREEMIUM-MODEL.md'))) violations.push('offer: docs/FREEMIUM-MODEL.md still exists — the offer (and /pricing) states the model');
@@ -4652,6 +4677,195 @@ lawGuard('The lockfile law', () => {
 //
 // It reads six component files plus the strip through code() and comments() and
 // costs milliseconds: no render, no network, no metered call.
+// ── THE PLAN LAW (OFFER-01, 2026-09-23) ──────────────────────────────────────
+// THE CUSTOMER'S PAGE SHOWS THE CUSTOMER'S OFFER.
+//
+// WHAT IT CLOSES. On main 3f84ac5d the public offer was the builder's view. The
+// hero counted the registry ("Twenty-five tools, counted: two live, nine partial,
+// fourteen on the blueprint" — Landing.tsx:2010, again at :2180, again at
+// pricing/page.tsx:34). The cards listed TOOLS wearing the loop's own beat
+// vocabulary — claimLine() renders "partial — discover · decide" (offer.ts:170-180)
+// — under a STATUS chip reading "not built". Above them sat six personas headed
+// "ONE SYSTEM · SIX LIVES" (Landing.tsx:2125). No customer knows what a beat is,
+// and the founder could not scan his own offer.
+//
+// OFFER-01 replaced all of it with the anatomy a commercial product uses: three
+// cumulative plans, an audience line and a plan-relationship line each, a price
+// slot that is real but empty, and ONE table of collapsed capability groups whose
+// every cell derives from the registry. This law keeps the builder's view off
+// those surfaces and keeps every cell derived.
+//
+// It reads the plan surfaces, the section and the leaf through code() and
+// comments(), and runs the leaf's own planLaw over the live registry. No render,
+// no network, no metered call.
+lawGuard('The plan law', () => {
+  let planViolations = 0;
+  const planFail = (m: string) => { planViolations += 1; violations.push(`plan law: ${m} (OFFER-01)`); };
+
+  const PLANS_LEAF = 'src/lib/offer/plans.ts';
+  const PLANS_SECTION = 'src/components/offer/PlansSection.tsx';
+
+  // The leaf's own law first — three plans in the ladder's order, every registry
+  // tool placed in exactly one capability row, no cell claiming ✓ over a tool that
+  // is not LIVE, and no struck-through figure with no price behind it.
+  for (const v of planLaw({ throwOnFail: false })) planFail(v);
+
+  // ── CLAUSE 1. THE BUILDER'S VIEW DOES NOT RENDER ON A PLAN SURFACE. ──
+  // Three vocabularies leave the customer's page: the registry COUNT, the loop's
+  // four BEAT names, and the PERSONA grid.
+  const BEAT_WORDS = ['discover', 'decide', 'commit', 'record'] as const;
+  const COUNT_TELLS = ['heroCountsLine', 'statusCounts', 'numberWord', 'tools, counted'];
+  const PERSONA_TELLS = ['SIX LIVES', 'PERSONAS', 'Who is this for?'];
+  // THE BEAT CLAIM, on any plan surface: the form claimLine() renders
+  // ("partial — discover · decide") and the readers that build it. The scan is
+  // the CLAIM, not the word: Landing.tsx is a 4,400-line deck whose loop cells
+  // legitimately say "a trade record" (:832, :908) — that is the deck's own essay
+  // copy about the four beats, which this ruling did not touch and which is not
+  // an offer claim. What may never come back is a beat used to SELL.
+  const BEAT_CLAIM = new RegExp(`partial\\s*[—-]\\s*(?:${BEAT_WORDS.join('|')})|(?:${BEAT_WORDS.join('|')})\\s*·\\s*(?:${BEAT_WORDS.join('|')})`);
+  for (const f of PLAN_SURFACES) {
+    if (!existsSync(resolve(ROOT, f))) { planFail(`${f} is missing`); continue; }
+    const src = codeOf(f);
+    for (const tell of COUNT_TELLS) {
+      if (src.includes(tell)) planFail(`${f} carries "${tell}" — the registry's tool count is the builder's view and does not render on the customer's page`);
+    }
+    for (const tell of PERSONA_TELLS) {
+      if (src.includes(tell)) planFail(`${f} carries "${tell}" — the persona grid is gone; the audience each persona named rides on the plan that serves it`);
+    }
+    if (BEAT_CLAIM.test(src)) planFail(`${f} renders a beat claim — "partial — discover · decide" is the loop's vocabulary, not a customer's`);
+    if (/claimLine|beatsOf/.test(src)) planFail(`${f} reads the beat-bearing claim line — a plan surface reads src/lib/offer/plans.ts`);
+    if (/from '@\/components\/OfferCard'/.test(src)) planFail(`${f} renders <OfferCard/> — the public offer is the plans section, and OfferCard carries the registry status chips and the beat claim lines`);
+  }
+  // The offer's OWN two files are held to the whole word: nothing in the plans
+  // leaf or the section it feeds may name a beat at all. "records", "committed"
+  // and "Discovery" are other words and are not caught.
+  for (const f of [PLANS_SECTION, PLANS_LEAF]) {
+    if (!existsSync(resolve(ROOT, f))) { planFail(`${f} is missing`); continue; }
+    const src = codeOf(f);
+    for (const tell of [...COUNT_TELLS, ...PERSONA_TELLS]) {
+      if (src.includes(tell)) planFail(`${f} carries "${tell}" — the count and the personas stay in the registry and the audit trail`);
+    }
+    for (const m of src.matchAll(/(['"`])((?:\\.|(?!\1)[^\\])*)\1/g)) {
+      for (const beat of BEAT_WORDS) {
+        if (new RegExp(`\\b${beat}\\b`).test(m[2])) planFail(`${f} renders "${beat}" — the loop's beat vocabulary is the builder's; a customer is told what they can do, not which beat is cited`);
+      }
+    }
+  }
+  // And the data itself: no plan's copy and no capability label may name a beat.
+  for (const copy of [
+    ...PLANS.flatMap((p) => [p.name, p.positioning, p.audience, p.relationship, ...p.benefits]),
+    ...CAPABILITY_GROUPS.flatMap((g) => [g.title, ...g.rows.map((r) => r.label)]),
+  ]) {
+    for (const beat of BEAT_WORDS) {
+      if (new RegExp(`\\b${beat}\\b`, 'i').test(copy)) planFail(`the plans' copy says "${beat}" in "${copy}" — the beat vocabulary stays in the registry`);
+    }
+  }
+
+  // ── CLAUSE 2. EVERY CELL DERIVES FROM THE REGISTRY. ──
+  // The section calls cellState() and draws CELL_MARK; it types no glyph, no
+  // "Coming" and no state of its own.
+  const sectionSrc = codeOf(PLANS_SECTION);
+  if (!sectionSrc.includes('cellState(')) planFail(`${PLANS_SECTION} does not call cellState() — a cell is derived from the registry, never decided here`);
+  if (!sectionSrc.includes('CELL_MARK[state]')) planFail(`${PLANS_SECTION} does not draw CELL_MARK[state] — the mark is the leaf's one mapping`);
+  for (const mark of ['✓', '◐', 'Coming']) {
+    for (const m of sectionSrc.matchAll(/(['"`])((?:\\.|(?!\1)[^\\])*)\1/g)) {
+      if (m[2].includes(mark)) planFail(`${PLANS_SECTION} types "${mark}" — every mark comes from CELL_MARK (src/lib/offer/plans.ts), so a cell can never claim more than the registry does`);
+    }
+  }
+  // The one mapping is the one the ruling names, and nothing else maps.
+  const MAPPING: Readonly<Record<string, string>> = { LIVE: 'ready', PARTIAL: 'partial', NOT_BUILT: 'coming' };
+  for (const [status, cell] of Object.entries(MAPPING)) {
+    if (STATUS_TO_CELL[status as keyof typeof STATUS_TO_CELL] !== cell) planFail(`STATUS_TO_CELL maps ${status} to "${STATUS_TO_CELL[status as keyof typeof STATUS_TO_CELL]}", not "${cell}" — LIVE is ✓, PARTIAL is ◐, NOT_BUILT is "Coming"`);
+  }
+
+  // ── CLAUSE 3. A PARTIAL CAPABILITY READS ◐ AND NEVER ✓. ──
+  // Over the live registry, cell by cell: the weakest backing tool decides, so a
+  // row standing on one PARTIAL tool is ◐ in every plan that carries it, and a row
+  // reading ✓ has every tool behind it LIVE.
+  let partialCells = 0;
+  let readyCells = 0;
+  for (const g of CAPABILITY_GROUPS) {
+    for (const row of g.rows) {
+      const weakest = weakestStatus(row.tools);
+      for (const plan of PLAN_ORDER) {
+        const state = cellState(plan, row);
+        if (state === 'absent') continue;
+        if (weakest === 'PARTIAL') {
+          partialCells += 1;
+          if (state !== 'partial') planFail(`${g.id} · "${row.label}" stands on a PARTIAL tool and reads "${state}" for ${plan} — a partly built capability is ◐, never ✓`);
+        }
+        if (state === 'ready') {
+          readyCells += 1;
+          const notLive = row.tools.filter((t) => TOOL_REGISTRY.find((e) => e.name === t)?.status !== 'LIVE');
+          if (notLive.length) planFail(`${g.id} · "${row.label}" reads ✓ for ${plan} while ${notLive.join(', ')} is not LIVE`);
+        }
+      }
+    }
+  }
+  if (partialCells === 0) planFail('no cell on the whole table reads ◐ — the registry carries nine PARTIAL tools, so the derivation is not running');
+
+  // ── CLAUSE 4. THE PRICE SLOT IS REAL BUT EMPTY. ──
+  // While a plan's ONE price constant carries no figure the slot says so, and the
+  // section types no figure, no discount and no placeholder of its own.
+  for (const p of PLANS) {
+    const slot = priceSlot(p);
+    if (p.price.monthly === null && slot.kind !== 'unannounced') planFail(`${p.id}: no price is set and the slot does not render the launch placeholder`);
+    if (p.price.monthly === null && slot.kind === 'unannounced' && slot.text !== LAUNCH_PLACEHOLDER) planFail(`${p.id}: the unset slot says "${slot.text}", not the one placeholder`);
+  }
+  for (const m of sectionSrc.matchAll(/(['"`])((?:\\.|(?!\1)[^\\])*)\1/g)) {
+    if (/\$\s*\d/.test(m[2])) planFail(`${PLANS_SECTION} types a price figure (${m[2]}) — a figure comes from the plan's own constant through priceSlot()`);
+    if (m[2].includes(LAUNCH_PLACEHOLDER) || m[2].includes(EARLY_ACCESS_CTA)) planFail(`${PLANS_SECTION} types "${m[2]}" — the slot's words live in ${PLANS_LEAF}`);
+  }
+  if (!sectionSrc.includes('priceSlot(plan)')) planFail(`${PLANS_SECTION} does not call priceSlot() — the slot is the leaf's, geometry and all`);
+  // Nothing invented anywhere on the surface: no countdown, no statistic, no testimonial.
+  const INVENTED = /\b(\d+%\s*off|limited time|ends (?:in|soon)|save \$\d|\d+,?\d*\s*(?:customers|users|traders|founders)\b|testimonial)/i;
+  for (const f of [PLANS_LEAF, PLANS_SECTION]) {
+    for (const m of codeOf(f).matchAll(/(['"`])((?:\\.|(?!\1)[^\\])*)\1/g)) {
+      if (INVENTED.test(m[2])) planFail(`${f} carries "${m[2]}" — no invented price, discount, countdown, statistic or testimonial on the offer`);
+    }
+  }
+
+  // ── CLAUSE 5. THE THREE RELATIONSHIP LINES ARE THE CUMULATIVE ONES. ──
+  const RELATIONSHIPS: readonly string[] = [
+    'Personal finance tools.',
+    'Everything in Personal, plus business tools.',
+    'Everything in Business & Personal, plus the trading book.',
+  ];
+  PLANS.forEach((p, i) => {
+    if (p.relationship !== RELATIONSHIPS[i]) planFail(`${p.id}'s relationship line is "${p.relationship}", not "${RELATIONSHIPS[i]}" — the ladder says how each plan stands to the one below it`);
+  });
+  const NAMES: readonly string[] = ['Personal', 'Business & Personal', 'Trading, Business & Personal'];
+  PLANS.forEach((p, i) => {
+    if (p.name !== NAMES[i]) planFail(`plan ${i + 1} is named "${p.name}", not "${NAMES[i]}"`);
+  });
+  // The section renders both lines, on the card and over the table column.
+  for (const attr of ['data-plan-audience', 'data-plan-relationship', 'data-column-audience', 'data-column-relationship']) {
+    if (!sectionSrc.includes(attr)) planFail(`${PLANS_SECTION} renders no ${attr} — the audience and the relationship sit on the card AND over the column`);
+  }
+  // ── THE DOOR THE SECTION CARRIES. ──
+  // id="modules" was the offer act's. The plans section took it, and three things
+  // still resolve to it: the Stripe cancel_url, the /modules access block's door
+  // and /pricing's. A page may not lose its door, and this one moved.
+  const ANCHOR_USERS = ['src/app/api/stripe/checkout-entitlement/route.ts', 'src/app/modules/[pillar]/ModulePageClient.tsx'];
+  if (!sectionSrc.includes("headingId = 'modules'")) planFail(`${PLANS_SECTION}'s default headingId is not 'modules' — the offer act's anchor rides on the plans now`);
+  const landingSource = codeOf('src/components/landing/Landing.tsx');
+  if (!landingSource.includes('<PlansSection door=')) planFail('the landing does not mount <PlansSection/>');
+  else if (/<PlansSection[^>]*headingId=/.test(landingSource)) planFail("the landing overrides <PlansSection/>'s headingId — #modules is the anchor the checkout cancel_url returns to, and it lives on the plans");
+  for (const f of ANCHOR_USERS) {
+    if (!codeOf(f).includes('#modules')) planFail(`${f} no longer names #modules — if the door moved, the section it lands on must move with it`);
+  }
+
+  // Travel's free line sits once, derived from the registry's own Travel row.
+  if (!sectionSrc.includes('travelFreeLine()')) planFail(`${PLANS_SECTION} does not call travelFreeLine() — Travel's free line derives from the registry's Travel row, never typed`);
+  if ((sectionSrc.match(/data-travel-free/g) ?? []).length !== 1) planFail(`${PLANS_SECTION} renders Travel's free line ${(sectionSrc.match(/data-travel-free/g) ?? []).length} times — it sits once, under the cards`);
+
+  if (planViolations === 0) {
+    console.log(`✔ The plan law passed — ${PLANS.length} cumulative plans over ${CAPABILITY_GROUPS.length} capability groups and ${CAPABILITY_GROUPS.reduce((n, g) => n + g.rows.length, 0)} rows accounting for all ${TOOL_REGISTRY.length} registry tools; every cell derived (${readyCells} ✓, ${partialCells} ◐) with no ✓ over a tool that is not LIVE; the price slot is the launch placeholder on all three while their constants are unset; no tool count, no beat name and no persona grid on ${PLAN_SURFACES.length} plan surfaces.`);
+  } else {
+    console.log(`✖ The plan law FAILED — ${planViolations} violation(s).`);
+  }
+});
+
 lawGuard('The row law', () => {
   let rowViolations = 0;
   const rowFail = (m: string) => { rowViolations += 1; violations.push(`row law: ${m} (TRAVEL-ROW-01)`); };
