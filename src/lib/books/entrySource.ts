@@ -20,9 +20,42 @@
  * THIS FILE IS PURE. No fetch, no env, no clock, no React, no Prisma. It maps a
  * source_type to its words and its target, and nothing else.
  *
- * THE SIX KINDS THE DATA ACTUALLY CONTAINS — read from every writer under src,
+ * THE SEVEN KINDS THE DATA ACTUALLY CONTAINS — read from EVERY writer under src,
  * never assumed. An UNKNOWN source_type renders as ITSELF (see entrySourceOf);
  * a guess would be worse than the raw word.
+ *
+ * THE CENSUS, CLOSED (DRILL-01b, 2026-09-23). Every place under src that WRITES a
+ * source_type onto an entry being posted — a literal assigned into the entry
+ * object, not a WHERE that reads one back:
+ *
+ *   plaid_txn        src/lib/journal-entry-service.ts:138
+ *                    src/app/api/transactions/route.ts:69
+ *                    src/app/api/transactions/uncommit/route.ts:53
+ *                    src/app/api/admin/fix-entity-assignment/route.ts:94 · :181
+ *   manual           src/app/api/journal-entries/route.ts:110
+ *                    src/app/api/journal-entries/manual/route.ts:83
+ *   reversal         src/lib/journal-entry-service.ts:236
+ *                    src/app/api/investment-transactions/uncommit/route.ts:110
+ *                    src/app/api/admin/fix-entity-assignment/route.ts:122
+ *   investment_txn   src/lib/batch-trade-processor.ts:995 · :1197 · :1709
+ *                    src/lib/position-tracker-service.ts:617
+ *                    src/app/api/stock-lots/commit/route.ts:272
+ *   trading_position src/app/api/trading/commit-to-ledger/route.ts:184
+ *   year_end_close   src/app/api/year-end-close/route.ts:248 · :309
+ *   reclass          src/lib/coa/reclassify.ts:145 (the port's type at :121)
+ *
+ * And the places that only READ or PASS one, so the next reader need not re-check
+ * them: the generic posting port (src/lib/posting/postJournal.ts:41 · :131), the
+ * two routes that put it on the wire (api/journal-transactions/route.ts:46,
+ * api/ledger/route.ts:82), the source read (api/journal-entries/[id]/source/route.ts:38),
+ * the WHEREs that find entries by kind (api/investment-transactions/route.ts:48,
+ * .../uncommit/route.ts:84, api/trading/commit-to-ledger/route.ts:93,
+ * api/year-end-close/route.ts:88, app/trade-log/page.tsx:208 · :213), the SOC 2
+ * counters (api/soc2/route.ts:304 · :312 · :336 · :342), the CPA export's type
+ * (api/cpa-export/route.ts:111) and the two book surfaces.
+ *
+ * THE SET IS CLOSED AT SEVEN. A new writer adds a kind here or the surface renders
+ * its raw token — which the law forbids by name, so the two move together.
  *
  * NOTHING IS BACKFILLED. An entry written before the pointer existed keeps its
  * silence and says so — "no source recorded for this entry". The legacy-epoch
@@ -38,6 +71,7 @@ export type SourceKind =
   | 'reversal'
   | 'investment_txn'
   | 'trading_position'
+  | 'reclass'
   | 'year_end_close';
 
 export interface SourceRule {
@@ -82,9 +116,17 @@ export const SOURCE_RULES: readonly SourceRule[] = [
   {
     type: 'investment_txn',
     words: 'an investment transaction',
-    idIs: 'the investment transaction id (investment_transactions.investment_transaction_id)',
+    // DRILL-01b: corrected. Every writer stores the investment_transactions ROW ID,
+    // not its investment_transaction_id: batch-trade-processor.ts:996 · :1198 · :1710
+    // write `txn.id`; stock-lots/commit/route.ts:273 writes saleTxnId, looked up by
+    // `where: { id: saleTxnId }` (:59); position-tracker-service.ts:618 writes
+    // `externalTransactionId || null` — a leg's id, and NULL when there is none, so
+    // this kind can legitimately carry no pointer. The readers agree:
+    // api/investment-transactions/route.ts:39-41 queries source_id against
+    // `investmentTxns.map(t => t.id)`.
+    idIs: 'the investment transaction row it was posted from (investment_transactions.id)',
     opens: false,
-    writtenAt: 'src/app/api/investment-transactions/route.ts:48 · src/app/api/stock-lots/commit/route.ts:272-273',
+    writtenAt: 'src/lib/batch-trade-processor.ts:995 · :1197 · :1709 · src/lib/position-tracker-service.ts:617 · src/app/api/stock-lots/commit/route.ts:272',
   },
   {
     type: 'trading_position',
@@ -92,6 +134,21 @@ export const SOURCE_RULES: readonly SourceRule[] = [
     idIs: 'the trade number',
     opens: false,
     writtenAt: 'src/app/api/trading/commit-to-ledger/route.ts:184 (read back at :93)',
+  },
+  {
+    // DRILL-01b: READ FIRST, and the words follow what the writer stores.
+    // postReclassification (reclassify.ts:139-152) posts a NEW entry — "nothing old
+    // is edited" (:6-8) — with NO source_id field at all, so the pointer is null by
+    // absence, not by choice. What it does store: a description built at :102,
+    // `Reclassify <from code> → <to code>: <memo>`, which both book surfaces already
+    // render in their own Description column, and metadata.reclass (:104) carrying
+    // from_id · from_code · to_id · to_code · amount_cents · memo. So the cell says
+    // WHAT HAPPENED and names no target: there is nothing to open.
+    type: 'reclass',
+    words: 'a move between accounts',
+    idIs: null,
+    opens: false,
+    writtenAt: 'src/lib/coa/reclassify.ts:145 (the posting port declares the literal at :121); no source_id is written',
   },
   {
     type: 'year_end_close',
@@ -156,27 +213,32 @@ export function entrySourceOf(entry: SourcedEntry): EntrySource {
 /**
  * COVERAGE IS DECLARED, NEVER IMPUTED. Over the rows actually shown:
  *
- *   sourced    — the entry names a source AND something to point at (a bank
- *                transaction, an investment transaction, a trade, a year, or —
- *                for a reversal — the entry it reverses)
- *   byHand     — it states an origin with nothing to point at (posted by hand,
- *                or any known kind whose id is absent)
- *   unrecorded — it carries no source_type: written before the pointer existed,
- *                and NOT backfilled
+ *   sourced        — the entry names a source AND something to point at (a bank
+ *                    transaction, an investment transaction, a trade, a year, or —
+ *                    for a reversal — the entry it reverses)
+ *   withoutPointer — it states an origin with nothing to point at: posted by hand,
+ *                    a move between accounts (reclassify.ts writes no source_id at
+ *                    all), or any known kind whose id happens to be absent
+ *   unrecorded     — it carries no source_type: written before the pointer existed,
+ *                    and NOT backfilled
+ *
+ * DRILL-01b renamed the middle bucket. It was `byHand`, and the line said "N posted
+ * by hand" — which was true while `manual` was the only kind with nothing to point
+ * at, and became false the moment `reclass` joined it. The words follow the data.
  *
  * Nothing is inferred from silence, and no entry is counted twice.
  */
 export interface Coverage {
   total: number;
   sourced: number;
-  byHand: number;
+  withoutPointer: number;
   unrecorded: number;
   line: string;
 }
 
 export function coverageOf(entries: readonly SourcedEntry[]): Coverage {
   let sourced = 0;
-  let byHand = 0;
+  let withoutPointer = 0;
   let unrecorded = 0;
   for (const e of entries) {
     const s = entrySourceOf(e);
@@ -184,13 +246,13 @@ export function coverageOf(entries: readonly SourcedEntry[]): Coverage {
     if (s.kind === 'opens') { sourced += 1; continue; }
     // A reversal points at the entry it reverses; every other kind points at its id.
     const pointsAt = s.kind === 'entry' ? s.entryId : s.id;
-    if (pointsAt) sourced += 1; else byHand += 1;
+    if (pointsAt) sourced += 1; else withoutPointer += 1;
   }
   const total = entries.length;
   const parts = [`${sourced} of ${total} ${total === 1 ? 'entry carries its' : 'entries carry their'} source`];
-  if (byHand > 0) parts.push(`${byHand} posted by hand`);
+  if (withoutPointer > 0) parts.push(`${withoutPointer} ${withoutPointer === 1 ? 'names its origin' : 'name their origin'} with nothing to open`);
   if (unrecorded > 0) parts.push(`${unrecorded} with ${NO_SOURCE_WORDS}`);
-  return { total, sourced, byHand, unrecorded, line: `${parts.join(' · ')}.` };
+  return { total, sourced, withoutPointer, unrecorded, line: `${parts.join(' · ')}.` };
 }
 
 /** The fields a bank transaction row is asked for. The surface renders only the ones the row actually carries. */
