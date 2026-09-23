@@ -62,9 +62,46 @@ export const SEEDS: Seed[] = [
   {
     name: 'offer-e a plan stops saying what it adds to the one below it (clause 5)',
     file: LEAF,
-    find: "    relationship: 'Everything in Personal, plus business tools.',",
+    find: "    relationship: 'Everything in Personal, plus the company.',",
     replace: "    relationship: 'Business tools.',",
-    expect: 'not "Everything in Personal, plus business tools."',
+    expect: 'not "Everything in Personal, plus the company."',
+  },
+  // ── OFFER-03: THE MODULE MODEL ──────────────────────────────────────────
+  {
+    // A row whose module is not one of the three: the table would draw a column
+    // for something no plan can hold.
+    name: 'offer-f a capability row belongs to no module (OFFER-03)',
+    file: LEAF,
+    find: "      { label: 'Positions and balances from your broker', tools: ['Brokerage'], module: 'trading' },",
+    replace: "      { label: 'Positions and balances from your broker', tools: ['Brokerage'], module: 'speculation' },",
+    expect: 'is not one of the three modules',
+  },
+  {
+    // A plan without the base. Personal is what everyone gets; a plan that drops it
+    // would sell a module with nothing under it.
+    name: 'offer-g a plan drops the base (OFFER-03)',
+    file: LEAF,
+    find: "    modules: ['personal', 'trading'],",
+    replace: "    modules: ['trading'],",
+    expect: 'and not the base — Personal is what every plan starts from',
+  },
+  {
+    // A cell drawn for a module its plan does not hold — the cumulative special-casing
+    // creeping back in, so Personal + Trading would light up the business rows.
+    name: 'offer-h a cell is drawn for a module the plan does not hold (OFFER-03)',
+    file: LEAF,
+    find: "  if (!planCarries(plan, row)) return 'absent';",
+    replace: "  if (false && !planCarries(plan, row)) return 'absent';",
+    expect: 'and not the business module',
+  },
+  {
+    // The desktop floor left ungated. At 390px the table would be 720px wide inside a
+    // 324px scroller and the one column the selector chose would sit off the screen.
+    name: 'offer-i the table keeps its desktop floor at phone width (OFFER-03)',
+    file: SECTION,
+    find: '<table className="w-full text-sm lg:min-w-[720px]">',
+    replace: '<table className="w-full min-w-[720px] text-sm">',
+    expect: 'a desktop floor must be gated',
   },
 ];
 
