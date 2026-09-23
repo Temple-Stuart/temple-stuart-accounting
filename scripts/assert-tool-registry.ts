@@ -4657,6 +4657,98 @@ lawGuard('The lockfile law', () => {
   else console.log(`✖ The lockfile law FAILED — ${lockViolations} violation(s).`);
 });
 
+// ── THE CHECKOUT LAW (CHECKOUT-01, 2026-09-23) ──────────────────────────────
+// A CHECKOUT THAT FAILS SAYS WHAT HAPPENED.
+//
+// WHAT THIS CLOSES. The founder searched Phuket on production, picked a rate, pressed
+// Book, and the pane came up with nothing to pay with. The cause is not ours alone —
+// LiteAPI's hosted payment SDK swallows EVERY failure in two empty catch blocks
+// (liteAPIPayment.js handlePayment and liteAPIPaymentStripe.js handlePayment, both
+// read from the vendor's shipped bytes on 2026-09-23) — so handlePayment() resolves
+// having drawn nothing, and no throw ever reaches our try/catch. But the panel then
+// made it worse: it had TWO silent `return`s in the SDK effect, one loose `error`
+// string that the script's onError overwrote with a vaguer reason than the prebook
+// had already given, and it printed "Enter your card to pay" and "Loading the secure
+// payment form…" UNDERNEATH "Could not load the payment form" — three claims at once
+// and no card field.
+//
+// THE RULE: every path out of this panel renders either a payment form or a STATED
+// reason. Never a blank pane, never two answers at once.
+lawGuard('The checkout law', () => {
+  let checkoutViolations = 0;
+  const checkoutFail = (m: string) => { checkoutViolations += 1; violations.push(`checkout law: ${m} (CHECKOUT-01)`); };
+
+  const PANEL = 'src/components/trips/CheckoutPanel.tsx';
+  const panel = codeOf(PANEL);
+
+  // 1. NO SILENT BRANCH. Every `return` inside the SDK effect either starts the form
+  //    or states why it cannot. The effect is bounded by its own dependency array.
+  const effectStart = panel.indexOf('if (started || phase !== \'pay\'');
+  if (effectStart < 0) checkoutFail(`${PANEL} no longer has the SDK-init guard — the effect that opens the card form`);
+  else {
+    const effectEnd = panel.indexOf('payment.handlePayment();', effectStart);
+    if (effectEnd < 0) checkoutFail(`${PANEL} no longer calls handlePayment() — the card form is never requested`);
+    else {
+      const body = panel.slice(effectStart, effectEnd);
+      // The FIRST guard is the not-ready-yet one: phase, prebook, paymentEnv, sdkReady
+      // and the attach choice are states this effect legitimately waits on, and the
+      // render says which. Every guard AFTER it is a real dead end and must speak.
+      // Walk the body by POSITION — several `return;` lines are textually identical,
+      // so each one is judged by what precedes IT, not by the first match of its text.
+      const lines = body.split('\n');
+      let at = 0;
+      for (let i = 0; i < lines.length; i += 1) {
+        const lineStart = at;
+        at += lines[i].length + 1;
+        if (i === 0) continue; // the wait-on-state guard; the render says which state
+        const t = lines[i].trim();
+        if (!/\breturn;/.test(t)) continue;
+        // A one-line `if (…) return;` cannot have stated anything, and the previous
+        // branch's fail() sitting above it is not its reason. It must be a block.
+        if (/^if\s*\(.*\)\s*return;$/.test(t)) {
+          checkoutFail(`${PANEL}'s SDK effect has the one-line guard "${t}" — a branch that gives up must open a block and say why; this exact shape is what left the founder a blank pane`);
+          continue;
+        }
+        const preceding = body.slice(Math.max(0, lineStart - 400), lineStart);
+        if (!/fail\(\{/.test(preceding)) checkoutFail(`${PANEL}'s SDK effect returns at line ${i} of the effect without saying why — a dead end that renders nothing is the blank pane this law closes`);
+      }
+    }
+  }
+
+  // 2. THE FAILURE IS NAMED, and the first reason wins. One loose string let the
+  //    script's onError overwrite the prebook's own, specific reason.
+  if (/const \[error, setError\]/.test(panel)) checkoutFail(`${PANEL} holds a loose \`error\` string again — a named failure carries its kind, and a later vaguer reason must not displace a specific one`);
+  for (const kind of ['missing_key', 'prebook', 'sdk_script', 'form_absent']) {
+    if (!panel.includes(`'${kind}'`)) checkoutFail(`${PANEL} names no "${kind}" failure — every way this panel can fail to take a card is named`);
+  }
+  if (!/setFailureState\(\(cur\) => cur \?\? next\)/.test(panel)) checkoutFail(`${PANEL}'s fail() does not keep the FIRST reason — the CDN's onError fires late and would bury the prebook's own`);
+
+  // 3. THE WATCHDOG. The vendor cannot report a failure, so the panel watches the DOM
+  //    and says so when no form arrives. Without this the blank pane is invisible.
+  if (!panel.includes('FORM_DEADLINE_MS')) checkoutFail(`${PANEL} has no deadline for the vendor's form — handlePayment() resolves whether or not it drew anything, so the DOM is the only signal`);
+  if (!/new MutationObserver/.test(panel)) checkoutFail(`${PANEL} does not watch its payment target — a form that never arrives must be noticed, not waited on forever`);
+  if (!/kind: 'form_absent'/.test(panel)) checkoutFail(`${PANEL} never raises form_absent — the watchdog must end in a stated reason`);
+
+  // 4. A PANEL THAT CANNOT TAKE A CARD DOES NOT ASK FOR ONE.
+  const ask = panel.indexOf('Enter your card to pay');
+  if (ask < 0) checkoutFail(`${PANEL} no longer asks for a card at all`);
+  else {
+    const before = panel.slice(Math.max(0, ask - 600), ask);
+    if (!/\{!failure && \(/.test(before)) checkoutFail(`${PANEL} asks for a card without first ruling out a failure — it printed "Enter your card to pay" under "Could not load the payment form", which is the defect`);
+  }
+  if (!/data-checkout-failure=\{failure\.kind\}/.test(panel)) checkoutFail(`${PANEL}'s stated failure does not carry its kind on the element — the walk and a reader name the branch by it`);
+
+  // 5. THE VENDOR'S BODY NEVER REACHES THE SCREEN. Every detail line is fixed,
+  //    first-party text.
+  for (const m of panel.matchAll(/detail: ([^\n]+)/g)) {
+    const val = m[1].trim();
+    if (!/^['"`]/.test(val) && !val.startsWith('`No LiteAPI')) checkoutFail(`${PANEL} builds a failure detail from ${val.slice(0, 60)} — the detail line is fixed first-party text, never the vendor's body`);
+  }
+
+  if (checkoutViolations === 0) console.log(`✔ The checkout law passed — the hotel checkout has no silent branch: 4 named failures (missing_key · prebook · sdk_script · form_absent), the first reason kept against a late overwrite, a ${'FORM_DEADLINE_MS'} watchdog on the vendor's own target because its SDK swallows every error in two empty catches, and no card asked for beside a stated failure.`);
+  else console.log(`✖ The checkout law FAILED — ${checkoutViolations} violation(s).`);
+});
+
 // ── THE ROW LAW (TRAVEL-ROW-01, 2026-09-23) ─────────────────────────────────
 // BOOK AT THE LINE.
 //
@@ -5322,7 +5414,10 @@ lawGuard('The row law', () => {
   // Display is not booking. These hashes are the ones both panels carried on
   // main 97d6db04, before TRAVEL-ROW-01: not a re-pin, an UNCHANGED pin.
   const ROW_UNTOUCHED: { file: string; sha256: string }[] = [
-    { file: 'src/components/trips/CheckoutPanel.tsx', sha256: '77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5' },
+    // CHECKOUT-01 (2026-09-23): re-pinned by its own ruling — the panel now NAMES why
+    // it cannot take a card instead of leaving a blank pane. Where it mounts, which
+    // TRAVEL-ROW-01 owns, is untouched.
+    { file: 'src/components/trips/CheckoutPanel.tsx', sha256: '3b6ae4fe18c1fb5e3701c592d6685e95bf336abb089d5d0aa947f3718dc7ef22' },
     { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: 'c018712700fe9e24c0ff51b417ab3658060f8dbe8784a459b33da4eb6a70365d' },
   ];
   const flowPins = codeOf('src/lib/travelBookingFlow.ts');
@@ -5339,7 +5434,7 @@ lawGuard('The row law', () => {
   // And the strip itself is in the census, pinned new by this ruling.
   if (!flowPins.includes(`{ file: '${ROW_STRIP}', sha256: '`)) rowFail(`${ROW_STRIP} is not in the booking-flow census — the strip is where Book is pressed, so it is pinned`);
 
-  if (rowViolations === 0) console.log(`✔ The row law passed — ${ROW_VIEWS.length} travel result views, each acting only in the one strip under its selected row; 0 selection bars outside a table; both checkouts mounted only in the view's slot; CheckoutPanel.tsx and LiteApiFlightCheckoutPanel.tsx byte-identical to main 97d6db04.`);
+  if (rowViolations === 0) console.log(`✔ The row law passed — ${ROW_VIEWS.length} travel result views, each acting only in the one strip under its selected row; 0 selection bars outside a table; both checkouts mounted only in the view's slot; LiteApiFlightCheckoutPanel.tsx byte-identical to main 97d6db04 and CheckoutPanel.tsx to its CHECKOUT-01 re-pin.`);
   else console.log(`✖ The row law FAILED — ${rowViolations} violation(s).`);
 });
 

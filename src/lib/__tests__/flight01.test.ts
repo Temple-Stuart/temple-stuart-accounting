@@ -239,8 +239,11 @@ test('the booking-flow pin still holds for every file it names — five search f
     assert.match(notes, /FLIGHT-01 \(2026-09-22\): re-pinned[^\n]*Search is not booking; no prebook\/verify\/book\/pay\/cancel call changed\.\n[^\n]*Was [0-9a-f]{64} at main b9eac34a\./, `${f} carries a dated re-pin note with the old hash`);
     assert.match(code('src/lib/travelBookingFlow.ts'), new RegExp(`\\{ file: '[^']*${f.replace('.', '\\.')}', sha256: '[0-9a-f]{64}' \\}`), `${f} is pinned`);
   }
-  // The booking files keep the hashes TRAVEL-01 pinned — CheckoutPanel at its HOTEL-02 (2026-09-22)
-  // hash: one label ("/5", was "/10") on the content rating, paint only, re-dated in the pin file.
+  // The booking files keep the hashes TRAVEL-01 pinned. CheckoutPanel is the one
+  // exception and it is named: CHECKOUT-01 (2026-09-23) re-pinned it by its own
+  // ruling — the panel now states why it cannot take a card instead of leaving a
+  // blank pane. No prebook/book/pay/cancel CALL changed; what changed is what the
+  // customer is told. Every other booking file below is still at its TRAVEL-01 hash.
   const booking = ['src/app/api/travel/liteapi/prebook/route.ts', 'src/app/api/travel/liteapi/book/route.ts', 'src/app/api/travel/liteapi/flights/prebook/route.ts', 'src/app/api/travel/liteapi/flights/verify/route.ts', 'src/app/api/travel/liteapi/flights/book/route.ts', 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', 'src/components/trips/CheckoutPanel.tsx', 'src/lib/liteapiFlightsClient.ts'];
   const original: Record<string, string> = {
     'src/app/api/travel/liteapi/prebook/route.ts': 'dd6e8c9a0f1437a0661283bb91dc00aeb6dcaf6c227cefc180a3e01f1a60f351',
@@ -249,7 +252,8 @@ test('the booking-flow pin still holds for every file it names — five search f
     'src/app/api/travel/liteapi/flights/verify/route.ts': '5143ffafee8ed954d5edc7c639857622375c6b177b9ac067f79553794674d589',
     'src/app/api/travel/liteapi/flights/book/route.ts': 'cd8fa37b2d950f98063b7562d3d5347dc1c5e1edcf04df695db41306f8400ab3',
     'src/components/trips/LiteApiFlightCheckoutPanel.tsx': 'c018712700fe9e24c0ff51b417ab3658060f8dbe8784a459b33da4eb6a70365d',
-    'src/components/trips/CheckoutPanel.tsx': '77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5',
+    // Was 77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5 before CHECKOUT-01.
+    'src/components/trips/CheckoutPanel.tsx': '3b6ae4fe18c1fb5e3701c592d6685e95bf336abb089d5d0aa947f3718dc7ef22',
     'src/lib/liteapiFlightsClient.ts': 'f5ecffcfa0b71b8cbe4ba8868a2f8aabd4e326129bacbf9a675e79b17e63fd2f',
   };
   for (const f of booking) assert.equal(BOOKING_FLOW_FILES.find((p) => p.file === f)!.sha256, original[f], `${f} is pinned at its TRAVEL-01 hash`);
