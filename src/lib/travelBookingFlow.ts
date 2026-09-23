@@ -103,7 +103,12 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // The provider call, the guards, the landing and the reservation are unchanged.
   // Was bbc045a7bb5415c938ac57bcec26fbf807ba7fe5155b119c598cbbf4333bf1fc at main 54f438f1.
   { file: 'src/app/api/travel/liteapi/flights/book/route.ts', sha256: '7a92d920d3bd45ac1a10997c3eb6b2ee1b1495dd3eec73a45ec3d9185ec5cc92' },
-  { file: 'src/app/api/travel/liteapi/flights/prebook/route.ts', sha256: 'ed9b0d2afe376769e42a99a80fc3ce33755324add6a25e4104a5f5c193289c7a' },
+  // FL-4c (2026-09-23): re-pinned — the envelope gains `paymentEnv`, the key env
+  // derived server-side exactly as the hotel prebook returns it. The browser must
+  // not guess which mode it is in, and /config is keyed on that label. Nothing
+  // else changed: the same guards, the same provider call, the same whitelist.
+  // Was ed9b0d2afe376769e42a99a80fc3ce33755324add6a25e4104a5f5c193289c7a at main bd380379.
+  { file: 'src/app/api/travel/liteapi/flights/prebook/route.ts', sha256: 'afad4046f2084b53ff5dfd48ca6c280b475967d61dfd4cf98f4b5da3e672964e' },
   // FLIGHT-01 (2026-09-22): re-pinned — the request body gains the vendor's filters and sort, validated by name between the two guards. Search is not booking; no prebook/verify/book/pay/cancel call changed.
   // Was cbd59f8394b0f9fb52b3df446ba5183e99eb8b62c07cbb4afdbf63d50b6b86d1 at main b9eac34a.
   { file: 'src/app/api/travel/liteapi/flights/search/route.ts', sha256: 'e4535e859762c570a894e9fdf2e5e0ca452e395f6a5e8ab51b55221bc9c2fa0b' },
@@ -203,7 +208,18 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // and the booked state says whether the confirmation went out. No payment path,
   // no Stripe rail and no booking call changed.
   // Was c018712700fe9e24c0ff51b417ab3658060f8dbe8784a459b33da4eb6a70365d at main 54f438f1.
-  { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: '069af3c2b1d4a13d75596473ab372b07be749c21f3f05703873f23f54cfd7e5c' },
+  //
+  // FL-4c (2026-09-23): re-pinned — the publishable key now comes from the
+  // vendor's /config, the source the HOTEL lane has always used, as the SINGLE
+  // source. The prebook answers publishableKey: null in PRODUCTION (measured),
+  // so Elements could never mount and this panel dead-ended before a card could
+  // be typed. CHECKOUT-02 and FL-4c both showed that /config's pk_live_ resolves
+  // this lane's own prebook clientSecret at Stripe (200, livemode true), so it is
+  // the same Stripe account and the right key. A /config that cannot answer is a
+  // NAMED dead end — no retry, no env key, no second source. The secretKey path
+  // is untouched, and no book/pay/cancel call changed.
+  // Was 069af3c2b1d4a13d75596473ab372b07be749c21f3f05703873f23f54cfd7e5c at main bd380379.
+  { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: '21b681fca23325df4e0925ce53515bb483a9ea75f0129ab0ab5720b44057c806' },
   { file: 'src/components/trips/CancelBookingDialog.tsx', sha256: '7e50c4ece72171929446f4734622ccdf8b6b75bb87c2c6c3c5aa101ec26fd95d' },
   { file: 'src/components/trips/TripBookings.tsx', sha256: '1c74ce7438ea6ce7013a4c8de4bbd685f2865e2fe0f8d3c3a7f4a119435cc5bd' },
   // REPAINT-04 (2026-09-21): re-pinned — one class on the "Add to <trip>" ghost button

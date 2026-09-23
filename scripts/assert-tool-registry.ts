@@ -5444,7 +5444,10 @@ lawGuard('The row law', () => {
     // FL-5b (2026-09-23): re-pinned by its own ruling — the panel sends the contact
     // with the book call so the confirmation has somewhere to go. Where it mounts,
     // which TRAVEL-ROW-01 owns, is untouched.
-    { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: '069af3c2b1d4a13d75596473ab372b07be749c21f3f05703873f23f54cfd7e5c' },
+    // FL-4c (2026-09-23): re-pinned by its own ruling — the panel reads its
+    // publishable key from the vendor's /config. Where it mounts, which
+    // TRAVEL-ROW-01 owns, is untouched.
+    { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: '21b681fca23325df4e0925ce53515bb483a9ea75f0129ab0ab5720b44057c806' },
   ];
   const flowPins = codeOf('src/lib/travelBookingFlow.ts');
   const flowNotes = commentsOf('src/lib/travelBookingFlow.ts');
@@ -5460,7 +5463,7 @@ lawGuard('The row law', () => {
   // And the strip itself is in the census, pinned new by this ruling.
   if (!flowPins.includes(`{ file: '${ROW_STRIP}', sha256: '`)) rowFail(`${ROW_STRIP} is not in the booking-flow census — the strip is where Book is pressed, so it is pinned`);
 
-  if (rowViolations === 0) console.log(`✔ The row law passed — ${ROW_VIEWS.length} travel result views, each acting only in the one strip under its selected row; 0 selection bars outside a table; both checkouts mounted only in the view's slot; LiteApiFlightCheckoutPanel.tsx byte-identical to its FL-5b re-pin and CheckoutPanel.tsx to its CHECKOUT-01 one.`);
+  if (rowViolations === 0) console.log(`✔ The row law passed — ${ROW_VIEWS.length} travel result views, each acting only in the one strip under its selected row; 0 selection bars outside a table; both checkouts mounted only in the view's slot; LiteApiFlightCheckoutPanel.tsx byte-identical to its FL-4c re-pin and CheckoutPanel.tsx to its CHECKOUT-01 one.`);
   else console.log(`✖ The row law FAILED — ${rowViolations} violation(s).`);
 });
 
