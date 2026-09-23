@@ -10,6 +10,9 @@ import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
 import { sendTransactionalEmail } from '@/lib/email';
 import { bookingConfirmation } from '@/lib/emailTemplates/bookingConfirmation';
+// CAL-01: the one calendar row a booking earns, and the prisma port behind it.
+import { stayCalendarDecision, writeBookingCalendarEvent } from '@/lib/calendar/bookingEvent';
+import { prismaBookingCalendar } from '@/lib/calendar/prismaBookingCalendar';
 
 // POST /api/travel/liteapi/book  — PUBLIC (PR-G2: guest booking).
 // Body: {
@@ -234,6 +237,42 @@ export async function POST(request: NextRequest) {
         }),
       );
       const result = landed.reservation;
+
+      // ─── CAL-01: the booking lands on the calendar ─────────────────────────
+      // OUTSIDE the transaction, with its own try/catch, exactly like the audit
+      // log in the flights route (flights/book/route.ts:202-232) and the existing
+      // calendar writer in vendor-commit (trips/[id]/vendor-commit/route.ts:573,
+      // :598-600). The ruling asked for the same transaction as the reservation
+      // AND that a calendar failure never roll back a paid booking; those two
+      // cannot both hold, and real money outranks a calendar row — so the row is
+      // written after the money is safe and a failure is declared, loudly, while
+      // the booking still returns 200.
+      //
+      // It runs on the retry path too (landed.already ⇒ the same reservation came
+      // back), so a first attempt whose calendar write failed heals on the retry
+      // instead of staying missing. The write is keyed on (source, source_id) and
+      // inserts nothing when the row is already there.
+      try {
+        const outcome = await writeBookingCalendarEvent(
+          prismaBookingCalendar(prisma),
+          stayCalendarDecision({
+            reservationId: result.id,
+            userId: result.userId ?? null,
+            hotelName: result.hotelName,
+            checkinDate,
+            checkoutDate,
+          }),
+        );
+        if (outcome.landed === 'no_row') {
+          console.error('[LiteAPI book] CAL-01 no calendar row (booking + persist succeeded):', outcome.reason);
+        }
+      } catch (calErr) {
+        console.error('[LiteAPI book] CAL-01 calendar write FAILED (booking + persist succeeded):', {
+          reservationId: result.id,
+          bookingId: landed.bookingId,
+          error: calErr instanceof Error ? calErr.message : calErr,
+        });
+      }
 
       // ─── Booking confirmation email (PR-3, D5) ─────────────────────────────
       // Sent ONLY after both the provider booking AND the DB persist succeeded.

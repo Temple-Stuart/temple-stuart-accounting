@@ -72,6 +72,7 @@ const TINTS = {
   blue:   { text: 'text-blue-600',   bg: 'bg-blue-50',   dot: 'bg-blue-500',   badge: 'bg-blue-400' },
   green:  { text: 'text-green-600',  bg: 'bg-green-50',  dot: 'bg-green-500',  badge: 'bg-green-400' },
   rose:   { text: 'text-rose-600',   bg: 'bg-rose-50',   dot: 'bg-rose-500',   badge: 'bg-rose-400' },
+  amber:  { text: 'text-amber-600',  bg: 'bg-amber-50',  dot: 'bg-amber-500',  badge: 'bg-amber-400' },
 } as const;
 
 /**
@@ -153,6 +154,22 @@ export const CALENDAR_SOURCES: readonly CalendarSourceRule[] = [
     label: 'Health',
     writtenBy: 'src/app/api/budget/[module]/[id]/route.ts:104 (MODULE = health)',
     why: 'a health cost dated to this day',
+  },
+  {
+    // CAL-01 (2026-09-23): a PAID BOOKING, and deliberately NOT `trip`.
+    //
+    // `trip` is what a person PLANNED — vendor-commit writes it when an option is
+    // committed to an itinerary. This is what they PAID FOR: a reservation that
+    // exists at the provider and has been charged. The two must be told apart by
+    // this column alone, because the deferred budget retro-map will query on
+    // (source, source_id) to find the bookings it has to map, and a planned item
+    // is not a booking. source_id is the reservation id.
+    source: 'reservation',
+    icon: '🏨',
+    tint: TINTS.amber,
+    label: 'Bookings',
+    writtenBy: 'src/lib/calendar/prismaBookingCalendar.ts:34, from src/app/api/travel/liteapi/book/route.ts:256 (stays) · src/app/api/travel/liteapi/flights/book/route.ts:257 (flights — writes no row, see CAL-01)',
+    why: 'a room you have paid for, on the days you are in it — written when the booking is confirmed and the money has moved, not when a trip was planned. A flight booking writes nothing here: its landed payload carries no date of travel, so it has no day to sit on',
   },
 ] as const;
 

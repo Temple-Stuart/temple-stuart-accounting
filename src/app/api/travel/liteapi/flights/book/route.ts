@@ -9,6 +9,10 @@ import { MissingLiteApiKeyError, LiteApiError } from '@/lib/travelErrors';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
+// CAL-01: a flight has no date of travel in its landed payload — the decision leaf
+// says so by name rather than inventing one.
+import { flightCalendarDecision, writeBookingCalendarEvent } from '@/lib/calendar/bookingEvent';
+import { prismaBookingCalendar } from '@/lib/calendar/prismaBookingCalendar';
 
 // ─── PUBLIC LiteAPI flight BOOK (PR-FL-5) ────────────────────────────────────
 // POST /api/travel/liteapi/flights/book — completes the flight booking AFTER
@@ -228,6 +232,44 @@ export async function POST(request: NextRequest) {
           bookingId: parsed.bookingId,
           reservationId: result.id,
           error: auditErr instanceof Error ? auditErr.message : auditErr,
+        });
+      }
+
+      // ─── CAL-01: this flight gets NO calendar row, and says why ────────────
+      // THE FINDING (STEP 1.5): the landed booking object carries no date of
+      // travel. flightBookingObjectOf returns data[0].booking
+      // (liteapiFlightsClient.ts:423-438) and parseFlightBookResult maps its seven
+      // fields (:443-463) — bookingId, bookingRef, status, paymentStatus, pnr,
+      // price, currency — none of them a departure date. The route's own body is
+      // { prebookId, transactionId } (:15), so no date arrives from the client
+      // either, and the reservation above is written with checkinDate and
+      // checkoutDate null (:154-155).
+      //
+      // A flight with no date has no day to sit on. By the ruling it gets NO ROW
+      // and a NAMED failure — never createdAt, never today, never a default. The
+      // reason reads the landed object's ACTUAL keys so the log says what was
+      // looked at, not what was assumed; if LiteAPI ever starts returning a
+      // departure date, that log line is where it will show up.
+      //
+      // Same try/catch posture as the audit log above: a booking that was paid for
+      // is never failed by anything downstream of it.
+      try {
+        const outcome = await writeBookingCalendarEvent(
+          prismaBookingCalendar(prisma),
+          flightCalendarDecision({
+            reservationId: result.id,
+            // `object` IS data[0].booking — the arrival's payload (flightBookingObjectOf).
+            landedFields: Object.keys(object ?? {}),
+          }),
+        );
+        if (outcome.landed === 'no_row') {
+          console.error('[LiteAPI flights book] CAL-01 no calendar row (booking + persist succeeded):', outcome.reason);
+        }
+      } catch (calErr) {
+        console.error('[LiteAPI flights book] CAL-01 calendar step FAILED (booking + persist succeeded):', {
+          bookingId: parsed.bookingId,
+          reservationId: result.id,
+          error: calErr instanceof Error ? calErr.message : calErr,
         });
       }
 

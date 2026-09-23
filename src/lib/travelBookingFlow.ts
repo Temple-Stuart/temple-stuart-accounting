@@ -78,8 +78,22 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // HOTEL-01 (2026-09-22): re-pinned — the query gains the vendor's filters and sort, validated by name between the two guards; the answer gains the cards and the env. Search and display are not booking; no prebook/book/pay/cancel call changed.
   // Was 1a677c1ed803b4af213e8d2358f98058613aeffdd98228cb00c585fc59a0c617 at main d56b2cc9.
   { file: 'src/app/api/travel/hotels/search/route.ts', sha256: 'e9d4be8a37f2ca3ef80568c387c53a1378cba2401de8724a1a736dfcf6e97ca4' },
-  { file: 'src/app/api/travel/liteapi/book/route.ts', sha256: '69abc595d70da025ac088ec85dc136ca6d6a6576a504d3c4b441e0434508b567' },
-  { file: 'src/app/api/travel/liteapi/flights/book/route.ts', sha256: 'cd8fa37b2d950f98063b7562d3d5347dc1c5e1edcf04df695db41306f8400ab3' },
+  // CAL-01 (2026-09-23): re-pinned — a booking now lands on the calendar. ONE
+  // calendar_events row per stay, spanning check-in to check-out, written AFTER the
+  // transaction with its own try/catch so a calendar failure can never roll back a
+  // paid booking, and keyed on (source, source_id) so a retry writes no second row.
+  // Nothing about the booking itself changed: the same guards, the same provider
+  // call, the same landing, the same reservation and commission rows, the same
+  // whitelisted envelope. No budget_line_items, no budgets, no journal entry.
+  // Was 69abc595d70da025ac088ec85dc136ca6d6a6576a504d3c4b441e0434508b567 at main 82e2250b.
+  { file: 'src/app/api/travel/liteapi/book/route.ts', sha256: '792da953ba83fe8a8bc95d79045a0fabd00bfc807fab3b726a69dd85ef136eb1' },
+  // CAL-01 (2026-09-23): re-pinned — the flight branch. The landed booking object
+  // carries NO date of travel (STEP 1.5: NOT FOUND), so this route writes NO
+  // calendar row and logs a named reason listing the payload's actual keys. No date
+  // is invented, defaulted, or taken from createdAt. Nothing about the booking
+  // itself changed.
+  // Was cd8fa37b2d950f98063b7562d3d5347dc1c5e1edcf04df695db41306f8400ab3 at main 82e2250b.
+  { file: 'src/app/api/travel/liteapi/flights/book/route.ts', sha256: 'bbc045a7bb5415c938ac57bcec26fbf807ba7fe5155b119c598cbbf4333bf1fc' },
   { file: 'src/app/api/travel/liteapi/flights/prebook/route.ts', sha256: 'ed9b0d2afe376769e42a99a80fc3ce33755324add6a25e4104a5f5c193289c7a' },
   // FLIGHT-01 (2026-09-22): re-pinned — the request body gains the vendor's filters and sort, validated by name between the two guards. Search is not booking; no prebook/verify/book/pay/cancel call changed.
   // Was cbd59f8394b0f9fb52b3df446ba5183e99eb8b62c07cbb4afdbf63d50b6b86d1 at main b9eac34a.

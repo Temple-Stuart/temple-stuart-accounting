@@ -290,12 +290,20 @@ export function buildChain(input: ChainInput): Chain | null {
  *   shopping ← /api/shopping/[id]              → Budget (its /shopping sub-row)
  *   home     ← /api/home/[id] (home_expenses)  → Budget
  *   personal · auto · growth · health ← /api/budget/[module]/[id] → Budget
+ *   reservation ← /api/travel/liteapi/book    → Travel  (CAL-01: a PAID booking,
+ *                                                        the same tool as `trip`
+ *                                                        but a different door —
+ *                                                        planned vs paid)
  * The HREF is never typed here: it is read from the registry, so a tool that
  * moves house takes its doors with it.
  */
 export const EVENT_SOURCE_OWNER: Readonly<Record<string, string>> = {
   manual: 'Calendar',
   trip: 'Travel',
+  // CAL-01 (2026-09-23): a paid booking is Travel's too — same owner as `trip`,
+  // different source, because what was planned and what was paid for are not the
+  // same row and the retro-map has to tell them apart.
+  reservation: 'Travel',
   agenda: 'Budget',
   home: 'Budget',
   shopping: 'Budget',
