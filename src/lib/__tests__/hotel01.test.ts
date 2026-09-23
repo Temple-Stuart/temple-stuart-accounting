@@ -238,7 +238,8 @@ test('the booking-flow pin holds for every file still on it, with dated HOTEL-01
   // pane. No prebook/book/pay/cancel CALL changed.
   const booking: Record<string, string> = {
     'src/app/api/travel/liteapi/prebook/route.ts': 'dd6e8c9a0f1437a0661283bb91dc00aeb6dcaf6c227cefc180a3e01f1a60f351',
-    'src/app/api/travel/liteapi/book/route.ts': '69abc595d70da025ac088ec85dc136ca6d6a6576a504d3c4b441e0434508b567',
+    // CAL-01 (2026-09-23): a stay now lands one calendar row; the booking itself is unchanged.
+    'src/app/api/travel/liteapi/book/route.ts': '792da953ba83fe8a8bc95d79045a0fabd00bfc807fab3b726a69dd85ef136eb1',
     // Was 77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5 before CHECKOUT-01.
     'src/components/trips/CheckoutPanel.tsx': '3b6ae4fe18c1fb5e3701c592d6685e95bf336abb089d5d0aa947f3718dc7ef22',
     'src/app/api/travel/hotels/content/route.ts': '7923035f88437325994e957e73943cd4817ee72b2a9bf2908b0afba0803503e7',

@@ -247,10 +247,12 @@ test('the booking-flow pin still holds for every file it names — five search f
   const booking = ['src/app/api/travel/liteapi/prebook/route.ts', 'src/app/api/travel/liteapi/book/route.ts', 'src/app/api/travel/liteapi/flights/prebook/route.ts', 'src/app/api/travel/liteapi/flights/verify/route.ts', 'src/app/api/travel/liteapi/flights/book/route.ts', 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', 'src/components/trips/CheckoutPanel.tsx', 'src/lib/liteapiFlightsClient.ts'];
   const original: Record<string, string> = {
     'src/app/api/travel/liteapi/prebook/route.ts': 'dd6e8c9a0f1437a0661283bb91dc00aeb6dcaf6c227cefc180a3e01f1a60f351',
-    'src/app/api/travel/liteapi/book/route.ts': '69abc595d70da025ac088ec85dc136ca6d6a6576a504d3c4b441e0434508b567',
+    // CAL-01 (2026-09-23): a stay now lands one calendar row; the booking itself is unchanged.
+    'src/app/api/travel/liteapi/book/route.ts': '792da953ba83fe8a8bc95d79045a0fabd00bfc807fab3b726a69dd85ef136eb1',
     'src/app/api/travel/liteapi/flights/prebook/route.ts': 'ed9b0d2afe376769e42a99a80fc3ce33755324add6a25e4104a5f5c193289c7a',
     'src/app/api/travel/liteapi/flights/verify/route.ts': '5143ffafee8ed954d5edc7c639857622375c6b177b9ac067f79553794674d589',
-    'src/app/api/travel/liteapi/flights/book/route.ts': 'cd8fa37b2d950f98063b7562d3d5347dc1c5e1edcf04df695db41306f8400ab3',
+    // CAL-01 (2026-09-23): a flight has no date of travel in its landed payload, so it writes NO row and logs why.
+    'src/app/api/travel/liteapi/flights/book/route.ts': 'bbc045a7bb5415c938ac57bcec26fbf807ba7fe5155b119c598cbbf4333bf1fc',
     'src/components/trips/LiteApiFlightCheckoutPanel.tsx': 'c018712700fe9e24c0ff51b417ab3658060f8dbe8784a459b33da4eb6a70365d',
     // Was 77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5 before CHECKOUT-01.
     'src/components/trips/CheckoutPanel.tsx': '3b6ae4fe18c1fb5e3701c592d6685e95bf336abb089d5d0aa947f3718dc7ef22',
