@@ -35,6 +35,38 @@ const SDK_SRC = 'https://payment-wrapper.liteapi.travel/dist/liteAPIPayment.js?v
 const PAYMENT_TARGET_ID = 'liteapi-payment-target';
 
 /**
+ * CHECKOUT-03 (2026-09-23) — STRIPE.JS IS A DEPENDENCY WE MUST SATISFY OURSELVES.
+ *
+ * CHECKOUT-02 proved the keys are fine: /config returns pk_live_, the prebook
+ * secretKey is a real livemode PaymentIntent, and Stripe's own API resolves the
+ * pair. The form still never drew. CHECKOUT-03 found why, by instrumenting the
+ * vendor's own empty catches and driving the real panel:
+ *
+ *   THE VENDOR'S STRIPE LOADER HANGS FOREVER IF A js.stripe.com/v3 <script> TAG
+ *   IS ALREADY IN THE PAGE AND THAT TAG FAILED.
+ *
+ * Its loader short-circuits on `window.Stripe` when the global is present. When it
+ * is NOT present but a tag exists, it keeps that finished tag and attaches `load`
+ * and `error` listeners to it — listeners that can never fire, because the tag
+ * already settled. The promise never resolves, createPaymentElement is never
+ * reached, nothing is appended, and NOTHING IS THROWN: the reproduction printed
+ * zero output from either of its instrumented catches, and our watchdog fired at
+ * the deadline saying the provider "reports no reason". That is the production
+ * symptom, verbatim.
+ *
+ * A tag is already in the page because the FLIGHTS panel loads Stripe.js through
+ * @stripe/stripe-js (LiteApiFlightCheckoutPanel.tsx:175), and both panels live on
+ * /travel.
+ *
+ * THE FIX IS NOT A RETRY OR A TIMEOUT. We load Stripe.js ourselves, with next/script,
+ * and WAIT ON ITS REAL READINESS SIGNAL before handing off. Then `window.Stripe`
+ * exists, the vendor's loader takes its short-circuit, and the branch that hangs is
+ * never entered. If Stripe.js genuinely cannot load, onError names it and the panel
+ * declares a failure through fail() — it does not degrade, retry or substitute.
+ */
+const STRIPE_JS_SRC = 'https://js.stripe.com/v3';
+
+/**
  * CHECKOUT-01 (2026-09-23) — HOW LONG WE WAIT FOR THE VENDOR'S FORM BEFORE WE SAY
  * IT DID NOT COME.
  *
@@ -156,6 +188,14 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
   // was told the wrong thing. The FIRST reason wins now.
   const [failure, setFailureState] = useState<Failure | null>(null);
   const [formMounted, setFormMounted] = useState(false);
+  // CHECKOUT-03: Stripe.js readiness, the vendor's unstated prerequisite.
+  // Seeded from the global itself, ONCE, on mount: if the flights panel already
+  // loaded Stripe.js, next/script will not fire onLoad again for the same src, and
+  // the global is the truth either way. This is a read, not a poll — it happens
+  // exactly once and never again.
+  const [stripeJsReady, setStripeJsReady] = useState(
+    () => typeof window !== 'undefined' && typeof (window as { Stripe?: unknown }).Stripe === 'function',
+  );
   const [prebook, setPrebook] = useState<Prebook | null>(null);
   const [paymentEnv, setPaymentEnv] = useState<'live' | 'sandbox' | null>(null);
   const [sdkReady, setSdkReady] = useState(false);
@@ -307,7 +347,9 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
     // T2c: attachChoicePending holds the SDK init until the user's explicit
     // attach choice exists — the returnUrl is built ONCE, so it must carry the
     // decided tripId, never a guess.
-    if (started || phase !== 'pay' || !prebook || !paymentEnv || !sdkReady || attachChoicePending) return;
+    // CHECKOUT-03 adds stripeJsReady: the vendor needs window.Stripe and will hang
+    // silently forever rather than say so, so we do not hand off until it is there.
+    if (started || phase !== 'pay' || !prebook || !paymentEnv || !sdkReady || !stripeJsReady || attachChoicePending) return;
     // CHECKOUT-01: these two were SILENT returns. The script reported itself loaded
     // and yet its global was not callable, or our own target was not in the DOM —
     // either way the effect gave up and the customer was left looking at an empty
@@ -354,7 +396,7 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
     } catch {
       fail({ kind: 'sdk_script', message: 'The secure payment form could not start.', detail: 'The payment provider refused the request to open a card form. Nothing was charged.' });
     }
-  }, [started, phase, prebook, paymentEnv, sdkReady, attachChoicePending, resolvedTripId, hotelName, checkin, checkout, fail]);
+  }, [started, phase, prebook, paymentEnv, sdkReady, stripeJsReady, attachChoicePending, resolvedTripId, hotelName, checkin, checkout, fail]);
 
   // ── CHECKOUT-01: THE WATCHDOG. Did a form actually appear? ─────────────────
   // The vendor cannot tell us, so we look. A card form means real elements inside
@@ -379,11 +421,26 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
     deadlineRef.current = setTimeout(() => {
       observer.disconnect();
       if (!look()) {
-        fail({
-          kind: 'form_absent',
-          message: 'The secure payment form did not load.',
-          detail: 'The payment provider was reached but returned no card form, and it reports no reason. Nothing was charged — please close this and try again, or tell us if it keeps happening.',
-        });
+        // CHECKOUT-03: when the deadline passes, say WHICH silence this was. The
+        // vendor cannot report its own hang, but the global it was waiting on is
+        // readable, and that single word is what turned CHECKOUT-02's dead end
+        // into a diagnosis.
+        // Two branches, two fixed lines — not one line built from a condition.
+        // The checkout law requires every `detail` to be first-party text written
+        // out in full, and that is worth more than the brevity of a ternary.
+        if (typeof (window as { Stripe?: unknown }).Stripe !== 'function') {
+          fail({
+            kind: 'form_absent',
+            message: 'The secure payment form did not load.',
+            detail: 'The card provider\u2019s library is not available in this browser, so the payment form could not be built. Nothing was charged — an ad or script blocker is the usual cause.',
+          });
+        } else {
+          fail({
+            kind: 'form_absent',
+            message: 'The secure payment form did not load.',
+            detail: 'The payment provider was reached but returned no card form, and it reports no reason. Nothing was charged — please close this and try again, or tell us if it keeps happening.',
+          });
+        }
       } else {
         setFormMounted(true);
       }
@@ -418,6 +475,16 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+      {/* CHECKOUT-03: Stripe.js, loaded by US. The vendor's loader hangs forever on
+          a failed pre-existing tag rather than report it; with window.Stripe already
+          present it takes its short-circuit and that branch is never entered. A real
+          failure here is NAMED — there is no retry and no degraded path. */}
+      <Script
+        src={STRIPE_JS_SRC}
+        strategy="afterInteractive"
+        onLoad={() => setStripeJsReady(true)}
+        onError={() => fail({ kind: 'sdk_script', message: 'The secure payment form could not be loaded.', detail: 'The card provider\u2019s library could not be reached from this browser. Nothing was charged.' })}
+      />
       <Script
         src={SDK_SRC}
         strategy="afterInteractive"

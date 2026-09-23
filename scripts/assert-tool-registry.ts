@@ -4738,6 +4738,26 @@ lawGuard('The checkout law', () => {
   }
   if (!/data-checkout-failure=\{failure\.kind\}/.test(panel)) checkoutFail(`${PANEL}'s stated failure does not carry its kind on the element — the walk and a reader name the branch by it`);
 
+  // 4b. CHECKOUT-03: THE PANEL WAITS ON STRIPE.JS, AND SAYS SO IF IT NEVER COMES.
+  //     The vendor needs window.Stripe and will hang forever rather than report
+  //     its absence, so the hand-off is gated on a real readiness signal — never a
+  //     retry, never a poll that gives up quietly.
+  if (!panel.includes('STRIPE_JS_SRC')) checkoutFail(`${PANEL} does not load Stripe.js itself — the vendor's loader hangs silently on a failed pre-existing tag, so the prerequisite is ours to satisfy`);
+  if (!/!sdkReady \|\| !stripeJsReady/.test(panel)) checkoutFail(`${PANEL} does not wait for Stripe.js before handing off to the vendor — window.Stripe is the vendor's unstated prerequisite`);
+  {
+    // Scoped to THIS <Script>'s own closing tag, never a character count: a shorter
+    // handler would slide the next <Script>'s onError into a fixed window and the
+    // clause would pass on a panel that had stopped naming anything.
+    const at = panel.indexOf('STRIPE_JS_SRC}');
+    const end = at > 0 ? panel.indexOf('/>', at) : -1;
+    const block = at > 0 && end > at ? panel.slice(at, end) : '';
+    if (!block) checkoutFail(`${PANEL} has no Stripe.js <Script> element to read — CHECKOUT-03 loads it here`);
+    else if (!/onError=\{\(\) => fail\(/.test(block)) checkoutFail(`${PANEL} loads Stripe.js without naming the failure when it cannot load — a script that never arrives must be stated, not waited on`);
+  }
+  for (const banned of ['setTimeout(() => setStripeJsReady', 'setInterval', 'retryStripe']) {
+    if (panel.includes(banned)) checkoutFail(`${PANEL} polls or retries for Stripe.js (${banned}) — readiness is awaited on a real signal, and its absence is named`);
+  }
+
   // 5. THE VENDOR'S BODY NEVER REACHES THE SCREEN. Every detail line is fixed,
   //    first-party text.
   for (const m of panel.matchAll(/detail: ([^\n]+)/g)) {
@@ -4745,7 +4765,7 @@ lawGuard('The checkout law', () => {
     if (!/^['"`]/.test(val) && !val.startsWith('`No LiteAPI')) checkoutFail(`${PANEL} builds a failure detail from ${val.slice(0, 60)} — the detail line is fixed first-party text, never the vendor's body`);
   }
 
-  if (checkoutViolations === 0) console.log(`✔ The checkout law passed — the hotel checkout has no silent branch: 4 named failures (missing_key · prebook · sdk_script · form_absent), the first reason kept against a late overwrite, a ${'FORM_DEADLINE_MS'} watchdog on the vendor's own target because its SDK swallows every error in two empty catches, and no card asked for beside a stated failure.`);
+  if (checkoutViolations === 0) console.log(`✔ The checkout law passed — the hotel checkout has no silent branch: 4 named failures (missing_key · prebook · sdk_script · form_absent), the first reason kept against a late overwrite, a ${'FORM_DEADLINE_MS'} watchdog on the vendor's own target because its SDK swallows every error in two empty catches, and no card asked for beside a stated failure; Stripe.js is loaded here and waited on, because the vendor hangs rather than report its absence.`);
   else console.log(`✖ The checkout law FAILED — ${checkoutViolations} violation(s).`);
 });
 
@@ -5417,7 +5437,10 @@ lawGuard('The row law', () => {
     // CHECKOUT-01 (2026-09-23): re-pinned by its own ruling — the panel now NAMES why
     // it cannot take a card instead of leaving a blank pane. Where it mounts, which
     // TRAVEL-ROW-01 owns, is untouched.
-    { file: 'src/components/trips/CheckoutPanel.tsx', sha256: '3b6ae4fe18c1fb5e3701c592d6685e95bf336abb089d5d0aa947f3718dc7ef22' },
+    // CHECKOUT-03 (2026-09-23): re-pinned by its own ruling — the panel waits on
+    // Stripe.js before handing off, so the vendor's loader cannot hang. Where it
+    // mounts, which TRAVEL-ROW-01 owns, is untouched.
+    { file: 'src/components/trips/CheckoutPanel.tsx', sha256: 'b3fd49cbd8acf9ab3d5afb11fdc42f61089722d2951dd6cbfa6a8dc2bdf19b46' },
     // FL-5b (2026-09-23): re-pinned by its own ruling — the panel sends the contact
     // with the book call so the confirmation has somewhere to go. Where it mounts,
     // which TRAVEL-ROW-01 owns, is untouched.
