@@ -16,7 +16,7 @@
  * PRODUCTION is a real charge — the banner says which, honestly.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Script from 'next/script';
 
 declare global {
@@ -33,6 +33,34 @@ declare global {
 
 const SDK_SRC = 'https://payment-wrapper.liteapi.travel/dist/liteAPIPayment.js?v=a1';
 const PAYMENT_TARGET_ID = 'liteapi-payment-target';
+
+/**
+ * CHECKOUT-01 (2026-09-23) — HOW LONG WE WAIT FOR THE VENDOR'S FORM BEFORE WE SAY
+ * IT DID NOT COME.
+ *
+ * LiteAPI's SDK cannot tell us it failed. Read its shipped source: BOTH layers
+ * swallow every error in an empty catch —
+ *   liteAPIPayment.js        handlePayment(){ try{ …getConfig…loadProviderFiles… }catch(e){} }
+ *   liteAPIPaymentStripe.js  handlePayment(){ try{ …loadStripe…createPaymentElement… }catch(e){} }
+ * so `handlePayment()` RESOLVES whether it drew a card form or nothing at all, and
+ * the throw inside (`no public key`, `failed to get config`, `target element not
+ * found`, or Stripe refusing the clientSecret) never reaches our try/catch.
+ *
+ * The only honest signal is the DOM: did a form actually appear in our target?
+ * This is not a fallback and invents nothing — it observes, and when nothing came
+ * it SAYS SO instead of leaving the founder a blank pane.
+ */
+const FORM_DEADLINE_MS = 12000;
+
+/** What went wrong, named. The first reason wins — see `fail()` below. */
+type FailureKind = 'missing_key' | 'prebook' | 'sdk_script' | 'form_absent';
+interface Failure {
+  kind: FailureKind;
+  /** The headline a customer reads. */
+  message: string;
+  /** One extra line of fixed, first-party text — never the vendor's body. */
+  detail?: string;
+}
 
 interface Prebook {
   prebookId: string;
@@ -121,7 +149,13 @@ interface CancellationData {
 
 export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotelId, images, hotelName, checkin, checkout, onClose }: Props) {
   const [phase, setPhase] = useState<'prebooking' | 'pay'>('prebooking');
-  const [error, setError] = useState('');
+  // CHECKOUT-01: a NAMED failure, not a loose string. The panel used to hold one
+  // `error`, so the <Script onError> handler — which fires on any CDN hiccup —
+  // OVERWROTE the specific reason the prebook had already given ("This rate is no
+  // longer available", "LITEAPI_SANDBOX_KEY is not configured"), and the founder
+  // was told the wrong thing. The FIRST reason wins now.
+  const [failure, setFailureState] = useState<Failure | null>(null);
+  const [formMounted, setFormMounted] = useState(false);
   const [prebook, setPrebook] = useState<Prebook | null>(null);
   const [paymentEnv, setPaymentEnv] = useState<'live' | 'sandbox' | null>(null);
   const [sdkReady, setSdkReady] = useState(false);
@@ -134,6 +168,11 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
   // (c) guest / zero trips → no attach UI, checkout exactly as before.
   // chosenTripId: undefined = not yet chosen (payment held in case b);
   // null = explicit "Don't attach"; string = the chosen trip.
+  // A later, vaguer reason never displaces one we already have.
+  const fail = useCallback((next: Failure) => {
+    setFailureState((cur) => cur ?? next);
+  }, []);
+
   const [myTrips, setMyTrips] = useState<{ id: string; name: string }[] | null>(null);
   const [tripsFetch, setTripsFetch] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
   const [chosenTripId, setChosenTripId] = useState<string | null | undefined>(undefined);
@@ -218,10 +257,36 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
           body: JSON.stringify({ offerId }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || `Prebook failed (HTTP ${res.status})`);
+        if (!res.ok) {
+          if (cancelled) return;
+          // The route's own typed shape (prebook/route.ts:62-67). A key that is not
+          // set is an ENVIRONMENT fact, and the panel says so in those words rather
+          // than blaming the rate.
+          if (data?.kind === 'missing_key') {
+            fail({
+              kind: 'missing_key',
+              message: 'Payment is not available in this environment.',
+              detail: `No LiteAPI ${data?.mode === 'production' ? 'production' : 'sandbox'} key is configured on this deployment, so no card can be taken. Nothing was charged.`,
+            });
+            return;
+          }
+          fail({ kind: 'prebook', message: data?.error || `We could not hold this rate (HTTP ${res.status}).`, detail: 'Nothing was charged.' });
+          return;
+        }
         const p = data.prebook;
-        if (!p?.prebookId || !p?.transactionId || !p?.secretKey) {
-          throw new Error('This rate is no longer available — please pick another.');
+        // The SDK context is what the card form is built from. Without it there is
+        // nothing to pay with, and that is said here rather than discovered as a
+        // blank pane twelve seconds later.
+        const missing = (['prebookId', 'transactionId', 'secretKey'] as const).filter((k) => !p?.[k]);
+        if (missing.length) {
+          if (!cancelled) {
+            fail({
+              kind: 'prebook',
+              message: 'This rate is no longer available — please pick another.',
+              detail: `The hold came back without ${missing.join(', ')}. Nothing was charged.`,
+            });
+          }
+          return;
         }
         if (!cancelled) {
           setPrebook(p as Prebook);
@@ -229,11 +294,11 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
           setPhase('pay');
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Could not hold this rate.');
+        if (!cancelled) fail({ kind: 'prebook', message: err instanceof Error ? err.message : 'Could not hold this rate.', detail: 'Nothing was charged.' });
       }
     })();
     return () => { cancelled = true; };
-  }, [offerId]);
+  }, [offerId, fail]);
 
   // STEP 2 — once prebook + the SDK script are both ready, init the hosted SDK and
   // render the card form. handlePayment() collects the card and, on success,
@@ -243,8 +308,18 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
     // attach choice exists — the returnUrl is built ONCE, so it must carry the
     // decided tripId, never a guess.
     if (started || phase !== 'pay' || !prebook || !paymentEnv || !sdkReady || attachChoicePending) return;
-    if (typeof window === 'undefined' || typeof window.LiteAPIPayment !== 'function') return;
-    if (!document.getElementById(PAYMENT_TARGET_ID)) return;
+    // CHECKOUT-01: these two were SILENT returns. The script reported itself loaded
+    // and yet its global was not callable, or our own target was not in the DOM —
+    // either way the effect gave up and the customer was left looking at an empty
+    // box. Both are now stated.
+    if (typeof window === 'undefined' || typeof window.LiteAPIPayment !== 'function') {
+      fail({ kind: 'sdk_script', message: 'The secure payment form could not start.', detail: 'The payment provider\u2019s script loaded but did not register. Nothing was charged.' });
+      return;
+    }
+    if (!document.getElementById(PAYMENT_TARGET_ID)) {
+      fail({ kind: 'form_absent', message: 'The secure payment form could not start.', detail: 'The payment area was not on the page when the form was requested. Nothing was charged.' });
+      return;
+    }
 
     const q = new URLSearchParams({
       prebookId: prebook.prebookId,
@@ -262,17 +337,62 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
     try {
       setStarted(true);
       const payment = new window.LiteAPIPayment({
-        publicKey: paymentEnv, // 'live' | 'sandbox' — matches the server's key env
+        publicKey: paymentEnv, // 'live' | 'sandbox' — the wrapper resolves the env
+        // label to the matching publishable key (verified against the vendor's
+        // /config endpoint: 'sandbox' → a test key, 'live' → a live one, anything
+        // else → HTTP 400 "invalid key"). It is NOT a key itself, and the flights
+        // panel's publishableKey gap is a different rail — Stripe Elements on our
+        // side there, LiteAPI's own hosted wrapper here.
         appearance: { theme: 'flat' },
         targetElement: `#${PAYMENT_TARGET_ID}`,
         secretKey: prebook.secretKey,
         returnUrl,
       });
+      // This resolves whatever happens (see FORM_DEADLINE_MS above), so its result
+      // is not evidence of anything. The watchdog below is.
       payment.handlePayment();
     } catch {
-      setError('Could not start the payment form. Please close and try again.');
+      fail({ kind: 'sdk_script', message: 'The secure payment form could not start.', detail: 'The payment provider refused the request to open a card form. Nothing was charged.' });
     }
-  }, [started, phase, prebook, paymentEnv, sdkReady, attachChoicePending, resolvedTripId, hotelName, checkin, checkout]);
+  }, [started, phase, prebook, paymentEnv, sdkReady, attachChoicePending, resolvedTripId, hotelName, checkin, checkout, fail]);
+
+  // ── CHECKOUT-01: THE WATCHDOG. Did a form actually appear? ─────────────────
+  // The vendor cannot tell us, so we look. A card form means real elements inside
+  // our target (the wrapper builds a <button class="lp-submit-button"> and Stripe
+  // mounts <iframe>s). Our own "Loading…" paragraph is ours, so it is excluded by
+  // looking for the vendor's nodes only. Nothing here retries or substitutes:
+  // it observes, and on nothing it SAYS nothing came.
+  const deadlineRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!started || failure) return;
+    const target = document.getElementById(PAYMENT_TARGET_ID);
+    if (!target) return;
+    const look = () => !!target.querySelector('iframe, .lp-submit-button, form, input');
+    if (look()) { setFormMounted(true); return; }
+    const observer = new MutationObserver(() => {
+      if (!look()) return;
+      setFormMounted(true);
+      observer.disconnect();
+      if (deadlineRef.current) clearTimeout(deadlineRef.current);
+    });
+    observer.observe(target, { childList: true, subtree: true });
+    deadlineRef.current = setTimeout(() => {
+      observer.disconnect();
+      if (!look()) {
+        fail({
+          kind: 'form_absent',
+          message: 'The secure payment form did not load.',
+          detail: 'The payment provider was reached but returned no card form, and it reports no reason. Nothing was charged — please close this and try again, or tell us if it keeps happening.',
+        });
+      } else {
+        setFormMounted(true);
+      }
+    }, FORM_DEADLINE_MS);
+    return () => {
+      observer.disconnect();
+      if (deadlineRef.current) clearTimeout(deadlineRef.current);
+    };
+  }, [started, failure, fail]);
 
   const isSandbox = paymentEnv !== 'live';
 
@@ -302,7 +422,7 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
         src={SDK_SRC}
         strategy="afterInteractive"
         onLoad={() => setSdkReady(true)}
-        onError={() => setError('Could not load the payment form. Please close and try again.')}
+        onError={() => fail({ kind: 'sdk_script', message: 'The secure payment form could not be loaded.', detail: 'The payment provider\u2019s script could not be reached from this browser. Nothing was charged.' })}
       />
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg border border-border bg-white p-5 shadow-2xl">
         <div className="mb-3 flex items-start justify-between">
@@ -326,8 +446,18 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
           )
         )}
 
-        {error && (
-          <p className="mb-3 rounded border border-brand-red/40 bg-brand-red/5 px-3 py-2 text-sm text-brand-red">{error}</p>
+        {/* CHECKOUT-01: the ONE stated outcome. It carries the kind so the walk and
+            the law can name the branch, and it never sits beside "Enter your card
+            to pay" — a panel that cannot take a card does not ask for one. */}
+        {failure && (
+          <div
+            className="mb-3 rounded border border-brand-red/40 bg-brand-red/5 px-3 py-3 text-sm text-brand-red"
+            role="alert"
+            data-checkout-failure={failure.kind}
+          >
+            <p className="font-semibold" data-checkout-failure-message>{failure.message}</p>
+            {failure.detail && <p className="mt-1 text-xs text-brand-red/90" data-checkout-failure-detail>{failure.detail}</p>}
+          </div>
         )}
 
         {/* ── PR-RC2: rich details ABOVE the payment (all scroll in this popup). A
@@ -416,8 +546,8 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
           </div>
         )}
 
-        {phase === 'prebooking' && !error && (
-          <p className="py-6 text-center text-sm text-text-faint">Holding this rate…</p>
+        {phase === 'prebooking' && !failure && (
+          <p className="py-6 text-center text-sm text-text-faint" data-checkout-state="holding">Holding this rate…</p>
         )}
 
         {phase === 'pay' && prebook && (
@@ -488,15 +618,25 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
               )}
             </div>
 
-            <p className="text-sm text-text-faint">
-              Enter your card to pay. You&apos;ll add the guest&apos;s name on the next step, then we book the room.
-            </p>
+            {/* CHECKOUT-01: a failure replaces the card ask entirely. The panel used
+                to print "Enter your card to pay" and "Loading the secure payment
+                form…" UNDERNEATH "Could not load the payment form" — three claims
+                at once, none of them a card field. */}
+            {!failure && (
+              <>
+                <p className="text-sm text-text-faint">
+                  Enter your card to pay. You&apos;ll add the guest&apos;s name on the next step, then we book the room.
+                </p>
 
-            {/* LiteAPI's hosted SDK fills this with the card form (client-side only —
-                card details never reach our servers). */}
-            <div id={PAYMENT_TARGET_ID} className="min-h-[40px] rounded border border-border p-2">
-              {!sdkReady && <p className="text-center text-sm text-text-faint">Loading the secure payment form…</p>}
-            </div>
+                {/* LiteAPI's hosted SDK fills this with the card form (client-side only —
+                    card details never reach our servers). */}
+                <div id={PAYMENT_TARGET_ID} className="min-h-[40px] rounded border border-border p-2" data-payment-target data-form-mounted={formMounted}>
+                  {!formMounted && (
+                    <p className="text-center text-sm text-text-faint" data-checkout-state="loading-form">Loading the secure payment form…</p>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

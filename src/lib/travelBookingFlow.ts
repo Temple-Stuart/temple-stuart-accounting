@@ -151,7 +151,19 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   { file: 'src/components/trips/RowActionStrip.tsx', sha256: 'ce545ec133fa9e7ac78249e7017a45884cce041c37bba20e4f076578b4fbfaf9' },
   // HOTEL-02 (2026-09-22): re-dated — the content rating renders on the scale the client types (/5, was /10) — paint only. The stay's clock is the property's, read once at commit; no prebook/book/pay/cancel call changed.
   // Was 417cf3e6cfced5f38dda66fc047218437703edbc2fd5b459a9d5f0189f15c3b6 at main 81045434.
-  { file: 'src/components/trips/CheckoutPanel.tsx', sha256: '77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5' },
+  //
+  // CHECKOUT-01 (2026-09-23): RE-PINNED BY ITS OWN RULING — this is the change the
+  // earlier pins demanded a ruling for. The founder pressed Book on production and
+  // the pane came up with nothing to pay with. Cause: LiteAPI's payment SDK swallows
+  // every failure in two empty catch blocks (its own handlePayment and its Stripe
+  // provider's), so handlePayment() RESOLVES having drawn nothing and the panel had
+  // no way to know. This PR gives the panel a NAMED failure state, a DOM watchdog
+  // that says so when no form arrives, and stops it printing "Enter your card to
+  // pay" beside a failure. NO prebook/book/pay/cancel CALL CHANGED: the same POST
+  // to /api/travel/liteapi/prebook with the same body, the same LiteAPIPayment
+  // config, the same returnUrl. What changed is what the customer is TOLD.
+  // Was 77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5 at main 8788cb11.
+  { file: 'src/components/trips/CheckoutPanel.tsx', sha256: '3b6ae4fe18c1fb5e3701c592d6685e95bf336abb089d5d0aa947f3718dc7ef22' },
   { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: 'c018712700fe9e24c0ff51b417ab3658060f8dbe8784a459b33da4eb6a70365d' },
   { file: 'src/components/trips/CancelBookingDialog.tsx', sha256: '7e50c4ece72171929446f4734622ccdf8b6b75bb87c2c6c3c5aa101ec26fd95d' },
   { file: 'src/components/trips/TripBookings.tsx', sha256: '1c74ce7438ea6ce7013a4c8de4bbd685f2865e2fe0f8d3c3a7f4a119435cc5bd' },
