@@ -45,6 +45,16 @@ export const SEEDS: Seed[] = [
     expect: 'the coverage line is counted from the rows shown',
   },
   {
+    // DRILL-01b: the census is closed at seven kinds. Drop one and the surface falls
+    // back to rendering the database's raw token on the audit line — which is exactly
+    // what a reclassified entry did before this commit.
+    name: 'drill-e a kind is dropped from the table and its entries render the raw token',
+    file: LEAF,
+    find: "    type: 'reclass',\n    words: 'a move between accounts',",
+    replace: "    type: 'manual',\n    words: 'a move between accounts',",
+    expect: 'holds no rule for source_type "reclass"',
+  },
+  {
     name: 'drill-d the pure mapping reaches for the clock (clause 4)',
     file: LEAF,
     find: 'export function sourceRuleFor(type: string): SourceRule | undefined {',

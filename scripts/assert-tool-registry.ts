@@ -4758,7 +4758,7 @@ lawGuard('The entry-source law', () => {
     }
   }
   // The leaf answers for EVERY kind, and names the absence rather than going blank.
-  const KINDS = ['plaid_txn', 'manual', 'reversal', 'investment_txn', 'trading_position', 'year_end_close'];
+  const KINDS = ['plaid_txn', 'manual', 'reversal', 'investment_txn', 'trading_position', 'reclass', 'year_end_close'];
   for (const type of KINDS) {
     if (!SOURCE_RULES.some((r) => r.type === type)) drillFail(`${DRILL_LEAF} holds no rule for source_type "${type}" — it is written under src and the surface must have words for it`);
     const s = entrySourceOf({ source_type: type, source_id: 'x', reverses_entry_id: 'e' });
@@ -4808,11 +4808,14 @@ lawGuard('The entry-source law', () => {
     { source_type: 'plaid_txn', source_id: 'a' },
     { source_type: 'manual', source_id: null },
     { source_type: 'reversal', source_id: null, reverses_entry_id: 'e1' },
+    // DRILL-01b: a reclass states its origin and has nothing to open — reclassify.ts
+    // writes no source_id at all — so it joins the middle bucket, not the sourced one.
+    { source_type: 'reclass', source_id: null },
     { source_type: '', source_id: null },
   ];
   const cov = coverageOf(probe);
-  if (cov.total !== 4 || cov.sourced !== 2 || cov.byHand !== 1 || cov.unrecorded !== 1) {
-    drillFail(`coverageOf counted ${JSON.stringify(cov)} over a bank entry, a hand entry, a reversal and a silent row — expected 4 total, 2 sourced, 1 by hand, 1 unrecorded`);
+  if (cov.total !== 5 || cov.sourced !== 2 || cov.withoutPointer !== 2 || cov.unrecorded !== 1) {
+    drillFail(`coverageOf counted ${JSON.stringify(cov)} over a bank entry, a hand entry, a reversal, a reclass and a silent row — expected 5 total, 2 sourced, 2 with nothing to open, 1 unrecorded`);
   }
   if (!cov.line.startsWith(`${cov.sourced} of ${cov.total} `)) drillFail(`the coverage line reads "${cov.line}" — it states N of M over the rows shown`);
   if (coverageOf([]).total !== 0) drillFail('coverageOf invents rows for an empty list');
