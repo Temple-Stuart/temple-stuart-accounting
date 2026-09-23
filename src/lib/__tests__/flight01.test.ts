@@ -257,7 +257,10 @@ test('the booking-flow pin still holds for every file it names — five search f
     'src/app/api/travel/liteapi/flights/book/route.ts': '7a92d920d3bd45ac1a10997c3eb6b2ee1b1495dd3eec73a45ec3d9185ec5cc92',
     // FL-5b (2026-09-23): the panel sends the contact it already holds; no payment path changed.
     // FL-4c (2026-09-23): the publishable key now comes from the vendor's /config, not the prebook's null.
-    'src/components/trips/LiteApiFlightCheckoutPanel.tsx': '21b681fca23325df4e0925ce53515bb483a9ea75f0129ab0ab5720b44057c806',
+    // FL-4c v2 (2026-09-23): the panel uses the vendor's DOCUMENTED wrapper — publicKey is the
+    // environment label, the wrapper resolves the key, and the rail's redirect means the booking
+    // completes on /booking/flight-confirm. Was 21b681fca23325df4e0925ce53515bb483a9ea75f0129ab0ab5720b44057c806.
+    'src/components/trips/LiteApiFlightCheckoutPanel.tsx': '559fa688d4c88dfc7fc83bf1ff91fba13dff4e9cace83e83b82198a505dba98c',
     // Was 77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5 before CHECKOUT-01.
     // CHECKOUT-03 (2026-09-23): the panel waits on Stripe.js before handing off.
     'src/components/trips/CheckoutPanel.tsx': 'b3fd49cbd8acf9ab3d5afb11fdc42f61089722d2951dd6cbfa6a8dc2bdf19b46',

@@ -13,6 +13,8 @@ import { flightConfirmation, statusLine } from '../emailTemplates/flightConfirma
 
 const ROUTE = 'src/app/api/travel/liteapi/flights/book/route.ts';
 const PANEL = 'src/components/trips/LiteApiFlightCheckoutPanel.tsx';
+// FL-4c (2026-09-23): the booking moved here with the rail's redirect.
+const CONFIRM = 'src/app/booking/flight-confirm/page.tsx';
 
 const BOOKED = {
   passengerName: 'Ada Lovelace',
@@ -141,20 +143,33 @@ test('nothing here defaults a recipient, retries, or reaches for another transpo
   }
 });
 
-test('the panel sends the contact it already validated at prebook', () => {
+test('the contact the panel validated is the one the book call carries', () => {
   const src = code(PANEL);
-  assert.match(src, /contactEmail: email\.trim\(\)/, 'the book call carries it');
-  const book = src.indexOf("'/api/travel/liteapi/flights/book'");
-  // code() blanks comments to whitespace but keeps offsets, so the window has to
-  // clear the commentary sitting above the body line.
-  const body = src.slice(book, book + 900);
-  assert.match(body, /prebookId: pb\.prebookId/);
-  assert.match(body, /transactionId: pb\.transactionId/);
-  assert.match(body, /contactEmail/);
-  // The same address the panel validates before prebook — one contact, one regex.
+  // FL-4c moved the BOOK CALL off this panel: the vendor's documented payment rail
+  // redirects, so /booking/flight-confirm finishes the booking. The contact rule is
+  // unchanged — the SAME address validated before prebook is what the book call
+  // gets — it just travels one hop further, in the returnUrl the panel builds.
   assert.match(src, /EMAIL_RE\.test\(email\.trim\(\)\)/, 'the panel validates it before it is ever sent');
-  // And the booked state says whether the confirmation went out, either way.
+  assert.match(src, /contactEmail: email\.trim\(\)/, 'and hands the same address on');
+  const at = src.indexOf('const q = new URLSearchParams({');
+  // Scoped to the call's own closing `});`, never a character count.
+  const q = src.slice(at, src.indexOf('});', at) + 3);
+  assert.match(q, /prebookId: prebook\.prebookId/);
+  assert.match(q, /transactionId: prebook\.transactionId/);
+  assert.match(q, /contactEmail: email\.trim\(\)/);
+  assert.ok(!src.includes("'/api/travel/liteapi/flights/book'"), 'the panel no longer books — the rail redirects');
+});
+
+test('the confirm page books with that contact, and says whether the email went out', () => {
+  const src = code(CONFIRM);
+  assert.match(src, /'\/api\/travel\/liteapi\/flights\/book'/, 'the same route, unchanged');
+  assert.match(src, /body: JSON\.stringify\(\{ prebookId, transactionId, contactEmail \}\)/, 'with the three references the link carried');
+  assert.match(src, /params\.get\('contactEmail'\)/, 'read from the link, never invented');
+  // The email outcome is stated either way — a booking that could not be emailed
+  // is still a booking, and never reads as a failed one.
   assert.match(src, /data-flight-email="sent"/);
   assert.match(src, /data-flight-email="failed"/);
   assert.match(src, /Your booking is complete and paid/, 'a failed email never reads as a failed booking');
+  // A link that arrived without its references is SAID, never guessed at.
+  assert.match(src, /setPhase\('incomplete'\)/);
 });
