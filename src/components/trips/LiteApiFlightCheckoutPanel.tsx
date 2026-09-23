@@ -7,12 +7,18 @@
  * recon + flight-booking-architecture docs: "The payment intent is created
  * server-side by Nuitee Connect during prebook").
  *
- * KEY INVARIANT — WHOSE STRIPE: Elements mounts with the `publishableKey` FROM THE
- * PREBOOK RESPONSE (prebook/route.ts:152), NEVER any env key and NEVER our own
- * Stripe (NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is the SUBSCRIPTION rail).
- * Mixing rails would confirm a card against the wrong Stripe account, so a
- * null/absent publishableKey or secretKey is a DECLARED error state — loud, no
- * fallback of any kind.
+ * KEY INVARIANT — WHOSE STRIPE: Elements mounts with NUITEE'S publishable key,
+ * NEVER any env key and NEVER our own Stripe (NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+ * is the SUBSCRIPTION rail). Mixing rails would confirm a card against the wrong
+ * Stripe account, so a missing key is a DECLARED dead end — loud, no fallback of
+ * any kind. That invariant is unchanged; FL-4c (2026-09-23) corrected only WHERE
+ * the key is read from.
+ *
+ * It used to be read from the prebook response, which answers null — in sandbox
+ * AND in production, measured. So this panel could never mount Elements at all.
+ * The key is served by the vendor's own payment wrapper, /config, which is the
+ * source the HOTEL lane has used since PR-B2. See fetchPublishableKey below for
+ * the evidence that flights and hotels are the same Stripe account.
  *
  * PR-FL-6c: the panel COMPLETES THE BOOKING — payment success POSTs
  * /api/travel/liteapi/flights/book {prebookId, transactionId} and renders a
@@ -30,10 +36,11 @@
  * ('M'|'F'), nationality (ISO-2) and the full passport block (documentType/
  * documentNumber/documentIssueCountry/documentExpiry). LiteAPI's fraud filter
  * (code 53099) rejects placeholder names like 'Test' — the form says so.
- * publishableKey came back NULL in sandbox: per LiteAPI's own Stripe-Elements
- * doc the publishable keys are "Provided by LiteAPI" and "not exposed in the
- * dashboard — contact your account manager or customer support to request
- * them" — so null stays a DECLARED error naming that gap, never a fallback.
+ * publishableKey came back NULL in sandbox, and FL-4c measured the same null in
+ * PRODUCTION. LiteAPI's Stripe-Elements doc says the publishable keys are
+ * "Provided by LiteAPI" and "not exposed in the dashboard" — which was read at the
+ * time as a gap to wait on. It was not a gap: the wrapper serves the key at
+ * /config, and asking there is what FL-4c does.
  */
 
 import { useMemo, useState } from 'react';
@@ -54,15 +61,66 @@ interface Props {
 }
 
 /** The prebook route's whitelisted envelope — names + nullability exactly as
- *  emitted (prebook/route.ts:149-154; publishableKey/price/currency are
- *  null-able per liteapiFlightsClient.ts's FlightPrebookResult). */
+ *  emitted (prebook/route.ts; publishableKey/price/currency are null-able per
+ *  liteapiFlightsClient.ts's FlightPrebookResult — and publishableKey is null in
+ *  practice, which is why FL-4c stopped reading it). */
 interface PrebookEnvelope {
   prebookId: string;
   transactionId: string;
   secretKey: string;
+  /**
+   * FL-4c: RETURNED BUT NOT USED. A real production prebook answers null here —
+   * measured on 2026-09-23, not assumed. The publishable key comes from the
+   * vendor's /config, below.
+   */
   publishableKey: string | null;
+  /** FL-4c: 'live' | 'sandbox', server-derived — the label /config is keyed on. */
+  paymentEnv?: string | null;
   price: number | null;
   currency: string | null;
+}
+
+/**
+ * FL-4c (2026-09-23) — THE PUBLISHABLE KEY COMES FROM WHERE THE KEY ACTUALLY IS.
+ *
+ * The flight prebook returns publishableKey: null, so Elements had nothing to
+ * mount and this panel dead-ended before a card could ever be typed. The key was
+ * never missing — it was somewhere else. The vendor's own payment wrapper serves
+ * it, and the HOTEL lane has been using that source all along: its SDK POSTs
+ * {"publicKey": "<env label>"} here and gets a real key back.
+ *
+ * CHECKOUT-02 established, and FL-4c re-ran for this lane specifically:
+ *   · /config with {"publicKey":"live"} → HTTP 200, a pk_live_ (107 chars) on
+ *     provider stripe-cupid-travel-us;
+ *   · that key resolves a production FLIGHT prebook's clientSecret — Stripe's own
+ *     GET /v1/payment_intents/{id}?client_secret=… returned 200 with
+ *     livemode: true and the exact prebook amount.
+ * Flights and hotels are the SAME Stripe account. This is not a guess at a key,
+ * and it is NOT a fallback: it is the corrected source, and the only source. There
+ * is no "prebook field, else /config" chain — the prebook's null is ignored.
+ *
+ * If /config cannot answer, that is a NAMED dead end. No retry, no poll, no env
+ * key, no substitute rail: confirming a card against the wrong Stripe account is
+ * the one outcome worse than not taking the card at all.
+ */
+const LITEAPI_CONFIG_URL = 'https://payment-wrapper.liteapi.travel/config';
+
+/** The publishable key for this env, from the vendor. Throws, named, on anything else. */
+async function fetchPublishableKey(paymentEnv: string): Promise<string> {
+  const res = await fetch(LITEAPI_CONFIG_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ publicKey: paymentEnv }),
+  });
+  if (!res.ok) {
+    throw new Error(`Payment cannot start — the card provider did not return a key for this environment (HTTP ${res.status}). Nothing was charged.`);
+  }
+  const data = (await res.json().catch(() => null)) as { publicKey?: unknown } | null;
+  const key = typeof data?.publicKey === 'string' ? data.publicKey.trim() : '';
+  if (!key) {
+    throw new Error('Payment cannot start — the card provider returned no key for this environment. Nothing was charged.');
+  }
+  return key;
 }
 
 // FL-6b: the panel uses the travel surface's own field vocabulary —
@@ -126,6 +184,8 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
   const [docExpiry, setDocExpiry] = useState('');
 
   const [prebook, setPrebook] = useState<PrebookEnvelope | null>(null);
+  // FL-4c: the publishable key the vendor's /config gave us for this env.
+  const [publishableKey, setPublishableKey] = useState<string | null>(null);
   const [bookResult, setBookResult] = useState<BookEnvelope | null>(null);
   const [bookError, setBookError] = useState('');
   const [bookingBusy, setBookingBusy] = useState(false);
@@ -168,12 +228,13 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
     }
   };
 
-  // Nuitee's publishable key ONLY — from the prebook response, never env. The
-  // memo keys on the response value so a re-prebook with a different key would
-  // re-init cleanly. loadStripe itself caches per key.
+  // FL-4c: Nuitee's publishable key, from the vendor's /config — never env, never
+  // ours, and no longer from the prebook (which answers null). The memo keys on
+  // the fetched value so a re-prebook with a different key re-inits cleanly.
+  // loadStripe itself caches per key.
   const stripePromise = useMemo(
-    () => (prebook?.publishableKey ? loadStripe(prebook.publishableKey) : null),
-    [prebook?.publishableKey],
+    () => (publishableKey ? loadStripe(publishableKey) : null),
+    [publishableKey],
   );
 
   // Same proven rules as before (FL-4b) — now each failure names its FIELD so
@@ -264,15 +325,19 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
         }));
         throw new Error('Payment cannot start — the checkout session is missing its payment secret. This is a provider-side issue; nothing was charged.');
       }
-      if (typeof data?.publishableKey !== 'string' || !data.publishableKey) {
-        // FL-4b: the OBSERVED sandbox behavior — publishableKey: null. Their
-        // Stripe-Elements doc says the publishable keys are "Provided by
-        // LiteAPI" and "not exposed in the dashboard — contact your account
-        // manager or customer support to request them", so this names the real
-        // gap instead of pretending it's transient.
-        console.error('[LiteAPI flights] prebook returned no publishableKey — Elements cannot mount; the per-env keys come from Nuitee support, not the response.');
-        throw new Error('Sandbox prebook returned no publishable key — pending Nuitee guidance.');
+      // FL-4c: the publishable key is NOT read from the prebook. It answers null
+      // in production and always did; the key lives at the vendor's /config, which
+      // is the hotel lane's source and now this one's — see the header. The env
+      // label is the server's (flights/prebook/route.ts), never the browser's guess.
+      const paymentEnv = typeof data?.paymentEnv === 'string' ? data.paymentEnv.trim() : '';
+      if (!paymentEnv) {
+        console.error('[LiteAPI flights] prebook returned no paymentEnv — the key environment is unknown, so no key can be requested.');
+        throw new Error('Payment cannot start — this checkout could not determine its payment environment. Nothing was charged.');
       }
+      // Throws, named, if the vendor cannot answer. The catch below renders it and
+      // the panel asks for no card. There is no second source to try.
+      const key = await fetchPublishableKey(paymentEnv);
+      setPublishableKey(key);
       setPrebook(data as PrebookEnvelope);
       setPhase('pay');
     } catch (err) {

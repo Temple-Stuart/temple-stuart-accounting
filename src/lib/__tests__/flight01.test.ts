@@ -249,13 +249,15 @@ test('the booking-flow pin still holds for every file it names — five search f
     'src/app/api/travel/liteapi/prebook/route.ts': 'dd6e8c9a0f1437a0661283bb91dc00aeb6dcaf6c227cefc180a3e01f1a60f351',
     // CAL-01 (2026-09-23): a stay now lands one calendar row; the booking itself is unchanged.
     'src/app/api/travel/liteapi/book/route.ts': '792da953ba83fe8a8bc95d79045a0fabd00bfc807fab3b726a69dd85ef136eb1',
-    'src/app/api/travel/liteapi/flights/prebook/route.ts': 'ed9b0d2afe376769e42a99a80fc3ce33755324add6a25e4104a5f5c193289c7a',
+    // FL-4c (2026-09-23): the envelope gains paymentEnv, the server-derived key env.
+    'src/app/api/travel/liteapi/flights/prebook/route.ts': 'afad4046f2084b53ff5dfd48ca6c280b475967d61dfd4cf98f4b5da3e672964e',
     'src/app/api/travel/liteapi/flights/verify/route.ts': '5143ffafee8ed954d5edc7c639857622375c6b177b9ac067f79553794674d589',
     // CAL-01 (2026-09-23): a flight has no date of travel in its landed payload, so it writes NO row and logs why.
     // FL-5b (2026-09-23): the confirmation email restored — a required contact, sent after the transaction.
     'src/app/api/travel/liteapi/flights/book/route.ts': '7a92d920d3bd45ac1a10997c3eb6b2ee1b1495dd3eec73a45ec3d9185ec5cc92',
     // FL-5b (2026-09-23): the panel sends the contact it already holds; no payment path changed.
-    'src/components/trips/LiteApiFlightCheckoutPanel.tsx': '069af3c2b1d4a13d75596473ab372b07be749c21f3f05703873f23f54cfd7e5c',
+    // FL-4c (2026-09-23): the publishable key now comes from the vendor's /config, not the prebook's null.
+    'src/components/trips/LiteApiFlightCheckoutPanel.tsx': '21b681fca23325df4e0925ce53515bb483a9ea75f0129ab0ab5720b44057c806',
     // Was 77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5 before CHECKOUT-01.
     // CHECKOUT-03 (2026-09-23): the panel waits on Stripe.js before handing off.
     'src/components/trips/CheckoutPanel.tsx': 'b3fd49cbd8acf9ab3d5afb11fdc42f61089722d2951dd6cbfa6a8dc2bdf19b46',

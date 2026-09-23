@@ -8,6 +8,8 @@ import {
 } from '@/lib/liteapiFlightsClient';
 import { MissingLiteApiKeyError, LiteApiError } from '@/lib/travelErrors';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
+// FL-4c: the key env the browser needs to ask /config for the publishable key.
+import { liteApiPaymentEnv } from '@/lib/liteapiClient';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
 
 // ─── PUBLIC LiteAPI flight PREBOOK (PR-FL-3) ─────────────────────────────────
@@ -150,7 +152,17 @@ export async function POST(request: NextRequest) {
       prebookId: prebook.prebookId,
       transactionId: prebook.transactionId,
       secretKey: prebook.secretKey,
+      // FL-4c (2026-09-23): STILL RETURNED, AND STILL NULL IN PRACTICE. A real
+      // production prebook returns publishableKey: null — measured, not assumed.
+      // The panel no longer mounts Elements with it; it asks the vendor's /config
+      // for the key, the same source the hotel lane has always used. Kept in the
+      // envelope because it is what the provider says, and the day it starts
+      // arriving is a fact worth seeing rather than one we hid.
       publishableKey: prebook.publishableKey,
+      // FL-4c: the key env, server-derived, exactly as the hotel prebook returns it
+      // (liteapi/prebook/route.ts:46). The browser must not guess which mode it is
+      // in, and /config is keyed on precisely this label.
+      paymentEnv: liteApiPaymentEnv(),
       price: prebook.price,
       currency: prebook.currency,
     });
