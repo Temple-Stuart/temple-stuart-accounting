@@ -245,7 +245,7 @@ export default function PlansSection({ door, headingId = 'modules' }: {
                                   <span className="font-mono">{n.name}</span>
                                   {' — '}
                                   {n.status === 'PARTIAL' ? 'partly built' : 'not built yet'}
-                                  {n.why ? `: ${n.why}` : ''}
+                                  {n.customer ? `: ${n.customer}` : ''}
                                 </li>
                               ))}
                             </ul>

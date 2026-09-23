@@ -151,7 +151,7 @@ import { KIND_VIEWS_HONEST_LINE, KIND_VIEW_CENSUS, STOPPED_TABLES, VIEW_COLUMNS,
 // SELL-02: the offer law — every sales claim from the registry, every price from one source.
 import { FREE_TOOLS, OFFERS, TOOL_GATE, heroCountsLine, offerCard, offerLaw, priceEnvName } from '../src/lib/offer';
 // OFFER-01: the plans leaf — the public offer's one source.
-import { BEST_VALUE_WORDS, CAPABILITY_GROUPS, CELL_LABEL, EARLY_ACCESS_CTA, LAUNCH_PLACEHOLDER, MODULES, PLANS, PLANS_HEADLINE, PLANS_SUBHEAD, PLAN_ORDER, STATUS_TO_CELL, cellState, planLaw, priceSlot, travelFreeLine, weakestStatus } from '../src/lib/offer/plans';
+import { BEST_VALUE_WORDS, CAPABILITY_GROUPS, CELL_LABEL, EARLY_ACCESS_CTA, LAUNCH_PLACEHOLDER, MODULES, PLANS, PLANS_HEADLINE, PLANS_SUBHEAD, PLAN_ORDER, STATUS_TO_CELL, capabilityNotes, cellState, planLaw, priceSlot, travelFreeLine, weakestStatus } from '../src/lib/offer/plans';
 // DRILL-01: where an entry came from — the pure mapping the book surfaces render.
 import { NO_SOURCE_WORDS, SOURCE_RULES, coverageOf, entrySourceOf, statedFacts } from '../src/lib/books/entrySource';
 import { DYNAMIC_READ_ENV, LIBRARY_READ_ENV } from '../src/lib/envLaw';
@@ -5082,15 +5082,62 @@ lawGuard('The plan law', () => {
   // price placeholder and its button, the best-value words, Travel's free line, and
   // the text this component types between its own tags.
   //
-  // WHAT IT DOES NOT COVER, and why: the registry's own `why` notes, which the table
-  // shows VERBATIM when a group opens — clause 2 above requires the leaf hand them
-  // over unedited, so a word ban here would contradict it. They are the registry's
-  // prose to fix in the registry. (OFFER-04's audit found one: Budget's why renders
-  // the table name `module_expenses` to a customer — src/lib/toolRegistry.ts:204.)
-  // Nor does it cover CSS class names, data-* attribute values or the `modules`
-  // anchor id, none of which a customer reads.
+  // WHY-01 (2026-09-23) MADE THIS LITERAL. OFFER-04 had to carve out the registry's
+  // own `why` notes, because the table showed them verbatim and one of them said
+  // `module_expenses`. The table no longer shows a `why` at all — it shows the
+  // registry's CUSTOMER sentence — so the exception is gone and every string a
+  // customer reads in this section is covered, the sentences included.
+  //
+  // Still not covered, because no customer reads them: CSS class names, data-*
+  // attribute values and the `modules` anchor id.
   const BUILDER_WORDS = ['module', 'base', 'tier', 'cumulative', 'registry', 'beat', 'loop'];
   const builderWordsIn = (text: string) => BUILDER_WORDS.filter((w) => new RegExp(`\\b${w}`, 'i').test(text));
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // WHY-01: THE CUSTOMER READS A SENTENCE WRITTEN FOR THE CUSTOMER.
+  //
+  // Every tool a plan row can show as ◐ or Coming — the set the opened group puts
+  // on screen (PlansSection.tsx filters capabilityNotes to status !== 'LIVE').
+  const shownNotLive: [string, string | null][] = [];
+  {
+    const seen = new Set<string>();
+    for (const g of CAPABILITY_GROUPS) {
+      for (const row of g.rows) {
+        for (const n of capabilityNotes(row)) {
+          if (n.status === 'LIVE' || seen.has(n.name)) continue;
+          seen.add(n.name);
+          shownNotLive.push([n.name, n.customer]);
+        }
+      }
+    }
+  }
+
+  // 1. THE PLANS TABLE RENDERS NO `why`. Not the component, not the note type the
+  //    leaf hands it — a field that is not carried cannot leak.
+  if (/\bn\.why\b|\bnote\.why\b/.test(sectionSrc)) planFail(`${PLANS_SECTION} renders a registry \`why\` — that is the builder's evidence; the customer reads the customer sentence`);
+  if (/\bwhy\b/.test(codeOf(PLANS_LEAF).slice(codeOf(PLANS_LEAF).indexOf('export interface CapabilityNote')))) {
+    planFail(`${PLANS_LEAF} still names \`why\` at or below CapabilityNote — the note the public table receives carries the customer sentence and nothing else`);
+  }
+
+  // 2. EVERY TOOL A PLAN ROW CAN SHOW HAS ONE, and it is named when it does not.
+  for (const [name, line] of shownNotLive) {
+    if (!line || !line.trim()) planFail(`${name} can be shown by a plan row as ◐ or Coming and carries no customer sentence — add one beside its \`why\` in src/lib/toolRegistry.ts`);
+  }
+
+  // 3. AND IT IS WRITTEN FOR A CUSTOMER: no PR id, no snake_case identifier, no
+  //    "the founder", and none of the loop's own beat words. (The builder words are
+  //    checked with the rest of the section's copy, below.)
+  // BEAT_WORDS is the plan law's own const, declared above for the beat-claim check.
+  for (const [name, line] of shownNotLive) {
+    if (!line) continue;
+    const prId = line.match(/\b[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+\b/);
+    if (prId) planFail(`${name}'s customer sentence names "${prId[0]}" — a customer does not read PR ids`);
+    const snake = line.match(/\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/);
+    if (snake) planFail(`${name}'s customer sentence names "${snake[0]}" — a table or column name is not a customer's word`);
+    if (/\bfounder/i.test(line)) planFail(`${name}'s customer sentence says "founder" — the customer is not told whose account this runs on`);
+    const beats = BEAT_WORDS.filter((w) => new RegExp(`\\b${w}`, 'i').test(line));
+    if (beats.length) planFail(`${name}'s customer sentence says "${beats.join('", "')}" — the loop's beat words are the builder's vocabulary`);
+  }
 
   const authoredCopy: { where: string; text: string }[] = [
     { where: 'PLANS_HEADLINE', text: PLANS_HEADLINE },
@@ -5116,6 +5163,9 @@ lawGuard('The plan law', () => {
   for (const [state, label] of Object.entries(CELL_LABEL)) authoredCopy.push({ where: `CELL_LABEL.${state}`, text: label });
   const freeLine = travelFreeLine();
   if (freeLine) authoredCopy.push({ where: 'travelFreeLine()', text: freeLine });
+  // The customer sentences are copy this section renders, so they are held to the
+  // same bar as the rest of it — and to more, below.
+  for (const [name, line] of shownNotLive) authoredCopy.push({ where: `${name}'s customer sentence`, text: line ?? '' });
 
   for (const { where, text } of authoredCopy) {
     const found = builderWordsIn(text);
@@ -5142,7 +5192,7 @@ lawGuard('The plan law', () => {
   if ((sectionSrc.match(/data-travel-free/g) ?? []).length !== 1) planFail(`${PLANS_SECTION} renders Travel's free line ${(sectionSrc.match(/data-travel-free/g) ?? []).length} times — it sits once, under the cards`);
 
   if (planViolations === 0) {
-    console.log(`✔ The plan law passed — ${PLANS.length} plans over ${MODULES.length} modules (${PLANS.map((p) => `${p.id}{${p.modules.join(',')}}`).join(' ')}), ${CAPABILITY_GROUPS.length} capability groups and ${CAPABILITY_GROUPS.reduce((n, g) => n + g.rows.length, 0)} rows accounting for all ${TOOL_REGISTRY.length} registry tools; every cell is set membership (${readyCells} ✓, ${partialCells} ◐) with no ✓ over a tool that is not LIVE and no cell drawn for a module its plan does not hold; the price slot is the launch placeholder on all ${PLANS.length} and the bundle's best-value position is reserved, not claimed; no tool count, no beat name and no persona grid on ${PLAN_SURFACES.length} plan surfaces; ${authoredCopy.length} authored strings and the component's own typed text carry none of the ${BUILDER_WORDS.length} builder words.`);
+    console.log(`✔ The plan law passed — ${PLANS.length} plans over ${MODULES.length} modules (${PLANS.map((p) => `${p.id}{${p.modules.join(',')}}`).join(' ')}), ${CAPABILITY_GROUPS.length} capability groups and ${CAPABILITY_GROUPS.reduce((n, g) => n + g.rows.length, 0)} rows accounting for all ${TOOL_REGISTRY.length} registry tools; every cell is set membership (${readyCells} ✓, ${partialCells} ◐) with no ✓ over a tool that is not LIVE and no cell drawn for a module its plan does not hold; the price slot is the launch placeholder on all ${PLANS.length} and the bundle's best-value position is reserved, not claimed; no tool count, no beat name and no persona grid on ${PLAN_SURFACES.length} plan surfaces; ${authoredCopy.length} authored strings and the component's own typed text carry none of the ${BUILDER_WORDS.length} builder words, and the ${shownNotLive.length} tools a row can show as ◐ or Coming each carry a customer sentence — no PR id, no table name, no beat word, no \"founder\" — with the builder's own why reaching no public surface.`);
   } else {
     console.log(`✖ The plan law FAILED — ${planViolations} violation(s).`);
   }
