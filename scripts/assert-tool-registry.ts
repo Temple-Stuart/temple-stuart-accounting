@@ -176,6 +176,7 @@ const GUEST_ROUTES: ReadonlyArray<{ route: string; why: string }> = [
   { route: '/work-with-me', why: 'the deck (Landing.tsx), PUBLIC_PATHS' },
   { route: '/modules/[pillar]', why: 'the deck PILLAR_CARDS and ModulePointerCard.tsx' },
   { route: '/booking/confirm', why: 'the LiteAPI checkout return URL (CheckoutPanel.tsx returnUrl), PUBLIC_PATHS' },
+  { route: '/booking/flight-confirm', why: 'FL-4c: the FLIGHTS checkout return URL (LiteApiFlightCheckoutPanel.tsx returnUrl) — the documented LiteAPI payment rail redirects on success, so a guest who just paid lands here; PUBLIC_PATHS' },
   { route: '/plaid/oauth-return', why: 'the Plaid OAuth return URL — PLAID_REDIRECT_URI on every link token (src/lib/plaid/oauth.ts), registered in the Plaid Dashboard; the bank sends the signed-in user here, the app never links to it' },
   { route: '/trips/rsvp', why: 'the RSVP invite link sent to participants (src/app/trips/rsvp/RSVPClient.tsx)' },
   { route: '/trips/[id]', why: 'linked from the RSVP flow — RSVPClient.tsx:72, :87, :136' },
@@ -4769,6 +4770,127 @@ lawGuard('The checkout law', () => {
   else console.log(`✖ The checkout law FAILED — ${checkoutViolations} violation(s).`);
 });
 
+// ── THE FLIGHT PAYMENT-RAIL LAW (FL-4c, 2026-09-23) ─────────────────────────
+// THE FLIGHTS CHECKOUT TAKES A CARD THE WAY THE VENDOR DOCUMENTS IT.
+//
+// WHAT THIS CLOSES. LiteAPI documents ONE way to take a card (docs.liteapi.travel/
+// docs/user-payment): load their payment wrapper, hand it
+// { publicKey, appearance, targetElement, secretKey, returnUrl } and call
+// handlePayment(). `publicKey` is the ENVIRONMENT — their words, "the environment
+// you are using, and must match your API key's environment" — the literal 'live' or
+// 'sandbox'. The wrapper resolves that label to a real Stripe publishable key
+// itself, through its own /config.
+//
+// The flights panel did not use that rail. It mounted raw @stripe/react-stripe-js
+// Elements on `prebook.publishableKey` and THREW when that came back null. But the
+// flights reference documents publishableKey as `string, nullable: true` — "Stripe
+// publishable key (null if not applicable)". The panel was reporting the documented
+// shape as a failure, and a customer could never type a card.
+//
+// FL-4c proved the wrapper fits this lane before rebuilding it: one real production
+// flight prebook (a hold; no card, nothing charged) whose clientSecret Stripe
+// resolved against the pk_live_ the wrapper's /config returns for this account —
+// HTTP 200, livemode true, the prebook's own amount. Same Stripe account as hotels.
+//
+// THE RULE: the flights panel hands the vendor an ENVIRONMENT LABEL and a secretKey
+// and lets the wrapper draw the form. It reads no publishable key, mounts no Stripe
+// of its own, and keeps CHECKOUT-01's named failures and CHECKOUT-03's Stripe.js
+// gate. The rail redirects, so the redirect must land on a page that finishes the
+// booking.
+lawGuard('The flight payment-rail law', () => {
+  let railViolations = 0;
+  const railFail = (m: string) => { railViolations += 1; violations.push(`flight payment-rail law: ${m} (FL-4c)`); };
+
+  const FPANEL = 'src/components/trips/LiteApiFlightCheckoutPanel.tsx';
+  const FCONFIRM = 'src/app/booking/flight-confirm/page.tsx';
+  const fpanel = codeOf(FPANEL);
+  const fconfirm = codeOf(FCONFIRM);
+
+  // 1. THE VENDOR'S WRAPPER IS THE RAIL — not a hand-rolled Stripe mount.
+  if (!fpanel.includes('payment-wrapper.liteapi.travel/dist/liteAPIPayment.js')) railFail(`${FPANEL} does not load the vendor payment wrapper — the documented rail is the wrapper, not a Stripe mount of our own`);
+  if (!/new window\.LiteAPIPayment\(\{/.test(fpanel)) railFail(`${FPANEL} never constructs the vendor wrapper`);
+  if (!/payment\.handlePayment\(\);/.test(fpanel)) railFail(`${FPANEL} never calls handlePayment() — the card form is never requested`);
+  if (!/secretKey: prebook\.secretKey/.test(fpanel)) railFail(`${FPANEL} does not hand the wrapper the prebook secretKey`);
+  if (!/targetElement: `#\$\{PAYMENT_TARGET_ID\}`/.test(fpanel)) railFail(`${FPANEL} does not give the wrapper our own target element`);
+  for (const banned of ['@stripe/react-stripe-js', '@stripe/stripe-js', 'loadStripe', '<Elements', '<PaymentElement', 'useStripe(', 'useElements(', 'confirmPayment(']) {
+    if (fpanel.includes(banned)) railFail(`${FPANEL} still hand-rolls the card form (${banned}) — the wrapper is the documented rail and the only one this app drives`);
+  }
+
+  // 2. publicKey IS THE ENVIRONMENT LABEL, FROM THE SERVER — never a key, never a
+  //    guess. An environment we cannot name is a stated dead end, not a default.
+  if (!/publicKey: paymentEnv,/.test(fpanel)) railFail(`${FPANEL} does not pass the environment label as publicKey — publicKey is the environment, not a Stripe key`);
+  if (!/data\?\.paymentEnv === 'string'/.test(fpanel)) railFail(`${FPANEL} does not read the environment label from the prebook response — the server derives it (liteApiPaymentEnv), the browser never guesses`);
+  if (!/env !== 'live' && env !== 'sandbox'/.test(fpanel)) railFail(`${FPANEL} does not check the environment label against the two the vendor documents`);
+  for (const banned of ['pk_live_', 'pk_test_', 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY', 'process.env', "setPaymentEnv('live')", "setPaymentEnv('sandbox')", "paymentEnv = 'live'", "paymentEnv = 'sandbox'"]) {
+    if (fpanel.includes(banned)) railFail(`${FPANEL} carries ${banned} — the label comes from the server or the checkout stops; there is no key here and no default`);
+  }
+
+  // 3. THE DOCUMENTED NULL IS NOT A FAILURE. The field is nullable by the vendor's
+  //    own reference, so the panel does not read it at all — in code. (Comments are
+  //    blanked by codeOf, so the header may explain it.)
+  if (fpanel.includes('publishableKey')) railFail(`${FPANEL} reads publishableKey again — the vendor documents it "null if not applicable", so a null is the shape, never a fault; the wrapper resolves the key`);
+
+  // 4. CHECKOUT-01'S DISCIPLINE, CARRIED ONTO THIS LANE.
+  for (const kind of ['payment_env', 'prebook', 'sdk_script', 'form_absent']) {
+    if (!fpanel.includes(`'${kind}'`)) railFail(`${FPANEL} names no "${kind}" failure — every way this panel can fail to take a card is named`);
+  }
+  if (/const \[error, setError\]/.test(fpanel)) railFail(`${FPANEL} holds a loose \`error\` string — a named failure carries its kind, and a later vaguer reason must not displace a specific one`);
+  if (!/setFailureState\(\(cur\) => cur \?\? next\)/.test(fpanel)) railFail(`${FPANEL}'s fail() does not keep the FIRST reason — the CDN onError fires late and would bury the prebook own`);
+  if (!fpanel.includes('FORM_DEADLINE_MS')) railFail(`${FPANEL} has no deadline for the vendor form — handlePayment() resolves whether or not it drew anything, so the DOM is the only signal`);
+  if (!/new MutationObserver/.test(fpanel)) railFail(`${FPANEL} does not watch its payment target — the vendor SDK swallows every error in two empty catches`);
+  if (!/data-flight-checkout-failure=\{failure\.kind\}/.test(fpanel)) railFail(`${FPANEL} stated failure does not carry its kind on the element — the walk and a reader name the branch by it`);
+  {
+    const ask = fpanel.indexOf('Enter your card to pay');
+    if (ask < 0) railFail(`${FPANEL} no longer asks for a card at all`);
+    else {
+      const before = fpanel.slice(Math.max(0, ask - 400), ask);
+      if (!/&& !failure && \(/.test(before)) railFail(`${FPANEL} asks for a card without first ruling out a failure — a panel that cannot take a card does not ask for one`);
+    }
+  }
+  // Every detail line is fixed, first-party text — never the vendor body.
+  for (const m of fpanel.matchAll(/detail: ([^\n]+)/g)) {
+    const val = m[1].trim();
+    if (!/^['"`]/.test(val)) railFail(`${FPANEL} builds a failure detail from ${val.slice(0, 60)} — the detail line is fixed first-party text`);
+  }
+
+  // 5. CHECKOUT-03'S GATE, CARRIED. This panel is where the stale js.stripe.com tag
+  //    came from; it now loads the same src through next/script and waits on it.
+  if (!fpanel.includes('STRIPE_JS_SRC')) railFail(`${FPANEL} does not load Stripe.js itself — the vendor loader hangs silently on a failed pre-existing tag`);
+  if (!/!sdkReady \|\| !stripeJsReady/.test(fpanel)) railFail(`${FPANEL} does not wait for Stripe.js before handing off to the vendor — window.Stripe is the vendor unstated prerequisite`);
+  {
+    // Scoped to THIS <Script> own closing tag, never a character count: a shorter
+    // handler would slide the next <Script> onError into a fixed window.
+    const at = fpanel.indexOf('STRIPE_JS_SRC}');
+    const end = at > 0 ? fpanel.indexOf('/>', at) : -1;
+    const block = at > 0 && end > at ? fpanel.slice(at, end) : '';
+    if (!block) railFail(`${FPANEL} has no Stripe.js <Script> element to read`);
+    else if (!/onError=\{\(\) => fail\(/.test(block)) railFail(`${FPANEL} loads Stripe.js without naming the failure when it cannot load`);
+  }
+  for (const banned of ['setTimeout(() => setStripeJsReady', 'setInterval', 'retryStripe']) {
+    if (fpanel.includes(banned)) railFail(`${FPANEL} polls or retries for Stripe.js (${banned}) — readiness is awaited on a real signal, and its absence is named`);
+  }
+
+  // 6. THE RAIL REDIRECTS, SO THE REDIRECT LANDS SOMEWHERE THAT FINISHES THE JOB.
+  //    The wrapper ends with Stripe confirmPayment and a redirect to returnUrl. A
+  //    paid customer must not land on the hotel page, or on a public path they are
+  //    bounced off.
+  if (!/\/booking\/flight-confirm\?\$\{q\.toString\(\)\}/.test(fpanel)) railFail(`${FPANEL} returnUrl does not land on /booking/flight-confirm — the documented rail redirects, and a paid flight customer must land where the booking is finished`);
+  for (const key of ['prebookId: prebook.prebookId', 'transactionId: prebook.transactionId', 'contactEmail: email.trim()']) {
+    if (!fpanel.includes(key)) railFail(`${FPANEL} returnUrl does not carry ${key} — the confirm page finishes the booking from what the link carries and invents nothing`);
+  }
+  if (!fconfirm.includes("'/api/travel/liteapi/flights/book'")) railFail(`${FCONFIRM} does not complete the booking through the existing flights book route`);
+  if (!/body: JSON\.stringify\(\{ prebookId, transactionId, contactEmail \}\)/.test(fconfirm)) railFail(`${FCONFIRM} does not post the three references the panel handed it`);
+  if (!/data-flight-email="sent"/.test(fconfirm) || !/data-flight-email="failed"/.test(fconfirm)) railFail(`${FCONFIRM} does not say whether the confirmation email went out — FL-5b rule moved here with the booking it belongs to`);
+  if (!/setPhase\('incomplete'\)/.test(fconfirm)) railFail(`${FCONFIRM} does not state a link that arrived without its references — a missing value is said, never guessed`);
+  {
+    const mw = codeOf('src/middleware.ts');
+    if (!/'\/booking\/flight-confirm',/.test(mw)) railFail('src/middleware.ts does not list /booking/flight-confirm as public — a guest who just paid would be 307-bounced to the landing and never finish the booking');
+  }
+
+  if (railViolations === 0) console.log(`✔ The flight payment-rail law passed — the flights checkout drives the vendor own documented wrapper: publicKey is the environment label from the server (never a key, never a default), the prebook publishableKey is not read at all because the vendor documents it nullable, and the wrapper draws the form from the prebook secretKey; CHECKOUT-01 four named failures (payment_env · prebook · sdk_script · form_absent), first reason kept, FORM_DEADLINE_MS watchdog and no card asked for beside a failure all hold, as does CHECKOUT-03 Stripe.js gate; the rail redirect lands on /booking/flight-confirm, public, which finishes the booking through the existing route.`);
+  else console.log(`✖ The flight payment-rail law FAILED — ${railViolations} violation(s).`);
+});
+
 // ── THE ROW LAW (TRAVEL-ROW-01, 2026-09-23) ─────────────────────────────────
 // BOOK AT THE LINE.
 //
@@ -5447,7 +5569,12 @@ lawGuard('The row law', () => {
     // FL-4c (2026-09-23): re-pinned by its own ruling — the panel reads its
     // publishable key from the vendor's /config. Where it mounts, which
     // TRAVEL-ROW-01 owns, is untouched.
-    { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: '21b681fca23325df4e0925ce53515bb483a9ea75f0129ab0ab5720b44057c806' },
+    // FL-4c v2 (2026-09-23): re-pinned again by its own ruling — the panel rides
+    // the vendor's documented wrapper instead of hand-rolled Stripe Elements, and
+    // the booking completes on /booking/flight-confirm because that rail redirects.
+    // Where it mounts, which TRAVEL-ROW-01 owns, is untouched.
+    // Was 21b681fca23325df4e0925ce53515bb483a9ea75f0129ab0ab5720b44057c806 at main b75c3ab1.
+    { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: '559fa688d4c88dfc7fc83bf1ff91fba13dff4e9cace83e83b82198a505dba98c' },
   ];
   const flowPins = codeOf('src/lib/travelBookingFlow.ts');
   const flowNotes = commentsOf('src/lib/travelBookingFlow.ts');

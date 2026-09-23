@@ -139,6 +139,9 @@ const PUBLIC_PATHS = [
   // returning from the hosted payment was 307-bounced to '/' and never
   // finalized the booking.
   '/booking/confirm',
+  // FL-4c (2026-09-23): the flights analogue. LiteAPI's documented payment rail
+  // REDIRECTS on success, so a guest who just paid must be able to land here.
+  '/booking/flight-confirm',
   // PROPOSAL-FORM: the public project-proposal form page — a static client
   // form (zero on-load fetches, zero authed reads, zero paid calls); its only
   // network call is the user-submitted POST below. Guests are the audience.

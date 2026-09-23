@@ -219,7 +219,27 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // NAMED dead end — no retry, no env key, no second source. The secretKey path
   // is untouched, and no book/pay/cancel call changed.
   // Was 069af3c2b1d4a13d75596473ab372b07be749c21f3f05703873f23f54cfd7e5c at main bd380379.
-  { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: '21b681fca23325df4e0925ce53515bb483a9ea75f0129ab0ab5720b44057c806' },
+  //
+  // FL-4c v2 (2026-09-23): re-pinned again — THE PANEL NOW USES THE VENDOR'S OWN
+  // DOCUMENTED PAYMENT RAIL, the one the hotel lane has used since PR-B2. LiteAPI's
+  // User Payment guide documents ONE way to take a card: load their wrapper, pass
+  // { publicKey: the ENVIRONMENT LABEL, targetElement, secretKey, returnUrl } and
+  // call handlePayment(). publicKey is not a Stripe key; the wrapper resolves the
+  // label to one itself. And the flights reference documents publishableKey as
+  // nullable — "null if not applicable" — so the null this panel used to throw on
+  // was the documented shape, never a failure. It is no longer read at all, and the
+  // hand-rolled Elements mount from the pin above is gone.
+  // Proved before rebuilding: ONE real production flight prebook (a hold, no card,
+  // nothing charged) whose clientSecret Stripe resolved with the pk_live_ the
+  // wrapper's /config returns — HTTP 200, livemode true, the prebook's own amount.
+  // Same Stripe account as hotels, so the wrapper's key fits this lane's secret.
+  // CONSEQUENCE, stated: the documented rail REDIRECTS on payment success, so this
+  // panel no longer completes the booking in-page — /booking/flight-confirm does,
+  // with the SAME book call and the same per-prebookId idempotency. CHECKOUT-01's
+  // four named failures, its watchdog and CHECKOUT-03's Stripe.js gate all ride
+  // along. No prebook, book, pay or cancel ROUTE changed.
+  // Was 21b681fca23325df4e0925ce53515bb483a9ea75f0129ab0ab5720b44057c806 at main b75c3ab1.
+  { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: '559fa688d4c88dfc7fc83bf1ff91fba13dff4e9cace83e83b82198a505dba98c' },
   { file: 'src/components/trips/CancelBookingDialog.tsx', sha256: '7e50c4ece72171929446f4734622ccdf8b6b75bb87c2c6c3c5aa101ec26fd95d' },
   { file: 'src/components/trips/TripBookings.tsx', sha256: '1c74ce7438ea6ce7013a4c8de4bbd685f2865e2fe0f8d3c3a7f4a119435cc5bd' },
   // REPAINT-04 (2026-09-21): re-pinned — one class on the "Add to <trip>" ghost button
