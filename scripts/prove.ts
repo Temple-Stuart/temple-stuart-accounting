@@ -37,6 +37,33 @@
  * run concurrently in ~38.5s wall for BOTH — the suite is single-threaded and the
  * machine is idle while a serial loop waits on it. That is the whole reason this
  * exists.
+ *
+ * WHY EACH SEED STILL RUNS UNDER tsx, AND NOT A PRECOMPILED BUNDLE (TOOLING-01,
+ * 2026-09-23 — tried, measured, rejected; do not retry this without reading on).
+ *
+ * The idea was to esbuild the law suite ONCE per harness run and run each seed as
+ * `node <bundle>`, on the assumption that tsx's per-run compile was the cost. Two
+ * measurements killed it:
+ *
+ *   1. IT IS NOT THE COST. A bundled run is 34.6-35.0s against tsx's 35.8-36.4s,
+ *      measured interleaved, three pairs: ~1.0-1.5s, about 3%. Under four-way
+ *      concurrency, 36.4s against 38.1s for four runs — about 4%. The suite's time
+ *      is its OWN work (walking src, reading every file it judges, parsing the
+ *      migrations), not type-stripping.
+ *
+ *   2. A BUNDLE BUILT ONCE CANNOT SEE A BEHAVIOURAL SEED, AND SAYS SO SILENTLY.
+ *      The law judges src two ways: it READS source text at run time (which follows
+ *      the worktree, so a text seed shows up) and it IMPORTS and CALLS src modules
+ *      (which a bundle FREEZES at bundle time). Proved on seed 4b-p, which changes
+ *      src/lib/activities/quote.ts's logic: tsx exits 1 and catches it; the
+ *      once-per-run bundle exits 0 and prints "✔ The activity law passed". A proof
+ *      harness that reports a caught regression as caught-nothing is worse than a
+ *      slow one. On a text-only seed (4b-a) the two were byte-for-byte identical,
+ *      as was a clean-tree run — which is exactly why the failure is easy to miss.
+ *
+ * Bundling per SEED (after it is applied) would be correct, and costs only ~70-100ms
+ * to build — but it buys that same ~3-4%, for a second execution path whose failure
+ * mode is a proof that passes when it should fail. Not a trade worth making.
  */
 
 import { execFileSync, spawn } from 'node:child_process';

@@ -132,7 +132,6 @@ import { DEFAULT_ROUTINE_FORM } from '../src/components/workbench/operations/rou
 import { PROBLEM_SHEET } from '../src/lib/problemSheet';
 import { EXPECTED_STATUS_COUNTS, FAMILY_READS, TOOL_REGISTRY, registryLaw, statusCounts } from '../src/lib/toolRegistry';
 import { HOME_ANSWER, HOME_OWNER, HOME_PHASES, PHASES_RENDERED_AT, THE_SORT, navFamilies, navLaw, navRows } from '../src/lib/nav';
-import { TOOL_GATE } from '../src/lib/offer';
 import { PIPE_PHASES } from '../src/lib/pipePhases';
 import { INPUT_SIGNS, buyerAdmittedInputs } from '../src/lib/convergence/input-signs';
 import { GATE_CARDS, NOT_BUILT_STRATEGIES, README_GATE_CARDS_END, README_GATE_CARDS_START, gateCardsMarkdown } from '../src/lib/convergence/gateCards';
@@ -804,7 +803,7 @@ for (const kind of ARRIVAL_KINDS) {
 const landingSrc = codeOf('src/components/landing/Landing.tsx');
 if (!landingSrc.includes('{KIND_VIEWS_HONEST_LINE}')) violations.push("kind views: the deck's step 5 must render KIND_VIEWS_HONEST_LINE (never a retyped line)");
 console.log('THE KIND VIEWS — the census, each table once, the kind from the rule book');
-for (const t of KIND_VIEW_CENSUS) console.log(`${t.table.padEnd(26)} ${kindOfTable(t).padEnd(10)} ${Array.isArray(t.feed) ? `${t.feed[0]} · ${t.feed[1]}` : `by ${t.feed.column}: ${Object.values(t.feed.map).map(([p, r]) => `${p} · ${r}`).join(' | ')}`}`);
+for (const t of KIND_VIEW_CENSUS) console.log(`${t.table.padEnd(26)} ${kindOfTable(t).padEnd(10)} ${'column' in t.feed ? `by ${t.feed.column}: ${Object.values(t.feed.map).map(([p, r]) => `${p} · ${r}`).join(' | ')}` : `${t.feed[0]} · ${t.feed[1]}`}`);
 for (const v of effectiveViews) { const p = parseViews(v.sql)[0]; console.log(`view ${v.kind.padEnd(10)} ← ${p && p.tables.length ? p.tables.join(', ') : '(nothing)'}  — ${v.dir}`); }
 console.log(`stopped (reported, not viewed): ${STOPPED_TABLES.map((s) => s.table).join(' · ')}`);
 console.log(`honest line: ${KIND_VIEWS_HONEST_LINE}`);
@@ -1744,7 +1743,12 @@ for (const fx of [null, { vvix: null, vix9d: null, vix: null, vix3m: null, vix6m
   const rows = buildCboeRegimeInputs(fx);
   if (rows.length !== 4) m02Fail('inputs law', `buildCboeRegimeInputs returns ${rows.length} inputs — four (three term-structure ratios and SKEW)`);
   for (const r of rows) {
-    if (!('fetched_at' in r)) m02Fail('inputs law', `Cboe input ${r.key} carries no fetched_at`);
+    // The key is read BEFORE the presence check: `'fetched_at' in r` narrows r to
+    // never on the negative side (the type declares the field on every member), and
+    // the runtime check is exactly what this law is for — the builder could still
+    // return a row without it.
+    const rowKey = r.key;
+    if (!('fetched_at' in r)) m02Fail('inputs law', `Cboe input ${rowKey} carries no fetched_at`);
     if (r.weight !== 0) m02Fail('inputs law', `Cboe input ${r.key} has weight ${r.weight} — 0`);
     if (r.raw_value === null && !r.null_reason) m02Fail('inputs law', `Cboe input ${r.key} is null with no reason — a missing read is declared`);
   }
