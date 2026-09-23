@@ -85,3 +85,6 @@ audit-reports/
 # separate ruling); adding a NEW repo script deliberately requires git add -f.
 # (PR-SCRIPTS-GITIGNORE, 2026-08-06)
 scripts/
+
+# ACTIVITY-01 STEP 4c: the proof harness builds one git worktree per worker here.
+.proofs/
