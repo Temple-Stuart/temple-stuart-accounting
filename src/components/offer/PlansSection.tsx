@@ -24,7 +24,7 @@ import Link from 'next/link';
 import { DATA } from '@/lib/ds';
 import {
   CAPABILITY_GROUPS, CELL_LABEL, CELL_MARK, PLANS,
-  capabilityNotes, cellState, priceSlot, travelFreeLine,
+  BEST_VALUE_WORDS, capabilityNotes, cellState, priceSlot, travelFreeLine,
   type CapabilityRow, type Plan,
 } from '@/lib/offer/plans';
 
@@ -56,7 +56,19 @@ function Door({ door, plan, label }: { door: PlanDoor; plan: Plan; label: string
 function PriceSlot({ plan, door, where }: { plan: Plan; door: PlanDoor; where: 'card' | 'foot' }) {
   const slot = priceSlot(plan);
   return (
-    <div className="mt-auto flex min-h-[104px] flex-col justify-end gap-2" data-price-slot={slot.kind} data-price-where={where}>
+    <div className="mt-auto flex min-h-[128px] flex-col justify-end gap-2" data-price-slot={slot.kind} data-price-where={where}>
+      {/* THE BEST-VALUE POSITION. The bundle reserves it so nothing moves when a
+          price lands; with no price there is nothing to compare, so it holds its
+          height and says no words. */}
+      {slot.bestValue !== null && (
+        <div className="min-h-[20px]" data-best-value={slot.bestValue}>
+          {slot.bestValue === 'claimed' && (
+            <span className="rounded border border-brand-gold/50 px-1.5 py-px font-mono text-[10px] font-semibold uppercase tracking-wider text-brand-gold">
+              {BEST_VALUE_WORDS}
+            </span>
+          )}
+        </div>
+      )}
       {slot.kind === 'announced' ? (
         <>
           <div className="flex flex-wrap items-baseline gap-2">
@@ -78,15 +90,24 @@ function PriceSlot({ plan, door, where }: { plan: Plan; door: PlanDoor; where: '
   );
 }
 
-/** One cell: the mark the leaf's mapping chose for this plan and this row. */
-function Cell({ planId, row }: { planId: Plan['id']; row: CapabilityRow }) {
-  const state = cellState(planId, row);
+/**
+ * One cell: the mark the leaf's mapping chose for this plan and this row. The
+ * plan is passed whole — a plan IS its module set (OFFER-03), and the cell is set
+ * membership, not a position on a ladder.
+ *
+ * `hidden`: below `lg` the table shows ONE plan's column at a time (four check
+ * columns do not fit a 390px screen), chosen by the selector above it. At `lg`
+ * every column is shown.
+ */
+function Cell({ plan, row, hidden }: { plan: Plan; row: CapabilityRow; hidden: boolean }) {
+  const state = cellState(plan, row);
+  const planId = plan.id;
   const tone = state === 'ready' ? 'text-status-success'
     : state === 'partial' ? 'text-brand-amber'
     : state === 'coming' ? 'text-text-faint'
     : 'text-text-faint';
   return (
-    <td className="px-3 py-2 text-center" data-cell={planId} data-cell-state={state}>
+    <td className={`px-3 py-2 text-center ${hidden ? 'hidden lg:table-cell' : ''}`} data-cell={planId} data-cell-state={state}>
       <span className={`font-mono text-sm ${tone}`} title={CELL_LABEL[state]}>{CELL_MARK[state]}</span>
       <span className="sr-only">{CELL_LABEL[state]}</span>
     </td>
@@ -99,6 +120,11 @@ export default function PlansSection({ door, headingId = 'modules' }: {
   headingId?: string;
 }) {
   const [open, setOpen] = useState<string | null>(null);
+  // THE PHONE COLUMN. Four check columns do not fit a 390px screen, so below `lg`
+  // the table shows ONE plan's column and this selector chooses it; at `lg` every
+  // column shows and the selector is hidden. The default is the base, which is what
+  // everyone gets.
+  const [shown, setShown] = useState<Plan['id']>(PLANS[0].id);
   const freeLine = travelFreeLine();
 
   return (
@@ -108,15 +134,26 @@ export default function PlansSection({ door, headingId = 'modules' }: {
           PLANS <span className="text-brand-gold">·</span> WHAT EACH ONE IS FOR
         </p>
         <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">
-          Three plans. Each one adds to the one before it.
+          One base, two modules. Take the one you need.
         </h2>
 
-        {/* THE CARDS — positioning, three benefits, the price slot, one button. */}
-        <div className="mt-6 grid gap-4 lg:grid-cols-3">
+        {/* THE CARDS — NOT four identical columns. The base reads first and says so;
+            the two modules read as what they add to it; the bundle closes the row in
+            the aubergine frame. At 390px they stack in that order (grid, one column).
+            Every word is the leaf's. */}
+        <div className="mt-6 grid gap-4 lg:grid-cols-4">
           {PLANS.map((plan) => (
-            <div key={plan.id} className={CARD} data-plan={plan.id}>
+            <div
+              key={plan.id}
+              className={`${CARD} ${plan.id === 'everything' ? 'border-brand-purple shadow-sm' : ''} ${plan.id === 'personal' ? 'border-brand-gold/60' : ''}`}
+              data-plan={plan.id}
+              data-plan-modules={plan.modules.join(' ')}
+            >
               <div>
-                <h3 className="text-lg font-semibold text-brand-purple" data-plan-name>{plan.name}</h3>
+                <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-faint" data-plan-role>
+                  {plan.id === 'personal' ? 'The base' : plan.id === 'everything' ? 'The bundle' : 'The base + one module'}
+                </p>
+                <h3 className="mt-1 text-lg font-semibold text-brand-purple" data-plan-name>{plan.name}</h3>
                 <p className="mt-1 text-sm text-text-primary" data-plan-positioning>{plan.positioning}</p>
                 <p className="mt-2 text-xs text-text-muted" data-plan-audience>{plan.audience}</p>
                 <p className="mt-1 text-xs text-text-secondary" data-plan-relationship>{plan.relationship}</p>
@@ -137,15 +174,34 @@ export default function PlansSection({ door, headingId = 'modules' }: {
         {/* TRAVEL's free line — once, under the cards, from the registry's own row. */}
         {freeLine && <p className="mt-4 text-[13px] text-text-secondary" data-travel-free>{freeLine}</p>}
 
+        {/* THE PHONE PLAN SELECTOR — four check columns do not fit 390px, so below
+            `lg` the table shows one plan's column at a time and these four buttons
+            reach every one of them. At `lg` the selector is hidden and all four
+            columns show. */}
+        <div className="mt-8 flex flex-wrap gap-2 lg:hidden" role="group" aria-label="Choose a plan to compare" data-plan-selector>
+          {PLANS.map((plan) => (
+            <button
+              key={plan.id}
+              type="button"
+              aria-pressed={shown === plan.id}
+              onClick={() => setShown(plan.id)}
+              data-plan-select={plan.id}
+              className={`rounded border px-2.5 py-1.5 text-xs font-semibold ${shown === plan.id ? 'border-brand-purple bg-brand-purple text-white' : 'border-border bg-white text-brand-purple'}`}
+            >
+              {plan.name}
+            </button>
+          ))}
+        </div>
+
         {/* THE TABLE — collapsed groups, the plan columns headed by the same
             audience and relationship lines the cards carry. */}
-        <div className="mt-8 overflow-x-auto rounded-lg border border-border bg-white" data-plan-table>
-          <table className="w-full min-w-[720px] text-sm">
+        <div className="mt-3 overflow-x-auto rounded-lg border border-border bg-white" data-plan-table>
+          <table className="w-full text-sm lg:min-w-[720px]">
             <thead>
               <tr className="border-b border-border bg-bg-row text-left align-top">
                 <th className={`px-3 py-3 ${DATA.columnHeader}`}>What you can do</th>
                 {PLANS.map((plan) => (
-                  <th key={plan.id} className="px-3 py-3 text-center" data-column={plan.id}>
+                  <th key={plan.id} className={`px-3 py-3 text-center ${plan.id === shown ? '' : 'hidden lg:table-cell'}`} data-column={plan.id}>
                     <div className="text-sm font-semibold text-brand-purple">{plan.name}</div>
                     <div className="mt-1 text-[11px] font-normal normal-case tracking-normal text-text-muted" data-column-audience>{plan.audience}</div>
                     <div className="mt-0.5 text-[11px] font-normal normal-case tracking-normal text-text-secondary" data-column-relationship>{plan.relationship}</div>
@@ -190,7 +246,7 @@ export default function PlansSection({ door, headingId = 'modules' }: {
                             </ul>
                           )}
                         </td>
-                        {PLANS.map((plan) => <Cell key={plan.id} planId={plan.id} row={row} />)}
+                        {PLANS.map((plan) => <Cell key={plan.id} plan={plan} row={row} hidden={plan.id !== shown} />)}
                       </tr>
                     );
                   })}
@@ -202,7 +258,7 @@ export default function PlansSection({ door, headingId = 'modules' }: {
               <tr className="border-t border-border bg-bg-row align-top">
                 <td className="px-3 py-4 text-[13px] text-text-secondary">Pick the plan that fits, and add to it later.</td>
                 {PLANS.map((plan) => (
-                  <td key={plan.id} className="px-3 py-4 text-center" data-foot={plan.id}>
+                  <td key={plan.id} className={`px-3 py-4 text-center ${plan.id === shown ? '' : 'hidden lg:table-cell'}`} data-foot={plan.id}>
                     <div className="mx-auto flex max-w-[220px] flex-col items-center gap-2">
                       <PriceSlot plan={plan} door={door} where="foot" />
                     </div>

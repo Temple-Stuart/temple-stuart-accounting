@@ -151,7 +151,7 @@ import { KIND_VIEWS_HONEST_LINE, KIND_VIEW_CENSUS, STOPPED_TABLES, VIEW_COLUMNS,
 // SELL-02: the offer law — every sales claim from the registry, every price from one source.
 import { FREE_TOOLS, OFFERS, TOOL_GATE, heroCountsLine, offerCard, offerLaw, priceEnvName } from '../src/lib/offer';
 // OFFER-01: the plans leaf — the public offer's one source.
-import { CAPABILITY_GROUPS, EARLY_ACCESS_CTA, LAUNCH_PLACEHOLDER, PLANS, PLAN_ORDER, STATUS_TO_CELL, cellState, planLaw, priceSlot, weakestStatus } from '../src/lib/offer/plans';
+import { BEST_VALUE_WORDS, CAPABILITY_GROUPS, EARLY_ACCESS_CTA, LAUNCH_PLACEHOLDER, MODULES, PLANS, PLAN_ORDER, STATUS_TO_CELL, cellState, planLaw, priceSlot, weakestStatus } from '../src/lib/offer/plans';
 // DRILL-01: where an entry came from — the pure mapping the book surfaces render.
 import { NO_SOURCE_WORDS, SOURCE_RULES, coverageOf, entrySourceOf, statedFacts } from '../src/lib/books/entrySource';
 import { DYNAMIC_READ_ENV, LIBRARY_READ_ENV } from '../src/lib/envLaw';
@@ -4679,7 +4679,7 @@ lawGuard('The lockfile law', () => {
 //
 // It reads six component files plus the strip through code() and comments() and
 // costs milliseconds: no render, no network, no metered call.
-// ── THE PLAN LAW (OFFER-01, 2026-09-23) ──────────────────────────────────────
+// ── THE PLAN LAW (OFFER-01, 2026-09-23; the module model, OFFER-03) ──────────────────────────────────────
 // THE CUSTOMER'S PAGE SHOWS THE CUSTOMER'S OFFER.
 //
 // WHAT IT CLOSES. On main 3f84ac5d the public offer was the builder's view. The
@@ -4955,17 +4955,24 @@ lawGuard('The plan law', () => {
   for (const g of CAPABILITY_GROUPS) {
     for (const row of g.rows) {
       const weakest = weakestStatus(row.tools);
-      for (const plan of PLAN_ORDER) {
+      for (const plan of PLANS) {
         const state = cellState(plan, row);
-        if (state === 'absent') continue;
+        // OFFER-03: a cell is SET MEMBERSHIP. A plan that does not hold the row's
+        // module renders "—" and nothing else; a plan that holds it renders the
+        // weakest backing state.
+        if (!plan.modules.includes(row.module)) {
+          if (state !== 'absent') planFail(`${g.id} · "${row.label}" reads "${state}" for ${plan.id}, which holds [${plan.modules.join(', ')}] and not the ${row.module} module`);
+          continue;
+        }
+        if (state === 'absent') { planFail(`${g.id} · "${row.label}" reads "—" for ${plan.id}, which DOES hold the ${row.module} module`); continue; }
         if (weakest === 'PARTIAL') {
           partialCells += 1;
-          if (state !== 'partial') planFail(`${g.id} · "${row.label}" stands on a PARTIAL tool and reads "${state}" for ${plan} — a partly built capability is ◐, never ✓`);
+          if (state !== 'partial') planFail(`${g.id} · "${row.label}" stands on a PARTIAL tool and reads "${state}" for ${plan.id} — a partly built capability is ◐, never ✓`);
         }
         if (state === 'ready') {
           readyCells += 1;
           const notLive = row.tools.filter((t) => TOOL_REGISTRY.find((e) => e.name === t)?.status !== 'LIVE');
-          if (notLive.length) planFail(`${g.id} · "${row.label}" reads ✓ for ${plan} while ${notLive.join(', ')} is not LIVE`);
+          if (notLive.length) planFail(`${g.id} · "${row.label}" reads ✓ for ${plan.id} while ${notLive.join(', ')} is not LIVE`);
         }
       }
     }
@@ -4995,14 +5002,15 @@ lawGuard('The plan law', () => {
 
   // ── CLAUSE 5. THE THREE RELATIONSHIP LINES ARE THE CUMULATIVE ONES. ──
   const RELATIONSHIPS: readonly string[] = [
-    'Personal finance tools.',
-    'Everything in Personal, plus business tools.',
-    'Everything in Business & Personal, plus the trading book.',
+    'Your own money, start to finish.',
+    'Everything in Personal, plus the company.',
+    'Everything in Personal, plus the trading book.',
+    'Personal, the company and the trading book, in one set of records.',
   ];
   PLANS.forEach((p, i) => {
-    if (p.relationship !== RELATIONSHIPS[i]) planFail(`${p.id}'s relationship line is "${p.relationship}", not "${RELATIONSHIPS[i]}" — the ladder says how each plan stands to the one below it`);
+    if (p.relationship !== RELATIONSHIPS[i]) planFail(`${p.id}'s relationship line is "${p.relationship}", not "${RELATIONSHIPS[i]}" — the line says which modules the plan holds`);
   });
-  const NAMES: readonly string[] = ['Personal', 'Business & Personal', 'Trading, Business & Personal'];
+  const NAMES: readonly string[] = ['Personal', 'Personal + Business', 'Personal + Trading', 'Everything'];
   PLANS.forEach((p, i) => {
     if (p.name !== NAMES[i]) planFail(`plan ${i + 1} is named "${p.name}", not "${NAMES[i]}"`);
   });
@@ -5023,12 +5031,50 @@ lawGuard('The plan law', () => {
     if (!codeOf(f).includes('#modules')) planFail(`${f} no longer names #modules — if the door moved, the section it lands on must move with it`);
   }
 
+  // ── OFFER-03: THE MODULE MODEL, ON THE SURFACE. ──
+  // Every module is sold; the two are independent; the bundle alone reserves the
+  // best-value position and claims nothing while the prices are unset.
+  const MODULE_SET = new Set(CAPABILITY_GROUPS.flatMap((g) => g.rows.map((r) => r.module)));
+  for (const m of MODULES) {
+    if (!MODULE_SET.has(m)) planFail(`no capability row belongs to the ${m} module — a module with no rows is sold empty`);
+    if (!PLANS.some((p) => p.modules.includes(m))) planFail(`the ${m} module is in no plan`);
+  }
+  for (const [have, without] of [['business', 'trading'], ['trading', 'business']] as const) {
+    if (!PLANS.some((p) => p.modules.includes(have) && !p.modules.includes(without))) {
+      planFail(`${have} is reachable only together with ${without} — the two modules are independent`);
+    }
+  }
+  for (const p of PLANS) {
+    const slot = priceSlot(p);
+    if (p.price.monthly === null && slot.bestValue === 'claimed') planFail(`${p.id} claims the best-value mark with no price set`);
+    if (slot.bestValue !== null && p.id !== 'everything') planFail(`${p.id} carries a best-value position — only the bundle does`);
+  }
+  // The section reserves the position, and types the words nowhere: they are the leaf's.
+  if (!sectionSrc.includes('slot.bestValue')) planFail(`${PLANS_SECTION} does not render the reserved best-value position`);
+  if (!sectionSrc.includes('BEST_VALUE_WORDS')) planFail(`${PLANS_SECTION} does not read BEST_VALUE_WORDS from the leaf`);
+  for (const m of sectionSrc.matchAll(/(['"`])((?:\\.|(?!\1)[^\\])*)\1/g)) {
+    if (m[2].toLowerCase().includes(BEST_VALUE_WORDS.toLowerCase())) planFail(`${PLANS_SECTION} types "${m[2]}" — the best-value words live in the leaf and render only when a slot claims them`);
+  }
+  // THE PHONE COLUMN: four check columns do not fit 390px, so one plan shows at a
+  // time below `lg` and a selector reaches every plan.
+  if (!sectionSrc.includes('data-plan-selector')) planFail(`${PLANS_SECTION} renders no plan selector — at phone width the table shows one column and every plan must still be reachable`);
+  if (!/data-plan-select=\{plan\.id\}/.test(sectionSrc)) planFail(`${PLANS_SECTION}'s selector is not built from PLANS — every plan must have a button`);
+  if (!sectionSrc.includes("hidden lg:table-cell")) planFail(`${PLANS_SECTION} does not gate its columns below lg — four check columns do not fit a phone`);
+  // And the table's desktop floor is gated with them: a 720px minimum under a 390px
+  // phone pushes the one column the selector chose off the screen entirely.
+  for (const m of sectionSrc.matchAll(/<table className="([^"]*)"/g)) {
+    const cls = m[1].split(/\s+/);
+    const ungated = cls.filter((c) => /^min-w-/.test(c));
+    if (ungated.length > 0) planFail(`${PLANS_SECTION}'s table carries ${ungated.join(' ')} at every width — a desktop floor must be gated (lg:min-w-…) or the selected column sits off a phone's screen`);
+    if (!cls.some((c) => /^lg:min-w-/.test(c))) planFail(`${PLANS_SECTION}'s table declares no lg:min-w-… — the four columns need their floor from lg up`);
+  }
+
   // Travel's free line sits once, derived from the registry's own Travel row.
   if (!sectionSrc.includes('travelFreeLine()')) planFail(`${PLANS_SECTION} does not call travelFreeLine() — Travel's free line derives from the registry's Travel row, never typed`);
   if ((sectionSrc.match(/data-travel-free/g) ?? []).length !== 1) planFail(`${PLANS_SECTION} renders Travel's free line ${(sectionSrc.match(/data-travel-free/g) ?? []).length} times — it sits once, under the cards`);
 
   if (planViolations === 0) {
-    console.log(`✔ The plan law passed — ${PLANS.length} cumulative plans over ${CAPABILITY_GROUPS.length} capability groups and ${CAPABILITY_GROUPS.reduce((n, g) => n + g.rows.length, 0)} rows accounting for all ${TOOL_REGISTRY.length} registry tools; every cell derived (${readyCells} ✓, ${partialCells} ◐) with no ✓ over a tool that is not LIVE; the price slot is the launch placeholder on all three while their constants are unset; no tool count, no beat name and no persona grid on ${PLAN_SURFACES.length} plan surfaces.`);
+    console.log(`✔ The plan law passed — ${PLANS.length} plans over ${MODULES.length} modules (${PLANS.map((p) => `${p.id}{${p.modules.join(',')}}`).join(' ')}), ${CAPABILITY_GROUPS.length} capability groups and ${CAPABILITY_GROUPS.reduce((n, g) => n + g.rows.length, 0)} rows accounting for all ${TOOL_REGISTRY.length} registry tools; every cell is set membership (${readyCells} ✓, ${partialCells} ◐) with no ✓ over a tool that is not LIVE and no cell drawn for a module its plan does not hold; the price slot is the launch placeholder on all ${PLANS.length} and the bundle's best-value position is reserved, not claimed; no tool count, no beat name and no persona grid on ${PLAN_SURFACES.length} plan surfaces.`);
   } else {
     console.log(`✖ The plan law FAILED — ${planViolations} violation(s).`);
   }
