@@ -9,6 +9,9 @@ import { MissingLiteApiKeyError, LiteApiError } from '@/lib/travelErrors';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
+// FL-5b: the confirmation email, restored to this lane.
+import { sendTransactionalEmail } from '@/lib/email';
+import { flightConfirmation } from '@/lib/emailTemplates/flightConfirmation';
 // CAL-01: a flight has no date of travel in its landed payload — the decision leaf
 // says so by name rather than inventing one.
 import { flightCalendarDecision, writeBookingCalendarEvent } from '@/lib/calendar/bookingEvent';
@@ -43,7 +46,7 @@ export async function POST(request: NextRequest) {
     // GUARD 1 — per-IP rate limit (tight window; booking is the real spend).
     await rateLimit(`liteapi-flight-book:${ip}`, { limit: 3, windowSeconds: 300 });
 
-    let body: { prebookId?: unknown; transactionId?: unknown };
+    let body: { prebookId?: unknown; transactionId?: unknown; contactEmail?: unknown };
     try {
       body = await request.json();
     } catch {
@@ -55,6 +58,35 @@ export async function POST(request: NextRequest) {
     if (!prebookId || !transactionId) {
       return NextResponse.json(
         { error: 'prebookId and transactionId are required' },
+        { status: 400 }
+      );
+    }
+
+    // ─── FL-5b: THE CONTACT, REQUIRED ───────────────────────────────────────
+    // This route used to take { prebookId, transactionId } only, and its own
+    // comment said so: the contact was collected at prebook and Nuitee holds it,
+    // "guestEmail stays null for guests. FL-5b (confirmation email) is where a
+    // contact re-enters this lane." This is that lane.
+    //
+    // The panel already holds this address — it is the one it validated and sent
+    // at prebook (LiteApiFlightCheckoutPanel.tsx:178, :225) — and now sends it
+    // here too. It is REQUIRED, not optional: a paid flight with nowhere to send
+    // the confirmation is not a booking anyone can use. Refused BY NAME and
+    // BEFORE the provider call, so a malformed address costs no money.
+    //
+    // The regex is the prebook route's own (flights/prebook/route.ts:64),
+    // character for character — one contract, validated the same way at both
+    // ends. Nothing here defaults a recipient or substitutes the account's email.
+    const contactEmail = typeof body.contactEmail === 'string' ? body.contactEmail.trim() : '';
+    if (!contactEmail) {
+      return NextResponse.json(
+        { error: 'contactEmail is required — the confirmation has nowhere to go without it' },
+        { status: 400 }
+      );
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
+      return NextResponse.json(
+        { error: 'contactEmail must be a valid email address' },
         { status: 400 }
       );
     }
@@ -273,8 +305,57 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // ─── FL-5b: the confirmation email ─────────────────────────────────────
+      // The hotel hook's pattern, exactly (liteapi/book/route.ts:277-311): sent
+      // ONLY after the provider booking AND the db persist both succeeded, in its
+      // own try/catch, logged loudly on failure, reported as email.sent — and the
+      // booking response NEVER fails because email failed. No retry, no alternate
+      // transport, no substituted recipient.
+      //
+      // The passenger's name comes off the LANDED payload's own passengers array
+      // (`object` is data[0].booking). parseFlightBookResult does not map it, so
+      // it is read here rather than invented — and when the payload names nobody,
+      // the template drops the line instead of guessing.
+      const paxList = Array.isArray((object as { passengers?: unknown }).passengers)
+        ? ((object as { passengers: Array<Record<string, unknown>> }).passengers)
+        : [];
+      const firstPax = paxList[0];
+      const paxName = firstPax
+        ? [firstPax.firstName, firstPax.lastName].filter((n): n is string => typeof n === 'string' && n.trim().length > 0).join(' ').trim()
+        : '';
+
+      let emailStatus: { sent: true; id: string } | { sent: false; error: string };
+      try {
+        const rendered = flightConfirmation({
+          passengerName: paxName || null,
+          passengerCount: paxList.length,
+          bookingId: parsed.bookingId,
+          bookingRef: parsed.bookingRef,
+          pnr: parsed.pnr,
+          // The reservation's own stored figure, already integer cents.
+          totalAmountCents: result.finalPriceCents,
+          currency: result.currency,
+          status: parsed.status ?? null,
+        });
+        const { id } = await sendTransactionalEmail({
+          to: contactEmail,
+          subject: rendered.subject,
+          html: rendered.html,
+          text: rendered.text,
+        });
+        emailStatus = { sent: true, id };
+      } catch (emailErr) {
+        const errorClass = emailErr instanceof Error ? emailErr.name : 'UnknownError';
+        const message = emailErr instanceof Error ? emailErr.message : String(emailErr);
+        console.error('[LiteAPI flights book] confirmation email FAILED (booking itself succeeded):', {
+          bookingId: parsed.bookingId, reservationId: result.id, errorClass, message,
+        });
+        emailStatus = { sent: false, error: errorClass };
+      }
+
       // WHITELISTED envelope (ruled): the seven fields, provider status
       // VERBATIM — PENDING_CONFIRMATION arrives here as a 200 success shape.
+      // FL-5b adds `email`, the hotel envelope's own eighth field.
       return NextResponse.json({
         bookingId: parsed.bookingId,
         bookingRef: parsed.bookingRef,
@@ -283,6 +364,7 @@ export async function POST(request: NextRequest) {
         pnr: parsed.pnr,
         price: parsed.price,
         currency: parsed.currency,
+        email: emailStatus,
       });
     } catch (dbErr) {
       // LiteAPI booked the flight but we failed to land or persist — the whole

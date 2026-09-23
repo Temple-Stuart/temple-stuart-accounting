@@ -84,7 +84,7 @@ function todayUtc(): string {
 
 type Phase = 'form' | 'prebooking' | 'pay' | 'booking' | 'booked' | 'bookFailed' | 'expired';
 
-/** The book route's whitelisted envelope (FL-5, flights/book/route.ts). */
+/** The book route's whitelisted envelope (FL-5, flights/book/route.ts; FL-5b added `email`). */
 interface BookEnvelope {
   bookingId: string;
   bookingRef: string | null;
@@ -93,6 +93,9 @@ interface BookEnvelope {
   pnr: string | null;
   price: number | null;
   currency: string | null;
+  /** FL-5b: whether the confirmation reached the contact. A false here never
+   *  means the booking failed — the booking is done and paid either way. */
+  email?: { sent: true; id: string } | { sent: false; error: string };
 }
 
 export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, onBooked }: Props) {
@@ -140,7 +143,11 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
       const res = await fetch('/api/travel/liteapi/flights/book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prebookId: pb.prebookId, transactionId: pb.transactionId }),
+        // FL-5b: the contact rides along. It is the SAME address this panel
+        // validated and sent at prebook (:178, :225) — the route requires it and
+        // refuses by name without it, because a paid flight whose confirmation
+        // has nowhere to go is not a booking anyone can use.
+        body: JSON.stringify({ prebookId: pb.prebookId, transactionId: pb.transactionId, contactEmail: email.trim() }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 410 || data?.code === 'offer_expired') {
@@ -387,6 +394,19 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, o
             <p className="text-xs text-text-secondary">
               Total charged: {bookResult.currency ?? ''} {bookResult.price.toFixed(2)}
             </p>
+          )}
+          {/* FL-5b: whether the confirmation went out, said either way. A booking
+              that could not be emailed is still a booking, and the reference above
+              is what the traveller keeps — so this states the fact and does not
+              dress it up as a failure of the booking. */}
+          {bookResult.email && (
+            bookResult.email.sent ? (
+              <p className="text-xs text-text-secondary" data-flight-email="sent">A confirmation is on its way to your email.</p>
+            ) : (
+              <p className="text-xs text-brand-amber" data-flight-email="failed">
+                We could not send the confirmation email. Your booking is complete and paid — keep the reference above.
+              </p>
+            )
           )}
         </div>
       )}
