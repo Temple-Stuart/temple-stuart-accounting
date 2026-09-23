@@ -420,19 +420,30 @@ export function cellState(plan: Pick<Plan, 'modules'>, row: CapabilityRow, regis
 export interface CapabilityNote {
   name: ToolName;
   status: ToolStatus;
-  why: string | null;
+  /**
+   * The registry's CUSTOMER sentence. There is no `why` on this type: WHY-01 took
+   * the builder's note off the public table for good, and a field that is not
+   * carried cannot leak.
+   */
+  customer: string | null;
 }
 
 /**
  * What an opened group says about a row that is not ✓: each backing tool, its
- * status, and the registry's own `why` VERBATIM. A PARTIAL tool the registry
- * gives no `why` (the registry law requires one only at four beats) says nothing
- * more than its status — nothing is invented to fill the gap.
+ * status, and the registry's CUSTOMER sentence.
+ *
+ * WHY-01 (2026-09-23): this used to hand over the registry's `why` verbatim —
+ * the builder's evidence, PR ids, table and pipeline names and all, straight onto
+ * the public plans table. `why` is unchanged and still the laws' citation; it
+ * simply never travels through here again. The plan law requires a `customer`
+ * sentence of every tool a plan row can show as ◐ or Coming, so a null here means
+ * a tool was added without one and the build has already failed by name — nothing
+ * is invented to fill the gap.
  */
 export function capabilityNotes(row: CapabilityRow, registry: readonly ToolEntry[] = TOOL_REGISTRY): CapabilityNote[] {
   return row.tools.map((name) => {
     const tool = entryOf(name, registry);
-    return { name, status: tool.status, why: tool.why?.trim() ? tool.why : null };
+    return { name, status: tool.status, customer: tool.customer?.trim() ? tool.customer : null };
   });
 }
 

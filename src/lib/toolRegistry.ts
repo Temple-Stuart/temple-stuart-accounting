@@ -76,6 +76,19 @@ export interface ToolFacts {
   note?: string;
   /** TRUTH-01: a PARTIAL tool with all four beats cited says here what is NOT done for a customer on production — the law throws without it. */
   why?: string;
+  /**
+   * WHY-01 (2026-09-23): the same truth, WRITTEN FOR THE CUSTOMER — one plain
+   * sentence saying what this job does today and what it does not do yet.
+   *
+   * `why` above is the BUILDER's evidence and the laws cite it, so it keeps its
+   * every word: PR ids, table names, pipeline names, "the founder". It used to be
+   * what the public plans table showed when a group expanded. It no longer reaches
+   * a customer surface — this field does, and carries none of that vocabulary.
+   *
+   * Required of every tool a plan row can show as ◐ or Coming; the plan law names
+   * any tool that lacks one. A sentence may only say what the tool does TODAY.
+   */
+  customer?: string;
 }
 
 export interface ToolEntry extends ToolFacts {
@@ -136,6 +149,7 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     links: [],
     citation: 'discover: src/components/hub/HubCalendar.tsx:192 (/api/calendar) · :208 (/api/operations/daily-plan/items) · :220 (/api/hub/operations-routines) — three GETs, the grid writes nothing · record: src/components/hub/HubCalendar.tsx:199 (the rendered-source filter) · src/lib/calendar/day.ts:304 (dayParts — every row counted into its named part) · src/lib/calendar/sources.ts:84 (manual) · src/components/hub/DayView.tsx:221 (the hand-entered badge) · src/app/api/calendar/events/route.ts:82 (PATCH — a pre-ruling row re-stated and read back) · :123 (DELETE) · no commit: no POST since ONEOFF-01, nothing is authored on the calendar · no decide: no persisted draft',
     note: 'Nine calendar_events sources render, each named with its writer and its reason in src/lib/calendar/sources.ts:82-157; "project" and "routines" are named EXCLUDED at :170-179 because they reach the grid already through their own loaders, and admitting them would draw every block twice. DAY-01 deleted the bare source === "trip" filter this note used to describe. ONEOFF-01 closed the manual writer — its rows are pre-ruling and stay editable; a new one-off is a routine.',
+    customer: 'Your trips, routines, project blocks and what each day costs all show on one grid; the days themselves are planned elsewhere, not here.',
   },
   Tasks: {
     // TOOL-LAW-01: one tool, one page. /operations was Tasks AND Time on one
@@ -168,6 +182,7 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
       { label: 'Audit trail', href: '/operations/audit-log' },
     ],
     citation: 'src/app/api/operations/projects/[id]/tasks/route.ts:43 · generate-tasks/route.ts:42 · tasks/bulk-create/route.ts:117 · tasks/[taskId]/route.ts:82 → :339, :370; accepting a pending_review task fires the paid build at tasks/[taskId]/route.ts:392-402',
+    customer: 'You can plan projects and routines with what each one should cost, and see them on your calendar; what a task actually cost is still typed in by hand.',
   },
   Time: {
     // TOOL-LAW-01: one tool, one page. /time renders the content pipe's four
@@ -177,28 +192,49 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     why: 'day blocks and a daily log inside the Narrative pipeline; no time tool',
     links: [],
     citation: 'src/app/api/operations/tasks/unscheduled/route.ts · daily-plan/items/route.ts:120 · daily-plan/items/[itemId]/blocks/route.ts:36 · daily-plan/blocks/[blockId]/route.ts:38, :163',
+    customer: 'You can block out a day and keep a daily log; there is no separate place yet that adds up where your hours went.',
   },
   // ── MONEY IN ──
   CRM: {
     slug: 'crm', status: 'NOT_BUILT', beats: NONE, home: null,
     citation: "/owner is the founder's proposals inbox — no contact or deal object (src/app/api/owner/proposals/route.ts)",
+    customer: 'There is nowhere yet to keep the people you sell to, or track where each one stands.',
   },
-  Contracts: { slug: 'contracts', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 5 — no page, route, or model' },
-  Invoicing: { slug: 'invoicing', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 6 — no invoice model, no A/R route' },
-  Payments: { slug: 'payments', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 7 — Stripe routes are the product\'s own billing; commission_ledger (schema:1397) is a Travel byproduct' },
+  Contracts: {
+    slug: 'contracts', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 5 — no page, route, or model',
+    customer: 'There is nowhere yet to keep a signed contract or what you agreed to in it.',
+  },
+  Invoicing: {
+    slug: 'invoicing', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 6 — no invoice model, no A/R route',
+    customer: 'You cannot send an invoice or see who has not paid yet.',
+  },
+  Payments: {
+    slug: 'payments', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 7 — Stripe routes are the product\'s own billing; commission_ledger (schema:1397) is a Travel byproduct',
+    customer: 'Money arriving is not yet matched to the invoice that earned it.',
+  },
   // ── MONEY OUT ──
-  'Bill Pay': { slug: 'bill-pay', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 8 — operations_vendor_directory (schema:3478) is a read-only GET (vendor-directory/route.ts:12)' },
-  Payroll: { slug: 'payroll', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 9 — no page, route, or model' },
+  'Bill Pay': {
+    slug: 'bill-pay', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 8 — operations_vendor_directory (schema:3478) is a read-only GET (vendor-directory/route.ts:12)',
+    customer: 'You cannot schedule or pay a bill here yet.',
+  },
+  Payroll: {
+    slug: 'payroll', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 9 — no page, route, or model',
+    customer: 'You cannot run payroll here yet, or see the taxes that come with it.',
+  },
   Expenses: {
     slug: 'expenses', status: 'NOT_BUILT', beats: NONE, home: null,
     citation: "trip cost split on the trip planner (src/app/api/trips/[id]/expenses/route.ts:70) is Travel's, not an expenses tool",
+    customer: 'Receipts are not yet matched to the charge that made them.',
   },
   Travel: {
     slug: 'travel', status: 'LIVE', beats: ALL, home: '/travel', cockpitKey: 'travel',
     links: [{ label: 'Trips · the legacy pages', href: '/budgets/trips' }],
     citation: 'src/app/api/travel/liteapi/flights/search/route.ts:23 · travel/liteapi/prebook/route.ts:40 · travel/liteapi/book/route.ts:134 · :169, :193',
   },
-  Mileage: { slug: 'mileage', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 12 — no miles or odometer column in prisma/schema.prisma' },
+  Mileage: {
+    slug: 'mileage', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 12 — no miles or odometer column in prisma/schema.prisma',
+    customer: 'Miles driven are not tracked yet, or priced for the return.',
+  },
   Budget: {
     slug: 'budget', status: 'PARTIAL', beats: ALL, home: '/budget',
     why: 'actuals by entity plus recurring lines on module_expenses; no plan vs actual; no personal · trade · travel roll-up',
@@ -216,6 +252,7 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     ],
     citation: 'src/components/dashboard/BudgetingPage.tsx:47 · src/app/api/home/route.ts:33-63 · :89 (draft :107) · src/app/api/home/[id]/route.ts:143 · :118-139, :81-89',
     note: 'Six category pages, reachable from no menu until this PR; the draft form works on /business only (coaAccounts, census note B).',
+    customer: 'You can see what you actually spent and set amounts that repeat; it does not yet compare that against a plan, or add your personal, trading and travel spending into one view.',
   },
   // ── WHAT YOU OWN ──
   // ACCOUNTS-01b: Banking's home is its OWN screen. Until ACCOUNTS-01 the tool had
@@ -226,9 +263,16 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   Banking: {
     slug: 'banking', status: 'PARTIAL', beats: some({ discover: true }), home: '/accounts',
     citation: 'src/components/accounts/AccountsClient.tsx:118 (connect) · :127 (sync) · :201 (reconnect), through src/components/bank/useBankConnection.ts:83 · :101 · :122 · :164 · src/app/api/accounts/route.ts:6; no transfer route exists',
+    customer: 'You can connect your bank and card accounts and refresh their balances; no money is moved from here.',
   },
-  'Fixed Assets': { slug: 'fixed-assets', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 15 — no depreciation or placed-in-service field' },
-  Retirement: { slug: 'retirement', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 16 — 1099-R intake at src/app/api/tax/calculate/route.ts:250 is Tax' },
+  'Fixed Assets': {
+    slug: 'fixed-assets', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 15 — no depreciation or placed-in-service field',
+    customer: 'The things you own that lose value over time are not tracked yet.',
+  },
+  Retirement: {
+    slug: 'retirement', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 16 — 1099-R intake at src/app/api/tax/calculate/route.ts:250 is Tax',
+    customer: 'Retirement accounts do not sit beside the rest of your money yet.',
+  },
   // ACCOUNTS-01b: the home is /trading, the full room — it is the only surface that
   // CONNECTS a brokerage (src/app/trading/page.tsx:263 /api/tastytrade/connect) and it
   // carries chains, positions and the journal. The cockpit's Trade tab connects
@@ -240,6 +284,7 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     slug: 'brokerage', status: 'PARTIAL', beats: some({ discover: true, decide: true }), home: '/brokerage',
     why: "runs on the founder's broker until per-user connections ship (TT-02)",
     citation: 'src/app/api/tastytrade/chains/route.ts:58 · scanner/route.ts:205 · src/app/api/trade-cards/route.ts:72 (status queued :92); no order is ever sent (ConvergenceIntelligence.tsx:840)',
+    customer: 'Positions and balances show from one connected brokerage account; connecting your own broker is not available yet.',
   },
   // SHELL-02: the "Grade · on the Trade tab" sub-link is gone. The room is
   // /trading — the step's own screen — and a rail row pointing back into the
@@ -254,11 +299,21 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     slug: 'trade-log', status: 'PARTIAL', beats: some({ discover: true, commit: true, record: true }), home: '/trade-log',
     why: 'a customer cannot log a trade: a position exists only once a Plaid-synced investment transaction is committed, and there is no manual entry — so the job is not done for a customer on production yet (TRADE-LOG-01)',
     citation: 'src/app/trading/page.tsx:640 → src/app/api/trading/commit-to-ledger/route.ts:168 · page.tsx:733 → /api/trading-journal · src/app/api/transactions/sync-complete/route.ts:185 → :242 · investment-transactions/commit-to-ledger/route.ts:106 → src/lib/position-tracker-service.ts:170, :307-311 · :601, :619; no persisted draft',
+    customer: 'Trades show only once they arrive from a synced brokerage feed and are posted to the books; you cannot enter one by hand yet.',
   },
   // ── WHAT YOU OWE ──
-  Debt: { slug: 'debt', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 19 — src/app/api/net-worth/route.ts:36 is a totals read; no schedule, no lender' },
-  'Sales Tax': { slug: 'sales-tax', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 20 — sales_tax_nexus (schema:2197) is a corpus enum' },
-  'Ent Filings': { slug: 'ent-filings', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 21 — entities (schema:66-77) has no filing date or agent' },
+  Debt: {
+    slug: 'debt', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 19 — src/app/api/net-worth/route.ts:36 is a totals read; no schedule, no lender',
+    customer: 'What you owe and when it comes due is not tracked yet.',
+  },
+  'Sales Tax': {
+    slug: 'sales-tax', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 20 — sales_tax_nexus (schema:2197) is a corpus enum',
+    customer: 'Sales tax collected, and when each state wants it, is not tracked yet.',
+  },
+  'Ent Filings': {
+    slug: 'ent-filings', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 21 — entities (schema:66-77) has no filing date or agent',
+    customer: 'What the entity must file, and when it is due, is not tracked yet.',
+  },
   // ── THE PROOF ──
   Bookkeeping: {
     slug: 'bookkeeping', status: 'LIVE', beats: ALL, home: '/books', cockpitKey: 'books',
@@ -269,13 +324,18 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     slug: 'tax', status: 'PARTIAL', beats: some({ discover: true, decide: true }), home: '/tax', cockpitKey: 'tax',
     links: [{ label: 'Filing wizard · standalone', href: '/dashboard/tax-filing' }],
     citation: 'src/components/tax-filing/steps/IncomeReviewStep.tsx:298-300 · src/app/api/tax/documents/route.ts:67; FileStep.tsx:13-14 "Nothing is submitted from here"',
+    customer: "You can review the income and the documents behind this year's figure; nothing is filed from here.",
   },
   Compliance: {
     slug: 'compliance', status: 'PARTIAL', beats: some({ discover: true, decide: true, record: true }), home: '/compliance', cockpitKey: 'compliance',
     links: [{ label: 'SOC 2 proofs', href: '/soc2' }],
     citation: 'src/lib/discovery/runDiscovery.ts:44 · :107 · src/lib/audit/writeAuditLog.ts:101 via materializeProposal.ts:186; nothing signed (attestation_status schema:2675-2678 never written)',
+    customer: 'It works out what the entity has to do and keeps a log of what was done; nothing is signed off here yet.',
   },
-  'FP&A': { slug: 'fpa', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 25 — no forecast model, route, or tab; MetricsAndProjectionsTab.tsx:53 reads a key the route never returns' },
+  'FP&A': {
+    slug: 'fpa', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 25 — no forecast model, route, or tab; MetricsAndProjectionsTab.tsx:53 reads a key the route never returns',
+    customer: 'Runway, margin and the forecast behind them are not available yet.',
+  },
 };
 
 export const FAMILIES: readonly FamilyName[] = PROBLEM_SHEET.map((f) => f.header);

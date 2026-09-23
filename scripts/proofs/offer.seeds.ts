@@ -23,6 +23,7 @@ import type { Seed } from '../prove';
 const PRICING = 'src/app/pricing/page.tsx';
 const SECTION = 'src/components/offer/PlansSection.tsx';
 const LEAF = 'src/lib/offer/plans.ts';
+const REGISTRY = 'src/lib/toolRegistry.ts';
 
 export const SEEDS: Seed[] = [
   {
@@ -120,6 +121,48 @@ export const SEEDS: Seed[] = [
     find: '                  {plan.role}',
     replace: "                  {plan.id === 'personal' ? 'The base' : 'The base + one module'}",
     expect: 'does not render plan.role',
+  },
+  {
+    // The builder's note back on the public table — the whole of what WHY-01 closed.
+    name: 'why-a the plans table renders the builder\'s why again (WHY-01)',
+    file: SECTION,
+    find: "{n.customer ? `: ${n.customer}` : ''}",
+    replace: "{n.why ? `: ${n.why}` : ''}",
+    expect: "renders a registry `why`",
+  },
+  {
+    // The leak one level down: the note type carries the why again, so the section
+    // renders the customer field and gets the builder's prose anyway.
+    name: 'why-b the leaf hands the why over as the customer sentence (WHY-01)',
+    file: LEAF,
+    find: '    return { name, status: tool.status, customer: tool.customer?.trim() ? tool.customer : null };',
+    replace: '    return { name, status: tool.status, customer: tool.why?.trim() ? tool.why : null };',
+    expect: 'still names `why` at or below CapabilityNote',
+  },
+  {
+    // A tool a plan row can show, added without a sentence — named, not skipped.
+    name: 'why-c a tool the table shows carries no customer sentence (WHY-01)',
+    file: REGISTRY,
+    find: "    customer: 'You cannot send an invoice or see who has not paid yet.',\n",
+    replace: '',
+    expect: 'Invoicing can be shown by a plan row as ◐ or Coming and carries no customer sentence',
+  },
+  {
+    // A PR id in a sentence written for a customer.
+    name: 'why-d a customer sentence names a PR id (WHY-01)',
+    file: REGISTRY,
+    find: 'connecting your own broker is not available yet.',
+    replace: 'connecting your own broker ships in TT-02.',
+    expect: 'a customer does not read PR ids',
+  },
+  {
+    // A table name in a sentence written for a customer — the exact defect that
+    // started this ruling, now caught in the field that reaches the screen.
+    name: 'why-e a customer sentence names a table (WHY-01)',
+    file: REGISTRY,
+    find: 'You can see what you actually spent and set amounts that repeat;',
+    replace: 'You can see what you actually spent on module_expenses;',
+    expect: 'is not a customer\'s word',
   },
 ];
 
