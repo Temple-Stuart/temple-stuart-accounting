@@ -241,7 +241,8 @@ test('the booking-flow pin holds for every file still on it, with dated HOTEL-01
     // CAL-01 (2026-09-23): a stay now lands one calendar row; the booking itself is unchanged.
     'src/app/api/travel/liteapi/book/route.ts': '792da953ba83fe8a8bc95d79045a0fabd00bfc807fab3b726a69dd85ef136eb1',
     // Was 77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5 before CHECKOUT-01.
-    'src/components/trips/CheckoutPanel.tsx': '3b6ae4fe18c1fb5e3701c592d6685e95bf336abb089d5d0aa947f3718dc7ef22',
+    // CHECKOUT-03 (2026-09-23): the panel waits on Stripe.js before handing off.
+    'src/components/trips/CheckoutPanel.tsx': 'b3fd49cbd8acf9ab3d5afb11fdc42f61089722d2951dd6cbfa6a8dc2bdf19b46',
     'src/app/api/travel/hotels/content/route.ts': '7923035f88437325994e957e73943cd4817ee72b2a9bf2908b0afba0803503e7',
     'src/app/api/travel/hotels/reviews/route.ts': 'c548e5cc1f16808c119711395144ddbc0f4307d22bd67890185b59479000d39d',
   };

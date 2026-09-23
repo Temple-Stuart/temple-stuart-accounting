@@ -76,6 +76,25 @@ const SEEDS: Seed[] = [
                   Enter your card to pay.`,
     expect: 'asks for a card without first ruling out a failure',
   },
+  {
+    // CHECKOUT-03 — the readiness gate removed. Without it the panel hands off
+    // before window.Stripe exists, and the vendor's loader hangs on a failed
+    // pre-existing tag with nothing thrown for its empty catches to carry.
+    name: 'checkout-f the panel hands off before Stripe.js is ready (CHECKOUT-03)',
+    file: PANEL,
+    find: '!sdkReady || !stripeJsReady || attachChoicePending) return;',
+    replace: '!sdkReady || attachChoicePending) return;',
+    expect: 'does not wait for Stripe.js',
+  },
+  {
+    // CHECKOUT-03 — Stripe.js failing to load must be NAMED, never a silent wait
+    // that the watchdog later reports as "no reason".
+    name: 'checkout-g a Stripe.js that cannot load says nothing (CHECKOUT-03)',
+    file: PANEL,
+    find: `        onError={() => fail({ kind: 'sdk_script', message: 'The secure payment form could not be loaded.', detail: 'The card provider\\u2019s library could not be reached from this browser. Nothing was charged.' })}`,
+    replace: '        onError={() => setStripeJsReady(false)}',
+    expect: 'loads Stripe.js without naming',
+  },
 ];
 
 export default SEEDS;

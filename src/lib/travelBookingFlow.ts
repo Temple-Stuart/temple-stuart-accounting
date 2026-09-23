@@ -186,7 +186,18 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // to /api/travel/liteapi/prebook with the same body, the same LiteAPIPayment
   // config, the same returnUrl. What changed is what the customer is TOLD.
   // Was 77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5 at main 8788cb11.
-  { file: 'src/components/trips/CheckoutPanel.tsx', sha256: '3b6ae4fe18c1fb5e3701c592d6685e95bf336abb089d5d0aa947f3718dc7ef22' },
+  //
+  // CHECKOUT-03 (2026-09-23): re-pinned — the card form never got APPENDED. The
+  // vendor's Stripe loader hangs forever when a js.stripe.com/v3 tag is already in
+  // the page and that tag failed: it attaches load/error listeners to a script that
+  // already settled, so its promise never resolves, createPaymentElement is never
+  // reached, and NOTHING is thrown for its empty catches to swallow. The panel now
+  // loads Stripe.js itself and waits on that real readiness signal, so the vendor
+  // takes its window.Stripe short-circuit and never enters the branch that hangs.
+  // A Stripe.js that genuinely cannot load is a NAMED failure, not a retry.
+  // No prebook/book/pay/cancel call changed.
+  // Was 3b6ae4fe18c1fb5e3701c592d6685e95bf336abb089d5d0aa947f3718dc7ef22 at main e8fd844e.
+  { file: 'src/components/trips/CheckoutPanel.tsx', sha256: 'b3fd49cbd8acf9ab3d5afb11fdc42f61089722d2951dd6cbfa6a8dc2bdf19b46' },
   // FL-5b (2026-09-23): re-pinned — the panel sends the contact it already holds.
   // The SAME address it validated and sent at prebook now rides the book call too,
   // and the booked state says whether the confirmation went out. No payment path,
