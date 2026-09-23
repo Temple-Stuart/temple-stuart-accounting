@@ -27,6 +27,25 @@ const CLIENT = 'src/lib/liteapiClient.ts';
 const LEAF = 'src/lib/hotels/stayTimes.ts';
 const RATES = 'src/lib/hotels/rates.ts';
 
+/**
+ * The contiguous comment block directly above a pin line — TRAVEL-ROW-01 (2026-09-23).
+ *
+ * The window used to be the two lines immediately above the pin, which held exactly one
+ * ruling's note and its `Was <hash>` line. A later ruling's dated note STACKS BELOW an
+ * earlier one (travelBookingFlow.ts documents the convention, and assert-tool-registry.ts
+ * reads the same block through its own `noteBlockOver`), so the two-line window now reads
+ * the newest note and misses the one this test is about. This reads the whole block, the
+ * pin's own lines and never a neighbour's: comments() blanks the code lines, so the block
+ * ends at the first line that is code in the `pins` channel.
+ */
+function noteBlockOver(pins: string, notes: string, pinLine: number): string {
+  const codeLines = pins.split('\n');
+  const noteLines = notes.split('\n');
+  const block: string[] = [];
+  for (let i = pinLine - 2; i >= 0 && codeLines[i].trim() === ''; i--) block.unshift(noteLines[i]);
+  return block.join('\n');
+}
+
 test('the property\'s clock is read from its content: stated → HH:MM, silent → null, unreadable → refused by name', () => {
   const kr = propertyClockOf(KATA_ROCKS_CONTENT.checkinCheckoutTimes);
   assert.ok('clock' in kr); assert.equal(kr.clock.checkin, E.kataRocks.checkin); assert.equal(kr.clock.checkout, E.kataRocks.checkout);
@@ -122,10 +141,10 @@ test('the pin holds, dated: five files re-dated by HOTEL-02 with the hash they h
     const pinAt = pins.indexOf(`{ file: '${f}', sha256: '`);
     assert.ok(pinAt >= 0, `${f} is pinned`);
     const pinLine = pins.slice(0, pinAt).split('\n').length;
-    const above = notes.split('\n').slice(Math.max(0, pinLine - 3), pinLine - 1).join('\n');
+    const above = noteBlockOver(pins, notes, pinLine);
     assert.match(above, /HOTEL-02 \(2026-09-22\): re-dated — [^\n]+\. The stay's clock is the property's, read once at commit; no prebook\/book\/pay\/cancel call changed\.\n[^\n]*Was [0-9a-f]{64} at main 81045434\./, `${f}'s note`);
   }
   assert.match(BOOKING_FLOW_BASE, /re-dated by HOTEL-02 \(2026-09-22\), the stay's clock is the property's/);
   assert.ok(!BOOKING_FLOW_FILES.some((p) => p.file === COMMIT), 'vendor-commit is the itinerary writer, not the booking flow');
-  assert.equal(BOOKING_FLOW_FILES.length, 50, 'the census did not shrink (ACTIVITY-01 STEP 4 pinned the options route: 49 → 50)');
+  assert.equal(BOOKING_FLOW_FILES.length, 51, 'the census did not shrink (ACTIVITY-01 STEP 4 pinned the options route: 49 → 50; TRAVEL-ROW-01 pinned RowActionStrip.tsx: 50 → 51)');
 });

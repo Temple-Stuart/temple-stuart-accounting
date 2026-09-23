@@ -29,7 +29,8 @@
  * container searches, books and saves; the view reports what the user pressed.
  */
 
-import { useState } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
+import RowActionStrip from './RowActionStrip';
 import { DATA } from '@/lib/ds';
 import SearchCount from './SearchCount';
 import {
@@ -58,6 +59,13 @@ interface Props {
   onBook: (card: HotelCardView, rate: HotelRateView) => void;
   /** Optional: save the stay to the selected trip's budget (the home Travel tab wires this). */
   onSave?: (card: HotelCardView, rate: HotelRateView) => void;
+  /**
+   * TRAVEL-ROW-01 (2026-09-23): the checkout ELEMENT, passed in by the container.
+   * The view renders it inside the strip under the selected rate and never books.
+   */
+  checkout?: ReactNode;
+  /** Collapse the checkout and hand focus back to the rate row. */
+  onCloseCheckout?: () => void;
   /** The hotel id currently being saved — its Save button shows a pending state. */
   savingId?: string | null;
 }
@@ -85,7 +93,7 @@ function HotelCardImage({ photoUrl, name }: { photoUrl: string | null; name: str
 const SELECT_CLASS = 'border border-border bg-white px-2 py-1 font-mono text-[11px] text-brand-purple focus:outline-none';
 const LABEL_CLASS = 'font-mono text-[9.5px] tracking-widest text-text-faint';
 
-export default function HotelResultsView({ cards, loading, error, env, filters, onFiltersChange, searchCount, selected, onSelect, onBook, onSave, savingId }: Props) {
+export default function HotelResultsView({ cards, loading, error, env, filters, onFiltersChange, searchCount, selected, onSelect, onBook, onSave, savingId, checkout, onCloseCheckout }: Props) {
   const [openCards, setOpenCards] = useState<Record<string, boolean>>({});
   const isOpen = (id: string) => openCards[id] === true;
 
@@ -171,7 +179,6 @@ export default function HotelResultsView({ cards, loading, error, env, filters, 
   const selectedRate = selected
     ? shown.find(c => c.hotelId === selected.hotelId)?.rates.find(r => r.rateId === selected.rateId) ?? null
     : null;
-  const selectedCard = selected ? shown.find(c => c.hotelId === selected.hotelId) ?? null : null;
   const diff = selectedRate && low ? rateDifference(selectedRate, low.rate) : null;
 
   return (
@@ -257,10 +264,12 @@ export default function HotelResultsView({ cards, loading, error, env, filters, 
                               {card.rates.map(rate => {
                                 const isSelected = selected?.hotelId === card.hotelId && selected.rateId === rate.rateId;
                                 return (
-                                  <tr key={rate.rateId}
+                                  <Fragment key={rate.rateId}>
+                                  <tr
                                     data-rate-row={rate.rateId}
+                                    tabIndex={-1}
                                     onClick={(e) => { e.stopPropagation(); onSelect(card, isSelected ? null : rate); }}
-                                    className={`cursor-pointer transition-colors ${isSelected ? 'bg-brand-purple-wash/40' : 'hover:bg-brand-purple-wash/40'}`}>
+                                    className={`cursor-pointer outline-none transition-colors ${isSelected ? 'bg-brand-purple-wash/40' : 'hover:bg-brand-purple-wash/40'}`}>
                                     <td className={`border-l-2 px-2 py-1.5 ${isSelected ? 'border-brand-purple' : 'border-transparent'}`}>
                                       <div className="font-mono font-semibold text-brand-gold" data-rate-field="price">{rateHeadline(rate)}</div>
                                       <div className="text-[10px] text-text-faint">{money(rate.total, rate.currency)} total</div>
@@ -271,6 +280,29 @@ export default function HotelResultsView({ cards, loading, error, env, filters, 
                                     <td className="px-2 py-1.5 text-text-secondary" data-rate-field="taxesIncluded">{statedText(rate.taxesIncluded, 'included', 'not all included')}</td>
                                     <td className="px-2 py-1.5 text-text-secondary" data-rate-field="maxOccupancy">{rate.maxOccupancy === null ? NOT_STATED : `up to ${rate.maxOccupancy}`}</td>
                                   </tr>
+                                  {/* TRAVEL-ROW-01: the action strip sits DIRECTLY beneath the rate it acts on. */}
+                                  {isSelected && (
+                                    <RowActionStrip
+                                      rowId={rate.rateId}
+                                      colSpan={6}
+                                      summary={<>
+                                        <span className="font-medium">{card.name}</span>
+                                        <span className="ml-2 text-text-faint">{rate.roomName ?? `room ${NOT_STATED}`}</span>
+                                        <span className="ml-2 font-bold text-brand-gold">{rateHeadline(rate)}</span>
+                                      </>}
+                                      difference={diff ? <div className="mt-1 font-mono text-[11px] text-text-secondary" data-rate-difference={diff.delta}>{diff.line}</div> : undefined}
+                                      onClear={() => onSelect(card, null)}
+                                      onSave={onSave ? () => onSave(card, rate) : undefined}
+                                      saveLabel={savingId === card.hotelId ? 'Saving…' : 'Save to trip'}
+                                      saveDisabled={savingId === card.hotelId}
+                                      onBook={() => onBook(card, rate)}
+                                      bookLabel={rate.offerId === null ? 'Not bookable' : 'Book'}
+                                      bookDisabled={rate.offerId === null}
+                                      checkout={checkout}
+                                      onCloseCheckout={onCloseCheckout}
+                                    />
+                                  )}
+                                  </Fragment>
                                 );
                               })}
                             </tbody>
@@ -290,30 +322,6 @@ export default function HotelResultsView({ cards, loading, error, env, filters, 
         </div>
       )}
 
-      {selectedCard && selectedRate && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-border bg-bg-row p-3" data-hotel-selection>
-          <div className="text-sm">
-            <span className="font-medium">{selectedCard.name}</span>
-            <span className="ml-2 text-text-faint">{selectedRate.roomName ?? `room ${NOT_STATED}`}</span>
-            <span className="ml-2 font-bold text-brand-gold">{rateHeadline(selectedRate)}</span>
-            {/* THE BENCHMARK — the selection against the lowest rate meeting the filters, from stated attributes only. */}
-            {diff && <div className="mt-1 font-mono text-[11px] text-text-secondary" data-rate-difference={diff.delta}>{diff.line}</div>}
-          </div>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => onSelect(selectedCard, null)} className="rounded border border-border px-2 py-1 text-xs text-text-secondary hover:bg-white">Clear</button>
-            {onSave && (
-              <button type="button" onClick={() => onSave(selectedCard, selectedRate)} disabled={savingId === selectedCard.hotelId}
-                className="rounded border border-brand-purple bg-white px-3 py-1.5 text-xs font-semibold text-brand-purple transition-colors hover:bg-bg-row disabled:opacity-50">
-                {savingId === selectedCard.hotelId ? 'Saving…' : 'Save to trip'}
-              </button>
-            )}
-            <button type="button" onClick={() => onBook(selectedCard, selectedRate)} disabled={selectedRate.offerId === null}
-              className="rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-purple-hover disabled:opacity-50">
-              {selectedRate.offerId === null ? 'Not bookable' : 'Book'}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

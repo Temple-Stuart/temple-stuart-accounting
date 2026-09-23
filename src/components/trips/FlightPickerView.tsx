@@ -4,7 +4,8 @@
 // retired with the form's move to the spec's segmented hairline bar.
 // TRAVEL-RESULTS-TABLE: the results wear the deck-table anatomy — the
 // DATA.columnHeader micro-label is the one shared class string (ds.ts:225).
-import { useState } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
+import RowActionStrip from './RowActionStrip';
 import { DATA } from '@/lib/ds';
 // HOTEL-01 (2026-09-22): the session search count is one shared control.
 import SearchCount from './SearchCount';
@@ -115,6 +116,13 @@ export interface FlightPickerViewProps {
    *  offer (container-owned). Optional: only shown when wired (the public flight
    *  search passes it). Guest-ok, mirroring the hotel Book. */
   onBookLeg?: (legId: string) => void;
+  /**
+   * TRAVEL-ROW-01 (2026-09-23): the checkout ELEMENT, passed in by the container.
+   * The view renders it inside the strip under the selected fare and never books.
+   */
+  checkout?: ReactNode;
+  /** Collapse the checkout and hand focus back to the fare row. */
+  onCloseCheckout?: () => void;
   /** PR-Travel-Cleanup: show the manual "enter flight details" block (Airline/Price/times
    *  + "Use This"). Default true (the authed in-trip picker keeps it for "booked
    *  elsewhere"). The public home flight search passes false — guests use the live search only. */
@@ -146,6 +154,8 @@ export default function FlightPickerView({
   onCommitLeg,
   onUncommitLeg,
   onBookLeg,
+  checkout,
+  onCloseCheckout,
   enableManualEntry = true,
   providerLabel = 'LiteAPI',
   searchCount = 0,
@@ -520,11 +530,18 @@ export default function FlightPickerView({
                                             const selected = leg.selectedOffer?.id === fare.id;
                                             const f = fare.fare;
                                             const label = [f?.fareFamily, f?.fareBasisCode].filter(Boolean).join(' · ');
+                                            const lowFare = leg.offers.length > 0 ? lowestFare(groupFlights(leg.offers)) : null;
+                                            const fareDiff = selected && lowFare ? fareDifference(fare, lowFare.fare) : null;
+                                            const carrierName = carrierLineOf(fare.outboundSegments?.[0]).name !== 'Flight'
+                                              ? carrierLineOf(fare.outboundSegments?.[0]).name
+                                              : (fare.outbound?.carriers[0] || 'Flight');
                                             return (
-                                              <tr key={fare.id}
+                                              <Fragment key={fare.id}>
+                                              <tr
                                                 data-fare-row={fare.id}
+                                                tabIndex={-1}
                                                 onClick={(e) => { e.stopPropagation(); onUpdateLeg(leg.id, { selectedOffer: fare }); }}
-                                                className={`cursor-pointer transition-colors ${selected ? 'bg-brand-purple-wash/40' : 'hover:bg-brand-purple-wash/40'}`}>
+                                                className={`cursor-pointer outline-none transition-colors ${selected ? 'bg-brand-purple-wash/40' : 'hover:bg-brand-purple-wash/40'}`}>
                                                 <td className={`border-l-2 px-2 py-1.5 ${selected ? 'border-brand-purple' : 'border-transparent'}`}>
                                                   <div className="font-mono font-semibold text-brand-gold" data-fare-field="price">{money(fare.price, fare.currency)}</div>
                                                   {label && <div className="text-[10px] text-text-faint" data-fare-field="family">{label}</div>}
@@ -535,6 +552,28 @@ export default function FlightPickerView({
                                                 <td className="px-2 py-1.5 text-text-secondary" data-fare-field="changeable">{statedText(f?.changeable, f?.changeFee ? `changeable (${f.changeFee})` : 'changeable', 'not changeable')}</td>
                                                 <td className="px-2 py-1.5 text-text-secondary" data-fare-field="refundable">{statedText(f?.refundable, f?.refundFee ? `refundable (${f.refundFee})` : 'refundable', 'non-refundable')}</td>
                                               </tr>
+                                              {/* TRAVEL-ROW-01: the action strip sits DIRECTLY beneath the fare it acts on. */}
+                                              {selected && !leg.committed && (
+                                                <RowActionStrip
+                                                  rowId={fare.id}
+                                                  colSpan={6}
+                                                  summary={<>
+                                                    <span className="font-medium">{carrierName}</span>
+                                                    <span className="ml-2 text-text-faint">{leg.origin} → {leg.destination}</span>
+                                                    {fare.outbound?.duration && <span className="ml-2 text-text-faint">{fare.outbound.duration}</span>}
+                                                    <span className="ml-2 font-bold text-brand-gold">${fare.price}</span>
+                                                  </>}
+                                                  difference={fareDiff ? <div className="mt-1 font-mono text-[11px] text-text-secondary" data-fare-difference={fareDiff.delta}>{fareDiff.line}</div> : undefined}
+                                                  onClear={() => onUpdateLeg(leg.id, { selectedOffer: null })}
+                                                  onSave={() => onCommitLeg(leg.id)}
+                                                  saveLabel={committing === leg.id ? 'Saving…' : 'Save to trip'}
+                                                  saveDisabled={committing === leg.id}
+                                                  onBook={onBookLeg && !fare.isManual ? () => onBookLeg(leg.id) : undefined}
+                                                  checkout={checkout}
+                                                  onCloseCheckout={onCloseCheckout}
+                                                />
+                                              )}
+                                              </Fragment>
                                             );
                                           })}
                                         </tbody>
@@ -553,41 +592,10 @@ export default function FlightPickerView({
                     );
                   })() : null}
 
-                  {/* Selected offer → Save button */}
-                  {leg.selectedOffer && !leg.committed && (
-                    <div className="flex items-center justify-between p-3 bg-bg-row border border-border rounded">
-                      <div className="text-sm">
-                        <span className="font-medium">{carrierLineOf(leg.selectedOffer.outboundSegments?.[0]).name !== 'Flight' ? carrierLineOf(leg.selectedOffer.outboundSegments?.[0]).name : (leg.selectedOffer.outbound?.carriers[0] || 'Flight')}</span>
-                        <span className="text-text-faint ml-2">{leg.origin} → {leg.destination}</span>
-                        {leg.selectedOffer.outbound?.duration && <span className="text-text-faint ml-2">{leg.selectedOffer.outbound.duration}</span>}
-                        <span className="ml-2 font-bold text-brand-gold">${leg.selectedOffer.price}</span>
-                        {/* FLIGHT-01: THE BENCHMARK — the selection against the lowest fare meeting the
-                            filters, explained from the two fares' STATED attributes; an unstated one
-                            is named as unstated, never inferred from the price. */}
-                        {(() => {
-                          const low = leg.offers.length > 0 ? lowestFare(groupFlights(leg.offers)) : null;
-                          if (!low) return null;
-                          const diff = fareDifference(leg.selectedOffer!, low.fare);
-                          return <div className="mt-1 font-mono text-[11px] text-text-secondary" data-fare-difference={diff.delta}>{diff.line}</div>;
-                        })()}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => onUpdateLeg(leg.id, { selectedOffer: null })} className="px-2 py-1 text-xs border border-border text-text-secondary rounded hover:bg-bg-row">Clear</button>
-                        <button onClick={() => onCommitLeg(leg.id)} disabled={committing === leg.id}
-                          className="px-3 py-1.5 text-xs font-semibold rounded border border-brand-purple bg-white text-brand-purple transition-colors hover:bg-bg-row disabled:opacity-50">
-                          {committing === leg.id ? 'Saving…' : 'Save to trip'}
-                        </button>
-                        {/* Book = pay now (primary, solid), alongside Save to trip = plan it.
-                            Real provider offers only (not manual entries). Guest-ok. */}
-                        {onBookLeg && !leg.selectedOffer.isManual && (
-                          <button onClick={() => onBookLeg(leg.id)}
-                            className="px-3 py-1.5 text-xs font-semibold rounded bg-brand-gold text-white transition-colors hover:bg-brand-gold/90">
-                            Book
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                  {/* TRAVEL-ROW-01 (2026-09-23): the leg's Save/Book bar that sat here, after
+                      the whole table, is GONE. The actions — Clear, Save to trip, Book, the
+                      difference against the lowest — render in the strip directly beneath the
+                      selected fare row, and the checkout opens there too. */}
                 </>
               )}
             </div>

@@ -37,7 +37,8 @@
  * clock>" afterwards. Nothing typed, nothing defaulted, nothing converted silently.
  */
 
-import { useState, type ReactNode } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
+import RowActionStrip from './RowActionStrip';
 import ActivityPickerView, { type ActivityCardView } from './ActivityPickerView';
 // PR-STRIP-DESIGN-2: icon-inside-field — MapPin marks the destination.
 import { MapPin } from 'lucide-react';
@@ -358,6 +359,13 @@ export default function PublicActivitySearch({ onRequireAuth, authed, currentTri
                 ))}
                 <span className="text-text-faint">{partyText(party)}{answer.product.requiresAdultForBooking === true ? ' · an adult is required' : ''}{answer.product.minTravelersPerBooking !== null ? ` · ${answer.product.minTravelersPerBooking}–${answer.product.maxTravelersPerBooking ?? '…'} per booking` : ''}</span>
               </div>
+              {/* TRAVEL-ROW-01 (2026-09-23): this table gets NO overflow box of its own.
+                  It is rendered inside ActivityPickerView's strip, which is inside THAT
+                  view's `overflow-x-auto` (ActivityPickerView.tsx:216) — the scroll box
+                  the options table already scrolls in. Adding a second one here was tried
+                  and measured in the walk: it changed nothing about the page's width, and
+                  it BROKE the strip's `sticky right-0`, which binds to the nearest
+                  scrolling ancestor — Book went to x=1884 on a 1280 screen. */}
               <table className="w-full text-xs" data-activity-option-table>
                 <thead><tr className="text-left text-text-faint"><th className="px-2 py-1">Option</th><th className="px-2 py-1">Start</th><th className="px-2 py-1">Party price</th><th className="px-2 py-1">Plan figure</th></tr></thead>
                 <tbody className="divide-y divide-border">
@@ -372,42 +380,62 @@ export default function PublicActivitySearch({ onRequireAuth, authed, currentTri
                       const isChosen = chosen?.productOptionCode === opt.productOptionCode && chosen?.startTime === st.startTime;
                       const pickable = st.unavailable === null && st.quote !== null && st.seal !== null && !('refused' in priced);
                       return (
-                        <tr key={`${code}:${st.startTime ?? 'none'}:${i}`} data-activity-option={code} data-activity-option-start={st.startTime ?? 'none'} data-activity-option-state={st.unavailable !== null ? 'unavailable' : 'refused' in priced ? 'refused' : 'available'}
+                        <Fragment key={`${code}:${st.startTime ?? 'none'}:${i}`}>
+                        <tr data-activity-option={code} data-activity-option-start={st.startTime ?? 'none'} data-activity-option-state={st.unavailable !== null ? 'unavailable' : 'refused' in priced ? 'refused' : 'available'}
+                          tabIndex={-1}
                           onClick={() => { if (pickable && opt.productOptionCode && st.quote && st.seal) { setChosen({ productOptionCode: opt.productOptionCode, startTime: st.startTime, quote: st.quote, seal: st.seal }); setEndPick(''); } }}
-                          className={`${pickable ? 'cursor-pointer' : 'cursor-default'} ${isChosen ? 'bg-brand-purple-wash/40' : ''}`}>
+                          className={`outline-none ${pickable ? 'cursor-pointer' : 'cursor-default'} ${isChosen ? 'bg-brand-purple-wash/40' : ''}`}>
                           <td className="px-2 py-1"><span className="font-mono">{code}</span> {title ?? <span className="text-text-faint">title not stated by the operator</span>}</td>
                           <td className="px-2 py-1 font-mono">{st.startTime ?? <span className="text-text-faint">{st.refused ?? opt.refused}</span>}{st.unavailable !== null && <span className="ml-1 text-brand-red" data-activity-option-reason>{st.unavailable}</span>}</td>
                           <td className="px-2 py-1 text-text-secondary">{'refused' in priced ? <span className="text-brand-red">{priced.refused}</span> : `${priced.lines.map((l) => priceLineText(l, answer.currency)).join('; ')}${priced.extra ? ` + ${priced.extra.total.toFixed(2)} ${answer.currency} in-destination charges stated by the operator (${priced.extra.perTraveller.toFixed(2)} × ${priced.extra.travellers})` : ''}`}</td>
                           <td className="px-2 py-1 font-mono">{'refused' in priced ? '—' : <span data-activity-option-total={priced.total.amount}>{conversionText({ native: priced.native, extra: priced.extra, rate: st.quote?.rate ?? null, total: priced.total })}</span>}</td>
                         </tr>
+                        {/* TRAVEL-ROW-01: Save sits at the OPTION line it saves, with the
+                            operator's own end-time range when the duration is variable. A tour
+                            is booked on Viator, so Book is that outbound link, not a checkout. */}
+                        {isChosen && chosen && (
+                          <RowActionStrip
+                            rowId={`${code}:${st.startTime ?? 'none'}`}
+                            colSpan={4}
+                            summary={<>
+                              <span className="font-mono font-medium">{code}</span>
+                              {title && <span className="ml-2">{title}</span>}
+                              <span className="ml-2 text-text-faint">{st.startTime ?? 'no start time stated'}</span>
+                              {!('refused' in priced) && <span className="ml-2 font-bold text-brand-gold">{priced.total.currency} {priced.total.amount.toFixed(2)} {priced.total.label}</span>}
+                            </>}
+                            onClear={() => { setChosen(null); setEndPick(''); }}
+                            onSave={save}
+                            saveLabel={saving ? 'Saving…' : `Save to ${currentTrip.name ?? 'the trip'}`}
+                            saveDisabled={saving}
+                            bookHref={selectedCard.productUrl ?? undefined}
+                            bookLabel="Book on Viator"
+                          >
+                            {chosen.quote.duration !== null && chosen.quote.duration.kind === 'variable' && (
+                              <label className="flex flex-col gap-1" data-activity-end-pick>
+                                <span className={TRAVEL_LABEL_CLASS}>
+                                  End (the operator states {durationText(chosen.quote.duration)} — pick one inside it, or leave it empty and the day draws a flagged marker)
+                                </span>
+                                <input
+                                  type="time"
+                                  value={endPick}
+                                  min={chosen.startTime ? clockPlus(chosen.startTime, chosen.quote.duration.fromMinutes) : undefined}
+                                  max={chosen.startTime ? clockPlus(chosen.startTime, chosen.quote.duration.toMinutes) : undefined}
+                                  onChange={(e) => setEndPick(e.target.value)}
+                                  className={`${TRAVEL_INPUT_CLASS} w-32`}
+                                  aria-label="Tour end time"
+                                  data-activity-end-input
+                                />
+                              </label>
+                            )}
+                            <span className="text-xs text-text-faint">Plan here; book on Viator.</span>
+                          </RowActionStrip>
+                        )}
+                        </Fragment>
                       );
                     });
                   })}
                 </tbody>
               </table>
-              {chosen && chosen.quote.duration !== null && chosen.quote.duration.kind === 'variable' && (
-                <label className="flex flex-col gap-1" data-activity-end-pick>
-                  <span className={TRAVEL_LABEL_CLASS}>
-                    End (the operator states {durationText(chosen.quote.duration)} — pick one inside it, or leave it empty and the day draws a flagged marker)
-                  </span>
-                  <input
-                    type="time"
-                    value={endPick}
-                    min={chosen.startTime ? clockPlus(chosen.startTime, chosen.quote.duration.fromMinutes) : undefined}
-                    max={chosen.startTime ? clockPlus(chosen.startTime, chosen.quote.duration.toMinutes) : undefined}
-                    onChange={(e) => setEndPick(e.target.value)}
-                    className={`${TRAVEL_INPUT_CLASS} w-32`}
-                    aria-label="Tour end time"
-                    data-activity-end-input
-                  />
-                </label>
-              )}
-              <div className="flex flex-wrap items-center gap-2">
-                <button type="button" onClick={save} disabled={saving || !chosen} className="rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-purple-hover disabled:opacity-50" data-activity-save-button>
-                  {saving ? 'Saving…' : chosen ? `Save ${chosen.productOptionCode} ${chosen.startTime ?? '(no start time)'} to ${currentTrip.name ?? 'the trip'}` : 'Pick an option and a start time'}
-                </button>
-                <span className="text-text-faint">Plan here; book on Viator.</span>
-              </div>
             </div>
           )}
         </>

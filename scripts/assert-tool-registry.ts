@@ -3533,7 +3533,10 @@ const flightFnBody = (src: string, name: string): string => {
   if (/conditions\??\.refundable|conditions\??\.changeable/.test(view)) flightFail(`${FLIGHT_VIEW} still reads the retired coerced conditions`);
   if (!/data-flight-operated-by>operated by \{carrier\.operatedBy\}/.test(view)) flightFail(`${FLIGHT_VIEW} does not say "operated by" when the marketing carrier is not the operating one`);
   if (!/data-flight-llf/.test(view) || !/lowestFareLine\(/.test(view)) flightFail(`${FLIGHT_VIEW} does not render the lowest-fare line`);
-  if (!/data-fare-difference=\{diff\.delta\}>\{diff\.line\}/.test(view) || !/fareDifference\(leg\.selectedOffer!, low\.fare\)/.test(view)) flightFail(`${FLIGHT_VIEW} does not render the selection's difference over the lowest fare`);
+  // TRAVEL-ROW-01 (2026-09-23): the difference still comes from fareDifference against
+  // the lowest and still renders on the selection — it moved from the bar after the table
+  // into the strip DIRECTLY BENEATH the selected fare row, so the names it is read by moved with it.
+  if (!/data-fare-difference=\{fareDiff\.delta\}>\{fareDiff\.line\}/.test(view) || !/fareDifference\(fare, lowFare\.fare\)/.test(view)) flightFail(`${FLIGHT_VIEW} does not render the selection's difference over the lowest fare`);
   // The captured-shape payload: the founder's rows, grouped.
   const offers = liteApiResultsToFlightOffers(BKK_HKT_RATES);
   const groups = groupFlights(offers);
@@ -4042,7 +4045,11 @@ const stayFail = (m: string) => { stayViolations += 1; violations.push(`stay law
     if (pinAt < 0) { stayFail(`src/lib/travelBookingFlow.ts no longer pins ${f}`); continue; }
     const pinLine = pins.slice(0, pinAt).split('\n').length;
     const above = noteBlockOver(pins, notes, pinLine);
-    if (!/HOTEL-02 \(2026-09-22\): re-dated — [^\n]+\. The stay's clock is the property's, read once at commit; no prebook\/book\/pay\/cancel call changed\.\n[^\n]*Was [0-9a-f]{64} at main 81045434\.$/.test(above)) stayFail(`${f}'s pin does not sit directly under a dated HOTEL-02 note naming why and the hash it had on main 81045434`);
+    // TRAVEL-ROW-01 (2026-09-23): the $ anchor is gone, for the reason the hotel law states
+    // over its own check — a LATER ruling's dated note may stack below this one, directly
+    // over the pin. HOTEL-02's note and its "Was" line must still stand consecutive in the
+    // block; they simply need not be the last lines of it.
+    if (!/HOTEL-02 \(2026-09-22\): re-dated — [^\n]+\. The stay's clock is the property's, read once at commit; no prebook\/book\/pay\/cancel call changed\.\n[^\n]*Was [0-9a-f]{64} at main 81045434\./.test(above)) stayFail(`${f}'s pin does not sit under a dated HOTEL-02 note naming why and the hash it had on main 81045434`);
   }
   for (const pin of BOOKING_FLOW_FILES) {
     if (STAY_REDATED.includes(pin.file)) continue;
@@ -4508,14 +4515,16 @@ const activityResolvers = { validateUrl: (u: string) => validatedAffiliateUrl(u,
     const pinAt = pins.indexOf(`{ file: '${f}', sha256: '`);
     if (pinAt < 0) { activityFail(`src/lib/travelBookingFlow.ts does not pin ${f}`); continue; }
     const pinLine = pins.slice(0, pinAt).split('\n').length;
-    if (!/ACTIVITY-01 \(2026-09-22\): pinned — [^\n]+\. A tour takes its time on the day; no prebook\/book\/pay\/cancel call changed\.$/.test(noteBlockOver(pins, notes, pinLine))) activityFail(`${f}'s pin does not sit directly under a dated ACTIVITY-01 note naming why`);
+    if (!/ACTIVITY-01 \(2026-09-22\): pinned — [^\n]+\. A tour takes its time on the day; no prebook\/book\/pay\/cancel call changed\./.test(noteBlockOver(pins, notes, pinLine))) activityFail(`${f}'s pin does not sit under a dated ACTIVITY-01 note naming why`);
   }
   for (const f of ACTIVITY_REDATED) {
     const pinAt = pins.indexOf(`{ file: '${f}', sha256: '`);
     if (pinAt < 0) { activityFail(`src/lib/travelBookingFlow.ts no longer pins ${f}`); continue; }
     const pinLine = pins.slice(0, pinAt).split('\n').length;
     const above = noteBlockOver(pins, notes, pinLine);
-    if (!/ACTIVITY-01 \(2026-09-22\): re-dated — [^\n]+\. A tour takes its time on the day; no prebook\/book\/pay\/cancel call changed\.\n[^\n]*Was [0-9a-f]{64} at main dfc02881\.$/.test(above)) activityFail(`${f}'s pin does not sit directly under a dated ACTIVITY-01 note naming why and the hash it had on main dfc02881`);
+    // TRAVEL-ROW-01 (2026-09-23): unanchored, as the hotel law's is and for the same stated
+    // reason — a later ruling's dated note may stack below this one, directly over the pin.
+    if (!/ACTIVITY-01 \(2026-09-22\): re-dated — [^\n]+\. A tour takes its time on the day; no prebook\/book\/pay\/cancel call changed\.\n[^\n]*Was [0-9a-f]{64} at main dfc02881\./.test(above)) activityFail(`${f}'s pin does not sit under a dated ACTIVITY-01 note naming why and the hash it had on main dfc02881`);
   }
   for (const pin of BOOKING_FLOW_FILES) {
     if (ACTIVITY_REDATED.includes(pin.file) || ACTIVITY_PINNED_NEW.includes(pin.file)) continue;
@@ -4619,6 +4628,173 @@ lawGuard('The lockfile law', () => {
 
   if (lockViolations === 0) console.log(`✔ The lockfile law passed — package-lock.json's root entry mirrors package.json exactly (${counted.join(' · ')}), name for name and range for range in both directions, at lockfileVersion ${LOCKFILE_VERSION}; two files read, no install, no network, no node_modules.`);
   else console.log(`✖ The lockfile law FAILED — ${lockViolations} violation(s).`);
+});
+
+// ── THE ROW LAW (TRAVEL-ROW-01, 2026-09-23) ─────────────────────────────────
+// BOOK AT THE LINE.
+//
+// WHAT THIS CLOSES. On main 97d6db04 you picked the line you wanted and then
+// scrolled past the whole table to act on it: HotelResultsView.tsx's selection
+// bar sat at :294 (`data-hotel-selection`), AFTER the outer table closed;
+// FlightPickerView.tsx's leg bar sat at :557-588, after that leg's table closed;
+// ActivityPickerView.tsx's sat at :292 (`data-activity-selection`); the tour's
+// Save sat at PublicActivitySearch.tsx:406 (`data-activity-save-button`), after
+// the options table closed. Worse, BOTH checkouts mounted at the very tail of
+// their container's page — CheckoutPanel after <HotelResultsView/>,
+// LiteApiFlightCheckoutPanel after <FlightPickerView/> — so pressing Book put
+// the form somewhere the founder could not see. Trip.com and Expedia put the
+// action at the line; so does this.
+//
+// The law is the SHAPE, not the styling: a view's actions live in the strip
+// under the selected row, nothing acts on a selection from outside a table, the
+// checkout reaches the strip through a SLOT the container fills, and the two
+// files that actually book are byte-identical to main.
+//
+// It reads six component files plus the strip through code() and comments() and
+// costs milliseconds: no render, no network, no metered call.
+lawGuard('The row law', () => {
+  let rowViolations = 0;
+  const rowFail = (m: string) => { rowViolations += 1; violations.push(`row law: ${m} (TRAVEL-ROW-01)`); };
+
+  const ROW_STRIP = 'src/components/trips/RowActionStrip.tsx';
+  /**
+   * Is this offset inside a <tbody>…</tbody>? The nearest tbody marker before it
+   * is an OPEN, not a close. That is exactly the difference between "under the
+   * selected row" and "in a bar after the table", which is the whole ruling.
+   */
+  const inTableBody = (body: string, at: number) => body.lastIndexOf('<tbody', at) > body.lastIndexOf('</tbody>', at);
+  /** Every offset a token occurs at. */
+  const allAt = (body: string, token: string): number[] => {
+    const out: number[] = [];
+    for (let at = body.indexOf(token); at >= 0; at = body.indexOf(token, at + 1)) out.push(at);
+    return out;
+  };
+  const lineAt = (body: string, at: number) => body.slice(0, at).split('\n').length;
+
+  /**
+   * The four travel result views. `actions` are the action wirings this view
+   * renders — each must occur EXACTLY ONCE and inside a table body. `gone` are
+   * the bars TRAVEL-ROW-01 deleted: one place to act, not two.
+   */
+  const ROW_VIEWS: { file: string; actions: string[]; gone: string[] }[] = [
+    {
+      file: 'src/components/trips/HotelResultsView.tsx',
+      actions: ['onSave={onSave ? () => onSave(card, rate) : undefined}', 'onBook={() => onBook(card, rate)}'],
+      gone: ['data-hotel-selection'],
+    },
+    {
+      file: 'src/components/trips/FlightPickerView.tsx',
+      actions: ['onSave={() => onCommitLeg(leg.id)}', 'onBook={onBookLeg && !fare.isManual ? () => onBookLeg(leg.id) : undefined}'],
+      gone: ['leg.selectedOffer && !leg.committed && ('],
+    },
+    {
+      file: 'src/components/trips/ActivityPickerView.tsx',
+      actions: ['{savePanel && <div data-activity-save-panel>{savePanel}</div>}'],
+      gone: ['data-activity-selection'],
+    },
+    {
+      file: 'src/components/trips/PublicActivitySearch.tsx',
+      actions: ['onSave={save}', 'bookHref={selectedCard.productUrl ?? undefined}'],
+      gone: ['data-activity-save-button'],
+    },
+  ];
+
+  // ── CLAUSE 1. The strip is mounted UNDER THE ROW, inside the table body. ──
+  // One mount per view, inside a <tbody>, and the row it sits under carries
+  // tabIndex={-1} so Close can put focus back on it.
+  for (const view of ROW_VIEWS) {
+    const body = codeOf(view.file);
+    if (!body.includes(`from './RowActionStrip'`)) rowFail(`${view.file} does not import RowActionStrip — every travel result view acts through the one shared strip`);
+    const mounts = allAt(body, '<RowActionStrip');
+    if (mounts.length !== 1) { rowFail(`${view.file} mounts <RowActionStrip/> ${mounts.length} times — a view has exactly one action strip, the one under its selected row`); continue; }
+    if (!inTableBody(body, mounts[0])) rowFail(`${view.file}:${lineAt(body, mounts[0])} mounts <RowActionStrip/> outside a <tbody> — the strip is a row of the table, directly beneath the line it acts on`);
+    const before = body.slice(0, mounts[0]);
+    if (!before.slice(before.lastIndexOf('<tr')).includes('tabIndex={-1}')) rowFail(`${view.file}: the row above the strip is not focusable (tabIndex={-1}) — Close returns focus to the row, so the row must be focusable programmatically`);
+  }
+
+  // ── CLAUSE 2. NO SELECTION BAR OUTSIDE A TABLE. ──
+  // Every action wiring sits inside a table body, and the bars this ruling
+  // deleted are gone from every view — one place to act, not two.
+  for (const view of ROW_VIEWS) {
+    const body = codeOf(view.file);
+    for (const action of view.actions) {
+      const at = allAt(body, action);
+      if (at.length !== 1) { rowFail(`${view.file} wires \`${action}\` ${at.length} times — the action is rendered once, in the strip under the selected row`); continue; }
+      if (!inTableBody(body, at[0])) rowFail(`${view.file}:${lineAt(body, at[0])} wires \`${action}\` outside a <tbody> — that is a selection bar after the table, which is what TRAVEL-ROW-01 deleted`);
+    }
+    for (const bar of view.gone) {
+      if (body.includes(bar)) rowFail(`${view.file} still carries \`${bar}\` — the selection bar after the table was DELETED by TRAVEL-ROW-01; the actions live in the strip under the row`);
+    }
+  }
+
+  // ── CLAUSE 3. THE CHECKOUT MOUNTS ONLY IN THE SLOT. ──
+  // The container passes the checkout ELEMENT into the view's `checkout` slot,
+  // mounts it nowhere else, and the view still never books: no result view
+  // imports a checkout panel — it receives one as a ReactNode.
+  const ROW_CHECKOUTS: { container: string; view: string; panel: string }[] = [
+    { container: 'src/components/trips/PublicHotelSearch.tsx', view: '<HotelResultsView', panel: '<CheckoutPanel' },
+    { container: 'src/components/trips/PublicFlightSearch.tsx', view: '<FlightPickerView', panel: '<LiteApiFlightCheckoutPanel' },
+  ];
+  for (const c of ROW_CHECKOUTS) {
+    const body = codeOf(c.container);
+    const mounts = allAt(body, c.panel);
+    const viewAt = body.indexOf(c.view);
+    if (viewAt < 0) { rowFail(`${c.container} no longer mounts ${c.view}/> — the checkout reaches the strip through that view's slot`); continue; }
+    const viewEnd = body.indexOf('/>', body.indexOf('onCloseCheckout=', viewAt));
+    if (mounts.length !== 1) { rowFail(`${c.container} mounts ${c.panel}/> ${mounts.length} times — it is mounted once, in the view's \`checkout\` slot, and nowhere else`); continue; }
+    if (!(mounts[0] > viewAt && viewEnd > 0 && mounts[0] < viewEnd)) rowFail(`${c.container}:${lineAt(body, mounts[0])} mounts ${c.panel}/> outside ${c.view}/>'s \`checkout\` slot — a checkout at the tail of the page is what TRAVEL-ROW-01 moved to the line`);
+    if (!body.includes('checkout={')) rowFail(`${c.container} passes no \`checkout={…}\` — the container fills the slot; the view never books`);
+    if (!body.includes('onCloseCheckout={')) rowFail(`${c.container} passes no \`onCloseCheckout={…}\` — Close collapses the strip's checkout from the container that opened it`);
+  }
+  for (const view of ROW_VIEWS) {
+    const body = codeOf(view.file);
+    for (const panel of ['CheckoutPanel', 'LiteApiFlightCheckoutPanel']) {
+      if (new RegExp(`import ${panel} from`).test(body)) rowFail(`${view.file} imports ${panel} — a result view DISPLAYS; the checkout is an element its container passes into the slot`);
+    }
+  }
+  // The strip renders what it is handed and imports no panel of its own.
+  const stripBody = codeOf(ROW_STRIP);
+  if (!stripBody.includes('checkout?: ReactNode;')) rowFail(`${ROW_STRIP} does not take the checkout as a ReactNode — the slot is an element the container built, never a panel the strip chose`);
+  if (/import\s+\w*CheckoutPanel/.test(stripBody)) rowFail(`${ROW_STRIP} imports a checkout panel — it renders the element it is handed and nothing else`);
+
+  // ── CLAUSE 4. THE STRIP'S OWN CLOCK. ──
+  // On open the checkout comes to the top of the viewport and takes the caret;
+  // Close and Escape both collapse it and return focus to the row above.
+  for (const [what, needle] of [
+    ['scroll the opened checkout to the top of the viewport', `wrap.scrollIntoView({ block: 'start', behavior: 'smooth' })`],
+    ['focus the opened checkout without scrolling the page again', 'heading.focus({ preventScroll: true });'],
+    ['return focus to the row it belongs to', 'stripRef.current?.previousElementSibling'],
+    ['close on Escape', `if (e.key === 'Escape')`],
+    ['close on the Close button', 'onClick={closeAndReturn}'],
+  ] as const) {
+    if (!stripBody.includes(needle)) rowFail(`${ROW_STRIP} does not ${what} (\`${needle}\` is gone) — the founder must land on the form and get back to the row`);
+  }
+  if (!/<tr ref=\{stripRef\} data-row-strip=\{rowId\}/.test(stripBody)) rowFail(`${ROW_STRIP} is no longer a <tr> carrying data-row-strip={rowId} — it is a row of the table, so the line above it never moves`);
+  if (!stripBody.includes('<td colSpan={colSpan}')) rowFail(`${ROW_STRIP} does not span the table's columns — the strip is full width beneath the row`);
+
+  // ── CLAUSE 5. THE TWO FILES THAT ACTUALLY BOOK DID NOT MOVE. ──
+  // Display is not booking. These hashes are the ones both panels carried on
+  // main 97d6db04, before TRAVEL-ROW-01: not a re-pin, an UNCHANGED pin.
+  const ROW_UNTOUCHED: { file: string; sha256: string }[] = [
+    { file: 'src/components/trips/CheckoutPanel.tsx', sha256: '77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5' },
+    { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: 'c018712700fe9e24c0ff51b417ab3658060f8dbe8784a459b33da4eb6a70365d' },
+  ];
+  const flowPins = codeOf('src/lib/travelBookingFlow.ts');
+  const flowNotes = commentsOf('src/lib/travelBookingFlow.ts');
+  for (const p of ROW_UNTOUCHED) {
+    const now = bookingFlowSha256(rejoin(codeOf(p.file), commentsOf(p.file)));
+    if (now !== p.sha256) rowFail(`${p.file} hashes to ${now}, not the ${p.sha256} it carried on main 97d6db04 — TRAVEL-ROW-01 moved WHERE the checkout mounts, never what it does; a booking file that changed here is a different ruling`);
+    const pinAt = flowPins.indexOf(`{ file: '${p.file}', sha256: '${p.sha256}' }`);
+    if (pinAt < 0) { rowFail(`${p.file} is not pinned at ${p.sha256} in travelBookingFlow.ts — the census must still carry the hash it had on main`); continue; }
+    if (/TRAVEL-ROW-01/.test(noteBlockOver(flowPins, flowNotes, flowPins.slice(0, pinAt).split('\n').length))) {
+      rowFail(`${p.file}'s pin carries a TRAVEL-ROW-01 note — this ruling re-dated the views and the containers; the two checkout panels are UNTOUCHED and a dated note over them would say otherwise`);
+    }
+  }
+  // And the strip itself is in the census, pinned new by this ruling.
+  if (!flowPins.includes(`{ file: '${ROW_STRIP}', sha256: '`)) rowFail(`${ROW_STRIP} is not in the booking-flow census — the strip is where Book is pressed, so it is pinned`);
+
+  if (rowViolations === 0) console.log(`✔ The row law passed — ${ROW_VIEWS.length} travel result views, each acting only in the one strip under its selected row; 0 selection bars outside a table; both checkouts mounted only in the view's slot; CheckoutPanel.tsx and LiteApiFlightCheckoutPanel.tsx byte-identical to main 97d6db04.`);
+  else console.log(`✖ The row law FAILED — ${rowViolations} violation(s).`);
 });
 
 lawGuard('The reader law', () => {

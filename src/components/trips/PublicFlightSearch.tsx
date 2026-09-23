@@ -316,30 +316,23 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
         onBookLeg={bookLeg}
         providerLabel="LiteAPI"
         searchCount={searchCount}
-      />
-
-      {/* Book opens the LiteAPI checkout (FL-4/4b panel — passenger form →
-          Nuitee-Stripe Elements; publishableKey-null renders its declared error
-          until Nuitee's key lands) for the selected offer. Standalone + guest-ok,
-          like the hotel Book; a booking made while signed in is adopted from the
-          unattached list (UnattachedBookings). */}
-      {booking && (
-        <div className="mt-4 space-y-2">
+        checkout={booking ? (
           <LiteApiFlightCheckoutPanel
             offerId={booking.offer.id}
             price={booking.offer.price}
             currency={booking.offer.currency}
             onBooked={() => { onCommitted?.(); }}
           />
-          <button
-            type="button"
-            onClick={() => setBooking(null)}
-            className="text-xs text-text-muted underline hover:text-text-primary"
-          >
-            Close checkout
-          </button>
-        </div>
-      )}
+        ) : null}
+        onCloseCheckout={() => setBooking(null)}
+      />
+
+      {/* TRAVEL-ROW-01 (2026-09-23): the LiteAPI checkout no longer mounts here, after
+          the picker. It is passed into <FlightPickerView/>'s `checkout` slot above and
+          renders inside the action strip DIRECTLY BENEATH the selected fare, so the
+          founder books at the line. The panel itself is unchanged and takes the same
+          props (FL-4/4b); standalone and guest-ok exactly as before, and a booking made
+          while signed in is still adopted from the unattached list. */}
     </TravelSectionShell>
   );
 }
