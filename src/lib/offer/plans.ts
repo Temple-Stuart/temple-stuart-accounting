@@ -176,8 +176,14 @@ export const CAPABILITY_GROUPS: readonly CapabilityGroup[] = [
     id: 'books',
     title: 'Keep the books',
     rows: [
-      { label: 'Double-entry books written from what you already did \u2014 click any number back to the bytes it came from', tools: ['Bookkeeping'], from: 'business' },
-      { label: 'Receipts matched to the charge that made them', tools: ['Expenses'], from: 'business' },
+      // OFFER-02 (2026-09-23): both rows moved from 'business' to 'personal'. A personal
+      // customer keeps books — Bookkeeping is the registry's LIVE tool, and starting it a
+      // tier up left the entry plan with one ✓ and the finished accounting tool out of
+      // reach. The line between Personal and Business is not the number of connected
+      // accounts; it is what KIND of records you keep: one personal entity, against a
+      // company with invoices, payroll, sales tax and filings — and those stay 'business'.
+      { label: 'Double-entry books written from what you already did', tools: ['Bookkeeping'], from: 'personal' },
+      { label: 'Receipts matched to the charge that made them', tools: ['Expenses'], from: 'personal' },
     ],
   },
   {
@@ -213,6 +219,34 @@ export const CAPABILITY_GROUPS: readonly CapabilityGroup[] = [
     id: 'proof',
     title: 'Proof and audit',
     rows: [
+      // OFFER-02 (2026-09-23): the audit trail, split out of Bookkeeping's label into its
+      // own row. THE TOOL THAT PROVES IT IS BOOKKEEPING, read rather than guessed:
+      //   · the registry holds no Ledger tool and no audit tool — the twenty-five names are
+      //     Calendar … FP&A (src/lib/problemSheet.ts, src/lib/toolRegistry.ts);
+      //   · /ledger and /journal-entries BOTH redirect to /books (src/app/ledger/page.tsx:3-7,
+      //     src/app/journal-entries/page.tsx:3-7 — "duplicated the Books cockpit's General
+      //     Ledger section"), and /books is Bookkeeping's home (toolRegistry.ts:264);
+      //   · the pointer itself is written by Bookkeeping's OWN writer —
+      //     src/lib/journal-entry-service.ts:138-139 posts every entry with
+      //     source_type: 'plaid_txn' and source_id: transactionId — and that file is in
+      //     Bookkeeping's registry citation (toolRegistry.ts:266);
+      //   · the chain reaches the provider's own bytes: ledger_entries.journal_entry_id
+      //     (prisma/schema.prisma:228) → journal_entries.source_type/source_id →
+      //     transactions, whose payload fields are kept as JSON (schema.prisma:539-543).
+      // NOT this: /operations/audit-log is Tasks' link and is operations-filtered
+      // (src/app/operations/audit-log/page.tsx:1-12), and writeAuditLog.ts is cited under
+      // Compliance (toolRegistry.ts:276) — the SOC 2 who-changed-what, a different trail.
+      //
+      // THE LABEL SAYS "TRANSACTION", NOT "RECORD": "record" is one of the loop's four beat
+      // names and the plan law forbids the whole word in this file — and "transaction" is
+      // the exacter word anyway, since source_id IS a transactions row id.
+      //
+      // THE LABEL SAYS "KEEPS", NOT "CLICK". Measured while reading: the pointer is written
+      // but rendered on NO screen — JournalEntryEngine.tsx:22-37's JournalTxn carries no
+      // source_type or source_id, and GeneralLedger.tsx renders none. So the row claims the
+      // provenance the entry actually carries, and claims no click the surface does not
+      // offer. Surfacing it is a later ruling.
+      { label: 'Every entry keeps the bank transaction it was posted from', tools: ['Bookkeeping'], from: 'personal' },
       // THE TWO-TOOL ROW: filing on time needs both the filings tool and the
       // compliance state. Ent Filings is NOT_BUILT and Compliance is PARTIAL, so the
       // weakest wins and the cell reads "Coming" in every plan — the customer is told
@@ -392,11 +426,16 @@ export function planLaw(opts: {
       if (!(PLAN_ORDER as readonly string[]).includes(row.from)) violations.push(`${g.id} · "${row.label}": from "${row.from}" is not a plan`);
       for (const name of row.tools) {
         if (!registry.some((t) => t.name === name)) { violations.push(`${g.id} · "${row.label}": ${name} is not a registry tool`); continue; }
+        // OFFER-02 (2026-09-23): this read "a tool sits in exactly ONE ROW" until the
+        // founder split the audit trail off Bookkeeping's label. Two rows can be two
+        // genuinely different capabilities of one tool — keeping the books, and keeping
+        // each entry's provenance — and a tool's cells cannot disagree, because every one
+        // derives from the same registry status. What would still be a fault is the SAME
+        // GROUP selling one tool twice, so that is what the clause forbids now; coverage
+        // (every registry tool in at least one row) is checked below and is unchanged.
         const already = placed.get(name);
-        // ONE TOOL, ONE ROW. A tool named twice would be sold twice and its state
-        // read two ways; the twenty-five rows below account for the registry exactly.
-        if (already !== undefined) violations.push(`${name}: placed in ${already} and again in ${g.id} · "${row.label}" — a tool sits in exactly one row`);
-        placed.set(name, `${g.id} · "${row.label}"`);
+        if (already === g.id) violations.push(`${name}: named twice inside ${g.id} (again at "${row.label}") — one group sells a tool once`);
+        placed.set(name, g.id);
       }
     }
   }
