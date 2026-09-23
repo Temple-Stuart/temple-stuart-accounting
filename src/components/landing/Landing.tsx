@@ -185,8 +185,10 @@ import { PROVIDER_MENU, ROUTING_RULES } from '@/lib/providers';
 // TABLES-01: step 5's honest line — every table name from the kind-views census, none retyped.
 import { KIND_VIEWS_HONEST_LINE } from '@/lib/kindViews';
 // SELL-02: the offer — what is sold and what is free, from ONE source; the hero's counts from the registry.
-import { OFFERS, freeSetLine, heroCountsLine, offerCard } from '@/lib/offer';
-import OfferCard from '@/components/OfferCard';
+// OFFER-01 (2026-09-23): the landing no longer renders OfferCard, heroCountsLine,
+// OFFERS or freeSetLine — the offer it shows is the three plans, and Travel's free
+// line comes from the registry's own Travel row (plans.ts travelFreeLine).
+import PlansSection from '@/components/offer/PlansSection';
 // PR-ELEV-1: the coming-soon tiles became badged "Soon" chips INSIDE the
 // booking strip (travelStripModes) — the separate tile row is gone.
 
@@ -1758,52 +1760,12 @@ function GoldSegments({ segments }: { segments: ReadonlyArray<readonly [string, 
 // svg FILES stay in public/demo per the spec; the strings live in git
 // history if a surface ever wants them back.
 
-// PERSONAS-PAYOFFS → PERSONAS-COPY (PR-PERSONAS-COPY): rows rewritten to the
-// 13-step vocabulary from the 2026-08 persona research pack (every claim
-// cited there); mono fragments only from the essay word list, max two per
-// row. Segment boundaries are the slate's — never resplit them.
-const PERSONAS: ReadonlyArray<{ label: string; segments: ReadonlyArray<{ text: string; mono?: true }> }> = [
-  { label: 'FOUNDER', segments: [
-    { text: 'Building a company? See your ' },
-    { text: 'runway', mono: true },
-    { text: ' at any moment, and click any number back to the raw bank bytes when investors ask.' },
-    { text: ' Every dollar keeps its ' },
-    { text: 'fingerprint', mono: true },
-    { text: '.' },
-  ] },
-  { label: 'TRADER', segments: [
-    { text: 'Trading your own money? Every fill finds its order and lands in your ' },
-    { text: 'books', mono: true },
-    { text: ', so your ' },
-    { text: 'return', mono: true },
-    { text: ' is ready all year.' },
-    { text: ' No April spreadsheet panic.' },
-  ] },
-  { label: 'CREATOR', segments: [
-    { text: 'Filming what you do? Your ' },
-    { text: 'Calendar', mono: true },
-    { text: ' plans your shoots, and the tax you owe updates as the money lands.' },
-    { text: ' More posting, less panic.' },
-  ] },
-  { label: 'NOMAD', segments: [
-    { text: 'Living out of a suitcase? Book the trip inside the system, and the card charge ' },
-    { text: 'matches', mono: true },
-    { text: ' its booking by itself.' },
-    { text: ' Nothing lost between countries.' },
-  ] },
-  { label: 'SMALL BUSINESS OWNER', segments: [
-    { text: 'Running the whole thing yourself? ' },
-    { text: 'Posting', mono: true },
-    { text: ' rules write every debit and credit, so you never type a journal entry.' },
-    { text: ' No more spreadsheet tabs.' },
-  ] },
-  { label: 'STUDENT', segments: [
-    { text: 'First real paycheck? Watch one $500 travel your whole ' },
-    { text: 'Ledger', mono: true },
-    { text: ' — every term explained the first time you see it.' },
-    { text: " The class most schools still don't require." },
-  ] },
-];
+// OFFER-01 (2026-09-23): the PERSONAS const (six rows: FOUNDER · TRADER ·
+// CREATOR · NOMAD · SMALL BUSINESS OWNER · STUDENT) is DELETED with the act that
+// rendered it. A persona grid told a visitor which of six lives to see themselves
+// in before it told them what they could buy; the audience each row named now
+// sits on the plan that serves it, in one line under the plan's name
+// (src/lib/offer/plans.ts PLANS[].audience).
 
 // FD-1n: the footnote marks ACTUALLY referenced by the allocation rows
 // (amount footnotes + the ᵉ riding split percentages) — the merged registry
@@ -1906,19 +1868,10 @@ interface Props {
    *  LOGIN mode (returning users). Optional so the preview wrapper needs no
    *  change; absent → LandingHeader falls back to its '/' link mode. */
   onRequireLogin?: () => void;
-  /** Per-entitlement-key availability, SERVER-computed by the mount route
-   *  (page.tsx:83-85 env-presence read). Missing key → unavailable. */
-  offerAvailability: Record<string, boolean>;
   /** PR-ELEV-2d: per logo slug, does public/logos/<slug>.svg exist? SERVER-
    *  computed (page.tsx fs check over BUILT_ON's logo slots). Missing/false
    *  → the text-only card, exactly as before — never a broken <img>. */
   logoAvailability: Record<string, boolean>;
-  /** PR-PRICE-3: the deck's buy path — /pricing died, so Select/Continue no
-   *  longer link out; they hand the entitlement key to GuestLanding, which
-   *  owns the account-first + checkout-entitlement resume (every Landing
-   *  viewer is a guest by construction — page.tsx:77 branches authed viewers
-   *  to HomeClient, where LockedTabCard is the buy surface). */
-  onBuyModule: (key: string) => void;
 }
 
 // REPAINT-2 (Direction C): the local HERO_BG radial-glow const DIED — the
@@ -1927,13 +1880,14 @@ interface Props {
 // this file is a flat card + lavender hairline now (deck/services = bg-white,
 // summary slides = bg-ts-white card cream, wall tiles = solid aubergine).
 
-// SELL-02: offerAvailability + onBuyModule are CONSUMED again — the offer act
-// below the personas renders every OfferCard from src/lib/offer.ts with the
-// server-computed availability, and its doors call onBuyModule (GuestLanding's
-// account-first checkout resume). REAL-MARKS: logoAvailability is CONSUMED too —
-// the marquee chips carry the lit-logo two-state render (the wall's own logic,
-// relocated), so the server fs-check → availability → chip pipeline is live end to end.
-export default function Landing({ onRequireAuth, onRequireLogin, logoAvailability, offerAvailability, onBuyModule }: Props) {
+// OFFER-01 (2026-09-23): offerAvailability and onBuyModule LEFT this component
+// with the offer act. They fed <OfferCard/>'s buy button, which renders only when
+// a price is live — and no price is set, so that button has never rendered. The
+// `?module=<key>` checkout resume never went through here: it is GuestLanding's
+// own URL effect, which now also checks availability itself. REAL-MARKS:
+// logoAvailability is CONSUMED — the marquee chips carry the lit-logo two-state
+// render, so the server fs-check → availability → chip pipeline is live end to end.
+export default function Landing({ onRequireAuth, onRequireLogin, logoAvailability }: Props) {
   // LOBBY-DECK-1b: the demo modal's open flag.
   // UNREACHABLE AS OF THE MODULES RETIREMENT, DECLARED — the only
   // setShowDemo(true) in the file was the merged section's header button, which
@@ -1945,12 +1899,6 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
   // restores an opener restores the behaviour. Flagged rather than silently
   // left looking live.
   const [showDemo, setShowDemo] = useState(false);
-
-  // PERSONAS-MOBILE: below lg the persona rows collapse to a one-open-at-a-
-  // time accordion — FOUNDER (index 0) open by default; tapping the open row
-  // closes it. Desktop is untouched: the toggle renders as the inert label
-  // (lg:pointer-events-none) and every sentence stays lg:block.
-  const [openPersona, setOpenPersona] = useState<number | null>(0);
 
   // PR-COLLAPSE: one open flag per deck step, independent toggles (any
   // number can be open). ALL 14 ship collapsed — the URL-hash effect below
@@ -2002,12 +1950,15 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                   reads. Copy untouched. */}
               <span className="text-brand-purple-wash">Live smarter.</span>
             </h1>
-            {/* LAND-MSG-1: the hero previously jumped tagline → CTAs with
-                nothing telling a novice what this IS. One plain sentence,
-                Alex's framing near-verbatim. SELL-02: the sentence is the registry's own count
-                (heroCountsLine, src/lib/offer.ts) — never typed. */}
+            {/* OFFER-01 (2026-09-23): the hero's registry count is GONE. It read
+                "Twenty-five tools, counted: two live, nine partial, fourteen on the
+                blueprint" (heroCountsLine, src/lib/offer.ts) — the builder's own
+                census on the customer's first screen. What the product is for is
+                said by the three plans below, each in the words of the person who
+                buys it. The count stays in the registry and the audit trail. */}
             <p className="mb-6 max-w-xl text-base text-white/70">
-              {heroCountsLine()}
+              One system for your money, your days and your books — so every number
+              can be traced back to what actually happened.
             </p>
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               {/* HERO-REPO-1 (Alex's rationale): the hosted product leads —
@@ -2109,87 +2060,24 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
             exist (fail-honest empty state = nothing). ─────────────────────── */}
       <GuestTripStrip onRequireAuth={onRequireAuth} />
 
-        {/* ACT 2 — PERSONAS (value cases): hook question + one outcome
-            sentence per row; module-name fragments wear the mono purple
-            idiom mid-sentence. Rows: border-light rules (§0's inner
-            hairline — the exact #EBE4F7 token). The '·' in the act label
-            wears gold. PERSONAS-CHROME: the act adopts the standard act
-            grammar — DONE-FOR-YOU's eyebrow/h2/py-10 classes verbatim,
-            left-aligned, rows full container width; the sentence tier is
-            slide 09's body tier. Row texts and the label are FROZEN; the
-            outer div's border-b (the personas|done-for-you rule since
-            PR-REORDER moved this act above DONE-FOR-YOU) is untouched. */}
-        <div className="w-full border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-            <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">
-              ONE SYSTEM <span className="text-brand-gold">·</span> SIX LIVES
-            </p>
-            <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">
-              Who is this for?
-            </h2>
-            <div className="mt-5">
-              {PERSONAS.map((row, index) => {
-                const open = openPersona === index;
-                return (
-                  <div key={row.label} className="border-t border-border-light py-3 first:border-t-0 lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:items-baseline lg:gap-4">
-                    <button
-                      type="button"
-                      aria-expanded={open}
-                      onClick={() => setOpenPersona(open ? null : index)}
-                      className="flex w-full items-baseline justify-between py-3 lg:pointer-events-none lg:py-0"
-                    >
-                      <span className="font-mono text-xs font-semibold tracking-wider text-text-muted">{row.label}</span>
-                      <span aria-hidden="true" className="font-mono text-[14px] text-text-faint lg:hidden">{open ? '−' : '+'}</span>
-                    </button>
-                    <p className={`${open ? 'block' : 'hidden'} lg:block mt-1 text-[13px] leading-[1.5] lg:text-[15px] lg:leading-[1.6] text-text-secondary lg:mt-0`}>
-                      {row.segments.map((seg, i) =>
-                        seg.mono ? (
-                          <span key={i} className="font-mono text-[12.5px] font-semibold text-brand-purple">{seg.text}</span>
-                        ) : (
-                          <Fragment key={i}>{seg.text}</Fragment>
-                        ),
-                      )}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-      {/* ── SELL-02: THE OFFER — the deck's modules act, rendered from
-            src/lib/offer.ts and the tool registry: every card names its tools
-            with their REGISTRY claim lines, shows the price only when it is
-            live (the const AND the Stripe price id), and carries a door —
-            onBuyModule(key) → the sign-up modal → after sign-up, checkout for
-            that key → /answers with the tab unlocked (GuestLanding). No live
-            price → the declared line and NO button. id="modules" lives HERE
-            now: the Stripe cancel_url (checkout-entitlement/route.ts), the
-            shopping page's View-Plans button (app/shopping/page.tsx) and the
-            /pricing and /modules doors (?module=<slug>#modules) resolve to it.
-            The free set is the registry's LIVE tools with no tab gate
-            (FREE_TOOLS) — never typed. ─────────────────────────────────── */}
-      <section id="modules" aria-label="The offer" className="w-full border-b border-border bg-bg-terminal" data-offer-act>
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-          <p className="font-mono text-xs lg:text-[10px] font-semibold uppercase tracking-wider text-text-faint">
-            THE OFFER <span className="text-brand-gold">·</span> WHAT IS SOLD, WHAT IS FREE
-          </p>
-          <h2 className="mt-3 text-2xl sm:text-3xl font-medium tracking-tight text-brand-purple">
-            What you can buy, and what is free.
-          </h2>
-          <p className={`mt-2 ${DECK.statement}`}>{heroCountsLine()}</p>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            {OFFERS.map((o) => (
-              <OfferCard key={o.key} card={offerCard(o, offerAvailability)} door={{ kind: 'button', onClick: () => onBuyModule(o.key) }} />
-            ))}
-          </div>
-          <p className="mt-5 text-[13px] text-text-secondary" data-free-set>
-            {/* TRUTH-01b: the sentence is freeSetLine (src/lib/offer.ts) — the noun follows FREE_TOOLS.length: "tool" for one. */}
-            {freeSetLine()}
-          </p>
-        </div>
-      </section>
-
+      {/* ── OFFER-01 (2026-09-23): THE PLANS — what replaced TWO acts here.
+            GONE, and re-created nowhere on this page:
+              · ACT 2, the six-row persona grid headed "ONE SYSTEM · SIX LIVES"
+                with its "Who is this for?" hook — a visitor had to pick a life
+                before the page told them what they could buy;
+              · the SELL-02 offer act — two <OfferCard/>s (Books · Everything)
+                whose every tool wore the registry STATUS CHIP and the loop's own
+                beat vocabulary ("partial — discover · decide"), under a second
+                copy of the hero's registry count, over freeSetLine()'s "the
+                registry's live tools with no tab gate".
+            In their place: three cumulative plan cards and ONE comparison table
+            of collapsed capability groups, every word and every cell derived in
+            src/lib/offer/plans.ts. id="modules" RIDES ON — the Stripe cancel_url
+            (checkout-entitlement/route.ts:71), the /modules access block and
+            /pricing all resolve to it, so the anchor moves with the section, not
+            away from it. The door is the sign-up modal: no price is set, so the
+            slot says so and the button joins early access. ─────────────────── */}
+      <PlansSection door={{ kind: 'button', onClick: () => onRequireAuth() }} />
       {/* ── LANDING-V4 (Alex's ruling, reversing the V2 seat): DONE-FOR-YOU is
             its own section — no right slot. Body = the PROFESSIONAL SERVICES
             panel relocated WHOLESALE from the 05 grid (markup byte-identical
