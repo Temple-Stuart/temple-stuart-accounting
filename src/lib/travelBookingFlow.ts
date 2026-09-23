@@ -93,7 +93,16 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // is invented, defaulted, or taken from createdAt. Nothing about the booking
   // itself changed.
   // Was cd8fa37b2d950f98063b7562d3d5347dc1c5e1edcf04df695db41306f8400ab3 at main 82e2250b.
-  { file: 'src/app/api/travel/liteapi/flights/book/route.ts', sha256: 'bbc045a7bb5415c938ac57bcec26fbf807ba7fe5155b119c598cbbf4333bf1fc' },
+  // FL-5b (2026-09-23): re-pinned — the confirmation email, restored to this lane.
+  // The route's own comment had said since 34fdb749 that "FL-5b (confirmation
+  // email) is where a contact re-enters this lane"; it does now. contactEmail is a
+  // REQUIRED field, validated with the prebook route's own regex and refused by
+  // name BEFORE the provider call, so a malformed address costs nothing. The email
+  // is sent AFTER the reservation transaction commits, in its own try/catch, and a
+  // failure is reported as email.sent=false while the booking still returns 200.
+  // The provider call, the guards, the landing and the reservation are unchanged.
+  // Was bbc045a7bb5415c938ac57bcec26fbf807ba7fe5155b119c598cbbf4333bf1fc at main 54f438f1.
+  { file: 'src/app/api/travel/liteapi/flights/book/route.ts', sha256: '7a92d920d3bd45ac1a10997c3eb6b2ee1b1495dd3eec73a45ec3d9185ec5cc92' },
   { file: 'src/app/api/travel/liteapi/flights/prebook/route.ts', sha256: 'ed9b0d2afe376769e42a99a80fc3ce33755324add6a25e4104a5f5c193289c7a' },
   // FLIGHT-01 (2026-09-22): re-pinned — the request body gains the vendor's filters and sort, validated by name between the two guards. Search is not booking; no prebook/verify/book/pay/cancel call changed.
   // Was cbd59f8394b0f9fb52b3df446ba5183e99eb8b62c07cbb4afdbf63d50b6b86d1 at main b9eac34a.
@@ -178,7 +187,12 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // config, the same returnUrl. What changed is what the customer is TOLD.
   // Was 77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5 at main 8788cb11.
   { file: 'src/components/trips/CheckoutPanel.tsx', sha256: '3b6ae4fe18c1fb5e3701c592d6685e95bf336abb089d5d0aa947f3718dc7ef22' },
-  { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: 'c018712700fe9e24c0ff51b417ab3658060f8dbe8784a459b33da4eb6a70365d' },
+  // FL-5b (2026-09-23): re-pinned — the panel sends the contact it already holds.
+  // The SAME address it validated and sent at prebook now rides the book call too,
+  // and the booked state says whether the confirmation went out. No payment path,
+  // no Stripe rail and no booking call changed.
+  // Was c018712700fe9e24c0ff51b417ab3658060f8dbe8784a459b33da4eb6a70365d at main 54f438f1.
+  { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: '069af3c2b1d4a13d75596473ab372b07be749c21f3f05703873f23f54cfd7e5c' },
   { file: 'src/components/trips/CancelBookingDialog.tsx', sha256: '7e50c4ece72171929446f4734622ccdf8b6b75bb87c2c6c3c5aa101ec26fd95d' },
   { file: 'src/components/trips/TripBookings.tsx', sha256: '1c74ce7438ea6ce7013a4c8de4bbd685f2865e2fe0f8d3c3a7f4a119435cc5bd' },
   // REPAINT-04 (2026-09-21): re-pinned — one class on the "Add to <trip>" ghost button

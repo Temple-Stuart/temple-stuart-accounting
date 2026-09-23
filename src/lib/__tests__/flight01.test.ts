@@ -252,8 +252,10 @@ test('the booking-flow pin still holds for every file it names — five search f
     'src/app/api/travel/liteapi/flights/prebook/route.ts': 'ed9b0d2afe376769e42a99a80fc3ce33755324add6a25e4104a5f5c193289c7a',
     'src/app/api/travel/liteapi/flights/verify/route.ts': '5143ffafee8ed954d5edc7c639857622375c6b177b9ac067f79553794674d589',
     // CAL-01 (2026-09-23): a flight has no date of travel in its landed payload, so it writes NO row and logs why.
-    'src/app/api/travel/liteapi/flights/book/route.ts': 'bbc045a7bb5415c938ac57bcec26fbf807ba7fe5155b119c598cbbf4333bf1fc',
-    'src/components/trips/LiteApiFlightCheckoutPanel.tsx': 'c018712700fe9e24c0ff51b417ab3658060f8dbe8784a459b33da4eb6a70365d',
+    // FL-5b (2026-09-23): the confirmation email restored — a required contact, sent after the transaction.
+    'src/app/api/travel/liteapi/flights/book/route.ts': '7a92d920d3bd45ac1a10997c3eb6b2ee1b1495dd3eec73a45ec3d9185ec5cc92',
+    // FL-5b (2026-09-23): the panel sends the contact it already holds; no payment path changed.
+    'src/components/trips/LiteApiFlightCheckoutPanel.tsx': '069af3c2b1d4a13d75596473ab372b07be749c21f3f05703873f23f54cfd7e5c',
     // Was 77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5 before CHECKOUT-01.
     'src/components/trips/CheckoutPanel.tsx': '3b6ae4fe18c1fb5e3701c592d6685e95bf336abb089d5d0aa947f3718dc7ef22',
     'src/lib/liteapiFlightsClient.ts': 'f5ecffcfa0b71b8cbe4ba8868a2f8aabd4e326129bacbf9a675e79b17e63fd2f',
