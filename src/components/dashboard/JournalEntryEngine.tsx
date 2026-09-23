@@ -3,6 +3,8 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import EntrySourceCell, { CoverageLine } from '@/components/books/EntrySourceCell';
+import { coverageOf } from '@/lib/books/entrySource';
 
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -23,6 +25,15 @@ interface JournalTxn {
   id: string;
   date: string;
   description: string | null;
+  // DRILL-01 (2026-09-23): WHERE THE ENTRY CAME FROM. /api/journal-transactions has
+  // put both on the wire since route.ts:46-47; this type simply never carried them,
+  // so the books screen could not say where a number came from. `reverses_entry_id`
+  // is the API's own field name — the two fields below it (reverses_journal_id,
+  // reversed_by_transaction_id) are names the route does not send, a drift this
+  // ruling reports and does not touch.
+  source_type: string | null;
+  source_id: string | null;
+  reverses_entry_id: string | null;
   is_reversal: boolean;
   reverses_journal_id: string | null;
   reversed_by_transaction_id: string | null;
@@ -506,6 +517,13 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
 
   const activeColFilterCount = countActiveColumnFilters(columnFilters);
 
+  // DRILL-01: COVERAGE IS DECLARED over THE ROWS SHOWN — `filtered`, the same list
+  // the virtualizer counts, so the line and the table can never disagree. Derived by
+  // coverageOf(); nothing here is typed and nothing is imputed from silence.
+  const coverage = useMemo(() => coverageOf(filtered.map((t) => ({
+    source_type: t.source_type, source_id: t.source_id, reverses_entry_id: t.reverses_entry_id,
+  }))), [filtered]);
+
   // ─── New Entry Form Logic ────────────────────────────────────────────────
 
   const totalDebits = newLines.reduce((sum, l) => sum + (parseFloat(l.debit) || 0), 0);
@@ -563,6 +581,7 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
       <div className="px-3 py-2 border-b border-border flex items-center justify-between">
         <span className="text-terminal-sm text-text-muted font-mono">
           {txns.length} journal entries ({reversalCount} reversals)
+          <CoverageLine line={coverage.line} />
         </span>
         <button
           onClick={() => setShowForm(!showForm)}
@@ -808,7 +827,7 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
               const borderClass = isReversal ? 'border-l-[3px] border-amber-400' : '';
 
               return (
-                <tr key={txn.id} data-index={vRow.index}>
+                <tr key={txn.id} data-index={vRow.index} data-journal-row={txn.id}>
                   {/* Main row */}
                   <td colSpan={8} className="p-0">
                     <div
@@ -884,6 +903,14 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                     {/* Expanded detail */}
                     {isExpanded && (
                       <div className="bg-bg-row px-6 py-3 border-t border-border-light">
+                        {/* DRILL-01: where this entry came from, said in the customer's
+                            words, and — for a bank transaction — opened on click. */}
+                        <div className="mb-3" data-entry-source-row={txn.id}>
+                          <div className="font-mono text-[10px] uppercase tracking-wider text-text-faint">Where it came from</div>
+                          <div className="mt-0.5">
+                            <EntrySourceCell entryId={txn.id} entry={{ source_type: txn.source_type, source_id: txn.source_id, reverses_entry_id: txn.reverses_entry_id }} />
+                          </div>
+                        </div>
                         <table className="w-full text-terminal-base">
                           <thead className="bg-gray-50 text-text-secondary">
                             <tr>
