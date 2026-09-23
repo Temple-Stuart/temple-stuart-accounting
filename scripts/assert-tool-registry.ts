@@ -151,7 +151,7 @@ import { KIND_VIEWS_HONEST_LINE, KIND_VIEW_CENSUS, STOPPED_TABLES, VIEW_COLUMNS,
 // SELL-02: the offer law — every sales claim from the registry, every price from one source.
 import { FREE_TOOLS, OFFERS, TOOL_GATE, heroCountsLine, offerCard, offerLaw, priceEnvName } from '../src/lib/offer';
 // OFFER-01: the plans leaf — the public offer's one source.
-import { BEST_VALUE_WORDS, CAPABILITY_GROUPS, EARLY_ACCESS_CTA, LAUNCH_PLACEHOLDER, MODULES, PLANS, PLAN_ORDER, STATUS_TO_CELL, cellState, planLaw, priceSlot, weakestStatus } from '../src/lib/offer/plans';
+import { BEST_VALUE_WORDS, CAPABILITY_GROUPS, CELL_LABEL, EARLY_ACCESS_CTA, LAUNCH_PLACEHOLDER, MODULES, PLANS, PLANS_HEADLINE, PLANS_SUBHEAD, PLAN_ORDER, STATUS_TO_CELL, cellState, planLaw, priceSlot, travelFreeLine, weakestStatus } from '../src/lib/offer/plans';
 // DRILL-01: where an entry came from — the pure mapping the book surfaces render.
 import { NO_SOURCE_WORDS, SOURCE_RULES, coverageOf, entrySourceOf, statedFacts } from '../src/lib/books/entrySource';
 import { DYNAMIC_READ_ENV, LIBRARY_READ_ENV } from '../src/lib/envLaw';
@@ -5069,12 +5069,80 @@ lawGuard('The plan law', () => {
     if (!cls.some((c) => /^lg:min-w-/.test(c))) planFail(`${PLANS_SECTION}'s table declares no lg:min-w-… — the four columns need their floor from lg up`);
   }
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // OFFER-04: THE SECTION SAYS WHAT IT MEANS.
+  //
+  // "base", "module", "tier", "cumulative", "registry", "beat" and "loop" are this
+  // codebase's words for how the offer is ASSEMBLED. A customer does not buy a
+  // module or read a beat. None of them may reach the screen.
+  //
+  // WHAT THIS CLAUSE COVERS: the copy the section and its leaf AUTHOR — the two
+  // heading lines, every plan's name, role, positioning, audience, relationship and
+  // benefits, every group title, every capability row's label, the cell labels, the
+  // price placeholder and its button, the best-value words, Travel's free line, and
+  // the text this component types between its own tags.
+  //
+  // WHAT IT DOES NOT COVER, and why: the registry's own `why` notes, which the table
+  // shows VERBATIM when a group opens — clause 2 above requires the leaf hand them
+  // over unedited, so a word ban here would contradict it. They are the registry's
+  // prose to fix in the registry. (OFFER-04's audit found one: Budget's why renders
+  // the table name `module_expenses` to a customer — src/lib/toolRegistry.ts:204.)
+  // Nor does it cover CSS class names, data-* attribute values or the `modules`
+  // anchor id, none of which a customer reads.
+  const BUILDER_WORDS = ['module', 'base', 'tier', 'cumulative', 'registry', 'beat', 'loop'];
+  const builderWordsIn = (text: string) => BUILDER_WORDS.filter((w) => new RegExp(`\\b${w}`, 'i').test(text));
+
+  const authoredCopy: { where: string; text: string }[] = [
+    { where: 'PLANS_HEADLINE', text: PLANS_HEADLINE },
+    { where: 'PLANS_SUBHEAD', text: PLANS_SUBHEAD },
+    { where: 'BEST_VALUE_WORDS', text: BEST_VALUE_WORDS },
+    { where: 'LAUNCH_PLACEHOLDER', text: LAUNCH_PLACEHOLDER },
+    { where: 'EARLY_ACCESS_CTA', text: EARLY_ACCESS_CTA },
+  ];
+  for (const p of PLANS) {
+    authoredCopy.push(
+      { where: `PLANS.${p.id}.name`, text: p.name },
+      { where: `PLANS.${p.id}.role`, text: p.role },
+      { where: `PLANS.${p.id}.positioning`, text: p.positioning },
+      { where: `PLANS.${p.id}.audience`, text: p.audience },
+      { where: `PLANS.${p.id}.relationship`, text: p.relationship },
+    );
+    p.benefits.forEach((t, i) => authoredCopy.push({ where: `PLANS.${p.id}.benefits[${i}]`, text: t }));
+  }
+  for (const g of CAPABILITY_GROUPS) {
+    authoredCopy.push({ where: `group "${g.id}" title`, text: g.title });
+    for (const row of g.rows) authoredCopy.push({ where: `group "${g.id}" row`, text: row.label });
+  }
+  for (const [state, label] of Object.entries(CELL_LABEL)) authoredCopy.push({ where: `CELL_LABEL.${state}`, text: label });
+  const freeLine = travelFreeLine();
+  if (freeLine) authoredCopy.push({ where: 'travelFreeLine()', text: freeLine });
+
+  for (const { where, text } of authoredCopy) {
+    const found = builderWordsIn(text);
+    if (found.length) planFail(`${where} says "${text}" — "${found.join('", "')}" ${found.length === 1 ? 'is a builder' : 'are builder'} word${found.length === 1 ? '' : 's'}, not a customer's; the plans section says what it means`);
+  }
+
+  // And the text the component types between its own tags, which never reached the
+  // leaf. `>text<` with no brace in it is a literal the customer reads.
+  for (const m of sectionSrc.matchAll(/>([^<>{}]+)</g)) {
+    const text = m[1].replace(/\s+/g, ' ').trim();
+    if (text.length < 3) continue;
+    const found = builderWordsIn(text);
+    if (found.length) planFail(`${PLANS_SECTION} types "${text}" between its tags — "${found.join('", "')}" ${found.length === 1 ? 'is a builder word' : 'are builder words'}; the section's copy lives in the leaf and speaks plainly`);
+  }
+
+  // The two heading lines come FROM the leaf — the component renders them and types
+  // neither, so the words can only be changed in one place.
+  if (!sectionSrc.includes('{PLANS_HEADLINE}')) planFail(`${PLANS_SECTION} does not render PLANS_HEADLINE — the heading is the leaf's string, not one typed here`);
+  if (!sectionSrc.includes('{PLANS_SUBHEAD}')) planFail(`${PLANS_SECTION} does not render PLANS_SUBHEAD — the subhead is the leaf's string, not one typed here`);
+  if (!sectionSrc.includes('{plan.role}')) planFail(`${PLANS_SECTION} does not render plan.role — the eyebrow over each plan's name is the leaf's string`);
+
   // Travel's free line sits once, derived from the registry's own Travel row.
   if (!sectionSrc.includes('travelFreeLine()')) planFail(`${PLANS_SECTION} does not call travelFreeLine() — Travel's free line derives from the registry's Travel row, never typed`);
   if ((sectionSrc.match(/data-travel-free/g) ?? []).length !== 1) planFail(`${PLANS_SECTION} renders Travel's free line ${(sectionSrc.match(/data-travel-free/g) ?? []).length} times — it sits once, under the cards`);
 
   if (planViolations === 0) {
-    console.log(`✔ The plan law passed — ${PLANS.length} plans over ${MODULES.length} modules (${PLANS.map((p) => `${p.id}{${p.modules.join(',')}}`).join(' ')}), ${CAPABILITY_GROUPS.length} capability groups and ${CAPABILITY_GROUPS.reduce((n, g) => n + g.rows.length, 0)} rows accounting for all ${TOOL_REGISTRY.length} registry tools; every cell is set membership (${readyCells} ✓, ${partialCells} ◐) with no ✓ over a tool that is not LIVE and no cell drawn for a module its plan does not hold; the price slot is the launch placeholder on all ${PLANS.length} and the bundle's best-value position is reserved, not claimed; no tool count, no beat name and no persona grid on ${PLAN_SURFACES.length} plan surfaces.`);
+    console.log(`✔ The plan law passed — ${PLANS.length} plans over ${MODULES.length} modules (${PLANS.map((p) => `${p.id}{${p.modules.join(',')}}`).join(' ')}), ${CAPABILITY_GROUPS.length} capability groups and ${CAPABILITY_GROUPS.reduce((n, g) => n + g.rows.length, 0)} rows accounting for all ${TOOL_REGISTRY.length} registry tools; every cell is set membership (${readyCells} ✓, ${partialCells} ◐) with no ✓ over a tool that is not LIVE and no cell drawn for a module its plan does not hold; the price slot is the launch placeholder on all ${PLANS.length} and the bundle's best-value position is reserved, not claimed; no tool count, no beat name and no persona grid on ${PLAN_SURFACES.length} plan surfaces; ${authoredCopy.length} authored strings and the component's own typed text carry none of the ${BUILDER_WORDS.length} builder words.`);
   } else {
     console.log(`✖ The plan law FAILED — ${planViolations} violation(s).`);
   }

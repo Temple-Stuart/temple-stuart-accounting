@@ -91,6 +91,20 @@ export const TRADING_PRICE: PlanPrice = { ...NO_PRICE };
 /** Everything's price. ONE constant. */
 export const EVERYTHING_PRICE: PlanPrice = { ...NO_PRICE };
 
+/**
+ * OFFER-04 (2026-09-23) — THE SECTION SAYS WHAT IT MEANS.
+ *
+ * The heading read "One base, two modules. Take the one you need." — "base" and
+ * "module" are THIS CODEBASE's words for how the plans are assembled, not words a
+ * customer brings, and "two" standing beside four cards reads as a contradiction.
+ * The model underneath is unchanged; only what it is CALLED on the screen changes.
+ *
+ * Both lines live here, with every other word the section says, so the component
+ * still types no copy of its own.
+ */
+export const PLANS_HEADLINE = 'Four plans. One question: what do you run?';
+export const PLANS_SUBHEAD = 'Everyone gets Personal. Add a business, a trading book, or both.';
+
 export interface Plan {
   id: PlanId;
   /** The modules this plan holds. Every plan holds the base; the two modules are independent. */
@@ -103,6 +117,13 @@ export interface Plan {
   audience: string;
   /** What this plan holds, in one line. */
   relationship: string;
+  /**
+   * The eyebrow over the plan's name — what this card IS, in the subhead's own
+   * words. OFFER-04: the component used to type "The base", "The base + one
+   * module" and "The bundle" here; a customer does not buy a base or a module, he
+   * starts somewhere and adds what he runs.
+   */
+  role: string;
   /** Three, and no more — the card carries exactly these. */
   benefits: readonly [string, string, string];
   price: PlanPrice;
@@ -118,6 +139,7 @@ export const PLANS: readonly Plan[] = [
     positioning: 'Know where your money goes, and what’s next.',
     audience: 'For students, creators and nomads.',
     relationship: 'Your own money, start to finish.',
+    role: 'Start here',
     benefits: [
       'Every account in one place, and what you actually have.',
       'Your days and what they cost, on one calendar.',
@@ -132,6 +154,7 @@ export const PLANS: readonly Plan[] = [
     positioning: 'Run the business that funds your life.',
     audience: 'For founders, freelancers and small business owners.',
     relationship: 'Everything in Personal, plus the company.',
+    role: 'Add a business',
     benefits: [
       'Get paid, pay people, and know what is left.',
       'Books that write themselves from what you already did.',
@@ -149,6 +172,7 @@ export const PLANS: readonly Plan[] = [
     positioning: 'Your book and your own money, in one set of records.',
     audience: 'For traders running their own money.',
     relationship: 'Everything in Personal, plus the trading book.',
+    role: 'Add a trading book',
     benefits: [
       'Every fill finds its order and lands in the books.',
       'Positions and returns beside the rest of your money.',
@@ -163,6 +187,7 @@ export const PLANS: readonly Plan[] = [
     positioning: 'The company and the book, on one set of books.',
     audience: 'For founder-traders.',
     relationship: 'Personal, the company and the trading book, in one set of records.',
+    role: 'Add both',
     benefits: [
       'One ledger for the business and the book.',
       'Every number traces to what actually happened.',

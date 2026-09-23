@@ -103,6 +103,24 @@ export const SEEDS: Seed[] = [
     replace: '<table className="w-full min-w-[720px] text-sm">',
     expect: 'a desktop floor must be gated',
   },
+  {
+    // The builder's vocabulary back on the screen. "base" and "module" are how this
+    // codebase assembles the offer; a customer buys neither.
+    name: 'offer-j the heading speaks the builder\'s vocabulary (OFFER-04)',
+    file: LEAF,
+    find: "export const PLANS_HEADLINE = 'Four plans. One question: what do you run?';",
+    replace: "export const PLANS_HEADLINE = 'One base, two modules. Take the one you need.';",
+    expect: 'are builder words, not a customer\'s',
+  },
+  {
+    // The copy typed back into the component, where one place stops being the source
+    // of the section's words.
+    name: 'offer-k the component types the eyebrow instead of rendering the leaf\'s (OFFER-04)',
+    file: SECTION,
+    find: '                  {plan.role}',
+    replace: "                  {plan.id === 'personal' ? 'The base' : 'The base + one module'}",
+    expect: 'does not render plan.role',
+  },
 ];
 
 export default SEEDS;
