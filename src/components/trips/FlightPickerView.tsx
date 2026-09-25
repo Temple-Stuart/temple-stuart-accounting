@@ -246,9 +246,10 @@ export default function FlightPickerView({
                       LIVE PRICES VIA {vendor}' left · '▪ LIVE · SEARCHING IS
                       ALWAYS FREE' right, :101-104), then the SEGMENTED
                       hairline field bar (:105-124): mono micro-label over
-                      mono value per cell, hairline-divided, gold mono SEARCH
-                      at the right end. Same state, same handlers — chrome
-                      only. The trip.com icon-input form factor (TravelField +
+                      mono value per cell, hairline-divided; gold mono SEARCH
+                      sat at the right end until FILTER-01 (2026-09-25) moved
+                      it BENEATH the leg's filter bar. Same state, same
+                      handlers — chrome only. The trip.com icon-input form factor (TravelField +
                       lucide) retired on this form; the vendor rides the
                       lane-proven providerLabel (PR-FL-6a no-drift). */}
                   <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 font-mono text-xs lg:text-[10px] tracking-wider">
@@ -295,24 +296,17 @@ export default function FlightPickerView({
                         </button>
                       </div>
                     </div>
-                    <div className="flex flex-1 items-center justify-end gap-2 px-3 py-2.5">
-                      {legs.length > 1 && !leg.committed && (
-                        <button onClick={() => onRemoveLeg(leg.id)} className="px-2 py-1.5 text-xs text-text-faint hover:text-red-600">✕</button>
-                      )}
-                      {/* FLIGHT-01: the ONLY control that fires a search — a filter change never does.
-                          The count beside it is how many metered searches this session has sent. */}
-                      <SearchCount count={searchCount} />
-                      <button onClick={() => onSearchLeg(leg.id)} disabled={leg.loading}
-                        className="bg-brand-gold px-5 py-3.5 lg:py-2.5 font-mono text-xs lg:text-[10.5px] font-semibold tracking-widest text-white hover:bg-brand-gold/90 disabled:opacity-50">
-                        {leg.loading ? 'SEARCHING…' : 'SEARCH'}
-                      </button>
-                    </div>
                   </div>
 
                   {/* FLIGHT-01 (2026-09-22): SORT AND FILTER, ON THE PAGE. Each control sets the
                       LEG's filters only; the vendor applies them on the next SEARCH press. A control
                       at "any" sends nothing, so the vendor's own default applies — the line beneath
-                      says exactly what is asked and where the vendor's default stands. */}
+                      says exactly what is asked and where the vendor's default stands.
+                      FILTER-01 (2026-09-25): THE FILTERS SIT ABOVE SEARCH. This bar used to render
+                      UNDER the field strip whose right end held SEARCH; the strip is now the fields
+                      alone (where, when), the bar and its statement follow, and the leg's actions —
+                      ✕ · the session count · SEARCH — close the leg beneath them. Per leg, because
+                      the filters are the LEG's. Same six controls, same state, same handler. */}
                   <div className="space-y-1" data-flight-filters>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 font-mono text-[11px] text-text-secondary">
                       <label className="flex items-center gap-1.5">
@@ -355,6 +349,20 @@ export default function FlightPickerView({
                     <div className="font-mono text-[10px] text-text-faint" data-flight-filters-stated>
                       Asked on the next search: {filtersStatement(leg.filters)}
                     </div>
+                  </div>
+
+                  {/* FILTER-01: the leg's actions, BENEATH its filters. */}
+                  <div className="flex items-center justify-end gap-2">
+                    {legs.length > 1 && !leg.committed && (
+                      <button onClick={() => onRemoveLeg(leg.id)} className="px-2 py-1.5 text-xs text-text-faint hover:text-red-600">✕</button>
+                    )}
+                    {/* FLIGHT-01: the ONLY control that fires a search — a filter change never does.
+                        The count beside it is how many metered searches this session has sent. */}
+                    <SearchCount count={searchCount} />
+                    <button onClick={() => onSearchLeg(leg.id)} disabled={leg.loading}
+                      className="rounded bg-brand-gold px-5 py-3.5 lg:py-2.5 font-mono text-xs lg:text-[10.5px] font-semibold tracking-widest text-white hover:bg-brand-gold/90 disabled:opacity-50">
+                      {leg.loading ? 'SEARCHING…' : 'SEARCH'}
+                    </button>
                   </div>
 
                   {leg.error && (

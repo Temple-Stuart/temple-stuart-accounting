@@ -154,13 +154,15 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // ACTIVITY-01 (2026-09-22): re-dated — the Things-to-do mount loses the inert fan-out props (the search fires only on the SEARCH press) and gains authed / currentTrip / onCommitted like flights, so a tour can be saved to the selected trip (STEP 4). A tour takes its time on the day; no prebook/book/pay/cancel call changed.
   // Was 4eaae575daae7dcbf0795a40547cf1613af7aa03e2e675bf4aed9ad182642522 at main dfc02881.
   { file: 'src/components/trips/travelStripModes.tsx', sha256: '034fad01ae1bed8946ae5af5f2dacc239fe373ea3f69d5d7aedb129e89fd67b1' },
+  // FILTER-01 (2026-09-25): re-dated — the filter bar (HotelFiltersBar, defined in HotelResultsView.tsx) is mounted INSIDE this form, above the Search button, with its statement line; the results view no longer draws it after the first search. Same five controls, same state, same handler, same defaults, same request. A filter change fires no search; only the press does, counted. Display is not booking; no prebook/book/pay/cancel call changed.
+  // Was 8d01db1092abc44b2bae573bb004468bb8bc4ab3a3530c510c0ed04332ed63f1 at main e67263dc.
   // HOTEL-01 (2026-09-22): re-pinned — the filters on the screen, sent on Search, counted; Book and Save act on the selected rate; the property's stated clock on commit. Search and display are not booking; no prebook/book/pay/cancel call changed.
   // Was f2c48b9a3e8aff1ec2fd64a3ead5b1d03f6e4d9f66a60777b25ec1b37da3bb27 at main d56b2cc9.
   // HOTEL-02 (2026-09-22): re-dated — Save names the vendor's hotel and sends no clock; the note repeats what the commit stored. The stay's clock is the property's, read once at commit; no prebook/book/pay/cancel call changed.
   // Was 1924a700c5f1e412a019ccaf09804eb1f8ab39984f9c2343f07d8e50aed6fced at main 81045434.
   // TRAVEL-ROW-01 (2026-09-23): re-dated — the CheckoutPanel it mounts moves out of the tail of the page into <HotelResultsView/>'s `checkout` slot, so it opens in the strip under the selected rate; the panel's own file and the props it is given are unchanged. display is not booking; no prebook/book/pay/cancel call changed.
   // Was b397182c40ff6f5e96c712f1bbbfefe5d27993c7c2480138b0a00a2cee8ea062 at main 97d6db04.
-  { file: 'src/components/trips/PublicHotelSearch.tsx', sha256: '8d01db1092abc44b2bae573bb004468bb8bc4ab3a3530c510c0ed04332ed63f1' },
+  { file: 'src/components/trips/PublicHotelSearch.tsx', sha256: 'd53a4d23b49abb84c0e64cd7402c28693a28b87e05a2e6a0842d84f8dca8c4d1' },
   // FLIGHT-01 (2026-09-22): re-pinned — the leg carries the screen's filters; the search request carries them; a session search count. Search is not booking; no prebook/verify/book/pay/cancel call changed.
   // Was fac335657e50b3fda3be9cf82053fce7f56f04f2c079a1f1a6c6f2c125d11359 at main b9eac34a.
   // TRAVEL-ROW-01 (2026-09-23): re-dated — the LiteApiFlightCheckoutPanel it mounts moves out of the tail of the page into <FlightPickerView/>'s `checkout` slot, so it opens in the strip under the selected fare; the panel's own file and the props it is given are unchanged. display is not booking; no prebook/book/pay/cancel call changed.
@@ -168,21 +170,25 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // LANE-01 (2026-09-25): re-pinned — the flight checkout is handed the selected trip exactly as the hotel checkout is (PublicHotelSearch.tsx:301): tripId only under authed === true && currentTrip, so a guest and the homepage book standalone. One prop on the mount; search and display unchanged; no prebook/book/pay/cancel call changed.
   // Was 6191de221cc37a2bcaddf499a903c0374d5f3488a9f79120b50e094af2975522 at main 8f06554c.
   { file: 'src/components/trips/PublicFlightSearch.tsx', sha256: 'b56a91016a338168bd3e98a6d007161669e932722103adfea9791ca17f1075c7' },
+  // FILTER-01 (2026-09-25): re-dated — the filter bar (ActivityFiltersBar, defined in ActivityPickerView.tsx) is mounted INSIDE this form, above the Search button, with its statement line; the picker no longer draws it after the first search. Same eight controls, same state, same handler, same defaults, same request; Next still repeats the sent filters at the vendor's cursor and a change restarts from page one. Display is not booking; no prebook/book/pay/cancel call changed.
+  // Was 3b5d514913678b088707de7ffae6f897cf648edc99e12b576b3bfaa64fe15775 at main e67263dc.
   // ACTIVITY-01 (2026-09-22): re-dated — the filters on the screen, sent on Search as the vendor's names, counted; the vendor's start cursor pages through its total; the picker view renders the cards; the nonce fan-out and the sign-up Book are gone; STEP 4 adds the Save — a date inside the trip, the ONE authed options read, the party from the operator's stated bands, the priced options and the commit. STEP 4b: the screen prices the SEALED quote and posts it back with its seal, the party and (for a variable duration) the end it picked inside the operator's stated range — no figure, no note, no clock. A tour takes its time on the day; no prebook/book/pay/cancel call changed.
   // Was 0251b470ea74f8cd787f0b5f6436f32e44615c29f00b6a757ea70bf79c1e2e03 at main dfc02881.
   // TRAVEL-ROW-01 (2026-09-23): re-dated — the tour's Save and the operator's end-time range move from a block after the options table onto the option row they act on; a tour is booked on Viator, so its Book is that same outbound link and no checkout mounts here. display is not booking; no prebook/book/pay/cancel call changed.
   // Was 2616ed37333062113444952b570e492da46267e58149bf497a21f125051a9416 at main 97d6db04.
-  { file: 'src/components/trips/PublicActivitySearch.tsx', sha256: '3b5d514913678b088707de7ffae6f897cf648edc99e12b576b3bfaa64fe15775' },
+  { file: 'src/components/trips/PublicActivitySearch.tsx', sha256: 'a489dd3e6cba55eb4ba7b3cf207b74dd98bfb4c709e554cdb284560b775465d0' },
   { file: 'src/components/trips/PublicTransferSearch.tsx', sha256: 'b508381f1a7c388eded9c139e7d5b76bd560e36d8db085e440a2eac0cb84a9c4' },
   { file: 'src/components/trips/PublicVisaCheck.tsx', sha256: 'd18df6a909cbd6bbb4332ce84648f7f87b7df6936b2523223f8f5575fb40b507' },
   { file: 'src/components/trips/PublicCategorySearch.tsx', sha256: '26c51b4c613f0011b5aa7d7015d839eceb26c10616960c82010986b708023771' },
+  // FILTER-01 (2026-09-25): re-dated — the five filter controls, the count and the statement line move out of this view into an exported HotelFiltersBar the container mounts in its form above Search; the view renders the cards and reads `filters` for the per-night range only. Display is not booking; no prebook/book/pay/cancel call changed.
+  // Was b5405ea31e528611c0a569bdb413674ba2fc10a9b5270fdf4c97e02b6916f80c at main e67263dc.
   // HOTEL-01 (2026-09-22): re-pinned — one card per hotel with its rates, the filter bar, the lowest-rate line, the difference line, the env-honest footer. Search and display are not booking; no prebook/book/pay/cancel call changed.
   // Was c73147fe7242acc8a3f70e9471beaafa43b65a479e1ee6b02019c37187734a95 at main d56b2cc9.
   // HOTEL-02 (2026-09-22): re-dated — the catalog's guest rating names its documented scale (/10). The stay's clock is the property's, read once at commit; no prebook/book/pay/cancel call changed.
   // Was 3520aeb26fb0be39ee4c108583cb92da4a6e843f91029411bd63030a26924f20 at main 81045434.
   // TRAVEL-ROW-01 (2026-09-23): re-dated — the selection bar that sat after the whole table is deleted and its actions — Clear, Save to trip, Book, the difference over the lowest — render in a full-width strip directly beneath the selected rate row. display is not booking; no prebook/book/pay/cancel call changed.
   // Was 54594766ceda7c43d3caa055c91490ed4202896eea92ce3d1254c815f6876122 at main 97d6db04.
-  { file: 'src/components/trips/HotelResultsView.tsx', sha256: 'b5405ea31e528611c0a569bdb413674ba2fc10a9b5270fdf4c97e02b6916f80c' },
+  { file: 'src/components/trips/HotelResultsView.tsx', sha256: 'cc27467be798a446c716f083867d2fd4799306405f20021685869bf9ac4e9689' },
   // HOTEL-01 (2026-09-22): re-pinned — the dead provider's two lines deleted; a null rating says so (the showroom's picker, mounted nowhere). Search and display are not booking; no prebook/book/pay/cancel call changed.
   // Was 91e32a6df274f9f92a39329181d5ba3c7980c2a389a49044126f819f1e55284a at main d56b2cc9.
   { file: 'src/components/trips/HotelPicker.tsx', sha256: 'e869b851fb14b80d4a73e01f8113a902004498822d0f2af128f1215394972c41' },
@@ -191,13 +197,15 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // FLIGHT-01 (2026-09-22): re-pinned — the same as PublicFlightSearch — filters on the leg, sent on Search, counted. Search is not booking; no prebook/verify/book/pay/cancel call changed.
   // Was 6495e6f8900cf80d357eb8b0b09d09bf91019b48882bf697c559136eb46ecbea at main b9eac34a.
   { file: 'src/components/trips/FlightPicker.tsx', sha256: 'fab753b0ba0166c634fd82b95c69fa009965c170ca7f07f795105214c5429d73' },
+  // FILTER-01 (2026-09-25): re-dated — per leg, the field strip is the fields alone (FROM · TO · DEPART · RETURN · TRIP), the six filter controls and their statement follow, and the leg's actions (✕ · the session count · SEARCH) close the leg beneath them; SEARCH used to sit at the strip's right end above the bar. Same controls, same state, same handler, same request. Display is not booking; no prebook/book/pay/cancel call changed.
+  // Was 194e7f78bbc2e42650cbd318f6e484c51ebcad01e4774e2ff193424d9c7d2a24 at main e67263dc.
   // FLIGHT-01 (2026-09-22): re-pinned — one row per flight with its fares, the filter bar, the lowest-fare line, the difference line. Search is not booking; no prebook/verify/book/pay/cancel call changed.
   // Was d0f24e94fc1714dc514a18b3b84e445f1d9b75c150252f46c8b76698e9bc9587 at main b9eac34a.
   // HOTEL-01 (2026-09-22): re-pinned — the session search count is the shared SearchCount control; no other change. Search and display are not booking; no prebook/book/pay/cancel call changed.
   // Was 5ec7d6289a40f4f78457e5c381609d9d65686148b352eef4a1c9f5f55a1176a3 at main d56b2cc9.
   // TRAVEL-ROW-01 (2026-09-23): re-dated — the leg's Save/Book bar that sat after the whole table is deleted and its actions — Clear, Save to trip, Book, the difference over the lowest — render in a full-width strip directly beneath the selected fare row. display is not booking; no prebook/book/pay/cancel call changed.
   // Was e85e7187bed9099999b041ae6a05a9d87f0672ebca1b5ae4fc1451df8d64e853 at main 97d6db04.
-  { file: 'src/components/trips/FlightPickerView.tsx', sha256: '194e7f78bbc2e42650cbd318f6e484c51ebcad01e4774e2ff193424d9c7d2a24' },
+  { file: 'src/components/trips/FlightPickerView.tsx', sha256: 'a02b7addacddafac6c59a625e4d29c5194202f1e7dfe997b0ba782e41ae4dcbe' },
   // ACTIVITY-01 (2026-09-22): re-dated — the sign-up Book (onBook) deleted; the view serves the transfers rail only and its header says so. A tour takes its time on the day; no prebook/book/pay/cancel call changed.
   // Was f389031ad67caa345a912a41b45aeced4538fb407a91dea89acb98f6f515c97b at main dfc02881.
   { file: 'src/components/trips/ActivityResultsView.tsx', sha256: '8ff4b85bd317d0d94bf68c9fda888b9eb600a8606581ab664e5b63bdf1285026' },

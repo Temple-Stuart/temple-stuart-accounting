@@ -39,7 +39,7 @@
 
 import { Fragment, useState, type ReactNode } from 'react';
 import RowActionStrip from './RowActionStrip';
-import ActivityPickerView, { type ActivityCardView } from './ActivityPickerView';
+import ActivityPickerView, { ActivityFiltersBar, type ActivityCardView } from './ActivityPickerView';
 // PR-STRIP-DESIGN-2: icon-inside-field — MapPin marks the destination.
 import { MapPin } from 'lucide-react';
 import TravelSectionShell, { TravelField, TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS, TRAVEL_LABEL_CLASS } from './travelSection';
@@ -481,7 +481,24 @@ export default function PublicActivitySearch({ onRequireAuth, authed, currentTri
             aria-label="Destination country"
           />
         </label>
-        <div className="col-span-full flex items-end sm:col-span-2 lg:col-span-1">
+        {/* FILTER-01 (2026-09-25): THE FILTERS SIT ABOVE SEARCH. The bar the picker
+            used to draw beneath this form after the first search now sits INSIDE
+            the form, before the submit — a customer sets what they want, then
+            presses Search. Same eight controls, same state, same handler, same
+            defaults: a control writes `filters` and nothing else; only the press
+            below searches, counted, from page one. Next (under the rows) repeats
+            the filters the shown pages were asked with, exactly as before. */}
+        <div className="col-span-full">
+          <ActivityFiltersBar
+            filters={filters}
+            onFiltersChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
+            searchCount={searchCount}
+            sentCurrency={ACTIVITY_SEARCH_CURRENCY}
+          />
+        </div>
+        {/* FILTER-01: under the bar the button takes the row's last column on wide
+            screens and the full width on a phone. */}
+        <div className="col-span-full flex items-end lg:col-span-1 lg:col-start-4">
           <button
             type="submit"
             disabled={loading}
@@ -492,7 +509,7 @@ export default function PublicActivitySearch({ onRequireAuth, authed, currentTri
         </div>
       </form>
 
-      {/* Results (and the controls above them): only after the first search. */}
+      {/* Results: only after the first search. The filter controls live in the form above (FILTER-01). */}
       {searched && (
         <ActivityPickerView
           cards={cards}
@@ -500,10 +517,6 @@ export default function PublicActivitySearch({ onRequireAuth, authed, currentTri
           previousTotal={previousTotal}
           loading={loading}
           error={error}
-          filters={filters}
-          onFiltersChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
-          searchCount={searchCount}
-          sentCurrency={ACTIVITY_SEARCH_CURRENCY}
           selected={selected}
           onSelect={selectRow}
           pageSize={pageSizeOf(sentFilters ?? filters)}

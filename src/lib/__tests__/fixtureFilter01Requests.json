@@ -1,0 +1,8 @@
+{
+  "hotels": "?city=Phuket&country=Thailand&countryCode=TH&checkin=2026-10-25&checkout=2026-10-28&adults=2&starRating=4%2C4.5%2C5&refundableRatesOnly=true&sort=price&sortDirection=ascending",
+  "flights": "{\"legs\":[{\"origin\":\"BKK\",\"destination\":\"HKT\",\"date\":\"2026-10-25\"}],\"adults\":1,\"currency\":\"USD\",\"filters\":{\"cabinClass\":\"BUSINESS\",\"cabinClassMatch\":\"exactly\",\"maxStops\":0,\"refundableOnly\":true,\"includesCheckedBag\":true,\"departureTimeAfter\":\"05:00\",\"departureTimeBefore\":\"11:59\"},\"sort\":{\"sortBy\":\"duration\",\"sortOrder\":\"asc\"}}",
+  "activitiesSearch": "?city=Phuket&country=Thailand&lowestPrice=20&highestPrice=100&ratingFrom=4&durationFrom=120&durationTo=360&flags=FREE_CANCELLATION%2CPRIVATE_TOUR&sort=PRICE&order=ASCENDING&count=25",
+  "activitiesNext": "?city=Phuket&country=Thailand&lowestPrice=20&highestPrice=100&ratingFrom=4&durationFrom=120&durationTo=360&flags=FREE_CANCELLATION%2CPRIVATE_TOUR&sort=PRICE&order=ASCENDING&count=25&start=51",
+  "activitiesResearch": "?city=Phuket&country=Thailand&lowestPrice=20&highestPrice=100&ratingFrom=3&durationFrom=120&durationTo=360&flags=FREE_CANCELLATION%2CPRIVATE_TOUR&sort=PRICE&order=ASCENDING&count=25",
+  "_captured": "FILTER-01 — the request each Search press sends, captured on main e67263dc (2026-09-25) with the walk’s fixed inputs; the branch must send these byte for byte."
+}
