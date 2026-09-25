@@ -101,9 +101,13 @@ interface Failure {
 interface Props {
   /** The searched offer to check out (from /api/travel/liteapi/flights/search). */
   offerId: string;
-  /** Display-only price/currency from the search result — the CHARGED amount is
-   *  server-derived at prebook; these are never sent anywhere. */
+  /** Display-only price from the search result — the CHARGED amount is
+   *  server-derived at prebook; the price is never sent anywhere. */
   price?: number | string | null;
+  /** The currency the SEARCH was made in (the offer's currency). Displayed, and
+   *  SEC-03 (2026-09-25): stated to the prebook route, which stores it beside the
+   *  contact so the book route is handed it when the vendor's book answer states
+   *  no currency — never a literal on the server. */
   currency?: string | null;
   /** LANE-01 (2026-09-25): the trip this booking attaches to, when the surface
    *  has one and the viewer is signed in (PublicFlightSearch passes it under the
@@ -253,6 +257,8 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, t
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           offerId,
+          // SEC-03: the search currency, when the surface stated one.
+          ...(currency ? { currency } : {}),
           contact: {
             firstName: firstName.trim(),
             lastName: lastName.trim(),
@@ -337,15 +343,15 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, t
       return;
     }
 
-    // The references /booking/flight-confirm needs to finish the booking. The
-    // contact email is the SAME address validated and sent at prebook (FL-5b's
-    // rule: one contact, one regex) — the vendor already holds it, having been
-    // given it in the prebook contact object, and the redirect target is our own
-    // origin.
+    // The references /booking/flight-confirm needs to finish the booking — IDS
+    // ONLY. SEC-03 (2026-09-25): the contact email no longer rides this URL. The
+    // prebook route stored the validated contact under this prebookId, and the
+    // book route reads it from there; a redirect URL is browser history, referrer
+    // headers and server logs, and a customer's email does not belong in any of
+    // them. The redirect target is our own origin.
     const q = new URLSearchParams({
       prebookId: prebook.prebookId,
       transactionId: prebook.transactionId,
-      contactEmail: email.trim(),
       // LANE-01: the owner's trip, only when the surface gave one.
       ...(tripId ? { tripId } : {}),
     });
@@ -369,7 +375,7 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, t
     } catch {
       fail({ kind: 'sdk_script', message: 'The secure payment form could not start.', detail: 'The payment provider refused the request to open a card form. Nothing was charged.' });
     }
-  }, [started, phase, prebook, paymentEnv, sdkReady, stripeJsReady, failure, email, tripId, fail]);
+  }, [started, phase, prebook, paymentEnv, sdkReady, stripeJsReady, failure, tripId, fail]);
 
   // ── CHECKOUT-01: THE WATCHDOG. Did a form actually appear? ─────────────────
   // The vendor cannot tell us, so we look. A card form means real elements inside

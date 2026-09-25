@@ -11,6 +11,10 @@ import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 // FL-4c: the key env the browser needs to ask /config for the publishable key.
 import { liteApiPaymentEnv } from '@/lib/liteapiClient';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
+// SEC-03 (2026-09-25): the contact is STORED here, keyed by the vendor's prebookId,
+// so the returnUrl carries ids only and the book route reads it from the table.
+import { prisma } from '@/lib/prisma';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 // ─── PUBLIC LiteAPI flight PREBOOK (PR-FL-3) ─────────────────────────────────
 // POST /api/travel/liteapi/flights/prebook — creates the flight checkout
@@ -29,6 +33,20 @@ import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQ
 // via Stripe Elements (FL-4). This route sees names/emails/documents only —
 // never a PAN/CVV — keeping us out of PCI scope, same posture as the hotel
 // Payment-SDK lane.
+//
+// SEC-03 (2026-09-25) — THE CONTACT IS STORED, NOT CARRIED IN A URL. The panel
+// used to put the customer's email in the wrapper's returnUrl, so it rode the
+// redirect through browser history, referrer headers and server logs. Now the
+// validated contact (and the currency the search was made in, when the panel
+// states it) is written to prebook_contacts under the vendor's prebookId, and
+// the book route reads it from there. THE ORDER, AND WHY: the table's key IS
+// the vendor's prebookId, which exists only once the vendor answers, so the row
+// is written immediately AFTER prebookFlight and BEFORE anything is answered to
+// the browser. A write that fails is a NAMED 500 (contact_not_stored) that
+// carries no secretKey — no card form can open, nothing can be charged, and
+// the vendor's hold expires unused. A vendor call that fails writes nothing.
+// No stored contact can exist without its hold; no hold can be paid without
+// its stored contact.
 export async function POST(request: NextRequest) {
   const ip =
     request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
@@ -40,7 +58,7 @@ export async function POST(request: NextRequest) {
     // prebook reference (prebook/route.ts:23).
     await rateLimit(`liteapi-flight-prebook:${ip}`, { limit: 5, windowSeconds: 60 });
 
-    let body: { offerId?: unknown; contact?: unknown; passengers?: unknown };
+    let body: { offerId?: unknown; contact?: unknown; passengers?: unknown; currency?: unknown };
     try {
       body = await request.json();
     } catch {
@@ -77,6 +95,15 @@ export async function POST(request: NextRequest) {
       ...(str(rawContact.phoneCountryCode) ? { phoneCountryCode: str(rawContact.phoneCountryCode) } : {}),
       ...(str(rawContact.middleName) ? { middleName: str(rawContact.middleName) } : {}),
     };
+
+    // SEC-03: the currency the SEARCH was made in, as the panel states it — an
+    // ISO 4217 code or nothing. It is stored beside the contact so the book route
+    // is handed it when the vendor's book answer states no currency. Never
+    // defaulted here: absent stays absent (NULL on the row).
+    const searchCurrency = str(body.currency).toUpperCase();
+    if (searchCurrency && !/^[A-Z]{3}$/.test(searchCurrency)) {
+      return NextResponse.json({ error: 'currency must be a three-letter ISO 4217 code when provided' }, { status: 400 });
+    }
 
     if (!Array.isArray(body.passengers) || body.passengers.length < 1 || body.passengers.length > 9) {
       return NextResponse.json({ error: 'passengers must be an array of 1-9 passengers' }, { status: 400 });
@@ -140,10 +167,54 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // SEC-03: auth is OPTIONAL here exactly as on the book route (flights/book/
+    // route.ts) — a signed-in customer's account is recorded on the contact row,
+    // a guest's is null. A DB read, no cost; before the quota guard.
+    const userEmail = await getVerifiedEmail();
+    const user = userEmail
+      ? await prisma.users.findFirst({
+          where: { email: { equals: userEmail, mode: 'insensitive' } },
+          select: { id: true },
+        })
+      : null;
+
     // GUARD 2 — durable daily cap, immediately before the LiteAPI call.
     await reserveTravelSearch('flightprebook');
 
     const prebook = await prebookFlight({ offerId, contact, passengers });
+
+    // SEC-03: THE CONTACT ROW, under the vendor's prebookId, BEFORE the browser is
+    // answered. Its own try/catch: a failed write is a named 500 with NO secretKey
+    // in it, so no card form can open on a hold whose contact is not stored. The
+    // stored fields are exactly what was validated above — nothing derived.
+    try {
+      await prisma.prebook_contacts.create({
+        data: {
+          prebookId: prebook.prebookId,
+          lane: 'flight',
+          contactFirstName: contact.firstName,
+          contactLastName: contact.lastName,
+          contactEmail: contact.email,
+          contactPhone: contact.phoneNumber,
+          contactPhoneCountryCode: contact.phoneCountryCode ?? null,
+          searchCurrency: searchCurrency || null,
+          userId: user?.id ?? null,
+        },
+      });
+    } catch (writeErr) {
+      console.error('[LiteAPI flights prebook] SEC-03 contact row NOT stored — checkout refused, nothing charged:', {
+        prebookId: prebook.prebookId,
+        error: writeErr instanceof Error ? writeErr.message : writeErr,
+      });
+      return NextResponse.json(
+        {
+          error: 'The checkout could not store your contact details, so it cannot continue. Nothing was charged — start the booking again.',
+          code: 'contact_not_stored',
+        },
+        { status: 500 }
+      );
+    }
+
     // WHITELISTED envelope (ruled, PR-FL-3): the card-collection context +
     // price ONLY — the provider's booking/servicesAttachable/paymentTypes
     // internals stay server-side. secretKey is the Stripe client secret the

@@ -20,9 +20,15 @@ import { prismaBookingCalendar } from '@/lib/calendar/prismaBookingCalendar';
 //   prebookId, paymentTransactionId,   // from prebook (sandbox passthrough; SDK = PR-B2)
 //   holder: { firstName, lastName, email },
 //   guests: [{ occupancyNumber, firstName, lastName, email }],
-//   checkinDate, checkoutDate, hotelName?, guestCount, finalPriceCents?, currency?,
+//   checkinDate, checkoutDate, hotelName?, guestCount, currency?,
 //   commissionAmountCents?
 // }
+// SEC-03 (2026-09-25): the body carries NO finalPriceCents any more. The price
+// in the ledger is what the vendor's BOOK answer states, or NULL (logged loudly
+// by bookingId) — never a number the confirm page relayed from its own URL, and
+// never 0. `currency` is the currency the SEARCH was made in, as the confirm
+// page states it; it is used only when the vendor's answer states no currency,
+// and when neither exists the route throws — no literal anywhere.
 // AUTH IS OPTIONAL: logged-in → ACCOUNT booking (userId + owned tripId + bookingType
 // 'account', links into the trip/budget). Logged-out → GUEST booking (userId/tripId
 // null, guestEmail = holder.email, bookingType 'guest', standalone reservation).
@@ -42,7 +48,6 @@ interface BookRequestBody {
   checkoutDate?: string;
   hotelName?: string;
   guestCount?: number;
-  finalPriceCents?: number;
   currency?: string;
   commissionAmountCents?: number;
 }
@@ -67,7 +72,7 @@ export async function POST(request: NextRequest) {
     const {
       tripId, prebookId, paymentTransactionId, holder, guests,
       checkinDate, checkoutDate, hotelName, guestCount,
-      finalPriceCents, currency, commissionAmountCents,
+      currency, commissionAmountCents,
     } = body;
 
     // ─── Validation (ALWAYS — guest + account both need these) ───────────────
@@ -92,6 +97,14 @@ export async function POST(request: NextRequest) {
     if (!checkinDate || !checkoutDate) {
       return NextResponse.json(
         { error: 'checkinDate and checkoutDate are required' },
+        { status: 400 }
+      );
+    }
+    // SEC-03: the search currency, when stated, is an ISO 4217 code — a stated
+    // input, validated by name, never defaulted.
+    if (currency !== undefined && !(typeof currency === 'string' && /^[A-Z]{3}$/.test(currency))) {
+      return NextResponse.json(
+        { error: 'currency must be a three-letter ISO 4217 code when provided' },
         { status: 400 }
       );
     }
@@ -178,11 +191,33 @@ export async function POST(request: NextRequest) {
           findReservation: async (bookingId) =>
             tx.reservations.findFirst({ where: { provider: 'liteapi', providerBookingId: bookingId } }),
           createReservation: async (parsed: BookResult, arrivalId) => {
-            // LiteAPI's answer is the source of truth where present; fall back to the
-            // client-supplied (prebook-time) values where it didn't echo back.
-            const resolvedPrice = parsed.price ?? (finalPriceCents != null ? finalPriceCents / 100 : 0);
+            // SEC-03: THE MONEY IS WHAT THE VENDOR STATED, OR NULL. The book answer's
+            // price goes in the ledger; a price it does not carry is NULL in both
+            // ledgers and said loudly by bookingId — never the number the confirm
+            // page relayed from its URL, never 0.
+            const statedPrice = typeof parsed.price === 'number' ? parsed.price : null;
+            if (statedPrice === null) {
+              console.error('[LiteAPI book] SEC-03 the vendor stated NO price — finalPriceCents and grossAmountCents recorded NULL; reconcile against the bank:', {
+                bookingId: parsed.bookingId,
+              });
+            }
+            const statedCents = statedPrice === null ? null : Math.round(statedPrice * 100);
+            // The commission column is NOT NULL and the ruling did not open it:
+            // the vendor's stated commission, else the prebook-time figure the
+            // confirm page carried, else 0 — unchanged by SEC-03, reported.
             const resolvedCommission = parsed.commission ?? (commissionAmountCents != null ? commissionAmountCents / 100 : 0);
-            const resolvedCurrency = parsed.currency ?? currency ?? 'USD';
+            // The currency is the vendor's, else the currency the SEARCH was made in
+            // (stated by the confirm page, validated above). Neither → throw, the
+            // way the client throws on a 2xx without its documented shape: the
+            // landing rolls back and the catch below declares it. Never a literal.
+            const resolvedCurrency = parsed.currency ?? currency;
+            if (resolvedCurrency === undefined) {
+              throw new LiteApiError(
+                '/hotels/book',
+                200,
+                `Book 2xx missing currency for ${parsed.bookingId} and the checkout stated no search currency — contract deviation from the documented shape`,
+              );
+            }
             const resolvedHotelName = parsed.hotelName ?? hotelName ?? null;
             const status = (parsed.status || 'CONFIRMED').toUpperCase() === 'CONFIRMED'
               ? 'confirmed'
@@ -212,7 +247,7 @@ export async function POST(request: NextRequest) {
                 checkinDate: new Date(checkinDate + 'T12:00:00Z'),
                 checkoutDate: new Date(checkoutDate + 'T12:00:00Z'),
                 guestCount: resolvedGuestCount,
-                finalPriceCents: Math.round(resolvedPrice * 100),
+                finalPriceCents: statedCents,
                 currency: resolvedCurrency,
                 cancellationPolicyJson: (parsed.cancellationPolicies ?? null) as object,
                 // PR-5: the arrival this row was parsed from.
@@ -227,7 +262,7 @@ export async function POST(request: NextRequest) {
                 userId: user?.id ?? null,
                 reservationId: reservation.id,
                 provider: 'liteapi',
-                grossAmountCents: Math.round(resolvedPrice * 100),
+                grossAmountCents: statedCents,
                 commissionAmountCents: Math.round(resolvedCommission * 100),
                 currency: resolvedCurrency,
                 status: 'estimated',
@@ -300,6 +335,7 @@ export async function POST(request: NextRequest) {
           checkoutDate,
           confirmationCode: result.providerConfirmationCode,
           bookingId: landed.bookingId,
+          // Integer cents, or NULL — the template says "price not stated" (SEC-03).
           totalAmountCents: result.finalPriceCents,
           currency: result.currency,
         });

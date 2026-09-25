@@ -27,6 +27,8 @@ export async function GET() {
         },
         reservation: {
           select: {
+            // SEC-03: finalPriceCents is nullable — NULL rides to the review UI as
+            // null and renders "price not stated", never 0.
             provider: true, hotelName: true, finalPriceCents: true, currency: true,
             createdAt: true, checkinDate: true, checkoutDate: true,
             // LANE-01: what the row IS and what it is CALLED, for the one reader.

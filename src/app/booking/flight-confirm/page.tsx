@@ -20,6 +20,12 @@
  *
  * It invents nothing: every value it posts arrives in the query string the panel
  * built, and a missing one is stated rather than guessed.
+ *
+ * SEC-03 (2026-09-25): the link carries IDS ONLY — prebookId, transactionId and,
+ * when the checkout had one, tripId. The customer's email used to ride it; it
+ * now lives in prebook_contacts under the prebookId, written by the prebook
+ * route, and the book route reads it there. This page reads no email from any
+ * query string and posts none.
  */
 
 import { Suspense, useCallback, useEffect, useState } from 'react';
@@ -34,14 +40,16 @@ interface Booked {
   pnr: string | null;
   price: number | null;
   currency: string | null;
-  email?: { sent: true; id: string } | { sent: false; error: string };
+  /** SEC-03: 'earlier' — this booking was already recorded by a previous
+   *  attempt, and its one confirmation email was attempted then; a retry sends
+   *  no second one. */
+  email?: { sent: true; id: string } | { sent: false; error: string } | { sent: 'earlier' };
 }
 
 function FlightConfirmInner() {
   const params = useSearchParams();
   const prebookId = params.get('prebookId') ?? '';
   const transactionId = params.get('transactionId') ?? '';
-  const contactEmail = params.get('contactEmail') ?? '';
   // LANE-01 (2026-09-25): the owner's trip, when the checkout carried one. Sent
   // to the book route only when present; the route's own gate decides (401 for a
   // guest, 404 for a trip that is not theirs). Absent → standalone booking.
@@ -58,7 +66,7 @@ function FlightConfirmInner() {
       const res = await fetch('/api/travel/liteapi/flights/book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prebookId, transactionId, contactEmail, ...(tripId ? { tripId } : {}) }),
+        body: JSON.stringify({ prebookId, transactionId, ...(tripId ? { tripId } : {}) }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || `Booking did not complete (HTTP ${res.status})`);
@@ -71,15 +79,15 @@ function FlightConfirmInner() {
       setError(err instanceof Error ? err.message : 'Booking did not complete.');
       setPhase('failed');
     }
-  }, [prebookId, transactionId, contactEmail, tripId]);
+  }, [prebookId, transactionId, tripId]);
 
   useEffect(() => {
-    if (!prebookId || !transactionId || !contactEmail) {
+    if (!prebookId || !transactionId) {
       setPhase('incomplete');
       return;
     }
     void complete();
-  }, [prebookId, transactionId, contactEmail, complete]);
+  }, [prebookId, transactionId, complete]);
 
   const ticketIssuing = booked?.status === 'PENDING_CONFIRMATION' || booked?.status === 'PENDING';
 
@@ -136,9 +144,11 @@ function FlightConfirmInner() {
               booking that could not be emailed is still a booking, and the
               reference above is what the traveller keeps. */}
           {booked.email && (
-            booked.email.sent
+            booked.email.sent === true
               ? <p className="text-xs text-text-secondary" data-flight-email="sent">A confirmation is on its way to your email.</p>
-              : <p className="text-xs text-brand-amber" data-flight-email="failed">We could not send the confirmation email. Your booking is complete and paid — keep the reference above.</p>
+              : booked.email.sent === 'earlier'
+                ? <p className="text-xs text-text-secondary" data-flight-email="earlier">This booking was already recorded; its confirmation email was sent when it was first completed.</p>
+                : <p className="text-xs text-brand-amber" data-flight-email="failed">We could not send the confirmation email. Your booking is complete and paid — keep the reference above.</p>
           )}
           <Link href="/travel" className="inline-block text-sm text-brand-purple hover:text-brand-purple-hover">
             Back to travel →

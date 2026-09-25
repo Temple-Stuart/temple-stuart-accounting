@@ -28,7 +28,9 @@ interface BookingRow {
   name: string;
   provider: string;
   type: string; // 'hotel' | 'flight' | 'activity' | raw provider
-  amountUsd: number;
+  /** SEC-03 (2026-09-25): null = the vendor stated no price — rendered "price
+   *  not stated", left out of the total (which then says how many are). */
+  amountUsd: number | null;
   currency: string;
   checkIn: string | null;
   checkOut: string | null;
@@ -63,10 +65,15 @@ interface Props {
 }
 
 /** Exact-cents sum: per-row dollars → integer cents → sum → dollars. No float
- *  drift, no rounding games. */
+ *  drift, no rounding games. SEC-03: a row whose price the vendor did not state
+ *  (amountUsd null) is NOT in the sum; the caller says how many were left out. */
 function sumUsd(rows: BookingRow[]): string {
-  const cents = rows.reduce((s, r) => s + Math.round(r.amountUsd * 100), 0);
+  const cents = rows.reduce((s, r) => s + (r.amountUsd === null ? 0 : Math.round(r.amountUsd * 100)), 0);
   return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, '0')}`;
+}
+/** SEC-03: how many rows the total could not include. */
+function unstatedCount(rows: BookingRow[]): number {
+  return rows.filter((r) => r.amountUsd === null).length;
 }
 
 export default function TripBookings({ tripId, onChanged, onTotals }: Props) {
@@ -215,7 +222,7 @@ export default function TripBookings({ tripId, onChanged, onTotals }: Props) {
                         : ''}
                     </td>
                     <td className="px-3 py-2 text-right font-mono font-semibold text-brand-gold">
-                      ${r.amountUsd.toFixed(2)}
+                      {r.amountUsd === null ? <span className="font-sans text-xs font-normal text-text-faint">price not stated</span> : `$${r.amountUsd.toFixed(2)}`}
                     </td>
                     <td className="px-3 py-2 text-text-muted">{r.status}</td>
                     <td className="px-3 py-2 font-mono text-xs text-text-muted">
@@ -275,6 +282,9 @@ export default function TripBookings({ tripId, onChanged, onTotals }: Props) {
           </div>
           <p className="mt-2 text-right font-mono text-sm font-semibold text-text-primary">
             Total booked: <span className="text-brand-gold">${sumUsd(rows)}</span>
+            {unstatedCount(rows) > 0 && (
+              <span className="ml-1 text-text-faint"> · {unstatedCount(rows)} price not stated, not included</span>
+            )}
           </p>
         </>
       )}

@@ -11,7 +11,9 @@
  *     (source='reservation', source_id=reservation.id);
  *   · carrier.marketingName + originCode → destinationCode → displayName;
  *   · the vendor's current status → status, through the book route's own mapping;
- *     an unmapped status is printed by name and changes nothing.
+ *     an unmapped status is printed by name and changes nothing. SEC-03
+ *     (2026-09-25): CANCELLED_WITH_CHARGES is mapped ('cancelled') and is no
+ *     longer reported as unmapped; CREATED and the two PENDING statuses still are.
  *
  * IDEMPOTENT BY CONSTRUCTION: the function writes a calendar row only when none is
  * keyed to the reservation, a name only when it differs, a status only when the

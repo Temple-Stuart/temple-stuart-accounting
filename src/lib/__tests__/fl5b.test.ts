@@ -5,6 +5,11 @@
  * required contact, the send after the transaction, the failure that never fails
  * a paid booking — is read from the source, the way this repo proves a route it
  * cannot execute without a provider.
+ *
+ * SEC-03 (2026-09-25): the contact is still REQUIRED, and still the one address
+ * the panel validated — but it no longer rides the returnUrl. The prebook route
+ * stores it under the vendor prebookId and the book route reads it there; the
+ * three tests below that used to read it off the link now read it off the row.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -87,22 +92,21 @@ test('provider strings are escaped — a reference is never markup', () => {
   assert.ok(r.html.includes('&lt;script&gt;'));
 });
 
-test('the contact is REQUIRED, validated with the prebook route\'s own regex, and refused BEFORE the provider call', () => {
+test('the contact is REQUIRED — read from the row the prebook route stored, and refused by name BEFORE the quota and the provider call', () => {
   const src = code(ROUTE);
-  assert.ok(src.includes('contactEmail is required'), 'absence is refused by name');
-  assert.ok(src.includes('contactEmail must be a valid email address'), 'and so is a malformed one');
-  // Character for character the prebook route's regex — one contract, both ends.
+  // SEC-03: the address is validated ONCE, at prebook, with that route's regex, and
+  // stored; this route reads the row and refuses its absence by name.
   const prebookRe = code('src/app/api/travel/liteapi/flights/prebook/route.ts').match(/\/\^\[\^\\s@\]\+@\[\^\\s@\]\+\\\.\[\^\\s@\]\+\$\//);
   assert.ok(prebookRe, 'the prebook route still validates with it');
-  assert.ok(src.includes(prebookRe![0]), 'the book route uses the same one');
-  // BOTH refusals sit before the quota reservation and the provider call.
-  const required = src.indexOf('contactEmail is required');
-  const malformed = src.indexOf('contactEmail must be a valid');
+  assert.ok(!src.includes('contactEmail is required'), 'the body no longer carries the address, so nothing here validates one');
+  const read = src.indexOf('prisma.prebook_contacts.findUnique({ where: { prebookId } })');
+  const refused = src.indexOf("code: 'contact_not_stored'");
   const quota = src.indexOf("reserveTravelSearch('liteapiflightbooking')");
   const provider = src.indexOf('await bookFlight(');
+  assert.ok(read > 0 && refused > read, 'the row is read, and its absence refused by name');
   assert.ok(quota > 0 && provider > quota, 'the quota and the provider call are where expected');
-  assert.ok(required < quota && malformed < quota, 'a bad contact costs no quota');
-  assert.ok(required < provider && malformed < provider, 'and no provider call — no money spent');
+  assert.ok(refused < quota, 'a missing contact costs no quota');
+  assert.ok(refused < provider, 'and no provider call — no money spent');
 });
 
 test('the email is sent AFTER the reservation transaction, and its failure never fails a paid booking', () => {
@@ -137,38 +141,42 @@ test('nothing here defaults a recipient, retries, or reaches for another transpo
   const src = code(ROUTE);
   const send = src.indexOf('sendTransactionalEmail(');
   const block = src.slice(send - 1200, send + 1400);
-  assert.match(block, /to: contactEmail,/, 'the recipient is the validated contact, and only that');
+  assert.match(block, /to: contact\.contactEmail,/, 'the recipient is the STORED contact, and only that (SEC-03)');
   for (const banned of ['userEmail ??', 'holder.email', 'retry', 'setTimeout', 'fallback', 'process.env.EMAIL']) {
     assert.ok(!block.includes(banned), `no ${banned} anywhere near the send`);
   }
 });
 
-test('the contact the panel validated is the one the book call carries', () => {
+test('the contact the panel validated is the one the prebook route stores — and it rides no link', () => {
   const src = code(PANEL);
   // FL-4c moved the BOOK CALL off this panel: the vendor's documented payment rail
-  // redirects, so /booking/flight-confirm finishes the booking. The contact rule is
-  // unchanged — the SAME address validated before prebook is what the book call
-  // gets — it just travels one hop further, in the returnUrl the panel builds.
+  // redirects, so /booking/flight-confirm finishes the booking. SEC-03 took the
+  // address OFF that redirect: the SAME address validated here is sent ONCE, to
+  // prebook, which stores it under the vendor prebookId; the returnUrl carries
+  // ids only.
   assert.match(src, /EMAIL_RE\.test\(email\.trim\(\)\)/, 'the panel validates it before it is ever sent');
-  assert.match(src, /contactEmail: email\.trim\(\)/, 'and hands the same address on');
+  assert.match(src, /email: email\.trim\(\),/, 'and hands it to prebook');
   const at = src.indexOf('const q = new URLSearchParams({');
   // Scoped to the call's own closing `});`, never a character count.
   const q = src.slice(at, src.indexOf('});', at) + 3);
   assert.match(q, /prebookId: prebook\.prebookId/);
   assert.match(q, /transactionId: prebook\.transactionId/);
-  assert.match(q, /contactEmail: email\.trim\(\)/);
+  assert.doesNotMatch(q, /email/i, 'the link carries no address');
+  assert.ok(!src.includes('contactEmail'), 'the field is not named on this panel at all');
   assert.ok(!src.includes("'/api/travel/liteapi/flights/book'"), 'the panel no longer books — the rail redirects');
 });
 
 test('the confirm page books with that contact, and says whether the email went out', () => {
   const src = code(CONFIRM);
   assert.match(src, /'\/api\/travel\/liteapi\/flights\/book'/, 'the same route, unchanged');
-  assert.match(src, /body: JSON\.stringify\(\{ prebookId, transactionId, contactEmail, \.\.\.\(tripId \? \{ tripId \} : \{\}\) \}\)/, 'with the three references the link carried');
-  assert.match(src, /params\.get\('contactEmail'\)/, 'read from the link, never invented');
+  assert.match(src, /body: JSON\.stringify\(\{ prebookId, transactionId, \.\.\.\(tripId \? \{ tripId \} : \{\}\) \}\)/, 'with the two references the link carried (SEC-03: no address)');
+  assert.ok(!/params\.get\('contactEmail'\)/.test(src), 'nothing reads an address off the link');
   // The email outcome is stated either way — a booking that could not be emailed
-  // is still a booking, and never reads as a failed one.
+  // is still a booking, and never reads as a failed one. SEC-03 adds the third
+  // state: a retry that found the booking already recorded sends no second email.
   assert.match(src, /data-flight-email="sent"/);
   assert.match(src, /data-flight-email="failed"/);
+  assert.match(src, /data-flight-email="earlier"/);
   assert.match(src, /Your booking is complete and paid/, 'a failed email never reads as a failed booking');
   // A link that arrived without its references is SAID, never guessed at.
   assert.match(src, /setPhase\('incomplete'\)/);

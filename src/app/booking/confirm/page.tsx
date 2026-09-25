@@ -48,8 +48,14 @@ function BookingConfirm() {
   const hotelName = params.get('hotelName') || 'your stay';
   const checkin = params.get('checkin') || '';
   const checkout = params.get('checkout') || '';
-  const currency = params.get('currency') || 'USD';
-  const price = Number(params.get('price') || '0');
+  // SEC-03 (2026-09-25): the currency the SEARCH was made in, as the panel put it
+  // in the link — stated to the book route, never defaulted here. The price the
+  // panel showed is DISPLAY ONLY: it is not posted (the ledger holds what the
+  // vendor's book answer states, or NULL), and when the link has none the line
+  // says so.
+  const currency = params.get('currency') ?? '';
+  const priceParam = params.get('price');
+  const price = priceParam !== null && priceParam !== '' && Number.isFinite(Number(priceParam)) ? Number(priceParam) : null;
   const commission = Number(params.get('commission') || '0');
   const tripId = params.get('tripId') || undefined;
 
@@ -90,8 +96,9 @@ function BookingConfirm() {
           checkoutDate: checkout,
           hotelName,
           guestCount: 1,
-          finalPriceCents: Math.round(price * 100),
-          currency,
+          // SEC-03: no finalPriceCents — the ledger takes the vendor's stated
+          // price or NULL; the search currency only when the link stated one.
+          ...(currency ? { currency } : {}),
           commissionAmountCents: Math.round(commission * 100),
         }),
       });
@@ -109,7 +116,7 @@ function BookingConfirm() {
             typeof (data.reservation as Confirmation | undefined)?.confirmationCode === 'string'
               ? (data.reservation as Confirmation).confirmationCode
               : null,
-          amountUsd: Number.isFinite(price) && price > 0 ? price : null,
+          amountUsd: price !== null && price > 0 ? price : null,
           currency,
           ts: Date.now(),
         });
@@ -140,9 +147,10 @@ function BookingConfirm() {
             <Row label="Confirmation" value={confirmation.confirmationCode || '—'} />
             <Row label="Booking ID" value={confirmation.bookingId} />
             <Row label="Dates" value={`${confirmation.checkinDate} → ${confirmation.checkoutDate}`} />
-            {confirmation.finalPriceCents != null && confirmation.currency && (
-              <Row label="Total" value={money(confirmation.finalPriceCents, confirmation.currency)} />
-            )}
+            {/* SEC-03: a price the vendor did not state is SAID — never $0, never a missing row. */}
+            {confirmation.finalPriceCents !== null && confirmation.currency
+              ? <Row label="Total" value={money(confirmation.finalPriceCents, confirmation.currency)} />
+              : <Row label="Total" value="price not stated" />}
           </div>
           <Link href="/" className="inline-block rounded bg-brand-purple px-6 py-2 text-sm font-semibold text-white hover:bg-brand-purple-hover">Done</Link>
         </div>
@@ -151,7 +159,7 @@ function BookingConfirm() {
           <div className="rounded border border-border bg-bg-row p-3 text-sm">
             <div className="flex items-baseline justify-between">
               <span className="text-text-muted">Total paid</span>
-              <span className="text-lg font-bold text-brand-green">{money(Math.round(price * 100), currency)}</span>
+              <span className="text-lg font-bold text-brand-green">{price !== null && currency ? money(Math.round(price * 100), currency) : 'price not stated'}</span>
             </div>
           </div>
 

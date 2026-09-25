@@ -54,6 +54,10 @@ function flattenRow(row: Record<string, unknown>): Record<string, string> {
   for (const [k, v] of Object.entries(row)) {
     if (v === null || v === undefined) {
       out[k] = '';
+      // SEC-03: a nullable *Cents column (reservations.finalPriceCents,
+      // commission_ledger.grossAmountCents) keeps its Dollars twin, also empty —
+      // a price the vendor did not state is never 0.00 and never a missing column.
+      if (/Cents$/.test(k)) out[k.replace(/Cents$/, 'Dollars')] = '';
     } else if (typeof v === 'bigint') {
       // House doctrine: BigInt amounts are cents — render both shapes.
       out[`${k}_cents`] = v.toString();

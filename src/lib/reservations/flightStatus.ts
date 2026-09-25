@@ -13,15 +13,18 @@
  * One leaf, both callers, so the two can never drift.
  *
  * The GET reference documents CREATED · PENDING_CONFIRMATION · CONFIRMED ·
- * CANCELLED · CANCELLED_WITH_CHARGES. By the ruling this maps EXACTLY as the book
- * route does, so CANCELLED_WITH_CHARGES is, today, unmapped — a refresh reports it
- * by name as unmapped and changes nothing. Adding it is a one-line ruling.
+ * CANCELLED · CANCELLED_WITH_CHARGES. SEC-03 (2026-09-25) is the one-line ruling
+ * LANE-01 said this would take: CANCELLED_WITH_CHARGES → 'cancelled'. A booking
+ * the vendor cancelled and charged for is cancelled; the charge is the bank's
+ * business, reconciled against the ledger, and a row that read "pending" for it
+ * was wrong. CREATED and the two PENDING statuses stay unmapped on purpose: at
+ * creation they persist as 'pending', on a refresh they change nothing.
  */
 export type MappedReservationStatus = 'confirmed' | 'cancelled';
 
 export function flightProviderStatusToReservation(providerStatus: string | null | undefined): MappedReservationStatus | null {
   const s = (providerStatus ?? '').toUpperCase();
   if (s === 'CONFIRMED' || s === 'TICKETED') return 'confirmed';
-  if (s === 'CANCELLED') return 'cancelled';
+  if (s === 'CANCELLED' || s === 'CANCELLED_WITH_CHARGES') return 'cancelled';
   return null;
 }

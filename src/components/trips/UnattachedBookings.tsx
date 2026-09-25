@@ -21,7 +21,8 @@ interface BookingRow {
    *  route always returned this; the Cancel action is liteapi-only (PR-Cancel-1). */
   provider: string;
   type: string;
-  amountUsd: number;
+  /** SEC-03 (2026-09-25): null = the vendor stated no price — rendered "price not stated". */
+  amountUsd: number | null;
   checkIn: string | null;
   checkOut: string | null;
   status: string;
@@ -198,7 +199,7 @@ export default function UnattachedBookings({ selectedTrip, onChanged, onTotals }
                         : ''}
                     </td>
                     <td className="px-3 py-2 text-right font-mono font-semibold text-brand-gold">
-                      ${r.amountUsd.toFixed(2)}
+                      {r.amountUsd === null ? <span className="font-sans text-xs font-normal text-text-faint">price not stated</span> : `$${r.amountUsd.toFixed(2)}`}
                     </td>
                     <td className="px-3 py-2 text-text-muted">{r.status}</td>
                     <td className="px-3 py-2 text-right">

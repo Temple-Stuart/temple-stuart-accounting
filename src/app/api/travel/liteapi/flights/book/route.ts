@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { bookFlight, parseFlightBookResult, FlightOfferExpiredError, type FlightBookResult } from '@/lib/liteapiFlightsClient';
+import { bookFlight, parseFlightBookResult, FlightOfferExpiredError, LiteApiFlightsApiError, type FlightBookResult } from '@/lib/liteapiFlightsClient';
 import { landLiteApiBooking } from '@/lib/arrivals/liteapiBooking';
 import { prismaLanding } from '@/lib/arrivals/prismaLanding';
 import { MissingLiteApiKeyError, LiteApiError } from '@/lib/travelErrors';
@@ -24,7 +24,7 @@ import { flightProviderStatusToReservation } from '@/lib/reservations/flightStat
 // ─── PUBLIC LiteAPI flight BOOK (PR-FL-5) ────────────────────────────────────
 // POST /api/travel/liteapi/flights/book — completes the flight booking AFTER
 // the browser confirmed the Stripe payment (FL-4 panel). Body:
-// { prebookId, transactionId }. Public (guest-ok — booking is never locked);
+// { prebookId, transactionId, tripId? }. Public (guest-ok — booking is never locked);
 // auth is OPTIONAL exactly like the hotel book route (liteapi/book/route.ts:
 // 93-103): logged-in → ACCOUNT reservation (userId set), logged-out → GUEST
 // reservation (userId null). The upstream call is IDEMPOTENT per prebookId
@@ -40,6 +40,20 @@ import { flightProviderStatusToReservation } from '@/lib/reservations/flightStat
 //      value (string column, schema.prisma:1290-region — no schema change),
 //      money-tier 25/day safe default mirroring hotelbooking
 //      (travelSearchQuota.ts).
+//
+// SEC-03 (2026-09-25) — NO PII IN A URL, NO FABRICATED NUMBER IN A LEDGER.
+//   · The contact is READ from prebook_contacts by prebookId (the prebook route
+//     wrote it), never taken from the body or a query string. No row → a named
+//     400 BEFORE the quota reservation and the vendor call. A retry reads the
+//     same row.
+//   · The price the vendor did not state is NULL in reservations.finalPriceCents
+//     and commission_ledger.grossAmountCents — logged loudly by bookingId —
+//     never 0. The currency the vendor did not state is the currency the
+//     SEARCH was made in, stored with the contact; when neither exists the
+//     route throws the way a 2xx without data[] throws. No literal anywhere.
+//   · One confirmation email per booking: sent to the STORED address when this
+//     request created the reservation; a retry that finds the reservation
+//     already recorded reports email.sent = 'earlier' and sends nothing.
 export async function POST(request: NextRequest) {
   const ip =
     request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
@@ -50,7 +64,7 @@ export async function POST(request: NextRequest) {
     // GUARD 1 — per-IP rate limit (tight window; booking is the real spend).
     await rateLimit(`liteapi-flight-book:${ip}`, { limit: 3, windowSeconds: 300 });
 
-    let body: { prebookId?: unknown; transactionId?: unknown; contactEmail?: unknown; tripId?: unknown };
+    let body: { prebookId?: unknown; transactionId?: unknown; tripId?: unknown };
     try {
       body = await request.json();
     } catch {
@@ -66,31 +80,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ─── FL-5b: THE CONTACT, REQUIRED ───────────────────────────────────────
-    // This route used to take { prebookId, transactionId } only, and its own
-    // comment said so: the contact was collected at prebook and Nuitee holds it,
-    // "guestEmail stays null for guests. FL-5b (confirmation email) is where a
-    // contact re-enters this lane." This is that lane.
-    //
-    // The panel already holds this address — it is the one it validated and sent
-    // at prebook (LiteApiFlightCheckoutPanel.tsx:178, :225) — and now sends it
-    // here too. It is REQUIRED, not optional: a paid flight with nowhere to send
-    // the confirmation is not a booking anyone can use. Refused BY NAME and
-    // BEFORE the provider call, so a malformed address costs no money.
-    //
-    // The regex is the prebook route's own (flights/prebook/route.ts:64),
-    // character for character — one contract, validated the same way at both
-    // ends. Nothing here defaults a recipient or substitutes the account's email.
-    const contactEmail = typeof body.contactEmail === 'string' ? body.contactEmail.trim() : '';
-    if (!contactEmail) {
+    // ─── SEC-03: THE CONTACT, STORED — read by prebookId, never carried ──────
+    // FL-5b made the contact REQUIRED here ("a paid flight with nowhere to send
+    // the confirmation is not a booking anyone can use") and had the panel hand
+    // it over in the returnUrl. SEC-03 keeps the requirement and moves the
+    // address off the URL: the prebook route validated it with its own regex and
+    // wrote it to prebook_contacts under the vendor's prebookId, and this route
+    // reads that row. No row (or a row from another lane) is refused BY NAME and
+    // BEFORE the quota reservation and the provider call, so it costs nothing.
+    // Nothing here defaults a recipient, reads a query string, or substitutes
+    // the account's email. A retry reads the same row.
+    const contact = await prisma.prebook_contacts.findUnique({ where: { prebookId } });
+    if (!contact || contact.lane !== 'flight') {
       return NextResponse.json(
-        { error: 'contactEmail is required — the confirmation has nowhere to go without it' },
-        { status: 400 }
-      );
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
-      return NextResponse.json(
-        { error: 'contactEmail must be a valid email address' },
+        {
+          error: 'No stored contact for this prebookId — the checkout did not record one, so the booking cannot continue',
+          code: 'contact_not_stored',
+        },
         { status: 400 }
       );
     }
@@ -198,8 +204,30 @@ export async function POST(request: NextRequest) {
             // creation an unmapped status is 'pending' — never invented as confirmed.
             const mapped = flightProviderStatusToReservation(parsed.status);
             const status = mapped === null ? 'pending' : mapped;
-            const resolvedPrice = parsed.price ?? 0; // hotel-pattern fallback
-            const resolvedCurrency = parsed.currency ?? 'USD';
+            // SEC-03: THE MONEY IS WHAT THE VENDOR STATED, OR NULL. A price the book
+            // answer does not carry is NULL in both ledgers and said loudly by
+            // bookingId — never 0, which the matcher used to have to read as
+            // "unknown" and which made a real $0 indistinguishable from a gap.
+            const statedPrice = parsed.price;
+            if (statedPrice === null) {
+              console.error('[LiteAPI flights book] SEC-03 the vendor stated NO price — finalPriceCents and grossAmountCents recorded NULL; reconcile against the bank:', {
+                bookingId: parsed.bookingId,
+              });
+            }
+            const statedCents = statedPrice === null ? null : Math.round(statedPrice * 100);
+            // The currency is the vendor's, else the currency the SEARCH was made in
+            // (stated by the panel, stored with the contact). Neither → the same
+            // contract-deviation throw a 2xx without data[] raises: the landing rolls
+            // back and the catch below declares it. Never a literal.
+            const resolvedCurrency = parsed.currency ?? contact.searchCurrency;
+            if (resolvedCurrency === null) {
+              throw new LiteApiFlightsApiError(
+                '/flights/bookings',
+                200,
+                null,
+                `Book 2xx missing pricing.currency for ${parsed.bookingId} and the checkout stated no search currency — contract deviation from the documented shape`,
+              );
+            }
 
             const reservation = await tx.reservations.create({
               data: {
@@ -207,9 +235,8 @@ export async function POST(request: NextRequest) {
                 // LANE-01: the owner-verified trip, or null (standalone).
                 tripId: resolvedTripId,
                 bookingType: isAccount ? 'account' : 'guest',
-                // The book body carries no contact (prebook collected it; Nuitee
-                // holds it) — guestEmail stays null for guests. FL-5b (confirmation
-                // email) is where a contact re-enters this lane.
+                // The contact lives in prebook_contacts under the prebookId (SEC-03);
+                // this row does not copy it — guestEmail stays null for guests.
                 guestEmail: null,
                 provider: 'liteapi',
                 // LANE-01: the lane this route already hands the landing (below,
@@ -225,7 +252,7 @@ export async function POST(request: NextRequest) {
                 hotelName: null,
                 checkinDate: null,
                 checkoutDate: null,
-                finalPriceCents: Math.round(resolvedPrice * 100),
+                finalPriceCents: statedCents,
                 currency: resolvedCurrency,
                 // PR-5: the arrival this row was parsed from.
                 arrival_id: arrivalId,
@@ -241,7 +268,7 @@ export async function POST(request: NextRequest) {
                 userId: user?.id ?? null,
                 reservationId: reservation.id,
                 provider: 'liteapi',
-                grossAmountCents: Math.round(resolvedPrice * 100),
+                grossAmountCents: statedCents,
                 commissionAmountCents: 0,
                 currency: resolvedCurrency,
                 status: 'estimated',
@@ -359,6 +386,12 @@ export async function POST(request: NextRequest) {
       // booking response NEVER fails because email failed. No retry, no alternate
       // transport, no substituted recipient.
       //
+      // SEC-03: the recipient is the STORED contact (contact.contactEmail), and
+      // ONE attempt per booking: only the request that CREATED the reservation
+      // sends; a retry that found it already recorded (landed.reservationOutcome
+      // 'existing') reports 'earlier' and sends nothing — the first attempt's
+      // outcome, sent or failed, was already reported to that request.
+      //
       // The passenger's name comes off the LANDED payload's own passengers array
       // (`object` is data[0].booking). parseFlightBookResult does not map it, so
       // it is read here rather than invented — and when the payload names nobody,
@@ -371,33 +404,38 @@ export async function POST(request: NextRequest) {
         ? [firstPax.firstName, firstPax.lastName].filter((n): n is string => typeof n === 'string' && n.trim().length > 0).join(' ').trim()
         : '';
 
-      let emailStatus: { sent: true; id: string } | { sent: false; error: string };
-      try {
-        const rendered = flightConfirmation({
-          passengerName: paxName || null,
-          passengerCount: paxList.length,
-          bookingId: parsed.bookingId,
-          bookingRef: parsed.bookingRef,
-          pnr: parsed.pnr,
-          // The reservation's own stored figure, already integer cents.
-          totalAmountCents: result.finalPriceCents,
-          currency: result.currency,
-          status: parsed.status ?? null,
-        });
-        const { id } = await sendTransactionalEmail({
-          to: contactEmail,
-          subject: rendered.subject,
-          html: rendered.html,
-          text: rendered.text,
-        });
-        emailStatus = { sent: true, id };
-      } catch (emailErr) {
-        const errorClass = emailErr instanceof Error ? emailErr.name : 'UnknownError';
-        const message = emailErr instanceof Error ? emailErr.message : String(emailErr);
-        console.error('[LiteAPI flights book] confirmation email FAILED (booking itself succeeded):', {
-          bookingId: parsed.bookingId, reservationId: result.id, errorClass, message,
-        });
-        emailStatus = { sent: false, error: errorClass };
+      let emailStatus: { sent: true; id: string } | { sent: false; error: string } | { sent: 'earlier' };
+      if (landed.reservationOutcome === 'existing') {
+        emailStatus = { sent: 'earlier' };
+      } else {
+        try {
+          const rendered = flightConfirmation({
+            passengerName: paxName || null,
+            passengerCount: paxList.length,
+            bookingId: parsed.bookingId,
+            bookingRef: parsed.bookingRef,
+            pnr: parsed.pnr,
+            // The reservation's own stored figure, already integer cents — or NULL,
+            // which the template says as "price not stated" (SEC-03).
+            totalAmountCents: result.finalPriceCents,
+            currency: result.currency,
+            status: parsed.status ?? null,
+          });
+          const { id } = await sendTransactionalEmail({
+            to: contact.contactEmail,
+            subject: rendered.subject,
+            html: rendered.html,
+            text: rendered.text,
+          });
+          emailStatus = { sent: true, id };
+        } catch (emailErr) {
+          const errorClass = emailErr instanceof Error ? emailErr.name : 'UnknownError';
+          const message = emailErr instanceof Error ? emailErr.message : String(emailErr);
+          console.error('[LiteAPI flights book] confirmation email FAILED (booking itself succeeded):', {
+            bookingId: parsed.bookingId, reservationId: result.id, errorClass, message,
+          });
+          emailStatus = { sent: false, error: errorClass };
+        }
       }
 
       // WHITELISTED envelope (ruled): the seven fields, provider status

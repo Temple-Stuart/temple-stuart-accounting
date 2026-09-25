@@ -4876,11 +4876,14 @@ lawGuard('The flight payment-rail law', () => {
   //    paid customer must not land on the hotel page, or on a public path they are
   //    bounced off.
   if (!/\/booking\/flight-confirm\?\$\{q\.toString\(\)\}/.test(fpanel)) railFail(`${FPANEL} returnUrl does not land on /booking/flight-confirm — the documented rail redirects, and a paid flight customer must land where the booking is finished`);
-  for (const key of ['prebookId: prebook.prebookId', 'transactionId: prebook.transactionId', 'contactEmail: email.trim()']) {
+  // SEC-03 (2026-09-25): the link carries IDS ONLY — the contact email that rode
+  // it under FL-5b is stored at prebook and read by the book route (the
+  // privacy-and-money law below owns that rule; this clause reads the rail).
+  for (const key of ['prebookId: prebook.prebookId', 'transactionId: prebook.transactionId']) {
     if (!fpanel.includes(key)) railFail(`${FPANEL} returnUrl does not carry ${key} — the confirm page finishes the booking from what the link carries and invents nothing`);
   }
   if (!fconfirm.includes("'/api/travel/liteapi/flights/book'")) railFail(`${FCONFIRM} does not complete the booking through the existing flights book route`);
-  if (!/body: JSON\.stringify\(\{ prebookId, transactionId, contactEmail, \.\.\.\(tripId \? \{ tripId \} : \{\}\) \}\)/.test(fconfirm)) railFail(`${FCONFIRM} does not post the three references the panel handed it`);
+  if (!/body: JSON\.stringify\(\{ prebookId, transactionId, \.\.\.\(tripId \? \{ tripId \} : \{\}\) \}\)/.test(fconfirm)) railFail(`${FCONFIRM} does not post the two references the panel handed it (and the trip, when there is one)`);
   if (!/data-flight-email="sent"/.test(fconfirm) || !/data-flight-email="failed"/.test(fconfirm)) railFail(`${FCONFIRM} does not say whether the confirmation email went out — FL-5b rule moved here with the booking it belongs to`);
   if (!/setPhase\('incomplete'\)/.test(fconfirm)) railFail(`${FCONFIRM} does not state a link that arrived without its references — a missing value is said, never guessed`);
   {
@@ -5026,6 +5029,244 @@ lawGuard('The lane law', () => {
 
   if (laneViolations === 0) console.log(`✔ The lane law passed — type comes from reservations.lane through ONE reader (${LANE_READERS.length} readers, 0 PROVIDER_TYPE maps, no name falls through to a provider slug); both book routes write the lane they hold; the migration backfills once and its CASE exists in no runtime file; a flight day, name and status are vendor-stated through one function, after the commit, outside it, in its own try/catch, reserved against liteapiflightbookingread (${dailyCap('liteapiflightbookingread')}/day); flights attach to a trip under the hotel route own gate; the retro runs the same function.`);
   else console.log(`✖ The lane law FAILED — ${laneViolations} violation(s).`);
+});
+
+// ── THE PRIVACY-AND-MONEY LAW (SEC-03, 2026-09-25) ──────────────────────────
+// NO PII IN A URL, NO FABRICATED NUMBER IN A LEDGER.
+//
+// WHAT THIS CLOSES. (A) The flights checkout put the customer email in the payment
+// wrapper returnUrl; /booking/flight-confirm read it off the query string and
+// posted it to the book route. A redirect URL is browser history, referrer headers
+// and server logs. (B) Both book routes wrote a price the vendor never stated:
+// `parsed.price ?? 0` put $0 into reservations.finalPriceCents AND
+// commission_ledger.grossAmountCents, and `?? 'USD'` invented a currency, so a
+// real $0 and a gap were the same number and the matcher had to read 0 as
+// "unknown". (C) CANCELLED_WITH_CHARGES was unmapped: a cancelled, charged flight
+// read "pending".
+//
+//   1. NO EMAIL IN ANY URL. Over every source file: no URLSearchParams literal,
+//      set or append carries an email-named key, no `?email=` is built into a
+//      URL, and no page or route reads an email-named key off a query string.
+//   2. THE CONTACT IS STORED AT PREBOOK. The flights prebook route validates the
+//      contact, calls the vendor, then writes prebook_contacts under the
+//      vendor prebookId BEFORE it answers; the write has its own catch that
+//      answers a NAMED 500 carrying no secretKey. (The table key is the vendor
+//      id, which exists only once the vendor has answered — so the row cannot
+//      precede the call; what it precedes is the answer, and with it any card
+//      form.) The search currency the panel states is validated and stored.
+//   3. THE BOOK ROUTE READS IT. By prebookId, BEFORE the quota reservation and
+//      the vendor call; no row is a named 400. The recipient is the stored
+//      address. One email attempt per booking: a retry that finds the
+//      reservation already recorded reports earlier and sends nothing.
+//   4. THE MONEY. Both book routes: price absent → NULL in both ledgers with a
+//      loud log naming the bookingId; currency absent → the currency the SEARCH
+//      was made in (stored with the contact for flights, stated by the confirm
+//      page for hotels), else the contract-deviation throw. No `?? 0`, no
+//      `?? 'USD'`, no price relayed from a URL into the ledger.
+//   5. THE SCHEMA AND THE MIGRATION. Both money columns nullable; prebook_contacts
+//      keyed on prebookId with no default on any stated field; no backfill.
+//   6. EVERY READER SAYS "price not stated" for NULL — never $0, never NaN, never
+//      summed, never dropped. The export keeps the Dollars twin, empty.
+//   7. THE MATCHER. NULL excludes the amount signal; 0 is a real amount.
+//   8. THE STATUS. CANCELLED_WITH_CHARGES → cancelled.
+lawGuard('The privacy-and-money law', () => {
+  let secViolations = 0;
+  const secFail = (m: string) => { secViolations += 1; violations.push(`privacy-and-money law: ${m} (SEC-03)`); };
+
+  const FPREBOOK = 'src/app/api/travel/liteapi/flights/prebook/route.ts';
+  const FBOOK = 'src/app/api/travel/liteapi/flights/book/route.ts';
+  const HBOOK = 'src/app/api/travel/liteapi/book/route.ts';
+  const FPANEL = 'src/components/trips/LiteApiFlightCheckoutPanel.tsx';
+  const FCONFIRM = 'src/app/booking/flight-confirm/page.tsx';
+  const HCONFIRM = 'src/app/booking/confirm/page.tsx';
+  const MATCHER = 'src/lib/runway/reservationMatcher.ts';
+  const STATUS_LEAF = 'src/lib/reservations/flightStatus.ts';
+  const EXPORT = 'src/app/api/export/route.ts';
+  const AMOUNT_ROUTES = ['src/app/api/reservations/[id]/route.ts', 'src/app/api/reservations/unattached/route.ts', 'src/app/api/trips/[id]/reservations/route.ts'];
+  const SAYING_READERS = ['src/components/trips/TripBookings.tsx', 'src/components/trips/UnattachedBookings.tsx', 'src/components/trips/TripBudgetActual.tsx', 'src/components/hub/MatchReviewSection.tsx', HCONFIRM, 'src/lib/emailTemplates/flightConfirmation.ts', 'src/lib/emailTemplates/bookingConfirmation.ts'];
+  const SEC_MIGRATION = ALL_MIGRATIONS.find((m) => /_sec_03_/.test(m.dir));
+
+  // The object literal handed to a call, walked by brace depth — never a character
+  // count, and never the first `})`, which a spread `...(x ? { x } : {})` would hit.
+  const literalAfter = (src: string, at: number): string => {
+    const open = src.indexOf('{', at);
+    if (open < 0) return '';
+    let depth = 0;
+    for (let i = open; i < src.length; i++) {
+      if (src[i] === '{') depth += 1;
+      else if (src[i] === '}') { depth -= 1; if (depth === 0) return src.slice(open, i + 1); }
+    }
+    return src.slice(open);
+  };
+
+  // 1. NO EMAIL IN ANY URL, anywhere in src.
+  for (const { file, src } of srcFiles) {
+    for (const m of src.matchAll(/new URLSearchParams\(/g)) {
+      const lit = literalAfter(src, m.index! + m[0].length);
+      const key = lit.match(/\b([A-Za-z]*[eE]mail[A-Za-z]*)\s*:/);
+      if (key) secFail(`${file} builds a URL whose query carries an email (${key[1]}) — a redirect URL is browser history, referrer headers and server logs`);
+    }
+    // A query-string setter — never a cookie jar or a header map, which set the
+    // signed session cookie by its name and are not URLs.
+    const setter = src.match(/(?<!cookies|cookieStore|headers)\.(set|append)\('([A-Za-z]*[eE]mail[A-Za-z]*)'/);
+    if (setter) secFail(`${file} puts an email-named key (${setter[2]}) on a query string with .${setter[1]}()`);
+    const built = src.match(/[?&]([A-Za-z]*[eE]mail[A-Za-z]*)=/);
+    if (built) secFail(`${file} builds ?${built[1]}= into a URL`);
+    const read = src.match(/(?:searchParams|params)\.get\('([A-Za-z]*[eE]mail[A-Za-z]*)'\)/);
+    if (read) secFail(`${file} reads an email off a query string (${read[1]}) — the contact is stored at prebook and read by prebookId`);
+  }
+  {
+    const fp = codeOf(FPANEL);
+    if (/contactEmail/.test(fp)) secFail(`${FPANEL} still names contactEmail — the address rides no link`);
+    const fc = codeOf(FCONFIRM);
+    if (/contactEmail/.test(fc)) secFail(`${FCONFIRM} still names contactEmail — the page reads no email and posts none`);
+    if (!/body: JSON\.stringify\(\{ prebookId, transactionId, \.\.\.\(tripId \? \{ tripId \} : \{\}\) \}\)/.test(fc)) secFail(`${FCONFIRM} does not post exactly the two references and the trip`);
+    if (!/data-flight-email="earlier"/.test(fc)) secFail(`${FCONFIRM} does not say when the email went out on an EARLIER attempt — a retry sends no second one, and that is stated`);
+  }
+
+  // 2. THE CONTACT IS STORED AT PREBOOK, before the browser is answered.
+  {
+    const src = codeOf(FPREBOOK);
+    const vendor = src.indexOf('await prebookFlight(');
+    const write = src.indexOf('prisma.prebook_contacts.create(');
+    // The envelope that carries the secretKey to the browser — anchored on its own
+    // three opening lines, so a secretKey smuggled into a refusal is found in the
+    // refusal, not mistaken for the envelope.
+    const answer = src.indexOf('return NextResponse.json({\n      prebookId: prebook.prebookId,\n      transactionId: prebook.transactionId,\n      secretKey: prebook.secretKey,');
+    if (write < 0) secFail(`${FPREBOOK} does not write the contact row (prisma.prebook_contacts.create) — the book route has nothing to read`);
+    else if (answer < 0) secFail(`${FPREBOOK} no longer answers the whitelisted envelope (prebookId, transactionId, secretKey) — the clause cannot place the write against it`);
+    else {
+      if (!(vendor > 0 && vendor < write)) secFail(`${FPREBOOK}: the contact row is keyed on the vendor prebookId and must be written right after the vendor answers`);
+      if (!(answer > write)) secFail(`${FPREBOOK}: the secretKey is answered before the contact row is written — a card form could open on a hold with no stored contact`);
+      const between = src.slice(write, answer);
+      if (!/catch \(writeErr\)/.test(between)) secFail(`${FPREBOOK}: the contact write has no catch of its own — a failed write must be a NAMED refusal, not a generic 500`);
+      const catchAt = between.indexOf('catch (writeErr)');
+      const catchBody = catchAt >= 0 ? between.slice(catchAt) : '';
+      if (!/code: 'contact_not_stored'/.test(catchBody)) secFail(`${FPREBOOK}: a failed contact write is not refused by name (contact_not_stored)`);
+      if (/secretKey/.test(catchBody)) secFail(`${FPREBOOK}: the refusal for a failed contact write carries a secretKey — a card form could open with no stored contact`);
+      if (!/\{ status: 500 \}/.test(catchBody)) secFail(`${FPREBOOK}: a failed contact write does not answer 500`);
+    }
+    for (const field of ['contactFirstName: contact.firstName', 'contactLastName: contact.lastName', 'contactEmail: contact.email', 'contactPhone: contact.phoneNumber', "lane: 'flight'", 'searchCurrency: searchCurrency || null', 'userId: user?.id ?? null']) {
+      if (!src.includes(field)) secFail(`${FPREBOOK} does not store ${field} — the row holds exactly what was validated`);
+    }
+    if (!/\/\^\[A-Z\]\{3\}\$\/\.test\(searchCurrency\)/.test(src)) secFail(`${FPREBOOK} does not validate the stated search currency as an ISO 4217 code`);
+    if (/\?\? 'USD'|\|\| 'USD'/.test(src)) secFail(`${FPREBOOK} invents a currency`);
+    if (!/^\s*const contact: FlightPrebookContact = \{/m.test(src) || src.indexOf('const contact: FlightPrebookContact') > vendor) secFail(`${FPREBOOK}: the contact is not validated BEFORE the vendor call`);
+  }
+
+  // 3. THE BOOK ROUTE READS IT — before the quota and the vendor; the stored
+  //    address is the recipient; one attempt per booking.
+  {
+    const src = codeOf(FBOOK);
+    const read = src.indexOf('prisma.prebook_contacts.findUnique({ where: { prebookId } })');
+    const refuse = src.indexOf("code: 'contact_not_stored'");
+    const quota = src.indexOf("reserveTravelSearch('liteapiflightbooking')");
+    const vendor = src.indexOf('await bookFlight(');
+    if (read < 0) secFail(`${FBOOK} does not read the stored contact by prebookId`);
+    else {
+      if (!(refuse > read && refuse < quota)) secFail(`${FBOOK} does not refuse a missing contact by name (contact_not_stored) between the read and the quota reservation`);
+      if (!(quota > 0 && read < quota)) secFail(`${FBOOK} does not read the stored contact before the quota reservation — a booking with no contact would cost quota`);
+      if (!(vendor > quota && read < vendor)) secFail(`${FBOOK} does not read the stored contact before the vendor call — a booking with no contact would cost money`);
+      if (!/if \(!contact \|\| contact\.lane !== 'flight'\)/.test(src)) secFail(`${FBOOK} accepts a contact row from another lane`);
+    }
+    if (/body\.contactEmail|contactEmail\?: unknown/.test(src)) secFail(`${FBOOK} still takes contactEmail from the body — the address is read from the stored row, never carried`);
+    if (!/to: contact\.contactEmail,/.test(src)) secFail(`${FBOOK}: the recipient is not the stored contact (to: contact.contactEmail)`);
+    if (/to: userEmail|to: user\?\.email|to: (?:body|params)\./.test(src)) secFail(`${FBOOK} substitutes a recipient`);
+    if (!/if \(landed\.reservationOutcome === 'existing'\) \{\s*emailStatus = \{ sent: 'earlier' \};/.test(src)) secFail(`${FBOOK} does not keep one email attempt per booking — a retry that finds the reservation already recorded must report earlier and send nothing`);
+  }
+
+  // 4. THE MONEY, both book routes.
+  for (const [file, currencyChain] of [[FBOOK, 'const resolvedCurrency = parsed.currency ?? contact.searchCurrency;'], [HBOOK, 'const resolvedCurrency = parsed.currency ?? currency;']] as const) {
+    const src = codeOf(file);
+    if (/\?\? 0\b/.test(src)) secFail(`${file} writes ?? 0 — a price the vendor did not state is NULL, never 0`);
+    if (/\?\? 'USD'|\|\| 'USD'|: 'USD'/.test(src)) secFail(`${file} invents a currency with a literal`);
+    if (/resolvedPrice/.test(src)) secFail(`${file} still resolves a price through a fallback chain`);
+    if (!/const statedCents = statedPrice === null \? null : Math\.round\(statedPrice \* 100\);/.test(src)) secFail(`${file} does not derive the cents from the stated price or NULL`);
+    if (!/finalPriceCents: statedCents,/.test(src)) secFail(`${file} does not write the stated cents (or NULL) to reservations.finalPriceCents`);
+    if (!/grossAmountCents: statedCents,/.test(src)) secFail(`${file} does not write the stated cents (or NULL) to commission_ledger.grossAmountCents`);
+    if (!/SEC-03 the vendor stated NO price[^\n]*\n\s*bookingId: parsed\.bookingId,/.test(src)) secFail(`${file} does not log a price the vendor did not state, loudly, naming the bookingId`);
+    if (!src.includes(currencyChain)) secFail(`${file} does not take the currency from the vendor, else the currency the search was made in`);
+    const chainAt = src.indexOf(currencyChain);
+    const after = chainAt >= 0 ? src.slice(chainAt, chainAt + 700) : '';
+    if (!/contract deviation from the documented shape/.test(after) || !/throw new LiteApi(Flights)?(Api)?Error\(/.test(after)) secFail(`${file} does not throw the contract-deviation error when neither the vendor nor the search states a currency`);
+  }
+  {
+    const hb = codeOf(HBOOK);
+    if (/finalPriceCents\?: number/.test(hb) || /finalPriceCents \/ 100/.test(hb)) secFail(`${HBOOK} still takes a price from the request body — a number relayed from a URL is not a vendor statement`);
+    if (!/\/\^\[A-Z\]\{3\}\$\/\.test\(currency\)/.test(hb)) secFail(`${HBOOK} does not validate the stated search currency as an ISO 4217 code`);
+    const hc = codeOf(HCONFIRM);
+    if (/finalPriceCents: Math\.round/.test(hc)) secFail(`${HCONFIRM} posts the price it displayed into the ledger`);
+    if (/'USD'/.test(hc)) secFail(`${HCONFIRM} carries a currency literal — the search currency is what the link states, or nothing`);
+    if (!/\.\.\.\(currency \? \{ currency \} : \{\}\),/.test(hc)) secFail(`${HCONFIRM} does not state the search currency to the book route only when the link carries one`);
+  }
+
+  // 5. THE SCHEMA AND THE MIGRATION.
+  if (!/\n  finalPriceCents\s+Int\?/.test(schemaText)) secFail('prisma/schema.prisma: reservations.finalPriceCents is not nullable');
+  if (!/\n  grossAmountCents\s+Int\?/.test(schemaText)) secFail('prisma/schema.prisma: commission_ledger.grossAmountCents is not nullable');
+  if (!/\nmodel prebook_contacts \{\n  prebookId\s+String\s+@id/.test(schemaText)) secFail('prisma/schema.prisma: prebook_contacts is not keyed on prebookId');
+  for (const col of ['lane', 'contactFirstName', 'contactLastName', 'contactEmail', 'contactPhone']) {
+    const line = schemaText.match(new RegExp(`\\n  ${col}\\s+String[^\\n]*`));
+    if (!line) secFail(`prisma/schema.prisma: prebook_contacts lacks ${col}`);
+    else if (/\?|@default/.test(line[0].replace(/\/\/.*$/, ''))) secFail(`prisma/schema.prisma: prebook_contacts.${col} is nullable or defaulted — a stated field has no default`);
+  }
+  if (!SEC_MIGRATION) secFail('no prisma/migrations/*_sec_03_*/migration.sql');
+  else {
+    const sql = SEC_MIGRATION.sql;
+    for (const must of ['ALTER TABLE "reservations" ALTER COLUMN "finalPriceCents" DROP NOT NULL;', 'ALTER TABLE "commission_ledger" ALTER COLUMN "grossAmountCents" DROP NOT NULL;', 'CREATE TABLE "prebook_contacts"', 'PRIMARY KEY ("prebookId")', `CHECK ("lane" IN ('hotel', 'flight', 'activity'))`]) {
+      if (!sql.includes(must)) secFail(`the SEC-03 migration lacks "${must}"`);
+    }
+    // A statement that starts with UPDATE is a backfill; ON UPDATE CASCADE on the key is not.
+    if (/^\s*UPDATE\b/im.test(sql)) secFail('the SEC-03 migration backfills — existing rows are untouched');
+    for (const col of ['prebookId', 'lane', 'contactFirstName', 'contactLastName', 'contactEmail', 'contactPhone']) {
+      const line = sql.split('\n').find((l) => l.includes(`"${col}"`) && /VARCHAR/.test(l));
+      if (!line) secFail(`the SEC-03 migration does not declare "${col}"`);
+      else if (/DEFAULT/i.test(line) || !/NOT NULL/.test(line)) secFail(`the SEC-03 migration defaults or nulls "${col}" — a stated field is NOT NULL with no default`);
+    }
+  }
+
+  // 6. EVERY READER SAYS IT.
+  for (const f of AMOUNT_ROUTES) {
+    if (!codeOf(f).includes('amountUsd: r.finalPriceCents === null ? null : r.finalPriceCents / 100,')) secFail(`${f} does not pass a NULL price through as null (amountUsd) — it would divide NULL and answer 0 or NaN`);
+  }
+  for (const f of SAYING_READERS) {
+    if (!/price not stated/.test(codeOf(f))) secFail(`${f} does not say "price not stated" for a NULL price`);
+  }
+  for (const f of ['src/lib/emailTemplates/flightConfirmation.ts', 'src/lib/emailTemplates/bookingConfirmation.ts']) {
+    if (!/totalAmountCents: number \| null;/.test(codeOf(f))) secFail(`${f}: the template does not accept a NULL total`);
+  }
+  {
+    const tb = codeOf('src/components/trips/TripBookings.tsx');
+    if (!/r\.amountUsd === null \? 0 : Math\.round\(r\.amountUsd \* 100\)/.test(tb)) secFail('TripBookings.tsx sums a NULL price — the total leaves it out');
+    if (!/unstatedCount\(rows\) > 0/.test(tb)) secFail('TripBookings.tsx does not say how many rows its total left out');
+    const ex = codeOf(EXPORT);
+    if (!/if \(\/Cents\$\/\.test\(k\)\) out\[k\.replace\(\/Cents\$\/, 'Dollars'\)\] = '';/.test(ex)) secFail(`${EXPORT} drops the Dollars twin of a NULL cents column — the column is kept, empty, never 0.00`);
+  }
+  for (const { file, src } of srcFiles) {
+    if (/finalPriceCents \?\? \d|amountUsd \?\? \d|totalAmountCents \?\? \d/.test(src)) secFail(`${file} reads a NULL price as a number (?? 0)`);
+    const lines = src.split('\n');
+    for (const [i, line] of lines.entries()) {
+      if (!/finalPriceCents\)? \/ 100/.test(line)) continue;
+      const window = lines.slice(Math.max(0, i - 5), i + 1).join('\n');
+      if (!/finalPriceCents === null/.test(window)) secFail(`${file}:${i + 1} divides finalPriceCents with no NULL guard within five lines — NaN, never said`);
+    }
+    if (/amountUsd\.toFixed\(/.test(src) && !/amountUsd (===|!==|!=) null|typeof [a-zA-Z.]*amountUsd === 'number'/.test(src)) secFail(`${file} formats amountUsd with no NULL guard`);
+  }
+
+  // 7. THE MATCHER.
+  {
+    const m = codeOf(MATCHER);
+    if (!/finalPriceCents: number \| null;/.test(m)) secFail(`${MATCHER} does not type finalPriceCents as nullable`);
+    if (!/const amountKnown = r\.finalPriceCents !== null;/.test(m)) secFail(`${MATCHER} reads 0 as unknown — NULL is the one unknown and 0 is a real amount`);
+    if (/finalPriceCents > 0|0 cents recorded|0 = price unknown/.test(rejoin(m, commentsOf(MATCHER)))) secFail(`${MATCHER} still treats 0 as "price unknown"`);
+    if (!/price not stated by the vendor \(NULL recorded\)/.test(m)) secFail(`${MATCHER} does not name the NULL exclusion in the rationale`);
+  }
+
+  // 8. THE STATUS.
+  if (!/s === 'CANCELLED' \|\| s === 'CANCELLED_WITH_CHARGES'\) return 'cancelled';/.test(codeOf(STATUS_LEAF))) secFail(`${STATUS_LEAF} does not map CANCELLED_WITH_CHARGES to cancelled`);
+  if (!/SEC-03/.test(commentsOf(STATUS_LEAF))) secFail(`${STATUS_LEAF}: the header does not record the SEC-03 mapping`);
+
+  if (secViolations === 0) console.log(`✔ The privacy-and-money law passed — ${srcFiles.length} source files, 0 emails in a URL; the flights contact is stored at prebook under the vendor prebookId before the browser is answered and read by the book route before the quota and the vendor; both book routes write NULL, never 0, for a price the vendor did not state and take the currency from the vendor or the search, never a literal; ${AMOUNT_ROUTES.length + SAYING_READERS.length} readers say "price not stated"; the matcher excludes NULL and compares 0; CANCELLED_WITH_CHARGES is cancelled.`);
+  else console.log(`✖ The privacy-and-money law FAILED — ${secViolations} violation(s).`);
 });
 
 // ── THE ROW LAW (TRAVEL-ROW-01, 2026-09-23) ─────────────────────────────────
@@ -5715,7 +5956,11 @@ lawGuard('The row law', () => {
     // tripId and carries it in the returnUrl when present. Where it mounts, which
     // TRAVEL-ROW-01 owns, is untouched.
     // Was 559fa688d4c88dfc7fc83bf1ff91fba13dff4e9cace83e83b82198a505dba98c at main 8f06554c.
-    { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: '6fc3a51fcf5e2a552ca7d6cd7ccf88ed0997b4b4ed77f12706cd76944d6be92c' },
+    // SEC-03 (2026-09-25): re-pinned by its own ruling — the returnUrl carries ids
+    // only; the contact email no longer rides the redirect. Where it mounts, which
+    // the row law owns, is untouched.
+    // Was 6fc3a51fcf5e2a552ca7d6cd7ccf88ed0997b4b4ed77f12706cd76944d6be92c at main a5e66262.
+    { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: '85abd313700af8443d1f76c325c6b9bc15db3ee785011b445e3c4fe1ea16a864' },
   ];
   const flowPins = codeOf('src/lib/travelBookingFlow.ts');
   const flowNotes = commentsOf('src/lib/travelBookingFlow.ts');
