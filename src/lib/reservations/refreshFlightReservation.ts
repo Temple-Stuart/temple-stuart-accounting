@@ -145,6 +145,13 @@ export async function refreshFlightReservation(ports: FlightRefreshPorts, row: F
   let status: 'set' | 'unchanged' | 'unmapped';
   if (mapped === null) status = 'unmapped';
   else if (mapped === row.status) status = 'unchanged';
+  // CANCEL-01 (2026-09-26): a cancel the airline ACCEPTED but has not finalized
+  // (a 202) leaves the vendor's status CONFIRMED; that word must not flip the row
+  // back from 'cancel_pending' to 'confirmed'. The row waits for CANCELLED /
+  // CANCELLED_WITH_CHARGES. Resolving a 202 — the final status AND its money
+  // facts (money_events) — is item 3's webhook receiver and scheduled refresh,
+  // NOT this PR: this guard only keeps the refresh from undoing a request.
+  else if (row.status === 'cancel_pending' && mapped === 'confirmed') status = 'unchanged';
   else { status = 'set'; patch.status = mapped; }
 
   if (patch.displayName !== undefined || patch.status !== undefined) {

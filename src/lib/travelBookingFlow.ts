@@ -166,7 +166,17 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // flights. The auth chain, the hotel cancel call, the landing and the status write
   // are unchanged.
   // Was c9885c190fd4452be45d06f5a1de052b1f2732d7f0a4b2b8c925a978981d9d33 at main dccb3380.
-  { file: 'src/app/api/reservations/[id]/cancel/route.ts', sha256: '150757218a27e3aeaa22123317d1b089c4762f3137a273dacf58bf5f2c20ab5d' },
+  // CANCEL-01 (2026-09-26): re-pinned — one resource, two verbs. GET is the flight
+  // cancellation QUOTE (authed, user-scoped, metered against liteapiflightcancelquote,
+  // no money moved). POST dispatches on the lane: a hotel to the hotel client as since
+  // PR-Cancel-1, now KEEPING its refund and fee as money_events rows pointed at the
+  // arrival; a flight to POST /flights/bookings/{id}/cancellations — 200 → cancelled with
+  // its money facts and vouchers, 202 → cancel_pending with the vendor's cancelIntentAt
+  // from one metered GET, 409 → a named refusal and nothing written. A final cancel
+  // marks the calendar row and moves the estimated commission to cancelled. The auth
+  // chain and the hotel cancel call are unchanged.
+  // Was 150757218a27e3aeaa22123317d1b089c4762f3137a273dacf58bf5f2c20ab5d at main dccb3380.
+  { file: 'src/app/api/reservations/[id]/cancel/route.ts', sha256: '5fb02294e674bbf816a50f4a455534d93e261016ae8e058bbb2f6310dd0abe1f' },
   // LANE-01 (2026-09-25): re-pinned — type and name come from the one reader keyed on
   // reservations.lane (src/lib/reservations/lane.ts); the local PROVIDER_TYPE map and
   // hotelName ?? provider are gone. The auth chain and the one field it writes are unchanged.
@@ -331,7 +341,13 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // field.
   // Was 6fc3a51fcf5e2a552ca7d6cd7ccf88ed0997b4b4ed77f12706cd76944d6be92c at main a5e66262.
   { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: '85abd313700af8443d1f76c325c6b9bc15db3ee785011b445e3c4fe1ea16a864' },
-  { file: 'src/components/trips/CancelBookingDialog.tsx', sha256: '7e50c4ece72171929446f4734622ccdf8b6b75bb87c2c6c3c5aa101ec26fd95d' },
+  // CANCEL-01 (2026-09-26): re-pinned — for a flight the dialog reads the vendor's
+  // cancellation quote on open and renders refund, penalty, currency, the confidence
+  // word with its meaning, where the refund goes and any vouchers BEFORE any Cancel
+  // control; a quote it cannot fetch is named and leaves only Keep booking. The hotel
+  // path (the stored policy) is unchanged.
+  // Was 7e50c4ece72171929446f4734622ccdf8b6b75bb87c2c6c3c5aa101ec26fd95d at main dccb3380.
+  { file: 'src/components/trips/CancelBookingDialog.tsx', sha256: 'b8df9e669084d61c4d92c352dbd6f6b8870db9d3499b111dd9042babae6fca02' },
   // SEC-03 (2026-09-25): re-pinned — a booking whose price the vendor did not state
   // (amountUsd null) renders "price not stated" and is left out of the total, which
   // says how many it left out. Display only; no call changed.
@@ -340,7 +356,12 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // through the one reader), never on a flight the route would send to the hotel
   // endpoint. Display only; no call changed.
   // Was 65a108fefa586716edb5754feb121110366925a052b6ed22570438e76236bc15 at main dccb3380.
-  { file: 'src/components/trips/TripBookings.tsx', sha256: '95ac4f8d13a1317c1d225b28ba2d9155e6537dfd2752c2c45374a04f7b95a386' },
+  // CANCEL-01 (2026-09-26): re-pinned again — Cancel is offered on the hotel AND flight
+  // lanes (never activity); a cancel_pending row reads "cancellation requested — awaiting
+  // the airline"; the outcome line carries where the refund goes and any vouchers; the
+  // dialog is handed the lane. Display only; no call changed.
+  // Was 95ac4f8d13a1317c1d225b28ba2d9155e6537dfd2752c2c45374a04f7b95a386 at main dccb3380.
+  { file: 'src/components/trips/TripBookings.tsx', sha256: '1d76057906ef2eade1c6ff28b4532e1a66b637bccd4617cf8751281ed6f8996c' },
   // REPAINT-04 (2026-09-21): re-pinned — one class on the "Add to <trip>" ghost button
   // (text-white → text-brand-purple, invisible on cream). Paint only; no call changed.
   // Was d5f8e0be428de6054eb756c0301c1e064e825f6ddb013d45cc332b7ca6157492 at main b9eac34a.
@@ -352,7 +373,12 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // through the one reader), never on a flight the route would send to the hotel
   // endpoint. Display only; no call changed.
   // Was dafd41592fcc127da1822b65a43d64f3d841c268f69f5b60cd23c51e0f339fa6 at main dccb3380.
-  { file: 'src/components/trips/UnattachedBookings.tsx', sha256: '611626a10215576299c4a0d2a5ef75479f872bbcd4f99f4df79f50c66d53331c' },
+  // CANCEL-01 (2026-09-26): re-pinned again — Cancel is offered on the hotel AND flight
+  // lanes (never activity); a cancel_pending row reads "cancellation requested — awaiting
+  // the airline"; the outcome line carries where the refund goes and any vouchers; the
+  // dialog is handed the lane. Display only; no call changed.
+  // Was 611626a10215576299c4a0d2a5ef75479f872bbcd4f99f4df79f50c66d53331c at main dccb3380.
+  { file: 'src/components/trips/UnattachedBookings.tsx', sha256: 'cff86c0203191650923d4eb23609098e06e21e97a53794aea6f3956daf4a8f2d' },
   // HOTEL-02 (2026-09-22): re-dated — the dead lodging default constant deleted; the lodging commit names the vendor's hotel. The stay's clock is the property's, read once at commit; no prebook/book/pay/cancel call changed.
   // Was 8c5bf217bf1a2c2b65f3f969be5c02016455d53d9977fa5406600d14cb894ed5 at main 81045434.
   { file: 'src/components/trips/TripPlannerAI.tsx', sha256: '9cdf491def14615d0f5b0d8ba168bb7026131b05c12b3d3a113be0b3ee3ddf9d' },
@@ -368,7 +394,14 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // so both share it — the POST's behaviour is byte-for-byte what it was). It moves no
   // money and holds nothing. search / verify / prebook / book are unchanged.
   // Was f5ecffcfa0b71b8cbe4ba8868a2f8aabd4e326129bacbf9a675e79b17e63fd2f at main 8f06554c.
-  { file: 'src/lib/liteapiFlightsClient.ts', sha256: '8130c9e36431d886f48648f2b2ae2ad4a86413d7a9037a8959a79c620b242bf7' },
+  // CANCEL-01 (2026-09-26): re-pinned — two calls added on the same auth headers and
+  // the same non-2xx contract: getFlightCancellationQuote (GET /flights/bookings/{id}/
+  // cancellations, a read that moves no money) and cancelFlightBooking (POST, no body;
+  // 200 final, 202 awaiting the airline), each with its pure parser and the raw answer
+  // riding the result; parseFlightBookingDetails also reads cancelIntentAt. search /
+  // verify / prebook / book are unchanged.
+  // Was 8130c9e36431d886f48648f2b2ae2ad4a86413d7a9037a8959a79c620b242bf7 at main dccb3380.
+  { file: 'src/lib/liteapiFlightsClient.ts', sha256: '0bae21fb9bf0bd9664dc7418502a35e507f713d370e542b878e35e2188b3121d' },
   // FLIGHT-01 (2026-09-22): re-pinned — tri-state fare attributes, segment views with the operating carrier, the flight identity; the `!!terms` coercion gone. Search is not booking; no prebook/verify/book/pay/cancel call changed.
   // Was d851de5d68fada3cffddd88ddcc38005b5a9c739e73c0920c213f282c30fa879 at main b9eac34a.
   // HOTEL-01 (2026-09-22): re-pinned — the tri-state readers come from the one helper, src/lib/travel/stated.ts; no other change. Search and display are not booking; no prebook/book/pay/cancel call changed.
@@ -384,7 +417,10 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // Was d85603f7cc6567c02769ac997bfdc8d6112855249b44f4bde9fdd8f35ffeeeea at main dfc02881.
   // LANE-01 (2026-09-25): re-dated — the 'liteapiflightbookingread' safe default cap (50/day) joins PROVIDER_SAFE_DEFAULT_CAP for the one GET /flights/bookings/{id} per flight booking and per retro row; no existing bucket or function changed. No prebook/book/pay/cancel call changed.
   // Was 7bf2a177c44237379f1286b64c1f741c85ff01ea9e1498fe2f444dc82129d36f at main 8f06554c.
-  { file: 'src/lib/travelSearchQuota.ts', sha256: 'a99293c2855a976731a192b944191f60a7f9018ec2230f86c5ee74e8db8d80cc' },
+  // CANCEL-01 (2026-09-26): re-dated — one bucket added, liteapiflightcancelquote (50/day),
+  // for the cancellation quote read. No existing bucket changed.
+  // Was a99293c2855a976731a192b944191f60a7f9018ec2230f86c5ee74e8db8d80cc at main dccb3380.
+  { file: 'src/lib/travelSearchQuota.ts', sha256: '54ad80c8a89572b666e7bc8f9921c55f0d317906b94fd766d559cf99be16d3cf' },
   { file: 'src/lib/travelErrors.ts', sha256: '21461573d159b13444b054b736b659f728d5ae30cf2c3ddccb0ddc1f1fd7ee7d' },
   { file: 'src/lib/travelSourceRegistry.ts', sha256: '93646472a2376cecc49695c98626b04f9f8caa5e8fcdf80d015bbdae05dfae65' },
 ];

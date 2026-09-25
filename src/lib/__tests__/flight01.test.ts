@@ -272,7 +272,8 @@ test('the booking-flow pin still holds for every file it names — five search f
     // CHECKOUT-03 (2026-09-23): the panel waits on Stripe.js before handing off.
     'src/components/trips/CheckoutPanel.tsx': 'b3fd49cbd8acf9ab3d5afb11fdc42f61089722d2951dd6cbfa6a8dc2bdf19b46',
     // LANE-01 (2026-09-25): a reservation knows what it is. Was f5ecffcfa0b71b8cbe4ba8868a2f8aabd4e326129bacbf9a675e79b17e63fd2f.
-    'src/lib/liteapiFlightsClient.ts': '8130c9e36431d886f48648f2b2ae2ad4a86413d7a9037a8959a79c620b242bf7',
+    // CANCEL-01 (2026-09-26): re-pinned — was 8130c9e36431d886f48648f2b2ae2ad4a86413d7a9037a8959a79c620b242bf7 at main dccb3380.
+    'src/lib/liteapiFlightsClient.ts': '0bae21fb9bf0bd9664dc7418502a35e507f713d370e542b878e35e2188b3121d',
   };
   for (const f of booking) assert.equal(BOOKING_FLOW_FILES.find((p) => p.file === f)!.sha256, original[f], `${f} is pinned at its TRAVEL-01 hash`);
 });

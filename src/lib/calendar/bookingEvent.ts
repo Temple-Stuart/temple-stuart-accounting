@@ -160,6 +160,38 @@ export interface BookingCalendarPort {
   }): Promise<void>;
 }
 
+/**
+ * CANCEL-01 (2026-09-26): the one extra call a CANCEL needs — mark the row a
+ * cancelled reservation earned. Separate from BookingCalendarPort so the refresh
+ * and the book routes (and their fakes) are untouched.
+ */
+export interface BookingCalendarCancelPort {
+  /** Mark every row for (source, source_id) cancelled; answer how many were. */
+  markCancelled(source: string, sourceId: string): Promise<number>;
+}
+
+/**
+ * CANCEL-01 (2026-09-26): A CANCELLED BOOKING'S ROW IS MARKED, NOT REMOVED.
+ *
+ * The reservation row is never deleted — the financial record lives forever
+ * (reservations/[id]/cancel/route.ts) — and its calendar row is the day-side of
+ * that same record: it was keyed (source='reservation', source_id=reservation.id)
+ * by CAL-01 exactly so the deferred budget retro-map can find the bookings it
+ * must map. Removing the row would make the day read as if nothing had ever been
+ * booked and would take the key away from that retro-map. Marking keeps the key
+ * and the day and tells the truth on the grid: the title becomes
+ * "Cancelled: <title>" (the grid renders the title; it renders nothing from
+ * `status`, HubCalendar.tsx) and calendar_events.status becomes 'cancelled' so a
+ * reader that does look at the column sees it too. A cancelled flight never
+ * reads as booked on its day.
+ */
+export const CANCELLED_TITLE_PREFIX = 'Cancelled: ';
+
+export async function markBookingCalendarCancelled(port: BookingCalendarCancelPort, reservationId: string): Promise<{ marked: number }> {
+  const marked = await port.markCancelled(BOOKING_CALENDAR_SOURCE, bookingCalendarSourceId(reservationId));
+  return { marked };
+}
+
 export type BookingCalendarOutcome =
   | { landed: 'inserted' }
   | { landed: 'already_there' }
