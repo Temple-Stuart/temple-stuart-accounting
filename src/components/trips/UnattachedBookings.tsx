@@ -13,6 +13,7 @@
 
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import CancelBookingDialog from './CancelBookingDialog';
+import { destinationWords } from '@/lib/reservations/cancellationWords';
 
 interface BookingRow {
   id: string;
@@ -36,8 +37,12 @@ interface BookingRow {
  *  numbers on success (null = not stated by provider), or the failure message.
  *  LAUNCH-01 RETIRE-01: the Duffel `flight` variant is gone with the provider —
  *  a 'duffel' history row offers no Cancel action (the route refuses one, 409). */
+// CANCEL-01 (2026-09-26): the flight lane adds where the refund goes, any vouchers,
+// and the PENDING outcome (a 202 — the airline accepted the request and has not
+// finalized; the booking stays confirmed until it does).
+interface OutcomeVoucher { code: string | null; airline: string | null; amount: { amount: number; currency: string | null } | null; validFrom: string | null; expiresAt: string | null }
 type CancelOutcome =
-  | { ok: true; providerStatus: string | null; refundAmount: number | null; cancellationFee: number | null; currency: string | null }
+  | { ok: true; providerStatus: string | null; refundAmount: number | null; cancellationFee: number | null; currency: string | null; destination: string | null; vouchers: OutcomeVoucher[]; pending: boolean }
   | { ok: false; message: string };
 
 function moneyOrUnstated(v: number | null, cur: string | null): string {
@@ -124,6 +129,9 @@ export default function UnattachedBookings({ selectedTrip, onChanged, onTotals }
           refundAmount: data.cancellation?.refundAmount ?? null,
           cancellationFee: data.cancellation?.cancellationFee ?? null,
           currency: data.cancellation?.currency ?? null,
+          destination: data.cancellation?.destination ?? null,
+          vouchers: Array.isArray(data.cancellation?.vouchers) ? (data.cancellation.vouchers as OutcomeVoucher[]) : [],
+          pending: data.cancellation?.pending === true,
         },
       }));
     } catch (err) {
@@ -201,13 +209,17 @@ export default function UnattachedBookings({ selectedTrip, onChanged, onTotals }
                     <td className="px-3 py-2 text-right font-mono font-semibold text-brand-gold">
                       {r.amountUsd === null ? <span className="font-sans text-xs font-normal text-text-faint">price not stated</span> : `$${r.amountUsd.toFixed(2)}`}
                     </td>
-                    <td className="px-3 py-2 text-text-muted">{r.status}</td>
+                    <td className="px-3 py-2 text-text-muted">{r.status === 'cancel_pending' ? 'cancellation requested — awaiting the airline' : r.status}</td>
                     <td className="px-3 py-2 text-right">
                       {/* PR-Cancel-1: liteapi rows only while confirmed — after the
                           flip the action disappears, the row stays (record-keeping).
                           Opens the stored-policy dialog. LAUNCH-01 RETIRE-01: 'duffel'
                           history rows get no action (the provider is retired). */}
-                      {r.provider === 'liteapi' && r.status === 'confirmed' && (
+                      {/* CANCEL-01 (2026-09-26): the two lanes the cancel route serves — a hotel
+                          through the hotel endpoint, a flight through its own (quote first). `type`
+                          is the lane through the one reader (reservations/lane.ts); an activity has
+                          no cancel lane and no control. */}
+                      {(r.type === 'hotel' || r.type === 'flight') && r.status === 'confirmed' && (
                         <button
                           type="button"
                           disabled={busyId === r.id || cancelBusy}
@@ -239,14 +251,29 @@ export default function UnattachedBookings({ selectedTrip, onChanged, onTotals }
                         {!outcome.ok ? (
                           <p className="text-xs text-brand-red">{outcome.message}</p>
                         ) : (
-                          <p className="text-xs text-text-muted">
-                            <span className="font-semibold text-brand-green">Cancelled</span>
-                            {outcome.providerStatus ? ` (provider status: ${outcome.providerStatus})` : ''}
-                            {' — refund: '}
-                            <span className="font-medium">{moneyOrUnstated(outcome.refundAmount, outcome.currency)}</span>
-                            {' · cancellation fee: '}
-                            <span className="font-medium">{moneyOrUnstated(outcome.cancellationFee, outcome.currency)}</span>
-                          </p>
+                          <div className="text-xs text-text-muted" data-cancel-outcome={outcome.pending ? 'pending' : 'final'}>
+                            <p>
+                              {outcome.pending
+                                ? <span className="font-semibold text-brand-amber">Cancellation requested — awaiting the airline</span>
+                                : <span className="font-semibold text-brand-green">Cancelled</span>}
+                              {outcome.providerStatus ? ` (provider status: ${outcome.providerStatus})` : ''}
+                              {' — refund: '}
+                              <span className="font-medium">{moneyOrUnstated(outcome.refundAmount, outcome.currency)}</span>
+                              {' · cancellation fee: '}
+                              <span className="font-medium">{moneyOrUnstated(outcome.cancellationFee, outcome.currency)}</span>
+                              {r.type === 'flight' ? ` · refund goes ${destinationWords(outcome.destination)}` : ''}
+                            </p>
+                            {outcome.pending && (
+                              <p>The booking stays confirmed until the airline finalizes; the figures above are what it has stated so far.</p>
+                            )}
+                            {outcome.vouchers.length > 0 && (
+                              <ul className="mt-0.5 space-y-0.5">
+                                {outcome.vouchers.map((v, i) => (
+                                  <li key={i}>Voucher {v.code ?? '(no code stated)'}{v.airline ? ` · ${v.airline}` : ''}: {moneyOrUnstated(v.amount?.amount ?? null, v.amount?.currency ?? null)}{v.expiresAt ? ` · expires ${v.expiresAt}` : ''}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -262,6 +289,8 @@ export default function UnattachedBookings({ selectedTrip, onChanged, onTotals }
 
       {cancelTarget && (
         <CancelBookingDialog
+          reservationId={cancelTarget.id}
+          lane={cancelTarget.type}
           bookingName={cancelTarget.name}
           checkIn={cancelTarget.checkIn}
           checkOut={cancelTarget.checkOut}

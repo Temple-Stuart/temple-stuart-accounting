@@ -1497,7 +1497,10 @@ model reservations {
   displayName              String?  @db.VarChar(255)
   providerBookingId        String   @db.VarChar(120) // upstream booking ID
   providerConfirmationCode String?  @db.VarChar(120) // human confirmation code
-  status                   String   @db.VarChar(20) // 'pending' | 'confirmed' | 'cancelled' | 'failed'
+  /// CANCEL-01 (2026-09-26): 'cancel_pending' added — a flight cancel the airline accepted (202) but has not finalized; the booking stays CONFIRMED at the vendor. No CHECK constrains this column (verified), so no widening in SQL.
+  status                   String   @db.VarChar(20) // 'pending' | 'confirmed' | 'cancel_pending' | 'cancelled' | 'failed'
+  /// CANCEL-01 (2026-09-26): the vendor's own timestamp from GET /flights/bookings/{bookingId} — "set when a cancellation was requested and is awaiting airline confirmation". Written on a 202; NULL otherwise. Never our clock.
+  cancelIntentAt           DateTime? @db.Timestamptz(6)
   hotelName                String?  @db.VarChar(255)
   checkinDate              DateTime? @db.Date // null for non-stay orders (flights) — D3
   checkoutDate             DateTime? @db.Date // null for non-stay orders (flights) — D3
@@ -1516,11 +1519,75 @@ model reservations {
   arrival           arrivals?           @relation(fields: [arrival_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   commission_ledger commission_ledger[]
   transaction_reservation_links transaction_reservation_links[]
+  money_events      money_events[]
+  vouchers          vouchers[]
 
   @@index([userId])
   @@index([tripId])
   @@index([provider, providerBookingId])
   @@index([arrival_id])
+}
+
+// ─── Money events (CANCEL-01, 2026-09-26) ───────────────────────────────────
+// One row per MONEY FACT a vendor states about a reservation — a refund, a
+// cancellation fee, a voucher issued — read from the answer that stated it
+// (arrivalId, NOT NULL: no money fact without its evidence). amountCents NULL =
+// the vendor stated no amount, never 0. status 'stated' = the vendor said it;
+// 'settled' = the bank confirmed it (item 8, refund matching — not this PR).
+model money_events {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reservationId     String   @db.Uuid
+  lane              String   @db.VarChar(20) // 'hotel' | 'flight' | 'activity' — CHECK-enforced in SQL
+  kind              String   @db.VarChar(20) // 'charge' | 'refund' | 'cancellation_fee' | 'change_fee' | 'servicing_fee' | 'ticketing_fee' | 'voucher_issued' — CHECK-enforced in SQL
+  /// What the vendor stated, in integer cents — or NULL when it stated none. NEVER 0 for unknown.
+  amountCents       Int?
+  currency          String?  @db.VarChar(3)
+  /// LiteAPI's own word, verbatim: 'original_payment' | 'agency_deposit' | 'voucher' | 'bsp_settlement' | 'manual' | 'unknown' — CHECK-enforced in SQL; NULL when not stated.
+  refundDestination String?  @db.VarChar(20)
+  status            String   @db.VarChar(10) // 'stated' | 'settled' — CHECK-enforced in SQL
+  vendorReference   String?  @db.VarChar(120)
+  /// The arrival this fact was read from. NOT NULL, RESTRICT.
+  arrivalId         String
+  /// The instant the vendor's answer arrived — the arrival's clock, not ours.
+  statedAt          DateTime @db.Timestamptz(6)
+  createdAt         DateTime @default(now())
+
+  reservation reservations @relation(fields: [reservationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  arrival     arrivals     @relation(fields: [arrivalId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([reservationId])
+  @@index([arrivalId])
+  @@index([kind, status])
+}
+
+// ─── Vouchers (CANCEL-01, 2026-09-26) ───────────────────────────────────────
+// An airline travel voucher the vendor stated when a cancellation's refund goes
+// to 'voucher'. A TABLE, not a JSON column: a voucher is money the customer holds
+// with an expiry, and expiresAt must be queryable (the Perk / Ramp benchmark).
+model vouchers {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reservationId   String    @db.Uuid
+  /// The vendor's voucherId, verbatim; NULL when not stated.
+  vendorVoucherId String?   @db.VarChar(120)
+  code            String    @db.VarChar(120)
+  airline         String?   @db.VarChar(8)
+  amountCents     Int?
+  currency        String?   @db.VarChar(3)
+  validFrom       DateTime? @db.Date
+  expiresAt       DateTime? @db.Date
+  /// The vendor's passengerNames[] verbatim, or NULL when it stated none — a scalar list cannot be NULL in Prisma and would read as a fabricated "nobody".
+  passengerNames  Json?
+  notes           String?
+  arrivalId       String
+  statedAt        DateTime  @db.Timestamptz(6)
+  createdAt       DateTime  @default(now())
+
+  reservation reservations @relation(fields: [reservationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  arrival     arrivals     @relation(fields: [arrivalId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([reservationId])
+  @@index([expiresAt])
+  @@index([arrivalId])
 }
 
 // ─── Prebook contacts (SEC-03, 2026-09-25) ─────────────────────────────────
@@ -1596,7 +1663,8 @@ model commission_ledger {
   grossAmountCents      Int? // total guest paid (final price)
   commissionAmountCents Int // our margin (in cents)
   currency              String    @default("USD") @db.VarChar(3)
-  status                String    @db.VarChar(20) // 'estimated' | 'confirmed' | 'paid'
+  /// CANCEL-01 (2026-09-26): 'cancelled' added — an 'estimated' row moves here when the reservation's cancel is FINAL (the margin will not be earned). No CHECK constrains this column (verified), so no widening in SQL.
+  status                String    @db.VarChar(20) // 'estimated' | 'confirmed' | 'paid' | 'cancelled'
   payoutDate            DateTime?
   providerInvoiceRef    String?   @db.VarChar(120)
   createdAt             DateTime  @default(now())
@@ -3892,6 +3960,8 @@ model arrivals {
   securities    securities[]
   reservations  reservations[]
   holdings      holdings[]
+  money_events  money_events[]
+  vouchers      vouchers[]
 
   /// PR-2: the same thing is the same provider + id + content; a correction is a new row.
   @@unique([provider, their_id, fingerprint])

@@ -534,6 +534,10 @@ export interface FlightBookingDetails {
   bookingId: string;
   bookingRef: string | null;
   status: string | null;
+  /** CANCEL-01 (2026-09-26): the vendor's own timestamp — "set when a cancellation
+   *  was requested and is awaiting airline confirmation (or retained after finalize
+   *  as evidence)"; omitted when null. Null here when the answer did not carry it. */
+  cancelIntentAt: string | null;
   segments: FlightBookingSegmentDetails[];
 }
 
@@ -561,6 +565,7 @@ export function parseFlightBookingDetails(booking: Record<string, unknown>): Fli
     bookingId: booking.bookingId as string,
     bookingRef: str(booking.bookingRef),
     status: str(booking.status),
+    cancelIntentAt: str(booking.cancelIntentAt),
     segments,
   };
 }
@@ -584,6 +589,223 @@ export async function getFlightBooking(bookingId: string): Promise<FlightBooking
   const answer = await getFlightsAnswer(base, `/flights/bookings/${encodeURIComponent(bookingId)}`);
   const object = flightBookingObjectOf(answer.json);
   return { answer, object, details: parseFlightBookingDetails(object) };
+}
+
+// ─── Cancellation — CANCEL-01 (2026-09-26) ───────────────────────────────────
+// Two endpoints, from docs.liteapi.travel/reference:
+//   get_flights-bookings-bookingid-cancellations  — THE QUOTE. { data: [ {
+//     confidence ("confirmed" | "estimated" | "heuristic" | "unknown"), timestamp,
+//     isRefundable, isVoidable, refund { display { amount, currency } }, penalty
+//     { display { amount, currency } }, penalties[] { type, description, pricing
+//     { display { amount, currency } } }, tickets[], destination ("original_payment"
+//     | "agency_deposit" | "voucher" | "bsp_settlement" | "manual" | "unknown"),
+//     vouchers[] { voucherId, code, airline, pricing { display }, validFrom,
+//     expiresAt, passengerNames[], notes }, pnr, expiresAt } ] } — "always a
+//     single-item array". The refund is "the potential maximum ... not granted or
+//     guaranteed": a QUOTE, read before a customer is asked to confirm. 409 49006
+//     = cannot be quoted in its current state; 409 49007 = a cancellation is
+//     already in progress.
+//   post_flights-bookings-bookingid-cancellations — THE ACTION, no body. 200 =
+//     final: { data: { bookingId, status ("CANCELLED" | "CANCELLED_WITH_CHARGES"),
+//     cancellation_fee, refund_amount, currency, destination, vouchers[] } }.
+//     202 = accepted, awaiting the airline: the same shape with status "CONFIRMED"
+//     (the booking is unchanged until the airline finalizes; GET /flights/bookings
+//     then carries cancelIntentAt). 409 = refused, nothing changed.
+// Both read the raw answer beside the parsed result, and every field the vendor
+// did not state is null — never 0, never a default.
+
+/** One money figure as the vendor displays it. */
+export interface FlightMoney {
+  amount: number;
+  currency: string | null;
+}
+
+export interface FlightVoucher {
+  vendorVoucherId: string | null;
+  code: string | null;
+  airline: string | null;
+  amount: FlightMoney | null;
+  validFrom: string | null;
+  expiresAt: string | null;
+  passengerNames: string[] | null;
+  notes: string | null;
+}
+
+export interface FlightCancellationPenalty {
+  type: string | null;
+  description: string | null;
+  amount: FlightMoney | null;
+}
+
+export interface FlightCancellationQuote {
+  confidence: string;
+  timestamp: string | null;
+  isRefundable: boolean | null;
+  isVoidable: boolean | null;
+  refund: FlightMoney | null;
+  penalty: FlightMoney | null;
+  penalties: FlightCancellationPenalty[];
+  currency: string | null;
+  destination: string | null;
+  vouchers: FlightVoucher[];
+  pnr: string | null;
+  expiresAt: string | null;
+}
+
+const strOrNull = (v: unknown): string | null => (typeof v === 'string' && v.length > 0 ? v : null);
+const boolOrNull = (v: unknown): boolean | null => (typeof v === 'boolean' ? v : null);
+
+/** `{ display: { amount, currency } }` → the figure, or null when no amount was stated. */
+function displayMoneyOf(v: unknown): FlightMoney | null {
+  const display = (v as { display?: unknown } | null | undefined)?.display as Record<string, unknown> | undefined;
+  if (!display || typeof display.amount !== 'number') return null;
+  return { amount: display.amount, currency: strOrNull(display.currency) };
+}
+
+/** A voucher as documented — every absent field null, never invented. */
+export function parseFlightVoucher(v: unknown): FlightVoucher {
+  const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
+  const names = Array.isArray(o.passengerNames) ? o.passengerNames.filter((n): n is string => typeof n === 'string') : null;
+  return {
+    vendorVoucherId: strOrNull(o.voucherId),
+    code: strOrNull(o.code),
+    airline: strOrNull(o.airline),
+    amount: displayMoneyOf(o.pricing),
+    validFrom: strOrNull(o.validFrom),
+    expiresAt: strOrNull(o.expiresAt),
+    passengerNames: names,
+    notes: strOrNull(o.notes),
+  };
+}
+
+function vouchersOf(v: unknown): FlightVoucher[] {
+  return Array.isArray(v) ? v.map(parseFlightVoucher) : [];
+}
+
+/** The quote object: data[0] — "always a single-item array". A 2xx without it is a contract deviation. */
+export function flightCancellationQuoteObjectOf(json: unknown): Record<string, unknown> {
+  const data = (json as { data?: unknown } | null)?.data;
+  const first = Array.isArray(data) ? (data[0] as Record<string, unknown> | undefined) : undefined;
+  if (!first || typeof first.confidence !== 'string') {
+    throw new LiteApiFlightsApiError(
+      '/flights/bookings/{id}/cancellations (quote)',
+      200,
+      null,
+      'Cancellation quote 2xx missing data[0].confidence — contract deviation from the documented shape',
+      JSON.stringify(json).slice(0, 500),
+    );
+  }
+  return first;
+}
+
+/** The quote mapping — pure. */
+export function parseFlightCancellationQuote(q: Record<string, unknown>): FlightCancellationQuote {
+  const penalties = Array.isArray(q.penalties)
+    ? q.penalties.map((p) => {
+        const o = (p && typeof p === 'object' ? p : {}) as Record<string, unknown>;
+        return { type: strOrNull(o.type), description: strOrNull(o.description), amount: displayMoneyOf(o.pricing) };
+      })
+    : [];
+  return {
+    confidence: q.confidence as string,
+    timestamp: strOrNull(q.timestamp),
+    isRefundable: boolOrNull(q.isRefundable),
+    isVoidable: boolOrNull(q.isVoidable),
+    refund: displayMoneyOf(q.refund),
+    penalty: displayMoneyOf(q.penalty),
+    penalties,
+    currency: strOrNull(q.currency),
+    destination: strOrNull(q.destination),
+    vouchers: vouchersOf(q.vouchers),
+    pnr: strOrNull(q.pnr),
+    expiresAt: strOrNull(q.expiresAt),
+  };
+}
+
+export interface FlightCancellationQuoteAnswer {
+  answer: LiteApiAnswer;
+  object: Record<string, unknown>;
+  quote: FlightCancellationQuote;
+}
+
+/** Read what cancelling a flight booking would do. Throws MissingLiteApiKeyError
+ *  before any network call, LiteApiFlightsApiError on non-2xx (409 49006/49007 =
+ *  cannot be quoted / already in progress — the caller names it), and a
+ *  contract-deviation error on a 2xx without data[0]. Moves no money. Its cost is
+ *  undocumented, so callers meter it (travelSearchQuota 'liteapiflightcancelquote'). */
+export async function getFlightCancellationQuote(bookingId: string): Promise<FlightCancellationQuoteAnswer> {
+  const base = flightsBaseUrl();
+  const mode = getMode();
+  const keyPrefix = (mode === 'production' ? process.env.LITEAPI_PRODUCTION_KEY : process.env.LITEAPI_SANDBOX_KEY)?.slice(0, 4) ?? 'none';
+  console.log(`[LiteAPI flights] cancellation quote: mode=${mode} keyPrefix=${keyPrefix} host=${base}`);
+  const answer = await getFlightsAnswer(base, `/flights/bookings/${encodeURIComponent(bookingId)}/cancellations`);
+  const object = flightCancellationQuoteObjectOf(answer.json);
+  return { answer, object, quote: parseFlightCancellationQuote(object) };
+}
+
+export interface FlightCancellationResult {
+  bookingId: string;
+  /** "CANCELLED" | "CANCELLED_WITH_CHARGES" on a 200; "CONFIRMED" on a 202 (awaiting the airline). Verbatim. */
+  status: string | null;
+  /** `cancellation_fee`, verbatim — null when not stated. */
+  cancellationFee: number | null;
+  /** `refund_amount`, verbatim — null when not stated. */
+  refundAmount: number | null;
+  currency: string | null;
+  /** The vendor's refund destination word, verbatim — null when not stated. */
+  destination: string | null;
+  vouchers: FlightVoucher[];
+}
+
+/** The action's object: `data`, an object carrying bookingId and status. A 2xx without it is a contract deviation. */
+export function flightCancellationObjectOf(json: unknown): Record<string, unknown> {
+  const data = (json as { data?: unknown } | null)?.data as Record<string, unknown> | undefined;
+  if (!data || typeof data !== 'object' || Array.isArray(data) || typeof data.bookingId !== 'string' || typeof data.status !== 'string') {
+    throw new LiteApiFlightsApiError(
+      '/flights/bookings/{id}/cancellations',
+      200,
+      null,
+      'Cancellation 2xx missing data.bookingId / data.status — contract deviation from the documented shape',
+      JSON.stringify(json).slice(0, 500),
+    );
+  }
+  return data;
+}
+
+/** The action mapping — pure, so the landing runs it over the ARRIVAL payload. */
+export function parseFlightCancellationResult(d: Record<string, unknown>): FlightCancellationResult {
+  return {
+    bookingId: d.bookingId as string,
+    status: strOrNull(d.status),
+    cancellationFee: typeof d.cancellation_fee === 'number' ? d.cancellation_fee : null,
+    refundAmount: typeof d.refund_amount === 'number' ? d.refund_amount : null,
+    currency: strOrNull(d.currency),
+    destination: strOrNull(d.destination),
+    vouchers: vouchersOf(d.vouchers),
+  };
+}
+
+export interface FlightCancellationAnswer {
+  /** The answer as received — httpStatus 200 (final) or 202 (awaiting the airline). */
+  answer: LiteApiAnswer;
+  object: Record<string, unknown>;
+  cancelled: FlightCancellationResult;
+}
+
+/** Cancel a flight booking. Throws MissingLiteApiKeyError before any network
+ *  call, LiteApiFlightsApiError on non-2xx (a 409 is the vendor's refusal — nothing
+ *  changed — and the caller names it), and a contract-deviation error on a 2xx
+ *  without data.bookingId. No body: the reference documents none. The
+ *  httpStatus on the answer is the outcome: 200 final, 202 accepted and awaiting
+ *  the airline. */
+export async function cancelFlightBooking(bookingId: string): Promise<FlightCancellationAnswer> {
+  const base = flightsBaseUrl();
+  const mode = getMode();
+  const keyPrefix = (mode === 'production' ? process.env.LITEAPI_PRODUCTION_KEY : process.env.LITEAPI_SANDBOX_KEY)?.slice(0, 4) ?? 'none';
+  console.log(`[LiteAPI flights] cancellation: mode=${mode} keyPrefix=${keyPrefix} host=${base}`);
+  const answer = await postFlightsAnswer(base, `/flights/bookings/${encodeURIComponent(bookingId)}/cancellations`, undefined);
+  const object = flightCancellationObjectOf(answer.json);
+  return { answer, object, cancelled: parseFlightCancellationResult(object) };
 }
 
 // ─── Verify (POST /flights/verify) ───────────────────────────────────────────

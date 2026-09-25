@@ -13,12 +13,23 @@
  * and the column a surface groups on should not say it is.
  */
 import type { PrismaClient } from '@prisma/client';
-import type { BookingCalendarPort } from './bookingEvent';
+import { CANCELLED_TITLE_PREFIX, type BookingCalendarCancelPort, type BookingCalendarPort } from './bookingEvent';
 
-type RawClient = Pick<PrismaClient, '$queryRaw'>;
+type RawClient = Pick<PrismaClient, '$queryRaw' | '$executeRaw'>;
 
-export function prismaBookingCalendar(db: RawClient): BookingCalendarPort {
+export function prismaBookingCalendar(db: RawClient): BookingCalendarPort & BookingCalendarCancelPort {
   return {
+    // CANCEL-01 (2026-09-26): mark, never delete — see markBookingCalendarCancelled.
+    // Idempotent: a row already marked (title already prefixed) is left alone.
+    async markCancelled(source, sourceId) {
+      const prefixed = `${CANCELLED_TITLE_PREFIX}%`;
+      const count = await db.$executeRaw`
+        UPDATE calendar_events
+           SET title = ${CANCELLED_TITLE_PREFIX} || title, status = 'cancelled', updated_at = now()
+         WHERE source = ${source} AND source_id = ${sourceId} AND title NOT LIKE ${prefixed}
+      `;
+      return count;
+    },
     async find(source, sourceId) {
       const rows = await db.$queryRaw<Array<{ id: string }>>`
         SELECT id FROM calendar_events WHERE source = ${source} AND source_id = ${sourceId} LIMIT 1

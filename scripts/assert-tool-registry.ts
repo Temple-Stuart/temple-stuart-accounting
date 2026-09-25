@@ -5269,6 +5269,151 @@ lawGuard('The privacy-and-money law', () => {
   else console.log(`✖ The privacy-and-money law FAILED — ${secViolations} violation(s).`);
 });
 
+// ── THE CANCEL LAW (CANCEL-01, 2026-09-26) ──────────────────────────────────
+// A CANCEL GOES TO THE RIGHT ENDPOINT, SHOWS THE QUOTE FIRST, AND KEEPS THE
+// MONEY FACTS.
+//
+// WHAT THIS CLOSES. The cancel route selected no lane and its only vendor call
+// was the HOTEL client (PUT /v3.0/bookings/{id}); both lists offered Cancel on
+// any confirmed liteapi row, so a flight bookingId went to the hotel endpoint.
+// The hotel answer stated a fee and a refund; the route wrote status only and
+// discarded them. The flights client had no cancel, quote, amend or refund.
+//
+//   1. THE LANE DECIDES THE ENDPOINT. The route reads lane; hotel → the hotel
+//      client, flight → the flights client, anything else → a named 409 before
+//      any vendor call. The flights client calls the two documented paths.
+//   2. THE QUOTE COMES FIRST. GET is the quote, metered before the vendor read;
+//      the dialog renders no Cancel control for a flight until the quote has
+//      rendered, and names a quote it could not fetch.
+//   3. THE MONEY FACTS. Both lanes write money_events rows from the answer they
+//      land, each pointed at the arrival; an amount the vendor did not state is
+//      NULL, never 0; a 202 writes none.
+//   4. THE 202. cancel_pending with the vendor own cancelIntentAt from one metered
+//      GET — never our clock; the refresh does not undo it; the lists say it.
+//   5. THE DAY AND THE MARGIN. A final cancel MARKS the calendar row (never
+//      removes it) and moves the estimated commission to cancelled.
+//   6. THE NAMED ABSENCES. CANCEL-02 (email), item 3 (webhook / refresh), item 7
+//      (journal), item 8 (refund matching) are named where they attach.
+lawGuard('The cancel law', () => {
+  let cancelViolations = 0;
+  const cancelFail = (m: string) => { cancelViolations += 1; violations.push(`cancel law: ${m} (CANCEL-01)`); };
+
+  const ROUTE = 'src/app/api/reservations/[id]/cancel/route.ts';
+  const DIALOG = 'src/components/trips/CancelBookingDialog.tsx';
+  const LISTS = ['src/components/trips/TripBookings.tsx', 'src/components/trips/UnattachedBookings.tsx'];
+  const FCLIENT = 'src/lib/liteapiFlightsClient.ts';
+  const LEAF = 'src/lib/reservations/cancellation.ts';
+  const CAL_IMPL = 'src/lib/calendar/prismaBookingCalendar.ts';
+  const REFRESH = 'src/lib/reservations/refreshFlightReservation.ts';
+  const CANCEL_MIGRATION = ALL_MIGRATIONS.find((m) => /_cancel_01_/.test(m.dir));
+
+  const route = codeOf(ROUTE);
+  // 1. THE LANE DECIDES THE ENDPOINT.
+  if (!/select: \{ id: true, status: true, provider: true, providerBookingId: true, lane: true \}/.test(route)) cancelFail(`${ROUTE} does not read the lane off the owned row`);
+  if (!/if \(owned\.lane === 'hotel'\) return cancelHotel\(owned, userId\);/.test(route)) cancelFail(`${ROUTE} does not send the hotel lane to the hotel cancel`);
+  if (!/if \(owned\.lane === 'flight'\) return cancelFlight\(owned, userId\);/.test(route)) cancelFail(`${ROUTE} does not send the flight lane to the flight cancel — a flight bookingId would reach the hotel endpoint`);
+  if (!/code: 'cancel_lane_unsupported'/.test(route)) cancelFail(`${ROUTE} does not refuse an unsupported lane by name before any vendor call`);
+  {
+    const hotelAt = route.indexOf('async function cancelHotel(');
+    const flightAt = route.indexOf('async function cancelFlight(');
+    const hotel = hotelAt >= 0 && flightAt > hotelAt ? route.slice(hotelAt, flightAt) : '';
+    const flight = flightAt >= 0 ? route.slice(flightAt) : '';
+    if (!hotel || !flight) cancelFail(`${ROUTE} lacks the two lane functions`);
+    if (!/await cancelBooking\(owned\.providerBookingId\)/.test(hotel)) cancelFail(`${ROUTE}: the hotel cancel does not call the hotel client`);
+    if (/cancelFlightBooking\(/.test(hotel)) cancelFail(`${ROUTE}: the hotel cancel reaches the flight endpoint`);
+    if (!/await cancelFlightBooking\(owned\.providerBookingId\)/.test(flight)) cancelFail(`${ROUTE}: the flight cancel does not call the flights client`);
+    if (/cancelBooking\(owned/.test(flight)) cancelFail(`${ROUTE}: the flight cancel reaches the hotel endpoint`);
+    if (!/code: 'cancel_refused'/.test(flight) || flight.indexOf("code: 'cancel_refused'") > flight.indexOf('prisma.$transaction')) cancelFail(`${ROUTE}: a vendor 409 is not a named refusal before any write`);
+    // 3. THE MONEY FACTS, both lanes.
+    if (!/hotelCancelMoneyEvents\(parsed, \{ reservationId: owned\.id, arrivalId, statedAt: answer\.arrived \}\)/.test(hotel) || !/tx\.money_events\.createMany\(\{ data: moneyEvents \}\)/.test(hotel)) cancelFail(`${ROUTE}: the hotel cancel discards the refund and fee the answer states — they are money_events rows pointed at the arrival`);
+    if (!/flightCancelDecision\(parsed, answer\.httpStatus, \{ reservationId: owned\.id, arrivalId, statedAt: answer\.arrived \}\)/.test(flight)) cancelFail(`${ROUTE}: the flight cancel does not decide its writes from the arrival and the HTTP status`);
+    if (!/tx\.money_events\.createMany\(\{ data: decision\.moneyEvents \}\)/.test(flight)) cancelFail(`${ROUTE}: the flight cancel does not write its money facts`);
+    // 4. THE 202.
+    const read = flight.indexOf("reserveTravelSearch('liteapiflightbookingread')");
+    const getBooking = flight.indexOf('getFlightBooking(owned.providerBookingId)');
+    if (!(read > 0 && getBooking > read)) cancelFail(`${ROUTE}: the cancelIntentAt read after a 202 is not metered immediately before it runs`);
+    if (!/cancelIntentAt: new Date\(details\.cancelIntentAt\)/.test(flight)) cancelFail(`${ROUTE}: cancelIntentAt is not the vendor own word from GET /flights/bookings`);
+    if (/cancelIntentAt: new Date\(\)/.test(route)) cancelFail(`${ROUTE} writes our clock into cancelIntentAt — the vendor column holds the vendor word or NULL`);
+    // 5. THE DAY AND THE MARGIN.
+    if (!/const calendar = decision\.final \? await markCalendar\(owned\.id, owned\.providerBookingId\) : 'pending';/.test(flight)) cancelFail(`${ROUTE}: a final flight cancel does not mark the calendar row (and a pending one must not)`);
+    if (!/await markCalendar\(owned\.id, owned\.providerBookingId\)/.test(hotel)) cancelFail(`${ROUTE}: a hotel cancel does not mark the calendar row`);
+    if (!/where: \{ reservationId: owned\.id, status: 'estimated' \}, data: \{ status: 'cancelled' \}/.test(flight)) cancelFail(`${ROUTE}: a final flight cancel does not move the estimated commission to cancelled`);
+    if (!/status: 'estimated' \},\s*data: \{ status: 'cancelled' \}/.test(hotel)) cancelFail(`${ROUTE}: a hotel cancel does not move the estimated commission to cancelled`);
+  }
+  // 2. THE QUOTE COMES FIRST.
+  {
+    const getAt = route.indexOf('export async function GET(');
+    const postAt = route.indexOf('export async function POST(');
+    const get = getAt >= 0 && postAt > getAt ? route.slice(getAt, postAt) : '';
+    if (!get) cancelFail(`${ROUTE} has no GET — the quote verb`);
+    const reserve = get.indexOf("reserveTravelSearch('liteapiflightcancelquote')");
+    const vendor = get.indexOf('getFlightCancellationQuote(owned.providerBookingId)');
+    if (!(reserve > 0 && vendor > reserve)) cancelFail(`${ROUTE}: the quote is not reserved against liteapiflightcancelquote immediately before the vendor read`);
+    if (!/code: 'quote_refused'/.test(get)) cancelFail(`${ROUTE}: a vendor 409 on the quote is not named`);
+    if (dailyCap('liteapiflightcancelquote') > 100) cancelFail(`liteapiflightcancelquote has no tight safe-default cap (${dailyCap('liteapiflightcancelquote')})`);
+    const dialog = codeOf(DIALOG);
+    if (!/const canConfirm = !isFlight \|\| quote\.state === 'quoted';/.test(dialog)) cancelFail(`${DIALOG} renders a Cancel control before the quote has rendered — a customer is never asked to confirm blind`);
+    const gateAt = dialog.indexOf('{canConfirm && (');
+    const buttonAt = dialog.indexOf("'Cancel booking'");
+    if (!(gateAt > 0 && buttonAt > gateAt)) cancelFail(`${DIALOG}: the Cancel control is not inside the quoted gate`);
+    if ((dialog.match(/'Cancel booking'/g) ?? []).length !== 1) cancelFail(`${DIALOG} carries a second Cancel control outside the gate`);
+    if (!/state: 'quote_failed'/.test(dialog) || !/The cancellation quote could not be fetched\./.test(dialog)) cancelFail(`${DIALOG} does not name a quote it could not fetch`);
+    for (const shown of ['data-quote-refund', 'data-quote-penalty', 'data-quote-confidence', 'data-quote-destination', 'data-quote-vouchers']) {
+      if (!dialog.includes(shown)) cancelFail(`${DIALOG} does not render ${shown} before the customer confirms`);
+    }
+    if (!/confidenceWords\(quote\.quote\.confidence\)/.test(dialog) || !/destinationWords\(quote\.quote\.destination\)/.test(dialog)) cancelFail(`${DIALOG} does not render the vendor words as what they mean`);
+    const fclient = codeOf(FCLIENT);
+    if (!/getFlightsAnswer\(base, `\/flights\/bookings\/\$\{encodeURIComponent\(bookingId\)\}\/cancellations`\)/.test(fclient)) cancelFail(`${FCLIENT}: the quote does not read the documented path GET /flights/bookings/{id}/cancellations`);
+    if (!/postFlightsAnswer\(base, `\/flights\/bookings\/\$\{encodeURIComponent\(bookingId\)\}\/cancellations`, undefined\)/.test(fclient)) cancelFail(`${FCLIENT}: the action does not call the documented path POST /flights/bookings/{id}/cancellations with no body`);
+  }
+  // 3. THE MONEY FACTS — the leaf and the table.
+  {
+    const leaf = codeOf(LEAF);
+    if (!/if \(amount === null\) return null;/.test(leaf)) cancelFail(`${LEAF}: an amount the vendor did not state is not NULL — never 0`);
+    if (/\?\? 0\b/.test(leaf) || /\?\? 0\b/.test(route)) cancelFail(`a cancel writes ?? 0 — a missing figure is NULL with the vendor own words`);
+    if (!/return \{ status: 'cancel_pending', final: false, moneyEvents: \[\], vouchers: \[\], vouchersWithoutCode: \[\], commission: 'leave' \};/.test(leaf)) cancelFail(`${LEAF}: a 202 writes money — nothing is stated finally until the airline answers (item 3)`);
+    if ((leaf.match(/arrivalId: ev\.arrivalId/g) ?? []).length < 3) cancelFail(`${LEAF}: not every money row points at the arrival`);
+    // Scoped to the money_events model block — vouchers carries an arrivalId line too.
+    const modelAt = schemaText.indexOf('\nmodel money_events {');
+    const moneyModel = modelAt >= 0 ? schemaText.slice(modelAt, schemaText.indexOf('\n}', modelAt)) : '';
+    if (!moneyModel) cancelFail('prisma/schema.prisma: no money_events model');
+    if (!/\n  arrivalId\s+String\n/.test(moneyModel)) cancelFail('prisma/schema.prisma: money_events.arrivalId is not required — no money fact without its evidence');
+    if (!/\n  amountCents\s+Int\?\n/.test(moneyModel)) cancelFail('prisma/schema.prisma: money_events.amountCents is not nullable');
+    if (!CANCEL_MIGRATION) cancelFail('no prisma/migrations/*_cancel_01_*/migration.sql');
+    else {
+      const sql = CANCEL_MIGRATION.sql;
+      for (const must of ['"arrivalId"         TEXT         NOT NULL,', 'FOREIGN KEY ("arrivalId") REFERENCES "arrivals"("id") ON DELETE RESTRICT', 'FOREIGN KEY ("reservationId") REFERENCES "reservations"("id") ON DELETE RESTRICT', `CHECK ("kind" IN ('charge', 'refund', 'cancellation_fee', 'change_fee', 'servicing_fee', 'ticketing_fee', 'voucher_issued'))`, `CHECK ("status" IN ('stated', 'settled'))`, 'CREATE TABLE "vouchers"', 'ALTER TABLE "reservations" ADD COLUMN "cancelIntentAt" TIMESTAMPTZ(6);']) {
+        if (!sql.includes(must)) cancelFail(`the CANCEL-01 migration lacks "${must}"`);
+      }
+      if (/^\s*UPDATE\b/im.test(sql)) cancelFail('the CANCEL-01 migration backfills — nothing is inferred');
+    }
+  }
+  // 4. THE 202 — the refresh and the lists.
+  if (!/else if \(row\.status === 'cancel_pending' && mapped === 'confirmed'\) status = 'unchanged';/.test(codeOf(REFRESH))) cancelFail(`${REFRESH}: the refresh would flip a cancel_pending row back to confirmed while the airline still says CONFIRMED`);
+  for (const f of LISTS) {
+    const src = codeOf(f);
+    if (!/\(r\.type === 'hotel' \|\| r\.type === 'flight'\) && r\.status === 'confirmed' && \(/.test(src)) cancelFail(`${f} does not offer Cancel on exactly the hotel and flight lanes, confirmed`);
+    if (/r\.provider === 'liteapi' && r\.status === 'confirmed'/.test(src)) cancelFail(`${f} gates Cancel on the provider — LiteAPI is both rails`);
+    if (!/lane=\{cancelTarget\.type\}/.test(src)) cancelFail(`${f} does not hand the dialog the lane through the one reader`);
+    if (!/cancellation requested — awaiting the airline/.test(src)) cancelFail(`${f} does not say a cancel_pending row is awaiting the airline`);
+  }
+  // 5. THE DAY — marked, never removed.
+  {
+    const impl = codeOf(CAL_IMPL);
+    if (!/UPDATE calendar_events/.test(impl) || !/status = 'cancelled'/.test(impl)) cancelFail(`${CAL_IMPL}: a cancelled reservation row is not marked`);
+    if (/DELETE FROM calendar_events/.test(impl)) cancelFail(`${CAL_IMPL}: a cancelled reservation row is removed, not marked — the day-side of a record that lives forever`);
+  }
+  // 6. THE NAMED ABSENCES.
+  const routeNotes = commentsOf(ROUTE);
+  for (const named of ['CANCEL-02: the cancellation EMAIL attaches here — NOT this PR', 'item 3: the webhook receiver and scheduled refresh', 'item 7: journal posting of these money facts attaches here — NOT this PR']) {
+    if (!routeNotes.includes(named)) cancelFail(`${ROUTE} does not name "${named.slice(0, 40)}..." where it attaches`);
+  }
+  if (!/item 8/.test(commentsOf('prisma/migrations/20260926090000_cancel_01_money_events/migration.sql'))) cancelFail('the CANCEL-01 migration does not name item 8 (refund matching) as the settled status owner');
+
+  if (cancelViolations === 0) console.log(`✔ The cancel law passed — the cancel route reads the lane and sends a hotel to PUT /v3.0/bookings/{id} and a flight to POST /flights/bookings/{id}/cancellations, refusing any other lane and a vendor 409 by name before any write; the quote is metered (${dailyCap('liteapiflightcancelquote')}/day) and rendered before any Cancel control; both lanes write money_events rows pointed at the arrival with NULL, never 0, for an unstated amount and none on a 202; cancelIntentAt is the vendor word from one metered GET; the refresh does not undo a pending cancel; a final cancel marks the day and moves the margin.`);
+  else console.log(`✖ The cancel law FAILED — ${cancelViolations} violation(s).`);
+});
+
 // ── THE ROW LAW (TRAVEL-ROW-01, 2026-09-23) ─────────────────────────────────
 // BOOK AT THE LINE.
 //

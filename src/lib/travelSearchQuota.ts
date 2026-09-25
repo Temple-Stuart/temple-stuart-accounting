@@ -74,6 +74,12 @@ const PROVIDER_SAFE_DEFAULT_CAP: Record<string, number> = {
   // booking cap's 25 twice over, room for a retro pass. Raise via
   // TRAVEL_SEARCH_DAILY_CAP_LITEAPIFLIGHTBOOKINGREAD on a real volume plan.
   liteapiflightbookingread: 50,
+  // CANCEL-01 (2026-09-26): GET /flights/bookings/{bookingId}/cancellations — the
+  // cancellation QUOTE a customer reads before confirming a cancel. Authed and
+  // user-scoped (the cancel route's own chain); it moves no money. The reference
+  // says nothing about its cost, so it is metered like the booking read above:
+  // 50/day. Raise via TRAVEL_SEARCH_DAILY_CAP_LITEAPIFLIGHTCANCELQUOTE.
+  liteapiflightcancelquote: 50,
   // ACTIVITY-01 STEP 4 (2026-09-22): the Things-to-do SAVE reads Viator three times per
   // attempt — GET /products/{code}, GET /availability/schedules/{code}, POST
   // /exchange-rates (skipped on a cache hit or a same-currency schedule) — each reserved
