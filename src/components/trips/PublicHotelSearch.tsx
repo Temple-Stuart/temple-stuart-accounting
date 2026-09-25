@@ -27,7 +27,7 @@
  */
 
 import { useState } from 'react';
-import HotelResultsView, { type HotelCardView, type HotelRateView } from './HotelResultsView';
+import HotelResultsView, { HotelFiltersBar, type HotelCardView, type HotelRateView } from './HotelResultsView';
 import CheckoutPanel from './CheckoutPanel';
 import CountryCityPicker from './CountryCityPicker';
 // PR-STRIP-DESIGN-2: icon-inside-field (TravelField) — Calendar on dates,
@@ -248,9 +248,24 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
           </select>
           </TravelField>
         </label>
+        {/* FILTER-01 (2026-09-25): THE FILTERS SIT ABOVE SEARCH. The bar the results
+            view used to draw beneath this form after the first search now sits
+            INSIDE the form, before the submit — a customer sets what they want, then
+            presses Search. Same controls, same state, same handler, same defaults:
+            a control writes `filters` and nothing else; only the press below
+            searches, counted. The statement line under the controls says what that
+            press will send. */}
+        <div className="col-span-full">
+          <HotelFiltersBar
+            filters={filters}
+            onFiltersChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
+            searchCount={searchCount}
+          />
+        </div>
         {/* PR-B cutoff fix: Search button in its OWN final cell, full-width so it
-            fills the column and never overflows. */}
-        <div className="flex items-end">
+            fills the column and never overflows. FILTER-01: under the bar it takes
+            the row's last column on wide screens and the full width on a phone. */}
+        <div className="col-span-full flex items-end lg:col-span-1 lg:col-start-5">
           <button
             type="submit"
             // SEARCH-ALWAYS-ON: full-strength at rest — search() already
@@ -281,7 +296,7 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
         </div>
       )}
 
-      {/* Results (and the controls above them): only after the first search. */}
+      {/* Results: only after the first search. The filter controls live in the form above (FILTER-01). */}
       {searched && (
         <HotelResultsView
           cards={cards}
@@ -289,8 +304,6 @@ export default function PublicHotelSearch({ onRequireAuth, authed, currentTrip, 
           error={error}
           env={env}
           filters={filters}
-          onFiltersChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
-          searchCount={searchCount}
           selected={selected}
           onSelect={(card, rate) => setSelected(rate ? { hotelId: card.hotelId, rateId: rate.rateId } : null)}
           onBook={book}

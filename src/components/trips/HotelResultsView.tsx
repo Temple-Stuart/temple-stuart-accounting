@@ -14,12 +14,16 @@
  * refundable with the cancellation deadline, taxes, price — tri-state from the
  * payload through src/lib/hotels/rates.ts, never inferred from a price.
  *
- * Above the cards: stars · refundable only · price per night · sort. A control
- * only writes the container's filters; the search re-runs ONLY on the SEARCH
- * press, counted by the shared SearchCount control. What the vendor takes rides
- * the request; the per-night range narrows on this page and the bar says so.
- * Above the table: the lowest rate meeting the filters — the benchmark — and,
- * on a selection, the difference over it from stated attributes only.
+ * THE FILTER BAR — stars · refundable only · price per night · sort — is defined
+ * here (HotelFiltersBar, exported) and, since FILTER-01 (2026-09-25), MOUNTED BY
+ * THE CONTAINER INSIDE ITS SEARCH FORM, ABOVE THE SEARCH BUTTON: a customer sets
+ * what they want, then presses Search. It used to render here, above the cards,
+ * only after the first search. Same five controls, same state, same handlers,
+ * same defaults: a control only writes the container's filters; the search
+ * re-runs ONLY on the SEARCH press, counted by the shared SearchCount control.
+ * What the vendor takes rides the request; the per-night range narrows on this
+ * page. Above the table: the lowest rate meeting the filters — the benchmark —
+ * and, on a selection, the difference over it from stated attributes only.
  *
  * The provider named on screen is the one the env selects (LiteAPI), and a
  * sandbox answer says "Sandbox prices — not bookable" from the env — never a
@@ -47,11 +51,8 @@ interface Props {
   error: string;
   /** Which LiteAPI environment priced the answer — from the env, via the route. Null before an answer. */
   env: 'live' | 'sandbox' | null;
+  /** The screen's filters — read here for the per-night range that narrows on this page. The controls that write them are HotelFiltersBar, mounted by the container in its form (FILTER-01). */
   filters: HotelUiFilters;
-  /** Writes the container's filters — and nothing else. A search fires only from the SEARCH press. */
-  onFiltersChange: (patch: Partial<HotelUiFilters>) => void;
-  /** How many metered searches this session has sent (the container counts). */
-  searchCount: number;
   /** The selected rate, if any — the container holds it so Book / Save act on it. */
   selected: { hotelId: string; rateId: string } | null;
   onSelect: (card: HotelCardView, rate: HotelRateView | null) => void;
@@ -93,12 +94,21 @@ function HotelCardImage({ photoUrl, name }: { photoUrl: string | null; name: str
 const SELECT_CLASS = 'border border-border bg-white px-2 py-1 font-mono text-[11px] text-brand-purple focus:outline-none';
 const LABEL_CLASS = 'font-mono text-[9.5px] tracking-widest text-text-faint';
 
-export default function HotelResultsView({ cards, loading, error, env, filters, onFiltersChange, searchCount, selected, onSelect, onBook, onSave, savingId, checkout, onCloseCheckout }: Props) {
-  const [openCards, setOpenCards] = useState<Record<string, boolean>>({});
-  const isOpen = (id: string) => openCards[id] === true;
-
-  // The controls: each writes the container's filters and nothing else.
-  const bar = (
+/**
+ * FILTER-01 (2026-09-25): THE FILTERS SIT ABOVE SEARCH. The container mounts this
+ * inside its search form, before the submit — the same five controls that used to
+ * render above the cards after the first search, unchanged: each writes the
+ * container's filters and nothing else, the count is the shared SearchCount, and
+ * the line beneath states exactly what the next Search press will send.
+ */
+export function HotelFiltersBar({ filters, onFiltersChange, searchCount }: {
+  filters: HotelUiFilters;
+  /** Writes the container's filters — and nothing else. A search fires only from the SEARCH press. */
+  onFiltersChange: (patch: Partial<HotelUiFilters>) => void;
+  /** How many metered searches this session has sent (the container counts). */
+  searchCount: number;
+}) {
+  return (
     <div className="space-y-1" data-hotel-filters>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <label className="flex items-center gap-1.5">
@@ -130,11 +140,15 @@ export default function HotelResultsView({ cards, loading, error, env, filters, 
       </div>
     </div>
   );
+}
+
+export default function HotelResultsView({ cards, loading, error, env, filters, selected, onSelect, onBook, onSave, savingId, checkout, onCloseCheckout }: Props) {
+  const [openCards, setOpenCards] = useState<Record<string, boolean>>({});
+  const isOpen = (id: string) => openCards[id] === true;
 
   if (loading) {
     return (
       <div className="space-y-2">
-        {bar}
         <div className="divide-y divide-border rounded-lg border border-border bg-white" aria-busy="true">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="flex items-center gap-3 p-2">
@@ -154,7 +168,6 @@ export default function HotelResultsView({ cards, loading, error, env, filters, 
   if (error) {
     return (
       <div className="space-y-2">
-        {bar}
         <div className="rounded-lg border border-border bg-white p-3 text-sm text-brand-red">{error}</div>
       </div>
     );
@@ -163,7 +176,6 @@ export default function HotelResultsView({ cards, loading, error, env, filters, 
   if (cards.length === 0) {
     return (
       <div className="space-y-2">
-        {bar}
         <div className="rounded-lg border border-dashed border-border bg-white p-4 text-center">
           <p className="text-sm font-medium text-text-primary">No hotels yet</p>
           <p className="mt-1 text-xs text-text-faint">Enter a city, country, and your dates to see real stays with nightly prices.</p>
@@ -183,7 +195,6 @@ export default function HotelResultsView({ cards, loading, error, env, filters, 
 
   return (
     <div className="space-y-2" data-hotel-results>
-      {bar}
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs text-text-faint">
         <span data-hotel-count>{countLine(shown)} — click a hotel for its rates</span>
         {shown.length < cards.length && <span data-hotel-range-hidden>{cards.length - shown.length} hotel{cards.length - shown.length === 1 ? '' : 's'} outside the per-night range on this page</span>}

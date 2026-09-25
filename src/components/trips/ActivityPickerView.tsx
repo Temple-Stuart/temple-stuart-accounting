@@ -19,7 +19,10 @@
  * Above the rows: from-price range · rating floor · duration window · free
  * cancellation · private tour · sort · count. A control only writes the
  * container's filters; the search re-runs ONLY on the SEARCH press, counted by
- * the shared SearchCount control. Above the table: the count line — the rows
+ * the shared SearchCount control. FILTER-01 (2026-09-25): the controls are
+ * ActivityFiltersBar, exported below and mounted by the container INSIDE its
+ * search form above the Search button — no longer drawn here above the rows after
+ * the first search. Above the table: the count line — the rows
  * shown against the total the vendor states (SHOW THEM ALL: "1–50 of 1,915 stated
  * by the vendor", then "1–100 …" after a Next press; no client cap) — and the
  * lowest from-price meeting the filters — the benchmark, ranked on the all-in
@@ -52,13 +55,6 @@ interface Props {
   previousTotal: Stated<number>;
   loading: boolean;
   error: string;
-  filters: ActivityUiFilters;
-  /** Writes the container's filters — and nothing else. A search fires only from the SEARCH press. */
-  onFiltersChange: (patch: Partial<ActivityUiFilters>) => void;
-  /** How many metered searches this session has sent (the container counts). */
-  searchCount: number;
-  /** The currency the search SENDS (the contract's one constant) — named beside the controls. */
-  sentCurrency: string;
   /** The selected product, if any — the container holds it. */
   selected: string | null;
   onSelect: (card: ActivityCardView | null) => void;
@@ -102,9 +98,26 @@ const LABEL_CLASS = 'font-mono text-[9.5px] tracking-widest text-text-faint';
 
 const DURATION_LABEL: Record<ActivityUiFilters['duration'], string> = { any: 'any', under2h: 'up to 2h', '2to6h': '2h to 6h', over6h: '6h and up' };
 
-export default function ActivityPickerView({ cards, totalCount, previousTotal, loading, error, filters, onFiltersChange, searchCount, sentCurrency, selected, onSelect, pageSize, hasMore, filtersChanged, loadingMore, onNextPage, lastPage, savePanel }: Props) {
-  // The controls: each writes the container's filters and nothing else.
-  const bar = (
+/**
+ * FILTER-01 (2026-09-25): THE FILTERS SIT ABOVE SEARCH. The container mounts this
+ * inside its search form, before the submit — the same eight controls that used to
+ * render above the rows after the first search, unchanged: each writes the
+ * container's filters and nothing else, the count is the shared SearchCount, and
+ * the line beneath states exactly what the next Search press will send (and the
+ * currency it sends in). SHOW THEM ALL is untouched: a Next press repeats the
+ * filters the shown pages were asked with; a change here means the next Search
+ * starts from page one, and Next waits for it.
+ */
+export function ActivityFiltersBar({ filters, onFiltersChange, searchCount, sentCurrency }: {
+  filters: ActivityUiFilters;
+  /** Writes the container's filters — and nothing else. A search fires only from the SEARCH press. */
+  onFiltersChange: (patch: Partial<ActivityUiFilters>) => void;
+  /** How many metered searches this session has sent (the container counts). */
+  searchCount: number;
+  /** The currency the search SENDS (the contract's one constant) — named beside the controls. */
+  sentCurrency: string;
+}) {
+  return (
     <div className="space-y-1" data-activity-filters>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <label className="flex items-center gap-1.5">
@@ -152,11 +165,12 @@ export default function ActivityPickerView({ cards, totalCount, previousTotal, l
       </div>
     </div>
   );
+}
 
+export default function ActivityPickerView({ cards, totalCount, previousTotal, loading, error, selected, onSelect, pageSize, hasMore, filtersChanged, loadingMore, onNextPage, lastPage, savePanel }: Props) {
   if (loading) {
     return (
       <div className="space-y-2">
-        {bar}
         <div className="divide-y divide-border rounded-lg border border-border bg-white" aria-busy="true">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="flex items-center gap-3 p-2">
@@ -176,7 +190,6 @@ export default function ActivityPickerView({ cards, totalCount, previousTotal, l
   if (error) {
     return (
       <div className="space-y-2">
-        {bar}
         <div className="rounded-lg border border-border bg-white p-3 text-sm text-brand-red">{error}</div>
       </div>
     );
@@ -185,7 +198,6 @@ export default function ActivityPickerView({ cards, totalCount, previousTotal, l
   if (cards.length === 0) {
     return (
       <div className="space-y-2">
-        {bar}
         <div className="rounded-lg border border-dashed border-border bg-white p-4 text-center">
           <p className="text-sm font-medium text-text-primary">No activities returned</p>
           <p className="mt-1 text-xs text-text-faint">The vendor returned no products for this city and these filters.</p>
@@ -201,7 +213,6 @@ export default function ActivityPickerView({ cards, totalCount, previousTotal, l
 
   return (
     <div className="space-y-2" data-activity-results>
-      {bar}
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs text-text-faint">
         <span data-activity-count>{countLine(cards, totalCount, previousTotal)} — click a row to compare it</span>
         <span data-activity-plan-line>Plan here; book on Viator.</span>
