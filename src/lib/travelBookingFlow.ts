@@ -160,7 +160,13 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   { file: 'src/app/api/travel/transfers/search/route.ts', sha256: 'b55f3bd99f64b07f64d078063f3b408028f2531eae69ddbd82f939687ff2a66e' },
   { file: 'src/app/api/travel/visa/check/route.ts', sha256: '7ce03029e9f50915f673a6aebf28dd0a916631ef24d46862d60780dd93108ab9' },
   // the reservation routes — what a paid booking lands as, and how it is cancelled or adopted
-  { file: 'src/app/api/reservations/[id]/cancel/route.ts', sha256: 'c9885c190fd4452be45d06f5a1de052b1f2732d7f0a4b2b8c925a978981d9d33' },
+  // CANCEL-01 (2026-09-26): re-pinned — the lane is read and gates the vendor call: only
+  // a hotel reaches the hotel endpoint (PUT /v3.0/bookings/{id}); any other lane is a
+  // named 409 (cancel_lane_unsupported) BEFORE the vendor. The header no longer claims
+  // flights. The auth chain, the hotel cancel call, the landing and the status write
+  // are unchanged.
+  // Was c9885c190fd4452be45d06f5a1de052b1f2732d7f0a4b2b8c925a978981d9d33 at main dccb3380.
+  { file: 'src/app/api/reservations/[id]/cancel/route.ts', sha256: '150757218a27e3aeaa22123317d1b089c4762f3137a273dacf58bf5f2c20ab5d' },
   // LANE-01 (2026-09-25): re-pinned — type and name come from the one reader keyed on
   // reservations.lane (src/lib/reservations/lane.ts); the local PROVIDER_TYPE map and
   // hotelName ?? provider are gone. The auth chain and the one field it writes are unchanged.
@@ -330,7 +336,11 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // (amountUsd null) renders "price not stated" and is left out of the total, which
   // says how many it left out. Display only; no call changed.
   // Was 1c74ce7438ea6ce7013a4c8de4bbd685f2865e2fe0f8d3c3a7f4a119435cc5bd at main a5e66262.
-  { file: 'src/components/trips/TripBookings.tsx', sha256: '65a108fefa586716edb5754feb121110366925a052b6ed22570438e76236bc15' },
+  // CANCEL-01 (2026-09-26): re-pinned — Cancel is offered on the HOTEL lane only (type
+  // through the one reader), never on a flight the route would send to the hotel
+  // endpoint. Display only; no call changed.
+  // Was 65a108fefa586716edb5754feb121110366925a052b6ed22570438e76236bc15 at main dccb3380.
+  { file: 'src/components/trips/TripBookings.tsx', sha256: '95ac4f8d13a1317c1d225b28ba2d9155e6537dfd2752c2c45374a04f7b95a386' },
   // REPAINT-04 (2026-09-21): re-pinned — one class on the "Add to <trip>" ghost button
   // (text-white → text-brand-purple, invisible on cream). Paint only; no call changed.
   // Was d5f8e0be428de6054eb756c0301c1e064e825f6ddb013d45cc332b7ca6157492 at main b9eac34a.
@@ -338,7 +348,11 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // (amountUsd null) renders "price not stated", never $0.00. Display only; no call
   // changed.
   // Was 09d7767b9a1679d0481efd506da7002b4ecfa4ee6a68f539a53e997726bda44b at main a5e66262.
-  { file: 'src/components/trips/UnattachedBookings.tsx', sha256: 'dafd41592fcc127da1822b65a43d64f3d841c268f69f5b60cd23c51e0f339fa6' },
+  // CANCEL-01 (2026-09-26): re-pinned — Cancel is offered on the HOTEL lane only (type
+  // through the one reader), never on a flight the route would send to the hotel
+  // endpoint. Display only; no call changed.
+  // Was dafd41592fcc127da1822b65a43d64f3d841c268f69f5b60cd23c51e0f339fa6 at main dccb3380.
+  { file: 'src/components/trips/UnattachedBookings.tsx', sha256: '611626a10215576299c4a0d2a5ef75479f872bbcd4f99f4df79f50c66d53331c' },
   // HOTEL-02 (2026-09-22): re-dated — the dead lodging default constant deleted; the lodging commit names the vendor's hotel. The stay's clock is the property's, read once at commit; no prebook/book/pay/cancel call changed.
   // Was 8c5bf217bf1a2c2b65f3f969be5c02016455d53d9977fa5406600d14cb894ed5 at main 81045434.
   { file: 'src/components/trips/TripPlannerAI.tsx', sha256: '9cdf491def14615d0f5b0d8ba168bb7026131b05c12b3d3a113be0b3ee3ddf9d' },

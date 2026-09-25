@@ -8,8 +8,16 @@ import { prismaLanding } from '@/lib/arrivals/prismaLanding';
 import { MissingLiteApiKeyError, LiteApiError } from '@/lib/travelErrors';
 
 // POST /api/reservations/[id]/cancel — in-app cancellation.
-//   PR-Cancel-1: provider 'liteapi' (hotels and flights) — single-step provider
-//   cancel.
+//   PR-Cancel-1: provider 'liteapi' HOTELS — single-step provider cancel through
+//   the hotel client (PUT /v3.0/bookings/{id}, liteapiClient.ts cancelBooking).
+//   CANCEL-01 (2026-09-26): THE LANE IS READ, AND ONLY A HOTEL REACHES THAT
+//   ENDPOINT. This header used to say "hotels and flights"; the code only ever
+//   called the hotel client, and once LANE-01 refreshed a flight to 'confirmed'
+//   the lists offered Cancel on it — a flight bookingId sent to the hotel
+//   endpoint. Now a row whose lane is not 'hotel' is refused BY NAME
+//   (cancel_lane_unsupported, 409) BEFORE any vendor call. The flight lane's own
+//   cancel (GET quote + POST /flights/bookings/{id}/cancellations) is CANCEL-01
+//   COMMIT 3.
 //   LAUNCH-01 RETIRE-01: provider 'duffel' rows are HISTORY — Duffel is retired
 //   (no client, no credentials), so an in-app cancel of one is refused with a
 //   declared 409 naming the manual path; the row is never touched. The bookings
@@ -55,7 +63,8 @@ export async function POST(
     // guest row exists; provider scope covers the two cancel lanes only).
     const owned = await prisma.reservations.findFirst({
       where: { id, userId: user.id, provider: { in: ['liteapi', 'duffel'] } },
-      select: { id: true, status: true, provider: true, providerBookingId: true },
+      // CANCEL-01: the lane decides which vendor endpoint a cancel may reach.
+      select: { id: true, status: true, provider: true, providerBookingId: true, lane: true },
     });
     if (!owned) {
       return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
@@ -82,7 +91,23 @@ export async function POST(
       );
     }
 
-    // ─── provider 'liteapi' (PR-Cancel-1) ────────────────────────────────────
+    // ─── CANCEL-01: THE LANE GATE — only a hotel reaches the hotel endpoint ──
+    // The one LiteAPI call below is the HOTEL cancel (PUT /v3.0/bookings/{id}).
+    // A flight's bookingId does not belong on it, and an activity has no cancel
+    // lane at all. Refused by name, before any vendor call, and the row is
+    // untouched.
+    if (owned.lane !== 'hotel') {
+      return NextResponse.json(
+        {
+          error: `${owned.lane === 'flight' ? 'Flight' : 'This'} cancellation is not available yet — the ${owned.lane} lane has no in-app cancel; contact support and we will cancel it with the vendor.`,
+          code: 'cancel_lane_unsupported',
+          lane: owned.lane,
+        },
+        { status: 409 }
+      );
+    }
+
+    // ─── provider 'liteapi' HOTEL (PR-Cancel-1) ──────────────────────────────
     // The provider cancel — the only money authority. REBUILD-01 PR-5: the
     // client hands the answer back as received (the bytes) beside the parsed
     // result; `cancelled` serves the failure branch below — what is answered

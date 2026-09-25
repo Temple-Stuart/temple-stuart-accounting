@@ -207,7 +207,10 @@ export default function UnattachedBookings({ selectedTrip, onChanged, onTotals }
                           flip the action disappears, the row stays (record-keeping).
                           Opens the stored-policy dialog. LAUNCH-01 RETIRE-01: 'duffel'
                           history rows get no action (the provider is retired). */}
-                      {r.provider === 'liteapi' && r.status === 'confirmed' && (
+                      {/* CANCEL-01 (2026-09-26): the HOTEL lane only — the cancel route reaches the
+                          hotel endpoint, and a flight offered Cancel here went there too. `type` is
+                          the lane through the one reader (reservations/lane.ts). */}
+                      {r.type === 'hotel' && r.status === 'confirmed' && (
                         <button
                           type="button"
                           disabled={busyId === r.id || cancelBusy}
