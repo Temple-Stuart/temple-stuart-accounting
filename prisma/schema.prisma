@@ -1490,6 +1490,10 @@ model reservations {
   bookingType              String   @default("account") @db.VarChar(20) // 'guest' | 'account' — distinguishes guest (no-account) vs account bookings
   guestEmail               String?  @db.VarChar(255) // contact email for a guest (no-account) booking; null for account bookings
   provider                 String   @db.VarChar(20) // 'liteapi' | 'viator' | 'duffel' | ...
+  /// LANE-01 (2026-09-25): what this reservation IS — 'hotel' | 'flight' | 'activity'. Written by the book route from the lane it already holds; NOT NULL, NO DEFAULT, CHECK-enforced in SQL (reservations_lane). Type is read from THIS column and never from `provider` — LiteAPI is both rails.
+  lane                     String   @db.VarChar(20)
+  /// LANE-01: the customer-facing name the lane STATES — a stay's hotel name (the hotel route writes it beside hotelName), a flight's "carrier ORG → DST" once GET /flights/bookings/{id} has answered (the LANE-01 refresh writes it). NULL until stated; a reader renders the lane word and the booking reference, never the provider slug.
+  displayName              String?  @db.VarChar(255)
   providerBookingId        String   @db.VarChar(120) // upstream booking ID
   providerConfirmationCode String?  @db.VarChar(120) // human confirmation code
   status                   String   @db.VarChar(20) // 'pending' | 'confirmed' | 'cancelled' | 'failed'

@@ -133,7 +133,7 @@ test('the rail redirects, so the redirect lands where the booking is finished', 
   assert.match(src, /\/booking\/flight-confirm\?\$\{q\.toString\(\)\}/, 'the flights page, not the hotel one');
   const confirm = code(CONFIRM);
   assert.match(confirm, /'\/api\/travel\/liteapi\/flights\/book'/, 'which completes through the existing route');
-  assert.match(confirm, /body: JSON\.stringify\(\{ prebookId, transactionId, contactEmail \}\)/);
+  assert.match(confirm, /body: JSON\.stringify\(\{ prebookId, transactionId, contactEmail, \.\.\.\(tripId \? \{ tripId \} : \{\}\) \}\)/);
   // The paid-but-not-booked state never pretends: both references, and a retry of
   // the BOOK step only — idempotent per prebookId, so it can never re-pay.
   assert.match(confirm, /Your payment went through, but the booking did not complete\./);

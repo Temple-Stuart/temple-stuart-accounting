@@ -105,6 +105,12 @@ interface Props {
    *  server-derived at prebook; these are never sent anywhere. */
   price?: number | string | null;
   currency?: string | null;
+  /** LANE-01 (2026-09-25): the trip this booking attaches to, when the surface
+   *  has one and the viewer is signed in (PublicFlightSearch passes it under the
+   *  hotel lane's own rule: authed === true && currentTrip). It rides the
+   *  returnUrl to /booking/flight-confirm, which hands it to the book route's
+   *  owner gate. Absent → the booking is standalone (unattached). */
+  tripId?: string;
   /** Kept for call-site compatibility. FL-4c: the documented rail REDIRECTS on
    *  payment success, so the booking now completes on /booking/flight-confirm and
    *  this no longer fires — exactly as CheckoutPanel's own onBooked has not fired
@@ -146,7 +152,7 @@ function todayUtc(): string {
 
 type Phase = 'form' | 'prebooking' | 'pay' | 'expired';
 
-export default function LiteApiFlightCheckoutPanel({ offerId, price, currency }: Props) {
+export default function LiteApiFlightCheckoutPanel({ offerId, price, currency, tripId }: Props) {
   const [phase, setPhase] = useState<Phase>('form');
   // The FORM's own validation message — it belongs to the form, is rendered only
   // inside it, and is cleared on the next submit. The PAYMENT's failure is a
@@ -340,6 +346,8 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency }:
       prebookId: prebook.prebookId,
       transactionId: prebook.transactionId,
       contactEmail: email.trim(),
+      // LANE-01: the owner's trip, only when the surface gave one.
+      ...(tripId ? { tripId } : {}),
     });
     const returnUrl = `${window.location.origin}/booking/flight-confirm?${q.toString()}`;
 
@@ -361,7 +369,7 @@ export default function LiteApiFlightCheckoutPanel({ offerId, price, currency }:
     } catch {
       fail({ kind: 'sdk_script', message: 'The secure payment form could not start.', detail: 'The payment provider refused the request to open a card form. Nothing was charged.' });
     }
-  }, [started, phase, prebook, paymentEnv, sdkReady, stripeJsReady, failure, email, fail]);
+  }, [started, phase, prebook, paymentEnv, sdkReady, stripeJsReady, failure, email, tripId, fail]);
 
   // ── CHECKOUT-01: THE WATCHDOG. Did a form actually appear? ─────────────────
   // The vendor cannot tell us, so we look. A card form means real elements inside

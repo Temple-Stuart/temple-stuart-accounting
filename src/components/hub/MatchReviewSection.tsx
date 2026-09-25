@@ -17,6 +17,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { reservationIdentity } from '@/lib/reservations/lane';
 
 
 interface QueueRow {
@@ -28,6 +29,8 @@ interface QueueRow {
   reservation: {
     provider: string; hotelName: string | null; finalPriceCents: number; currency: string;
     createdAt: string; checkinDate: string | null; checkoutDate: string | null;
+    // LANE-01: the one reader's inputs.
+    lane: string; displayName: string | null; providerConfirmationCode: string | null; providerBookingId: string;
   };
 }
 
@@ -169,7 +172,8 @@ export default function MatchReviewSection({
       ) : (
         <div className="mt-3 divide-y divide-border rounded border border-border">
           {queue.map((q) => {
-            const resLabel = q.reservation.hotelName ?? `${q.reservation.provider} booking`;
+            // LANE-01: the stated name, or the lane and the reference — never the provider slug.
+            const resLabel = reservationIdentity(q.reservation).name;
             const resPrice = (q.reservation.finalPriceCents / 100).toFixed(2);
             return (
               <div key={q.id} className="space-y-1.5 p-3">

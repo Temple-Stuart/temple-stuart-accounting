@@ -10,7 +10,7 @@ import { code, comments } from '../sourceText';
 import {
   BOOKING_CALENDAR_SOURCE,
   bookingCalendarSourceId,
-  flightCalendarDecision,
+  flightStatedCalendarDecision,
   stayCalendarDecision,
   writeBookingCalendarEvent,
   type BookingCalendarPort,
@@ -80,17 +80,29 @@ test('the new source is on the calendar allowlist, or the row would never be dra
   assert.equal(SOURCE_RULES.length, 7, "DRILL-01's seven entry-source kinds are untouched");
 });
 
-test('a flight writes ZERO rows and names why — the landed payload carries no date of travel', async () => {
+test('a flight writes ONE row on the day its outbound leg departs — the vendor-stated departure, never createdAt (LANE-01)', async () => {
   const { port, rows } = fakePort();
-  // The keys the repo's own documented fixture puts on data[0].booking.
-  const landedFields = ['bookingId', 'bookingRef', 'status', 'paymentStatus', 'pricing', 'payment', 'order', 'passengers'];
-  const out = await writeBookingCalendarEvent(port, flightCalendarDecision({ reservationId: 'res_f', landedFields }));
-  assert.equal(rows.length, 0, 'no row');
-  assert.equal(out.landed, 'no_row');
-  assert.ok(out.landed === 'no_row' && /no date of travel/.test(out.reason), 'the reason is named');
-  assert.ok(out.landed === 'no_row' && /NOT FOUND/.test(out.reason), 'and it cites the finding');
-  // The reason lists what was actually looked at, so a future payload change shows up.
-  for (const f of landedFields) assert.ok(out.landed === 'no_row' && out.reason.includes(f), `${f} is named in the reason`);
+  // CAL-01 STEP 1.5 stands: the BOOK payload carries no date of travel. LANE-01
+  // reads the day from GET /flights/bookings/{id} (refreshFlightReservation.ts) and
+  // hands the OUTBOUND segment's departureTime here.
+  const out = await writeBookingCalendarEvent(port, flightStatedCalendarDecision({
+    reservationId: 'res_f', userId: 'u_1', name: 'Thai Vietjet Air BKK \u2192 HKT', departureTime: '2026-10-25T14:15:00',
+  }));
+  assert.equal(out.landed, 'inserted');
+  assert.equal(rows.length, 1, 'exactly one row');
+  const row = rows[0];
+  assert.equal(row.source, BOOKING_CALENDAR_SOURCE);
+  assert.equal(row.sourceId, 'res_f', 'keyed on the reservation id, bare');
+  assert.equal(row.startDate.toISOString(), '2026-10-25T12:00:00.000Z', 'the outbound departure DAY, at the booking rows\' midday-UTC instant');
+  assert.equal(row.endDate, null, 'one day, not a span');
+  assert.match(row.title, /BKK \u2192 HKT \(flight\)/);
+  assert.ok(isRenderedCalendarSource(row.source));
+  // A departureTime that does not open with a date is NAMED, not filled in.
+  const bad = await writeBookingCalendarEvent(port, flightStatedCalendarDecision({ reservationId: 'res_g', userId: null, name: 'Flight booking X', departureTime: 'tomorrow' }));
+  assert.equal(bad.landed, 'no_row');
+  assert.ok(bad.landed === 'no_row' && /never invented/.test(bad.reason));
+  // And the finding that led here is still written down where the next reader meets it.
+  assert.match(comments('src/lib/calendar/bookingEvent.ts'), /NOT FOUND/, 'STEP 1.5 is recorded in the leaf');
 });
 
 test('a stay missing either date writes ZERO rows and names which one — no date is ever invented', async () => {
@@ -136,14 +148,17 @@ test('THE ORDERING PROOF: a calendar-write failure leaves the reservation commit
   await assert.rejects(() => writeBookingCalendarEvent(port, stayCalendarDecision(STAY)), /calendar_events/);
   // The routes' side of that contract, read from the source: the call sits in its
   // own try/catch AFTER the transaction, and the catch only logs.
-  for (const route of [
-    'src/app/api/travel/liteapi/book/route.ts',
-    'src/app/api/travel/liteapi/flights/book/route.ts',
-  ]) {
+  // LANE-01 (2026-09-25): the flights route writes its row THROUGH the refresh
+  // (refreshFlightReservation → writeBookingCalendarEvent), so its call is read
+  // at that name; the ordering rules below are the same for both.
+  for (const [route, call] of [
+    ['src/app/api/travel/liteapi/book/route.ts', 'writeBookingCalendarEvent('],
+    ['src/app/api/travel/liteapi/flights/book/route.ts', 'refreshFlightReservation('],
+  ] as const) {
     const src = code(route);
-    const at = src.indexOf('writeBookingCalendarEvent(');
+    const at = src.indexOf(call);
     assert.ok(at > 0, `${route} calls the writer`);
-    const after = src.slice(at, at + 1400);
+    const after = src.slice(at, at + 1900);
     assert.match(after, /catch \(calErr\)/, `${route} catches its own calendar failure`);
     assert.match(after, /console\.error/, `${route} declares it loudly`);
     // Nothing in the catch fails the request.
@@ -166,13 +181,13 @@ test('THE ORDERING PROOF: a calendar-write failure leaves the reservation commit
 });
 
 test('neither book route can roll a reservation back for a calendar row — no throw escapes the calendar block', () => {
-  for (const route of [
-    'src/app/api/travel/liteapi/book/route.ts',
-    'src/app/api/travel/liteapi/flights/book/route.ts',
-  ]) {
+  for (const [route, call] of [
+    ['src/app/api/travel/liteapi/book/route.ts', 'writeBookingCalendarEvent('],
+    ['src/app/api/travel/liteapi/flights/book/route.ts', 'refreshFlightReservation('],
+  ] as const) {
     const src = code(route);
-    const at = src.indexOf('writeBookingCalendarEvent(');
-    const block = src.slice(at, at + 1400);
+    const at = src.indexOf(call);
+    const block = src.slice(at, at + 1900);
     const catchAt = block.indexOf('catch (calErr)');
     assert.ok(catchAt > 0, `${route} has the calendar catch`);
     // Everything between the call and its catch is inside the try — and the catch

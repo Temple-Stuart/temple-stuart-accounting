@@ -321,6 +321,11 @@ export default function PublicFlightSearch({ onRequireAuth, authed, currentTrip,
             offerId={booking.offer.id}
             price={booking.offer.price}
             currency={booking.offer.currency}
+            // LANE-01 (2026-09-25): the hotel lane's own rule (PublicHotelSearch.tsx:301)
+            // — tripId passes ONLY under authed === true && currentTrip, so a guest,
+            // and a signed-in user with no trip selected (the homepage), books
+            // standalone; the unattached list is where that booking is adopted from.
+            tripId={authed === true && currentTrip ? currentTrip.id : undefined}
             onBooked={() => { onCommitted?.(); }}
           />
         ) : null}

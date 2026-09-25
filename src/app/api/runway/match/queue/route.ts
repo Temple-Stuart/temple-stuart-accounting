@@ -29,6 +29,8 @@ export async function GET() {
           select: {
             provider: true, hotelName: true, finalPriceCents: true, currency: true,
             createdAt: true, checkinDate: true, checkoutDate: true,
+            // LANE-01: what the row IS and what it is CALLED, for the one reader.
+            lane: true, displayName: true, providerConfirmationCode: true, providerBookingId: true,
           },
         },
       },

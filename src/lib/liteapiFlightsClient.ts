@@ -332,23 +332,39 @@ async function postFlightsAnswer(base: string, path: string, body: unknown): Pro
   });
   const bytes = Buffer.from(await res.arrayBuffer());
   const arrived = new Date();
-  if (!res.ok) {
-    const raw = bytes.toString('utf8');
-    let providerCode: number | null = null;
-    let providerMessage: string | null = null;
-    try {
-      const parsed = JSON.parse(raw);
-      if (typeof parsed?.error?.code === 'number') providerCode = parsed.error.code;
-      if (typeof parsed?.error?.message === 'string') providerMessage = parsed.error.message;
-    } catch {
-      // Body wasn't the documented JSON error shape — classification fields
-      // stay null; the raw body still throws below. Nothing is swallowed.
-    }
-    if (providerCode !== null && FLIGHT_OFFER_EXPIRED_CODES.has(providerCode)) {
-      throw new FlightOfferExpiredError(path, res.status, providerCode, providerMessage, raw);
-    }
-    throw new LiteApiFlightsApiError(path, res.status, providerCode, providerMessage, raw);
+  if (!res.ok) throwFlightsNon2xx(path, res.status, bytes);
+  return { httpStatus: res.status, body: bytes, asked, arrived, json: JSON.parse(bytes.toString('utf8')) };
+}
+
+/** The non-2xx contract, one place for the POSTs and the GET (LANE-01): typed
+ *  throws, the raw body riding them — 42004/42017 → FlightOfferExpiredError,
+ *  everything else → LiteApiFlightsApiError. Never returns. */
+function throwFlightsNon2xx(path: string, status: number, bytes: Buffer): never {
+  const raw = bytes.toString('utf8');
+  let providerCode: number | null = null;
+  let providerMessage: string | null = null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed?.error?.code === 'number') providerCode = parsed.error.code;
+    if (typeof parsed?.error?.message === 'string') providerMessage = parsed.error.message;
+  } catch {
+    // Body wasn't the documented JSON error shape — classification fields
+    // stay null; the raw body still throws below. Nothing is swallowed.
   }
+  if (providerCode !== null && FLIGHT_OFFER_EXPIRED_CODES.has(providerCode)) {
+    throw new FlightOfferExpiredError(path, status, providerCode, providerMessage, raw);
+  }
+  throw new LiteApiFlightsApiError(path, status, providerCode, providerMessage, raw);
+}
+
+/** LANE-01 (2026-09-25): the same contract for a GET — the 2xx answer kept as
+ *  bytes beside its parsed JSON; non-2xx through the one classifier above. */
+async function getFlightsAnswer(base: string, path: string): Promise<LiteApiAnswer> {
+  const asked = new Date();
+  const res = await fetch(`${base}${path}`, { method: 'GET', headers: headers() });
+  const bytes = Buffer.from(await res.arrayBuffer());
+  const arrived = new Date();
+  if (!res.ok) throwFlightsNon2xx(path, res.status, bytes);
   return { httpStatus: res.status, body: bytes, asked, arrived, json: JSON.parse(bytes.toString('utf8')) };
 }
 
@@ -492,6 +508,82 @@ export async function bookFlight({ prebookId, transactionId }: {
   });
   const object = flightBookingObjectOf(answer.json);
   return { answer, object, booked: parseFlightBookResult(object) };
+}
+
+// ─── Booking details (GET /flights/bookings/{bookingId}) — LANE-01 ──────────
+// docs.liteapi.travel/reference/get_flights-bookings-bookingid: the same envelope
+// as the book answer — data[] of one { booking } — and the booking carries its
+// CURRENT status ("CREATED" | "PENDING_CONFIRMATION" | "CONFIRMED" | "CANCELLED" |
+// "CANCELLED_WITH_CHARGES", "normalized dispatcher booking status") and
+// journey.segments[], each with departureTime, arrivalTime, direction
+// (OUTBOUND | INBOUND), originCode, destinationCode, carrier.marketingName and
+// flight.marketingNumber. This is what gives a flight reservation its day, its
+// name and its refreshed status (src/lib/reservations/refreshFlightReservation.ts).
+
+/** One segment as stated — null where the answer did not carry the field. */
+export interface FlightBookingSegmentDetails {
+  departureTime: string | null;
+  direction: string | null;
+  originCode: string | null;
+  destinationCode: string | null;
+  carrierName: string | null;
+  flightNumber: string | null;
+}
+
+export interface FlightBookingDetails {
+  bookingId: string;
+  bookingRef: string | null;
+  status: string | null;
+  segments: FlightBookingSegmentDetails[];
+}
+
+/** The details mapping over the booking object — pure; absence is honest (null),
+ *  nothing is invented. A journey with no segments array maps to []. */
+export function parseFlightBookingDetails(booking: Record<string, unknown>): FlightBookingDetails {
+  const journey = booking.journey as Record<string, unknown> | undefined;
+  const raw = Array.isArray(journey?.segments) ? (journey!.segments as unknown[]) : [];
+  const str = (v: unknown): string | null => (typeof v === 'string' && v.length > 0 ? v : null);
+  const segments = raw
+    .filter((s): s is Record<string, unknown> => !!s && typeof s === 'object')
+    .map((s) => {
+      const carrier = s.carrier as Record<string, unknown> | undefined;
+      const flight = s.flight as Record<string, unknown> | undefined;
+      return {
+        departureTime: str(s.departureTime),
+        direction: str(s.direction),
+        originCode: str(s.originCode),
+        destinationCode: str(s.destinationCode),
+        carrierName: str(carrier?.marketingName),
+        flightNumber: str(flight?.marketingNumber),
+      };
+    });
+  return {
+    bookingId: booking.bookingId as string,
+    bookingRef: str(booking.bookingRef),
+    status: str(booking.status),
+    segments,
+  };
+}
+
+export interface FlightBookingDetailsAnswer {
+  /** The answer as received. */
+  answer: LiteApiAnswer;
+  /** data[0].booking. */
+  object: Record<string, unknown>;
+  details: FlightBookingDetails;
+}
+
+/** Read one flight booking's current state. Throws MissingLiteApiKeyError before
+ *  any network call, LiteApiFlightsApiError on non-2xx, and a contract-deviation
+ *  error on a 2xx missing booking.bookingId (flightBookingObjectOf). Not a
+ *  booking call: it moves no money and holds nothing — it READS what the vendor
+ *  states. Its cost is undocumented, so callers meter it
+ *  (travelSearchQuota 'liteapiflightbookingread'). */
+export async function getFlightBooking(bookingId: string): Promise<FlightBookingDetailsAnswer> {
+  const base = flightsBaseUrl();
+  const answer = await getFlightsAnswer(base, `/flights/bookings/${encodeURIComponent(bookingId)}`);
+  const object = flightBookingObjectOf(answer.json);
+  return { answer, object, details: parseFlightBookingDetails(object) };
 }
 
 // ─── Verify (POST /flights/verify) ───────────────────────────────────────────
