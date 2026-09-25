@@ -18,7 +18,8 @@ const LISTS = ['src/components/trips/TripBookings.tsx', 'src/components/trips/Un
 test('COMMIT 1, as it stands after COMMIT 3: the lane is READ, and a lane with no cancel is refused by name before any vendor call', () => {
   const src = code(ROUTE);
   // The lane is READ off the row the auth chain scoped.
-  assert.match(src, /select: \{ id: true, status: true, provider: true, providerBookingId: true, lane: true \}/, 'the lane is selected');
+  // CANCEL-02 widened the select (the recipient and identity fields ride beside the lane).
+  assert.match(src, /select: \{\s*id: true, status: true, provider: true, providerBookingId: true, lane: true,/, 'the lane is selected');
   // COMMIT 1 refused every non-hotel lane here; COMMIT 3 gave the flight lane its own
   // endpoint. What stands: an activity (any lane without a cancel) is refused BY NAME
   // in the dispatch, before either lane function — and so before any vendor call.
@@ -30,7 +31,7 @@ test('COMMIT 1, as it stands after COMMIT 3: the lane is READ, and a lane with n
   assert.ok(!post.includes('cancelBooking('), 'the dispatch itself calls no vendor');
   assert.ok(!post.includes('cancelFlightBooking('), 'the dispatch itself calls no vendor');
   // A flight is no longer refused: it is sent to its OWN endpoint (COMMIT 3), never the hotel one.
-  assert.match(post, /if \(owned\.lane === 'flight'\) return cancelFlight\(owned, userId\);/);
+  assert.match(post, /if \(owned\.lane === 'flight'\) return cancelFlight\(owned, userId, accountEmail\);/);
   // The hotel client is imported for the hotel lane only; the header tells the truth.
   assert.match(src, /import \{ cancelBooking, parseCancelResult, type CancelBookingResult \} from '@\/lib\/liteapiClient';/, 'the hotel client');
   const head = comments(ROUTE);
@@ -350,8 +351,8 @@ test('the route: GET is the quote, reserved before the vendor; POST dispatches o
   assert.match(get, /code: 'quote_refused'/);
   assert.match(get, /err instanceof LiteApiFlightsApiError && err\.status === 409/);
   const post = src.slice(src.indexOf('export async function POST('), src.indexOf('async function markCalendar('));
-  assert.match(post, /if \(owned\.lane === 'hotel'\) return cancelHotel\(owned, userId\);/);
-  assert.match(post, /if \(owned\.lane === 'flight'\) return cancelFlight\(owned, userId\);/);
+  assert.match(post, /if \(owned\.lane === 'hotel'\) return cancelHotel\(owned, userId, accountEmail\);/);
+  assert.match(post, /if \(owned\.lane === 'flight'\) return cancelFlight\(owned, userId, accountEmail\);/);
   assert.match(post, /code: 'cancel_lane_unsupported'/, 'an activity is still refused by name');
   assert.match(src, /code: 'cancel_already_pending'/, 'a second request on a pending cancel is named');
   const flight = src.slice(src.indexOf('async function cancelFlight('));
@@ -367,8 +368,11 @@ test('the route: GET is the quote, reserved before the vendor; POST dispatches o
   assert.ok(!/cancelIntentAt: new Date\(\)/.test(src), 'never our clock');
   assert.match(flight, /passengerNames: v\.passengerNames === null \? Prisma\.DbNull : v\.passengerNames/, 'SQL NULL when the vendor stated no names');
   // The named absences, at their attach points (comments, read as comments).
+  // CANCEL-02 (2026-09-26) turned the email absence into the send: the header
+  // now states it, and the absence line is gone.
   const head = comments(ROUTE);
-  assert.match(head, /CANCEL-02: the cancellation EMAIL attaches here — NOT this PR/);
+  assert.match(head, /CANCEL-02 \(2026-09-26\): A CANCELLATION IS CONFIRMED IN WRITING/);
+  assert.ok(!/CANCEL-02: the cancellation EMAIL attaches here — NOT this PR/.test(head), 'the absence note is gone');
   assert.match(head, /item 3: the webhook receiver and scheduled refresh/);
   assert.match(head, /item 7: journal posting of these money facts attaches here — NOT this PR/);
   assert.match(comments('prisma/migrations/20260926090000_cancel_01_money_events/migration.sql'), /item 8, refund matching, NOT this PR/);

@@ -21,6 +21,10 @@
  * with no code is not a voucher row (it is named) — its money fact still is.
  * Every row points at the arrival (arrivalId), because the table refuses one
  * that does not.
+ *
+ * CANCEL-02 (2026-09-26) adds, at the end of this file, who is TOLD about a
+ * cancellation (cancelRecipient) and what the email says about the money
+ * (cancellationEmailFacts, read from the rows above, never from the answer).
  */
 import type { CancelBookingResult } from '../liteapiClient';
 import type { FlightCancellationResult, FlightVoucher } from '../liteapiFlightsClient';
@@ -148,4 +152,69 @@ export function flightCancelDecision(parsed: FlightCancellationResult, httpStatu
     });
   }
   return { status: 'cancelled', final: true, moneyEvents, vouchers, vouchersWithoutCode, commission: 'cancel' };
+}
+
+// ─── CANCEL-02 (2026-09-26): who is told, and what they are told ─────────────
+
+/** The reservation fields the recipient rule reads. */
+export interface RecipientRow {
+  bookingType: string;
+  guestEmail: string | null;
+}
+
+export type CancelRecipient = { to: string } | { to: null; reason: 'no_recipient_stated' };
+
+/**
+ * WHO HEARS ABOUT A CANCELLATION. An ACCOUNT booking → the owning account's
+ * email (the users row the reservation's userId points at). A GUEST booking →
+ * reservations.guestEmail, when the book route stated one. Neither → NO send,
+ * named. NO FALLBACK: a guest row is never sent to the account holder's address,
+ * an account row is never sent to a guest address, nothing is invented.
+ *
+ * Which rows can be emailed today (main c17dc9dd): every account row (hotel or
+ * flight — the cancel route is owner-only, so every cancel it serves is one);
+ * a guest HOTEL row (book/route.ts writes guestEmail = holder.email); a guest
+ * FLIGHT row CANNOT — flights/book/route.ts writes guestEmail null and SEC-03
+ * did not copy prebook_contacts.contactEmail onto the reservation (the row
+ * carries no prebookId to look it up by). Guest rows cannot reach the cancel
+ * route at all (its ownership gate needs userId), so today this rule serves
+ * account rows and states the guest case honestly.
+ */
+export function cancelRecipient(row: RecipientRow, accountEmail: string | null): CancelRecipient {
+  if (row.bookingType === 'account') {
+    const email = typeof accountEmail === 'string' ? accountEmail.trim() : '';
+    return email.length > 0 ? { to: email } : { to: null, reason: 'no_recipient_stated' };
+  }
+  const guest = typeof row.guestEmail === 'string' ? row.guestEmail.trim() : '';
+  return guest.length > 0 ? { to: guest } : { to: null, reason: 'no_recipient_stated' };
+}
+
+/** What the cancelled email says about the money — read from the money_events and vouchers ROWS, never from the answer again. */
+export interface CancellationEmailFacts {
+  refund: { amountCents: number | null; currency: string | null };
+  fee: { amountCents: number | null; currency: string | null };
+  destination: string | null;
+  vouchers: Array<{ code: string; airline: string | null; amountCents: number | null; currency: string | null; expiresAt: string | null }>;
+}
+
+/** YYYY-MM-DD of a DATE-column value, or null. */
+function dayString(d: Date | null): string | null {
+  return d === null ? null : d.toISOString().slice(0, 10);
+}
+
+/**
+ * The email's money facts, exactly as money_events holds them: the 'refund' row
+ * and the 'cancellation_fee' row (amountCents NULL = "not stated by the vendor"),
+ * the refund row's destination, and each vouchers row. A row that does not exist
+ * is the same absence as a NULL amount — nothing is invented in its place.
+ */
+export function cancellationEmailFacts(moneyEvents: MoneyEventRow[], vouchers: VoucherRow[]): CancellationEmailFacts {
+  const refund = moneyEvents.find((e) => e.kind === 'refund');
+  const fee = moneyEvents.find((e) => e.kind === 'cancellation_fee');
+  return {
+    refund: { amountCents: refund ? refund.amountCents : null, currency: refund ? refund.currency : null },
+    fee: { amountCents: fee ? fee.amountCents : null, currency: fee ? fee.currency : null },
+    destination: refund ? refund.refundDestination : null,
+    vouchers: vouchers.map((v) => ({ code: v.code, airline: v.airline, amountCents: v.amountCents, currency: v.currency, expiresAt: dayString(v.expiresAt) })),
+  };
 }

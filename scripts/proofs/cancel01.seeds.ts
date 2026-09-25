@@ -35,8 +35,8 @@ const SEEDS: Seed[] = [
   {
     name: 'cancel01-a the flight lane is sent to the hotel endpoint again (clause 1)',
     file: ROUTE,
-    find: "    if (owned.lane === 'flight') return cancelFlight(owned, userId);",
-    replace: "    if (owned.lane === 'flight') return cancelHotel(owned, userId);",
+    find: "    if (owned.lane === 'flight') return cancelFlight(owned, userId, accountEmail);",
+    replace: "    if (owned.lane === 'flight') return cancelHotel(owned, userId, accountEmail);",
     expect: 'does not send the flight lane to the flight cancel',
   },
   {
