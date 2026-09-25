@@ -47,3 +47,45 @@ test('COMMIT 1: both lists offer Cancel on the HOTEL lane only, through the one 
     assert.ok(!/\.lane\b/.test(src), `${f}: no raw lane read`);
   }
 });
+
+// ── COMMIT 2 — THE MONEY-EVENTS TABLE (the migration, read; it applies at deploy) ──
+
+const MIGRATION = 'prisma/migrations/20260926090000_cancel_01_money_events/migration.sql';
+
+test('COMMIT 2: money_events — a money fact cannot exist without its arrival (NOT NULL + FK), no default on any stated field, RESTRICT on the reservation', () => {
+  const sql = code(MIGRATION);
+  const table = sql.slice(sql.indexOf('CREATE TABLE "money_events"'), sql.indexOf('CREATE TABLE "vouchers"'));
+  assert.match(table, /"arrivalId"\s+TEXT\s+NOT NULL,/, 'arrivalId NOT NULL');
+  assert.match(table, /FOREIGN KEY \("arrivalId"\) REFERENCES "arrivals"\("id"\) ON DELETE RESTRICT/, 'and a foreign key to arrivals');
+  assert.match(table, /FOREIGN KEY \("reservationId"\) REFERENCES "reservations"\("id"\) ON DELETE RESTRICT/, 'the reservation is RESTRICT');
+  assert.match(table, /"amountCents"\s+INTEGER,/, 'amountCents nullable, no default');
+  for (const stated of ['reservationId', 'lane', 'kind', 'amountCents', 'currency', 'refundDestination', 'status', 'vendorReference', 'arrivalId', 'statedAt']) {
+    const line = table.split('\n').find((l) => l.includes(`"${stated}"`) && !l.includes('CONSTRAINT') && !l.includes('INDEX') && !l.includes('FOREIGN'))!;
+    assert.ok(line && !/DEFAULT/i.test(line), `${stated}: no default`);
+  }
+  assert.match(table, /CHECK \("kind" IN \('charge', 'refund', 'cancellation_fee', 'change_fee', 'servicing_fee', 'ticketing_fee', 'voucher_issued'\)\)/);
+  assert.match(table, /CHECK \("status" IN \('stated', 'settled'\)\)/);
+  assert.match(table, /CHECK \("refundDestination" IS NULL OR "refundDestination" IN \('original_payment', 'agency_deposit', 'voucher', 'bsp_settlement', 'manual', 'unknown'\)\)/, 'the vendor enum, verbatim');
+  assert.doesNotMatch(sql, /^\s*UPDATE\b/im, 'nothing backfilled');
+  // The schema moves with it.
+  const schema = code('prisma/schema.prisma');
+  assert.match(schema, /\nmodel money_events \{/);
+  assert.match(schema, /\n  arrivalId\s+String\n/, 'arrivalId is required in the model');
+  assert.match(schema, /\n  amountCents\s+Int\?\n/, 'amountCents nullable in the model');
+  assert.match(schema, /\n  cancelIntentAt\s+DateTime\? @db\.Timestamptz\(6\)/, 'reservations.cancelIntentAt');
+});
+
+test('COMMIT 2: vouchers — a table, queryable by expiry; passengerNames NULL when not stated', () => {
+  const sql = code(MIGRATION);
+  const table = sql.slice(sql.indexOf('CREATE TABLE "vouchers"'));
+  assert.match(table, /"expiresAt"\s+DATE,/);
+  assert.match(table, /CREATE INDEX "vouchers_expiresAt_idx" ON "vouchers"\("expiresAt"\)/, 'expiry is indexed — the reason it is a table');
+  assert.match(table, /"passengerNames"\s+JSONB,/, 'NULL when not stated, never a fabricated []');
+  assert.match(table, /"arrivalId"\s+TEXT\s+NOT NULL,/);
+  assert.match(table, /FOREIGN KEY \("arrivalId"\) REFERENCES "arrivals"\("id"\) ON DELETE RESTRICT/);
+  assert.match(sql, /ALTER TABLE "reservations" ADD COLUMN "cancelIntentAt" TIMESTAMPTZ\(6\);/);
+  // The status vocabularies were VERIFIED unconstrained, and the migration says so.
+  assert.match(comments(MIGRATION), /reservations\.status has NO CHECK constraint/);
+  // The reader keeps the SQL comment markers, so a line break inside the sentence reads `\n--    `.
+  assert.match(comments(MIGRATION), /commission_ledger\.status has NO[\s-]+CHECK/);
+});
