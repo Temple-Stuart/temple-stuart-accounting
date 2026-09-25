@@ -32,10 +32,11 @@
 
 export interface MatcherReservation {
   id: string;
-  /** Integer cents (reservations.finalPriceCents). 0 = price unknown (the
-   *  book routes' `?? 0` fallback) → the amount signal is EXCLUDED, never
-   *  compared against a known-false zero. */
-  finalPriceCents: number;
+  /** Integer cents (reservations.finalPriceCents), or NULL. SEC-03 (2026-09-25):
+   *  NULL = the vendor stated no price → the amount signal is EXCLUDED and the
+   *  weights re-normalize. A 0 is a REAL amount now (the book routes write NULL,
+   *  never 0, for an unstated price), and is compared like any other. */
+  finalPriceCents: number | null;
   /** ISO 4217 (reservations.currency). */
   currency: string;
   /** 'liteapi' | 'duffel' | 'viator' | … (reservations.provider). */
@@ -132,7 +133,7 @@ function hotelTokens(hotelName: string | null): string[] {
  *     (a present-but-failed amount is evidence against, not a weak signal).
  *   • no date anchor within dateWindowDays             → skip.
  * Exclusions (signal absent → weight re-normalized, named in rationale):
- *   • cross-currency reservation, or finalPriceCents 0 → amount excluded.
+ *   • cross-currency reservation, or finalPriceCents NULL → amount excluded.
  */
 export function proposeMatches({
   reservations,
@@ -147,9 +148,11 @@ export function proposeMatches({
   const proposals: MatchProposal[] = [];
 
   for (const r of reservations) {
-    const resDollars = r.finalPriceCents / 100;
     const sameCurrency = r.currency.toUpperCase() === accountCurrency;
-    const amountKnown = r.finalPriceCents > 0;
+    // SEC-03: NULL is the one "unknown"; 0 is an amount and is compared (a real
+    // $0 booking against a positive charge is a contradiction, not a wildcard).
+    const amountKnown = r.finalPriceCents !== null;
+    const resDollars = amountKnown ? r.finalPriceCents! / 100 : null;
     const tokens = hotelTokens(r.hotelName);
     const vocab = PROVIDER_VOCAB[r.provider.toLowerCase()] ?? [r.provider.toLowerCase()];
     const bookedDay = utcDay(r.createdAt);
@@ -165,7 +168,7 @@ export function proposeMatches({
       const scores: Array<{ w: number; s: number }> = [];
 
       // ── AMOUNT ───────────────────────────────────────────────────────────
-      if (sameCurrency && amountKnown) {
+      if (sameCurrency && resDollars !== null) {
         const driftPct = Math.abs(t.amount - resDollars) / resDollars;
         if (driftPct > opts.amountTolerancePct) continue; // contradiction → no proposal
         const s = 1 - driftPct / opts.amountTolerancePct;
@@ -180,7 +183,7 @@ export function proposeMatches({
           `(never converted by guess); date + descriptor carry this proposal`
         );
       } else {
-        parts.push('amount: EXCLUDED — reservation price unknown (0 cents recorded)');
+        parts.push('amount: EXCLUDED — reservation price not stated by the vendor (NULL recorded)');
       }
 
       // ── DATE ─────────────────────────────────────────────────────────────

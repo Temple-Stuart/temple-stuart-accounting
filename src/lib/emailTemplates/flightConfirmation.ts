@@ -37,7 +37,9 @@ export interface FlightConfirmationInput {
   bookingRef: string | null;
   /** The airline PNR (order.reference.provider.pnr) when the provider issued one. */
   pnr: string | null;
-  totalAmountCents: number;
+  /** Integer cents, or NULL — SEC-03 (2026-09-25): the vendor stated no price,
+   *  so the ledger holds NULL and this line says "price not stated". Never 0. */
+  totalAmountCents: number | null;
   /** ISO 4217 code, e.g. 'USD' — rendered as the code, never a symbol. */
   currency: string;
   /** The provider's status VERBATIM, or null. Decides the tense, never the truth. */
@@ -103,7 +105,10 @@ export function statusLine(status: string | null): { headline: string; sentence:
 }
 
 export function flightConfirmation(input: FlightConfirmationInput): RenderedEmail {
-  const amount = `${input.currency} ${centsToAmount(input.totalAmountCents)}`;
+  // SEC-03: a price the vendor did not state is SAID — never rendered as 0.00.
+  const amount = input.totalAmountCents === null
+    ? `price not stated by the airline — your card statement shows the amount`
+    : `${input.currency} ${centsToAmount(input.totalAmountCents)}`;
   const { headline, sentence } = statusLine(input.status);
 
   // Subject precedence: the airline PNR → LiteAPI's own reference → the booking

@@ -66,7 +66,8 @@ interface BookedRow {
   label: string;
   provider: string;
   status: string;
-  finalPriceCents: number;
+  /** SEC-03: NULL when the vendor stated no price — rendered "price not stated". */
+  finalPriceCents: number | null;
   currency: string;
   createdAt: string;
   checkinDate: string | null;
@@ -460,9 +461,14 @@ export default function TripBudgetActual({ trip, onTotals }: { trip: TripRow;
                     {/* POLISH-1 #6: house money idiom (formatMoney/moneyColorClass —
                         expenses red + negative-signed, matching the planned table).
                         Non-USD keeps its ISO code prefix — never relabeled as $. */}
-                    <td className={`${td} text-right font-mono font-bold ${moneyColorClass(b.finalPriceCents / 100, 'expense')}`}>
-                      {b.currency !== 'USD' ? `${b.currency} ` : ''}{formatMoney(b.finalPriceCents / 100, { kind: 'expense' })}
-                    </td>
+                    {b.finalPriceCents === null ? (
+                      // SEC-03: a price the vendor did not state is SAID — never $0.
+                      <td className={`${td} text-right text-text-faint`}>price not stated</td>
+                    ) : (
+                      <td className={`${td} text-right font-mono font-bold ${moneyColorClass(b.finalPriceCents / 100, 'expense')}`}>
+                        {b.currency !== 'USD' ? `${b.currency} ` : ''}{formatMoney(b.finalPriceCents / 100, { kind: 'expense' })}
+                      </td>
+                    )}
                     <td className={`${td} text-right font-mono font-bold ${b.actual ? moneyColorClass(b.actual.totalCents / 100, 'expense') : 'text-text-faint'}`}>
                       {b.actual ? formatMoney(b.actual.totalCents / 100, { kind: 'expense' }) : DASH}
                     </td>

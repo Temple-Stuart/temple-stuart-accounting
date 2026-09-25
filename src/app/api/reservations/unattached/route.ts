@@ -38,7 +38,9 @@ export async function GET() {
       name: reservationIdentity(r).name,
       provider: r.provider,
       type: reservationIdentity(r).type,
-      amountUsd: r.finalPriceCents / 100,
+      // SEC-03 (2026-09-25): NULL = the vendor stated no price; rendered as
+      // "price not stated", never 0, never NaN, never summed.
+      amountUsd: r.finalPriceCents === null ? null : r.finalPriceCents / 100,
       currency: r.currency,
       checkIn: r.checkinDate,
       checkOut: r.checkoutDate,

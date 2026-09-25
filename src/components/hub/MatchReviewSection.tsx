@@ -27,7 +27,9 @@ interface QueueRow {
   proposedAt: string;
   transaction: { name: string; merchantName: string | null; amount: number; date: string; pending: boolean };
   reservation: {
-    provider: string; hotelName: string | null; finalPriceCents: number; currency: string;
+    // SEC-03: finalPriceCents NULL = the vendor stated no price — rendered
+    // "price not stated", never 0.
+    provider: string; hotelName: string | null; finalPriceCents: number | null; currency: string;
     createdAt: string; checkinDate: string | null; checkoutDate: string | null;
     // LANE-01: the one reader's inputs.
     lane: string; displayName: string | null; providerConfirmationCode: string | null; providerBookingId: string;
@@ -174,7 +176,9 @@ export default function MatchReviewSection({
           {queue.map((q) => {
             // LANE-01: the stated name, or the lane and the reference — never the provider slug.
             const resLabel = reservationIdentity(q.reservation).name;
-            const resPrice = (q.reservation.finalPriceCents / 100).toFixed(2);
+            const resPrice = q.reservation.finalPriceCents === null
+              ? 'price not stated'
+              : `${q.reservation.currency} ${(q.reservation.finalPriceCents / 100).toFixed(2)}`;
             return (
               <div key={q.id} className="space-y-1.5 p-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
@@ -192,7 +196,7 @@ export default function MatchReviewSection({
                   </span>
                 </div>
                 <div className="text-xs text-text-secondary">
-                  ↔ {resLabel} · {q.reservation.currency} {resPrice} · booked {day(q.reservation.createdAt)}
+                  ↔ {resLabel} · {resPrice} · booked {day(q.reservation.createdAt)}
                   {q.reservation.checkinDate ? ` · stay ${day(q.reservation.checkinDate)}–${day(q.reservation.checkoutDate)}` : ''}
                 </div>
                 {/* The full matcher rationale — always visible (CPA bar). */}

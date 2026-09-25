@@ -46,6 +46,8 @@ export async function POST(request: NextRequest) {
     const reservations = await prisma.reservations.findMany({
       where: { userId: user.id },
       select: {
+        // SEC-03: finalPriceCents is nullable — the matcher EXCLUDES the amount
+        // signal on NULL and re-normalizes; a 0 is a real amount.
         id: true, finalPriceCents: true, currency: true, provider: true,
         hotelName: true, createdAt: true, checkinDate: true, checkoutDate: true,
       },

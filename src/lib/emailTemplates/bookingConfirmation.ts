@@ -27,7 +27,9 @@ export interface BookingConfirmationInput {
   /** LiteAPI bookingId — always present (BookResult.bookingId), the guaranteed
    *  reference for this reservation. */
   bookingId: string;
-  totalAmountCents: number;
+  /** Integer cents, or NULL — SEC-03 (2026-09-25): the vendor stated no price,
+   *  so the ledger holds NULL and this line says "price not stated". Never 0. */
+  totalAmountCents: number | null;
   /** ISO 4217 code, e.g. 'USD' — rendered as the code, never a symbol. */
   currency: string;
 }
@@ -61,7 +63,10 @@ function escapeHtml(s: string): string {
 }
 
 export function bookingConfirmation(input: BookingConfirmationInput): RenderedEmail {
-  const amount = `${input.currency} ${centsToAmount(input.totalAmountCents)}`;
+  // SEC-03: a price the vendor did not state is SAID — never rendered as 0.00.
+  const amount = input.totalAmountCents === null
+    ? `price not stated by the hotel — your card statement shows the amount`
+    : `${input.currency} ${centsToAmount(input.totalAmountCents)}`;
 
   // Subject: the hotel name when we truly have one; the stay window otherwise.
   // Never a placeholder name.

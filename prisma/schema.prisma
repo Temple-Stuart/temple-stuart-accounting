@@ -659,6 +659,7 @@ model users {
   operations_ai_usage     operations_ai_usage[]
   discovery_runs          discovery_runs[]
   reservations            reservations[]
+  prebook_contacts prebook_contacts[]
   commission_ledger       commission_ledger[]
   transaction_reservation_links transaction_reservation_links[]
   planned_item_links            planned_item_links[]
@@ -1501,7 +1502,8 @@ model reservations {
   checkinDate              DateTime? @db.Date // null for non-stay orders (flights) — D3
   checkoutDate             DateTime? @db.Date // null for non-stay orders (flights) — D3
   guestCount               Int      @default(1)
-  finalPriceCents          Int // integer cents to avoid float math
+  /// SEC-03 (2026-09-25): NULLABLE. NULL = price not stated by the vendor — reconcile against the bank. Never 0 for unknown; a 0 is a real $0.
+  finalPriceCents          Int? // integer cents to avoid float math
   currency                 String   @default("USD") @db.VarChar(3)
   cancellationPolicyJson   Json?
   createdAt                DateTime @default(now())
@@ -1519,6 +1521,30 @@ model reservations {
   @@index([tripId])
   @@index([provider, providerBookingId])
   @@index([arrival_id])
+}
+
+// ─── Prebook contacts (SEC-03, 2026-09-25) ─────────────────────────────────
+// What the customer STATED at prebook, keyed by the vendor's prebookId, so a
+// checkout's returnUrl carries ids only and the book route reads the contact
+// here — never from a query string. One table for both lanes (`lane` names
+// which); the hotel lane collects its holder on /booking/confirm's own form and
+// writes nothing here today. No default on any stated field.
+model prebook_contacts {
+  prebookId               String   @id @db.VarChar(120)
+  lane                    String   @db.VarChar(20) // 'hotel' | 'flight' | 'activity' — CHECK-enforced in SQL
+  contactFirstName        String   @db.VarChar(255)
+  contactLastName         String   @db.VarChar(255)
+  contactEmail            String   @db.VarChar(255)
+  contactPhone            String   @db.VarChar(40)
+  contactPhoneCountryCode String?  @db.VarChar(8)
+  /// The currency the SEARCH was made in, as the panel stated it — the book route is handed it from here when the vendor's book answer states none. NULL when the panel stated none.
+  searchCurrency          String?  @db.VarChar(3)
+  userId                  String?
+  createdAt               DateTime @default(now())
+
+  user users? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // ─── Transaction ↔ reservation links (MATCH-0, the arc's ONLY migration) ─────
@@ -1566,7 +1592,8 @@ model commission_ledger {
   userId                String?
   reservationId         String    @db.Uuid
   provider              String    @db.VarChar(20)
-  grossAmountCents      Int // total guest paid (final price)
+  /// SEC-03 (2026-09-25): NULLABLE. NULL = price not stated by the vendor — reconcile against the bank.
+  grossAmountCents      Int? // total guest paid (final price)
   commissionAmountCents Int // our margin (in cents)
   currency              String    @default("USD") @db.VarChar(3)
   status                String    @db.VarChar(20) // 'estimated' | 'confirmed' | 'paid'

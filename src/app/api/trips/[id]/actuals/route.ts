@@ -80,6 +80,7 @@ export async function GET(
         label: reservationIdentity(r).name,
         provider: r.provider,
         status: r.status,
+        // SEC-03: NULL when the vendor stated no price — the lens says so, never $0.
         finalPriceCents: r.finalPriceCents,
         currency: r.currency,
         createdAt: r.createdAt,

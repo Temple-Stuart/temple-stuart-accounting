@@ -14,7 +14,7 @@ import { reservationIdentity } from '@/lib/reservations/lane';
 // never returned to an account user). Read-only — no writes.
 //
 // Money is returned as USD (finalPriceCents / 100) so the Actual row matches the
-// budget route's USD amounts.
+// budget route's USD amounts — or null when the vendor stated no price (SEC-03).
 
 // LANE-01 (2026-09-25): type and name come from the ONE reader, keyed on the
 // row's lane — never from `provider` (LiteAPI is both rails), never falling
@@ -51,7 +51,9 @@ export async function GET(
       name: reservationIdentity(r).name,
       provider: r.provider,
       type: reservationIdentity(r).type,
-      amountUsd: r.finalPriceCents / 100,
+      // SEC-03 (2026-09-25): NULL = the vendor stated no price; rendered as
+      // "price not stated", never 0, never NaN, never summed.
+      amountUsd: r.finalPriceCents === null ? null : r.finalPriceCents / 100,
       currency: r.currency,
       checkIn: r.checkinDate,
       checkOut: r.checkoutDate,

@@ -82,7 +82,9 @@ test('the status mapping is EXACTLY the book route\'s, in one leaf both callers 
   assert.equal(flightProviderStatusToReservation('TICKETED'), 'confirmed');
   assert.equal(flightProviderStatusToReservation('confirmed'), 'confirmed', 'case-insensitive, as the route always was');
   assert.equal(flightProviderStatusToReservation('CANCELLED'), 'cancelled');
-  for (const other of ['PENDING_CONFIRMATION', 'PENDING', 'CREATED', 'CANCELLED_WITH_CHARGES', '', null, undefined]) {
+  // SEC-03 (2026-09-25): the one-line ruling this header said it would take.
+  assert.equal(flightProviderStatusToReservation('CANCELLED_WITH_CHARGES'), 'cancelled');
+  for (const other of ['PENDING_CONFIRMATION', 'PENDING', 'CREATED', '', null, undefined]) {
     assert.equal(flightProviderStatusToReservation(other), null, `${String(other)} is not mapped`);
   }
   const route = code(FLIGHT_ROUTE);
@@ -181,8 +183,18 @@ test('GET booking answers with no segments → nothing is applied and the reason
   assert.equal(w2.length, 0);
 });
 
+test('vendor status CANCELLED_WITH_CHARGES → the reservation is cancelled (SEC-03)', async () => {
+  const { ports, writes } = fakePorts({ answer: { ...STATED, status: 'CANCELLED_WITH_CHARGES' } });
+  const out = await refreshFlightReservation(ports, { ...ROW, displayName: 'Thai Vietjet Air BKK → HKT' });
+  assert.ok(out.fetched);
+  if (!out.fetched) return;
+  assert.equal(out.status, 'set');
+  assert.equal(out.statusValue, 'cancelled');
+  assert.deepEqual(writes, [{ id: 'res_f1', patch: { status: 'cancelled' } }], 'one write of exactly the status');
+});
+
 test('vendor status unknown → the reservation status is UNCHANGED and reported by name', async () => {
-  for (const unmapped of ['CREATED', 'PENDING_CONFIRMATION', 'CANCELLED_WITH_CHARGES']) {
+  for (const unmapped of ['CREATED', 'PENDING_CONFIRMATION']) {
     const { ports, writes } = fakePorts({ answer: { ...STATED, status: unmapped } });
     const out = await refreshFlightReservation(ports, { ...ROW, displayName: 'Thai Vietjet Air BKK → HKT' });
     assert.ok(out.fetched);
@@ -292,7 +304,8 @@ test('the trip rides from the surface through the panel and the returnUrl to the
   assert.match(panel, /\.\.\.\(tripId \? \{ tripId \} : \{\}\),/, 'in the returnUrl only when present');
   const confirm = code('src/app/booking/flight-confirm/page.tsx');
   assert.match(confirm, /params\.get\('tripId'\)/);
-  assert.match(confirm, /body: JSON\.stringify\(\{ prebookId, transactionId, contactEmail, \.\.\.\(tripId \? \{ tripId \} : \{\}\) \}\)/);
+  // SEC-03 (2026-09-25): the address the link carried is stored at prebook now.
+  assert.match(confirm, /body: JSON\.stringify\(\{ prebookId, transactionId, \.\.\.\(tripId \? \{ tripId \} : \{\}\) \}\)/);
   // The in-trip planner mounts no flight checkout — there is no second launch site to carry it from.
   assert.ok(!code('src/components/trips/TripPlannerAI.tsx').includes('LiteApiFlightCheckoutPanel'), 'TripPlannerAI mounts only the hotel CheckoutPanel');
 });

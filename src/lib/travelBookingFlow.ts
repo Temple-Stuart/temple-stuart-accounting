@@ -91,7 +91,16 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // hotelName. Two fields on the create, nothing else: the same guards, the same
   // provider call, the same landing, the same calendar row, the same envelope.
   // Was 792da953ba83fe8a8bc95d79045a0fabd00bfc807fab3b726a69dd85ef136eb1 at main 8f06554c.
-  { file: 'src/app/api/travel/liteapi/book/route.ts', sha256: '41f5eebfba6dacf4d613790dc0fa173e4c8cad012c42915d68d8a2cba8cf314a' },
+  // SEC-03 (2026-09-25): re-pinned — no fabricated number in a ledger. The price is
+  // what the vendor BOOK answer states, or NULL in both ledgers with a loud log by
+  // bookingId — the body no longer carries finalPriceCents and the confirm page no
+  // longer posts the number it displayed; a price is never 0 for "unknown". The
+  // currency is the vendor answer, else the currency the SEARCH was made in (the
+  // body's stated field, validated as ISO 4217), else the contract-deviation throw —
+  // never a literal. The guards, the provider call, the landing, the calendar row
+  // and the envelope are unchanged.
+  // Was 41f5eebfba6dacf4d613790dc0fa173e4c8cad012c42915d68d8a2cba8cf314a at main a5e66262.
+  { file: 'src/app/api/travel/liteapi/book/route.ts', sha256: '667efb921cdd690b6e5c26fc40c6b9deacd520367cf346956592b150d117c597' },
   // CAL-01 (2026-09-23): re-pinned — the flight branch. The landed booking object
   // carries NO date of travel (STEP 1.5: NOT FOUND), so this route writes NO
   // calendar row and logs a named reason listing the payload's actual keys. No date
@@ -117,13 +126,30 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // route → displayName) and its current status. A failed or empty answer changes
   // nothing and is logged by name. The provider BOOK call and the landing are unchanged.
   // Was 7a92d920d3bd45ac1a10997c3eb6b2ee1b1495dd3eec73a45ec3d9185ec5cc92 at main 8f06554c.
-  { file: 'src/app/api/travel/liteapi/flights/book/route.ts', sha256: '653c25f1b43caf2104d152f543cf04dcb960b0c6bfc7ceac2a4ce5dddb2480f7' },
+  // SEC-03 (2026-09-25): re-pinned — no PII in a URL, no fabricated number in a
+  // ledger. The contact is READ from prebook_contacts by prebookId (the prebook route
+  // wrote it), refused by name BEFORE the quota and the vendor when missing; the body
+  // carries no contactEmail. The price is what the vendor states or NULL in both
+  // ledgers, logged loudly by bookingId; the currency is the vendor's, else the search
+  // currency stored with the contact, else the contract-deviation throw. One email
+  // attempt per booking, to the stored address; a retry reports 'earlier'. The
+  // guards, the provider call, the landing and the LANE-01 refresh are unchanged.
+  // Was 653c25f1b43caf2104d152f543cf04dcb960b0c6bfc7ceac2a4ce5dddb2480f7 at main a5e66262.
+  { file: 'src/app/api/travel/liteapi/flights/book/route.ts', sha256: '8f24d2dd90f36d55c2dbbe4cafb711387ea34faf4d9eb25a27c906b72b977367' },
   // FL-4c (2026-09-23): re-pinned — the envelope gains `paymentEnv`, the key env
   // derived server-side exactly as the hotel prebook returns it. The browser must
   // not guess which mode it is in, and /config is keyed on that label. Nothing
   // else changed: the same guards, the same provider call, the same whitelist.
   // Was ed9b0d2afe376769e42a99a80fc3ce33755324add6a25e4104a5f5c193289c7a at main bd380379.
-  { file: 'src/app/api/travel/liteapi/flights/prebook/route.ts', sha256: 'afad4046f2084b53ff5dfd48ca6c280b475967d61dfd4cf98f4b5da3e672964e' },
+  // SEC-03 (2026-09-25): re-pinned — the validated contact (and the search currency
+  // the panel states) is WRITTEN to prebook_contacts under the vendor prebookId
+  // immediately after the vendor answers and BEFORE the browser is: a failed write is
+  // a named 500 (contact_not_stored) carrying no secretKey, so no card form can open
+  // on a hold with no stored contact. Auth is optional, as on the book route, to
+  // record the account on the row. The guards, the validation and the provider call
+  // are unchanged.
+  // Was afad4046f2084b53ff5dfd48ca6c280b475967d61dfd4cf98f4b5da3e672964e at main a5e66262.
+  { file: 'src/app/api/travel/liteapi/flights/prebook/route.ts', sha256: '4dd7994bc43cbc305e3c23717d881774289b47145d70f43d3ef12796f53e0b7a' },
   // FLIGHT-01 (2026-09-22): re-pinned — the request body gains the vendor's filters and sort, validated by name between the two guards. Search is not booking; no prebook/verify/book/pay/cancel call changed.
   // Was cbd59f8394b0f9fb52b3df446ba5183e99eb8b62c07cbb4afdbf63d50b6b86d1 at main b9eac34a.
   { file: 'src/app/api/travel/liteapi/flights/search/route.ts', sha256: 'e4535e859762c570a894e9fdf2e5e0ca452e395f6a5e8ab51b55221bc9c2fa0b' },
@@ -139,17 +165,29 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // reservations.lane (src/lib/reservations/lane.ts); the local PROVIDER_TYPE map and
   // hotelName ?? provider are gone. The auth chain and the one field it writes are unchanged.
   // Was bf98a65cb2feed22731b09e1d6b3d21f4935fc5f021637e83884b23a9e30767f at main 8f06554c.
-  { file: 'src/app/api/reservations/[id]/route.ts', sha256: 'fce57d7972405b76cd952cb03fe5a49a244c877634265292acd750e3e05d0805' },
+  // SEC-03 (2026-09-25): re-pinned — amountUsd is null when the vendor stated no
+  // price (finalPriceCents NULL), never 0, never NaN. The auth chain and the one
+  // field it writes are unchanged.
+  // Was fce57d7972405b76cd952cb03fe5a49a244c877634265292acd750e3e05d0805 at main a5e66262.
+  { file: 'src/app/api/reservations/[id]/route.ts', sha256: '07c3516b62db9eefea307b5008511d8526ffaca78329c17df4e9fe90dc5adcbc' },
   // LANE-01 (2026-09-25): re-pinned — type and name come from the one reader keyed on
   // reservations.lane; the local PROVIDER_TYPE map and hotelName ?? provider are gone.
   // The query and its scoping are unchanged.
   // Was 632107557b1fb4b7de840fb2ff0785bf643a3a28f3e5a2a6d337fed4c71720d0 at main 8f06554c.
-  { file: 'src/app/api/reservations/unattached/route.ts', sha256: '2d2574dd7b250537bf307c0ef4e23da200aa3f074ded2e8dbef801fcdcf52a72' },
+  // SEC-03 (2026-09-25): re-pinned — amountUsd is null when the vendor stated no
+  // price (finalPriceCents NULL), never 0, never NaN. The query and its scoping are
+  // unchanged.
+  // Was 2d2574dd7b250537bf307c0ef4e23da200aa3f074ded2e8dbef801fcdcf52a72 at main a5e66262.
+  { file: 'src/app/api/reservations/unattached/route.ts', sha256: '44b5f0738beab3381fd656e31ce7b7a9082f02e679e1ae9ff6d1b1538f969634' },
   // LANE-01 (2026-09-25): re-pinned — type and name come from the one reader keyed on
   // reservations.lane; the local PROVIDER_TYPE map and hotelName ?? provider are gone.
   // The query and its ownership gate are unchanged.
   // Was 4d58cfc052f756c30c749383654a5de88184d8cda068a3c00342abba4dbf07da at main 8f06554c.
-  { file: 'src/app/api/trips/[id]/reservations/route.ts', sha256: 'c4c2c2a391eed73310f34545a9ab63838325f8f1bbee8467ab86cc9d6e9df110' },
+  // SEC-03 (2026-09-25): re-pinned — amountUsd is null when the vendor stated no
+  // price (finalPriceCents NULL), never 0, never NaN. The query and its ownership
+  // gate are unchanged.
+  // Was c4c2c2a391eed73310f34545a9ab63838325f8f1bbee8467ab86cc9d6e9df110 at main a5e66262.
+  { file: 'src/app/api/trips/[id]/reservations/route.ts', sha256: '8330e076bcee9acfbf0ccb02dfd58fe311dd1f7c8093bdd8d2d567e37c978c77' },
   // the surfaces the Search section mounts, and the panels they open
   // ACTIVITY-01 (2026-09-22): re-dated — the Things-to-do mount loses the inert fan-out props (the search fires only on the SEARCH press) and gains authed / currentTrip / onCommitted like flights, so a tour can be saved to the selected trip (STEP 4). A tour takes its time on the day; no prebook/book/pay/cancel call changed.
   // Was 4eaae575daae7dcbf0795a40547cf1613af7aa03e2e675bf4aed9ad182642522 at main dfc02881.
@@ -280,13 +318,27 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // passes it under the hotel lane's rule, authed && currentTrip) and carries it in
   // the returnUrl only when present. No payment path, no prebook call changed.
   // Was 559fa688d4c88dfc7fc83bf1ff91fba13dff4e9cace83e83b82198a505dba98c at main 8f06554c.
-  { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: '6fc3a51fcf5e2a552ca7d6cd7ccf88ed0997b4b4ed77f12706cd76944d6be92c' },
+  // SEC-03 (2026-09-25): re-pinned — the returnUrl carries IDS ONLY (prebookId,
+  // transactionId, tripId when present): the contact email no longer rides the
+  // redirect. The panel states the search currency to the prebook route, which stores
+  // it beside the contact. No payment path changed; the prebook call gains one stated
+  // field.
+  // Was 6fc3a51fcf5e2a552ca7d6cd7ccf88ed0997b4b4ed77f12706cd76944d6be92c at main a5e66262.
+  { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: '85abd313700af8443d1f76c325c6b9bc15db3ee785011b445e3c4fe1ea16a864' },
   { file: 'src/components/trips/CancelBookingDialog.tsx', sha256: '7e50c4ece72171929446f4734622ccdf8b6b75bb87c2c6c3c5aa101ec26fd95d' },
-  { file: 'src/components/trips/TripBookings.tsx', sha256: '1c74ce7438ea6ce7013a4c8de4bbd685f2865e2fe0f8d3c3a7f4a119435cc5bd' },
+  // SEC-03 (2026-09-25): re-pinned — a booking whose price the vendor did not state
+  // (amountUsd null) renders "price not stated" and is left out of the total, which
+  // says how many it left out. Display only; no call changed.
+  // Was 1c74ce7438ea6ce7013a4c8de4bbd685f2865e2fe0f8d3c3a7f4a119435cc5bd at main a5e66262.
+  { file: 'src/components/trips/TripBookings.tsx', sha256: '65a108fefa586716edb5754feb121110366925a052b6ed22570438e76236bc15' },
   // REPAINT-04 (2026-09-21): re-pinned — one class on the "Add to <trip>" ghost button
   // (text-white → text-brand-purple, invisible on cream). Paint only; no call changed.
   // Was d5f8e0be428de6054eb756c0301c1e064e825f6ddb013d45cc332b7ca6157492 at main b9eac34a.
-  { file: 'src/components/trips/UnattachedBookings.tsx', sha256: '09d7767b9a1679d0481efd506da7002b4ecfa4ee6a68f539a53e997726bda44b' },
+  // SEC-03 (2026-09-25): re-pinned — a booking whose price the vendor did not state
+  // (amountUsd null) renders "price not stated", never $0.00. Display only; no call
+  // changed.
+  // Was 09d7767b9a1679d0481efd506da7002b4ecfa4ee6a68f539a53e997726bda44b at main a5e66262.
+  { file: 'src/components/trips/UnattachedBookings.tsx', sha256: 'dafd41592fcc127da1822b65a43d64f3d841c268f69f5b60cd23c51e0f339fa6' },
   // HOTEL-02 (2026-09-22): re-dated — the dead lodging default constant deleted; the lodging commit names the vendor's hotel. The stay's clock is the property's, read once at commit; no prebook/book/pay/cancel call changed.
   // Was 8c5bf217bf1a2c2b65f3f969be5c02016455d53d9977fa5406600d14cb894ed5 at main 81045434.
   { file: 'src/components/trips/TripPlannerAI.tsx', sha256: '9cdf491def14615d0f5b0d8ba168bb7026131b05c12b3d3a113be0b3ee3ddf9d' },
