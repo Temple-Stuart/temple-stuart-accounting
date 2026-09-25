@@ -10,8 +10,8 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { code } from '../sourceText';
+import FIXTURE from './fixtureFilter01Requests.json';
 
 const HOTEL_VIEW = 'src/components/trips/HotelResultsView.tsx';
 const HOTEL_CONTAINER = 'src/components/trips/PublicHotelSearch.tsx';
@@ -86,7 +86,7 @@ test('flights: per leg, the fields, then the six controls and the statement, the
 });
 
 test('the request each Search press sends is the fixture captured on main — the walk asserts it byte for byte', () => {
-  const fixture = JSON.parse(readFileSync('src/lib/__tests__/fixtureFilter01Requests.json', 'utf8')) as Record<string, string>;
+  const fixture = FIXTURE as Record<string, string>;
   for (const key of ['hotels', 'flights', 'activitiesSearch', 'activitiesNext', 'activitiesResearch']) {
     assert.ok(typeof fixture[key] === 'string' && fixture[key].length > 20, `${key} was captured`);
   }
