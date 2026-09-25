@@ -197,6 +197,14 @@ export async function POST(request: NextRequest) {
                 bookingType: isAccount ? 'account' : 'guest',
                 guestEmail: isAccount ? null : holder.email,
                 provider: 'liteapi',
+                // LANE-01 (2026-09-25): the lane this route already hands the
+                // landing (below, lane: 'hotel') is written on the row, so a reader
+                // never derives it from `provider`. The stated name rides beside
+                // hotelName as displayName — the one column every lane's name lives
+                // in; null here means the vendor stated no name, and the reader
+                // shows the lane word and the confirmation, never 'liteapi'.
+                lane: 'hotel',
+                displayName: resolvedHotelName,
                 providerBookingId: parsed.bookingId,
                 providerConfirmationCode: parsed.hotelConfirmationCode || parsed.supplierConfirmationNum || null,
                 status,

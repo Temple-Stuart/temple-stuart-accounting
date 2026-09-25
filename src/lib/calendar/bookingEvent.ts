@@ -104,36 +104,44 @@ export function stayCalendarDecision(input: {
 }
 
 /**
- * A FLIGHT.
+ * A FLIGHT — LANE-01 (2026-09-25): ITS DAY IS THE VENDOR'S STATED DEPARTURE.
  *
- * THE FINDING (CAL-01 STEP 1.5) IS: NOT FOUND. The landed payload carries NO DATE
- * OF TRAVEL anywhere on it.
- * `data[0].booking` — the object flightBookingObjectOf returns
- * (liteapiFlightsClient.ts:423-438) and the arrival stores — holds bookingId,
- * bookingRef, status, paymentStatus, pricing, payment, order.reference.provider.pnr
- * and passengers. parseFlightBookResult (:443-463) maps exactly those seven fields
- * and no date. The only dates anywhere on it are each passenger's dateOfBirth and
- * documentExpiry, which are not when the plane leaves. The route's own body is
- * `{ prebookId, transactionId }` (flights/book/route.ts:15) so no date arrives from
- * the client either, and the reservation is written with checkinDate and
- * checkoutDate explicitly null (:154-155).
+ * CAL-01 STEP 1.5 found the BOOK payload carries no date of travel (NOT FOUND:
+ * data[0].booking holds bookingId, bookingRef, status, paymentStatus, pricing,
+ * payment, order, passengers — and no departure). That finding stands, and this
+ * leaf still invents nothing from it. What changed is WHERE the day comes from:
+ * the vendor documents GET /flights/bookings/{bookingId} answering
+ * journey.segments[] with each segment's departureTime and direction, and
+ * LANE-01's refresh (src/lib/reservations/refreshFlightReservation.ts) reads the
+ * OUTBOUND segment's departureTime and hands it here. No createdAt, no today,
+ * no default: a flight whose outbound departure the vendor has not stated gets
+ * NO ROW and a named reason from the refresh, never from a guess.
  *
- * A flight therefore has no day, and by the ruling it gets NO ROW and a named
- * failure. The departure date exists on the SEARCH/verify shape
- * (FlightSegment.departureTime, :185) — carrying it through prebook to book is a
- * change to the booking contract and belongs to its own ruling.
+ * One day, not a span: the row sits on the day the outbound leg departs
+ * (endDate null), at the same midday-UTC instant every booking row uses.
  */
-export function flightCalendarDecision(input: {
+export function flightStatedCalendarDecision(input: {
   reservationId: string;
-  /** The landed booking object, so the reason names what was actually looked at. */
-  landedFields: readonly string[];
+  userId: string | null;
+  /** The row's customer-facing name (the stated route, or the lane word and the reference). */
+  name: string;
+  /** The OUTBOUND segment's departureTime as the vendor stated it (ISO 8601). */
+  departureTime: string;
 }): BookingCalendarDecision {
+  if (!/^\d{4}-\d{2}-\d{2}/.test(input.departureTime)) {
+    return {
+      write: false,
+      reason: `reservation ${input.reservationId}: the vendor's departureTime "${input.departureTime}" does not open with a date — no day to sit on, and a date is never invented`,
+    };
+  }
   return {
-    write: false,
-    reason:
-      `reservation ${input.reservationId}: a flight booking carries no date of travel, so it has no day to sit on. ` +
-      `The landed booking object holds [${input.landedFields.join(', ') || 'no fields'}] and none of them is a departure date ` +
-      `(CAL-01 STEP 1.5: NOT FOUND). No row written; no date invented.`,
+    write: true,
+    userId: input.userId,
+    sourceId: bookingCalendarSourceId(input.reservationId),
+    title: `${input.name} (flight)`,
+    icon: '\u2708\uFE0F',
+    startDate: dayOf(input.departureTime),
+    endDate: null,
   };
 }
 

@@ -158,6 +158,7 @@ import { DYNAMIC_READ_ENV, LIBRARY_READ_ENV } from '../src/lib/envLaw';
 import { EXPECTED_FEED_COUNT, FEED_COST, FEED_IDS, SCAN_COST, feedCostLaw, scanCostLine } from '../src/lib/observatory/feedCost';
 import { FINNHUB_TTL, finnhubCallsPerSymbol, finnhubTtlLaw, slowTierEndpoints } from '../src/lib/convergence/finnhub-ttl';
 import { PURCHASABLE_ENTITLEMENT_KEYS } from '../src/lib/stripe';
+import { dailyCap } from '../src/lib/travelSearchQuota';
 
 /**
  * Routes whose door is outside the app map: the front door and its marketing
@@ -4879,7 +4880,7 @@ lawGuard('The flight payment-rail law', () => {
     if (!fpanel.includes(key)) railFail(`${FPANEL} returnUrl does not carry ${key} — the confirm page finishes the booking from what the link carries and invents nothing`);
   }
   if (!fconfirm.includes("'/api/travel/liteapi/flights/book'")) railFail(`${FCONFIRM} does not complete the booking through the existing flights book route`);
-  if (!/body: JSON\.stringify\(\{ prebookId, transactionId, contactEmail \}\)/.test(fconfirm)) railFail(`${FCONFIRM} does not post the three references the panel handed it`);
+  if (!/body: JSON\.stringify\(\{ prebookId, transactionId, contactEmail, \.\.\.\(tripId \? \{ tripId \} : \{\}\) \}\)/.test(fconfirm)) railFail(`${FCONFIRM} does not post the three references the panel handed it`);
   if (!/data-flight-email="sent"/.test(fconfirm) || !/data-flight-email="failed"/.test(fconfirm)) railFail(`${FCONFIRM} does not say whether the confirmation email went out — FL-5b rule moved here with the booking it belongs to`);
   if (!/setPhase\('incomplete'\)/.test(fconfirm)) railFail(`${FCONFIRM} does not state a link that arrived without its references — a missing value is said, never guessed`);
   {
@@ -4889,6 +4890,142 @@ lawGuard('The flight payment-rail law', () => {
 
   if (railViolations === 0) console.log(`✔ The flight payment-rail law passed — the flights checkout drives the vendor own documented wrapper: publicKey is the environment label from the server (never a key, never a default), the prebook publishableKey is not read at all because the vendor documents it nullable, and the wrapper draws the form from the prebook secretKey; CHECKOUT-01 four named failures (payment_env · prebook · sdk_script · form_absent), first reason kept, FORM_DEADLINE_MS watchdog and no card asked for beside a failure all hold, as does CHECKOUT-03 Stripe.js gate; the rail redirect lands on /booking/flight-confirm, public, which finishes the booking through the existing route.`);
   else console.log(`✖ The flight payment-rail law FAILED — ${railViolations} violation(s).`);
+});
+
+// ── THE LANE LAW (LANE-01, 2026-09-25) ──────────────────────────────────────
+// A RESERVATION KNOWS WHAT IT IS.
+//
+// WHAT THIS CLOSES. reservations had no lane column. The lane IS known at book time
+// (each book route hands landLiteApiBooking lane: hotel | flight) and was thrown
+// away. Three routes each carried their own PROVIDER_TYPE map deriving a type from
+// `provider`, every one mapping liteapi to hotel — and LiteAPI is now both rails,
+// so every flight rendered as a hotel. Each named a row hotelName ?? provider: a
+// flight writes hotelName null, so a paid flight was named "liteapi" on a
+// customer-facing ledger. The flights book route hardcoded tripId null, wrote no
+// calendar row (the book payload has no date of travel) and froze the status at
+// "pending" forever.
+//
+// THE RULE. Type comes from reservations.lane, written by the book route from the
+// value it already holds — never from provider. A name comes from stated fields
+// only; nothing displays a provider slug. A flight's day, name and status come from
+// the vendor's GET /flights/bookings/{id}, applied ONCE per booking after the
+// reservation is committed (CAL-01's ordering), through ONE shared function that
+// the retro script also runs; a failed or empty answer changes nothing, named. The
+// migration's backfill CASE is a one-time act and exists in no runtime code.
+lawGuard('The lane law', () => {
+  let laneViolations = 0;
+  const laneFail = (m: string) => { laneViolations += 1; violations.push(`lane law: ${m} (LANE-01)`); };
+
+  const LANE_LEAF = 'src/lib/reservations/lane.ts';
+  const STATUS_LEAF = 'src/lib/reservations/flightStatus.ts';
+  const REFRESH_LEAF = 'src/lib/reservations/refreshFlightReservation.ts';
+  const FLIGHT_BOOK = 'src/app/api/travel/liteapi/flights/book/route.ts';
+  const HOTEL_BOOK = 'src/app/api/travel/liteapi/book/route.ts';
+  const LANE_READERS = [
+    'src/app/api/reservations/[id]/route.ts',
+    'src/app/api/reservations/unattached/route.ts',
+    'src/app/api/trips/[id]/reservations/route.ts',
+    'src/app/api/trips/[id]/actuals/route.ts',
+    'src/components/hub/MatchReviewSection.tsx',
+  ];
+  const RETRO = 'scripts/lane-01-retro-flights.ts';
+  const LANE_MIGRATION = ALL_MIGRATIONS.find((m) => /_lane_01_/.test(m.dir));
+
+  // 1. ONE READER, KEYED ON LANE. No PROVIDER_TYPE map anywhere; no name falls
+  //    through to the provider; every reader goes through the leaf.
+  const leaf = codeOf(LANE_LEAF);
+  if (!/export function reservationIdentity\(/.test(leaf)) laneFail(`${LANE_LEAF} does not export reservationIdentity — the one reader`);
+  if (/\.provider\b/.test(leaf)) laneFail(`${LANE_LEAF} reads .provider — type comes from lane, never from the provider`);
+  if (/liteapi|viator|duffel/.test(leaf)) laneFail(`${LANE_LEAF} knows a provider by name — a lane is not a provider`);
+  if (!/if \(!isReservationLane\(row\.lane\)\) \{\s*throw new Error/.test(leaf)) laneFail(`${LANE_LEAF} does not throw on a lane the column does not admit — an unknown lane is never guessed around`);
+  for (const f of staySrcFiles()) {
+    const src = codeOf(f);
+    if (/PROVIDER_TYPE/.test(src)) laneFail(`${f} carries a PROVIDER_TYPE map — type comes from reservations.lane through ${LANE_LEAF}`);
+    if (/hotelName \?\? [a-zA-Z.]*provider\b/.test(src)) laneFail(`${f} names a row hotelName ?? provider — a flight has no hotelName and would be named after its vendor`);
+    if (/\$\{[a-zA-Z.]*provider\} booking/.test(src)) laneFail(`${f} names a row after its provider ("<provider> booking") — nothing displays a vendor slug`);
+  }
+  for (const f of LANE_READERS) {
+    const src = codeOf(f);
+    if (!/reservationIdentity\(/.test(src)) laneFail(`${f} does not read type and name through reservationIdentity — the one reader`);
+    // Using the leaf for the NAME while reading the TYPE straight off the row is the
+    // same defect by another door: the one reader decides what a row is.
+    if (/\btype: (r|row|reservation|q\.reservation)\.(lane|provider)\b/.test(src)) laneFail(`${f} reads a row type past the leaf (type: r.lane / r.provider) — the one reader decides what a row is`);
+  }
+
+  // 2. THE COLUMN. NOT NULL, no default, CHECK-enforced; both book routes write the
+  //    lane they already hold.
+  if (!/\n  lane\s+String\s+@db\.VarChar\(20\)\n/.test(schemaText)) laneFail('prisma/schema.prisma: reservations.lane is not a NOT NULL VarChar(20) with no @default');
+  if (!/\n  displayName\s+String\?\s+@db\.VarChar\(255\)\n/.test(schemaText)) laneFail('prisma/schema.prisma: reservations.displayName is not a nullable VarChar(255)');
+  if (!/lane: 'hotel',\s*displayName: resolvedHotelName,/.test(codeOf(HOTEL_BOOK))) laneFail(`${HOTEL_BOOK} does not write lane: hotel and its stated name on the row`);
+  if (!/lane: 'flight',\s*displayName: null,/.test(codeOf(FLIGHT_BOOK))) laneFail(`${FLIGHT_BOOK} does not write lane: flight on the row (the name is not stated at book time)`);
+
+  // 3. THE BACKFILL IS A MIGRATION-ONLY ACT. The CASE exists in the migration and in
+  //    no runtime code.
+  if (!LANE_MIGRATION) laneFail('no prisma/migrations/*_lane_01_*/migration.sql');
+  else {
+    const sql = LANE_MIGRATION.sql;
+    for (const must of ['ADD COLUMN "lane" VARCHAR(20);', "THEN 'activity'", "THEN 'flight'", "ELSE 'hotel'", 'ALTER COLUMN "lane" SET NOT NULL;', "CHECK (\"lane\" IN ('hotel', 'flight', 'activity'))", 'NO RUNTIME CODE MAY EVER DERIVE lane THIS WAY']) {
+      if (!sql.includes(must)) laneFail(`the LANE-01 migration lacks "${must}"`);
+    }
+  }
+  for (const f of [...staySrcFiles(), RETRO]) {
+    const src = codeOf(f);
+    if (/checkinDate"? IS NULL|checkinDate === null \? 'flight'|provider === 'viator' \? 'activity'|CASE\s+WHEN\s+"?provider"?\s*=\s*'viator'/i.test(src)) {
+      laneFail(`${f} derives a lane from a stay date or a provider — the migration backfill CASE is a one-time act, and runtime code writes the lane it holds`);
+    }
+  }
+
+  // 4. THE FLIGHT'S DAY, NAME AND STATUS ARE VENDOR-STATED, THROUGH ONE FUNCTION,
+  //    AFTER THE COMMIT, OUTSIDE IT, IN ITS OWN TRY/CATCH — CAL-01's ordering.
+  const refresh = codeOf(REFRESH_LEAF);
+  if (!/export async function refreshFlightReservation\(/.test(refresh)) laneFail(`${REFRESH_LEAF} does not export refreshFlightReservation`);
+  if (/createdAt/.test(refresh)) laneFail(`${REFRESH_LEAF} reads createdAt — a flight day is the vendor stated departure, never the booking instant`);
+  if (/new Date\(\)/.test(refresh)) laneFail(`${REFRESH_LEAF} reads the clock — nothing here is today`);
+  if (/\?\? '(pending|confirmed|cancelled)'/.test(refresh)) laneFail(`${REFRESH_LEAF} defaults a status — the vendor is the only source that may change one`);
+  if (!/s\.direction === 'OUTBOUND'/.test(refresh)) laneFail(`${REFRESH_LEAF} does not pick the segment the vendor MARKED outbound`);
+  if (!/flightProviderStatusToReservation\(stated\.status\)/.test(refresh)) laneFail(`${REFRESH_LEAF} does not map the status through ${STATUS_LEAF}`);
+  if (!/writeBookingCalendarEvent\(\s*ports\.calendar,\s*flightStatedCalendarDecision\(/.test(refresh)) laneFail(`${REFRESH_LEAF} does not write the CAL-01 row through the CAL-01 writer`);
+  const fb = codeOf(FLIGHT_BOOK);
+  if (!/flightProviderStatusToReservation\(parsed\.status\)/.test(fb)) laneFail(`${FLIGHT_BOOK} does not map the status through ${STATUS_LEAF} — the two callers would drift`);
+  if (/'TICKETED'/.test(fb)) laneFail(`${FLIGHT_BOOK} still carries an inline status mapping beside the leaf`);
+  {
+    const txAt = fb.indexOf('prisma.$transaction');
+    const at = fb.indexOf('refreshFlightReservation(');
+    if (at < 0) laneFail(`${FLIGHT_BOOK} never calls refreshFlightReservation — a flight gets no day, no name and no refreshed status`);
+    else {
+      if (!(txAt > 0 && txAt < at)) laneFail(`${FLIGHT_BOOK}: the refresh must come AFTER the reservation transaction`);
+      const between = fb.slice(txAt, at);
+      if (!/const result = landed\.reservation;/.test(between)) laneFail(`${FLIGHT_BOOK}: the transaction has not produced its reservation before the refresh runs`);
+      const after = fb.slice(at, at + 1900);
+      if (!/catch \(calErr\)/.test(after)) laneFail(`${FLIGHT_BOOK}: the refresh has no try/catch of its own — a vendor failure would fail a PAID booking`);
+      if (!/prismaBookingCalendar\(prisma\)/.test(after)) laneFail(`${FLIGHT_BOOK}: the refresh must write through the top-level client, never the transaction client`);
+      if (/prismaBookingCalendar\(tx\)/.test(after)) laneFail(`${FLIGHT_BOOK}: the refresh enlists the transaction client`);
+      const before = fb.slice(Math.max(0, at - 400), at);
+      if (!/reserveTravelSearch\('liteapiflightbookingread'\)/.test(before)) laneFail(`${FLIGHT_BOOK}: the GET is not reserved against its daily cap immediately before it runs`);
+      const catchAt = after.indexOf('catch (calErr)');
+      if (catchAt > 0 && /return NextResponse|throw /.test(after.slice(catchAt, catchAt + 400))) laneFail(`${FLIGHT_BOOK}: the refresh catch fails the booking`);
+      if (!/LANE-01 refresh did not apply/.test(after)) laneFail(`${FLIGHT_BOOK}: a refresh that does not apply is not logged by name`);
+    }
+  }
+  if (dailyCap('liteapiflightbookingread') > 100) laneFail(`liteapiflightbookingread has no tight safe-default cap (${dailyCap('liteapiflightbookingread')}) — the GET is treated as metered`);
+
+  // 5. THE TRIP. The flights route takes tripId under the hotel route OWN gate.
+  for (const line of ["{ error: 'Sign in to save a booking to a trip.' }", 'where: { id: tripId, userId: user!.id }', "{ error: 'Trip not found' }, { status: 404 }", 'tripId: resolvedTripId,']) {
+    if (!fb.includes(line)) laneFail(`${FLIGHT_BOOK} lacks the hotel route gate line ${line}`);
+  }
+  if (/tripId: null,/.test(fb)) laneFail(`${FLIGHT_BOOK} still hardcodes tripId: null`);
+  if (!/tripId=\{authed === true && currentTrip \? currentTrip\.id : undefined\}/.test(codeOf('src/components/trips/PublicFlightSearch.tsx'))) laneFail('PublicFlightSearch.tsx does not pass the selected trip under the hotel lane rule (authed === true && currentTrip)');
+  if (!/\.\.\.\(tripId \? \{ tripId \} : \{\}\),/.test(codeOf('src/components/trips/LiteApiFlightCheckoutPanel.tsx'))) laneFail('LiteApiFlightCheckoutPanel.tsx does not carry tripId in the returnUrl when there is one');
+  if (!/params\.get\('tripId'\)/.test(codeOf('src/app/booking/flight-confirm/page.tsx'))) laneFail('/booking/flight-confirm does not read tripId from the link');
+
+  // 6. THE RETRO runs THE shared function, guarded the same way.
+  const retro = codeOf(RETRO);
+  if (!/refreshFlightReservation\(/.test(retro)) laneFail(`${RETRO} does not run refreshFlightReservation — a second implementation would drift`);
+  if (!/reserveTravelSearch\('liteapiflightbookingread'\)/.test(retro)) laneFail(`${RETRO} does not reserve the daily cap before each GET`);
+  if (!/where: \{ lane: 'flight' \}/.test(retro)) laneFail(`${RETRO} does not select flight rows by lane`);
+
+  if (laneViolations === 0) console.log(`✔ The lane law passed — type comes from reservations.lane through ONE reader (${LANE_READERS.length} readers, 0 PROVIDER_TYPE maps, no name falls through to a provider slug); both book routes write the lane they hold; the migration backfills once and its CASE exists in no runtime file; a flight day, name and status are vendor-stated through one function, after the commit, outside it, in its own try/catch, reserved against liteapiflightbookingread (${dailyCap('liteapiflightbookingread')}/day); flights attach to a trip under the hotel route own gate; the retro runs the same function.`);
+  else console.log(`✖ The lane law FAILED — ${laneViolations} violation(s).`);
 });
 
 // ── THE ROW LAW (TRAVEL-ROW-01, 2026-09-23) ─────────────────────────────────
@@ -5574,7 +5711,11 @@ lawGuard('The row law', () => {
     // the booking completes on /booking/flight-confirm because that rail redirects.
     // Where it mounts, which TRAVEL-ROW-01 owns, is untouched.
     // Was 21b681fca23325df4e0925ce53515bb483a9ea75f0129ab0ab5720b44057c806 at main b75c3ab1.
-    { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: '559fa688d4c88dfc7fc83bf1ff91fba13dff4e9cace83e83b82198a505dba98c' },
+    // LANE-01 (2026-09-25): re-pinned by its own ruling — the panel takes an optional
+    // tripId and carries it in the returnUrl when present. Where it mounts, which
+    // TRAVEL-ROW-01 owns, is untouched.
+    // Was 559fa688d4c88dfc7fc83bf1ff91fba13dff4e9cace83e83b82198a505dba98c at main 8f06554c.
+    { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: '6fc3a51fcf5e2a552ca7d6cd7ccf88ed0997b4b4ed77f12706cd76944d6be92c' },
   ];
   const flowPins = codeOf('src/lib/travelBookingFlow.ts');
   const flowNotes = commentsOf('src/lib/travelBookingFlow.ts');

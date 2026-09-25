@@ -239,7 +239,8 @@ test('the booking-flow pin holds for every file still on it, with dated HOTEL-01
   const booking: Record<string, string> = {
     'src/app/api/travel/liteapi/prebook/route.ts': 'dd6e8c9a0f1437a0661283bb91dc00aeb6dcaf6c227cefc180a3e01f1a60f351',
     // CAL-01 (2026-09-23): a stay now lands one calendar row; the booking itself is unchanged.
-    'src/app/api/travel/liteapi/book/route.ts': '792da953ba83fe8a8bc95d79045a0fabd00bfc807fab3b726a69dd85ef136eb1',
+    // LANE-01 (2026-09-25): the row carries its lane and stated name; the booking itself is unchanged. Was 792da953ba83fe8a8bc95d79045a0fabd00bfc807fab3b726a69dd85ef136eb1.
+    'src/app/api/travel/liteapi/book/route.ts': '41f5eebfba6dacf4d613790dc0fa173e4c8cad012c42915d68d8a2cba8cf314a',
     // Was 77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5 before CHECKOUT-01.
     // CHECKOUT-03 (2026-09-23): the panel waits on Stripe.js before handing off.
     'src/components/trips/CheckoutPanel.tsx': 'b3fd49cbd8acf9ab3d5afb11fdc42f61089722d2951dd6cbfa6a8dc2bdf19b46',

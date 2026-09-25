@@ -168,8 +168,8 @@ export const CALENDAR_SOURCES: readonly CalendarSourceRule[] = [
     icon: '🏨',
     tint: TINTS.amber,
     label: 'Bookings',
-    writtenBy: 'src/lib/calendar/prismaBookingCalendar.ts:34, from src/app/api/travel/liteapi/book/route.ts:256 (stays) · src/app/api/travel/liteapi/flights/book/route.ts:257 (flights — writes no row, see CAL-01)',
-    why: 'a room you have paid for, on the days you are in it — written when the booking is confirmed and the money has moved, not when a trip was planned. A flight booking writes nothing here: its landed payload carries no date of travel, so it has no day to sit on',
+    writtenBy: 'src/lib/calendar/prismaBookingCalendar.ts:34, from src/app/api/travel/liteapi/book/route.ts:264 (stays) · src/lib/reservations/refreshFlightReservation.ts:156 (flights — LANE-01, from the vendor\u2019s stated outbound departure, called after the flights book route commits and by the retro script)',
+    why: 'a room or a seat you have paid for, on the day you use it — a stay spans its check-in to check-out; a flight sits on the day its outbound leg departs, as the vendor states it (LANE-01) — written when the booking is confirmed and the money has moved, not when a trip was planned',
   },
 ] as const;
 

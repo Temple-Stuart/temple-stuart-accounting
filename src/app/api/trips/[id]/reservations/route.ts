@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { reservationIdentity } from '@/lib/reservations/lane';
 
 // GET /api/trips/[id]/reservations — a trip's ACTUAL (booked/paid) items.
 //
@@ -15,12 +16,9 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 // Money is returned as USD (finalPriceCents / 100) so the Actual row matches the
 // budget route's USD amounts.
 
-// The provider channel → a plain item type for the UI.
-const PROVIDER_TYPE: Record<string, string> = {
-  liteapi: 'hotel',
-  viator: 'activity',
-  duffel: 'flight',
-};
+// LANE-01 (2026-09-25): type and name come from the ONE reader, keyed on the
+// row's lane — never from `provider` (LiteAPI is both rails), never falling
+// through to the provider slug.
 
 export async function GET(
   request: Request,
@@ -50,9 +48,9 @@ export async function GET(
 
     const reservations = rows.map((r) => ({
       id: r.id,
-      name: r.hotelName ?? r.provider,
+      name: reservationIdentity(r).name,
       provider: r.provider,
-      type: PROVIDER_TYPE[r.provider] ?? r.provider,
+      type: reservationIdentity(r).type,
       amountUsd: r.finalPriceCents / 100,
       currency: r.currency,
       checkIn: r.checkinDate,

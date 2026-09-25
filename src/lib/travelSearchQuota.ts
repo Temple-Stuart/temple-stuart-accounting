@@ -66,6 +66,14 @@ const PROVIDER_SAFE_DEFAULT_CAP: Record<string, number> = {
   // 'flightbooking' bucket is gone with its route.) Raise via
   // TRAVEL_SEARCH_DAILY_CAP_LITEAPIFLIGHTBOOKING on a real volume plan.
   liteapiflightbooking: 25,
+  // LANE-01 (2026-09-25): GET /flights/bookings/{bookingId} — the refresh that gives
+  // a flight its day, its name and its current status. One call per flight booking
+  // from the book route (after the reservation is committed) and one per row from
+  // the retro script. The vendor's reference says nothing about its cost, so it is
+  // treated as METERED and capped like the money calls it follows: 50/day = the
+  // booking cap's 25 twice over, room for a retro pass. Raise via
+  // TRAVEL_SEARCH_DAILY_CAP_LITEAPIFLIGHTBOOKINGREAD on a real volume plan.
+  liteapiflightbookingread: 50,
   // ACTIVITY-01 STEP 4 (2026-09-22): the Things-to-do SAVE reads Viator three times per
   // attempt — GET /products/{code}, GET /availability/schedules/{code}, POST
   // /exchange-rates (skipped on a cache hit or a same-currency schedule) — each reserved

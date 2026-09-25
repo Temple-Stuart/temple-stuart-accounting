@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { reservationIdentity } from '@/lib/reservations/lane';
 
 // ─── GET /api/trips/[id]/actuals (PR-MATCH-3) — the travel LENS ──────────────
 // Read-only per-trip rollup of REAL money against the plan:
@@ -50,6 +51,8 @@ export async function GET(
       select: {
         id: true, provider: true, hotelName: true, finalPriceCents: true,
         currency: true, status: true, createdAt: true, checkinDate: true, checkoutDate: true,
+        // LANE-01: the one reader's inputs.
+        lane: true, displayName: true, providerConfirmationCode: true, providerBookingId: true,
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -73,7 +76,8 @@ export async function GET(
       const links = linksByReservation.get(r.id) ?? [];
       return {
         reservationId: r.id,
-        label: r.hotelName ?? `${r.provider} booking`,
+        // LANE-01: the one reader — the stated name, or the lane and the reference.
+        label: reservationIdentity(r).name,
         provider: r.provider,
         status: r.status,
         finalPriceCents: r.finalPriceCents,

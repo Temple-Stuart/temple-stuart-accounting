@@ -86,7 +86,12 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // call, the same landing, the same reservation and commission rows, the same
   // whitelisted envelope. No budget_line_items, no budgets, no journal entry.
   // Was 69abc595d70da025ac088ec85dc136ca6d6a6576a504d3c4b441e0434508b567 at main 82e2250b.
-  { file: 'src/app/api/travel/liteapi/book/route.ts', sha256: '792da953ba83fe8a8bc95d79045a0fabd00bfc807fab3b726a69dd85ef136eb1' },
+  // LANE-01 (2026-09-25): re-pinned — the row now carries the lane this route already
+  // hands the landing (lane: 'hotel') and its stated name as displayName, beside
+  // hotelName. Two fields on the create, nothing else: the same guards, the same
+  // provider call, the same landing, the same calendar row, the same envelope.
+  // Was 792da953ba83fe8a8bc95d79045a0fabd00bfc807fab3b726a69dd85ef136eb1 at main 8f06554c.
+  { file: 'src/app/api/travel/liteapi/book/route.ts', sha256: '41f5eebfba6dacf4d613790dc0fa173e4c8cad012c42915d68d8a2cba8cf314a' },
   // CAL-01 (2026-09-23): re-pinned — the flight branch. The landed booking object
   // carries NO date of travel (STEP 1.5: NOT FOUND), so this route writes NO
   // calendar row and logs a named reason listing the payload's actual keys. No date
@@ -102,7 +107,17 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // failure is reported as email.sent=false while the booking still returns 200.
   // The provider call, the guards, the landing and the reservation are unchanged.
   // Was bbc045a7bb5415c938ac57bcec26fbf807ba7fe5155b119c598cbbf4333bf1fc at main 54f438f1.
-  { file: 'src/app/api/travel/liteapi/flights/book/route.ts', sha256: '7a92d920d3bd45ac1a10997c3eb6b2ee1b1495dd3eec73a45ec3d9185ec5cc92' },
+  // LANE-01 (2026-09-25): re-pinned — a flight reservation knows what it is. The row
+  // carries lane: 'flight'; tripId is accepted under the hotel route's OWN owner gate
+  // (guest with a trip → 401 by name, foreign trip → defensive 404) instead of the
+  // hardcoded null; the status maps through the one leaf both callers use; and AFTER
+  // the reservation commits — outside the transaction, in its own try/catch, reserved
+  // against 'liteapiflightbookingread' — ONE GET /flights/bookings/{id} gives the
+  // flight its day (the OUTBOUND departure → the CAL-01 row), its name (carrier +
+  // route → displayName) and its current status. A failed or empty answer changes
+  // nothing and is logged by name. The provider BOOK call and the landing are unchanged.
+  // Was 7a92d920d3bd45ac1a10997c3eb6b2ee1b1495dd3eec73a45ec3d9185ec5cc92 at main 8f06554c.
+  { file: 'src/app/api/travel/liteapi/flights/book/route.ts', sha256: '653c25f1b43caf2104d152f543cf04dcb960b0c6bfc7ceac2a4ce5dddb2480f7' },
   // FL-4c (2026-09-23): re-pinned — the envelope gains `paymentEnv`, the key env
   // derived server-side exactly as the hotel prebook returns it. The browser must
   // not guess which mode it is in, and /config is keyed on that label. Nothing
@@ -120,9 +135,21 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   { file: 'src/app/api/travel/visa/check/route.ts', sha256: '7ce03029e9f50915f673a6aebf28dd0a916631ef24d46862d60780dd93108ab9' },
   // the reservation routes — what a paid booking lands as, and how it is cancelled or adopted
   { file: 'src/app/api/reservations/[id]/cancel/route.ts', sha256: 'c9885c190fd4452be45d06f5a1de052b1f2732d7f0a4b2b8c925a978981d9d33' },
-  { file: 'src/app/api/reservations/[id]/route.ts', sha256: 'bf98a65cb2feed22731b09e1d6b3d21f4935fc5f021637e83884b23a9e30767f' },
-  { file: 'src/app/api/reservations/unattached/route.ts', sha256: '632107557b1fb4b7de840fb2ff0785bf643a3a28f3e5a2a6d337fed4c71720d0' },
-  { file: 'src/app/api/trips/[id]/reservations/route.ts', sha256: '4d58cfc052f756c30c749383654a5de88184d8cda068a3c00342abba4dbf07da' },
+  // LANE-01 (2026-09-25): re-pinned — type and name come from the one reader keyed on
+  // reservations.lane (src/lib/reservations/lane.ts); the local PROVIDER_TYPE map and
+  // hotelName ?? provider are gone. The auth chain and the one field it writes are unchanged.
+  // Was bf98a65cb2feed22731b09e1d6b3d21f4935fc5f021637e83884b23a9e30767f at main 8f06554c.
+  { file: 'src/app/api/reservations/[id]/route.ts', sha256: 'fce57d7972405b76cd952cb03fe5a49a244c877634265292acd750e3e05d0805' },
+  // LANE-01 (2026-09-25): re-pinned — type and name come from the one reader keyed on
+  // reservations.lane; the local PROVIDER_TYPE map and hotelName ?? provider are gone.
+  // The query and its scoping are unchanged.
+  // Was 632107557b1fb4b7de840fb2ff0785bf643a3a28f3e5a2a6d337fed4c71720d0 at main 8f06554c.
+  { file: 'src/app/api/reservations/unattached/route.ts', sha256: '2d2574dd7b250537bf307c0ef4e23da200aa3f074ded2e8dbef801fcdcf52a72' },
+  // LANE-01 (2026-09-25): re-pinned — type and name come from the one reader keyed on
+  // reservations.lane; the local PROVIDER_TYPE map and hotelName ?? provider are gone.
+  // The query and its ownership gate are unchanged.
+  // Was 4d58cfc052f756c30c749383654a5de88184d8cda068a3c00342abba4dbf07da at main 8f06554c.
+  { file: 'src/app/api/trips/[id]/reservations/route.ts', sha256: 'c4c2c2a391eed73310f34545a9ab63838325f8f1bbee8467ab86cc9d6e9df110' },
   // the surfaces the Search section mounts, and the panels they open
   // ACTIVITY-01 (2026-09-22): re-dated — the Things-to-do mount loses the inert fan-out props (the search fires only on the SEARCH press) and gains authed / currentTrip / onCommitted like flights, so a tour can be saved to the selected trip (STEP 4). A tour takes its time on the day; no prebook/book/pay/cancel call changed.
   // Was 4eaae575daae7dcbf0795a40547cf1613af7aa03e2e675bf4aed9ad182642522 at main dfc02881.
@@ -138,7 +165,9 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // Was fac335657e50b3fda3be9cf82053fce7f56f04f2c079a1f1a6c6f2c125d11359 at main b9eac34a.
   // TRAVEL-ROW-01 (2026-09-23): re-dated — the LiteApiFlightCheckoutPanel it mounts moves out of the tail of the page into <FlightPickerView/>'s `checkout` slot, so it opens in the strip under the selected fare; the panel's own file and the props it is given are unchanged. display is not booking; no prebook/book/pay/cancel call changed.
   // Was 4d7573d8600f0502fa42bfaadec3375d4d220dfaf2c357a9ceef2244ec9c7099 at main 97d6db04.
-  { file: 'src/components/trips/PublicFlightSearch.tsx', sha256: '6191de221cc37a2bcaddf499a903c0374d5f3488a9f79120b50e094af2975522' },
+  // LANE-01 (2026-09-25): re-pinned — the flight checkout is handed the selected trip exactly as the hotel checkout is (PublicHotelSearch.tsx:301): tripId only under authed === true && currentTrip, so a guest and the homepage book standalone. One prop on the mount; search and display unchanged; no prebook/book/pay/cancel call changed.
+  // Was 6191de221cc37a2bcaddf499a903c0374d5f3488a9f79120b50e094af2975522 at main 8f06554c.
+  { file: 'src/components/trips/PublicFlightSearch.tsx', sha256: 'b56a91016a338168bd3e98a6d007161669e932722103adfea9791ca17f1075c7' },
   // ACTIVITY-01 (2026-09-22): re-dated — the filters on the screen, sent on Search as the vendor's names, counted; the vendor's start cursor pages through its total; the picker view renders the cards; the nonce fan-out and the sign-up Book are gone; STEP 4 adds the Save — a date inside the trip, the ONE authed options read, the party from the operator's stated bands, the priced options and the commit. STEP 4b: the screen prices the SEALED quote and posts it back with its seal, the party and (for a variable duration) the end it picked inside the operator's stated range — no figure, no note, no clock. A tour takes its time on the day; no prebook/book/pay/cancel call changed.
   // Was 0251b470ea74f8cd787f0b5f6436f32e44615c29f00b6a757ea70bf79c1e2e03 at main dfc02881.
   // TRAVEL-ROW-01 (2026-09-23): re-dated — the tour's Save and the operator's end-time range move from a block after the options table onto the option row they act on; a tour is booked on Viator, so its Book is that same outbound link and no checkout mounts here. display is not booking; no prebook/book/pay/cancel call changed.
@@ -239,7 +268,11 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // four named failures, its watchdog and CHECKOUT-03's Stripe.js gate all ride
   // along. No prebook, book, pay or cancel ROUTE changed.
   // Was 21b681fca23325df4e0925ce53515bb483a9ea75f0129ab0ab5720b44057c806 at main b75c3ab1.
-  { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: '559fa688d4c88dfc7fc83bf1ff91fba13dff4e9cace83e83b82198a505dba98c' },
+  // LANE-01 (2026-09-25): re-pinned — the panel takes an optional tripId (the surface
+  // passes it under the hotel lane's rule, authed && currentTrip) and carries it in
+  // the returnUrl only when present. No payment path, no prebook call changed.
+  // Was 559fa688d4c88dfc7fc83bf1ff91fba13dff4e9cace83e83b82198a505dba98c at main 8f06554c.
+  { file: 'src/components/trips/LiteApiFlightCheckoutPanel.tsx', sha256: '6fc3a51fcf5e2a552ca7d6cd7ccf88ed0997b4b4ed77f12706cd76944d6be92c' },
   { file: 'src/components/trips/CancelBookingDialog.tsx', sha256: '7e50c4ece72171929446f4734622ccdf8b6b75bb87c2c6c3c5aa101ec26fd95d' },
   { file: 'src/components/trips/TripBookings.tsx', sha256: '1c74ce7438ea6ce7013a4c8de4bbd685f2865e2fe0f8d3c3a7f4a119435cc5bd' },
   // REPAINT-04 (2026-09-21): re-pinned — one class on the "Add to <trip>" ghost button
@@ -255,7 +288,13 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // HOTEL-02 (2026-09-22): re-dated — HotelContent types the vendor's documented check-in / check-out object; the two rating comments name their scales — types and comments only, no function body changed. The stay's clock is the property's, read once at commit; no prebook/book/pay/cancel call changed.
   // Was bbb4c9afb8a5cd6237088ce3a750bb9a22c2ef4fcbbadb25bf99db9b17413ac2 at main 81045434.
   { file: 'src/lib/liteapiClient.ts', sha256: '9840759972a7b97231ddaf0a3b51e766d78cd4922621f38519a5cbd81234f8cf' },
-  { file: 'src/lib/liteapiFlightsClient.ts', sha256: 'f5ecffcfa0b71b8cbe4ba8868a2f8aabd4e326129bacbf9a675e79b17e63fd2f' },
+  // LANE-01 (2026-09-25): re-pinned — one READ added: getFlightBooking (GET
+  // /flights/bookings/{id}) and its pure parser, on the same auth headers and the same
+  // non-2xx contract as the POSTs (throwFlightsNon2xx, lifted out of postFlightsAnswer
+  // so both share it — the POST's behaviour is byte-for-byte what it was). It moves no
+  // money and holds nothing. search / verify / prebook / book are unchanged.
+  // Was f5ecffcfa0b71b8cbe4ba8868a2f8aabd4e326129bacbf9a675e79b17e63fd2f at main 8f06554c.
+  { file: 'src/lib/liteapiFlightsClient.ts', sha256: '8130c9e36431d886f48648f2b2ae2ad4a86413d7a9037a8959a79c620b242bf7' },
   // FLIGHT-01 (2026-09-22): re-pinned — tri-state fare attributes, segment views with the operating carrier, the flight identity; the `!!terms` coercion gone. Search is not booking; no prebook/verify/book/pay/cancel call changed.
   // Was d851de5d68fada3cffddd88ddcc38005b5a9c739e73c0920c213f282c30fa879 at main b9eac34a.
   // HOTEL-01 (2026-09-22): re-pinned — the tri-state readers come from the one helper, src/lib/travel/stated.ts; no other change. Search and display are not booking; no prebook/book/pay/cancel call changed.
@@ -269,7 +308,9 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   { file: 'src/lib/arrivals/liteapiBooking.ts', sha256: '2297a1c8cf1e0de4e3255545835a909b367cc27aeaf18bf14533803f1f954aff' },
   // ACTIVITY-01 (2026-09-22): re-dated — the 'viatorsave' safe default cap (300/day: three reservations per Save attempt, ~100 attempts, the prebook precedent) joins PROVIDER_SAFE_DEFAULT_CAP; no existing bucket or function changed. A tour takes its time on the day; no prebook/book/pay/cancel call changed.
   // Was d85603f7cc6567c02769ac997bfdc8d6112855249b44f4bde9fdd8f35ffeeeea at main dfc02881.
-  { file: 'src/lib/travelSearchQuota.ts', sha256: '7bf2a177c44237379f1286b64c1f741c85ff01ea9e1498fe2f444dc82129d36f' },
+  // LANE-01 (2026-09-25): re-dated — the 'liteapiflightbookingread' safe default cap (50/day) joins PROVIDER_SAFE_DEFAULT_CAP for the one GET /flights/bookings/{id} per flight booking and per retro row; no existing bucket or function changed. No prebook/book/pay/cancel call changed.
+  // Was 7bf2a177c44237379f1286b64c1f741c85ff01ea9e1498fe2f444dc82129d36f at main 8f06554c.
+  { file: 'src/lib/travelSearchQuota.ts', sha256: 'a99293c2855a976731a192b944191f60a7f9018ec2230f86c5ee74e8db8d80cc' },
   { file: 'src/lib/travelErrors.ts', sha256: '21461573d159b13444b054b736b659f728d5ae30cf2c3ddccb0ddc1f1fd7ee7d' },
   { file: 'src/lib/travelSourceRegistry.ts', sha256: '93646472a2376cecc49695c98626b04f9f8caa5e8fcdf80d015bbdae05dfae65' },
 ];

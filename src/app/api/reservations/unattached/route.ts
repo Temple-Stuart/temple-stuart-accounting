@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { reservationIdentity } from '@/lib/reservations/lane';
 
 // GET /api/reservations/unattached — T4 companion read: the authed user's
 // ACCOUNT bookings with no trip (tripId null), i.e. the adoptable orphans.
@@ -9,11 +10,9 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 // Ordered by createdAt desc (checkinDate is null for flights — creation time
 // is the honest sort for orphans). Read-only; no broader listing exists.
 
-const PROVIDER_TYPE: Record<string, string> = {
-  liteapi: 'hotel',
-  viator: 'activity',
-  duffel: 'flight',
-};
+// LANE-01 (2026-09-25): type and name come from the ONE reader, keyed on the
+// row's lane — never from `provider` (LiteAPI is both rails), never falling
+// through to the provider slug.
 
 export async function GET() {
   try {
@@ -36,9 +35,9 @@ export async function GET() {
 
     const reservations = rows.map((r) => ({
       id: r.id,
-      name: r.hotelName ?? r.provider,
+      name: reservationIdentity(r).name,
       provider: r.provider,
-      type: PROVIDER_TYPE[r.provider] ?? r.provider,
+      type: reservationIdentity(r).type,
       amountUsd: r.finalPriceCents / 100,
       currency: r.currency,
       checkIn: r.checkinDate,

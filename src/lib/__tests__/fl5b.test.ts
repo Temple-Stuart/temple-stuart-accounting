@@ -163,7 +163,7 @@ test('the contact the panel validated is the one the book call carries', () => {
 test('the confirm page books with that contact, and says whether the email went out', () => {
   const src = code(CONFIRM);
   assert.match(src, /'\/api\/travel\/liteapi\/flights\/book'/, 'the same route, unchanged');
-  assert.match(src, /body: JSON\.stringify\(\{ prebookId, transactionId, contactEmail \}\)/, 'with the three references the link carried');
+  assert.match(src, /body: JSON\.stringify\(\{ prebookId, transactionId, contactEmail, \.\.\.\(tripId \? \{ tripId \} : \{\}\) \}\)/, 'with the three references the link carried');
   assert.match(src, /params\.get\('contactEmail'\)/, 'read from the link, never invented');
   // The email outcome is stated either way — a booking that could not be emailed
   // is still a booking, and never reads as a failed one.

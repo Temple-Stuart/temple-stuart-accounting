@@ -12,10 +12,14 @@ import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 // FL-5b: the confirmation email, restored to this lane.
 import { sendTransactionalEmail } from '@/lib/email';
 import { flightConfirmation } from '@/lib/emailTemplates/flightConfirmation';
-// CAL-01: a flight has no date of travel in its landed payload — the decision leaf
-// says so by name rather than inventing one.
-import { flightCalendarDecision, writeBookingCalendarEvent } from '@/lib/calendar/bookingEvent';
+// LANE-01 (2026-09-25): a flight's day, name and current status come from the
+// vendor's GET /flights/bookings/{id}, applied AFTER the reservation is committed
+// — CAL-01's ordering. The status mapping is the one leaf both this route and the
+// refresh use.
 import { prismaBookingCalendar } from '@/lib/calendar/prismaBookingCalendar';
+import { getFlightBooking } from '@/lib/liteapiFlightsClient';
+import { refreshFlightReservation } from '@/lib/reservations/refreshFlightReservation';
+import { flightProviderStatusToReservation } from '@/lib/reservations/flightStatus';
 
 // ─── PUBLIC LiteAPI flight BOOK (PR-FL-5) ────────────────────────────────────
 // POST /api/travel/liteapi/flights/book — completes the flight booking AFTER
@@ -46,7 +50,7 @@ export async function POST(request: NextRequest) {
     // GUARD 1 — per-IP rate limit (tight window; booking is the real spend).
     await rateLimit(`liteapi-flight-book:${ip}`, { limit: 3, windowSeconds: 300 });
 
-    let body: { prebookId?: unknown; transactionId?: unknown; contactEmail?: unknown };
+    let body: { prebookId?: unknown; transactionId?: unknown; contactEmail?: unknown; tripId?: unknown };
     try {
       body = await request.json();
     } catch {
@@ -100,6 +104,32 @@ export async function POST(request: NextRequest) {
         })
       : null;
     const isAccount = !!user;
+
+    // ─── LANE-01: tripId is OPTIONAL, with the hotel route's OWN gate ─────────
+    // (liteapi/book/route.ts:111-132, verbatim in substance.) When PRESENT it
+    // links the booking to a trip, which requires an authed OWNER: a guest is
+    // refused by name (401), a trip that is not this user's is a defensive 404.
+    // When ABSENT the booking is STANDALONE — a public guest, or an authed user
+    // booking from a surface with no trip selected (the homepage) — and stays
+    // unattached; the unattached list is where it is adopted from.
+    const tripId = typeof body.tripId === 'string' ? body.tripId.trim() : '';
+    let resolvedTripId: string | null = null;
+    if (tripId) {
+      if (!isAccount) {
+        return NextResponse.json(
+          { error: 'Sign in to save a booking to a trip.' },
+          { status: 401 }
+        );
+      }
+      const trip = await prisma.trips.findFirst({
+        where: { id: tripId, userId: user!.id },
+        select: { id: true },
+      });
+      if (!trip) {
+        return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
+      }
+      resolvedTripId = tripId;
+    }
 
     // GUARD 2 — durable daily booking cap, immediately before the LiteAPI call.
     await reserveTravelSearch('liteapiflightbooking');
@@ -163,26 +193,32 @@ export async function POST(request: NextRequest) {
             // shaped (the provider is finalizing — not an error): they persist as
             // 'pending'; CONFIRMED/TICKETED → 'confirmed'; CANCELLED → 'cancelled';
             // absent/unknown → 'pending' (never invented as confirmed).
-            const providerStatus = (parsed.status ?? '').toUpperCase();
-            const status =
-              providerStatus === 'CONFIRMED' || providerStatus === 'TICKETED'
-                ? 'confirmed'
-                : providerStatus === 'CANCELLED'
-                  ? 'cancelled'
-                  : 'pending';
+            // LANE-01: the mapping lives in ONE leaf (reservations/flightStatus.ts)
+            // that the refresh below uses too, so the two can never drift. At
+            // creation an unmapped status is 'pending' — never invented as confirmed.
+            const mapped = flightProviderStatusToReservation(parsed.status);
+            const status = mapped === null ? 'pending' : mapped;
             const resolvedPrice = parsed.price ?? 0; // hotel-pattern fallback
             const resolvedCurrency = parsed.currency ?? 'USD';
 
             const reservation = await tx.reservations.create({
               data: {
                 userId: user?.id ?? null,
-                tripId: null,
+                // LANE-01: the owner-verified trip, or null (standalone).
+                tripId: resolvedTripId,
                 bookingType: isAccount ? 'account' : 'guest',
                 // The book body carries no contact (prebook collected it; Nuitee
                 // holds it) — guestEmail stays null for guests. FL-5b (confirmation
                 // email) is where a contact re-enters this lane.
                 guestEmail: null,
                 provider: 'liteapi',
+                // LANE-01: the lane this route already hands the landing (below,
+                // lane: 'flight') is written on the row, so a reader never derives
+                // it from `provider`. The name is NOT stated by the book answer (no
+                // route on it — CAL-01 STEP 1.5); the refresh after the commit
+                // writes it from GET /flights/bookings once the vendor states it.
+                lane: 'flight',
+                displayName: null,
                 providerBookingId: parsed.bookingId,
                 providerConfirmationCode: parsed.pnr ?? parsed.bookingRef ?? null,
                 status,
@@ -267,38 +303,49 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // ─── CAL-01: this flight gets NO calendar row, and says why ────────────
-      // THE FINDING (STEP 1.5): the landed booking object carries no date of
-      // travel. flightBookingObjectOf returns data[0].booking
-      // (liteapiFlightsClient.ts:423-438) and parseFlightBookResult maps its seven
-      // fields (:443-463) — bookingId, bookingRef, status, paymentStatus, pnr,
-      // price, currency — none of them a departure date. The route's own body is
-      // { prebookId, transactionId } (:15), so no date arrives from the client
-      // either, and the reservation above is written with checkinDate and
-      // checkoutDate null (:154-155).
+      // ─── LANE-01: the flight's day, its name and its status — vendor-stated ──
+      // CAL-01's ordering, exactly: the reservation transaction has COMMITTED
+      // above (`result` is its row), this runs OUTSIDE it, in its own try/catch,
+      // against the top-level client — a failure here is declared loudly and the
+      // paid booking still returns 200. One GET /flights/bookings/{id}: the
+      // OUTBOUND departure → the calendar row on that day (source='reservation',
+      // source_id=reservation.id, as CAL-01); carrier + route → displayName; the
+      // vendor's current status → the row, through the same mapping as above.
+      // Idempotent: a retry that lands the same booking finds its row, its name and
+      // its status already in place and changes nothing.
       //
-      // A flight with no date has no day to sit on. By the ruling it gets NO ROW
-      // and a NAMED failure — never createdAt, never today, never a default. The
-      // reason reads the landed object's ACTUAL keys so the log says what was
-      // looked at, not what was assumed; if LiteAPI ever starts returning a
-      // departure date, that log line is where it will show up.
-      //
-      // Same try/catch posture as the audit log above: a booking that was paid for
-      // is never failed by anything downstream of it.
+      // THE SAME GUARD DISCIPLINE AS THE BOOK CALL: this request already passed the
+      // per-IP rate limit (GUARD 1) and the read rides the same request; its own
+      // durable daily cap ('liteapiflightbookingread') is reserved immediately
+      // before it — the vendor documents no cost for this GET, so it is treated as
+      // metered. A cap refusal is the named failure below, never a bypass.
       try {
-        const outcome = await writeBookingCalendarEvent(
-          prismaBookingCalendar(prisma),
-          flightCalendarDecision({
-            reservationId: result.id,
-            // `object` IS data[0].booking — the arrival's payload (flightBookingObjectOf).
-            landedFields: Object.keys(object ?? {}),
-          }),
+        await reserveTravelSearch('liteapiflightbookingread');
+        const outcome = await refreshFlightReservation(
+          {
+            fetchBooking: async (bookingId) => (await getFlightBooking(bookingId)).details,
+            calendar: prismaBookingCalendar(prisma),
+            writeReservation: async (id, patch) => {
+              await prisma.reservations.update({ where: { id }, data: patch });
+            },
+          },
+          {
+            id: result.id,
+            userId: result.userId ?? null,
+            lane: result.lane,
+            providerBookingId: result.providerBookingId,
+            providerConfirmationCode: result.providerConfirmationCode,
+            status: result.status,
+            displayName: result.displayName,
+          },
         );
-        if (outcome.landed === 'no_row') {
-          console.error('[LiteAPI flights book] CAL-01 no calendar row (booking + persist succeeded):', outcome.reason);
+        if (!outcome.fetched) {
+          console.error('[LiteAPI flights book] LANE-01 refresh did not apply (booking + persist succeeded):', outcome.reason);
+        } else {
+          console.log(`[LiteAPI flights book] LANE-01 refresh: reservation ${result.id} — calendar ${outcome.calendar}${outcome.day ? ` on ${outcome.day}` : ''}${outcome.calendarReason ? ` (${outcome.calendarReason})` : ''}; name ${outcome.name}${outcome.nameValue ? ` "${outcome.nameValue}"` : ''}; status ${outcome.status} (${outcome.providerStatus ?? 'absent'} → ${outcome.statusValue})`);
         }
       } catch (calErr) {
-        console.error('[LiteAPI flights book] CAL-01 calendar step FAILED (booking + persist succeeded):', {
+        console.error('[LiteAPI flights book] LANE-01 refresh FAILED (booking + persist succeeded):', {
           bookingId: parsed.bookingId,
           reservationId: result.id,
           error: calErr instanceof Error ? calErr.message : calErr,

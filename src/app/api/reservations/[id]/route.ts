@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { reservationIdentity } from '@/lib/reservations/lane';
 
 // PATCH /api/reservations/[id] — T4 retroactive attach/detach.
 //
@@ -23,13 +24,9 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 // ownership only; rateLimit is this codebase's PUBLIC-paid-route guard —
 // verified absent across src/app/api/trips/). Stated, not omitted.
 
-// Provider channel → plain item type (same map as trips/[id]/reservations —
-// kept local per that route's own convention).
-const PROVIDER_TYPE: Record<string, string> = {
-  liteapi: 'hotel',
-  viator: 'activity',
-  duffel: 'flight',
-};
+// LANE-01 (2026-09-25): type and name come from the ONE reader, keyed on the
+// row's lane — never from `provider` (LiteAPI is both rails), never falling
+// through to the provider slug.
 
 export async function PATCH(
   request: NextRequest,
@@ -93,9 +90,9 @@ export async function PATCH(
     return NextResponse.json({
       reservation: {
         id: r.id,
-        name: r.hotelName ?? r.provider,
+        name: reservationIdentity(r).name,
         provider: r.provider,
-        type: PROVIDER_TYPE[r.provider] ?? r.provider,
+        type: reservationIdentity(r).type,
         amountUsd: r.finalPriceCents / 100,
         currency: r.currency,
         checkIn: r.checkinDate,

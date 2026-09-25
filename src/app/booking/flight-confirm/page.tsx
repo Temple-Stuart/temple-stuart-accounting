@@ -42,6 +42,10 @@ function FlightConfirmInner() {
   const prebookId = params.get('prebookId') ?? '';
   const transactionId = params.get('transactionId') ?? '';
   const contactEmail = params.get('contactEmail') ?? '';
+  // LANE-01 (2026-09-25): the owner's trip, when the checkout carried one. Sent
+  // to the book route only when present; the route's own gate decides (401 for a
+  // guest, 404 for a trip that is not theirs). Absent → standalone booking.
+  const tripId = params.get('tripId') ?? '';
 
   const [phase, setPhase] = useState<'booking' | 'booked' | 'failed' | 'incomplete'>('booking');
   const [error, setError] = useState('');
@@ -54,7 +58,7 @@ function FlightConfirmInner() {
       const res = await fetch('/api/travel/liteapi/flights/book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prebookId, transactionId, contactEmail }),
+        body: JSON.stringify({ prebookId, transactionId, contactEmail, ...(tripId ? { tripId } : {}) }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || `Booking did not complete (HTTP ${res.status})`);
@@ -67,7 +71,7 @@ function FlightConfirmInner() {
       setError(err instanceof Error ? err.message : 'Booking did not complete.');
       setPhase('failed');
     }
-  }, [prebookId, transactionId, contactEmail]);
+  }, [prebookId, transactionId, contactEmail, tripId]);
 
   useEffect(() => {
     if (!prebookId || !transactionId || !contactEmail) {
