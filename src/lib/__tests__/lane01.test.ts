@@ -194,16 +194,24 @@ test('GET booking fails → no row, no rename, no status change, a named reason;
   assert.doesNotMatch(after.slice(after.indexOf('catch (calErr)'), after.indexOf('catch (calErr)') + 400), /return NextResponse|throw /, 'the catch never fails the paid booking');
 });
 
-test('GET booking answers with no segments → nothing is applied and the reason says so', async () => {
+test('GET booking answers with no segments → no row, no rename, each by name; the status still goes through the apply leaf (STATUS-01b)', async () => {
   const { ports, calendarRows, writes } = fakePorts({ answer: { ...STATED, segments: [] } });
   const out = await refreshFlightReservation(ports, ROW);
-  assert.ok(!out.fetched && /answered with no segments/.test(out.reason));
-  assert.equal(calendarRows.length + writes.length, 0, 'not even the status — by the ruling, no segments means nothing changes');
+  assert.ok(out.fetched);
+  if (!out.fetched) return;
+  assert.equal(out.calendar, 'no_row');
+  assert.match(out.calendarReason ?? '', /answered with no segments — no row, no rename/);
+  assert.equal(out.name, 'not_stated');
+  assert.equal(calendarRows.length, 0, 'no calendar row');
+  assert.equal(out.status, 'set');
+  assert.equal(out.statusValue, 'confirmed', 'the vendor said CONFIRMED on a pending row — applied, segments or not');
+  assert.deepEqual(writes, [{ id: 'res_f1', patch: { status: 'confirmed', lastVendorReadAt: READ_AT } }], 'the status and the stamp; no name');
   // Segments present but none marked OUTBOUND with a date: the same posture, named.
-  const { ports: p2, writes: w2 } = fakePorts({ answer: { ...STATED, segments: [{ ...STATED.segments[1], direction: 'INBOUND' }] } });
+  const { ports: p2, writes: w2, calendarRows: c2 } = fakePorts({ answer: { ...STATED, segments: [{ ...STATED.segments[1], direction: 'INBOUND' }] } });
   const o2 = await refreshFlightReservation(p2, ROW);
-  assert.ok(!o2.fetched && /none marked OUTBOUND with a departureTime/.test(o2.reason));
-  assert.equal(w2.length, 0);
+  assert.ok(o2.fetched && o2.calendar === 'no_row' && /none marked OUTBOUND with a departureTime — no row, no rename/.test(o2.calendarReason ?? '') && o2.name === 'not_stated');
+  assert.equal(c2.length, 0);
+  assert.deepEqual(w2.map((w) => w.patch), [{ status: 'confirmed', lastVendorReadAt: READ_AT }]);
 });
 
 test('vendor status CANCELLED_WITH_CHARGES → the reservation is cancelled (SEC-03); STATUS-01: its day is marked and its margin moved', async () => {

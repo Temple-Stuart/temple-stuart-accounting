@@ -34,10 +34,14 @@
  *   · EMAILS: 'hotel_confirmation_arrived' when the code went null → stated and
  *     confirmationEmailSentAt is null; 'ticketed' when ticketedAt went null →
  *     stated and ticketedEmailSentAt is null. The MARKER rides the SAME patch as
- *     the change (so a webhook and a cron racing cannot both send — the second
- *     finds the marker); the caller sends AFTER its transaction commits, and a
- *     failed send is written to audit_log by name and is not retried
- *     automatically. The marker means "the one attempt was made".
+ *     the change. STATUS-01b (2026-09-26): the marker is HALF of the send-once
+ *     rule — this leaf never re-reads, so the other half is the row lock the read
+ *     leaf takes (vendorRead.ts re-selects the row FOR UPDATE inside its
+ *     transaction and hands THAT row here): the second of two overlapping reads
+ *     waits for the first commit and then sees the marker set. The caller sends
+ *     AFTER its transaction commits, and a failed send is written to audit_log by
+ *     name and is not retried automatically. The marker means "the one attempt
+ *     was made".
  *
  * Re-reading an unchanged booking changes nothing and sends nothing: `changes`
  * is empty and `emails` is empty; only lastVendorReadAt — the read's own

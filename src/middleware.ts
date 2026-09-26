@@ -186,6 +186,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // STATUS-01b (2026-09-26): the hourly reservations refresh is invoked by Vercel
+  // cron with NO user cookie (a GET carrying `authorization: Bearer <CRON_SECRET>`);
+  // the catch-all matcher below would redirect it to "/" before the handler ran.
+  // It is NOT open — the route validates the bearer FIRST as its entire auth
+  // boundary (500 unconfigured, 401 wrong, before any query). The audit-ingest
+  // convention: an EXACT-path bypass, not a PUBLIC_PATHS entry, not a prefix.
+  // /api/cron/auto-categorize is deliberately NOT here — whether that job should
+  // ever run is a separate decision.
+  if (pathname === '/api/cron/reservations-refresh') {
+    return NextResponse.next();
+  }
+
   // Check cookie auth — verify HMAC signature (rejects forged cookies)
   const rawCookie = request.cookies.get('userEmail')?.value;
   const verifiedEmail = rawCookie ? await verifyCookieEdge(rawCookie) : null;

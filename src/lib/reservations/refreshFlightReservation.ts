@@ -21,11 +21,14 @@
  *     by name through src/lib/reservations/flightStatus.ts exactly as the book
  *     route does; an unlisted status changes nothing and is reported by name.
  *
- * NO FALLBACK. If the call fails or the answer carries no segments: no row, no
- * rename, no status change — one named outcome the caller logs once (LANE-01's
- * posture, kept). No date is ever derived from createdAt. A row already carrying
- * its day, its name and its current status is left untouched, so a second run
- * changes nothing but the read stamp.
+ * NO FALLBACK. If the call fails: no row, no rename, no status change — one named
+ * outcome the caller logs once. If the answer carries no OUTBOUND segment with a
+ * departureTime: no row, no rename, each by name (LANE-01's posture, kept) — and
+ * the STATUS STILL GOES THROUGH THE APPLY LEAF (STATUS-01b, 2026-09-26): a
+ * cancelled, failed or expired flight whose GET drops the journey must not stay
+ * 'confirmed' forever. No date is ever derived from createdAt. A row already
+ * carrying its day, its name and its current status is left untouched, so a
+ * second run changes nothing but the read stamp.
  *
  * STATUS-01 (2026-09-26) — WHAT MOVED. The status mapping, CANCEL-01's
  * cancel_pending guard, the PNR, ticketedAt, ticketLimitTime, lastVendorReadAt
@@ -146,41 +149,42 @@ export async function refreshFlightReservation(ports: FlightRefreshPorts, row: F
     };
   }
 
-  if (stated.segments.length === 0) {
-    return {
-      fetched: false,
-      reason: `reservation ${row.id}: GET /flights/bookings/${row.providerBookingId} answered with no segments — no row, no rename, no status change`,
-    };
-  }
-
   // ── THE OUTBOUND, from stated fields only ──────────────────────────────────
   const outbound = stated.segments
     .filter((s) => s.direction === 'OUTBOUND' && typeof s.departureTime === 'string' && s.departureTime.length > 0)
     .sort((a, b) => (a.departureTime as string).localeCompare(b.departureTime as string));
-  if (outbound.length === 0) {
-    return {
-      fetched: false,
-      reason: `reservation ${row.id}: GET /flights/bookings/${row.providerBookingId} states ${stated.segments.length} segment(s) but none marked OUTBOUND with a departureTime — no row, no rename, no status change`,
-    };
-  }
-  const first = outbound[0];
+  const first = outbound[0] as FlightBookingSegmentStated | undefined;
   const last = outbound[outbound.length - 1];
-  const departureTime = first.departureTime as string;
 
-  // ── THE NAME ───────────────────────────────────────────────────────────────
-  const statedName = flightDisplayName({ carrierName: first.carrierName, originCode: first.originCode, destinationCode: last.destinationCode });
+  // ── THE NAME AND THE DAY — LANE-01's posture: a stated OUTBOUND segment, or nothing, by name ──
+  // STATUS-01b: no OUTBOUND segment with a departureTime → no row, no rename, each
+  // named; the status below is applied regardless.
+  let statedName: string | null = null;
+  let calendar: Awaited<ReturnType<typeof writeBookingCalendarEvent>>;
+  let day: string | null = null;
+  if (first === undefined) {
+    calendar = {
+      landed: 'no_row',
+      reason: stated.segments.length === 0
+        ? `GET /flights/bookings/${row.providerBookingId} answered with no segments — no row, no rename`
+        : `GET /flights/bookings/${row.providerBookingId} states ${stated.segments.length} segment(s) but none marked OUTBOUND with a departureTime — no row, no rename`,
+    };
+  } else {
+    const departureTime = first.departureTime as string;
+    statedName = flightDisplayName({ carrierName: first.carrierName, originCode: first.originCode, destinationCode: last.destinationCode });
+    // The CAL-01 row, keyed on the reservation, written once, BEFORE the apply.
+    const nameForRow = statedName ?? reservationIdentity({ ...row, displayName: row.displayName }).name;
+    calendar = await writeBookingCalendarEvent(
+      ports.calendar,
+      flightStatedCalendarDecision({ reservationId: row.id, userId: row.userId, name: nameForRow, departureTime }),
+    );
+    day = calendar.landed === 'no_row' ? null : departureTime.slice(0, 10);
+  }
   const namePatch: { displayName?: string } = {};
   let name: 'set' | 'unchanged' | 'not_stated';
   if (statedName === null) name = 'not_stated';
   else if (statedName === row.displayName) name = 'unchanged';
   else { name = 'set'; namePatch.displayName = statedName; }
-
-  // ── THE DAY — the CAL-01 row, keyed on the reservation, written once, BEFORE the apply ──
-  const nameForRow = statedName ?? reservationIdentity({ ...row, displayName: row.displayName }).name;
-  const calendar = await writeBookingCalendarEvent(
-    ports.calendar,
-    flightStatedCalendarDecision({ reservationId: row.id, userId: row.userId, name: nameForRow, departureTime }),
-  );
 
   // ── THE STATUS AND THE REST — through the one apply leaf; the name rides its write ──
   const applied = await applyVendorState(
@@ -209,7 +213,7 @@ export async function refreshFlightReservation(ports: FlightRefreshPorts, row: F
     providerStatus: stated.status,
     calendar: calendar.landed,
     calendarReason: calendar.landed === 'no_row' ? calendar.reason : null,
-    day: calendar.landed === 'no_row' ? null : departureTime.slice(0, 10),
+    day,
     name,
     nameValue: statedName,
     status: applied.status === 'unlisted' ? 'unmapped' : applied.status,

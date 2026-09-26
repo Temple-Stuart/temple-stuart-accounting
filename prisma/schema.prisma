@@ -1507,7 +1507,7 @@ model reservations {
   ticketLimitTime          DateTime? @db.Timestamptz(6)
   /// STATUS-01: when the last GET of this booking ARRIVED — the landed response's own timestamp, never our clock in the leaf. The scheduled refresh orders by it, NULL first. Written only by applyVendorState.
   lastVendorReadAt         DateTime? @db.Timestamptz(6)
-  /// STATUS-01: the marker that the ONE 'ticketed' email attempt was made — stamped in the same transaction as the change that earned it (a webhook and a cron racing cannot both send). A failed send goes to audit_log by name and is NOT retried automatically: the marker means "the one attempt was made".
+  /// STATUS-01: the marker that the ONE 'ticketed' email attempt was made — stamped in the same transaction as the change that earned it and read under the row lock the read leaf takes (SELECT ... FOR UPDATE, STATUS-01b): the marker plus that lock is what makes the send once. A failed send goes to audit_log by name and is NOT retried automatically: the marker means "the one attempt was made".
   ticketedEmailSentAt      DateTime? @db.Timestamptz(6)
   /// STATUS-01: the same marker for the ONE 'hotel_confirmation_arrived' email attempt.
   confirmationEmailSentAt  DateTime? @db.Timestamptz(6)

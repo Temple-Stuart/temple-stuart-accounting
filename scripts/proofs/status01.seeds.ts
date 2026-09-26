@@ -25,7 +25,13 @@
  *   · the cron batch goes unbounded (clause 7);
  *   · the cron leaves its hourly schedule (clause 7);
  *   · the migration loses its partial unique dedupe (clause 8);
- *   · the retro grows its own implementation (clause 9).
+ *   · the retro grows its own implementation (clause 9);
+ *   STATUS-01b (2026-09-26):
+ *   · the cron bypass leaves the middleware (clause 7);
+ *   · the cron bypass becomes a prefix (clause 7);
+ *   · the read leaf stops locking the row (clause 6);
+ *   · the apply takes the caller row instead of the locked one (clause 6);
+ *   · the refresh applies no status when the answer has no segments (clause 6b).
  *
  * Each must fail THE STATUS LAW by name. The anchors occur exactly once in their
  * file, which the harness enforces before it runs anything.
@@ -197,6 +203,42 @@ const SEEDS: Seed[] = [
     find: "    const out = await readAndApplyReservation(row, { source: 'retro', dryRun, log: (line) => console.log(`    ${line}`) });",
     replace: "    const out = await (async () => ({ outcome: 'read_failed' as const, kind: 'lane' as const, reason: 'local' }))();",
     expect: 'the retro grows its own implementation',
+  },
+  // ── STATUS-01b (2026-09-26) ──────────────────────────────────────────────
+  {
+    name: 'status01b-w the cron bypass leaves the middleware (clause 7)',
+    file: 'src/middleware.ts',
+    find: "  if (pathname === '/api/cron/reservations-refresh') {\n    return NextResponse.next();\n  }\n",
+    replace: '',
+    expect: 'has no exact-path middleware bypass',
+  },
+  {
+    name: 'status01b-x the cron bypass becomes a prefix (clause 7)',
+    file: 'src/middleware.ts',
+    find: "  if (pathname === '/api/cron/reservations-refresh') {",
+    replace: "  if (pathname.startsWith('/api/cron/')) {",
+    expect: 'has no exact-path middleware bypass',
+  },
+  {
+    name: 'status01b-y the read leaf stops locking the row (clause 6)',
+    file: READ_LEAF,
+    find: 'FROM reservations WHERE id = ${id}::uuid FOR UPDATE`)[0] ?? null,',
+    replace: 'FROM reservations WHERE id = ${id}::uuid`)[0] ?? null,',
+    expect: 'does not lock the row (no FOR UPDATE',
+  },
+  {
+    name: 'status01b-z the apply takes the caller row instead of the locked one (clause 6)',
+    file: READ_LEAF,
+    find: "    const out = await applyVendorState(ports.apply, locked, { lane: 'hotel'",
+    replace: "    const out = await applyVendorState(ports.apply, caller as unknown as VendorReadRow, { lane: 'hotel'",
+    expect: 'applies to the caller row, never the locked one',
+  },
+  {
+    name: 'status01b-aa the refresh applies no status when the answer has no segments (clause 6b)',
+    file: 'src/lib/reservations/refreshFlightReservation.ts',
+    find: '  const first = outbound[0] as FlightBookingSegmentStated | undefined;',
+    replace: "  if (outbound.length === 0) return { fetched: false, reason: `reservation ${row.id}: no segments` };\n  const first = outbound[0] as FlightBookingSegmentStated | undefined;",
+    expect: 'applies no status when the answer has no OUTBOUND segment',
   },
 ];
 

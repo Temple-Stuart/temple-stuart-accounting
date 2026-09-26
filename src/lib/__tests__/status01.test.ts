@@ -11,7 +11,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { code, comments } from '../sourceText';
+import { code, comments, functionBody } from '../sourceText';
+import { NextRequest } from 'next/server';
+import { middleware } from '../../middleware';
+import { GET as cronGET } from '../../app/api/cron/reservations-refresh/route';
+import { applyLockedRead, type LockedReadPorts, type VendorAnswer, type VendorReadRow } from '../reservations/vendorRead';
+import { refreshFlightReservation, type FlightRefreshPorts, type FlightReservationPatch } from '../reservations/refreshFlightReservation';
 import { hotelProviderStatusToReservation } from '../reservations/hotelStatus';
 import { flightProviderStatusToReservation } from '../reservations/flightStatus';
 import { applyVendorState, type ApplyPorts, type ApplyRow, type ReservationPatch } from '../reservations/applyVendorState';
@@ -393,14 +398,20 @@ test('the read leaf: the cap, then the GET by lane, then ONE transaction landing
   const getCatch = r.slice(at('await getFlightBooking(row.providerBookingId);'), at('const readAt = read.answer.arrived;'));
   assert.match(getCatch, /return \{ outcome: 'read_failed', kind: 'vendor', reason: `\$\{tag\}: GET of \$\{lane\} booking \$\{row\.providerBookingId\} failed/, 'a GET that throws: read_failed, named');
   assert.ok(!/writeReservation|reservations\.update|applyVendorState/.test(r.slice(at('export async function readAndApplyReservation('), at('const readAt = read.answer.arrived;'))), 'nothing is written before the answer is in hand');
-  assert.ok(at('prisma.$transaction(async (tx) => {') < at('landLiteApiBookingRead(landing, { answer: read.answer, bookingId: row.providerBookingId, payload: read.object, parse: parseHotelBookingState'), 'the landing is inside the transaction');
+  // STATUS-01b: the transaction locks the row FOR UPDATE, then lands and applies to the LOCKED row.
+  assert.ok(at('prisma.$transaction(async (tx) => applyLockedRead(') < at('FOR UPDATE'), 'the lock is inside the transaction');
+  const lockedFn = functionBody(r, 'applyLockedRead') ?? '';
+  assert.ok(lockedFn.indexOf('const locked = await ports.lock(caller.id);') < lockedFn.indexOf('landLiteApiBookingRead(') && lockedFn.indexOf('landLiteApiBookingRead(') < lockedFn.indexOf('applyVendorState('), 'lock, then land, then apply');
+  assert.match(lockedFn, /applyVendorState\(ports\.apply, locked, \{ lane: 'hotel'/, 'the hotel apply takes the locked row');
+  assert.match(lockedFn, /refreshFlightReservation\(\{ \.\.\.ports\.apply, calendar: ports\.calendar, fetchBooking: async \(\) => \(\{ \.\.\.landed\.parsed, readAt \}\) \}, locked\)/, 'a flight goes through LANE-01 refresh over the locked row');
+  assert.doesNotMatch(lockedFn, /\brow\b/, 'the caller row never enters the locked apply');
   assert.match(r, /calendar: prismaBookingCalendar\(tx\),/);
   assert.match(r, /cancelCommission: async \(reservationId\) => \(await tx\.commission_ledger\.updateMany\(\{ where: \{ reservationId, status: 'estimated' \}, data: \{ status: 'cancelled' \} \}\)\)\.count,/, 'the commission moves exactly as the cancel route moves it');
-  assert.ok(at('for (const request of applied.emails) emails.push(await sendLifecycleEmail(emailRow, request));') > at('prisma.$transaction(async (tx) => {'), 'emails after the commit');
+  assert.ok(at('for (const request of applied.emails) emails.push(await sendLifecycleEmail(emailRow, request));') > at('prisma.$transaction(async (tx) => applyLockedRead('), 'emails after the commit');
   assert.match(r, /if \(!opts\.dryRun\) \{\s*const emailRow/, 'never on a dry run');
   assert.match(r, /const readAt = read\.answer\.arrived;/, 'lastVendorReadAt is the answer instant');
   assert.match(r, /parse: parseFlightBookingDetails/);
-  assert.match(r, /refreshFlightReservation\(\{ \.\.\.ports, fetchBooking: async \(\) => \(\{ \.\.\.parsed, readAt \}\) \}, row\)/, 'a flight goes through LANE-01 refresh, which hands the status to the apply leaf');
+  assert.match(comments(READ_LEAF), /takes NO lock/, 'the header says the dry run takes no lock');
   assert.ok(!/new Date\(\)/.test(r), 'the read leaf reads no clock');
   assert.ok(!/\?\? '(pending|confirmed|cancelled|failed)'/.test(r));
 });
@@ -514,4 +525,151 @@ test('applyVendorState is the only writer of the five columns', () => {
   // The seeds put a second writer back on purpose (status01-i); they are not callers.
   const writers = files.filter((f) => f !== APPLY && !f.startsWith('scripts/proofs/') && /patch\.(ticketedAt|ticketLimitTime|lastVendorReadAt|ticketedEmailSentAt|confirmationEmailSentAt) =|(ticketedAt|ticketLimitTime|lastVendorReadAt|ticketedEmailSentAt|confirmationEmailSentAt): (new Date|vendor\.|readAt|at\b)/.test(code(f)));
   assert.deepEqual(writers, [], 'nothing but the apply leaf assigns them');
+});
+
+// ── STATUS-01b (2026-09-26): the cron reaches its handler; one read holds the row; status is independent of segments ──
+
+test('STATUS-01b · the cron reaches its handler: the middleware lets exactly /api/cron/reservations-refresh through with no cookie, and the route answers 500 / 401 / runs', async () => {
+  const cronPath = 'https://www.templestuart.com/api/cron/reservations-refresh';
+  const through = await middleware(new NextRequest(cronPath));
+  assert.equal(through.status, 200, 'not a redirect');
+  assert.equal(through.headers.get('location'), null);
+  const other = await middleware(new NextRequest('https://www.templestuart.com/api/cron/auto-categorize'));
+  assert.equal(other.status, 307, 'auto-categorize is untouched — still redirected to / (a separate decision)');
+  assert.equal(new URL(other.headers.get('location') as string).pathname, '/');
+  const prefix = await middleware(new NextRequest(`${cronPath}/extra`));
+  assert.equal(prefix.status, 307, 'the bypass is the exact path, not a prefix');
+  // The route validates the bearer FIRST as its entire auth boundary.
+  const saved = process.env.CRON_SECRET;
+  try {
+    delete process.env.CRON_SECRET;
+    const unconfigured = await cronGET(new NextRequest(cronPath));
+    assert.equal(unconfigured.status, 500);
+    assert.deepEqual(await unconfigured.json(), { error: 'Cron not configured' });
+    process.env.CRON_SECRET = 'status01b-test-secret';
+    const noBearer = await cronGET(new NextRequest(cronPath));
+    assert.equal(noBearer.status, 401, 'a GET with no cookie and no bearer reaches the route and gets 401, not a 302');
+    assert.deepEqual(await noBearer.json(), { error: 'Unauthorized' });
+    const wrong = await cronGET(new NextRequest(cronPath, { headers: { authorization: 'Bearer nope' } }));
+    assert.equal(wrong.status, 401);
+    // With the bearer the handler RUNS: past the auth boundary into the query, which (no DATABASE_URL here) fails closed by the handler's own name.
+    const withBearer = await cronGET(new NextRequest(cronPath, { headers: { authorization: 'Bearer status01b-test-secret' } }));
+    assert.notEqual(withBearer.status, 401);
+    assert.match(JSON.stringify(await withBearer.json()), /Reservations refresh failed/, 'the handler body ran');
+  } finally {
+    if (saved === undefined) delete process.env.CRON_SECRET; else process.env.CRON_SECRET = saved;
+  }
+  const mw = code('src/middleware.ts');
+  assert.ok(mw.includes("if (pathname === '/api/cron/reservations-refresh') {\n    return NextResponse.next();\n  }"), 'the exact-path bypass');
+  assert.ok(!mw.includes("'/api/cron/reservations-refresh',"), 'not a PUBLIC_PATHS entry');
+  assert.ok(!mw.includes("'/api/cron/auto-categorize'"), 'auto-categorize has no bypass and no public entry — unchanged');
+  const route = code('src/app/api/cron/reservations-refresh/route.ts');
+  assert.ok(route.indexOf('{ status: 401 }') < route.indexOf('prisma.'), '401 before any prisma call');
+});
+
+const CALLER: VendorReadRow = {
+  id: 'res_h1', userId: 'u_1', bookingType: 'account', guestEmail: null, provider: 'liteapi', lane: 'hotel', displayName: 'Hotel Temple',
+  providerBookingId: 'hSq2gVDrf', providerConfirmationCode: null, status: 'confirmed', checkinDate: new Date('2026-10-01'), checkoutDate: new Date('2026-10-04'),
+  cancelIntentAt: null, ticketedAt: null, ticketLimitTime: null, lastVendorReadAt: null, ticketedEmailSentAt: null, confirmationEmailSentAt: null, createdAt: new Date('2026-09-20T00:00:00Z'),
+};
+
+function hotelAnswer(object: Record<string, unknown>): VendorAnswer {
+  const text = JSON.stringify({ data: object });
+  return { answer: { httpStatus: 200, body: Buffer.from(text, 'utf8'), asked: ASKED, arrived: READ_AT, json: JSON.parse(text) }, object };
+}
+
+function flightAnswer(object: Record<string, unknown>): VendorAnswer {
+  const text = JSON.stringify({ data: [{ booking: object }] });
+  return { answer: { httpStatus: 200, body: Buffer.from(text, 'utf8'), asked: ASKED, arrived: READ_AT, json: JSON.parse(text) }, object };
+}
+
+function lockedPorts(locked: VendorReadRow | null, opts: { calendarPresent?: boolean } = {}) {
+  const landing = new FakeLanding();
+  const writes: FlightReservationPatch[] = [];
+  const lockedFor: string[] = [];
+  let marked = 0; let commission = 0;
+  const calendarRows: unknown[] = [];
+  const calendar: FlightRefreshPorts['calendar'] = {
+    async find() { return !!opts.calendarPresent; },
+    async insert(row) { calendarRows.push(row); },
+    async markCancelled() { marked += 1; return 1; },
+  };
+  const ports: LockedReadPorts = {
+    lock: async (id) => { lockedFor.push(id); return locked; },
+    landing: { landing, now: () => READ_AT },
+    apply: {
+      writeReservation: async (_id, patch) => { writes.push(patch); },
+      calendar,
+      cancelCommission: async () => { commission += 1; return 1; },
+    },
+    calendar,
+  };
+  return { ports, landing, writes, lockedFor, marked: () => marked, commission: () => commission, calendarRows };
+}
+
+test('STATUS-01b · one read holds the row: the caller row says no email was sent, the LOCKED row says it was → no email owed, no marker written (hotel)', async () => {
+  const f = lockedPorts({ ...CALLER, confirmationEmailSentAt: new Date('2026-09-26T09:59:00Z') });
+  const out = await applyLockedRead(f.ports, { id: CALLER.id, lane: 'hotel', providerBookingId: CALLER.providerBookingId }, hotelAnswer({ bookingId: 'hSq2gVDrf', status: 'CONFIRMED', hotelConfirmationCode: 'HCC-4421' }), READ_AT);
+  assert.deepEqual(f.lockedFor, ['res_h1'], 'locked by id, once');
+  assert.deepEqual(out.emails, [], 'the second reader owes nothing — the first attempt is on the locked row');
+  assert.deepEqual(f.writes, [{ lastVendorReadAt: READ_AT, providerConfirmationCode: 'HCC-4421' }], 'the code lands; no marker is re-written');
+  assert.equal(out.locked.confirmationEmailSentAt?.toISOString(), '2026-09-26T09:59:00.000Z', 'what was applied to is the locked row');
+  assert.equal(f.landing.rowsOf(BOOKING_READ).length, 1, 'the answer landed');
+});
+
+test('STATUS-01b · one read holds the row: the same for the ticketed marker (flight)', async () => {
+  const flightCaller: VendorReadRow = { ...CALLER, id: 'res_f1', lane: 'flight', displayName: 'Thai Vietjet Air BKK → HKT', providerBookingId: 'fb_9Q', providerConfirmationCode: 'FH-269-920QSVHH', checkinDate: null, checkoutDate: null };
+  const f = lockedPorts({ ...flightCaller, ticketedEmailSentAt: new Date('2026-09-26T09:59:00Z') }, { calendarPresent: true });
+  const object = { bookingId: 'fb_9Q', status: 'CONFIRMED', ticketData: { ticketedAt: '2026-09-26T08:30:00Z' }, journey: { segments: [{ departureTime: '2026-10-25T14:15:00', direction: 'OUTBOUND', originCode: 'BKK', destinationCode: 'HKT', carrier: { marketingName: 'Thai Vietjet Air' }, flight: { marketingNumber: '228' } }] } };
+  const out = await applyLockedRead(f.ports, { id: 'res_f1', lane: 'flight', providerBookingId: 'fb_9Q' }, flightAnswer(object), READ_AT);
+  assert.deepEqual(out.emails, []);
+  assert.deepEqual(f.writes, [{ lastVendorReadAt: READ_AT, ticketedAt: new Date('2026-09-26T08:30:00Z') }], 'ticketedAt lands; the marker is not re-written');
+  assert.equal(out.flight?.calendar, 'already_there');
+  assert.equal(out.flight?.name, 'unchanged');
+});
+
+test('STATUS-01b · one read holds the row: caller says cancel_pending, the LOCKED row is already cancelled, the GET says CANCELLED → unchanged, no commission, no calendar mark', async () => {
+  const f = lockedPorts({ ...CALLER, status: 'cancelled', cancelIntentAt: null });
+  const out = await applyLockedRead(f.ports, { id: CALLER.id, lane: 'hotel', providerBookingId: CALLER.providerBookingId }, hotelAnswer({ bookingId: 'hSq2gVDrf', status: 'CANCELLED', hotelConfirmationCode: null }), READ_AT);
+  assert.equal(out.status, 'unchanged');
+  assert.equal(out.statusValue, 'cancelled');
+  assert.deepEqual(out.changes, []);
+  assert.equal(f.commission(), 0, 'the commission port is not called');
+  assert.equal(f.marked(), 0, 'the calendar port is not called');
+  assert.deepEqual(f.writes, [{ lastVendorReadAt: READ_AT }], 'only the read stamp');
+  // The row gone between the GET and the lock: a named throw, so the read leaf answers read_failed.
+  await assert.rejects(
+    () => applyLockedRead(lockedPorts(null).ports, { id: CALLER.id, lane: 'hotel', providerBookingId: CALLER.providerBookingId }, hotelAnswer({ bookingId: 'hSq2gVDrf', status: 'CONFIRMED' }), READ_AT),
+    /deleted between the GET and the lock; nothing landed, nothing applied/,
+  );
+});
+
+test('STATUS-01b · status is independent of segments: a GET with CANCELLED and segments [] cancels the row, clears cancelIntentAt, names no row and no name; CONFIRMED and [] on a confirmed row is unchanged', async () => {
+  const row = { id: 'res_f1', userId: 'u_1', lane: 'flight', providerBookingId: 'fb_9Q', providerConfirmationCode: 'FH-269-920QSVHH', status: 'cancel_pending', displayName: 'Thai Vietjet Air BKK → HKT', ticketedAt: null, ticketLimitTime: null, cancelIntentAt: new Date('2026-09-26T09:05:00Z'), ticketedEmailSentAt: null, confirmationEmailSentAt: null };
+  const writes: FlightReservationPatch[] = [];
+  let marked = 0; let commission = 0; let inserted = 0;
+  const ports = (status: string): FlightRefreshPorts => ({
+    fetchBooking: async () => ({ bookingId: 'fb_9Q', status, segments: [], pnr: null, ticketedAt: null, ticketLimitTime: null, cancelIntentAt: null, readAt: READ_AT }),
+    calendar: { async find() { return true; }, async insert() { inserted += 1; }, async markCancelled() { marked += 1; return 1; } },
+    writeReservation: async (_id, patch) => { writes.push(patch); },
+    cancelCommission: async () => { commission += 1; return 1; },
+  });
+  const gone = await refreshFlightReservation(ports('CANCELLED'), row);
+  assert.ok(gone.fetched);
+  if (!gone.fetched) return;
+  assert.equal(gone.status, 'set');
+  assert.equal(gone.statusValue, 'cancelled');
+  assert.equal(gone.calendar, 'no_row');
+  assert.match(gone.calendarReason ?? '', /answered with no segments — no row, no rename/);
+  assert.equal(gone.name, 'not_stated');
+  assert.equal(gone.day, null);
+  assert.deepEqual(writes, [{ status: 'cancelled', cancelIntentAt: null, lastVendorReadAt: READ_AT }]);
+  assert.equal(marked, 1, 'the day is marked through the apply leaf');
+  assert.equal(commission, 1);
+  assert.equal(inserted, 0);
+  const same = await refreshFlightReservation(ports('CONFIRMED'), { ...row, status: 'confirmed', cancelIntentAt: null });
+  assert.ok(same.fetched && same.status === 'unchanged' && same.statusValue === 'confirmed' && same.calendar === 'no_row' && same.name === 'not_stated');
+  assert.deepEqual(writes[1], { lastVendorReadAt: READ_AT });
+  const leaf = code('src/lib/reservations/refreshFlightReservation.ts');
+  assert.equal((leaf.match(/fetched: false,/g) ?? []).length, 1, 'the GET failure is the only fetched:false return (the outcome type declares the shape once more)');
 });

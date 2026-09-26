@@ -3,7 +3,8 @@
  *
  * applyVendorState decides that an email is owed and stamps its marker in the
  * SAME transaction as the change that earned it (ticketedEmailSentAt /
- * confirmationEmailSentAt), so a webhook and a cron racing cannot both send.
+ * confirmationEmailSentAt); with the row lock the read leaf takes (STATUS-01b),
+ * two overlapping reads cannot both send.
  * This module makes the one attempt after that transaction commits: the
  * recipient by the CANCEL-02 rule (an account row → the account's stored email;
  * a guest row → guestEmail when stated; neither → no send, named), the body from

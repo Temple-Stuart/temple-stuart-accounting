@@ -5526,13 +5526,20 @@ lawGuard('The cancel law', () => {
 //      ours; both list every documented word by name; the hotel book route maps
 //      through the hotel leaf and records pending BY NAME for an absent or
 //      unlisted word; parseBookResult states null for an absent status.
-//   6. THE READ LEAF: the cap, then the GET by lane, then ONE transaction landing
-//      and applying; a GET that throws is read_failed with nothing written; the
-//      commission moves exactly as the cancel route moves it.
+//   6. THE READ LEAF: the cap, then the GET by lane, then ONE transaction that
+//      LOCKS THE ROW (STATUS-01b, 2026-09-26: re-selected by id FOR UPDATE before
+//      anything is landed or applied; the apply and the refresh take the LOCKED
+//      row, never the caller's), lands and applies; a GET that throws is
+//      read_failed with nothing written; the commission moves exactly as the
+//      cancel route moves it; the refresh applies the status whether or not the
+//      answer carries a segment (STATUS-01b).
 //   7. THE CRON: the auto-categorize pattern (Bearer CRON_SECRET; 500 by name;
 //      401) before any query; the non-final selection; oldest read first, NULL
 //      first; a NAMED batch bound; a cap refusal stops the batch; per-row
-//      outcomes in the body; registered hourly in vercel.json.
+//      outcomes in the body; registered hourly in vercel.json — and REACHABLE
+//      (STATUS-01b): every cron path but auto-categorize exports GET, has an
+//      EXACT-path middleware bypass (the audit-ingest convention), and answers
+//      401 before any prisma call.
 //   8. THE MIGRATION, THE SCHEMA, THE RULE BOOK: five nullable TIMESTAMPTZ
 //      columns with no default; webhook_events with its six-word CHECK, its
 //      partial UNIQUE dedupe and its RESTRICT foreign key to arrivals; nothing
@@ -5684,11 +5691,35 @@ lawGuard('The status law', () => {
     const readAt = i('const readAt = read.answer.arrived;');
     if (fnAt < 0 || readAt < 0) statusFail(`${READ_LEAF} lost its shape (readAndApplyReservation / read.answer.arrived)`);
     else if (/writeReservation|reservations\.update|applyVendorState/.test(r.slice(fnAt, readAt))) statusFail(`${READ_LEAF} writes before the answer is in hand`);
-    if (!(i('prisma.$transaction(async (tx) => {') >= 0 && i('prisma.$transaction(async (tx) => {') < i('landLiteApiBookingRead(landing, { answer: read.answer'))) statusFail(`${READ_LEAF} lands the read outside its transaction`);
+    // STATUS-01b: ONE READ HOLDS THE ROW. The transaction re-selects the row FOR
+    // UPDATE before anything is landed or applied, and the apply and the refresh
+    // take the LOCKED row — never the caller's.
+    const txAt = i('prisma.$transaction(async (tx) => applyLockedRead(');
+    const forAt = i('FOR UPDATE');
+    if (txAt < 0) statusFail(`${READ_LEAF} does not run the locked read inside prisma.$transaction (applyLockedRead)`);
+    else if (!(forAt > txAt && /lock: async \(id\) => \(await tx\.\$queryRaw<VendorReadRow\[\]>`SELECT \$\{LOCK_COLUMNS\} FROM reservations WHERE id = \$\{id\}::uuid FOR UPDATE`\)\[0\] \?\? null,/.test(r))) statusFail(`${READ_LEAF} does not lock the row (no FOR UPDATE re-select of every VENDOR_READ_SELECT column inside its transaction)`);
+    const lockedFn = functionBody(r, 'applyLockedRead') ?? '';
+    if (!lockedFn) statusFail(`${READ_LEAF} does not export applyLockedRead`);
+    else {
+      const j = (needle: string) => lockedFn.indexOf(needle);
+      if (!(j('const locked = await ports.lock(caller.id);') >= 0 && j('const locked = await ports.lock(caller.id);') < j('landLiteApiBookingRead(') && j('landLiteApiBookingRead(') < j('applyVendorState('))) statusFail(`${READ_LEAF}: the lock is not taken before the landing and the apply`);
+      if (!/if \(locked === null\) throw new Error\(/.test(lockedFn)) statusFail(`${READ_LEAF}: a row gone between the GET and the lock is not a named throw (read_failed)`);
+      if (!/applyVendorState\(ports\.apply, locked, \{ lane: 'hotel'/.test(lockedFn) || !/refreshFlightReservation\(\{ \.\.\.ports\.apply, calendar: ports\.calendar, fetchBooking: async \(\) => \(\{ \.\.\.landed\.parsed, readAt \}\) \}, locked\)/.test(lockedFn)) statusFail(`${READ_LEAF}: the apply or the refresh does not take the locked row`);
+      if (/applyVendorState\([^;]*\bcaller\b|\}, caller\)|\brow\b/.test(lockedFn)) statusFail(`${READ_LEAF}: applyLockedRead applies to the caller row, never the locked one`);
+      if (!/userId: locked\.userId/.test(lockedFn)) statusFail(`${READ_LEAF}: the landing takes its owner from the caller row, not the locked one`);
+    }
+    if (!/takes NO lock/.test(commentsOf(READ_LEAF))) statusFail(`${READ_LEAF}: the header does not say the dry run takes no lock`);
     if (!/cancelCommission: async \(reservationId\) => \(await tx\.commission_ledger\.updateMany\(\{ where: \{ reservationId, status: 'estimated' \}, data: \{ status: 'cancelled' \} \}\)\)\.count,/.test(r)) statusFail(`${READ_LEAF} does not move the estimated commission exactly as the cancel route does`);
     if (!/calendar: prismaBookingCalendar\(tx\),/.test(r)) statusFail(`${READ_LEAF} does not mark the day through the CAL-01 port inside the transaction`);
-    if (!/refreshFlightReservation\(\{ \.\.\.ports, fetchBooking: async \(\) => \(\{ \.\.\.parsed, readAt \}\) \}, row\)/.test(r)) statusFail(`${READ_LEAF} does not send a flight through LANE-01's refresh (day, name, then the apply leaf)`);
     if (/new Date\(\)/.test(r)) statusFail(`${READ_LEAF} reads the clock`);
+    // 6b. THE REFRESH: the status is independent of the segments (STATUS-01b). The
+    //     GET failure is the ONE fetched:false; a segment-less answer names no row
+    //     and no rename and still hands the status to the apply leaf.
+    const refresh = codeOf(REFRESH);
+    if ((refresh.match(/fetched: false,/g) ?? []).length !== 1) statusFail(`${REFRESH} applies no status when the answer has no OUTBOUND segment — the fetched:false return is the GET failure only`);
+    if (!/landed: 'no_row',\s*reason: stated\.segments\.length === 0/.test(refresh)) statusFail(`${REFRESH} does not name a segment-less answer as no row, no rename`);
+    if ((refresh.match(/no status change/g) ?? []).length !== 1) statusFail(`${REFRESH}: only the GET failure may say no status change`);
+    if (!/^\s*const applied = await applyVendorState\(/m.test(refresh)) statusFail(`${REFRESH} does not hand the status to the apply leaf unconditionally`);
   }
 
   // 7. THE CRON.
@@ -5707,6 +5738,24 @@ lawGuard('The status law', () => {
     const cron = (vercel.crons ?? []).find((c) => c.path === '/api/cron/reservations-refresh');
     if (!cron) statusFail('vercel.json: /api/cron/reservations-refresh is not registered in vercel.json');
     else if (cron.schedule !== '0 * * * *') statusFail(`vercel.json: /api/cron/reservations-refresh is scheduled "${cron.schedule}", not hourly`);
+    // STATUS-01b (2026-09-26): THE CRON REACHES ITS HANDLER. src/middleware.ts's
+    // matcher covers every path and redirects a cookie-less request to "/", so a
+    // cron path needs an EXACT-path bypass (the audit-ingest convention: not a
+    // PUBLIC_PATHS entry, not a prefix) and the route validates the bearer FIRST.
+    // auto-categorize is left as it is — whether it should ever run is a
+    // separate decision, reported, unchanged.
+    const middlewareCode = codeOf('src/middleware.ts');
+    for (const c of (vercel.crons ?? []).filter((c) => c.path !== '/api/cron/auto-categorize')) {
+      const routeFile = `src/app${c.path}/route.ts`;
+      let routeCode = '';
+      try { routeCode = codeOf(routeFile); } catch { statusFail(`vercel.json: cron ${c.path} has no route at ${routeFile}`); continue; }
+      if (!/export async function GET\(/.test(routeCode)) statusFail(`${routeFile} does not export GET — Vercel invokes a cron by GET`);
+      if (!middlewareCode.includes(`if (pathname === '${c.path}') {\n    return NextResponse.next();\n  }`)) statusFail(`src/middleware.ts: cron ${c.path} has no exact-path middleware bypass — the catch-all matcher redirects the cookie-less GET to / before the handler runs`);
+      if (new RegExp(`'${c.path.replace(/[/]/g, '\\/')}',`).test(middlewareCode)) statusFail(`src/middleware.ts: cron ${c.path} is listed in PUBLIC_PATHS — the bypass is the exact path, not a public entry`);
+      const at401 = routeCode.indexOf('{ status: 401 }');
+      const atPrisma = routeCode.indexOf('prisma.');
+      if (!(at401 >= 0 && (atPrisma < 0 || at401 < atPrisma))) statusFail(`${routeFile} touches prisma before it answers 401`);
+    }
   }
 
   // 8. THE MIGRATION, THE SCHEMA, THE RULE BOOK.

@@ -16,9 +16,11 @@
 --                              first
 --      ticketedEmailSentAt     the marker that the ONE 'ticketed' email attempt was
 --                              made — stamped in the same transaction as the change
---                              that earned it, so a webhook and a cron racing cannot
---                              both send; a failed send is written to audit_log by
---                              name and is NOT retried automatically
+--                              that earned it, and read under the row lock the read
+--                              leaf takes (SELECT ... FOR UPDATE, STATUS-01b): the
+--                              marker plus that lock is what makes the send once; a
+--                              failed send is written to audit_log by name and is
+--                              NOT retried automatically
 --      confirmationEmailSentAt the same marker for 'hotel_confirmation_arrived'
 --
 -- 2. webhook_events — one row per delivery the receiver acted on (or refused by

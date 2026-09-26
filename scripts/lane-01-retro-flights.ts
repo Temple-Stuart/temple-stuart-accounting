@@ -20,9 +20,10 @@
  * mapped value differs. A row already carrying its day, its name and its current
  * status prints "unchanged" three times, and a second run changes nothing.
  *
- * NO FALLBACK. A GET that fails, or answers with no segments, leaves the row
- * exactly as it was and prints the named reason. No date from createdAt, no
- * default name, no default status.
+ * NO FALLBACK. A GET that fails leaves the row exactly as it was and prints the
+ * named reason; an answer with no OUTBOUND segment gets no day and no name (named)
+ * and its status still goes through the apply leaf (STATUS-01b). No date from
+ * createdAt, no default name, no default status.
  *
  * THE SAME GUARD DISCIPLINE AS THE BOOK ROUTE: every GET reserves the durable
  * daily cap 'liteapiflightbookingread' (travelSearchQuota.ts) first; a cap
