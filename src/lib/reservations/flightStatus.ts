@@ -17,14 +17,27 @@
  * LANE-01 said this would take: CANCELLED_WITH_CHARGES → 'cancelled'. A booking
  * the vendor cancelled and charged for is cancelled; the charge is the bank's
  * business, reconciled against the ledger, and a row that read "pending" for it
- * was wrong. CREATED and the two PENDING statuses stay unmapped on purpose: at
- * creation they persist as 'pending', on a refresh they change nothing.
+ * was wrong.
+ *
+ * STATUS-01 (2026-09-26): EVERY DOCUMENTED WORD MAPS BY NAME. CREATED and
+ * PENDING_CONFIRMATION (the GET enum) and PENDING (the book answer's enum,
+ * liteapiFlightsClient.ts FLIGHT_BOOKING_STATUSES) are 'pending' — the vendor's
+ * own word for "not yet confirmed", and a refresh that finds it writes it. FAILED
+ * and EXPIRED are on no GET enum; the webhook guide names flight.book.failed and
+ * flight.book.expired, so both are mapped by name to 'failed' (an expired booking
+ * will never be ticketed) and NEVER read as 'pending' or 'confirmed'. TICKETED is
+ * the book answer's word (the GET states ticketing as ticketData.ticketedAt, a
+ * timestamp, not a status word). A word outside this list maps to NULL and the
+ * caller leaves the row unchanged with a named log; nothing else in src may turn
+ * a flight status word into ours (the status law).
  */
-export type MappedReservationStatus = 'confirmed' | 'cancelled';
+export type MappedReservationStatus = 'pending' | 'confirmed' | 'cancelled' | 'failed';
 
 export function flightProviderStatusToReservation(providerStatus: string | null | undefined): MappedReservationStatus | null {
   const s = (providerStatus ?? '').toUpperCase();
+  if (s === 'CREATED' || s === 'PENDING_CONFIRMATION' || s === 'PENDING') return 'pending';
   if (s === 'CONFIRMED' || s === 'TICKETED') return 'confirmed';
   if (s === 'CANCELLED' || s === 'CANCELLED_WITH_CHARGES') return 'cancelled';
+  if (s === 'FAILED' || s === 'EXPIRED') return 'failed';
   return null;
 }

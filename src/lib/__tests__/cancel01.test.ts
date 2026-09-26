@@ -108,7 +108,7 @@ import { confidenceWords, destinationWords, moneyWords } from '../reservations/c
 import { landLiteApiCancellation, type LiteApiAnswer } from '../arrivals/liteapiBooking';
 import { FakeLanding } from './fakeLanding';
 import { CANCELLED_TITLE_PREFIX, markBookingCalendarCancelled, type BookingCalendarCancelPort } from '../calendar/bookingEvent';
-import { refreshFlightReservation, type FlightBookingStated, type FlightRefreshPorts } from '../reservations/refreshFlightReservation';
+import { refreshFlightReservation, type FlightBookingStated, type FlightRefreshPorts, type FlightReservationPatch } from '../reservations/refreshFlightReservation';
 import { BOOKING_CALENDAR_SOURCE } from '../calendar/bookingEvent';
 
 const DIALOG = 'src/components/trips/CancelBookingDialog.tsx';
@@ -320,22 +320,29 @@ test('a cancelled reservation\'s calendar row is MARKED, never removed', async (
 });
 
 test('the refresh does not flip a cancel_pending row back to confirmed while the airline still says CONFIRMED; a final word still lands', async () => {
-  const STATED: FlightBookingStated = { bookingId: 'fb_9Q', status: 'CONFIRMED', segments: [{ departureTime: '2026-10-25T14:15:00', direction: 'OUTBOUND', originCode: 'BKK', destinationCode: 'HKT', carrierName: 'Thai Vietjet Air', flightNumber: '228' }] };
-  const writes: Array<{ id: string; patch: Record<string, unknown> }> = [];
+  // STATUS-01 (2026-09-26): the guard lives in the apply leaf now; the refresh's one write always carries the read stamp.
+  const READ_AT = new Date('2026-09-26T10:00:00.000Z');
+  const STATED: FlightBookingStated = { bookingId: 'fb_9Q', status: 'CONFIRMED', pnr: null, ticketedAt: null, ticketLimitTime: null, cancelIntentAt: '2026-09-26T09:05:00Z', readAt: READ_AT, segments: [{ departureTime: '2026-10-25T14:15:00', direction: 'OUTBOUND', originCode: 'BKK', destinationCode: 'HKT', carrierName: 'Thai Vietjet Air', flightNumber: '228' }] };
+  const writes: Array<{ id: string; patch: FlightReservationPatch }> = [];
+  let marked = 0; let commission = 0;
   const ports = (status: string): FlightRefreshPorts => ({
     fetchBooking: async () => ({ ...STATED, status }),
-    calendar: { async find() { return true; }, async insert() { throw new Error('not expected'); } },
+    calendar: { async find() { return true; }, async insert() { throw new Error('not expected'); }, async markCancelled() { marked += 1; return 1; } },
     writeReservation: async (id, patch) => { writes.push({ id, patch }); },
+    cancelCommission: async () => { commission += 1; return 1; },
   });
-  const row = { id: 'res_f1', userId: 'u', lane: 'flight', providerBookingId: 'fb_9Q', providerConfirmationCode: null, status: 'cancel_pending', displayName: 'Thai Vietjet Air BKK → HKT' };
+  const row = { id: 'res_f1', userId: 'u', lane: 'flight', providerBookingId: 'fb_9Q', providerConfirmationCode: null, status: 'cancel_pending', displayName: 'Thai Vietjet Air BKK → HKT', ticketedAt: null, ticketLimitTime: null, cancelIntentAt: new Date('2026-09-26T09:05:00Z'), ticketedEmailSentAt: null, confirmationEmailSentAt: null };
   const pending = await refreshFlightReservation(ports('CONFIRMED'), row);
   assert.ok(pending.fetched);
   if (pending.fetched) { assert.equal(pending.status, 'unchanged'); assert.equal(pending.statusValue, 'cancel_pending'); }
-  assert.equal(writes.length, 0, 'no write — the request is not undone');
+  assert.deepEqual(writes, [{ id: 'res_f1', patch: { lastVendorReadAt: READ_AT } }], 'only the read stamp — the request is not undone');
+  assert.equal(marked + commission, 0);
   const finalized = await refreshFlightReservation(ports('CANCELLED_WITH_CHARGES'), row);
   assert.ok(finalized.fetched);
   if (finalized.fetched) { assert.equal(finalized.status, 'set'); assert.equal(finalized.statusValue, 'cancelled'); }
-  assert.deepEqual(writes, [{ id: 'res_f1', patch: { status: 'cancelled' } }]);
+  assert.deepEqual(writes[1], { id: 'res_f1', patch: { status: 'cancelled', cancelIntentAt: null, lastVendorReadAt: READ_AT } }, 'final: the status, the intent cleared, the stamp');
+  assert.equal(marked, 1, 'the day is marked');
+  assert.equal(commission, 1, 'the margin is moved');
   // The post-202 read parses the vendor's own cancelIntentAt; absence is null.
   assert.equal(parseFlightBookingDetails({ bookingId: 'fb_9Q', status: 'CONFIRMED', cancelIntentAt: '2026-09-26T09:05:00Z' }).cancelIntentAt, '2026-09-26T09:05:00Z');
   assert.equal(parseFlightBookingDetails({ bookingId: 'fb_9Q', status: 'CONFIRMED' }).cancelIntentAt, null);

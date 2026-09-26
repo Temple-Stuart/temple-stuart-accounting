@@ -538,6 +538,15 @@ export interface FlightBookingDetails {
    *  was requested and is awaiting airline confirmation (or retained after finalize
    *  as evidence)"; omitted when null. Null here when the answer did not carry it. */
   cancelIntentAt: string | null;
+  /** STATUS-01 (2026-09-26): ticketData.ticketedAt — "UTC timestamp" the ticket was
+   *  issued; null until the airline states it. */
+  ticketedAt: string | null;
+  /** STATUS-01: ticketLimitTime — "deadline for ticket issuance (UTC)"; null when not stated. */
+  ticketLimitTime: string | null;
+  /** STATUS-01: the airline PNR as the GET states it — order.reference.provider.pnr
+   *  (the book answer's own field) else the first order.reference.airlineBookings[].pnr;
+   *  null when neither is stated. */
+  pnr: string | null;
   segments: FlightBookingSegmentDetails[];
 }
 
@@ -561,11 +570,20 @@ export function parseFlightBookingDetails(booking: Record<string, unknown>): Fli
         flightNumber: str(flight?.marketingNumber),
       };
     });
+  const ticketData = booking.ticketData as Record<string, unknown> | undefined;
+  const order = booking.order as Record<string, unknown> | undefined;
+  const reference = order?.reference as Record<string, unknown> | undefined;
+  const provider = reference?.provider as Record<string, unknown> | undefined;
+  const airlineBookings = Array.isArray(reference?.airlineBookings) ? (reference!.airlineBookings as unknown[]) : [];
+  const firstAirline = airlineBookings.find((a): a is Record<string, unknown> => !!a && typeof a === 'object');
   return {
     bookingId: booking.bookingId as string,
     bookingRef: str(booking.bookingRef),
     status: str(booking.status),
     cancelIntentAt: str(booking.cancelIntentAt),
+    ticketedAt: str(ticketData?.ticketedAt),
+    ticketLimitTime: str(booking.ticketLimitTime),
+    pnr: str(provider?.pnr) ?? str(firstAirline?.pnr),
     segments,
   };
 }

@@ -18,7 +18,11 @@ import { flightConfirmation } from '@/lib/emailTemplates/flightConfirmation';
 // refresh use.
 import { prismaBookingCalendar } from '@/lib/calendar/prismaBookingCalendar';
 import { getFlightBooking } from '@/lib/liteapiFlightsClient';
-import { refreshFlightReservation } from '@/lib/reservations/refreshFlightReservation';
+import { refreshFlightReservation, type FlightRefreshOutcome, type FlightReservationPatch } from '@/lib/reservations/refreshFlightReservation';
+// STATUS-01 (2026-09-26): the refresh hands the status to the one apply leaf, which
+// may owe a 'ticketed' email (marker stamped in its write); the one attempt is made
+// here, after the refresh, and never fails the paid booking.
+import { sendLifecycleEmail } from '@/lib/reservations/lifecycleSend';
 import { flightProviderStatusToReservation } from '@/lib/reservations/flightStatus';
 
 // ─── PUBLIC LiteAPI flight BOOK (PR-FL-5) ────────────────────────────────────
@@ -346,30 +350,33 @@ export async function POST(request: NextRequest) {
       // durable daily cap ('liteapiflightbookingread') is reserved immediately
       // before it — the vendor documents no cost for this GET, so it is treated as
       // metered. A cap refusal is the named failure below, never a bypass.
+      // STATUS-01 (2026-09-26): the refresh's outcome and its one write are kept
+      // for the emails the apply leaf owes, attempted AFTER this block (below).
+      let refreshed: FlightRefreshOutcome | null = null;
+      const wrote: { patch: FlightReservationPatch | null } = { patch: null };
       try {
         await reserveTravelSearch('liteapiflightbookingread');
         const outcome = await refreshFlightReservation(
           {
-            fetchBooking: async (bookingId) => (await getFlightBooking(bookingId)).details,
+            fetchBooking: async (bookingId) => {
+              const read = await getFlightBooking(bookingId);
+              return { ...read.details, readAt: read.answer.arrived };
+            },
             calendar: prismaBookingCalendar(prisma),
             writeReservation: async (id, patch) => {
+              wrote.patch = patch;
               await prisma.reservations.update({ where: { id }, data: patch });
             },
+            cancelCommission: async (reservationId) => (await prisma.commission_ledger.updateMany({ where: { reservationId, status: 'estimated' }, data: { status: 'cancelled' } })).count,
           },
-          {
-            id: result.id,
-            userId: result.userId ?? null,
-            lane: result.lane,
-            providerBookingId: result.providerBookingId,
-            providerConfirmationCode: result.providerConfirmationCode,
-            status: result.status,
-            displayName: result.displayName,
-          },
+          // The committed row: every column the refresh reads (LANE-01's seven, STATUS-01's five).
+          result,
         );
+        refreshed = outcome;
         if (!outcome.fetched) {
           console.error('[LiteAPI flights book] LANE-01 refresh did not apply (booking + persist succeeded):', outcome.reason);
         } else {
-          console.log(`[LiteAPI flights book] LANE-01 refresh: reservation ${result.id} — calendar ${outcome.calendar}${outcome.day ? ` on ${outcome.day}` : ''}${outcome.calendarReason ? ` (${outcome.calendarReason})` : ''}; name ${outcome.name}${outcome.nameValue ? ` "${outcome.nameValue}"` : ''}; status ${outcome.status} (${outcome.providerStatus ?? 'absent'} → ${outcome.statusValue})`);
+          console.log(`[LiteAPI flights book] LANE-01 refresh: reservation ${result.id} — calendar ${outcome.calendar}${outcome.day ? ` on ${outcome.day}` : ''}${outcome.calendarReason ? ` (${outcome.calendarReason})` : ''}; name ${outcome.name}${outcome.nameValue ? ` "${outcome.nameValue}"` : ''}; status ${outcome.status} (${outcome.providerStatus ?? 'absent'} → ${outcome.statusValue})${outcome.changes.length ? `; changed: ${outcome.changes.join('; ')}` : ''}`);
         }
       } catch (calErr) {
         console.error('[LiteAPI flights book] LANE-01 refresh FAILED (booking + persist succeeded):', {
@@ -377,6 +384,25 @@ export async function POST(request: NextRequest) {
           reservationId: result.id,
           error: calErr instanceof Error ? calErr.message : calErr,
         });
+      }
+
+      // ─── STATUS-01: the emails the apply leaf owes ────────────────────────
+      // Their markers rode the refresh's one write (ticketedEmailSentAt), so this
+      // is the ONE attempt: after the write, in its own try/catch, logged by name
+      // on failure inside sendLifecycleEmail (audit_log) — never failing the paid
+      // booking, never retried here.
+      if (refreshed !== null && refreshed.fetched) {
+        for (const request of refreshed.emails) {
+          try {
+            const sent = await sendLifecycleEmail(
+              { ...result, providerConfirmationCode: wrote.patch?.providerConfirmationCode ?? result.providerConfirmationCode, displayName: wrote.patch?.displayName ?? result.displayName },
+              request,
+            );
+            console.log(`[LiteAPI flights book] STATUS-01 lifecycle email ${request.kind}: ${sent.sent ? `sent ${sent.id}` : `not sent (${sent.error})`}`);
+          } catch (emailErr) {
+            console.error('[LiteAPI flights book] STATUS-01 lifecycle email FAILED (booking + persist succeeded):', { reservationId: result.id, kind: request.kind, error: emailErr instanceof Error ? emailErr.message : emailErr });
+          }
+        }
       }
 
       // ─── FL-5b: the confirmation email ─────────────────────────────────────

@@ -1501,6 +1501,16 @@ model reservations {
   status                   String   @db.VarChar(20) // 'pending' | 'confirmed' | 'cancel_pending' | 'cancelled' | 'failed'
   /// CANCEL-01 (2026-09-26): the vendor's own timestamp from GET /flights/bookings/{bookingId} — "set when a cancellation was requested and is awaiting airline confirmation". Written on a 202; NULL otherwise. Never our clock.
   cancelIntentAt           DateTime? @db.Timestamptz(6)
+  /// STATUS-01 (2026-09-26): the airline's ticketData.ticketedAt, verbatim; NULL until the vendor states it. Written only by applyVendorState.
+  ticketedAt               DateTime? @db.Timestamptz(6)
+  /// STATUS-01: the airline's ticketLimitTime ("deadline for ticket issuance (UTC)"), verbatim; NULL until stated. Written only by applyVendorState.
+  ticketLimitTime          DateTime? @db.Timestamptz(6)
+  /// STATUS-01: when the last GET of this booking ARRIVED — the landed response's own timestamp, never our clock in the leaf. The scheduled refresh orders by it, NULL first. Written only by applyVendorState.
+  lastVendorReadAt         DateTime? @db.Timestamptz(6)
+  /// STATUS-01: the marker that the ONE 'ticketed' email attempt was made — stamped in the same transaction as the change that earned it (a webhook and a cron racing cannot both send). A failed send goes to audit_log by name and is NOT retried automatically: the marker means "the one attempt was made".
+  ticketedEmailSentAt      DateTime? @db.Timestamptz(6)
+  /// STATUS-01: the same marker for the ONE 'hotel_confirmation_arrived' email attempt.
+  confirmationEmailSentAt  DateTime? @db.Timestamptz(6)
   hotelName                String?  @db.VarChar(255)
   checkinDate              DateTime? @db.Date // null for non-stay orders (flights) — D3
   checkoutDate             DateTime? @db.Date // null for non-stay orders (flights) — D3
@@ -1526,6 +1536,34 @@ model reservations {
   @@index([tripId])
   @@index([provider, providerBookingId])
   @@index([arrival_id])
+}
+
+// ─── Webhook events (STATUS-01, 2026-09-26) ─────────────────────────────────
+// One row per vendor webhook delivery the receiver acted on or refused by name
+// after landing its bytes. A WEBHOOK IS A HINT; THE GET IS THE TRUTH: bookingId is
+// the id the receiver resolved in order to find OUR reservation and re-read the
+// vendor — no payload field is ever applied. The dedupe is a PARTIAL UNIQUE index
+// in SQL (webhook_events_eventId_acted_key: eventId, WHERE outcome <> 'duplicate'),
+// so every delivery is on record and at most one row per event_id has acted;
+// Prisma cannot express it, so only the plain index is modeled here.
+model webhook_events {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provider   String    @db.VarChar(20)
+  eventId    String    @db.VarChar(160)
+  eventType  String    @db.VarChar(80)
+  bookingId  String?   @db.VarChar(120)
+  /// The delivery's landed bytes. NOT NULL, RESTRICT.
+  arrivalId  String
+  receivedAt DateTime  @db.Timestamptz(6)
+  actedAt    DateTime? @db.Timestamptz(6)
+  outcome    String    @db.VarChar(20) // 'applied' | 'unchanged' | 'unknown_booking' | 'unknown_event' | 'duplicate' | 'read_failed' — CHECK-enforced in SQL
+
+  arrival arrivals @relation(fields: [arrivalId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([eventId])
+  @@index([bookingId])
+  @@index([receivedAt])
+  @@index([arrivalId])
 }
 
 // ─── Money events (CANCEL-01, 2026-09-26) ───────────────────────────────────
@@ -3962,6 +4000,7 @@ model arrivals {
   holdings      holdings[]
   money_events  money_events[]
   vouchers      vouchers[]
+  webhook_events webhook_events[]
 
   /// PR-2: the same thing is the same provider + id + content; a correction is a new row.
   @@unique([provider, their_id, fingerprint])

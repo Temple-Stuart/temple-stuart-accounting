@@ -93,6 +93,10 @@ const PUBLIC_PATHS = [
   '/books',
   '/tax',
   '/api/stripe/webhook',
+  // STATUS-01 (2026-09-26): the LiteAPI booking webhook — the vendor holds no
+  // session; the route's own token check (LITEAPI_WEBHOOK_TOKEN, constant-time)
+  // is the gate, before a byte is stored. The stripe webhook's convention.
+  '/api/webhooks/liteapi',
   '/api/inngest',
   '/opengraph-image',
   '/terms',

@@ -54,6 +54,10 @@ import { landObjects, landResponse, markRead } from './land';
 export const LITEAPI = 'liteapi';
 export const BOOKING = 'booking';
 export const CANCELLATION = 'cancellation';
+/** STATUS-01 (2026-09-26): a booking READ — the vendor's current state, a snapshot re-taken. */
+export const BOOKING_READ = 'booking_read';
+/** STATUS-01: a webhook delivery — landed before it is parsed; a hint, never a fact. */
+export const WEBHOOK = 'webhook';
 
 /** A 2xx answer as it came over the wire — the clients build it (liteapiClient.ts fetchAnswer, liteapiFlightsClient.ts postFlightsAnswer). */
 export interface LiteApiAnswer {
@@ -71,6 +75,10 @@ export const bookingGuestRef = (bookingId: string): string => `booking:${booking
 
 /** their_id for a cancellation: composed from the booking cancelled (the answer carries no id of its own) and labeled composed. */
 export const cancellationTheirId = (bookingId: string): string => `cancellation:${bookingId}`;
+/** STATUS-01: their_id for a booking READ — composed, so an identical re-read is already_landed and a changed state is a corrected snapshot, never a "correction" of the book answer itself (the store is unique on provider + their_id + fingerprint, resource aside). */
+export const bookingReadTheirId = (bookingId: string): string => `read:${bookingId}`;
+/** STATUS-01: guest_ref for a webhook delivery before it is parsed — declared, never dropped; the vendor's event_id keys the arrival once parsed. */
+export const webhookGuestRef = (eventId: string | null): string => (eventId === null ? 'webhook:liteapi' : `event:${eventId}`);
 
 export interface BookingObject {
   /** The provider's bookingId. */
@@ -233,4 +241,124 @@ export async function landLiteApiCancellation<P, R>(ports: CancellationPorts<P, 
   }
   ports.log?.(`[liteapi] landed cancellation of ${input.bookingId} — ${row.outcome}, response ${response.id}`);
   return { bookingId: input.bookingId, theirId, outcome: row.outcome, responseId: response.id, arrivalId: row.id, parsed, reservation, read };
+}
+
+// ─── STATUS-01 (2026-09-26): a booking READ lands, then the apply runs from the table ─
+export interface BookingReadPorts {
+  landing: LandingDb;
+  log?: (line: string) => void;
+  now?: () => Date;
+}
+
+export interface BookingReadLandingInput<P> {
+  answer: LiteApiAnswer;
+  /** The booking read. */
+  bookingId: string;
+  /** The booking object inside the answer — the arrival's payload. */
+  payload: JsonObject;
+  /** The lane's state parser — runs over the arrival payload, never over `payload`. */
+  parse: (payload: JsonObject) => P;
+  userId: string | null;
+  guestRef: string | null;
+}
+
+export interface BookingReadLandingResult<P> {
+  bookingId: string;
+  theirId: string;
+  /** landed (first read) · already_landed (the same state again) · corrected (the state changed since the last read). */
+  outcome: ArrivalOutcome;
+  responseId: string;
+  arrivalId: string;
+  /** Parsed from the arrival. */
+  parsed: P;
+  read: boolean;
+}
+
+/** Inside the caller's transaction: land the read answer's bytes, land the snapshot (composed id `read:<bookingId>`), parse from the table, mark read. Throws to roll it back. */
+export async function landLiteApiBookingRead<P>(ports: BookingReadPorts, input: BookingReadLandingInput<P>): Promise<BookingReadLandingResult<P>> {
+  const { answer } = input;
+  const theirId = bookingReadTheirId(input.bookingId);
+  const response = await landResponse(ports.landing, {
+    provider: LITEAPI,
+    resource: BOOKING_READ,
+    userId: input.userId,
+    guestRef: input.guestRef,
+    httpStatus: answer.httpStatus,
+    body: answer.body,
+    asked: answer.asked,
+    arrived: answer.arrived,
+  });
+  const landed = await landObjects(ports.landing, {
+    provider: LITEAPI,
+    resource: BOOKING_READ,
+    connection: null,
+    userId: input.userId,
+    guestRef: input.guestRef,
+    responseId: response.id,
+    asked: answer.asked,
+    arrived: answer.arrived,
+    objects: [{ theirId, theirIdKind: 'composed', payload: input.payload }],
+  });
+  const row = landed.rows[0];
+  if (!row) throw new Error(`liteapi booking read: ${theirId} landed no row — the table is not answering`);
+  const parsed = input.parse(row.payload as JsonObject);
+  let read = false;
+  if (row.outcome !== 'already_landed') {
+    await markRead(ports.landing, [row.id], (ports.now ?? (() => new Date()))());
+    read = true;
+  }
+  ports.log?.(`[liteapi] landed read of ${input.bookingId} — ${row.outcome}, response ${response.id}`);
+  return { bookingId: input.bookingId, theirId, outcome: row.outcome, responseId: response.id, arrivalId: row.id, parsed, read };
+}
+
+// ─── STATUS-01: a webhook delivery lands — the bytes BEFORE any parse, the event after ─
+export interface WebhookBytesInput {
+  /** The request body exactly as received. */
+  body: Buffer;
+  receivedAt: Date;
+}
+
+/** Step 3 of the receiver: the delivery's exact bytes as a provider_responses row, before anything is parsed. Never throws on content — there is no content yet. */
+export async function landLiteApiWebhookBytes(ports: BookingReadPorts, input: WebhookBytesInput): Promise<{ responseId: string }> {
+  const response = await landResponse(ports.landing, {
+    provider: LITEAPI,
+    resource: WEBHOOK,
+    userId: null,
+    guestRef: webhookGuestRef(null),
+    // As received: the vendor POSTed it; we record it as a 200 we hold.
+    httpStatus: 200,
+    body: input.body,
+    asked: input.receivedAt,
+    arrived: input.receivedAt,
+  });
+  return { responseId: response.id };
+}
+
+export interface WebhookEventInput {
+  responseId: string;
+  receivedAt: Date;
+  /** The vendor's event_id — the arrival's their_id. */
+  eventId: string;
+  /** The parsed delivery — the arrival's payload. */
+  payload: JsonObject;
+}
+
+/** Step 4 of the receiver: one arrival per delivery (liteapi · webhook, their_id = event_id). A redelivery with the same bytes is already_landed — the store's UNIQUE is the first dedupe; the webhook_events row is the second. */
+export async function landLiteApiWebhookEvent(ports: BookingReadPorts, input: WebhookEventInput): Promise<{ arrivalId: string; outcome: ArrivalOutcome }> {
+  const landed = await landObjects(ports.landing, {
+    provider: LITEAPI,
+    resource: WEBHOOK,
+    connection: null,
+    userId: null,
+    guestRef: webhookGuestRef(input.eventId),
+    responseId: input.responseId,
+    asked: input.receivedAt,
+    arrived: input.receivedAt,
+    objects: [{ theirId: input.eventId, theirIdKind: 'provider', payload: input.payload }],
+  });
+  const row = landed.rows[0];
+  if (!row) throw new Error(`liteapi webhook: event ${input.eventId} landed no row — the table is not answering`);
+  if (row.outcome !== 'already_landed') await markRead(ports.landing, [row.id], (ports.now ?? (() => new Date()))());
+  ports.log?.(`[liteapi] landed webhook event ${input.eventId} — ${row.outcome}, response ${input.responseId}`);
+  return { arrivalId: row.id, outcome: row.outcome };
 }

@@ -28,7 +28,8 @@ const ROUTE = 'src/app/api/reservations/[id]/cancel/route.ts';
 const DIALOG = 'src/components/trips/CancelBookingDialog.tsx';
 const LEAF = 'src/lib/reservations/cancellation.ts';
 const FCLIENT = 'src/lib/liteapiFlightsClient.ts';
-const REFRESH = 'src/lib/reservations/refreshFlightReservation.ts';
+// STATUS-01 (2026-09-26): the cancel_pending guard moved WITH the status logic into the one apply leaf; seed j lives there.
+const APPLY = 'src/lib/reservations/applyVendorState.ts';
 const CAL_IMPL = 'src/lib/calendar/prismaBookingCalendar.ts';
 
 const SEEDS: Seed[] = [
@@ -96,8 +97,8 @@ const SEEDS: Seed[] = [
     expect: 'writes our clock into cancelIntentAt',
   },
   {
-    name: 'cancel01-j the refresh flips a pending cancel back to confirmed (clause 4)',
-    file: REFRESH,
+    name: 'cancel01-j the apply leaf flips a pending cancel back to confirmed (clause 4; STATUS-01 moved the guard there)',
+    file: APPLY,
     find: "  else if (row.status === 'cancel_pending' && mapped === 'confirmed') status = 'unchanged';",
     replace: "  else if (false) status = 'unchanged';",
     expect: 'would flip a cancel_pending row back to confirmed',

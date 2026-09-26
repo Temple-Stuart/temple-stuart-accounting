@@ -32,6 +32,15 @@
  * This is how FH-269-920QSVHH gets its day, its name, and stops reading "pending".
  *
  * --dry-run: calls the vendor and prints what WOULD change, writes nothing.
+ *
+ * STATUS-01 (2026-09-26): the function now hands the status to the one apply leaf
+ * (src/lib/reservations/applyVendorState.ts), which also writes the PNR,
+ * ticketedAt, ticketLimitTime and lastVendorReadAt the GET states, marks the day
+ * and moves the commission of a vendor-cancelled flight, and may owe a 'ticketed'
+ * email whose marker rides its write — so this retro sends the one attempt after
+ * the write (never on a dry run). The ports gained cancelCommission and the
+ * calendar's markCancelled; nothing else here changed. The whole-fleet retro is
+ * scripts/status-01-retro-reservations.ts.
  */
 import { readFileSync } from 'node:fs';
 
@@ -66,11 +75,17 @@ async function main(): Promise<void> {
   const { refreshFlightReservation } = await import('../src/lib/reservations/refreshFlightReservation');
   const { prismaBookingCalendar } = await import('../src/lib/calendar/prismaBookingCalendar');
   const { reserveTravelSearch, TravelSearchQuotaError } = await import('../src/lib/travelSearchQuota');
+  const { sendLifecycleEmail } = await import('../src/lib/reservations/lifecycleSend');
 
   const rows = await prisma.reservations.findMany({
     where: { lane: 'flight' },
     orderBy: { createdAt: 'asc' },
-    select: { id: true, userId: true, lane: true, providerBookingId: true, providerConfirmationCode: true, status: true, displayName: true, createdAt: true },
+    select: {
+      id: true, userId: true, lane: true, providerBookingId: true, providerConfirmationCode: true, status: true, displayName: true, createdAt: true,
+      // STATUS-01: the apply leaf's columns, and the email's.
+      ticketedAt: true, ticketLimitTime: true, cancelIntentAt: true, ticketedEmailSentAt: true, confirmationEmailSentAt: true,
+      bookingType: true, guestEmail: true, checkinDate: true, checkoutDate: true,
+    },
   });
   console.log(`LANE-01 retro — ${rows.length} flight reservation(s)${dryRun ? ' (DRY RUN: nothing will be written)' : ''}\n`);
 
@@ -90,14 +105,26 @@ async function main(): Promise<void> {
     const writes: string[] = [];
     const outcome = await refreshFlightReservation(
       {
-        fetchBooking: async (bookingId) => (await getFlightBooking(bookingId)).details,
+        fetchBooking: async (bookingId) => {
+          const read = await getFlightBooking(bookingId);
+          return { ...read.details, readAt: read.answer.arrived };
+        },
         calendar: dryRun
-          ? { find: calendar.find, insert: async (r) => { writes.push(`calendar row on ${r.startDate.toISOString().slice(0, 10)} "${r.title}"`); } }
+          ? {
+              find: calendar.find,
+              insert: async (r) => { writes.push(`calendar row on ${r.startDate.toISOString().slice(0, 10)} "${r.title}"`); },
+              markCancelled: async (_source, sourceId) => { writes.push(`calendar rows for ${sourceId} marked cancelled`); return 0; },
+            }
           : calendar,
         writeReservation: async (id, patch) => {
           writes.push(`reservation ${Object.entries(patch).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(', ')}`);
           if (!dryRun) await prisma.reservations.update({ where: { id }, data: patch });
         },
+        cancelCommission: async (reservationId) => {
+          if (dryRun) { writes.push('commission_ledger estimated → cancelled'); return 0; }
+          return (await prisma.commission_ledger.updateMany({ where: { reservationId, status: 'estimated' }, data: { status: 'cancelled' } })).count;
+        },
+        log: (line) => console.log(`    ${line}`),
       },
       row,
     );
@@ -111,9 +138,15 @@ async function main(): Promise<void> {
       `name: ${outcome.name}${outcome.nameValue ? ` "${outcome.nameValue}"` : ''}`,
       `status: ${outcome.status} (vendor ${outcome.providerStatus ?? 'absent'} → ${outcome.statusValue})`,
     ];
-    const touched = outcome.calendar === 'inserted' || outcome.name === 'set' || outcome.status === 'set';
+    const touched = outcome.calendar === 'inserted' || outcome.name === 'set' || outcome.status === 'set' || outcome.changes.length > 0;
     if (touched) changed += 1; else untouched += 1;
     console.log(`${touched ? '✔ CHANGED ' : '· unchanged'} ${head}\n    ${lines.join('\n    ')}${writes.length ? `\n    ${dryRun ? 'would write' : 'wrote'}: ${writes.join('; ')}` : ''}`);
+    // STATUS-01: the emails the apply leaf owes — their markers are already written; one attempt each, never on a dry run.
+    for (const request of outcome.emails) {
+      if (dryRun) { console.log(`    would email: ${request.kind}`); continue; }
+      const sent = await sendLifecycleEmail(row, request);
+      console.log(`    email ${request.kind}: ${sent.sent ? `sent ${sent.id}` : `NOT sent (${sent.error})`}`);
+    }
   }
   console.log(`\n${changed} changed · ${untouched} already correct · ${failed} left as is (named above)`);
   await prisma.$disconnect();
