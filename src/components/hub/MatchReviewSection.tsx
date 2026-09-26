@@ -14,10 +14,16 @@
  *
  * Styling: the RunwayBudgetPanel idiom — ... over the
  * light-token vocabulary (RunwayBudgetPanel.tsx:121-131), dark runway surface.
+ *
+ * MATCH-02 (2026-09-26): a REFUND proposal (moneyEventId set) renders as a refund
+ * — "Refund of <booking>: vendor stated <amount currency> on <date>" — never as a
+ * charge. The words come from one leaf (src/lib/runway/refundWords.ts); this
+ * component types none of them. The bank figure stays the bank's own sign.
  */
 
 import { useCallback, useEffect, useState } from 'react';
 import { reservationIdentity } from '@/lib/reservations/lane';
+import { refundProposalLine, type RefundProposalEvent } from '@/lib/runway/refundWords';
 
 
 interface QueueRow {
@@ -34,6 +40,9 @@ interface QueueRow {
     // LANE-01: the one reader's inputs.
     lane: string; displayName: string | null; providerConfirmationCode: string | null; providerBookingId: string;
   };
+  // MATCH-02: NULL = a charge proposal; set = the refund money event this inflow is proposed against.
+  moneyEventId: string | null;
+  moneyEvent: RefundProposalEvent | null;
 }
 
 const day = (s: string | null) => (s ? s.slice(0, 10) : '—');
@@ -90,7 +99,12 @@ export default function MatchReviewSection({
       if (!res.ok) throw new Error(data.error || `Match run failed (HTTP ${res.status})`);
       setRunSummary(
         `Scanned ${data.reservations} booking(s): ${data.proposed} new proposal(s), ` +
-        `${data.refreshed} refreshed, ${data.skippedReviewed} already reviewed.`
+        `${data.refreshed} refreshed, ${data.skippedReviewed} already reviewed.` +
+        // MATCH-02: the refund pass, counted apart — stated events, proposals, contradictions skipped by name.
+        (data.refunds
+          ? ` Refunds: ${data.refunds.events} stated by the vendor, ${data.refunds.proposed} new proposal(s), ` +
+            `${data.refunds.refreshed} refreshed, ${data.refunds.contradictions} contradiction(s) skipped.`
+          : '')
       );
       await loadQueue();
     } catch (err) {
@@ -179,8 +193,10 @@ export default function MatchReviewSection({
             const resPrice = q.reservation.finalPriceCents === null
               ? 'price not stated'
               : `${q.reservation.currency} ${(q.reservation.finalPriceCents / 100).toFixed(2)}`;
+            // MATCH-02: a refund proposal says so, in the leaf's words.
+            const refund = q.moneyEventId !== null && q.moneyEvent !== null ? q.moneyEvent : null;
             return (
-              <div key={q.id} className="space-y-1.5 p-3">
+              <div key={q.id} className="space-y-1.5 p-3" data-match-kind={refund ? 'refund' : 'charge'}>
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                   <div className="min-w-0">
                     <span className="font-mono text-sm text-text-primary tabular-nums">
@@ -195,10 +211,16 @@ export default function MatchReviewSection({
                     {q.confidence != null ? `${Math.round(q.confidence * 100)}% match` : 'unscored'}
                   </span>
                 </div>
-                <div className="text-xs text-text-secondary">
-                  ↔ {resLabel} · {resPrice} · booked {day(q.reservation.createdAt)}
-                  {q.reservation.checkinDate ? ` · stay ${day(q.reservation.checkinDate)}–${day(q.reservation.checkoutDate)}` : ''}
-                </div>
+                {refund ? (
+                  <div className="text-xs text-text-secondary" data-refund-proposal={q.moneyEventId}>
+                    ↔ {refundProposalLine(resLabel, refund)}
+                  </div>
+                ) : (
+                  <div className="text-xs text-text-secondary">
+                    ↔ {resLabel} · {resPrice} · booked {day(q.reservation.createdAt)}
+                    {q.reservation.checkinDate ? ` · stay ${day(q.reservation.checkinDate)}–${day(q.reservation.checkoutDate)}` : ''}
+                  </div>
+                )}
                 {/* The full matcher rationale — always visible (CPA bar). */}
                 <p className="font-mono text-[10px] leading-relaxed text-text-muted">
                   {q.rationale ?? 'no rationale recorded'}

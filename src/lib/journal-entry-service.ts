@@ -110,6 +110,16 @@ export async function commitPlaidTransaction(
     document,
   } = params;
 
+  // MATCH-02 (2026-09-26): a CHARGE document on an INFLOW is refused by name BEFORE
+  // any lookup — POST-01's open finding, closed. A booking's charge is money that
+  // left the account; money that came in documents a REFUND money event (a link
+  // carrying moneyEventId), never a charge. Nothing is read before this refusal.
+  if (document && document.moneyEventId === null && amount < 0) {
+    throw new ValidationError(
+      `MATCH-02 a charge document needs an outflow: transaction ${transactionId} has Plaid amount ${amount} (money came in), so it cannot document the charge of booking ${document.reservationId} — an inflow documents a refund money event, never a charge`
+    );
+  }
+
   let posted: { result: CommitResult };
   try {
     posted = await postJournal(prisma, async (tx, post): Promise<CommitResult> => {

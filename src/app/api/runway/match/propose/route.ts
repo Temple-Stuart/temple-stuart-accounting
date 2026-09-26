@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { proposeMatches } from '@/lib/runway/reservationMatcher';
+import { MATCH_REFUND_DATE_WINDOW_DAYS, proposeMatches, proposeRefundMatches, type MatcherRefundEvent, type RefundMatchProposal } from '@/lib/runway/reservationMatcher';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 
 // ─── POST /api/runway/match/propose (PR-MATCH-2) ─────────────────────────────
@@ -21,6 +21,15 @@ import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 //
 // NOTE: this route 500s (loudly, declared) until the MATCH-0 table exists in
 // Azure — expected until Alex's psql lands.
+//
+// MATCH-02 (2026-09-26): A SECOND PASS, REFUNDS. After the outflow pass (untouched
+// above), the user's refund money events — through reservations.userId, the guest
+// fence — are scored against the user's INFLOWS (amount < 0) by the pure
+// proposeRefundMatches, per account currency (accounts.isoCurrencyCode; NULL → the
+// amount signal EXCLUDED, named), inflows an accepted link already claims left
+// out; the proposals persist with moneyEventId set, status 'proposed'. A human
+// accepts in the review route, which settles the money event. Nothing here
+// converts a currency, infers a payout, or accepts anything.
 
 // Config points (declared): FX/card drift tolerance + the date window the
 // matcher scores against. Env-tunable later if real data demands it.
@@ -124,12 +133,127 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // ─── MATCH-02: THE REFUND PASS — inflows against the refunds the vendor stated ──
+    const refundEvents = await prisma.money_events.findMany({
+      where: { kind: 'refund', status: 'stated', reservation: { userId: user.id } },
+      orderBy: { statedAt: 'asc' },
+      select: {
+        id: true, reservationId: true, kind: true, status: true, amountCents: true, currency: true, refundDestination: true, statedAt: true,
+        reservation: {
+          select: {
+            provider: true, hotelName: true, displayName: true,
+            // The booking's ACCEPTED charge link (moneyEventId null), earliest accept first: its bank descriptor is a refund signal.
+            transaction_reservation_links: {
+              where: { status: 'accepted', moneyEventId: null },
+              orderBy: { reviewedAt: 'asc' },
+              take: 1,
+              select: { transaction: { select: { name: true } } },
+            },
+          },
+        },
+      },
+    });
+    const refunds = { events: refundEvents.length, candidates: 0, proposed: 0, refreshed: 0, skippedReviewed: 0, contradictions: 0 };
+    if (refundEvents.length > 0) {
+      const refundInputs: MatcherRefundEvent[] = refundEvents.map((e) => {
+        const charge = e.reservation.transaction_reservation_links[0];
+        return {
+          id: e.id, reservationId: e.reservationId, kind: e.kind, status: e.status, amountCents: e.amountCents, currency: e.currency,
+          refundDestination: e.refundDestination, statedAt: e.statedAt,
+          provider: e.reservation.provider, hotelName: e.reservation.hotelName, displayName: e.reservation.displayName,
+          chargeTransactionName: charge ? charge.transaction.name : null,
+        };
+      });
+      // Inflows dated at or after the earliest statement: a refund cannot land before it is stated.
+      const earliestStatedAt = refundEvents[0].statedAt;
+      const inflows = await prisma.transactions.findMany({
+        where: {
+          amount: { lt: 0 },
+          date: { gte: earliestStatedAt },
+          accounts: { userId: user.id },
+        },
+        select: {
+          id: true, amount: true, date: true, authorized_date: true,
+          name: true, merchantName: true, pending: true,
+          accounts: { select: { isoCurrencyCode: true } },
+        },
+      });
+      // An inflow an accepted link already claims is one thing already — never a candidate.
+      const claimed = new Set(
+        (await prisma.transaction_reservation_links.findMany({
+          where: { userId: user.id, status: 'accepted', transactionId: { in: inflows.map((t) => t.id) } },
+          select: { transactionId: true },
+        })).map((l) => l.transactionId),
+      );
+      // Per account currency — the amount is compared in the account's stated currency, never converted.
+      const byCurrency = new Map<string | null, typeof inflows>();
+      for (const t of inflows) {
+        const key = t.accounts.isoCurrencyCode;
+        const group = byCurrency.get(key) ?? [];
+        group.push(t);
+        byCurrency.set(key, group);
+      }
+      const refundProposals: RefundMatchProposal[] = [];
+      const currencies = [...byCurrency.keys()].sort((a, b) => (a ?? '').localeCompare(b ?? ''));
+      for (const accountCurrency of currencies) {
+        const out = proposeRefundMatches({
+          refunds: refundInputs,
+          transactions: byCurrency.get(accountCurrency) ?? [],
+          accountCurrency,
+          opts: { amountTolerancePct: MATCH_AMOUNT_TOLERANCE_PCT, refundDateWindowDays: MATCH_REFUND_DATE_WINDOW_DAYS },
+          excludeTransactionIds: claimed,
+        });
+        refundProposals.push(...out.proposals);
+        refunds.contradictions += out.skipped.length;
+      }
+      refunds.candidates = refundProposals.length;
+
+      // The same partition as the outflow pass: a reviewed row is never touched.
+      const existingRefundRows = await prisma.transaction_reservation_links.findMany({
+        where: { userId: user.id, transactionId: { in: refundProposals.map((p) => p.transactionId) } },
+        select: { id: true, transactionId: true, reservationId: true, status: true },
+      });
+      const refundByPair = new Map(existingRefundRows.map((e) => [`${e.transactionId}|${e.reservationId}`, e]));
+      const refundCreate: RefundMatchProposal[] = [];
+      const refundRefresh: Array<{ id: string; confidence: number; rationale: string }> = [];
+      for (const p of refundProposals) {
+        const row = refundByPair.get(`${p.transactionId}|${p.reservationId}`);
+        if (!row) { refundCreate.push(p); continue; }
+        if (row.status === 'proposed') { refundRefresh.push({ id: row.id, confidence: p.confidence, rationale: p.rationale }); continue; }
+        refunds.skippedReviewed += 1;
+      }
+      if (refundCreate.length > 0) {
+        await prisma.transaction_reservation_links.createMany({
+          data: refundCreate.map((p) => ({
+            transactionId: p.transactionId,
+            reservationId: p.reservationId,
+            moneyEventId: p.moneyEventId,
+            userId: user.id,
+            status: 'proposed',
+            confidence: p.confidence,
+            matchRationale: p.rationale,
+          })),
+          skipDuplicates: true,
+        });
+      }
+      for (const r of refundRefresh) {
+        await prisma.transaction_reservation_links.updateMany({
+          where: { id: r.id, status: 'proposed' },
+          data: { confidence: r.confidence, matchRationale: r.rationale },
+        });
+      }
+      refunds.proposed = refundCreate.length;
+      refunds.refreshed = refundRefresh.length;
+    }
+
     return NextResponse.json({
       reservations: reservations.length,
       candidates: proposals.length,
       proposed: toCreate.length,
       refreshed: toRefresh.length,
       skippedReviewed,
+      // MATCH-02: the refund pass, counted apart.
+      refunds,
     });
   } catch (err) {
     if (err instanceof RateLimitError) {
