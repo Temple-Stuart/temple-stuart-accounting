@@ -49,6 +49,29 @@ const SUBSYSTEM_ACTION_TYPES: Record<string, AuditActionType[]> = {
     'operations_north_star_updated',
     'operations_north_star_reviewed',
   ],
+  // AUDIT-01 (2026-09-26): the booking audit trail's three families.
+  reservation_: [
+    'reservation_booked',
+    'reservation_status_changed',
+    'reservation_confirmation_code_arrived',
+    'reservation_ticketed',
+    'reservation_ticket_limit_stated',
+    'reservation_cancel_quoted',
+    'reservation_cancel_requested',
+    'reservation_cancel_pending',
+    'reservation_cancelled',
+    'reservation_cancel_refused',
+    'reservation_email_sent',
+    'reservation_email_failed',
+    'reservation_posted',
+  ],
+  money_event_: [
+    'money_event_stated',
+    'money_event_settled',
+  ],
+  commission_: [
+    'commission_locked',
+  ],
 };
 
 export async function GET(request: NextRequest) {

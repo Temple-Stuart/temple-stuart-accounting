@@ -77,6 +77,7 @@ async function main(): Promise<void> {
   const { prismaBookingCalendar } = await import('../src/lib/calendar/prismaBookingCalendar');
   const { reserveTravelSearch, TravelSearchQuotaError } = await import('../src/lib/travelSearchQuota');
   const { sendLifecycleEmail } = await import('../src/lib/reservations/lifecycleSend');
+  const { actorOfReadSource } = await import('../src/lib/reservations/auditTrail');
 
   const rows = await prisma.reservations.findMany({
     where: { lane: 'flight' },
@@ -145,7 +146,8 @@ async function main(): Promise<void> {
     // STATUS-01: the emails the apply leaf owes — their markers are already written; one attempt each, never on a dry run.
     for (const request of outcome.emails) {
       if (dryRun) { console.log(`    would email: ${request.kind}`); continue; }
-      const sent = await sendLifecycleEmail(row, request);
+      // AUDIT-01: the retro is ours — system_automation under the booking's owner.
+      const sent = await sendLifecycleEmail(row, request, actorOfReadSource('retro', row.userId));
       console.log(`    email ${request.kind}: ${sent.sent ? `sent ${sent.id}` : `NOT sent (${sent.error})`}`);
     }
   }

@@ -252,7 +252,8 @@ test('the booking-flow pin still holds for every file it names — five search f
     // SEC-03 (2026-09-25): re-pinned — was 41f5eebfba6dacf4d613790dc0fa173e4c8cad012c42915d68d8a2cba8cf314a at main a5e66262.
     // STATUS-01 (2026-09-26): re-pinned — was 667efb921cdd690b6e5c26fc40c6b9deacd520367cf346956592b150d117c597 at main 53900e67.
     // COMM-01 (2026-09-26): re-pinned — was e32251eb8a4e9b541a001e6332bacb8ca1765e7bdb127d938d491665f6120509 at main 0ef428a6.
-    'src/app/api/travel/liteapi/book/route.ts': '441552e306910d94a0c0aa068f3dd3a1575a544f139fdab45ce57da106332707',
+    // AUDIT-01 (2026-09-26): re-pinned — was 441552e306910d94a0c0aa068f3dd3a1575a544f139fdab45ce57da106332707 at main 651c2f0e.
+    'src/app/api/travel/liteapi/book/route.ts': '18ad62a03aa84b5d9ed6c7856958c35a0f44281eedf5122c4404da0a95d60d43',
     // FL-4c (2026-09-23): the envelope gains paymentEnv, the server-derived key env.
     // SEC-03 (2026-09-25): re-pinned — was afad4046f2084b53ff5dfd48ca6c280b475967d61dfd4cf98f4b5da3e672964e at main a5e66262.
     'src/app/api/travel/liteapi/flights/prebook/route.ts': '4dd7994bc43cbc305e3c23717d881774289b47145d70f43d3ef12796f53e0b7a',
@@ -263,7 +264,8 @@ test('the booking-flow pin still holds for every file it names — five search f
     // SEC-03 (2026-09-25): re-pinned — was 653c25f1b43caf2104d152f543cf04dcb960b0c6bfc7ceac2a4ce5dddb2480f7 at main a5e66262.
     // STATUS-01 (2026-09-26): re-pinned — was 8f24d2dd90f36d55c2dbbe4cafb711387ea34faf4d9eb25a27c906b72b977367 at main 53900e67.
     // COMM-01 (2026-09-26): re-pinned — was b75d0ca85ee2a50a0fe715a73ac749893f656c57038908d3b89c256aed466d1a at main 0ef428a6.
-    'src/app/api/travel/liteapi/flights/book/route.ts': '62b828c1c9468cd1a10b2cb43ca4b76099f49ef9eb905fdac80f44409a349f8b',
+    // AUDIT-01 (2026-09-26): re-pinned — was 62b828c1c9468cd1a10b2cb43ca4b76099f49ef9eb905fdac80f44409a349f8b at main 651c2f0e.
+    'src/app/api/travel/liteapi/flights/book/route.ts': 'ac3d2ef9fe7e38d561734664e46916a7ed96a90ae1165d072a5173e1e200a462',
     // FL-5b (2026-09-23): the panel sends the contact it already holds; no payment path changed.
     // FL-4c (2026-09-23): the publishable key now comes from the vendor's /config, not the prebook's null.
     // FL-4c v2 (2026-09-23): the panel uses the vendor's DOCUMENTED wrapper — publicKey is the

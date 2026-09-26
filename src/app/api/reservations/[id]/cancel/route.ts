@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createHash } from 'crypto';
 import { Prisma } from '@prisma/client';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
@@ -26,6 +27,9 @@ import { prismaBookingCalendar } from '@/lib/calendar/prismaBookingCalendar';
 import { sendTransactionalEmail } from '@/lib/email';
 import { lifecycleEmail } from '@/lib/emailTemplates/lifecycle';
 import { reservationIdentity } from '@/lib/reservations/lane';
+// AUDIT-01 (2026-09-26): every cancel fact — the quote, the request, the outcome,
+// each money fact, the email — recorded through the one audit port.
+import { humanActor, recordBookingEvent, recordEmailOutcome, type BookingActor } from '@/lib/reservations/auditTrail';
 
 // /api/reservations/[id]/cancel — in-app cancellation. ONE resource, two verbs:
 //   GET  — THE QUOTE (CANCEL-01, flights only): what cancelling would do, read
@@ -84,12 +88,28 @@ import { reservationIdentity } from '@/lib/reservations/lane';
 // resolve a 202 into its final status and money facts (item 3); refund
 // matching in the bank matcher (item 8); journal posting of the money facts
 // (item 7). Each is named at the point it attaches.
+//
+// AUDIT-01 (2026-09-26): EVERY CANCEL FACT LEAVES A CHAINED ROW, after its commit,
+// through the one audit port (src/lib/reservations/auditTrail.ts), never thrown:
+//   GET  → reservation_cancel_quoted — the quote is NOT landed, so its evidence is
+//          the sha256 of the vendor's answer bytes (the same answer = the same row);
+//   POST → reservation_cancel_requested BEFORE the vendor call (our own refusals —
+//          the status gate, a retired provider, an unsupported lane — are not
+//          requests and record nothing), evidence the row as it stood (its id at its
+//          updatedAt: a repeated click on the unchanged row is the same request);
+//          then by outcome: reservation_cancelled (200, and every hotel cancel) /
+//          reservation_cancel_pending (202) with the landed cancellation as the
+//          evidence, a money_event_stated per money_events row written (each row its
+//          own evidence), or reservation_cancel_refused (the vendor's 409 — nothing
+//          else); and the email's outcome. The actor is the human who clicked.
 
 type OwnedRow = {
   id: string; status: string; provider: string; providerBookingId: string; lane: string;
   // CANCEL-02: the recipient rule and the email's identity lines read these.
   bookingType: string; guestEmail: string | null; displayName: string | null; providerConfirmationCode: string | null;
   checkinDate: Date | null; checkoutDate: Date | null;
+  // AUDIT-01: the row as it stood — the evidence of a request made against it.
+  updatedAt: Date;
 };
 
 /** The auth chain, shared by both verbs: the user, and the row they own. */
@@ -115,6 +135,7 @@ async function gate(id: string): Promise<{ ok: true; userId: string; accountEmai
     select: {
       id: true, status: true, provider: true, providerBookingId: true, lane: true,
       bookingType: true, guestEmail: true, displayName: true, providerConfirmationCode: true, checkinDate: true, checkoutDate: true,
+      updatedAt: true,
     },
   });
   if (!owned) {
@@ -197,6 +218,36 @@ function statusRefusal(owned: OwnedRow): NextResponse | null {
   );
 }
 
+// ─── AUDIT-01: the cancel facts, through the one port ────────────────────────
+/** The row as the request found it — its id at its updatedAt. */
+const asItStood = (owned: OwnedRow) => ({ table: 'reservations', id: `${owned.id}@${owned.updatedAt.toISOString()}` });
+
+/** Every money_events row this cancellation's arrival wrote — each its own evidence, each its own row. */
+async function recordStatedMoney(owned: OwnedRow, userId: string, actor: BookingActor, arrivalId: string): Promise<void> {
+  try {
+    const rows = await prisma.money_events.findMany({
+      where: { arrivalId, reservationId: owned.id },
+      orderBy: { id: 'asc' },
+      select: { id: true, kind: true, amountCents: true, currency: true, refundDestination: true },
+    });
+    for (const m of rows) {
+      await recordBookingEvent({
+        reservation: { id: owned.id, userId },
+        kind: 'money_event_stated',
+        actor,
+        before: null,
+        after: { kind: m.kind, amountCents: m.amountCents, currency: m.currency, refundDestination: m.refundDestination },
+        evidence: { table: 'money_events', id: m.id },
+        target: { table: 'money_events', id: m.id },
+      });
+    }
+  } catch (err) {
+    console.error('[Reservation cancel] AUDIT-01 the money_events rows could not be read back — money_event_stated NOT recorded; the cancel stands:', {
+      reservationId: owned.id, arrivalId, error: err instanceof Error ? err.message : err,
+    });
+  }
+}
+
 // ─── GET — THE QUOTE (CANCEL-01) ─────────────────────────────────────────────
 export async function GET(
   request: NextRequest,
@@ -246,6 +297,20 @@ export async function GET(
       }
       return failClosedResponse('Reservation cancel quote', 'Cancellation quote failed', err);
     }
+    // AUDIT-01: the quote the customer read. It is NOT landed, so its evidence is
+    // the sha256 of the vendor's answer bytes — the same answer is the same fact.
+    await recordBookingEvent({
+      reservation: { id: owned.id, userId: g.userId },
+      kind: 'reservation_cancel_quoted',
+      actor: humanActor({ id: g.userId, email: g.accountEmail }),
+      before: { status: owned.status },
+      after: {
+        refundAmount: quoted.quote.refund?.amount ?? null, refundCurrency: quoted.quote.refund?.currency ?? null,
+        penaltyAmount: quoted.quote.penalty?.amount ?? null, penaltyCurrency: quoted.quote.penalty?.currency ?? null,
+        confidence: quoted.quote.confidence, destination: quoted.quote.destination, expiresAt: quoted.quote.expiresAt,
+      },
+      evidence: { table: 'provider_answer', id: createHash('sha256').update(quoted.answer.body).digest('hex') },
+    });
     // The parsed quote, verbatim shape — every field the vendor did not state is
     // null; the dialog renders the words as words (confidence, destination).
     return NextResponse.json({ quote: quoted.quote });
@@ -335,6 +400,10 @@ async function markCalendar(reservationId: string, providerBookingId: string): P
 
 // ─── provider 'liteapi' HOTEL (PR-Cancel-1; money kept by CANCEL-01) ─────────
 async function cancelHotel(owned: OwnedRow, userId: string, accountEmail: string) {
+  // AUDIT-01: the request, before the vendor's answer — the human who clicked.
+  const actor = humanActor({ id: userId, email: accountEmail });
+  const booking = { id: owned.id, userId };
+  await recordBookingEvent({ reservation: booking, kind: 'reservation_cancel_requested', actor, before: { status: owned.status }, after: { lane: 'hotel' }, evidence: asItStood(owned) });
   // The provider cancel — the only money authority. REBUILD-01 PR-5: the
   // client hands the answer back as received (the bytes) beside the parsed
   // result; `cancelled` serves the failure branch below — what is answered
@@ -421,9 +490,13 @@ async function cancelHotel(owned: OwnedRow, userId: string, accountEmail: string
     );
   }
   const { row, moneyEvents, commissionMoved } = landed.reservation;
+  // AUDIT-01: the outcome — the landed cancellation its evidence — and each money fact.
+  await recordBookingEvent({ reservation: booking, kind: 'reservation_cancelled', actor, before: { status: owned.status }, after: { status: row.status, providerStatus: landed.parsed.status }, evidence: { table: 'arrivals', id: landed.arrivalId } });
+  await recordStatedMoney(owned, userId, actor, landed.arrivalId);
   const calendar = await markCalendar(owned.id, owned.providerBookingId);
   // CANCEL-02: the customer is told, from the rows just written; never fails the cancel.
   const emailStatus = await sendCancellationEmail(owned, accountEmail, { kind: 'cancelled', moneyEvents, vouchers: [], providerStatus: landed.parsed.status });
+  await recordEmailOutcome(booking, actor, 'cancellation', landed.arrivalId, emailStatus);
 
   return NextResponse.json({
     reservation: { id: row.id, status: row.status },
@@ -448,6 +521,10 @@ async function cancelHotel(owned: OwnedRow, userId: string, accountEmail: string
 
 // ─── provider 'liteapi' FLIGHT (CANCEL-01) ───────────────────────────────────
 async function cancelFlight(owned: OwnedRow, userId: string, accountEmail: string) {
+  // AUDIT-01: the request, before the vendor's answer — the human who clicked.
+  const actor = humanActor({ id: userId, email: accountEmail });
+  const booking = { id: owned.id, userId };
+  await recordBookingEvent({ reservation: booking, kind: 'reservation_cancel_requested', actor, before: { status: owned.status }, after: { lane: 'flight' }, evidence: asItStood(owned) });
   let cancelledAnswer;
   try {
     cancelledAnswer = await cancelFlightBooking(owned.providerBookingId);
@@ -460,7 +537,9 @@ async function cancelFlight(owned: OwnedRow, userId: string, accountEmail: strin
     }
     if (err instanceof LiteApiFlightsApiError && err.status === 409) {
       // The vendor REFUSED — nothing changed, at the airline or here. Its own
-      // words are what the customer reads.
+      // words are what the customer reads. AUDIT-01: the refusal is recorded, and
+      // nothing else — the row is as it stood.
+      await recordBookingEvent({ reservation: booking, kind: 'reservation_cancel_refused', actor, before: { status: owned.status }, after: { status: owned.status, providerCode: err.providerCode, providerMessage: err.providerMessage }, evidence: asItStood(owned), requestKey: err.providerCode === null ? 'no_code' : String(err.providerCode) });
       return NextResponse.json(
         { error: err.providerMessage !== null ? err.providerMessage : err.message, source: 'liteapi', kind: 'cancel_refused', code: 'cancel_refused', providerCode: err.providerCode },
         { status: 409 }
@@ -574,6 +653,13 @@ async function cancelFlight(owned: OwnedRow, userId: string, accountEmail: strin
     }
   }
 
+  // AUDIT-01: the outcome — the landed cancellation its evidence — and, when final, each money fact.
+  if (decision.final) {
+    await recordBookingEvent({ reservation: booking, kind: 'reservation_cancelled', actor, before: { status: owned.status }, after: { status: row.status, providerStatus: landed.parsed.status }, evidence: { table: 'arrivals', id: landed.arrivalId } });
+    await recordStatedMoney(owned, userId, actor, landed.arrivalId);
+  } else {
+    await recordBookingEvent({ reservation: booking, kind: 'reservation_cancel_pending', actor, before: { status: owned.status }, after: { status: row.status, providerStatus: landed.parsed.status, cancelIntentAt }, evidence: { table: 'arrivals', id: landed.arrivalId } });
+  }
   // A FINAL cancel marks the day; a pending one leaves the row — the flight is
   // still booked at the airline until it says otherwise.
   const calendar = decision.final ? await markCalendar(owned.id, owned.providerBookingId) : 'pending';
@@ -586,6 +672,7 @@ async function cancelFlight(owned: OwnedRow, userId: string, accountEmail: strin
       ? { kind: 'cancelled', moneyEvents: decision.moneyEvents, vouchers: decision.vouchers, providerStatus: landed.parsed.status }
       : { kind: 'cancel_pending' },
   );
+  await recordEmailOutcome(booking, actor, decision.final ? 'cancellation' : 'cancel_pending', landed.arrivalId, emailStatus);
 
   return NextResponse.json({
     reservation: { id: row.id, status: row.status },

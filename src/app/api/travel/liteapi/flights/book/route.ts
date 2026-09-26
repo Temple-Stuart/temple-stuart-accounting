@@ -8,7 +8,8 @@ import { prismaLanding } from '@/lib/arrivals/prismaLanding';
 import { MissingLiteApiKeyError, LiteApiError } from '@/lib/travelErrors';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
-import { writeAuditLog } from '@/lib/audit/writeAuditLog';
+// AUDIT-01 (2026-09-26): the booking, its emails, recorded through the one audit port.
+import { humanActor, recordBookingEvent, recordEmailOutcome } from '@/lib/reservations/auditTrail';
 // FL-5b: the confirmation email, restored to this lane.
 import { sendTransactionalEmail } from '@/lib/email';
 import { flightConfirmation } from '@/lib/emailTemplates/flightConfirmation';
@@ -297,46 +298,22 @@ export async function POST(request: NextRequest) {
       // Parsed from the arrival — the audit trail and the envelope speak from the table.
       const parsed = landed.parsed;
 
-      // ─── Audit trail (PR-FL-5) ─────────────────────────────────────────────
-      // Neither booking route wrote audit_log before this PR; FL-5 starts the
-      // practice. AuditActionType has no reservation value (adding one is an
-      // enum migration — HARD GATE, deliberately not taken), so this uses the
-      // enum's documented escape hatch 'system_other' with a precise
-      // description. request_id keys on the bookingId, so the upstream
-      // idempotent-retry case cannot double-log. A failed audit write is
-      // DECLARED (loud log) but never fails a real, paid booking (the D5
-      // rationale the confirmation email follows).
-      try {
-        await writeAuditLog({
-          actor: {
-            user_id: user?.id ?? null,
-            email: userEmail ?? null,
-            type: 'human_user',
-            ip,
-          },
-          action: {
-            type: 'system_other',
-            description: `liteapi_flight_booking_created — reservation ${result.id} persisted for /flights/bookings`,
-          },
-          target: { table: 'reservations', id: result.id },
-          payload: {
-            metadata: {
-              bookingId: parsed.bookingId,
-              bookingRef: parsed.bookingRef,
-              providerStatus: parsed.status,
-              paymentStatus: parsed.paymentStatus,
-              bookingType: result.bookingType,
-            },
-          },
-          request_id: `liteapi-flight-book-${parsed.bookingId}`,
-        });
-      } catch (auditErr) {
-        console.error('[LiteAPI flights book] audit log FAILED (booking + persist succeeded):', {
-          bookingId: parsed.bookingId,
-          reservationId: result.id,
-          error: auditErr instanceof Error ? auditErr.message : auditErr,
-        });
-      }
+      // ─── Audit trail — AUDIT-01 (2026-09-26), replacing PR-FL-5's 'system_other' write ─
+      // AuditActionType now names the booking (reservation_booked), so the row goes
+      // through the ONE audit port: the landed book answer is the evidence (a retry
+      // lands the same arrival → the same request_id → the same row), the human who
+      // booked is the actor (a guest booking: user_id null, named), and a failed
+      // audit write is named and never fails a real, paid booking.
+      const bookingActor = humanActor(user ? { id: user.id, email: userEmail } : null, ip);
+      const booking = { id: result.id, userId: result.userId ?? null };
+      await recordBookingEvent({
+        reservation: booking,
+        kind: 'reservation_booked',
+        actor: bookingActor,
+        before: null,
+        after: { status: result.status, providerBookingId: parsed.bookingId, bookingRef: parsed.bookingRef, providerStatus: parsed.status, paymentStatus: parsed.paymentStatus, finalPriceCents: result.finalPriceCents, currency: result.currency, lane: 'flight' },
+        evidence: { table: 'arrivals', id: landed.arrivalId },
+      });
 
       // ─── LANE-01: the flight's day, its name and its status — vendor-stated ──
       // CAL-01's ordering, exactly: the reservation transaction has COMMITTED
@@ -401,6 +378,7 @@ export async function POST(request: NextRequest) {
             const sent = await sendLifecycleEmail(
               { ...result, providerConfirmationCode: wrote.patch?.providerConfirmationCode ?? result.providerConfirmationCode, displayName: wrote.patch?.displayName ?? result.displayName },
               request,
+              bookingActor,
             );
             console.log(`[LiteAPI flights book] STATUS-01 lifecycle email ${request.kind}: ${sent.sent ? `sent ${sent.id}` : `not sent (${sent.error})`}`);
           } catch (emailErr) {
@@ -466,6 +444,8 @@ export async function POST(request: NextRequest) {
           });
           emailStatus = { sent: false, error: errorClass };
         }
+        // AUDIT-01: the confirmation's outcome — sent with its message id, or failed by class.
+        await recordEmailOutcome(booking, bookingActor, 'flight_confirmation', landed.arrivalId, emailStatus);
       }
 
       // WHITELISTED envelope (ruled): the seven fields, provider status

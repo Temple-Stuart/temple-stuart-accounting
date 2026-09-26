@@ -9,6 +9,8 @@ import { MissingLiteApiKeyError, LiteApiError } from '@/lib/travelErrors';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
 import { sendTransactionalEmail } from '@/lib/email';
+// AUDIT-01 (2026-09-26): the booking and its confirmation email, recorded through the one audit port.
+import { humanActor, recordBookingEvent, recordEmailOutcome } from '@/lib/reservations/auditTrail';
 import { bookingConfirmation } from '@/lib/emailTemplates/bookingConfirmation';
 // CAL-01: the one calendar row a booking earns, and the prisma port behind it.
 import { stayCalendarDecision, writeBookingCalendarEvent } from '@/lib/calendar/bookingEvent';
@@ -312,6 +314,21 @@ export async function POST(request: NextRequest) {
       );
       const result = landed.reservation;
 
+      // ─── AUDIT-01: the booking, recorded after its transaction committed ────
+      // One row, the landed book answer as the evidence (a retry lands the same
+      // arrival → the same request_id → the same row). The human who booked is the
+      // actor; a guest booking records user_id null, named. Never throws.
+      const bookingActor = humanActor(user ? { id: user.id, email: userEmail } : null, ip);
+      const booking = { id: result.id, userId: result.userId ?? null };
+      await recordBookingEvent({
+        reservation: booking,
+        kind: 'reservation_booked',
+        actor: bookingActor,
+        before: null,
+        after: { status: result.status, providerBookingId: landed.bookingId, providerConfirmationCode: result.providerConfirmationCode, finalPriceCents: result.finalPriceCents, currency: result.currency, lane: 'hotel' },
+        evidence: { table: 'arrivals', id: landed.arrivalId },
+      });
+
       // ─── CAL-01: the booking lands on the calendar ─────────────────────────
       // OUTSIDE the transaction, with its own try/catch, exactly like the audit
       // log in the flights route (flights/book/route.ts:202-232) and the existing
@@ -385,6 +402,8 @@ export async function POST(request: NextRequest) {
         });
         emailStatus = { sent: false, error: errorClass };
       }
+      // AUDIT-01: the email's outcome — sent with its message id, or failed by class.
+      await recordEmailOutcome(booking, bookingActor, 'booking_confirmation', landed.arrivalId, emailStatus);
 
       return NextResponse.json({
         reservation: {

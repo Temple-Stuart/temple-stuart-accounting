@@ -6,6 +6,7 @@ import { summarizeError, userFacingMessage } from '@/lib/http/failClosed';
 import { prisma } from '@/lib/prisma';
 import { commitPlaidTransaction, type CommitLink } from '@/lib/journal-entry-service';
 import { documentsForBatch } from '@/lib/posting/documentGate';
+import { humanActor, recordBookingEvent } from '@/lib/reservations/auditTrail';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireEntitySetup } from '@/lib/ensure-bookkeeping';
 import { PeriodClosedError } from '@/lib/period-close-guard';
@@ -294,6 +295,22 @@ export async function POST(request: NextRequest) {
           // POST-01: the accepted link's booking, born WITH the entry; null = none.
           document: document === null ? undefined : document,
         });
+
+        // AUDIT-01 (2026-09-26): a posting that documents a booking is a change to
+        // that booking — reservation_posted through the ONE audit port, after the
+        // writer returns, the entry its evidence (a retried commit returns the
+        // same entry, so the same fact is one row). A failed audit write is named
+        // by the port and never fails the posting.
+        if (document !== null) {
+          await recordBookingEvent({
+            reservation: { id: document.reservationId, userId: user.id },
+            kind: 'reservation_posted',
+            actor: humanActor({ id: user.id, email: userEmail }),
+            before: null,
+            after: { entryId: journalEntry.id, transactionId: plaidTxn.id, moneyEventId: document.moneyEventId },
+            evidence: { table: 'journal_entries', id: journalEntry.id },
+          });
+        }
 
         // Track whether the user overrode the auto-categorization prediction
         const wasOverridden = !!(
