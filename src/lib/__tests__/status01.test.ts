@@ -19,7 +19,7 @@ import { applyLockedRead, type LockedReadPorts, type VendorAnswer, type VendorRe
 import { refreshFlightReservation, type FlightRefreshPorts, type FlightReservationPatch } from '../reservations/refreshFlightReservation';
 import { hotelProviderStatusToReservation } from '../reservations/hotelStatus';
 import { flightProviderStatusToReservation } from '../reservations/flightStatus';
-import { applyVendorState, type ApplyPorts, type ApplyRow, type ReservationPatch } from '../reservations/applyVendorState';
+import { applyVendorState, type ApplyPorts, type ApplyRow, type ReservationPatch, type VendorHotelState } from '../reservations/applyVendorState';
 import { parseBookResult, parseHotelBookingState, hotelBookingReadObjectOf } from '../liteapiClient';
 import { parseFlightBookingDetails } from '../liteapiFlightsClient';
 import { constantTimeEqual, laneOfWebhookEvent, parseLiteApiWebhookDelivery, resolveWebhookBookingId, LITEAPI_HOTEL_EVENTS, LITEAPI_FLIGHT_EVENTS } from '../webhooks/liteapiWebhook';
@@ -85,8 +85,11 @@ test('a hotel book answer with no status states NO status — never CONFIRMED; t
 
 // ── the one apply leaf, over fake ports ─────────────────────────────────────
 
-const HOTEL_ROW: ApplyRow = { id: 'res_h1', lane: 'hotel', status: 'confirmed', providerConfirmationCode: null, ticketedAt: null, ticketLimitTime: null, cancelIntentAt: null, ticketedEmailSentAt: null, confirmationEmailSentAt: null };
-const FLIGHT_ROW: ApplyRow = { id: 'res_f1', lane: 'flight', status: 'confirmed', providerConfirmationCode: 'FH-269-920QSVHH', ticketedAt: null, ticketLimitTime: null, cancelIntentAt: null, ticketedEmailSentAt: null, confirmationEmailSentAt: null };
+const HOTEL_ROW: ApplyRow = { id: 'res_h1', lane: 'hotel', status: 'confirmed', providerConfirmationCode: null, ticketedAt: null, ticketLimitTime: null, cancelIntentAt: null, ticketedEmailSentAt: null, confirmationEmailSentAt: null, checkoutDate: new Date('2026-10-04') };
+const FLIGHT_ROW: ApplyRow = { id: 'res_f1', lane: 'flight', status: 'confirmed', providerConfirmationCode: 'FH-269-920QSVHH', ticketedAt: null, ticketLimitTime: null, cancelIntentAt: null, ticketedEmailSentAt: null, confirmationEmailSentAt: null, checkoutDate: null };
+
+/** COMM-01: a hotel read with no commission figures and no landed arrival — the STATUS-01 proofs, unchanged in meaning. */
+const hotelState = (v: { bookingId: string; status: string | null; hotelConfirmationCode: string | null }): VendorHotelState => ({ lane: 'hotel', ...v, commission: null, distributorCommission: null, clientCommission: null, processingFee: null, arrivalId: null, readAt: READ_AT });
 
 function fakeApplyPorts() {
   const writes: Array<{ id: string; patch: ReservationPatch }> = [];
@@ -97,6 +100,8 @@ function fakeApplyPorts() {
     writeReservation: async (id, patch) => { writes.push({ id, patch }); },
     calendar: { async markCancelled(source, sourceId) { marked.push(`${source}:${sourceId}`); return 1; } },
     cancelCommission: async (id) => { commission.push(id); return 2; },
+    // COMM-01: the STATUS-01 proofs never lock (no figures, no checkout before the read) — named if they ever did.
+    lockCommission: async () => { throw new Error('not expected: a STATUS-01 proof locked a commission'); },
     log: (line) => log.push(line),
   };
   return { ports, writes, marked, commission, log };
@@ -107,7 +112,7 @@ const after = (row: ApplyRow, patch: ReservationPatch): ApplyRow => ({ ...row, .
 
 test('hotel: the confirmation code arrives (null → stated) — ONE hotel_confirmation_arrived email, its marker in the same write; the next read sends nothing', async () => {
   const f = fakeApplyPorts();
-  const out = await applyVendorState(f.ports, HOTEL_ROW, { lane: 'hotel', bookingId: 'hSq2gVDrf', status: 'CONFIRMED', hotelConfirmationCode: 'HCC-4421', readAt: READ_AT });
+  const out = await applyVendorState(f.ports, HOTEL_ROW, hotelState({ bookingId: 'hSq2gVDrf', status: 'CONFIRMED', hotelConfirmationCode: 'HCC-4421' }));
   assert.equal(out.status, 'unchanged');
   assert.deepEqual(out.changes, ['providerConfirmationCode null → "HCC-4421"']);
   assert.deepEqual(out.emails, [{ kind: 'hotel_confirmation_arrived', confirmationCode: 'HCC-4421' }]);
@@ -115,20 +120,20 @@ test('hotel: the confirmation code arrives (null → stated) — ONE hotel_confi
   assert.equal(f.marked.length + f.commission.length, 0);
   // The second read of an unchanged booking changes nothing and sends nothing.
   const g = fakeApplyPorts();
-  const again = await applyVendorState(g.ports, after(HOTEL_ROW, f.writes[0].patch), { lane: 'hotel', bookingId: 'hSq2gVDrf', status: 'CONFIRMED', hotelConfirmationCode: 'HCC-4421', readAt: READ_AT });
+  const again = await applyVendorState(g.ports, after(HOTEL_ROW, f.writes[0].patch), hotelState({ bookingId: 'hSq2gVDrf', status: 'CONFIRMED', hotelConfirmationCode: 'HCC-4421' }));
   assert.deepEqual(again.changes, []);
   assert.deepEqual(again.emails, []);
   assert.deepEqual(g.writes, [{ id: 'res_h1', patch: { lastVendorReadAt: READ_AT } }], 'only the read stamp');
   // A stated code never overwrites a stated code.
   const h = fakeApplyPorts();
-  const other = await applyVendorState(h.ports, { ...HOTEL_ROW, providerConfirmationCode: 'HCC-0001' }, { lane: 'hotel', bookingId: 'hSq2gVDrf', status: 'CONFIRMED', hotelConfirmationCode: 'HCC-4421', readAt: READ_AT });
+  const other = await applyVendorState(h.ports, { ...HOTEL_ROW, providerConfirmationCode: 'HCC-0001' }, hotelState({ bookingId: 'hSq2gVDrf', status: 'CONFIRMED', hotelConfirmationCode: 'HCC-4421' }));
   assert.deepEqual(other.changes, []);
   assert.deepEqual(h.writes[0].patch, { lastVendorReadAt: READ_AT });
 });
 
 test('hotel: the code arrives but the one email attempt was already made — no second send, named', async () => {
   const f = fakeApplyPorts();
-  const out = await applyVendorState(f.ports, { ...HOTEL_ROW, confirmationEmailSentAt: new Date('2026-09-25T00:00:00Z') }, { lane: 'hotel', bookingId: 'hSq2gVDrf', status: 'CONFIRMED', hotelConfirmationCode: 'HCC-4421', readAt: READ_AT });
+  const out = await applyVendorState(f.ports, { ...HOTEL_ROW, confirmationEmailSentAt: new Date('2026-09-25T00:00:00Z') }, hotelState({ bookingId: 'hSq2gVDrf', status: 'CONFIRMED', hotelConfirmationCode: 'HCC-4421' }));
   assert.deepEqual(out.emails, []);
   assert.deepEqual(f.writes[0].patch, { lastVendorReadAt: READ_AT, providerConfirmationCode: 'HCC-4421' }, 'the code is still applied; the marker is not re-stamped');
   assert.ok(f.log.some((l) => /already attempted at 2026-09-25T00:00:00.000Z — no second send/.test(l)));
@@ -193,17 +198,17 @@ test('cancel_pending + the GET still says CONFIRMED (or a pending word) → unch
 
 test('a GET with no status, or an unlisted word → unlisted, the row unchanged, the reason named; a hotel CANCELED read → cancelled', async () => {
   const f = fakeApplyPorts();
-  const none = await applyVendorState(f.ports, HOTEL_ROW, { lane: 'hotel', bookingId: 'hSq2gVDrf', status: null, hotelConfirmationCode: null, readAt: READ_AT });
+  const none = await applyVendorState(f.ports, HOTEL_ROW, hotelState({ bookingId: 'hSq2gVDrf', status: null, hotelConfirmationCode: null }));
   assert.equal(none.status, 'unlisted');
   assert.equal(none.statusValue, 'confirmed');
   assert.ok(f.log.some((l) => /the vendor stated NO status, a word the hotel leaf does not list — status left as "confirmed"/.test(l)));
   const g = fakeApplyPorts();
-  const odd = await applyVendorState(g.ports, HOTEL_ROW, { lane: 'hotel', bookingId: 'hSq2gVDrf', status: 'ON_HOLD', hotelConfirmationCode: null, readAt: READ_AT });
+  const odd = await applyVendorState(g.ports, HOTEL_ROW, hotelState({ bookingId: 'hSq2gVDrf', status: 'ON_HOLD', hotelConfirmationCode: null }));
   assert.equal(odd.status, 'unlisted');
   assert.ok(g.log.some((l) => /status "ON_HOLD", a word the hotel leaf does not list/.test(l)));
   assert.deepEqual(g.writes[0].patch, { lastVendorReadAt: READ_AT });
   const h = fakeApplyPorts();
-  const gone = await applyVendorState(h.ports, HOTEL_ROW, { lane: 'hotel', bookingId: 'hSq2gVDrf', status: 'CANCELED', hotelConfirmationCode: null, readAt: READ_AT });
+  const gone = await applyVendorState(h.ports, HOTEL_ROW, hotelState({ bookingId: 'hSq2gVDrf', status: 'CANCELED', hotelConfirmationCode: null }));
   assert.equal(gone.statusValue, 'cancelled');
   assert.deepEqual(h.marked, [`${BOOKING_CALENDAR_SOURCE}:res_h1`]);
   await assert.rejects(() => applyVendorState(fakeApplyPorts().ports, HOTEL_ROW, { lane: 'flight', bookingId: 'x', status: 'CONFIRMED', pnr: null, ticketedAt: null, ticketLimitTime: null, cancelIntentAt: null, readAt: READ_AT }), /the wrong GET was applied/);
@@ -221,7 +226,7 @@ test('the apply leaf reads no clock and defaults nothing; lastVendorReadAt is th
 
 test('the hotel read parses the documented shape; a 2xx without a bookingId is a contract deviation', () => {
   const state = parseHotelBookingState({ bookingId: 'hSq2gVDrf', status: 'CONFIRMED', hotelConfirmationCode: null, paymentStatus: 'PAID', amountRefunded: 0, refundType: null });
-  assert.deepEqual(state, { bookingId: 'hSq2gVDrf', status: 'CONFIRMED', hotelConfirmationCode: null, paymentStatus: 'PAID', amountRefunded: 0, refundType: null, refundedAt: null, updatedAt: null });
+  assert.deepEqual(state, { bookingId: 'hSq2gVDrf', status: 'CONFIRMED', hotelConfirmationCode: null, paymentStatus: 'PAID', amountRefunded: 0, refundType: null, refundedAt: null, updatedAt: null, commission: null, distributorCommission: null, clientCommission: null, processingFee: null, sellingPrice: null });
   assert.deepEqual(hotelBookingReadObjectOf({ data: { bookingId: 'h1', status: 'CANCELED' } }), { bookingId: 'h1', status: 'CANCELED' });
   assert.throws(() => hotelBookingReadObjectOf({ data: { status: 'CONFIRMED' } }), /2xx carries no bookingId — contract deviation/);
   const client = code(HOTEL_CLIENT);
@@ -378,14 +383,14 @@ test('a forged status in a delivery changes nothing: the apply sees only what th
   assert.equal(id, 'hSq2gVDrf', 'the id, and only the id, leaves the delivery');
   const f = fakeApplyPorts();
   const truth = parseHotelBookingState({ bookingId: id as string, status: 'CONFIRMED', hotelConfirmationCode: null });
-  const out = await applyVendorState(f.ports, HOTEL_ROW, { lane: 'hotel', bookingId: truth.bookingId, status: truth.status, hotelConfirmationCode: truth.hotelConfirmationCode, readAt: READ_AT });
+  const out = await applyVendorState(f.ports, HOTEL_ROW, hotelState({ bookingId: truth.bookingId, status: truth.status, hotelConfirmationCode: truth.hotelConfirmationCode }));
   assert.equal(out.status, 'unchanged');
   assert.equal(out.statusValue, 'confirmed');
   assert.deepEqual(f.writes[0].patch, { lastVendorReadAt: READ_AT });
   assert.equal(f.marked.length, 0);
   // And when the GET says so, it lands.
   const g = fakeApplyPorts();
-  const gone = await applyVendorState(g.ports, HOTEL_ROW, { lane: 'hotel', bookingId: 'hSq2gVDrf', status: 'CANCELED', hotelConfirmationCode: null, readAt: READ_AT });
+  const gone = await applyVendorState(g.ports, HOTEL_ROW, hotelState({ bookingId: 'hSq2gVDrf', status: 'CANCELED', hotelConfirmationCode: null }));
   assert.equal(gone.statusValue, 'cancelled');
 });
 
@@ -402,7 +407,7 @@ test('the read leaf: the cap, then the GET by lane, then ONE transaction landing
   assert.ok(at('prisma.$transaction(async (tx) => applyLockedRead(') < at('FOR UPDATE'), 'the lock is inside the transaction');
   const lockedFn = functionBody(r, 'applyLockedRead') ?? '';
   assert.ok(lockedFn.indexOf('const locked = await ports.lock(caller.id);') < lockedFn.indexOf('landLiteApiBookingRead(') && lockedFn.indexOf('landLiteApiBookingRead(') < lockedFn.indexOf('applyVendorState('), 'lock, then land, then apply');
-  assert.match(lockedFn, /applyVendorState\(ports\.apply, locked, \{ lane: 'hotel'/, 'the hotel apply takes the locked row');
+  assert.match(lockedFn, /applyVendorState\(ports\.apply, locked, \{\s*lane: 'hotel'/, 'the hotel apply takes the locked row');
   assert.match(lockedFn, /refreshFlightReservation\(\{ \.\.\.ports\.apply, calendar: ports\.calendar, fetchBooking: async \(\) => \(\{ \.\.\.landed\.parsed, readAt \}\) \}, locked\)/, 'a flight goes through LANE-01 refresh over the locked row');
   assert.doesNotMatch(lockedFn, /\brow\b/, 'the caller row never enters the locked apply');
   assert.match(r, /calendar: prismaBookingCalendar\(tx\),/);
@@ -601,6 +606,7 @@ function lockedPorts(locked: VendorReadRow | null, opts: { calendarPresent?: boo
       writeReservation: async (_id, patch) => { writes.push(patch); },
       calendar,
       cancelCommission: async () => { commission += 1; return 1; },
+      lockCommission: async () => { throw new Error('not expected: a STATUS-01 proof locked a commission'); },
     },
     calendar,
   };
@@ -645,7 +651,7 @@ test('STATUS-01b · one read holds the row: caller says cancel_pending, the LOCK
 });
 
 test('STATUS-01b · status is independent of segments: a GET with CANCELLED and segments [] cancels the row, clears cancelIntentAt, names no row and no name; CONFIRMED and [] on a confirmed row is unchanged', async () => {
-  const row = { id: 'res_f1', userId: 'u_1', lane: 'flight', providerBookingId: 'fb_9Q', providerConfirmationCode: 'FH-269-920QSVHH', status: 'cancel_pending', displayName: 'Thai Vietjet Air BKK → HKT', ticketedAt: null, ticketLimitTime: null, cancelIntentAt: new Date('2026-09-26T09:05:00Z'), ticketedEmailSentAt: null, confirmationEmailSentAt: null };
+  const row = { id: 'res_f1', userId: 'u_1', lane: 'flight', providerBookingId: 'fb_9Q', providerConfirmationCode: 'FH-269-920QSVHH', status: 'cancel_pending', displayName: 'Thai Vietjet Air BKK → HKT', ticketedAt: null, ticketLimitTime: null, cancelIntentAt: new Date('2026-09-26T09:05:00Z'), ticketedEmailSentAt: null, confirmationEmailSentAt: null, checkoutDate: null };
   const writes: FlightReservationPatch[] = [];
   let marked = 0; let commission = 0; let inserted = 0;
   const ports = (status: string): FlightRefreshPorts => ({

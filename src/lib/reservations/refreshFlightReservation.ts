@@ -93,6 +93,8 @@ export interface FlightReservationRow {
   cancelIntentAt: Date | null;
   ticketedEmailSentAt: Date | null;
   confirmationEmailSentAt: Date | null;
+  /** COMM-01: the apply leaf's lock gate — null for a flight (a non-stay order). */
+  checkoutDate: Date | null;
 }
 
 /** ONE write: the name (when it changed) beside the apply leaf's patch. */
@@ -192,6 +194,8 @@ export async function refreshFlightReservation(ports: FlightRefreshPorts, row: F
       writeReservation: (id, patch) => ports.writeReservation(id, { ...namePatch, ...patch }),
       calendar: ports.calendar,
       cancelCommission: ports.cancelCommission,
+      // COMM-01: a flight locks no commission (NOT DOCUMENTED) — the leaf never asks; if it ever did, this names it.
+      lockCommission: async () => { throw new Error(`reservation ${row.id}: a flight locks no commission — NOT DOCUMENTED (COMM-01)`); },
       log: ports.log,
     },
     row,

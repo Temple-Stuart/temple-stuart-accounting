@@ -15,6 +15,10 @@
  *   · a vendor-cancelled row: cancelIntentAt cleared, the day marked, the
  *     'estimated' commission moved — and NO money_events, the GET states no figures;
  *   · lastVendorReadAt — when the answer arrived;
+ *   · COMM-01 (2026-09-26): a checked-out hotel's commission LOCKED — the vendor's
+ *     stated `commission` on the read after checkout moves the 'estimated' ledger
+ *     row to 'confirmed' with its figures, the read instant and the read's arrival;
+ *     printed per row. A second run finds it already locked and changes nothing.
  *   · the 'hotel_confirmation_arrived' / 'ticketed' email owed by a change, one
  *     attempt each after the write (its marker rode the write).
  * A flight also gets LANE-01's day and name (refreshFlightReservation runs inside).
@@ -94,6 +98,8 @@ async function main(): Promise<void> {
       `status: ${out.status} (vendor ${out.providerStatus ?? 'absent'} → ${out.statusValue})`,
       ...(out.flight ? [`calendar: ${out.flight.calendar}${out.flight.day ? ` (${out.flight.day})` : ''}`, `name: ${out.flight.name}`] : []),
       `read at: ${out.readAt.toISOString()}`,
+      // COMM-01: what the lock did (a dry run: would do).
+      `commission: ${out.commissionLock.outcome === 'locked' ? `${dryRun ? 'would lock' : 'LOCKED'} at ${out.commissionLock.cents} cents` : out.commissionLock.outcome === 'already_locked' ? `already locked (${out.commissionLock.cents} cents stated)` : out.commissionLock.outcome.replace('_', ' ')}`,
     ];
     if (out.changes.length) lines.push(`${dryRun ? 'would change' : 'changed'}: ${out.changes.join('; ')}`);
     if (dryRun && out.wouldWrite) lines.push(`would write: ${Object.entries(out.wouldWrite).map(([k, v]) => `${k}=${v instanceof Date ? v.toISOString() : JSON.stringify(v)}`).join(', ')}`);

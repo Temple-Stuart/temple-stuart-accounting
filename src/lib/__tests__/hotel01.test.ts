@@ -242,10 +242,12 @@ test('the booking-flow pin holds for every file still on it, with dated HOTEL-01
     // LANE-01 (2026-09-25): the row carries its lane and stated name; the booking itself is unchanged. Was 792da953ba83fe8a8bc95d79045a0fabd00bfc807fab3b726a69dd85ef136eb1.
     // SEC-03 (2026-09-25): re-pinned — was 41f5eebfba6dacf4d613790dc0fa173e4c8cad012c42915d68d8a2cba8cf314a at main a5e66262.
     // STATUS-01 (2026-09-26): re-pinned — was 667efb921cdd690b6e5c26fc40c6b9deacd520367cf346956592b150d117c597 at main 53900e67.
-    'src/app/api/travel/liteapi/book/route.ts': 'e32251eb8a4e9b541a001e6332bacb8ca1765e7bdb127d938d491665f6120509',
+    // COMM-01 (2026-09-26): re-pinned — was e32251eb8a4e9b541a001e6332bacb8ca1765e7bdb127d938d491665f6120509 at main 0ef428a6.
+    'src/app/api/travel/liteapi/book/route.ts': '441552e306910d94a0c0aa068f3dd3a1575a544f139fdab45ce57da106332707',
     // Was 77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5 before CHECKOUT-01.
     // CHECKOUT-03 (2026-09-23): the panel waits on Stripe.js before handing off.
-    'src/components/trips/CheckoutPanel.tsx': 'b3fd49cbd8acf9ab3d5afb11fdc42f61089722d2951dd6cbfa6a8dc2bdf19b46',
+    // COMM-01 (2026-09-26): re-pinned — was b3fd49cbd8acf9ab3d5afb11fdc42f61089722d2951dd6cbfa6a8dc2bdf19b46 at main 0ef428a6.
+    'src/components/trips/CheckoutPanel.tsx': 'ab04853f236ae7d519c717a7aa5183efbaa20eab370caa2bd73b9f46904734b0',
     'src/app/api/travel/hotels/content/route.ts': '7923035f88437325994e957e73943cd4817ee72b2a9bf2908b0afba0803503e7',
     'src/app/api/travel/hotels/reviews/route.ts': 'c548e5cc1f16808c119711395144ddbc0f4307d22bd67890185b59479000d39d',
   };

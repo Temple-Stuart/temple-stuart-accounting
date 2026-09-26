@@ -110,6 +110,8 @@ const ROW: FlightReservationRow = {
   providerConfirmationCode: 'FH-269-920QSVHH', status: 'pending', displayName: null,
   // STATUS-01: the apply leaf's columns, NULL until the vendor states them.
   ticketedAt: null, ticketLimitTime: null, cancelIntentAt: null, ticketedEmailSentAt: null, confirmationEmailSentAt: null,
+  // COMM-01: a flight has no check-out date.
+  checkoutDate: null,
 };
 
 /** STATUS-01: when the answer arrived — what lastVendorReadAt is stamped with on every read. */

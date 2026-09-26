@@ -251,7 +251,8 @@ test('the booking-flow pin still holds for every file it names — five search f
     // LANE-01 (2026-09-25): a reservation knows what it is. Was 792da953ba83fe8a8bc95d79045a0fabd00bfc807fab3b726a69dd85ef136eb1.
     // SEC-03 (2026-09-25): re-pinned — was 41f5eebfba6dacf4d613790dc0fa173e4c8cad012c42915d68d8a2cba8cf314a at main a5e66262.
     // STATUS-01 (2026-09-26): re-pinned — was 667efb921cdd690b6e5c26fc40c6b9deacd520367cf346956592b150d117c597 at main 53900e67.
-    'src/app/api/travel/liteapi/book/route.ts': 'e32251eb8a4e9b541a001e6332bacb8ca1765e7bdb127d938d491665f6120509',
+    // COMM-01 (2026-09-26): re-pinned — was e32251eb8a4e9b541a001e6332bacb8ca1765e7bdb127d938d491665f6120509 at main 0ef428a6.
+    'src/app/api/travel/liteapi/book/route.ts': '441552e306910d94a0c0aa068f3dd3a1575a544f139fdab45ce57da106332707',
     // FL-4c (2026-09-23): the envelope gains paymentEnv, the server-derived key env.
     // SEC-03 (2026-09-25): re-pinned — was afad4046f2084b53ff5dfd48ca6c280b475967d61dfd4cf98f4b5da3e672964e at main a5e66262.
     'src/app/api/travel/liteapi/flights/prebook/route.ts': '4dd7994bc43cbc305e3c23717d881774289b47145d70f43d3ef12796f53e0b7a',
@@ -261,7 +262,8 @@ test('the booking-flow pin still holds for every file it names — five search f
     // LANE-01 (2026-09-25): a reservation knows what it is. Was 7a92d920d3bd45ac1a10997c3eb6b2ee1b1495dd3eec73a45ec3d9185ec5cc92.
     // SEC-03 (2026-09-25): re-pinned — was 653c25f1b43caf2104d152f543cf04dcb960b0c6bfc7ceac2a4ce5dddb2480f7 at main a5e66262.
     // STATUS-01 (2026-09-26): re-pinned — was 8f24d2dd90f36d55c2dbbe4cafb711387ea34faf4d9eb25a27c906b72b977367 at main 53900e67.
-    'src/app/api/travel/liteapi/flights/book/route.ts': 'b75d0ca85ee2a50a0fe715a73ac749893f656c57038908d3b89c256aed466d1a',
+    // COMM-01 (2026-09-26): re-pinned — was b75d0ca85ee2a50a0fe715a73ac749893f656c57038908d3b89c256aed466d1a at main 0ef428a6.
+    'src/app/api/travel/liteapi/flights/book/route.ts': '62b828c1c9468cd1a10b2cb43ca4b76099f49ef9eb905fdac80f44409a349f8b',
     // FL-5b (2026-09-23): the panel sends the contact it already holds; no payment path changed.
     // FL-4c (2026-09-23): the publishable key now comes from the vendor's /config, not the prebook's null.
     // FL-4c v2 (2026-09-23): the panel uses the vendor's DOCUMENTED wrapper — publicKey is the
@@ -272,7 +274,8 @@ test('the booking-flow pin still holds for every file it names — five search f
     'src/components/trips/LiteApiFlightCheckoutPanel.tsx': '85abd313700af8443d1f76c325c6b9bc15db3ee785011b445e3c4fe1ea16a864',
     // Was 77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5 before CHECKOUT-01.
     // CHECKOUT-03 (2026-09-23): the panel waits on Stripe.js before handing off.
-    'src/components/trips/CheckoutPanel.tsx': 'b3fd49cbd8acf9ab3d5afb11fdc42f61089722d2951dd6cbfa6a8dc2bdf19b46',
+    // COMM-01 (2026-09-26): re-pinned — was b3fd49cbd8acf9ab3d5afb11fdc42f61089722d2951dd6cbfa6a8dc2bdf19b46 at main 0ef428a6.
+    'src/components/trips/CheckoutPanel.tsx': 'ab04853f236ae7d519c717a7aa5183efbaa20eab370caa2bd73b9f46904734b0',
     // LANE-01 (2026-09-25): a reservation knows what it is. Was f5ecffcfa0b71b8cbe4ba8868a2f8aabd4e326129bacbf9a675e79b17e63fd2f.
     // CANCEL-01 (2026-09-26): re-pinned — was 8130c9e36431d886f48648f2b2ae2ad4a86413d7a9037a8959a79c620b242bf7 at main dccb3380.
     // STATUS-01 (2026-09-26): re-pinned — was 0bae21fb9bf0bd9664dc7418502a35e507f713d370e542b878e35e2188b3121d at main 53900e67.

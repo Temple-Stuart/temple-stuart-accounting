@@ -56,7 +56,6 @@ function BookingConfirm() {
   const currency = params.get('currency') ?? '';
   const priceParam = params.get('price');
   const price = priceParam !== null && priceParam !== '' && Number.isFinite(Number(priceParam)) ? Number(priceParam) : null;
-  const commission = Number(params.get('commission') || '0');
   const tripId = params.get('tripId') || undefined;
 
   const ready = !!prebookId && !!transactionId && !!checkin && !!checkout;
@@ -99,7 +98,8 @@ function BookingConfirm() {
           // SEC-03: no finalPriceCents — the ledger takes the vendor's stated
           // price or NULL; the search currency only when the link stated one.
           ...(currency ? { currency } : {}),
-          commissionAmountCents: Math.round(commission * 100),
+          // COMM-01 (2026-09-26): no commissionAmountCents — a client never states a
+          // ledger amount; the ledger takes the vendor's stated figure or NULL.
         }),
       });
       const data = await res.json().catch(() => ({}));

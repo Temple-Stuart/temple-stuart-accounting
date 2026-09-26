@@ -100,7 +100,8 @@ interface Prebook {
   secretKey: string;
   price: number;
   currency: string;
-  commission: number;
+  /** COMM-01 (2026-09-26): the vendor's stated prebook commission, or null when it stated none — rendered "not stated", never 0. */
+  commission: number | null;
   cancellationPolicies?: unknown;
 }
 
@@ -677,12 +678,11 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
                 <span className="text-text-faint">Total</span>
                 <span className="text-lg font-bold text-brand-gold">{money(prebook.price, prebook.currency)}</span>
               </div>
-              {prebook.commission > 0 && (
-                <div className="mt-1 flex items-baseline justify-between text-xs text-text-faint">
-                  <span>Service margin (included)</span>
-                  <span>{money(prebook.commission, prebook.currency)}</span>
-                </div>
-              )}
+              {/* COMM-01 (2026-09-26): the vendor's stated figure, or "not stated" — never a hidden 0. */}
+              <div className="mt-1 flex items-baseline justify-between text-xs text-text-faint">
+                <span>Service margin (included)</span>
+                <span>{prebook.commission === null ? 'not stated' : money(prebook.commission, prebook.currency)}</span>
+              </div>
             </div>
 
             {/* CHECKOUT-01: a failure replaces the card ask entirely. The panel used

@@ -44,7 +44,7 @@ import { bookingGuestRef, landLiteApiBookingRead, type BookingReadPorts } from '
 import { prismaLanding } from '@/lib/arrivals/prismaLanding';
 import { prismaBookingCalendar } from '@/lib/calendar/prismaBookingCalendar';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
-import { applyVendorState, type ApplyOutcome, type ApplyPorts, type LifecycleEmailRequest, type ReservationPatch } from './applyVendorState';
+import { applyVendorState, type ApplyOutcome, type ApplyPorts, type CommissionFigures, type CommissionLockOutcome, type LifecycleEmailRequest, type ReservationPatch } from './applyVendorState';
 import { refreshFlightReservation, type FlightReservationPatch, type FlightRefreshPorts } from './refreshFlightReservation';
 import { sendLifecycleEmail, type LifecycleEmailStatus } from './lifecycleSend';
 
@@ -111,6 +111,8 @@ export interface LockedReadResult {
   providerStatus: string | null;
   emails: LifecycleEmailRequest[];
   flight: { calendar: 'inserted' | 'already_there' | 'no_row'; day: string | null; name: 'set' | 'unchanged' | 'not_stated' } | null;
+  /** COMM-01: what the lock did on this read (a flight: not_applicable). */
+  commissionLock: CommissionLockOutcome;
 }
 
 /**
@@ -125,13 +127,25 @@ export async function applyLockedRead(ports: LockedReadPorts, caller: CallerRow,
   const guestRef = locked.userId === null ? bookingGuestRef(caller.providerBookingId) : null;
   if (caller.lane === 'hotel') {
     const landed = await landLiteApiBookingRead(ports.landing, { answer: read.answer, bookingId: caller.providerBookingId, payload: read.object, parse: parseHotelBookingState, userId: locked.userId, guestRef });
-    const out = await applyVendorState(ports.apply, locked, { lane: 'hotel', bookingId: landed.parsed.bookingId, status: landed.parsed.status, hotelConfirmationCode: landed.parsed.hotelConfirmationCode, readAt });
-    return { locked, arrivalId: landed.arrivalId, changes: out.changes, status: out.status, statusValue: out.statusValue, providerStatus: out.providerStatus, emails: out.emails, flight: null };
+    const out = await applyVendorState(ports.apply, locked, {
+      lane: 'hotel',
+      bookingId: landed.parsed.bookingId,
+      status: landed.parsed.status,
+      hotelConfirmationCode: landed.parsed.hotelConfirmationCode,
+      // COMM-01: the documented figures, verbatim, and the read's arrival — the lock's evidence.
+      commission: landed.parsed.commission,
+      distributorCommission: landed.parsed.distributorCommission,
+      clientCommission: landed.parsed.clientCommission,
+      processingFee: landed.parsed.processingFee,
+      arrivalId: landed.arrivalId,
+      readAt,
+    });
+    return { locked, arrivalId: landed.arrivalId, changes: out.changes, status: out.status, statusValue: out.statusValue, providerStatus: out.providerStatus, emails: out.emails, flight: null, commissionLock: out.commissionLock };
   }
   const landed = await landLiteApiBookingRead(ports.landing, { answer: read.answer, bookingId: caller.providerBookingId, payload: read.object, parse: parseFlightBookingDetails, userId: locked.userId, guestRef });
   const out = await refreshFlightReservation({ ...ports.apply, calendar: ports.calendar, fetchBooking: async () => ({ ...landed.parsed, readAt }) }, locked);
   if (!out.fetched) throw new Error(out.reason);
-  return { locked, arrivalId: landed.arrivalId, changes: out.changes, status: out.status === 'unmapped' ? 'unlisted' : out.status, statusValue: out.statusValue, providerStatus: out.providerStatus, emails: out.emails, flight: { calendar: out.calendar, day: out.day, name: out.name } };
+  return { locked, arrivalId: landed.arrivalId, changes: out.changes, status: out.status === 'unmapped' ? 'unlisted' : out.status, statusValue: out.statusValue, providerStatus: out.providerStatus, emails: out.emails, flight: { calendar: out.calendar, day: out.day, name: out.name }, commissionLock: { outcome: 'not_applicable' } };
 }
 
 export type VendorReadOutcome =
@@ -148,6 +162,8 @@ export type VendorReadOutcome =
       arrivalId: string | null;
       /** The flight lane's day and name, when the refresh ran. */
       flight: LockedReadResult['flight'];
+      /** COMM-01: what the lock did (or, on a dry run, would do). */
+      commissionLock: CommissionLockOutcome;
       /** The one attempt at each email the apply owed — empty on a dry run and when nothing was owed. */
       emails: LifecycleEmailStatus[];
       /** On a dry run: the emails that WOULD have been attempted. */
@@ -200,6 +216,7 @@ export async function readAndApplyReservation(row: VendorReadRow, opts: VendorRe
 
   // 3. LOCK, LAND AND APPLY — one transaction; a dry run takes no lock and lands nothing.
   const writes: FlightReservationPatch[] = [];
+  const wouldLock: CommissionFigures[] = [];
   type Applied = Omit<LockedReadResult, 'arrivalId'> & { arrivalId: string | null };
   const applied: Applied | { failed: string } = await (async () => {
     try {
@@ -210,12 +227,18 @@ export async function readAndApplyReservation(row: VendorReadRow, opts: VendorRe
           writeReservation: async (_id, patch: ReservationPatch) => { writes.push(patch); },
           calendar: { async markCancelled() { return 0; } },
           cancelCommission: async () => 0,
+          // A dry run answers 1 so the leaf reports what it WOULD lock; nothing is written.
+          lockCommission: async (_id, figures) => { wouldLock.push(figures); return 1; },
           log,
         };
         if (lane === 'hotel') {
           const parsed = parseHotelBookingState(read.object);
-          const out = await applyVendorState(recording, row, { lane: 'hotel', bookingId: parsed.bookingId, status: parsed.status, hotelConfirmationCode: parsed.hotelConfirmationCode, readAt });
-          return { locked: row, arrivalId: null, changes: out.changes, status: out.status, statusValue: out.statusValue, providerStatus: out.providerStatus, emails: out.emails, flight: null };
+          const out = await applyVendorState(recording, row, {
+            lane: 'hotel', bookingId: parsed.bookingId, status: parsed.status, hotelConfirmationCode: parsed.hotelConfirmationCode,
+            commission: parsed.commission, distributorCommission: parsed.distributorCommission, clientCommission: parsed.clientCommission, processingFee: parsed.processingFee,
+            arrivalId: null, readAt,
+          });
+          return { locked: row, arrivalId: null, changes: out.changes, status: out.status, statusValue: out.statusValue, providerStatus: out.providerStatus, emails: out.emails, flight: null, commissionLock: out.commissionLock };
         }
         const live = prismaBookingCalendar(prisma);
         const parsed = parseFlightBookingDetails(read.object);
@@ -226,7 +249,7 @@ export async function readAndApplyReservation(row: VendorReadRow, opts: VendorRe
           fetchBooking: async () => ({ ...parsed, readAt }),
         }, row);
         if (!out.fetched) return { failed: out.reason };
-        return { locked: row, arrivalId: null, changes: out.changes, status: out.status === 'unmapped' ? 'unlisted' : out.status, statusValue: out.statusValue, providerStatus: out.providerStatus, emails: out.emails, flight: { calendar: out.calendar, day: out.day, name: out.name } };
+        return { locked: row, arrivalId: null, changes: out.changes, status: out.status === 'unmapped' ? 'unlisted' : out.status, statusValue: out.statusValue, providerStatus: out.providerStatus, emails: out.emails, flight: { calendar: out.calendar, day: out.day, name: out.name }, commissionLock: { outcome: 'not_applicable' } };
       }
       return await prisma.$transaction(async (tx) => applyLockedRead(
         {
@@ -238,6 +261,19 @@ export async function readAndApplyReservation(row: VendorReadRow, opts: VendorRe
             writeReservation: async (id, patch: ReservationPatch) => { writes.push(patch); await tx.reservations.update({ where: { id }, data: patch }); },
             calendar: prismaBookingCalendar(tx),
             cancelCommission: async (reservationId) => (await tx.commission_ledger.updateMany({ where: { reservationId, status: 'estimated' }, data: { status: 'cancelled' } })).count,
+            // COMM-01: the lock — 'estimated' → 'confirmed' with the vendor's figures, the read instant and its arrival.
+            lockCommission: async (reservationId, figures, lockedAt, arrivalId) => (await tx.commission_ledger.updateMany({
+              where: { reservationId, status: 'estimated' },
+              data: {
+                status: 'confirmed',
+                lockedCommissionCents: figures.lockedCommissionCents,
+                distributorCommissionCents: figures.distributorCommissionCents,
+                clientCommissionCents: figures.clientCommissionCents,
+                processingFeeCents: figures.processingFeeCents,
+                lockedAt,
+                lockArrivalId: arrivalId,
+              },
+            })).count,
             log,
           },
           calendar: prismaBookingCalendar(tx),
@@ -272,6 +308,7 @@ export async function readAndApplyReservation(row: VendorReadRow, opts: VendorRe
     readAt,
     arrivalId: applied.arrivalId,
     flight: applied.flight,
+    commissionLock: applied.commissionLock,
     emails,
     emailsOwed: applied.emails,
     wouldWrite: opts.dryRun ? wouldWrite : null,

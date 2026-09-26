@@ -23,9 +23,12 @@ import { hotelProviderStatusToReservation } from '@/lib/reservations/hotelStatus
 //   prebookId, paymentTransactionId,   // from prebook (sandbox passthrough; SDK = PR-B2)
 //   holder: { firstName, lastName, email },
 //   guests: [{ occupancyNumber, firstName, lastName, email }],
-//   checkinDate, checkoutDate, hotelName?, guestCount, currency?,
-//   commissionAmountCents?
+//   checkinDate, checkoutDate, hotelName?, guestCount, currency?
 // }
+// COMM-01 (2026-09-26): the body carries NO commissionAmountCents any more — a client
+// never states a ledger amount; a body that still carries it is refused 400 by name.
+// The ledger's commission is the vendor's stated `commission` on the BOOK answer,
+// or NULL (logged loudly by bookingId) — never a browser figure, never 0.
 // SEC-03 (2026-09-25): the body carries NO finalPriceCents any more. The price
 // in the ledger is what the vendor's BOOK answer states, or NULL (logged loudly
 // by bookingId) — never a number the confirm page relayed from its own URL, and
@@ -52,7 +55,6 @@ interface BookRequestBody {
   hotelName?: string;
   guestCount?: number;
   currency?: string;
-  commissionAmountCents?: number;
 }
 
 export async function POST(request: NextRequest) {
@@ -75,8 +77,17 @@ export async function POST(request: NextRequest) {
     const {
       tripId, prebookId, paymentTransactionId, holder, guests,
       checkinDate, checkoutDate, hotelName, guestCount,
-      currency, commissionAmountCents,
+      currency,
     } = body;
+
+    // COMM-01 (2026-09-26): a client never states a ledger amount. The prebook-time
+    // figure the confirm page used to post is refused by name — before any vendor call.
+    if (Object.prototype.hasOwnProperty.call(body, 'commissionAmountCents')) {
+      return NextResponse.json(
+        { error: 'commissionAmountCents is not accepted — a client never states a ledger amount' },
+        { status: 400 }
+      );
+    }
 
     // ─── Validation (ALWAYS — guest + account both need these) ───────────────
     if (!prebookId || !paymentTransactionId) {
@@ -205,10 +216,16 @@ export async function POST(request: NextRequest) {
               });
             }
             const statedCents = statedPrice === null ? null : Math.round(statedPrice * 100);
-            // The commission column is NOT NULL and the ruling did not open it:
-            // the vendor's stated commission, else the prebook-time figure the
-            // confirm page carried, else 0 — unchanged by SEC-03, reported.
-            const resolvedCommission = parsed.commission ?? (commissionAmountCents != null ? commissionAmountCents / 100 : 0);
+            // COMM-01 (2026-09-26): the commission is the vendor's stated `commission`
+            // on the BOOK answer, or NULL — never the browser's figure, never 0. NULL is
+            // said loudly by bookingId; the lock (the read after checkout, through the
+            // apply leaf) states the earned figure later.
+            const statedCommission = typeof parsed.commission === 'number' ? parsed.commission : null;
+            if (statedCommission === null) {
+              console.error('[LiteAPI book] COMM-01 the vendor stated NO commission on the book answer — commissionAmountCents recorded NULL; the read after checkout states the earned figure:', {
+                bookingId: parsed.bookingId,
+              });
+            }
             // The currency is the vendor's, else the currency the SEARCH was made in
             // (stated by the confirm page, validated above). Neither → throw, the
             // way the client throws on a 2xx without its documented shape: the
@@ -269,15 +286,15 @@ export async function POST(request: NextRequest) {
               },
             });
 
-            // Commission row — 'estimated' on book, flipped to 'confirmed' by a later
-            // reconciliation/webhook PR. userId null for a guest (margin earned anyway).
+            // Commission row — 'estimated' on book, flipped to 'confirmed' by the lock
+            // (COMM-01: the read after checkout). userId null for a guest (margin earned anyway).
             await tx.commission_ledger.create({
               data: {
                 userId: user?.id ?? null,
                 reservationId: reservation.id,
                 provider: 'liteapi',
                 grossAmountCents: statedCents,
-                commissionAmountCents: Math.round(resolvedCommission * 100),
+                commissionAmountCents: statedCommission === null ? null : Math.round(statedCommission * 100),
                 currency: resolvedCurrency,
                 status: 'estimated',
               },
