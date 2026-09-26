@@ -12,6 +12,7 @@
  */
 
 import { Fragment, useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import CancelBookingDialog from './CancelBookingDialog';
 import { destinationWords } from '@/lib/reservations/cancellationWords';
 
@@ -219,6 +220,16 @@ export default function UnattachedBookings({ selectedTrip, onChanged, onTotals }
                           through the hotel endpoint, a flight through its own (quote first). `type`
                           is the lane through the one reader (reservations/lane.ts); an activity has
                           no cancel lane and no control. */}
+                      {/* RECEIPT-01 (2026-09-26): the owner's printable receipt — the vendor's landed
+                          words, the bank row and the ledger entry, each figure naming its source. Owner-only:
+                          the middleware cookie gate and the API's ownership check. Beside Cancel. */}
+                      <Link
+                        href={`/booking/${r.id}/receipt`}
+                        className="mr-2 rounded border border-border px-2 py-1 text-xs font-medium text-text-secondary hover:bg-bg-row"
+                        data-receipt-link={r.id}
+                      >
+                        Receipt
+                      </Link>
                       {(r.type === 'hotel' || r.type === 'flight') && r.status === 'confirmed' && (
                         <button
                           type="button"
