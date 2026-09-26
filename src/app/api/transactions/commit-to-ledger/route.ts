@@ -5,6 +5,7 @@ import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { summarizeError, userFacingMessage } from '@/lib/http/failClosed';
 import { prisma } from '@/lib/prisma';
 import { commitPlaidTransaction, type CommitLink } from '@/lib/journal-entry-service';
+import { documentsForBatch } from '@/lib/posting/documentGate';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireEntitySetup } from '@/lib/ensure-bookkeeping';
 import { PeriodClosedError } from '@/lib/period-close-guard';
@@ -197,6 +198,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ─── POST-01: THE DOCUMENT GATE — over EVERY transaction, BEFORE any posting ──
+    // The user's booking links for the batch (userId-scoped; transactionId is the
+    // bank row's own id, the same id this body names), decided by the pure gate
+    // (src/lib/posting/documentGate.ts): a 'proposed' link anywhere → 409 by name
+    // listing the transaction and link ids, NOTHING posted; exactly one 'accepted'
+    // → that booking is the posting's document (the accept IS the authorization);
+    // more than one 'accepted' → 409 by name; only 'rejected' or none → a posting
+    // of no booking. The document never chooses the account: accountCode below is
+    // the user's, and for a refund the writer derives it from the posted charge.
+    const batchLinks = await prisma.transaction_reservation_links.findMany({
+      where: { userId: user.id, transactionId: { in: transactionIds }, status: { in: ['proposed', 'accepted'] } },
+      select: { id: true, transactionId: true, reservationId: true, moneyEventId: true, status: true },
+    });
+    const gate = documentsForBatch(transactionIds, batchLinks);
+    if (!gate.ok) {
+      return NextResponse.json(
+        {
+          error: gate.refusal.message,
+          reason: gate.refusal.reason,
+          transactionIds: gate.refusal.transactionIds,
+          linkIds: gate.refusal.linkIds,
+          committed: 0,
+        },
+        { status: 409 }
+      );
+    }
+
     const batchRequestId = randomUUID();
     const results = [];
     const errors = [];
@@ -242,6 +270,11 @@ export async function POST(request: NextRequest) {
         // Enables individual idempotency checks while preserving batch traceability
         const requestId = `${batchRequestId}-${plaidTxn.transactionId}`;
 
+        // POST-01: the gate decided every transaction in this batch; a row it did
+        // not decide is a fault, never a posting of no booking by default.
+        const document = gate.documents.get(txnId);
+        if (document === undefined) throw new Error(`POST-01 the document gate decided nothing for transaction ${txnId}`);
+
         const journalEntry = await commitPlaidTransaction(prisma, {
           userId: user.id,
           entityId: resolvedEntityId,
@@ -258,6 +291,8 @@ export async function POST(request: NextRequest) {
           // DIM-3: validated above — born WITH the entry, atomically.
           vendorId: typeof vendorId === 'string' ? vendorId : undefined,
           links: validatedLinks,
+          // POST-01: the accepted link's booking, born WITH the entry; null = none.
+          document: document === null ? undefined : document,
         });
 
         // Track whether the user overrode the auto-categorization prediction

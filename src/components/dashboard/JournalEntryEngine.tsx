@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import EntrySourceCell, { CoverageLine } from '@/components/books/EntrySourceCell';
-import { coverageOf } from '@/lib/books/entrySource';
+import { coverageOf, type DocumentMoneyEventFacts, type DocumentReservationFacts } from '@/lib/books/entrySource';
 
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -34,6 +34,12 @@ interface JournalTxn {
   source_type: string | null;
   source_id: string | null;
   reverses_entry_id: string | null;
+  // POST-01 (2026-09-26): THE DOCUMENT — the booking this posting is the charge (or
+  // refund) of, as /api/journal-transactions puts it on the wire; null renders nothing.
+  document_reservation_id: string | null;
+  document_money_event_id: string | null;
+  document_reservation: DocumentReservationFacts | null;
+  document_money_event: DocumentMoneyEventFacts | null;
   is_reversal: boolean;
   reverses_journal_id: string | null;
   reversed_by_transaction_id: string | null;
@@ -908,7 +914,7 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                         <div className="mb-3" data-entry-source-row={txn.id}>
                           <div className="font-mono text-[10px] uppercase tracking-wider text-text-faint">Where it came from</div>
                           <div className="mt-0.5">
-                            <EntrySourceCell entryId={txn.id} entry={{ source_type: txn.source_type, source_id: txn.source_id, reverses_entry_id: txn.reverses_entry_id }} />
+                            <EntrySourceCell entryId={txn.id} entry={{ source_type: txn.source_type, source_id: txn.source_id, reverses_entry_id: txn.reverses_entry_id, document_reservation_id: txn.document_reservation_id, document_money_event_id: txn.document_money_event_id, document_reservation: txn.document_reservation, document_money_event: txn.document_money_event }} />
                           </div>
                         </div>
                         <table className="w-full text-terminal-base">

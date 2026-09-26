@@ -19,10 +19,14 @@
  *
  * PAINT (REPAINT-04): cream/white/lavender/aubergine, the ds.ts vocabulary. No
  * white ink on cream.
+ *
+ * POST-01 (2026-09-26): THE DOCUMENT. A posting that documents a booking says so
+ * under its source — the words come from the leaf's one rule, documentOf(); this
+ * cell types none of them. NULL renders nothing.
  */
 
 import { useEffect, useState } from 'react';
-import { entrySourceOf, statedFacts, type EntrySource, type SourceAnswer, type SourcedEntry } from '@/lib/books/entrySource';
+import { documentOf, entrySourceOf, statedFacts, type EntryDocument, type EntrySource, type SourceAnswer, type SourcedEntry } from '@/lib/books/entrySource';
 
 type Loaded = { state: 'idle' } | { state: 'loading' } | { state: 'error'; message: string } | { state: 'done'; answer: SourceAnswer };
 
@@ -40,6 +44,7 @@ export function EntrySourceWords({ entryId, entry, onOpen, opened = false, compa
   compact?: boolean;
 }) {
   const source: EntrySource = entrySourceOf(entry);
+  const document: EntryDocument = documentOf(entry);
   return (
     <div className={compact ? 'text-[11px]' : 'text-xs'} data-entry-source={source.kind} data-entry-source-type={'type' in source ? source.type : ''}>
       {source.kind === 'opens' && onOpen ? (
@@ -72,6 +77,11 @@ export function EntrySourceWords({ entryId, entry, onOpen, opened = false, compa
         </span>
       ) : (
         <span className="text-text-faint" data-entry-source-words>{source.words}</span>
+      )}
+      {document.kind !== 'none' && (
+        <div className="text-text-secondary" data-entry-document={document.kind} data-entry-document-reservation={document.reservationId}>
+          {document.words}
+        </div>
       )}
     </div>
   );

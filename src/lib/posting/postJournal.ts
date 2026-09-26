@@ -47,6 +47,15 @@ export interface JournalEntryInput {
   created_by?: string | null;
   vendor_id?: string | null;
   metadata?: Prisma.InputJsonValue;
+  /**
+   * POST-01 (2026-09-26): THE DOCUMENT — the booking this plaid_txn posting is the
+   * charge (or refund) of. The port passes both through and decides nothing:
+   * commitPlaidTransaction (src/lib/journal-entry-service.ts) is the one writer that
+   * sets them, from an ACCEPTED transaction_reservation_link; every other writer,
+   * the reversal included, leaves them NULL. Never defaulted here.
+   */
+  document_reservation_id?: string | null;
+  document_money_event_id?: string | null;
 }
 
 export interface JournalLineInput {
@@ -137,6 +146,8 @@ export async function postJournal<T>(
           created_by: entry.created_by ?? null,
           vendor_id: entry.vendor_id ?? null,
           metadata: entry.metadata,
+          document_reservation_id: entry.document_reservation_id ?? null,
+          document_money_event_id: entry.document_money_event_id ?? null,
         },
         select: { id: true },
       });

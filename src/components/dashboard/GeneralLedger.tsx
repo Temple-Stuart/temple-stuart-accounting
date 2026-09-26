@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback, Fragment } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { CoverageLine, EntrySourcePanel, EntrySourceWords } from '@/components/books/EntrySourceCell';
-import { coverageOf } from '@/lib/books/entrySource';
+import { coverageOf, type DocumentMoneyEventFacts, type DocumentReservationFacts } from '@/lib/books/entrySource';
 
 
 /* ------------------------------------------------------------------ */
@@ -40,6 +40,12 @@ interface LedgerEntry {
   source_type: string | null;
   source_id: string | null;
   reverses_entry_id: string | null;
+  // POST-01 (2026-09-26): THE DOCUMENT — the booking this posting is the charge (or
+  // refund) of, as /api/ledger puts it on the wire; null renders nothing.
+  document_reservation_id: string | null;
+  document_money_event_id: string | null;
+  document_reservation: DocumentReservationFacts | null;
+  document_money_event: DocumentMoneyEventFacts | null;
 }
 
 interface LedgerAccount {
@@ -769,7 +775,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
                         <div className="py-1 px-2 w-[220px] shrink-0 truncate" data-entry-source-row={entry.journal_id}>
                           <EntrySourceWords
                             entryId={entry.journal_id}
-                            entry={{ source_type: entry.source_type, source_id: entry.source_id, reverses_entry_id: entry.reverses_entry_id }}
+                            entry={{ source_type: entry.source_type, source_id: entry.source_id, reverses_entry_id: entry.reverses_entry_id, document_reservation_id: entry.document_reservation_id, document_money_event_id: entry.document_money_event_id, document_reservation: entry.document_reservation, document_money_event: entry.document_money_event }}
                             opened={sourceFor === entry.journal_id}
                             onOpen={(id) => setSourceFor((cur) => (cur === id ? null : id))}
                             compact
