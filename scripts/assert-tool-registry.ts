@@ -5309,9 +5309,10 @@ lawGuard('The cancel law', () => {
 
   const route = codeOf(ROUTE);
   // 1. THE LANE DECIDES THE ENDPOINT.
-  if (!/select: \{ id: true, status: true, provider: true, providerBookingId: true, lane: true \}/.test(route)) cancelFail(`${ROUTE} does not read the lane off the owned row`);
-  if (!/if \(owned\.lane === 'hotel'\) return cancelHotel\(owned, userId\);/.test(route)) cancelFail(`${ROUTE} does not send the hotel lane to the hotel cancel`);
-  if (!/if \(owned\.lane === 'flight'\) return cancelFlight\(owned, userId\);/.test(route)) cancelFail(`${ROUTE} does not send the flight lane to the flight cancel — a flight bookingId would reach the hotel endpoint`);
+  // CANCEL-02 widened the select (the recipient and identity fields ride beside the lane).
+  if (!/select: \{\s*id: true, status: true, provider: true, providerBookingId: true, lane: true,/.test(route)) cancelFail(`${ROUTE} does not read the lane off the owned row`);
+  if (!/if \(owned\.lane === 'hotel'\) return cancelHotel\(owned, userId, accountEmail\);/.test(route)) cancelFail(`${ROUTE} does not send the hotel lane to the hotel cancel`);
+  if (!/if \(owned\.lane === 'flight'\) return cancelFlight\(owned, userId, accountEmail\);/.test(route)) cancelFail(`${ROUTE} does not send the flight lane to the flight cancel — a flight bookingId would reach the hotel endpoint`);
   if (!/code: 'cancel_lane_unsupported'/.test(route)) cancelFail(`${ROUTE} does not refuse an unsupported lane by name before any vendor call`);
   {
     const hotelAt = route.indexOf('async function cancelHotel(');
@@ -5403,14 +5404,55 @@ lawGuard('The cancel law', () => {
     if (!/UPDATE calendar_events/.test(impl) || !/status = 'cancelled'/.test(impl)) cancelFail(`${CAL_IMPL}: a cancelled reservation row is not marked`);
     if (/DELETE FROM calendar_events/.test(impl)) cancelFail(`${CAL_IMPL}: a cancelled reservation row is removed, not marked — the day-side of a record that lives forever`);
   }
-  // 6. THE NAMED ABSENCES.
+  // 6. THE NAMED ABSENCES — and, since CANCEL-02 (2026-09-26), THE EMAIL THAT IS
+  //    NO LONGER ONE: both lanes send after the commit, from the rows, to a
+  //    recipient the rule stated or to nobody by name; never failing the cancel.
   const routeNotes = commentsOf(ROUTE);
-  for (const named of ['CANCEL-02: the cancellation EMAIL attaches here — NOT this PR', 'item 3: the webhook receiver and scheduled refresh', 'item 7: journal posting of these money facts attaches here — NOT this PR']) {
+  for (const named of ['item 3: the webhook receiver and scheduled refresh', 'item 7: journal posting of these money facts attaches here — NOT this PR']) {
     if (!routeNotes.includes(named)) cancelFail(`${ROUTE} does not name "${named.slice(0, 40)}..." where it attaches`);
+  }
+  if (/CANCEL-02: the cancellation EMAIL attaches here — NOT this PR/.test(routeNotes)) cancelFail(`${ROUTE} still names the cancellation email as absent — CANCEL-02 sends it`);
+  {
+    const hotelAt = route.indexOf('async function cancelHotel(');
+    const flightAt = route.indexOf('async function cancelFlight(');
+    const hotel = hotelAt >= 0 && flightAt > hotelAt ? route.slice(hotelAt, flightAt) : '';
+    const flight = flightAt >= 0 ? route.slice(flightAt) : '';
+    for (const [name, lane] of [['hotel', hotel], ['flight', flight]] as const) {
+      const tx = lane.indexOf('prisma.$transaction');
+      const send = lane.indexOf('await sendCancellationEmail(');
+      if (!(tx > 0 && send > tx)) cancelFail(`${ROUTE}: the ${name} cancel does not email the customer AFTER the transaction commits`);
+      if (!/email: emailStatus,/.test(lane)) cancelFail(`${ROUTE}: the ${name} cancel does not report email.sent in its envelope`);
+    }
+    if (!/const emailStatus = await sendCancellationEmail\(owned, accountEmail, \{ kind: 'cancelled', moneyEvents, vouchers: \[\], providerStatus: landed\.parsed\.status \}\);/.test(hotel)) cancelFail(`${ROUTE}: the hotel email is not rendered from the money_events rows the transaction wrote`);
+    if (!/\? \{ kind: 'cancelled', moneyEvents: decision\.moneyEvents, vouchers: decision\.vouchers, providerStatus: landed\.parsed\.status \}\s*: \{ kind: 'cancel_pending' \}/.test(flight)) cancelFail(`${ROUTE}: the flight email is not the final figures from the rows on a 200, or the pending template on a 202`);
+    // The email function ends where the next declaration begins (statusRefusal) — never a comment anchor, never a character count.
+    const sender = route.slice(route.indexOf('async function sendCancellationEmail('), route.indexOf('function statusRefusal('));
+    if (!sender) cancelFail(`${ROUTE} has no sendCancellationEmail`);
+    if (!/const recipient = cancelRecipient\(owned, accountEmail\);/.test(sender)) cancelFail(`${ROUTE}: the recipient is not resolved by the one rule (cancelRecipient)`);
+    if (!/return \{ sent: false, error: recipient\.reason \};/.test(sender)) cancelFail(`${ROUTE}: a missing recipient is not reported by name with no send`);
+    if (!/catch \(emailErr\)/.test(sender) || /throw |return NextResponse/.test(sender.slice(sender.indexOf('catch (emailErr)')))) cancelFail(`${ROUTE}: an email failure would fail the cancel`);
+    if (!/cancellationEmailFacts\(outcome\.moneyEvents, outcome\.vouchers\)/.test(sender)) cancelFail(`${ROUTE}: the email figures are not read from the rows`);
+    for (const banned of ['userEmail ??', 'accountEmail ??', 'guestEmail ??', '?? accountEmail', '?? owned.guestEmail', 'retry', 'setTimeout']) {
+      if (sender.includes(banned)) cancelFail(`${ROUTE}: the email path carries a fallback or a retry (${banned})`);
+    }
+  }
+  {
+    const leaf = codeOf(LEAF);
+    if (!/if \(row\.bookingType === 'account'\) \{/.test(leaf) || !/return guest\.length > 0 \? \{ to: guest \} : \{ to: null, reason: 'no_recipient_stated' \};/.test(leaf)) cancelFail(`${LEAF}: cancelRecipient does not send an account row to the account and a guest row to its stated guestEmail, else nobody by name`);
+    if (/accountEmail \?\? |guestEmail \?\? |\?\? accountEmail|\?\? row\.guestEmail/.test(leaf)) cancelFail(`${LEAF}: cancelRecipient falls back from one address to another`);
+    const tpl = codeOf('src/lib/emailTemplates/lifecycle.ts');
+    if (!/not stated by the vendor/.test(tpl)) cancelFail('src/lib/emailTemplates/lifecycle.ts: a NULL amount is not said as "not stated by the vendor"');
+    if (!/We will email you again when the vendor confirms the refund was issued\./.test(tpl)) cancelFail('src/lib/emailTemplates/lifecycle.ts: the cancelled email does not state the next email');
+    for (const kind of ["'cancelled'", "'cancel_pending'", "'ticketed'", "'hotel_confirmation_arrived'"]) if (!tpl.includes(`case ${kind}:`)) cancelFail(`src/lib/emailTemplates/lifecycle.ts lacks the ${kind} template`);
+    // The two STATUS-01 slots have NO caller in src today.
+    for (const { file, src } of srcFiles) {
+      if (file === 'src/lib/emailTemplates/lifecycle.ts') continue;
+      if (/kind: 'ticketed'|kind: 'hotel_confirmation_arrived'/.test(src)) cancelFail(`${file} fires the ${/ticketed/.test(src) ? 'ticketed' : 'hotel_confirmation_arrived'} lifecycle email — STATUS-01 owns that, and CANCEL-02 has no caller`);
+    }
   }
   if (!/item 8/.test(commentsOf('prisma/migrations/20260926090000_cancel_01_money_events/migration.sql'))) cancelFail('the CANCEL-01 migration does not name item 8 (refund matching) as the settled status owner');
 
-  if (cancelViolations === 0) console.log(`✔ The cancel law passed — the cancel route reads the lane and sends a hotel to PUT /v3.0/bookings/{id} and a flight to POST /flights/bookings/{id}/cancellations, refusing any other lane and a vendor 409 by name before any write; the quote is metered (${dailyCap('liteapiflightcancelquote')}/day) and rendered before any Cancel control; both lanes write money_events rows pointed at the arrival with NULL, never 0, for an unstated amount and none on a 202; cancelIntentAt is the vendor word from one metered GET; the refresh does not undo a pending cancel; a final cancel marks the day and moves the margin.`);
+  if (cancelViolations === 0) console.log(`✔ The cancel law passed — the cancel route reads the lane and sends a hotel to PUT /v3.0/bookings/{id} and a flight to POST /flights/bookings/{id}/cancellations, refusing any other lane and a vendor 409 by name before any write; the quote is metered (${dailyCap('liteapiflightcancelquote')}/day) and rendered before any Cancel control; both lanes write money_events rows pointed at the arrival with NULL, never 0, for an unstated amount and none on a 202; cancelIntentAt is the vendor word from one metered GET; the refresh does not undo a pending cancel; a final cancel marks the day and moves the margin; both lanes email the customer after the commit from the rows, to the one recipient the rule states or to nobody by name, never failing the cancel (CANCEL-02); the two STATUS-01 slots have 0 callers.`);
   else console.log(`✖ The cancel law FAILED — ${cancelViolations} violation(s).`);
 });
 

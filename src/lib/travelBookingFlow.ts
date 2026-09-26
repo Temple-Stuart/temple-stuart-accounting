@@ -176,7 +176,16 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // marks the calendar row and moves the estimated commission to cancelled. The auth
   // chain and the hotel cancel call are unchanged.
   // Was 150757218a27e3aeaa22123317d1b089c4762f3137a273dacf58bf5f2c20ab5d at main dccb3380.
-  { file: 'src/app/api/reservations/[id]/cancel/route.ts', sha256: '5fb02294e674bbf816a50f4a455534d93e261016ae8e058bbb2f6310dd0abe1f' },
+  // CANCEL-02 (2026-09-26): re-pinned — a cancellation is confirmed in writing. Both
+  // lanes, both outcomes, after the transaction commits: the lifecycle email (final
+  // figures from the money_events and vouchers rows just written, or the pending
+  // template) goes to the one recipient the rule states — the account's stored email
+  // for an account row, guestEmail for a guest row, else nobody by name
+  // (no_recipient_stated) — in its own try/catch, reported as email.sent, never
+  // failing the cancel. The gate reads the recipient and identity fields. The vendor
+  // calls, the landing and every write are unchanged.
+  // Was 5fb02294e674bbf816a50f4a455534d93e261016ae8e058bbb2f6310dd0abe1f at main c17dc9dd.
+  { file: 'src/app/api/reservations/[id]/cancel/route.ts', sha256: 'd9b52813b8bf26b624a6f476a1def46a9f1e37085d30f5ee58d9199b2eb9e9fe' },
   // LANE-01 (2026-09-25): re-pinned — type and name come from the one reader keyed on
   // reservations.lane (src/lib/reservations/lane.ts); the local PROVIDER_TYPE map and
   // hotelName ?? provider are gone. The auth chain and the one field it writes are unchanged.

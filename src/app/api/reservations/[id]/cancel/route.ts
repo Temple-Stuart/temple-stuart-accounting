@@ -18,9 +18,14 @@ import { landLiteApiCancellation } from '@/lib/arrivals/liteapiBooking';
 import { prismaLanding } from '@/lib/arrivals/prismaLanding';
 import { MissingLiteApiKeyError, LiteApiError } from '@/lib/travelErrors';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
-import { flightCancelDecision, hotelCancelMoneyEvents } from '@/lib/reservations/cancellation';
+import { cancelRecipient, cancellationEmailFacts, flightCancelDecision, hotelCancelMoneyEvents, type MoneyEventRow, type VoucherRow } from '@/lib/reservations/cancellation';
 import { markBookingCalendarCancelled } from '@/lib/calendar/bookingEvent';
 import { prismaBookingCalendar } from '@/lib/calendar/prismaBookingCalendar';
+// CANCEL-02 (2026-09-26): a cancellation is confirmed in writing — the lifecycle
+// leaf renders it; the sender is the booking emails' own (email.ts).
+import { sendTransactionalEmail } from '@/lib/email';
+import { lifecycleEmail } from '@/lib/emailTemplates/lifecycle';
+import { reservationIdentity } from '@/lib/reservations/lane';
 
 // /api/reservations/[id]/cancel — in-app cancellation. ONE resource, two verbs:
 //   GET  — THE QUOTE (CANCEL-01, flights only): what cancelling would do, read
@@ -65,22 +70,38 @@ import { prismaBookingCalendar } from '@/lib/calendar/prismaBookingCalendar';
 // route). No rate limit on the action: mirrors the authed reservations/[id]
 // PATCH convention (rateLimit is this codebase's PUBLIC-paid-route guard).
 //
-// NOT IN THIS PR, by name: the cancellation EMAIL (CANCEL-02); the webhook
-// receiver and scheduled refresh that resolve a 202 into its final status and
-// money facts (item 3); refund matching in the bank matcher (item 8); journal
-// posting of the money facts (item 7). Each is named at the point it attaches.
+// CANCEL-02 (2026-09-26): A CANCELLATION IS CONFIRMED IN WRITING. Both lanes,
+// both outcomes: after the transaction commits, in its own try/catch, logged
+// loudly, reported as email: { sent, id | error } — and never failing the
+// cancel (the book routes' own pattern, liteapi/book/route.ts). The recipient is
+// the account's email for an account row, reservations.guestEmail for a guest
+// row when stated, and otherwise NO send with reason 'no_recipient_stated' —
+// no fallback address, ever (src/lib/reservations/cancellation.ts
+// cancelRecipient). The body is rendered from the money_events and vouchers
+// ROWS the transaction wrote, never from the answer again.
+//
+// NOT IN THIS PR, by name: the webhook receiver and scheduled refresh that
+// resolve a 202 into its final status and money facts (item 3); refund
+// matching in the bank matcher (item 8); journal posting of the money facts
+// (item 7). Each is named at the point it attaches.
 
-type OwnedRow = { id: string; status: string; provider: string; providerBookingId: string; lane: string };
+type OwnedRow = {
+  id: string; status: string; provider: string; providerBookingId: string; lane: string;
+  // CANCEL-02: the recipient rule and the email's identity lines read these.
+  bookingType: string; guestEmail: string | null; displayName: string | null; providerConfirmationCode: string | null;
+  checkinDate: Date | null; checkoutDate: Date | null;
+};
 
 /** The auth chain, shared by both verbs: the user, and the row they own. */
-async function gate(id: string): Promise<{ ok: true; userId: string; owned: OwnedRow } | { ok: false; response: NextResponse }> {
+async function gate(id: string): Promise<{ ok: true; userId: string; accountEmail: string; owned: OwnedRow } | { ok: false; response: NextResponse }> {
   const userEmail = await getVerifiedEmail();
   if (!userEmail) {
     return { ok: false, response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
   }
   const user = await prisma.users.findFirst({
     where: { email: { equals: userEmail, mode: 'insensitive' } },
-    select: { id: true },
+    // CANCEL-02: the account's own stored address is the recipient for an account row.
+    select: { id: true, email: true },
   });
   if (!user) {
     return { ok: false, response: NextResponse.json({ error: 'User not found' }, { status: 404 }) };
@@ -90,12 +111,75 @@ async function gate(id: string): Promise<{ ok: true; userId: string; owned: Owne
   const owned = await prisma.reservations.findFirst({
     where: { id, userId: user.id, provider: { in: ['liteapi', 'duffel'] } },
     // CANCEL-01: the lane decides which vendor endpoint a cancel may reach.
-    select: { id: true, status: true, provider: true, providerBookingId: true, lane: true },
+    // CANCEL-02: the recipient rule and the email read the rest.
+    select: {
+      id: true, status: true, provider: true, providerBookingId: true, lane: true,
+      bookingType: true, guestEmail: true, displayName: true, providerConfirmationCode: true, checkinDate: true, checkoutDate: true,
+    },
   });
   if (!owned) {
     return { ok: false, response: NextResponse.json({ error: 'Reservation not found' }, { status: 404 }) };
   }
-  return { ok: true, userId: user.id, owned };
+  return { ok: true, userId: user.id, accountEmail: user.email, owned };
+}
+
+// ─── CANCEL-02: the email, after the commit ──────────────────────────────────
+type EmailStatus = { sent: true; id: string } | { sent: false; error: string };
+
+/** YYYY-MM-DD of a DATE-column value, or null. */
+const day = (d: Date | null): string | null => (d === null ? null : d.toISOString().slice(0, 10));
+
+/** Where the booking can be seen TODAY: the travel tab. Absolute, from the
+ *  deployment's public origin; null (and the line omitted) when it is not set —
+ *  a host is never invented. */
+function manageUrl(reservationId: string): string | null {
+  const origin = process.env.NEXT_PUBLIC_APP_URL;
+  if (typeof origin !== 'string' || origin.trim().length === 0) {
+    console.error('[Reservation cancel] CANCEL-02 NEXT_PUBLIC_APP_URL is not set — the email carries no manage link:', { reservationId });
+    return null;
+  }
+  return `${origin.trim().replace(/\/+$/, '')}/travel`;
+}
+
+/**
+ * Send the lifecycle email for a cancel outcome. Its own try/catch: a failure is
+ * logged loudly by reservation id and reported, and NEVER fails the cancel — the
+ * booking is already cancelled (or pending) at the vendor and in the ledger. No
+ * retry, no alternate transport, no substituted recipient.
+ */
+async function sendCancellationEmail(
+  owned: OwnedRow,
+  accountEmail: string,
+  outcome: { kind: 'cancelled'; moneyEvents: MoneyEventRow[]; vouchers: VoucherRow[]; providerStatus: string | null } | { kind: 'cancel_pending' },
+): Promise<EmailStatus> {
+  const recipient = cancelRecipient(owned, accountEmail);
+  if (recipient.to === null) {
+    console.error('[Reservation cancel] CANCEL-02 no recipient stated — no email sent:', { reservationId: owned.id, bookingType: owned.bookingType, reason: recipient.reason });
+    return { sent: false, error: recipient.reason };
+  }
+  try {
+    const identity = reservationIdentity(owned);
+    const common = {
+      name: identity.name,
+      lane: identity.type,
+      reference: owned.providerConfirmationCode ?? owned.providerBookingId,
+      checkinDate: day(owned.checkinDate),
+      checkoutDate: day(owned.checkoutDate),
+      manageUrl: manageUrl(owned.id),
+    };
+    const rendered = outcome.kind === 'cancelled'
+      ? lifecycleEmail({ kind: 'cancelled', ...common, ...cancellationEmailFacts(outcome.moneyEvents, outcome.vouchers), providerStatus: outcome.providerStatus })
+      : lifecycleEmail({ kind: 'cancel_pending', ...common });
+    const { id } = await sendTransactionalEmail({ to: recipient.to, subject: rendered.subject, html: rendered.html, text: rendered.text });
+    return { sent: true, id };
+  } catch (emailErr) {
+    const errorClass = emailErr instanceof Error ? emailErr.name : 'UnknownError';
+    const message = emailErr instanceof Error ? emailErr.message : String(emailErr);
+    console.error('[Reservation cancel] CANCEL-02 email FAILED (the cancel itself succeeded):', {
+      reservationId: owned.id, providerBookingId: owned.providerBookingId, kind: outcome.kind, errorClass, message,
+    });
+    return { sent: false, error: errorClass };
+  }
 }
 
 /** The status gate, shared: only a confirmed booking can be quoted or cancelled. */
@@ -186,7 +270,7 @@ export async function POST(
     const { id } = await params;
     const g = await gate(id);
     if (!g.ok) return g.response;
-    const { owned, userId } = g;
+    const { owned, userId, accountEmail } = g;
     const refused = statusRefusal(owned);
     if (refused) return refused;
 
@@ -206,8 +290,8 @@ export async function POST(
     }
 
     // ─── CANCEL-01: THE LANE DECIDES THE ENDPOINT ────────────────────────────
-    if (owned.lane === 'hotel') return cancelHotel(owned, userId);
-    if (owned.lane === 'flight') return cancelFlight(owned, userId);
+    if (owned.lane === 'hotel') return cancelHotel(owned, userId, accountEmail);
+    if (owned.lane === 'flight') return cancelFlight(owned, userId, accountEmail);
     // An activity has no cancel lane. Refused by name, before any vendor call,
     // and the row is untouched.
     return NextResponse.json(
@@ -250,7 +334,7 @@ async function markCalendar(reservationId: string, providerBookingId: string): P
 }
 
 // ─── provider 'liteapi' HOTEL (PR-Cancel-1; money kept by CANCEL-01) ─────────
-async function cancelHotel(owned: OwnedRow, userId: string) {
+async function cancelHotel(owned: OwnedRow, userId: string, accountEmail: string) {
   // The provider cancel — the only money authority. REBUILD-01 PR-5: the
   // client hands the answer back as received (the bytes) beside the parsed
   // result; `cancelled` serves the failure branch below — what is answered
@@ -304,7 +388,7 @@ async function cancelHotel(owned: OwnedRow, userId: string) {
             where: { reservationId: owned.id, status: 'estimated' },
             data: { status: 'cancelled' },
           });
-          return { row, moneyEvents: moneyEvents.length, commissionMoved: commission.count };
+          return { row, moneyEvents, commissionMoved: commission.count };
         },
       }, {
         answer,
@@ -338,7 +422,8 @@ async function cancelHotel(owned: OwnedRow, userId: string) {
   }
   const { row, moneyEvents, commissionMoved } = landed.reservation;
   const calendar = await markCalendar(owned.id, owned.providerBookingId);
-  // CANCEL-02: the cancellation EMAIL attaches here — NOT this PR.
+  // CANCEL-02: the customer is told, from the rows just written; never fails the cancel.
+  const emailStatus = await sendCancellationEmail(owned, accountEmail, { kind: 'cancelled', moneyEvents, vouchers: [], providerStatus: landed.parsed.status });
 
   return NextResponse.json({
     reservation: { id: row.id, status: row.status },
@@ -353,15 +438,16 @@ async function cancelHotel(owned: OwnedRow, userId: string) {
       vouchers: [],
       pending: false,
       cancelIntentAt: null,
-      moneyEvents,
+      moneyEvents: moneyEvents.length,
       commissionMoved,
       calendar,
     },
+    email: emailStatus,
   });
 }
 
 // ─── provider 'liteapi' FLIGHT (CANCEL-01) ───────────────────────────────────
-async function cancelFlight(owned: OwnedRow, userId: string) {
+async function cancelFlight(owned: OwnedRow, userId: string, accountEmail: string) {
   let cancelledAnswer;
   try {
     cancelledAnswer = await cancelFlightBooking(owned.providerBookingId);
@@ -491,7 +577,15 @@ async function cancelFlight(owned: OwnedRow, userId: string) {
   // A FINAL cancel marks the day; a pending one leaves the row — the flight is
   // still booked at the airline until it says otherwise.
   const calendar = decision.final ? await markCalendar(owned.id, owned.providerBookingId) : 'pending';
-  // CANCEL-02: the cancellation EMAIL attaches here — NOT this PR.
+  // CANCEL-02: the customer is told — the final figures from the rows just
+  // written, or that the request is awaiting the airline; never fails the cancel.
+  const emailStatus = await sendCancellationEmail(
+    owned,
+    accountEmail,
+    decision.final
+      ? { kind: 'cancelled', moneyEvents: decision.moneyEvents, vouchers: decision.vouchers, providerStatus: landed.parsed.status }
+      : { kind: 'cancel_pending' },
+  );
 
   return NextResponse.json({
     reservation: { id: row.id, status: row.status },
@@ -510,5 +604,6 @@ async function cancelFlight(owned: OwnedRow, userId: string) {
       commissionMoved,
       calendar,
     },
+    email: emailStatus,
   });
 }
