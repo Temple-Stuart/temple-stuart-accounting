@@ -3,6 +3,7 @@ import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
+import { humanActor, recordBookingEvent } from '@/lib/reservations/auditTrail';
 import { ValidationError } from '@/lib/errors/ValidationError';
 
 // ─── POST /api/runway/match/review (PR-MATCH-2) ──────────────────────────────
@@ -23,6 +24,13 @@ import { ValidationError } from '@/lib/errors/ValidationError';
 // both together). An event already settled (by another accepted link) → 409 by
 // name, nothing flips. A reject changes the event nothing. THIS ROUTE IS THE
 // ONLY WRITER OF 'settled'.
+//
+// AUDIT-01 (2026-09-26): the settle is a change to a booking's money, so it
+// leaves a chained row through the ONE audit port (src/lib/reservations/
+// auditTrail.ts) — money_event_settled, the bank row its evidence, the money
+// event its target, the reservation named in payload_metadata — written after
+// the transaction commits, beside the link's own row below (which stays: it
+// records the link decision, accept AND reject, on the link's table).
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(request: NextRequest) {
@@ -66,12 +74,14 @@ export async function POST(request: NextRequest) {
 
     const reviewedAt = new Date();
     const settles = action === 'accept' && link.moneyEventId !== null;
+    // AUDIT-01: the settled event's kind, read inside the transaction, for the chained row after it.
+    let settledKind: string | null = null;
     const updated = await prisma.$transaction(async (tx) => {
       // MATCH-02: the refund's money event settles with the accept, or nothing flips.
       if (settles) {
         const event = await tx.money_events.findUnique({
           where: { id: link.moneyEventId as string },
-          select: { id: true, status: true, settledTransactionId: true },
+          select: { id: true, status: true, settledTransactionId: true, kind: true },
         });
         if (!event) {
           throw new ValidationError(`MATCH-02 money event ${link.moneyEventId} named by link ${link.id} is not there`, { status: 404 });
@@ -89,6 +99,7 @@ export async function POST(request: NextRequest) {
         if (settled.count !== 1) {
           throw new ValidationError(`MATCH-02 money event ${event.id} was settled by another accept while this one ran — a refund settles once`, { status: 409 });
         }
+        settledKind = event.kind;
       }
       return tx.transaction_reservation_links.update({
         where: { id: link.id },
@@ -138,6 +149,19 @@ export async function POST(request: NextRequest) {
       console.error('[Runway match review] audit log FAILED (review itself succeeded):', {
         linkId: link.id, action,
         error: auditErr instanceof Error ? auditErr.message : auditErr,
+      });
+    }
+
+    // AUDIT-01: the settle, through the one port — after the commit; a failed write is named there, never thrown.
+    if (settles && link.moneyEventId !== null) {
+      await recordBookingEvent({
+        reservation: { id: link.reservationId, userId: user.id },
+        kind: 'money_event_settled',
+        actor: humanActor({ id: user.id, email: userEmail }),
+        before: { status: 'stated' },
+        after: { status: 'settled', kind: settledKind, settledTransactionId: link.transactionId, settledAt: reviewedAt.toISOString() },
+        evidence: { table: 'transactions', id: link.transactionId },
+        target: { table: 'money_events', id: link.moneyEventId },
       });
     }
 

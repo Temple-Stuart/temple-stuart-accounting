@@ -12,13 +12,44 @@
  * "Downloadable" is the browser's Print / Save as PDF (window.print()) — no PDF
  * library, nothing generated on the server; the header says so in the leaf's
  * own note.
+ *
+ * AUDIT-01 (2026-09-26): a "History" section — one more authed GET, of
+ * /api/reservations/<id>/timeline, rendered as the timeline leaf's items
+ * (src/lib/reservations/timeline.ts): each line its instant, its words and the
+ * record it was read from. The section's own words are the leaf's HISTORY_WORDS;
+ * the page types none. It prints with the receipt.
  */
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import type { BookingReceipt, ReceiptLine } from '@/lib/receipts/bookingReceipt';
+import { HISTORY_WORDS, type TimelineItem } from '@/lib/reservations/timeline';
 
 type Loaded = { state: 'loading' } | { state: 'error'; message: string } | { state: 'done'; receipt: BookingReceipt };
+type History = { state: 'loading' } | { state: 'error'; message: string } | { state: 'done'; items: TimelineItem[] };
+
+/** AUDIT-01: the booking's history — the timeline leaf's items, verbatim. */
+function HistorySection({ history }: { history: History }) {
+  return (
+    <section className="space-y-2" data-receipt-section="history">
+      <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">{HISTORY_WORDS.heading}</h2>
+      <p className="text-xs text-text-faint" data-history-note>{HISTORY_WORDS.note}</p>
+      {history.state === 'loading' && <p className="text-sm text-text-faint">{HISTORY_WORDS.reading}</p>}
+      {history.state === 'error' && <p className="text-sm text-brand-red" role="alert" data-history-error>{history.message}</p>}
+      {history.state === 'done' && history.items.length === 0 && <p className="text-sm text-text-secondary" data-history-none>{HISTORY_WORDS.none}</p>}
+      {history.state === 'done' && history.items.length > 0 && (
+        <ol className="space-y-1 text-sm" data-history>
+          {history.items.map((item) => (
+            <li key={`${item.evidence.table}-${item.evidence.id}-${item.kind}-${item.at}`} data-history-kind={item.kind} data-evidence-table={item.evidence.table} data-evidence-id={item.evidence.id}>
+              <span className="font-mono text-xs text-text-faint">{item.at}</span> · {item.words}
+              <span className="ml-2 text-xs text-text-faint">— {HISTORY_WORDS.evidence} {item.evidence.table} {item.evidence.id}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
 
 function Line({ line }: { line: ReceiptLine }) {
   return (
@@ -44,6 +75,7 @@ export default function BookingReceiptPage() {
   const params = useParams<{ id: string }>();
   const id = typeof params?.id === 'string' ? params.id : '';
   const [loaded, setLoaded] = useState<Loaded>({ state: 'loading' });
+  const [history, setHistory] = useState<History>({ state: 'loading' });
 
   useEffect(() => {
     let alive = true;
@@ -56,6 +88,23 @@ export default function BookingReceiptPage() {
         if (alive) setLoaded({ state: 'done', receipt: data.receipt as BookingReceipt });
       } catch (err) {
         if (alive) setLoaded({ state: 'error', message: err instanceof Error ? err.message : 'the receipt could not be read' });
+      }
+    })();
+    return () => { alive = false; };
+  }, [id]);
+
+  // AUDIT-01: the history, from the owner's timeline route — read-only, like the receipt.
+  useEffect(() => {
+    let alive = true;
+    if (!id) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/reservations/${encodeURIComponent(id)}/timeline`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `${HISTORY_WORDS.unreadable} (${res.status})`);
+        if (alive) setHistory({ state: 'done', items: data.timeline as TimelineItem[] });
+      } catch (err) {
+        if (alive) setHistory({ state: 'error', message: err instanceof Error ? err.message : HISTORY_WORDS.unreadable });
       }
     })();
     return () => { alive = false; };
@@ -160,6 +209,8 @@ export default function BookingReceiptPage() {
                 </ul>
               )}
             </section>
+
+            <HistorySection history={history} />
           </article>
         );
       })()}

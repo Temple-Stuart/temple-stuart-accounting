@@ -2804,6 +2804,25 @@ enum AuditActionType {
   operations_north_star_updated
   operations_north_star_reviewed
   system_other
+  // AUDIT-01 (2026-09-26): every change to a booking, once each — appended after
+  // system_other in the order ALTER TYPE ... ADD VALUE gives them
+  // (prisma/migrations/20260926230000_audit_01_booking_audit_enums). No backfill.
+  reservation_booked
+  reservation_status_changed
+  reservation_confirmation_code_arrived
+  reservation_ticketed
+  reservation_ticket_limit_stated
+  reservation_cancel_quoted
+  reservation_cancel_requested
+  reservation_cancel_pending
+  reservation_cancelled
+  reservation_cancel_refused
+  reservation_email_sent
+  reservation_email_failed
+  reservation_posted
+  money_event_stated
+  money_event_settled
+  commission_locked
 }
 
 model audit_log {

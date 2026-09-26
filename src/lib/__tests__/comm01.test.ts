@@ -238,7 +238,11 @@ test('every reader renders NULL as not stated — the checkout panel, the preboo
   assert.deepEqual(zeros, [], 'no literal 0 commission');
   const writers = files.filter((f) => /commissionAmountCents:/.test(code(f))).sort();
   assert.deepEqual(writers, [FLIGHT_BOOK, HOTEL_BOOK].sort(), 'the two book routes are the only writers of the book-time figure');
-  const lockers = files.filter((f) => /lockedCommissionCents:/.test(code(f))).sort();
+  // AUDIT-01 (2026-09-26): the timeline words leaf names the locked figure to SAY it (a row type's field and
+  // the facts handed to its words) — it cannot write: it is pure (no prisma), proven here and by the audit law.
+  const TIMELINE_LEAF = 'src/lib/reservations/timeline.ts';
+  assert.ok(!/prisma|^\s*import\s/m.test(code(TIMELINE_LEAF)), 'the timeline leaf reaches no database');
+  const lockers = files.filter((f) => /lockedCommissionCents:/.test(code(f)) && f !== TIMELINE_LEAF).sort();
   assert.deepEqual(lockers, [APPLY, READ_LEAF].sort(), 'the apply leaf shapes the figures; the read leaf writes them');
 });
 
