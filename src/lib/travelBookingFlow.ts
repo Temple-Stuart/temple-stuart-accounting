@@ -395,7 +395,11 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // the airline"; the outcome line carries where the refund goes and any vouchers; the
   // dialog is handed the lane. Display only; no call changed.
   // Was 95ac4f8d13a1317c1d225b28ba2d9155e6537dfd2752c2c45374a04f7b95a386 at main dccb3380.
-  { file: 'src/components/trips/TripBookings.tsx', sha256: '1d76057906ef2eade1c6ff28b4532e1a66b637bccd4617cf8751281ed6f8996c' },
+  // RECEIPT-01 (2026-09-26): re-pinned — a "Receipt" link beside Cancel opens the
+  // owner's printable receipt (/booking/<id>/receipt: the vendor's landed words, the
+  // bank row, the ledger entry). Display only; no prebook/book/pay/cancel call changed.
+  // Was 1d76057906ef2eade1c6ff28b4532e1a66b637bccd4617cf8751281ed6f8996c at main fe50c127.
+  { file: 'src/components/trips/TripBookings.tsx', sha256: '12cef6fc6415b72bc836edf9b9b05b613727c2a3914675a3e0e0f502a984d3c4' },
   // REPAINT-04 (2026-09-21): re-pinned — one class on the "Add to <trip>" ghost button
   // (text-white → text-brand-purple, invisible on cream). Paint only; no call changed.
   // Was d5f8e0be428de6054eb756c0301c1e064e825f6ddb013d45cc332b7ca6157492 at main b9eac34a.
@@ -412,7 +416,11 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // the airline"; the outcome line carries where the refund goes and any vouchers; the
   // dialog is handed the lane. Display only; no call changed.
   // Was 611626a10215576299c4a0d2a5ef75479f872bbcd4f99f4df79f50c66d53331c at main dccb3380.
-  { file: 'src/components/trips/UnattachedBookings.tsx', sha256: 'cff86c0203191650923d4eb23609098e06e21e97a53794aea6f3956daf4a8f2d' },
+  // RECEIPT-01 (2026-09-26): re-pinned — a "Receipt" link beside Cancel opens the
+  // owner's printable receipt (/booking/<id>/receipt: the vendor's landed words, the
+  // bank row, the ledger entry). Display only; no prebook/book/pay/cancel call changed.
+  // Was cff86c0203191650923d4eb23609098e06e21e97a53794aea6f3956daf4a8f2d at main fe50c127.
+  { file: 'src/components/trips/UnattachedBookings.tsx', sha256: '9acd17f2c336eba34f91d431cb4ab640e99d6348204c968cfaaf9b7219eb0b4e' },
   // HOTEL-02 (2026-09-22): re-dated — the dead lodging default constant deleted; the lodging commit names the vendor's hotel. The stay's clock is the property's, read once at commit; no prebook/book/pay/cancel call changed.
   // Was 8c5bf217bf1a2c2b65f3f969be5c02016455d53d9977fa5406600d14cb894ed5 at main 81045434.
   { file: 'src/components/trips/TripPlannerAI.tsx', sha256: '9cdf491def14615d0f5b0d8ba168bb7026131b05c12b3d3a113be0b3ee3ddf9d' },

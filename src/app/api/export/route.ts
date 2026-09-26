@@ -3,6 +3,8 @@ import AdmZip from 'adm-zip';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { receiptOf } from '@/lib/receipts/bookingReceipt';
+import { bookingsLedgerCsv, bookingsLedgerRow, type BookingsLedgerRow } from '@/lib/receipts/bookingsLedgerCsv';
 
 /**
  * GET /api/export — EXPORT-1: one-click full data export (the anti-lock-in
@@ -37,6 +39,17 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
  * FAIL-LOUD oversize behavior: if the finished archive exceeds MAX_ZIP_BYTES
  * (under Vercel's ~4.5 MB serverless response-body limit) the route returns
  * an honest 413 naming the size — NEVER a silently truncated archive.
+ *
+ * RECEIPT-01 (2026-09-26): ONE derived CSV beside the raw tables —
+ * bookings_ledger.csv, one row per reservation, the chain an auditor reads
+ * (the booking, the vendor's landed figure, the accepted bank row, the posted
+ * entry's D/C lines, the refunds the vendor stated) in a FIXED column list
+ * (src/lib/receipts/bookingsLedgerCsv.ts). The vendor columns come from the
+ * receipt leaf's total line (the landed book answer), the bank and ledger
+ * columns from POST-01's chain. Every unknown is empty, never 0; every amount
+ * is the recorded figure, never converted, never summed. Same bar: read-only,
+ * user-scoped, no gate added, nothing removed from the zip. commission_ledger
+ * is NOT among the exported tables (it never was) — Alex's ruling, unchanged.
  */
 
 export const dynamic = 'force-dynamic';
@@ -145,6 +158,44 @@ export async function GET() {
     { name: 'operations_vendor_directory', rows: await prisma.operations_vendor_directory.findMany({ where: { user_id: uid } }) },
   ];
 
+  // ── RECEIPT-01: the derived ledger shape, one row per reservation ─────────
+  // The book arrival (the vendor's landed answer), the accepted CHARGE link's bank
+  // row, the posted entry that documents the booking with its D/C lines, and the
+  // money events — the receipt leaf's inputs, minus the latest read (the export
+  // carries the recorded chain, not the vendor's current state).
+  const bookings = await prisma.reservations.findMany({
+    where: { userId: uid },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true, lane: true, displayName: true, providerBookingId: true, providerConfirmationCode: true, status: true,
+      createdAt: true, checkinDate: true, checkoutDate: true,
+      arrival: { select: { id: true, arrived: true, payload: true } },
+      transaction_reservation_links: {
+        where: { userId: uid, status: 'accepted', moneyEventId: null },
+        orderBy: { reviewedAt: 'asc' },
+        take: 1,
+        select: { id: true, transaction: { select: { id: true, name: true, merchantName: true, amount: true, date: true } } },
+      },
+      document_entries: {
+        where: { userId: uid, document_money_event_id: null, status: 'posted' },
+        take: 1,
+        select: { id: true, date: true, status: true, ledger_entries: { select: { id: true, entry_type: true, amount: true, account: { select: { code: true, name: true } } } } },
+      },
+      money_events: {
+        orderBy: { statedAt: 'asc' },
+        select: { id: true, kind: true, amountCents: true, currency: true, status: true, statedAt: true, settledTransactionId: true, settledAt: true },
+      },
+    },
+  });
+  const ledgerRows: BookingsLedgerRow[] = bookings.map((b) => bookingsLedgerRow(b, receiptOf({
+    reservation: b,
+    bookArrival: b.arrival,
+    latestReadArrival: null,
+    chargeLink: b.transaction_reservation_links[0] ?? null,
+    journalEntry: b.document_entries[0] ?? null,
+    moneyEvents: b.money_events,
+  })));
+
   const today = new Date().toISOString().slice(0, 10);
   const zip = new AdmZip();
 
@@ -154,6 +205,9 @@ export async function GET() {
     manifest.push(`${t.name},${t.rows.length},${t.name}.csv`);
     zip.addFile(`${t.name}.csv`, Buffer.from(toCsv(t.rows), 'utf8'));
   }
+  // RECEIPT-01: the derived CSV, declared on the manifest like every table.
+  manifest.push(`bookings_ledger,${ledgerRows.length},bookings_ledger.csv`);
+  zip.addFile('bookings_ledger.csv', Buffer.from(bookingsLedgerCsv(ledgerRows), 'utf8'));
   zip.addFile('manifest.csv', Buffer.from(manifest.join('\n') + '\n', 'utf8'));
 
   const buffer = zip.toBuffer();

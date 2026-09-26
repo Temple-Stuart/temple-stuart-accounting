@@ -157,6 +157,8 @@ import { NO_SOURCE_WORDS, SOURCE_RULES, coverageOf, documentOf, entrySourceOf, s
 import { documentFromLinks, documentsForBatch } from '../src/lib/posting/documentGate';
 import { BANK_REACHABLE_REFUND_DESTINATIONS, MATCH_REFUND_DATE_WINDOW_DAYS, isBankReachableRefund, proposeRefundMatches, type MatcherRefundEvent } from '../src/lib/runway/reservationMatcher';
 import { refundProposalLine } from '../src/lib/runway/refundWords';
+import { NOT_MATCHED, NOT_POSTED, NOT_STATED as RECEIPT_NOT_STATED, NOT_YET_TICKETED, receiptOf } from '../src/lib/receipts/bookingReceipt';
+import { BOOKINGS_LEDGER_COLUMNS, bookingsLedgerRow } from '../src/lib/receipts/bookingsLedgerCsv';
 import { DYNAMIC_READ_ENV, LIBRARY_READ_ENV } from '../src/lib/envLaw';
 import { EXPECTED_FEED_COUNT, FEED_COST, FEED_IDS, SCAN_COST, feedCostLaw, scanCostLine } from '../src/lib/observatory/feedCost';
 import { FINNHUB_TTL, finnhubCallsPerSymbol, finnhubTtlLaw, slowTierEndpoints } from '../src/lib/convergence/finnhub-ttl';
@@ -184,6 +186,8 @@ const GUEST_ROUTES: ReadonlyArray<{ route: string; why: string }> = [
   { route: '/plaid/oauth-return', why: 'the Plaid OAuth return URL — PLAID_REDIRECT_URI on every link token (src/lib/plaid/oauth.ts), registered in the Plaid Dashboard; the bank sends the signed-in user here, the app never links to it' },
   { route: '/trips/rsvp', why: 'the RSVP invite link sent to participants (src/app/trips/rsvp/RSVPClient.tsx)' },
   { route: '/trips/[id]', why: 'linked from the RSVP flow — RSVPClient.tsx:72, :87, :136' },
+  // RECEIPT-01 (2026-09-26): the owner's printable receipt — a flow page, not a tool.
+  { route: '/booking/[id]/receipt', why: 'RECEIPT-01: the Receipt link beside Cancel on both bookings lists (TripBookings.tsx, UnattachedBookings.tsx); owner-only — NOT in PUBLIC_PATHS (the middleware cookie gate), and /api/reservations/[id]/receipt does the ownership (findFirst { id, userId } → 404)' },
 ];
 
 function pageRoutes(): Array<{ route: string; file: string }> {
@@ -6011,8 +6015,10 @@ lawGuard('The posting-document law', () => {
   // `original.document_reservation_id` would be one) — is a write.
   const isPassThrough = (value: string) => /^\w+(?:\.\w+)*\.document_(?:reservation|money_event)_id$/.test(value.trim());
   const READERS = [...WIRE_ROUTES, ...SURFACES];
+  // A key inside a WHERE clause is a READ (the receipt route and the export find the entry that documents a booking), not a write.
+  const inWhere = (src: string, at: number) => /where:\s*\{[^}]*$/.test(src.slice(Math.max(0, at - 160), at));
   for (const { file, src } of srcFiles) {
-    const keyed = [...src.matchAll(DOC_KEY)].filter((m) => !isTypeField(m[2]));
+    const keyed = [...src.matchAll(DOC_KEY)].filter((m) => !isTypeField(m[2]) && !inWhere(src, m.index!));
     if (keyed.length === 0) continue;
     if (file === PORT || file === WRITER) {
       // the writers — clause 1's second half reads their bodies below
@@ -6330,6 +6336,131 @@ lawGuard('The refund-match law', () => {
 
   if (refundViolations === 0) console.log(`✔ The refund-match law passed — the refund function is pure (no prisma, no fetch, no clock); a candidate requires a bank-reachable destination (NULL or original_payment); an inflow before statedAt is never proposed; no FX, no invented amount; the review route is the only writer of settled and writes it with its evidence in one transaction; the writer refuses a charge document on an inflow before any lookup; the outflow pass is untouched; the queue carries the event and the component renders a refund in the leaf's words (window ${MATCH_REFUND_DATE_WINDOW_DAYS}d, an assumption named in the matcher).`);
   else console.log(`✖ The refund-match law FAILED — ${refundViolations} violation(s).`);
+});
+
+// ── THE RECEIPT LAW (RECEIPT-01, 2026-09-26) ─────────────────────────────────
+// THE RECEIPT IS THE VENDOR'S LANDED WORDS, AND THE EXPORT CARRIES THE LEDGER SHAPE.
+//
+// A receipt SHOWS what the vendor stated, what the bank recorded and what the
+// ledger recorded, each figure naming its source; it computes no total, no tax,
+// no fee; a figure the vendor did not state reads "not stated by the vendor";
+// commission never appears. Nothing on the receipt path writes anything or calls
+// the vendor. The export gains ONE derived CSV with a fixed column list.
+//
+// It reads the leaf, the CSV leaf, the route, the page, the export, the two
+// bookings lists and the middleware through code(); it runs the pure leaf over
+// fixtures shaped by the documented answers. No render, no database, no network,
+// no clock, no metered call.
+lawGuard('The receipt law', () => {
+  let receiptViolations = 0;
+  const receiptFail = (m: string) => { receiptViolations += 1; violations.push(`receipt law: ${m} (RECEIPT-01)`); };
+
+  const LEAF = 'src/lib/receipts/bookingReceipt.ts';
+  const CSV_LEAF = 'src/lib/receipts/bookingsLedgerCsv.ts';
+  const ROUTE = 'src/app/api/reservations/[id]/receipt/route.ts';
+  const PAGE = 'src/app/booking/[id]/receipt/page.tsx';
+  const EXPORT_ROUTE = 'src/app/api/export/route.ts';
+  const LISTS = ['src/components/trips/TripBookings.tsx', 'src/components/trips/UnattachedBookings.tsx'];
+  const MIDDLEWARE = 'src/middleware.ts';
+  for (const f of [LEAF, CSV_LEAF, ROUTE, PAGE, EXPORT_ROUTE, ...LISTS, MIDDLEWARE]) {
+    if (!existsSync(resolve(ROOT, f))) receiptFail(`${f} is missing`);
+  }
+
+  // ── CLAUSE 1. THE LEAF IS PURE AND DOES NO ARITHMETIC ON MONEY. ──
+  const IMPURE: ReadonlyArray<[RegExp, string]> = [
+    [/\bfetch\s*\(/, 'fetches'],
+    [/process\.env/, 'reads the environment'],
+    [/new Date\s*\(\s*\)|Date\.now\s*\(/, 'reads the clock'],
+    [/prisma|PrismaClient/, 'reaches the database'],
+    [/from 'react'|from "react"/, 'imports React'],
+    [/\bimport\s+[^\n]*\bfrom\s+'(?!\.)/, 'imports a module outside its own tree'],
+  ];
+  for (const f of [LEAF, CSV_LEAF]) {
+    const src = codeOf(f);
+    for (const [re, what] of IMPURE) if (re.test(src)) receiptFail(`${f} ${what} — the receipt leaf is pure`);
+    // No conversion to a number, no rounding, no formatting, no fold: the recorded figure, verbatim.
+    if (/\b(reduce|Number|parseFloat|parseInt|toFixed)\s*\(|[+\-*\/]=|Math\./.test(src)) receiptFail(`${f} does arithmetic on money — it converts, rounds, formats or folds a figure; the leaf renders the recorded figure verbatim and computes no total, tax or fee`);
+    for (const line of src.split('\n')) {
+      if (/\b(amount|price|cents|total|fee|fees|taxes|refund)\w*/i.test(line) && /(?<![*\/])[*\/](?![*\/])/.test(line)) receiptFail(`${f} does arithmetic on money: "${line.trim().slice(0, 80)}"`);
+    }
+  }
+
+  // ── CLAUSE 2. COMMISSION APPEARS NOWHERE ON A RECEIPT. ──
+  for (const f of [LEAF, CSV_LEAF, ROUTE, PAGE]) {
+    if (/commission/i.test(codeOf(f))) receiptFail(`${f}: commission appears on the receipt path — Temple Stuart’s book, never the customer’s receipt`);
+  }
+  if (BOOKINGS_LEDGER_COLUMNS.some((c) => /commission/i.test(c))) receiptFail('bookings_ledger.csv carries a commission column');
+
+  // ── CLAUSE 3. THE RECEIPT ROUTE IMPORTS NO VENDOR CLIENT AND WRITES NOTHING. ──
+  const routeSrc = codeOf(ROUTE);
+  if (/liteapiClient|liteapiFlightsClient|viator|\bfetch\s*\(|reserveTravelSearch/.test(routeSrc)) receiptFail(`${ROUTE} imports a vendor client or calls the wire — a receipt reads the LANDED answers only`);
+  if (/\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(|\$executeRaw|\$queryRaw|\$transaction/.test(routeSrc)) receiptFail(`${ROUTE} writes — the receipt route is read-only`);
+  if (!routeSrc.includes("where: { id, userId: user.id },")) receiptFail(`${ROUTE} does not own the reservation by findFirst { id, userId } — the defensive 404 and the guest fence`);
+  if (!routeSrc.includes("if (!reservation) return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });")) receiptFail(`${ROUTE} does not answer a foreign or guest booking with the defensive 404`);
+  if (/requireTier|requireTabAccess/.test(routeSrc)) receiptFail(`${ROUTE} adds a tier gate — a receipt is the customer’s own record (the export’s bar)`);
+  if (!routeSrc.includes("orderBy: { arrived: 'desc' },") || !routeSrc.includes('their_id: bookingReadTheirId(reservation.providerBookingId)') || !routeSrc.includes('resource: BOOKING_READ')) receiptFail(`${ROUTE} does not read the LATEST landed booking read (resource booking_read, their_id read:<bookingId>, arrived DESC)`);
+  if (!routeSrc.includes('receiptOf({ reservation, bookArrival, latestReadArrival, chargeLink, journalEntry, moneyEvents })')) receiptFail(`${ROUTE} does not hand the six inputs to the one leaf`);
+
+  // ── CLAUSE 4. THE PAGE TYPES NO MONEY WORDS OF ITS OWN, AND IS THE OWNER'S. ──
+  const pageSrc = codeOf(PAGE);
+  for (const typed of ['not stated', 'stated by the vendor', 'recorded by your bank', 'not posted', 'not yet matched', 'not yet ticketed', 'no refund', 'USD', 'cents']) {
+    if (new RegExp(`['"\`][^'"\`\\n]*${typed}[^'"\`\\n]*['"\`]`, 'i').test(pageSrc)) receiptFail(`${PAGE} types "${typed}" — every word comes from ${LEAF}`);
+  }
+  if (!pageSrc.includes('window.print()')) receiptFail(`${PAGE} has no Print / Save as PDF — the browser’s print is the download`);
+  if (!pageSrc.includes('/api/reservations/${encodeURIComponent(id)}/receipt')) receiptFail(`${PAGE} does not read the receipt from the owner route`);
+  if (/pdf-lib|jspdf|puppeteer|@react-pdf/i.test(rejoin(pageSrc, commentsOf(PAGE)))) receiptFail(`${PAGE} adds a PDF library — none is added`);
+  const mw = codeOf(MIDDLEWARE);
+  if (/'\/booking',|'\/booking\/\[id\]|'\/booking\/\[id\]\/receipt'/.test(mw)) receiptFail('the receipt page is public — it is NOT in PUBLIC_PATHS; the middleware cookie check gates it');
+  if (!GUEST_ROUTES.some((g) => g.route === '/booking/[id]/receipt')) receiptFail('the receipt page has no listed door of its own — GUEST_ROUTES names /booking/[id]/receipt with the Receipt links as its citation');
+
+  // ── CLAUSE 5. BOTH LISTS CARRY THE RECEIPT LINK BESIDE CANCEL. ──
+  for (const f of LISTS) {
+    const src = codeOf(f);
+    const at = src.indexOf('href={`/booking/${r.id}/receipt`}');
+    const cancel = src.indexOf('Cancel booking');
+    if (at < 0 || cancel < 0 || at > cancel) receiptFail(`${f} has no Receipt link beside Cancel`);
+  }
+
+  // ── CLAUSE 6. THE EXPORT'S DERIVED CSV HAS THE FIXED COLUMN LIST, AND THE EXPORT'S BAR STANDS. ──
+  const RULED_COLUMNS = [
+    'booking_id', 'lane', 'provider_booking_id', 'confirmation_code', 'status',
+    'traveler', 'booked_at', 'service_start', 'service_end',
+    'vendor_amount', 'vendor_currency', 'vendor_arrival_id',
+    'bank_transaction_id', 'bank_descriptor', 'bank_amount', 'bank_date',
+    'journal_entry_id', 'journal_date', 'account_code', 'account_name',
+    'debit_cents', 'credit_cents',
+    'refund_count', 'refunds_stated_cents', 'refunds_settled_cents',
+    'refund_currency',
+  ];
+  if (JSON.stringify([...BOOKINGS_LEDGER_COLUMNS]) !== JSON.stringify(RULED_COLUMNS)) receiptFail(`bookings_ledger.csv does not carry the fixed column list in the ruled order — it is [${BOOKINGS_LEDGER_COLUMNS.join(', ')}]`);
+  const exportSrc = codeOf(EXPORT_ROUTE);
+  if (!exportSrc.includes("zip.addFile('bookings_ledger.csv', Buffer.from(bookingsLedgerCsv(ledgerRows), 'utf8'));")) receiptFail(`${EXPORT_ROUTE} does not add bookings_ledger.csv through the CSV leaf`);
+  if (!exportSrc.includes('manifest.push(`bookings_ledger,${ledgerRows.length},bookings_ledger.csv`);')) receiptFail(`${EXPORT_ROUTE} does not declare the derived CSV on the manifest`);
+  if (/requireTier|requireTabAccess/.test(exportSrc)) receiptFail(`${EXPORT_ROUTE} gained a gate — the export is never paywalled; no gate is added`);
+  for (const table of ['entities', 'chart_of_accounts', 'journal_entries', 'ledger_entries', 'transactions', 'reservations', 'trips', 'accounts']) {
+    if (!exportSrc.includes(`{ name: '${table}', rows:`)) receiptFail(`${EXPORT_ROUTE} lost the ${table} table — nothing is removed from the zip`);
+  }
+  if (/commission_ledger/.test(exportSrc)) receiptFail(`${EXPORT_ROUTE} exports commission_ledger — whether the customer’s export carries Temple Stuart’s margin is Alex’s ruling; it was not among the tables and is not added here`);
+
+  // ── CLAUSE 7. THE LEAF'S WORDS, over fixtures shaped by the documented answers. ──
+  const reservation = { id: 'res_1', lane: 'hotel', displayName: 'Sample Hotel', providerBookingId: 'ABC123', providerConfirmationCode: null, status: 'confirmed', createdAt: '2026-09-20T10:00:00.000Z', checkinDate: '2026-10-01', checkoutDate: '2026-10-02' };
+  const book = { id: 'arr_book', arrived: '2026-09-20T10:00:01.000Z', payload: { bookingId: 'ABC123', status: 'CONFIRMED', price: 100, currency: 'USD', sellingPrice: '100', commission: 10, holder: { firstName: 'John', lastName: 'Doe' }, bookedRooms: [{ roomType: { name: 'Standard Room' }, boardName: 'Room Only', adults: 2, children: 0 }], checkin: '2026-10-01', checkout: '2026-10-02' } };
+  const receipt = receiptOf({ reservation, bookArrival: book, latestReadArrival: null, chargeLink: null, journalEntry: null, moneyEvents: [] });
+  if (receipt.vendor.total.value !== '100 USD' || receipt.vendor.total.figure?.source !== 'vendor' || receipt.vendor.total.figure?.evidence !== 'arr_book') receiptFail(`the vendor’s price is not the total line with its arrival as evidence (${JSON.stringify(receipt.vendor.total)})`);
+  if (!receipt.vendor.lines.some((l) => l.label === 'Taxes and fees' && l.value.startsWith(RECEIPT_NOT_STATED))) receiptFail('taxes and fees the vendor did not state are not named as not stated');
+  if (receipt.bank.words !== NOT_MATCHED || receipt.ledger.words !== NOT_POSTED) receiptFail('an unmatched, unposted booking does not say so by name');
+  if (receipt.header.confirmationCode !== 'not yet stated by the vendor') receiptFail('a confirmation code the vendor has not stated is not named as such');
+  if (JSON.stringify(receipt).includes('ommission')) receiptFail('the rendered receipt carries the commission the book answer states');
+  const flight = receiptOf({ reservation: { ...reservation, lane: 'flight', displayName: 'JetBlue Airways JFK → LAX', providerBookingId: 'fl_1' }, bookArrival: { id: 'arr_f', arrived: '2026-09-20T10:00:01.000Z', payload: { bookingId: 'fl_1', status: 'CONFIRMED', journey: { segments: [{ carrier: { marketingName: 'JetBlue Airways' }, flight: { marketingNumber: '723' }, originCode: 'JFK', destinationCode: 'LAX', departureTime: '2026-04-10T15:30:00', arrivalTime: '2026-04-10T18:40:00' }], price: { base: 238.32, taxes: 48.7, total: 287.02, currency: 'USD' } }, pricing: { totalAmount: 287.02, currency: 'USD' }, passengers: [{ firstName: 'TEST', lastName: 'COLUMNS' }], contact: { firstName: 'TEST', email: 'test@example.com' } } }, latestReadArrival: null, chargeLink: null, journalEntry: null, moneyEvents: [] });
+  if (!flight.flight || flight.flight.ticketing !== NOT_YET_TICKETED) receiptFail('a flight with no ticketData does not read "not yet ticketed"');
+  if (!flight.flight || !/JetBlue Airways 723 · JFK → LAX/.test(flight.flight.segments[0] ?? '')) receiptFail('a flight segment is not the carrier, number and route as stated');
+  const row = bookingsLedgerRow(reservation, receipt);
+  for (const c of ['bank_transaction_id', 'bank_amount', 'journal_entry_id', 'debit_cents', 'credit_cents', 'refunds_stated_cents'] as const) {
+    if (row[c] !== '') receiptFail(`bookings_ledger.csv writes "${row[c]}" for ${c} on an unmatched booking — every unknown is EMPTY, never 0`);
+  }
+
+  if (receiptViolations === 0) console.log(`✔ The receipt law passed — the receipt leaf is pure and does no arithmetic on money; the receipt route imports no vendor client and writes nothing; the page types no money words of its own and is the owner’s (not public, doored by GUEST_ROUTES); both lists carry the Receipt link beside Cancel; bookings_ledger.csv has its ${BOOKINGS_LEDGER_COLUMNS.length} fixed columns and the export’s bar stands; commission appears nowhere on a receipt.`);
+  else console.log(`✖ The receipt law FAILED — ${receiptViolations} violation(s).`);
 });
 
 // ── THE ROW LAW (TRAVEL-ROW-01, 2026-09-23) ─────────────────────────────────
