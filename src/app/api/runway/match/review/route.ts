@@ -3,6 +3,7 @@ import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
+import { ValidationError } from '@/lib/errors/ValidationError';
 
 // ─── POST /api/runway/match/review (PR-MATCH-2) ──────────────────────────────
 // ONE human decision per call: {linkId, action 'accept'|'reject', notes?} →
@@ -13,6 +14,15 @@ import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 // 'proposed' only (already-reviewed → declared 409, the human word stands).
 // Ownership via the link's own userId; cross-user → defensive 404 (never
 // confirms a foreign row exists — house SEC-2 convention).
+//
+// MATCH-02 (2026-09-26): ACCEPTING A REFUND LINK SETTLES ITS MONEY EVENT. A link
+// carrying moneyEventId is an inflow proposed against the refund the vendor
+// stated; the accept moves that money event from 'stated' to 'settled' IN THE
+// SAME TRANSACTION as the link's flip, with its evidence — settledTransactionId
+// = the link's bank row, settledAt = this review's instant (the SQL CHECK holds
+// both together). An event already settled (by another accepted link) → 409 by
+// name, nothing flips. A reject changes the event nothing. THIS ROUTE IS THE
+// ONLY WRITER OF 'settled'.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(request: NextRequest) {
@@ -44,7 +54,7 @@ export async function POST(request: NextRequest) {
     // Ownership — defensive 404 on anything not owned by this user.
     const link = await prisma.transaction_reservation_links.findFirst({
       where: { id: linkId, userId: user.id },
-      select: { id: true, status: true, transactionId: true, reservationId: true, confidence: true },
+      select: { id: true, status: true, transactionId: true, reservationId: true, confidence: true, moneyEventId: true },
     });
     if (!link) return NextResponse.json({ error: 'Link not found' }, { status: 404 });
     if (link.status !== 'proposed') {
@@ -54,15 +64,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const updated = await prisma.transaction_reservation_links.update({
-      where: { id: link.id },
-      data: {
-        status: action === 'accept' ? 'accepted' : 'rejected',
-        reviewedAt: new Date(),
-        reviewedBy: userEmail,
-        reviewNotes: notes || null,
-      },
-      select: { id: true, status: true, reviewedAt: true },
+    const reviewedAt = new Date();
+    const settles = action === 'accept' && link.moneyEventId !== null;
+    const updated = await prisma.$transaction(async (tx) => {
+      // MATCH-02: the refund's money event settles with the accept, or nothing flips.
+      if (settles) {
+        const event = await tx.money_events.findUnique({
+          where: { id: link.moneyEventId as string },
+          select: { id: true, status: true, settledTransactionId: true },
+        });
+        if (!event) {
+          throw new ValidationError(`MATCH-02 money event ${link.moneyEventId} named by link ${link.id} is not there`, { status: 404 });
+        }
+        if (event.status !== 'stated') {
+          throw new ValidationError(
+            `MATCH-02 money event ${event.id} is already ${event.status}${event.settledTransactionId ? ` by bank row ${event.settledTransactionId}` : ''} — a refund settles once; reject this proposal`,
+            { status: 409 }
+          );
+        }
+        const settled = await tx.money_events.updateMany({
+          where: { id: event.id, status: 'stated' },
+          data: { status: 'settled', settledTransactionId: link.transactionId, settledAt: reviewedAt },
+        });
+        if (settled.count !== 1) {
+          throw new ValidationError(`MATCH-02 money event ${event.id} was settled by another accept while this one ran — a refund settles once`, { status: 409 });
+        }
+      }
+      return tx.transaction_reservation_links.update({
+        where: { id: link.id },
+        data: {
+          status: action === 'accept' ? 'accepted' : 'rejected',
+          reviewedAt,
+          reviewedBy: userEmail,
+          reviewNotes: notes || null,
+        },
+        select: { id: true, status: true, reviewedAt: true, moneyEventId: true },
+      });
     });
 
     // ─── Audit trail (PR-MATCH-2b) ───────────────────────────────────────────
@@ -79,7 +116,8 @@ export async function POST(request: NextRequest) {
           type: 'system_other',
           description:
             `match_review_${action} — transaction ${link.transactionId} ↔ reservation ${link.reservationId} ` +
-            `${action}ed (confidence ${link.confidence ?? 'n/a'}) via link ${link.id}`,
+            `${action}ed (confidence ${link.confidence ?? 'n/a'}) via link ${link.id}` +
+            (settles ? ` — refund money event ${link.moneyEventId} settled by bank row ${link.transactionId}` : ''),
         },
         target: { table: 'transaction_reservation_links', id: link.id },
         payload: {
@@ -89,6 +127,9 @@ export async function POST(request: NextRequest) {
             reservationId: link.reservationId,
             confidence: link.confidence,
             reviewNotes: notes || null,
+            // MATCH-02: the refund the accept settled, when it did.
+            moneyEventId: link.moneyEventId,
+            settled: settles,
           },
         },
         request_id: `match-review-${link.id}-${action}`,

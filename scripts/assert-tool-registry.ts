@@ -155,6 +155,8 @@ import { BEST_VALUE_WORDS, CAPABILITY_GROUPS, CELL_LABEL, EARLY_ACCESS_CTA, LAUN
 // DRILL-01: where an entry came from — the pure mapping the book surfaces render.
 import { NO_SOURCE_WORDS, SOURCE_RULES, coverageOf, documentOf, entrySourceOf, statedFacts } from '../src/lib/books/entrySource';
 import { documentFromLinks, documentsForBatch } from '../src/lib/posting/documentGate';
+import { BANK_REACHABLE_REFUND_DESTINATIONS, MATCH_REFUND_DATE_WINDOW_DAYS, isBankReachableRefund, proposeRefundMatches, type MatcherRefundEvent } from '../src/lib/runway/reservationMatcher';
+import { refundProposalLine } from '../src/lib/runway/refundWords';
 import { DYNAMIC_READ_ENV, LIBRARY_READ_ENV } from '../src/lib/envLaw';
 import { EXPECTED_FEED_COUNT, FEED_COST, FEED_IDS, SCAN_COST, feedCostLaw, scanCostLine } from '../src/lib/observatory/feedCost';
 import { FINNHUB_TTL, finnhubCallsPerSymbol, finnhubTtlLaw, slowTierEndpoints } from '../src/lib/convergence/finnhub-ttl';
@@ -6175,6 +6177,159 @@ lawGuard('The posting-document law', () => {
 
   if (postViolations === 0) console.log('✔ The posting-document law passed — commitPlaidTransaction is the one writer of the two document columns; the commit route refuses a proposed link at 409 before any posting; an accepted link is never posted without its document; a refund requires the posted charge and derives its account; KINDS stay seven; the document words come from the drill leaf only; the migration, the schema and the retro agree.');
   else console.log(`✖ The posting-document law FAILED — ${postViolations} violation(s).`);
+});
+
+// ── THE REFUND-MATCH LAW (MATCH-02, 2026-09-26) ─────────────────────────────
+// REFUNDS COME HOME: AN INFLOW IS PROPOSED AGAINST THE REFUND THE VENDOR STATED, A
+// HUMAN ACCEPTS, THE MONEY EVENT SETTLES.
+//
+// WHAT IT CLOSES. The matcher proposed outflows only (reservationMatcher.ts:165),
+// so a refund that landed in the bank was never proposed; CANCEL-01's 'settled'
+// had no writer; POST-01 left a charge document on an inflow unrefused.
+//
+// It reads the matcher, the words leaf, the three runway routes, the review
+// component, the writer, the migration and the schema through code(); it runs
+// the pure refund function and the words leaf over fixtures. No render, no
+// database, no network, no clock, no metered call.
+lawGuard('The refund-match law', () => {
+  let refundViolations = 0;
+  const refundFail = (m: string) => { refundViolations += 1; violations.push(`refund-match law: ${m} (MATCH-02)`); };
+
+  const MATCHER = 'src/lib/runway/reservationMatcher.ts';
+  const WORDS = 'src/lib/runway/refundWords.ts';
+  const PROPOSE = 'src/app/api/runway/match/propose/route.ts';
+  const QUEUE = 'src/app/api/runway/match/queue/route.ts';
+  const REVIEW = 'src/app/api/runway/match/review/route.ts';
+  const REVIEW_UI = 'src/components/hub/MatchReviewSection.tsx';
+  const WRITER = 'src/lib/journal-entry-service.ts';
+  const MIGRATION = 'prisma/migrations/20260926210000_match_02_refund_settlement/migration.sql';
+  for (const f of [MATCHER, WORDS, PROPOSE, QUEUE, REVIEW, REVIEW_UI, WRITER, MIGRATION]) {
+    if (!existsSync(resolve(ROOT, f))) refundFail(`${f} is missing`);
+  }
+
+  // ── CLAUSE 1. THE REFUND FUNCTION IS PURE — no prisma, no fetch, no clock. ──
+  const matcherSrc = codeOf(MATCHER);
+  const IMPURE: ReadonlyArray<[RegExp, string]> = [
+    [/\bfetch\s*\(/, 'fetches'],
+    [/process\.env/, 'reads the environment'],
+    [/new Date\s*\(\s*\)|Date\.now\s*\(/, 'reads the clock'],
+    [/prisma|PrismaClient/, 'reaches the database'],
+    [/\bimport\s+[^\n]*\bfrom\s+'(?!\.)/, 'imports a module outside its own folder'],
+  ];
+  for (const [re, what] of IMPURE) if (re.test(matcherSrc)) refundFail(`${MATCHER} ${what} — the matcher is pure: same inputs, same ordered output`);
+  for (const [re, what] of IMPURE) if (re.test(codeOf(WORDS))) refundFail(`${WORDS} ${what} — the words leaf is pure`);
+  if (!/export function proposeRefundMatches\(/.test(matcherSrc)) refundFail(`${MATCHER} has no proposeRefundMatches`);
+  if (!matcherSrc.includes("if (!(t.amount > 0)) continue;") || !matcherSrc.includes('export function proposeMatches(')) refundFail(`${MATCHER}: the outflow pass (proposeMatches, amount > 0 only) is no longer intact`);
+
+  // ── CLAUSE 2. A CANDIDATE REQUIRES A BANK-REACHABLE DESTINATION. ──
+  const reachable = [...BANK_REACHABLE_REFUND_DESTINATIONS];
+  if (reachable.length !== 2 || !reachable.includes(null) || !reachable.includes('original_payment')) refundFail(`BANK_REACHABLE_REFUND_DESTINATIONS is [${reachable.map((d) => d ?? 'NULL').join(', ')}] — a candidate requires a bank-reachable destination: NULL (hotel) or original_payment (flight), nothing else`);
+  for (const d of ['voucher', 'agency_deposit', 'bsp_settlement', 'manual', 'unknown']) {
+    if (isBankReachableRefund(d)) refundFail(`isBankReachableRefund lets '${d}' through — a candidate requires a bank-reachable destination`);
+  }
+  const EVENT: MatcherRefundEvent = { id: 'me_1', reservationId: 'res_1', kind: 'refund', status: 'stated', amountCents: 25000, currency: 'USD', refundDestination: null, statedAt: '2026-09-10T10:00:00.000Z', provider: 'liteapi', hotelName: 'Hotel Temple', displayName: 'Hotel Temple', chargeTransactionName: 'NUITEE*HOTEL TEMPLE' };
+  const INFLOW = { id: 't_in', amount: -250, date: '2026-09-15', name: 'NUITEE*HOTEL TEMPLE REFUND', merchantName: null, pending: false };
+  const OPTS = { amountTolerancePct: 0.05, refundDateWindowDays: MATCH_REFUND_DATE_WINDOW_DAYS };
+  const run = (event: Partial<MatcherRefundEvent>, inflow: Partial<typeof INFLOW> = {}, accountCurrency: string | null = 'USD') =>
+    proposeRefundMatches({ refunds: [{ ...EVENT, ...event }], transactions: [{ ...INFLOW, ...inflow }], accountCurrency, opts: OPTS });
+  if (run({}).proposals.length !== 1) refundFail('proposeRefundMatches does not propose a same-currency inflow five days after the statement with the charge descriptor');
+  if (run({ refundDestination: 'voucher' }).proposals.length !== 0) refundFail('proposeRefundMatches proposes a voucher — a candidate requires a bank-reachable destination');
+  if (run({ status: 'settled' }).proposals.length !== 0) refundFail('proposeRefundMatches proposes an event already settled — a settled refund is done');
+  if (run({ kind: 'cancellation_fee' }).proposals.length !== 0) refundFail('proposeRefundMatches proposes a fee as a refund');
+
+  // ── CLAUSE 3. AN INFLOW BEFORE statedAt IS NEVER PROPOSED. ──
+  const early = run({}, { date: '2026-09-09' });
+  if (early.proposals.length !== 0 || !early.skipped.some((k) => k.reason === 'before_stated')) refundFail(`proposeRefundMatches proposes an inflow dated before the vendor stated the refund (${JSON.stringify(early)}) — an inflow before statedAt is never proposed; it is a contradiction, skipped and named`);
+  if (!/if \(dateDay < statedDay\) \{\s*skipped\.push\(/.test(matcherSrc)) refundFail(`${MATCHER} does not skip an inflow dated before statedAt by name`);
+  const outflow = run({}, { amount: 250 });
+  if (outflow.proposals.length !== 0) refundFail('proposeRefundMatches proposes an OUTFLOW against a refund — money that left is never a refund');
+
+  // ── CLAUSE 4. NO FX, NO INVENTED AMOUNT. ──
+  if (/\b(fxRate|exchangeRate|convertCurrency|conversionRate)\b/.test(matcherSrc)) refundFail(`${MATCHER} converts by a guessed rate — a cross-currency amount is EXCLUDED, never converted`);
+  if (!matcherSrc.includes('const refundDollars = e.amountCents === null ? null : e.amountCents / 100;')) refundFail(`${MATCHER} invents an amount for an unquantified refund — an unquantified refund is proposed with the amount EXCLUDED, never with an invented one`);
+  const unquantified = run({ amountCents: null });
+  if (unquantified.proposals.length !== 1 || !/amount: EXCLUDED — the vendor did not quantify this refund/.test(unquantified.proposals[0].rationale)) refundFail('an unquantified refund is proposed with the amount EXCLUDED and the rationale saying so — or not at all');
+  const cross = run({ currency: 'EUR' });
+  if (cross.proposals.length !== 1 || !/amount: EXCLUDED — refund currency EUR ≠ account USD/.test(cross.proposals[0].rationale)) refundFail('a cross-currency refund is proposed with the amount EXCLUDED and named, never converted');
+  const same = run({}).proposals[0];
+  if (same && (!/vendor stated 250\.00 USD at 2026-09-10T10:00:00\.000Z/.test(same.rationale) || !/money event me_1 of booking res_1/.test(same.rationale))) refundFail('a refund rationale does not name the event id, the reservation, the stated amount and currency, and statedAt');
+  const twice = [run({}), run({})];
+  if (JSON.stringify(twice[0]) !== JSON.stringify(twice[1])) refundFail('proposeRefundMatches is not deterministic');
+
+  // ── CLAUSE 5. THE REVIEW ROUTE IS THE ONLY WRITER OF 'settled', AND WRITES IT WITH ITS EVIDENCE. ──
+  for (const { file, src } of srcFiles) {
+    if (file === REVIEW) continue;
+    if (/status:\s*'settled'/.test(src)) refundFail(`${file} writes status 'settled' — the review route is the only writer of settled (a human accept, with its evidence)`);
+  }
+  const reviewSrc = codeOf(REVIEW);
+  if (!reviewSrc.includes("data: { status: 'settled', settledTransactionId: link.transactionId, settledAt: reviewedAt },")) refundFail(`${REVIEW} does not settle the money event with its evidence — settledTransactionId = the link's bank row and settledAt = the review instant, together; the review route writes it with its evidence`);
+  const txAt = reviewSrc.indexOf('prisma.$transaction(async (tx) =>');
+  const settleAt = reviewSrc.indexOf("data: { status: 'settled'");
+  const flipAt = reviewSrc.indexOf('tx.transaction_reservation_links.update(');
+  if (txAt < 0 || settleAt < txAt || flipAt < settleAt) refundFail(`${REVIEW} does not settle the money event and flip the link in ONE transaction`);
+  if (!/if \(event\.status !== 'stated'\) \{\s*throw new ValidationError\([\s\S]{0,400}?\{ status: 409 \}/.test(reviewSrc)) refundFail(`${REVIEW} accepts a link whose money event is already settled — that is a 409 by name; a refund settles once`);
+  if (!reviewSrc.includes("const settles = action === 'accept' && link.moneyEventId !== null;")) refundFail(`${REVIEW} settles on something other than an ACCEPT of a link carrying moneyEventId — a reject changes the event nothing`);
+  if (!reviewSrc.includes("where: { id: event.id, status: 'stated' },")) refundFail(`${REVIEW} settles without the status guard on the write — a race must lose`);
+
+  // ── CLAUSE 6. THE WRITER REFUSES A CHARGE DOCUMENT ON AN INFLOW, BEFORE ANY LOOKUP. ──
+  const writerSrc = codeOf(WRITER);
+  const commitBody = functionBody(writerSrc, 'commitPlaidTransaction') ?? '';
+  const refuseAt = commitBody.indexOf('if (document && document.moneyEventId === null && amount < 0) {');
+  const postAt = commitBody.indexOf('postJournal(prisma, async (tx, post)');
+  if (refuseAt < 0 || postAt < 0 || refuseAt > postAt) refundFail('commitPlaidTransaction does not refuse a charge document on an inflow before any lookup — the writer refuses a charge document on an inflow by name, before the transaction opens');
+  if (!/MATCH-02 a charge document needs an outflow/.test(commitBody)) refundFail('commitPlaidTransaction does not name the refusal of a charge document on an inflow');
+
+  // ── CLAUSE 7. THE PROPOSE ROUTE: THE OUTFLOW PASS UNTOUCHED, THE REFUND PASS FENCED, NOTHING ACCEPTED. ──
+  const proposeSrc = codeOf(PROPOSE);
+  if (!proposeSrc.includes('amount: { gt: 0 },')) refundFail(`${PROPOSE}: the outflow pass no longer selects amount > 0 — the outflow pass is untouched`);
+  if (!proposeSrc.includes('proposeMatches({')) refundFail(`${PROPOSE}: the outflow pass no longer calls proposeMatches — the outflow pass is untouched`);
+  if (!proposeSrc.includes("where: { kind: 'refund', status: 'stated', reservation: { userId: user.id } },")) refundFail(`${PROPOSE} loads refund events without the guest fence (reservations.userId = the authed user)`);
+  if (!/amount: \{ lt: 0 \},\s*date: \{ gte: earliestStatedAt \},\s*accounts: \{ userId: user\.id \},/.test(proposeSrc)) refundFail(`${PROPOSE} loads inflows without amount < 0, the earliest statement floor and the user scope through accounts`);
+  if (!proposeSrc.includes('proposeRefundMatches({')) refundFail(`${PROPOSE} does not call the pure refund function`);
+  if (!proposeSrc.includes('moneyEventId: p.moneyEventId,')) refundFail(`${PROPOSE} persists a refund proposal without its money event`);
+  if (!proposeSrc.includes('excludeTransactionIds: claimed,')) refundFail(`${PROPOSE} proposes inflows an accepted link already claims`);
+  // A READ of 'accepted' (a where clause: the claimed inflows, the booking's accepted charge) is not a write.
+  for (const m of proposeSrc.matchAll(/status:\s*'(accepted|settled)'/g)) {
+    const before = proposeSrc.slice(Math.max(0, m.index! - 120), m.index!);
+    if (!/where:\s*\{[^}]*$/.test(before)) refundFail(`${PROPOSE} writes status '${m[1]}' — proposing never accepts or settles anything; a human does, in the review route`);
+  }
+  if (!proposeSrc.includes('accounts: { select: { isoCurrencyCode: true } }')) refundFail(`${PROPOSE} does not read the account currency the refund amount is compared in`);
+
+  // ── CLAUSE 8. THE QUEUE CARRIES THE EVENT; THE COMPONENT RENDERS A REFUND AS A REFUND, IN THE LEAF'S WORDS. ──
+  const queueSrc = codeOf(QUEUE);
+  if (!queueSrc.includes('select: { kind: true, amountCents: true, currency: true, statedAt: true, refundDestination: true },')) refundFail(`${QUEUE} does not put the money event's kind, amount, currency, statedAt and refundDestination on the wire`);
+  if (!queueSrc.includes('moneyEventId: l.moneyEventId,') || !queueSrc.includes('moneyEvent: l.moneyEvent,')) refundFail(`${QUEUE} does not carry moneyEventId and the event`);
+  const uiSrc = codeOf(REVIEW_UI);
+  if (!uiSrc.includes('refundProposalLine(')) refundFail(`${REVIEW_UI} does not render a refund proposal through the words leaf (refundProposalLine)`);
+  for (const typed of ['Refund of', 'vendor stated']) {
+    if (uiSrc.includes(`'${typed}`) || uiSrc.includes(`"${typed}`) || uiSrc.includes(`\`${typed}`)) refundFail(`${REVIEW_UI} types "${typed}" — the words come from ${WORDS}`);
+  }
+  if (!/data-match-kind=\{refund \? 'refund' : 'charge'\}/.test(uiSrc)) refundFail(`${REVIEW_UI} does not tell a refund proposal from a charge proposal`);
+  const line = refundProposalLine('Hotel Temple', { kind: 'refund', amountCents: 25000, currency: 'USD', statedAt: '2026-09-10T10:00:00.000Z', refundDestination: null });
+  if (line !== 'Refund of Hotel Temple: vendor stated 250.00 USD on 2026-09-10') refundFail(`refundProposalLine reads "${line}" — "Refund of <booking>: vendor stated <amount currency> on <date>"`);
+  const unstated = refundProposalLine('Hotel Temple', { kind: 'refund', amountCents: null, currency: null, statedAt: '2026-09-10T10:00:00.000Z', refundDestination: null });
+  if (unstated !== 'Refund of Hotel Temple: vendor stated no amount stated on 2026-09-10') refundFail(`refundProposalLine invents an amount for an unquantified refund ("${unstated}")`);
+
+  // ── CLAUSE 9. THE MIGRATION AND THE SCHEMA MOVE TOGETHER. ──
+  const mig = codeOf(MIGRATION);
+  const MIGRATION_LINES: ReadonlyArray<[string, string]> = [
+    ['ALTER TABLE "money_events" ADD COLUMN "settledTransactionId" TEXT;', 'the settledTransactionId column'],
+    ['ALTER TABLE "money_events" ADD COLUMN "settledAt" TIMESTAMPTZ(6);', 'the settledAt column'],
+    ['CHECK (("status" = \'settled\') = ("settledTransactionId" IS NOT NULL));', 'the CHECK — settled means evidence, and evidence means settled'],
+    ['FOREIGN KEY ("settledTransactionId") REFERENCES "transactions"("id")\n    ON DELETE RESTRICT', 'the evidence FK, RESTRICT'],
+    ['CREATE INDEX "money_events_settledTransactionId_idx" ON "money_events"("settledTransactionId");', 'the index'],
+  ];
+  for (const [text, what] of MIGRATION_LINES) if (!mig.includes(text)) refundFail(`${MIGRATION} lacks ${what}`);
+  if (/DEFAULT|UPDATE "money_events"/.test(mig)) refundFail(`${MIGRATION} defaults or backfills — nothing is defaulted, every refund stays 'stated' until a human accepts`);
+  for (const [text, what] of [
+    ['settledTransactionId String?', 'money_events.settledTransactionId'],
+    ['settledAt         DateTime? @db.Timestamptz(6)', 'money_events.settledAt'],
+    ['settledTransaction transactions? @relation("money_event_settlement", fields: [settledTransactionId], references: [id], onDelete: Restrict, onUpdate: Cascade)', 'the evidence relation, Restrict'],
+    ['@@index([settledTransactionId])', 'the index'],
+  ] as ReadonlyArray<[string, string]>) if (!schemaText.includes(text)) refundFail(`schema.prisma lacks ${what}`);
+
+  if (refundViolations === 0) console.log(`✔ The refund-match law passed — the refund function is pure (no prisma, no fetch, no clock); a candidate requires a bank-reachable destination (NULL or original_payment); an inflow before statedAt is never proposed; no FX, no invented amount; the review route is the only writer of settled and writes it with its evidence in one transaction; the writer refuses a charge document on an inflow before any lookup; the outflow pass is untouched; the queue carries the event and the component renders a refund in the leaf's words (window ${MATCH_REFUND_DATE_WINDOW_DAYS}d, an assumption named in the matcher).`);
+  else console.log(`✖ The refund-match law FAILED — ${refundViolations} violation(s).`);
 });
 
 // ── THE ROW LAW (TRAVEL-ROW-01, 2026-09-23) ─────────────────────────────────

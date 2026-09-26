@@ -569,6 +569,8 @@ model transactions {
   entity                             entities? @relation(fields: [entity_id], references: [id])
   arrival                            arrivals? @relation(fields: [arrival_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   transaction_reservation_links      transaction_reservation_links[]
+  /// MATCH-02: the refund money events this bank row settled (evidence of 'settled').
+  settled_money_events               money_events[] @relation("money_event_settlement")
 
   @@index([arrival_id])
 }
@@ -1599,16 +1601,22 @@ model money_events {
   /// The instant the vendor's answer arrived — the arrival's clock, not ours.
   statedAt          DateTime @db.Timestamptz(6)
   createdAt         DateTime @default(now())
+  /// MATCH-02 (2026-09-26): the bank row a human ACCEPTED as this refund (transactions.id) — the evidence of 'settled'. CHECK in SQL: (status = 'settled') = (settledTransactionId IS NOT NULL). Written by the review route alone; RESTRICT.
+  settledTransactionId String?
+  /// MATCH-02: the accept instant — the review route's clock, written beside the evidence.
+  settledAt         DateTime? @db.Timestamptz(6)
 
   reservation reservations @relation(fields: [reservationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   arrival     arrivals     @relation(fields: [arrivalId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  /// POST-01: the refund postings this money event documents, and the links (MATCH-02, not built) that name it.
+  /// POST-01: the refund postings this money event documents, and the links (MATCH-02) that name it.
   document_entries journal_entries[] @relation("posting_document_event")
   links            transaction_reservation_links[] @relation("link_money_event")
+  settledTransaction transactions? @relation("money_event_settlement", fields: [settledTransactionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([reservationId])
   @@index([arrivalId])
   @@index([kind, status])
+  @@index([settledTransactionId])
 }
 
 // ─── Vouchers (CANCEL-01, 2026-09-26) ───────────────────────────────────────

@@ -254,3 +254,247 @@ export function proposeMatches({
   );
   return proposals;
 }
+
+// ─── MATCH-02 (2026-09-26): REFUNDS COME HOME ────────────────────────────────
+// A second pure function under the same constitution: no DB, no fetch, no clock,
+// propose-only, guest-fenced by the caller, deterministic. It scores every
+// (refund money event × inflow) pair — an inflow is money that came IN
+// (transactions.amount < 0, the house sign) — and returns candidates a human
+// accepts in the review queue. Accepting one settles the money event (the review
+// route, the only writer of 'settled'); nothing here settles anything.
+//
+// A CANDIDATE EVENT is a money_events row the vendor stated as a REFUND, still
+// 'stated' (a settled one is done), whose destination can reach a bank account:
+//   · NULL — a hotel refund (cancellation.ts:91 writes no destination; LiteAPI
+//     refunds a hotel to the card it charged);
+//   · 'original_payment' — a flight refund back to the card (cancellation.ts:124,
+//     the vendor's own word).
+// 'voucher', 'agency_deposit', 'bsp_settlement', 'manual' and 'unknown' never
+// land in the customer's bank as an inflow and are never candidates.
+//
+// A CANDIDATE INFLOW is a transaction with amount < 0 that no accepted link
+// already claims (the caller passes those ids; a bank row is one thing).
+//
+// SIGNALS, the outflow weights (0.5 / 0.3 / 0.2), missing signals EXCLUDED and
+// the weights re-normalized — never a neutral score, never an invented amount:
+//   · amount — |inflow| vs the STATED amountCents/100, same currency only (the
+//     event's currency = the account's). Cross-currency → EXCLUDED, named (never
+//     converted by a guessed rate). amountCents NULL → the vendor did not
+//     quantify the refund → EXCLUDED, named; date + descriptor carry it. An
+//     account whose currency is not stated → EXCLUDED, named. Same-currency drift
+//     beyond tolerance → CONTRADICTION, skipped and named.
+//   · date — the inflow's date vs statedAt. HARD RULE: an inflow dated BEFORE the
+//     vendor stated the refund is a CONTRADICTION (a refund cannot land before it
+//     is stated): skipped, named. Window MATCH_REFUND_DATE_WINDOW_DAYS (below).
+//   · descriptor — the provider vocab and the booking's name tokens as today,
+//     PLUS the accepted CHARGE transaction's own name: a refund's bank descriptor
+//     usually repeats the charge's. Which one matched is named.
+// Every rationale names the event id, the reservation, the stated amount and
+// currency, and statedAt.
+
+/**
+ * MATCH_REFUND_DATE_WINDOW_DAYS = 14. ASSUMPTION, NOT A VENDOR FACT: LiteAPI
+ * documents no refund settlement time. Card networks generally post a merchant
+ * refund to the cardholder 5–10 business days after the merchant issues it, and
+ * the vendor may issue it days after it states it on the cancel answer; 14
+ * calendar days covers that with room, without reaching the next month's
+ * unrelated credits. A refund landing later is not proposed and is named in the
+ * skipped list — a human can still link it by hand later (not built).
+ */
+export const MATCH_REFUND_DATE_WINDOW_DAYS = 14;
+
+/** money_events.refundDestination values that reach the customer's bank as an inflow — NULL (hotel) and the vendor's 'original_payment' (flight). */
+export const BANK_REACHABLE_REFUND_DESTINATIONS: ReadonlyArray<string | null> = [null, 'original_payment'];
+
+export function isBankReachableRefund(destination: string | null): boolean {
+  return BANK_REACHABLE_REFUND_DESTINATIONS.includes(destination);
+}
+
+export interface MatcherRefundEvent {
+  /** money_events.id */
+  id: string;
+  reservationId: string;
+  /** money_events.kind — only 'refund' is a candidate. */
+  kind: string;
+  /** money_events.status — only 'stated' is a candidate; 'settled' is done. */
+  status: string;
+  /** Integer cents the vendor stated, or NULL — the vendor did not quantify it. Never 0 for unknown. */
+  amountCents: number | null;
+  /** The vendor's currency for the stated amount, or NULL when it stated none. */
+  currency: string | null;
+  /** LiteAPI's own word, or NULL (hotel). */
+  refundDestination: string | null;
+  /** The instant the vendor stated the refund — the arrival's clock. */
+  statedAt: string | Date;
+  /** The reservation's provider and stated names, for the descriptor vocab. */
+  provider: string;
+  hotelName: string | null;
+  displayName?: string | null;
+  /** The bank descriptor (transactions.name) of the reservation's ACCEPTED charge link, or NULL when none is accepted. */
+  chargeTransactionName: string | null;
+}
+
+export interface RefundMatcherOptions {
+  /** Same-currency drift allowed, as a fraction — the outflow pass's tolerance. */
+  amountTolerancePct: number;
+  /** Days after statedAt an inflow may land — MATCH_REFUND_DATE_WINDOW_DAYS. */
+  refundDateWindowDays: number;
+}
+
+export interface RefundMatchProposal extends MatchProposal {
+  /** The refund money event this inflow is proposed against — rides onto the link as moneyEventId. */
+  moneyEventId: string;
+}
+
+/** A pair the function refused, with the reason — contradictions are named, never silent. */
+export interface RefundMatchSkip {
+  transactionId: string;
+  moneyEventId: string;
+  reason: 'before_stated' | 'amount_contradiction' | 'outside_window';
+  detail: string;
+}
+
+export interface RefundMatchResult {
+  proposals: RefundMatchProposal[];
+  skipped: RefundMatchSkip[];
+}
+
+function nameTokens(name: string | null | undefined): string[] {
+  if (!name) return [];
+  return name.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4);
+}
+
+/**
+ * Score every (refund event × inflow) pair; return the proposals ordered
+ * deterministically (confidence desc, transactionId, moneyEventId) and the
+ * pairs refused by name. See the section header for the rules.
+ */
+export function proposeRefundMatches({
+  refunds,
+  transactions,
+  accountCurrency,
+  opts,
+  excludeTransactionIds,
+}: {
+  refunds: MatcherRefundEvent[];
+  transactions: MatcherTransaction[];
+  /** The account's stated currency (accounts.isoCurrencyCode), or NULL when not stated → the amount signal is EXCLUDED. */
+  accountCurrency: string | null;
+  opts: RefundMatcherOptions;
+  /** Inflows an accepted link already claims — never candidates. */
+  excludeTransactionIds?: ReadonlySet<string>;
+}): RefundMatchResult {
+  const proposals: RefundMatchProposal[] = [];
+  const skipped: RefundMatchSkip[] = [];
+  const account = accountCurrency === null ? null : accountCurrency.toUpperCase();
+
+  for (const e of refunds) {
+    if (e.kind !== 'refund' || e.status !== 'stated') continue;
+    if (!isBankReachableRefund(e.refundDestination)) continue;
+
+    const statedDay = utcDay(e.statedAt);
+    const statedAtIso = typeof e.statedAt === 'string' ? e.statedAt : e.statedAt.toISOString();
+    const eventCurrency = e.currency === null ? null : e.currency.toUpperCase();
+    const refundDollars = e.amountCents === null ? null : e.amountCents / 100;
+    const statedWords = refundDollars === null
+      ? 'no amount stated'
+      : `${refundDollars.toFixed(2)} ${eventCurrency ?? '(no currency stated)'}`;
+    const head = `refund: money event ${e.id} of booking ${e.reservationId}, vendor stated ${statedWords} at ${statedAtIso}`;
+    const vocab = PROVIDER_VOCAB[e.provider.toLowerCase()] ?? [e.provider.toLowerCase()];
+    const bookingTokens = [...new Set([...hotelTokens(e.hotelName), ...nameTokens(e.displayName)])];
+    const chargeTokens = nameTokens(e.chargeTransactionName);
+
+    for (const t of transactions) {
+      // An inflow is money that came in. Outflows and zero rows are never candidates.
+      if (!(t.amount < 0)) continue;
+      if (excludeTransactionIds?.has(t.id)) continue;
+
+      const parts: string[] = [head];
+      const scores: Array<{ w: number; s: number }> = [];
+      const inflow = Math.abs(t.amount);
+
+      // ── AMOUNT ───────────────────────────────────────────────────────────
+      if (refundDollars === null) {
+        parts.push('amount: EXCLUDED — the vendor did not quantify this refund (NULL recorded); date + descriptor carry this proposal');
+      } else if (account === null) {
+        parts.push('amount: EXCLUDED — the account currency is not stated (accounts.isoCurrencyCode NULL); date + descriptor carry this proposal');
+      } else if (eventCurrency === null || eventCurrency !== account) {
+        parts.push(
+          `amount: EXCLUDED — refund currency ${eventCurrency ?? '(not stated)'} ≠ account ${account} ` +
+          '(never converted by guess); date + descriptor carry this proposal'
+        );
+      } else {
+        // A stated 0 is a real amount: any non-zero inflow contradicts it.
+        const driftPct = refundDollars === 0 ? (inflow === 0 ? 0 : Number.POSITIVE_INFINITY) : Math.abs(inflow - refundDollars) / refundDollars;
+        if (driftPct > opts.amountTolerancePct) {
+          skipped.push({ transactionId: t.id, moneyEventId: e.id, reason: 'amount_contradiction', detail: `inflow ${inflow.toFixed(2)} vs stated ${refundDollars.toFixed(2)} ${eventCurrency}: drift ${Number.isFinite(driftPct) ? `${(driftPct * 100).toFixed(1)}%` : 'total'} > ${(opts.amountTolerancePct * 100).toFixed(1)}% tolerance` });
+          continue;
+        }
+        scores.push({ w: W_AMOUNT, s: 1 - driftPct / opts.amountTolerancePct });
+        parts.push(
+          `amount: inflow ${inflow.toFixed(2)} vs stated ${refundDollars.toFixed(2)} ${eventCurrency} ` +
+          `(drift ${(driftPct * 100).toFixed(1)}% ≤ ${(opts.amountTolerancePct * 100).toFixed(1)}% tolerance)`
+        );
+      }
+
+      // ── DATE ─────────────────────────────────────────────────────────────
+      // The inflow's own date decides the hard rule; the authorized date, when
+      // present and not before statedAt, may shorten the distance and is named.
+      const dateDay = utcDay(t.date);
+      if (dateDay < statedDay) {
+        skipped.push({ transactionId: t.id, moneyEventId: e.id, reason: 'before_stated', detail: `inflow dated ${statedDay - dateDay}d BEFORE the vendor stated the refund at ${statedAtIso} — a refund cannot land before it is stated` });
+        continue;
+      }
+      const txnDays: Array<{ label: string; day: number }> = [
+        { label: 'date', day: dateDay },
+        ...(t.authorized_date ? [{ label: 'authorized_date', day: utcDay(t.authorized_date) }] : []),
+      ].filter((d) => d.day >= statedDay);
+      let best: { label: string; dist: number } | null = null;
+      for (const td of txnDays) {
+        const dist = td.day - statedDay;
+        if (best === null || dist < best.dist) best = { label: td.label, dist };
+      }
+      // `date` itself passed the hard rule, so best is always set.
+      if (best === null || best.dist > opts.refundDateWindowDays) {
+        skipped.push({ transactionId: t.id, moneyEventId: e.id, reason: 'outside_window', detail: `inflow ${best === null ? '?' : best.dist}d after statedAt ${statedAtIso}, beyond the ${opts.refundDateWindowDays}d window` });
+        continue;
+      }
+      scores.push({ w: W_DATE, s: 1 - best.dist / opts.refundDateWindowDays });
+      parts.push(`date: txn ${best.label} ${best.dist}d after statedAt (window ${opts.refundDateWindowDays}d)`);
+
+      // ── DESCRIPTOR ───────────────────────────────────────────────────────
+      const haystack = `${t.name} ${t.merchantName ?? ''}`.toLowerCase();
+      const vocabHit = vocab.find((v) => haystack.includes(v)) ?? null;
+      const bookingHit = bookingTokens.find((w) => haystack.includes(w)) ?? null;
+      const chargeHit = chargeTokens.find((w) => haystack.includes(w)) ?? null;
+      const hits = [
+        ...(vocabHit ? [`provider vocab '${vocabHit}'`] : []),
+        ...(bookingHit ? [`booking name token '${bookingHit}'`] : []),
+        ...(chargeHit ? [`the accepted charge's descriptor token '${chargeHit}' (charge "${e.chargeTransactionName}")`] : []),
+      ];
+      scores.push({ w: W_DESCRIPTOR, s: hits.length > 0 ? 1 : 0 });
+      parts.push(
+        hits.length > 0
+          ? `descriptor: "${t.name}" matched ${hits.join(' + ')}`
+          : `descriptor: "${t.name}" matched nothing (provider vocab ${JSON.stringify(vocab)}${bookingTokens.length ? `, booking tokens ${JSON.stringify(bookingTokens)}` : ''}${chargeTokens.length ? `, charge tokens ${JSON.stringify(chargeTokens)}` : ', no accepted charge to compare'})`
+      );
+
+      if (t.pending) parts.push('note: transaction is PENDING — amount may still settle differently');
+
+      // ── CONFIDENCE: weighted over PRESENT signals, re-normalized ─────────
+      const wSum = scores.reduce((a, x) => a + x.w, 0);
+      const confidence = round3(scores.reduce((a, x) => a + x.w * x.s, 0) / wSum);
+
+      proposals.push({ transactionId: t.id, reservationId: e.reservationId, moneyEventId: e.id, confidence, rationale: parts.join('; ') });
+    }
+  }
+
+  proposals.sort(
+    (a, b) =>
+      b.confidence - a.confidence ||
+      a.transactionId.localeCompare(b.transactionId) ||
+      a.moneyEventId.localeCompare(b.moneyEventId)
+  );
+  skipped.sort((a, b) => a.transactionId.localeCompare(b.transactionId) || a.moneyEventId.localeCompare(b.moneyEventId));
+  return { proposals, skipped };
+}

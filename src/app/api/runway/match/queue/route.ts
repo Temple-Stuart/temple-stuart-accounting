@@ -35,6 +35,12 @@ export async function GET() {
             lane: true, displayName: true, providerConfirmationCode: true, providerBookingId: true,
           },
         },
+        // MATCH-02 (2026-09-26): a REFUND proposal carries the money event it is
+        // proposed against — the vendor's stated kind, amount, currency, instant and
+        // destination — so the queue renders it as a refund, never as a charge.
+        moneyEvent: {
+          select: { kind: true, amountCents: true, currency: true, statedAt: true, refundDestination: true },
+        },
       },
     });
 
@@ -52,6 +58,9 @@ export async function GET() {
         proposedAt: l.proposedAt,
         transaction: l.transaction,
         reservation: l.reservation,
+        // MATCH-02: NULL = a charge proposal; set = the refund money event, with its stated facts.
+        moneyEventId: l.moneyEventId,
+        moneyEvent: l.moneyEvent,
       })),
     });
   } catch (err) {
