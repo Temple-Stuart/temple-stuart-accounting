@@ -29,7 +29,11 @@ export async function GET() {
               select: { code: true, name: true, account_type: true }
             }
           }
-        }
+        },
+        // POST-01 (2026-09-26): the booking a posting documents, and the money event
+        // (a refund) when set — the reservation's own stated fields, nothing computed.
+        document_reservation: { select: { displayName: true, providerBookingId: true, providerConfirmationCode: true } },
+        document_money_event: { select: { kind: true, amountCents: true, currency: true } },
       },
       orderBy: [
         { date: 'desc' },
@@ -50,6 +54,11 @@ export async function GET() {
       reverses_entry_id: t.reverses_entry_id,
       reversed_by_entry_id: t.reversed_by_entry_id,
       metadata: t.metadata,
+      // POST-01: the document on the wire — NULL rides as null and renders nothing.
+      document_reservation_id: t.document_reservation_id,
+      document_money_event_id: t.document_money_event_id,
+      document_reservation: t.document_reservation,
+      document_money_event: t.document_money_event,
       created_at: t.created_at,
       ledger_entries: t.ledger_entries.map(entry => ({
         id: entry.id,

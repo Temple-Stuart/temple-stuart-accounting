@@ -204,6 +204,10 @@ model journal_entries {
   // backfilled). SetNull per the T-D7 doctrine (financial records never die by
   // reference; cf. reservations.trip :1254).
   vendor_id            String?  @db.Uuid
+  /// POST-01 (2026-09-26): THE DOCUMENT. The booking this plaid_txn posting is the charge (or refund) of — the source document, never a posting of its own. NULL = no document (a posting of no booking, or one posted before the column existed and not yet given its document by scripts/post-01-retro-documents.ts). Written by commitPlaidTransaction alone, from an ACCEPTED transaction_reservation_link; never defaulted. RESTRICT in SQL.
+  document_reservation_id String? @db.Uuid
+  /// POST-01: NULL = the booking's CHARGE; set = that money event, a REFUND (money_events.kind 'refund'). CHECK in SQL: never set without document_reservation_id. ONE posted charge per booking: partial unique journal_entries_document_charge_key ON (document_reservation_id) WHERE document_money_event_id IS NULL AND status = 'posted' — a reversed entry leaves it (Prisma cannot express a partial index; the migration holds it).
+  document_money_event_id String? @db.Uuid
 
   user              users            @relation(fields: [userId], references: [id])
   entity            entities         @relation(fields: [entity_id], references: [id])
@@ -212,11 +216,15 @@ model journal_entries {
   ledger_entries    ledger_entries[]
   vendor            operations_vendor_directory? @relation(fields: [vendor_id], references: [id], onDelete: SetNull)
   planned_item_links planned_item_links[]
+  document_reservation reservations?  @relation("posting_document", fields: [document_reservation_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  document_money_event money_events?  @relation("posting_document_event", fields: [document_money_event_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([userId, date])
   @@index([source_type, source_id])
   @@index([entity_id, date])
   @@index([vendor_id])
+  @@index([document_reservation_id])
+  @@index([document_money_event_id])
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1531,6 +1539,8 @@ model reservations {
   transaction_reservation_links transaction_reservation_links[]
   money_events      money_events[]
   vouchers          vouchers[]
+  /// POST-01: the plaid_txn postings this booking documents (the charge, and a refund when the vendor stated one).
+  document_entries  journal_entries[]   @relation("posting_document")
 
   @@index([userId])
   @@index([tripId])
@@ -1592,6 +1602,9 @@ model money_events {
 
   reservation reservations @relation(fields: [reservationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   arrival     arrivals     @relation(fields: [arrivalId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  /// POST-01: the refund postings this money event documents, and the links (MATCH-02, not built) that name it.
+  document_entries journal_entries[] @relation("posting_document_event")
+  links            transaction_reservation_links[] @relation("link_money_event")
 
   @@index([reservationId])
   @@index([arrivalId])
@@ -1677,14 +1690,18 @@ model transaction_reservation_links {
   proposedAt     DateTime  @default(now())
   reviewedAt     DateTime?
   reviewedBy     String?   @db.VarChar(255)
+  /// POST-01 (2026-09-26): NULL = this link is the booking's CHARGE (every link MATCH-1 proposes today); set = that money event, a REFUND (MATCH-02 proposes these — not built). The accepted link's document rides onto the posting: commitPlaidTransaction writes it as document_money_event_id. RESTRICT in SQL.
+  moneyEventId   String?   @db.Uuid
 
   transaction transactions @relation(fields: [transactionId], references: [id], onDelete: Restrict)
   reservation reservations @relation(fields: [reservationId], references: [id], onDelete: Restrict)
   user        users        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moneyEvent  money_events? @relation("link_money_event", fields: [moneyEventId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@unique([transactionId, reservationId]) // one lifecycle row per pair — re-runs upsert, never duplicate
   @@index([userId, status]) // the review queue + unplanned-bucket anti-join
   @@index([reservationId]) // "Booked" status lookups (MATCH-3)
+  @@index([moneyEventId]) // POST-01: a refund link by its money event
 }
 
 // ─── Commission ledger (margin earned per reservation) ──────────────────────

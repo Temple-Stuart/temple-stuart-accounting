@@ -26,7 +26,8 @@ export const SEEDS: Seed[] = [
   {
     name: 'drill-a the ledger stops reading the entry’s source (clause 1)',
     file: LEDGER,
-    find: '                            entry={{ source_type: entry.source_type, source_id: entry.source_id, reverses_entry_id: entry.reverses_entry_id }}',
+    // POST-01 (2026-09-26): the handed row now also carries the document; the seed strips the whole object as before.
+    find: '                            entry={{ source_type: entry.source_type, source_id: entry.source_id, reverses_entry_id: entry.reverses_entry_id, document_reservation_id: entry.document_reservation_id, document_money_event_id: entry.document_money_event_id, document_reservation: entry.document_reservation, document_money_event: entry.document_money_event }}',
     replace: '                            entry={{}}',
     expect: 'does not read source_type, source_id and reverses_entry_id off its rows',
   },

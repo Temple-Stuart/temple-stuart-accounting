@@ -153,7 +153,8 @@ import { FREE_TOOLS, OFFERS, TOOL_GATE, heroCountsLine, offerCard, offerLaw, pri
 // OFFER-01: the plans leaf — the public offer's one source.
 import { BEST_VALUE_WORDS, CAPABILITY_GROUPS, CELL_LABEL, EARLY_ACCESS_CTA, LAUNCH_PLACEHOLDER, MODULES, PLANS, PLANS_HEADLINE, PLANS_SUBHEAD, PLAN_ORDER, STATUS_TO_CELL, capabilityNotes, cellState, planLaw, priceSlot, travelFreeLine, weakestStatus } from '../src/lib/offer/plans';
 // DRILL-01: where an entry came from — the pure mapping the book surfaces render.
-import { NO_SOURCE_WORDS, SOURCE_RULES, coverageOf, entrySourceOf, statedFacts } from '../src/lib/books/entrySource';
+import { NO_SOURCE_WORDS, SOURCE_RULES, coverageOf, documentOf, entrySourceOf, statedFacts } from '../src/lib/books/entrySource';
+import { documentFromLinks, documentsForBatch } from '../src/lib/posting/documentGate';
 import { DYNAMIC_READ_ENV, LIBRARY_READ_ENV } from '../src/lib/envLaw';
 import { EXPECTED_FEED_COUNT, FEED_COST, FEED_IDS, SCAN_COST, feedCostLaw, scanCostLine } from '../src/lib/observatory/feedCost';
 import { FINNHUB_TTL, finnhubCallsPerSymbol, finnhubTtlLaw, slowTierEndpoints } from '../src/lib/convergence/finnhub-ttl';
@@ -5958,6 +5959,222 @@ lawGuard('The commission law', () => {
 
   if (commViolations === 0) console.log(`✔ The commission law passed — the two book routes write the vendor's stated commission or NULL (never a browser figure, never 0) and refuse a client commission by name; the prebook parser and the checkout panel say not stated; the apply leaf locks a hotel commission exactly when the vendor's word is confirmed, the check-out date is before the read instant and the GET stated a figure, through the read leaf's one lock port with the read arrival as evidence; the migration opens commissionAmountCents, adds the six lock columns and enforces the four documented words; the cron re-reads a checked-out stay once to lock.`);
   else console.log(`✖ The commission law FAILED — ${commViolations} violation(s).`);
+});
+
+// ── THE POSTING-DOCUMENT LAW (POST-01, 2026-09-26) ──────────────────────────
+// A POSTING CARRIES ITS DOCUMENT: THE BOOKING BEHIND THE BANK ROW.
+//
+// THE RULING. The only thing that posts to the books is a Plaid transaction. A
+// booking is the SOURCE DOCUMENT of that posting, never a posting of its own. The
+// seven source kinds stay seven. commitPlaidTransaction is the one writer of the
+// two document columns, inside the same transaction as the entry; the commit
+// route refuses a proposed link at 409 before any posting; an accepted link is
+// never posted without its document; a refund entry requires the posted charge and
+// derives its account from it; the document words come from the drill leaf only.
+//
+// It reads the writer, the port, the route, the gate leaf, the drill leaf and cell,
+// both surfaces, both wire routes, the migration, the schema and the retro through
+// code(); it runs the pure gate and the pure document rule over fixtures. No render,
+// no database, no network, no metered call.
+lawGuard('The posting-document law', () => {
+  let postViolations = 0;
+  const postFail = (m: string) => { postViolations += 1; violations.push(`posting-document law: ${m} (POST-01)`); };
+
+  const WRITER = 'src/lib/journal-entry-service.ts';
+  const PORT = 'src/lib/posting/postJournal.ts';
+  const GATE = 'src/lib/posting/documentGate.ts';
+  const ROUTE = 'src/app/api/transactions/commit-to-ledger/route.ts';
+  const LEAF = 'src/lib/books/entrySource.ts';
+  const CELL = 'src/components/books/EntrySourceCell.tsx';
+  const SURFACES = ['src/components/dashboard/JournalEntryEngine.tsx', 'src/components/dashboard/GeneralLedger.tsx'];
+  const WIRE_ROUTES = ['src/app/api/journal-transactions/route.ts', 'src/app/api/ledger/route.ts'];
+  const MIGRATION = 'prisma/migrations/20260926180000_post_01_posting_document/migration.sql';
+  const RETRO = 'scripts/post-01-retro-documents.ts';
+  for (const f of [WRITER, PORT, GATE, ROUTE, LEAF, CELL, ...SURFACES, ...WIRE_ROUTES, MIGRATION]) {
+    if (!existsSync(resolve(ROOT, f))) postFail(`${f} is missing`);
+  }
+
+  // ── CLAUSE 1. commitPlaidTransaction IS THE ONE WRITER OF THE TWO DOCUMENT COLUMNS. ──
+  // A key `document_reservation_id:` / `document_money_event_id:` whose value is not a
+  // same-named property read (the wire routes pass the column through) is a WRITE.
+  // Writes live in the port (the pass-through into the create) and in the writer's
+  // commitPlaidTransaction body — nowhere else under src, and never in an update.
+  const DOC_KEY = /document_(reservation|money_event)_id\s*:\s*([^,\n}]+)/g;
+  // A row TYPE's field declaration (`document_reservation_id: string | null;`) is not a write.
+  const isTypeField = (value: string) => /^(?:string|number|boolean)\b/.test(value.trim());
+  // The READERS — the two wire routes mapping the entry to the wire, the two surfaces handing
+  // the row to the cell — may only PASS the column through, as the same-named property read
+  // (`document_reservation_id: t.document_reservation_id`). Anywhere else a key with ANY value —
+  // a copy of another entry's document included (the admin entity fix re-posting
+  // `original.document_reservation_id` would be one) — is a write.
+  const isPassThrough = (value: string) => /^\w+(?:\.\w+)*\.document_(?:reservation|money_event)_id$/.test(value.trim());
+  const READERS = [...WIRE_ROUTES, ...SURFACES];
+  for (const { file, src } of srcFiles) {
+    const keyed = [...src.matchAll(DOC_KEY)].filter((m) => !isTypeField(m[2]));
+    if (keyed.length === 0) continue;
+    if (file === PORT || file === WRITER) {
+      // the writers — clause 1's second half reads their bodies below
+    } else if (READERS.includes(file)) {
+      for (const m of keyed) if (!isPassThrough(m[2])) postFail(`${file} writes document_${m[1]}_id (${m[2].trim()}) — a reader passes the column through and decides nothing`);
+    } else {
+      postFail(`${file} writes document_reservation_id / document_money_event_id — commitPlaidTransaction (${WRITER}) is the one writer of a posting's document`);
+    }
+    if (/journal_entries\s*\.\s*update(?:Many)?\s*\(\s*\{[\s\S]{0,400}?document_(reservation|money_event)_id\s*:/.test(src)) postFail(`${file} updates a posted entry's document — the document is born with the entry, never updated under src`);
+  }
+  const writerSrc = codeOf(WRITER);
+  const commitBody = functionBody(writerSrc, 'commitPlaidTransaction') ?? '';
+  const reverseBody = functionBody(writerSrc, 'reversePlaidTransaction') ?? '';
+  if (!commitBody) postFail(`${WRITER} has no commitPlaidTransaction`);
+  if (!commitBody.includes('document_reservation_id: document ? document.reservationId : null,')) postFail(`commitPlaidTransaction does not write document_reservation_id from the pre-validated document (null when there is none)`);
+  if (!commitBody.includes('document_money_event_id: document ? document.moneyEventId : null,')) postFail(`commitPlaidTransaction does not write document_money_event_id from the pre-validated document`);
+  if (/document_(reservation|money_event)_id\s*:/.test(reverseBody)) postFail('reversePlaidTransaction carries a document — the reversal carries none; the original keeps its own');
+  if (/\bdocument\s*\?\?|document\?\.(reservationId|moneyEventId)\s*\?\?/.test(writerSrc)) postFail(`${WRITER} defaults a document — a document is the accepted link's booking or nothing, never defaulted`);
+  if (!/const entry = await post\(\{/.test(commitBody) || !commitBody.includes("source_type: 'plaid_txn',")) postFail('commitPlaidTransaction no longer posts a plaid_txn entry through the port — the booking is what the posting documents, never what it is');
+  const portSrc = codeOf(PORT);
+  if (!portSrc.includes('document_reservation_id: entry.document_reservation_id ?? null,') || !portSrc.includes('document_money_event_id: entry.document_money_event_id ?? null,')) postFail(`${PORT} does not pass the two document columns into the create`);
+
+  // ── CLAUSE 2. THE COMMIT ROUTE REFUSES A PROPOSED LINK AT 409 BEFORE ANY POSTING. ──
+  const routeSrc = codeOf(ROUTE);
+  const gateAt = routeSrc.indexOf('const gate = documentsForBatch(transactionIds, batchLinks);');
+  const loopAt = routeSrc.indexOf('const batchRequestId = randomUUID();');
+  const postAt = routeSrc.indexOf('commitPlaidTransaction(prisma, {');
+  if (gateAt < 0) postFail('the commit route does not call documentsForBatch() over the batch');
+  else {
+    if (loopAt < 0 || gateAt > loopAt) postFail('the commit route does not call documentsForBatch() before its posting loop');
+    if (postAt < 0 || gateAt > postAt) postFail('the commit route posts before the document gate has decided the batch');
+  }
+  if (!/if \(!gate\.ok\) \{\s*return NextResponse\.json\(\s*\{[\s\S]{0,400}?error: gate\.refusal\.message,[\s\S]{0,400}?\{ status: 409 \}/.test(routeSrc)) postFail('the commit route posts a proposed link — the gate refuses at 409 before any posting, by name, listing transaction ids and link ids');
+  if (!routeSrc.includes('where: { userId: user.id, transactionId: { in: transactionIds }, status: { in: [\'proposed\', \'accepted\'] } }')) postFail('the commit route reads the batch links without the user scope (userId = the authed user) over the batch transaction ids');
+  const proposedOnly = documentFromLinks([{ id: 'l1', transactionId: 't1', reservationId: 'r1', moneyEventId: null, status: 'proposed' }]);
+  if (proposedOnly.kind !== 'proposed') postFail(`documentFromLinks lets a proposed link through as ${proposedOnly.kind} — a proposed link never posts silently`);
+  const mixed = documentFromLinks([
+    { id: 'l1', transactionId: 't1', reservationId: 'r1', moneyEventId: null, status: 'accepted' },
+    { id: 'l2', transactionId: 't1', reservationId: 'r2', moneyEventId: null, status: 'proposed' },
+  ]);
+  if (mixed.kind !== 'proposed') postFail(`documentFromLinks posts beside an undecided link (${mixed.kind}) — one proposed link refuses the transaction`);
+  const two = documentFromLinks([
+    { id: 'l1', transactionId: 't1', reservationId: 'r1', moneyEventId: null, status: 'accepted' },
+    { id: 'l2', transactionId: 't1', reservationId: 'r2', moneyEventId: null, status: 'accepted' },
+  ]);
+  if (two.kind !== 'many_accepted') postFail(`documentFromLinks picks one of two accepted links (${two.kind}) — a posting documents one booking and the gate never picks`);
+  const batch = documentsForBatch(['t1', 't2'], [
+    { id: 'l1', transactionId: 't1', reservationId: 'r1', moneyEventId: null, status: 'accepted' },
+    { id: 'l9', transactionId: 't2', reservationId: 'r7', moneyEventId: null, status: 'proposed' },
+  ]);
+  if (batch.ok) postFail('documentsForBatch posts a batch holding a proposed link — the whole batch is refused, nothing posted');
+  else if (batch.refusal.reason !== 'proposed' || !batch.refusal.transactionIds.includes('t2') || !batch.refusal.linkIds.includes('l9') || !batch.refusal.message.includes('t2') || !batch.refusal.message.includes('l9')) postFail('documentsForBatch refuses a proposed link without naming its transaction and link ids');
+
+  // ── CLAUSE 3. AN ACCEPTED LINK IS NEVER POSTED WITHOUT ITS DOCUMENT. ──
+  const one = documentFromLinks([
+    { id: 'l1', transactionId: 't1', reservationId: 'r1', moneyEventId: null, status: 'accepted' },
+    { id: 'l3', transactionId: 't1', reservationId: 'r3', moneyEventId: null, status: 'rejected' },
+  ]);
+  if (one.kind !== 'document' || one.document.reservationId !== 'r1' || one.document.moneyEventId !== null || one.linkId !== 'l1') postFail(`documentFromLinks reads one accepted link as ${JSON.stringify(one)} — the accept IS the authorization and its booking is the document`);
+  const refund = documentFromLinks([{ id: 'l1', transactionId: 't1', reservationId: 'r1', moneyEventId: 'me1', status: 'accepted' }]);
+  if (refund.kind !== 'document' || refund.document.moneyEventId !== 'me1') postFail('documentFromLinks drops the money event of an accepted refund link');
+  const none = documentFromLinks([{ id: 'l3', transactionId: 't1', reservationId: 'r3', moneyEventId: null, status: 'rejected' }]);
+  if (none.kind !== 'none' || documentFromLinks([]).kind !== 'none') postFail('documentFromLinks invents a document for a rejected or absent link');
+  const okBatch = documentsForBatch(['t1', 't2'], [{ id: 'l1', transactionId: 't1', reservationId: 'r1', moneyEventId: null, status: 'accepted' }]);
+  if (!okBatch.ok || okBatch.documents.get('t1')?.reservationId !== 'r1' || okBatch.documents.get('t2') !== null || okBatch.documents.size !== 2) postFail('documentsForBatch does not decide every transaction of the batch (the document for an accepted link, null for none)');
+  if (!routeSrc.includes('document: document === null ? undefined : document,')) postFail('the commit route posts an accepted link without its document — the gate’s decision is passed to commitPlaidTransaction, and an accepted link is never posted without its document');
+  if (!/if \(document === undefined\) throw new Error\(/.test(routeSrc)) postFail('the commit route lets a transaction the gate did not decide post as a posting of no booking — that is a fault, said out loud');
+  if (/\bdocument\s*\?\?/.test(routeSrc)) postFail('the commit route defaults a document');
+
+  // ── CLAUSE 4. A REFUND ENTRY REQUIRES THE POSTED CHARGE AND DERIVES ITS ACCOUNT. ──
+  if (!/if \(!\(amount < 0\)\) \{\s*throw new ValidationError\(\s*`POST-01 a refund is money that came back/.test(commitBody)) postFail('commitPlaidTransaction lets an outflow document a refund — an outflow may not document a refund; only an inflow (Plaid amount < 0) may');
+  if (!/if \(!charge\) \{\s*throw new ValidationError\(\s*`POST-01 the charge is not posted; post it first/.test(commitBody)) postFail('commitPlaidTransaction posts a refund without a posted charge — a refund entry requires the posted charge, and refuses by name without it');
+  if (!commitBody.includes("where: { userId, document_reservation_id: document.reservationId, document_money_event_id: null, status: 'posted' },")) postFail('commitPlaidTransaction does not look the booking’s charge up as a POSTED entry with no money event (the charge, not a refund; posted, not reversed)');
+  if (!/const debitLine = charge\.ledger_entries\.find\(\(l\) => l\.entry_type === 'D'\);/.test(commitBody)) postFail('commitPlaidTransaction does not derive the refund’s account from the charge entry’s debit line');
+  if (!/if \(accountCode !== debitLine\.account\.code\) \{\s*throw new ValidationError\(/.test(commitBody)) postFail('commitPlaidTransaction lets a caller pick a refund’s account — a caller’s accountCode that differs from the charge’s is refused by name');
+  if (!/const expenseOrIncomeAccount = refundAgainst\s*\?\s*refundAgainst\.account\s*:/.test(commitBody)) postFail('commitPlaidTransaction looks a refund’s account up by the caller’s code — the account of a refund is derived from the posted charge, never chosen');
+  if (!/if \(holder\) throw new ValidationError\(chargeAlreadyPostedMessage\(document\.reservationId, holder\.id\), \{ status: 409 \}\);/.test(commitBody)) postFail('commitPlaidTransaction does not name a second posted charge for the same booking before the write');
+  if (!/isDocumentChargeUniqueError\(err\)/.test(writerSrc) || !/this booking already has a posted charge entry \$\{holderId\}/.test(writerSrc)) postFail('commitPlaidTransaction lets a P2002 on the one-posted-charge index out as a fault — it is named ("this booking already has a posted charge entry <id>"), never a 500');
+
+  // ── CLAUSE 5. KINDS STAY SEVEN. ──
+  const SEVEN = ['plaid_txn', 'manual', 'reversal', 'investment_txn', 'trading_position', 'reclass', 'year_end_close'];
+  if (SOURCE_RULES.length !== 7 || !SEVEN.every((k) => SOURCE_RULES.some((r) => r.type === k))) postFail(`the drill leaf holds ${SOURCE_RULES.length} source kinds [${SOURCE_RULES.map((r) => r.type).join(' ')}] — KINDS stay seven; a booking is a document, never an eighth kind`);
+  if (/source_type:\s*'(booking|reservation|refund|document)'/.test(writerSrc)) postFail('the writer posts a booking as its own source kind — a booking is the document of a plaid_txn posting');
+
+  // ── CLAUSE 6. THE DOCUMENT WORDS COME FROM THE DRILL LEAF ONLY. ──
+  const leafSrc = codeOf(LEAF);
+  if (!/export function documentOf\(/.test(leafSrc)) postFail(`${LEAF} has no documentOf() — the one rule for the document’s words`);
+  const charge = documentOf({ document_reservation_id: 'r1', document_money_event_id: null, document_reservation: { displayName: 'Hotel Temple', providerBookingId: 'hSq2gVDrf', providerConfirmationCode: 'HCC-4421' } });
+  if (charge.kind !== 'charge' || charge.words !== 'Booking: Hotel Temple · HCC-4421') postFail(`documentOf reads a charge as ${JSON.stringify(charge)} — "Booking: <name> · <confirmation code>"`);
+  const noCode = documentOf({ document_reservation_id: 'r1', document_money_event_id: null, document_reservation: { displayName: 'Hotel Temple', providerBookingId: 'hSq2gVDrf', providerConfirmationCode: null } });
+  if (noCode.kind !== 'charge' || noCode.words !== 'Booking: Hotel Temple · hSq2gVDrf') postFail(`documentOf without a confirmation code reads ${JSON.stringify(noCode)} — the booking id stands in`);
+  const refundWords = documentOf({ document_reservation_id: 'r1', document_money_event_id: 'me1', document_reservation: { displayName: 'Hotel Temple', providerBookingId: 'hSq2gVDrf', providerConfirmationCode: 'HCC-4421' }, document_money_event: { kind: 'refund', amountCents: 12345, currency: 'USD' } });
+  if (refundWords.kind !== 'refund' || refundWords.words !== 'Refund of booking: Hotel Temple · 123.45 USD') postFail(`documentOf reads a refund as ${JSON.stringify(refundWords)} — "Refund of booking: <name> · <amount currency>"`);
+  const nothing = documentOf({ source_type: 'plaid_txn', source_id: 'x', document_reservation_id: null, document_money_event_id: null });
+  if (nothing.kind !== 'none') postFail(`documentOf invents a document for NULL (${JSON.stringify(nothing)}) — NULL renders nothing`);
+  if (documentOf({ source_type: 'plaid_txn', source_id: 'x' }).kind !== 'none') postFail('documentOf invents a document for a row that carries none');
+  const cellSrc = codeOf(CELL);
+  if (!cellSrc.includes('documentOf(')) postFail(`${CELL} does not call documentOf() — the document is derived from the row by the leaf, never decided in the cell`);
+  for (const typed of ['Booking:', 'Refund of booking:', 'Booking ', 'Refund']) {
+    if (cellSrc.includes(`'${typed}`) || cellSrc.includes(`"${typed}`) || cellSrc.includes(`\`${typed}`)) postFail(`${CELL} types "${typed}" — every document word comes from ${LEAF}`);
+  }
+  if (!/\{document\.words\}/.test(cellSrc)) postFail(`${CELL} does not render the leaf’s document words`);
+  if (!/document\.kind !== 'none' &&/.test(cellSrc)) postFail(`${CELL} renders something for a NULL document — NULL renders nothing`);
+  for (const f of SURFACES) {
+    const src = codeOf(f);
+    const handed = [...src.matchAll(/entry=\{\{([^}]*)\}\}/g)].map((m) => m[1]);
+    const carries = handed.find((props) => ['document_reservation_id', 'document_money_event_id', 'document_reservation', 'document_money_event'].every((field) => new RegExp(`${field}:\\s*\\w+\\.${field}\\b`).test(props)));
+    if (!carries) postFail(`${f} does not hand the document (document_reservation_id, document_money_event_id, document_reservation, document_money_event) off its rows to the source cell — a column nothing renders is the fault the drill law closes`);
+  }
+  for (const f of WIRE_ROUTES) {
+    const src = codeOf(f);
+    for (const field of ['document_reservation_id', 'document_money_event_id']) {
+      if (!new RegExp(`${field}:\\s*\\w+(?:\\.\\w+)*\\.${field}\\b`).test(src)) postFail(`${f} does not put ${field} on the wire — the screen cannot read what the route drops`);
+    }
+    if (!/document_reservation: \{ select: \{ displayName: true, providerBookingId: true, providerConfirmationCode: true \} \}/.test(src)) postFail(`${f} does not join the booking’s displayName, providerBookingId and providerConfirmationCode`);
+    if (!/document_money_event: \{ select: \{ kind: true, amountCents: true, currency: true \} \}/.test(src)) postFail(`${f} does not join the money event’s kind and amount`);
+  }
+
+  // ── CLAUSE 7. THE MIGRATION AND THE SCHEMA MOVE TOGETHER. ──
+  const mig = codeOf(MIGRATION);
+  const MIGRATION_LINES: ReadonlyArray<[string, string]> = [
+    ['ALTER TABLE "journal_entries" ADD COLUMN "document_reservation_id" UUID;', 'the document_reservation_id column'],
+    ['ALTER TABLE "journal_entries" ADD COLUMN "document_money_event_id" UUID;', 'the document_money_event_id column'],
+    ['FOREIGN KEY ("document_reservation_id") REFERENCES "reservations"("id")\n    ON DELETE RESTRICT', 'the reservation FK, RESTRICT'],
+    ['FOREIGN KEY ("document_money_event_id") REFERENCES "money_events"("id")\n    ON DELETE RESTRICT', 'the money event FK, RESTRICT'],
+    ['CHECK ("document_money_event_id" IS NULL OR "document_reservation_id" IS NOT NULL)', 'the CHECK — a money event never documents a posting without its booking'],
+    ['CREATE UNIQUE INDEX "journal_entries_document_charge_key"\n    ON "journal_entries"("document_reservation_id")\n    WHERE "document_money_event_id" IS NULL AND "status" = \'posted\';', 'one posted charge per booking — the partial unique on document_reservation_id WHERE the money event is NULL and status = posted'],
+    ['CREATE INDEX "journal_entries_document_reservation_id_idx" ON "journal_entries"("document_reservation_id");', 'the reservation index'],
+    ['CREATE INDEX "journal_entries_document_money_event_id_idx" ON "journal_entries"("document_money_event_id");', 'the money event index'],
+    ['ALTER TABLE "transaction_reservation_links" ADD COLUMN "moneyEventId" UUID;', 'links.moneyEventId'],
+    ['FOREIGN KEY ("moneyEventId") REFERENCES "money_events"("id")\n    ON DELETE RESTRICT', 'the link’s money event FK, RESTRICT'],
+  ];
+  for (const [text, what] of MIGRATION_LINES) if (!mig.includes(text)) postFail(`${MIGRATION} lacks ${what}`);
+  if (/DEFAULT/.test(mig)) postFail(`${MIGRATION} defaults a document column — nothing is defaulted`);
+  if (/UPDATE "journal_entries"/.test(mig)) postFail(`${MIGRATION} backfills — the retro sets a document only from an accepted link, printed per row`);
+  const SCHEMA_LINES: ReadonlyArray<[string, string]> = [
+    ['document_reservation_id String? @db.Uuid', 'journal_entries.document_reservation_id'],
+    ['document_money_event_id String? @db.Uuid', 'journal_entries.document_money_event_id'],
+    ['document_reservation reservations?  @relation("posting_document", fields: [document_reservation_id], references: [id], onDelete: Restrict, onUpdate: Cascade)', 'the reservation relation, Restrict'],
+    ['document_money_event money_events?  @relation("posting_document_event", fields: [document_money_event_id], references: [id], onDelete: Restrict, onUpdate: Cascade)', 'the money event relation, Restrict'],
+    ['moneyEventId   String?   @db.Uuid', 'transaction_reservation_links.moneyEventId'],
+    ['moneyEvent  money_events? @relation("link_money_event", fields: [moneyEventId], references: [id], onDelete: Restrict, onUpdate: Cascade)', 'the link’s money event relation, Restrict'],
+  ];
+  for (const [text, what] of SCHEMA_LINES) if (!schemaText.includes(text)) postFail(`schema.prisma lacks ${what}`);
+
+  // ── CLAUSE 8. THE RETRO FILLS FROM AN ACCEPTED LINK, PRINTS EVERY ROW, PICKS NOTHING. ──
+  if (!existsSync(resolve(ROOT, RETRO))) postFail(`${RETRO} is missing — the retro (git add -f past the scripts/ ignore)`);
+  else {
+    const retro = codeOf(RETRO);
+    if (!retro.includes("process.argv.includes('--dry-run')")) postFail('the retro has no --dry-run');
+    if (!retro.includes("where: { source_type: 'plaid_txn', status: 'posted', document_reservation_id: null, source_id: { not: null } },")) postFail('the retro does not select exactly the posted plaid_txn entries without a document — the selection is what makes a second run change nothing');
+    if (!retro.includes('where: { transactionId: e.source_id as string },')) postFail('the retro does not join the entry to its bank row by source_id = transactions.transactionId');
+    if (!retro.includes('where: { transactionId: txn.id, userId: e.userId },')) postFail('the retro does not read the bank row’s links by transactions.id, scoped to the entry’s own user');
+    if (!retro.includes('const decision = documentFromLinks(links);')) postFail('the retro decides with a rule of its own — it asks the one gate (documentFromLinks)');
+    if (!/if \(decision\.kind === 'many_accepted'\) \{\s*leftAsIs \+= 1;/.test(retro)) postFail('the retro picks between two accepted links — two accepted links are printed by name and left as is');
+    if (!/if \(decision\.kind === 'proposed'\) \{\s*leftAsIs \+= 1;/.test(retro)) postFail('the retro sets a document from a proposed link — undecided is not a document');
+    if (!/if \(decision\.document\.moneyEventId !== null\) \{\s*leftAsIs \+= 1;/.test(retro)) postFail('the retro sets a refund document — a refund document is set by the writer at posting, which derives the account from the posted charge');
+    if (!retro.includes("err.code === 'P2002'")) postFail('the retro lets the one-posted-charge refusal out as a crash — it is printed by name and the row left as is');
+    if (/reservationId\s*\?\?|document_reservation_id:\s*[^,]*\?\?/.test(retro)) postFail('the retro defaults a document');
+    if (!retro.includes('data: { document_reservation_id: reservationId, document_money_event_id: null },')) postFail('the retro writes something other than the accepted link’s booking as the charge document');
+  }
+
+  if (postViolations === 0) console.log('✔ The posting-document law passed — commitPlaidTransaction is the one writer of the two document columns; the commit route refuses a proposed link at 409 before any posting; an accepted link is never posted without its document; a refund requires the posted charge and derives its account; KINDS stay seven; the document words come from the drill leaf only; the migration, the schema and the retro agree.');
+  else console.log(`✖ The posting-document law FAILED — ${postViolations} violation(s).`);
 });
 
 // ── THE ROW LAW (TRAVEL-ROW-01, 2026-09-23) ─────────────────────────────────

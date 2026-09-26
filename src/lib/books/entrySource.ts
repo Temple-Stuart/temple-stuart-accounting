@@ -165,12 +165,35 @@ export function sourceRuleFor(type: string): SourceRule | undefined {
   return RULE_BY_TYPE.get(type);
 }
 
-/** The shape a row must carry for its source to be read — the three columns, nothing more. */
+/** POST-01: what the wire says about the booking a posting documents — the reservation's own stated fields. */
+export interface DocumentReservationFacts {
+  displayName: string | null;
+  providerBookingId: string;
+  providerConfirmationCode: string | null;
+}
+
+/** POST-01: the money event a refund posting documents — the vendor's stated kind and figure. */
+export interface DocumentMoneyEventFacts {
+  kind: string;
+  /** Integer cents the vendor stated, or NULL when it stated none. */
+  amountCents: number | null;
+  currency: string | null;
+}
+
+/** The shape a row must carry for its source to be read — the three columns, and (POST-01) the document when it has one. */
 export interface SourcedEntry {
   source_type?: string | null;
   source_id?: string | null;
   /** The entry a reversal reverses (journal_entries.reverses_entry_id, schema.prisma:196). */
   reverses_entry_id?: string | null;
+  /** POST-01: the booking this posting documents (journal_entries.document_reservation_id); NULL renders nothing. */
+  document_reservation_id?: string | null;
+  /** POST-01: NULL = the booking's charge; set = the money event (a refund) this posting documents. */
+  document_money_event_id?: string | null;
+  /** POST-01: the booking's stated fields, joined by the route; absent when the route did not join them. */
+  document_reservation?: DocumentReservationFacts | null;
+  /** POST-01: the money event's stated kind and figure, joined by the route. */
+  document_money_event?: DocumentMoneyEventFacts | null;
 }
 
 /**
@@ -208,6 +231,42 @@ export function entrySourceOf(entry: SourcedEntry): EntrySource {
   const id = entry.source_id ?? null;
   if (rule.opens && id) return { kind: 'opens', type: rule.type, words: rule.words, id, idIs: rule.idIs ?? '' };
   return { kind: 'stated', type: rule.type, words: rule.words, id, idIs: rule.idIs };
+}
+
+/**
+ * POST-01 (2026-09-26) — THE DOCUMENT, in the customer's words. ONE rule.
+ *
+ * A posting whose document_reservation_id is set is the charge — or, with a
+ * money event, the refund — of that booking; the source stays what it is (a bank
+ * transaction). The words are built here and nowhere else:
+ *   charge  — "Booking: <name> · <confirmation code, or the booking id>"
+ *   refund  — "Refund of booking: <name> · <amount currency>"
+ * A name the lane has not stated is left out, never invented; a refund whose
+ * vendor stated no amount says so. NULL renders NOTHING (kind 'none').
+ */
+export type EntryDocument =
+  | { kind: 'charge'; reservationId: string; words: string }
+  | { kind: 'refund'; reservationId: string; moneyEventId: string; words: string }
+  | { kind: 'none' };
+
+export function documentOf(entry: SourcedEntry): EntryDocument {
+  const reservationId = entry.document_reservation_id ?? null;
+  if (!reservationId) return { kind: 'none' };
+  const facts = entry.document_reservation ?? null;
+  // The reference: the confirmation code the vendor stated, else the booking id; with
+  // no joined facts, the reservation id itself — a true pointer, never a blank.
+  const reference = facts ? (facts.providerConfirmationCode ?? facts.providerBookingId) : reservationId;
+  const name = facts?.displayName ?? null;
+  const moneyEventId = entry.document_money_event_id ?? null;
+  if (!moneyEventId) {
+    return { kind: 'charge', reservationId, words: name ? `Booking: ${name} · ${reference}` : `Booking: ${reference}` };
+  }
+  const event = entry.document_money_event ?? null;
+  const amount = event && event.amountCents !== null
+    ? `${(event.amountCents / 100).toFixed(2)}${event.currency ? ` ${event.currency}` : ''}`
+    : 'amount not stated';
+  const subject = name ?? reference;
+  return { kind: 'refund', reservationId, moneyEventId, words: `Refund of booking: ${subject} · ${amount}` };
 }
 
 /**

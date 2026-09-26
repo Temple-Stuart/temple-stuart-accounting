@@ -34,7 +34,14 @@ export async function GET(request: NextRequest) {
       },
       include: {
         account: { include: { entity: { select: { id: true, name: true, entity_type: true } } } },
-        journal_entry: true
+        // POST-01 (2026-09-26): the entry with the booking it documents (and the money
+        // event, a refund, when set) — the reservation's own stated fields.
+        journal_entry: {
+          include: {
+            document_reservation: { select: { displayName: true, providerBookingId: true, providerConfirmationCode: true } },
+            document_money_event: { select: { kind: true, amountCents: true, currency: true } },
+          },
+        },
       },
       orderBy: [
         { account_id: 'asc' },
@@ -81,7 +88,12 @@ export async function GET(request: NextRequest) {
         // source_id is nullable (:193), and neither is defaulted here.
         source_type: entry.journal_entry.source_type,
         source_id: entry.journal_entry.source_id ?? null,
-        reverses_entry_id: entry.journal_entry.reverses_entry_id ?? null
+        reverses_entry_id: entry.journal_entry.reverses_entry_id ?? null,
+        // POST-01: the document on the wire — NULL rides as null and renders nothing.
+        document_reservation_id: entry.journal_entry.document_reservation_id,
+        document_money_event_id: entry.journal_entry.document_money_event_id,
+        document_reservation: entry.journal_entry.document_reservation,
+        document_money_event: entry.journal_entry.document_money_event
       });
     });
 
