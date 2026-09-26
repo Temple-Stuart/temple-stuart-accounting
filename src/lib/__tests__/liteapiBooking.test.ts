@@ -330,7 +330,8 @@ test('no bookingId, nothing lands: the landing throws before any row; the client
 });
 
 test('the parsers are field for field what the clients always returned — absent fields stay absent (hotel) or null (cancel), never invented', () => {
-  assert.deepEqual(parseBookResult({}), { bookingId: undefined, status: 'CONFIRMED', hotelConfirmationCode: undefined, supplierConfirmationNum: undefined, checkin: undefined, checkout: undefined, hotelName: undefined, price: undefined, commission: undefined, currency: undefined, cancellationPolicies: undefined });
+  // STATUS-01 (2026-09-26): a book answer with no status states NO status — null, never 'CONFIRMED'.
+  assert.deepEqual(parseBookResult({}), { bookingId: undefined, status: null, hotelConfirmationCode: undefined, supplierConfirmationNum: undefined, checkin: undefined, checkout: undefined, hotelName: undefined, price: undefined, commission: undefined, currency: undefined, cancellationPolicies: undefined });
   assert.deepEqual(parseBookResult(HOTEL_ANSWER.data), {
     bookingId: 'hSq2gVDrf', status: 'CONFIRMED', hotelConfirmationCode: 'HCC-4421', supplierConfirmationNum: undefined, checkin: '2026-10-01', checkout: '2026-10-04',
     hotelName: 'Hotel Temple', price: 150, commission: 12.5, currency: 'USD', cancellationPolicies: HOTEL_ANSWER.data.cancellationPolicies,

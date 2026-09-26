@@ -93,6 +93,10 @@ const PUBLIC_PATHS = [
   '/books',
   '/tax',
   '/api/stripe/webhook',
+  // STATUS-01 (2026-09-26): the LiteAPI booking webhook — the vendor holds no
+  // session; the route's own token check (LITEAPI_WEBHOOK_TOKEN, constant-time)
+  // is the gate, before a byte is stored. The stripe webhook's convention.
+  '/api/webhooks/liteapi',
   '/api/inngest',
   '/opengraph-image',
   '/terms',
@@ -179,6 +183,18 @@ export async function middleware(request: NextRequest) {
   // shared-secret bearer (EXEC_INGEST_SECRET) FIRST as its entire auth boundary. Let
   // only this exact suffix bypass cookie-auth so the token-gated write is reachable.
   if (pathname.startsWith('/api/operations/projects/') && pathname.endsWith('/exec-ingest')) {
+    return NextResponse.next();
+  }
+
+  // STATUS-01b (2026-09-26): the hourly reservations refresh is invoked by Vercel
+  // cron with NO user cookie (a GET carrying `authorization: Bearer <CRON_SECRET>`);
+  // the catch-all matcher below would redirect it to "/" before the handler ran.
+  // It is NOT open — the route validates the bearer FIRST as its entire auth
+  // boundary (500 unconfigured, 401 wrong, before any query). The audit-ingest
+  // convention: an EXACT-path bypass, not a PUBLIC_PATHS entry, not a prefix.
+  // /api/cron/auto-categorize is deliberately NOT here — whether that job should
+  // ever run is a separate decision.
+  if (pathname === '/api/cron/reservations-refresh') {
     return NextResponse.next();
   }
 

@@ -59,8 +59,12 @@ test('the rule book: every deck row verbatim with the deck\'s kind, plus the row
     assert.equal(rule.source, 'deck');
     assert.equal(rule.code, providerCode(provider));
   }
-  assert.deepEqual(ADDED_RULES.map(([p, r, k]) => [p, r, k]), [['plaid', 'security', 'REFERENCE'], ['plaid', 'investment_transaction', 'EVENT'], ['stripe', 'event', 'EVENT'], ['liteapi', 'cancellation', 'EVENT']]);
+  // STATUS-01 (2026-09-26): a booking READ is a snapshot (re-taken); a webhook delivery is an event.
+  assert.deepEqual(ADDED_RULES.map(([p, r, k]) => [p, r, k]), [['plaid', 'security', 'REFERENCE'], ['plaid', 'investment_transaction', 'EVENT'], ['stripe', 'event', 'EVENT'], ['liteapi', 'cancellation', 'EVENT'], ['liteapi', 'booking_read', 'SNAPSHOT'], ['liteapi', 'webhook', 'EVENT']]);
   assert.equal(kindOf('liteapi', 'cancellation'), 'event');
+  assert.equal(kindOf('liteapi', 'booking_read'), 'snapshot');
+  assert.equal(kindOf('liteapi', 'webhook'), 'event');
+  assert.equal(ruleFor('liteapi', 'booking_read')?.source, 'added');
   assert.equal(kindOf('liteapi', 'booking'), 'event');
   assert.equal(ruleFor('liteapi', 'booking')?.source, 'deck');
   assert.equal(ruleFor('liteapi', 'cancellation')?.source, 'added');

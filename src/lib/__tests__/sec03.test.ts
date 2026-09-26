@@ -86,7 +86,9 @@ test('CANCELLED_WITH_CHARGES → cancelled; CREATED and the two PENDING statuses
   assert.equal(flightProviderStatusToReservation('CANCELLED_WITH_CHARGES'), 'cancelled');
   assert.equal(flightProviderStatusToReservation('cancelled_with_charges'), 'cancelled', 'case-insensitive, as the leaf always was');
   assert.equal(flightProviderStatusToReservation('CANCELLED'), 'cancelled');
-  for (const other of ['CREATED', 'PENDING_CONFIRMATION', 'PENDING', null]) assert.equal(flightProviderStatusToReservation(other), null, `${String(other)} stays unmapped`);
+  // STATUS-01 (2026-09-26): the three pre-confirmation words are listed as pending; no word is still no status.
+  for (const early of ['CREATED', 'PENDING_CONFIRMATION', 'PENDING']) assert.equal(flightProviderStatusToReservation(early), 'pending', `${early} is pending`);
+  assert.equal(flightProviderStatusToReservation(null), null, 'no word stays unmapped');
   assert.match(comments('src/lib/reservations/flightStatus.ts'), /SEC-03/, 'the header records the ruling');
 });
 

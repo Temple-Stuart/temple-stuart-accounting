@@ -89,6 +89,13 @@ export const ADDED_RULES = [
   ['stripe', 'event', 'EVENT', ''],
   // REBUILD-01 PR-5: LiteAPI's cancel answer (PUT /bookings/{id}) is its own arrival — something that happened to a booking.
   ['liteapi', 'cancellation', 'EVENT', ''],
+  // STATUS-01 (2026-09-26): a booking READ (GET /bookings/{id}, GET /flights/bookings/{id}) is the vendor's
+  // CURRENT state of an object we hold — a snapshot, re-taken; their_id is composed (`read:<bookingId>`)
+  // so an identical re-read is already_landed and a changed state is a corrected snapshot.
+  ['liteapi', 'booking_read', 'SNAPSHOT', ''],
+  // STATUS-01: a webhook delivery is something the vendor TOLD us happened — an event, landed before it is
+  // parsed, keyed by the vendor's event_id. It is a hint: the read above is the truth.
+  ['liteapi', 'webhook', 'EVENT', ''],
 ] as const;
 
 /**

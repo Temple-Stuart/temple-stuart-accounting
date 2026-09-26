@@ -13,6 +13,9 @@ import { bookingConfirmation } from '@/lib/emailTemplates/bookingConfirmation';
 // CAL-01: the one calendar row a booking earns, and the prisma port behind it.
 import { stayCalendarDecision, writeBookingCalendarEvent } from '@/lib/calendar/bookingEvent';
 import { prismaBookingCalendar } from '@/lib/calendar/prismaBookingCalendar';
+// STATUS-01 (2026-09-26): the vendor's status word becomes ours through the hotel
+// leaf only — by name, no default.
+import { hotelProviderStatusToReservation } from '@/lib/reservations/hotelStatus';
 
 // POST /api/travel/liteapi/book  — PUBLIC (PR-G2: guest booking).
 // Body: {
@@ -219,9 +222,20 @@ export async function POST(request: NextRequest) {
               );
             }
             const resolvedHotelName = parsed.hotelName ?? hotelName ?? null;
-            const status = (parsed.status || 'CONFIRMED').toUpperCase() === 'CONFIRMED'
-              ? 'confirmed'
-              : 'pending';
+            // STATUS-01 (2026-09-26): the vendor's word through the hotel leaf, by
+            // name — CONFIRMED → confirmed, CANCELED → cancelled, FAILED → failed;
+            // a non-CONFIRMED word is never collapsed to pending. NO DEFAULT: a
+            // book answer that states NO status, or a word the leaf does not list,
+            // is recorded 'pending' and said loudly by bookingId — the vendor has
+            // already charged, so the row must exist, and the scheduled refresh
+            // (STATUS-01) reads the truth from GET /bookings/{id} within the hour.
+            const mappedStatus = hotelProviderStatusToReservation(parsed.status);
+            if (mappedStatus === null) {
+              console.error(`[LiteAPI book] STATUS-01 the vendor stated ${parsed.status === null ? 'NO status' : `status "${parsed.status}", a word the hotel leaf does not list`} — recorded pending; the scheduled refresh reads the truth:`, {
+                bookingId: parsed.bookingId,
+              });
+            }
+            const status = mappedStatus === null ? 'pending' : mappedStatus;
 
             const reservation = await tx.reservations.create({
               data: {

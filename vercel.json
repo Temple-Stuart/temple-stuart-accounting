@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/auto-categorize",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/reservations-refresh",
+      "schedule": "0 * * * *"
     }
   ]
 }

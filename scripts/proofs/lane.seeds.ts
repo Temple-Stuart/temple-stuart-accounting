@@ -27,6 +27,8 @@ import type { Seed } from '../prove';
 
 const LEAF = 'src/lib/reservations/lane.ts';
 const REFRESH = 'src/lib/reservations/refreshFlightReservation.ts';
+// STATUS-01 (2026-09-26): the status mapping moved WITH the logic into the one apply leaf; lane-i seeds it there.
+const APPLY = 'src/lib/reservations/applyVendorState.ts';
 const FLIGHT_BOOK = 'src/app/api/travel/liteapi/flights/book/route.ts';
 const HOTEL_BOOK = 'src/app/api/travel/liteapi/book/route.ts';
 const UNATTACHED = 'src/app/api/reservations/unattached/route.ts';
@@ -90,10 +92,10 @@ const SEEDS: Seed[] = [
     expect: 'reads createdAt',
   },
   {
-    name: 'lane-i the refresh defaults a status (clause 4)',
-    file: REFRESH,
-    find: "  const mapped = flightProviderStatusToReservation(stated.status);",
-    replace: "  const mapped = flightProviderStatusToReservation(stated.status) ?? 'pending';",
+    name: 'lane-i the apply leaf defaults a status (clause 4; STATUS-01 moved the mapping there)',
+    file: APPLY,
+    find: "  const mapped = vendor.lane === 'hotel' ? hotelProviderStatusToReservation(vendor.status) : flightProviderStatusToReservation(vendor.status);",
+    replace: "  const mapped = (vendor.lane === 'hotel' ? hotelProviderStatusToReservation(vendor.status) : flightProviderStatusToReservation(vendor.status)) ?? 'pending';",
     expect: 'defaults a status',
   },
   {

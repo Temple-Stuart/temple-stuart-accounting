@@ -757,7 +757,8 @@ export interface BookParams {
 
 export interface BookResult {
   bookingId: string;
-  status: string;
+  /** The vendor's word, verbatim ("CONFIRMED" | "CANCELED" per the book reference) — or NULL when the answer stated none (STATUS-01: never defaulted). */
+  status: string | null;
   hotelConfirmationCode?: string;
   supplierConfirmationNum?: string;
   checkin?: string;
@@ -780,7 +781,10 @@ export function bookingObjectOf(json: unknown): Record<string, unknown> {
 export function parseBookResult(d: Record<string, unknown>): BookResult {
   return {
     bookingId: d.bookingId as string,
-    status: (d.status as string | undefined) ?? 'CONFIRMED',
+    // STATUS-01 (2026-09-26): a status the vendor did not state is NOT 'CONFIRMED'
+    // — it is absent (null), and the caller says so. The word is mapped by ONE
+    // leaf (src/lib/reservations/hotelStatus.ts), never here.
+    status: typeof d.status === 'string' ? d.status : null,
     hotelConfirmationCode: d.hotelConfirmationCode as string | undefined,
     supplierConfirmationNum: d.supplierConfirmationNum as string | undefined,
     checkin: d.checkin as string | undefined,
@@ -1083,4 +1087,83 @@ export async function cancelBooking(bookingId: string): Promise<CancelBookingAns
   }, '/v3.0/bookings/{id} (cancel)');
   const object = cancellationObjectOf(answer.json);
   return { answer, object, cancelled: parseCancelResult(object) };
+}
+
+// ─── Booking READ with the raw answer — STATUS-01 (2026-09-26) ───────────────
+// getBookingStatus above returns the parsed shape only; the landing needs the
+// answer as received so the parser runs over the ARRIVAL, never the HTTP object
+// (the same three as getFlightBooking: answer, object, state). The reference
+// (docs.liteapi.travel/reference/get_bookings-bookingid): GET {book}/bookings/{id},
+// `{ data: {...} }`; status "CONFIRMED" | "CANCELED"; hotelConfirmationCode
+// nullable ("not available at booking time — Nuitee performs a manual process to
+// contact the hotel"); amountRefunded, refundType, refundedAt nullable; 204 =
+// "Booking Id not found" (a 2xx with NO body — named here, never parsed as
+// success); 401 unauthorized.
+
+export interface HotelBookingState {
+  bookingId: string;
+  /** Verbatim, or null when the answer stated none. */
+  status: string | null;
+  hotelConfirmationCode: string | null;
+  paymentStatus: string | null;
+  amountRefunded: number | null;
+  refundType: string | null;
+  refundedAt: string | null;
+  updatedAt: string | null;
+}
+
+/** The state mapping over the booking object — pure, so the landing runs it over
+ *  the ARRIVAL payload. Absent fields are null, never invented. */
+export function parseHotelBookingState(d: Record<string, unknown>): HotelBookingState {
+  const str = (v: unknown): string | null => (typeof v === 'string' && v.length > 0 ? v : null);
+  return {
+    bookingId: d.bookingId as string,
+    status: str(d.status),
+    hotelConfirmationCode: str(d.hotelConfirmationCode),
+    paymentStatus: str(d.paymentStatus),
+    amountRefunded: typeof d.amountRefunded === 'number' ? d.amountRefunded : null,
+    refundType: str(d.refundType),
+    refundedAt: str(d.refundedAt),
+    updatedAt: str(d.updatedAt),
+  };
+}
+
+/** The object a booking READ carries — the arrival's payload; a 2xx without a bookingId is a contract deviation. */
+export function hotelBookingReadObjectOf(json: unknown): Record<string, unknown> {
+  const d = dataObjectOf(json, '/v3.0/bookings/{id} (read)');
+  if (typeof d.bookingId !== 'string') {
+    throw new LiteApiError('/v3.0/bookings/{id} (read)', 200, `2xx carries no bookingId — contract deviation from the documented shape: ${JSON.stringify(json).slice(0, 500)}`);
+  }
+  return d;
+}
+
+export interface HotelBookingReadAnswer {
+  /** The answer as received — the bytes the arrivals store lands. */
+  answer: LiteApiAnswer;
+  /** The booking object inside it — the arrival's payload. */
+  object: Record<string, unknown>;
+  /** parseHotelBookingState over that object — for the caller's log; what is applied is parsed from the arrival. */
+  state: HotelBookingState;
+}
+
+/** Read one hotel booking's CURRENT state, with the raw answer. Throws
+ *  MissingLiteApiKeyError on no key, LiteApiError on non-2xx, a NAMED LiteApiError
+ *  on the documented 204 ("Booking Id not found" — a 2xx with no body), and a
+ *  contract-deviation error on a 2xx without a bookingId. Moves no money; its
+ *  cost is undocumented, so callers meter it. */
+export async function getHotelBooking(bookingId: string): Promise<HotelBookingReadAnswer> {
+  const url = `${LITEAPI_BOOK_BASE}/bookings/${encodeURIComponent(bookingId)}`;
+  const asked = new Date();
+  const res = await fetch(url, { method: 'GET', headers: headers() });
+  const body = Buffer.from(await res.arrayBuffer());
+  const arrived = new Date();
+  if (res.status === 204) {
+    throw new LiteApiError('/v3.0/bookings/{id} (read)', 204, 'Booking Id not found — the documented 204; nothing to apply');
+  }
+  if (!res.ok) {
+    throw new LiteApiError('/v3.0/bookings/{id} (read)', res.status, body.toString('utf8'));
+  }
+  const answer: LiteApiAnswer = { httpStatus: res.status, body, asked, arrived, json: JSON.parse(body.toString('utf8')) };
+  const object = hotelBookingReadObjectOf(answer.json);
+  return { answer, object, state: parseHotelBookingState(object) };
 }

@@ -3720,7 +3720,10 @@ const HOTEL_BOOKING_FUNCTIONS: Record<string, string> = {
   getBookingStatus: '4aa6e75fdacd576f8523bc8be6c3ba88a9df64fa13ac0a725f88ee6945836a2d',
   cancelBooking: '709d32f1029c90aaabb5dc33d4819e333281987642b762bee196817b85dbfe03',
   bookingObjectOf: 'f90ae8bfd4d9c3bfe5eb8ed8199e1d1f095c8d7c8a71a55b7b6ad29f9a66c789',
-  parseBookResult: 'a927130764815e4d5cfe1ad90f7a16df44f2c0a0222934fbf4b3e19f2a6bf61b',
+  // STATUS-01 (2026-09-26): parseBookResult no longer defaults an absent status to
+  // 'CONFIRMED' — it states null; the word is mapped by hotelStatus.ts only.
+  // Was a927130764815e4d5cfe1ad90f7a16df44f2c0a0222934fbf4b3e19f2a6bf61b at main 53900e67.
+  parseBookResult: '35085c4c9b9b2ad4b96f64ab1e7202fc23705abcd06bcecc99e9716a4630c224',
   cancellationObjectOf: '8d7b73a8d26ae00af2108a21964f15667ae3e0d9f39009b3893a538710ec3f2c',
   parseCancelResult: 'd1b7e6430a29ada04033cf2e8f00ee0bf7cded39dcd3fbc96830eb642d335afd',
   getHotelContent: '29a889449fb4bb36bc093ae6a314d92f227dbf341c715eb1b1fb0da01671cff2',
@@ -4922,6 +4925,8 @@ lawGuard('The lane law', () => {
   const LANE_LEAF = 'src/lib/reservations/lane.ts';
   const STATUS_LEAF = 'src/lib/reservations/flightStatus.ts';
   const REFRESH_LEAF = 'src/lib/reservations/refreshFlightReservation.ts';
+  // STATUS-01 (2026-09-26): the one apply leaf the refresh hands the status to.
+  const APPLY_LEAF = 'src/lib/reservations/applyVendorState.ts';
   const FLIGHT_BOOK = 'src/app/api/travel/liteapi/flights/book/route.ts';
   const HOTEL_BOOK = 'src/app/api/travel/liteapi/book/route.ts';
   const LANE_READERS = [
@@ -4986,7 +4991,18 @@ lawGuard('The lane law', () => {
   if (/new Date\(\)/.test(refresh)) laneFail(`${REFRESH_LEAF} reads the clock — nothing here is today`);
   if (/\?\? '(pending|confirmed|cancelled)'/.test(refresh)) laneFail(`${REFRESH_LEAF} defaults a status — the vendor is the only source that may change one`);
   if (!/s\.direction === 'OUTBOUND'/.test(refresh)) laneFail(`${REFRESH_LEAF} does not pick the segment the vendor MARKED outbound`);
-  if (!/flightProviderStatusToReservation\(stated\.status\)/.test(refresh)) laneFail(`${REFRESH_LEAF} does not map the status through ${STATUS_LEAF}`);
+  // STATUS-01 (2026-09-26): the mapping moved WITH the status logic into the one
+  // apply leaf, stricter — the refresh hands it the stated status and carries no
+  // mapping of its own; the leaf maps through the same STATUS_LEAF, defaults
+  // nothing and reads no clock.
+  if (!/applyVendorState\(/.test(refresh)) laneFail(`${REFRESH_LEAF} does not hand the status to the one apply leaf (applyVendorState) — the refresh would drift from the webhook and the cron`);
+  if (/flightProviderStatusToReservation/.test(refresh)) laneFail(`${REFRESH_LEAF} maps the status itself beside the apply leaf — two mappings drift`);
+  {
+    const apply = codeOf(APPLY_LEAF);
+    if (!/flightProviderStatusToReservation\(vendor\.status\)/.test(apply)) laneFail(`${APPLY_LEAF} does not map the flight status through ${STATUS_LEAF}`);
+    if (/\?\? '(pending|confirmed|cancelled|failed)'/.test(apply)) laneFail(`${APPLY_LEAF} defaults a status — the vendor is the only source that may change one`);
+    if (/new Date\(\)/.test(apply)) laneFail(`${APPLY_LEAF} reads the clock — nothing here is today`);
+  }
   if (!/writeBookingCalendarEvent\(\s*ports\.calendar,\s*flightStatedCalendarDecision\(/.test(refresh)) laneFail(`${REFRESH_LEAF} does not write the CAL-01 row through the CAL-01 writer`);
   const fb = codeOf(FLIGHT_BOOK);
   if (!/flightProviderStatusToReservation\(parsed\.status\)/.test(fb)) laneFail(`${FLIGHT_BOOK} does not map the status through ${STATUS_LEAF} — the two callers would drift`);
@@ -5305,6 +5321,8 @@ lawGuard('The cancel law', () => {
   const LEAF = 'src/lib/reservations/cancellation.ts';
   const CAL_IMPL = 'src/lib/calendar/prismaBookingCalendar.ts';
   const REFRESH = 'src/lib/reservations/refreshFlightReservation.ts';
+  // STATUS-01 (2026-09-26): the guard lives in the one apply leaf now.
+  const APPLY = 'src/lib/reservations/applyVendorState.ts';
   const CANCEL_MIGRATION = ALL_MIGRATIONS.find((m) => /_cancel_01_/.test(m.dir));
 
   const route = codeOf(ROUTE);
@@ -5389,8 +5407,15 @@ lawGuard('The cancel law', () => {
       if (/^\s*UPDATE\b/im.test(sql)) cancelFail('the CANCEL-01 migration backfills — nothing is inferred');
     }
   }
-  // 4. THE 202 — the refresh and the lists.
-  if (!/else if \(row\.status === 'cancel_pending' && mapped === 'confirmed'\) status = 'unchanged';/.test(codeOf(REFRESH))) cancelFail(`${REFRESH}: the refresh would flip a cancel_pending row back to confirmed while the airline still says CONFIRMED`);
+  // 4. THE 202 — the guard and the lists. STATUS-01 (2026-09-26): the guard moved
+  //    WITH the status logic into the one apply leaf and got stricter (a pending
+  //    word does not undo the request either); the refresh carries none of its own.
+  {
+    const apply = codeOf(APPLY);
+    if (!/else if \(row\.status === 'cancel_pending' && mapped === 'confirmed'\) status = 'unchanged';/.test(apply)) cancelFail(`${APPLY}: the apply leaf would flip a cancel_pending row back to confirmed while the airline still says CONFIRMED`);
+    if (!/else if \(row\.status === 'cancel_pending' && mapped === 'pending'\) status = 'unchanged';/.test(apply)) cancelFail(`${APPLY}: the apply leaf would flip a cancel_pending row to pending on a pre-confirmation word`);
+    if (/cancel_pending/.test(codeOf(REFRESH))) cancelFail(`${REFRESH}: the refresh carries a guard of its own beside the apply leaf — two guards drift`);
+  }
   for (const f of LISTS) {
     const src = codeOf(f);
     if (!/\(r\.type === 'hotel' \|\| r\.type === 'flight'\) && r\.status === 'confirmed' && \(/.test(src)) cancelFail(`${f} does not offer Cancel on exactly the hotel and flight lanes, confirmed`);
@@ -5444,16 +5469,331 @@ lawGuard('The cancel law', () => {
     if (!/not stated by the vendor/.test(tpl)) cancelFail('src/lib/emailTemplates/lifecycle.ts: a NULL amount is not said as "not stated by the vendor"');
     if (!/We will email you again when the vendor confirms the refund was issued\./.test(tpl)) cancelFail('src/lib/emailTemplates/lifecycle.ts: the cancelled email does not state the next email');
     for (const kind of ["'cancelled'", "'cancel_pending'", "'ticketed'", "'hotel_confirmation_arrived'"]) if (!tpl.includes(`case ${kind}:`)) cancelFail(`src/lib/emailTemplates/lifecycle.ts lacks the ${kind} template`);
-    // The two STATUS-01 slots have NO caller in src today.
+    // The two STATUS-01 slots are fired by exactly two files (STATUS-01, 2026-09-26):
+    // the apply leaf decides an email is owed, the sender renders and sends it.
+    const LIFECYCLE_FIRERS = ['src/lib/reservations/applyVendorState.ts', 'src/lib/reservations/lifecycleSend.ts'];
     for (const { file, src } of srcFiles) {
-      if (file === 'src/lib/emailTemplates/lifecycle.ts') continue;
-      if (/kind: 'ticketed'|kind: 'hotel_confirmation_arrived'/.test(src)) cancelFail(`${file} fires the ${/ticketed/.test(src) ? 'ticketed' : 'hotel_confirmation_arrived'} lifecycle email — STATUS-01 owns that, and CANCEL-02 has no caller`);
+      if (file === 'src/lib/emailTemplates/lifecycle.ts' || LIFECYCLE_FIRERS.includes(file)) continue;
+      if (/kind: 'ticketed'|kind: 'hotel_confirmation_arrived'/.test(src)) cancelFail(`${file} fires the ${/ticketed/.test(src) ? 'ticketed' : 'hotel_confirmation_arrived'} lifecycle email — STATUS-01 owns that, through the apply leaf and the sender only`);
     }
+    for (const f of LIFECYCLE_FIRERS) if (!/kind: 'ticketed'/.test(codeOf(f)) || !/kind: 'hotel_confirmation_arrived'/.test(codeOf(f))) cancelFail(`${f} no longer carries both STATUS-01 kinds — a slot lost its caller`);
   }
   if (!/item 8/.test(commentsOf('prisma/migrations/20260926090000_cancel_01_money_events/migration.sql'))) cancelFail('the CANCEL-01 migration does not name item 8 (refund matching) as the settled status owner');
 
-  if (cancelViolations === 0) console.log(`✔ The cancel law passed — the cancel route reads the lane and sends a hotel to PUT /v3.0/bookings/{id} and a flight to POST /flights/bookings/{id}/cancellations, refusing any other lane and a vendor 409 by name before any write; the quote is metered (${dailyCap('liteapiflightcancelquote')}/day) and rendered before any Cancel control; both lanes write money_events rows pointed at the arrival with NULL, never 0, for an unstated amount and none on a 202; cancelIntentAt is the vendor word from one metered GET; the refresh does not undo a pending cancel; a final cancel marks the day and moves the margin; both lanes email the customer after the commit from the rows, to the one recipient the rule states or to nobody by name, never failing the cancel (CANCEL-02); the two STATUS-01 slots have 0 callers.`);
+  if (cancelViolations === 0) console.log(`✔ The cancel law passed — the cancel route reads the lane and sends a hotel to PUT /v3.0/bookings/{id} and a flight to POST /flights/bookings/{id}/cancellations, refusing any other lane and a vendor 409 by name before any write; the quote is metered (${dailyCap('liteapiflightcancelquote')}/day) and rendered before any Cancel control; both lanes write money_events rows pointed at the arrival with NULL, never 0, for an unstated amount and none on a 202; cancelIntentAt is the vendor word from one metered GET; the refresh does not undo a pending cancel; a final cancel marks the day and moves the margin; both lanes email the customer after the commit from the rows, to the one recipient the rule states or to nobody by name, never failing the cancel (CANCEL-02); the two STATUS-01 slots are fired only by the apply leaf and the sender (STATUS-01).`);
   else console.log(`✖ The cancel law FAILED — ${cancelViolations} violation(s).`);
+});
+
+// ── THE STATUS LAW (STATUS-01, 2026-09-26) ──────────────────────────────────
+// THE VENDOR'S CURRENT TRUTH REACHES EVERY RESERVATION.
+//
+// WHAT THIS CLOSES. On main 53900e67 a reservation's status was read from the
+// vendor at exactly two moments — the flight book route's one refresh and the
+// cancel route's one GET after a 202 — never on a schedule and never on a
+// vendor event: getBookingStatus had zero callers and there was no LiteAPI
+// webhook. A hotel's confirmation number that arrived after booking showed "—"
+// forever; a flight was never marked ticketed; a cancel_pending never resolved.
+// And the hotel status word was fabricated twice: the book route turned any word
+// but CONFIRMED into pending and a missing word into CONFIRMED; parseBookResult
+// defaulted an absent status to 'CONFIRMED'.
+//
+// THE DESIGN PRINCIPLE, non-negotiable: A WEBHOOK IS A HINT. THE GET IS THE
+// TRUTH. No field is ever applied from a webhook payload. Every delivery is
+// authenticated, lands its bytes, dedupes, finds OUR reservation by
+// providerBookingId, and if one exists re-reads the vendor with GET and applies
+// from THAT answer, through ONE apply leaf (applyVendorState) that is the only
+// writer of the five new columns and the only place a post-booking read changes
+// a reservation. The scheduled refresh and the retro come through the same leaf.
+//
+//   1. THE RECEIVER: per-IP rate limit in its own bucket; LITEAPI_WEBHOOK_TOKEN
+//      required (500 by name) and the authorization header EQUAL to it in
+//      constant time (401) — before a byte is stored; the bytes landed before any
+//      parse; duplicate → 200 without a vendor call; an undocumented event and a
+//      booking that is not ours → 200 without a vendor call; the delivery's answer
+//      is read for the booking id and NOTHING else; no vendor call and no status
+//      write in the route — the read leaf owns both. Public in the middleware.
+//   2. ONE WRITER of ticketedAt, ticketLimitTime, lastVendorReadAt,
+//      ticketedEmailSentAt, confirmationEmailSentAt: the apply leaf; and it reads
+//      no clock — lastVendorReadAt is the landed answer's own instant.
+//   3. EACH LIFECYCLE EMAIL AT MOST ONCE: the marker rides the SAME write as the
+//      change that earned it, only when null; the two kinds are fired only from
+//      the apply leaf and the sender; the sender makes ONE attempt, audit-logs a
+//      failure by name and never retries or substitutes an address; every caller
+//      sends after its transaction.
+//   4. NO DEFAULT STATUS WORD anywhere in src: no `?? 'CONFIRMED'`, no
+//      `|| 'CONFIRMED'`, no `?? 'pending'`, no `?? 'confirmed'`.
+//   5. THE TWO LANE LEAVES are the only files that turn a vendor status word into
+//      ours; both list every documented word by name; the hotel book route maps
+//      through the hotel leaf and records pending BY NAME for an absent or
+//      unlisted word; parseBookResult states null for an absent status.
+//   6. THE READ LEAF: the cap, then the GET by lane, then ONE transaction that
+//      LOCKS THE ROW (STATUS-01b, 2026-09-26: re-selected by id FOR UPDATE before
+//      anything is landed or applied; the apply and the refresh take the LOCKED
+//      row, never the caller's), lands and applies; a GET that throws is
+//      read_failed with nothing written; the commission moves exactly as the
+//      cancel route moves it; the refresh applies the status whether or not the
+//      answer carries a segment (STATUS-01b).
+//   7. THE CRON: the auto-categorize pattern (Bearer CRON_SECRET; 500 by name;
+//      401) before any query; the non-final selection; oldest read first, NULL
+//      first; a NAMED batch bound; a cap refusal stops the batch; per-row
+//      outcomes in the body; registered hourly in vercel.json — and REACHABLE
+//      (STATUS-01b): every cron path but auto-categorize exports GET, has an
+//      EXACT-path middleware bypass (the audit-ingest convention), and answers
+//      401 before any prisma call.
+//   8. THE MIGRATION, THE SCHEMA, THE RULE BOOK: five nullable TIMESTAMPTZ
+//      columns with no default; webhook_events with its six-word CHECK, its
+//      partial UNIQUE dedupe and its RESTRICT foreign key to arrivals; nothing
+//      backfilled; liteapi · booking_read is a snapshot and liteapi · webhook an
+//      event in the rule book.
+//   9. THE RETRO runs the one read leaf over EVERY reservation, rehearses with
+//      --dry-run, stops on the cap by name, and grows no implementation of its own.
+lawGuard('The status law', () => {
+  let statusViolations = 0;
+  const statusFail = (m: string) => { statusViolations += 1; violations.push(`status law: ${m} (STATUS-01)`); };
+
+  const APPLY = 'src/lib/reservations/applyVendorState.ts';
+  const HOTEL_LEAF = 'src/lib/reservations/hotelStatus.ts';
+  const FLIGHT_LEAF = 'src/lib/reservations/flightStatus.ts';
+  const READ_LEAF = 'src/lib/reservations/vendorRead.ts';
+  const SENDER = 'src/lib/reservations/lifecycleSend.ts';
+  const REFRESH = 'src/lib/reservations/refreshFlightReservation.ts';
+  const WEBHOOK_ROUTE = 'src/app/api/webhooks/liteapi/route.ts';
+  const WEBHOOK_LEAF = 'src/lib/webhooks/liteapiWebhook.ts';
+  const CRON_ROUTE = 'src/app/api/cron/reservations-refresh/route.ts';
+  const HOTEL_BOOK = 'src/app/api/travel/liteapi/book/route.ts';
+  const FLIGHT_BOOK = 'src/app/api/travel/liteapi/flights/book/route.ts';
+  const HOTEL_CLIENT = 'src/lib/liteapiClient.ts';
+  const CANCEL_ROUTE = 'src/app/api/reservations/[id]/cancel/route.ts';
+  const RETRO = 'scripts/status-01-retro-reservations.ts';
+  const LANE_RETRO = 'scripts/lane-01-retro-flights.ts';
+  const STATUS_MIGRATION = ALL_MIGRATIONS.find((m) => /_status_01_/.test(m.dir));
+  const FIVE = ['ticketedAt', 'ticketLimitTime', 'lastVendorReadAt', 'ticketedEmailSentAt', 'confirmationEmailSentAt'];
+
+  // 1. THE RECEIVER NEVER APPLIES A PAYLOAD FIELD.
+  {
+    const r = codeOf(WEBHOOK_ROUTE);
+    const steps = [
+      ['rateLimit(`liteapi-webhook:${ip}`', 'is not rate-limited per IP in its own bucket'],
+      ['process.env.LITEAPI_WEBHOOK_TOKEN', 'does not require LITEAPI_WEBHOOK_TOKEN'],
+      ["{ error: 'Webhook not configured' }, { status: 500 }", 'does not answer 500 by name when the token is not configured'],
+      ['if (given === null || !constantTimeEqual(given, expected)) {', 'does not refuse an absent or unequal authorization header (an absent header is not refused, or the compare is loose)'],
+      ["{ error: 'Unauthorized' }, { status: 401 }", 'does not answer 401 to a wrong token'],
+      ['request.arrayBuffer()', 'never reads the delivery bytes'],
+      ['landLiteApiWebhookBytes(', 'does not land the bytes'],
+      ['parseLiteApiWebhookDelivery(body)', 'does not parse the documented envelope'],
+      ['landLiteApiWebhookEvent(', 'does not land the event arrival'],
+      ["outcome: { not: 'duplicate' }", 'does not look for an already-acted event before the vendor call'],
+      ["if (acted !== null) {\n      await record('duplicate', null);", 'acts on a duplicate delivery instead of recording it'],
+      ["laneOfWebhookEvent(eventName) === null", 'does not refuse an undocumented event by name'],
+      ["record('unknown_event', null)", 'does not record unknown_event'],
+      ["if (row === null) {\n      await record('unknown_booking', null);", 'reads the vendor for a booking that is not ours instead of recording unknown_booking'],
+      ["readAndApplyReservation(row, { source: 'webhook' })", 'does not re-read the vendor through the one read leaf'],
+      ["record('read_failed', null)", 'does not record read_failed'],
+      ['record(read.outcome, new Date())', 'does not record the applied/unchanged outcome with actedAt'],
+    ];
+    let last = -1;
+    for (const [needle, why] of steps) {
+      const i = r.indexOf(needle);
+      if (i < 0) { statusFail(`${WEBHOOK_ROUTE} ${why}`); continue; }
+      if (i < last) statusFail(`${WEBHOOK_ROUTE}: "${needle.slice(0, 40)}" comes before the step it must follow — the receiver runs rate limit → token → bytes → envelope → duplicate → unknown → the GET, in that order`);
+      last = Math.max(last, i);
+    }
+    const postAt = r.indexOf('export async function POST(');
+    const at401 = r.indexOf("{ error: 'Unauthorized' }, { status: 401 }");
+    if (postAt >= 0 && at401 > postAt && /arrayBuffer|landLiteApi|prisma\./.test(r.slice(postAt, at401))) statusFail(`${WEBHOOK_ROUTE} reads the bytes or touches a table before the token check passes — nothing lands on a 500 or a 401 (bytes before the token)`);
+    if (!/authorization: given === null \? 'absent' : `present, \$\{given\.length\} chars/.test(r)) statusFail(`${WEBHOOK_ROUTE}: the 401 log does not name the header shape (absent / length / Bearer-prefixed)`);
+    if ((r.match(/delivery\.response/g) ?? []).length !== 1 || !/resolveWebhookBookingId\(eventName, delivery\.response\)/.test(r)) statusFail(`${WEBHOOK_ROUTE} reads the delivery answer for something other than the booking id — a webhook is a hint`);
+    if ((r.match(/delivery\.payload/g) ?? []).length !== 1) statusFail(`${WEBHOOK_ROUTE} reads the delivery payload beyond landing it`);
+    if (/getHotelBooking|getFlightBooking/.test(r)) statusFail(`${WEBHOOK_ROUTE} calls the vendor itself — the read leaf owns the GET, the cap and the landing`);
+    if (/reservations\.update|status: '(pending|confirmed|cancelled|failed)'/.test(r)) statusFail(`${WEBHOOK_ROUTE} writes a reservation — the receiver applies nothing; the apply leaf does`);
+    if (/'(CONFIRMED|CANCELLED|CANCELED|TICKETED|FAILED|EXPIRED)'/.test(r)) statusFail(`${WEBHOOK_ROUTE} carries a vendor status word — the receiver never reads one`);
+    if (!/err instanceof Prisma\.PrismaClientKnownRequestError && err\.code === 'P2002'/.test(r)) statusFail(`${WEBHOOK_ROUTE} does not honour the partial unique dedupe (P2002 → duplicate)`);
+    if (!/export const dynamic = 'force-dynamic';/.test(r)) statusFail(`${WEBHOOK_ROUTE} is not force-dynamic`);
+    const leaf = codeOf(WEBHOOK_LEAF);
+    if (!/return timingSafeEqual\(a, b\);/.test(leaf) || !/if \(a\.length !== b\.length\) return false;/.test(leaf)) statusFail(`${WEBHOOK_LEAF} does not compare the token in constant time (timingSafeEqual over equal-length buffers)`);
+    if (/startsWith|toLowerCase|includes\(given/.test(leaf.slice(leaf.indexOf('export function constantTimeEqual'), leaf.indexOf('export type ParsedDelivery')))) statusFail(`${WEBHOOK_LEAF} compares the token loosely`);
+    if (!/'\/api\/webhooks\/liteapi',/.test(codeOf('src/middleware.ts'))) statusFail(`src/middleware.ts: /api/webhooks/liteapi is not a listed public path — the vendor holds no session and the token is the gate`);
+  }
+
+  // 2. ONE WRITER of the five columns, and it reads no clock.
+  {
+    const apply = codeOf(APPLY);
+    for (const col of FIVE) if (!new RegExp(`patch\\.${col} = |${col}: vendor\\.readAt`).test(apply)) statusFail(`${APPLY} no longer writes ${col}`);
+    if (!/const patch: ReservationPatch = \{ lastVendorReadAt: vendor\.readAt \};/.test(apply)) statusFail(`${APPLY}: lastVendorReadAt is not the landed answer instant (vendor.readAt)`);
+    if (/new Date\(\)/.test(apply)) statusFail(`${APPLY} reads the clock`);
+    const writer = /patch\.(ticketedAt|ticketLimitTime|lastVendorReadAt|ticketedEmailSentAt|confirmationEmailSentAt) =|(ticketedAt|ticketLimitTime|lastVendorReadAt|ticketedEmailSentAt|confirmationEmailSentAt): (new Date|vendor\.|readAt|at\b)/;
+    for (const { file, src } of srcFiles) {
+      if (file === APPLY) continue;
+      if (writer.test(src)) statusFail(`${file} writes ${(src.match(writer) as RegExpMatchArray)[0].trim()} — applyVendorState is the only writer of the five STATUS-01 columns`);
+    }
+    for (const f of [RETRO, LANE_RETRO]) if (writer.test(codeOf(f))) statusFail(`${f} writes a STATUS-01 column itself — the apply leaf is the only writer`);
+  }
+
+  // 3. EACH LIFECYCLE EMAIL AT MOST ONCE.
+  {
+    const apply = codeOf(APPLY);
+    if (!/if \(row\.confirmationEmailSentAt === null\) \{\s*patch\.confirmationEmailSentAt = vendor\.readAt;\s*emails\.push\(\{ kind: 'hotel_confirmation_arrived', confirmationCode: statedCode \}\);/.test(apply)) statusFail(`${APPLY}: the hotel_confirmation_arrived marker does not ride the same write as the code, guarded on a null marker`);
+    if (!/if \(row\.ticketedEmailSentAt === null\) \{\s*patch\.ticketedEmailSentAt = vendor\.readAt;\s*emails\.push\(\{ kind: 'ticketed' \}\);/.test(apply)) statusFail(`${APPLY}: the ticketed marker does not ride the same write as ticketedAt, guarded on a null marker`);
+    const firers = ['src/lib/emailTemplates/lifecycle.ts', APPLY, SENDER];
+    for (const { file, src } of srcFiles) {
+      if (firers.includes(file)) continue;
+      if (/kind: 'ticketed'|kind: 'hotel_confirmation_arrived'/.test(src)) statusFail(`${file} fires a lifecycle email kind — only the apply leaf decides and only the sender renders (a third file carries a lifecycle email kind)`);
+    }
+    const sender = codeOf(SENDER);
+    if (!/description: `lifecycle_email_failed — \$\{request\.kind\} for reservation \$\{row\.id\}: \$\{errorClass\}`/.test(sender)) statusFail(`${SENDER}: a failed send is not written to audit_log by name (lifecycle_email_failed)`);
+    if (/setTimeout|for \(let attempt|retries|while \(/.test(sender)) statusFail(`${SENDER} retries a send — the marker means the one attempt was made`);
+    if (/accountEmail \?\? |guestEmail \?\? |\?\? accountEmail|\?\? row\.guestEmail/.test(sender)) statusFail(`${SENDER} falls back from one address to another`);
+    if (!/cancelRecipient\(row, await accountEmailOf\(row\)\)/.test(sender)) statusFail(`${SENDER} does not pick the recipient by the CANCEL-02 rule`);
+    const read = codeOf(READ_LEAF);
+    if (!(read.indexOf('for (const request of applied.emails) emails.push(await sendLifecycleEmail(emailRow, request));') > read.indexOf('prisma.$transaction(async (tx) => {'))) statusFail(`${READ_LEAF} sends before its transaction commits`);
+    if (!/if \(!opts\.dryRun\) \{\s*const emailRow/.test(read)) statusFail(`${READ_LEAF} sends on a dry run`);
+    const fb = codeOf(FLIGHT_BOOK);
+    if (!(fb.indexOf('for (const request of refreshed.emails)') > fb.indexOf('catch (calErr)'))) statusFail(`${FLIGHT_BOOK} does not attempt the emails the refresh owes after its refresh block`);
+    if (!/for \(const request of outcome\.emails\)/.test(codeOf(LANE_RETRO))) statusFail(`${LANE_RETRO} writes the markers and never makes the one attempt`);
+  }
+
+  // 4. NO DEFAULT STATUS WORD ANYWHERE IN SRC.
+  for (const { file, src } of srcFiles) {
+    const m = src.match(/\?\? 'CONFIRMED'|\|\| 'CONFIRMED'|\?\? 'pending'|\?\? 'confirmed'/);
+    if (m) statusFail(`${file} defaults a status (${m[0]}) — the vendor is the only source of a status word`);
+  }
+
+  // 5. THE TWO LANE LEAVES ARE THE ONLY MAPPERS.
+  {
+    const VENDOR = /=== '(CONFIRMED|CANCELED|CANCELLED|CANCELLED_WITH_CHARGES|TICKETED|CREATED|PENDING_CONFIRMATION|PENDING|FAILED|EXPIRED)'/;
+    const OURS = /return '(pending|confirmed|cancelled|failed)'/;
+    for (const { file, src } of srcFiles) {
+      if (file === HOTEL_LEAF || file === FLIGHT_LEAF) continue;
+      if (VENDOR.test(src) && OURS.test(src)) statusFail(`${file} turns a vendor status word into ours outside the two leaves`);
+    }
+    for (const f of [HOTEL_BOOK, FLIGHT_BOOK, REFRESH, APPLY, READ_LEAF, WEBHOOK_ROUTE, CRON_ROUTE, CANCEL_ROUTE]) {
+      if (VENDOR.test(codeOf(f))) statusFail(`${f} compares a vendor status word — only the two lane leaves may`);
+    }
+    const hotel = codeOf(HOTEL_LEAF);
+    for (const w of ["s === 'CONFIRMED'", "s === 'CANCELED' || s === 'CANCELLED' || s === 'CANCELLED_WITH_CHARGES'", "s === 'FAILED'"]) if (!hotel.includes(w)) statusFail(`${HOTEL_LEAF} no longer lists ${w} by name`);
+    if (!/return null;\s*\}\s*$/.test(hotel.trimEnd() + '\n')) statusFail(`${HOTEL_LEAF} does not answer null for an unlisted word`);
+    const flight = codeOf(FLIGHT_LEAF);
+    for (const w of ["s === 'CREATED' || s === 'PENDING_CONFIRMATION' || s === 'PENDING'", "s === 'CONFIRMED' || s === 'TICKETED'", "s === 'CANCELLED' || s === 'CANCELLED_WITH_CHARGES'", "s === 'FAILED' || s === 'EXPIRED'"]) if (!flight.includes(w)) statusFail(`${FLIGHT_LEAF} no longer lists ${w} by name`);
+    const book = codeOf(HOTEL_BOOK);
+    if (!/const mappedStatus = hotelProviderStatusToReservation\(parsed\.status\);/.test(book)) statusFail(`${HOTEL_BOOK} does not map the status through ${HOTEL_LEAF}`);
+    if (!/const status = mappedStatus === null \? 'pending' : mappedStatus;/.test(book)) statusFail(`${HOTEL_BOOK} does not record pending for exactly an unlisted or absent word`);
+    if (!/STATUS-01 the vendor stated \$\{parsed\.status === null \? 'NO status' : `status "\$\{parsed\.status\}", a word the hotel leaf does not list`\} — recorded pending/.test(book)) statusFail(`${HOTEL_BOOK} does not say by name which word it recorded pending for`);
+    if (!/status: typeof d\.status === 'string' \? d\.status : null,/.test(codeOf(HOTEL_CLIENT))) statusFail(`${HOTEL_CLIENT}: parseBookResult does not state null for an absent status`);
+  }
+
+  // 6. THE READ LEAF.
+  {
+    const r = codeOf(READ_LEAF);
+    const i = (needle: string) => r.indexOf(needle);
+    if (!(i("reserveTravelSearch('liteapi')") >= 0 && i("reserveTravelSearch('liteapi')") < i('await getHotelBooking(row.providerBookingId)'))) statusFail(`${READ_LEAF} does not reserve the liteapi cap before the GET`);
+    if (!/return \{ outcome: 'read_failed', kind: 'vendor', reason: `\$\{tag\}: GET of \$\{lane\} booking \$\{row\.providerBookingId\} failed/.test(r)) statusFail(`${READ_LEAF}: a GET that throws is not read_failed by name`);
+    const fnAt = i('export async function readAndApplyReservation(');
+    const readAt = i('const readAt = read.answer.arrived;');
+    if (fnAt < 0 || readAt < 0) statusFail(`${READ_LEAF} lost its shape (readAndApplyReservation / read.answer.arrived)`);
+    else if (/writeReservation|reservations\.update|applyVendorState/.test(r.slice(fnAt, readAt))) statusFail(`${READ_LEAF} writes before the answer is in hand`);
+    // STATUS-01b: ONE READ HOLDS THE ROW. The transaction re-selects the row FOR
+    // UPDATE before anything is landed or applied, and the apply and the refresh
+    // take the LOCKED row — never the caller's.
+    const txAt = i('prisma.$transaction(async (tx) => applyLockedRead(');
+    const forAt = i('FOR UPDATE');
+    if (txAt < 0) statusFail(`${READ_LEAF} does not run the locked read inside prisma.$transaction (applyLockedRead)`);
+    else if (!(forAt > txAt && /lock: async \(id\) => \(await tx\.\$queryRaw<VendorReadRow\[\]>`SELECT \$\{LOCK_COLUMNS\} FROM reservations WHERE id = \$\{id\}::uuid FOR UPDATE`\)\[0\] \?\? null,/.test(r))) statusFail(`${READ_LEAF} does not lock the row (no FOR UPDATE re-select of every VENDOR_READ_SELECT column inside its transaction)`);
+    const lockedFn = functionBody(r, 'applyLockedRead') ?? '';
+    if (!lockedFn) statusFail(`${READ_LEAF} does not export applyLockedRead`);
+    else {
+      const j = (needle: string) => lockedFn.indexOf(needle);
+      if (!(j('const locked = await ports.lock(caller.id);') >= 0 && j('const locked = await ports.lock(caller.id);') < j('landLiteApiBookingRead(') && j('landLiteApiBookingRead(') < j('applyVendorState('))) statusFail(`${READ_LEAF}: the lock is not taken before the landing and the apply`);
+      if (!/if \(locked === null\) throw new Error\(/.test(lockedFn)) statusFail(`${READ_LEAF}: a row gone between the GET and the lock is not a named throw (read_failed)`);
+      if (!/applyVendorState\(ports\.apply, locked, \{ lane: 'hotel'/.test(lockedFn) || !/refreshFlightReservation\(\{ \.\.\.ports\.apply, calendar: ports\.calendar, fetchBooking: async \(\) => \(\{ \.\.\.landed\.parsed, readAt \}\) \}, locked\)/.test(lockedFn)) statusFail(`${READ_LEAF}: the apply or the refresh does not take the locked row`);
+      if (/applyVendorState\([^;]*\bcaller\b|\}, caller\)|\brow\b/.test(lockedFn)) statusFail(`${READ_LEAF}: applyLockedRead applies to the caller row, never the locked one`);
+      if (!/userId: locked\.userId/.test(lockedFn)) statusFail(`${READ_LEAF}: the landing takes its owner from the caller row, not the locked one`);
+    }
+    if (!/takes NO lock/.test(commentsOf(READ_LEAF))) statusFail(`${READ_LEAF}: the header does not say the dry run takes no lock`);
+    if (!/cancelCommission: async \(reservationId\) => \(await tx\.commission_ledger\.updateMany\(\{ where: \{ reservationId, status: 'estimated' \}, data: \{ status: 'cancelled' \} \}\)\)\.count,/.test(r)) statusFail(`${READ_LEAF} does not move the estimated commission exactly as the cancel route does`);
+    if (!/calendar: prismaBookingCalendar\(tx\),/.test(r)) statusFail(`${READ_LEAF} does not mark the day through the CAL-01 port inside the transaction`);
+    if (/new Date\(\)/.test(r)) statusFail(`${READ_LEAF} reads the clock`);
+    // 6b. THE REFRESH: the status is independent of the segments (STATUS-01b). The
+    //     GET failure is the ONE fetched:false; a segment-less answer names no row
+    //     and no rename and still hands the status to the apply leaf.
+    const refresh = codeOf(REFRESH);
+    if ((refresh.match(/fetched: false,/g) ?? []).length !== 1) statusFail(`${REFRESH} applies no status when the answer has no OUTBOUND segment — the fetched:false return is the GET failure only`);
+    if (!/landed: 'no_row',\s*reason: stated\.segments\.length === 0/.test(refresh)) statusFail(`${REFRESH} does not name a segment-less answer as no row, no rename`);
+    if ((refresh.match(/no status change/g) ?? []).length !== 1) statusFail(`${REFRESH}: only the GET failure may say no status change`);
+    if (!/^\s*const applied = await applyVendorState\(/m.test(refresh)) statusFail(`${REFRESH} does not hand the status to the apply leaf unconditionally`);
+  }
+
+  // 7. THE CRON.
+  {
+    const r = codeOf(CRON_ROUTE);
+    if (!/if \(!cronSecret\) \{\s*console\.error\('CRON_SECRET not configured'\);\s*return NextResponse\.json\(\s*\{ error: 'Cron not configured' \},\s*\{ status: 500 \}/.test(r)) statusFail(`${CRON_ROUTE} does not answer 500 by name when CRON_SECRET is unset`);
+    if (!/if \(authHeader !== `Bearer \$\{cronSecret\}`\) \{\s*console\.error\('Unauthorized cron attempt'\);\s*return NextResponse\.json\(\s*\{ error: 'Unauthorized' \},\s*\{ status: 401 \}/.test(r)) statusFail(`${CRON_ROUTE} does not refuse a wrong CRON_SECRET with 401 (the auto-categorize pattern)`);
+    if (!(r.indexOf('{ status: 401 }') >= 0 && r.indexOf('{ status: 401 }') < r.indexOf('prisma.reservations.findMany'))) statusFail(`${CRON_ROUTE} queries before it refuses`);
+    if (!/\nconst BATCH = \d+;/.test(r) || !/take: BATCH,/.test(r)) statusFail(`${CRON_ROUTE}: the batch is unbounded or its bound is not named (BATCH)`);
+    if (!/hourly runs/.test(commentsOf(CRON_ROUTE)) || !/reads\/day/.test(commentsOf(CRON_ROUTE))) statusFail(`${CRON_ROUTE} does not say why the bound is what it is against the daily cap`);
+    for (const must of ["provider: 'liteapi',", "{ status: { in: ['pending', 'cancel_pending'] } },", "{ lane: 'flight', status: 'confirmed', ticketedAt: null },", "{ lane: 'hotel', status: 'confirmed', providerConfirmationCode: null },", "orderBy: [{ lastVendorReadAt: { sort: 'asc', nulls: 'first' } }, { createdAt: 'asc' }],", "readAndApplyReservation(row, { source: 'cron' })", "if (out.kind === 'quota') { stopped = out.reason; break; }", 'return NextResponse.json({ ...summary, rows: perRow });', 'export async function GET(request: NextRequest) { return run(request); }']) {
+      if (!r.includes(must)) statusFail(`${CRON_ROUTE} lacks "${must}"`);
+    }
+    let vercel: { crons?: Array<{ path: string; schedule: string }> } = {};
+    try { vercel = JSON.parse(codeOf('vercel.json')); } catch { statusFail('vercel.json does not parse'); }
+    const cron = (vercel.crons ?? []).find((c) => c.path === '/api/cron/reservations-refresh');
+    if (!cron) statusFail('vercel.json: /api/cron/reservations-refresh is not registered in vercel.json');
+    else if (cron.schedule !== '0 * * * *') statusFail(`vercel.json: /api/cron/reservations-refresh is scheduled "${cron.schedule}", not hourly`);
+    // STATUS-01b (2026-09-26): THE CRON REACHES ITS HANDLER. src/middleware.ts's
+    // matcher covers every path and redirects a cookie-less request to "/", so a
+    // cron path needs an EXACT-path bypass (the audit-ingest convention: not a
+    // PUBLIC_PATHS entry, not a prefix) and the route validates the bearer FIRST.
+    // auto-categorize is left as it is — whether it should ever run is a
+    // separate decision, reported, unchanged.
+    const middlewareCode = codeOf('src/middleware.ts');
+    for (const c of (vercel.crons ?? []).filter((c) => c.path !== '/api/cron/auto-categorize')) {
+      const routeFile = `src/app${c.path}/route.ts`;
+      let routeCode = '';
+      try { routeCode = codeOf(routeFile); } catch { statusFail(`vercel.json: cron ${c.path} has no route at ${routeFile}`); continue; }
+      if (!/export async function GET\(/.test(routeCode)) statusFail(`${routeFile} does not export GET — Vercel invokes a cron by GET`);
+      if (!middlewareCode.includes(`if (pathname === '${c.path}') {\n    return NextResponse.next();\n  }`)) statusFail(`src/middleware.ts: cron ${c.path} has no exact-path middleware bypass — the catch-all matcher redirects the cookie-less GET to / before the handler runs`);
+      if (new RegExp(`'${c.path.replace(/[/]/g, '\\/')}',`).test(middlewareCode)) statusFail(`src/middleware.ts: cron ${c.path} is listed in PUBLIC_PATHS — the bypass is the exact path, not a public entry`);
+      const at401 = routeCode.indexOf('{ status: 401 }');
+      const atPrisma = routeCode.indexOf('prisma.');
+      if (!(at401 >= 0 && (atPrisma < 0 || at401 < atPrisma))) statusFail(`${routeFile} touches prisma before it answers 401`);
+    }
+  }
+
+  // 8. THE MIGRATION, THE SCHEMA, THE RULE BOOK.
+  if (!STATUS_MIGRATION) statusFail('no prisma/migrations/*_status_01_*/migration.sql');
+  else {
+    // The code half: the header comment names the words this clause forbids.
+    const sql = codeOf(`prisma/migrations/${STATUS_MIGRATION.dir}/migration.sql`);
+    for (const col of FIVE) if (!sql.includes(`ALTER TABLE "reservations" ADD COLUMN "${col}" TIMESTAMPTZ(6);`)) statusFail(`the STATUS-01 migration does not add reservations.${col} as a nullable TIMESTAMPTZ(6) with no default`);
+    for (const must of ['CREATE TABLE "webhook_events"', `CHECK ("outcome" IN ('applied', 'unchanged', 'unknown_booking', 'unknown_event', 'duplicate', 'read_failed'))`, `CREATE UNIQUE INDEX "webhook_events_eventId_acted_key" ON "webhook_events"("eventId") WHERE "outcome" <> 'duplicate';`, '"arrivalId"  TEXT           NOT NULL,', 'FOREIGN KEY ("arrivalId") REFERENCES "arrivals"("id") ON DELETE RESTRICT']) {
+      if (!sql.includes(must)) statusFail(`the STATUS-01 migration lacks "${must}" (no partial unique dedupe, no CHECK, or no RESTRICT foreign key)`);
+    }
+    if (/^\s*UPDATE\b/im.test(sql)) statusFail('the STATUS-01 migration backfills — the retro reads the vendor, nothing is inferred');
+    if (/DEFAULT/.test(sql.replace('DEFAULT gen_random_uuid()', ''))) statusFail('the STATUS-01 migration defaults a stated field');
+  }
+  for (const col of FIVE) if (!new RegExp(`\\n  ${col}\\s+DateTime\\? @db\\.Timestamptz\\(6\\)\\n`).test(schemaText)) statusFail(`prisma/schema.prisma: reservations.${col} is not a nullable Timestamptz(6) with no @default`);
+  {
+    const at = schemaText.indexOf('\nmodel webhook_events {');
+    const block = at >= 0 ? schemaText.slice(at, schemaText.indexOf('\n}', at)) : '';
+    if (!block) statusFail('prisma/schema.prisma: no webhook_events model');
+    else if (!/arrival arrivals @relation\(fields: \[arrivalId\], references: \[id\], onDelete: Restrict/.test(block)) statusFail('prisma/schema.prisma: webhook_events.arrivalId is not a RESTRICT relation to arrivals');
+    if (ruleFor('liteapi', 'booking_read')?.kind !== 'snapshot') statusFail('the rule book does not declare liteapi · booking_read a snapshot');
+    if (ruleFor('liteapi', 'webhook')?.kind !== 'event') statusFail('the rule book does not declare liteapi · webhook an event');
+  }
+
+  // 9. THE RETRO.
+  {
+    const r = codeOf(RETRO);
+    if (!/readAndApplyReservation\(row, \{ source: 'retro', dryRun/.test(r)) statusFail(`${RETRO} does not run readAndApplyReservation — the retro grows its own implementation`);
+    if (!/select: VENDOR_READ_SELECT,/.test(r)) statusFail(`${RETRO} does not read the one select`);
+    const q = r.slice(r.indexOf('prisma.reservations.findMany'), r.indexOf('select: VENDOR_READ_SELECT'));
+    if (r.indexOf('prisma.reservations.findMany') < 0 || /where:/.test(q)) statusFail(`${RETRO} does not read EVERY reservation`);
+    if (!/--dry-run/.test(r)) statusFail(`${RETRO} cannot be rehearsed with --dry-run`);
+    if (!/if \(out\.kind === 'quota'\)/.test(r)) statusFail(`${RETRO} does not stop on the cap by name`);
+    if (/getHotelBooking|getFlightBooking|applyVendorState|reservations\.update/.test(r)) statusFail(`${RETRO} carries an implementation of its own beside the read leaf`);
+  }
+
+  if (statusViolations === 0) console.log(`✔ The status law passed — the LiteAPI receiver authenticates in constant time before a byte lands, lands the bytes before any parse, dedupes, and re-reads the vendor for every event about a booking that is ours, applying from the GET alone; applyVendorState is the only writer of the five STATUS-01 columns and reads no clock; each lifecycle email is attempted at most once with its marker in the same write; no default status word in ${srcFiles.length} source files; the two lane leaves are the only mappers; the read leaf caps, reads, lands and applies in one transaction; the hourly cron follows the cron pattern with a batch of ${(codeOf(CRON_ROUTE).match(/\nconst BATCH = (\d+);/) ?? ['', '?'])[1]}; the migration adds five nullable columns and webhook_events with its partial unique dedupe; the retro reads every reservation through the one leaf.`);
+  else console.log(`✖ The status law FAILED — ${statusViolations} violation(s).`);
 });
 
 // ── THE ROW LAW (TRAVEL-ROW-01, 2026-09-23) ─────────────────────────────────

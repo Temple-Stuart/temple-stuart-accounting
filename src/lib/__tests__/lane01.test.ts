@@ -15,6 +15,7 @@ import {
   refreshFlightReservation,
   type FlightBookingStated,
   type FlightRefreshPorts,
+  type FlightReservationPatch,
   type FlightReservationRow,
 } from '../reservations/refreshFlightReservation';
 import { BOOKING_CALENDAR_SOURCE, type BookingCalendarPort } from '../calendar/bookingEvent';
@@ -84,14 +85,22 @@ test('the status mapping is EXACTLY the book route\'s, in one leaf both callers 
   assert.equal(flightProviderStatusToReservation('CANCELLED'), 'cancelled');
   // SEC-03 (2026-09-25): the one-line ruling this header said it would take.
   assert.equal(flightProviderStatusToReservation('CANCELLED_WITH_CHARGES'), 'cancelled');
-  for (const other of ['PENDING_CONFIRMATION', 'PENDING', 'CREATED', '', null, undefined]) {
+  // STATUS-01 (2026-09-26): the airline's three pre-confirmation words are listed, by name, as pending.
+  for (const early of ['PENDING_CONFIRMATION', 'PENDING', 'CREATED']) {
+    assert.equal(flightProviderStatusToReservation(early), 'pending', `${early} is pending`);
+  }
+  for (const other of ['', null, undefined, 'REBOOKED']) {
     assert.equal(flightProviderStatusToReservation(other), null, `${String(other)} is not mapped`);
   }
   const route = code(FLIGHT_ROUTE);
   assert.match(route, /flightProviderStatusToReservation\(parsed\.status\)/, 'the book route maps through the leaf');
   assert.match(route, /mapped === null \? 'pending' : mapped/, 'and writes pending for an unmapped status at creation');
   assert.ok(!route.includes("'TICKETED'"), 'the inline mapping is gone from the route');
-  assert.match(code('src/lib/reservations/refreshFlightReservation.ts'), /flightProviderStatusToReservation\(stated\.status\)/, 'the refresh maps through the same leaf');
+  // STATUS-01: the refresh hands the status to the one apply leaf, which maps through the same leaf; the refresh carries no mapping of its own.
+  const refresh = code('src/lib/reservations/refreshFlightReservation.ts');
+  assert.match(refresh, /applyVendorState\(/, 'the refresh applies through the one leaf');
+  assert.doesNotMatch(refresh, /flightProviderStatusToReservation/, 'and carries no mapping of its own');
+  assert.match(code('src/lib/reservations/applyVendorState.ts'), /flightProviderStatusToReservation\(vendor\.status\)/, 'the apply leaf maps through the same leaf');
 });
 
 // ── the refresh, over fake ports ────────────────────────────────────────────
@@ -99,12 +108,18 @@ test('the status mapping is EXACTLY the book route\'s, in one leaf both callers 
 const ROW: FlightReservationRow = {
   id: 'res_f1', userId: 'u_1', lane: 'flight', providerBookingId: 'fb_9Q',
   providerConfirmationCode: 'FH-269-920QSVHH', status: 'pending', displayName: null,
+  // STATUS-01: the apply leaf's columns, NULL until the vendor states them.
+  ticketedAt: null, ticketLimitTime: null, cancelIntentAt: null, ticketedEmailSentAt: null, confirmationEmailSentAt: null,
 };
+
+/** STATUS-01: when the answer arrived — what lastVendorReadAt is stamped with on every read. */
+const READ_AT = new Date('2026-09-26T10:00:00.000Z');
 
 /** The vendor's answer, shaped as the GET reference documents (segments with direction). */
 const STATED: FlightBookingStated = {
   bookingId: 'fb_9Q',
   status: 'CONFIRMED',
+  pnr: null, ticketedAt: null, ticketLimitTime: null, cancelIntentAt: null, readAt: READ_AT,
   segments: [
     { departureTime: '2026-10-30T09:00:00', direction: 'INBOUND', originCode: 'HKT', destinationCode: 'BKK', carrierName: 'Thai Vietjet Air', flightNumber: '229' },
     { departureTime: '2026-10-25T14:15:00', direction: 'OUTBOUND', originCode: 'BKK', destinationCode: 'HKT', carrierName: 'Thai Vietjet Air', flightNumber: '228' },
@@ -116,9 +131,11 @@ function fakePorts(opts: {
   existingCalendar?: boolean;
 } = {}) {
   const calendarRows: Array<Parameters<BookingCalendarPort['insert']>[0]> = [];
-  const writes: Array<{ id: string; patch: Record<string, unknown> }> = [];
+  const writes: Array<{ id: string; patch: FlightReservationPatch }> = [];
   let present = !!opts.existingCalendar;
   let calls = 0;
+  let marked = 0;
+  let commission = 0;
   const ports: FlightRefreshPorts = {
     fetchBooking: async () => {
       calls += 1;
@@ -128,10 +145,13 @@ function fakePorts(opts: {
     calendar: {
       async find(source, sourceId) { return present && source === BOOKING_CALENDAR_SOURCE && sourceId === ROW.id; },
       async insert(row) { calendarRows.push(row); present = true; },
+      // STATUS-01: a vendor-cancelled flight marks its day through the apply leaf.
+      async markCancelled(source, sourceId) { if (present && source === BOOKING_CALENDAR_SOURCE && sourceId === ROW.id) { marked += 1; return 1; } return 0; },
     },
     writeReservation: async (id, patch) => { writes.push({ id, patch }); },
+    cancelCommission: async () => { commission += 1; return 1; },
   };
-  return { ports, calendarRows, writes, calls: () => calls };
+  return { ports, calendarRows, writes, calls: () => calls, marked: () => marked, commission: () => commission };
 }
 
 test('GET booking succeeds → one calendar row on the OUTBOUND day, the stated name, the status refreshed', async () => {
@@ -151,7 +171,10 @@ test('GET booking succeeds → one calendar row on the OUTBOUND day, the stated 
   assert.equal(out.nameValue, 'Thai Vietjet Air BKK → HKT');
   assert.equal(out.status, 'set');
   assert.equal(out.statusValue, 'confirmed');
-  assert.deepEqual(writes, [{ id: 'res_f1', patch: { displayName: 'Thai Vietjet Air BKK → HKT', status: 'confirmed' } }], 'ONE write of exactly what changed');
+  // STATUS-01: the one write also carries the read stamp — the answer's own arrival instant.
+  assert.deepEqual(writes, [{ id: 'res_f1', patch: { displayName: 'Thai Vietjet Air BKK → HKT', status: 'confirmed', lastVendorReadAt: READ_AT } }], 'ONE write of exactly what changed, plus the read stamp');
+  assert.deepEqual(out.changes, ['displayName null → "Thai Vietjet Air BKK → HKT"', 'status pending → confirmed (vendor CONFIRMED)']);
+  assert.deepEqual(out.emails, [], 'no email owed — nothing ticketed, no code arrived');
 });
 
 test('GET booking fails → no row, no rename, no status change, a named reason; the booking is not failed', async () => {
@@ -171,38 +194,55 @@ test('GET booking fails → no row, no rename, no status change, a named reason;
   assert.doesNotMatch(after.slice(after.indexOf('catch (calErr)'), after.indexOf('catch (calErr)') + 400), /return NextResponse|throw /, 'the catch never fails the paid booking');
 });
 
-test('GET booking answers with no segments → nothing is applied and the reason says so', async () => {
-  const { ports, calendarRows, writes } = fakePorts({ answer: { bookingId: 'fb_9Q', status: 'CONFIRMED', segments: [] } });
+test('GET booking answers with no segments → no row, no rename, each by name; the status still goes through the apply leaf (STATUS-01b)', async () => {
+  const { ports, calendarRows, writes } = fakePorts({ answer: { ...STATED, segments: [] } });
   const out = await refreshFlightReservation(ports, ROW);
-  assert.ok(!out.fetched && /answered with no segments/.test(out.reason));
-  assert.equal(calendarRows.length + writes.length, 0, 'not even the status — by the ruling, no segments means nothing changes');
+  assert.ok(out.fetched);
+  if (!out.fetched) return;
+  assert.equal(out.calendar, 'no_row');
+  assert.match(out.calendarReason ?? '', /answered with no segments — no row, no rename/);
+  assert.equal(out.name, 'not_stated');
+  assert.equal(calendarRows.length, 0, 'no calendar row');
+  assert.equal(out.status, 'set');
+  assert.equal(out.statusValue, 'confirmed', 'the vendor said CONFIRMED on a pending row — applied, segments or not');
+  assert.deepEqual(writes, [{ id: 'res_f1', patch: { status: 'confirmed', lastVendorReadAt: READ_AT } }], 'the status and the stamp; no name');
   // Segments present but none marked OUTBOUND with a date: the same posture, named.
-  const { ports: p2, writes: w2 } = fakePorts({ answer: { ...STATED, segments: [{ ...STATED.segments[1], direction: 'INBOUND' }] } });
+  const { ports: p2, writes: w2, calendarRows: c2 } = fakePorts({ answer: { ...STATED, segments: [{ ...STATED.segments[1], direction: 'INBOUND' }] } });
   const o2 = await refreshFlightReservation(p2, ROW);
-  assert.ok(!o2.fetched && /none marked OUTBOUND with a departureTime/.test(o2.reason));
-  assert.equal(w2.length, 0);
+  assert.ok(o2.fetched && o2.calendar === 'no_row' && /none marked OUTBOUND with a departureTime — no row, no rename/.test(o2.calendarReason ?? '') && o2.name === 'not_stated');
+  assert.equal(c2.length, 0);
+  assert.deepEqual(w2.map((w) => w.patch), [{ status: 'confirmed', lastVendorReadAt: READ_AT }]);
 });
 
-test('vendor status CANCELLED_WITH_CHARGES → the reservation is cancelled (SEC-03)', async () => {
-  const { ports, writes } = fakePorts({ answer: { ...STATED, status: 'CANCELLED_WITH_CHARGES' } });
+test('vendor status CANCELLED_WITH_CHARGES → the reservation is cancelled (SEC-03); STATUS-01: its day is marked and its margin moved', async () => {
+  const { ports, writes, marked, commission } = fakePorts({ answer: { ...STATED, status: 'CANCELLED_WITH_CHARGES' }, existingCalendar: true });
   const out = await refreshFlightReservation(ports, { ...ROW, displayName: 'Thai Vietjet Air BKK → HKT' });
   assert.ok(out.fetched);
   if (!out.fetched) return;
   assert.equal(out.status, 'set');
   assert.equal(out.statusValue, 'cancelled');
-  assert.deepEqual(writes, [{ id: 'res_f1', patch: { status: 'cancelled' } }], 'one write of exactly the status');
+  assert.deepEqual(writes, [{ id: 'res_f1', patch: { status: 'cancelled', lastVendorReadAt: READ_AT } }], 'one write of exactly the status, plus the read stamp');
+  assert.equal(marked(), 1, 'the CAL-01 row is marked cancelled, through the apply leaf');
+  assert.equal(commission(), 1, 'the estimated commission is moved');
 });
 
-test('vendor status unknown → the reservation status is UNCHANGED and reported by name', async () => {
-  for (const unmapped of ['CREATED', 'PENDING_CONFIRMATION']) {
-    const { ports, writes } = fakePorts({ answer: { ...STATED, status: unmapped } });
+test('vendor status unlisted → the reservation status is UNCHANGED and reported by name; only the read stamp is written', async () => {
+  for (const unlisted of ['REBOOKED', 'ON_HOLD']) {
+    const { ports, writes } = fakePorts({ answer: { ...STATED, status: unlisted } });
     const out = await refreshFlightReservation(ports, { ...ROW, displayName: 'Thai Vietjet Air BKK → HKT' });
     assert.ok(out.fetched);
     if (!out.fetched) continue;
-    assert.equal(out.status, 'unmapped', unmapped);
+    assert.equal(out.status, 'unmapped', unlisted);
     assert.equal(out.statusValue, 'pending', 'left exactly as it was');
-    assert.equal(out.providerStatus, unmapped, 'and the vendor\'s word is carried for the log');
-    assert.equal(writes.length, 0, `${unmapped}: no write at all — the name was already right too`);
+    assert.equal(out.providerStatus, unlisted, 'and the vendor\'s word is carried for the log');
+    assert.deepEqual(writes, [{ id: 'res_f1', patch: { lastVendorReadAt: READ_AT } }], `${unlisted}: only the read stamp — the name was already right too`);
+    assert.deepEqual(out.changes, []);
+  }
+  // STATUS-01: CREATED and PENDING_CONFIRMATION are LISTED words (pending); on a pending row they are unchanged.
+  for (const early of ['CREATED', 'PENDING_CONFIRMATION']) {
+    const { ports } = fakePorts({ answer: { ...STATED, status: early } });
+    const out = await refreshFlightReservation(ports, { ...ROW, displayName: 'Thai Vietjet Air BKK → HKT' });
+    assert.ok(out.fetched && out.status === 'unchanged' && out.statusValue === 'pending', early);
   }
 });
 
@@ -216,16 +256,19 @@ test('the retro on an already-correct row changes NOTHING — and a second run c
   assert.equal(first.name, 'unchanged');
   assert.equal(first.status, 'unchanged');
   assert.equal(calendarRows.length, 0);
-  assert.equal(writes.length, 0);
-  // Two runs from a fresh row converge: the second one writes nothing.
+  // STATUS-01: an unchanged booking still stamps WHEN it was read — the read's own bookkeeping, not a fact about the booking.
+  assert.deepEqual(writes, [{ id: 'res_f1', patch: { lastVendorReadAt: READ_AT } }], 'only the read stamp');
+  assert.deepEqual(first.changes, []);
+  assert.deepEqual(first.emails, []);
+  // Two runs from a fresh row converge: the second one changes nothing.
   const fresh = fakePorts();
   const one = await refreshFlightReservation(fresh.ports, ROW);
   assert.ok(one.fetched && one.calendar === 'inserted' && one.name === 'set' && one.status === 'set');
   const afterOne: FlightReservationRow = { ...ROW, displayName: fresh.writes[0].patch.displayName as string, status: fresh.writes[0].patch.status as string };
-  const writesBefore = fresh.writes.length;
   const two = await refreshFlightReservation(fresh.ports, afterOne);
   assert.ok(two.fetched && two.calendar === 'already_there' && two.name === 'unchanged' && two.status === 'unchanged');
-  assert.equal(fresh.writes.length, writesBefore, 'the second run wrote nothing');
+  assert.deepEqual(fresh.writes[1].patch, { lastVendorReadAt: READ_AT }, 'the second run wrote the read stamp and nothing else');
+  assert.ok(two.fetched && two.changes.length === 0, 'and changed nothing');
   assert.equal(fresh.calendarRows.length, 1, 'still one calendar row');
 });
 

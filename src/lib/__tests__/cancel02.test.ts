@@ -114,7 +114,7 @@ test('the pending template: cancellation requested, awaiting the airline, what h
   assertClean(r, 'pending');
 });
 
-test("'ticketed' and 'hotel_confirmation_arrived' render (STATUS-01 slots) and have ZERO callers in src today", () => {
+test("'ticketed' and 'hotel_confirmation_arrived' render (STATUS-01 slots); STATUS-01 fires them from exactly two files", () => {
   const t = lifecycleEmail({ kind: 'ticketed', ...COMMON, pnr: 'PNR123' });
   assert.match(t.text, /the airline has issued your ticket/);
   assert.match(t.text, /Airline reference \(PNR\): PNR123/);
@@ -136,8 +136,9 @@ test("'ticketed' and 'hotel_confirmation_arrived' render (STATUS-01 slots) and h
     }
   };
   walk('src');
-  const callers = files.filter((f) => f !== TEMPLATE && /kind: 'ticketed'|kind: 'hotel_confirmation_arrived'/.test(code(f)));
-  assert.deepEqual(callers, [], 'no file fires the two STATUS-01 templates');
+  const callers = files.filter((f) => f !== TEMPLATE && /kind: 'ticketed'|kind: 'hotel_confirmation_arrived'/.test(code(f))).sort();
+  // STATUS-01 (2026-09-26): the apply leaf decides an email is owed; the sender renders it. Nobody else.
+  assert.deepEqual(callers, ['src/lib/reservations/applyVendorState.ts', 'src/lib/reservations/lifecycleSend.ts'], 'exactly the apply leaf and the sender fire the two STATUS-01 templates');
   assert.ok(files.length > 100, 'the walk saw the tree');
 });
 

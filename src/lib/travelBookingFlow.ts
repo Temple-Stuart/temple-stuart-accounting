@@ -100,7 +100,13 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // never a literal. The guards, the provider call, the landing, the calendar row
   // and the envelope are unchanged.
   // Was 41f5eebfba6dacf4d613790dc0fa173e4c8cad012c42915d68d8a2cba8cf314a at main a5e66262.
-  { file: 'src/app/api/travel/liteapi/book/route.ts', sha256: '667efb921cdd690b6e5c26fc40c6b9deacd520367cf346956592b150d117c597' },
+  // STATUS-01 (2026-09-26): the vendor's status word goes through the hotel leaf
+  // (hotelProviderStatusToReservation) — CONFIRMED / CANCELED / FAILED by name; an
+  // absent or unlisted word is recorded pending and said loudly by bookingId. Both
+  // defaults ((parsed.status || 'CONFIRMED') here, ?? 'CONFIRMED' in the client)
+  // are gone. Nothing else in the route changed.
+  // Was 667efb921cdd690b6e5c26fc40c6b9deacd520367cf346956592b150d117c597 at main 53900e67.
+  { file: 'src/app/api/travel/liteapi/book/route.ts', sha256: 'e32251eb8a4e9b541a001e6332bacb8ca1765e7bdb127d938d491665f6120509' },
   // CAL-01 (2026-09-23): re-pinned — the flight branch. The landed booking object
   // carries NO date of travel (STEP 1.5: NOT FOUND), so this route writes NO
   // calendar row and logs a named reason listing the payload's actual keys. No date
@@ -135,7 +141,12 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // attempt per booking, to the stored address; a retry reports 'earlier'. The
   // guards, the provider call, the landing and the LANE-01 refresh are unchanged.
   // Was 653c25f1b43caf2104d152f543cf04dcb960b0c6bfc7ceac2a4ce5dddb2480f7 at main a5e66262.
-  { file: 'src/app/api/travel/liteapi/flights/book/route.ts', sha256: '8f24d2dd90f36d55c2dbbe4cafb711387ea34faf4d9eb25a27c906b72b977367' },
+  // STATUS-01 (2026-09-26): the refresh ports gained cancelCommission and the
+  // answer instant (readAt) and hand the committed row whole; the refresh outcome is
+  // kept and the 'ticketed' email it may owe is attempted AFTER its block, in its
+  // own try/catch — never failing the paid booking. Nothing before the refresh changed.
+  // Was 8f24d2dd90f36d55c2dbbe4cafb711387ea34faf4d9eb25a27c906b72b977367 at main 53900e67.
+  { file: 'src/app/api/travel/liteapi/flights/book/route.ts', sha256: 'b75d0ca85ee2a50a0fe715a73ac749893f656c57038908d3b89c256aed466d1a' },
   // FL-4c (2026-09-23): re-pinned — the envelope gains `paymentEnv`, the key env
   // derived server-side exactly as the hotel prebook returns it. The browser must
   // not guess which mode it is in, and /config is keyed on that label. Nothing
@@ -396,7 +407,12 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // Was 9806e3b58ab2b8d4845e7870f89078d473d27007cae0adb247af0673907f176a at main d56b2cc9.
   // HOTEL-02 (2026-09-22): re-dated — HotelContent types the vendor's documented check-in / check-out object; the two rating comments name their scales — types and comments only, no function body changed. The stay's clock is the property's, read once at commit; no prebook/book/pay/cancel call changed.
   // Was bbb4c9afb8a5cd6237088ce3a750bb9a22c2ef4fcbbadb25bf99db9b17413ac2 at main 81045434.
-  { file: 'src/lib/liteapiClient.ts', sha256: '9840759972a7b97231ddaf0a3b51e766d78cd4922621f38519a5cbd81234f8cf' },
+  // STATUS-01 (2026-09-26): parseBookResult states null for an absent status (was
+  // ?? 'CONFIRMED' — the word is mapped by hotelStatus.ts only); getHotelBooking,
+  // parseHotelBookingState and hotelBookingReadObjectOf APPENDED for GET
+  // /v3.0/bookings/{id}. getBookingStatus and every other booking function untouched.
+  // Was 9840759972a7b97231ddaf0a3b51e766d78cd4922621f38519a5cbd81234f8cf at main 53900e67.
+  { file: 'src/lib/liteapiClient.ts', sha256: '732d29dc045750f33357b9f3a2db911251127020fb9eba94f0d9b5e5c62f8f05' },
   // LANE-01 (2026-09-25): re-pinned — one READ added: getFlightBooking (GET
   // /flights/bookings/{id}) and its pure parser, on the same auth headers and the same
   // non-2xx contract as the POSTs (throwFlightsNon2xx, lifted out of postFlightsAnswer
@@ -410,7 +426,11 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // riding the result; parseFlightBookingDetails also reads cancelIntentAt. search /
   // verify / prebook / book are unchanged.
   // Was 8130c9e36431d886f48648f2b2ae2ad4a86413d7a9037a8959a79c620b242bf7 at main dccb3380.
-  { file: 'src/lib/liteapiFlightsClient.ts', sha256: '0bae21fb9bf0bd9664dc7418502a35e507f713d370e542b878e35e2188b3121d' },
+  // STATUS-01 (2026-09-26): parseFlightBookingDetails reads ticketData.ticketedAt,
+  // ticketLimitTime and the PNR (order.reference.provider.pnr, else the first
+  // airlineBookings[].pnr) as stated, null when absent. Nothing else changed.
+  // Was 0bae21fb9bf0bd9664dc7418502a35e507f713d370e542b878e35e2188b3121d at main 53900e67.
+  { file: 'src/lib/liteapiFlightsClient.ts', sha256: '125814373dbf3db41c397f9cbd2c41a77bd19a139b5b96c068bb25b659d4d6b2' },
   // FLIGHT-01 (2026-09-22): re-pinned — tri-state fare attributes, segment views with the operating carrier, the flight identity; the `!!terms` coercion gone. Search is not booking; no prebook/verify/book/pay/cancel call changed.
   // Was d851de5d68fada3cffddd88ddcc38005b5a9c739e73c0920c213f282c30fa879 at main b9eac34a.
   // HOTEL-01 (2026-09-22): re-pinned — the tri-state readers come from the one helper, src/lib/travel/stated.ts; no other change. Search and display are not booking; no prebook/book/pay/cancel call changed.
@@ -421,7 +441,12 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   { file: 'src/lib/viatorClient.ts', sha256: 'df1d43e813575b4a53d4db1c2992eedcfb9c4d889e4418b2ea7dbe5111b64387' },
   { file: 'src/lib/travelBuddyClient.ts', sha256: 'b745272d633d5322d7768c755fa96571a76f7e170e182474e4660fd94f2351f1' },
   { file: 'src/lib/flightsLane.ts', sha256: 'c39972d6fd517124ca841487c994013583f5faeb05e2001080f1bf80d6352cee' },
-  { file: 'src/lib/arrivals/liteapiBooking.ts', sha256: '2297a1c8cf1e0de4e3255545835a909b367cc27aeaf18bf14533803f1f954aff' },
+  // STATUS-01 (2026-09-26): landLiteApiBookingRead (liteapi · booking_read, their_id
+  // read:<bookingId>), landLiteApiWebhookBytes and landLiteApiWebhookEvent (liteapi ·
+  // webhook, their_id = event_id) APPENDED; the booking and cancellation landings
+  // are untouched.
+  // Was 2297a1c8cf1e0de4e3255545835a909b367cc27aeaf18bf14533803f1f954aff at main 53900e67.
+  { file: 'src/lib/arrivals/liteapiBooking.ts', sha256: '7f3624eb31305dcd65f6a4be92a9c3a5e9682d8f5a0ff5ae5bc1528af051e7fb' },
   // ACTIVITY-01 (2026-09-22): re-dated — the 'viatorsave' safe default cap (300/day: three reservations per Save attempt, ~100 attempts, the prebook precedent) joins PROVIDER_SAFE_DEFAULT_CAP; no existing bucket or function changed. A tour takes its time on the day; no prebook/book/pay/cancel call changed.
   // Was d85603f7cc6567c02769ac997bfdc8d6112855249b44f4bde9fdd8f35ffeeeea at main dfc02881.
   // LANE-01 (2026-09-25): re-dated — the 'liteapiflightbookingread' safe default cap (50/day) joins PROVIDER_SAFE_DEFAULT_CAP for the one GET /flights/bookings/{id} per flight booking and per retro row; no existing bucket or function changed. No prebook/book/pay/cancel call changed.
