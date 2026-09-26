@@ -3715,7 +3715,9 @@ const HOTEL_SURFACES = [HOTEL_VIEW, HOTEL_CONTAINER, 'src/components/trips/Hotel
 const HOTEL_REPINNED = [HOTEL_ROUTE, HOTEL_VIEW, HOTEL_CONTAINER, 'src/components/trips/HotelPicker.tsx', HOTEL_CLIENT, 'src/lib/liteapiFlightAdapter.ts', 'src/components/trips/FlightPickerView.tsx'];
 /** The client's booking functions and paid content reads, hashed body-for-body on main d56b2cc9 (code half). */
 const HOTEL_BOOKING_FUNCTIONS: Record<string, string> = {
-  prebookRate: '4dd7916a01b7e0d6305a98f6c64d3d9878e24bc41f99e8564826e6a2b366d405',
+  // COMM-01 (2026-09-26): prebookRate states null for an absent commission (was
+  // ?? 0 — a guess). Was 4dd7916a01b7e0d6305a98f6c64d3d9878e24bc41f99e8564826e6a2b366d405 at main 0ef428a6.
+  prebookRate: 'a3edaf6c3a92dd0d4d9a8c946cd7ec1aec9ed6f64494a68012975d05758726ac',
   bookRate: 'ba5ce89952e481bd596f410b1aba271b5125db44c59dcb5fdb4327db572cb965',
   getBookingStatus: '4aa6e75fdacd576f8523bc8be6c3ba88a9df64fa13ac0a725f88ee6945836a2d',
   cancelBooking: '709d32f1029c90aaabb5dc33d4819e333281987642b762bee196817b85dbfe03',
@@ -5704,7 +5706,7 @@ lawGuard('The status law', () => {
       const j = (needle: string) => lockedFn.indexOf(needle);
       if (!(j('const locked = await ports.lock(caller.id);') >= 0 && j('const locked = await ports.lock(caller.id);') < j('landLiteApiBookingRead(') && j('landLiteApiBookingRead(') < j('applyVendorState('))) statusFail(`${READ_LEAF}: the lock is not taken before the landing and the apply`);
       if (!/if \(locked === null\) throw new Error\(/.test(lockedFn)) statusFail(`${READ_LEAF}: a row gone between the GET and the lock is not a named throw (read_failed)`);
-      if (!/applyVendorState\(ports\.apply, locked, \{ lane: 'hotel'/.test(lockedFn) || !/refreshFlightReservation\(\{ \.\.\.ports\.apply, calendar: ports\.calendar, fetchBooking: async \(\) => \(\{ \.\.\.landed\.parsed, readAt \}\) \}, locked\)/.test(lockedFn)) statusFail(`${READ_LEAF}: the apply or the refresh does not take the locked row`);
+      if (!/applyVendorState\(ports\.apply, locked, \{\s*lane: 'hotel'/.test(lockedFn) || !/refreshFlightReservation\(\{ \.\.\.ports\.apply, calendar: ports\.calendar, fetchBooking: async \(\) => \(\{ \.\.\.landed\.parsed, readAt \}\) \}, locked\)/.test(lockedFn)) statusFail(`${READ_LEAF}: the apply or the refresh does not take the locked row`);
       if (/applyVendorState\([^;]*\bcaller\b|\}, caller\)|\brow\b/.test(lockedFn)) statusFail(`${READ_LEAF}: applyLockedRead applies to the caller row, never the locked one`);
       if (!/userId: locked\.userId/.test(lockedFn)) statusFail(`${READ_LEAF}: the landing takes its owner from the caller row, not the locked one`);
     }
@@ -5794,6 +5796,168 @@ lawGuard('The status law', () => {
 
   if (statusViolations === 0) console.log(`✔ The status law passed — the LiteAPI receiver authenticates in constant time before a byte lands, lands the bytes before any parse, dedupes, and re-reads the vendor for every event about a booking that is ours, applying from the GET alone; applyVendorState is the only writer of the five STATUS-01 columns and reads no clock; each lifecycle email is attempted at most once with its marker in the same write; no default status word in ${srcFiles.length} source files; the two lane leaves are the only mappers; the read leaf caps, reads, lands and applies in one transaction; the hourly cron follows the cron pattern with a batch of ${(codeOf(CRON_ROUTE).match(/\nconst BATCH = (\d+);/) ?? ['', '?'])[1]}; the migration adds five nullable columns and webhook_events with its partial unique dedupe; the retro reads every reservation through the one leaf.`);
   else console.log(`✖ The status law FAILED — ${statusViolations} violation(s).`);
+});
+
+// ── THE COMMISSION LAW (COMM-01, 2026-09-26) ────────────────────────────────
+// THE COMMISSION IS THE VENDOR'S STATED FIGURE, NEVER A ZERO, AND IT LOCKS WHEN
+// THE VENDOR SAYS IT LOCKS.
+//
+// WHAT THIS CLOSES. On main 0ef428a6 the hotel book route FABRICATED a
+// commission through a fallback chain — the vendor's figure, else a figure the
+// BROWSER posted (the confirm page relayed the prebook-time number back), else a
+// literal 0; the flight book route wrote a literal 0; the prebook parser
+// defaulted an absent commission to 0; commissionAmountCents was NOT NULL so a
+// commission the vendor did not state could not be said; status had no CHECK;
+// nothing ever wrote confirmed; nothing read the commission the vendor states
+// after booking.
+//
+// THE VENDOR'S RULE (docs.liteapi.travel/docs/revenue-management-and-commission):
+// "A booking is confirmed when a guest completes their stay and checks out of
+// the hotel. Once this happens, your commission will be locked in and included
+// in the next weekly payout." GET /bookings/{id} states `commission` ("The
+// total commission amount associated with all rooms on the booking"),
+// `distributorCommission`, `clientCommission`, `processingFee`. The flight book
+// answer and GET /flights/bookings/{id} document `distributorCommission` and no
+// `commission`: the seller's commission is NOT DOCUMENTED for a flight.
+//
+//   1. THE WRITERS. The two book routes are the only writers of the book-time
+//      figure (commissionAmountCents); the apply leaf shapes the locked figures
+//      and the read leaf's lock port is the only writer of the locked columns
+//      and of status 'confirmed'.
+//   2. NO ZERO. No `?? 0`, no literal 0 into commissionAmountCents, anywhere in
+//      src; the hotel route writes the vendor's `commission` or NULL with a named
+//      log; the flight route writes NULL with the documented reason; the prebook
+//      parser states null.
+//   3. THE LOCK. Exactly when lane hotel AND the vendor's word maps to confirmed
+//      AND row.checkoutDate < vendor.readAt (the landed instant — no clock) AND
+//      the GET stated `commission`; through the lock port with the figures, the
+//      read instant and the read's arrival; not stated → named, no lock.
+//   4. THE CLIENT BODY CARRIES NO COMMISSION: the book route refuses
+//      commissionAmountCents by name before any query or vendor call; the confirm
+//      page posts none.
+//   5. EVERY READER renders NULL as not stated: the checkout panel, the prebook
+//      type.
+//   6. THE MIGRATION AND THE SCHEMA: commissionAmountCents nullable; the six lock
+//      columns; the RESTRICT evidence key; the four-word CHECK; no default; no
+//      backfill.
+//   7. THE CRON re-reads a checked-out stay whose commission is still estimated,
+//      once, to lock; the retro prints the lock; the hotel read parser states the
+//      four figures verbatim.
+lawGuard('The commission law', () => {
+  let commViolations = 0;
+  const commFail = (m: string) => { commViolations += 1; violations.push(`commission law: ${m} (COMM-01)`); };
+
+  const APPLY = 'src/lib/reservations/applyVendorState.ts';
+  const READ_LEAF = 'src/lib/reservations/vendorRead.ts';
+  const HOTEL_BOOK = 'src/app/api/travel/liteapi/book/route.ts';
+  const FLIGHT_BOOK = 'src/app/api/travel/liteapi/flights/book/route.ts';
+  const HOTEL_CLIENT = 'src/lib/liteapiClient.ts';
+  const CONFIRM_PAGE = 'src/app/booking/confirm/page.tsx';
+  const PANEL = 'src/components/trips/CheckoutPanel.tsx';
+  const CRON_ROUTE = 'src/app/api/cron/reservations-refresh/route.ts';
+  const RETRO = 'scripts/status-01-retro-reservations.ts';
+  const COMM_MIGRATION = ALL_MIGRATIONS.find((m) => /_comm_01_/.test(m.dir));
+
+  // 1. THE WRITERS.
+  for (const { file, src } of srcFiles) {
+    if (/commissionAmountCents:/.test(src) && file !== HOTEL_BOOK && file !== FLIGHT_BOOK) commFail(`${file} writes the book-time commission outside the two book routes`);
+    if (/lockedCommissionCents:/.test(src) && file !== APPLY && file !== READ_LEAF) commFail(`${file} writes a locked commission figure — only the read leaf's lock port writes commission_ledger's locked columns`);
+    if (/commission_ledger\.updateMany\([^;]*status: 'confirmed'/s.test(src) && file !== READ_LEAF) commFail(`${file} writes commission_ledger status confirmed — only the read leaf's lock port does`);
+  }
+  {
+    const r = codeOf(READ_LEAF);
+    if (!/lockCommission: async \(reservationId, figures, lockedAt, arrivalId\) => \(await tx\.commission_ledger\.updateMany\(\{\s*where: \{ reservationId, status: 'estimated' \},\s*data: \{\s*status: 'confirmed',\s*lockedCommissionCents: figures\.lockedCommissionCents,\s*distributorCommissionCents: figures\.distributorCommissionCents,\s*clientCommissionCents: figures\.clientCommissionCents,\s*processingFeeCents: figures\.processingFeeCents,\s*lockedAt,\s*lockArrivalId: arrivalId,\s*\},\s*\}\)\)\.count,/.test(r)) commFail(`${READ_LEAF}: the lock port does not move exactly the estimated row to confirmed with the figures, the read instant and the read arrival`);
+    if (!/arrivalId: landed\.arrivalId,/.test(r)) commFail(`${READ_LEAF} does not hand the read arrival to the apply leaf as the lock evidence`);
+  }
+
+  // 2. NO ZERO.
+  for (const { file, src } of srcFiles) {
+    if (/commissionAmountCents: 0\b/.test(src)) commFail(`${file} writes a literal 0 commission`);
+    if (/commission \?\? 0|commissionAmountCents \?\? 0|statedCommission \?\? 0|commission: 0\b/.test(src)) commFail(`${file} defaults a commission (a 0 is a guess)`);
+  }
+  {
+    const hb = codeOf(HOTEL_BOOK);
+    if (!/const statedCommission = typeof parsed\.commission === 'number' \? parsed\.commission : null;/.test(hb)) commFail(`${HOTEL_BOOK} does not take the vendor's stated commission or null`);
+    if (!/commissionAmountCents: statedCommission === null \? null : Math\.round\(statedCommission \* 100\),/.test(hb)) commFail(`${HOTEL_BOOK} does not write NULL for an unstated commission`);
+    if (!/COMM-01 the vendor stated NO commission on the book answer — commissionAmountCents recorded NULL/.test(hb)) commFail(`${HOTEL_BOOK} does not name an unstated commission by bookingId`);
+    if (/resolvedCommission|commissionAmountCents \/ 100/.test(hb)) commFail(`${HOTEL_BOOK} still carries the fallback chain`);
+    const fb = codeOf(FLIGHT_BOOK);
+    if (!/commissionAmountCents: null,/.test(fb)) commFail(`${FLIGHT_BOOK} does not write NULL for the flight commission (NOT DOCUMENTED)`);
+    if (!/NOT DOCUMENTED/.test(commentsOf(FLIGHT_BOOK)) || !/never inferred from a markup/.test(commentsOf(FLIGHT_BOOK))) commFail(`${FLIGHT_BOOK} does not name the documented reason for NULL`);
+    const client = codeOf(HOTEL_CLIENT);
+    if (!/commission: typeof d\.commission === 'number' \? d\.commission : null,/.test(client)) commFail(`${HOTEL_CLIENT}: the prebook parser defaults the commission instead of stating null`);
+    if (!/commission: number \| null;/.test(client)) commFail(`${HOTEL_CLIENT}: PrebookResult.commission is not number | null`);
+    for (const must of ['commission: num(d.commission),', 'distributorCommission: num(d.distributorCommission),', 'clientCommission: num(d.clientCommission),', 'processingFee: num(d.processingFee),']) if (!client.includes(must)) commFail(`${HOTEL_CLIENT}: the hotel read parser does not state ${must.split(':')[0]} verbatim`);
+  }
+
+  // 3. THE LOCK.
+  {
+    const leaf = codeOf(APPLY);
+    if (!/if \(vendor\.lane === 'hotel' && mapped === 'confirmed'\) \{\s*const afterCheckout = row\.checkoutDate !== null && row\.checkoutDate < vendor\.readAt;/.test(leaf)) commFail(`${APPLY}: the lock does not require lane hotel, a confirmed word and checkoutDate < readAt (does not require checkoutDate < readAt)`);
+    if (!/if \(!afterCheckout\) \{\s*commissionLock = \{ outcome: 'before_checkout' \};/.test(leaf)) commFail(`${APPLY}: a read before checkout is not named before_checkout`);
+    if (!/else if \(vendor\.commission === null\) \{\s*commissionLock = \{ outcome: 'not_stated' \};/.test(leaf)) commFail(`${APPLY}: the leaf locks without a stated commission`);
+    if (!/the vendor stated no commission on the read after checkout — stays estimated/.test(leaf)) commFail(`${APPLY}: an unstated commission after checkout is not named`);
+    if (!/const locked = await ports\.lockCommission\(row\.id, figures, vendor\.readAt, vendor\.arrivalId\);/.test(leaf)) commFail(`${APPLY}: the lock reads the clock instead of the read instant, or drops the read arrival`);
+    if (/new Date\(\)/.test(leaf)) commFail(`${APPLY}: the lock reads the clock instead of the read instant`);
+    if (!/commissionLock = \{ outcome: 'already_locked', cents \};/.test(leaf)) commFail(`${APPLY}: a second read is not named already_locked`);
+    if (!/lockedCommissionCents: cents,/.test(leaf) || !/distributorCommissionCents: centsOf\(vendor\.distributorCommission\),/.test(leaf)) commFail(`${APPLY}: the lock figures are not the vendor's, in cents, null when unstated`);
+    const body = functionBody(leaf, 'applyVendorState') ?? '';
+    if (/\* 0\.|margin|markup/.test(body)) commFail(`${APPLY} computes a commission from a price and a margin`);
+    if (!/no estimated commission row moved — a commission already locked/.test(leaf)) commFail(`${APPLY}: a vendor cancel after the lock is not named (no reversal is documented)`);
+  }
+
+  // 4. THE CLIENT BODY CARRIES NO COMMISSION.
+  {
+    const hb = codeOf(HOTEL_BOOK);
+    const refuse = hb.indexOf("if (Object.prototype.hasOwnProperty.call(body, 'commissionAmountCents')) {");
+    if (refuse < 0 || !/\{ error: 'commissionAmountCents is not accepted — a client never states a ledger amount' \},\s*\{ status: 400 \}/.test(hb)) commFail(`${HOTEL_BOOK} accepts a commission from the client (no 400 by name)`);
+    else {
+      if (!(refuse < hb.indexOf('prisma.users.findFirst') && refuse < hb.indexOf('bookRate('))) commFail(`${HOTEL_BOOK} refuses the client commission only after a query or the vendor call`);
+    }
+    if (/commissionAmountCents\?: number|currency, commissionAmountCents,/.test(hb)) commFail(`${HOTEL_BOOK} accepts a commission from the client in its body type`);
+    if (/commissionAmountCents/.test(codeOf(CONFIRM_PAGE))) commFail(`${CONFIRM_PAGE}: the confirm page posts a ledger amount`);
+  }
+
+  // 5. EVERY READER RENDERS NULL AS NOT STATED.
+  {
+    const panel = codeOf(PANEL);
+    if (!/prebook\.commission === null \? 'not stated' : money\(prebook\.commission, prebook\.currency\)/.test(panel)) commFail(`${PANEL} does not render a NULL commission as not stated`);
+    if (/prebook\.commission > 0 &&/.test(panel)) commFail(`${PANEL} hides a commission as if zero`);
+    if (!/commission: number \| null;/.test(panel)) commFail(`${PANEL}: the prebook type is not number | null`);
+  }
+
+  // 6. THE MIGRATION AND THE SCHEMA.
+  if (!COMM_MIGRATION) commFail('no prisma/migrations/*_comm_01_*/migration.sql');
+  else {
+    const sql = codeOf(`prisma/migrations/${COMM_MIGRATION.dir}/migration.sql`);
+    for (const must of ['ALTER TABLE "commission_ledger" ALTER COLUMN "commissionAmountCents" DROP NOT NULL;', 'ADD COLUMN "lockedCommissionCents"      INTEGER;', 'ADD COLUMN "distributorCommissionCents" INTEGER;', 'ADD COLUMN "clientCommissionCents"      INTEGER;', 'ADD COLUMN "processingFeeCents"         INTEGER;', 'ADD COLUMN "lockedAt"                   TIMESTAMPTZ(6);', 'ADD COLUMN "lockArrivalId"              TEXT;', 'FOREIGN KEY ("lockArrivalId") REFERENCES "arrivals"("id") ON DELETE RESTRICT']) {
+      if (!sql.includes(must)) commFail(`the COMM-01 migration lacks "${must}"`);
+    }
+    if (!sql.includes(`CHECK ("status" IN ('estimated', 'confirmed', 'paid', 'cancelled'))`)) commFail('the COMM-01 migration lacks its four-word CHECK on commission_ledger.status');
+    if (/DEFAULT/.test(sql)) commFail('the COMM-01 migration defaults a stated field');
+    if (/^\s*UPDATE\b/im.test(sql)) commFail('the COMM-01 migration backfills — nothing is inferred');
+  }
+  {
+    const at = schemaText.indexOf('\nmodel commission_ledger {');
+    const block = at >= 0 ? schemaText.slice(at, schemaText.indexOf('\n}', at)) : '';
+    if (!block) commFail('prisma/schema.prisma: no commission_ledger model');
+    else {
+      if (!/\n  commissionAmountCents Int\?\n/.test(block)) commFail('prisma/schema.prisma: commission_ledger.commissionAmountCents is not nullable');
+      for (const col of ['lockedCommissionCents', 'distributorCommissionCents', 'clientCommissionCents', 'processingFeeCents']) if (!new RegExp(`\\n  ${col}\\s+Int\\?\\n`).test(block)) commFail(`prisma/schema.prisma: commission_ledger.${col} is not a nullable Int`);
+      if (!/lockArrival arrivals\?\s+@relation\("commission_lock", fields: \[lockArrivalId\], references: \[id\], onDelete: Restrict/.test(block)) commFail('prisma/schema.prisma: commission_ledger.lockArrivalId is not a RESTRICT relation to arrivals');
+    }
+  }
+
+  // 7. THE CRON, THE RETRO.
+  {
+    const r = codeOf(CRON_ROUTE);
+    if (!r.includes("{ lane: 'hotel', status: 'confirmed', checkoutDate: { lt: new Date() }, commission_ledger: { some: { status: 'estimated' } } },")) commFail(`${CRON_ROUTE} does not re-read a checked-out stay whose commission is still estimated`);
+    if (!/The lock arm adds at most ONE read per checked-out stay/.test(commentsOf(CRON_ROUTE))) commFail(`${CRON_ROUTE} does not restate the batch arithmetic for the lock arm`);
+    if (!/commissionLock/.test(codeOf(RETRO))) commFail(`${RETRO} does not print the lock`);
+  }
+
+  if (commViolations === 0) console.log(`✔ The commission law passed — the two book routes write the vendor's stated commission or NULL (never a browser figure, never 0) and refuse a client commission by name; the prebook parser and the checkout panel say not stated; the apply leaf locks a hotel commission exactly when the vendor's word is confirmed, the check-out date is before the read instant and the GET stated a figure, through the read leaf's one lock port with the read arrival as evidence; the migration opens commissionAmountCents, adds the six lock columns and enforces the four documented words; the cron re-reads a checked-out stay once to lock.`);
+  else console.log(`✖ The commission law FAILED — ${commViolations} violation(s).`);
 });
 
 // ── THE ROW LAW (TRAVEL-ROW-01, 2026-09-23) ─────────────────────────────────
@@ -6467,7 +6631,11 @@ lawGuard('The row law', () => {
     // CHECKOUT-03 (2026-09-23): re-pinned by its own ruling — the panel waits on
     // Stripe.js before handing off, so the vendor's loader cannot hang. Where it
     // mounts, which TRAVEL-ROW-01 owns, is untouched.
-    { file: 'src/components/trips/CheckoutPanel.tsx', sha256: 'b3fd49cbd8acf9ab3d5afb11fdc42f61089722d2951dd6cbfa6a8dc2bdf19b46' },
+    // COMM-01 (2026-09-26): re-pinned by its own ruling — the panel renders the
+    // vendor's stated prebook commission or "not stated", never a hidden 0. Where
+    // it mounts, which the row law owns, is untouched.
+    // Was b3fd49cbd8acf9ab3d5afb11fdc42f61089722d2951dd6cbfa6a8dc2bdf19b46 at main 0ef428a6.
+    { file: 'src/components/trips/CheckoutPanel.tsx', sha256: 'ab04853f236ae7d519c717a7aa5183efbaa20eab370caa2bd73b9f46904734b0' },
     // FL-5b (2026-09-23): re-pinned by its own ruling — the panel sends the contact
     // with the book call so the confirmation has somewhere to go. Where it mounts,
     // which TRAVEL-ROW-01 owns, is untouched.

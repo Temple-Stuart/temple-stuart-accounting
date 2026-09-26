@@ -1699,20 +1699,35 @@ model commission_ledger {
   provider              String    @db.VarChar(20)
   /// SEC-03 (2026-09-25): NULLABLE. NULL = price not stated by the vendor — reconcile against the bank.
   grossAmountCents      Int? // total guest paid (final price)
-  commissionAmountCents Int // our margin (in cents)
+  /// COMM-01 (2026-09-26): NULLABLE. NULL = the vendor stated no commission at booking (a flight — NOT DOCUMENTED; a hotel answer without the field). The book-time figure, never overwritten; the lock below states the earned figure.
+  commissionAmountCents Int?
   currency              String    @default("USD") @db.VarChar(3)
-  /// CANCEL-01 (2026-09-26): 'cancelled' added — an 'estimated' row moves here when the reservation's cancel is FINAL (the margin will not be earned). No CHECK constrains this column (verified), so no widening in SQL.
+  /// CANCEL-01 (2026-09-26): 'cancelled' added — an 'estimated' row moves here when the reservation's cancel is FINAL (the margin will not be earned). COMM-01 (2026-09-26): the four documented words are now CHECK-enforced in SQL (commission_ledger_status); 'confirmed' is written only by the lock (applyVendorState through the read leaf); 'paid' has no writer yet (MATCH-02 / POST-01).
   status                String    @db.VarChar(20) // 'estimated' | 'confirmed' | 'paid' | 'cancelled'
   payoutDate            DateTime?
   providerInvoiceRef    String?   @db.VarChar(120)
   createdAt             DateTime  @default(now())
+  /// COMM-01: the vendor's `commission` on the read that locked it ("The total commission amount associated with all rooms on the booking"), in cents; NULL until locked. A stated 0 is stated.
+  lockedCommissionCents      Int?
+  /// COMM-01: `distributorCommission` ("Commission amount for the distributor") on that read, verbatim in cents; NULL when unstated.
+  distributorCommissionCents Int?
+  /// COMM-01: `clientCommission` ("Commission amount for the client") on that read, verbatim in cents; NULL when unstated.
+  clientCommissionCents      Int?
+  /// COMM-01: `processingFee` ("Processing fee for the booking") on that read, verbatim in cents; NULL when unstated.
+  processingFeeCents         Int?
+  /// COMM-01: that read's landed instant — never our clock.
+  lockedAt                   DateTime? @db.Timestamptz(6)
+  /// COMM-01: that read's arrival (liteapi · booking_read) — the lock's evidence. RESTRICT.
+  lockArrivalId              String?
 
   user        users?       @relation(fields: [userId], references: [id], onDelete: Cascade)
   reservation reservations @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  lockArrival arrivals?    @relation("commission_lock", fields: [lockArrivalId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([userId])
   @@index([reservationId])
   @@index([status])
+  @@index([lockArrivalId])
 }
 
 // ============================================
@@ -4001,6 +4016,8 @@ model arrivals {
   money_events  money_events[]
   vouchers      vouchers[]
   webhook_events webhook_events[]
+  /// COMM-01 (2026-09-26): the commission rows this arrival locked (the read after checkout).
+  commission_locks commission_ledger[] @relation("commission_lock")
 
   /// PR-2: the same thing is the same provider + id + content; a correction is a new row.
   @@unique([provider, their_id, fingerprint])

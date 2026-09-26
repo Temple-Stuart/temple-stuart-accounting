@@ -264,16 +264,20 @@ export async function POST(request: NextRequest) {
             });
 
             // Commission row — 'estimated' on book, mirroring the hotel pattern.
-            // The flights booking response documents NO commission field, so
-            // the margin is recorded as 0 until a real reconciliation source
-            // exists — never guessed.
+            // COMM-01 (2026-09-26): the flight book answer (POST /flights/bookings) and
+            // GET /flights/bookings/{id} document `distributorCommission` ("Commission
+            // amount for the distributor") and `distributorPrice`, and NO `commission`;
+            // the docs do not say which party we are, and the partner markup is never
+            // exposed as a figure. The seller's commission is therefore NOT DOCUMENTED
+            // for a flight: NULL, 'estimated', never 0, never inferred from a markup —
+            // and it is never locked, by name (applyVendorState locks hotels only).
             await tx.commission_ledger.create({
               data: {
                 userId: user?.id ?? null,
                 reservationId: reservation.id,
                 provider: 'liteapi',
                 grossAmountCents: statedCents,
-                commissionAmountCents: 0,
+                commissionAmountCents: null,
                 currency: resolvedCurrency,
                 status: 'estimated',
               },

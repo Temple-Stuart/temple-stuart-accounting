@@ -46,6 +46,20 @@
  * Re-reading an unchanged booking changes nothing and sends nothing: `changes`
  * is empty and `emails` is empty; only lastVendorReadAt — the read's own
  * bookkeeping, not a fact about the booking — is stamped.
+ *
+ * COMM-01 (2026-09-26) — THE LOCK. The vendor's rule
+ * (docs.liteapi.travel/docs/revenue-management-and-commission): "A booking is
+ * confirmed when a guest completes their stay and checks out of the hotel. Once
+ * this happens, your commission will be locked in and included in the next
+ * weekly payout." So this leaf locks the commission EXACTLY when: lane hotel AND
+ * the vendor's word maps to 'confirmed' AND the stay's check-out DATE is before
+ * the read's landed instant (row.checkoutDate < vendor.readAt — no clock here)
+ * AND the GET STATED `commission`. Through the commission port: the 'estimated'
+ * ledger row moves to 'confirmed' carrying the vendor's figures, the read
+ * instant and the read's arrival. A stated 0 is stated (locked at 0, by name).
+ * No commission on the read after checkout → no lock, named. A second read finds
+ * no 'estimated' row → count 0 → already locked, nothing changes. A flight is
+ * never locked (NOT DOCUMENTED). 'paid' is not written here (MATCH-02 / POST-01).
  */
 import { flightProviderStatusToReservation } from './flightStatus';
 import { hotelProviderStatusToReservation } from './hotelStatus';
@@ -57,6 +71,13 @@ export interface VendorHotelState {
   bookingId: string;
   status: string | null;
   hotelConfirmationCode: string | null;
+  /** COMM-01: the GET's documented commission figures, verbatim in the booking currency; null when unstated. */
+  commission: number | null;
+  distributorCommission: number | null;
+  clientCommission: number | null;
+  processingFee: number | null;
+  /** COMM-01: the arrival the read landed as (liteapi · booking_read) — the lock's evidence; null on a dry run. */
+  arrivalId: string | null;
   /** The landed response's own arrival instant. */
   readAt: Date;
 }
@@ -86,7 +107,24 @@ export interface ApplyRow {
   cancelIntentAt: Date | null;
   ticketedEmailSentAt: Date | null;
   confirmationEmailSentAt: Date | null;
+  /** COMM-01: the stay's check-out DATE (null for a flight) — the lock's gate against the read instant. */
+  checkoutDate: Date | null;
 }
+
+/** COMM-01: what the lock writes — the vendor's figures in cents, verbatim; null when unstated. */
+export interface CommissionFigures {
+  lockedCommissionCents: number;
+  distributorCommissionCents: number | null;
+  clientCommissionCents: number | null;
+  processingFeeCents: number | null;
+}
+
+export type CommissionLockOutcome =
+  | { outcome: 'locked'; cents: number }
+  | { outcome: 'already_locked'; cents: number }
+  | { outcome: 'not_stated' }
+  | { outcome: 'before_checkout' }
+  | { outcome: 'not_applicable' };
 
 export type OurStatus = 'pending' | 'confirmed' | 'cancelled' | 'failed';
 
@@ -113,6 +151,8 @@ export interface ApplyPorts {
   calendar: BookingCalendarCancelPort;
   /** commission_ledger: reservationId + status 'estimated' → 'cancelled'; answers how many moved. */
   cancelCommission(reservationId: string): Promise<number>;
+  /** COMM-01: commission_ledger: reservationId + status 'estimated' → 'confirmed' with the vendor's figures, the read instant and its arrival; answers how many locked (0 = already locked). */
+  lockCommission(reservationId: string, figures: CommissionFigures, lockedAt: Date, arrivalId: string | null): Promise<number>;
   /** Named lines, once each; default silent. */
   log?: (line: string) => void;
 }
@@ -130,6 +170,13 @@ export interface ApplyOutcome {
   commissionMoved: number | null;
   /** On a status that became cancelled: the final figures are not on the booking read — named, never invented. */
   moneyEvents: 'not_available_from_read' | null;
+  /** COMM-01: what the lock did on this read. */
+  commissionLock: CommissionLockOutcome;
+}
+
+/** COMM-01: a stated figure in cents, or null when unstated — never 0 for absent. */
+function centsOf(figure: number | null): number | null {
+  return figure === null ? null : Math.round(figure * 100);
 }
 
 /** The vendor's ISO timestamp as a Date, or null when absent or unparseable (named by the caller). */
@@ -170,6 +217,7 @@ export async function applyVendorState(ports: ApplyPorts, row: ApplyRow, vendor:
     if (row.cancelIntentAt !== null) { patch.cancelIntentAt = null; changes.push('cancelIntentAt cleared — the cancellation is final'); }
     calendarMarked = await markBookingCalendarCancelled(ports.calendar, row.id).then((r) => r.marked);
     commissionMoved = await ports.cancelCommission(row.id);
+    if (commissionMoved === 0) log(`[applyVendorState] reservation ${row.id}: no estimated commission row moved — a commission already locked ('confirmed') on a booking the vendor cancelled after checkout is left as is; the vendor documents no reversal (COMM-01)`);
     moneyEvents = 'not_available_from_read';
     log(`[applyVendorState] reservation ${row.id}: cancelled by the vendor — calendar rows marked ${calendarMarked}, commission rows moved ${commissionMoved}; the refund and fee figures are NOT available from the booking read (the GET documents none), so no money_events row is written`);
   }
@@ -213,6 +261,37 @@ export async function applyVendorState(ports: ApplyPorts, row: ApplyRow, vendor:
     }
   }
 
+  // ── THE LOCK — COMM-01 (2026-09-26): the vendor's rule, exactly ────────────
+  // lane hotel, the vendor's word maps to confirmed, the check-out DATE is before
+  // the read's landed instant, and the GET STATED a commission. A stated 0 is stated.
+  let commissionLock: CommissionLockOutcome = { outcome: 'not_applicable' };
+  if (vendor.lane === 'hotel' && mapped === 'confirmed') {
+    const afterCheckout = row.checkoutDate !== null && row.checkoutDate < vendor.readAt;
+    if (!afterCheckout) {
+      commissionLock = { outcome: 'before_checkout' };
+    } else if (vendor.commission === null) {
+      commissionLock = { outcome: 'not_stated' };
+      log(`[applyVendorState] reservation ${row.id}: the vendor stated no commission on the read after checkout — stays estimated`);
+    } else {
+      const cents = Math.round(vendor.commission * 100);
+      const figures: CommissionFigures = {
+        lockedCommissionCents: cents,
+        distributorCommissionCents: centsOf(vendor.distributorCommission),
+        clientCommissionCents: centsOf(vendor.clientCommission),
+        processingFeeCents: centsOf(vendor.processingFee),
+      };
+      const locked = await ports.lockCommission(row.id, figures, vendor.readAt, vendor.arrivalId);
+      if (locked > 0) {
+        commissionLock = { outcome: 'locked', cents };
+        changes.push(`commission locked at ${cents} cents (vendor commission ${vendor.commission}${cents === 0 ? ' — a stated 0' : ''}; checkout ${row.checkoutDate?.toISOString().slice(0, 10)} < read ${vendor.readAt.toISOString()})`);
+        log(`[applyVendorState] reservation ${row.id}: commission LOCKED at ${cents} cents${cents === 0 ? ' — the vendor stated 0' : ''} — ${locked} ledger row(s) estimated → confirmed, evidence arrival ${vendor.arrivalId ?? '(none — dry run)'}`);
+      } else {
+        commissionLock = { outcome: 'already_locked', cents };
+        log(`[applyVendorState] reservation ${row.id}: no estimated commission row — already locked, nothing changes`);
+      }
+    }
+  }
+
   await ports.writeReservation(row.id, patch);
 
   return {
@@ -224,5 +303,6 @@ export async function applyVendorState(ports: ApplyPorts, row: ApplyRow, vendor:
     calendarMarked,
     commissionMoved,
     moneyEvents,
+    commissionLock,
   };
 }

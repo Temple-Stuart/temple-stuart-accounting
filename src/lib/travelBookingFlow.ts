@@ -106,7 +106,12 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // defaults ((parsed.status || 'CONFIRMED') here, ?? 'CONFIRMED' in the client)
   // are gone. Nothing else in the route changed.
   // Was 667efb921cdd690b6e5c26fc40c6b9deacd520367cf346956592b150d117c597 at main 53900e67.
-  { file: 'src/app/api/travel/liteapi/book/route.ts', sha256: 'e32251eb8a4e9b541a001e6332bacb8ca1765e7bdb127d938d491665f6120509' },
+  // COMM-01 (2026-09-26): the ledger's commission is the vendor's stated `commission`
+  // on the BOOK answer or NULL (logged loudly by bookingId) — the browser-sent
+  // commissionAmountCents is gone from the body and refused 400 by name; the literal
+  // 0 fallback is gone. Nothing else in the route changed.
+  // Was e32251eb8a4e9b541a001e6332bacb8ca1765e7bdb127d938d491665f6120509 at main 0ef428a6.
+  { file: 'src/app/api/travel/liteapi/book/route.ts', sha256: '441552e306910d94a0c0aa068f3dd3a1575a544f139fdab45ce57da106332707' },
   // CAL-01 (2026-09-23): re-pinned — the flight branch. The landed booking object
   // carries NO date of travel (STEP 1.5: NOT FOUND), so this route writes NO
   // calendar row and logs a named reason listing the payload's actual keys. No date
@@ -146,7 +151,12 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // kept and the 'ticketed' email it may owe is attempted AFTER its block, in its
   // own try/catch — never failing the paid booking. Nothing before the refresh changed.
   // Was 8f24d2dd90f36d55c2dbbe4cafb711387ea34faf4d9eb25a27c906b72b977367 at main 53900e67.
-  { file: 'src/app/api/travel/liteapi/flights/book/route.ts', sha256: 'b75d0ca85ee2a50a0fe715a73ac749893f656c57038908d3b89c256aed466d1a' },
+  // COMM-01 (2026-09-26): the flight commission is NULL with the documented reason
+  // (the book answer and the GET document distributorCommission and no commission —
+  // NOT DOCUMENTED for the seller; never 0, never inferred from a markup). Nothing
+  // else in the route changed.
+  // Was b75d0ca85ee2a50a0fe715a73ac749893f656c57038908d3b89c256aed466d1a at main 0ef428a6.
+  { file: 'src/app/api/travel/liteapi/flights/book/route.ts', sha256: '62b828c1c9468cd1a10b2cb43ca4b76099f49ef9eb905fdac80f44409a349f8b' },
   // FL-4c (2026-09-23): re-pinned — the envelope gains `paymentEnv`, the key env
   // derived server-side exactly as the hotel prebook returns it. The browser must
   // not guess which mode it is in, and /config is keyed on that label. Nothing
@@ -313,7 +323,11 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // A Stripe.js that genuinely cannot load is a NAMED failure, not a retry.
   // No prebook/book/pay/cancel call changed.
   // Was 3b6ae4fe18c1fb5e3701c592d6685e95bf336abb089d5d0aa947f3718dc7ef22 at main e8fd844e.
-  { file: 'src/components/trips/CheckoutPanel.tsx', sha256: 'b3fd49cbd8acf9ab3d5afb11fdc42f61089722d2951dd6cbfa6a8dc2bdf19b46' },
+  // COMM-01 (2026-09-26): the panel renders the vendor's stated prebook commission
+  // or "not stated" — never a hidden 0; the type admits null. Where it mounts is
+  // untouched.
+  // Was b3fd49cbd8acf9ab3d5afb11fdc42f61089722d2951dd6cbfa6a8dc2bdf19b46 at main 0ef428a6.
+  { file: 'src/components/trips/CheckoutPanel.tsx', sha256: 'ab04853f236ae7d519c717a7aa5183efbaa20eab370caa2bd73b9f46904734b0' },
   // FL-5b (2026-09-23): re-pinned — the panel sends the contact it already holds.
   // The SAME address it validated and sent at prebook now rides the book call too,
   // and the booked state says whether the confirmation went out. No payment path,
@@ -412,7 +426,12 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // parseHotelBookingState and hotelBookingReadObjectOf APPENDED for GET
   // /v3.0/bookings/{id}. getBookingStatus and every other booking function untouched.
   // Was 9840759972a7b97231ddaf0a3b51e766d78cd4922621f38519a5cbd81234f8cf at main 53900e67.
-  { file: 'src/lib/liteapiClient.ts', sha256: '732d29dc045750f33357b9f3a2db911251127020fb9eba94f0d9b5e5c62f8f05' },
+  // COMM-01 (2026-09-26): prebookRate states null for an absent commission (was
+  // ?? 0); parseHotelBookingState states commission, distributorCommission,
+  // clientCommission, processingFee and sellingPrice verbatim, null when absent.
+  // Every booking call is untouched.
+  // Was 732d29dc045750f33357b9f3a2db911251127020fb9eba94f0d9b5e5c62f8f05 at main 0ef428a6.
+  { file: 'src/lib/liteapiClient.ts', sha256: '5fc1659e02a25b4ca51bb6e0b8ca422f81e690b5b5ddf1cc4484eb889aafa02b' },
   // LANE-01 (2026-09-25): re-pinned — one READ added: getFlightBooking (GET
   // /flights/bookings/{id}) and its pure parser, on the same auth headers and the same
   // non-2xx contract as the POSTs (throwFlightsNon2xx, lifted out of postFlightsAnswer

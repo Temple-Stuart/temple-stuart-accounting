@@ -229,8 +229,8 @@ const SEEDS: Seed[] = [
   {
     name: 'status01b-z the apply takes the caller row instead of the locked one (clause 6)',
     file: READ_LEAF,
-    find: "    const out = await applyVendorState(ports.apply, locked, { lane: 'hotel'",
-    replace: "    const out = await applyVendorState(ports.apply, caller as unknown as VendorReadRow, { lane: 'hotel'",
+    find: "    const out = await applyVendorState(ports.apply, locked, {\n      lane: 'hotel',",
+    replace: "    const out = await applyVendorState(ports.apply, caller as unknown as VendorReadRow, {\n      lane: 'hotel',",
     expect: 'applies to the caller row, never the locked one',
   },
   {

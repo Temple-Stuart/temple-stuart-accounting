@@ -682,8 +682,9 @@ export interface PrebookResult {
   /** Final guest-paid price (in `currency`). */
   price: number;
   currency: string;
-  /** Our margin (set by the LiteAPI markup config). */
-  commission: number;
+  /** COMM-01 (2026-09-26): the vendor's stated commission at prebook, or NULL when
+   *  the answer carries none — never 0. The checkout renders NULL as "not stated". */
+  commission: number | null;
   /** SDK payment context — the browser uses these to render LiteAPI's hosted
    *  payment form. `transactionId` is what we send back to `/rates/book`. */
   transactionId: string;
@@ -719,7 +720,8 @@ export async function prebookRate(params: PrebookParams): Promise<PrebookResult>
     offerId: d.offerId ?? params.offerId,
     price: d.price ?? 0,
     currency: d.currency ?? 'USD',
-    commission: d.commission ?? 0,
+    // COMM-01 (2026-09-26): stated, or null — never 0.
+    commission: typeof d.commission === 'number' ? d.commission : null,
     transactionId: d.transactionId,
     secretKey: d.secretKey,
     paymentTypes: d.paymentTypes,
@@ -1110,12 +1112,24 @@ export interface HotelBookingState {
   refundType: string | null;
   refundedAt: string | null;
   updatedAt: string | null;
+  /** COMM-01 (2026-09-26): the documented commission figures, verbatim in the booking
+   *  currency, null when the answer states none — `commission` ("The total commission
+   *  amount associated with all rooms on the booking"), `distributorCommission`
+   *  ("Commission amount for the distributor"), `clientCommission` ("Commission amount
+   *  for the client"), `processingFee` ("Processing fee for the booking"),
+   *  `sellingPrice` ("Total selling price of the booking" — documented as a string). */
+  commission: number | null;
+  distributorCommission: number | null;
+  clientCommission: number | null;
+  processingFee: number | null;
+  sellingPrice: string | number | null;
 }
 
 /** The state mapping over the booking object — pure, so the landing runs it over
  *  the ARRIVAL payload. Absent fields are null, never invented. */
 export function parseHotelBookingState(d: Record<string, unknown>): HotelBookingState {
   const str = (v: unknown): string | null => (typeof v === 'string' && v.length > 0 ? v : null);
+  const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
   return {
     bookingId: d.bookingId as string,
     status: str(d.status),
@@ -1125,6 +1139,11 @@ export function parseHotelBookingState(d: Record<string, unknown>): HotelBooking
     refundType: str(d.refundType),
     refundedAt: str(d.refundedAt),
     updatedAt: str(d.updatedAt),
+    commission: num(d.commission),
+    distributorCommission: num(d.distributorCommission),
+    clientCommission: num(d.clientCommission),
+    processingFee: num(d.processingFee),
+    sellingPrice: typeof d.sellingPrice === 'string' || typeof d.sellingPrice === 'number' ? d.sellingPrice : null,
   };
 }
 

@@ -331,7 +331,7 @@ test('the refresh does not flip a cancel_pending row back to confirmed while the
     writeReservation: async (id, patch) => { writes.push({ id, patch }); },
     cancelCommission: async () => { commission += 1; return 1; },
   });
-  const row = { id: 'res_f1', userId: 'u', lane: 'flight', providerBookingId: 'fb_9Q', providerConfirmationCode: null, status: 'cancel_pending', displayName: 'Thai Vietjet Air BKK → HKT', ticketedAt: null, ticketLimitTime: null, cancelIntentAt: new Date('2026-09-26T09:05:00Z'), ticketedEmailSentAt: null, confirmationEmailSentAt: null };
+  const row = { id: 'res_f1', userId: 'u', lane: 'flight', providerBookingId: 'fb_9Q', providerConfirmationCode: null, status: 'cancel_pending', displayName: 'Thai Vietjet Air BKK → HKT', ticketedAt: null, ticketLimitTime: null, cancelIntentAt: new Date('2026-09-26T09:05:00Z'), ticketedEmailSentAt: null, confirmationEmailSentAt: null, checkoutDate: null };
   const pending = await refreshFlightReservation(ports('CONFIRMED'), row);
   assert.ok(pending.fetched);
   if (pending.fetched) { assert.equal(pending.status, 'unchanged'); assert.equal(pending.statusValue, 'cancel_pending'); }

@@ -10,16 +10,24 @@
  *   · status IN ('pending', 'cancel_pending') — waiting on a final word;
  *   · lane 'flight', status 'confirmed', ticketedAt NULL — confirmed, not yet ticketed;
  *   · lane 'hotel', status 'confirmed', providerConfirmationCode NULL — the hotel's
- *     own confirmation number arrives later ("Nuitee performs a manual process").
+ *     own confirmation number arrives later ("Nuitee performs a manual process");
+ *   · COMM-01 (2026-09-26): lane 'hotel', status 'confirmed', checkoutDate < now()
+ *     AND a commission_ledger row still 'estimated' — a stay that has ended is read
+ *     once more so the apply leaf can LOCK the commission the vendor states ("A
+ *     booking is confirmed when a guest completes their stay and checks out of the
+ *     hotel. Once this happens, your commission will be locked in"). The clock is
+ *     this route's; the leaf compares checkoutDate to the read's landed instant.
  * Oldest lastVendorReadAt first, NULL (never read) first, then by createdAt. A
  * cancelled or failed row is final and is never re-read here (the ruling's
  * "non-final rows"); a row of another provider has no LiteAPI read.
  *
- * THE BOUND: BATCH rows per run. The read is metered under the shared 'liteapi'
- * daily cap (DEFAULT 1000/day, TRAVEL_SEARCH_DAILY_CAP_LITEAPI): 20 × 24 hourly runs
- * = 480 reads/day at the ceiling, under half the default cap, leaving the rest for
- * searches — and a cap refusal stops the batch by name, never bypasses it. A row
- * not reached this hour is the oldest-read next hour.
+ * THE BOUND: BATCH rows per run — unchanged by COMM-01. The read is metered under
+ * the shared 'liteapi' daily cap (DEFAULT 1000/day, TRAVEL_SEARCH_DAILY_CAP_LITEAPI):
+ * 20 × 24 hourly runs = 480 reads/day at the ceiling, under half the default cap,
+ * leaving the rest for searches — and a cap refusal stops the batch by name, never
+ * bypasses it. The lock arm adds at most ONE read per checked-out stay (the second
+ * read finds no 'estimated' row and the arm no longer selects it), so the ceiling
+ * holds. A row not reached this hour is the oldest-read next hour.
  *
  * One GET each through the one read leaf (src/lib/reservations/vendorRead.ts): the
  * answer lands, the apply leaf writes what changed, the emails owed go out after
@@ -64,6 +72,8 @@ async function run(request: NextRequest) {
           { status: { in: ['pending', 'cancel_pending'] } },
           { lane: 'flight', status: 'confirmed', ticketedAt: null },
           { lane: 'hotel', status: 'confirmed', providerConfirmationCode: null },
+          // COMM-01: a stay that has ended, whose commission is still 'estimated' — read once more to lock.
+          { lane: 'hotel', status: 'confirmed', checkoutDate: { lt: new Date() }, commission_ledger: { some: { status: 'estimated' } } },
         ],
       },
       orderBy: [{ lastVendorReadAt: { sort: 'asc', nulls: 'first' } }, { createdAt: 'asc' }],
