@@ -2777,6 +2777,51 @@ if (!/if \(row\.lines && row\.lines\.length > 0\) return null;/.test(linesPanel)
 if (linesViolations === 0) console.log(`✔ The lines law passed — ${LINES_READERS.length + 1} readers read the one leaf; ${linesApiBridges.length} budget routes read routines through the one loader; $280 across 2 of 3 with the routine-level $15 set aside, never added; a stepless routine keeps its own; a routine_line link carries its instant.`);
 else console.log(`✖ The lines law FAILED — ${linesViolations} violation(s).`);
 });
+lawGuard('The budget report purity law', () => {
+
+// ── THE BUDGET REPORT PURITY LAW (TAB13-01, 2026-09-27) ─────────────────────
+// /budget becomes a read-only BUDGET vs ACTUAL report, and its figures are made
+// by ONE pure model (src/lib/budget/report.ts): everything it prints arrives
+// from the caller. A model that reached for the database, the framework, the
+// network, the clock or the environment could print a number no test can pin
+// and no caller handed it — and the chat's audit box, which cannot generate a
+// Prisma client, could no longer load it. So the model and EVERY file it
+// imports (its whole local import tree, so a helper cannot smuggle it in) may
+// not import @prisma/client or next, call fetch, read the clock through
+// Date.now() or an argument-less new Date(), or read process.env; and the
+// model's own test may not import @prisma/client.
+const REPORT_MODEL = 'src/lib/budget/report.ts';
+const REPORT_TEST = 'src/lib/__tests__/budgetReport.test.ts';
+const REPORT_FORBIDDEN: ReadonlyArray<{ what: string; re: RegExp }> = [
+  { what: 'imports @prisma/client', re: /(?:\bfrom\s+|\bimport\s*\(\s*|\brequire\s*\(\s*)[\x27"]@prisma\/client(?:\/[^\x27"]*)?[\x27"]/ },
+  { what: 'imports next', re: /(?:\bfrom\s+|\bimport\s*\(\s*|\brequire\s*\(\s*)[\x27"]next(?:\/[^\x27"]*)?[\x27"]/ },
+  { what: 'calls fetch', re: /\bfetch\s*\(/ },
+  { what: 'reads the clock through Date.now()', re: /\bDate\.now\s*\(/ },
+  { what: 'reads the clock through an argument-less new Date()', re: /\bnew\s+Date\s*\(\s*\)/ },
+  { what: 'reads process.env', re: /\bprocess\.env\b/ },
+];
+let reportViolations = 0;
+const reportFail = (m: string) => { reportViolations += 1; violations.push(`budget report law: ${m} (TAB13-01)`); };
+const reportTree = new Set<string>();
+if (!existsSync(resolve(ROOT, REPORT_MODEL))) reportFail(`${REPORT_MODEL} is missing — the budget report has one model`);
+else {
+  const stack = [REPORT_MODEL];
+  while (stack.length) {
+    const f = stack.pop()!;
+    if (reportTree.has(f)) continue;
+    reportTree.add(f);
+    const body = codeOf(f);
+    for (const { what, re } of REPORT_FORBIDDEN) {
+      if (re.test(body)) reportFail(`${f} ${what} — ${f === REPORT_MODEL ? 'the model' : `it is in the import tree of ${REPORT_MODEL}, and the model`} is pure: every figure arrives from the caller`);
+    }
+    for (const next of importsFor(f)) stack.push(next);
+  }
+}
+if (!existsSync(resolve(ROOT, REPORT_TEST))) reportFail(`${REPORT_TEST} is missing — the rules of the model are pinned there`);
+else if (REPORT_FORBIDDEN[0].re.test(codeOf(REPORT_TEST))) reportFail(`${REPORT_TEST} imports @prisma/client — the test of the model must load without a generated client`);
+if (reportViolations === 0) console.log(`✔ The budget report purity law passed — ${reportTree.size} files in the import tree of the model; none imports @prisma/client or next, calls fetch, reads the clock or reads process.env; its test imports no @prisma/client.`);
+else console.log(`✖ The budget report purity law FAILED — ${reportViolations} violation(s).`);
+});
 lawGuard('The one-off law', () => {
 
 // ── THE ONE-OFF LAW (ONEOFF-01, 2026-09-18) ─────────────────────────────────
