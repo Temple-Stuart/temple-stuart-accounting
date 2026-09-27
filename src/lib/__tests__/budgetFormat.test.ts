@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatCents, formatVariance, BudgetFormatError, BLANK } from '../budget/format';
+import { formatBudget, formatCents, formatVariance, BudgetFormatError, BLANK } from '../budget/format';
+import type { ColumnState } from '../budget/report';
 import { code } from '../sourceText';
 
 // TAB13-02b — how the budget report writes a figure. Every expected string is
@@ -46,6 +47,25 @@ test('VARIANCE — positive is favourable and plain; negative is unfavourable, i
   assert.deepEqual(formatVariance(-0), { text: '$0.00', unfavourable: false });
 });
 
+// Ruled 2026-09-27: a future column shows the plan.
+test('BUDGET LINE — closed: to date; in progress: to date, "of <full>" when it differs; future: the FULL budget, marked planned', () => {
+  // Closed: the budget to date, nothing beside it — the full budget is the same days.
+  assert.deepEqual(formatBudget('closed', 1000, 1000), { text: '$10.00', note: null });
+  assert.deepEqual(formatBudget('closed', null, null), { text: '—', note: null });
+  // In progress: to date, and the full budget when more is planned later in the column.
+  assert.deepEqual(formatBudget('inProgress', 1000, 13050), { text: '$10.00', note: 'of $130.50' });
+  assert.deepEqual(formatBudget('inProgress', 1000, 1000), { text: '$10.00', note: null }, 'nothing more planned — no "of"');
+  assert.deepEqual(formatBudget('inProgress', null, 12050), { text: '—', note: 'of $120.50' }, 'nothing planned yet to date, the rest is still said');
+  // Future: nothing is to date — the FULL budget shows, marked planned; a blank plan stays blank and unmarked.
+  assert.deepEqual(formatBudget('future', null, 12050), { text: '$120.50', note: 'planned' });
+  assert.deepEqual(formatBudget('future', null, -500), { text: '−$5.00', note: 'planned' }, 'a negative plan is kept, not hidden');
+  assert.deepEqual(formatBudget('future', null, null), { text: '—', note: null });
+  // The state decides — the same figures read three ways.
+  assert.notDeepEqual(formatBudget('future', 0, 12050), formatBudget('inProgress', 0, 12050));
+  assert.throws(() => formatBudget('later' as ColumnState, 0, 0), (e: unknown) => e instanceof BudgetFormatError && e.code === 'bad-state');
+  assert.throws(() => formatBudget('future', null, 1.5), (e: unknown) => e instanceof BudgetFormatError && e.code === 'not-cents');
+});
+
 test('FAIL LOUD — a figure that is not a safe integer number of cents is refused by name, never written', () => {
   for (const bad of [12.5, Number.NaN, Number.POSITIVE_INFINITY, Number.MAX_SAFE_INTEGER + 1, '1200' as unknown as number]) {
     assert.throws(() => formatCents(bad), (e: unknown) => e instanceof BudgetFormatError && e.code === 'not-cents', `formatCents(${String(bad)})`);
@@ -53,9 +73,10 @@ test('FAIL LOUD — a figure that is not a safe integer number of cents is refus
   }
 });
 
-test('PURITY — the formatter imports nothing and reads no clock, network or environment', () => {
+test('PURITY — the formatter imports nothing at run time (one type from the model) and reads no clock, network or environment', () => {
   const src = code(FORMAT);
-  assert.doesNotMatch(src, /^\s*import\b/m, 'no imports at all');
+  const imports = src.split('\n').filter((l) => /^\s*import\b/.test(l));
+  assert.deepEqual(imports, ["import type { ColumnState } from '@/lib/budget/report';"], 'one type-only import, nothing at run time');
   assert.doesNotMatch(src, /\bfetch\s*\(|\bDate\.now\s*\(|\bnew\s+Date\s*\(|\bprocess\.env\b|toLocaleString/);
   assert.doesNotMatch(code('src/lib/__tests__/budgetFormat.test.ts'), /['"]@prisma\/client/);
 });

@@ -92,7 +92,7 @@ test('claim lines come from the registry: "built and running" for LIVE only, "pa
   // TASKS-01: Tasks' why is a customer's line now; the founder note is a code comment.
   assert.equal(claimForCockpit('projects'), "partial — the work, planned: projects with costed tasks and routines with costed lines, both landing on the calendar and linkable to a posting — a task's actual cost is still typed by hand; nothing posts it from the books");
   assert.equal(claimForCockpit('content'), 'partial — day blocks and a daily log inside the Narrative pipeline; no time tool');
-  assert.equal(claimForCockpit('calendar'), 'partial — actuals by entity plus recurring lines on module_expenses; no plan vs actual; no personal · trade · travel roll-up'); // Budget, a four-beat PARTIAL since TRUTH-01
+  assert.equal(claimForCockpit('calendar'), 'partial — plan vs actual for routines and tasks on /budget; travel and income budgets not connected yet'); // Budget, a four-beat PARTIAL since TRUTH-01; its why since TAB13-02b
   assert.throws(() => claimForCockpit('nope'), OfferLawError);
 });
 

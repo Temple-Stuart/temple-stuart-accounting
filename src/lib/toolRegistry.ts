@@ -237,9 +237,14 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   },
   Budget: {
     slug: 'budget', status: 'PARTIAL', beats: ALL, home: '/budget',
-    why: 'actuals by entity plus recurring lines on module_expenses; no plan vs actual; no personal · trade · travel roll-up',
-    // ROOM-01: the six category sub-links are gone — they are the switcher inside
-    // /budget now, not six doors in the rail. Shopping stays a room of its own.
+    // TAB13-02b (ruled 2026-09-27): /budget is the budget report — plan vs actual by
+    // book and account (src/app/api/budget/report/route.ts, src/components/budget/
+    // BudgetReport.tsx). The plan comes from routines and tasks; travel budgets and
+    // any income budget are not connected yet, so the job is not done: PARTIAL.
+    why: 'plan vs actual for routines and tasks on /budget; travel and income budgets not connected yet',
+    // ROOM-01: the six category sub-links are gone — not six doors in the rail.
+    // TAB13-02b: their URLs redirect to /budget, which is the report now; Shopping
+    // stays a room of its own.
     links: [
       // CAL-01: the agenda planner is Budget's. Its items carry a cadence, a
       // coa_code and a budget_amount, and committing one writes a `budgets`
@@ -250,9 +255,9 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
       { label: 'Itinerary budget builder', href: '/hub/itinerary' },
       { label: 'Runway · the read-only view', cockpitKey: 'calendar' },
     ],
-    citation: 'src/components/dashboard/BudgetingPage.tsx:47 · src/app/api/home/route.ts:33-63 · :89 (draft :107) · src/app/api/home/[id]/route.ts:143 · :118-139, :81-89',
-    note: 'Six category pages, reachable from no menu until this PR; the draft form works on /business only (coaAccounts, census note B).',
-    customer: 'You can see what you actually spent and set amounts that repeat; it does not yet compare that against a plan, or add your personal, trading and travel spending into one view.',
+    citation: 'src/app/api/budget/report/route.ts:49-60 (the gate) · :102-119 (actuals by name, the counts, the bank rows) · src/lib/budget/reportInputs.ts:352-399 (routine and task lines, the model) · src/components/budget/BudgetReport.tsx:330 · :352 (the screen, its one read) · src/app/budget/page.tsx:31 · src/app/api/home/route.ts:33-63 · :89 (draft :107) · src/app/api/home/[id]/route.ts:143 · :118-139, :81-89',
+    note: 'TAB13-02b: /budget renders the read-only budget report; the six category URLs redirect to it, and BudgetingPage (with its draft form) is mounted nowhere — the recurring-line routes cited after the report have no screen now.',
+    customer: 'You can compare what you planned in your routines and tasks with what you actually spent, by book and account; travel and income budgets are not connected yet.',
   },
   // ── WHAT YOU OWN ──
   // ACCOUNTS-01b: Banking's home is its OWN screen. Until ACCOUNTS-01 the tool had

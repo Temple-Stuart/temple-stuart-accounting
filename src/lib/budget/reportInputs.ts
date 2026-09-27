@@ -20,8 +20,10 @@
  *     Neither is restated here.
  *   · THE RESPONSE. The report plus what is NOT in it, always stated: plans not
  *     placed, costed tasks excluded by status (ALL TIME), bank rows not in the
- *     books yet per column, ledger lines left out by name, how many records each
- *     source gave, and the travel budgets, which are not connected.
+ *     books yet per column (a row whose amount is not whole cents is listed as
+ *     not totalled and left out of the totals — never fatal), ledger lines left
+ *     out by name, how many records each source gave, and the travel budgets,
+ *     which are not connected.
  *
  * Structural row shapes, no Prisma import, no clock: the route reads the server's
  * date and passes it in. A build law holds this file pure (scripts/
@@ -38,7 +40,7 @@ import {
 
 // ── FAIL LOUD ───────────────────────────────────────────────────────────────
 
-export type BudgetInputErrorCode = 'bad-server-day' | 'unsafe-cents' | 'bank-amount-not-cents' | 'bank-row-outside-range' | 'unknown-entity';
+export type BudgetInputErrorCode = 'bad-server-day' | 'unsafe-cents' | 'bank-row-outside-range' | 'unknown-entity';
 
 /** A row the route read that cannot become an input — named, never coerced. The route answers 500. */
 export class BudgetInputError extends Error {
@@ -260,10 +262,26 @@ export interface NotInBooksColumn {
   /** The column's last day read: min(to, asOf). Null for a future column. */
   readonly through: IsoDay | null;
   readonly state: ColumnState;
-  /** Null for a future column — nothing can have happened yet. */
+  /** The rows totalled into bankCents. Null for a future column — nothing can have happened yet. */
   readonly transactions: number | null;
   /** Σ Plaid amount in cents (outflows positive), or null when there are none. A bank figure, not a ledger one. */
   readonly bankCents: number | null;
+  /** Rows in this column LEFT OUT of bankCents — listed in notTotalled. Null for a future column. */
+  readonly notTotalled: number | null;
+}
+
+/**
+ * A bank row whose amount is not a whole number of cents (ruled 2026-09-27,
+ * ruling 10's principle): listed with its raw amount and left out of every
+ * column total — never rounded into one, never hidden, never fatal.
+ */
+export interface BankRowNotTotalled {
+  readonly id: string;
+  readonly day: IsoDay;
+  /** Plaid's amount exactly as stored, as text. */
+  readonly amount: string;
+  /** Why it is not totalled. */
+  readonly detail: string;
 }
 
 export interface BudgetReportResponse {
@@ -274,7 +292,13 @@ export interface BudgetReportResponse {
   readonly notPlaced: readonly NotPlaced[];
   /** Costed tasks set aside by status — counted across ALL TIME, not the view. */
   readonly excludedTasks: { readonly scope: 'ALL TIME'; readonly byStatus: readonly ExcludedByStatus[] };
-  readonly notInBooks: { readonly basis: 'bank'; readonly sign: 'Plaid signs outflows positive'; readonly columns: readonly NotInBooksColumn[] };
+  readonly notInBooks: {
+    readonly basis: 'bank';
+    readonly sign: 'Plaid signs outflows positive';
+    readonly columns: readonly NotInBooksColumn[];
+    /** Every bank row in range left out of the totals, by day then id. */
+    readonly notTotalled: readonly BankRowNotTotalled[];
+  };
   readonly excludedLines: ExcludedLines;
   /** How many records each source gave this report. */
   readonly records: {
@@ -289,29 +313,39 @@ export interface BudgetReportResponse {
   readonly travelBudgets: 'not connected';
 }
 
-function notInBooksColumns(report: BudgetReport, bank: readonly BankRow[], rangeFrom: IsoDay, rangeTo: IsoDay): NotInBooksColumn[] {
-  const rows = bank.map((row) => {
+function notInBooksOf(report: BudgetReport, bank: readonly BankRow[], rangeFrom: IsoDay, rangeTo: IsoDay): { columns: NotInBooksColumn[]; notTotalled: BankRowNotTotalled[] } {
+  const totalled: { day: IsoDay; cents: number }[] = [];
+  const notTotalled: BankRowNotTotalled[] = [];
+  for (const row of bank) {
     const day = utcDay(row.date);
+    // A row the query should never have returned is the route's bug — a 500, by name.
     if (day < rangeFrom || day > rangeTo || day > report.asOf) {
       throw new BudgetInputError('bank-row-outside-range', `bank transaction ${row.id} is dated ${day}, outside [${rangeFrom}, min(${rangeTo}, asOf ${report.asOf})]`);
     }
     const cents = centsFromDollars(row.amount);
-    if (!cents.ok) throw new BudgetInputError('bank-amount-not-cents', `bank transaction ${row.id}: ${cents.detail}`);
-    return { day, cents: cents.cents };
-  });
-  return report.columns.map((column) => {
+    if (cents.ok) totalled.push({ day, cents: cents.cents });
+    else notTotalled.push({ id: row.id, day, amount: String(row.amount), detail: cents.detail });
+  }
+  notTotalled.sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const columns = report.columns.map((column): NotInBooksColumn => {
     if (column.state === 'future') {
-      return { key: column.key, label: column.label, from: column.from, through: null, state: column.state, transactions: null, bankCents: null };
+      return { key: column.key, label: column.label, from: column.from, through: null, state: column.state, transactions: null, bankCents: null, notTotalled: null };
     }
     const through = column.to < report.asOf ? column.to : report.asOf;
-    const inColumn = rows.filter((r) => column.from <= r.day && r.day <= through);
+    const inColumn = totalled.filter((r) => column.from <= r.day && r.day <= through);
     let total = 0;
     for (const r of inColumn) {
       total += r.cents;
       if (!Number.isSafeInteger(total)) throw new BudgetInputError('unsafe-cents', `the bank rows of column ${column.key} left the safe integer range of cents`);
     }
-    return { key: column.key, label: column.label, from: column.from, through, state: column.state, transactions: inColumn.length, bankCents: inColumn.length === 0 ? null : total };
+    return {
+      key: column.key, label: column.label, from: column.from, through, state: column.state,
+      transactions: inColumn.length,
+      bankCents: inColumn.length === 0 ? null : total,
+      notTotalled: notTotalled.filter((r) => column.from <= r.day && r.day <= through).length,
+    };
   });
+  return { columns, notTotalled };
 }
 
 /** The rows the route read → the response the screen reads. */
@@ -349,7 +383,7 @@ export function budgetReportResponse(query: { readonly view: BudgetView; readonl
     report,
     notPlaced: [...routines.notPlaced, ...tasks.notPlaced],
     excludedTasks: { scope: 'ALL TIME', byStatus: tasks.excluded },
-    notInBooks: { basis: 'bank', sign: 'Plaid signs outflows positive', columns: notInBooksColumns(report, rows.bank, rangeFrom, rangeTo) },
+    notInBooks: { basis: 'bank', sign: 'Plaid signs outflows positive', ...notInBooksOf(report, rows.bank, rangeFrom, rangeTo) },
     excludedLines: rows.excludedLines,
     records: {
       entities: entities.length,

@@ -40,6 +40,15 @@ test('/budget renders the budget report — not the category switcher, not Budge
   assert.ok(existsSync(`${process.cwd()}/src/lib/budgetCategories.ts`));
 });
 
+// Ruled 2026-09-27: the middleware's 307 stays; the screen reads a redirect as signed out.
+test('the budget screen reads a redirected response as signed out — not as a failure', () => {
+  const screen = code('src/components/budget/BudgetReport.tsx');
+  assert.match(screen, /fetch\(`\/api\/budget\/report\?\$\{query\}`, \{ cache: 'no-store', redirect: 'manual' \}\)/, 'the redirect is not followed');
+  assert.match(screen, /if \(res\.type === 'opaqueredirect'\) \{\s*if \(live\) setLoad\(\{ state: 'signedOut' \}\);\s*return;\s*\}/, 'a redirect is signed out');
+  assert.ok(screen.indexOf("res.type === 'opaqueredirect'") < screen.indexOf("code: 'not-json'"), 'decided before the no-JSON failure');
+  assert.match(screen, /state === 'signedOut' && <p[^>]*>Sign in to see your budget\.<\/p>/);
+});
+
 test('an unknown ?category= falls to the FIRST and says so — never an empty room', () => {
   assert.equal(categoryFor(undefined).category.slug, 'business');
   assert.equal(categoryFor(undefined).fellBack, false, 'no category asked for is not a fallback');
