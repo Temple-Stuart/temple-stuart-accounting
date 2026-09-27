@@ -22,14 +22,22 @@ test('the six categories are one const, and the law holds on them', () => {
   assert.throws(() => budgetCategoriesLaw({ categories: BUDGET_CATEGORIES.slice(0, 5) }), BudgetCategoriesLawError);
 });
 
-test('the switcher renders every category from the const — no retyped list in the page', () => {
+// TAB13-02b (2026-09-27): /budget renders THE BUDGET REPORT. The category
+// switcher, its unknown-category line and the BudgetingPage mount left the page;
+// this test replaced "the switcher renders every category from the const".
+test('/budget renders the budget report — not the category switcher, not BudgetingPage', () => {
   const page = code('src/app/budget/page.tsx');
-  assert.match(page, /BUDGET_CATEGORIES\.map\(/, 'the switcher maps the const');
-  assert.match(page, /data-budget-switcher/);
-  // Not one category name is typed into the page.
+  assert.match(page, /import BudgetReport from '@\/components\/budget\/BudgetReport';/);
+  assert.match(page, /<BudgetReport \/>/, 'the report is mounted');
+  assert.doesNotMatch(page, /BudgetingPage/, 'the category room is not mounted');
+  assert.doesNotMatch(page, /data-budget-switcher|BUDGET_CATEGORIES/, 'no switcher');
+  // Still: not one category name is typed into the page.
   for (const c of BUDGET_CATEGORIES) {
     assert.ok(!new RegExp(`["'>]${c.category}["'<]`).test(page), `${c.category} is not typed into the page`);
   }
+  // Nothing was deleted: the room's component and the const stay.
+  assert.ok(existsSync(`${process.cwd()}/src/components/dashboard/BudgetingPage.tsx`));
+  assert.ok(existsSync(`${process.cwd()}/src/lib/budgetCategories.ts`));
 });
 
 test('an unknown ?category= falls to the FIRST and says so — never an empty room', () => {
@@ -40,9 +48,10 @@ test('an unknown ?category= falls to the FIRST and says so — never an empty ro
   const bogus = categoryFor('nope');
   assert.equal(bogus.category.slug, 'business', 'the first, not nothing');
   assert.equal(bogus.fellBack, true, 'and the room is told to say so');
-  // The page renders that statement rather than silently correcting the URL.
-  assert.match(code('src/app/budget/page.tsx'), /data-category-fellback/);
-  assert.match(code('src/app/budget/page.tsx'), /There is no/);
+  // TAB13-02b: the page no longer reads ?category= — the two assertions that it
+  // rendered the unknown-category line (data-category-fellback, "There is no")
+  // left with the switcher. categoryFor itself is kept and still pinned above.
+  assert.doesNotMatch(code('src/app/budget/page.tsx'), /category/, 'the page reads no ?category=');
 });
 
 test('the six legacy routes are redirects to the room, and each one resolves', () => {

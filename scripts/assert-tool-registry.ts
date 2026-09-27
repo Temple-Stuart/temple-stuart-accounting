@@ -2796,6 +2796,10 @@ lawGuard('The budget report purity law', () => {
 // turn routines and tasks into the model's dated budget lines, and hold to the same
 // standard for the same reason. A file reachable from both roots is checked once,
 // under the first root that reaches it.
+// TAB13-02b (2026-09-27): FOUR roots. The route's pure half (src/lib/budget/
+// reportInputs.ts — the query, every row to input mapping, the response) and the
+// formatter (src/lib/budget/format.ts — cents to text on /budget) join, each with
+// its test, so the route and the screen hold no arithmetic a test cannot load.
 const REPORT_FORBIDDEN: ReadonlyArray<{ what: string; re: RegExp }> = [
   { what: 'imports @prisma/client', re: /(?:\bfrom\s+|\bimport\s*\(\s*|\brequire\s*\(\s*)[\x27"]@prisma\/client(?:\/[^\x27"]*)?[\x27"]/ },
   { what: 'imports next', re: /(?:\bfrom\s+|\bimport\s*\(\s*|\brequire\s*\(\s*)[\x27"]next(?:\/[^\x27"]*)?[\x27"]/ },
@@ -2804,15 +2808,17 @@ const REPORT_FORBIDDEN: ReadonlyArray<{ what: string; re: RegExp }> = [
   { what: 'reads the clock through an argument-less new Date()', re: /\bnew\s+Date\s*\(\s*\)/ },
   { what: 'reads process.env', re: /\bprocess\.env\b/ },
 ];
-const REPORT_ROOTS: ReadonlyArray<{ root: string; name: string; test: string }> = [
-  { root: 'src/lib/budget/report.ts', name: 'the model', test: 'src/lib/__tests__/budgetReport.test.ts' },
-  { root: 'src/lib/budget/days.ts', name: 'the day module', test: 'src/lib/__tests__/budgetDays.test.ts' },
+const REPORT_ROOTS: ReadonlyArray<{ root: string; name: string; noun: string; test: string }> = [
+  { root: 'src/lib/budget/report.ts', name: 'the model', noun: 'model', test: 'src/lib/__tests__/budgetReport.test.ts' },
+  { root: 'src/lib/budget/days.ts', name: 'the day module', noun: 'day module', test: 'src/lib/__tests__/budgetDays.test.ts' },
+  { root: 'src/lib/budget/reportInputs.ts', name: 'the route-inputs module', noun: 'route-inputs module', test: 'src/lib/__tests__/budgetReportInputs.test.ts' },
+  { root: 'src/lib/budget/format.ts', name: 'the formatter', noun: 'formatter', test: 'src/lib/__tests__/budgetFormat.test.ts' },
 ];
 let reportViolations = 0;
 const reportFail = (m: string) => { reportViolations += 1; violations.push(`budget report law: ${m} (TAB13-01)`); };
 const reportTree = new Set<string>();
-for (const { root, name, test } of REPORT_ROOTS) {
-  if (!existsSync(resolve(ROOT, root))) reportFail(`${root} is missing — the budget report has one ${name === 'the model' ? 'model' : 'day module'}`);
+for (const { root, name, noun, test } of REPORT_ROOTS) {
+  if (!existsSync(resolve(ROOT, root))) reportFail(`${root} is missing — the budget report has one ${noun}`);
   else {
     const stack = [root];
     while (stack.length) {
@@ -2829,8 +2835,107 @@ for (const { root, name, test } of REPORT_ROOTS) {
   if (!existsSync(resolve(ROOT, test))) reportFail(`${test} is missing — the rules of ${name} are pinned there`);
   else if (REPORT_FORBIDDEN[0].re.test(codeOf(test))) reportFail(`${test} imports @prisma/client — the test of ${name} must load without a generated client`);
 }
-if (reportViolations === 0) console.log(`✔ The budget report purity law passed — ${reportTree.size} files in the import trees of the model and the day module; none imports @prisma/client or next, calls fetch, reads the clock or reads process.env; their tests import no @prisma/client.`);
+if (reportViolations === 0) console.log(`✔ The budget report purity law passed — ${reportTree.size} files in the import trees of ${REPORT_ROOTS.map((r) => r.name).join(', ')}; none imports @prisma/client or next, calls fetch, reads the clock or reads process.env; their tests import no @prisma/client.`);
 else console.log(`✖ The budget report purity law FAILED — ${reportViolations} violation(s).`);
+});
+lawGuard('The budget report route law', () => {
+
+// ── THE BUDGET REPORT ROUTE LAW (TAB13-02b, 2026-09-27) ─────────────────────
+// GET /api/budget/report reads a person's books — the chart, the ledger, the
+// bank rows — and hands them to the pure half (src/lib/budget/reportInputs.ts)
+// and the model. It is read-only and it is the viewer's alone. Five clauses, a
+// seed each (scripts/proofs/budgetroute.seeds.ts):
+//   1. THE GATE COMES FIRST. The GET body opens with the cart-plan auth pattern
+//      (src/app/api/ai/cart-plan/route.ts:80-89): a verified cookie or 401, the
+//      user or 404 — before any other read. GET is the only method, and the path
+//      is not public in src/middleware.ts.
+//   2. NO TRAVEL TABLE. Nothing in the route or its import tree names
+//      budget_line_items, trip_itinerary or calendar_events, or is a travel file:
+//      travel budgets are not connected yet, and the response says so.
+//   3. LEFT OUT BY NAME. The one actuals query excludes reversal pairs
+//      (is_reversal false, reversed_by_entry_id null) and closing entries
+//      (source_type not year_end_close) in its own where clause, and both are
+//      counted. No raw query can read the ledger around it.
+//   4. IT WRITES NOTHING. No Prisma create, update, delete or upsert and no
+//      executeRaw in the route or anything it imports.
+//   5. /budget RENDERS THE REPORT. The page mounts BudgetReport, and
+//      BudgetingPage is in nothing it imports.
+const BR_ROUTE = 'src/app/api/budget/report/route.ts';
+const BR_INPUTS = 'src/lib/budget/reportInputs.ts';
+const BR_PAGE = 'src/app/budget/page.tsx';
+const BR_PATH = '/api/budget/report';
+const BR_TRAVEL_TABLES = /\b(budget_line_items|trip_itinerary|calendar_events)\b/;
+const BR_TRAVEL_FILES = /^src\/(lib\/trips|components\/trips|app\/api\/trips|app\/budgets\/trips)\//;
+const BR_WRITE = /\.\w+\.(create|createMany|update|updateMany|delete|deleteMany|upsert)\s*\(|\$executeRaw/;
+// The cart-plan gate, whitespace folded — the first statements of the GET body.
+const BR_GATE = [
+  'export async function GET(request: NextRequest) { try {',
+  'const userEmail = await getVerifiedEmail();',
+  'if (!userEmail) { return NextResponse.json({ error: \x27Unauthorized\x27 }, { status: 401 }); }',
+  'const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: \x27insensitive\x27 } } });',
+  'if (!user) { return NextResponse.json({ error: \x27User not found\x27 }, { status: 404 }); }',
+].join(' ');
+let brViolations = 0;
+const brFail = (m: string) => { brViolations += 1; violations.push(`budget report route law: ${m} (TAB13-02b)`); };
+const brTree = (root: string): string[] => {
+  const seen = new Set<string>();
+  const stack = [root];
+  while (stack.length) {
+    const f = stack.pop()!;
+    if (seen.has(f)) continue;
+    seen.add(f);
+    for (const next of importsFor(f)) stack.push(next);
+  }
+  return [...seen];
+};
+let brTreeSize = 0;
+if (!existsSync(resolve(ROOT, BR_ROUTE))) brFail(`${BR_ROUTE} is missing — the budget report has one route`);
+else {
+  const route = codeOf(BR_ROUTE);
+  // 1. The gate first; GET only; not public.
+  if (!route.replace(/\s+/g, ' ').includes(BR_GATE)) brFail(`${BR_ROUTE} does not open with the cart-plan auth — a verified cookie or 401, the user or 404, before any other read`);
+  const methods = [...route.matchAll(/export\s+(?:async\s+)?(?:function|const)\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\b/g)].map((m) => m[1]);
+  if (methods.join(',') !== 'GET') brFail(`${BR_ROUTE} exports a method other than GET (${methods.join(', ')}) — the report is read-only`);
+  const mw = codeOf('src/middleware.ts');
+  const publicList = /const PUBLIC_PATHS = \[([\s\S]*?)\];/.exec(mw);
+  if (!publicList) brFail('src/middleware.ts no longer declares PUBLIC_PATHS — the law cannot see whether the report is public');
+  else {
+    for (const m of publicList[1].matchAll(/\x27([^\x27]+)\x27/g)) {
+      if (BR_PATH === m[1] || BR_PATH.startsWith(`${m[1]}/`)) brFail(`${BR_PATH} is a public path (src/middleware.ts lists ${m[1]}) — a guest would reach the books of a person`);
+    }
+  }
+  // 2 and 4. The whole import tree: no travel table, no travel file, no write.
+  const tree = brTree(BR_ROUTE);
+  brTreeSize = tree.length;
+  for (const f of tree) {
+    if (BR_TRAVEL_FILES.test(f)) brFail(`${f} is a travel file in the import tree of ${BR_ROUTE} — travel budgets are not connected yet`);
+    const body = codeOf(f);
+    const table = BR_TRAVEL_TABLES.exec(body);
+    if (table) brFail(`${f} names the travel table ${table[1]} — it is in the import tree of ${BR_ROUTE}, and no travel table is read`);
+    const write = BR_WRITE.exec(body);
+    if (write) brFail(`${f} writes (${write[0].trim()}) — it is in the import tree of ${BR_ROUTE}, and the report writes nothing`);
+  }
+  if (!/travelBudgets: \x27not connected\x27/.test(codeOf(BR_INPUTS))) brFail(`${BR_INPUTS} does not say the travel budgets are not connected`);
+  // 3. Left out by name, in the one actuals query.
+  const actuals = [...route.matchAll(/ledger_entries\.findMany\(\{([\s\S]*?)select:/g)];
+  if (actuals.length !== 1) brFail(`${BR_ROUTE} reads ledger lines ${actuals.length} times — the actuals are ONE query, filtered by name`);
+  else {
+    const where = actuals[0][1];
+    if (!/is_reversal:\s*false/.test(where) || !/reversed_by_entry_id:\s*null/.test(where)) brFail(`${BR_ROUTE} does not leave out reversal pairs by name in its actuals query — is_reversal false and reversed_by_entry_id null, both`);
+    if (!/source_type:\s*\{\s*not:\s*\x27year_end_close\x27\s*\}/.test(where)) brFail(`${BR_ROUTE} does not leave out closing entries by name in its actuals query — source_type not year_end_close`);
+  }
+  if (!/is_reversal:\s*true/.test(route)) brFail(`${BR_ROUTE} does not count the reversal pairs it leaves out`);
+  if (!/source_type:\s*\x27year_end_close\x27/.test(route)) brFail(`${BR_ROUTE} does not count the closing entries it leaves out`);
+  if (/\$queryRaw/.test(route)) brFail(`${BR_ROUTE} runs a raw query — the ledger is read through the one filtered query`);
+}
+// 5. /budget renders the report.
+{
+  const page = codeOf(BR_PAGE);
+  if (!/import BudgetReport from \x27@\/components\/budget\/BudgetReport\x27;/.test(page) || !/<BudgetReport\b/.test(page)) brFail(`${BR_PAGE} does not render BudgetReport — /budget is the budget report`);
+  if (/BudgetingPage/.test(page) || brTree(BR_PAGE).includes('src/components/dashboard/BudgetingPage.tsx')) brFail(`BudgetingPage is in the import tree of ${BR_PAGE} — /budget renders BudgetReport, not the category room`);
+}
+if (brViolations === 0) console.log(`✔ The budget report route law passed — GET only, the cart-plan gate first, not a public path; ${brTreeSize} files in its import tree name no travel table and write nothing; reversal pairs and closing entries are left out of the actuals by name and counted; /budget renders BudgetReport.`);
+else console.log(`✖ The budget report route law FAILED — ${brViolations} violation(s).`);
 });
 lawGuard('The one-off law', () => {
 

@@ -257,6 +257,8 @@ test('R5 MONEY IS EXACT — a Decimal string by string arithmetic; routine dolla
   assert.deepEqual(centsFromDollars(0.29), { ok: true, cents: 29 });
   assert.deepEqual(centsFromDollars(-5), { ok: true, cents: -500 });
   assert.equal(centsFromDollars(12.345).ok, false);
+  // TAB13-02b (T2): 0.4 of a cent off — kills a tolerance loosened from 1e-6 toward half a cent.
+  assert.equal(centsFromDollars(12.344).ok, false);
   assert.equal(centsFromDollars(1e17).ok, false, '10^19 cents is past the safe range');
   assert.equal(centsFromDollars(Number.NaN).ok, false);
   // Through the builders: never on a line, listed with cents null (the whole number of cents is unknown).
