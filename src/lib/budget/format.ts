@@ -16,6 +16,11 @@
  *                      to date, "of <full>" when the full budget differs; a
  *                      FUTURE one the FULL budget, marked planned — nothing in
  *                      it is to date yet, and its actual and variance stay '—'.
+ *   · an account     → its account string, by the app's ONE renderer
+ *                      (src/lib/accountString.ts deriveAccountString) with its
+ *                      book's entity type: B-5100, P-1500, T-1500 — never bare
+ *                      digits, never a doubled letter; a book whose type has no
+ *                      letter shows none, the renderer's own rule (TAB13-02c).
  *
  * Exact by construction: integer division and a remainder, no floating point,
  * no locale. A figure that is not a safe integer is refused by name — it never
@@ -23,14 +28,15 @@
  * (scripts/assert-tool-registry.ts, the budget report purity law).
  */
 
-import type { ColumnState } from '@/lib/budget/report';
+import { deriveAccountString } from '@/lib/accountString';
+import type { ColumnState, ReportBook } from '@/lib/budget/report';
 
 export const BLANK = '—';
 const MINUS = '−';
 
-export type BudgetFormatErrorCode = 'not-cents' | 'bad-state';
+export type BudgetFormatErrorCode = 'not-cents' | 'bad-state' | 'unknown-book';
 
-/** A figure that is not a whole, safe number of cents, or a column state that is not one — the caller's bug, refused. */
+/** A figure that is not a whole, safe number of cents, a column state that is not one, or an account of no book — the caller's bug, refused. */
 export class BudgetFormatError extends Error {
   readonly code: BudgetFormatErrorCode;
   constructor(code: BudgetFormatErrorCode, message: string) {
@@ -88,4 +94,16 @@ export function formatBudget(state: ColumnState, toDate: number | null, full: nu
   if (state === 'inProgress') return { text: formatCents(toDate), note: full !== toDate ? `of ${formatCents(full)}` : null };
   if (state === 'future') return { text: formatCents(full), note: full === null ? null : 'planned' };
   throw new BudgetFormatError('bad-state', `${JSON.stringify(state)} is not a column state (closed, inProgress, future)`);
+}
+
+/**
+ * An account as /budget shows it (TAB13-02c): the report's book with that
+ * entityId gives the entity type, and the app's one renderer draws the string.
+ * The model builds one book per entity (report.ts), so an entityId with no book
+ * is a bug — refused by name, never drawn without its letter.
+ */
+export function formatAccountCode(books: readonly Pick<ReportBook, 'entityId' | 'entityType'>[], entityId: string, code: string): string {
+  const book = books.find((b) => b.entityId === entityId);
+  if (!book) throw new BudgetFormatError('unknown-book', `no book of the report is entity ${JSON.stringify(entityId)} — account ${JSON.stringify(code)} cannot be drawn`);
+  return deriveAccountString({ entityType: book.entityType, code });
 }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatBudget, formatCents, formatVariance, BudgetFormatError, BLANK } from '../budget/format';
+import { formatAccountCode, formatBudget, formatCents, formatVariance, BudgetFormatError, BLANK } from '../budget/format';
 import type { ColumnState } from '../budget/report';
 import { code } from '../sourceText';
 
@@ -66,6 +66,31 @@ test('BUDGET LINE — closed: to date; in progress: to date, "of <full>" when it
   assert.throws(() => formatBudget('future', null, 1.5), (e: unknown) => e instanceof BudgetFormatError && e.code === 'not-cents');
 });
 
+// TAB13-02c (ruled 2026-09-27): "I WANT THE CODES TO SHOW AS THEY SHOULD" — the same four digits exist in every book.
+test('ACCOUNT — shown as its account string by the app\'s one renderer, with its book\'s entity type; no book is refused', () => {
+  const books = [
+    { entityId: 'b', entityType: 'sole_prop' },
+    { entityId: 'p', entityType: 'personal' },
+    { entityId: 't', entityType: 'trading' },
+    { entityId: 'x', entityType: 'llc' },
+  ];
+  assert.equal(formatAccountCode(books, 'b', '5100'), 'B-5100');
+  assert.equal(formatAccountCode(books, 'p', '1500'), 'P-1500');
+  assert.equal(formatAccountCode(books, 't', '1500'), 'T-1500');
+  assert.equal(formatAccountCode(books, 'x', '1500'), '1500', 'a type with no letter shows the bare digits — never a guessed letter');
+  assert.notEqual(formatAccountCode(books, 'b', '1500'), formatAccountCode(books, 'p', '1500'), 'B-1500 and P-1500 are told apart');
+  assert.throws(() => formatAccountCode(books, 'nope', '5100'), (e: unknown) => e instanceof BudgetFormatError && e.code === 'unknown-book' && e.message.includes('"nope"'));
+  assert.throws(() => formatAccountCode([], 'b', '5100'), (e: unknown) => e instanceof BudgetFormatError && e.code === 'unknown-book');
+});
+
+test('ON /budget — every account the screen prints goes through formatAccountCode: the row label and both Not-placed lines, never bare digits', () => {
+  const screen = code('src/components/budget/BudgetReport.tsx');
+  assert.match(screen, /label=\{`\$\{formatAccountCode\(report\.books, row\.entityId, row\.code\)\} · \$\{row\.name\}`\}/, 'the row label is "<account string> · <name>"');
+  assert.match(screen, /budget line on \$\{formatAccountCode\(books, l\.entityId, l\.code\)\}/, 'an unplaced budget line names its account string');
+  assert.match(screen, /ledger line on \$\{formatAccountCode\(books, p\.entityId, p\.code\)\}/, 'an unplaced posting names its account string');
+  assert.doesNotMatch(screen, /\$\{(row|l|p)\.code\}/, 'no account code is printed bare');
+});
+
 test('FAIL LOUD — a figure that is not a safe integer number of cents is refused by name, never written', () => {
   for (const bad of [12.5, Number.NaN, Number.POSITIVE_INFINITY, Number.MAX_SAFE_INTEGER + 1, '1200' as unknown as number]) {
     assert.throws(() => formatCents(bad), (e: unknown) => e instanceof BudgetFormatError && e.code === 'not-cents', `formatCents(${String(bad)})`);
@@ -73,10 +98,14 @@ test('FAIL LOUD — a figure that is not a safe integer number of cents is refus
   }
 });
 
-test('PURITY — the formatter imports nothing at run time (one type from the model) and reads no clock, network or environment', () => {
+test('PURITY — the formatter imports only the one account renderer at run time (and types from the model), and reads no clock, network or environment', () => {
   const src = code(FORMAT);
   const imports = src.split('\n').filter((l) => /^\s*import\b/.test(l));
-  assert.deepEqual(imports, ["import type { ColumnState } from '@/lib/budget/report';"], 'one type-only import, nothing at run time');
+  // TAB13-02c: the account renderer joins — the one place an account string is drawn (accountString.ts:47-57).
+  assert.deepEqual(imports, [
+    "import { deriveAccountString } from '@/lib/accountString';",
+    "import type { ColumnState, ReportBook } from '@/lib/budget/report';",
+  ], 'the renderer at run time, types from the model, nothing else');
   assert.doesNotMatch(src, /\bfetch\s*\(|\bDate\.now\s*\(|\bnew\s+Date\s*\(|\bprocess\.env\b|toLocaleString/);
   assert.doesNotMatch(code('src/lib/__tests__/budgetFormat.test.ts'), /['"]@prisma\/client/);
 });
