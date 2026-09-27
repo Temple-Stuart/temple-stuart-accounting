@@ -31,6 +31,13 @@
  *     system_automation with user_id = the booking's OWNER (so the owner's audit
  *     view shows it); the webhook → external_integration, the same owner; a guest
  *     booking → user_id null, named in the metadata.
+ *   · AUDIT-01b (2026-09-27): commission_locked is the ONE exception — Temple
+ *     Stuart's margin is never the customer's, so it is written by COMMISSION_ACTOR
+ *     (system_automation, user_id NULL) and never under the owner's id: the audit
+ *     view is scoped by actor_user_id, and a row with no user id reaches no
+ *     customer. reservationId stays in payload_metadata. A commission_locked input
+ *     with any other actor is REFUSED by name (never corrected silently, never
+ *     thrown) — the lock itself already stands in commission_ledger.
  *   · a failed audit write is console.error'd BY NAME with its request_id and
  *     NEVER thrown — the change already committed and stands. The caller gets
  *     { audited: false, reason }.
@@ -53,6 +60,13 @@ export interface BookingActor {
 export function actorOfReadSource(source: 'webhook' | 'cron' | 'retro', ownerId: string | null): BookingActor {
   return { type: source === 'webhook' ? 'external_integration' : 'system_automation', userId: ownerId };
 }
+
+/**
+ * AUDIT-01b (2026-09-27): the ONLY actor commission_locked is written with — the
+ * system, no user id — so no customer's audit view (scoped by actor_user_id) can
+ * ever return Temple Stuart's commission.
+ */
+export const COMMISSION_ACTOR: BookingActor = Object.freeze({ type: 'system_automation', userId: null, email: null, ip: null });
 
 /** A human's click — the signed-in user, or a guest (no account: user_id null, named). */
 export function humanActor(user: { id: string; email: string | null } | null, ip?: string | null): BookingActor {
@@ -107,6 +121,12 @@ export function bookingAuditInput(input: BookingEventInput): WriteAuditLogInput 
 
 export async function recordBookingEvent(input: BookingEventInput, writer: AuditWriter = writeAuditLog): Promise<AuditOutcome> {
   const request_id = bookingEventRequestId(input);
+  // AUDIT-01b: commission is never written under a user's id — refused by name, never corrected silently.
+  if (input.kind === 'commission_locked' && (input.actor.type !== 'system_automation' || input.actor.userId !== null)) {
+    const reason = `commission_locked refused — it is written by COMMISSION_ACTOR (system_automation, user_id null), not ${input.actor.type} ${input.actor.userId ?? 'null'}`;
+    console.error('[booking audit] audit row NOT written — the change stands:', { request_id, kind: input.kind, reservationId: input.reservation.id, reason });
+    return { audited: false, reason };
+  }
   try {
     const row = await writer(bookingAuditInput(input));
     return { audited: true, id: row.id };

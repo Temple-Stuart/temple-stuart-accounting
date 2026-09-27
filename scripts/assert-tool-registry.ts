@@ -6512,7 +6512,8 @@ lawGuard('The audit law', () => {
   const enumBlock = /enum AuditActionType \{([\s\S]*?)\n\}/.exec(schemaText)?.[1] ?? '';
   for (const k of kinds) if (!new RegExp(`^\\s*${k}\\s*$`, 'm').test(enumBlock)) auditFail(`prisma/schema.prisma's AuditActionType lacks '${k}' — the schema moves with the migration`);
   const prefixSrc = codeOf(PREFIX_ROUTE);
-  for (const family of ['reservation_', 'money_event_', 'commission_']) {
+  // AUDIT-01b (2026-09-27): two families — 'commission_' left the map (clause 11: the route never returns commission_locked).
+  for (const family of ['reservation_', 'money_event_']) {
     const list = new RegExp(`\\n  ${family}: \\[([^\\]]*)\\]`).exec(prefixSrc)?.[1] ?? null;
     if (list === null) { auditFail(`${PREFIX_ROUTE}'s prefix map has no '${family}' family`); continue; }
     const listed = [...list.matchAll(/'(\w+)'/g)].map((m) => m[1]).sort();
@@ -6662,7 +6663,39 @@ lawGuard('The audit law', () => {
   if (!page.includes('data-receipt-section="history"') || !page.includes('{HISTORY_WORDS.heading}') || !page.includes('{item.words}')) auditFail(`${PAGE} does not render the History section from the leaf's words`);
   if (/['"`>]\s*History\s*['"`<]/.test(page)) auditFail(`${PAGE} types the History heading — HISTORY_WORDS carries it`);
 
-  if (auditViolations === 0) console.log(`✔ The audit law passed — the ${kinds.length} booking kinds are in the enum, the schema and the read route's three families; every listed writer records through the one port after its change commits (the cancel request before the vendor's answer), with a deterministic request_id and the words leaf's description; no booking write site calls writeAuditLog directly (the review route's link row, named); a failed audit write is named and never thrown; the timeline leaf is pure; its route reads only, owns the booking, imports no vendor client and keeps commission off the customer's page.`);
+  // ── CLAUSE 10. commission_locked IS NEVER WRITTEN WITH A USER ID (AUDIT-01b, 2026-09-27). ──
+  // Temple Stuart's margin is never the customer's (RECEIPT-01). The audit view is scoped by
+  // actor_user_id, so a commission row written under the owner's id reached the owner. It is
+  // written by COMMISSION_ACTOR — system_automation, user_id NULL — and the port refuses any other.
+  if (!port.includes("export const COMMISSION_ACTOR: BookingActor = Object.freeze({ type: 'system_automation', userId: null, email: null, ip: null });")) auditFail(`${PORT}: COMMISSION_ACTOR is not the system with no user id`);
+  {
+    const guard = record.indexOf("if (input.kind === 'commission_locked' && (input.actor.type !== 'system_automation' || input.actor.userId !== null)) {");
+    const write = record.indexOf('const row = await writer(bookingAuditInput(input));');
+    const refusal = guard < 0 ? '' : record.slice(guard, write < 0 ? undefined : write);
+    if (guard < 0 || write < 0 || guard > write || !/return \{ audited: false, reason \};/.test(refusal) || !/console\.error\(/.test(refusal)) auditFail(`${PORT}: recordBookingEvent does not refuse, by name and before the write, a commission_locked row with a user id or a non-system actor`);
+  }
+  {
+    const read = codeOf(READ_LEAF);
+    const at = read.indexOf("kind: 'commission_locked',");
+    const call = at < 0 ? '' : read.slice(at, read.indexOf("target: { table: 'commission_ledger'", at));
+    if (!/\bactor: COMMISSION_ACTOR,/.test(call) || /\n\s*actor,/.test(call)) auditFail(`${READ_LEAF}: commission_locked is not written by COMMISSION_ACTOR — it would carry the owner's user id into the owner's audit view`);
+  }
+  for (const { file, src } of srcFiles) {
+    if (file === READ_LEAF || file === PORT || file === LEAF) continue;
+    if (/kind: 'commission_locked'/.test(src)) auditFail(`${file} records commission_locked — the vendor read's lock is its one writer, through COMMISSION_ACTOR`);
+  }
+
+  // ── CLAUSE 11. THE READ ROUTE NEVER RETURNS commission_locked (AUDIT-01b, 2026-09-27). ──
+  // Defense in depth over clause 10: excluded by name for every viewer, before any filter, and no prefix names it.
+  if (!prefixSrc.includes("const NEVER_RETURNED: AuditActionType[] = ['commission_locked'];")) auditFail(`${PREFIX_ROUTE} does not name commission_locked among the types it never returns`);
+  if (!prefixSrc.includes('const where: Prisma.audit_logWhereInput = { actor_user_id: user.id, NOT: { action_type: { in: NEVER_RETURNED } } };')) auditFail(`${PREFIX_ROUTE}'s base scope does not exclude NEVER_RETURNED for every viewer`);
+  if (/\bwhere\s*=\s*\{|where\.NOT\s*=|delete\s+where\.NOT/.test(prefixSrc)) auditFail(`${PREFIX_ROUTE} replaces its base scope — a filter narrows within it, never past it`);
+  {
+    const map = /const SUBSYSTEM_ACTION_TYPES[^=]*=\s*\{([\s\S]*?)\n\};/.exec(prefixSrc)?.[1] ?? '';
+    if (map === '' || /\n  commission_:/.test(map) || map.includes("'commission_locked'")) auditFail(`${PREFIX_ROUTE}'s prefix map still names commission_locked (or a commission_ family)`);
+  }
+
+  if (auditViolations === 0) console.log(`✔ The audit law passed — the ${kinds.length} booking kinds are in the enum, the schema and the read route's two families; every listed writer records through the one port after its change commits (the cancel request before the vendor's answer), with a deterministic request_id and the words leaf's description; no booking write site calls writeAuditLog directly (the review route's link row, named); a failed audit write is named and never thrown; the timeline leaf is pure; its route reads only, owns the booking, imports no vendor client and keeps commission off the customer's page; commission_locked is written by the system with no user id, and the audit-log read route never returns it.`);
   else console.log(`✖ The audit law FAILED — ${auditViolations} violation(s).`);
 });
 
