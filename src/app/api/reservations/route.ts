@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { bookingRowOf } from '@/lib/reservations/bookingRow';
+import { bookingCalendarRowsWhere, reservationIdOfCalendarSourceId } from '@/lib/calendar/bookingEvent';
 
 /**
  * BOOKINGS-01 (2026-09-27) — GET /api/reservations: every booking of the caller, newest first.
@@ -16,6 +17,12 @@ import { bookingRowOf } from '@/lib/reservations/bookingRow';
  * Every query is scoped to that user: reservations WHERE userId = user.id — a guest
  * row (userId null) and another user's row are never returned. READ-ONLY: zero
  * writes, and no vendor client — nothing here calls a provider.
+ *
+ * CAL-02 (2026-09-27): a flight now has one calendar row PER SEGMENT (source_id
+ * `<id>:seg:<n>`). The rows are read through the one where (bookingCalendarRowsWhere)
+ * and folded back to their reservation, so a booking with several rows is still ONE
+ * booking here: its day is the earliest stated start_date among its rows (the rows
+ * arrive ordered by start_date; the first one kept per reservation).
  */
 export async function GET() {
   const userEmail = await getVerifiedEmail();
@@ -56,9 +63,10 @@ export async function GET() {
           where: { userId: user.id, reservationId: { in: ids } },
           select: { reservationId: true, budgetLineItem: { select: { description: true } } },
         }),
-        // A flight's service day: its calendar row (source 'reservation', source_id = the reservation id).
+        // A flight's service day: its calendar rows — CAL-02: the bare key and every segment key.
         prisma.calendar_events.findMany({
-          where: { user_id: user.id, source: 'reservation', source_id: { in: ids } },
+          where: { user_id: user.id, ...bookingCalendarRowsWhere(ids) },
+          orderBy: { start_date: 'asc' },
           select: { source_id: true, start_date: true },
         }),
       ]);
@@ -66,7 +74,13 @@ export async function GET() {
   const matched = new Set(chargeLinks.map((l) => l.reservationId));
   const posted = new Set(postedEntries.map((e) => e.document_reservation_id));
   const lineOf = new Map(budgetLinks.map((b) => [b.reservationId, { description: b.budgetLineItem.description }]));
-  const dayOf = new Map(calendarRows.map((c) => [c.source_id, c.start_date]));
+  // CAL-02: one day per RESERVATION, never per row — the first (earliest) row of each.
+  const dayOf = new Map<string, Date>();
+  for (const c of calendarRows) {
+    if (c.source_id === null) continue;
+    const rid = reservationIdOfCalendarSourceId(c.source_id);
+    if (!dayOf.has(rid)) dayOf.set(rid, c.start_date);
+  }
 
   const bookings = reservations.map((r) =>
     bookingRowOf({

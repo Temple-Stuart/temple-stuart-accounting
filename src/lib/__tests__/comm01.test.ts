@@ -187,7 +187,8 @@ test('the locked read: the lock port writes the figures, the read instant and TH
       cancelCommission: async () => 0,
       lockCommission: async (id, figures, lockedAt, arrivalId) => { locks.push({ id, figures, lockedAt, arrivalId }); return answer; },
     },
-    calendar: { async find() { return true; }, async insert() {}, async markCancelled() { return 0; } },
+    // CAL-02 (2026-09-27): the calendar port also re-keys a pre-CAL-02 flight row — a hotel read never asks.
+    calendar: { async find() { return true; }, async insert() {}, async rekey() { return 0; }, async markCancelled() { return 0; } },
   };
   const object = { bookingId: 'hSq2gVDrf', status: 'CONFIRMED', hotelConfirmationCode: 'HCC-4421', commission: 12.34, distributorCommission: 3.2, clientCommission: 9.14, processingFee: 0.5, sellingPrice: '150.00' };
   const text = JSON.stringify({ data: object });

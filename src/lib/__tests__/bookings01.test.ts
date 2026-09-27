@@ -71,6 +71,8 @@ test('a confirmed hotel, with and without its code: every word exact', () => {
     confirmation: 'HCC-4421', ticketing: null, vendorRead: 'vendor state read at 2026-09-26T08:00:00.000Z',
     bank: 'not matched', ledger: 'not posted', budgetLine: 'no budget line', price: '180.00 USD',
     receiptHref: '/booking/r_h/receipt', tripHref: '/budgets/trips/t1',
+    // CAL-02 (2026-09-27): the booking's calendar file.
+    icsHref: '/api/reservations/r_h/ics',
   });
   const noCode = bookingRowOf(facts({ ...HOTEL, providerConfirmationCode: null, displayName: null, lastVendorReadAt: null }));
   assert.equal(noCode.confirmation, 'not yet stated');
@@ -132,7 +134,9 @@ test("the list route: 401 / 404; exactly the caller's reservations, newest first
   assert.match(s, /where: \{ userId: user\.id, status: 'accepted', moneyEventId: null, reservationId: \{ in: ids \} \},/);
   assert.match(s, /where: \{ userId: user\.id, document_money_event_id: null, status: 'posted', document_reservation_id: \{ in: ids \} \},/);
   assert.match(s, /where: \{ userId: user\.id, reservationId: \{ in: ids \} \},/);
-  assert.match(s, /where: \{ user_id: user\.id, source: 'reservation', source_id: \{ in: ids \} \},/);
+  // CAL-02 (2026-09-27): every calendar row of each booking — the bare key and each segment key — folded back to ONE day per booking.
+  assert.match(s, /where: \{ user_id: user\.id, \.\.\.bookingCalendarRowsWhere\(ids\) \},/);
+  assert.match(s, /const rid = reservationIdOfCalendarSourceId\(c\.source_id\);\s*if \(!dayOf\.has\(rid\)\) dayOf\.set\(rid, c\.start_date\);/);
   assert.ok(!/liteapiClient|liteapiFlightsClient|viatorClient|\bfetch\s*\(|reserveTravelSearch/.test(s), 'no vendor client');
   assert.ok(!/\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(|\$executeRaw|\$queryRaw|\$transaction/.test(s), 'zero writes');
   assert.ok(!/commission/i.test(s));

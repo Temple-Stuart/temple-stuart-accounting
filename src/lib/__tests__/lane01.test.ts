@@ -18,7 +18,7 @@ import {
   type FlightReservationPatch,
   type FlightReservationRow,
 } from '../reservations/refreshFlightReservation';
-import { BOOKING_CALENDAR_SOURCE, type BookingCalendarPort } from '../calendar/bookingEvent';
+import { BOOKING_CALENDAR_SOURCE, type BookingCalendarRow } from '../calendar/bookingEvent';
 import { parseFlightBookingDetails } from '../liteapiFlightsClient';
 import { dailyCap } from '../travelSearchQuota';
 
@@ -117,14 +117,15 @@ const ROW: FlightReservationRow = {
 /** STATUS-01: when the answer arrived — what lastVendorReadAt is stamped with on every read. */
 const READ_AT = new Date('2026-09-26T10:00:00.000Z');
 
-/** The vendor's answer, shaped as the GET reference documents (segments with direction). */
+/** The vendor's answer, shaped as the GET reference documents (segments with direction).
+ *  CAL-02 (2026-09-27): arrivalTime carried (the parser reads it now) — stated here as absent. */
 const STATED: FlightBookingStated = {
   bookingId: 'fb_9Q',
   status: 'CONFIRMED',
   pnr: null, ticketedAt: null, ticketLimitTime: null, cancelIntentAt: null, readAt: READ_AT,
   segments: [
-    { departureTime: '2026-10-30T09:00:00', direction: 'INBOUND', originCode: 'HKT', destinationCode: 'BKK', carrierName: 'Thai Vietjet Air', flightNumber: '229' },
-    { departureTime: '2026-10-25T14:15:00', direction: 'OUTBOUND', originCode: 'BKK', destinationCode: 'HKT', carrierName: 'Thai Vietjet Air', flightNumber: '228' },
+    { departureTime: '2026-10-30T09:00:00', arrivalTime: null, direction: 'INBOUND', originCode: 'HKT', destinationCode: 'BKK', carrierName: 'Thai Vietjet Air', flightNumber: '229' },
+    { departureTime: '2026-10-25T14:15:00', arrivalTime: null, direction: 'OUTBOUND', originCode: 'BKK', destinationCode: 'HKT', carrierName: 'Thai Vietjet Air', flightNumber: '228' },
   ],
 };
 
@@ -132,9 +133,12 @@ function fakePorts(opts: {
   answer?: FlightBookingStated | (() => Promise<FlightBookingStated>);
   existingCalendar?: boolean;
 } = {}) {
-  const calendarRows: Array<Parameters<BookingCalendarPort['insert']>[0]> = [];
+  const calendarRows: BookingCalendarRow[] = [];
   const writes: Array<{ id: string; patch: FlightReservationPatch }> = [];
-  let present = !!opts.existingCalendar;
+  // CAL-02 (2026-09-27): the store is KEYED — the bare reservation key (a pre-CAL-02
+  // row) and each segment key — so a re-key moves a row and a find asks by key.
+  const keys = new Set<string>(opts.existingCalendar ? [ROW.id] : []);
+  const rekeyed: Array<[string, string]> = [];
   let calls = 0;
   let marked = 0;
   let commission = 0;
@@ -145,30 +149,44 @@ function fakePorts(opts: {
       return opts.answer ?? STATED;
     },
     calendar: {
-      async find(source, sourceId) { return present && source === BOOKING_CALENDAR_SOURCE && sourceId === ROW.id; },
-      async insert(row) { calendarRows.push(row); present = true; },
+      async find(source, sourceId) { return source === BOOKING_CALENDAR_SOURCE && keys.has(sourceId); },
+      async insert(row) { calendarRows.push(row); keys.add(row.sourceId); },
+      async rekey(source, from, row) {
+        if (source !== BOOKING_CALENDAR_SOURCE || !keys.has(from)) return 0;
+        keys.delete(from); keys.add(row.sourceId); rekeyed.push([from, row.sourceId]);
+        return 1;
+      },
       // STATUS-01: a vendor-cancelled flight marks its day through the apply leaf.
-      async markCancelled(source, sourceId) { if (present && source === BOOKING_CALENDAR_SOURCE && sourceId === ROW.id) { marked += 1; return 1; } return 0; },
+      // CAL-02: every row of the reservation — the bare key and each segment key.
+      async markCancelled(source, sourceId) {
+        if (source !== BOOKING_CALENDAR_SOURCE) return 0;
+        const n = [...keys].filter((k) => k === sourceId || k.startsWith(`${sourceId}:seg:`)).length;
+        marked += n;
+        return n;
+      },
     },
     writeReservation: async (id, patch) => { writes.push({ id, patch }); },
     cancelCommission: async () => { commission += 1; return 1; },
   };
-  return { ports, calendarRows, writes, calls: () => calls, marked: () => marked, commission: () => commission };
+  return { ports, calendarRows, writes, calls: () => calls, marked: () => marked, commission: () => commission, keys, rekeyed };
 }
 
-test('GET booking succeeds → one calendar row on the OUTBOUND day, the stated name, the status refreshed', async () => {
+// CAL-02 (2026-09-27): was "one calendar row on the OUTBOUND day" — every stated
+// segment now earns its row, in the vendor's order; the NAME still reads the outbound.
+test('GET booking succeeds → one calendar row per stated segment (vendor order, CAL-02), the stated name, the status refreshed', async () => {
   const { ports, calendarRows, writes, calls } = fakePorts();
   const out = await refreshFlightReservation(ports, ROW);
   assert.equal(calls(), 1, 'exactly one vendor call');
   assert.ok(out.fetched);
   if (!out.fetched) return;
   assert.equal(out.calendar, 'inserted');
-  assert.equal(out.day, '2026-10-25', 'the OUTBOUND leg, not the inbound listed first');
-  assert.equal(calendarRows.length, 1);
+  assert.equal(out.day, '2026-10-25', 'the journey starts on the OUTBOUND day — the earliest of its rows');
+  assert.equal(calendarRows.length, 2, 'the INBOUND leg lands too');
   assert.equal(calendarRows[0].source, BOOKING_CALENDAR_SOURCE);
-  assert.equal(calendarRows[0].sourceId, 'res_f1', 'keyed exactly as CAL-01');
-  assert.equal(calendarRows[0].startDate.toISOString(), '2026-10-25T12:00:00.000Z');
-  assert.equal(calendarRows[0].title, 'Thai Vietjet Air BKK → HKT (flight)');
+  assert.deepEqual(calendarRows.map((r) => r.sourceId), ['res_f1:seg:0', 'res_f1:seg:1'], 'keyed per segment, in the vendor\'s order — never re-sorted');
+  assert.equal(calendarRows[0].startDate.toISOString(), '2026-10-30T12:00:00.000Z', 'segment 0 is the inbound the vendor listed first');
+  assert.equal(calendarRows[1].startDate.toISOString(), '2026-10-25T12:00:00.000Z');
+  assert.equal(calendarRows[1].title, 'Thai Vietjet Air 228 BKK → HKT', 'carrier, flight number, route — stated fields only');
   assert.equal(out.name, 'set');
   assert.equal(out.nameValue, 'Thai Vietjet Air BKK → HKT');
   assert.equal(out.status, 'set');
@@ -208,11 +226,12 @@ test('GET booking answers with no segments → no row, no rename, each by name; 
   assert.equal(out.status, 'set');
   assert.equal(out.statusValue, 'confirmed', 'the vendor said CONFIRMED on a pending row — applied, segments or not');
   assert.deepEqual(writes, [{ id: 'res_f1', patch: { status: 'confirmed', lastVendorReadAt: READ_AT } }], 'the status and the stamp; no name');
-  // Segments present but none marked OUTBOUND with a date: the same posture, named.
+  // Segments present but none marked OUTBOUND: no rename, named (LANE-01's posture for the NAME).
+  // CAL-02 (2026-09-27): the INBOUND leg is a stated leg — it lands on the calendar now.
   const { ports: p2, writes: w2, calendarRows: c2 } = fakePorts({ answer: { ...STATED, segments: [{ ...STATED.segments[1], direction: 'INBOUND' }] } });
   const o2 = await refreshFlightReservation(p2, ROW);
-  assert.ok(o2.fetched && o2.calendar === 'no_row' && /none marked OUTBOUND with a departureTime — no row, no rename/.test(o2.calendarReason ?? '') && o2.name === 'not_stated');
-  assert.equal(c2.length, 0);
+  assert.ok(o2.fetched && o2.calendar === 'inserted' && o2.name === 'not_stated');
+  assert.deepEqual(c2.map((r) => r.sourceId), ['res_f1:seg:0']);
   assert.deepEqual(w2.map((w) => w.patch), [{ status: 'confirmed', lastVendorReadAt: READ_AT }]);
 });
 
@@ -224,7 +243,8 @@ test('vendor status CANCELLED_WITH_CHARGES → the reservation is cancelled (SEC
   assert.equal(out.status, 'set');
   assert.equal(out.statusValue, 'cancelled');
   assert.deepEqual(writes, [{ id: 'res_f1', patch: { status: 'cancelled', lastVendorReadAt: READ_AT } }], 'one write of exactly the status, plus the read stamp');
-  assert.equal(marked(), 1, 'the CAL-01 row is marked cancelled, through the apply leaf');
+  // CAL-02 (2026-09-27): the pre-CAL-02 row was re-keyed to segment 0 and segment 1 inserted — both marked.
+  assert.equal(marked(), 2, 'every row of the reservation is marked cancelled, through the apply leaf');
   assert.equal(commission(), 1, 'the estimated commission is moved');
 });
 
@@ -250,7 +270,9 @@ test('vendor status unlisted → the reservation status is UNCHANGED and reporte
 
 test('the retro on an already-correct row changes NOTHING — and a second run changes nothing', async () => {
   const correct: FlightReservationRow = { ...ROW, displayName: 'Thai Vietjet Air BKK → HKT', status: 'confirmed' };
-  const { ports, calendarRows, writes } = fakePorts({ existingCalendar: true });
+  // CAL-02 (2026-09-27): "already correct" means every segment row is there.
+  const { ports, calendarRows, writes, keys } = fakePorts();
+  keys.add('res_f1:seg:0'); keys.add('res_f1:seg:1');
   const first = await refreshFlightReservation(ports, correct);
   assert.ok(first.fetched);
   if (!first.fetched) return;
@@ -271,7 +293,7 @@ test('the retro on an already-correct row changes NOTHING — and a second run c
   assert.ok(two.fetched && two.calendar === 'already_there' && two.name === 'unchanged' && two.status === 'unchanged');
   assert.deepEqual(fresh.writes[1].patch, { lastVendorReadAt: READ_AT }, 'the second run wrote the read stamp and nothing else');
   assert.ok(two.fetched && two.changes.length === 0, 'and changed nothing');
-  assert.equal(fresh.calendarRows.length, 1, 'still one calendar row');
+  assert.equal(fresh.calendarRows.length, 2, 'still one row per segment — nothing duplicated (CAL-02)');
 });
 
 test('the refresh reads flights only, derives no date from createdAt, and defaults nothing', () => {
@@ -279,7 +301,7 @@ test('the refresh reads flights only, derives no date from createdAt, and defaul
   assert.ok(!leaf.includes('createdAt'), 'no createdAt');
   assert.ok(!/new Date\(\)/.test(leaf), 'no today');
   assert.ok(!/\?\? '(pending|confirmed|cancelled)'/.test(leaf), 'no default status');
-  assert.match(leaf, /s\.direction === 'OUTBOUND'/, 'the outbound is the segment the vendor MARKED outbound');
+  assert.match(leaf, /s\.direction === 'OUTBOUND'/, 'the outbound (for the NAME) is the segment the vendor MARKED outbound');
   assert.match(leaf, /row\.lane !== 'flight'/, 'a non-flight throws');
   assert.rejects(() => refreshFlightReservation(fakePorts().ports, { ...ROW, lane: 'hotel' }), /reads flights only/);
 });
@@ -304,8 +326,9 @@ test('parseFlightBookingDetails maps the documented GET shape and invents nothin
   assert.equal(details.status, 'CONFIRMED');
   assert.equal(details.bookingRef, 'FH-269-920QSVHH');
   assert.equal(details.segments.length, 2);
-  assert.deepEqual(details.segments[0], { departureTime: '2026-04-10T15:30:00', direction: 'OUTBOUND', originCode: 'JFK', destinationCode: 'LAX', carrierName: 'Delta', flightNumber: '123' });
-  assert.deepEqual(details.segments[1], { departureTime: '2026-04-20T08:00:00', direction: null, originCode: 'LAX', destinationCode: null, carrierName: null, flightNumber: null });
+  // CAL-02 (2026-09-27): arrivalTime is read as stated, or null.
+  assert.deepEqual(details.segments[0], { departureTime: '2026-04-10T15:30:00', arrivalTime: '2026-04-10T18:40:00', direction: 'OUTBOUND', originCode: 'JFK', destinationCode: 'LAX', carrierName: 'Delta', flightNumber: '123' });
+  assert.deepEqual(details.segments[1], { departureTime: '2026-04-20T08:00:00', arrivalTime: null, direction: null, originCode: 'LAX', destinationCode: null, carrierName: null, flightNumber: null });
   assert.deepEqual(parseFlightBookingDetails({ bookingId: 'x' }).segments, [], 'no journey → no segments, not a throw');
   const client = code('src/lib/liteapiFlightsClient.ts');
   assert.match(client, /export async function getFlightBooking\(bookingId: string\)/);

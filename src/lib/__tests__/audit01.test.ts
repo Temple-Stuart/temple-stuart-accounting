@@ -304,7 +304,8 @@ test('the timeline route: the receipt route’s auth (401, 404 foreign or guest)
   assert.match(s, /\{ resource: BOOKING_READ, their_id: bookingReadTheirId\(reservation\.providerBookingId\) \},/);
   assert.match(s, /\{ resource: CANCELLATION, their_id: cancellationTheirId\(reservation\.providerBookingId\) \},/);
   assert.match(s, /where: \{ provider: LITEAPI, bookingId: reservation\.providerBookingId \},/);
-  assert.match(s, /where: \{ user_id: user\.id, source: 'reservation', source_id: reservation\.id \},/);
+  // CAL-02 (2026-09-27): a flight's rows are one per segment — read through the one where (the bare key and every segment key).
+  assert.match(s, /where: \{ user_id: user\.id, \.\.\.bookingCalendarRowsWhere\(\[reservation\.id\]\) \},/);
   assert.match(s, /action_type: \{ not: 'commission_locked' \},/);
   assert.match(s, /commission: \[\],/);
   assert.ok(!/commission_ledger/.test(s));

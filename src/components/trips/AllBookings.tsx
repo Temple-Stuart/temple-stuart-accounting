@@ -86,6 +86,11 @@ export default function AllBookings() {
                     <Link href={b.receiptHref} className="mr-2 rounded border border-border px-2 py-1 text-xs font-medium text-text-secondary hover:bg-bg-row" data-booking-receipt={b.id}>
                       {BOOKING_WORDS.receipt}
                     </Link>
+                    {/* CAL-02 (2026-09-27): the booking as a calendar file — a plain anchor: the route answers it as an
+                        attachment, and a refusal (no day stated yet) reads as its named words, not a saved error file. */}
+                    <a href={b.icsHref} className="mr-2 rounded border border-border px-2 py-1 text-xs font-medium text-text-secondary hover:bg-bg-row" data-booking-ics={b.id}>
+                      {BOOKING_WORDS.addToCalendar}
+                    </a>
                     {b.tripHref && (
                       <Link href={b.tripHref} className="rounded border border-border px-2 py-1 text-xs font-medium text-text-secondary hover:bg-bg-row" data-booking-trip={b.id}>
                         {BOOKING_WORDS.trip}

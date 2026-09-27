@@ -495,7 +495,12 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // ticketLimitTime and the PNR (order.reference.provider.pnr, else the first
   // airlineBookings[].pnr) as stated, null when absent. Nothing else changed.
   // Was 0bae21fb9bf0bd9664dc7418502a35e507f713d370e542b878e35e2188b3121d at main 53900e67.
-  { file: 'src/lib/liteapiFlightsClient.ts', sha256: '125814373dbf3db41c397f9cbd2c41a77bd19a139b5b96c068bb25b659d4d6b2' },
+  // CAL-02 (2026-09-27): re-pinned — parseFlightBookingDetails now reads each segment's
+  // arrivalTime as stated (or null), the documented field it skipped until a segment's
+  // calendar row needed its end. A pure parser change: no request, no book/pay/cancel
+  // call, no header, no endpoint changed.
+  // Was 125814373dbf3db41c397f9cbd2c41a77bd19a139b5b96c068bb25b659d4d6b2 at main 4f7c8c2a.
+  { file: 'src/lib/liteapiFlightsClient.ts', sha256: '5a65706359e07907469a588f9d26ec9080307a6eb2caff1edfdd9a35645052a9' },
   // FLIGHT-01 (2026-09-22): re-pinned — tri-state fare attributes, segment views with the operating carrier, the flight identity; the `!!terms` coercion gone. Search is not booking; no prebook/verify/book/pay/cancel call changed.
   // Was d851de5d68fada3cffddd88ddcc38005b5a9c739e73c0920c213f282c30fa879 at main b9eac34a.
   // HOTEL-01 (2026-09-22): re-pinned — the tri-state readers come from the one helper, src/lib/travel/stated.ts; no other change. Search and display are not booking; no prebook/book/pay/cancel call changed.

@@ -520,9 +520,12 @@ export async function bookFlight({ prebookId, transactionId }: {
 // flight.marketingNumber. This is what gives a flight reservation its day, its
 // name and its refreshed status (src/lib/reservations/refreshFlightReservation.ts).
 
-/** One segment as stated — null where the answer did not carry the field. */
+/** One segment as stated — null where the answer did not carry the field.
+ *  CAL-02 (2026-09-27): arrivalTime is read too — the documented field the parser
+ *  skipped until a segment's calendar row needed its end. As stated, or null. */
 export interface FlightBookingSegmentDetails {
   departureTime: string | null;
+  arrivalTime: string | null;
   direction: string | null;
   originCode: string | null;
   destinationCode: string | null;
@@ -563,6 +566,7 @@ export function parseFlightBookingDetails(booking: Record<string, unknown>): Fli
       const flight = s.flight as Record<string, unknown> | undefined;
       return {
         departureTime: str(s.departureTime),
+        arrivalTime: str(s.arrivalTime),
         direction: str(s.direction),
         originCode: str(s.originCode),
         destinationCode: str(s.destinationCode),

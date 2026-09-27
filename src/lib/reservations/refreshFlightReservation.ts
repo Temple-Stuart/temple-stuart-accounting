@@ -14,7 +14,9 @@
  * such answer for one flight reservation and applies what it states:
  *
  *   · the OUTBOUND segment's departureTime → the CAL-01 calendar row on that day,
- *     keyed (source='reservation', source_id=reservation.id) exactly as CAL-01;
+ *     keyed (source='reservation', source_id=reservation.id) exactly as CAL-01 —
+ *     CAL-02 (2026-09-27): now EVERY stated segment's row, keyed
+ *     `${reservation.id}:seg:${index}` (see WHICH SEGMENT below);
  *   · carrier.marketingName + originCode → destinationCode → displayName;
  *   · the vendor's current status → reservations.status, through THE ONE APPLY
  *     LEAF (STATUS-01, src/lib/reservations/applyVendorState.ts), which maps it
@@ -45,18 +47,30 @@
  * is the first outbound segment's marketing carrier. Segments the vendor has not
  * marked OUTBOUND, or has not dated, are not guessed at.
  *
+ * CAL-02 (2026-09-27) — THE NAME STILL READS THE OUTBOUND; THE CALENDAR READS
+ * EVERY SEGMENT. The ordering above now decides the NAME only. The calendar gets
+ * one row per segment the vendor states a departureTime for — connections and the
+ * whole INBOUND journey too — handed to the one segment writer
+ * (src/lib/calendar/bookingEvent.ts writeFlightSegmentRows) in the vendor's order,
+ * NEVER re-sorted, keyed `${reservation.id}:seg:${index}`; a pre-CAL-02 row under
+ * the bare reservation id is re-keyed in place, never duplicated. A segment with
+ * no departureTime has no row and is named. Still BEFORE the apply, so a flight
+ * the vendor reports cancelled has every leg MARKED by the apply.
+ *
  * Pure over ports, so node:test drives every branch without a database or a
  * provider, and the retro scripts (scripts/lane-01-retro-flights.ts,
  * scripts/status-01-retro-reservations.ts), the read leaf (vendorRead.ts) and
  * the book route wire the same function to the real ones.
  */
-import { flightStatedCalendarDecision, writeBookingCalendarEvent, type BookingCalendarCancelPort, type BookingCalendarPort } from '../calendar/bookingEvent';
-import { flightDisplayName, reservationIdentity } from './lane';
+import { flightSegmentsCalendarDecision, writeFlightSegmentRows, type BookingCalendarCancelPort, type BookingCalendarSegmentPort, type SegmentLanding } from '../calendar/bookingEvent';
+import { flightDisplayName } from './lane';
 import { applyVendorState, type ApplyPorts, type LifecycleEmailRequest, type ReservationPatch } from './applyVendorState';
 
-/** One segment, as the vendor states it — null where the field was not carried. */
+/** One segment, as the vendor states it — null where the field was not carried.
+ *  CAL-02 (2026-09-27): arrivalTime too — a segment's row ends where the vendor says it lands. */
 export interface FlightBookingSegmentStated {
   departureTime: string | null;
+  arrivalTime: string | null;
   direction: string | null;
   originCode: string | null;
   destinationCode: string | null;
@@ -103,8 +117,9 @@ export type FlightReservationPatch = ReservationPatch & { displayName?: string }
 export interface FlightRefreshPorts {
   /** The vendor call. Throws on any failure — the throw is caught here and named. */
   fetchBooking(bookingId: string): Promise<FlightBookingStated>;
-  /** The CAL-01 calendar port (prismaBookingCalendar in production), which also marks a cancelled day. */
-  calendar: BookingCalendarPort & BookingCalendarCancelPort;
+  /** The CAL-01 calendar port (prismaBookingCalendar in production), which also marks a cancelled day.
+   *  CAL-02 (2026-09-27): and re-keys a pre-CAL-02 row to its first segment (rekey). */
+  calendar: BookingCalendarSegmentPort & BookingCalendarCancelPort;
   /** ONE write per run: what changed, always carrying lastVendorReadAt. */
   writeReservation(id: string, patch: FlightReservationPatch): Promise<void>;
   /** STATUS-01: commission_ledger 'estimated' → 'cancelled' for a vendor-cancelled flight (applyVendorState). */
@@ -122,11 +137,16 @@ export type FlightRefreshOutcome =
   | {
       fetched: true;
       providerStatus: string | null;
-      /** The calendar row: written now, already there, or not written and why. */
+      /** The calendar rows, summed up: any written now (inserted or re-keyed), all already there, or none — and why.
+       *  CAL-02 (2026-09-27): the per-segment truth is `segments`. */
       calendar: 'inserted' | 'already_there' | 'no_row';
       calendarReason: string | null;
-      /** The day the row sits on (YYYY-MM-DD), when the vendor stated one. */
+      /** The earliest day any of its rows sits on (YYYY-MM-DD) — the day the journey starts — or null. */
       day: string | null;
+      /** CAL-02: what became of each stated segment's row, in the vendor's order. */
+      segments: SegmentLanding[];
+      /** CAL-02: the pre-CAL-02 bare-key row — none, re-keyed to a segment, or left as is (named). */
+      legacyRow: 'none' | 'rekeyed' | 'left_as_is';
       name: 'set' | 'unchanged' | 'not_stated';
       nameValue: string | null;
       status: 'set' | 'unchanged' | 'unmapped';
@@ -158,30 +178,29 @@ export async function refreshFlightReservation(ports: FlightRefreshPorts, row: F
   const first = outbound[0] as FlightBookingSegmentStated | undefined;
   const last = outbound[outbound.length - 1];
 
-  // ── THE NAME AND THE DAY — LANE-01's posture: a stated OUTBOUND segment, or nothing, by name ──
-  // STATUS-01b: no OUTBOUND segment with a departureTime → no row, no rename, each
-  // named; the status below is applied regardless.
-  let statedName: string | null = null;
-  let calendar: Awaited<ReturnType<typeof writeBookingCalendarEvent>>;
-  let day: string | null = null;
-  if (first === undefined) {
-    calendar = {
-      landed: 'no_row',
-      reason: stated.segments.length === 0
-        ? `GET /flights/bookings/${row.providerBookingId} answered with no segments — no row, no rename`
-        : `GET /flights/bookings/${row.providerBookingId} states ${stated.segments.length} segment(s) but none marked OUTBOUND with a departureTime — no row, no rename`,
-    };
-  } else {
-    const departureTime = first.departureTime as string;
-    statedName = flightDisplayName({ carrierName: first.carrierName, originCode: first.originCode, destinationCode: last.destinationCode });
-    // The CAL-01 row, keyed on the reservation, written once, BEFORE the apply.
-    const nameForRow = statedName ?? reservationIdentity({ ...row, displayName: row.displayName }).name;
-    calendar = await writeBookingCalendarEvent(
-      ports.calendar,
-      flightStatedCalendarDecision({ reservationId: row.id, userId: row.userId, name: nameForRow, departureTime }),
-    );
-    day = calendar.landed === 'no_row' ? null : departureTime.slice(0, 10);
-  }
+  // ── THE NAME — LANE-01's posture: a stated OUTBOUND segment, or nothing, by name ──
+  // STATUS-01b: no OUTBOUND segment with a departureTime → no rename, named; the
+  // status below is applied regardless.
+  const statedName: string | null = first === undefined
+    ? null
+    : flightDisplayName({ carrierName: first.carrierName, originCode: first.originCode, destinationCode: last.destinationCode });
+
+  // ── THE DAYS — CAL-02: one row per stated segment, in the vendor's order, BEFORE the apply ──
+  const written = await writeFlightSegmentRows(ports.calendar, {
+    reservationId: row.id,
+    reservationCancelled: row.status === 'cancelled',
+    decisions: flightSegmentsCalendarDecision({ reservationId: row.id, userId: row.userId, segments: stated.segments }),
+  });
+  const withRow = written.segments.filter((s) => s.landed !== 'no_row');
+  const calendar: 'inserted' | 'already_there' | 'no_row' = withRow.length === 0
+    ? 'no_row'
+    : withRow.some((s) => s.landed === 'inserted' || s.landed === 'rekeyed') ? 'inserted' : 'already_there';
+  const calendarReason = stated.segments.length === 0
+    ? `GET /flights/bookings/${row.providerBookingId} answered with no segments — no row, no rename`
+    : written.segments.filter((s) => s.reason !== null).map((s) => s.reason).join('; ') || null;
+  // The day the booking starts: the earliest stated day among its rows (a summary — the rows keep the vendor's order).
+  const day = withRow.map((s) => s.day).filter((d): d is string => d !== null).sort()[0] ?? null;
+  if (written.legacy === 'left_as_is') ports.log?.(`[refreshFlightReservation] reservation ${row.id}: a pre-CAL-02 calendar row under the bare reservation key was left as is — no segment row took its place this run`);
   const namePatch: { displayName?: string } = {};
   let name: 'set' | 'unchanged' | 'not_stated';
   if (statedName === null) name = 'not_stated';
@@ -215,9 +234,11 @@ export async function refreshFlightReservation(ports: FlightRefreshPorts, row: F
   return {
     fetched: true,
     providerStatus: stated.status,
-    calendar: calendar.landed,
-    calendarReason: calendar.landed === 'no_row' ? calendar.reason : null,
+    calendar,
+    calendarReason,
     day,
+    segments: written.segments,
+    legacyRow: written.legacy,
     name,
     nameValue: statedName,
     status: applied.status === 'unlisted' ? 'unmapped' : applied.status,

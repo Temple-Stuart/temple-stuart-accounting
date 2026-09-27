@@ -282,7 +282,8 @@ test('the booking-flow pin still holds for every file it names — five search f
     // LANE-01 (2026-09-25): a reservation knows what it is. Was f5ecffcfa0b71b8cbe4ba8868a2f8aabd4e326129bacbf9a675e79b17e63fd2f.
     // CANCEL-01 (2026-09-26): re-pinned — was 8130c9e36431d886f48648f2b2ae2ad4a86413d7a9037a8959a79c620b242bf7 at main dccb3380.
     // STATUS-01 (2026-09-26): re-pinned — was 0bae21fb9bf0bd9664dc7418502a35e507f713d370e542b878e35e2188b3121d at main 53900e67.
-    'src/lib/liteapiFlightsClient.ts': '125814373dbf3db41c397f9cbd2c41a77bd19a139b5b96c068bb25b659d4d6b2',
+    // CAL-02 (2026-09-27): re-pinned — was 125814373dbf3db41c397f9cbd2c41a77bd19a139b5b96c068bb25b659d4d6b2 at main 4f7c8c2a.
+    'src/lib/liteapiFlightsClient.ts': '5a65706359e07907469a588f9d26ec9080307a6eb2caff1edfdd9a35645052a9',
   };
   for (const f of booking) assert.equal(BOOKING_FLOW_FILES.find((p) => p.file === f)!.sha256, original[f], `${f} is pinned at its TRAVEL-01 hash`);
 });

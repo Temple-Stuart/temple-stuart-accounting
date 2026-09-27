@@ -87,8 +87,10 @@ const SEEDS: Seed[] = [
   {
     name: 'lane-h the refresh dates a flight from createdAt (clause 4)',
     file: REFRESH,
-    find: "  const departureTime = first.departureTime as string;",
-    replace: "  const departureTime = (first.departureTime as string) || (row as { createdAt?: string }).createdAt || '';",
+    // CAL-02 (2026-09-27): the anchor moved with the calendar write — a segment's day is
+    // handed to the one segment writer now, so the seed fills a missing departure there.
+    find: "    decisions: flightSegmentsCalendarDecision({ reservationId: row.id, userId: row.userId, segments: stated.segments }),",
+    replace: "    decisions: flightSegmentsCalendarDecision({ reservationId: row.id, userId: row.userId, segments: stated.segments.map((s) => ({ ...s, departureTime: s.departureTime ?? (row as { createdAt?: string }).createdAt ?? null })) }),",
     expect: 'reads createdAt',
   },
   {

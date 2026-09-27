@@ -601,6 +601,8 @@ function lockedPorts(locked: VendorReadRow | null, opts: { calendarPresent?: boo
   const calendar: FlightRefreshPorts['calendar'] = {
     async find() { return !!opts.calendarPresent; },
     async insert(row) { calendarRows.push(row); },
+    // CAL-02 (2026-09-27): the port re-keys a pre-CAL-02 row; this fake holds none to move.
+    async rekey() { return 0; },
     async markCancelled() { marked += 1; return 1; },
   };
   const ports: LockedReadPorts = {
@@ -660,7 +662,8 @@ test('STATUS-01b · status is independent of segments: a GET with CANCELLED and 
   let marked = 0; let commission = 0; let inserted = 0;
   const ports = (status: string): FlightRefreshPorts => ({
     fetchBooking: async () => ({ bookingId: 'fb_9Q', status, segments: [], pnr: null, ticketedAt: null, ticketLimitTime: null, cancelIntentAt: null, readAt: READ_AT }),
-    calendar: { async find() { return true; }, async insert() { inserted += 1; }, async markCancelled() { marked += 1; return 1; } },
+    // CAL-02 (2026-09-27): the port re-keys too — never asked here (no segments).
+    calendar: { async find() { return true; }, async insert() { inserted += 1; }, async rekey() { throw new Error('not expected'); }, async markCancelled() { marked += 1; return 1; } },
     writeReservation: async (_id, patch) => { writes.push(patch); },
     cancelCommission: async () => { commission += 1; return 1; },
   });
