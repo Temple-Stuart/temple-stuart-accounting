@@ -21,8 +21,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { SECTION_HEADER, toggleChip } from '@/lib/ds';
-import { formatBudget, formatCents, formatVariance } from '@/lib/budget/format';
-import type { ReportCell, ReportColumn, SectionTotal, UnplacedItem } from '@/lib/budget/report';
+import { formatAccountCode, formatBudget, formatCents, formatVariance } from '@/lib/budget/format';
+import type { ReportBook, ReportCell, ReportColumn, SectionTotal, UnplacedItem } from '@/lib/budget/report';
 import type { BudgetReportResponse } from '@/lib/budget/reportInputs';
 
 type Kind = 'day' | 'week' | 'year';
@@ -176,13 +176,14 @@ function netBlanks(totals: BudgetReportResponse['report']['totals'][number]): st
   return why;
 }
 
-function unplacedLine(item: UnplacedItem): string {
+/** TAB13-02c: every account printed as its account string (B-5100, P-1500), by its book. */
+function unplacedLine(item: UnplacedItem, books: readonly ReportBook[]): string {
   if (item.kind === 'budgetLine') {
     const l = item.line;
-    return `${l.day} · ${l.source} budget line on ${l.code} · ${formatCents(l.cents)} · ${item.reason}`;
+    return `${l.day} · ${l.source} budget line on ${formatAccountCode(books, l.entityId, l.code)} · ${formatCents(l.cents)} · ${item.reason}`;
   }
   const p = item.posting;
-  return `${p.day} · ledger line on ${p.code} (${p.entryType}) · ${formatCents(p.cents)} · ${item.reason}`;
+  return `${p.day} · ledger line on ${formatAccountCode(books, p.entityId, p.code)} (${p.entryType}) · ${formatCents(p.cents)} · ${item.reason}`;
 }
 
 function Report({ data }: { data: BudgetReportResponse }) {
@@ -221,7 +222,7 @@ function Report({ data }: { data: BudgetReportResponse }) {
                 <TableHead columns={columns} first="Account" />
                 <tbody>
                   {book.rows.map((row) => (
-                    <FigureRows key={row.code} label={`${row.code} · ${row.name}`} columns={columns} cells={row.cells} />
+                    <FigureRows key={row.code} label={`${formatAccountCode(report.books, row.entityId, row.code)} · ${row.name}`} columns={columns} cells={row.cells} />
                   ))}
                 </tbody>
               </table>
@@ -247,7 +248,7 @@ function Report({ data }: { data: BudgetReportResponse }) {
                     {n.detail !== null && <span className="text-xs text-text-faint"> ({n.detail})</span>}
                   </li>
                 ))}
-                {report.unplaced.map((u, i) => <li key={`unplaced:${i}`}>{unplacedLine(u)}</li>)}
+                {report.unplaced.map((u, i) => <li key={`unplaced:${i}`}>{unplacedLine(u, report.books)}</li>)}
               </ul>
             )}
           </div>

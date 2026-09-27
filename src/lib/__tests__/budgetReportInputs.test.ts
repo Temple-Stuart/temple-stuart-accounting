@@ -8,6 +8,7 @@ import {
 } from '../budget/reportInputs';
 import { BudgetReportError, type BudgetReportErrorCode } from '../budget/report';
 import { BudgetDaysError, EXCLUDED_TASK_STATUSES } from '../budget/days';
+import { formatAccountCode } from '../budget/format';
 import { code } from '../sourceText';
 
 // TAB13-02b — the budget report route's pure half: the query, every row →
@@ -83,7 +84,10 @@ const B: EntityRow = { id: 'ent-b', name: 'Temple Stuart', entity_type: 'sole_pr
 test('MAPPING — an entity, an account: every field carried, nothing renamed into something else', () => {
   assert.deepEqual(toReportEntity(B), { id: 'ent-b', name: 'Temple Stuart', entityType: 'sole_prop' });
   const chart: ChartRow = { entity_id: 'ent-b', code: '6300', name: 'Software', account_type: 'expense', balance_type: 'D' };
-  assert.deepEqual(toReportAccount(chart), { entityId: 'ent-b', code: '6300', name: 'Software', accountType: 'expense', balanceType: 'D' });
+  // TAB13-02c: the code is read with the row's own book — saved "6300" or "B-6300", it is account 6300 of the B book.
+  assert.deepEqual(toReportAccount(chart, toReportEntity(B)), { entityId: 'ent-b', code: '6300', name: 'Software', accountType: 'expense', balanceType: 'D' });
+  assert.equal(toReportAccount({ ...chart, code: 'B-6300' }, toReportEntity(B)).code, '6300', 'saved before COA-01 with its letter — the same account');
+  inputThrows(() => toReportAccount({ ...chart, code: 'P-6300' }, toReportEntity(B)), 'chart-code-unreadable', '"P-6300"');
 });
 
 const coffee: RoutineRow = {
@@ -135,10 +139,14 @@ const line = (over: Partial<LedgerRow> & { journal_entry_id: string }): LedgerRo
 });
 
 test('MAPPING — a ledger line: BigInt cents to a safe integer, on its ACCOUNT\'s entity, dated by its journal entry', () => {
-  assert.deepEqual(toPosting(line({ journal_entry_id: 'je-1' })), { entityId: 'ent-p', code: '6150', day: '2026-09-21', entryType: 'D', cents: 450, journalEntryId: 'je-1' });
-  assert.equal(toPosting(line({ journal_entry_id: 'je-max', amount: BigInt(Number.MAX_SAFE_INTEGER) })).cents, Number.MAX_SAFE_INTEGER, 'the largest safe integer passes');
-  inputThrows(() => toPosting(line({ journal_entry_id: 'je-huge', amount: BigInt(Number.MAX_SAFE_INTEGER) + BigInt(1) })), 'unsafe-cents', 'je-huge');
-  inputThrows(() => toPosting(line({ journal_entry_id: 'je-deep', amount: -(BigInt(Number.MAX_SAFE_INTEGER) + BigInt(1)) })), 'unsafe-cents', 'je-deep');
+  const personal = toReportEntity(P);
+  assert.deepEqual(toPosting(line({ journal_entry_id: 'je-1' }), personal), { entityId: 'ent-p', code: '6150', day: '2026-09-21', entryType: 'D', cents: 450, journalEntryId: 'je-1' });
+  assert.equal(toPosting(line({ journal_entry_id: 'je-max', amount: BigInt(Number.MAX_SAFE_INTEGER) }), personal).cents, Number.MAX_SAFE_INTEGER, 'the largest safe integer passes');
+  inputThrows(() => toPosting(line({ journal_entry_id: 'je-huge', amount: BigInt(Number.MAX_SAFE_INTEGER) + BigInt(1) }), personal), 'unsafe-cents', 'je-huge');
+  inputThrows(() => toPosting(line({ journal_entry_id: 'je-deep', amount: -(BigInt(Number.MAX_SAFE_INTEGER) + BigInt(1)) }), personal), 'unsafe-cents', 'je-deep');
+  // TAB13-02c: the account's code is read by the same rule, with the account's own book.
+  assert.equal(toPosting(line({ journal_entry_id: 'je-lettered', account: { entity_id: 'ent-p', code: 'P-6150' } }), personal).code, '6150');
+  inputThrows(() => toPosting(line({ journal_entry_id: 'je-other', account: { entity_id: 'ent-p', code: 'B-6150' } }), personal), 'chart-code-unreadable', 'je-other');
 });
 
 // ── THE RESPONSE ────────────────────────────────────────────────────────────
@@ -302,8 +310,99 @@ test('FAIL LOUD — a row that cannot become an input is refused by name; the mo
   reportThrows({ ledger: [line({ journal_entry_id: 'je-neg', amount: BigInt(-5) })] }, 'negative-posting-cents');
   reportThrows({ ledger: [line({ journal_entry_id: 'je-x', entry_type: 'X' })] }, 'bad-entry-type');
   reportThrows({ chart: [{ entity_id: 'ent-p', code: '6150', name: 'Coffee', account_type: 'expense', balance_type: 'X' }] }, 'bad-balance-type');
-  reportThrows({ chart: [{ entity_id: 'ent-p', code: 'P-6150', name: 'Coffee', account_type: 'expense', balance_type: 'D' }] }, 'code-not-four-digits');
+  // TAB13-02c (T6): "P-6150" on the personal book was refused 'code-not-four-digits'. Under R2 it is
+  // account P-6150, saved before COA-01 with its letter — it builds, as one row, 6150 of the P book.
+  const lettered = budgetReportResponse(WEEK, rows({ chart: [{ entity_id: 'ent-p', code: 'P-6150', name: 'Coffee', account_type: 'expense', balance_type: 'D' }] }));
+  assert.deepEqual(lettered.report.books.find((b) => b.entityId === 'ent-p')?.rows.map((r) => r.code), ['6150']);
   assert.throws(() => budgetReportResponse(WEEK, rows({ tasks: [{ ...license, status: 'done' }] })), (e: unknown) => e instanceof BudgetDaysError && e.code === 'bad-task-status');
+});
+
+// ── THE CHART AS SAVED (TAB13-02c, ruled 2026-09-27) ────────────────────────
+
+const chartRow = (entity_id: string, code: string, name: string): ChartRow => ({ entity_id, code, name, account_type: 'expense', balance_type: 'D' });
+
+test('READ — a sole_prop chart row saved "B-5100", a ledger line on it, and routines coded "B-5100" and "5100" land on ONE row of the B book', () => {
+  const api = (id: string, amount: number, coa: string): RoutineRow => ({ ...coffee, id, name: `API ${id}`, budget_amount: amount, coa_code: coa });
+  const r = budgetReportResponse(WEEK, rows({
+    chart: [chartRow('ent-b', 'B-5100', 'API & Data (COGS)')],
+    routines: [{ entityId: 'ent-b', rows: [api('r-lettered', 3, 'B-5100'), api('r-bare', 1, '5100')] }, { entityId: 'ent-p', rows: [] }],
+    tasks: [],
+    ledger: [line({ journal_entry_id: 'je-api', amount: BigInt(1000), account: { entity_id: 'ent-b', code: 'B-5100' }, journal_entry: { date: at('2026-09-21') } })],
+  }));
+  const business = r.report.books.find((b) => b.entityId === 'ent-b');
+  assert.ok(business);
+  assert.deepEqual(business.rows.map((x) => [x.code, x.name]), [['5100', 'API & Data (COGS)']], 'one account, however it was saved');
+  // Both routines end the 22nd: $3.00 + $1.00 on Mon and on Tue = 400 a day. $10.00 posted Monday.
+  const [week, mon, tue, wed] = business.rows[0].cells;
+  assert.deepEqual(week, { budgetFull: 800, budgetToDate: 800, actual: 1000, variance: -200 });
+  assert.deepEqual(mon, { budgetFull: 400, budgetToDate: 400, actual: 1000, variance: -600 });
+  assert.deepEqual(tue, { budgetFull: 400, budgetToDate: 400, actual: null, variance: null });
+  assert.deepEqual(wed, { budgetFull: null, budgetToDate: null, actual: null, variance: null });
+  assert.deepEqual(r.notPlaced, [], 'nothing left unplaced');
+  assert.deepEqual(r.report.unplaced, [], 'the posting found its account');
+  // And it is SHOWN as its account string, once — never "5100", never "B-B-5100".
+  assert.equal(formatAccountCode(r.report.books, business.rows[0].entityId, business.rows[0].code), 'B-5100');
+});
+
+test('ALL AT ONCE — every chart code the rule cannot read is named in ONE refusal: book, code as saved, account name, reason', () => {
+  let message = '';
+  inputThrows(() => {
+    try {
+      budgetReportResponse(WEEK, rows({ chart: [
+        chartRow('ent-b', 'P-5100', 'Wrong letter'),
+        chartRow('ent-p', '5100-10', 'A sub-account typed in'),
+        chartRow('ent-p', '6150', 'Coffee'),
+        chartRow('ent-p', '', 'Blank'),
+      ] }));
+    } catch (e) {
+      message = e instanceof Error ? e.message : '';
+      throw e;
+    }
+  }, 'chart-code-unreadable');
+  assert.match(message, /3 chart codes cannot be read/);
+  assert.ok(message.includes('Temple Stuart (sole_prop): code "P-5100", "Wrong letter" — code names another book'), message);
+  assert.ok(message.includes('Alex (personal): code "5100-10", "A sub-account typed in" — account code not recognised'), message);
+  assert.ok(message.includes('Alex (personal): code "", "Blank" — no account'), message);
+  assert.ok(!message.includes('Coffee'), 'a row that reads is not named');
+});
+
+test('NO LETTER — a book whose entity type has no letter cannot carry one: "B-5100" there is refused; "5100" builds and shows bare', () => {
+  const L: EntityRow = { id: 'ent-l', name: 'Holdings', entity_type: 'llc' };
+  inputThrows(() => budgetReportResponse(WEEK, rows({ entities: [B, P, L], chart: [chartRow('ent-l', 'B-5100', 'API')] })), 'chart-code-unreadable', 'Holdings (llc): code "B-5100", "API" — code names another book');
+  const r = budgetReportResponse(WEEK, rows({
+    entities: [B, P, L],
+    chart: [chartRow('ent-l', '5100', 'API')],
+    ledger: [line({ journal_entry_id: 'je-l', account: { entity_id: 'ent-l', code: '5100' } })],
+  }));
+  const holdings = r.report.books.find((b) => b.entityId === 'ent-l');
+  assert.ok(holdings);
+  assert.equal(formatAccountCode(r.report.books, 'ent-l', holdings.rows[0].code), '5100', 'no letter drawn — the renderer\'s own rule, never a guessed one');
+});
+
+test('COLLIDE — two rows of one book that are one account are never merged: every pair named, codes as saved; the same digits in two books are two accounts', () => {
+  let message = '';
+  inputThrows(() => {
+    try {
+      budgetReportResponse(WEEK, rows({ chart: [chartRow('ent-b', '5100', 'API'), chartRow('ent-b', 'B-5100', 'API & Data (COGS)')] }));
+    } catch (e) {
+      message = e instanceof Error ? e.message : '';
+      throw e;
+    }
+  }, 'chart-codes-collide');
+  assert.ok(message.includes('1 pair of chart rows are one account in one book'), message);
+  assert.ok(message.includes('Temple Stuart (sole_prop): code "5100", "API" and code "B-5100", "API & Data (COGS)"'), message);
+  // Three saved forms of one account: every pair, named.
+  inputThrows(() => budgetReportResponse(WEEK, rows({ chart: [chartRow('ent-b', '5100', 'a'), chartRow('ent-b', 'B-5100', 'b'), chartRow('ent-b', ' 5100 ', 'c')] })), 'chart-codes-collide', '3 pairs');
+  // B-5100 and P-5100 are two accounts in two books — they build, each shown with its own letter.
+  const r = budgetReportResponse(WEEK, rows({
+    chart: [chartRow('ent-b', 'B-5100', 'API & Data (COGS)'), chartRow('ent-p', '5100', 'Subscriptions')],
+    ledger: [
+      line({ journal_entry_id: 'je-b', account: { entity_id: 'ent-b', code: 'B-5100' } }),
+      line({ journal_entry_id: 'je-p', account: { entity_id: 'ent-p', code: '5100' } }),
+    ],
+  }));
+  const shown = r.report.books.flatMap((b) => b.rows.map((x) => formatAccountCode(r.report.books, x.entityId, x.code)));
+  assert.deepEqual(shown, ['P-5100', 'B-5100'], 'books P then B, each account with its own letter');
 });
 
 // ── PURITY ──────────────────────────────────────────────────────────────────

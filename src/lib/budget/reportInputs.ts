@@ -15,6 +15,13 @@
  *     src/lib/operations/routineBudgetInputs.ts), tasks, ledger lines and bank
  *     rows each become the plain input the pure modules take. A @db.Date is its
  *     UTC 'YYYY-MM-DD' — Prisma reads a date column as UTC midnight.
+ *   · THE CHART AS SAVED (TAB13-02c, ruled 2026-09-27). Before COA-01 a code was
+ *     saved as typed ("B-5100"); since, as four digits ("5100"). Every chart code,
+ *     and every ledger line's account code, is read by the rule plan codes use —
+ *     parseBudgetCode (days.ts), with the entity type of the row's OWN book — so a
+ *     row saved either way is one account. A chart row the rule cannot read, or
+ *     two rows of one book that are the same account, are refused by name, every
+ *     one at once. The chart is read, never changed.
  *   · THE CALLS. The day rules (src/lib/budget/days.ts) place routines and
  *     tasks on days; the model (src/lib/budget/report.ts) builds the report.
  *     Neither is restated here.
@@ -34,13 +41,16 @@ import {
   type BudgetReport, type BudgetView, type ColumnState, type IsoDay, type Posting, type ReportAccount, type ReportEntity,
 } from '@/lib/budget/report';
 import {
-  buildRoutineBudgetLines, buildTaskBudgetLines, centsFromDollars, isIsoDay,
-  type ExcludedByStatus, type NotPlaced, type RoutinePlanInput, type TaskPlanInput,
+  buildRoutineBudgetLines, buildTaskBudgetLines, centsFromDollars, isIsoDay, parseBudgetCode,
+  type ExcludedByStatus, type NotPlaced, type ParsedCode, type RoutinePlanInput, type TaskPlanInput,
 } from '@/lib/budget/days';
 
 // ── FAIL LOUD ───────────────────────────────────────────────────────────────
 
-export type BudgetInputErrorCode = 'bad-server-day' | 'unsafe-cents' | 'bank-row-outside-range' | 'unknown-entity';
+export type BudgetInputErrorCode =
+  | 'bad-server-day' | 'unsafe-cents' | 'bank-row-outside-range' | 'unknown-entity'
+  // TAB13-02c: a saved chart code the rule cannot read; two saved codes of one book that are one account.
+  | 'chart-code-unreadable' | 'chart-codes-collide';
 
 /** A row the route read that cannot become an input — named, never coerced. The route answers 500. */
 export class BudgetInputError extends Error {
@@ -201,9 +211,24 @@ export function toReportEntity(row: EntityRow): ReportEntity {
   return { id: row.id, name: row.name, entityType: row.entity_type };
 }
 
-/** balance_type passes through as read: the model refuses anything but D or C by name (bad-balance-type). */
-export function toReportAccount(row: ChartRow): ReportAccount {
-  return { entityId: row.entity_id, code: row.code, name: row.name, accountType: row.account_type, balanceType: row.balance_type as ReportAccount['balanceType'] };
+/**
+ * THE ONE READER of a saved chart code (TAB13-02c): the rule plan codes use,
+ * parseBudgetCode (days.ts), with the entity type of the row's OWN book. "5100"
+ * and "B-5100" in a sole_prop book both read as 5100; "P-5100" there, a letter
+ * on a book that has none, or anything but four digits is not read.
+ */
+export function readChartCode(saved: string, book: ReportEntity): ParsedCode {
+  return parseBudgetCode(saved, book.entityType);
+}
+
+const unreadableLine = (row: ChartRow, book: ReportEntity, reason: string): string =>
+  `${book.name} (${book.entityType}): code ${JSON.stringify(row.code)}, ${JSON.stringify(row.name)} — ${reason}`;
+
+/** A chart row → the model's account, its code read as saved. balance_type passes through: the model refuses anything but D or C by name. */
+export function toReportAccount(row: ChartRow, book: ReportEntity): ReportAccount {
+  const read = readChartCode(row.code, book);
+  if (!read.ok) throw new BudgetInputError('chart-code-unreadable', `a chart code cannot be read: ${unreadableLine(row, book, read.reason)}`);
+  return { entityId: row.entity_id, code: read.code, name: row.name, accountType: row.account_type, balanceType: row.balance_type as ReportAccount['balanceType'] };
 }
 
 export function toRoutinePlanInput(row: RoutineRow, entity: ReportEntity): RoutinePlanInput {
@@ -237,14 +262,22 @@ export function toTaskPlanInput(row: TaskRow, entity: ReportEntity): TaskPlanInp
 
 const MAX = BigInt(Number.MAX_SAFE_INTEGER);
 
-/** A ledger line → a posting on its ACCOUNT's entity. BigInt cents must be a safe integer; entry_type passes to the model, which refuses anything but D or C. */
-export function toPosting(row: LedgerRow): Posting {
+/**
+ * A ledger line → a posting on its ACCOUNT's entity (book), the account's code
+ * read as saved by the one reader. BigInt cents must be a safe integer;
+ * entry_type passes to the model, which refuses anything but D or C.
+ */
+export function toPosting(row: LedgerRow, book: ReportEntity): Posting {
   if (row.amount > MAX || row.amount < -MAX) {
     throw new BudgetInputError('unsafe-cents', `journal entry ${row.journal_entry_id} carries a ledger amount of ${row.amount} cents, past the safe integer range`);
   }
+  const read = readChartCode(row.account.code, book);
+  if (!read.ok) {
+    throw new BudgetInputError('chart-code-unreadable', `journal entry ${row.journal_entry_id} posts to an account whose code cannot be read: ${book.name} (${book.entityType}): code ${JSON.stringify(row.account.code)} — ${read.reason}`);
+  }
   return {
     entityId: row.account.entity_id,
-    code: row.account.code,
+    code: read.code,
     day: utcDay(row.journal_entry.date),
     entryType: row.entry_type as Posting['entryType'],
     cents: Number(row.amount),
@@ -368,13 +401,47 @@ export function budgetReportResponse(query: { readonly view: BudgetView; readonl
   const routines = buildRoutineBudgetLines(routineInputs, rangeFrom, rangeTo);
   const tasks = buildTaskBudgetLines(taskInputs, rangeFrom, rangeTo);
 
+  // THE CHART AS SAVED (TAB13-02c) — read every row before the model sees one.
+  // R3: every row the rule cannot read, named at once — never only the first.
+  const readable: { row: ChartRow; book: ReportEntity; code: string }[] = [];
+  const unreadable: string[] = [];
+  for (const row of rows.chart) {
+    const book = entityOf(row.entity_id, `chart row ${JSON.stringify(row.code)}`);
+    const read = readChartCode(row.code, book);
+    if (read.ok) readable.push({ row, book, code: read.code });
+    else unreadable.push(unreadableLine(row, book, read.reason));
+  }
+  if (unreadable.length > 0) {
+    throw new BudgetInputError('chart-code-unreadable', `${unreadable.length} chart code${unreadable.length === 1 ? '' : 's'} cannot be read — ${unreadable.join('; ')}`);
+  }
+  // R4: two rows of one book that are one account are never merged — every pair named at once.
+  const byAccount = new Map<string, { row: ChartRow; book: ReportEntity }[]>();
+  for (const r of readable) {
+    const key = `${r.book.id}\u0000${r.code}`;
+    const same = byAccount.get(key);
+    if (same) same.push(r);
+    else byAccount.set(key, [r]);
+  }
+  const pairs: string[] = [];
+  for (const same of byAccount.values()) {
+    for (let i = 0; i < same.length; i += 1) {
+      for (let j = i + 1; j < same.length; j += 1) {
+        const [a, b] = [same[i], same[j]];
+        pairs.push(`${a.book.name} (${a.book.entityType}): code ${JSON.stringify(a.row.code)}, ${JSON.stringify(a.row.name)} and code ${JSON.stringify(b.row.code)}, ${JSON.stringify(b.row.name)}`);
+      }
+    }
+  }
+  if (pairs.length > 0) {
+    throw new BudgetInputError('chart-codes-collide', `${pairs.length} pair${pairs.length === 1 ? '' : 's'} of chart rows are one account in one book — ${pairs.join('; ')}`);
+  }
+
   const report = buildBudgetReport({
     asOf: query.asOf,
     view: query.view,
     entities,
-    accounts: rows.chart.map(toReportAccount),
+    accounts: readable.map((r) => toReportAccount(r.row, r.book)),
     budgetLines: [...routines.lines, ...tasks.lines],
-    postings: rows.ledger.map(toPosting),
+    postings: rows.ledger.map((row) => toPosting(row, entityOf(row.account.entity_id, `journal entry ${row.journal_entry_id}`))),
   });
 
   return {
