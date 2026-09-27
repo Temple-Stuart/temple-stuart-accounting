@@ -22,10 +22,18 @@ import type { RoutineBudgetInput } from './routineBudget';
  *
  * SERVER-SIDE BY USE. Only API routes import the loader, and the client is
  * handed in, so the pure mapping below can be tested without a database.
+ *
+ * TAB13-02b (2026-09-27): the budget report (/api/budget/report) reads routines
+ * here too — the same read, not a second one. It needs a routine's id, name and
+ * end_date as well, so the select and the mapping GREW by those three columns,
+ * additively: every field the month tables read is unchanged, and
+ * routinesMonthlyByCoa() ignores the three it does not take.
  */
 
 /** The columns a routine's monthly budget is built from — the lines and the anchor included. */
 export const ROUTINE_BUDGET_SELECT = {
+  // TAB13-02b: who the routine is and the last day it counts — the budget report's, additive.
+  id: true, name: true, end_date: true,
   budget_amount: true, coa_code: true, schedule_rrule: true, timezone: true,
   // ONEOFF-01: the anchor the month's occurrence count is built on.
   start_date: true,
@@ -35,9 +43,25 @@ export const ROUTINE_BUDGET_SELECT = {
 
 export type RoutineBudgetRow = Prisma.operations_routinesGetPayload<{ select: typeof ROUTINE_BUDGET_SELECT }>;
 
+/**
+ * What the loader hands back: the input routinesMonthlyByCoa() takes, plus the
+ * routine's id, name and end_date (TAB13-02b). The month tables read it as a
+ * RoutineBudgetInput and never see the three.
+ */
+export interface LoadedRoutineBudgetInput extends RoutineBudgetInput {
+  id: string;
+  name: string;
+  start_date: Date | null;
+  end_date: Date | null;
+  steps: { id: string; is_active: boolean; budget_amount: number | null; coa_code: string | null; step_order: number }[];
+}
+
 /** A row as read → the input routinesMonthlyByCoa() takes. Decimal → number; null stays null, never 0. */
-export function toRoutineBudgetInput(r: RoutineBudgetRow): RoutineBudgetInput {
+export function toRoutineBudgetInput(r: RoutineBudgetRow): LoadedRoutineBudgetInput {
   return {
+    id: r.id,
+    name: r.name,
+    end_date: r.end_date,
     budget_amount: r.budget_amount != null ? Number(r.budget_amount) : null,
     coa_code: r.coa_code,
     schedule_rrule: r.schedule_rrule,
@@ -52,7 +76,7 @@ export async function loadRoutineBudgetInputs(
   db: Pick<PrismaClient, 'operations_routines'>,
   userId: string,
   entityId: string,
-): Promise<RoutineBudgetInput[]> {
+): Promise<LoadedRoutineBudgetInput[]> {
   const rows = await db.operations_routines.findMany({
     where: { user_id: userId, entity_id: entityId, is_active: true },
     select: ROUTINE_BUDGET_SELECT,

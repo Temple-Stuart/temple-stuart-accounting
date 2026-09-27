@@ -106,8 +106,8 @@ export class BudgetDaysError extends Error {
 
 const DAY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
-/** A real calendar day written 'YYYY-MM-DD'. */
-function isIsoDay(value: unknown): value is IsoDay {
+/** A real calendar day written 'YYYY-MM-DD'. Exported for the route's inputs (TAB13-02b) — one copy. */
+export function isIsoDay(value: unknown): value is IsoDay {
   if (typeof value !== 'string' || !DAY_RE.test(value)) return false;
   const midnight = new Date(`${value}T00:00:00.000Z`);
   if (Number.isNaN(midnight.getTime())) return false; // '2026-13-01' — no such month

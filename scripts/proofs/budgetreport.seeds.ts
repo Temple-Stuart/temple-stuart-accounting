@@ -19,6 +19,10 @@
  * TAB13-02a added the law's second root, the day rules (src/lib/budget/days.ts):
  * seeds i, j and k prove its clauses on that root and its test.
  *
+ * TAB13-02b added the third and fourth roots — the route-inputs module
+ * (src/lib/budget/reportInputs.ts) and the formatter (src/lib/budget/format.ts):
+ * seeds l to q prove their clauses on each root and each test.
+ *
  * Each must fail THE BUDGET REPORT PURITY LAW by name. The anchors occur exactly
  * once in their file, which the harness enforces before it runs anything.
  */
@@ -30,6 +34,14 @@ const DAYS = 'src/lib/budget/days.ts';
 const DAYS_TEST = 'src/lib/__tests__/budgetDays.test.ts';
 const DAYS_BODY_ANCHOR = 'export function buildRoutineBudgetLines(routines: readonly RoutinePlanInput[], rangeFrom: IsoDay, rangeTo: IsoDay): DayRuleResult {';
 const DAYS_IMPORT_ANCHOR = "import { entityLetter } from '@/lib/accountString';";
+// TAB13-02b: the third and fourth roots, and their tests.
+const INPUTS = 'src/lib/budget/reportInputs.ts';
+const INPUTS_TEST = 'src/lib/__tests__/budgetReportInputs.test.ts';
+const INPUTS_BODY_ANCHOR = 'export function budgetReportResponse(query: { readonly view: BudgetView; readonly asOf: IsoDay }, rows: ReportRows): BudgetReportResponse {';
+const INPUTS_IMPORT_ANCHOR = 'import {\n  buildBudgetReport, viewRange,';
+const FORMAT = 'src/lib/budget/format.ts';
+const FORMAT_TEST = 'src/lib/__tests__/budgetFormat.test.ts';
+const FORMAT_BODY_ANCHOR = 'export function formatCents(cents: number | null): string {';
 const SCHEME = 'src/lib/coa/scheme.ts';
 const TEST = 'src/lib/__tests__/budgetReport.test.ts';
 const IMPORT_ANCHOR = "import { variance } from '@/lib/calendar/links';";
@@ -116,5 +128,50 @@ export const SEEDS: Seed[] = [
     find: "import { code } from '../sourceText';",
     replace: "import { code } from '../sourceText';\nimport { Prisma } from '@prisma/client';\nvoid Prisma;",
     expect: 'budgetDays.test.ts imports @prisma/client — the test of the day module must load without a generated client',
+  },
+  // TAB13-02b — the third root, the route-inputs module, and its test.
+  {
+    name: 'budget-l the route inputs read the clock through Date.now()',
+    file: INPUTS,
+    find: INPUTS_BODY_ANCHOR,
+    replace: `${INPUTS_BODY_ANCHOR}\n  const stamp = Date.now(); void stamp;`,
+    expect: 'src/lib/budget/reportInputs.ts reads the clock through Date.now() — the route-inputs module is pure',
+  },
+  {
+    name: 'budget-m the route inputs import @prisma/client',
+    file: INPUTS,
+    find: INPUTS_IMPORT_ANCHOR,
+    replace: `import type { Prisma } from '@prisma/client';\n${INPUTS_IMPORT_ANCHOR}`,
+    expect: 'src/lib/budget/reportInputs.ts imports @prisma/client — the route-inputs module is pure',
+  },
+  {
+    name: 'budget-n the route inputs test imports @prisma/client',
+    file: INPUTS_TEST,
+    find: "import { code } from '../sourceText';",
+    replace: "import { code } from '../sourceText';\nimport { Prisma } from '@prisma/client';\nvoid Prisma;",
+    expect: 'budgetReportInputs.test.ts imports @prisma/client — the test of the route-inputs module must load without a generated client',
+  },
+  // TAB13-02b — the fourth root, the formatter, and its test.
+  {
+    name: 'budget-o the formatter reads process.env',
+    file: FORMAT,
+    find: FORMAT_BODY_ANCHOR,
+    // NODE_ENV, as budget-f: already documented, so the env law passes and the failure is this law's.
+    replace: `${FORMAT_BODY_ANCHOR}\n  const mode = process.env.NODE_ENV; void mode;`,
+    expect: 'src/lib/budget/format.ts reads process.env — the formatter is pure',
+  },
+  {
+    name: 'budget-p the formatter reads the clock through an argument-less new Date()',
+    file: FORMAT,
+    find: FORMAT_BODY_ANCHOR,
+    replace: `${FORMAT_BODY_ANCHOR}\n  const today = new Date(); void today;`,
+    expect: 'src/lib/budget/format.ts reads the clock through an argument-less new Date() — the formatter is pure',
+  },
+  {
+    name: 'budget-q the formatter test imports @prisma/client',
+    file: FORMAT_TEST,
+    find: "import { code } from '../sourceText';",
+    replace: "import { code } from '../sourceText';\nimport { Prisma } from '@prisma/client';\nvoid Prisma;",
+    expect: 'budgetFormat.test.ts imports @prisma/client — the test of the formatter must load without a generated client',
   },
 ];

@@ -20,8 +20,9 @@ const dec = (v: string) => new Prisma.Decimal(v);
 type Step = RoutineBudgetRow['steps'][number];
 const line = (id: string, amount: string | null, coa: string | null, order: number, isActive = true): Step =>
   ({ id, is_active: isActive, budget_amount: amount === null ? null : dec(amount), coa_code: coa, step_order: order });
+// TAB13-02b: the select grew by id, name and end_date (the budget report's); the month tables read none of them.
 const row = (over: Partial<RoutineBudgetRow>): RoutineBudgetRow =>
-  ({ budget_amount: null, coa_code: null, schedule_rrule: DAILY, timezone: 'UTC', start_date: null, steps: [], ...over });
+  ({ id: 'r1', name: 'a routine', end_date: null, budget_amount: null, coa_code: null, schedule_rrule: DAILY, timezone: 'UTC', start_date: null, steps: [], ...over });
 
 // What the Personal route handed routinesMonthlyByCoa before this PR: no lines, no anchor.
 const beforeInput = (r: RoutineBudgetRow) => ({
