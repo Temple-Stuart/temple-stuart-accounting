@@ -44,6 +44,16 @@
  * Until income has a budget source (ruling 4), a column with no income budget
  * has no NET budget, and the screen can read why from the income section.
  *
+ * A CONTRA P&L ACCOUNT IS REFUSED. A row's actual is netted in the account's
+ * stored balance_type, but the row's section and its variance sign follow its
+ * account_type. Where the two disagree — a revenue account stored as 'D', an
+ * expense account stored as 'C' — the row would land in its section with the
+ * wrong sign. No writer creates one (src/lib/coa/accounts.ts:122, :152, :180
+ * take balance_type from FAMILY_RULES), so one is refused by name:
+ * BudgetReportError('balance-disagrees-with-family'), naming the entity, the
+ * code, the family and the balance type. Asset, liability and equity accounts
+ * are not checked — they never become rows.
+ *
  * BOOKS. Every entity is its own book, labelled from its code letter
  * (src/lib/coa/scheme.ts letterFor :81 over src/lib/accountString.ts
  * ENTITY_LETTER :25-29): P → PERSONAL, B → BUSINESS, T → TRADE. An entity type
@@ -61,7 +71,7 @@
  * week. No Date object, no time zone and no clock enters this file.
  */
 import { variance } from '@/lib/calendar/links';
-import { letterFor, isFamily, type EntityLetter } from '@/lib/coa/scheme';
+import { FAMILY_RULES, letterFor, isFamily, type EntityLetter } from '@/lib/coa/scheme';
 
 // ── INPUT ───────────────────────────────────────────────────────────────────
 
@@ -236,6 +246,7 @@ export type BudgetReportErrorCode =
   | 'duplicate-entity'
   | 'bad-balance-type'
   | 'bad-account-type'
+  | 'balance-disagrees-with-family'
   | 'bad-source'
   | 'missing-id'
   | 'unsafe-sum';
@@ -484,6 +495,9 @@ export function buildBudgetReport(input: BudgetReportInput): BudgetReport {
     if (!entities.has(entityId)) throw new BudgetReportError('account-for-unknown-entity', `accounts[${i}] (${code}) names entity ${entityId}, which is not in entities`);
     if (a.balanceType !== 'D' && a.balanceType !== 'C') throw new BudgetReportError('bad-balance-type', `accounts[${i}] (${code}) balanceType ${JSON.stringify(a.balanceType)} is not D or C`);
     if (!isFamily(a.accountType)) throw new BudgetReportError('bad-account-type', `accounts[${i}] (${code}) accountType ${JSON.stringify(a.accountType)} is not asset, liability, equity, revenue or expense`);
+    if ((a.accountType === 'revenue' || a.accountType === 'expense') && a.balanceType !== FAMILY_RULES[a.accountType].balanceType) {
+      throw new BudgetReportError('balance-disagrees-with-family', `accounts[${i}] ${code} in entity ${entityId} is a ${a.accountType} account stored with balance type ${a.balanceType}; a ${a.accountType} account's normal balance is ${FAMILY_RULES[a.accountType].balanceType} — a contra P&L account would be netted one way and signed the other, so it is refused`);
+    }
     if (typeof a.name !== 'string') throw new BudgetReportError('missing-id', `accounts[${i}] (${code}) name is not a string`);
     const key = keyOf(entityId, code);
     if (accounts.has(key)) throw new BudgetReportError('duplicate-account', `accounts[${i}] repeats ${code} in entity ${entityId}`);
