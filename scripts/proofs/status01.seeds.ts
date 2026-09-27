@@ -172,7 +172,8 @@ const SEEDS: Seed[] = [
   {
     name: 'status01-r the cron stops refusing a wrong secret (clause 7)',
     file: CRON_ROUTE,
-    find: '    if (authHeader !== `Bearer ${cronSecret}`) {',
+    // SEC-02b (2026-09-27): the anchor moved with the constant-time compare.
+    find: '    if (authHeader === null || !constantTimeEqual(authHeader, `Bearer ${cronSecret}`)) {',
     replace: '    if (false) {',
     expect: 'does not refuse a wrong CRON_SECRET',
   },

@@ -140,10 +140,10 @@ function dayOf(iso: string): Date {
 }
 
 /**
- * A STAY. It spans check-in to check-out, the two dates the hotel book route
- * requires before it will book at all (liteapi/book/route.ts:89-92), so they are
- * present by the time this is called — and if either is somehow not, that is
- * named rather than filled in.
+ * A STAY. It spans check-in to check-out. SEC-02b (2026-09-27): those are the days
+ * the vendor's BOOK answer stated (the hotel book route no longer takes them from
+ * the confirm page's link), so either can be NULL — and a stay missing one is
+ * named here and earns no row, rather than a day filled in.
  */
 export function stayCalendarDecision(input: {
   reservationId: string;

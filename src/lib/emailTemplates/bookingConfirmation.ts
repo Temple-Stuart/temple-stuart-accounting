@@ -14,13 +14,16 @@
 
 export interface BookingConfirmationInput {
   guestName: string;
-  /** Null when neither LiteAPI nor the booking request supplied a name — the
-   *  hotel row is then OMITTED (never "Unknown"/"N/A"). */
+  /** Null when LiteAPI's book answer stated no name — the hotel row is then
+   *  OMITTED (never "Unknown"/"N/A"). SEC-02b (2026-09-27): never the booking
+   *  request's name — the route no longer reads one. */
   hotelName: string | null;
-  /** ISO YYYY-MM-DD — rendered as-is, no timezone math. */
-  checkinDate: string;
-  /** ISO YYYY-MM-DD — rendered as-is, no timezone math. */
-  checkoutDate: string;
+  /** ISO YYYY-MM-DD — rendered as-is, no timezone math. SEC-02b (2026-09-27): the
+   *  vendor's stated day or NULL — a NULL is SAID ("not stated by the hotel"),
+   *  never a date from the booking link. */
+  checkinDate: string | null;
+  /** As checkinDate. */
+  checkoutDate: string | null;
   /** Null when the hotel has not issued a code yet — rendered as an honest
    *  "not yet issued" line pointing at the booking reference. */
   confirmationCode: string | null;
@@ -62,7 +65,12 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;');
 }
 
+/** SEC-02b: the words for a day the vendor did not state. */
+export const DAY_NOT_STATED = 'not stated by the hotel — see your booking reference';
+
 export function bookingConfirmation(input: BookingConfirmationInput): RenderedEmail {
+  const checkin = input.checkinDate ?? DAY_NOT_STATED;
+  const checkout = input.checkoutDate ?? DAY_NOT_STATED;
   // SEC-03: a price the vendor did not state is SAID — never rendered as 0.00.
   const amount = input.totalAmountCents === null
     ? `price not stated by the hotel — your card statement shows the amount`
@@ -72,7 +80,9 @@ export function bookingConfirmation(input: BookingConfirmationInput): RenderedEm
   // Never a placeholder name.
   const subject = input.hotelName
     ? `Booking confirmed — ${input.hotelName}`
-    : `Booking confirmed — ${input.checkinDate} to ${input.checkoutDate}`;
+    : input.checkinDate !== null && input.checkoutDate !== null
+      ? `Booking confirmed — ${input.checkinDate} to ${input.checkoutDate}`
+      : `Booking confirmed — reference ${input.bookingId}`;
 
   const confirmationTextLine = input.confirmationCode
     ? `Hotel confirmation code: ${input.confirmationCode}`
@@ -84,8 +94,8 @@ export function bookingConfirmation(input: BookingConfirmationInput): RenderedEm
     `Your hotel booking is confirmed.`,
     '',
     ...(input.hotelName ? [`Hotel: ${input.hotelName}`] : []),
-    `Check-in: ${input.checkinDate}`,
-    `Check-out: ${input.checkoutDate}`,
+    `Check-in: ${checkin}`,
+    `Check-out: ${checkout}`,
     `Booking reference: ${input.bookingId}`,
     confirmationTextLine,
     `Total charged: ${amount}`,
@@ -106,8 +116,8 @@ export function bookingConfirmation(input: BookingConfirmationInput): RenderedEm
   <p style="margin: 0 0 16px;">Hi ${escapeHtml(input.guestName)}, your hotel booking is confirmed.</p>
   <table style="border-collapse: collapse; width: 100%; margin: 0 0 16px;">
     ${input.hotelName ? `<tr><td style="padding: 6px 12px 6px 0; color: #666;">Hotel</td><td style="padding: 6px 0;">${escapeHtml(input.hotelName)}</td></tr>` : ''}
-    <tr><td style="padding: 6px 12px 6px 0; color: #666;">Check-in</td><td style="padding: 6px 0;">${escapeHtml(input.checkinDate)}</td></tr>
-    <tr><td style="padding: 6px 12px 6px 0; color: #666;">Check-out</td><td style="padding: 6px 0;">${escapeHtml(input.checkoutDate)}</td></tr>
+    <tr><td style="padding: 6px 12px 6px 0; color: #666;">Check-in</td><td style="padding: 6px 0;">${escapeHtml(checkin)}</td></tr>
+    <tr><td style="padding: 6px 12px 6px 0; color: #666;">Check-out</td><td style="padding: 6px 0;">${escapeHtml(checkout)}</td></tr>
     <tr><td style="padding: 6px 12px 6px 0; color: #666;">Booking reference</td><td style="padding: 6px 0;"><strong>${escapeHtml(input.bookingId)}</strong></td></tr>
     <tr><td style="padding: 6px 12px 6px 0; color: #666;">Confirmation code</td><td style="padding: 6px 0;">${confirmationHtmlCell}</td></tr>
     <tr><td style="padding: 6px 12px 6px 0; color: #666;">Total charged</td><td style="padding: 6px 0;">${escapeHtml(amount)}</td></tr>

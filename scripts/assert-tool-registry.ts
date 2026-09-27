@@ -169,6 +169,11 @@ import { buildIcs, escapeIcsText, foldIcsLine } from '../src/lib/calendar/ics';
 import { prebookUnstatedMoney } from '../src/lib/checkout/prebookGate';
 import { ratingLine, ratingValue, scoreWords } from '../src/lib/travel/ratingWords';
 import { OWNED_LOADERS, enclosing, exportedMethods, flatWhere, handlerIdentity, inScope, judgeWrites, topFunctions } from '../src/lib/security/ownershipLaw';
+import { bookedStay, statedStayDay, unstatedStayLine } from '../src/lib/reservations/stayDates';
+import { passwordLeaks, passwordSchema } from '../src/lib/security/passwordLaw';
+import { PARTICIPANT_RESPONSE_SELECT } from '../src/lib/trips/participantSelect';
+import { DAY_NOT_STATED, bookingConfirmation } from '../src/lib/emailTemplates/bookingConfirmation';
+import { constantTimeEqual } from '../src/lib/webhooks/liteapiWebhook';
 import { DYNAMIC_READ_ENV, LIBRARY_READ_ENV } from '../src/lib/envLaw';
 import { EXPECTED_FEED_COUNT, FEED_COST, FEED_IDS, SCAN_COST, feedCostLaw, scanCostLine } from '../src/lib/observatory/feedCost';
 import { FINNHUB_TTL, finnhubCallsPerSymbol, finnhubTtlLaw, slowTierEndpoints } from '../src/lib/convergence/finnhub-ttl';
@@ -5934,7 +5939,9 @@ lawGuard('The status law', () => {
   {
     const r = codeOf(CRON_ROUTE);
     if (!/if \(!cronSecret\) \{\s*console\.error\('CRON_SECRET not configured'\);\s*return NextResponse\.json\(\s*\{ error: 'Cron not configured' \},\s*\{ status: 500 \}/.test(r)) statusFail(`${CRON_ROUTE} does not answer 500 by name when CRON_SECRET is unset`);
-    if (!/if \(authHeader !== `Bearer \$\{cronSecret\}`\) \{\s*console\.error\('Unauthorized cron attempt'\);\s*return NextResponse\.json\(\s*\{ error: 'Unauthorized' \},\s*\{ status: 401 \}/.test(r)) statusFail(`${CRON_ROUTE} does not refuse a wrong CRON_SECRET with 401 (the auto-categorize pattern)`);
+    // SEC-02b (2026-09-27): the bearer is compared in constant time (constantTimeEqual,
+    // src/lib/webhooks/liteapiWebhook.ts) — was `authHeader !== \`Bearer ${cronSecret}\``.
+    if (!/if \(authHeader === null \|\| !constantTimeEqual\(authHeader, `Bearer \$\{cronSecret\}`\)\) \{\s*console\.error\('Unauthorized cron attempt'\);\s*return NextResponse\.json\(\s*\{ error: 'Unauthorized' \},\s*\{ status: 401 \}/.test(r)) statusFail(`${CRON_ROUTE} does not refuse a wrong CRON_SECRET with 401 (the auto-categorize pattern)`);
     if (!(r.indexOf('{ status: 401 }') >= 0 && r.indexOf('{ status: 401 }') < r.indexOf('prisma.reservations.findMany'))) statusFail(`${CRON_ROUTE} queries before it refuses`);
     if (!/\nconst BATCH = \d+;/.test(r) || !/take: BATCH,/.test(r)) statusFail(`${CRON_ROUTE}: the batch is unbounded or its bound is not named (BATCH)`);
     if (!/hourly runs/.test(commentsOf(CRON_ROUTE)) || !/reads\/day/.test(commentsOf(CRON_ROUTE))) statusFail(`${CRON_ROUTE} does not say why the bound is what it is against the daily cap`);
@@ -7567,8 +7574,8 @@ const PUBLIC_WRITERS: ReadonlyArray<{ file: string; kind: 'public' | 'bypass' | 
   { file: 'src/app/api/stripe/webhook/route.ts', kind: 'public', reason: 'Stripe holds no session; the signed body is the authority', guards: [{ name: 'STRIPE_WEBHOOK_SECRET signature (constructEvent)', re: /secret: process\.env\.STRIPE_WEBHOOK_SECRET[\s\S]*webhooks\.constructEvent\(body, sig, secret\)/ }] },
   { file: 'src/app/api/webhooks/liteapi/route.ts', kind: 'public', reason: 'STATUS-01: the vendor holds no session; the token is the gate before a byte is stored', guards: [{ name: 'per-IP rate limit 120/min', re: /await rateLimit\(`liteapi-webhook:\$\{ip\}`/ }, { name: 'LITEAPI_WEBHOOK_TOKEN, constant-time', re: /process\.env\.LITEAPI_WEBHOOK_TOKEN[\s\S]*!constantTimeEqual\(given, expected\)/ }] },
   { file: 'src/app/api/inngest/route.ts', kind: 'public', reason: 'Inngest Cloud holds no session; serve() verifies the INNGEST_SIGNING_KEY signature before any function runs', guards: [{ name: 'serve() signature check', re: /export const \{ GET, POST, PUT \} = serve\(\{/ }] },
-  { file: 'src/app/api/operations/projects/[id]/audit-ingest/route.ts', kind: 'bypass', reason: 'PHASE3-3: the Routine callback holds no cookie; the bearer is the whole boundary, then the stored correlation id', guards: [{ name: 'AUDIT_INGEST_SECRET bearer first', re: /const secret = process\.env\.AUDIT_INGEST_SECRET;[\s\S]*if \(authHeader !== `Bearer \$\{secret\}`\)/ }, { name: 'stored correlation id', re: /project\.audit_correlation_id !== correlationId/ }] },
-  { file: 'src/app/api/operations/projects/[id]/exec-ingest/route.ts', kind: 'bypass', reason: 'EXEC-1: the Routine callback holds no cookie; the bearer is the whole boundary, then the task by correlation id within the project', guards: [{ name: 'EXEC_INGEST_SECRET bearer first', re: /const secret = process\.env\.EXEC_INGEST_SECRET;[\s\S]*if \(authHeader !== `Bearer \$\{secret\}`\)/ }, { name: 'task by correlation id within the project', re: /where: \{ exec_correlation_id: correlationId, project_id: projectId \}/ }] },
+  { file: 'src/app/api/operations/projects/[id]/audit-ingest/route.ts', kind: 'bypass', reason: 'PHASE3-3: the Routine callback holds no cookie; the bearer is the whole boundary, then the stored correlation id', guards: [{ name: 'AUDIT_INGEST_SECRET bearer first, in constant time (SEC-02b)', re: /const secret = process\.env\.AUDIT_INGEST_SECRET;[\s\S]*if \(authHeader === null \|\| !constantTimeEqual\(authHeader, `Bearer \$\{secret\}`\)\)/ }, { name: 'stored correlation id', re: /project\.audit_correlation_id !== correlationId/ }] },
+  { file: 'src/app/api/operations/projects/[id]/exec-ingest/route.ts', kind: 'bypass', reason: 'EXEC-1: the Routine callback holds no cookie; the bearer is the whole boundary, then the task by correlation id within the project', guards: [{ name: 'EXEC_INGEST_SECRET bearer first, in constant time (SEC-02b)', re: /const secret = process\.env\.EXEC_INGEST_SECRET;[\s\S]*if \(authHeader === null \|\| !constantTimeEqual\(authHeader, `Bearer \$\{secret\}`\)\)/ }, { name: 'task by correlation id within the project', re: /where: \{ exec_correlation_id: correlationId, project_id: projectId \}/ }] },
   { file: 'src/app/api/trips/rsvp/route.ts', kind: 'token', reason: 'an invite link: the invitee may hold no account — the unguessable token (trips.inviteToken 128-bit, trip_participants.inviteToken 256-bit, @unique) names the one row it may touch', guards: [{ name: 'the trip by its invite token', re: /prisma\.trips\.findUnique\(\{\s*where: \{ inviteToken: token \}/ }, { name: 'the participant by their invite token', re: /prisma\.trip_participants\.findUnique\(\{\s*where: \{ inviteToken: token \}/ }] },
   { file: 'src/app/api/travel/liteapi/book/route.ts', kind: 'public', reason: 'guest checkout (D2): booking is never locked; a tripId, when sent, is the signed-in owner\'s or 404', guards: [{ name: 'per-IP rate limit 3/5min', re: /await rateLimit\(`hotel-book:\$\{ip\}`, \{ limit: 3, windowSeconds: 300 \}\)/ }, { name: "daily cap 'hotelbooking'", re: /await reserveTravelSearch\('hotelbooking'\)/ }, { name: 'tripId owned', re: /where: \{ id: tripId, userId: user!\.id \}/ }] },
   { file: 'src/app/api/travel/liteapi/flights/book/route.ts', kind: 'public', reason: 'PR-FL-5: flight booking completion, guest-ok like the hotel book; the row it refreshes is the row this request committed', guards: [{ name: 'per-IP rate limit 3/5min', re: /await rateLimit\(`liteapi-flight-book:\$\{ip\}`, \{ limit: 3, windowSeconds: 300 \}\)/ }, { name: "daily cap 'liteapiflightbooking'", re: /await reserveTravelSearch\('liteapiflightbooking'\)/ }, { name: 'tripId owned', re: /where: \{ id: tripId, userId: user!\.id \}/ }] },
@@ -7711,6 +7718,154 @@ lawGuard('The ownership law', () => {
 
   if (secViolations === 0) console.log(`✔ The ownership law passed — ${inScopeCount} writing routes (${dppCount} export DELETE/PATCH/PUT in some form): ${PUBLIC_WRITERS.length} public writers each with its reason and guard, and every other one proves who is asking before its first write and scopes every update/delete to the caller or a row it proved the caller's (${OWNER_CONSOLE.length} owner-console routes, ${SHARED_ROWS.length} shared row, ${DERIVED_OWNED.length} derived-owned writes and ${HELPER_PRECONDITIONS.length} checked helpers named).`);
   else console.log(`✖ The ownership law FAILED — ${secViolations} violation(s).`);
+});
+
+// ── THE VENDOR-STAY, PASSWORD-HASH AND BEARER LAWS (SEC-02b, 2026-09-27) ─────
+// Three things SEC-02 found and Alex ruled:
+//   1. THE STAY IS THE VENDOR'S. The hotel book route stored the check-in and
+//      check-out the confirm page relayed from its own link, and fell back to the
+//      link's hotel name — and the check-out is the date the commission lock reads
+//      (applyVendorState.ts COMMISSION_LOCK_GRACE_MS). The dates and the name are
+//      now what the vendor's BOOK answer states (liteapiClient.ts parseBookResult:
+//      checkin, checkout, hotel.name) through src/lib/reservations/stayDates.ts,
+//      or NULL with a named log by bookingId. The route reads no date or name from
+//      its body; the confirm page sends none.
+//   2. NO PASSWORD HASH LEAVES THE SERVER. The RSVP POST answered with the whole
+//      trip_participants row; the trip GET and create pulled `participants` whole.
+//      Every route response is read by src/lib/security/passwordLaw.ts.
+//   3. BEARERS ARE COMPARED IN CONSTANT TIME. Every route reading CRON_SECRET,
+//      AUDIT_INGEST_SECRET, EXEC_INGEST_SECRET or LITEAPI_WEBHOOK_TOKEN compares
+//      through constantTimeEqual (src/lib/webhooks/liteapiWebhook.ts) — never
+//      `!==` against a `Bearer ${…}` template.
+lawGuard('The vendor-stay law', () => {
+  let stayViolations = 0;
+  const stayFail = (m: string) => { stayViolations += 1; violations.push(`vendor-stay law: ${m} (SEC-02b)`); };
+  const BOOK = 'src/app/api/travel/liteapi/book/route.ts';
+  const CONFIRM = 'src/app/booking/confirm/page.tsx';
+  const b = codeOf(BOOK);
+  if (!b.includes("import { bookedStay, dayOfColumn, unstatedStayLine } from '@/lib/reservations/stayDates';")) stayFail(`${BOOK} no longer imports bookedStay / dayOfColumn / unstatedStayLine — the stay is read through one leaf`);
+  if (!b.includes('const stay = bookedStay(parsed);')) stayFail(`${BOOK}: the stay is no longer bookedStay(parsed) — the vendor's book answer, and nothing else`);
+  if (!/if \(stay\.unstated\.length > 0\) \{\s*console\.error\(unstatedStayLine\(parsed\.bookingId, stay\.unstated\)/.test(b)) stayFail(`${BOOK}: a stay the vendor did not state in full is no longer logged by name and bookingId (unstatedStayLine)`);
+  if (!b.includes('const resolvedHotelName = stay.hotelName;')) stayFail(`${BOOK}: the hotel name is no longer exactly stay.hotelName — the vendor's stated name or NULL, never a fallback`);
+  if (!/checkinDate: stay\.checkinDate,\s*checkoutDate: stay\.checkoutDate,/.test(b)) stayFail(`${BOOK}: the reservation no longer stores stay.checkinDate / stay.checkoutDate — the vendor's days or NULL`);
+  if (!/displayName: resolvedHotelName,/.test(b) || !/hotelName: resolvedHotelName,/.test(b)) stayFail(`${BOOK}: displayName and hotelName are no longer both the vendor's stated name (LANE-01: NULL renders as the lane word)`);
+  const iface = /interface BookRequestBody \{([\s\S]*?)\}/.exec(b);
+  if (!iface) stayFail(`${BOOK} no longer declares BookRequestBody — the law cannot read what the body may carry`);
+  else if (/\b(checkinDate|checkoutDate|hotelName)\b/.test(iface[1])) stayFail(`${BOOK}: BookRequestBody declares ${/\b(checkinDate|checkoutDate|hotelName)\b/.exec(iface[1])![1]} again — the body carries no stay date and no hotel name`);
+  const destructure = /const \{([^}]*)\} = body;/.exec(b);
+  if (!destructure) stayFail(`${BOOK} no longer destructures its body in one place — the law cannot read what the route takes from it`);
+  else if (/\b(checkinDate|checkoutDate|hotelName)\b/.test(destructure[1])) stayFail(`${BOOK}: the body destructure takes ${/\b(checkinDate|checkoutDate|hotelName)\b/.exec(destructure[1])![1]} again — the link's stay is never read`);
+  for (const m of b.matchAll(/(?<![.\w])(checkinDate|checkoutDate|hotelName)\b(?!\s*:)/g)) stayFail(`${BOOK}:${b.slice(0, m.index!).split('\n').length} reads a bare ${m[1]} — the stay's only sources are parsed (the vendor's answer), stay (bookedStay) and result (the row written from it)`);
+  for (const m of b.matchAll(/\b(\w+)\s*\.\s*(checkinDate|checkoutDate|hotelName|checkin|checkout)\b/g)) {
+    if (!['parsed', 'stay', 'result'].includes(m[1])) stayFail(`${BOOK}:${b.slice(0, m.index!).split('\n').length} reads ${m[1]}.${m[2]} — the stay's only sources are parsed, stay and result, never the request`);
+  }
+  if (/\[\s*['"`](checkinDate|checkoutDate|hotelName)['"`]\s*\]/.test(b)) stayFail(`${BOOK} reads a stay field by bracket — the request's stay is never read`);
+  // What the route answers, calendars and emails is the row's day, read back — or NULL.
+  const dayReads = b.match(/checkinDate: dayOfColumn\(result\.checkinDate\),\s*checkoutDate: dayOfColumn\(result\.checkoutDate\),/g) ?? [];
+  if (dayReads.length !== 3) stayFail(`${BOOK}: the calendar decision, the confirmation email and the JSON answer must each carry dayOfColumn(result.…) — found ${dayReads.length} of 3`);
+  // The leaf, run: a stated day or null; the answer is its only argument.
+  const days: Array<[unknown, string | null]> = [['2026-10-02', '2026-10-02'], ['2026-10-02T15:00:00', '2026-10-02'], ['2026-13-40', null], ['2026-02-30', null], ['next tuesday', null], ['', null], [undefined, null], [20261002, null]];
+  for (const [given, want] of days) if (statedStayDay(given) !== want) stayFail(`statedStayDay(${JSON.stringify(given)}) is ${JSON.stringify(statedStayDay(given))}, not ${JSON.stringify(want)} — a day the vendor did not state as a calendar day is NULL`);
+  if (bookedStay.length !== 1) stayFail(`bookedStay takes ${bookedStay.length} arguments — it takes the vendor's answer ONLY, so no link can reach it`);
+  if (!codeOf('src/lib/reservations/stayDates.ts').includes('export function bookedStay(answer: { hotelName?: unknown; checkin?: unknown; checkout?: unknown }): BookedStay {')) stayFail("src/lib/reservations/stayDates.ts: bookedStay's signature is no longer the vendor's answer alone — a second (or defaulted) argument is a door for the link");
+  const stated = bookedStay({ hotelName: 'Hotel Stated', checkin: '2026-10-02', checkout: '2026-10-05' });
+  if (stated.hotelName !== 'Hotel Stated' || stated.checkinDate?.toISOString() !== '2026-10-02T12:00:00.000Z' || stated.checkoutDate?.toISOString() !== '2026-10-05T12:00:00.000Z' || stated.unstated.length !== 0) stayFail(`bookedStay of a full answer is ${JSON.stringify(stated)} — the vendor's name and days at noon UTC`);
+  const bare = bookedStay({});
+  if (bare.hotelName !== null || bare.checkinDate !== null || bare.checkoutDate !== null || bare.unstated.join('|') !== 'hotel name|check-in date|check-out date') stayFail(`bookedStay of an answer stating nothing is ${JSON.stringify(bare)} — NULL, NULL, NULL, each named`);
+  const line = unstatedStayLine('bk-sec02b', bare.unstated);
+  if (!line.includes('bk-sec02b') || !line.includes('check-out date') || !line.includes('NULL')) stayFail(`unstatedStayLine no longer names the booking and the fields recorded NULL: "${line}"`);
+  // The commission lock never locks a NULL check-out; the calendar writes no row.
+  if (!codeOf('src/lib/reservations/applyVendorState.ts').includes('const afterCheckout = row.checkoutDate !== null && row.checkoutDate.getTime() + COMMISSION_LOCK_GRACE_MS < vendor.readAt.getTime();')) stayFail('src/lib/reservations/applyVendorState.ts: the commission lock no longer requires a stated check-out — a NULL day would be read as a date');
+  const cal = stayCalendarDecision({ reservationId: 'r-sec02b', userId: 'u', hotelName: null, checkinDate: null, checkoutDate: null });
+  if (cal.write !== false) stayFail('stayCalendarDecision writes a calendar row for a stay with no stated days — a date is never invented');
+  // The email says a NULL day and does not throw.
+  let email: { subject: string; html: string; text: string } | null = null;
+  try {
+    email = bookingConfirmation({ guestName: 'Ada Guest', hotelName: null, checkinDate: null, checkoutDate: null, confirmationCode: null, bookingId: 'bk-sec02b', totalAmountCents: null, currency: 'EUR' });
+  } catch (e) {
+    stayFail(`bookingConfirmation throws on a stay with no stated days: ${(e as Error).message}`);
+  }
+  if (email) {
+    if (email.text.split(DAY_NOT_STATED).length !== 3 || email.html.split(DAY_NOT_STATED).length !== 3) stayFail('bookingConfirmation no longer SAYS both unstated days — check-in and check-out each read DAY_NOT_STATED');
+    if (/\bnull\b|undefined/.test(email.text) || /\bnull\b|undefined/.test(email.subject)) stayFail('bookingConfirmation prints null/undefined for an unstated day');
+    if (email.subject !== 'Booking confirmed — reference bk-sec02b') stayFail(`bookingConfirmation's subject with no name and no days is "${email.subject}" — the booking reference, nothing invented`);
+  }
+  // The confirm page sends no stay; its name placeholder is gone; its result SAYS a NULL.
+  const c = codeOf(CONFIRM);
+  const post = /fetch\('\/api\/travel\/liteapi\/book', \{[\s\S]*?body: JSON\.stringify\(\{([\s\S]*?)\}\),\s*\}\);/.exec(c);
+  if (!post) stayFail(`${CONFIRM}: the book request's body cannot be read — the law checks it sends no stay`);
+  else if (/\b(checkinDate|checkoutDate|hotelName|checkin|checkout)\b/.test(post[1])) stayFail(`${CONFIRM}: the book request sends ${/\b(checkinDate|checkoutDate|hotelName|checkin|checkout)\b/.exec(post[1])![1]} again — the stay is the vendor's`);
+  if (/your stay/i.test(c)) stayFail(`${CONFIRM}: 'your stay' is back — no name is no name`);
+  if (!c.includes('const ready = !!prebookId && !!transactionId;')) stayFail(`${CONFIRM}: ready no longer needs only the two references — the link's dates gate nothing`);
+  if (!c.includes("'dates not stated by the hotel — see your booking ID'")) stayFail(`${CONFIRM}: the result no longer SAYS a stay the vendor did not state`);
+  if (!c.includes('value={confirmation.hotelName ?? LANE_WORD.hotel}')) stayFail(`${CONFIRM}: the booked hotel's row no longer reads the vendor's name or the lane word (LANE-01)`);
+  if (stayViolations === 0) console.log('✔ The vendor-stay law passed — the hotel booking stores the check-in, check-out and name its BOOK answer states (bookedStay), or NULL logged by bookingId; the route reads none from its body and the confirm page sends none; the email, calendar and lock each handle a NULL day.');
+  else console.log(`✖ The vendor-stay law FAILED — ${stayViolations} violation(s).`);
+});
+
+lawGuard('The password-hash law', () => {
+  let pwViolations = 0;
+  const pwFail = (m: string) => { pwViolations += 1; violations.push(`password-hash law: ${m} (SEC-02b)`); };
+  const schemaText = codeOf('prisma/schema.prisma');
+  const schema = passwordSchema(schemaText);
+  // The reader must see the two hash columns and the relations that reach them, or it is blind.
+  if (schema.models.trip_participants !== 'passwordHash' || schema.models.users !== 'password') pwFail(`the reader sees ${JSON.stringify(schema.models)} — it must see trip_participants.passwordHash and users.password`);
+  for (const rel of ['participants', 'user', 'owner']) if (!schema.relations.has(rel)) pwFail(`the reader no longer sees the relation ${rel} reaching a hash-holding model`);
+  // The reader, proven on the shapes it closes.
+  const OLD_RSVP = "const participant = await prisma.trip_participants.create({ data: { tripId } });\nreturn NextResponse.json({ success: true, participant });";
+  const OLD_TRIP = "const trip = await prisma.trips.findFirst({ where: { id }, include: { participants: true } });\nreturn NextResponse.json({ trip });";
+  const NAMED = "return NextResponse.json({ hash: p.passwordHash });";
+  const SAFE = "const participant = await prisma.trip_participants.create({ data: { tripId }, select: PARTICIPANT_RESPONSE_SELECT });\nreturn NextResponse.json({ participant: { ...participant, hasPassword: passwordHash !== null } });";
+  if (passwordLeaks(OLD_RSVP, schema).length !== 1) pwFail('the reader no longer flags a whole trip_participants row returned (the old RSVP POST)');
+  if (passwordLeaks(OLD_TRIP, schema).length !== 1) pwFail('the reader no longer flags `participants: true` returned (the old trip GET)');
+  if (passwordLeaks(NAMED, schema).length !== 1) pwFail('the reader no longer flags a response naming passwordHash');
+  if (passwordLeaks(SAFE, schema).length !== 0) pwFail('the reader flags the house shape — an explicit select and a hasPassword boolean');
+  let routeCount = 0;
+  for (const { file, src } of srcFiles) {
+    if (!file.startsWith('src/app/api/') || !file.endsWith('/route.ts')) continue;
+    routeCount += 1;
+    for (const leak of passwordLeaks(src, schema)) pwFail(`${file}${leak}`);
+  }
+  // The one select every participant response uses: every scalar but the hash.
+  const modelNames = new Set(Array.from(schemaText.matchAll(/^model\s+(\w+)/gm), (m) => m[1]));
+  const tp = /^model trip_participants \{([\s\S]*?)^\}/m.exec(schemaText);
+  const scalars = tp ? Array.from(tp[1].matchAll(/^\s*(\w+)\s+(\w+)(\[\])?\??/gm)).filter((m) => !modelNames.has(m[2])).map((m) => m[1]) : [];
+  const expected = scalars.filter((f) => f !== 'passwordHash').sort();
+  const selected = Object.keys(PARTICIPANT_RESPONSE_SELECT).sort();
+  if ('passwordHash' in PARTICIPANT_RESPONSE_SELECT) pwFail('PARTICIPANT_RESPONSE_SELECT selects passwordHash');
+  if (expected.length === 0 || JSON.stringify(selected) !== JSON.stringify(expected)) pwFail(`PARTICIPANT_RESPONSE_SELECT is [${selected.join(', ')}] — it must be every trip_participants scalar but passwordHash: [${expected.join(', ')}]`);
+  const rsvp = codeOf('src/app/api/trips/rsvp/route.ts');
+  if ((rsvp.match(/select: PARTICIPANT_RESPONSE_SELECT,/g) ?? []).length !== 2) pwFail('src/app/api/trips/rsvp/route.ts: the RSVP POST no longer writes both its create and its update through PARTICIPANT_RESPONSE_SELECT');
+  if (!rsvp.includes('participant: { ...participant, hasPassword: passwordHash !== null }') || !rsvp.includes('participant: { ...updated, hasPassword: !!password || participant.passwordHash !== null }')) pwFail('src/app/api/trips/rsvp/route.ts: the RSVP POST no longer says hasPassword as a boolean, as its GET does');
+  if (pwViolations === 0) console.log(`✔ The password-hash law passed — ${routeCount} route files read: no response names a password column except as the hasPassword boolean, and every returned participant or user row came back through a select without its hash (PARTICIPANT_RESPONSE_SELECT: ${selected.length} columns).`);
+  else console.log(`✖ The password-hash law FAILED — ${pwViolations} violation(s).`);
+});
+
+lawGuard('The constant-time bearer law', () => {
+  let ctViolations = 0;
+  const ctFail = (m: string) => { ctViolations += 1; violations.push(`constant-time bearer law: ${m} (SEC-02b)`); };
+  const SECRET = /\b(?:const|let)\s+(\w+)\s*=\s*process\.env\.(CRON_SECRET|AUDIT_INGEST_SECRET|EXEC_INGEST_SECRET|LITEAPI_WEBHOOK_TOKEN)\b/;
+  const NAMED = ['src/app/api/cron/reservations-refresh/route.ts', 'src/app/api/cron/auto-categorize/route.ts', 'src/app/api/operations/projects/[id]/audit-ingest/route.ts', 'src/app/api/operations/projects/[id]/exec-ingest/route.ts', 'src/app/api/webhooks/liteapi/route.ts'];
+  const readers = srcFiles.filter((f) => !f.file.includes('__tests__') && /process\.env\.(CRON_SECRET|AUDIT_INGEST_SECRET|EXEC_INGEST_SECRET|LITEAPI_WEBHOOK_TOKEN)\b/.test(f.src));
+  for (const n of NAMED) if (!readers.some((r) => r.file === n)) ctFail(`${n} no longer reads its secret — the census named it; a moved secret is a ruling`);
+  for (const { file, src } of readers) {
+    const decl = SECRET.exec(src);
+    if (!decl) { ctFail(`${file} reads a bearer secret without naming it once (const x = process.env.…) — the law cannot follow the comparison`); continue; }
+    const v = decl[1];
+    if (!/import \{[^}]*\bconstantTimeEqual\b[^}]*\} from '@\/lib\/webhooks\/liteapiWebhook';/.test(src)) ctFail(`${file}: constantTimeEqual is not imported from @/lib/webhooks/liteapiWebhook — one comparator`);
+    if (!new RegExp(`!constantTimeEqual\\(\\w+, (?:\`Bearer \\$\\{${v}\\}\`|${v})\\)`).test(src)) ctFail(`${file}: ${decl[2]} (${v}) is not compared through !constantTimeEqual(given, …) — a bearer is compared in constant time`);
+    if (/(?:===|!==|==|!=)\s*`Bearer /.test(src) || /`Bearer \$\{[^}]*\}`\s*(?:===|!==|==|!=)/.test(src)) ctFail(`${file} compares a \`Bearer \${…}\` template with ===/!== — an early-exit comparison leaks the secret's prefix by timing`);
+    // `typeof x !== 'string'` and `x === null` are presence checks, not comparisons of the secret.
+    if (new RegExp(`(?:===|!==|==|!=)\\s*${v}\\b|(?<!typeof\\s*)\\b${v}\\s*(?:===|!==|==|!=)\\s*(?!null\\b|undefined\\b)`).test(src)) ctFail(`${file} compares ${v} with ===/!== — through constantTimeEqual only`);
+    if (/\.startsWith\(\s*`Bearer \$\{/.test(src) || new RegExp(`\\.(?:startsWith|endsWith|includes)\\(\\s*${v}\\b`).test(src)) ctFail(`${file} matches ${v} by prefix or substring — the same length and every byte, in constant time`);
+  }
+  // The comparator itself: the same length, then timingSafeEqual.
+  const cte = functionBody(codeOf('src/lib/webhooks/liteapiWebhook.ts'), 'constantTimeEqual') ?? '';
+  if (!/if \(a\.length !== b\.length\) return false;\s*return timingSafeEqual\(a, b\);/.test(cte)) ctFail('src/lib/webhooks/liteapiWebhook.ts: constantTimeEqual is no longer a length check then timingSafeEqual');
+  const runs: Array<[string, string, boolean]> = [['Bearer s3cret', 'Bearer s3cret', true], ['Bearer s3cret', 'Bearer s3creT', false], ['Bearer s3cre', 'Bearer s3cret', false], ['bearer s3cret', 'Bearer s3cret', false], ['', 'Bearer s3cret', false]];
+  for (const [given, want, ok] of runs) if (constantTimeEqual(given, want) !== ok) ctFail(`constantTimeEqual(${JSON.stringify(given)}, ${JSON.stringify(want)}) is ${!ok} — every byte, the same length, no case folding`);
+  if (ctViolations === 0) console.log(`✔ The constant-time bearer law passed — ${readers.length} routes read CRON_SECRET / AUDIT_INGEST_SECRET / EXEC_INGEST_SECRET / LITEAPI_WEBHOOK_TOKEN, and each compares the bearer through constantTimeEqual (a length check, then timingSafeEqual) — never ===/!==.`);
+  else console.log(`✖ The constant-time bearer law FAILED — ${ctViolations} violation(s).`);
 });
 
 // ── THE ROW LAW (TRAVEL-ROW-01, 2026-09-23) ─────────────────────────────────

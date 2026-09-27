@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { randomBytes } from 'crypto';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+// SEC-02b (2026-09-27): a participant goes back without its password hash.
+import { PARTICIPANT_RESPONSE_SELECT } from '@/lib/trips/participantSelect';
 
 // GET all participants for a trip
 export async function GET(
@@ -130,7 +132,8 @@ export async function POST(
         inviteToken,
         isOwner: false,
         rsvpStatus: 'pending'
-      }
+      },
+      select: PARTICIPANT_RESPONSE_SELECT,
     });
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';

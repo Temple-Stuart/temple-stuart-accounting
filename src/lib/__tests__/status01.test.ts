@@ -425,7 +425,8 @@ test('the read leaf: the cap, then the GET by lane, then ONE transaction landing
 test('the cron: Bearer CRON_SECRET (500 unconfigured, 401 wrong), the non-final selection, oldest read first, a named batch bound, per-row outcomes; registered hourly', () => {
   const r = code(CRON_ROUTE);
   assert.match(r, /if \(!cronSecret\) \{\s*console\.error\('CRON_SECRET not configured'\);\s*return NextResponse\.json\(\s*\{ error: 'Cron not configured' \},\s*\{ status: 500 \}/, 'the auto-categorize pattern, exactly');
-  assert.match(r, /if \(authHeader !== `Bearer \$\{cronSecret\}`\) \{\s*console\.error\('Unauthorized cron attempt'\);\s*return NextResponse\.json\(\s*\{ error: 'Unauthorized' \},\s*\{ status: 401 \}/);
+  // SEC-02b (2026-09-27): compared in constant time — was `authHeader !== \`Bearer ${cronSecret}\``.
+  assert.match(r, /if \(authHeader === null \|\| !constantTimeEqual\(authHeader, `Bearer \$\{cronSecret\}`\)\) \{\s*console\.error\('Unauthorized cron attempt'\);\s*return NextResponse\.json\(\s*\{ error: 'Unauthorized' \},\s*\{ status: 401 \}/);
   assert.ok(r.indexOf("{ status: 401 }") < r.indexOf('prisma.reservations.findMany'), 'refused before any query');
   assert.match(r, /\nconst BATCH = 20;/, 'the bound is named (a route file may export only its handlers)');
   assert.match(comments(CRON_ROUTE), /20 × 24 hourly runs\s*\n?\s*\*?\s*= 480 reads\/day/, 'and why');

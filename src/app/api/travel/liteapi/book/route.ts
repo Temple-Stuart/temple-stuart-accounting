@@ -18,6 +18,8 @@ import { prismaBookingCalendar } from '@/lib/calendar/prismaBookingCalendar';
 // STATUS-01 (2026-09-26): the vendor's status word becomes ours through the hotel
 // leaf only — by name, no default.
 import { hotelProviderStatusToReservation } from '@/lib/reservations/hotelStatus';
+// SEC-02b (2026-09-27): the stay's dates and the hotel's name, as the vendor's book answer states them.
+import { bookedStay, dayOfColumn, unstatedStayLine } from '@/lib/reservations/stayDates';
 
 // POST /api/travel/liteapi/book  — PUBLIC (PR-G2: guest booking).
 // Body: {
@@ -25,8 +27,14 @@ import { hotelProviderStatusToReservation } from '@/lib/reservations/hotelStatus
 //   prebookId, paymentTransactionId,   // from prebook (sandbox passthrough; SDK = PR-B2)
 //   holder: { firstName, lastName, email },
 //   guests: [{ occupancyNumber, firstName, lastName, email }],
-//   checkinDate, checkoutDate, hotelName?, guestCount, currency?
+//   guestCount, currency?
 // }
+// SEC-02b (2026-09-27): the body carries NO stay dates and NO hotel name any more.
+// The reservation's checkinDate / checkoutDate and its hotelName / displayName are
+// what the vendor's BOOK answer states (parseBookResult: checkin, checkout,
+// hotel.name), or NULL — logged by bookingId — never the confirm page's link. A
+// body that still carries them (a page cached before this change) is not refused:
+// the fields are simply not read, so a guest who has already paid still books.
 // COMM-01 (2026-09-26): the body carries NO commissionAmountCents any more — a client
 // never states a ledger amount; a body that still carries it is refused 400 by name.
 // The ledger's commission is the vendor's stated `commission` on the BOOK answer,
@@ -52,9 +60,6 @@ interface BookRequestBody {
   paymentTransactionId?: string;
   holder?: BookHolder;
   guests?: BookGuest[];
-  checkinDate?: string;          // ISO YYYY-MM-DD
-  checkoutDate?: string;
-  hotelName?: string;
   guestCount?: number;
   currency?: string;
 }
@@ -78,7 +83,7 @@ export async function POST(request: NextRequest) {
 
     const {
       tripId, prebookId, paymentTransactionId, holder, guests,
-      checkinDate, checkoutDate, hotelName, guestCount,
+      guestCount,
       currency,
     } = body;
 
@@ -107,12 +112,6 @@ export async function POST(request: NextRequest) {
     if (!guests || guests.length === 0) {
       return NextResponse.json(
         { error: 'guests must include at least one occupant' },
-        { status: 400 }
-      );
-    }
-    if (!checkinDate || !checkoutDate) {
-      return NextResponse.json(
-        { error: 'checkinDate and checkoutDate are required' },
         { status: 400 }
       );
     }
@@ -240,7 +239,19 @@ export async function POST(request: NextRequest) {
                 `Book 2xx missing currency for ${parsed.bookingId} and the checkout stated no search currency — contract deviation from the documented shape`,
               );
             }
-            const resolvedHotelName = parsed.hotelName ?? hotelName ?? null;
+            // SEC-02b (2026-09-27): THE STAY IS WHAT THE VENDOR STATED. The name, the
+            // check-in and the check-out come from the book answer only; one it does not
+            // state (or states as no calendar day) is NULL and said by bookingId — never
+            // the link's. A NULL check-out is never locked for commission
+            // (applyVendorState.ts: the lock requires a checkoutDate); a NULL name
+            // renders as the lane word (LANE-01).
+            const stay = bookedStay(parsed);
+            if (stay.unstated.length > 0) {
+              console.error(unstatedStayLine(parsed.bookingId, stay.unstated), {
+                stated: { hotelName: parsed.hotelName ?? null, checkin: parsed.checkin ?? null, checkout: parsed.checkout ?? null },
+              });
+            }
+            const resolvedHotelName = stay.hotelName;
             // STATUS-01 (2026-09-26): the vendor's word through the hotel leaf, by
             // name — CONFIRMED → confirmed, CANCELED → cancelled, FAILED → failed;
             // a non-CONFIRMED word is never collapsed to pending. NO DEFAULT: a
@@ -277,8 +288,8 @@ export async function POST(request: NextRequest) {
                 providerConfirmationCode: parsed.hotelConfirmationCode || parsed.supplierConfirmationNum || null,
                 status,
                 hotelName: resolvedHotelName,
-                checkinDate: new Date(checkinDate + 'T12:00:00Z'),
-                checkoutDate: new Date(checkoutDate + 'T12:00:00Z'),
+                checkinDate: stay.checkinDate,
+                checkoutDate: stay.checkoutDate,
                 guestCount: resolvedGuestCount,
                 finalPriceCents: statedCents,
                 currency: resolvedCurrency,
@@ -350,8 +361,8 @@ export async function POST(request: NextRequest) {
             reservationId: result.id,
             userId: result.userId ?? null,
             hotelName: result.hotelName,
-            checkinDate,
-            checkoutDate,
+            checkinDate: dayOfColumn(result.checkinDate),
+            checkoutDate: dayOfColumn(result.checkoutDate),
           }),
         );
         if (outcome.landed === 'no_row') {
@@ -379,8 +390,8 @@ export async function POST(request: NextRequest) {
         const rendered = bookingConfirmation({
           guestName: `${holder.firstName} ${holder.lastName}`,
           hotelName: result.hotelName,
-          checkinDate,
-          checkoutDate,
+          checkinDate: dayOfColumn(result.checkinDate),
+          checkoutDate: dayOfColumn(result.checkoutDate),
           confirmationCode: result.providerConfirmationCode,
           bookingId: landed.bookingId,
           // Integer cents, or NULL — the template says "price not stated" (SEC-03).
@@ -413,8 +424,8 @@ export async function POST(request: NextRequest) {
           confirmationCode: result.providerConfirmationCode,
           status: result.status,
           hotelName: result.hotelName,
-          checkinDate,
-          checkoutDate,
+          checkinDate: dayOfColumn(result.checkinDate),
+          checkoutDate: dayOfColumn(result.checkoutDate),
           finalPriceCents: result.finalPriceCents,
           currency: result.currency,
           bookingType: result.bookingType,

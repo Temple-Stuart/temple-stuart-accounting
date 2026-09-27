@@ -253,7 +253,8 @@ test('the booking-flow pin still holds for every file it names — five search f
     // STATUS-01 (2026-09-26): re-pinned — was 667efb921cdd690b6e5c26fc40c6b9deacd520367cf346956592b150d117c597 at main 53900e67.
     // COMM-01 (2026-09-26): re-pinned — was e32251eb8a4e9b541a001e6332bacb8ca1765e7bdb127d938d491665f6120509 at main 0ef428a6.
     // AUDIT-01 (2026-09-26): re-pinned — was 441552e306910d94a0c0aa068f3dd3a1575a544f139fdab45ce57da106332707 at main 651c2f0e.
-    'src/app/api/travel/liteapi/book/route.ts': '18ad62a03aa84b5d9ed6c7856958c35a0f44281eedf5122c4404da0a95d60d43',
+    // SEC-02b (2026-09-27): re-pinned — was 18ad62a03aa84b5d9ed6c7856958c35a0f44281eedf5122c4404da0a95d60d43 at main 0c6fedca.
+    'src/app/api/travel/liteapi/book/route.ts': 'd128348733a1f3688b48d084fe9fd60d6f8ce178833f92a18e5b2dbff1abbe0b',
     // FL-4c (2026-09-23): the envelope gains paymentEnv, the server-derived key env.
     // SEC-03 (2026-09-25): re-pinned — was afad4046f2084b53ff5dfd48ca6c280b475967d61dfd4cf98f4b5da3e672964e at main a5e66262.
     'src/app/api/travel/liteapi/flights/prebook/route.ts': '4dd7994bc43cbc305e3c23717d881774289b47145d70f43d3ef12796f53e0b7a',
