@@ -161,7 +161,10 @@ import { NOT_MATCHED, NOT_POSTED, NOT_STATED as RECEIPT_NOT_STATED, NOT_YET_TICK
 import { BOOKINGS_LEDGER_COLUMNS, bookingsLedgerRow } from '../src/lib/receipts/bookingsLedgerCsv';
 import { BOOKING_EVENT_KINDS, BUDGET_LINK_KINDS, bookingEventWords, timelineOf } from '../src/lib/reservations/timeline';
 import { LINE_STATUS, lineStatusOf } from '../src/lib/trips/lineStatus';
-import { BOOKING_WORDS, STATUS_WORDS, bookingRowOf } from '../src/lib/reservations/bookingRow';
+import { BOOKING_WORDS, STATUS_WORDS, bookingIcsHref, bookingRowOf } from '../src/lib/reservations/bookingRow';
+// CAL-02: every leg of a booking on the calendar, and the booking as an iCalendar file.
+import { bookingCalendarRowsWhere, flightSegmentSourceId, flightSegmentsCalendarDecision, reservationIdOfCalendarSourceId, stayCalendarDecision } from '../src/lib/calendar/bookingEvent';
+import { buildIcs, escapeIcsText, foldIcsLine } from '../src/lib/calendar/ics';
 import { DYNAMIC_READ_ENV, LIBRARY_READ_ENV } from '../src/lib/envLaw';
 import { EXPECTED_FEED_COUNT, FEED_COST, FEED_IDS, SCAN_COST, feedCostLaw, scanCostLine } from '../src/lib/observatory/feedCost';
 import { FINNHUB_TTL, finnhubCallsPerSymbol, finnhubTtlLaw, slowTierEndpoints } from '../src/lib/convergence/finnhub-ttl';
@@ -5090,7 +5093,9 @@ lawGuard('The lane law', () => {
     if (/\?\? '(pending|confirmed|cancelled|failed)'/.test(apply)) laneFail(`${APPLY_LEAF} defaults a status — the vendor is the only source that may change one`);
     if (/new Date\(\)/.test(apply)) laneFail(`${APPLY_LEAF} reads the clock — nothing here is today`);
   }
-  if (!/writeBookingCalendarEvent\(\s*ports\.calendar,\s*flightStatedCalendarDecision\(/.test(refresh)) laneFail(`${REFRESH_LEAF} does not write the CAL-01 row through the CAL-01 writer`);
+  // CAL-02 (2026-09-27): the clause MOVED with the logic, stricter — the refresh writes
+  // EVERY stated segment through the one segment writer (the calendar law holds the rest).
+  if (!/writeFlightSegmentRows\(ports\.calendar, \{[\s\S]{0,160}?decisions: flightSegmentsCalendarDecision\(\{ reservationId: row\.id, userId: row\.userId, segments: stated\.segments \}\),/.test(refresh)) laneFail(`${REFRESH_LEAF} does not write the calendar through the one segment writer (CAL-02), over the segments as stated`);
   const fb = codeOf(FLIGHT_BOOK);
   if (!/flightProviderStatusToReservation\(parsed\.status\)/.test(fb)) laneFail(`${FLIGHT_BOOK} does not map the status through ${STATUS_LEAF} — the two callers would drift`);
   if (/'TICKETED'/.test(fb)) laneFail(`${FLIGHT_BOOK} still carries an inline status mapping beside the leaf`);
@@ -5808,7 +5813,8 @@ lawGuard('The status law', () => {
     //     and no rename and still hands the status to the apply leaf.
     const refresh = codeOf(REFRESH);
     if ((refresh.match(/fetched: false,/g) ?? []).length !== 1) statusFail(`${REFRESH} applies no status when the answer has no OUTBOUND segment — the fetched:false return is the GET failure only`);
-    if (!/landed: 'no_row',\s*reason: stated\.segments\.length === 0/.test(refresh)) statusFail(`${REFRESH} does not name a segment-less answer as no row, no rename`);
+    // CAL-02 (2026-09-27): the segment-less naming moved with the calendar write (the one segment writer).
+    if (!/const calendarReason = stated\.segments\.length === 0\s*\?\s*`GET \/flights\/bookings\/\$\{row\.providerBookingId\} answered with no segments — no row, no rename`/.test(refresh)) statusFail(`${REFRESH} does not name a segment-less answer as no row, no rename`);
     if ((refresh.match(/no status change/g) ?? []).length !== 1) statusFail(`${REFRESH}: only the GET failure may say no status change`);
     if (!/^\s*const applied = await applyVendorState\(/m.test(refresh)) statusFail(`${REFRESH} does not hand the status to the apply leaf unconditionally`);
   }
@@ -7052,6 +7058,198 @@ lawGuard('The bookings law', () => {
 
   if (bkViolations === 0) console.log('✔ The bookings law passed — a guest flight\'s contact is the prebook_contacts row read by prebookId and nothing else (no retro: reservations stores no prebook id to join by); the row leaf is pure, words the recorded facts and does no arithmetic on money; GET /api/reservations reads only the caller\'s rows through it, with no vendor client and no write; the travel tab shows the one list beside Booked and Unattached, typing no word of its own.');
   else console.log(`✖ The bookings law FAILED — ${bkViolations} violation(s).`);
+});
+
+// ── THE CALENDAR LAW (CAL-02, 2026-09-27) ───────────────────────────────────
+// EVERY LEG OF A BOOKING IS ON THE CALENDAR, AND A BOOKING CAN BE TAKEN TO ANY
+// CALENDAR APP.
+//
+// WHAT IT CLOSES. A flight got ONE calendar row — the earliest OUTBOUND segment's
+// departure (LANE-01's flightStatedCalendarDecision) — keyed on the bare
+// reservation id; connections and the whole INBOUND journey never reached the day.
+// And no booking could leave the app: no ICS export existed anywhere.
+//
+// THE CLAUSES (CAL-01's and LANE-01's one-row clauses MOVED here with the logic,
+// stricter — the lane law now requires the segment writer):
+//   1. ONE ROW PER STATED SEGMENT. flightSegmentsCalendarDecision decides one row per
+//      segment the vendor states a departureTime for, keyed <id>:seg:<index> in the
+//      vendor's order (never re-sorted); a stay keeps the bare key; the one writer
+//      inserts once, re-keys a pre-CAL-02 bare-key row in place, never duplicates;
+//      a cancel marks every row of the reservation (bare + segment prefix), never
+//      deletes. Fixture-proved.
+//   2. NO INVENTED TIME. A segment with no departureTime has no row, named; no end
+//      is written when none is stated; an instant only from a stated offset or Z;
+//      no zone is written; no clock, no createdAt.
+//   3. EVERY READER READS THE ONE WHERE. No reader matches a booking's rows by the
+//      bare key alone; the list folds rows to ONE day per reservation.
+//   4. THE ICS BUILDER IS PURE AND READS NO CLOCK. No import, no now(); DTSTAMP is
+//      updated_at; escaping and 75-octet folding per RFC 5545; a cancelled row is
+//      STATUS:CANCELLED. Golden-fixture-proved.
+//   5. THE EXPORTS READ ONLY. Both routes: the house auth + ownership pattern
+//      (401; 404 for another user's or a guest's booking / trip), no vendor client,
+//      zero writes, text/calendar as an attachment.
+//   6. THE RETRO reads the LATEST LANDED read — no vendor call — and runs the one
+//      writer; a reservation with no landed read is named and left as is.
+//   7. THE DOORS: an "Add to calendar" link on the receipt page and on every row of
+//      the one bookings list, from one href and one word.
+lawGuard('The calendar law', () => {
+  let calViolations = 0;
+  const calFail = (m: string) => { calViolations += 1; violations.push(`calendar law: ${m} (CAL-02)`); };
+
+  const LEAF = 'src/lib/calendar/bookingEvent.ts';
+  const CAL_IMPL = 'src/lib/calendar/prismaBookingCalendar.ts';
+  const REFRESH = 'src/lib/reservations/refreshFlightReservation.ts';
+  const ICS = 'src/lib/calendar/ics.ts';
+  const EXPORT_LEAF = 'src/lib/calendar/icsExport.ts';
+  const EXPORT_PORTS = 'src/lib/calendar/prismaIcsPorts.ts';
+  const RES_ICS = 'src/app/api/reservations/[id]/ics/route.ts';
+  const TRIP_ICS = 'src/app/api/trips/[id]/ics/route.ts';
+  const LIST_ROUTE = 'src/app/api/reservations/route.ts';
+  const TIMELINE_ROUTE = 'src/app/api/reservations/[id]/timeline/route.ts';
+  const RETRO = 'scripts/cal-02-retro-segments.ts';
+  const ROW_LEAF = 'src/lib/reservations/bookingRow.ts';
+  const LIST_VIEW = 'src/components/trips/AllBookings.tsx';
+  const RECEIPT_PAGE = 'src/app/booking/[id]/receipt/page.tsx';
+  for (const f of [LEAF, CAL_IMPL, REFRESH, ICS, EXPORT_LEAF, EXPORT_PORTS, RES_ICS, TRIP_ICS, LIST_ROUTE, TIMELINE_ROUTE, RETRO, ROW_LEAF, LIST_VIEW, RECEIPT_PAGE]) {
+    if (!existsSync(resolve(ROOT, f))) calFail(`${f} is missing`);
+  }
+  const leaf = codeOf(LEAF);
+  const impl = codeOf(CAL_IMPL);
+
+  const SEGS = [
+    { departureTime: '2026-10-25T08:00:00', arrivalTime: '2026-10-25T09:10:00', originCode: 'BKK', destinationCode: 'KUL', carrierName: 'AirAsia', flightNumber: 'FD 351' },
+    { departureTime: '2026-10-25T11:00:00', arrivalTime: '2026-10-25T12:05:00', originCode: 'KUL', destinationCode: 'HKT', carrierName: 'AirAsia', flightNumber: 'AK 820' },
+    { departureTime: '2026-10-30T13:00:00', arrivalTime: null, originCode: 'HKT', destinationCode: 'BKK', carrierName: null, flightNumber: '229' },
+  ];
+
+  // ── CLAUSE 1. ONE ROW PER STATED SEGMENT. ──
+  {
+    for (const fn of ['export function flightSegmentsCalendarDecision(', 'export async function writeFlightSegmentRows(', 'export function flightSegmentSourceId(', 'export function bookingCalendarRowsWhere(', 'export function reservationIdOfCalendarSourceId(']) {
+      if (!leaf.includes(fn)) calFail(`${LEAF} no longer holds ${fn.replace('export ', '').replace(/\($/, '')} — the one place a booking's rows are decided and keyed`);
+    }
+    if (/flightStatedCalendarDecision/.test(leaf) || srcFiles.some((f) => /flightStatedCalendarDecision/.test(f.src))) calFail('a one-row flight decision (flightStatedCalendarDecision) is back — a flight is one row per stated segment');
+    if (/\.sort\(/.test(functionBody(leaf, 'flightSegmentsCalendarDecision') ?? '')) calFail(`${LEAF}: flightSegmentsCalendarDecision re-sorts the segments — the index is the vendor's order as stated`);
+    if (flightSegmentSourceId('r1', 2) !== 'r1:seg:2' || reservationIdOfCalendarSourceId('r1:seg:2') !== 'r1' || reservationIdOfCalendarSourceId('r1') !== 'r1') calFail(`${LEAF}: the segment key is not <id>:seg:<index>, or does not fold back to its reservation`);
+    const d = flightSegmentsCalendarDecision({ reservationId: 'r1', userId: 'u', segments: SEGS });
+    const keys = d.map((x) => (x.decision.write ? x.decision.sourceId : null));
+    if (JSON.stringify(keys) !== JSON.stringify(['r1:seg:0', 'r1:seg:1', 'r1:seg:2'])) calFail(`a 2-segment outbound + 1-segment inbound did not decide 3 rows keyed seg:0..2 in the vendor's order (got ${JSON.stringify(keys)})`);
+    const titles = d.map((x) => (x.decision.write ? x.decision.title : null));
+    if (JSON.stringify(titles) !== JSON.stringify(['AirAsia FD 351 BKK → KUL', 'AirAsia AK 820 KUL → HKT', '229 HKT → BKK'])) calFail(`the segment titles are not the stated fields alone, a missing one left out (got ${JSON.stringify(titles)})`);
+    const stay = stayCalendarDecision({ reservationId: 'h1', userId: 'u', hotelName: 'Ibis', checkinDate: '2026-10-23', checkoutDate: '2026-10-26' });
+    if (!stay.write || stay.sourceId !== 'h1') calFail(`${LEAF}: a stay is no longer keyed on the bare reservation id — one stay, one row`);
+    // The writer's order, read from its body (its behaviour — idempotent, re-keyed in place, every leg
+    // marked — is driven over a keyed store in src/lib/__tests__/cal02.test.ts; a law runs synchronously).
+    const writer = functionBody(leaf, 'writeFlightSegmentRows') ?? '';
+    const at = (needle: string) => writer.indexOf(needle);
+    const found = at('if (await port.find(BOOKING_CALENDAR_SOURCE, decision.sourceId)) {');
+    const moved = at('if (bare && (await port.rekey(BOOKING_CALENDAR_SOURCE, bareKey, rowOf(decision))) > 0) {');
+    const inserted = at('await port.insert(rowOf(decision));');
+    if (!(found > 0 && moved > found && inserted > moved)) calFail(`${LEAF}: writeFlightSegmentRows does not find the key, then re-key the bare row in place, then insert, in that order — a leg would be duplicated`);
+    if (!/const marked = input\.reservationCancelled \? await port\.markCancelled\(BOOKING_CALENDAR_SOURCE, bareKey\) : null;/.test(writer)) calFail(`${LEAF}: a leg first written for an ALREADY-cancelled reservation is not marked — it would read as booked`);
+    if (/port\.(delete|remove)/.test(writer)) calFail(`${LEAF}: the writer removes a row — rows are marked or re-keyed, never deleted`);
+    if (!existsSync(resolve(ROOT, 'src/lib/__tests__/cal02.test.ts'))) calFail('src/lib/__tests__/cal02.test.ts is missing — the writer and the exports are driven there');
+    if (!/WHERE source = \$\{source\} AND \(source_id = \$\{sourceId\} OR left\(source_id, char_length\(\$\{segmentPrefix\}\)\) = \$\{segmentPrefix\}\) AND title NOT LIKE \$\{prefixed\}/.test(impl)) calFail(`${CAL_IMPL}: markCancelled does not match the bare key AND the segment prefix — a leg would stay live after a cancel`);
+    if (!/const segmentPrefix = `\$\{sourceId\}\$\{SEGMENT_KEY_MARK\}`;/.test(impl)) calFail(`${CAL_IMPL}: the cancel's prefix is not the leaf's own segment mark`);
+    if (!/async rekey\(source, fromSourceId, row\)[\s\S]{0,200}?UPDATE calendar_events\s+SET source_id = \$\{row\.sourceId\},/.test(impl)) calFail(`${CAL_IMPL}: the re-key is not an UPDATE of the same row — a second row would duplicate the leg`);
+    if (!/title = CASE WHEN status = 'cancelled' THEN \$\{CANCELLED_TITLE_PREFIX\} \|\| \$\{row\.title\} ELSE \$\{row\.title\} END,/.test(impl)) calFail(`${CAL_IMPL}: a re-keyed row that was marked cancelled would lose its mark`);
+    if (/DELETE FROM calendar_events/.test(impl)) calFail(`${CAL_IMPL} deletes a booking row — rows are marked, re-keyed, never removed`);
+    const refresh = codeOf(REFRESH);
+    if (!/writeFlightSegmentRows\(ports\.calendar, \{\s*reservationId: row\.id,\s*reservationCancelled: row\.status === 'cancelled',\s*decisions: flightSegmentsCalendarDecision\(\{ reservationId: row\.id, userId: row\.userId, segments: stated\.segments \}\),/.test(refresh)) calFail(`${REFRESH} does not hand the one writer every segment AS STATED (stated.segments, never the sorted outbound)`);
+    if (/writeBookingCalendarEvent\(/.test(refresh)) calFail(`${REFRESH} writes a single row beside the segment writer`);
+  }
+
+  // ── CLAUSE 2. NO INVENTED TIME. ──
+  {
+    const [noArrival] = flightSegmentsCalendarDecision({ reservationId: 'r2', userId: null, segments: [SEGS[2]] });
+    if (!noArrival.decision.write || noArrival.decision.endTime !== null || noArrival.decision.endDate !== null || noArrival.noEnd === null) calFail('a segment with no stated arrival got an end, or its absence was not named — the extent leaf draws the marker, no writer defaults an end');
+    const [local] = flightSegmentsCalendarDecision({ reservationId: 'r2', userId: null, segments: [SEGS[0]] });
+    if (!local.decision.write || local.decision.startAt !== null || local.decision.startTime !== '08:00' || local.decision.endTime !== '09:10') calFail('a local clock with no offset was given an instant, or the stated clocks were not kept');
+    const [zulu] = flightSegmentsCalendarDecision({ reservationId: 'r2', userId: null, segments: [{ ...SEGS[0], departureTime: '2026-10-25T08:00:00Z' }] });
+    if (!zulu.decision.write || zulu.decision.startAt?.toISOString() !== '2026-10-25T08:00:00.000Z') calFail('a stated Z instant was not kept as the instant');
+    const none = flightSegmentsCalendarDecision({ reservationId: 'r2', userId: null, segments: [{ ...SEGS[0], departureTime: null }] });
+    if (none[0].decision.write || !/states no departureTime — no row, and a time is never invented/.test(none[0].decision.reason)) calFail('a segment with no departureTime got a row, or was not named');
+    if (/new Date\(\)|Date\.now\(|createdAt/.test(leaf)) calFail(`${LEAF} reads the clock or the booking instant — a leg's time is the vendor's alone`);
+    if (/start_zone|end_zone/.test(impl)) calFail(`${CAL_IMPL} writes a zone — nothing in the codebase resolves an airport code to one, so none is written`);
+    if (!/start_time, end_time, start_at, end_at/.test(impl) || !/\$\{row\.startTime\}::time, \$\{row\.endTime\}::time, \$\{row\.startAt\}, \$\{row\.endAt\}/.test(impl)) calFail(`${CAL_IMPL}: a segment's stated clocks and instants are not what the insert writes`);
+  }
+
+  // ── CLAUSE 3. EVERY READER READS THE ONE WHERE; THE LIST COUNTS BOOKINGS, NOT ROWS. ──
+  {
+    for (const { file, src } of srcFiles) {
+      if (file === LEAF) continue;
+      if (/source: 'reservation', source_id:/.test(src) || /source: BOOKING_CALENDAR_SOURCE, source_id:/.test(src)) calFail(`${file} reads a booking's calendar rows by one key — a flight's legs would be missed; read through bookingCalendarRowsWhere`);
+    }
+    for (const f of [LIST_ROUTE, TIMELINE_ROUTE, EXPORT_PORTS]) if (!/\.\.\.bookingCalendarRowsWhere\(/.test(codeOf(f))) calFail(`${f} does not read a booking's rows through the one where`);
+    if (!/const rid = reservationIdOfCalendarSourceId\(c\.source_id\);\s*if \(!dayOf\.has\(rid\)\) dayOf\.set\(rid, c\.start_date\);/.test(codeOf(LIST_ROUTE))) calFail(`${LIST_ROUTE} does not fold a booking's rows to ONE day per reservation — a flight with several legs would be counted per row`);
+    const where = bookingCalendarRowsWhere(['a', 'b']);
+    if (where.source !== 'reservation' || JSON.stringify(where.OR) !== JSON.stringify([{ source_id: { in: ['a', 'b'] } }, { source_id: { startsWith: 'a:seg:' } }, { source_id: { startsWith: 'b:seg:' } }])) calFail(`${LEAF}: bookingCalendarRowsWhere is not the bare keys and each segment prefix`);
+  }
+
+  // ── CLAUSE 4. THE ICS BUILDER IS PURE AND READS NO CLOCK. ──
+  {
+    const ics = codeOf(ICS);
+    if (/^\s*import\s/m.test(ics)) calFail(`${ICS} imports — the builder is pure over the rows it is handed`);
+    if (/new Date\(\)|Date\.now\(|now\(\)|process\.env|prisma|fetch\(/.test(ics)) calFail(`${ICS} reads a clock, the env, a database or the network — DTSTAMP is the row's updated_at, never now()`);
+    const row = { id: 'c1', title: 'Hotel, Kata; "Beach"\nNorth', status: 'cancelled', start_date: new Date('2026-10-23T00:00:00Z'), end_date: new Date('2026-10-26T00:00:00Z'), start_time: null, end_time: null, start_at: null, end_at: null, updated_at: new Date('2026-09-20T08:30:00Z') };
+    const built = buildIcs([row, { ...row, id: 'c2', updated_at: null }]);
+    const want = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Temple Stuart//Bookings//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+      'X-TEMPLESTUART-EXCLUDED:c2 — no updated_at on the row — no DTSTAMP can ',
+      ' be stated for it\\, and none is invented',
+      'BEGIN:VEVENT', 'UID:c1@templestuart.com', 'DTSTAMP:20260920T083000Z', 'DTSTART;VALUE=DATE:20261023', 'DTEND;VALUE=DATE:20261027',
+      'SUMMARY:Hotel\\, Kata\\; "Beach"\\nNorth', 'STATUS:CANCELLED', 'END:VEVENT', 'END:VCALENDAR', ''].join('\r\n');
+    if (built.text !== want) calFail(`${ICS}: the golden export drifted (escaping, folding, DTSTAMP = updated_at, VALUE=DATE with the non-inclusive end, STATUS:CANCELLED, the excluded row named)`);
+    const long = foldIcsLine(`SUMMARY:${'→'.repeat(40)}`);
+    if (long.split('\r\n ').some((l, i) => Buffer.byteLength(l, 'utf8') > (i === 0 ? 75 : 74)) || long.split('\r\n ').join('') !== `SUMMARY:${'→'.repeat(40)}`) calFail(`${ICS}: a line is not folded at 75 octets, or a character was split`);
+    if (escapeIcsText('a\\b;c,d\ne') !== 'a\\\\b\\;c\\,d\\ne') calFail(`${ICS}: TEXT is not escaped per RFC 5545 §3.3.11`);
+    const instant = buildIcs([{ ...row, status: 'committed', start_at: new Date('2026-10-25T01:15:00Z'), end_at: new Date('2026-10-25T02:40:00Z') }]).text;
+    if (!instant.includes('DTSTART:20261025T011500Z\r\nDTEND:20261025T024000Z') || instant.includes('STATUS:')) calFail(`${ICS}: a stated instant is not written in UTC Z form, or a live row asserts a status`);
+  }
+
+  // ── CLAUSE 5. THE EXPORTS READ ONLY, UNDER THE HOUSE PATTERN. ──
+  {
+    for (const [f, call] of [[RES_ICS, 'reservationIcs(prismaIcsPorts(), { userEmail: await getVerifiedEmail(), reservationId: id })'], [TRIP_ICS, 'tripIcs(prismaIcsPorts(), { userEmail: await getVerifiedEmail(), tripId: id })']] as const) {
+      const r = codeOf(f);
+      if (!r.includes(call)) calFail(`${f} does not answer through the export leaf over the prisma ports`);
+      if (!r.includes("'Content-Type': 'text/calendar; charset=utf-8'") || !r.includes("'Content-Disposition': `attachment; filename=\"${answer.filename}\"`")) calFail(`${f} is not served as a text/calendar attachment`);
+    }
+    for (const f of [RES_ICS, TRIP_ICS, EXPORT_LEAF, EXPORT_PORTS, ICS]) {
+      const r = codeOf(f);
+      if (/liteapiClient|liteapiFlightsClient|viatorClient|duffel|\bfetch\s*\(|reserveTravelSearch|getFlightBooking|getHotelBooking/.test(r)) calFail(`${f} reaches a vendor — an export reads the owner's rows only`);
+      if (/\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(|\$executeRaw|\$queryRaw|\$transaction/.test(r)) calFail(`${f} writes — an export reads only`);
+    }
+    const ports = codeOf(EXPORT_PORTS);
+    for (const must of ['prisma.reservations.findFirst({ where: { id, userId }, select: { id: true } })', 'prisma.trips.findFirst({ where: { id, userId }, select: { id: true } })', 'prisma.reservations.findMany({ where: { tripId, userId }, select: { id: true } })', 'where: { user_id: userId, ...bookingCalendarRowsWhere(reservationIds) },']) {
+      if (!ports.includes(must)) calFail(`${EXPORT_PORTS} lacks the caller-scoped read ${must}`);
+    }
+    // The decisions, in order (driven in src/lib/__tests__/cal02.test.ts: 401; a stranger's booking and
+    // trip, and a guest booking, 404; the owner's 200).
+    const exp = codeOf(EXPORT_LEAF);
+    if (!/if \(!userEmail\) return \{ status: 401, error: ICS_EXPORT_WORDS\.unauthorized \};/.test(exp) || !/if \(!user\) return \{ status: 404, error: ICS_EXPORT_WORDS\.userNotFound \};/.test(exp)) calFail(`${EXPORT_LEAF}: no verified email is not 401, or no user is not 404`);
+    if (!/const owned = await ports\.findReservation\(input\.reservationId, user\.id\);\s*if \(!owned\) return \{ status: 404, error: ICS_EXPORT_WORDS\.reservationNotFound \};/.test(exp)) calFail(`${EXPORT_LEAF}: a booking that is not the caller's (another user's, a guest's) is not a defensive 404`);
+    if (!/const trip = await ports\.findTrip\(input\.tripId, user\.id\);\s*if \(!trip\) return \{ status: 404, error: ICS_EXPORT_WORDS\.tripNotFound \};/.test(exp)) calFail(`${EXPORT_LEAF}: a trip that is not the caller's is not a defensive 404`);
+    if ((exp.match(/if \(built\.events === 0\) return \{ status: 404, error: ICS_EXPORT_WORDS\.no(Trip)?Rows \};/g) ?? []).length !== 2 || buildIcs([]).events !== 0) calFail(`${EXPORT_LEAF}: an export with no row is served as an empty file — RFC 5545 requires one component; it is a 404 by name`);
+    if (!/buildIcs\(await ports\.calendarRows\(\[owned\.id\], user\.id\)\)/.test(exp) || !/ports\.tripReservationIds\(trip\.id, user\.id\)/.test(exp)) calFail(`${EXPORT_LEAF}: the rows are not the caller's own, for the owned booking or the owned trip`);
+  }
+
+  // ── CLAUSE 6. THE RETRO READS THE LANDED READ — NO VENDOR CALL. ──
+  {
+    const retro = codeOf(RETRO);
+    if (/getFlightBooking\(|reserveTravelSearch|fetch\(|refreshFlightReservation\(/.test(retro)) calFail(`${RETRO} calls the vendor (or the refresh that does) — the retro reads what already landed`);
+    if (!/where: \{ provider: LITEAPI, resource: BOOKING_READ, their_id: bookingReadTheirId\(row\.providerBookingId\), user_id: row\.userId \},\s*orderBy: \{ arrived: 'desc' \},/.test(retro)) calFail(`${RETRO} does not read the LATEST landed booking read of the row's own owner`);
+    if (!/writeFlightSegmentRows\(port, \{/.test(retro) || !/flightSegmentsCalendarDecision\(\{ reservationId: row\.id, userId: row\.userId, segments \}\)/.test(retro)) calFail(`${RETRO} does not run the one segment writer — a second implementation would drift`);
+    if (!/where: \{ lane: 'flight' \}/.test(retro) || !/--dry-run/.test(retro) || !/LEFT AS IS — no booking read has landed/.test(retro)) calFail(`${RETRO}: not every flight, no --dry-run, or a row with no landed read is not named`);
+  }
+
+  // ── CLAUSE 7. THE DOORS. ──
+  {
+    if (bookingIcsHref('r9') !== '/api/reservations/r9/ics') calFail(`${ROW_LEAF}: bookingIcsHref is not the reservation export route`);
+    if (BOOKING_WORDS.addToCalendar !== 'Add to calendar') calFail(`${ROW_LEAF}: the link's word is not "Add to calendar"`);
+    if (!/<a href=\{b\.icsHref\}[^>]*data-booking-ics=\{b\.id\}>\s*\{BOOKING_WORDS\.addToCalendar\}/.test(codeOf(LIST_VIEW))) calFail(`${LIST_VIEW}: a row carries no "Add to calendar" link to its file`);
+    if (!/<a href=\{bookingIcsHref\(id\)\}[^>]*data-receipt-ics>\s*\{BOOKING_WORDS\.addToCalendar\}/.test(codeOf(RECEIPT_PAGE))) calFail(`${RECEIPT_PAGE}: the receipt carries no "Add to calendar" link to its file`);
+  }
+
+  if (calViolations === 0) console.log('✔ The calendar law passed — a flight is one calendar row per segment the vendor states a departure for, keyed <id>:seg:<n> in the vendor\'s order, outbound and inbound (a stay keeps one); the writer inserts once, re-keys a pre-CAL-02 row in place and marks every leg on a cancel, never deleting; no time, end or zone is invented; every reader reads the one where and the list counts bookings, not rows; the ICS builder is pure, reads no clock and escapes and folds per RFC 5545; both exports read only the owner\'s rows; the retro reads the landed read with no vendor call; the receipt and the list link the file.');
+  else console.log(`✖ The calendar law FAILED — ${calViolations} violation(s).`);
 });
 
 // ── THE ROW LAW (TRAVEL-ROW-01, 2026-09-23) ─────────────────────────────────

@@ -18,12 +18,17 @@
  * (src/lib/reservations/timeline.ts): each line its instant, its words and the
  * record it was read from. The section's own words are the leaf's HISTORY_WORDS;
  * the page types none. It prints with the receipt.
+ *
+ * CAL-02 (2026-09-27): an "Add to calendar" link — the booking's iCalendar file
+ * (GET /api/reservations/<id>/ics, the same href and word the bookings list uses,
+ * from src/lib/reservations/bookingRow.ts). The route answers it as an attachment; it does not print.
  */
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import type { BookingReceipt, ReceiptLine } from '@/lib/receipts/bookingReceipt';
 import { HISTORY_WORDS, type TimelineItem } from '@/lib/reservations/timeline';
+import { BOOKING_WORDS, bookingIcsHref } from '@/lib/reservations/bookingRow';
 
 type Loaded = { state: 'loading' } | { state: 'error'; message: string } | { state: 'done'; receipt: BookingReceipt };
 type History = { state: 'loading' } | { state: 'error'; message: string } | { state: 'done'; items: TimelineItem[] };
@@ -122,9 +127,14 @@ export default function BookingReceiptPage() {
             <header className="border-b border-border pb-4">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h1 className="text-xl font-bold">{r.header.laneWord} receipt · {r.header.name}</h1>
-                <button type="button" onClick={() => window.print()} className="no-print rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white" data-receipt-print>
-                  Print / Save as PDF
-                </button>
+                <div className="no-print flex items-center gap-2">
+                  <a href={bookingIcsHref(id)} className="rounded border border-border px-3 py-1.5 text-xs font-semibold text-text-secondary" data-receipt-ics>
+                    {BOOKING_WORDS.addToCalendar}
+                  </a>
+                  <button type="button" onClick={() => window.print()} className="rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white" data-receipt-print>
+                    Print / Save as PDF
+                  </button>
+                </div>
               </div>
               <dl className="mt-3 divide-y divide-border-light">
                 <Line line={{ label: 'Vendor booking id', value: r.header.vendorBookingId, note: null, figure: null }} />

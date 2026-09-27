@@ -8,7 +8,9 @@
  * over every reservations row with lane = 'flight': one GET
  * /flights/bookings/{bookingId} per row, and from what the vendor STATES —
  *   · the OUTBOUND segment's departureTime → the CAL-01 calendar row on that day
- *     (source='reservation', source_id=reservation.id);
+ *     (source='reservation', source_id=reservation.id) — CAL-02 (2026-09-27): one
+ *     row per stated segment now, keyed `${reservation.id}:seg:${index}`; the
+ *     no-vendor-call retro for existing rows is scripts/cal-02-retro-segments.ts;
  *   · carrier.marketingName + originCode → destinationCode → displayName;
  *   · the vendor's current status → status, through the book route's own mapping;
  *     an unmapped status is printed by name and changes nothing. SEC-03
@@ -115,6 +117,8 @@ async function main(): Promise<void> {
           ? {
               find: calendar.find,
               insert: async (r) => { writes.push(`calendar row on ${r.startDate.toISOString().slice(0, 10)} "${r.title}"`); },
+              // CAL-02 (2026-09-27): the pre-CAL-02 row would move to its first segment — reported, not written.
+              rekey: async (source, from, r) => { if (!(await calendar.find(source, from))) return 0; writes.push(`calendar row ${from} re-keyed to ${r.sourceId} "${r.title}"`); return 1; },
               markCancelled: async (_source, sourceId) => { writes.push(`calendar rows for ${sourceId} marked cancelled`); return 0; },
             }
           : calendar,

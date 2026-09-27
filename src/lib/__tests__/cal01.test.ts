@@ -10,7 +10,7 @@ import { code, comments } from '../sourceText';
 import {
   BOOKING_CALENDAR_SOURCE,
   bookingCalendarSourceId,
-  flightStatedCalendarDecision,
+  flightSegmentsCalendarDecision,
   stayCalendarDecision,
   writeBookingCalendarEvent,
   type BookingCalendarPort,
@@ -80,27 +80,42 @@ test('the new source is on the calendar allowlist, or the row would never be dra
   assert.equal(SOURCE_RULES.length, 7, "DRILL-01's seven entry-source kinds are untouched");
 });
 
-test('a flight writes ONE row on the day its outbound leg departs — the vendor-stated departure, never createdAt (LANE-01)', async () => {
+// CAL-02 (2026-09-27): was "a flight writes ONE row on the day its outbound leg
+// departs" (flightStatedCalendarDecision). The flight decision moved WITH the logic
+// and got stricter: ONE ROW PER STATED SEGMENT (flightSegmentsCalendarDecision),
+// keyed `<id>:seg:<n>` in the vendor's order; the vendor-stated departure, never
+// createdAt, is still the only day — and a segment that states none has no row.
+test('a flight writes ONE row per stated segment, on the day each departs — the vendor-stated departure, never createdAt (LANE-01 → CAL-02)', async () => {
   const { port, rows } = fakePort();
   // CAL-01 STEP 1.5 stands: the BOOK payload carries no date of travel. LANE-01
-  // reads the day from GET /flights/bookings/{id} (refreshFlightReservation.ts) and
-  // hands the OUTBOUND segment's departureTime here.
-  const out = await writeBookingCalendarEvent(port, flightStatedCalendarDecision({
-    reservationId: 'res_f', userId: 'u_1', name: 'Thai Vietjet Air BKK \u2192 HKT', departureTime: '2026-10-25T14:15:00',
-  }));
+  // reads the days from GET /flights/bookings/{id} (refreshFlightReservation.ts).
+  const decisions = flightSegmentsCalendarDecision({
+    reservationId: 'res_f', userId: 'u_1',
+    segments: [{ departureTime: '2026-10-25T14:15:00', arrivalTime: '2026-10-25T15:40:00', originCode: 'BKK', destinationCode: 'HKT', carrierName: 'Thai Vietjet Air', flightNumber: '228' }],
+  });
+  const out = await writeBookingCalendarEvent(port, decisions[0].decision);
   assert.equal(out.landed, 'inserted');
-  assert.equal(rows.length, 1, 'exactly one row');
+  assert.equal(rows.length, 1, 'exactly one row for the one stated segment');
   const row = rows[0];
   assert.equal(row.source, BOOKING_CALENDAR_SOURCE);
-  assert.equal(row.sourceId, 'res_f', 'keyed on the reservation id, bare');
-  assert.equal(row.startDate.toISOString(), '2026-10-25T12:00:00.000Z', 'the outbound departure DAY, at the booking rows\' midday-UTC instant');
-  assert.equal(row.endDate, null, 'one day, not a span');
-  assert.match(row.title, /BKK \u2192 HKT \(flight\)/);
+  assert.equal(row.sourceId, 'res_f:seg:0', 'keyed on the reservation id and the segment\'s stated order');
+  assert.equal(row.startDate.toISOString(), '2026-10-25T12:00:00.000Z', 'the departure DAY, at the booking rows\' midday-UTC instant');
+  assert.equal(row.startTime, '14:15', 'the stated clock');
+  assert.equal(row.endTime, '15:40', 'the stated arrival clock');
+  assert.equal(row.startAt, null, 'a local clock with no offset names no instant');
+  assert.equal(row.title, 'Thai Vietjet Air 228 BKK \u2192 HKT');
   assert.ok(isRenderedCalendarSource(row.source));
-  // A departureTime that does not open with a date is NAMED, not filled in.
-  const bad = await writeBookingCalendarEvent(port, flightStatedCalendarDecision({ reservationId: 'res_g', userId: null, name: 'Flight booking X', departureTime: 'tomorrow' }));
-  assert.equal(bad.landed, 'no_row');
-  assert.ok(bad.landed === 'no_row' && /never invented/.test(bad.reason));
+  // A departureTime that does not open with a date is NAMED, not filled in; none at all, the same.
+  const bad = flightSegmentsCalendarDecision({ reservationId: 'res_g', userId: null, segments: [
+    { departureTime: 'tomorrow', arrivalTime: null, originCode: null, destinationCode: null, carrierName: null, flightNumber: null },
+    { departureTime: null, arrivalTime: null, originCode: 'BKK', destinationCode: 'HKT', carrierName: null, flightNumber: null },
+  ] });
+  for (const d of bad) {
+    const o = await writeBookingCalendarEvent(port, d.decision);
+    assert.equal(o.landed, 'no_row');
+    assert.ok(o.landed === 'no_row' && /never invented/.test(o.reason));
+  }
+  assert.equal(rows.length, 1, 'no row for either');
   // And the finding that led here is still written down where the next reader meets it.
   assert.match(comments('src/lib/calendar/bookingEvent.ts'), /NOT FOUND/, 'STEP 1.5 is recorded in the leaf');
 });

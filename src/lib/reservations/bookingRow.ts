@@ -9,12 +9,15 @@
  *     is pending, the vendor's cancelIntentAt; the last vendor read (STATUS-01);
  *   · the flight's service day as the vendor stated it — its calendar row
  *     (CAL-01 / LANE-01: source 'reservation', from the outbound departure);
+ *     CAL-02 (2026-09-27): a flight has one row per stated segment now — the list
+ *     route folds them to the reservation and hands the earliest day here;
  *   · the bank — an ACCEPTED CHARGE link (MATCH: transaction_reservation_links,
  *     status 'accepted', no money event);
  *   · the ledger — a POSTED entry that documents the charge (POST-01:
  *     journal_entries.document_reservation_id, no money event);
  *   · the budget line — the owner's link (LINK-02: reservation_budget_links);
- *   · the vendor price and currency AS RECORDED; the receipt (RECEIPT-01) and the trip.
+ *   · the vendor price and currency AS RECORDED; the receipt (RECEIPT-01) and the trip;
+ *   · CAL-02 (2026-09-27): the booking's calendar file (/api/reservations/<id>/ics).
  *
  * Every word is this file's; an absent fact says so. Nothing is computed: no status
  * is derived, no amount is converted or added — the recorded price (integer
@@ -77,6 +80,13 @@ export interface BookingRow {
   price: string;
   receiptHref: string;
   tripHref: string | null;
+  /** CAL-02 (2026-09-27): the booking as an iCalendar file — its rows, for any calendar app. */
+  icsHref: string;
+}
+
+/** CAL-02 (2026-09-27): the ONE href of a booking's calendar file — the list and the receipt both link it. */
+export function bookingIcsHref(reservationId: string): string {
+  return `/api/reservations/${reservationId}/ics`;
 }
 
 /** Every word the list shows — the page types none. */
@@ -88,6 +98,8 @@ export const BOOKING_WORDS = {
   signIn: 'sign in to see your bookings.',
   receipt: 'Receipt',
   trip: 'Trip',
+  /** CAL-02 (2026-09-27): the link to the booking's calendar file. */
+  addToCalendar: 'Add to calendar',
   columns: {
     booking: 'Booking',
     dates: 'Dates',
@@ -180,5 +192,6 @@ export function bookingRowOf(facts: BookingRowFacts): BookingRow {
     price: priceWords(r.finalPriceCents, r.currency),
     receiptHref: `/booking/${r.id}/receipt`,
     tripHref: r.tripId === null ? null : `/budgets/trips/${r.tripId}`,
+    icsHref: bookingIcsHref(r.id),
   };
 }

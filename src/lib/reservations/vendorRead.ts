@@ -259,7 +259,8 @@ export async function readAndApplyReservation(row: VendorReadRow, opts: VendorRe
         const parsed = parseFlightBookingDetails(read.object);
         const out = await refreshFlightReservation({
           ...recording,
-          calendar: { find: live.find, async insert() {}, async markCancelled() { return 0; } },
+          // CAL-02 (2026-09-27): a dry run re-keys nothing — it answers whether the bare-key row it WOULD move is there.
+          calendar: { find: live.find, async insert() {}, async rekey(source, from) { return (await live.find(source, from)) ? 1 : 0; }, async markCancelled() { return 0; } },
           writeReservation: async (_id, patch) => { writes.push(patch); },
           fetchBooking: async () => ({ ...parsed, readAt }),
         }, row);

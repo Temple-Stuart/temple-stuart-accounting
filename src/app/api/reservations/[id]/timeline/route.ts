@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { BOOKING_READ, CANCELLATION, LITEAPI, bookingReadTheirId, cancellationTheirId } from '@/lib/arrivals/liteapiBooking';
+import { bookingCalendarRowsWhere } from '@/lib/calendar/bookingEvent';
 import { timelineOf, type TimelineArrival } from '@/lib/reservations/timeline';
 
 /**
@@ -106,8 +107,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   });
 
   // 7. The booking's calendar rows (CAL-01: source 'reservation', source_id = the reservation id).
+  //    CAL-02 (2026-09-27): a flight's rows are one per segment — the one where reads them all.
   const calendarRows = await prisma.calendar_events.findMany({
-    where: { user_id: user.id, source: 'reservation', source_id: reservation.id },
+    where: { user_id: user.id, ...bookingCalendarRowsWhere([reservation.id]) },
     select: { id: true, start_date: true, status: true, created_at: true, updated_at: true },
   });
 

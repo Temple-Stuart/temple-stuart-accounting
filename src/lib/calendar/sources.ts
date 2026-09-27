@@ -168,8 +168,8 @@ export const CALENDAR_SOURCES: readonly CalendarSourceRule[] = [
     icon: '🏨',
     tint: TINTS.amber,
     label: 'Bookings',
-    writtenBy: 'src/lib/calendar/prismaBookingCalendar.ts:34, from src/app/api/travel/liteapi/book/route.ts:264 (stays) · src/lib/reservations/refreshFlightReservation.ts:156 (flights — LANE-01, from the vendor\u2019s stated outbound departure, called after the flights book route commits and by the retro script)',
-    why: 'a room or a seat you have paid for, on the day you use it — a stay spans its check-in to check-out; a flight sits on the day its outbound leg departs, as the vendor states it (LANE-01) — written when the booking is confirmed and the money has moved, not when a trip was planned',
+    writtenBy: 'src/lib/calendar/prismaBookingCalendar.ts:65, from src/app/api/travel/liteapi/book/route.ts:347 (stays) · src/lib/reservations/refreshFlightReservation.ts:189 (flights — CAL-02 (2026-09-27), one row per segment the vendor states a departure for, source_id <reservation id>:seg:<n>; a stay keeps the bare id; called after the flights book route commits, by the vendor read, and by scripts/cal-02-retro-segments.ts from the landed read)',
+    why: 'a room or a seat you have paid for, on the day you use it — a stay spans its check-in to check-out; a flight sits on each day one of its legs departs, outbound and return, as the vendor states it (CAL-02) — written when the booking is confirmed and the money has moved, not when a trip was planned',
   },
 ] as const;
 

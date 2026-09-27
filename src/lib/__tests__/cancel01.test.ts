@@ -322,12 +322,13 @@ test('a cancelled reservation\'s calendar row is MARKED, never removed', async (
 test('the refresh does not flip a cancel_pending row back to confirmed while the airline still says CONFIRMED; a final word still lands', async () => {
   // STATUS-01 (2026-09-26): the guard lives in the apply leaf now; the refresh's one write always carries the read stamp.
   const READ_AT = new Date('2026-09-26T10:00:00.000Z');
-  const STATED: FlightBookingStated = { bookingId: 'fb_9Q', status: 'CONFIRMED', pnr: null, ticketedAt: null, ticketLimitTime: null, cancelIntentAt: '2026-09-26T09:05:00Z', readAt: READ_AT, segments: [{ departureTime: '2026-10-25T14:15:00', direction: 'OUTBOUND', originCode: 'BKK', destinationCode: 'HKT', carrierName: 'Thai Vietjet Air', flightNumber: '228' }] };
+  const STATED: FlightBookingStated = { bookingId: 'fb_9Q', status: 'CONFIRMED', pnr: null, ticketedAt: null, ticketLimitTime: null, cancelIntentAt: '2026-09-26T09:05:00Z', readAt: READ_AT, segments: [{ departureTime: '2026-10-25T14:15:00', arrivalTime: null, direction: 'OUTBOUND', originCode: 'BKK', destinationCode: 'HKT', carrierName: 'Thai Vietjet Air', flightNumber: '228' }] };
+  // CAL-02 (2026-09-27): the segment carries arrivalTime (stated absent), and the calendar port can re-key — never here.
   const writes: Array<{ id: string; patch: FlightReservationPatch }> = [];
   let marked = 0; let commission = 0;
   const ports = (status: string): FlightRefreshPorts => ({
     fetchBooking: async () => ({ ...STATED, status }),
-    calendar: { async find() { return true; }, async insert() { throw new Error('not expected'); }, async markCancelled() { marked += 1; return 1; } },
+    calendar: { async find() { return true; }, async insert() { throw new Error('not expected'); }, async rekey() { throw new Error('not expected'); }, async markCancelled() { marked += 1; return 1; } },
     writeReservation: async (id, patch) => { writes.push({ id, patch }); },
     cancelCommission: async () => { commission += 1; return 1; },
   });
