@@ -378,38 +378,59 @@ function stateOf(from: IsoDay, to: IsoDay, asOf: IsoDay): ColumnState {
   return 'inProgress';
 }
 
+/** The days a view reads: DAY [1st of d's month … d] · WEEK [Monday … Sunday] · YEAR [Jan 1 … Dec 31]. The one copy. */
+function rangeOfView(view: BudgetView): { rangeFrom: IsoDay; rangeTo: IsoDay } {
+  if (view.kind === 'day') {
+    const { y, m } = parts(view.day);
+    return { rangeFrom: iso(y, m, 1), rangeTo: view.day };
+  }
+  if (view.kind === 'week') {
+    const monday = ordinal(view.weekOf) - weekdayIndex(view.weekOf);
+    return { rangeFrom: fromOrdinal(monday), rangeTo: fromOrdinal(monday + 6) };
+  }
+  return { rangeFrom: iso(view.year, 1, 1), rangeTo: iso(view.year, 12, 31) };
+}
+
+/**
+ * TAB13-02a (R9): the model's own range, exported so the route loads exactly
+ * the days the model reads — no second copy of the range logic. A view that is
+ * not a day, week or year is refused by name (BudgetReportError 'bad-view').
+ */
+export function viewRange(view: BudgetView): { rangeFrom: IsoDay; rangeTo: IsoDay } {
+  return rangeOfView(checkView(view));
+}
+
 function columnsFor(view: BudgetView, asOf: IsoDay): { columns: ReportColumn[]; rangeFrom: IsoDay; rangeTo: IsoDay } {
   const col = (key: string, kind: ColumnKind, label: string, from: IsoDay, to: IsoDay): ReportColumn =>
     ({ key, kind, label, from, to, state: stateOf(from, to, asOf) });
 
+  const { rangeFrom, rangeTo } = rangeOfView(view);
   if (view.kind === 'day') {
-    const { y, m } = parts(view.day);
-    const first = iso(y, m, 1);
     return {
       columns: [
-        col('mtd', 'mtd', 'MTD', first, view.day),
+        col('mtd', 'mtd', 'MTD', rangeFrom, view.day),
         col(view.day, 'day', WEEKDAY_LABELS[weekdayIndex(view.day)], view.day, view.day),
       ],
-      rangeFrom: first,
-      rangeTo: view.day,
+      rangeFrom,
+      rangeTo,
     };
   }
   if (view.kind === 'week') {
-    const monday = ordinal(view.weekOf) - weekdayIndex(view.weekOf);
+    const monday = ordinal(rangeFrom);
     const days = WEEKDAY_LABELS.map((_, i) => fromOrdinal(monday + i));
     return {
       columns: [col('week', 'week', 'WEEK', days[0], days[6]), ...days.map((d, i) => col(d, 'day', WEEKDAY_LABELS[i], d, d))],
-      rangeFrom: days[0],
-      rangeTo: days[6],
+      rangeFrom,
+      rangeTo,
     };
   }
-  const jan1 = iso(view.year, 1, 1);
-  const dec31 = iso(view.year, 12, 31);
+  const jan1 = rangeFrom;
+  const dec31 = rangeTo;
   const months = MONTH_LABELS.map((label, i) =>
     col(`${pad(view.year, 4)}-${pad(i + 1, 2)}`, 'month', label, iso(view.year, i + 1, 1), iso(view.year, i + 1, daysInMonth(view.year, i + 1))));
   // YTD ends at min(asOf, Dec 31). For a year that begins after asOf that is
   // before Jan 1: the column is future, its range is empty and every figure in it is null.
-  return { columns: [col('ytd', 'ytd', 'YTD', jan1, minDay(asOf, dec31)), ...months], rangeFrom: jan1, rangeTo: dec31 };
+  return { columns: [col('ytd', 'ytd', 'YTD', jan1, minDay(asOf, dec31)), ...months], rangeFrom, rangeTo };
 }
 
 // ── BOOKS AND ORDER ─────────────────────────────────────────────────────────

@@ -16,12 +16,20 @@
  *     which the walk follows into src/lib/prisma.ts;
  *   · the model's test imports @prisma/client.
  *
+ * TAB13-02a added the law's second root, the day rules (src/lib/budget/days.ts):
+ * seeds i, j and k prove its clauses on that root and its test.
+ *
  * Each must fail THE BUDGET REPORT PURITY LAW by name. The anchors occur exactly
  * once in their file, which the harness enforces before it runs anything.
  */
 import type { Seed } from '../prove';
 
 const MODEL = 'src/lib/budget/report.ts';
+// TAB13-02a: the law's second root, the day rules, and their test.
+const DAYS = 'src/lib/budget/days.ts';
+const DAYS_TEST = 'src/lib/__tests__/budgetDays.test.ts';
+const DAYS_BODY_ANCHOR = 'export function buildRoutineBudgetLines(routines: readonly RoutinePlanInput[], rangeFrom: IsoDay, rangeTo: IsoDay): DayRuleResult {';
+const DAYS_IMPORT_ANCHOR = "import { entityLetter } from '@/lib/accountString';";
 const SCHEME = 'src/lib/coa/scheme.ts';
 const TEST = 'src/lib/__tests__/budgetReport.test.ts';
 const IMPORT_ANCHOR = "import { variance } from '@/lib/calendar/links';";
@@ -86,5 +94,27 @@ export const SEEDS: Seed[] = [
     find: "import { code } from '../sourceText';",
     replace: "import { code } from '../sourceText';\nimport { Prisma } from '@prisma/client';\nvoid Prisma;",
     expect: 'budgetReport.test.ts imports @prisma/client',
+  },
+  // TAB13-02a — the second root. Each clause proved on the day rules and their test.
+  {
+    name: 'budget-i the day rules read the clock through Date.now()',
+    file: DAYS,
+    find: DAYS_BODY_ANCHOR,
+    replace: `${DAYS_BODY_ANCHOR}\n  const stamp = Date.now(); void stamp;`,
+    expect: 'src/lib/budget/days.ts reads the clock through Date.now() — the day module is pure',
+  },
+  {
+    name: 'budget-j the day rules import @prisma/client',
+    file: DAYS,
+    find: DAYS_IMPORT_ANCHOR,
+    replace: `import type { Prisma } from '@prisma/client';\n${DAYS_IMPORT_ANCHOR}`,
+    expect: 'src/lib/budget/days.ts imports @prisma/client — the day module is pure',
+  },
+  {
+    name: 'budget-k the day rules test imports @prisma/client',
+    file: DAYS_TEST,
+    find: "import { code } from '../sourceText';",
+    replace: "import { code } from '../sourceText';\nimport { Prisma } from '@prisma/client';\nvoid Prisma;",
+    expect: 'budgetDays.test.ts imports @prisma/client — the test of the day module must load without a generated client',
   },
 ];

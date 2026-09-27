@@ -133,7 +133,9 @@ test('the anchor changes nothing for a rule that names its own components — an
 test('every expansion is anchored on the routine\'s start_date — one mechanism, no second path', () => {
   const callers = [CREATE_ROUTE, PATCH_ROUTE, 'src/app/api/operations/routines/[id]/completions/route.ts',
     'src/app/api/operations/routines/[id]/upcoming/route.ts', 'src/app/api/operations/routines/today/route.ts',
-    WINDOW_ROUTE, 'src/inngest/functions/routine-evaluator.ts', 'src/lib/operations/routineBudget.ts'];
+    WINDOW_ROUTE, 'src/inngest/functions/routine-evaluator.ts', 'src/lib/operations/routineBudget.ts',
+    // TAB13-02a: the budget report's day rules expand a routine, anchored like every caller.
+    'src/lib/budget/days.ts'];
   for (const f of callers) {
     const body = code(f);
     const calls = [...body.matchAll(/expand(?:Forward|Between)\([^;]*;/g)].map((m) => m[0]);
