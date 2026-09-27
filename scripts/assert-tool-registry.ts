@@ -2792,8 +2792,10 @@ lawGuard('The budget report purity law', () => {
 // not import @prisma/client or next, call fetch, read the clock through
 // Date.now() or an argument-less new Date(), or read process.env; and the
 // model's own test may not import @prisma/client.
-const REPORT_MODEL = 'src/lib/budget/report.ts';
-const REPORT_TEST = 'src/lib/__tests__/budgetReport.test.ts';
+// TAB13-02a (2026-09-27): ONE law, TWO roots. The day rules (src/lib/budget/days.ts)
+// turn routines and tasks into the model's dated budget lines, and hold to the same
+// standard for the same reason. A file reachable from both roots is checked once,
+// under the first root that reaches it.
 const REPORT_FORBIDDEN: ReadonlyArray<{ what: string; re: RegExp }> = [
   { what: 'imports @prisma/client', re: /(?:\bfrom\s+|\bimport\s*\(\s*|\brequire\s*\(\s*)[\x27"]@prisma\/client(?:\/[^\x27"]*)?[\x27"]/ },
   { what: 'imports next', re: /(?:\bfrom\s+|\bimport\s*\(\s*|\brequire\s*\(\s*)[\x27"]next(?:\/[^\x27"]*)?[\x27"]/ },
@@ -2802,26 +2804,32 @@ const REPORT_FORBIDDEN: ReadonlyArray<{ what: string; re: RegExp }> = [
   { what: 'reads the clock through an argument-less new Date()', re: /\bnew\s+Date\s*\(\s*\)/ },
   { what: 'reads process.env', re: /\bprocess\.env\b/ },
 ];
+const REPORT_ROOTS: ReadonlyArray<{ root: string; name: string; test: string }> = [
+  { root: 'src/lib/budget/report.ts', name: 'the model', test: 'src/lib/__tests__/budgetReport.test.ts' },
+  { root: 'src/lib/budget/days.ts', name: 'the day module', test: 'src/lib/__tests__/budgetDays.test.ts' },
+];
 let reportViolations = 0;
 const reportFail = (m: string) => { reportViolations += 1; violations.push(`budget report law: ${m} (TAB13-01)`); };
 const reportTree = new Set<string>();
-if (!existsSync(resolve(ROOT, REPORT_MODEL))) reportFail(`${REPORT_MODEL} is missing — the budget report has one model`);
-else {
-  const stack = [REPORT_MODEL];
-  while (stack.length) {
-    const f = stack.pop()!;
-    if (reportTree.has(f)) continue;
-    reportTree.add(f);
-    const body = codeOf(f);
-    for (const { what, re } of REPORT_FORBIDDEN) {
-      if (re.test(body)) reportFail(`${f} ${what} — ${f === REPORT_MODEL ? 'the model' : `it is in the import tree of ${REPORT_MODEL}, and the model`} is pure: every figure arrives from the caller`);
+for (const { root, name, test } of REPORT_ROOTS) {
+  if (!existsSync(resolve(ROOT, root))) reportFail(`${root} is missing — the budget report has one ${name === 'the model' ? 'model' : 'day module'}`);
+  else {
+    const stack = [root];
+    while (stack.length) {
+      const f = stack.pop()!;
+      if (reportTree.has(f)) continue;
+      reportTree.add(f);
+      const body = codeOf(f);
+      for (const { what, re } of REPORT_FORBIDDEN) {
+        if (re.test(body)) reportFail(`${f} ${what} — ${f === root ? name : `it is in the import tree of ${root}, and ${name}`} is pure: every figure arrives from the caller`);
+      }
+      for (const next of importsFor(f)) stack.push(next);
     }
-    for (const next of importsFor(f)) stack.push(next);
   }
+  if (!existsSync(resolve(ROOT, test))) reportFail(`${test} is missing — the rules of ${name} are pinned there`);
+  else if (REPORT_FORBIDDEN[0].re.test(codeOf(test))) reportFail(`${test} imports @prisma/client — the test of ${name} must load without a generated client`);
 }
-if (!existsSync(resolve(ROOT, REPORT_TEST))) reportFail(`${REPORT_TEST} is missing — the rules of the model are pinned there`);
-else if (REPORT_FORBIDDEN[0].re.test(codeOf(REPORT_TEST))) reportFail(`${REPORT_TEST} imports @prisma/client — the test of the model must load without a generated client`);
-if (reportViolations === 0) console.log(`✔ The budget report purity law passed — ${reportTree.size} files in the import tree of the model; none imports @prisma/client or next, calls fetch, reads the clock or reads process.env; its test imports no @prisma/client.`);
+if (reportViolations === 0) console.log(`✔ The budget report purity law passed — ${reportTree.size} files in the import trees of the model and the day module; none imports @prisma/client or next, calls fetch, reads the clock or reads process.env; their tests import no @prisma/client.`);
 else console.log(`✖ The budget report purity law FAILED — ${reportViolations} violation(s).`);
 });
 lawGuard('The one-off law', () => {
@@ -2853,6 +2861,8 @@ const ONEOFF_CALLERS = [
   'src/app/api/hub/operations-routines/route.ts',
   'src/inngest/functions/routine-evaluator.ts',
   'src/lib/operations/routineBudget.ts',
+  // TAB13-02a: the day rules expand a routine for the budget report, anchored like every caller.
+  'src/lib/budget/days.ts',
 ];
 let oneoffViolations = 0;
 const oneoffFail = (m: string) => { oneoffViolations += 1; violations.push(`one-off law: ${m} (ONEOFF-01)`); };
