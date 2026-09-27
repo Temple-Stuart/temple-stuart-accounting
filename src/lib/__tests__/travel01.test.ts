@@ -56,7 +56,8 @@ const overlaid = () => {
 test('the travel tab renders its sections in order under the tool header, and draws no strip', () => {
   const launcher = code(LAUNCHER);
   const sections = [...launcher.matchAll(/data-travel-section="([a-z]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(sections, ['header', 'trips', 'itinerary', 'search', 'booked', 'ledger', 'unattached']);
+  // BOOKINGS-01 (2026-09-27): 'bookings' — every booking in one list — sits between the ledger and the unattached.
+  assert.deepEqual(sections, ['header', 'trips', 'itinerary', 'search', 'booked', 'ledger', 'bookings', 'unattached']);
   const at = (name: string) => launcher.indexOf(`data-travel-section="${name}"`);
   const region = launcher.slice(at('header'), launcher.indexOf('</section>', at('unattached')));
   assert.doesNotMatch(region, /<StageStrip|<ProofStrip/, 'no strip, no receipts rail');

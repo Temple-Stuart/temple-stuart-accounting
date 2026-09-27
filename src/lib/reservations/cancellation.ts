@@ -174,9 +174,10 @@ export type CancelRecipient = { to: string } | { to: null; reason: 'no_recipient
  * Which rows can be emailed today (main c17dc9dd): every account row (hotel or
  * flight — the cancel route is owner-only, so every cancel it serves is one);
  * a guest HOTEL row (book/route.ts writes guestEmail = holder.email); a guest
- * FLIGHT row CANNOT — flights/book/route.ts writes guestEmail null and SEC-03
- * did not copy prebook_contacts.contactEmail onto the reservation (the row
- * carries no prebookId to look it up by). Guest rows cannot reach the cancel
+ * FLIGHT row booked from BOOKINGS-01 (2026-09-27) on (flights/book/route.ts writes
+ * guestEmail = the prebook_contacts row's contactEmail it read by prebookId). A
+ * guest flight booked BEFORE that carries guestEmail null and CANNOT be reached —
+ * the row stores no prebookId to join its contact by, so no retro fills it. Guest rows cannot reach the cancel
  * route at all (its ownership gate needs userId), so today this rule serves
  * account rows and states the guest case honestly.
  */

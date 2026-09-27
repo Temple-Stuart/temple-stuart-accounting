@@ -13,6 +13,8 @@ import { useBankConnection } from '@/components/bank/useBankConnection';
 import CreateTripForm from '@/components/trips/CreateTripForm';
 import TripBookings from '@/components/trips/TripBookings';
 import UnattachedBookings from '@/components/trips/UnattachedBookings';
+import AllBookings from '@/components/trips/AllBookings';
+import { BOOKING_WORDS } from '@/lib/reservations/bookingRow';
 import AllTripsList, { type TripRow } from '@/components/trips/AllTripsList';
 import TripFormModal from '@/components/trips/TripFormModal';
 import TripBudgetActual from '@/components/trips/TripBudgetActual';
@@ -899,6 +901,18 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                 <TripBudgetActual key={tripsRefresh} trip={currentTrip} />
               ) : (
                 <span className="text-xs text-text-muted italic">no trip selected — pick one above.</span>
+              )}
+            </section>
+
+            {/* BOOKINGS — BOOKINGS-01 (2026-09-27): every booking on the account in ONE list,
+                each row's truth from the recorded facts (status, ticketing, bank, ledger,
+                budget line, receipt); replaces neither Booked nor Unattached (authed-only). */}
+            <section className="space-y-3" data-travel-section="bookings">
+              <TravelHeading>{BOOKING_WORDS.heading}</TravelHeading>
+              {authed === true ? (
+                <AllBookings key={`all-${tripsRefresh}`} />
+              ) : (
+                <span className="text-xs text-text-muted italic">{BOOKING_WORDS.signIn}</span>
               )}
             </section>
 

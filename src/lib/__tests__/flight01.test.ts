@@ -265,7 +265,8 @@ test('the booking-flow pin still holds for every file it names — five search f
     // STATUS-01 (2026-09-26): re-pinned — was 8f24d2dd90f36d55c2dbbe4cafb711387ea34faf4d9eb25a27c906b72b977367 at main 53900e67.
     // COMM-01 (2026-09-26): re-pinned — was b75d0ca85ee2a50a0fe715a73ac749893f656c57038908d3b89c256aed466d1a at main 0ef428a6.
     // AUDIT-01 (2026-09-26): re-pinned — was 62b828c1c9468cd1a10b2cb43ca4b76099f49ef9eb905fdac80f44409a349f8b at main 651c2f0e.
-    'src/app/api/travel/liteapi/flights/book/route.ts': 'ac3d2ef9fe7e38d561734664e46916a7ed96a90ae1165d072a5173e1e200a462',
+    // BOOKINGS-01 (2026-09-27): re-pinned — was ac3d2ef9fe7e38d561734664e46916a7ed96a90ae1165d072a5173e1e200a462 at main 486be479.
+    'src/app/api/travel/liteapi/flights/book/route.ts': 'd762bf4320c7c75a7b802d2d0654f4420913eab1826c9daa74ee53f28022eda8',
     // FL-5b (2026-09-23): the panel sends the contact it already holds; no payment path changed.
     // FL-4c (2026-09-23): the publishable key now comes from the vendor's /config, not the prebook's null.
     // FL-4c v2 (2026-09-23): the panel uses the vendor's DOCUMENTED wrapper — publicKey is the
