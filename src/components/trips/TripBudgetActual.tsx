@@ -19,24 +19,28 @@
  * COA + Project are DISPLAY-ONLY this PR (inline dropdown edits are later PRs). Project
  * shows "—" on every row — there is no project linkage yet (that's a schema migration).
  *
- * Saved vs Booked: every budget line is shown as "Saved" (planned). A real "Booked" (paid)
- * status is NOT derivable from budget_line_items today — paid bookings live in a separate
- * `reservations` table with no link back to a budget line — so the status column honestly
- * shows "Saved" for all rows rather than guessing.
+ * Saved vs Booked — LINK-02 (2026-09-27): a line's status is DERIVED from the links its
+ * owner made (reservation_budget_links, through each booking's "Budget line" control in
+ * TripBookings — never a matcher, a name or an amount), by ONE pure leaf,
+ * src/lib/trips/lineStatus.ts lineStatusOf: no link → "Saved"; linked, some linked
+ * booking's charge not bank-confirmed → "Booked"; every linked booking's charge
+ * bank-confirmed (an accepted match in Runway) → "Booked · paid". The linked bookings
+ * sit beside the planned amount ("Booked as"), each price AS RECORDED — never netted
+ * against the plan, never converted, never summed into it. Until the links load (or if
+ * they fail) the status cell says "—", never a guessed "Saved".
  *
- * PR-MATCH-3 closes that gap at the RESERVATION level (per-budget-line mapping
- * stays structurally impossible — no reservation↔line key exists, and it is
- * never guessed by vendor-name heuristics): below the planned table, the
- * travel LENS renders (a) "Booked & bank-confirmed" — the trip's reservations
- * with bank actuals from ACCEPTED transaction links only (proposed ≠ actual;
- * accepts happen in Runway's match review), and (b) "In-trip spend not in
- * your budget" — in-window outflows with no accepted link anywhere (FX fees,
- * extras). Both from GET /api/trips/[id]/actuals; both absent-when-empty.
+ * PR-MATCH-3's travel LENS stays below the planned table: (a) "Booked &
+ * bank-confirmed" — the trip's reservations with bank actuals from ACCEPTED
+ * transaction links only (proposed ≠ actual; accepts happen in Runway's match
+ * review), and (b) "In-trip spend not in your budget" — in-window outflows with
+ * no accepted link anywhere (FX fees, extras). Both from GET /api/trips/[id]/actuals
+ * (which now also returns each line's links); both absent-when-empty.
  */
 
 import { useEffect, useRef, useState } from 'react';
 import type { TripRow } from './AllTripsList';
 import { formatMoney, moneyColorClass } from '@/lib/money';
+import { LINE_STATUS, LINE_WORDS, lineStatusOf, type LineStatus, type StatusLink } from '@/lib/trips/lineStatus';
 
 interface LedgerItem {
   id: string;
@@ -74,6 +78,28 @@ interface BookedRow {
   checkoutDate: string | null;
   actual: { totalCents: number; transactions: { id: string; name: string; amount: number; date: string }[] } | null;
 }
+// ─── LINK-02: each budget line's owner-made links (GET /api/trips/[id]/actuals `lines`) ───
+interface LinkedBooking {
+  reservationId: string;
+  displayName: string;
+  status: string;
+  /** SEC-03: NULL when the vendor stated no price — rendered "price not stated". */
+  finalPriceCents: number | null;
+  currency: string;
+  bankConfirmed: boolean;
+}
+interface LineLinks {
+  budgetLineItemId: string;
+  links: LinkedBooking[];
+}
+
+/** The status badge's paint, by the leaf's word — the word itself comes from the leaf. */
+const STATUS_PAINT: Record<LineStatus, string> = {
+  [LINE_STATUS.saved]: 'bg-brand-purple/10 text-brand-purple',
+  [LINE_STATUS.booked]: 'bg-brand-amber/10 text-brand-amber',
+  [LINE_STATUS.paid]: 'bg-brand-green/10 text-brand-green',
+};
+
 interface UnplannedRow {
   id: string;
   name: string;
@@ -306,9 +332,12 @@ export default function TripBudgetActual({ trip, onTotals }: { trip: TripRow;
   const [booked, setBooked] = useState<BookedRow[]>([]);
   const [unplanned, setUnplanned] = useState<UnplannedRow[]>([]);
   const [lensError, setLensError] = useState('');
+  // LINK-02: the owner-made links per line — null until the lens answers (the status then reads "—").
+  const [lineLinks, setLineLinks] = useState<LineLinks[] | null>(null);
   useEffect(() => {
     let cancelled = false;
     setLensError('');
+    setLineLinks(null);
     fetch(`/api/trips/${trip.id}/actuals`)
       .then(async (r) => {
         const data = await r.json().catch(() => ({}));
@@ -319,6 +348,7 @@ export default function TripBudgetActual({ trip, onTotals }: { trip: TripRow;
         if (cancelled) return;
         setBooked((data.booked || []) as BookedRow[]);
         setUnplanned((data.unplanned || []) as UnplannedRow[]);
+        setLineLinks(Array.isArray(data.lines) ? (data.lines as LineLinks[]) : null);
       })
       .catch((err) => {
         if (!cancelled) setLensError(err instanceof Error ? err.message : 'Could not load bank actuals.');
@@ -327,6 +357,12 @@ export default function TripBudgetActual({ trip, onTotals }: { trip: TripRow;
   }, [trip.id, reloadKey]);
 
   const total = items.reduce((s, it) => s + Number(it.amount || 0), 0);
+
+  // LINK-02: the links in the leaf's shape, and each line's linked bookings for the "Booked as" cell.
+  const statusLinks: StatusLink[] | null = lineLinks === null
+    ? null
+    : lineLinks.flatMap((l) => l.links.map((k) => ({ budgetLineItemId: l.budgetLineItemId, reservationId: k.reservationId, bankConfirmed: k.bankConfirmed })));
+  const linkedOf = (lineId: string): LinkedBooking[] => lineLinks?.find((l) => l.budgetLineItemId === lineId)?.links ?? [];
 
   const th = 'px-3 py-2 text-left font-medium text-text-faint whitespace-nowrap';
   const td = 'px-3 py-2 whitespace-nowrap';
@@ -365,6 +401,7 @@ export default function TripBudgetActual({ trip, onTotals }: { trip: TripRow;
                 <th className={th}>Vendor</th>
                 <th className={th}>Description</th>
                 <th className={`${th} text-right`}>Amount</th>
+                <th className={th}>{LINE_WORDS.bookedAs}</th>
                 <th className={th}>Project</th>
                 <th className={th}><span className="sr-only">Actions</span></th>
               </tr>
@@ -372,11 +409,15 @@ export default function TripBudgetActual({ trip, onTotals }: { trip: TripRow;
             <tbody>
               {items.map((it) => (
                 <tr key={it.id} className="border-b border-border last:border-0">
-                  {/* Every budget line is Saved (planned). Booked (paid) is not derivable
-                      from budget_line_items yet — see the file header. */}
+                  {/* LINK-02: the status from the one leaf, over the owner's links — "—" until they load. */}
                   <td className={td}>
                     {/* REPAINT-04 (2026-09-21): aubergine ink on the wash — white on a 10% wash was invisible on cream. */}
-                    <span className="rounded-full bg-brand-purple/10 px-2 py-0.5 text-xs font-medium text-brand-purple">Saved</span>
+                    {statusLinks === null ? (
+                      <span className="text-text-faint">{LINE_WORDS.none}</span>
+                    ) : (() => {
+                      const status = lineStatusOf({ id: it.id }, statusLinks);
+                      return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_PAINT[status]}`} data-line-status={status}>{status}</span>;
+                    })()}
                   </td>
                   <td className={td}><EditableCell kind="date" value={it.startDate} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'startDate', v)} /></td>
                   <td className={td}><EditableCell kind="time" value={it.startTime} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'startTime', v)} /></td>
@@ -390,6 +431,24 @@ export default function TripBudgetActual({ trip, onTotals }: { trip: TripRow;
                   </td>
                   {/* PR-Money-Convention: trip lines are EXPENSES → red, negative-signed. */}
                   <td className={`${td} text-right font-mono font-bold ${moneyColorClass(Number(it.amount || 0), 'expense')}`}>{formatMoney(Number(it.amount || 0), { kind: 'expense' })}</td>
+                  {/* LINK-02: the bookings the owner linked to this line, beside the plan — each price as
+                      recorded (non-USD keeps its code), never netted against the planned amount. */}
+                  <td className={`${td} text-xs text-text-muted`} data-booked-as={it.id}>
+                    {linkedOf(it.id).length === 0 ? LINE_WORDS.none : (
+                      <ul className="space-y-0.5">
+                        {linkedOf(it.id).map((b) => (
+                          <li key={b.reservationId} data-linked-booking={b.reservationId}>
+                            <span className="font-medium text-text-primary">{b.displayName}</span>
+                            {' · '}{b.status}{' · '}
+                            {b.finalPriceCents === null
+                              ? LINE_WORDS.priceNotStated
+                              : <span className="font-mono">{b.currency !== 'USD' ? `${b.currency} ` : ''}{formatMoney(b.finalPriceCents / 100, { kind: 'expense' })}</span>}
+                            {' · '}{b.bankConfirmed ? LINE_WORDS.bankConfirmed : LINE_WORDS.notBankConfirmed}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </td>
                   {/* Project: no linkage yet (the FK is a later migration PR) → honest "—". */}
                   <td className={`${td} text-text-faint`}>{DASH}</td>
                   <td className={`${td} text-right`}>

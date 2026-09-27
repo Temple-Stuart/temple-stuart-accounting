@@ -18,12 +18,36 @@
  * Every state is visible: loading, error (with retry), empty, rows. Guest
  * bookings (userId null) are invisible here BY DESIGN — the route never returns
  * them to an account user (reservations/route.ts:12-13).
+ *
+ * LINK-02 (2026-09-27): each booking carries a "Budget line" control — the OWNER
+ * links it to the budget line of THIS trip it fulfils (a select of the trip's lines,
+ * description · COA · amount, in the lines' stored order — no ranking, no
+ * pre-selection, no suggestion), or unlinks it. POST / DELETE
+ * /api/reservations/[id]/budget-link does the write and records it; the lines and the
+ * current links come from GET /api/trips/[id]/actuals. A success bumps the shared
+ * tripsRefresh so the budget ledger re-reads its line statuses.
  */
 
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import CancelBookingDialog from './CancelBookingDialog';
 import { destinationWords } from '@/lib/reservations/cancellationWords';
+import { formatMoney } from '@/lib/money';
+import { LINE_WORDS } from '@/lib/trips/lineStatus';
+
+/** LINK-02: one of the trip's budget lines with the bookings linked to it (GET /api/trips/[id]/actuals `lines`). */
+interface BudgetLineOption {
+  budgetLineItemId: string;
+  description: string | null;
+  coaCode: string | null;
+  amount: string | number;
+  links: Array<{ reservationId: string }>;
+}
+
+/** description · COA · amount — the planned amount as recorded, displayed. */
+function lineLabel(l: BudgetLineOption): string {
+  return `${l.description?.trim() ? l.description.trim() : LINE_WORDS.noDescription} · ${l.coaCode ?? LINE_WORDS.none} · ${formatMoney(Number(l.amount), { kind: 'expense' })}`;
+}
 
 interface BookingRow {
   id: string;
@@ -115,6 +139,42 @@ export default function TripBookings({ tripId, onChanged, onTotals }: Props) {
 
   useEffect(() => load(), [load]);
 
+  // LINK-02: the trip's budget lines and who is linked to each — null until they load.
+  const [lines, setLines] = useState<BudgetLineOption[] | null>(null);
+  const [linesError, setLinesError] = useState<string | null>(null);
+  const [linkBusy, setLinkBusy] = useState<string | null>(null);
+  const loadLines = useCallback(() => {
+    let cancelled = false;
+    setLinesError(null);
+    fetch(`/api/trips/${tripId}/actuals`)
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        if (!cancelled) setLines(Array.isArray(data.lines) ? (data.lines as BudgetLineOption[]) : []);
+      })
+      .catch((err) => { if (!cancelled) setLinesError(err instanceof Error ? err.message : String(err)); });
+    return () => { cancelled = true; };
+  }, [tripId]);
+  useEffect(() => loadLines(), [loadLines]);
+
+  // LINK-02: the owner's explicit link / unlink — the route writes and records it.
+  const changeLink = async (reservationId: string, budgetLineItemId: string | null) => {
+    setLinkBusy(reservationId);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/reservations/${reservationId}/budget-link`, budgetLineItemId === null
+        ? { method: 'DELETE' }
+        : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ budgetLineItemId }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      if (onChanged) onChanged(); else { load(); loadLines(); }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLinkBusy(null);
+    }
+  };
+
   // T4: detach — tripId → null via the dual-ownership PATCH. The booking is
   // KEPT (it moves to Unattached bookings); only the trip link clears.
   const detach = async (reservationId: string) => {
@@ -201,6 +261,9 @@ export default function TripBookings({ tripId, onChanged, onTotals }: Props) {
       {actionError && (
         <p className="mb-2 rounded border border-border bg-white p-2 text-sm text-brand-red">{actionError}</p>
       )}
+      {linesError && (
+        <p className="mb-2 text-xs text-brand-red">{LINE_WORDS.linesUnavailable} {linesError}</p>
+      )}
 
       {state === 'ok' && rows.length > 0 && (
         <>
@@ -224,7 +287,45 @@ export default function TripBookings({ tripId, onChanged, onTotals }: Props) {
                   <Fragment key={r.id}>
                   <tr className="border-b border-border last:border-0">
                     <td className="px-3 py-2 capitalize text-text-muted">{r.type}</td>
-                    <td className="px-3 py-2 font-medium text-text-primary">{r.name}</td>
+                    <td className="px-3 py-2 font-medium text-text-primary">
+                      {r.name}
+                      {/* LINK-02: the owner links this booking to the line of this trip it fulfils — or unlinks it. */}
+                      {lines !== null && (() => {
+                        const linked = lines.find((l) => l.links.some((k) => k.reservationId === r.id));
+                        return (
+                          <div className="mt-1 text-xs font-normal text-text-muted" data-budget-line-control={r.id}>
+                            <span className="mr-1">{LINE_WORDS.control}:</span>
+                            {linked ? (
+                              <>
+                                <span data-budget-line-linked={linked.budgetLineItemId}>{lineLabel(linked)}</span>
+                                <button
+                                  type="button"
+                                  disabled={linkBusy === r.id}
+                                  onClick={() => changeLink(r.id, null)}
+                                  className="ml-2 rounded border border-border px-1.5 py-0.5 text-xs text-text-faint hover:bg-bg-row disabled:opacity-50"
+                                >
+                                  {LINE_WORDS.unlink}
+                                </button>
+                              </>
+                            ) : lines.length === 0 ? (
+                              <span>{LINE_WORDS.noLines}</span>
+                            ) : (
+                              <select
+                                value=""
+                                disabled={linkBusy === r.id}
+                                onChange={(e) => { if (e.target.value) changeLink(r.id, e.target.value); }}
+                                className="rounded border border-border bg-white px-1 py-0.5 text-xs disabled:opacity-50"
+                              >
+                                <option value="">{LINE_WORDS.choose}</option>
+                                {lines.map((l) => (
+                                  <option key={l.budgetLineItemId} value={l.budgetLineItemId}>{lineLabel(l)}</option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </td>
                     <td className="px-3 py-2 text-text-muted">
                       {r.checkIn && r.checkOut
                         ? `${String(r.checkIn).slice(0, 10)} → ${String(r.checkOut).slice(0, 10)}`

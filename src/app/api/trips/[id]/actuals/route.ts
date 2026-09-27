@@ -14,11 +14,17 @@ import { reservationIdentity } from '@/lib/reservations/lane';
 //                  reservation — the FX-fee/extras bucket that hit the books
 //                  during the trip but was never budgeted. DISPLAY-ONLY: no
 //                  trip-tagging writes (tagging is a future ruling).
-// HONESTY NOTE: this is a RESERVATION-level lens. Reservations have no link
-// to budget_line_items (the TripBudgetActual.tsx:22-26 gap; MATCH-0 linked
-// transactions↔reservations, deliberately not reservations↔lines), so
-// per-budget-line "booked" mapping is structurally impossible without a new
-// gated link table — never guessed here by vendor-name heuristics.
+//   • lines[]    — LINK-02 (2026-09-27): each of the trip's budget lines with
+//                  the bookings the OWNER linked to it (reservation_budget_links,
+//                  written only by POST /api/reservations/[id]/budget-link — never
+//                  a matcher, a name or an amount). Per linked booking: its name,
+//                  status, the vendor price + currency AS RECORDED (null = not
+//                  stated), and whether its CHARGE has an accepted bank link (a
+//                  human's accept in Runway; a refund's link is not a payment).
+//                  The line's status is derived by src/lib/trips/lineStatus.ts —
+//                  this route computes no status, no sum across a line, no net.
+// HONESTY NOTE: a line with no link is "Saved" — the planned figure alone. A
+// booking is on a line only because its owner said so; nothing here infers it.
 //
 // Auth: the trips/[id] house pattern — verified email → user → trip ownership
 // findFirst({id, userId}) → defensive 404. Guest fence holds transitively:
@@ -133,7 +139,58 @@ export async function GET(
       }
     }
 
-    return NextResponse.json({ booked, unplanned, window });
+    // ── LINK-02: per budget line, the bookings the owner linked to it ─────────
+    const budgetLines = await prisma.budget_line_items.findMany({
+      where: { tripId: trip.id, userId: user.id },
+      select: { id: true, description: true, coaCode: true, amount: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    const budgetLinks = budgetLines.length
+      ? await prisma.reservation_budget_links.findMany({
+          where: { userId: user.id, budgetLineItemId: { in: budgetLines.map((l) => l.id) } },
+          select: {
+            budgetLineItemId: true,
+            linkedAt: true,
+            reservation: {
+              select: {
+                id: true, status: true, finalPriceCents: true, currency: true,
+                lane: true, displayName: true, providerConfirmationCode: true, providerBookingId: true,
+              },
+            },
+          },
+          orderBy: { linkedAt: 'asc' },
+        })
+      : [];
+    // "Paid" = the booking's CHARGE has an accepted bank link (moneyEventId null — a refund's accepted link is not a payment).
+    const chargeAccepted = budgetLinks.length
+      ? await prisma.transaction_reservation_links.findMany({
+          where: { userId: user.id, status: 'accepted', moneyEventId: null, reservationId: { in: budgetLinks.map((b) => b.reservation.id) } },
+          select: { reservationId: true },
+        })
+      : [];
+    const paidIds = new Set(chargeAccepted.map((c) => c.reservationId));
+    const lines = budgetLines.map((l) => ({
+      budgetLineItemId: l.id,
+      description: l.description,
+      coaCode: l.coaCode,
+      // The planned amount AS RECORDED (a Decimal serializes as its string) — never netted against a booking.
+      amount: l.amount,
+      links: budgetLinks
+        .filter((b) => b.budgetLineItemId === l.id)
+        .map((b) => ({
+          reservationId: b.reservation.id,
+          // LANE-01: the one reader — the stated name, or the lane and the reference.
+          displayName: reservationIdentity(b.reservation).name,
+          status: b.reservation.status,
+          // SEC-03: the vendor price AS RECORDED — null when the vendor stated none, never 0.
+          finalPriceCents: b.reservation.finalPriceCents,
+          currency: b.reservation.currency,
+          bankConfirmed: paidIds.has(b.reservation.id),
+          linkedAt: b.linkedAt,
+        })),
+    }));
+
+    return NextResponse.json({ booked, unplanned, window, lines });
   } catch (err) {
     return failClosedResponse('Trip actuals', 'Could not load trip actuals', err);
   }

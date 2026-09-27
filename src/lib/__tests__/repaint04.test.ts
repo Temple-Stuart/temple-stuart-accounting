@@ -112,7 +112,9 @@ test('every other miss is repainted to a cream token REPAINT-3 established, with
     ['src/components/trading/TradeRecord.tsx', [/'rounded-lg border border-border bg-white px-3 py-2 text-xs text-text-muted'/]],
     ['src/components/BacktestPanel.tsx', [/<tr key=\{i\} className="border-b border-border hover:bg-bg-row">/]],
     ['src/components/CheckoutResultBanner.tsx', [/: 'border-border bg-bg-row text-text-secondary'/]],
-    ['src/components/trips/TripBudgetActual.tsx', [/rounded-full bg-brand-purple\/10 px-2 py-0\.5 text-xs font-medium text-brand-purple">Saved<\/span>/]],
+    // LINK-02 (2026-09-27): the Saved badge is derived (lineStatusOf) — its REPAINT-04 paint lives in STATUS_PAINT
+    // for the leaf's "Saved", on the same badge (was the literal `…text-brand-purple">Saved</span>`).
+    ['src/components/trips/TripBudgetActual.tsx', [/\[LINE_STATUS\.saved\]: 'bg-brand-purple\/10 text-brand-purple',/, /className=\{`rounded-full px-2 py-0\.5 text-xs font-medium \$\{STATUS_PAINT\[status\]\}`\}/]],
     ['src/components/trips/UnattachedBookings.tsx', [/text-xs font-medium text-brand-purple hover:bg-brand-purple\/10 disabled:opacity-50"/]],
   ];
   for (const [f, patterns] of repainted) {

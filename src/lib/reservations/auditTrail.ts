@@ -44,9 +44,9 @@
  */
 import type { WriteAuditLogInput } from '@/lib/audit/writeAuditLog';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
-import { bookingEventWords, type BookingEventKind, type Evidence } from './timeline';
+import { bookingEventWords, type AuditedBookingKind, type BookingEventKind, type Evidence } from './timeline';
 
-export type { BookingEventKind, Evidence } from './timeline';
+export type { AuditedBookingKind, BookingEventKind, Evidence } from './timeline';
 
 export interface BookingActor {
   type: 'human_user' | 'system_automation' | 'external_integration';
@@ -76,7 +76,8 @@ export function humanActor(user: { id: string; email: string | null } | null, ip
 export interface BookingEventInput {
   /** The booking, and its OWNER (null = a guest booking). */
   reservation: { id: string; userId: string | null };
-  kind: BookingEventKind;
+  /** AUDIT-01's sixteen, and LINK-02's budget-line link and unlink. */
+  kind: AuditedBookingKind;
   actor: BookingActor;
   /** The fields that changed, as they were — null when the fact has no before. */
   before: Record<string, unknown> | null;
