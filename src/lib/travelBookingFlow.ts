@@ -170,7 +170,12 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // its send. A failed audit write is named and never fails the booking. No book/pay
   // call, no landing, no write changed.
   // Was 62b828c1c9468cd1a10b2cb43ca4b76099f49ef9eb905fdac80f44409a349f8b at main 651c2f0e.
-  { file: 'src/app/api/travel/liteapi/flights/book/route.ts', sha256: 'ac3d2ef9fe7e38d561734664e46916a7ed96a90ae1165d072a5173e1e200a462' },
+  // BOOKINGS-01 (2026-09-27): re-pinned — a GUEST booking's row carries the contact its
+  // checkout stored: guestEmail = the prebook_contacts row this route already read by
+  // prebookId (src/lib/reservations/guestContact.ts guestEmailOf); an account booking
+  // stays null. No book/pay call, no landing, no other write changed.
+  // Was ac3d2ef9fe7e38d561734664e46916a7ed96a90ae1165d072a5173e1e200a462 at main 486be479.
+  { file: 'src/app/api/travel/liteapi/flights/book/route.ts', sha256: 'd762bf4320c7c75a7b802d2d0654f4420913eab1826c9daa74ee53f28022eda8' },
   // FL-4c (2026-09-23): re-pinned — the envelope gains `paymentEnv`, the key env
   // derived server-side exactly as the hotel prebook returns it. The browser must
   // not guess which mode it is in, and /config is keyed on that label. Nothing

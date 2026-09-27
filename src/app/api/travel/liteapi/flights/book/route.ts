@@ -8,6 +8,8 @@ import { prismaLanding } from '@/lib/arrivals/prismaLanding';
 import { MissingLiteApiKeyError, LiteApiError } from '@/lib/travelErrors';
 import { rateLimit, RateLimitError } from '@/lib/rateLimit';
 import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQuota';
+// BOOKINGS-01 (2026-09-27): a guest booking's row carries the stored prebook contact.
+import { guestEmailOf } from '@/lib/reservations/guestContact';
 // AUDIT-01 (2026-09-26): the booking, its emails, recorded through the one audit port.
 import { humanActor, recordBookingEvent, recordEmailOutcome } from '@/lib/reservations/auditTrail';
 // FL-5b: the confirmation email, restored to this lane.
@@ -240,9 +242,13 @@ export async function POST(request: NextRequest) {
                 // LANE-01: the owner-verified trip, or null (standalone).
                 tripId: resolvedTripId,
                 bookingType: isAccount ? 'account' : 'guest',
-                // The contact lives in prebook_contacts under the prebookId (SEC-03);
-                // this row does not copy it — guestEmail stays null for guests.
-                guestEmail: null,
+                // BOOKINGS-01 (2026-09-27): a GUEST booking carries its contact — the
+                // prebook_contacts row this route read above by the vendor's prebookId
+                // (SEC-03; contactEmail is NOT NULL and the prebook route refused a
+                // malformed one), so a guest flight can be emailed after booking, as a
+                // guest hotel is (book/route.ts holder.email). An ACCOUNT booking stays
+                // null — its address is the account's. Never a default, never another row.
+                guestEmail: guestEmailOf(isAccount, contact),
                 provider: 'liteapi',
                 // LANE-01: the lane this route already hands the landing (below,
                 // lane: 'flight') is written on the row, so a reader never derives

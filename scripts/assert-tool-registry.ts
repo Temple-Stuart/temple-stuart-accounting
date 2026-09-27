@@ -161,6 +161,7 @@ import { NOT_MATCHED, NOT_POSTED, NOT_STATED as RECEIPT_NOT_STATED, NOT_YET_TICK
 import { BOOKINGS_LEDGER_COLUMNS, bookingsLedgerRow } from '../src/lib/receipts/bookingsLedgerCsv';
 import { BOOKING_EVENT_KINDS, BUDGET_LINK_KINDS, bookingEventWords, timelineOf } from '../src/lib/reservations/timeline';
 import { LINE_STATUS, lineStatusOf } from '../src/lib/trips/lineStatus';
+import { BOOKING_WORDS, STATUS_WORDS, bookingRowOf } from '../src/lib/reservations/bookingRow';
 import { DYNAMIC_READ_ENV, LIBRARY_READ_ENV } from '../src/lib/envLaw';
 import { EXPECTED_FEED_COUNT, FEED_COST, FEED_IDS, SCAN_COST, feedCostLaw, scanCostLine } from '../src/lib/observatory/feedCost';
 import { FINNHUB_TTL, finnhubCallsPerSymbol, finnhubTtlLaw, slowTierEndpoints } from '../src/lib/convergence/finnhub-ttl';
@@ -3218,7 +3219,8 @@ lawGuard('The travel law', () => {
 //      CHECK and leaves the instant CHECK alone; the block-time migration records
 //      columns with IF NOT EXISTS and defaults no clock; neither touches a row;
 //      the panel opens a trip block as that kind with its vendor and its source.
-const TRAVEL_SECTIONS = ['header', 'trips', 'itinerary', 'search', 'booked', 'ledger', 'unattached'];
+// BOOKINGS-01 (2026-09-27): 'bookings' — every booking in one list — sits between the ledger and the unattached.
+const TRAVEL_SECTIONS = ['header', 'trips', 'itinerary', 'search', 'booked', 'ledger', 'bookings', 'unattached'];
 const TRAVEL_LEAF = 'src/lib/calendar/tripItem.ts';
 const TRAVEL_FEED = 'src/app/api/calendar/route.ts';
 const TRAVEL_ITINERARY = 'src/components/trips/TripItinerarySection.tsx';
@@ -6920,6 +6922,126 @@ lawGuard('The budget-link law', () => {
 
   if (blViolations === 0) console.log(`✔ The budget-link law passed — only the budget-link route writes reservation_budget_links, the line it writes is the one the owner named (no matcher, no ranking, no pre-selection); lineStatusOf is pure, computes no money and reads Saved / Booked / Booked · paid over the owner's links; link and unlink go through the audit port; the database holds one line per booking and RESTRICT both ways; the trip delete, the uncommit and the attach PATCH ask before they write.`);
   else console.log(`✖ The budget-link law FAILED — ${blViolations} violation(s).`);
+});
+
+// ── THE BOOKINGS LAW (BOOKINGS-01, 2026-09-27) ───────────────────────────────
+// ONE LIST SHOWS EVERY BOOKING'S TRUTH, AND A GUEST FLIGHT KEEPS ITS CONTACT.
+// A guest flight's row carries the contact its checkout stored (prebook_contacts,
+// read by the vendor's prebookId) and nothing else; the one list reads only, scoped
+// to its owner; each row is built by one pure leaf that computes nothing and does no
+// arithmetic on money; the travel tab shows it in its own section, typing no word.
+lawGuard('The bookings law', () => {
+  let bkViolations = 0;
+  const bkFail = (m: string) => { bkViolations += 1; violations.push(`bookings law: ${m} (BOOKINGS-01)`); };
+
+  const FLIGHT_BOOK = 'src/app/api/travel/liteapi/flights/book/route.ts';
+  const HOTEL_BOOK = 'src/app/api/travel/liteapi/book/route.ts';
+  const CONTACT_LEAF = 'src/lib/reservations/guestContact.ts';
+  const ROW_LEAF = 'src/lib/reservations/bookingRow.ts';
+  const LIST_ROUTE = 'src/app/api/reservations/route.ts';
+  const LIST_VIEW = 'src/components/trips/AllBookings.tsx';
+  const LAUNCHER = 'src/components/home/ModuleLauncher.tsx';
+  const RETRO = 'scripts/bookings-01-retro-guest-email.ts';
+  for (const f of [FLIGHT_BOOK, HOTEL_BOOK, CONTACT_LEAF, ROW_LEAF, LIST_ROUTE, LIST_VIEW, LAUNCHER]) {
+    if (!existsSync(resolve(ROOT, f))) bkFail(`${f} is missing`);
+  }
+
+  // ── CLAUSE 1. THE GUEST FLIGHT'S CONTACT COMES ONLY FROM prebook_contacts. ──
+  {
+    const fb = codeOf(FLIGHT_BOOK);
+    const read = fb.indexOf('const contact = await prisma.prebook_contacts.findUnique({ where: { prebookId } });');
+    const refused = fb.indexOf("if (!contact || contact.lane !== 'flight') {");
+    const written = fb.indexOf('guestEmail: guestEmailOf(isAccount, contact),');
+    if (read < 0 || refused < read || written < refused) bkFail(`${FLIGHT_BOOK}: the guest's guestEmail is not the prebook_contacts row read by prebookId (refused when absent) — a guest flight's contact comes from nowhere else`);
+    if (!/return isAccount \? null : contact\.contactEmail;/.test(codeOf(CONTACT_LEAF))) bkFail(`${CONTACT_LEAF}: a guest's email is not the stored contact's, or an account row is not null`);
+    if (/@|process\.env|prisma|default/i.test(functionBody(codeOf(CONTACT_LEAF), 'guestEmailOf') ?? '')) bkFail(`${CONTACT_LEAF}: guestEmailOf reaches past the stored contact — no default, no other source`);
+    // Only the two book routes write guestEmail, each from its own contact.
+    for (const { file, src } of srcFiles) {
+      for (const m of src.matchAll(/\bguestEmail\s*:\s*([^\n]*)/g)) {
+        // The value is the expression up to its first top-level comma (a call's own commas are inside its parens).
+        let depth = 0, end = m[1].length;
+        for (let i = 0; i < m[1].length; i += 1) {
+          const ch = m[1][i];
+          if ('([{'.includes(ch)) depth += 1;
+          else if (')]}'.includes(ch)) { if (depth === 0) { end = i; break; } depth -= 1; }
+          else if ((ch === ',' || ch === ';') && depth === 0) { end = i; break; }
+        }
+        const value = m[1].slice(0, end).trim();
+        if (value === 'true' || /^(string|null)\b/.test(value)) continue; // a select flag, a type field
+        if (file === FLIGHT_BOOK && value === 'guestEmailOf(isAccount, contact)') continue;
+        if (file === HOTEL_BOOK && value === 'isAccount ? null : holder.email') continue;
+        bkFail(`${file} writes guestEmail (${value}) — only the two book routes do, each from its own stated contact`);
+      }
+    }
+    // The retro: the reservation stores no prebook id, so no row can be joined to its contact by id — and none is guessed.
+    const model = /model reservations \{([\s\S]*?)\n\}/.exec(schemaText)?.[1] ?? '';
+    const joinable = /\bprebook/i.test(model);
+    if (!joinable && existsSync(resolve(ROOT, RETRO))) bkFail(`${RETRO} exists, and reservations carries no prebook id to join a contact by — a retro could only guess by name or time`);
+  }
+
+  // ── CLAUSE 2. THE ROW LEAF IS PURE AND DOES NO ARITHMETIC ON MONEY. ──
+  {
+    const leaf = codeOf(ROW_LEAF);
+    const imports = [...leaf.matchAll(/^\s*import\s[^\n]*from\s+'([^']+)'/gm)].map((m) => m[1]);
+    if (imports.join(',') !== './lane') bkFail(`${ROW_LEAF} imports ${imports.join(', ') || 'nothing'} — its one import is the pure lane reader`);
+    for (const [re, what] of [[/prisma|PrismaClient/, 'reaches the database'], [/\bfetch\s*\(/, 'fetches'], [/new Date\s*\(|Date\.now/, 'reads the clock'], [/process\.env/, 'reads the environment'], [/from 'react'/, 'imports React']] as const) {
+      if (re.test(leaf)) bkFail(`${ROW_LEAF} ${what} — the row leaf is pure`);
+    }
+    // Strings are words, not arithmetic: a quoted literal is blanked, and of a template only its ${…} expressions are kept.
+    const bare = leaf
+      .replace(/'(?:[^'\\\n]|\\.)*'/g, "''")
+      .replace(/`[^`]*`/g, (t) => t.split(/(\$\{[^}]*\})/).filter((part) => part.startsWith('${')).join(' '));
+    if (/\b(reduce|Number|parseFloat|parseInt|toFixed|toLocaleString)\s*\(|Math\.|[\w)\]]\s*[-+*\/%]\s*[\w(]|[-+*\/%]=/.test(bare)) bkFail(`${ROW_LEAF} does arithmetic — no amount is converted, summed or divided; the recorded figure is written as recorded`);
+    // The words, from fixtures: every state reads exactly, an absent fact says so.
+    const base = { id: 'r1', lane: 'hotel', displayName: 'Hotel Temple', providerConfirmationCode: null, providerBookingId: 'bk1', status: 'confirmed', tripId: null, checkinDate: '2026-10-01', checkoutDate: '2026-10-03', ticketedAt: null, ticketLimitTime: null, cancelIntentAt: null, lastVendorReadAt: null, finalPriceCents: 18000, currency: 'USD', createdAt: '2026-09-20T10:00:00.000Z' };
+    const plain = bookingRowOf({ reservation: base, calendarDay: null, chargeMatched: false, chargePosted: false, budgetLine: null });
+    const want: Array<[string, string | null, string]> = [
+      ['status', plain.status, 'confirmed'],
+      ['confirmation', plain.confirmation, BOOKING_WORDS.notYetStated],
+      ['bank', plain.bank, BOOKING_WORDS.notMatched],
+      ['ledger', plain.ledger, BOOKING_WORDS.notPosted],
+      ['budget line', plain.budgetLine, BOOKING_WORDS.noBudgetLine],
+      ['price', plain.price, '180.00 USD'],
+      ['dates', plain.dates, '2026-10-01 → 2026-10-03'],
+    ];
+    for (const [what, got, expected] of want) if (got !== expected) bkFail(`bookingRowOf's ${what} reads "${got}", not "${expected}"`);
+    if (plain.ticketing !== null) bkFail('bookingRowOf gives a stay a ticketing line');
+    const flight = bookingRowOf({ reservation: { ...base, lane: 'flight', checkinDate: null, checkoutDate: null, ticketLimitTime: '2026-10-02T12:00:00.000Z', finalPriceCents: null, status: 'cancel_pending' }, calendarDay: null, chargeMatched: true, chargePosted: true, budgetLine: { description: 'Flights' } });
+    if (flight.ticketing !== `${BOOKING_WORDS.ticketBy} 2026-10-02T12:00:00.000Z`) bkFail(`bookingRowOf's unticketed flight with a deadline reads "${flight.ticketing}"`);
+    if (flight.cancellation !== BOOKING_WORDS.cancelRequestedNoTime) bkFail('bookingRowOf does not say the vendor stated no cancel time');
+    if (flight.price !== BOOKING_WORDS.priceNotStated) bkFail('bookingRowOf prices a flight the vendor stated no price for');
+    if (flight.status !== STATUS_WORDS.cancel_pending) bkFail(`bookingRowOf's status is "${flight.status}" — it words the recorded status and computes none`);
+    if (bookingRowOf({ reservation: { ...base, status: 'mystery_state' }, calendarDay: null, chargeMatched: true, chargePosted: true, budgetLine: null }).status !== 'mystery_state') bkFail('bookingRowOf renders an unknown status as something other than itself');
+  }
+
+  // ── CLAUSE 3. THE LIST ROUTE READS ONLY, AND ONLY THE CALLER'S ROWS. ──
+  {
+    const route = codeOf(LIST_ROUTE);
+    if (/\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(|\$executeRaw|\$queryRaw|\$transaction|recordBookingEvent|writeAuditLog/.test(route)) bkFail(`${LIST_ROUTE} writes — the list reads only`);
+    if (/liteapiClient|liteapiFlightsClient|viatorClient|reserveTravelSearch|\bfetch\s*\(|getFlightBooking|getHotelBooking/.test(route)) bkFail(`${LIST_ROUTE} imports a vendor client or calls the wire — the list reads recorded rows only`);
+    if (!route.includes("if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });") || !route.includes("if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });")) bkFail(`${LIST_ROUTE} does not answer 401 / 404 by the reservations/[id] pattern`);
+    if (!/prisma\.reservations\.findMany\(\{\s*where: \{ userId: user\.id \},\s*orderBy: \{ createdAt: 'desc' \},/.test(route)) bkFail(`${LIST_ROUTE} does not read exactly the caller's reservations, newest first — a guest row and another user's never appear`);
+    const reads = [...route.matchAll(/prisma\.(\w+)\.findMany\(\{\s*where: \{([^\n]*)\}/g)];
+    for (const m of reads) if (m[1] !== 'users' && !/\b(userId|user_id): user\.id\b/.test(m[2])) bkFail(`${LIST_ROUTE}: the ${m[1]} read is not scoped to the caller`);
+    if (/commission/i.test(route)) bkFail(`${LIST_ROUTE} reads commission — Temple Stuart's books, never the customer's list`);
+    if (!/bookingRowOf\(\{/.test(route) || /BOOKING_WORDS|STATUS_WORDS|'not |"not /.test(route)) bkFail(`${LIST_ROUTE} words a row itself — every row is built by bookingRowOf`);
+  }
+
+  // ── CLAUSE 4. THE TRAVEL TAB SHOWS THE LIST, AND TYPES NO WORD OF ITS OWN. ──
+  {
+    const view = codeOf(LIST_VIEW);
+    if (!view.includes("fetch('/api/reservations')")) bkFail(`${LIST_VIEW} does not read the one list route`);
+    if (/>\s*[A-Za-z][^<{]*</.test(view)) bkFail(`${LIST_VIEW} types a word into its markup — every word is the leaf's (BOOKING_WORDS)`);
+    if (/\.(post|put|patch|delete)\(|method:\s*'(POST|PUT|PATCH|DELETE)'/i.test(view)) bkFail(`${LIST_VIEW} writes — the list is read-only`);
+    const launcher = codeOf(LAUNCHER);
+    const from = launcher.indexOf('data-travel-section="bookings"');
+    const section = from < 0 ? '' : launcher.slice(from, launcher.indexOf('</section>', from));
+    if (!/<AllBookings\b/.test(section)) bkFail(`${LAUNCHER}'s Bookings section does not mount AllBookings`);
+    if (!/<TripBookings\b/.test(launcher) || !/<UnattachedBookings\b/.test(launcher)) bkFail(`${LAUNCHER} dropped TripBookings or UnattachedBookings — the one list replaces neither`);
+  }
+
+  if (bkViolations === 0) console.log('✔ The bookings law passed — a guest flight\'s contact is the prebook_contacts row read by prebookId and nothing else (no retro: reservations stores no prebook id to join by); the row leaf is pure, words the recorded facts and does no arithmetic on money; GET /api/reservations reads only the caller\'s rows through it, with no vendor client and no write; the travel tab shows the one list beside Booked and Unattached, typing no word of its own.');
+  else console.log(`✖ The bookings law FAILED — ${bkViolations} violation(s).`);
 });
 
 // ── THE ROW LAW (TRAVEL-ROW-01, 2026-09-23) ─────────────────────────────────

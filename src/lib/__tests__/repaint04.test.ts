@@ -49,7 +49,8 @@ test('/travel renders every TravelHeading with the section-label token and none 
     assert.match(code(f), /SECTION_HEADER/, `${f} labels its sections with the same token`);
   }
   const region = travelRegion();
-  assert.equal((region.match(/<TravelHeading>/g) ?? []).length, 6, 'six labels: Trips · Itinerary · Search · Booked · Ledger · Unattached');
+  // BOOKINGS-01 (2026-09-27): a seventh — Bookings, every booking in one list — between Ledger and Unattached (was six).
+  assert.equal((region.match(/<TravelHeading>/g) ?? []).length, 7, 'seven labels: Trips · Itinerary · Search · Booked · Ledger · Bookings · Unattached');
   assert.doesNotMatch(region, /text-white/, 'no white ink anywhere in the travel region');
   assert.match(comments(LAUNCHER), /REPAINT-04 \(2026-09-21\)/);
 });

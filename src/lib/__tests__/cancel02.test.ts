@@ -181,7 +181,9 @@ test('recipient: account → the user email; guest with guestEmail → it; guest
   assert.deepEqual(cancelRecipient({ bookingType: 'account', guestEmail: 'ada@example.com' }, null), { to: null, reason: 'no_recipient_stated' }, 'an account row with no account email is never sent to a guest address');
   const leaf = code(LEAF);
   assert.ok(!/accountEmail \?\? |guestEmail \?\? |\?\? accountEmail|\?\? row\.guestEmail/.test(leaf), 'no fallback from one address to another');
-  assert.match(comments(LEAF), /a guest[\s*]+FLIGHT row CANNOT/, 'which rows cannot be emailed is stated in the leaf');
+  // BOOKINGS-01 (2026-09-27): a guest flight booked from BOOKINGS-01 on carries its stored contact; only one booked
+  // BEFORE cannot be reached (was: "a guest FLIGHT row CANNOT") — the leaf still states which rows cannot be emailed.
+  assert.match(comments(LEAF), /guest flight booked BEFORE that carries guestEmail null and CANNOT be reached/, 'which rows cannot be emailed is stated in the leaf');
 });
 
 // ── the route ───────────────────────────────────────────────────────────────
