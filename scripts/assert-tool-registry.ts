@@ -2716,10 +2716,29 @@ for (const f of LINES_READERS) {
   if (!/routinePlanned\(/.test(body)) linesFail(`${f} does not read routinePlanned() — every planned figure for a routine comes from the one leaf`);
 }
 // The bridge reads it through routinesMonthlyByCoa, and may not pre-filter on the routine-level column.
-const linesBridge = codeOf('src/app/api/hub/business-budget/route.ts');
-if (!/routinesMonthlyByCoa\(/.test(linesBridge)) linesFail('the HB-4d bridge no longer reads the monthly figure through routineBudget.ts');
-if (/budget_amount:\s*\{\s*not:\s*null\s*\}/.test(linesBridge)) linesFail('the HB-4d bridge filters routines on the routine-level budget_amount — that hides a lined routine with blank routine-level fields');
-if (!/steps:\s*\{\s*where:\s*\{\s*is_active:\s*true\s*\}/.test(linesBridge)) linesFail('the HB-4d bridge does not hand the leaf the routine\'s active lines');
+// LINES-02 (2026-09-27): the Personal budget kept a read of its own — routine-level
+// budget_amount/coa_code NOT NULL, no lines, no start_date — so a routine budgeted on
+// its lines vanished from Personal while Business counted it. The read (select,
+// mapping, query) now lives in ONE loader, and every API file that builds a monthly
+// budget from routines builds its inputs there. This is a source-text law: it holds
+// each such file to calling the loader and to keeping no routine query of its own.
+const LINES_LOADER = 'src/lib/operations/routineBudgetInputs.ts';
+const LINES_BRIDGES = ['src/app/api/hub/business-budget/route.ts', 'src/app/api/hub/year-calendar/route.ts'];
+const linesLoader = codeOf(LINES_LOADER);
+if (!/export async function loadRoutineBudgetInputs\(/.test(linesLoader)) linesFail(`${LINES_LOADER} no longer exports loadRoutineBudgetInputs() — the one read every budget route shares`);
+if (!/steps:\s*\{\s*where:\s*\{\s*is_active:\s*true\s*\}/.test(linesLoader)) linesFail(`${LINES_LOADER} does not hand the leaf the routine's active lines`);
+if (!/start_date:\s*true/.test(linesLoader)) linesFail(`${LINES_LOADER} does not read start_date — a one-off would count from 1971 and land in no month (ONEOFF-01)`);
+if (/(budget_amount|coa_code):\s*\{\s*not:\s*null\s*\}/.test(linesLoader)) linesFail(`${LINES_LOADER} filters routines on a routine-level column — that hides a lined routine with blank routine-level fields`);
+const linesApiBridges = tsFiles(resolve(ROOT, 'src/app/api'))
+  .map((abs) => abs.replace(`${ROOT}/`, ''))
+  .filter((rel) => /routinesMonthlyByCoa\(/.test(codeOf(rel)));
+for (const f of LINES_BRIDGES) if (!linesApiBridges.includes(f)) linesFail(`${f} no longer reads the monthly figure through routineBudget.ts`);
+for (const rel of linesApiBridges) {
+  const body = codeOf(rel);
+  if (!/\b(loadRoutineBudgetInputs|toRoutineBudgetInput)\(/.test(body)) linesFail(`${rel} calls routinesMonthlyByCoa with inputs not built by ${LINES_LOADER} — a second read of a routine, and one book's month can disagree with the other's`);
+  if (/operations_routines\.findMany\(/.test(body)) linesFail(`${rel} reads routines with a query of its own beside the loader — the one read lives in ${LINES_LOADER}`);
+  if (/budget_amount:\s*\{\s*not:\s*null\s*\}/.test(body)) linesFail(`${rel} filters routines on the routine-level budget_amount — that hides a lined routine with blank routine-level fields`);
+}
 
 // 2. No reader adds routine-level and line-level amounts. The only place the two
 //    columns meet is the leaf, and the leaf itself is probed here.
@@ -2755,7 +2774,7 @@ if (!/data-drill-lines-total/.test(linesPanel)) linesFail('the panel does not pr
 if (!/data-drill-line-link-open/.test(linesPanel)) linesFail('a line in the panel carries no Link');
 if (!/!\(row\.lines && row\.lines\.length > 0\) && \(\s*<Row label="Category \(COA\)"/.test(linesPanel)) linesFail('the panel keeps a routine-level Category row for a routine that has one per line');
 if (!/if \(row\.lines && row\.lines\.length > 0\) return null;/.test(linesPanel)) linesFail('a lined occurrence can still be linked at the routine grain — the coffee posting must link to the coffee LINE');
-if (linesViolations === 0) console.log(`✔ The lines law passed — ${LINES_READERS.length + 1} readers read the one leaf; $280 across 2 of 3 with the routine-level $15 set aside, never added; a stepless routine keeps its own; a routine_line link carries its instant.`);
+if (linesViolations === 0) console.log(`✔ The lines law passed — ${LINES_READERS.length + 1} readers read the one leaf; ${linesApiBridges.length} budget routes read routines through the one loader; $280 across 2 of 3 with the routine-level $15 set aside, never added; a stepless routine keeps its own; a routine_line link carries its instant.`);
 else console.log(`✖ The lines law FAILED — ${linesViolations} violation(s).`);
 });
 lawGuard('The one-off law', () => {

@@ -142,8 +142,10 @@ test('every expansion is anchored on the routine\'s start_date — one mechanism
   }
   // The evaluator and the budget bridge read the column they anchor on.
   assert.match(code('src/inngest/functions/routine-evaluator.ts'), /start_date: true/);
-  assert.match(code('src/app/api/hub/business-budget/route.ts'), /start_date: true/);
-  assert.match(code('src/app/api/hub/business-budget/route.ts'), /start_date: r\.start_date,/);
+  // LINES-02: the budget bridge's routine read lives in the one loader both budget routes share.
+  assert.match(code('src/lib/operations/routineBudgetInputs.ts'), /start_date: true/);
+  assert.match(code('src/lib/operations/routineBudgetInputs.ts'), /start_date: r\.start_date,/);
+  for (const f of ['src/app/api/hub/business-budget/route.ts', 'src/app/api/hub/year-calendar/route.ts']) assert.match(code(f), /loadRoutineBudgetInputs\(/);
   // Nothing else in src expands a schedule.
   const others = [...tsFilesUnder('src/app'), ...tsFilesUnder('src/components'), ...tsFilesUnder('src/lib'), ...tsFilesUnder('src/inngest')]
     .filter((f) => !callers.includes(f) && f !== HELPERS && !f.includes('__tests__'))

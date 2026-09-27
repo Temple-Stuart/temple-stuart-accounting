@@ -193,10 +193,15 @@ test('every HB-4a reader reads the leaf — none restates the rule', () => {
   ]) assert.match(code(f), /routinePlanned\(/, `${f} reads the leaf`);
   // The HB-4d bridge reads it THROUGH routinesMonthlyByCoa, and no longer hides a
   // lined routine with blank routine-level fields.
-  const bridge = code('src/app/api/hub/business-budget/route.ts');
-  assert.match(bridge, /routinesMonthlyByCoa/);
-  assert.doesNotMatch(bridge, /budget_amount: \{ not: null \}/);
-  assert.match(bridge, /steps: \{ where: \{ is_active: true \}/);
+  // LINES-02: both budget routes are the bridge now, and the routine read (the
+  // lines included) lives in the one loader they share.
+  for (const f of ['src/app/api/hub/business-budget/route.ts', 'src/app/api/hub/year-calendar/route.ts']) {
+    const bridge = code(f);
+    assert.match(bridge, /routinesMonthlyByCoa/);
+    assert.doesNotMatch(bridge, /budget_amount: \{ not: null \}/);
+    assert.match(bridge, /loadRoutineBudgetInputs\(/);
+  }
+  assert.match(code('src/lib/operations/routineBudgetInputs.ts'), /steps: \{ where: \{ is_active: true \}/);
   // The window feed carries the lines.
   assert.match(code('src/app/api/hub/operations-routines/route.ts'), /include: \{ steps: \{ where: \{ is_active: true \}/);
   // The census cites the leaf.
