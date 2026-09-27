@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildBudgetReport, BudgetReportError,
-  type BudgetLine, type BudgetReport, type BudgetReportErrorCode, type BudgetReportInput, type Posting, type ReportAccount, type ReportEntity,
+  type BudgetLine, type BudgetReport, type BudgetReportErrorCode, type BudgetReportInput, type BudgetSource, type BudgetView,
+  type Posting, type ReportAccount, type ReportEntity,
 } from '../budget/report';
 import { code } from '../sourceText';
 
@@ -304,6 +305,87 @@ test('R12 FAIL LOUD — every bad input is refused by a named error, never coerc
   throwsCode(() => buildBudgetReport(input({ accounts: [...acct, expense('ent-p', '6150', 'Coffee again')] })), 'duplicate-account');
   // An account for an entity not in entities.
   throwsCode(() => buildBudgetReport(input({ accounts: [expense('ent-ghost', '6150', 'Coffee')] })), 'account-for-unknown-entity');
+  // Beyond R12's list — every other code the model can throw has its assertion too.
+  // A view that is not a day, week or year.
+  throwsCode(() => buildBudgetReport(input({ view: { kind: 'quarter', quarter: 3 } as unknown as BudgetView })), 'bad-view');
+  // The same entity twice.
+  throwsCode(() => buildBudgetReport(input({ entities: [PERSONAL, { ...PERSONAL, name: 'Personal again' }] })), 'duplicate-entity');
+  // A balance type that is not D or C.
+  throwsCode(() => buildBudgetReport(input({ accounts: [{ ...expense('ent-p', '6150', 'Coffee'), balanceType: 'X' as 'D' }] })), 'bad-balance-type');
+  // An account type outside the five families — and 'Expense' is not coerced to 'expense'.
+  throwsCode(() => buildBudgetReport(input({ accounts: [{ ...expense('ent-p', '6150', 'Coffee'), accountType: 'Expense' }] })), 'bad-account-type');
+  // A budget line from a planner that is not one of the four.
+  throwsCode(() => buildBudgetReport(input({ accounts: acct, budgetLines: [{ ...line('ent-p', '6150', '2026-09-01', 400), source: 'agenda' as BudgetSource }] })), 'bad-source');
+  // An empty id.
+  throwsCode(() => buildBudgetReport(input({ accounts: acct, postings: [post('ent-p', '6150', '2026-09-01', 'D', 100, '')] })), 'missing-id');
+  // A contra P&L account: revenue stored as D, or expense stored as C — refused by name.
+  throwsCode(() => buildBudgetReport(input({ accounts: [{ ...revenue('ent-p', '4000', 'Salary'), balanceType: 'D' }] })), 'balance-disagrees-with-family');
+  throwsCode(() => buildBudgetReport(input({ accounts: [{ ...expense('ent-p', '6150', 'Coffee'), balanceType: 'C' }] })), 'balance-disagrees-with-family');
+  assert.throws(
+    () => buildBudgetReport(input({ accounts: [{ ...revenue('ent-p', '4000', 'Salary'), balanceType: 'D' }] })),
+    /4000 in entity ent-p is a revenue account stored with balance type D; a revenue account's normal balance is C/,
+    'the refusal names the entity, the code, the family and the balance type',
+  );
+  // Asset, liability and equity accounts are not checked: they never become rows.
+  // A contra asset (accumulated depreciation, stored C) is accepted.
+  assert.doesNotThrow(() => buildBudgetReport(input({ accounts: [{ entityId: 'ent-p', code: '1590', name: 'Accumulated depreciation', accountType: 'asset', balanceType: 'C' }] })));
+});
+
+test('R10 UNBUDGETED TO DATE — WEEK of 2026-09-21, asOf 2026-09-23: budget only on Sun 27, a 300 debit on Tue 22 → no budget to date, so no variance; the 300 is unbudgetedActual', () => {
+  const r = buildBudgetReport(input({
+    asOf: '2026-09-23',
+    view: { kind: 'week', weekOf: '2026-09-21' },
+    accounts: [expense('ent-p', '6450', 'Laundry'), expense('ent-p', '6150', 'Coffee')],
+    budgetLines: [
+      line('ent-p', '6450', '2026-09-27', 500),  // budgeted on Sunday only
+      line('ent-p', '6150', '2026-09-21', 400),  // Coffee, budgeted Monday
+    ],
+    postings: [
+      post('ent-p', '6450', '2026-09-22', 'D', 300, 'je-laundry'),  // spent Tuesday
+      post('ent-p', '6150', '2026-09-21', 'D', 450, 'je-coffee'),
+    ],
+  }));
+  const week = col(r, 'week');
+  // Laundry WEEK: full = 500 (Sun) · to date [21 … 23] = no line → null · actual = 300 · variance null (no budget to date).
+  assert.deepEqual(rowOf(r, 'ent-p', '6450').cells[week], { budgetFull: 500, budgetToDate: null, actual: 300, variance: null });
+  // Coffee WEEK: 400 / 400 / 450 / 400 − 450 = −50.
+  assert.deepEqual(rowOf(r, 'ent-p', '6150').cells[week], { budgetFull: 400, budgetToDate: 400, actual: 450, variance: -50 });
+  const exp = r.totals[week].expense;
+  // unbudgetedActual = Σ actual where budgetToDate is null = Laundry's 300 — though Laundry HAS a full budget.
+  assert.equal(exp.unbudgetedActual, 300);
+  // The section variance is Coffee's −50 alone; the 300 is not folded in.
+  assert.equal(exp.variance, -50);
+  assert.equal(exp.actual, 750); // 300 + 450
+});
+
+test('R7 OUTSIDE THE VIEW — WEEK of 2026-09-21: an item dated outside [21 … 27] makes no row and is not unplaced; a malformed day outside it still throws', () => {
+  const accounts = [expense('ent-p', '6700', 'Books'), expense('ent-p', '6800', 'Postage')];
+  const r = buildBudgetReport(input({
+    view: { kind: 'week', weekOf: '2026-09-21' },
+    accounts,
+    budgetLines: [
+      line('ent-p', '6700', '2026-10-01', 2500),              // in the chart, no other activity — after the week
+      line('ent-p', '9999', '2026-10-01', 900, 'trip-out'),   // not in the chart — after the week
+    ],
+    postings: [
+      post('ent-p', '6800', '2026-09-14', 'D', 1200, 'je-post'),  // in the chart, no other activity — before the week
+      post('ent-p', '9999', '2026-09-14', 'D', 60, 'je-stray'),   // not in the chart — before the week
+    ],
+  }));
+  assert.deepEqual(r.books.flatMap((b) => b.rows), [], 'no row for 6700 or 6800: nothing of theirs is in the week');
+  assert.deepEqual(r.unplaced, [], 'the two 9999 items are outside the view, not unplaced');
+  // Every input is still validated wherever it falls.
+  throwsCode(() => buildBudgetReport(input({ view: { kind: 'week', weekOf: '2026-09-21' }, accounts, budgetLines: [line('ent-p', '6700', '2026-10-32', 2500)] })), 'malformed-day');
+  throwsCode(() => buildBudgetReport(input({ view: { kind: 'week', weekOf: '2026-09-21' }, accounts, postings: [post('ent-p', '6800', '2026-09-31', 'D', 1200, 'je-bad')] })), 'malformed-day');
+});
+
+test('R7 REVENUE BEFORE EXPENSE BY FAMILY — expense 5100 and a revenue account coded 9500: the revenue row is first', () => {
+  const r = buildBudgetReport(input({
+    accounts: [expense('ent-p', '5100', 'Brokerage fees'), revenue('ent-p', '9500', 'Referral income')],
+    postings: [post('ent-p', '5100', '2026-09-10', 'D', 1500, 'je-fee'), post('ent-p', '9500', '2026-09-11', 'C', 4000, 'je-ref')],
+  }));
+  // By code alone 5100 < 9500 would put the expense first; the family decides.
+  assert.deepEqual(r.books[0].rows.map((x) => [x.family, x.code]), [['revenue', '9500'], ['expense', '5100']]);
 });
 
 test('R1 MONEY IS INTEGER CENTS — every figure is a safe integer; nothing is rounded; a sum that leaves the safe range fails loud', () => {
