@@ -9,6 +9,7 @@ import { TRAVEL_COA, getActiveScanCategories } from '@/lib/travelCOA';
 import { getSource, type Source } from '@/lib/travelSourceRegistry';
 import { Waves, Wifi, Coffee, Dumbbell, Flower2, Car, type LucideIcon } from 'lucide-react';
 import HScrollRow from '@/components/trips/HScrollRow';
+import { ratingLine, ratingValue, scoreWords } from '@/lib/travel/ratingWords';
 
 // Grok response format with sentiment analysis
 interface GrokRecommendation {
@@ -18,17 +19,18 @@ interface GrokRecommendation {
   photoUrl: string | null;
   priceLevel: number | null;
   priceLevelDisplay: string | null;
-  googleRating: number;
-  reviewCount: number;
-  sentimentScore: number;
+  // LAW-02 (2026-09-27): NULL when the vendor stated none — rendered "not rated", never 0.
+  googleRating: number | null;
+  reviewCount: number | null;
+  sentimentScore: number | null;
   sentiment: 'positive' | 'neutral' | 'negative';
   summary: string;
   warnings: string[];
   trending: boolean;
-  fitScore: number;
+  fitScore: number | null;
   valueRank: number;
   category: string;
-  compositeScore?: number;
+  compositeScore?: number | null;
   // Viator-specific fields (present when result is from Viator API)
   viatorProductCode?: string;
   bookingUrl?: string | null;
@@ -411,7 +413,7 @@ function useTripScanState(input: Props) {
     const { category, item, customPrice, days, rateType, splitType } = sel;
     const vendorApi = CATEGORY_TO_VENDOR_API[category] || 'activities';
     const scheduleNote = `Days: ${days.join(', ')} | Rate: ${rateType} | Split: ${splitType}`;
-    const aiNote = `AI Score: ${item.sentimentScore}/10 | Fit: ${item.fitScore}/10 | ${item.summary}`;
+    const aiNote = `AI Score: ${scoreWords(item.sentimentScore)} | Fit: ${scoreWords(item.fitScore)} | ${item.summary}`;
     const notes = `${scheduleNote}\n${aiNote}`;
 
     if (vendorApi === 'lodging') {
@@ -539,7 +541,7 @@ function useTripScanState(input: Props) {
     setCommittingCard(cardKey);
     try {
       // Step 1: Create the vendor option record
-      const aiNote = `${rec.googleRating} stars (${rec.reviewCount} reviews)\n${rateNote}`;
+      const aiNote = `${ratingLine(rec.googleRating, rec.reviewCount)}\n${rateNote}`;
       let body: Record<string, any> = {};
       const vendorApi = catInfo.vendorApi;
 
@@ -910,7 +912,7 @@ export function TripScanModals() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded max-w-lg w-full p-6 shadow-sm">
             <h3 className="font-bold text-terminal-lg mb-1">{CATEGORY_INFO[editingSelection.category]?.icon || ''} {editingSelection.item.name}</h3>
-            <p className="text-sm text-text-muted mb-4">{editingSelection.item.googleRating} stars ({editingSelection.item.reviewCount} reviews)</p>
+            <p className="text-sm text-text-muted mb-4">{ratingLine(editingSelection.item.googleRating, editingSelection.item.reviewCount)}</p>
             
             <div className="space-y-4">
               <div>
@@ -1389,8 +1391,8 @@ function TravelCarousel({ catKey, label, source, isLoading, items, error, onCard
                     {/* Rating (primary) + reviewScore (secondary) + price */}
                     <div className="flex items-center justify-between text-[11px] text-text-muted pt-0.5">
                       <span className="flex items-center gap-1.5">
-                        <span aria-label={`Rated ${rec.googleRating || 0} out of 5${rec.reviewCount ? `, ${rec.reviewCount} reviews` : ''}`}>
-                          <span className="text-brand-gold">★</span> <span className="text-text-primary">{rec.googleRating || '—'}</span>{rec.reviewCount ? ` (${rec.reviewCount})` : ''}
+                        <span aria-label={ratingLine(rec.googleRating, rec.reviewCount)}>
+                          <span className="text-brand-gold">★</span> <span className="text-text-primary">{ratingValue(rec.googleRating)}</span>{rec.reviewCount ? ` (${rec.reviewCount})` : ''}
                         </span>
                         {rec.reviewScore != null ? (
                           <span
@@ -1453,7 +1455,7 @@ function TravelCarousel({ catKey, label, source, isLoading, items, error, onCard
                   <div className="p-3 space-y-1">
                     <div className="text-xs font-semibold text-text-primary line-clamp-2 leading-tight">{rec.name}</div>
                     <div className="flex items-center justify-between text-[11px] text-text-muted">
-                      <span>★ {rec.googleRating || '—'}{rec.reviewCount ? ` (${rec.reviewCount})` : ''}</span>
+                      <span>★ {ratingValue(rec.googleRating)}{rec.reviewCount ? ` (${rec.reviewCount})` : ''}</span>
                       {rec.price != null ? (
                         <span className="font-semibold text-emerald-700">${rec.price}</span>
                       ) : rec.priceLevelDisplay ? (

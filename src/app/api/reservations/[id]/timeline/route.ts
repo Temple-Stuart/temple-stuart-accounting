@@ -36,7 +36,13 @@ import { timelineOf, type TimelineArrival } from '@/lib/reservations/timeline';
  * Stuart's books, not the customer's). So commission_ledger is not loaded and
  * the commission_locked audit rows are not selected — excluded BY NAME, never
  * silently: the commission rows stay in commission_ledger and the chained
- * commission_locked rows stay in audit_log, readable from the owner's audit log.
+ * commission_locked rows stay in audit_log.
+ * LAW-02 (2026-09-27): corrected — they are NOT readable from the owner's audit
+ * log. Since AUDIT-01b they are written by the system actor (user_id NULL,
+ * system_automation — src/lib/reservations/auditTrail.ts COMMISSION_ACTOR), and the
+ * audit-log read route excludes action_type commission_locked for every viewer
+ * (src/app/api/audit-log/route.ts NEVER_RETURNED).
+ * Temple Stuart's margin is in its own books only.
  */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

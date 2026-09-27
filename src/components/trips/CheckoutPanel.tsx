@@ -18,6 +18,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Script from 'next/script';
+import { prebookUnstatedMoney } from '@/lib/checkout/prebookGate';
 
 declare global {
   interface Window {
@@ -98,6 +99,7 @@ interface Prebook {
   prebookId: string;
   transactionId: string;
   secretKey: string;
+  /** LAW-02 (2026-09-27): stated — a hold without both is refused by name before this is set (prebookGate.ts). */
   price: number;
   currency: string;
   /** COMM-01 (2026-09-26): the vendor's stated prebook commission, or null when it stated none — rendered "not stated", never 0. */
@@ -329,6 +331,19 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
           }
           return;
         }
+        // LAW-02 (2026-09-27): a hold with no stated price or currency never reaches the
+        // card form — the vendor's figure was once defaulted to $0.00 USD here. Named.
+        const unstatedMoney = prebookUnstatedMoney(p);
+        if (unstatedMoney) {
+          if (!cancelled) {
+            fail({
+              kind: 'prebook',
+              message: 'This rate cannot be paid — the vendor stated no price for it.',
+              detail: `The hold came back without ${unstatedMoney}, so no card is asked for. Nothing was charged.`,
+            });
+          }
+          return;
+        }
         if (!cancelled) {
           setPrebook(p as Prebook);
           setPaymentEnv(data.paymentEnv === 'live' ? 'live' : 'sandbox');
@@ -372,7 +387,8 @@ export default function CheckoutPanel({ tripId, authed, tripName, offerId, hotel
       checkout,
       currency: prebook.currency,
       price: String(prebook.price),
-      commission: String(prebook.commission),
+      // LAW-02 (2026-09-27): no `commission` param — /booking/confirm reads none, and
+      // the book route takes the vendor's own stated figure (COMM-01).
       ...(resolvedTripId ? { tripId: resolvedTripId } : {}),
     });
     const returnUrl = `${window.location.origin}/booking/confirm?${q.toString()}`;

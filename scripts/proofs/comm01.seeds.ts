@@ -71,8 +71,16 @@ const SEEDS: Seed[] = [
   {
     name: 'comm01-f the lock ignores the check-out date (clause 3)',
     file: APPLY,
-    find: '    const afterCheckout = row.checkoutDate !== null && row.checkoutDate < vendor.readAt;',
+    // LAW-02 (2026-09-27): the anchor moved with the one-day grace.
+    find: '    const afterCheckout = row.checkoutDate !== null && row.checkoutDate.getTime() + COMMISSION_LOCK_GRACE_MS < vendor.readAt.getTime();',
     replace: '    const afterCheckout = true;',
+    expect: 'does not require checkoutDate < readAt',
+  },
+  {
+    name: 'comm01-f2 the lock drops the one-day grace — a read at 00:01 on checkout day locks (clause 3, LAW-02)',
+    file: APPLY,
+    find: '    const afterCheckout = row.checkoutDate !== null && row.checkoutDate.getTime() + COMMISSION_LOCK_GRACE_MS < vendor.readAt.getTime();',
+    replace: '    const afterCheckout = row.checkoutDate !== null && row.checkoutDate < vendor.readAt;',
     expect: 'does not require checkoutDate < readAt',
   },
   {

@@ -412,17 +412,19 @@ interface HotelRecommendation {
   photoUrl: string | null;
   priceLevel: number | null;
   priceLevelDisplay: string | null;
-  googleRating: number;
-  reviewCount: number;
-  sentimentScore: number;
-  sentiment: 'positive' | 'neutral' | 'negative';
+  /** LAW-02 (2026-09-27): the stated rating on 0-5, or NULL when unstated — never 0. */
+  googleRating: number | null;
+  reviewCount: number | null;
+  sentimentScore: number | null;
+  sentiment: 'positive' | 'neutral' | 'negative' | null;
   summary: string;
   warnings: string[];
   trending: boolean;
-  fitScore: number;
+  fitScore: number | null;
   valueRank: number;
   category: string;
-  compositeScore: number;
+  /** NULL when the hotel states no rating — ranked after every rated hotel. */
+  compositeScore: number | null;
   // Bookable signal — generalise to providerProductId in a later refactor.
   liteapiHotelId: string;
   /** Rate-level offer ID for `/rates/prebook`. Null when no bookable rate
@@ -592,22 +594,38 @@ export function liteApiHotelToRecommendation(
 
   // Prefer guest rating (0-10 scale, normalise to 0-5) over star rating;
   // either is usable — fall back through the options.
-  const rawRating = h.rating ?? h.starRating ?? h.stars ?? 0;
-  const googleRating = rawRating > 5 ? Math.round((rawRating / 2) * 10) / 10 : rawRating;
-  const reviewCount = h.reviewCount ?? 0;
+  // LAW-02 (2026-09-27): an unstated rating is NULL, not 0 — a 0 rating is a claim
+  // (it read "negative" and ranked the hotel last). Everything derived from the
+  // rating is NULL with it; an unstated reviewCount is NULL and its signal is
+  // EXCLUDED from the composite with the remaining weights re-normalized — never
+  // imputed. The planner renders NULL as "not rated" (src/lib/travel/ratingWords.ts).
+  const statedRating = [h.rating, h.starRating, h.stars].find((v): v is number => typeof v === 'number' && Number.isFinite(v));
+  const googleRating = statedRating === undefined ? null : statedRating > 5 ? Math.round((statedRating / 2) * 10) / 10 : statedRating;
+  const reviewCount = typeof h.reviewCount === 'number' && Number.isFinite(h.reviewCount) ? h.reviewCount : null;
 
-  const sentiment = googleRating >= 4.5 ? 'positive' as const
+  const sentiment = googleRating === null ? null
+    : googleRating >= 4.5 ? 'positive' as const
     : googleRating >= 3.5 ? 'neutral' as const
     : 'negative' as const;
-  const sentimentScore = Math.round(googleRating * 2);
-  const fitScore = Math.min(10, Math.round(googleRating * 2));
+  const sentimentScore = googleRating === null ? null : Math.round(googleRating * 2);
+  const fitScore = googleRating === null ? null : Math.min(10, Math.round(googleRating * 2));
 
   // Composite score: rating × log(reviews) blended with rating-based score —
   // identical formula to Viator's so ranking is consistent across sources.
-  const mandateFit = Math.min(100, fitScore * 10);
-  const rawQuality = googleRating * Math.log10(Math.max(reviewCount, 1));
-  const quality = Math.min(100, (rawQuality / 15) * 100);
-  const compositeScore = Math.round(mandateFit * 0.4 + quality * 0.35 + 75 * 0.25);
+  // LAW-02: no rating → no composite (NULL; the ranker puts it after every rated
+  // hotel); no review count → the quality signal is excluded and the two remaining
+  // weights (0.40 fit, 0.25 base) are re-normalized over their sum.
+  let compositeScore: number | null = null;
+  if (googleRating !== null && fitScore !== null) {
+    const mandateFit = Math.min(100, fitScore * 10);
+    if (reviewCount === null) {
+      compositeScore = Math.round((mandateFit * 0.4 + 75 * 0.25) / (0.4 + 0.25));
+    } else {
+      const rawQuality = googleRating * Math.log10(Math.max(reviewCount, 1));
+      const quality = Math.min(100, (rawQuality / 15) * 100);
+      compositeScore = Math.round(mandateFit * 0.4 + quality * 0.35 + 75 * 0.25);
+    }
+  }
 
   return {
     name: h.name || 'Hotel',
@@ -679,9 +697,11 @@ export interface PrebookResult {
   prebookId: string;
   hotelId: string;
   offerId: string;
-  /** Final guest-paid price (in `currency`). */
-  price: number;
-  currency: string;
+  /** Final guest-paid price (in `currency`). LAW-02 (2026-09-27): as stated, or NULL
+   *  — never 0. The checkout refuses a NULL price or currency by name before any
+   *  card is asked for (src/lib/checkout/prebookGate.ts). */
+  price: number | null;
+  currency: string | null;
   /** COMM-01 (2026-09-26): the vendor's stated commission at prebook, or NULL when
    *  the answer carries none — never 0. The checkout renders NULL as "not stated". */
   commission: number | null;
@@ -718,8 +738,10 @@ export async function prebookRate(params: PrebookParams): Promise<PrebookResult>
     prebookId: d.prebookId,
     hotelId: d.hotelId,
     offerId: d.offerId ?? params.offerId,
-    price: d.price ?? 0,
-    currency: d.currency ?? 'USD',
+    // LAW-02 (2026-09-27): stated, or NULL — was `?? 0` / `?? 'USD'`, a $0 USD hold
+    // the vendor never stated. The checkout names the gap instead of taking a card.
+    price: typeof d.price === 'number' && Number.isFinite(d.price) ? d.price : null,
+    currency: typeof d.currency === 'string' && d.currency.length > 0 ? d.currency : null,
     // COMM-01 (2026-09-26): stated, or null — never 0.
     commission: typeof d.commission === 'number' ? d.commission : null,
     transactionId: d.transactionId,
