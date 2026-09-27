@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { tripLinesLinkedRefusal } from '@/lib/trips/budgetLinkGuard';
 import { googleFetch } from '@/lib/googlePlacesQuota';
 import { photoProxyUrl } from '@/lib/placesSearch';
 
@@ -276,6 +277,12 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     if (trip.status !== "committed") {
       return NextResponse.json({ error: "Trip is not committed" }, { status: 400 });
     }
+
+    // LINK-02 (2026-09-27): a linked budget line cannot be deleted (RESTRICT), and the
+    // calendar and budgets deletes below run first, outside any transaction — so ask
+    // FIRST and refuse by name before any write.
+    const linked = await tripLinesLinkedRefusal(user.id, id);
+    if (linked) return linked;
 
     // Remove calendar event
     await prisma.$queryRaw`

@@ -47,6 +47,22 @@ export function isBookingEventKind(v: string): v is BookingEventKind {
   return (BOOKING_EVENT_KINDS as readonly string[]).includes(v);
 }
 
+/**
+ * LINK-02 (2026-09-27): the owner linking a booking to the budget line it fulfils,
+ * and unlinking it — AuditActionType values added by migration
+ * 20260927120000_link_02_reservation_budget_links (AUDIT-01's sixteen stay as they were).
+ */
+export const BUDGET_LINK_KINDS = ['reservation_budget_linked', 'reservation_budget_unlinked'] as const;
+
+export type BudgetLinkKind = (typeof BUDGET_LINK_KINDS)[number];
+
+/** Every kind the audit port writes and this leaf words: AUDIT-01's sixteen and LINK-02's two. */
+export type AuditedBookingKind = BookingEventKind | BudgetLinkKind;
+
+export function isAuditedBookingKind(v: string): v is AuditedBookingKind {
+  return isBookingEventKind(v) || (BUDGET_LINK_KINDS as readonly string[]).includes(v);
+}
+
 export interface Evidence {
   table: string;
   id: string;
@@ -100,7 +116,7 @@ function emailWords(kind: unknown): string {
 // ─── 1. the description of an audit row ─────────────────────────────────────
 
 /** ONE line for a booking change — the audit row's action_description and the timeline's words. */
-export function bookingEventWords(kind: BookingEventKind, facts: EventFacts): string {
+export function bookingEventWords(kind: AuditedBookingKind, facts: EventFacts): string {
   const b = facts.before;
   const a = facts.after;
   switch (kind) {
@@ -136,7 +152,18 @@ export function bookingEventWords(kind: BookingEventKind, facts: EventFacts): st
       return `The ${word(field(a, 'kind'))} settled — bank row ${word(field(a, 'settledTransactionId'))}`;
     case 'commission_locked':
       return `Commission locked at ${centsWords(field(a, 'lockedCommissionCents'), field(a, 'currency'))}`;
+    // LINK-02 (2026-09-27): the owner's link, and its undoing — the line named as it was described.
+    case 'reservation_budget_linked':
+      return `Linked to the budget line ${lineWords(a)}`;
+    case 'reservation_budget_unlinked':
+      return `Unlinked from the budget line ${lineWords(b)}`;
   }
+}
+
+/** A budget line as the link recorded it: its description (or its absence, named) and its id. */
+function lineWords(facts: Record<string, unknown> | null): string {
+  const description = field(facts, 'description');
+  return `${typeof description === 'string' && description.trim().length > 0 ? `“${description}”` : '(no description)'} — line ${word(field(facts, 'budgetLineItemId'))}`;
 }
 
 // ─── 2. the timeline ─────────────────────────────────────────────────────────
@@ -224,6 +251,7 @@ const KIND_ORDER: readonly string[] = [
   'arrival_booking', 'arrival_booking_read', 'arrival_cancellation', 'arrival',
   'webhook',
   ...BOOKING_EVENT_KINDS,
+  ...BUDGET_LINK_KINDS,
   'money_event', 'money_event_settlement',
   'commission', 'commission_lock',
   'journal_entry',
@@ -276,13 +304,13 @@ export function timelineOf(input: TimelineInput): TimelineItem[] {
     items.push({ at: iso(w.receivedAt), kind: 'webhook', words: `The vendor sent ${w.eventType} — ${w.outcome}`, evidence: { table: 'webhook_events', id: w.id } });
   }
   for (const r of input.auditRows) {
-    const known = isBookingEventKind(r.action_type);
+    const known = isAuditedBookingKind(r.action_type);
     items.push({
       at: iso(r.created_at),
       kind: known ? r.action_type : 'audit',
       // A known kind is rendered by this leaf from its stated before/after; anything else AS ITSELF.
       words: known
-        ? bookingEventWords(r.action_type as BookingEventKind, { before: asFacts(r.payload_before), after: asFacts(r.payload_after) })
+        ? bookingEventWords(r.action_type as AuditedBookingKind, { before: asFacts(r.payload_before), after: asFacts(r.payload_after) })
         : `${r.action_type}: ${r.action_description}`,
       evidence: { table: 'audit_log', id: r.id },
     });

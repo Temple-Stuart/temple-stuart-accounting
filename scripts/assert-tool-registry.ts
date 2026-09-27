@@ -159,7 +159,8 @@ import { BANK_REACHABLE_REFUND_DESTINATIONS, MATCH_REFUND_DATE_WINDOW_DAYS, isBa
 import { refundProposalLine } from '../src/lib/runway/refundWords';
 import { NOT_MATCHED, NOT_POSTED, NOT_STATED as RECEIPT_NOT_STATED, NOT_YET_TICKETED, receiptOf } from '../src/lib/receipts/bookingReceipt';
 import { BOOKINGS_LEDGER_COLUMNS, bookingsLedgerRow } from '../src/lib/receipts/bookingsLedgerCsv';
-import { BOOKING_EVENT_KINDS, bookingEventWords, timelineOf } from '../src/lib/reservations/timeline';
+import { BOOKING_EVENT_KINDS, BUDGET_LINK_KINDS, bookingEventWords, timelineOf } from '../src/lib/reservations/timeline';
+import { LINE_STATUS, lineStatusOf } from '../src/lib/trips/lineStatus';
 import { DYNAMIC_READ_ENV, LIBRARY_READ_ENV } from '../src/lib/envLaw';
 import { EXPECTED_FEED_COUNT, FEED_COST, FEED_IDS, SCAN_COST, feedCostLaw, scanCostLine } from '../src/lib/observatory/feedCost';
 import { FINNHUB_TTL, finnhubCallsPerSymbol, finnhubTtlLaw, slowTierEndpoints } from '../src/lib/convergence/finnhub-ttl';
@@ -6581,7 +6582,8 @@ lawGuard('The audit law', () => {
     const list = new RegExp(`\\n  ${family}: \\[([^\\]]*)\\]`).exec(prefixSrc)?.[1] ?? null;
     if (list === null) { auditFail(`${PREFIX_ROUTE}'s prefix map has no '${family}' family`); continue; }
     const listed = [...list.matchAll(/'(\w+)'/g)].map((m) => m[1]).sort();
-    const owed = kinds.filter((k) => k.startsWith(family)).slice().sort();
+    // LINK-02 (2026-09-27): the family also names the budget-line link and unlink (their own migration).
+    const owed = [...kinds, ...BUDGET_LINK_KINDS].filter((k) => k.startsWith(family)).slice().sort();
     if (JSON.stringify(listed) !== JSON.stringify(owed)) auditFail(`${PREFIX_ROUTE}'s '${family}' list is [${listed.join(', ')}], not the family's kinds [${owed.join(', ')}]`);
   }
 
@@ -6761,6 +6763,163 @@ lawGuard('The audit law', () => {
 
   if (auditViolations === 0) console.log(`✔ The audit law passed — the ${kinds.length} booking kinds are in the enum, the schema and the read route's two families; every listed writer records through the one port after its change commits (the cancel request before the vendor's answer), with a deterministic request_id and the words leaf's description; no booking write site calls writeAuditLog directly (the review route's link row, named); a failed audit write is named and never thrown; the timeline leaf is pure; its route reads only, owns the booking, imports no vendor client and keeps commission off the customer's page; commission_locked is written by the system with no user id, and the audit-log read route never returns it.`);
   else console.log(`✖ The audit law FAILED — ${auditViolations} violation(s).`);
+});
+
+// ── THE BUDGET-LINK LAW (LINK-02, 2026-09-27) ────────────────────────────────
+// A BOOKING IS LINKED TO THE BUDGET LINE IT FULFILS, BY A HUMAN, AND THE LINE READS BOOKED.
+// The link is the owner's explicit act — one route writes it, the line it writes is the
+// one the owner named, and nothing reads a name or an amount to choose one. A line's
+// status is derived by one pure leaf that computes no money. Link and unlink are booking
+// events through the one audit port. The database keeps the cardinality and RESTRICT;
+// the writers that would break the link's integrity ask first and refuse by name.
+lawGuard('The budget-link law', () => {
+  let blViolations = 0;
+  const blFail = (m: string) => { blViolations += 1; violations.push(`budget-link law: ${m} (LINK-02)`); };
+
+  const ROUTE = 'src/app/api/reservations/[id]/budget-link/route.ts';
+  const LEAF = 'src/lib/reservations/budgetLink.ts';
+  const STATUS_LEAF = 'src/lib/trips/lineStatus.ts';
+  const GUARD = 'src/lib/trips/budgetLinkGuard.ts';
+  const ACTUALS = 'src/app/api/trips/[id]/actuals/route.ts';
+  const LEDGER = 'src/components/trips/TripBudgetActual.tsx';
+  const CONTROL = 'src/components/trips/TripBookings.tsx';
+  const TRIP_ROUTE = 'src/app/api/trips/[id]/route.ts';
+  const COMMIT_ROUTE = 'src/app/api/trips/[id]/commit/route.ts';
+  const ATTACH_ROUTE = 'src/app/api/reservations/[id]/route.ts';
+  const WORDS_LEAF = 'src/lib/reservations/timeline.ts';
+  for (const f of [ROUTE, LEAF, STATUS_LEAF, GUARD, ACTUALS, LEDGER, CONTROL, TRIP_ROUTE, COMMIT_ROUTE, ATTACH_ROUTE, WORDS_LEAF]) {
+    if (!existsSync(resolve(ROOT, f))) blFail(`${f} is missing`);
+  }
+  const route = codeOf(ROUTE);
+  const leaf = codeOf(LEAF);
+
+  // ── CLAUSE 1. ONLY THE BUDGET-LINK ROUTE WRITES reservation_budget_links. ──
+  for (const { file, src } of srcFiles) {
+    if (/reservation_budget_links\s*\.\s*(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(/.test(src) && file !== ROUTE) blFail(`${file} writes reservation_budget_links — the budget-link route is its only writer`);
+    if (/(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+"?reservation_budget_links/i.test(src)) blFail(`${file} writes reservation_budget_links in raw SQL`);
+  }
+  if ((route.match(/reservation_budget_links\.create\(/g) ?? []).length !== 1 || (route.match(/reservation_budget_links\.deleteMany\(/g) ?? []).length !== 1) blFail(`${ROUTE} does not write the link exactly once (one create, one delete)`);
+
+  // ── CLAUSE 2. NO MATCHER: THE LINE WRITTEN IS THE ONE THE OWNER NAMED. ──
+  if (!leaf.includes('const line = await ports.findLine(budgetLineItemId, user.id);') || !leaf.includes('ports.createLink({ userId: user.id, reservationId: owned.id, budgetLineItemId: line.id, linkedAt: ports.now(), linkedBy: email })')) blFail(`${LEAF} does not find the line by the id the owner named and write exactly that line`);
+  if (!route.includes('findLine: (id, userId) => prisma.budget_line_items.findFirst({ where: { id, userId }, select: { id: true, tripId: true, description: true } }),')) blFail(`${ROUTE} does not read the line by its id and its owner alone`);
+  for (const f of [ROUTE, LEAF, CONTROL]) {
+    const src = codeOf(f);
+    for (const banned of ['score', 'confidence', 'suggest', 'bestMatch', 'autoLink', 'autoMatch', 'similarity', 'probable', 'heuristic']) {
+      if (new RegExp(`\\b${banned}`, 'i').test(src)) blFail(`${f} carries "${banned}" — a link is the owner's act, never a guess`);
+    }
+  }
+  if (/\bamount\b|\.includes\(|\bcontains\b|startsWith\(|toLowerCase\(|localeCompare\(/.test(leaf)) blFail(`${LEAF} reads an amount or compares names — nothing chooses a line but the owner`);
+  {
+    const control = codeOf(CONTROL);
+    if (!/<select\s+value=""/.test(control) || !control.includes('<option value="">{LINE_WORDS.choose}</option>')) blFail(`${CONTROL}: the Budget line select pre-selects a line — it opens on "choose", and only the owner's pick links`);
+    if (/\.sort\(|\.filter\(\(l\) =>/.test(control)) blFail(`${CONTROL} sorts or narrows the trip's lines — they are offered as stored, ranked by nothing`);
+    if (!control.includes("fetch(`/api/reservations/${reservationId}/budget-link`")) blFail(`${CONTROL} does not link through the budget-link route`);
+  }
+  if (!codeOf(ACTUALS).includes("orderBy: { createdAt: 'asc' },\n    });\n    const budgetLinks")) blFail(`${ACTUALS} does not load the trip's lines in their stored order`);
+
+  // ── CLAUSE 3. lineStatusOf IS PURE AND DOES NO MONEY ARITHMETIC. ──
+  const statusSrc = codeOf(STATUS_LEAF);
+  for (const [re, what] of [[/^\s*import\s/m, 'imports a module'], [/prisma|PrismaClient/, 'reaches the database'], [/\bfetch\s*\(/, 'fetches'], [/new Date|Date\.now/, 'reads the clock'], [/process\.env/, 'reads the environment'], [/from 'react'/, 'imports React']] as const) {
+    if (re.test(statusSrc)) blFail(`${STATUS_LEAF} ${what} — the status leaf is pure`);
+  }
+  const statusBody = functionBody(statusSrc, 'lineStatusOf') ?? '';
+  if (statusBody === '') blFail(`${STATUS_LEAF} has no lineStatusOf`);
+  if (/[-+*\/%]|\b(reduce|Number|parseFloat|parseInt|toFixed)\s*\(|Math\.|\bamount\b|Cents\b|\bprice\b|\bcurrency\b/.test(statusBody)) blFail(`${STATUS_LEAF}: lineStatusOf does arithmetic or reads money — it computes no sum and compares no amounts`);
+  {
+    const line = { id: 'L1' };
+    const probe: Array<[string, Parameters<typeof lineStatusOf>[1], string]> = [
+      ['no link', [], LINE_STATUS.saved],
+      ['a link on another line only', [{ budgetLineItemId: 'L2', reservationId: 'r9', bankConfirmed: true }], LINE_STATUS.saved],
+      ['one linked booking, not bank-confirmed', [{ budgetLineItemId: 'L1', reservationId: 'r1', bankConfirmed: false }], LINE_STATUS.booked],
+      ['one linked booking, bank-confirmed', [{ budgetLineItemId: 'L1', reservationId: 'r1', bankConfirmed: true }], LINE_STATUS.paid],
+      ['two linked bookings, one unpaid', [{ budgetLineItemId: 'L1', reservationId: 'r1', bankConfirmed: true }, { budgetLineItemId: 'L1', reservationId: 'r2', bankConfirmed: false }], LINE_STATUS.booked],
+    ];
+    for (const [name, links, want] of probe) {
+      const got = lineStatusOf(line, links);
+      if (got !== want) blFail(`lineStatusOf with ${name} reads "${got}", not "${want}"`);
+    }
+  }
+  {
+    const ledger = codeOf(LEDGER);
+    if (!ledger.includes('const status = lineStatusOf({ id: it.id }, statusLinks);')) blFail(`${LEDGER}: a line's status does not come from lineStatusOf`);
+    if (/>\s*Saved\s*</.test(ledger)) blFail(`${LEDGER} types "Saved" — the leaf's word, derived, never a constant`);
+    if (/Number\(it\.amount[^)]*\)\s*-|-\s*Number\(it\.amount|finalPriceCents\s*\/\s*100\s*[-+]|[-+]\s*b\.finalPriceCents/.test(ledger)) blFail(`${LEDGER} nets a booking's price against the plan — they are shown side by side, as recorded`);
+    for (const [f, text] of [[LEDGER, rejoin(ledger, commentsOf(LEDGER))], [ACTUALS, rejoin(codeOf(ACTUALS), commentsOf(ACTUALS))]] as const) {
+      if (/structurally impossible|shows "Saved" for all rows/.test(text)) blFail(`${f}'s honesty note still says a line cannot read Booked — rewrite it to what is true (LINK-02)`);
+    }
+  }
+
+  // ── CLAUSE 4. LINK AND UNLINK GO THROUGH THE AUDIT PORT. ──
+  {
+    const linkAt = leaf.indexOf('ports.createLink('), linkedAt = leaf.indexOf("kind: 'reservation_budget_linked',");
+    const unlinkAt = leaf.indexOf('ports.deleteLink('), unlinkedAt = leaf.indexOf("kind: 'reservation_budget_unlinked',");
+    if (linkAt < 0 || linkedAt < linkAt || !/await ports\.record\(\{[\s\S]{0,120}kind: 'reservation_budget_linked',/.test(leaf)) blFail(`${LEAF}: the link is not recorded through the audit port after it is written`);
+    if (unlinkAt < 0 || unlinkedAt < unlinkAt || !/await ports\.record\(\{[\s\S]{0,120}kind: 'reservation_budget_unlinked',/.test(leaf)) blFail(`${LEAF}: the unlink is not recorded through the audit port after the delete`);
+    if (!route.includes('record: (input) => recordBookingEvent(input),')) blFail(`${ROUTE}: the record port is not the ONE audit port (recordBookingEvent)`);
+    for (const f of [ROUTE, LEAF]) if (/writeAuditLog|'system_other'/.test(codeOf(f))) blFail(`${f} writes audit_log by hand — through the audit port`);
+    if (/\bdescription\s*:\s*`|action_description/.test(leaf.slice(leaf.indexOf('ports.record('))) && /action:\s*\{/.test(leaf)) blFail(`${LEAF} types an audit description — the words leaf renders it`);
+    const words = functionBody(codeOf(WORDS_LEAF), 'bookingEventWords') ?? '';
+    for (const k of BUDGET_LINK_KINDS) if (!words.includes(`case '${k}':`)) blFail(`${WORDS_LEAF}: bookingEventWords has no words for '${k}'`);
+  }
+
+  // ── CLAUSE 5. THE ROUTE'S GATES — the reservations/[id] pattern, then the link's own rules. ──
+  {
+    const order = ['if (!userEmail) return { status: 401', 'const user = await ports.findUser(userEmail);', 'const owned = await ports.findReservation(reservationId, user.id);', "if (!owned) return { status: 404, body: { error: LINK_WORDS.reservationNotFound } };"];
+    let last = -1;
+    for (const step of order) {
+      const at = leaf.indexOf(step);
+      if (at < 0 || at < last) blFail(`${LEAF}: the auth chain is not "${order.join(' → ')}" in that order (missing or out of order: ${step})`);
+      last = at;
+    }
+    if (!route.includes('findReservation: (id, userId) => prisma.reservations.findFirst({ where: { id, userId }, select: { id: true, tripId: true } }),')) blFail(`${ROUTE} does not own the booking by findFirst { id, userId } — the defensive 404 and the guest fence`);
+    if (!leaf.includes('if (!line) return { status: 404, body: { error: LINK_WORDS.lineNotFound } };')) blFail(`${LEAF}: another user's line is not a 404 by name`);
+    if (!/if \(owned\.tripId === null \|\| line\.tripId === null \|\| owned\.tripId !== line\.tripId\) \{\s*return \{ status: 409, body: \{ error: LINK_WORDS\.otherTrip/.test(leaf)) blFail(`${LEAF}: a line of another trip (or a booking on none) is not refused 409 by name`);
+    if (!/const existing = await ports\.findLink\(owned\.id, user\.id\);\s*if \(existing\) return \{ status: 409/.test(leaf) || !/if \(err instanceof LinkExistsError\) return \{ status: 409/.test(leaf)) blFail(`${LEAF}: a second link for a booking is not refused 409 by name (checked, and on the UNIQUE's race)`);
+    if (!route.includes("if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') throw new LinkExistsError();")) blFail(`${ROUTE} does not name the UNIQUE's refusal for the leaf`);
+    if (/requireTier|requireTabAccess/.test(route)) blFail(`${ROUTE} adds a tier gate — the reservations/[id] pattern has none`);
+  }
+
+  // ── CLAUSE 6. THE DATABASE KEEPS THE RULES. ──
+  const mig = ALL_MIGRATIONS.find((m) => /_link_02_/.test(m.dir));
+  if (!mig) blFail('no _link_02_ migration creates reservation_budget_links');
+  else {
+    const sql = codeOf(`prisma/migrations/${mig.dir}/migration.sql`);
+    if (!sql.includes('CREATE UNIQUE INDEX "reservation_budget_links_reservationId_key" ON "reservation_budget_links"("reservationId");')) blFail(`${mig.dir} does not make one line per booking (UNIQUE on reservationId)`);
+    if (/UNIQUE[^;]*"budgetLineItemId"/.test(sql)) blFail(`${mig.dir} makes budgetLineItemId unique — one line may carry several bookings`);
+    for (const col of ['reservationId', 'budgetLineItemId']) {
+      if (!new RegExp(`FOREIGN KEY \\("${col}"\\) REFERENCES "\\w+"\\("id"\\) ON DELETE RESTRICT`).test(sql)) blFail(`${mig.dir}: the ${col} foreign key is not ON DELETE RESTRICT`);
+    }
+    for (const [col, type] of [['userId', 'TEXT'], ['reservationId', 'UUID'], ['budgetLineItemId', 'TEXT'], ['linkedAt', 'TIMESTAMPTZ\\(6\\)'], ['linkedBy', 'VARCHAR\\(255\\)']] as const) {
+      const decl = new RegExp(`"${col}"\\s+${type}\\s+NOT NULL[^,\\n]*`).exec(sql)?.[0] ?? null;
+      if (decl === null) blFail(`${mig.dir}: "${col}" is not ${type.replace(/\\/g, '')} NOT NULL`);
+      else if (/DEFAULT/.test(decl)) blFail(`${mig.dir}: "${col}" carries a DEFAULT — a stated field is stated by the route`);
+    }
+    for (const k of BUDGET_LINK_KINDS) if (!sql.includes(`ALTER TYPE "AuditActionType" ADD VALUE IF NOT EXISTS '${k}';`)) blFail(`${mig.dir} does not add '${k}' to AuditActionType`);
+  }
+  if (!/model reservation_budget_links \{[\s\S]*?reservationId\s+String\s+@unique @db\.Uuid[\s\S]*?onDelete: Restrict[\s\S]*?onDelete: Restrict[\s\S]*?\n\}/.test(schemaText)) blFail('prisma/schema.prisma\'s reservation_budget_links does not move with the migration (unique reservationId, RESTRICT both ways)');
+  {
+    const enumBlock = /enum AuditActionType \{([\s\S]*?)\n\}/.exec(schemaText)?.[1] ?? '';
+    for (const k of BUDGET_LINK_KINDS) if (!new RegExp(`^\\s*${k}\\s*$`, 'm').test(enumBlock)) blFail(`prisma/schema.prisma's AuditActionType lacks '${k}'`);
+  }
+
+  // ── CLAUSE 7. THE LINK'S INTEGRITY IS ASKED BEFORE A WRITE. ──
+  {
+    const fn = (src: string, verb: string) => { const at = src.indexOf(`export async function ${verb}(`); const next = src.indexOf('export async function', at + 1); return at < 0 ? '' : src.slice(at, next < 0 ? undefined : next); };
+    const tripDelete = fn(codeOf(TRIP_ROUTE), 'DELETE');
+    const tg = tripDelete.indexOf('const linked = await tripLinesLinkedRefusal(user.id, id);');
+    if (tg < 0 || tg > tripDelete.indexOf('deleteMany(')) blFail(`${TRIP_ROUTE}: the trip delete does not refuse a linked trip BEFORE its first delete — RESTRICT would leave it half-deleted`);
+    const uncommit = fn(codeOf(COMMIT_ROUTE), 'DELETE');
+    const ug = uncommit.indexOf('const linked = await tripLinesLinkedRefusal(user.id, id);');
+    if (ug < 0 || ug > uncommit.indexOf('DELETE FROM calendar_events')) blFail(`${COMMIT_ROUTE}: the uncommit does not refuse a linked trip BEFORE its first write`);
+    const attach = codeOf(ATTACH_ROUTE);
+    const ag = attach.indexOf('const linked = await bookingLinkedRefusal(user.id, owned.id);');
+    if (ag < 0 || ag > attach.indexOf('prisma.reservations.update(') || !/if \(tripId !== owned\.tripId\) \{\s*const linked = await bookingLinkedRefusal/.test(attach)) blFail(`${ATTACH_ROUTE}: a linked booking can be moved off its trip — the link would name another trip's line`);
+    if (/\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(/.test(codeOf(GUARD))) blFail(`${GUARD} writes — the guard only asks`);
+  }
+
+  if (blViolations === 0) console.log(`✔ The budget-link law passed — only the budget-link route writes reservation_budget_links, the line it writes is the one the owner named (no matcher, no ranking, no pre-selection); lineStatusOf is pure, computes no money and reads Saved / Booked / Booked · paid over the owner's links; link and unlink go through the audit port; the database holds one line per booking and RESTRICT both ways; the trip delete, the uncommit and the attach PATCH ask before they write.`);
+  else console.log(`✖ The budget-link law FAILED — ${blViolations} violation(s).`);
 });
 
 // ── THE ROW LAW (TRAVEL-ROW-01, 2026-09-23) ─────────────────────────────────

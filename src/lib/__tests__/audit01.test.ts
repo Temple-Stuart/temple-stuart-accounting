@@ -19,7 +19,7 @@ import {
   actorOfReadSource, bookingAuditInput, bookingEventRequestId, emailEventOf, humanActor, readChangesOf, recordBookingEvent, recordEmailOutcome,
   type AuditWriter, type BookingEventInput, type ReadChangeRow,
 } from '../reservations/auditTrail';
-import { BOOKING_EVENT_KINDS, HISTORY_WORDS, bookingEventWords, timelineOf, type TimelineInput } from '../reservations/timeline';
+import { BOOKING_EVENT_KINDS, BUDGET_LINK_KINDS, HISTORY_WORDS, bookingEventWords, timelineOf, type TimelineInput } from '../reservations/timeline';
 import { BOOKING_FLOW_FILES, bookingFlowSha256 } from '../travelBookingFlow';
 
 const PORT = 'src/lib/reservations/auditTrail.ts';
@@ -337,7 +337,8 @@ test('the sixteen enum values: the migration adds each (outside a transaction, n
   // AUDIT-01b (2026-09-27): two families — 'commission_' left the map; the route never returns commission_locked.
   for (const family of ['reservation_', 'money_event_']) {
     const list = new RegExp(`\\n  ${family}: \\[([^\\]]*)\\]`).exec(map)?.[1] ?? '';
-    assert.deepEqual([...list.matchAll(/'(\w+)'/g)].map((m) => m[1]).sort(), BOOKING_EVENT_KINDS.filter((k) => k.startsWith(family)).slice().sort(), family);
+    // LINK-02 (2026-09-27): the reservation_ family also names the budget-line link and unlink.
+    assert.deepEqual([...list.matchAll(/'(\w+)'/g)].map((m) => m[1]).sort(), [...BOOKING_EVENT_KINDS, ...BUDGET_LINK_KINDS].filter((k) => k.startsWith(family)).slice().sort(), family);
   }
   assert.ok(!/\n  commission_: \[/.test(map), 'no commission_ family');
 });

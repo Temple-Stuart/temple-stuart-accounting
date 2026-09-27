@@ -1268,6 +1268,26 @@ model rafting_destinations {
 // BUDGET LINE ITEMS - Track trip expenses by COA code
 // ═══════════════════════════════════════════════════════════════════
 
+// ─── LINK-02 (2026-09-27): a booking → the budget line it fulfils ────────────
+// Written ONLY by the owner through POST/DELETE /api/reservations/[id]/budget-link —
+// never by a matcher, a name or an amount. One line per booking (UNIQUE
+// reservationId); a line may carry several bookings. RESTRICT both ways.
+// linkedAt/linkedBy are stated by the route: no defaults.
+model reservation_budget_links {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String
+  reservationId    String   @unique @db.Uuid
+  budgetLineItemId String
+  linkedAt         DateTime @db.Timestamptz(6)
+  linkedBy         String   @db.VarChar(255)
+
+  reservation    reservations      @relation(fields: [reservationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  budgetLineItem budget_line_items @relation(fields: [budgetLineItemId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([budgetLineItemId])
+  @@index([userId])
+}
+
 model budget_line_items {
   id          String   @id @default(cuid())
   userId      String
@@ -1289,6 +1309,8 @@ model budget_line_items {
 
   trip trips? @relation(fields: [tripId], references: [id], onDelete: SetNull)
   user users  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// LINK-02 (2026-09-27): the bookings the owner linked to this line — RESTRICT: a linked line cannot be deleted.
+  reservation_links reservation_budget_links[]
 
   @@index([userId, year, month])
   @@index([tripId])
@@ -1543,6 +1565,8 @@ model reservations {
   vouchers          vouchers[]
   /// POST-01: the plaid_txn postings this booking documents (the charge, and a refund when the vendor stated one).
   document_entries  journal_entries[]   @relation("posting_document")
+  /// LINK-02 (2026-09-27): the ONE budget line this booking fulfils, linked by the owner — RESTRICT.
+  budget_link       reservation_budget_links?
 
   @@index([userId])
   @@index([tripId])
@@ -2823,6 +2847,10 @@ enum AuditActionType {
   money_event_stated
   money_event_settled
   commission_locked
+  // LINK-02 (2026-09-27): a booking linked to / unlinked from the budget line it fulfils,
+  // by the owner — migration 20260927120000_link_02_reservation_budget_links.
+  reservation_budget_linked
+  reservation_budget_unlinked
 }
 
 model audit_log {

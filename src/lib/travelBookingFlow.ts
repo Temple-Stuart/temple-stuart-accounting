@@ -238,7 +238,12 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // price (finalPriceCents NULL), never 0, never NaN. The auth chain and the one
   // field it writes are unchanged.
   // Was fce57d7972405b76cd952cb03fe5a49a244c877634265292acd750e3e05d0805 at main a5e66262.
-  { file: 'src/app/api/reservations/[id]/route.ts', sha256: '07c3516b62db9eefea307b5008511d8526ffaca78329c17df4e9fe90dc5adcbc' },
+  // LINK-02 (2026-09-27): re-pinned — the attach/detach PATCH refuses (409 by name) to
+  // move a booking that is linked to a budget line off its trip; the owner unlinks
+  // first (src/lib/trips/budgetLinkGuard.ts). The gate reads the row's tripId. It still
+  // writes only tripId; no booking, payment or provider call changed.
+  // Was 07c3516b62db9eefea307b5008511d8526ffaca78329c17df4e9fe90dc5adcbc at main 7689c9c8.
+  { file: 'src/app/api/reservations/[id]/route.ts', sha256: '3cbde7c39417faad1df8d5e8981705b3ea4d4a43ffb75b4da2557fbf97da64fd' },
   // LANE-01 (2026-09-25): re-pinned — type and name come from the one reader keyed on
   // reservations.lane; the local PROVIDER_TYPE map and hotelName ?? provider are gone.
   // The query and its scoping are unchanged.
@@ -422,7 +427,12 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // owner's printable receipt (/booking/<id>/receipt: the vendor's landed words, the
   // bank row, the ledger entry). Display only; no prebook/book/pay/cancel call changed.
   // Was 1d76057906ef2eade1c6ff28b4532e1a66b637bccd4617cf8751281ed6f8996c at main fe50c127.
-  { file: 'src/components/trips/TripBookings.tsx', sha256: '12cef6fc6415b72bc836edf9b9b05b613727c2a3914675a3e0e0f502a984d3c4' },
+  // LINK-02 (2026-09-27): re-pinned — each booking carries a "Budget line" control under
+  // its name: a select of this trip's budget lines (as stored, nothing pre-selected) or
+  // the linked line with Unlink, through POST/DELETE /api/reservations/[id]/budget-link.
+  // Display and the owner's link only; no prebook/book/pay/cancel call changed.
+  // Was 12cef6fc6415b72bc836edf9b9b05b613727c2a3914675a3e0e0f502a984d3c4 at main 7689c9c8.
+  { file: 'src/components/trips/TripBookings.tsx', sha256: '603ec077eb2bf3fdd47672afdf842405c71c304fe01336fd764d9effd22f3e08' },
   // REPAINT-04 (2026-09-21): re-pinned — one class on the "Add to <trip>" ghost button
   // (text-white → text-brand-purple, invisible on cream). Paint only; no call changed.
   // Was d5f8e0be428de6054eb756c0301c1e064e825f6ddb013d45cc332b7ca6157492 at main b9eac34a.

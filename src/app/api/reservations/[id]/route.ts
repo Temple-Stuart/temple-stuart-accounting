@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { reservationIdentity } from '@/lib/reservations/lane';
+import { bookingLinkedRefusal } from '@/lib/trips/budgetLinkGuard';
 
 // PATCH /api/reservations/[id] — T4 retroactive attach/detach.
 //
@@ -23,6 +24,10 @@ import { reservationIdentity } from '@/lib/reservations/lane';
 // No rate limit: mirrors the authed trips/[id]/* CRUD convention (auth +
 // ownership only; rateLimit is this codebase's PUBLIC-paid-route guard —
 // verified absent across src/app/api/trips/). Stated, not omitted.
+
+// LINK-02 (2026-09-27): a booking linked to a budget line of its trip is refused a
+// trip change (409 by name, src/lib/trips/budgetLinkGuard.ts) — unlink first. The
+// route still writes only tripId.
 
 // LANE-01 (2026-09-25): type and name come from the ONE reader, keyed on the
 // row's lane — never from `provider` (LiteAPI is both rails), never falling
@@ -64,7 +69,7 @@ export async function PATCH(
     // userId null, can never match: the unattachable-guest fence).
     const owned = await prisma.reservations.findFirst({
       where: { id, userId: user.id },
-      select: { id: true },
+      select: { id: true, tripId: true },
     });
     if (!owned) {
       return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
@@ -79,6 +84,13 @@ export async function PATCH(
       if (!trip) {
         return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
       }
+    }
+
+    // LINK-02 (2026-09-27): a booking fulfils a budget line of ITS OWN trip — a linked
+    // booking is not moved off it (attach elsewhere or detach) until the owner unlinks.
+    if (tripId !== owned.tripId) {
+      const linked = await bookingLinkedRefusal(user.id, owned.id);
+      if (linked) return linked;
     }
 
     const r = await prisma.reservations.update({

@@ -66,6 +66,10 @@ const SUBSYSTEM_ACTION_TYPES: Record<string, AuditActionType[]> = {
     'reservation_email_sent',
     'reservation_email_failed',
     'reservation_posted',
+    // LINK-02 (2026-09-27): the owner's budget-line link and unlink. The family is an
+    // explicit list (enum columns take no startsWith), so a new value is named here.
+    'reservation_budget_linked',
+    'reservation_budget_unlinked',
   ],
   money_event_: [
     'money_event_stated',
