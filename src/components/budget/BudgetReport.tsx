@@ -21,7 +21,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { SECTION_HEADER, toggleChip } from '@/lib/ds';
-import { formatCents, formatVariance } from '@/lib/budget/format';
+import { formatBudget, formatCents, formatVariance } from '@/lib/budget/format';
 import type { ReportCell, ReportColumn, SectionTotal, UnplacedItem } from '@/lib/budget/report';
 import type { BudgetReportResponse } from '@/lib/budget/reportInputs';
 
@@ -109,12 +109,13 @@ function Heading({ children }: { children: React.ReactNode }) {
   return <h2 className={SECTION_HEADER}>{children}</h2>;
 }
 
-/** Budget-to-date, plus "of <full>" while the column is in progress and the full budget differs. */
+/** The budget line by the column's state (format.ts formatBudget): to date; "of <full>" in progress; the full plan, marked planned, in a future column. */
 function BudgetFigure({ column, toDate, full }: { column: ReportColumn; toDate: number | null; full: number | null }) {
+  const b = formatBudget(column.state, toDate, full);
   return (
     <>
-      {formatCents(toDate)}
-      {column.state === 'inProgress' && full !== toDate && <span className="text-xs text-text-faint"> of {formatCents(full)}</span>}
+      {b.text}
+      {b.note !== null && <span className="text-xs text-text-faint" data-budget-note={column.state}> {b.note}</span>}
     </>
   );
 }
@@ -275,6 +276,7 @@ function Report({ data }: { data: BudgetReportResponse }) {
                     <th className={th}>Column</th>
                     <th className={`${th} text-right`}>Transactions</th>
                     <th className={`${th} text-right`}>Bank amount</th>
+                    <th className={`${th} text-right`}>Not totalled</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -283,11 +285,26 @@ function Report({ data }: { data: BudgetReportResponse }) {
                       <td className={`${td} text-text-muted`}>{c.label}</td>
                       <td className={num}>{c.transactions === null ? <span className="text-text-faint">—</span> : c.transactions}</td>
                       <td className={num}>{formatCents(c.bankCents)}</td>
+                      <td className={num}>{c.notTotalled === null ? <span className="text-text-faint">—</span> : c.notTotalled}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            {/* Ruled 2026-09-27: a row whose amount is not whole cents is listed here, never summed and never fatal. */}
+            <p className="mt-2 text-xs text-text-faint" data-not-totalled={data.notInBooks.notTotalled.length}>
+              Left out of these totals: {data.notInBooks.notTotalled.length} bank row{data.notInBooks.notTotalled.length === 1 ? '' : 's'} whose amount is not a whole number of cents.
+            </p>
+            {data.notInBooks.notTotalled.length > 0 && (
+              <ul className="mt-1 space-y-1 text-sm text-text-muted">
+                {data.notInBooks.notTotalled.map((row) => (
+                  <li key={row.id}>
+                    <span className="font-mono">{row.day}</span> · {row.id} · <span className="font-mono">{row.amount}</span> as stored
+                    <span className="text-xs text-text-faint"> ({row.detail})</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div data-completeness="left-out">
@@ -329,14 +346,21 @@ export default function BudgetReport() {
     (async () => {
       let res: Response;
       try {
-        res = await fetch(`/api/budget/report?${query}`, { cache: 'no-store' });
+        // redirect: 'manual' — the middleware answers a request with no valid session by
+        // a 307 to the landing (src/middleware.ts), and that is kept (ruled 2026-09-27).
+        // The screen does not follow it: a redirect is read as signed out.
+        res = await fetch(`/api/budget/report?${query}`, { cache: 'no-store', redirect: 'manual' });
       } catch (error) {
         if (live) setLoad({ state: 'failed', status: null, code: 'network', message: error instanceof Error ? error.message : String(error) });
         return;
       }
+      if (res.type === 'opaqueredirect') {
+        if (live) setLoad({ state: 'signedOut' });
+        return;
+      }
       const type = res.headers.get('content-type');
       if (type === null || !type.includes('application/json')) {
-        if (live) setLoad({ state: 'failed', status: res.status, code: 'not-json', message: `the report answered ${res.status}${res.redirected ? ` after a redirect to ${res.url}` : ''} with no JSON` });
+        if (live) setLoad({ state: 'failed', status: res.status, code: 'not-json', message: `the report answered ${res.status} with no JSON` });
         return;
       }
       let body: Record<string, unknown>;

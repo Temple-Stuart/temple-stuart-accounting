@@ -33,7 +33,8 @@ import { BudgetInputError, budgetReportResponse, parseReportQuery, utcDay } from
  *   · NOT IN THE BOOKS YET: bank rows of the viewer's accounts (accounts.userId)
  *     whose review_status is not 'committed', in range and not after asOf —
  *     counted per column and summed as a BANK figure (Plaid signs outflows
- *     positive), never mixed into an actual.
+ *     positive), never mixed into an actual; a row whose amount is not whole
+ *     cents is listed as not totalled and left out of the sums, never fatal.
  * No travel table is read: travel budgets are not connected yet, and the
  * response says so.
  *

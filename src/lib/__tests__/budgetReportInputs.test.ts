@@ -97,6 +97,11 @@ test('MAPPING — a routine from the loader: dates as UTC days, the entity\'s ty
     id: 'r-coffee', name: 'Coffee', entityId: 'ent-p', entityType: 'personal', timezone: 'UTC', scheduleRrule: coffee.schedule_rrule,
     startDate: '2026-09-01', endDate: '2026-09-22', budgetAmount: 5, coaCode: '6150', steps: [],
   });
+  // Ruling 5 (the chat's mutant R6): the type is the ENTITY's — a sole_prop routine carries sole_prop.
+  assert.deepEqual(
+    (({ entityId, entityType }) => ({ entityId, entityType }))(toRoutinePlanInput(coffee, toReportEntity(B))),
+    { entityId: 'ent-b', entityType: 'sole_prop' },
+  );
   const mapped = toRoutinePlanInput(lined, toReportEntity(P));
   assert.equal(mapped.startDate, null, 'no start date stays null');
   assert.equal(mapped.endDate, null, 'no end date stays null');
@@ -118,6 +123,11 @@ test('MAPPING — a task: the estimate as its Decimal string, EVERY plan item as
     planItems: [{ planDate: '2026-10-02', blocks: [{ status: 'cancelled' }, { status: 'missed' }] }, { planDate: '2025-01-15', blocks: [] }],
   });
   assert.equal(toTaskPlanInput({ ...license, estimated_cost_usd: null }, toReportEntity(B)).estimatedCostUsd, null, 'no estimate stays null, never "0"');
+  // Ruling 5: the other way round — a task of a personal entity carries personal.
+  assert.deepEqual(
+    (({ entityId, entityType }) => ({ entityId, entityType }))(toTaskPlanInput({ ...license, entity_id: 'ent-p' }, toReportEntity(P))),
+    { entityId: 'ent-p', entityType: 'personal' },
+  );
 });
 
 const line = (over: Partial<LedgerRow> & { journal_entry_id: string }): LedgerRow => ({
@@ -201,16 +211,17 @@ test('RESPONSE — completeness: not placed, excluded ALL TIME, not in the books
   // Bank: $12.34 out Monday, $50.00 in Wednesday (Plaid: outflows positive) → week 1234 − 5000 = −3766.
   assert.equal(r.notInBooks.basis, 'bank');
   assert.equal(r.notInBooks.sign, 'Plaid signs outflows positive');
-  assert.deepEqual(r.notInBooks.columns.map((c) => [c.label, c.through, c.transactions, c.bankCents]), [
-    ['WEEK', '2026-09-23', 2, -3766],
-    ['Mon', '2026-09-21', 1, 1234],
-    ['Tue', '2026-09-22', 0, null],
-    ['Wed', '2026-09-23', 1, -5000],
-    ['Thu', null, null, null],
-    ['Fri', null, null, null],
-    ['Sat', null, null, null],
-    ['Sun', null, null, null],
+  assert.deepEqual(r.notInBooks.columns.map((c) => [c.label, c.through, c.transactions, c.bankCents, c.notTotalled]), [
+    ['WEEK', '2026-09-23', 2, -3766, 0],
+    ['Mon', '2026-09-21', 1, 1234, 0],
+    ['Tue', '2026-09-22', 0, null, 0],
+    ['Wed', '2026-09-23', 1, -5000, 0],
+    ['Thu', null, null, null, null],
+    ['Fri', null, null, null, null],
+    ['Sat', null, null, null, null],
+    ['Sun', null, null, null, null],
   ]);
+  assert.deepEqual(r.notInBooks.notTotalled, [], 'every bank row is whole cents — none left out');
   assert.deepEqual(r.excludedLines, { reversalPairLines: 2, closingEntryLines: 1, linesAfterAsOf: 3 }, 'the route\'s counts, carried as read');
   assert.deepEqual(r.records, { entities: 2, accounts: 4, routines: 2, costedTasks: 3, ledgerLines: 2, bankRows: 2, budgetLines: { routine: 2, task: 1 } });
   assert.equal(r.travelBudgets, 'not connected');
@@ -226,10 +237,63 @@ test('RESPONSE — a DAY view: MTD then the day; bank rows before the day count 
   ]);
 });
 
+// Ruled 2026-09-27 (ruling 10's principle): what cannot be totalled is listed, never hidden, never fatal.
+test('NOT TOTALLED — a bank row whose amount is not whole cents is listed with its raw amount, left out of every total, and counted per column', () => {
+  const r = budgetReportResponse(WEEK, rows({
+    bank: [
+      { id: 'tx-1', date: at('2026-09-21'), amount: 12.34 },
+      { id: 'tx-odd', date: at('2026-09-21'), amount: 12.344 },
+      { id: 'tx-aaa', date: at('2026-09-21'), amount: 0.001 },
+      { id: 'tx-nan', date: at('2026-09-22'), amount: Number.NaN },
+      { id: 'tx-2', date: at('2026-09-23'), amount: -50 },
+      { id: 'tx-huge', date: at('2026-09-23'), amount: 1e17 },
+    ],
+  }));
+  // The totals are the whole-cent rows only: 1234 − 5000 = −3766, exactly as with no odd rows at all.
+  assert.deepEqual(r.notInBooks.columns.map((c) => [c.label, c.transactions, c.bankCents, c.notTotalled]), [
+    ['WEEK', 2, -3766, 4],
+    ['Mon', 1, 1234, 2],
+    ['Tue', 0, null, 1],
+    ['Wed', 1, -5000, 1],
+    ['Thu', null, null, null],
+    ['Fri', null, null, null],
+    ['Sat', null, null, null],
+    ['Sun', null, null, null],
+  ]);
+  // Listed by day then id, the amount exactly as stored — never rounded.
+  assert.deepEqual(r.notInBooks.notTotalled, [
+    { id: 'tx-aaa', day: '2026-09-21', amount: '0.001', detail: '0.001 is not a whole number of cents' },
+    { id: 'tx-odd', day: '2026-09-21', amount: '12.344', detail: '12.344 is not a whole number of cents' },
+    { id: 'tx-nan', day: '2026-09-22', amount: 'NaN', detail: 'NaN is not a finite amount' },
+    { id: 'tx-huge', day: '2026-09-23', amount: '100000000000000000', detail: '100000000000000000 is past the safe integer range of cents' },
+  ]);
+  assert.equal(r.records.bankRows, 6, 'every row read is counted as read');
+  // A row outside the range is still the route's bug — a 500 by name, even when its amount is odd too.
+  inputThrows(() => budgetReportResponse(WEEK, rows({ bank: [{ id: 'tx-late-odd', date: at('2026-09-24'), amount: 12.344 }] })), 'bank-row-outside-range', 'tx-late-odd');
+});
+
+// Ruling 5 (the chat's mutant R6): the entity's type decides which letter a code may carry — pinned on both plans.
+test('BOOK — each plan carries its OWN entity\'s type: a B- code places on a sole_prop book and names another book on a personal one, for routines and tasks', () => {
+  const saas: RoutineRow = { ...coffee, id: 'r-saas', name: 'SaaS seat', budget_amount: 2, coa_code: 'B-6300' };
+  const wrongBook: RoutineRow = { ...coffee, id: 'r-wrong', name: 'Wrong book', coa_code: 'B-6150' };
+  const r = budgetReportResponse(WEEK, rows({
+    routines: [{ entityId: 'ent-b', rows: [saas] }, { entityId: 'ent-p', rows: [wrongBook] }],
+    tasks: [{ ...license, coa_code: 'B-6300' }, { ...license, id: 't-p', title: 'Personal on B', entity_id: 'ent-p', coa_code: 'B-6150' }],
+  }));
+  // SaaS seat: $2.00 Mon + Tue (ends the 22nd) = 400, to date; the license $120.50 on Thursday joins the full week.
+  const business = r.report.books.find((b) => b.entityId === 'ent-b');
+  assert.ok(business);
+  assert.deepEqual(business.rows.map((x) => [x.code, x.cells[0].budgetFull, x.cells[0].budgetToDate]), [['6300', 400 + 12050, 400]]);
+  // The same letter on a personal entity is another book's — listed, never placed.
+  assert.deepEqual(
+    r.notPlaced.filter((n) => n.reason === 'code names another book').map((n) => `${n.source}:${n.label}:${n.day}:${n.cents}`),
+    ['routine:Wrong book:2026-09-21:500', 'routine:Wrong book:2026-09-22:500', 'task:Personal on B:2026-09-24:12050'],
+  );
+});
+
 test('FAIL LOUD — a row that cannot become an input is refused by name; the model and the day rules refuse through', () => {
   inputThrows(() => budgetReportResponse(WEEK, rows({ tasks: [{ ...license, entity_id: 'ent-x' }] })), 'unknown-entity', 'task t-license');
   inputThrows(() => budgetReportResponse(WEEK, rows({ routines: [{ entityId: 'ent-x', rows: [coffee] }] })), 'unknown-entity', 'ent-x');
-  inputThrows(() => budgetReportResponse(WEEK, rows({ bank: [{ id: 'tx-odd', date: at('2026-09-21'), amount: 12.344 }] })), 'bank-amount-not-cents', 'tx-odd');
   inputThrows(() => budgetReportResponse(WEEK, rows({ bank: [{ id: 'tx-late', date: at('2026-09-24'), amount: 1 }] })), 'bank-row-outside-range', 'tx-late');
   inputThrows(() => budgetReportResponse(WEEK, rows({ bank: [{ id: 'tx-early', date: at('2026-09-20'), amount: 1 }] })), 'bank-row-outside-range', 'tx-early');
   inputThrows(() => budgetReportResponse(WEEK, rows({ ledger: [line({ journal_entry_id: 'je-huge', amount: BigInt(2) ** BigInt(60) })] })), 'unsafe-cents', 'je-huge');

@@ -160,8 +160,9 @@ export const SEEDS: Seed[] = [
     // started this ruling, now caught in the field that reaches the screen.
     name: 'why-e a customer sentence names a table (WHY-01)',
     file: REGISTRY,
-    find: 'You can see what you actually spent and set amounts that repeat;',
-    replace: 'You can see what you actually spent on module_expenses;',
+    // TAB13-02b: re-anchored on the Budget row's new customer sentence (ruled 2026-09-27).
+    find: 'You can compare what you planned in your routines and tasks with what you actually spent,',
+    replace: 'You can compare what you planned in module_expenses with what you actually spent,',
     expect: 'is not a customer\'s word',
   },
 ];
