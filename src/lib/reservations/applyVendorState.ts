@@ -119,6 +119,15 @@ export interface CommissionFigures {
   processingFeeCents: number | null;
 }
 
+/**
+ * LAW-02 (2026-09-27): how long after the check-out DATE (midnight UTC) a read must
+ * land before the commission may lock — ONE FULL DAY, so a read at 00:01 UTC on the
+ * check-out day is still before checkout. A day is the column's own unit (@db.Date);
+ * a property west of UTC can still be on its check-out day for up to ~12 hours more,
+ * which this does not model (the stay's zone is not stored).
+ */
+export const COMMISSION_LOCK_GRACE_MS = 24 * 60 * 60 * 1000;
+
 export type CommissionLockOutcome =
   | { outcome: 'locked'; cents: number }
   | { outcome: 'already_locked'; cents: number }
@@ -264,9 +273,14 @@ export async function applyVendorState(ports: ApplyPorts, row: ApplyRow, vendor:
   // ── THE LOCK — COMM-01 (2026-09-26): the vendor's rule, exactly ────────────
   // lane hotel, the vendor's word maps to confirmed, the check-out DATE is before
   // the read's landed instant, and the GET STATED a commission. A stated 0 is stated.
+  // LAW-02 (2026-09-27): the check-out date is a DAY (@db.Date — midnight UTC), not an
+  // instant, so "the date is before the read" held from 00:00:01 UTC ON the check-out
+  // day, while the guest may still be in the room. The read must land one FULL day
+  // after it: checkoutDate + COMMISSION_LOCK_GRACE_MS < readAt — the whole check-out
+  // day has passed in UTC.
   let commissionLock: CommissionLockOutcome = { outcome: 'not_applicable' };
   if (vendor.lane === 'hotel' && mapped === 'confirmed') {
-    const afterCheckout = row.checkoutDate !== null && row.checkoutDate < vendor.readAt;
+    const afterCheckout = row.checkoutDate !== null && row.checkoutDate.getTime() + COMMISSION_LOCK_GRACE_MS < vendor.readAt.getTime();
     if (!afterCheckout) {
       commissionLock = { outcome: 'before_checkout' };
     } else if (vendor.commission === null) {

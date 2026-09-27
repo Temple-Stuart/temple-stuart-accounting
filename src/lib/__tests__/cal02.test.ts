@@ -294,7 +294,8 @@ test('the exports: 401 without a session; another user\'s booking or trip → 40
 
 test('the export routes and their ports: no vendor client imported, zero writes, text/calendar as an attachment, every read caller-scoped', () => {
   for (const f of ['src/app/api/reservations/[id]/ics/route.ts', 'src/app/api/trips/[id]/ics/route.ts', 'src/lib/calendar/icsExport.ts', 'src/lib/calendar/prismaIcsPorts.ts', 'src/lib/calendar/ics.ts']) {
-    const s = code(f);
+    // LAW-02 (2026-09-27): the ports' ONE read-only $queryRaw — DTSTAMP read as an instant — is lifted out before the no-write scan.
+    const s = f.endsWith('prismaIcsPorts.ts') ? code(f).replace(/await prisma\.\$queryRaw<[\s\S]*?>`\s*SELECT[^`]*`/, '') : code(f);
     assert.doesNotMatch(s, /liteapiClient|liteapiFlightsClient|viatorClient|duffel|\bfetch\s*\(|reserveTravelSearch/, `${f}: no vendor client`);
     assert.doesNotMatch(s, /\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(|\$executeRaw|\$queryRaw|\$transaction/, `${f}: zero writes`);
   }

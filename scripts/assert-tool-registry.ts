@@ -165,6 +165,9 @@ import { BOOKING_WORDS, STATUS_WORDS, bookingIcsHref, bookingRowOf } from '../sr
 // CAL-02: every leg of a booking on the calendar, and the booking as an iCalendar file.
 import { bookingCalendarRowsWhere, flightSegmentSourceId, flightSegmentsCalendarDecision, reservationIdOfCalendarSourceId, stayCalendarDecision } from '../src/lib/calendar/bookingEvent';
 import { buildIcs, escapeIcsText, foldIcsLine } from '../src/lib/calendar/ics';
+// LAW-02: a figure nobody stated is NULL, named on screen.
+import { prebookUnstatedMoney } from '../src/lib/checkout/prebookGate';
+import { ratingLine, ratingValue, scoreWords } from '../src/lib/travel/ratingWords';
 import { DYNAMIC_READ_ENV, LIBRARY_READ_ENV } from '../src/lib/envLaw';
 import { EXPECTED_FEED_COUNT, FEED_COST, FEED_IDS, SCAN_COST, feedCostLaw, scanCostLine } from '../src/lib/observatory/feedCost';
 import { FINNHUB_TTL, finnhubCallsPerSymbol, finnhubTtlLaw, slowTierEndpoints } from '../src/lib/convergence/finnhub-ttl';
@@ -3910,7 +3913,9 @@ const HOTEL_REPINNED = [HOTEL_ROUTE, HOTEL_VIEW, HOTEL_CONTAINER, 'src/component
 const HOTEL_BOOKING_FUNCTIONS: Record<string, string> = {
   // COMM-01 (2026-09-26): prebookRate states null for an absent commission (was
   // ?? 0 — a guess). Was 4dd7916a01b7e0d6305a98f6c64d3d9878e24bc41f99e8564826e6a2b366d405 at main 0ef428a6.
-  prebookRate: 'a3edaf6c3a92dd0d4d9a8c946cd7ec1aec9ed6f64494a68012975d05758726ac',
+  // LAW-02 (2026-09-27): prebookRate states price and currency as stated or NULL (was
+  // `?? 0` / `?? 'USD'`). Was a3edaf6c3a92dd0d4d9a8c946cd7ec1aec9ed6f64494a68012975d05758726ac at main 0ca0f678.
+  prebookRate: '317e0dbf43566a4b9fd4ae94133e938f1ec567a4bfc14ed6b1db3ad5776bf14a',
   bookRate: 'ba5ce89952e481bd596f410b1aba271b5125db44c59dcb5fdb4327db572cb965',
   getBookingStatus: '4aa6e75fdacd576f8523bc8be6c3ba88a9df64fa13ac0a725f88ee6945836a2d',
   cancelBooking: '709d32f1029c90aaabb5dc33d4819e333281987642b762bee196817b85dbfe03',
@@ -5946,8 +5951,13 @@ lawGuard('The status law', () => {
     // PUBLIC_PATHS entry, not a prefix) and the route validates the bearer FIRST.
     // auto-categorize is left as it is — whether it should ever run is a
     // separate decision, reported, unchanged.
+    // LAW-02 (2026-09-27): Alex ruled it stays off — its vercel.json entry (a POST-only
+    // route with no bypass, which Vercel's GET could never reach) is removed, so the
+    // exemption goes and the clause is stricter: EVERY registered cron is reachable,
+    // and auto-categorize is not registered at all. The route itself is untouched.
     const middlewareCode = codeOf('src/middleware.ts');
-    for (const c of (vercel.crons ?? []).filter((c) => c.path !== '/api/cron/auto-categorize')) {
+    if ((vercel.crons ?? []).some((c) => c.path === '/api/cron/auto-categorize')) statusFail('vercel.json registers /api/cron/auto-categorize again — a POST-only route no GET can reach, ruled off (LAW-02)');
+    for (const c of vercel.crons ?? []) {
       const routeFile = `src/app${c.path}/route.ts`;
       let routeCode = '';
       try { routeCode = codeOf(routeFile); } catch { statusFail(`vercel.json: cron ${c.path} has no route at ${routeFile}`); continue; }
@@ -6095,7 +6105,9 @@ lawGuard('The commission law', () => {
   // 3. THE LOCK.
   {
     const leaf = codeOf(APPLY);
-    if (!/if \(vendor\.lane === 'hotel' && mapped === 'confirmed'\) \{\s*const afterCheckout = row\.checkoutDate !== null && row\.checkoutDate < vendor\.readAt;/.test(leaf)) commFail(`${APPLY}: the lock does not require lane hotel, a confirmed word and checkoutDate < readAt (does not require checkoutDate < readAt)`);
+    // LAW-02 (2026-09-27): stricter — one FULL day after the check-out date, a named constant.
+    if (!/if \(vendor\.lane === 'hotel' && mapped === 'confirmed'\) \{\s*const afterCheckout = row\.checkoutDate !== null && row\.checkoutDate\.getTime\(\) \+ COMMISSION_LOCK_GRACE_MS < vendor\.readAt\.getTime\(\);/.test(leaf)) commFail(`${APPLY}: the lock does not require lane hotel, a confirmed word and checkoutDate + one day < readAt (does not require checkoutDate < readAt)`);
+    if (!/export const COMMISSION_LOCK_GRACE_MS = 24 \* 60 \* 60 \* 1000;/.test(leaf)) commFail(`${APPLY}: the check-out grace is not the named one-day constant — a read at 00:01 UTC on the check-out day would lock (LAW-02)`);
     if (!/if \(!afterCheckout\) \{\s*commissionLock = \{ outcome: 'before_checkout' \};/.test(leaf)) commFail(`${APPLY}: a read before checkout is not named before_checkout`);
     if (!/else if \(vendor\.commission === null\) \{\s*commissionLock = \{ outcome: 'not_stated' \};/.test(leaf)) commFail(`${APPLY}: the leaf locks without a stated commission`);
     if (!/the vendor stated no commission on the read after checkout — stays estimated/.test(leaf)) commFail(`${APPLY}: an unstated commission after checkout is not named`);
@@ -6842,6 +6854,9 @@ lawGuard('The audit law', () => {
   if (!route.includes('where: { id, userId: user.id },') || !route.includes("if (!reservation) return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });")) auditFail(`${ROUTE} does not own the reservation by findFirst { id, userId } with the defensive 404 (the receipt route's auth)`);
   if (/requireTier|requireTabAccess/.test(route)) auditFail(`${ROUTE} adds a tier gate — the receipt's bar`);
   if (!route.includes('actor_user_id: user.id,')) auditFail(`${ROUTE} reads audit rows outside the owner's scope (SEC-1)`);
+  // LAW-02 (2026-09-27): the note tells the truth AUDIT-01b made — commission_locked is
+  // written by the system actor and excluded from the audit-log read for every viewer.
+  if (/readable from the owner's audit log/.test(commentsOf(ROUTE))) auditFail(`${ROUTE}'s note says commission rows are readable from the owner's audit log — false since AUDIT-01b (COMMISSION_ACTOR; the audit-log route's NEVER_RETURNED)`);
   if (!route.includes("{ payload_metadata: { path: ['reservationId'], equals: reservation.id } },") || !route.includes("{ target_table: 'reservations', target_id: reservation.id },")) auditFail(`${ROUTE} does not read the audit rows that target the booking or name it`);
   if (/commission_ledger/.test(route) || !route.includes("action_type: { not: 'commission_locked' },") || !route.includes('commission: [],')) auditFail(`${ROUTE} lets commission onto the customer's page — RECEIPT-01: Temple Stuart's books, never the customer's receipt`);
   if (!route.includes('timelineOf({')) auditFail(`${ROUTE} does not hand its rows to the one leaf`);
@@ -7318,9 +7333,20 @@ lawGuard('The calendar law', () => {
       if (!r.includes("'Content-Type': 'text/calendar; charset=utf-8'") || !r.includes("'Content-Disposition': `attachment; filename=\"${answer.filename}\"`")) calFail(`${f} is not served as a text/calendar attachment`);
     }
     for (const f of [RES_ICS, TRIP_ICS, EXPORT_LEAF, EXPORT_PORTS, ICS]) {
-      const r = codeOf(f);
+      // LAW-02 (2026-09-27): the ports hold ONE read-only $queryRaw — the SELECT that
+      // reads DTSTAMP as an instant (below); it is lifted out before the no-write scan.
+      const r = f === EXPORT_PORTS ? codeOf(f).replace(/await prisma\.\$queryRaw<[\s\S]*?>`\s*SELECT[^`]*`/, '') : codeOf(f);
       if (/liteapiClient|liteapiFlightsClient|viatorClient|duffel|\bfetch\s*\(|reserveTravelSearch|getFlightBooking|getHotelBooking/.test(r)) calFail(`${f} reaches a vendor — an export reads the owner's rows only`);
       if (/\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(|\$executeRaw|\$queryRaw|\$transaction/.test(r)) calFail(`${f} writes — an export reads only`);
+    }
+    // LAW-02 (2026-09-27): DTSTAMP is an INSTANT read explicitly — updated_at is a
+    // timestamp without time zone filled by the database's now(), so a naive read is
+    // the session zone's wall clock taken as UTC. The one raw read converts it, scoped
+    // to the caller, and the typed read never selects updated_at itself.
+    {
+      const ports = codeOf(EXPORT_PORTS);
+      if ((ports.match(/\$queryRaw/g) ?? []).length !== 1 || !/SELECT id::text AS id, \(updated_at AT TIME ZONE current_setting\('TimeZone'\)\) AS updated_at\s+FROM calendar_events\s+WHERE user_id = \$\{userId\} AND id = ANY\(/.test(ports)) calFail(`${EXPORT_PORTS}: DTSTAMP is not read as an instant (updated_at AT TIME ZONE current_setting('TimeZone'), caller-scoped) — a non-UTC server would stamp every event hours off (LAW-02)`);
+      if (/updated_at: true/.test(ports)) calFail(`${EXPORT_PORTS}: the typed read selects updated_at — Prisma takes that timestamp-without-zone as UTC (LAW-02)`);
     }
     const ports = codeOf(EXPORT_PORTS);
     for (const must of ['prisma.reservations.findFirst({ where: { id, userId }, select: { id: true } })', 'prisma.trips.findFirst({ where: { id, userId }, select: { id: true } })', 'prisma.reservations.findMany({ where: { tripId, userId }, select: { id: true } })', 'where: { user_id: userId, ...bookingCalendarRowsWhere(reservationIds) },']) {
@@ -7355,6 +7381,156 @@ lawGuard('The calendar law', () => {
 
   if (calViolations === 0) console.log('✔ The calendar law passed — a flight is one calendar row per segment the vendor states a departure for, keyed <id>:seg:<n> in the vendor\'s order, outbound and inbound (a stay keeps one); the writer inserts once, re-keys a pre-CAL-02 row in place and marks every leg on a cancel, never deleting; no time, end or zone is invented; every reader reads the one where and the list counts bookings, not rows; the ICS builder is pure, reads no clock and escapes and folds per RFC 5545; both exports read only the owner\'s rows; the retro reads the landed read with no vendor call; the receipt and the list link the file.');
   else console.log(`✖ The calendar law FAILED — ${calViolations} violation(s).`);
+});
+
+// ── THE STATED-FIGURE LAW (LAW-02, 2026-09-27) ──────────────────────────────
+// A FIGURE NOBODY STATED IS NULL, NAMED ON SCREEN — NEVER 0, NEVER 'USD'.
+//
+// WHAT IT CLOSES. The hotel prebook parser turned an unstated price into 0 and an
+// unstated currency into 'USD' (liteapiClient.ts prebookRate), so the checkout
+// could show "$0.00" and open a card form for a figure the vendor never gave; the
+// Plaid exchange stored 'USD' for an account whose currency Plaid did not state;
+// the hotel recommendation mapper turned an unstated rating into 0 (read
+// "negative", ranked last); the flights benchmark said "nonstop" for a flight that
+// stated no outbound. Each states NULL now, and every reader names the gap.
+//
+//   1. AT THE VENDOR AND BANK BOUNDARY no `?? 0`, `|| 0`, `?? 'USD'` or `|| 'USD'`
+//      stands unless it is listed below with its reason. The list may only shrink:
+//      an entry that no longer matches a line is stale and fails. (The whole-src
+//      census — 731 hits in 183 files on main 0ca0f678, trading, tax, convergence —
+//      is reported for its own ruling; this law holds the boundary.)
+//   2. THE PREBOOK: price and currency are stated or NULL; the checkout refuses a
+//      hold missing either BY NAME (CHECKOUT-01's 'prebook' failure) before any card
+//      form, and the returnUrl carries no `commission` param (no reader reads it).
+//   3. THE RATING: NULL when unstated, everything derived from it NULL; the planner
+//      renders "not rated" through the one words leaf.
+//   4. THE BANK CURRENCY: stored as Plaid states it, or NULL.
+const FIGURE_BOUNDARY_FILES = ['src/lib/liteapiClient.ts', 'src/lib/liteapiFlightsClient.ts', 'src/lib/liteapiFlightAdapter.ts', 'src/lib/viatorClient.ts'];
+const FIGURE_BOUNDARY_DIRS = ['src/lib/hotels', 'src/lib/flights', 'src/lib/activities', 'src/lib/receipts', 'src/lib/reservations', 'src/lib/arrivals', 'src/lib/runway', 'src/lib/posting', 'src/lib/plaid', 'src/lib/checkout', 'src/lib/travel', 'src/app/api/plaid', 'src/app/api/travel', 'src/app/api/reservations', 'src/app/api/transactions'];
+/** Every default that remains at the boundary, each with its reason. May only shrink. */
+const FIGURE_DEFAULTS_ALLOWED: ReadonlyArray<{ file: string; snippet: string; reason: string }> = [
+  { file: 'src/lib/liteapiClient.ts', snippet: "currency: params.currency || 'USD',", reason: "STOPPED (LAW-02 item 1): both searchHotelRates callers send no currency (PublicHotelSearch.tsx, trips/[id]/ai-assistant/route.ts); refusing it at the route needs a declared search currency (ACTIVITY-01's ACTIVITY_SEARCH_CURRENCY precedent) — Alex's ruling" },
+  { file: 'src/lib/viatorClient.ts', snippet: 'const rating = p.reviews?.combinedAverageRating || 0;', reason: "the legacy Viator recommendation mapper for the AI planner — the same change as the hotel mapper, not in this ruling; its 0 renders 'not rated' (src/lib/travel/ratingWords.ts)" },
+  { file: 'src/lib/viatorClient.ts', snippet: 'const reviewCount = p.reviews?.totalReviews || 0;', reason: 'the same legacy Viator mapper — listed with its rating' },
+  { file: 'src/lib/viatorClient.ts', snippet: 'onSale: (p.pricing?.summary?.fromPriceBeforeDiscount || 0) > (fromPrice || 0),', reason: 'the same legacy Viator mapper — a derived flag, listed with it' },
+  { file: 'src/lib/activities/product.ts', snippet: '(party[b.ageBand] ?? 0) < b.minTravelersPerBooking', reason: "the customer's own party count per age band — an age band nobody chose is 0 travellers, not a vendor figure" },
+  { file: 'src/lib/activities/product.ts', snippet: '(party.ADULT ?? 0) + (party.SENIOR ?? 0) < 1', reason: "the customer's own party count — not a vendor figure" },
+  { file: 'src/lib/activities/save.ts', snippet: 'save.extra?.total ?? 0', reason: 'an absent optional extra is no extra charge — the total is the stated native amount plus the extras the customer chose' },
+  { file: 'src/lib/arrivals/land.ts', snippet: '(rowsPerId.get(f.their_id) ?? 0) + 1', reason: 'a counter of our own landed rows' },
+  { file: 'src/lib/runway/reservationMatcher.ts', snippet: "(opts.accountCurrency ?? 'USD').toUpperCase()", reason: "LISTED FOR A RULING: the MATCH-01 charge pass is called without the account currency (runway/match/propose/route.ts proposeMatches) and declares USD (reservationMatcher.ts MatcherOptions.accountCurrency); reading accounts.isoCurrencyCode like the MATCH-02 refund pass changes its scoring" },
+  { file: 'src/lib/plaid/failLoud.ts', snippet: 'sum[k] = (sum[k] ?? 0) + v;', reason: 'a counter of our own sync outcomes' },
+  { file: 'src/lib/plaid/failLoud.ts', snippet: '${tx.landed ?? 0} landed', reason: 'a counter of our own sync outcomes' },
+  { file: 'src/app/api/plaid/attach-item/route.ts', snippet: '${report?.pairs.length ?? 0} account(s) attached', reason: 'a count of our own attach report' },
+  { file: 'src/app/api/plaid/exchange-token/route.ts', snippet: 'currentBalance: account.balances.current || 0,', reason: 'LISTED FOR A RULING: Plaid balances — accounts.currentBalance/availableBalance are nullable, but their readers (net worth, runway, answers, reconciliation) are not census-ed here' },
+  { file: 'src/app/api/plaid/exchange-token/route.ts', snippet: 'availableBalance: account.balances.available || account.balances.current || 0,', reason: 'LISTED FOR A RULING: the same balances — and `available || current` substitutes one figure for another' },
+  { file: 'src/app/api/transactions/sync-complete/route.ts', snippet: 'currentBalance: plaidAccount.balances.current || 0,', reason: 'LISTED FOR A RULING: the same Plaid balances on the sync' },
+  { file: 'src/app/api/transactions/sync-complete/route.ts', snippet: 'availableBalance: plaidAccount.balances.available || 0', reason: 'LISTED FOR A RULING: the same Plaid balances on the sync' },
+  { file: 'src/app/api/transactions/sync-complete/route.ts', snippet: 'transactions: tx.synced ?? 0,', reason: 'counters of our own sync outcomes' },
+  { file: 'src/app/api/transactions/sync-complete/route.ts', snippet: 'investmentTransactions: inv.synced ?? 0,', reason: 'counters of our own sync outcomes' },
+  { file: 'src/app/api/transactions/sync-complete/route.ts', snippet: 'securities: inv.securities ?? 0,', reason: 'counters of our own sync outcomes' },
+  { file: 'src/app/api/transactions/sync-complete/route.ts', snippet: 'holdings: hold.holdings ?? 0', reason: 'counters of our own sync outcomes' },
+  { file: 'src/app/api/transactions/sync-complete/route.ts', snippet: 'transactions: tx.skipped ?? 0,', reason: 'counters of our own sync outcomes' },
+  { file: 'src/app/api/transactions/sync-complete/route.ts', snippet: 'investmentTransactions: inv.skipped ?? 0', reason: 'counters of our own sync outcomes' },
+  { file: 'src/app/api/transactions/sync-complete/route.ts', snippet: 'arrivals: (tx.landed ?? 0) + (inv.landed ?? 0) + (hold.landed ?? 0),', reason: 'counters of our own sync outcomes' },
+  { file: 'src/app/api/transactions/sync-complete/route.ts', snippet: 'already_landed: (tx.already_landed ?? 0)', reason: 'counters of our own sync outcomes' },
+  { file: 'src/app/api/transactions/sync-complete/route.ts', snippet: 'corrected: (tx.corrected ?? 0)', reason: 'counters of our own sync outcomes' },
+];
+lawGuard('The stated-figure law', () => {
+  let figViolations = 0;
+  const figFail = (m: string) => { figViolations += 1; violations.push(`stated-figure law: ${m} (LAW-02)`); };
+  const HOTEL_CLIENT_F = 'src/lib/liteapiClient.ts';
+  const PANEL_F = 'src/components/trips/CheckoutPanel.tsx';
+  const GATE_F = 'src/lib/checkout/prebookGate.ts';
+  const WORDS_F = 'src/lib/travel/ratingWords.ts';
+  const PLANNER_F = 'src/components/trips/TripPlannerAI.tsx';
+  const EXCHANGE_F = 'src/app/api/plaid/exchange-token/route.ts';
+  const DEFAULT_RE = /\?\?\s*0(?![.\d])|\|\|\s*0(?![.\d])|\?\?\s*['"]USD['"]|\|\|\s*['"]USD['"]/;
+
+  // 1. THE BOUNDARY.
+  {
+    const files = [...FIGURE_BOUNDARY_FILES, ...FIGURE_BOUNDARY_DIRS.flatMap((d) => tsFiles(resolve(ROOT, d)).map((abs) => abs.replace(`${ROOT}/`, '')))].filter((f) => !f.includes('__tests__'));
+    const used = new Set<number>();
+    for (const f of files) {
+      for (const [i, line] of codeOf(f).split('\n').entries()) {
+        if (!DEFAULT_RE.test(line)) continue;
+        const at = FIGURE_DEFAULTS_ALLOWED.findIndex((a) => a.file === f && line.includes(a.snippet));
+        if (at < 0) figFail(`${f}:${i + 1} defaults a figure (${line.trim().slice(0, 90)}) — an unstated vendor or bank figure is NULL and named, or it is listed with its reason`);
+        else used.add(at);
+      }
+    }
+    FIGURE_DEFAULTS_ALLOWED.forEach((a, i) => { if (!used.has(i)) figFail(`the allowance for ${a.file} "${a.snippet}" matches no line — it is stale; the list only shrinks`); });
+    for (const a of FIGURE_DEFAULTS_ALLOWED) if (a.reason.trim().length < 20) figFail(`the allowance for ${a.file} "${a.snippet}" carries no reason`);
+  }
+
+  // 2. THE PREBOOK.
+  {
+    const client = codeOf(HOTEL_CLIENT_F);
+    if (!client.includes("price: typeof d.price === 'number' && Number.isFinite(d.price) ? d.price : null,") || !client.includes("currency: typeof d.currency === 'string' && d.currency.length > 0 ? d.currency : null,")) figFail(`${HOTEL_CLIENT_F}: prebookRate does not state price and currency as stated or NULL`);
+    if (!/price: number \| null;\s*currency: string \| null;/.test(client)) figFail(`${HOTEL_CLIENT_F}: PrebookResult does not type price and currency as nullable`);
+    if (prebookUnstatedMoney({ price: null, currency: 'USD' }) !== 'a price' || prebookUnstatedMoney({ price: 180, currency: null }) !== 'a currency' || prebookUnstatedMoney({}) !== 'a price and a currency' || prebookUnstatedMoney({ price: 0, currency: 'USD' }) !== null) figFail(`${GATE_F}: prebookUnstatedMoney does not name what is unstated (a stated 0 is stated)`);
+    const panel = codeOf(PANEL_F);
+    const gateAt = panel.indexOf('const unstatedMoney = prebookUnstatedMoney(p);');
+    const payAt = panel.indexOf('setPrebook(p as Prebook);');
+    if (gateAt < 0 || payAt < 0 || gateAt > payAt) figFail(`${PANEL_F}: the hold is not gated on a stated price and currency BEFORE the pay phase — a $0.00 card form is the defect`);
+    else if (!/if \(unstatedMoney\) \{\s*if \(!cancelled\) \{\s*fail\(\{\s*kind: 'prebook',/.test(panel.slice(gateAt, payAt)) || !/return;\s*\}/.test(panel.slice(gateAt, payAt))) figFail(`${PANEL_F}: an unstated price or currency is not the named 'prebook' failure that stops the flow`);
+    const qAt = panel.indexOf('const q = new URLSearchParams({');
+    const qBlock = qAt >= 0 ? panel.slice(qAt, panel.indexOf('});', qAt)) : '';
+    if (/\bcommission:/.test(qBlock)) figFail(`${PANEL_F}: the returnUrl carries a commission param — /booking/confirm reads none, and the ledger takes the vendor's stated figure`);
+  }
+
+  // 3. THE RATING.
+  {
+    const client = codeOf(HOTEL_CLIENT_F);
+    const mapper = functionBody(client, 'liteApiHotelToRecommendation') ?? '';
+    if (/\?\?\s*0|\|\|\s*0(?![.\d])/.test(mapper.replace(/Math\.max\(reviewCount, 1\)/, ''))) figFail(`${HOTEL_CLIENT_F}: the hotel recommendation mapper defaults a figure to 0`);
+    for (const must of ['googleRating: number | null;', 'reviewCount: number | null;', 'compositeScore: number | null;']) if (!client.includes(must)) figFail(`${HOTEL_CLIENT_F}: HotelRecommendation does not carry ${must}`);
+    if (!/const sentiment = googleRating === null \? null/.test(mapper) || !/let compositeScore: number \| null = null;/.test(mapper)) figFail(`${HOTEL_CLIENT_F}: a missing rating does not make its derived scores NULL`);
+    if (ratingLine(null, null) !== 'not rated' || ratingLine(0, 12) !== 'not rated' || ratingLine(4.5, 1203) !== '4.5 stars (1,203 reviews)' || ratingLine(4.5, null) !== '4.5 stars (reviews not stated)' || ratingValue(null) !== 'not rated' || scoreWords(null) !== 'not rated' || scoreWords(8) !== '8/10') figFail(`${WORDS_F}: the rating words do not say "not rated" for an unstated (or 0) rating`);
+    const planner = codeOf(PLANNER_F);
+    // A sort key that orders an unrated hotel last prints nothing; these are the PRINTED forms.
+    if (/\$\{rec\.googleRating\} stars|Rated \$\{rec\.googleRating \|\| 0\}|\{rec\.googleRating \|\| '—'\}|googleRating\} stars/.test(planner)) figFail(`${PLANNER_F} prints an unstated rating as a number — it says "not rated" through ${WORDS_F}`);
+    if (!/ratingLine\(rec\.googleRating, rec\.reviewCount\)/.test(planner) || !/ratingValue\(rec\.googleRating\)/.test(planner)) figFail(`${PLANNER_F} does not render the rating through the one words leaf`);
+  }
+
+  // 4. THE BANK CURRENCY, AND THE FLIGHT STOPS.
+  {
+    if (!codeOf(EXCHANGE_F).includes('isoCurrencyCode: account.balances.iso_currency_code ?? null,')) figFail(`${EXCHANGE_F}: the account currency is not stored as Plaid states it, or NULL`);
+    if (!/accountCurrency: string \| null;/.test(codeOf('src/lib/runway/reservationMatcher.ts')) || !/amount: EXCLUDED — the account currency is not stated/.test(codeOf('src/lib/runway/reservationMatcher.ts'))) figFail('the MATCH-02 refund pass no longer EXCLUDES the amount signal on a NULL account currency');
+    if (!codeOf('src/lib/flights/fares.ts').includes('const stops = rep.outbound ? stopsText(rep.outbound.stops) : null;')) figFail('src/lib/flights/fares.ts: a flight with no stated outbound is called "nonstop" again');
+  }
+
+  if (figViolations === 0) console.log(`✔ The stated-figure law passed — at the vendor and bank boundary (${FIGURE_BOUNDARY_FILES.length} clients + ${FIGURE_BOUNDARY_DIRS.length} directories) no figure defaults to 0 or USD except the ${FIGURE_DEFAULTS_ALLOWED.length} listed, each with its reason; a prebook with no stated price or currency is refused by name before any card form, and the returnUrl carries no commission; an unstated hotel rating is NULL with everything derived from it and reads "not rated"; Plaid's account currency is stated or NULL; a flight with no outbound is never "nonstop".`);
+  else console.log(`✖ The stated-figure law FAILED — ${figViolations} violation(s).`);
+});
+
+// ── THE DOCUMENT-FREEZE LAW (LAW-02, 2026-09-27) ────────────────────────────
+// A POSTING'S DOCUMENT ARRIVES ONCE. journal_entries.document_reservation_id and
+// document_money_event_id were left UPDATE-able by POST-01 for its retro; the
+// immutability trigger now lets NULL → a value through and refuses a set document
+// being replaced or removed. The function is REPLACED (the trigger keeps calling
+// it), every field it already froze stays frozen, no trigger is dropped.
+lawGuard('The document-freeze law', () => {
+  let freezeViolations = 0;
+  const freezeFail = (m: string) => { freezeViolations += 1; violations.push(`document-freeze law: ${m} (LAW-02)`); };
+  const original = ALL_MIGRATIONS.find((m) => /_protect_journal_entries$/.test(m.dir));
+  const freeze = ALL_MIGRATIONS.find((m) => /_law_02_document_freeze$/.test(m.dir));
+  if (!original) freezeFail('the immutability trigger migration (*_protect_journal_entries) is gone');
+  if (!freeze) freezeFail('no prisma/migrations/*_law_02_document_freeze/migration.sql');
+  if (original && freeze) {
+    if (!(freeze.dir > original.dir)) freezeFail('the freeze migration does not sort after the trigger it replaces');
+    const sql = freeze.sql;
+    if (!/CREATE OR REPLACE FUNCTION prevent_journal_entry_mutation\(\)/.test(sql)) freezeFail('the freeze does not REPLACE the one trigger function — a second function would leave the old one in force');
+    if (/DROP TRIGGER|DROP FUNCTION|DELETE FROM|UPDATE journal_entries/i.test(sql.replace(/--[^\n]*/g, ''))) freezeFail('the freeze drops a trigger or function, or touches a row — it replaces a function body and nothing else');
+    for (const field of [...original.sql.matchAll(/NEW\.("?\w+"?) IS DISTINCT FROM OLD\.\1/g)].map((m) => m[1])) {
+      if (!sql.includes(`NEW.${field} IS DISTINCT FROM OLD.${field}`)) freezeFail(`the freeze un-freezes ${field} — every field the trigger already froze stays frozen`);
+    }
+    for (const col of ['document_reservation_id', 'document_money_event_id']) {
+      if (!sql.includes(`(OLD.${col} IS NOT NULL AND NEW.${col} IS DISTINCT FROM OLD.${col})`)) freezeFail(`${col} is not frozen once set (NULL → a value allowed; a set value never replaced or removed)`);
+    }
+    if (!/RAISE EXCEPTION 'Journal entry document cannot change once set/.test(sql)) freezeFail('a refused document change is not named');
+  }
+  if (freezeViolations === 0) console.log('✔ The document-freeze law passed — the immutability trigger function is replaced, not duplicated: every field it froze stays frozen, and a posting\'s document (booking, money event) may be set once from NULL and never replaced or removed.');
+  else console.log(`✖ The document-freeze law FAILED — ${freezeViolations} violation(s).`);
 });
 
 // ── THE ROW LAW (TRAVEL-ROW-01, 2026-09-23) ─────────────────────────────────
@@ -8032,7 +8208,12 @@ lawGuard('The row law', () => {
     // vendor's stated prebook commission or "not stated", never a hidden 0. Where
     // it mounts, which the row law owns, is untouched.
     // Was b3fd49cbd8acf9ab3d5afb11fdc42f61089722d2951dd6cbfa6a8dc2bdf19b46 at main 0ef428a6.
-    { file: 'src/components/trips/CheckoutPanel.tsx', sha256: 'ab04853f236ae7d519c717a7aa5183efbaa20eab370caa2bd73b9f46904734b0' },
+    // LAW-02 (2026-09-27): re-pinned by its own ruling — a hold with no stated price or
+    // currency is the named 'prebook' failure before any card form, and the returnUrl
+    // drops the `commission` param nothing read. Where it mounts, which the row law
+    // owns, is untouched.
+    // Was ab04853f236ae7d519c717a7aa5183efbaa20eab370caa2bd73b9f46904734b0 at main 0ca0f678.
+    { file: 'src/components/trips/CheckoutPanel.tsx', sha256: 'ef2f083e519dc885715582626205db24e0fa293e5e2b114728ecbc1646fe9782' },
     // FL-5b (2026-09-23): re-pinned by its own ruling — the panel sends the contact
     // with the book call so the confirmation has somewhere to go. Where it mounts,
     // which TRAVEL-ROW-01 owns, is untouched.

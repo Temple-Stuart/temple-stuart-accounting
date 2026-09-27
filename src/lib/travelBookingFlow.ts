@@ -360,7 +360,12 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // or "not stated" — never a hidden 0; the type admits null. Where it mounts is
   // untouched.
   // Was b3fd49cbd8acf9ab3d5afb11fdc42f61089722d2951dd6cbfa6a8dc2bdf19b46 at main 0ef428a6.
-  { file: 'src/components/trips/CheckoutPanel.tsx', sha256: 'ab04853f236ae7d519c717a7aa5183efbaa20eab370caa2bd73b9f46904734b0' },
+  // LAW-02 (2026-09-27): re-pinned — a hold with no stated price or currency is the named
+  // 'prebook' failure before any card form (src/lib/checkout/prebookGate.ts), and the
+  // returnUrl no longer carries a `commission` param nothing read. Where it mounts, and
+  // the SDK hand-off, are untouched.
+  // Was ab04853f236ae7d519c717a7aa5183efbaa20eab370caa2bd73b9f46904734b0 at main 0ca0f678.
+  { file: 'src/components/trips/CheckoutPanel.tsx', sha256: 'ef2f083e519dc885715582626205db24e0fa293e5e2b114728ecbc1646fe9782' },
   // FL-5b (2026-09-23): re-pinned — the panel sends the contact it already holds.
   // The SAME address it validated and sent at prebook now rides the book call too,
   // and the booked state says whether the confirmation went out. No payment path,
@@ -461,7 +466,11 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   { file: 'src/components/trips/UnattachedBookings.tsx', sha256: '9acd17f2c336eba34f91d431cb4ab640e99d6348204c968cfaaf9b7219eb0b4e' },
   // HOTEL-02 (2026-09-22): re-dated — the dead lodging default constant deleted; the lodging commit names the vendor's hotel. The stay's clock is the property's, read once at commit; no prebook/book/pay/cancel call changed.
   // Was 8c5bf217bf1a2c2b65f3f969be5c02016455d53d9977fa5406600d14cb894ed5 at main 81045434.
-  { file: 'src/components/trips/TripPlannerAI.tsx', sha256: '9cdf491def14615d0f5b0d8ba168bb7026131b05c12b3d3a113be0b3ee3ddf9d' },
+  // LAW-02 (2026-09-27): re-pinned — an unstated rating renders "not rated" through
+  // src/lib/travel/ratingWords.ts (was `${rating} stars`, "Rated 0 out of 5"); the
+  // recommendation type carries NULL. No commit, no booking call changed.
+  // Was 9cdf491def14615d0f5b0d8ba168bb7026131b05c12b3d3a113be0b3ee3ddf9d at main 0ca0f678.
+  { file: 'src/components/trips/TripPlannerAI.tsx', sha256: '2199015c8e7688ec81e77d44c50c1c23bd123ae0b97c02443767c90f13b7ac3b' },
   // the provider clients and their helpers
   // HOTEL-01 (2026-09-22): re-pinned — the search half carries the vendor's filter and sort fields; every booking function is byte-identical (the hotel law pins each body). Search and display are not booking; no prebook/book/pay/cancel call changed.
   // Was 9806e3b58ab2b8d4845e7870f89078d473d27007cae0adb247af0673907f176a at main d56b2cc9.
@@ -477,7 +486,12 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // clientCommission, processingFee and sellingPrice verbatim, null when absent.
   // Every booking call is untouched.
   // Was 732d29dc045750f33357b9f3a2db911251127020fb9eba94f0d9b5e5c62f8f05 at main 0ef428a6.
-  { file: 'src/lib/liteapiClient.ts', sha256: '5fc1659e02a25b4ca51bb6e0b8ca422f81e690b5b5ddf1cc4484eb889aafa02b' },
+  // LAW-02 (2026-09-27): re-pinned — prebookRate states price and currency as stated or
+  // NULL (was `?? 0` / `?? 'USD'`, a $0 USD hold the vendor never gave), and the hotel
+  // recommendation mapper states an unstated rating / review count as NULL with its
+  // derived scores. No request, no endpoint, no book/pay/cancel call changed.
+  // Was 5fc1659e02a25b4ca51bb6e0b8ca422f81e690b5b5ddf1cc4484eb889aafa02b at main 0ca0f678.
+  { file: 'src/lib/liteapiClient.ts', sha256: '347facf0f863cdf05b8be74d7bf97005fa768473cd5d4119259534e785d2e66a' },
   // LANE-01 (2026-09-25): re-pinned — one READ added: getFlightBooking (GET
   // /flights/bookings/{id}) and its pure parser, on the same auth headers and the same
   // non-2xx contract as the POSTs (throwFlightsNon2xx, lifted out of postFlightsAnswer

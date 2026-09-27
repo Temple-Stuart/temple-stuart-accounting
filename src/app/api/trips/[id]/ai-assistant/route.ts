@@ -305,7 +305,9 @@ export async function POST(
         // hotel at native position 90 now survives to the top of the ranking.)
         const rankedAll = hotels
           .map((h, idx) => liteApiHotelToRecommendation(h, idx, category))
-          .sort((a, b) => b.compositeScore - a.compositeScore);
+          // LAW-02 (2026-09-27): a hotel that states no rating has no composite (NULL) —
+          // it ranks after every rated hotel, in the vendor's order, never as a 0.
+          .sort((a, b) => (a.compositeScore === null ? 1 : 0) - (b.compositeScore === null ? 1 : 0) || (a.compositeScore !== null && b.compositeScore !== null ? b.compositeScore - a.compositeScore : 0));
         const finalResults = rankedAll
           .slice(0, maxResults)
           .map((rec, idx) => ({ ...rec, valueRank: idx + 1 }));

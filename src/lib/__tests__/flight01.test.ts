@@ -278,7 +278,8 @@ test('the booking-flow pin still holds for every file it names — five search f
     // Was 77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5 before CHECKOUT-01.
     // CHECKOUT-03 (2026-09-23): the panel waits on Stripe.js before handing off.
     // COMM-01 (2026-09-26): re-pinned — was b3fd49cbd8acf9ab3d5afb11fdc42f61089722d2951dd6cbfa6a8dc2bdf19b46 at main 0ef428a6.
-    'src/components/trips/CheckoutPanel.tsx': 'ab04853f236ae7d519c717a7aa5183efbaa20eab370caa2bd73b9f46904734b0',
+    // LAW-02 (2026-09-27): re-pinned — was ab04853f236ae7d519c717a7aa5183efbaa20eab370caa2bd73b9f46904734b0 at main 0ca0f678.
+    'src/components/trips/CheckoutPanel.tsx': 'ef2f083e519dc885715582626205db24e0fa293e5e2b114728ecbc1646fe9782',
     // LANE-01 (2026-09-25): a reservation knows what it is. Was f5ecffcfa0b71b8cbe4ba8868a2f8aabd4e326129bacbf9a675e79b17e63fd2f.
     // CANCEL-01 (2026-09-26): re-pinned — was 8130c9e36431d886f48648f2b2ae2ad4a86413d7a9037a8959a79c620b242bf7 at main dccb3380.
     // STATUS-01 (2026-09-26): re-pinned — was 0bae21fb9bf0bd9664dc7418502a35e507f713d370e542b878e35e2188b3121d at main 53900e67.

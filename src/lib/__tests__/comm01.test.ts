@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { code, comments, functionBody } from '../sourceText';
-import { applyVendorState, type ApplyPorts, type ApplyRow, type CommissionFigures, type ReservationPatch, type VendorHotelState } from '../reservations/applyVendorState';
+import { COMMISSION_LOCK_GRACE_MS, applyVendorState, type ApplyPorts, type ApplyRow, type CommissionFigures, type ReservationPatch, type VendorHotelState } from '../reservations/applyVendorState';
 import { applyLockedRead, type LockedReadPorts, type VendorAnswer, type VendorReadRow } from '../reservations/vendorRead';
 import { parseBookResult, parseHotelBookingState } from '../liteapiClient';
 import { BOOKING_READ } from '../arrivals/liteapiBooking';
@@ -142,6 +142,22 @@ test('read BEFORE checkout with commission stated → no lock, the port is not c
   assert.equal(out.commissionLock.outcome, 'locked');
 });
 
+test('LAW-02: the check-out DATE is a day — a read at 00:01 UTC on it is before_checkout; at +25h the commission locks', async () => {
+  assert.equal(COMMISSION_LOCK_GRACE_MS, 86_400_000, 'one full day');
+  const checkoutDate = new Date('2026-09-25'); // @db.Date — midnight UTC
+  const early = fakeApplyPorts();
+  const at0001 = await applyVendorState(early.ports, { ...CHECKED_OUT, checkoutDate }, vendor({ status: 'CONFIRMED', commission: 12.34, readAt: new Date('2026-09-25T00:01:00.000Z') }));
+  assert.deepEqual(at0001.commissionLock, { outcome: 'before_checkout' }, 'the guest may still be in the room at 00:01 on check-out day');
+  assert.equal(early.locks.length, 0, 'the port is not called');
+  const edge = fakeApplyPorts();
+  const at24h = await applyVendorState(edge.ports, { ...CHECKED_OUT, checkoutDate }, vendor({ status: 'CONFIRMED', commission: 12.34, readAt: new Date('2026-09-26T00:00:00.000Z') }));
+  assert.deepEqual(at24h.commissionLock, { outcome: 'before_checkout' }, 'exactly one day after is not yet AFTER one full day (strict <)');
+  const late = fakeApplyPorts();
+  const at25h = await applyVendorState(late.ports, { ...CHECKED_OUT, checkoutDate }, vendor({ status: 'CONFIRMED', commission: 12.34, readAt: new Date('2026-09-26T01:00:00.000Z') }));
+  assert.deepEqual(at25h.commissionLock, { outcome: 'locked', cents: 1234 });
+  assert.equal(late.locks.length, 1);
+});
+
 test('read after checkout with NO commission field → no lock, named log', async () => {
   const f = fakeApplyPorts();
   const out = await applyVendorState(f.ports, CHECKED_OUT, vendor({ status: 'CONFIRMED', commission: null }));
@@ -258,7 +274,8 @@ test('the cron reads a checked-out stay once more to lock; the retro prints the 
 
 test('the apply leaf: the lock rule exactly — lane hotel, mapped confirmed, checkoutDate < readAt, a stated commission; no clock', () => {
   const leaf = code(APPLY);
-  assert.match(leaf, /if \(vendor\.lane === 'hotel' && mapped === 'confirmed'\) \{\s*const afterCheckout = row\.checkoutDate !== null && row\.checkoutDate < vendor\.readAt;/);
+  // LAW-02 (2026-09-27): stricter — one full day after the check-out date (a day, not an instant).
+  assert.match(leaf, /if \(vendor\.lane === 'hotel' && mapped === 'confirmed'\) \{\s*const afterCheckout = row\.checkoutDate !== null && row\.checkoutDate\.getTime\(\) \+ COMMISSION_LOCK_GRACE_MS < vendor\.readAt\.getTime\(\);/);
   assert.match(leaf, /else if \(vendor\.commission === null\) \{\s*commissionLock = \{ outcome: 'not_stated' \};/);
   assert.match(leaf, /await ports\.lockCommission\(row\.id, figures, vendor\.readAt, vendor\.arrivalId\)/);
   assert.ok(!/new Date\(\)/.test(leaf), 'no clock in the leaf');

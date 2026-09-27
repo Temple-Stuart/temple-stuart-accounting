@@ -166,7 +166,8 @@ export function lowestFareLine(low: { fare: FlightOffer; group: FlightGroup } | 
   const carrier = carrierLineOf(seg);
   const who = carrier.operatedBy ? `${carrier.name} (operated by ${carrier.operatedBy})` : carrier.name;
   const time = rep.outbound?.departure.localTime ?? '';
-  const stops = stopsText(rep.outbound?.stops ?? 0);
+  // LAW-02 (2026-09-27): no outbound, no stops word — `?? 0` said "nonstop" for a flight that stated none.
+  const stops = rep.outbound ? stopsText(rep.outbound.stops) : null;
   return `Lowest fare meeting your filters: ${money(low.fare.price, low.fare.currency)} — ${[who, time, stops].filter(Boolean).join(' ')}.`;
 }
 

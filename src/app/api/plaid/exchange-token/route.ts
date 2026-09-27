@@ -126,7 +126,10 @@ export async function POST(request: Request) {
           mask: account.mask,
           currentBalance: account.balances.current || 0,
           availableBalance: account.balances.available || account.balances.current || 0,
-          isoCurrencyCode: account.balances.iso_currency_code || 'USD',
+          // LAW-02 (2026-09-27): the currency Plaid states, or NULL — never 'USD'. Every
+          // reader handles NULL: the MATCH-02 refund pass EXCLUDES the amount signal
+          // (reservationMatcher.ts proposeRefundMatches); attach copies it as stated.
+          isoCurrencyCode: account.balances.iso_currency_code ?? null,
           plaidItemId: plaidItemId,
           userId: user.id,
           updatedAt: new Date(),
