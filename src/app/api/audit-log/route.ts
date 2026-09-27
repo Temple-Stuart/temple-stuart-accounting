@@ -49,7 +49,9 @@ const SUBSYSTEM_ACTION_TYPES: Record<string, AuditActionType[]> = {
     'operations_north_star_updated',
     'operations_north_star_reviewed',
   ],
-  // AUDIT-01 (2026-09-26): the booking audit trail's three families.
+  // AUDIT-01 (2026-09-26): the booking audit trail's families. AUDIT-01b (2026-09-27):
+  // 'commission_' is gone — commission_locked is never returned by this route (below),
+  // so no prefix names it.
   reservation_: [
     'reservation_booked',
     'reservation_status_changed',
@@ -69,10 +71,16 @@ const SUBSYSTEM_ACTION_TYPES: Record<string, AuditActionType[]> = {
     'money_event_stated',
     'money_event_settled',
   ],
-  commission_: [
-    'commission_locked',
-  ],
 };
+
+/**
+ * AUDIT-01b (2026-09-27): action types this route NEVER returns, to any viewer.
+ * commission_locked carries Temple Stuart's margin (RECEIPT-01: commission never
+ * appears to the customer). It is written with no user id (src/lib/reservations/
+ * auditTrail.ts COMMISSION_ACTOR), so the actor scope below already excludes it;
+ * this is defense in depth — excluded by name, whatever the filters ask for.
+ */
+const NEVER_RETURNED: AuditActionType[] = ['commission_locked'];
 
 export async function GET(request: NextRequest) {
   try {
@@ -99,7 +107,8 @@ export async function GET(request: NextRequest) {
     // ?actor_user_id= param is removed: it let any authed user read another
     // user's audit rows (incl. payload before/after snapshots). No caller
     // param may widen beyond the authenticated user's own rows.
-    const where: Prisma.audit_logWhereInput = { actor_user_id: user.id };
+    // AUDIT-01b: and never a row NEVER_RETURNED names — an action_type or prefix filter narrows within this, never past it.
+    const where: Prisma.audit_logWhereInput = { actor_user_id: user.id, NOT: { action_type: { in: NEVER_RETURNED } } };
 
     // action_type exact match wins over prefix; only one filter applies.
     // Prefix lookups resolve to a static `in` list of enum values — see

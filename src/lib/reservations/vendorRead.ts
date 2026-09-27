@@ -26,7 +26,9 @@
  * (status_changed, or cancelled when the vendor finalized a pending cancel;
  * confirmation_code_arrived; ticketed; ticket_limit_stated), each with its
  * before/after, the read's arrival as the evidence; the commission lock as
- * commission_locked on the ledger row it locked. An unchanged read records
+ * commission_locked on the ledger row it locked (AUDIT-01b, 2026-09-27: written by
+ * COMMISSION_ACTOR — system_automation, user_id NULL — never under the owner's id,
+ * so the owner's audit view never returns the margin). An unchanged read records
  * nothing; a dry run records nothing. The actor is the read's source: the cron and
  * the retro are system_automation, the webhook external_integration — both under
  * the booking's OWNER. An audit failure is named and never undoes the read.
@@ -57,7 +59,7 @@ import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQ
 import { applyVendorState, type ApplyOutcome, type ApplyPorts, type CommissionFigures, type CommissionLockOutcome, type LifecycleEmailRequest, type ReservationPatch } from './applyVendorState';
 import { refreshFlightReservation, type FlightReservationPatch, type FlightRefreshPorts } from './refreshFlightReservation';
 import { sendLifecycleEmail, type LifecycleEmailStatus } from './lifecycleSend';
-import { actorOfReadSource, readChangesOf, recordBookingEvent, type AuditOutcome, type BookingEventKind } from './auditTrail';
+import { COMMISSION_ACTOR, actorOfReadSource, readChangesOf, recordBookingEvent, type AuditOutcome, type BookingEventKind } from './auditTrail';
 
 /** Who asked for the read — named in every log line. */
 export type VendorReadSource = 'webhook' | 'cron' | 'retro';
@@ -326,7 +328,8 @@ export async function readAndApplyReservation(row: VendorReadRow, opts: VendorRe
           audited.push({ kind: 'commission_locked', outcome: await recordBookingEvent({
             reservation: booking,
             kind: 'commission_locked',
-            actor,
+            // AUDIT-01b: the system, no user id — Temple Stuart's margin never reaches the owner's audit view.
+            actor: COMMISSION_ACTOR,
             before: { status: 'estimated' },
             after: { status: 'confirmed', currency: lockedRow.currency, lockedCommissionCents: lockedRow.lockedCommissionCents, distributorCommissionCents: lockedRow.distributorCommissionCents, clientCommissionCents: lockedRow.clientCommissionCents, processingFeeCents: lockedRow.processingFeeCents, lockedAt: lockedRow.lockedAt?.toISOString() ?? null },
             evidence,

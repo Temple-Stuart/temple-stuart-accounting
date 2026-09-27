@@ -16,7 +16,11 @@
  *   · the timeline leaf reads the clock, or renders an unknown action as a guess (clause 7);
  *   · the timeline route writes, calls the vendor, drops the owner's scope or
  *     lets commission onto the customer's page (clause 8);
- *   · the page types the History heading (clause 9).
+ *   · the page types the History heading (clause 9);
+ *   · AUDIT-01b (2026-09-27): commission_locked is written under the owner's id, the
+ *     port stops refusing it, COMMISSION_ACTOR gains a person, or another file records
+ *     it (clause 10); the read route drops its exclusion, lets a filter past it, or a
+ *     prefix names commission again (clause 11).
  *
  * Each must fail THE AUDIT LAW by name. The anchors occur exactly once in their
  * file, which the harness enforces before it runs anything.
@@ -35,6 +39,7 @@ const READ_LEAF = 'src/lib/reservations/vendorRead.ts';
 const CANCEL = 'src/app/api/reservations/[id]/cancel/route.ts';
 const REVIEW = 'src/app/api/runway/match/review/route.ts';
 const COMMIT = 'src/app/api/transactions/commit-to-ledger/route.ts';
+const READ_ROUTE = 'src/app/api/audit-log/route.ts';
 
 const SEEDS: Seed[] = [
   {
@@ -190,6 +195,55 @@ const SEEDS: Seed[] = [
     find: '{HISTORY_WORDS.heading}',
     replace: 'History',
     expect: 'types the History heading',
+  },
+  {
+    name: "audit01-w commission_locked goes back to the owner's actor (clause 10, AUDIT-01b)",
+    file: READ_LEAF,
+    find: '            actor: COMMISSION_ACTOR,\n',
+    replace: '            actor,\n',
+    expect: 'commission_locked is not written by COMMISSION_ACTOR',
+  },
+  {
+    name: 'audit01-x the port stops refusing a commission row with a user id (clause 10, AUDIT-01b)',
+    file: PORT,
+    find: "  if (input.kind === 'commission_locked' && (input.actor.type !== 'system_automation' || input.actor.userId !== null)) {",
+    replace: '  if (input.kind === \'commission_locked\' && input.actor.type === \'human_user\') {',
+    expect: 'does not refuse, by name and before the write, a commission_locked row',
+  },
+  {
+    name: 'audit01-y COMMISSION_ACTOR gains a person (clause 10, AUDIT-01b)',
+    file: PORT,
+    find: "Object.freeze({ type: 'system_automation', userId: null, email: null, ip: null })",
+    replace: "Object.freeze({ type: 'system_automation', userId: 'u_owner', email: null, ip: null })",
+    expect: 'COMMISSION_ACTOR is not the system with no user id',
+  },
+  {
+    name: 'audit01-z another file records commission_locked (clause 10, AUDIT-01b)',
+    file: COMMIT,
+    find: "            kind: 'reservation_posted',",
+    replace: "            kind: 'commission_locked',",
+    expect: "records commission_locked — the vendor read's lock is its one writer",
+  },
+  {
+    name: 'audit01-aa the read route drops its exclusion (clause 11, AUDIT-01b)',
+    file: READ_ROUTE,
+    find: ', NOT: { action_type: { in: NEVER_RETURNED } } };',
+    replace: ' };',
+    expect: 'base scope does not exclude NEVER_RETURNED for every viewer',
+  },
+  {
+    name: 'audit01-ab a filter lets the read route past its exclusion (clause 11, AUDIT-01b)',
+    file: READ_ROUTE,
+    find: '    if (actionType) {\n      where.action_type',
+    replace: "    if (actionType === 'commission_locked') delete where.NOT;\n    if (actionType) {\n      where.action_type",
+    expect: 'replaces its base scope',
+  },
+  {
+    name: 'audit01-ac a prefix names commission again (clause 11, AUDIT-01b)',
+    file: READ_ROUTE,
+    find: "  money_event_: [\n    'money_event_stated',\n    'money_event_settled',\n  ],\n};",
+    replace: "  money_event_: [\n    'money_event_stated',\n    'money_event_settled',\n  ],\n  commission_: [\n    'commission_locked',\n  ],\n};",
+    expect: 'prefix map still names commission_locked',
   },
 ];
 

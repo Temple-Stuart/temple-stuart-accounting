@@ -324,7 +324,7 @@ test('the receipt page gains a History section: one more authed GET, the leaf’
 
 // ── the enum, the map, the pins, the law ──────────────────────────────────────
 
-test('the sixteen enum values: the migration adds each (outside a transaction, no backfill), the schema and the generated client carry each, the read route’s prefix map covers the three families', () => {
+test('the sixteen enum values: the migration adds each (outside a transaction, no backfill), the schema and the generated client carry each, the read route’s prefix map covers the booking families', () => {
   const sql = code(MIGRATION);
   const added = [...sql.matchAll(/ALTER TYPE "AuditActionType" ADD VALUE IF NOT EXISTS '(\w+)';/g)].map((m) => m[1]);
   assert.deepEqual(added, [...BOOKING_EVENT_KINDS]);
@@ -334,10 +334,12 @@ test('the sixteen enum values: the migration adds each (outside a transaction, n
   const schemaEnum = /enum AuditActionType \{([\s\S]*?)\n\}/.exec(code('prisma/schema.prisma'))?.[1] ?? '';
   for (const k of BOOKING_EVENT_KINDS) assert.match(schemaEnum, new RegExp(`^\\s*${k}\\s*$`, 'm'));
   const map = code(PREFIX_ROUTE);
-  for (const family of ['reservation_', 'money_event_', 'commission_']) {
+  // AUDIT-01b (2026-09-27): two families — 'commission_' left the map; the route never returns commission_locked.
+  for (const family of ['reservation_', 'money_event_']) {
     const list = new RegExp(`\\n  ${family}: \\[([^\\]]*)\\]`).exec(map)?.[1] ?? '';
     assert.deepEqual([...list.matchAll(/'(\w+)'/g)].map((m) => m[1]).sort(), BOOKING_EVENT_KINDS.filter((k) => k.startsWith(family)).slice().sort(), family);
   }
+  assert.ok(!/\n  commission_: \[/.test(map), 'no commission_ family');
 });
 
 test('the three pinned files are re-pinned, dated, the old hashes stacked', () => {
