@@ -168,6 +168,7 @@ import { buildIcs, escapeIcsText, foldIcsLine } from '../src/lib/calendar/ics';
 // LAW-02: a figure nobody stated is NULL, named on screen.
 import { prebookUnstatedMoney } from '../src/lib/checkout/prebookGate';
 import { ratingLine, ratingValue, scoreWords } from '../src/lib/travel/ratingWords';
+import { OWNED_LOADERS, enclosing, exportedMethods, flatWhere, handlerIdentity, inScope, judgeWrites, topFunctions } from '../src/lib/security/ownershipLaw';
 import { DYNAMIC_READ_ENV, LIBRARY_READ_ENV } from '../src/lib/envLaw';
 import { EXPECTED_FEED_COUNT, FEED_COST, FEED_IDS, SCAN_COST, feedCostLaw, scanCostLine } from '../src/lib/observatory/feedCost';
 import { FINNHUB_TTL, finnhubCallsPerSymbol, finnhubTtlLaw, slowTierEndpoints } from '../src/lib/convergence/finnhub-ttl';
@@ -7531,6 +7532,185 @@ lawGuard('The document-freeze law', () => {
   }
   if (freezeViolations === 0) console.log('✔ The document-freeze law passed — the immutability trigger function is replaced, not duplicated: every field it froze stays frozen, and a posting\'s document (booking, money event) may be set once from NULL and never replaced or removed.');
   else console.log(`✖ The document-freeze law FAILED — ${freezeViolations} violation(s).`);
+});
+
+// ── THE OWNERSHIP LAW (SEC-02, 2026-09-27) ──────────────────────────────────
+// EVERY ROUTE THAT CHANGES DATA PROVES WHO YOU ARE AND THAT THE ROW IS YOURS.
+// The census (the SEC-02 PR body) read every route under src/app/api exporting
+// DELETE, PATCH or PUT — 48 files, not the 47 a `function|const PUT` count finds:
+// src/app/api/inngest/route.ts serves PUT through `export const { GET, POST, PUT }`
+// — and every POST that writes. This law keeps it true. A route file is IN SCOPE
+// when it exports DELETE, PATCH or PUT in ANY export form, or exports POST and
+// calls a Prisma write (create/update/delete/upsert, $executeRaw, a raw INSERT/
+// UPDATE/DELETE). Each one is EITHER:
+//   · a PUBLIC WRITER — listed below with its reason and its guards (a rate limit,
+//     a daily cap, a secret, an invite token), each guard read in its code; every
+//     in-scope route under a PUBLIC_PATHS entry or a middleware bypass MUST be
+//     listed, so an optional getVerifiedEmail() never hides a public writer; or
+//   · an OWNED writer — every mutating handler calls getVerifiedEmail() /
+//     getCurrentUser() / requireAdmin() (or a same-file helper that does) BEFORE its
+//     first write, and every update/delete/upsert WHERE names the caller (userId /
+//     user_id = the verified user) or a value PROVEN OWNED earlier in the same
+//     function (src/lib/security/ownershipLaw.ts: the caller-scoped read, the owner
+//     chain answering missing and foreign alike, the counted batch, the owned
+//     loaders, the rows those return and everything derived from them).
+// What the reader cannot prove is named, not guessed: the owner console
+// (requireAdmin: OWNER_EMAIL only), the shared rows with no owner column, the
+// derived-owned writes and the helpers whose every call is preceded by the check.
+// Each table is CLOSED at the census: its count is pinned and only shrinks, and an
+// entry nothing uses fails as stale. A new writing route that is neither fails the
+// build by name.
+type SecGuard = { name: string; re: RegExp };
+const PUBLIC_WRITERS: ReadonlyArray<{ file: string; kind: 'public' | 'bypass' | 'token'; reason: string; guards: readonly SecGuard[] }> = [
+  { file: 'src/app/api/auth/signup/route.ts', kind: 'public', reason: '/api/auth is public: a new account has no session yet', guards: [{ name: 'per-IP rate limit 5/hour', re: /await rateLimit\(`auth-signup:\$\{ip\}`, \{ limit: 5, windowSeconds: 3600 \}\)/ }] },
+  { file: 'src/app/api/proposals/route.ts', kind: 'public', reason: 'PROPOSAL-FORM: public BY RULING — a DB write only, no paid call', guards: [{ name: 'honeypot', re: /\['website'\]/ }, { name: 'per-ip_hash rate limit 5/hour', re: /await rateLimit\(`proposal:\$\{ipHash\}`, \{ limit: 5, windowSeconds: 3600 \}\)/ }] },
+  { file: 'src/app/api/stripe/webhook/route.ts', kind: 'public', reason: 'Stripe holds no session; the signed body is the authority', guards: [{ name: 'STRIPE_WEBHOOK_SECRET signature (constructEvent)', re: /secret: process\.env\.STRIPE_WEBHOOK_SECRET[\s\S]*webhooks\.constructEvent\(body, sig, secret\)/ }] },
+  { file: 'src/app/api/webhooks/liteapi/route.ts', kind: 'public', reason: 'STATUS-01: the vendor holds no session; the token is the gate before a byte is stored', guards: [{ name: 'per-IP rate limit 120/min', re: /await rateLimit\(`liteapi-webhook:\$\{ip\}`/ }, { name: 'LITEAPI_WEBHOOK_TOKEN, constant-time', re: /process\.env\.LITEAPI_WEBHOOK_TOKEN[\s\S]*!constantTimeEqual\(given, expected\)/ }] },
+  { file: 'src/app/api/inngest/route.ts', kind: 'public', reason: 'Inngest Cloud holds no session; serve() verifies the INNGEST_SIGNING_KEY signature before any function runs', guards: [{ name: 'serve() signature check', re: /export const \{ GET, POST, PUT \} = serve\(\{/ }] },
+  { file: 'src/app/api/operations/projects/[id]/audit-ingest/route.ts', kind: 'bypass', reason: 'PHASE3-3: the Routine callback holds no cookie; the bearer is the whole boundary, then the stored correlation id', guards: [{ name: 'AUDIT_INGEST_SECRET bearer first', re: /const secret = process\.env\.AUDIT_INGEST_SECRET;[\s\S]*if \(authHeader !== `Bearer \$\{secret\}`\)/ }, { name: 'stored correlation id', re: /project\.audit_correlation_id !== correlationId/ }] },
+  { file: 'src/app/api/operations/projects/[id]/exec-ingest/route.ts', kind: 'bypass', reason: 'EXEC-1: the Routine callback holds no cookie; the bearer is the whole boundary, then the task by correlation id within the project', guards: [{ name: 'EXEC_INGEST_SECRET bearer first', re: /const secret = process\.env\.EXEC_INGEST_SECRET;[\s\S]*if \(authHeader !== `Bearer \$\{secret\}`\)/ }, { name: 'task by correlation id within the project', re: /where: \{ exec_correlation_id: correlationId, project_id: projectId \}/ }] },
+  { file: 'src/app/api/trips/rsvp/route.ts', kind: 'token', reason: 'an invite link: the invitee may hold no account — the unguessable token (trips.inviteToken 128-bit, trip_participants.inviteToken 256-bit, @unique) names the one row it may touch', guards: [{ name: 'the trip by its invite token', re: /prisma\.trips\.findUnique\(\{\s*where: \{ inviteToken: token \}/ }, { name: 'the participant by their invite token', re: /prisma\.trip_participants\.findUnique\(\{\s*where: \{ inviteToken: token \}/ }] },
+  { file: 'src/app/api/travel/liteapi/book/route.ts', kind: 'public', reason: 'guest checkout (D2): booking is never locked; a tripId, when sent, is the signed-in owner\'s or 404', guards: [{ name: 'per-IP rate limit 3/5min', re: /await rateLimit\(`hotel-book:\$\{ip\}`, \{ limit: 3, windowSeconds: 300 \}\)/ }, { name: "daily cap 'hotelbooking'", re: /await reserveTravelSearch\('hotelbooking'\)/ }, { name: 'tripId owned', re: /where: \{ id: tripId, userId: user!\.id \}/ }] },
+  { file: 'src/app/api/travel/liteapi/flights/book/route.ts', kind: 'public', reason: 'PR-FL-5: flight booking completion, guest-ok like the hotel book; the row it refreshes is the row this request committed', guards: [{ name: 'per-IP rate limit 3/5min', re: /await rateLimit\(`liteapi-flight-book:\$\{ip\}`, \{ limit: 3, windowSeconds: 300 \}\)/ }, { name: "daily cap 'liteapiflightbooking'", re: /await reserveTravelSearch\('liteapiflightbooking'\)/ }, { name: 'tripId owned', re: /where: \{ id: tripId, userId: user!\.id \}/ }] },
+  { file: 'src/app/api/travel/liteapi/flights/prebook/route.ts', kind: 'public', reason: 'PR-FL-3: the flight checkout session, guest-ok; the contact it keeps is keyed by the vendor\'s prebookId', guards: [{ name: 'per-IP rate limit 5/min', re: /await rateLimit\(`liteapi-flight-prebook:\$\{ip\}`, \{ limit: 5, windowSeconds: 60 \}\)/ }, { name: "daily cap 'flightprebook'", re: /await reserveTravelSearch\('flightprebook'\)/ }] },
+];
+const OWNER_CONSOLE: ReadonlyArray<{ file: string; why: string }> = [
+  { file: 'src/app/api/admin/backfill-transaction-fields/route.ts', why: "the owner's own Plaid items (plaid_items { userId }), rows by Plaid's transaction_id" },
+  { file: 'src/app/api/admin/fix-coa-ownership/route.ts', why: 'claims orphan chart rows (userId NULL) for the owner' },
+  { file: 'src/app/api/admin/fix-unbalanced-entries/route.ts', why: 'two named journal ids, every leg checked the owner\'s before a write' },
+  { file: 'src/app/api/admin/recalculate-balances/route.ts', why: "orphan rows (userId NULL) and the owner's own chart" },
+  { file: 'src/app/api/developer/prospects/[id]/route.ts', why: 'SEC-3: prospects is a global sales-lead table with no owner column — admin-only' },
+  { file: 'src/app/api/owner/proposals/[id]/route.ts', why: 'the public proposal form\'s rows (no owner column) — the owner reviews them' },
+];
+const SHARED_ROWS: ReadonlyArray<{ file: string; model: string; why: string; guard: SecGuard }> = [
+  { file: 'src/app/api/citations/[id]/verify/route.ts', model: 'citations', why: 'the shared regulatory library: citations has no owner column (schema.prisma) — verification state is global by design', guard: { name: 'per-user rate limit 10/min before the write', re: /await rateLimit\(`citation-verify:\$\{userEmail\}`, \{ limit: 10, windowSeconds: 60 \}\)/ } },
+];
+const DERIVED_OWNED: ReadonlyArray<{ file: string; fn: string; write: string; why: string; proof: RegExp }> = [
+  { file: 'src/app/api/plaid/exchange-token/route.ts', fn: 'POST', write: 'accounts.update { id: existing.id }', why: "existing is found by the account_id Plaid issued for the caller's OWN public token (accountsGet on the access token just exchanged), else by { userId, mask, type } — no id the request supplied reaches the WHERE", proof: /const accountsResponse = await plaidClient\.accountsGet\(\{\s*access_token: accessToken\s*\}\);[\s\S]*where: \{ accountId: account\.account_id \}/ },
+  { file: 'src/app/api/runway/match/propose/route.ts', fn: 'POST', write: "transaction_reservation_links.updateMany { id: r.id, status: 'proposed' }", why: "toRefresh / toRefreshRefunds hold only ids of rows read by transaction_reservation_links.findMany({ where: { userId: user.id } }), and the WHERE re-checks status", proof: /transaction_reservation_links\.findMany\(\{\s*where: \{ userId: user\.id \}/ },
+  { file: 'src/app/api/stock-lots/commit/route.ts', fn: 'POST', write: 'stock_lots.update { id: lot.id }', why: 'lot iterates sortedLots — a reordering (FIFO/LIFO/min-tax/specific) of lots = stock_lots.findMany({ where: { user_id: user.id, … } })', proof: /const lots = await prisma\.stock_lots\.findMany\(\{\s*where: \{\s*user_id: user\.id,/ },
+  { file: 'src/app/api/transactions/sync-complete/route.ts', fn: 'POST', write: 'accounts.update { id: dbAccount.id }', why: "dbAccount is one of item.accounts, item one of the caller's plaid_items ({ userId: user.id, retired_at: null }) handed to syncTransactions", proof: /prisma\.plaid_items\.findMany\(\{\s*where: \{ userId: user\.id, retired_at: null \}/ },
+];
+const HELPER_PRECONDITIONS: ReadonlyArray<{ file: string; helper: string; precondition: RegExp; why: string }> = [
+  { file: 'src/app/api/reservations/[id]/cancel/route.ts', helper: 'cancelHotel', precondition: /const g = await gate\(id\);\s*if \(!g\.ok\) return g\.response;/, why: 'receives the row gate() read with { id, userId: user.id } (404 otherwise)' },
+  { file: 'src/app/api/reservations/[id]/cancel/route.ts', helper: 'cancelFlight', precondition: /const g = await gate\(id\);\s*if \(!g\.ok\) return g\.response;/, why: 'receives the row gate() read with { id, userId: user.id } (404 otherwise)' },
+  { file: 'src/app/api/trips/[id]/vendor-commit/route.ts', helper: 'setOptionStatus', precondition: /\b(getOptionDetails|optionBelongsToTrip)\(/, why: 'every call follows getOptionDetails (POST) or optionBelongsToTrip (DELETE): the option read by { id: optionId, trip_id } of a trip read by { id, userId }' },
+];
+const SEC02_PINNED = { publicWriters: 11, ownerConsole: 6, sharedRows: 1, derivedOwned: 4, helperPreconditions: 3 } as const;
+
+lawGuard('The ownership law', () => {
+  let secViolations = 0;
+  const secFail = (m: string) => { secViolations += 1; violations.push(`ownership law: ${m} (SEC-02)`); };
+  const API = 'src/app/api';
+  const routes = srcFiles.filter((f) => f.file.startsWith(`${API}/`) && f.file.endsWith('/route.ts'));
+  const urlOf = (file: string) => file.slice('src/app'.length, -'/route.ts'.length);
+
+  // The public surface, read from the middleware: PUBLIC_PATHS and the named bypasses.
+  const mw = codeOf('src/middleware.ts');
+  const listed = /const PUBLIC_PATHS = \[([\s\S]*?)\];/.exec(mw);
+  if (!listed) secFail('src/middleware.ts no longer declares PUBLIC_PATHS — the law cannot see the public surface');
+  const publicPaths = listed ? Array.from(listed[1].matchAll(/'([^']+)'/g), (m) => m[1]) : [];
+  const suffixBypass = Array.from(mw.matchAll(/pathname\.startsWith\('([^']+)'\) && pathname\.endsWith\('([^']+)'\)/g), (m) => ({ prefix: m[1], suffix: m[2] }));
+  const exactBypass = Array.from(mw.matchAll(/pathname === '([^']+)'/g), (m) => m[1]).filter((p) => p !== '/');
+  const isPublicUrl = (url: string) => publicPaths.some((p) => url === p || url.startsWith(`${p}/`));
+  const isBypassUrl = (url: string) => exactBypass.includes(url) || suffixBypass.some((b) => url.startsWith(b.prefix) && url.endsWith(b.suffix));
+
+  // The pins: every table is closed at the census.
+  const counts = { publicWriters: PUBLIC_WRITERS.length, ownerConsole: OWNER_CONSOLE.length, sharedRows: SHARED_ROWS.length, derivedOwned: DERIVED_OWNED.length, helperPreconditions: HELPER_PRECONDITIONS.length };
+  for (const k of Object.keys(SEC02_PINNED) as Array<keyof typeof SEC02_PINNED>) {
+    if (counts[k] > SEC02_PINNED[k]) secFail(`${k} holds ${counts[k]} entries, pinned at ${SEC02_PINNED[k]} by the census — a new public writer, console route or unproven write is a ruling, not an entry`);
+  }
+
+  // requireAdmin() is an identity call only while it is the verified cookie + OWNER_EMAIL.
+  const adminSrc = codeOf('src/lib/require-admin.ts');
+  if (!/const userEmail = await getVerifiedEmail\(\);\s*if \(!userEmail\)[\s\S]*process\.env\.OWNER_EMAIL[\s\S]*userEmail\.toLowerCase\(\) !== ownerEmail\.toLowerCase\(\)/.test(adminSrc)) secFail('src/lib/require-admin.ts no longer reads the verified cookie and compares OWNER_EMAIL — requireAdmin() cannot count as an identity call');
+  // The owned loaders the reader trusts: each reads by { id, user_id|userId }.
+  for (const loader of OWNED_LOADERS) {
+    const defs = srcFiles.filter((f) => new RegExp(`(?:async\\s+)?function\\s+${loader}\\s*\\(`).test(f.src));
+    if (defs.length === 0) secFail(`the owned loader ${loader} is defined nowhere — drop it from OWNED_LOADERS (src/lib/security/ownershipLaw.ts)`);
+    for (const d of defs) {
+      const body = functionBody(d.src.replace(new RegExp(`^(async\\s+)?function\\s+${loader}`, 'm'), `export $1function ${loader}`), loader) ?? '';
+      if (!/where:\s*\{[^}]*\bid\b[^}]*\b(user_id|userId)\b/.test(body)) secFail(`${d.file}: the owned loader ${loader} does not read by { id, user_id|userId } — the reader would trust a row it did not scope`);
+    }
+  }
+
+  const used = { pub: new Set<string>(), console: new Set<string>(), shared: new Set<string>(), derived: new Set<number>(), helper: new Set<number>() };
+  let inScopeCount = 0;
+  let dppCount = 0;
+  for (const { file, src } of routes) {
+    if (!inScope(src)) continue;
+    inScopeCount += 1;
+    const methods = exportedMethods(src);
+    if (methods.some((m) => m.method === 'DELETE' || m.method === 'PATCH' || m.method === 'PUT')) dppCount += 1;
+    const url = urlOf(file);
+    const pub = PUBLIC_WRITERS.find((p) => p.file === file);
+    if (pub) {
+      used.pub.add(file);
+      if (!pub.reason.trim()) secFail(`${file}: a public writer with no written reason`);
+      for (const g of pub.guards) if (!g.re.test(src)) secFail(`${file}: the public writer's guard "${g.name}" is gone — a public route that writes is guarded, or it is not public`);
+      if (pub.kind === 'public' && !isPublicUrl(url)) secFail(`${file}: listed as a PUBLIC writer but ${url} is not under any PUBLIC_PATHS entry — list it by what it is`);
+      if (pub.kind === 'bypass' && !isBypassUrl(url)) secFail(`${file}: listed as a middleware-bypass writer but src/middleware.ts has no bypass for ${url}`);
+      if (pub.kind === 'token' && (isPublicUrl(url) || isBypassUrl(url))) secFail(`${file}: an invite-token writer became a public path — "no new public path"`);
+      continue;
+    }
+    if (isPublicUrl(url) || isBypassUrl(url)) {
+      secFail(`${file}: ${url} is reachable with no session (src/middleware.ts) and writes, but is not a listed PUBLIC WRITER with its reason and guard`);
+      continue;
+    }
+    for (const m of methods) {
+      if (m.method !== 'GET' && m.form !== 'function') secFail(`${file}: exports ${m.method} as a ${m.form} export the law cannot read — write the handler as a function, or list the route as a public writer with its guard`);
+    }
+    for (const h of handlerIdentity(src)) {
+      if (h.identityAt === null) secFail(`${file}:${h.line} ${h.method} changes data with no getVerifiedEmail() / getCurrentUser() / requireAdmin() — who is asking is proven first`);
+      else if (h.firstWriteAt !== null && h.identityAt > h.firstWriteAt) secFail(`${file}:${h.line} ${h.method} writes before it proves who is asking`);
+    }
+    const spans = topFunctions(src);
+    for (const v of judgeWrites(src)) {
+      if (v.ok) continue;
+      const where = flatWhere(v.site.where);
+      const write = `${v.site.model}.${v.site.op} ${where}`;
+      const fn = enclosing(spans, v.site.index);
+      if (OWNER_CONSOLE.some((c) => c.file === file) && fn && /const (\w+) = await requireAdmin\(\);\s*if \(\1 instanceof NextResponse\) return \1;/.test(src.slice(fn.bodyStart, v.site.index))) { used.console.add(file); continue; }
+      const shared = SHARED_ROWS.find((r) => r.file === file && r.model === v.site.model);
+      if (shared) {
+        const model = /model citations \{([\s\S]*?)\n\}/.exec(codeOf('prisma/schema.prisma'));
+        if (shared.model !== 'citations' || !model || /\b(userId|user_id)\b/.test(model[1])) secFail(`${file}: ${shared.model} is listed as a shared row but the schema gives it an owner column — scope the write`);
+        else if (!shared.guard.re.test(src)) secFail(`${file}: the shared-row guard "${shared.guard.name}" is gone`);
+        else used.shared.add(file);
+        continue;
+      }
+      const d = DERIVED_OWNED.findIndex((e) => e.file === file && e.fn === (v.fn ?? '') && e.write === write);
+      if (d >= 0) {
+        if (!DERIVED_OWNED[d].proof.test(src)) secFail(`${file}: the derived-owned write ${write} lost the read it is derived from — ${DERIVED_OWNED[d].why}`);
+        used.derived.add(d);
+        continue;
+      }
+      const hp = HELPER_PRECONDITIONS.findIndex((e) => e.file === file && e.helper === v.fn);
+      if (hp >= 0) {
+        const entry = HELPER_PRECONDITIONS[hp];
+        const helper = spans.find((s) => s.name === entry.helper)!;
+        const calls = Array.from(src.matchAll(new RegExp(`\\b${entry.helper}\\(`, 'g'))).map((c) => c.index!).filter((i) => i < helper.start || i > helper.end);
+        if (calls.length === 0) secFail(`${file}: ${entry.helper} is listed with a precondition but nothing calls it — the entry is stale`);
+        for (const at of calls) {
+          const caller = enclosing(spans, at);
+          if (!caller || !entry.precondition.test(src.slice(caller.bodyStart, at))) secFail(`${file}:${src.slice(0, at).split('\n').length} calls ${entry.helper} without its ownership check first (${entry.why})`);
+        }
+        used.helper.add(hp);
+        continue;
+      }
+      secFail(`${file}:${v.site.line} ${write} — the WHERE names no caller and no row this function proved the caller's (read it with { id, userId } → 404 first, or scope the WHERE)`);
+    }
+  }
+
+  // Stale entries: a table entry nothing needs any more is removed.
+  for (const p of PUBLIC_WRITERS) if (!used.pub.has(p.file)) secFail(`PUBLIC_WRITERS lists ${p.file}, which is not an in-scope writing route — the list only shrinks: remove it`);
+  for (const c of OWNER_CONSOLE) if (!used.console.has(c.file)) secFail(`OWNER_CONSOLE lists ${c.file}, which has no unproven write behind requireAdmin() — remove it`);
+  for (const r of SHARED_ROWS) if (!used.shared.has(r.file)) secFail(`SHARED_ROWS lists ${r.file}, which no longer writes ${r.model} unscoped — remove it`);
+  DERIVED_OWNED.forEach((e, i) => { if (!used.derived.has(i)) secFail(`DERIVED_OWNED lists ${e.file} ${e.write}, which the reader now proves or which is gone — remove it`); });
+  HELPER_PRECONDITIONS.forEach((e, i) => { if (!used.helper.has(i)) secFail(`HELPER_PRECONDITIONS lists ${e.file} ${e.helper}, which no longer writes unproven — remove it`); });
+
+  if (secViolations === 0) console.log(`✔ The ownership law passed — ${inScopeCount} writing routes (${dppCount} export DELETE/PATCH/PUT in some form): ${PUBLIC_WRITERS.length} public writers each with its reason and guard, and every other one proves who is asking before its first write and scopes every update/delete to the caller or a row it proved the caller's (${OWNER_CONSOLE.length} owner-console routes, ${SHARED_ROWS.length} shared row, ${DERIVED_OWNED.length} derived-owned writes and ${HELPER_PRECONDITIONS.length} checked helpers named).`);
+  else console.log(`✖ The ownership law FAILED — ${secViolations} violation(s).`);
 });
 
 // ── THE ROW LAW (TRAVEL-ROW-01, 2026-09-23) ─────────────────────────────────

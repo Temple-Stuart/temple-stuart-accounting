@@ -223,21 +223,19 @@ export async function DELETE(request: NextRequest) {
     }
 
     // SECURITY: only delete if the mapping's account belongs to this user.
+    // SEC-02 (2026-09-27): the ownership is IN the read — { id, account: { userId } } —
+    // so another user's mapping and a missing one get the same defensive 404. It used
+    // to read by id alone and answer a foreign row 403 "does not belong to this user",
+    // which confirmed the row exists. The delete names the row the read proved.
     const mapping = await prisma.account_tax_mappings.findFirst({
-      where: { id },
-      include: { account: { select: { userId: true } } },
+      where: { id, account: { userId: user.id } },
+      select: { id: true },
     });
     if (!mapping) {
       return NextResponse.json({ error: 'Mapping not found' }, { status: 404 });
     }
-    if (mapping.account.userId !== user.id) {
-      return NextResponse.json(
-        { error: 'Mapping does not belong to this user' },
-        { status: 403 }
-      );
-    }
 
-    await prisma.account_tax_mappings.delete({ where: { id } });
+    await prisma.account_tax_mappings.delete({ where: { id: mapping.id } });
 
     return NextResponse.json({ success: true, deleted: id });
   } catch (error) {
