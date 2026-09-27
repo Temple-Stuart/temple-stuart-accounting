@@ -221,13 +221,17 @@ export function readChartCode(saved: string, book: ReportEntity): ParsedCode {
   return parseBudgetCode(saved, book.entityType);
 }
 
-const unreadableLine = (row: ChartRow, book: ReportEntity, reason: string): string =>
-  `${book.name} (${book.entityType}): code ${JSON.stringify(row.code)}, ${JSON.stringify(row.name)} — ${reason}`;
+/** TAB13-02d: a refusal names the rule's reason AND its detail — the chart's own words (scheme.ts parseCode). */
+const refusal = (read: { readonly reason: string; readonly detail: string | null }): string =>
+  read.detail === null ? read.reason : `${read.reason}: ${read.detail}`;
+
+const unreadableLine = (row: ChartRow, book: ReportEntity, read: { readonly reason: string; readonly detail: string | null }): string =>
+  `${book.name} (${book.entityType}): code ${JSON.stringify(row.code)}, ${JSON.stringify(row.name)} — ${refusal(read)}`;
 
 /** A chart row → the model's account, its code read as saved. balance_type passes through: the model refuses anything but D or C by name. */
 export function toReportAccount(row: ChartRow, book: ReportEntity): ReportAccount {
   const read = readChartCode(row.code, book);
-  if (!read.ok) throw new BudgetInputError('chart-code-unreadable', `a chart code cannot be read: ${unreadableLine(row, book, read.reason)}`);
+  if (!read.ok) throw new BudgetInputError('chart-code-unreadable', `a chart code cannot be read: ${unreadableLine(row, book, read)}`);
   return { entityId: row.entity_id, code: read.code, name: row.name, accountType: row.account_type, balanceType: row.balance_type as ReportAccount['balanceType'] };
 }
 
@@ -273,7 +277,7 @@ export function toPosting(row: LedgerRow, book: ReportEntity): Posting {
   }
   const read = readChartCode(row.account.code, book);
   if (!read.ok) {
-    throw new BudgetInputError('chart-code-unreadable', `journal entry ${row.journal_entry_id} posts to an account whose code cannot be read: ${book.name} (${book.entityType}): code ${JSON.stringify(row.account.code)} — ${read.reason}`);
+    throw new BudgetInputError('chart-code-unreadable', `journal entry ${row.journal_entry_id} posts to an account whose code cannot be read: ${book.name} (${book.entityType}): code ${JSON.stringify(row.account.code)} — ${refusal(read)}`);
   }
   return {
     entityId: row.account.entity_id,
@@ -409,7 +413,7 @@ export function budgetReportResponse(query: { readonly view: BudgetView; readonl
     const book = entityOf(row.entity_id, `chart row ${JSON.stringify(row.code)}`);
     const read = readChartCode(row.code, book);
     if (read.ok) readable.push({ row, book, code: read.code });
-    else unreadable.push(unreadableLine(row, book, read.reason));
+    else unreadable.push(unreadableLine(row, book, read));
   }
   if (unreadable.length > 0) {
     throw new BudgetInputError('chart-code-unreadable', `${unreadable.length} chart code${unreadable.length === 1 ? '' : 's'} cannot be read — ${unreadable.join('; ')}`);

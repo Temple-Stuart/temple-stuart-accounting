@@ -7,6 +7,8 @@ import {
 } from '../budget/days';
 import { buildBudgetReport, viewRange, BudgetReportError, type BudgetLine } from '../budget/report';
 import { mapOperationsRoutines } from '../hub/mapOperationsRoutines';
+import { parseCode } from '../coa/scheme';
+import { ValidationError } from '../errors/ValidationError';
 import { code } from '../sourceText';
 
 // TAB13-02a — the day rules, pure. Tests named for the rule they pin. Every
@@ -222,23 +224,77 @@ test('R3 TASK DAY — accepted statuses are plans; pending_review, cancelled, su
 
 // ── R4 · BOOK AND CODE ──────────────────────────────────────────────────────
 
-test('R4 BOOK AND CODE — NNNN or L-NNNN after trimming, the letter the entity\'s own; anything else is Not placed by name', () => {
-  assert.deepEqual(parseBudgetCode('P-6100', 'sole_prop'), { ok: false, reason: 'code names another book', detail: '"P-6100" on a sole_prop entity, whose letter is B' });
-  assert.deepEqual(parseBudgetCode('p-6100', 'personal'), { ok: false, reason: 'account code not recognised', detail: '"p-6100"' });
+// TAB13-02d (ruled 2026-09-27, "there is only one truth.. one way"): a code is read by the chart's OWN rule,
+// scheme.ts parseCode. The old copy (its own regex, its own 'code names another book') is deleted.
+test('R4 BOOK AND CODE — the chart\'s own rule: its digits when it accepts, its words when it refuses; no code is \'no account\'', () => {
+  // Was 'code names another book' in the copy's words; now the chart's refusal, which names the other book itself.
+  assert.deepEqual(parseBudgetCode('P-6100', 'sole_prop'), { ok: false, reason: 'account code not recognised', detail: '"P-6100" — code P-6100 carries the P- letter; this is a B- chart (sole_prop) — enter B-6100 or 6100' });
+  // Was refused by the copy; the chart upper-cases (scheme.ts:94), so it is P-6100.
+  assert.deepEqual(parseBudgetCode('p-6100', 'personal'), { ok: true, code: '6100' });
   assert.deepEqual(parseBudgetCode(' 6100 ', 'personal'), { ok: true, code: '6100' });
-  assert.deepEqual(parseBudgetCode('6100-10', 'personal'), { ok: false, reason: 'account code not recognised', detail: '"6100-10"' });
+  // Same reason as before; the detail is now the chart's own words.
+  assert.deepEqual(parseBudgetCode('6100-10', 'personal'), { ok: false, reason: 'account code not recognised', detail: '"6100-10" — code "6100-10" is not in the scheme — four digits (6250) or the entity letter and four digits (B-6250)' });
   assert.deepEqual(parseBudgetCode('', 'personal'), { ok: false, reason: 'no account', detail: '""' });
   assert.deepEqual(parseBudgetCode(null, 'personal'), { ok: false, reason: 'no account', detail: null });
-  assert.deepEqual(parseBudgetCode('T-6100', 'business'), { ok: false, reason: 'code names another book', detail: '"T-6100" on a business entity, whose letter is none' });
+  // Was 'code names another book'; the chart says this type has no letter.
+  assert.deepEqual(parseBudgetCode('T-6100', 'business'), { ok: false, reason: 'account code not recognised', detail: '"T-6100" — this entity (business) has no code letter — enter the four digits only' });
   assert.deepEqual(parseBudgetCode('B-6100', 'sole_prop'), { ok: true, code: '6100' });
   assert.deepEqual(parseBudgetCode('P-6100', 'personal'), { ok: true, code: '6100' });
+  // New: a leading 0 is outside every family — refused as the chart refuses it (the copy read it).
+  assert.deepEqual(parseBudgetCode('0100', 'personal'), { ok: false, reason: 'account code not recognised', detail: '"0100" — code 0100 is outside every family — codes run 1000–9999' });
   // Through a builder: the parsed four digits go on the line; a code for another book is listed with its cents.
   const r = buildTaskBudgetLines([
     task({ id: 'ok', entityId: 'ent-b', entityType: 'sole_prop', coaCode: 'B-6250', planItems: [planned('2026-10-05', 'scheduled')] }),
     task({ id: 'other', entityId: 'ent-b', entityType: 'sole_prop', coaCode: 'P-6100', planItems: [planned('2026-10-05', 'scheduled')] }),
   ], '2026-10-01', '2026-10-31');
   assert.deepEqual(r.lines.map((l) => [l.entityId, l.code]), [['ent-b', '6250']]);
-  assert.deepEqual(r.notPlaced.map((n) => [n.sourceId, n.cents, n.reason]), [['task:other', 5000, 'code names another book']]);
+  assert.deepEqual(r.notPlaced.map((n) => [n.sourceId, n.cents, n.reason, n.detail]), [
+    ['task:other', 5000, 'account code not recognised', '"P-6100" — code P-6100 carries the P- letter; this is a B- chart (sole_prop) — enter B-6100 or 6100'],
+  ]);
+});
+
+// T1 — ONE TRUTH: the table is the proof the two cannot drift. Every expected value is the chart's own answer.
+test('ONE TRUTH — parseBudgetCode agrees with the chart\'s parseCode on every input and every entity type', () => {
+  const inputs: (string | null)[] = ['5100', ' 5100 ', 'B-5100', 'b-5100', 'P-5100', 'T-5100', 'X-5100', '5100-10', 'B5100', 'B-B-5100', '0100', '51000', 'B-510', '', '   ', null];
+  const types = ['personal', 'sole_prop', 'trading', 'llc'];
+  let accepted = 0;
+  let refused = 0;
+  for (const raw of inputs) {
+    for (const type of types) {
+      const got = parseBudgetCode(raw, type);
+      if (raw === null || raw.trim() === '') {
+        assert.deepEqual(got, { ok: false, reason: 'no account', detail: raw === null ? null : JSON.stringify(raw) }, `${JSON.stringify(raw)} on ${type} is no account`);
+        continue;
+      }
+      let chart: { ok: true; code: string } | { ok: false; message: string };
+      try {
+        chart = { ok: true, code: parseCode(raw, type) };
+      } catch (error) {
+        assert.ok(error instanceof ValidationError, `the chart refuses ${JSON.stringify(raw)} with a ValidationError`);
+        chart = { ok: false, message: error.message };
+      }
+      const want = chart.ok
+        ? { ok: true, code: chart.code }
+        : { ok: false, reason: 'account code not recognised', detail: `${JSON.stringify(raw)} — ${chart.message}` };
+      assert.deepEqual(got, want, `${JSON.stringify(raw)} on ${type}`);
+      if (chart.ok) accepted += 1;
+      else refused += 1;
+    }
+  }
+  // The table is not vacuous: both answers occur, and the cases that drove this change are in it.
+  assert.ok(accepted > 0 && refused > 0, `accepted ${accepted}, refused ${refused}`);
+  assert.deepEqual(parseBudgetCode('b-5100', 'sole_prop'), { ok: true, code: '5100' }, 'lowercase reads as the chart reads it');
+  assert.equal(parseBudgetCode('0100', 'sole_prop').ok, false, 'a leading 0 is refused as the chart refuses it');
+  assert.equal(parseBudgetCode('B-5100', 'llc').ok, false, 'a letter on a book that has none');
+  assert.equal(parseBudgetCode('T-5100', 'trading').ok, true);
+});
+
+// T3 — A SOURCE PIN: the day rules call the chart's rule and hold no code rule of their own.
+test('ONE RULE — days.ts imports parseCode from the chart\'s scheme and holds no code regex, letter table or case-folding of its own', () => {
+  const src = code(DAYS);
+  assert.match(src, /import \{ parseCode \} from '@\/lib\/coa\/scheme';/);
+  assert.match(src, /code: parseCode\(raw, entityType\)/);
+  assert.doesNotMatch(src, /CODE_RE|\[A-Z\]|\[PBT\]|entityLetter|toUpperCase|toLowerCase/);
 });
 
 // ── R5 · MONEY IS EXACT ─────────────────────────────────────────────────────
@@ -320,8 +376,9 @@ test('R7 NOT PLACED IS A RECORD — every field, a closed reason; undated entrie
   // A view that does not hold 10-06 still lists the undated desk, and not the flyers.
   assert.deepEqual(buildTaskBudgetLines(tasks, '2026-11-01', '2026-11-30').notPlaced, [expected[0]]);
   for (const n of october.notPlaced) assert.ok(NOT_PLACED_REASONS.includes(n.reason));
+  // TAB13-02d: 'code names another book' is deleted — the chart's refusal names the other book in its own words.
   assert.deepEqual([...NOT_PLACED_REASONS].sort(), [
-    'account code not recognised', 'amount not whole cents', 'code names another book', 'no account',
+    'account code not recognised', 'amount not whole cents', 'no account',
     'not on the calendar', 'schedule does not parse', 'start date not recognised', 'timezone not recognised',
   ]);
 });
@@ -418,12 +475,18 @@ test('PURITY — the day rules import no database client, framework or network, 
   assert.doesNotMatch(src, /\bnew\s+Date\s*\(\s*\)/);
   assert.doesNotMatch(src, /\bprocess\.env\b/);
   assert.doesNotMatch(code('src/lib/__tests__/budgetDays.test.ts'), /['"]@prisma\/client/);
-  // Every catch records the plan as Not placed and moves on; none returns an empty result.
-  const catches = [...src.matchAll(/catch \(error\) \{([\s\S]*?)continue;/g)].map((m) => `${m[1]}continue;`);
+  // TAB13-02d: three catches. The routine builder's two record the plan as Not placed and move on;
+  // none returns an empty result.
+  assert.equal([...src.matchAll(/catch \(error\) \{/g)].length, 3);
+  const routineRules = src.slice(src.indexOf('export function buildRoutineBudgetLines('), src.indexOf('export type TaskStatus'));
+  const catches = [...routineRules.matchAll(/catch \(error\) \{([\s\S]*?)continue;/g)].map((m) => `${m[1]}continue;`);
   assert.equal(catches.length, 2);
   for (const body of catches) {
     assert.match(body, /whole\('/);
     assert.match(body, /continue;/);
     assert.doesNotMatch(body, /return/);
   }
+  // The parser's one maps ONLY the chart's refusal to a reason, in the chart's words, and throws every other error on.
+  const parser = src.slice(src.indexOf('export function parseBudgetCode('), src.indexOf('export type CentsResult'));
+  assert.match(parser, /catch \(error\) \{\s*if \(error instanceof ValidationError\) \{\s*return \{ ok: false, reason: 'account code not recognised', detail: `\$\{JSON\.stringify\(raw\)\} — \$\{error\.message\}` \};\s*\}\s*throw error;\s*\}/);
 });
