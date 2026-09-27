@@ -111,7 +111,14 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // commissionAmountCents is gone from the body and refused 400 by name; the literal
   // 0 fallback is gone. Nothing else in the route changed.
   // Was e32251eb8a4e9b541a001e6332bacb8ca1765e7bdb127d938d491665f6120509 at main 0ef428a6.
-  { file: 'src/app/api/travel/liteapi/book/route.ts', sha256: '441552e306910d94a0c0aa068f3dd3a1575a544f139fdab45ce57da106332707' },
+  // AUDIT-01 (2026-09-26): re-pinned — after the booking transaction commits, the
+  // booking is recorded through the ONE audit port (reservation_booked, the landed book
+  // answer its evidence, the human who booked the actor — a guest's user_id null, named)
+  // and the confirmation email's outcome after its send (reservation_email_sent with the
+  // message id, or _failed by class). A failed audit write is named and never fails the
+  // booking. No prebook/book/pay call, no landing, no write changed.
+  // Was 441552e306910d94a0c0aa068f3dd3a1575a544f139fdab45ce57da106332707 at main 651c2f0e.
+  { file: 'src/app/api/travel/liteapi/book/route.ts', sha256: '18ad62a03aa84b5d9ed6c7856958c35a0f44281eedf5122c4404da0a95d60d43' },
   // CAL-01 (2026-09-23): re-pinned — the flight branch. The landed booking object
   // carries NO date of travel (STEP 1.5: NOT FOUND), so this route writes NO
   // calendar row and logs a named reason listing the payload's actual keys. No date
@@ -156,7 +163,14 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // NOT DOCUMENTED for the seller; never 0, never inferred from a markup). Nothing
   // else in the route changed.
   // Was b75d0ca85ee2a50a0fe715a73ac749893f656c57038908d3b89c256aed466d1a at main 0ef428a6.
-  { file: 'src/app/api/travel/liteapi/flights/book/route.ts', sha256: '62b828c1c9468cd1a10b2cb43ca4b76099f49ef9eb905fdac80f44409a349f8b' },
+  // AUDIT-01 (2026-09-26): re-pinned — PR-FL-5's 'system_other' audit write is
+  // replaced by the ONE audit port (reservation_booked, the landed book answer its
+  // evidence, the human who booked the actor — a guest's user_id null, named); the
+  // lifecycle sends carry that actor; the confirmation email's outcome is recorded after
+  // its send. A failed audit write is named and never fails the booking. No book/pay
+  // call, no landing, no write changed.
+  // Was 62b828c1c9468cd1a10b2cb43ca4b76099f49ef9eb905fdac80f44409a349f8b at main 651c2f0e.
+  { file: 'src/app/api/travel/liteapi/flights/book/route.ts', sha256: 'ac3d2ef9fe7e38d561734664e46916a7ed96a90ae1165d072a5173e1e200a462' },
   // FL-4c (2026-09-23): re-pinned — the envelope gains `paymentEnv`, the key env
   // derived server-side exactly as the hotel prebook returns it. The browser must
   // not guess which mode it is in, and /config is keyed on that label. Nothing
@@ -206,7 +220,16 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // failing the cancel. The gate reads the recipient and identity fields. The vendor
   // calls, the landing and every write are unchanged.
   // Was 5fb02294e674bbf816a50f4a455534d93e261016ae8e058bbb2f6310dd0abe1f at main c17dc9dd.
-  { file: 'src/app/api/reservations/[id]/cancel/route.ts', sha256: 'd9b52813b8bf26b624a6f476a1def46a9f1e37085d30f5ee58d9199b2eb9e9fe' },
+  // AUDIT-01 (2026-09-26): re-pinned — the cancel facts go through the ONE audit port:
+  // the flight quote the customer read (cancel_quoted, the sha256 of the vendor's answer
+  // bytes its evidence — the quote is not landed); the request BEFORE the vendor's answer
+  // (cancel_requested, the row as it stood); then cancelled / cancel_pending with the
+  // landed cancellation, a money_event_stated per money row that arrival wrote, or — on a
+  // flight 409 — cancel_refused and nothing else; the email's outcome. The gate reads
+  // updatedAt for the request's evidence. The vendor calls, the landing and every write
+  // are unchanged; an audit failure is named and never fails the cancel.
+  // Was d9b52813b8bf26b624a6f476a1def46a9f1e37085d30f5ee58d9199b2eb9e9fe at main 651c2f0e.
+  { file: 'src/app/api/reservations/[id]/cancel/route.ts', sha256: 'b3c8bad8121ece5e4aa0413d3e340290ac71773e2a73da8632efa888635350b5' },
   // LANE-01 (2026-09-25): re-pinned — type and name come from the one reader keyed on
   // reservations.lane (src/lib/reservations/lane.ts); the local PROVIDER_TYPE map and
   // hotelName ?? provider are gone. The auth chain and the one field it writes are unchanged.

@@ -159,6 +159,7 @@ import { BANK_REACHABLE_REFUND_DESTINATIONS, MATCH_REFUND_DATE_WINDOW_DAYS, isBa
 import { refundProposalLine } from '../src/lib/runway/refundWords';
 import { NOT_MATCHED, NOT_POSTED, NOT_STATED as RECEIPT_NOT_STATED, NOT_YET_TICKETED, receiptOf } from '../src/lib/receipts/bookingReceipt';
 import { BOOKINGS_LEDGER_COLUMNS, bookingsLedgerRow } from '../src/lib/receipts/bookingsLedgerCsv';
+import { BOOKING_EVENT_KINDS, bookingEventWords, timelineOf } from '../src/lib/reservations/timeline';
 import { DYNAMIC_READ_ENV, LIBRARY_READ_ENV } from '../src/lib/envLaw';
 import { EXPECTED_FEED_COUNT, FEED_COST, FEED_IDS, SCAN_COST, feedCostLaw, scanCostLine } from '../src/lib/observatory/feedCost';
 import { FINNHUB_TTL, finnhubCallsPerSymbol, finnhubTtlLaw, slowTierEndpoints } from '../src/lib/convergence/finnhub-ttl';
@@ -5649,12 +5650,16 @@ lawGuard('The status law', () => {
       if (/kind: 'ticketed'|kind: 'hotel_confirmation_arrived'/.test(src)) statusFail(`${file} fires a lifecycle email kind — only the apply leaf decides and only the sender renders (a third file carries a lifecycle email kind)`);
     }
     const sender = codeOf(SENDER);
-    if (!/description: `lifecycle_email_failed — \$\{request\.kind\} for reservation \$\{row\.id\}: \$\{errorClass\}`/.test(sender)) statusFail(`${SENDER}: a failed send is not written to audit_log by name (lifecycle_email_failed)`);
+    // AUDIT-01 (2026-09-26): the failed send is written through the ONE audit port by name
+    // (reservation_email_failed, keyed by the kind and the error class) — was the 'system_other'
+    // lifecycle_email_failed description, anchored here until AUDIT-01.
+    if (!/await recordEmailOutcome\(booking, actor, request\.kind, 'lifecycle', \{ sent: false, error: errorClass \}\);/.test(sender)) statusFail(`${SENDER}: a failed send is not written to audit_log by name (reservation_email_failed, through the audit port)`);
     if (/setTimeout|for \(let attempt|retries|while \(/.test(sender)) statusFail(`${SENDER} retries a send — the marker means the one attempt was made`);
     if (/accountEmail \?\? |guestEmail \?\? |\?\? accountEmail|\?\? row\.guestEmail/.test(sender)) statusFail(`${SENDER} falls back from one address to another`);
     if (!/cancelRecipient\(row, await accountEmailOf\(row\)\)/.test(sender)) statusFail(`${SENDER} does not pick the recipient by the CANCEL-02 rule`);
     const read = codeOf(READ_LEAF);
-    if (!(read.indexOf('for (const request of applied.emails) emails.push(await sendLifecycleEmail(emailRow, request));') > read.indexOf('prisma.$transaction(async (tx) => {'))) statusFail(`${READ_LEAF} sends before its transaction commits`);
+    // AUDIT-01 (2026-09-26): the send carries the read's actor (was `(emailRow, request)`).
+    if (!(read.indexOf('for (const request of applied.emails) emails.push(await sendLifecycleEmail(emailRow, request, actor));') > read.indexOf('prisma.$transaction(async (tx) => {'))) statusFail(`${READ_LEAF} sends before its transaction commits`);
     if (!/if \(!opts\.dryRun\) \{\s*const emailRow/.test(read)) statusFail(`${READ_LEAF} sends on a dry run`);
     const fb = codeOf(FLIGHT_BOOK);
     if (!(fb.indexOf('for (const request of refreshed.emails)') > fb.indexOf('catch (calErr)'))) statusFail(`${FLIGHT_BOOK} does not attempt the emails the refresh owes after its refresh block`);
@@ -5868,7 +5873,9 @@ lawGuard('The commission law', () => {
   // 1. THE WRITERS.
   for (const { file, src } of srcFiles) {
     if (/commissionAmountCents:/.test(src) && file !== HOTEL_BOOK && file !== FLIGHT_BOOK) commFail(`${file} writes the book-time commission outside the two book routes`);
-    if (/lockedCommissionCents:/.test(src) && file !== APPLY && file !== READ_LEAF) commFail(`${file} writes a locked commission figure — only the read leaf's lock port writes commission_ledger's locked columns`);
+    // AUDIT-01 (2026-09-26): the timeline words leaf names the locked figure to SAY it (a row type's
+    // field and the facts handed to its words) — it cannot write: the audit law proves it pure (no prisma).
+    if (/lockedCommissionCents:/.test(src) && file !== APPLY && file !== READ_LEAF && file !== 'src/lib/reservations/timeline.ts') commFail(`${file} writes a locked commission figure — only the read leaf's lock port writes commission_ledger's locked columns`);
     if (/commission_ledger\.updateMany\([^;]*status: 'confirmed'/s.test(src) && file !== READ_LEAF) commFail(`${file} writes commission_ledger status confirmed — only the read leaf's lock port does`);
   }
   {
@@ -6008,6 +6015,9 @@ lawGuard('The posting-document law', () => {
   const DOC_KEY = /document_(reservation|money_event)_id\s*:\s*([^,\n}]+)/g;
   // A row TYPE's field declaration (`document_reservation_id: string | null;`) is not a write.
   const isTypeField = (value: string) => /^(?:string|number|boolean)\b/.test(value.trim());
+  // AUDIT-01 (2026-09-26): a `select` flag (`document_money_event_id: true`) is a READ — the column is a
+  // text id, so `true` can never be the value written (the timeline route selects the documenting entries).
+  const isSelectFlag = (value: string) => value.trim() === 'true';
   // The READERS — the two wire routes mapping the entry to the wire, the two surfaces handing
   // the row to the cell — may only PASS the column through, as the same-named property read
   // (`document_reservation_id: t.document_reservation_id`). Anywhere else a key with ANY value —
@@ -6018,7 +6028,7 @@ lawGuard('The posting-document law', () => {
   // A key inside a WHERE clause is a READ (the receipt route and the export find the entry that documents a booking), not a write.
   const inWhere = (src: string, at: number) => /where:\s*\{[^}]*$/.test(src.slice(Math.max(0, at - 160), at));
   for (const { file, src } of srcFiles) {
-    const keyed = [...src.matchAll(DOC_KEY)].filter((m) => !isTypeField(m[2]) && !inWhere(src, m.index!));
+    const keyed = [...src.matchAll(DOC_KEY)].filter((m) => !isTypeField(m[2]) && !isSelectFlag(m[2]) && !inWhere(src, m.index!));
     if (keyed.length === 0) continue;
     if (file === PORT || file === WRITER) {
       // the writers — clause 1's second half reads their bodies below
@@ -6461,6 +6471,199 @@ lawGuard('The receipt law', () => {
 
   if (receiptViolations === 0) console.log(`✔ The receipt law passed — the receipt leaf is pure and does no arithmetic on money; the receipt route imports no vendor client and writes nothing; the page types no money words of its own and is the owner’s (not public, doored by GUEST_ROUTES); both lists carry the Receipt link beside Cancel; bookings_ledger.csv has its ${BOOKINGS_LEDGER_COLUMNS.length} fixed columns and the export’s bar stands; commission appears nowhere on a receipt.`);
   else console.log(`✖ The receipt law FAILED — ${receiptViolations} violation(s).`);
+});
+
+// ── THE AUDIT LAW (AUDIT-01, 2026-09-26) ────────────────────────────────────
+// EVERY CHANGE TO A BOOKING LEAVES A CHAINED ROW, AND THE BOOKING SHOWS ITS OWN HISTORY.
+// The primary tables stay the evidence; audit_log is the tamper-evident index,
+// written through ONE port (src/lib/reservations/auditTrail.ts) right after each
+// change commits, keyed by a deterministic request_id, its description from ONE
+// words leaf (src/lib/reservations/timeline.ts). A failed audit write is named and
+// never thrown. The timeline is pure and its route reads only.
+lawGuard('The audit law', () => {
+  let auditViolations = 0;
+  const auditFail = (m: string) => { auditViolations += 1; violations.push(`audit law: ${m} (AUDIT-01)`); };
+
+  const PORT = 'src/lib/reservations/auditTrail.ts';
+  const LEAF = 'src/lib/reservations/timeline.ts';
+  const ROUTE = 'src/app/api/reservations/[id]/timeline/route.ts';
+  const PAGE = 'src/app/booking/[id]/receipt/page.tsx';
+  const PREFIX_ROUTE = 'src/app/api/audit-log/route.ts';
+  const HOTEL_BOOK = 'src/app/api/travel/liteapi/book/route.ts';
+  const FLIGHT_BOOK = 'src/app/api/travel/liteapi/flights/book/route.ts';
+  const READ_LEAF = 'src/lib/reservations/vendorRead.ts';
+  const SENDER = 'src/lib/reservations/lifecycleSend.ts';
+  const CANCEL = 'src/app/api/reservations/[id]/cancel/route.ts';
+  const REVIEW = 'src/app/api/runway/match/review/route.ts';
+  const COMMIT = 'src/app/api/transactions/commit-to-ledger/route.ts';
+  const WRITER_FILES = [HOTEL_BOOK, FLIGHT_BOOK, READ_LEAF, SENDER, CANCEL, REVIEW, COMMIT];
+  for (const f of [PORT, LEAF, ROUTE, PAGE, PREFIX_ROUTE, ...WRITER_FILES]) {
+    if (!existsSync(resolve(ROOT, f))) auditFail(`${f} is missing`);
+  }
+  const kinds: readonly string[] = BOOKING_EVENT_KINDS;
+
+  // ── CLAUSE 1. THE ENUM: the migration adds the sixteen values, the schema carries them, the read route's prefix map covers the three families. ──
+  const mig = ALL_MIGRATIONS.find((m) => /_audit_01_/.test(m.dir));
+  if (!mig) auditFail('no _audit_01_ migration adds the booking kinds to AuditActionType');
+  else {
+    for (const k of kinds) if (!mig.sql.includes(`ALTER TYPE "AuditActionType" ADD VALUE IF NOT EXISTS '${k}';`)) auditFail(`${mig.dir} does not add '${k}' to AuditActionType`);
+    if (/\bBEGIN\b|\bCOMMIT\b|INSERT INTO|UPDATE\s+"?\w|DELETE FROM/i.test(codeOf(`prisma/migrations/${mig.dir}/migration.sql`))) auditFail(`${mig.dir} does more than add enum values — ADD VALUE runs outside a transaction, and no audit row is invented for the past (no backfill)`);
+  }
+  const enumBlock = /enum AuditActionType \{([\s\S]*?)\n\}/.exec(schemaText)?.[1] ?? '';
+  for (const k of kinds) if (!new RegExp(`^\\s*${k}\\s*$`, 'm').test(enumBlock)) auditFail(`prisma/schema.prisma's AuditActionType lacks '${k}' — the schema moves with the migration`);
+  const prefixSrc = codeOf(PREFIX_ROUTE);
+  for (const family of ['reservation_', 'money_event_', 'commission_']) {
+    const list = new RegExp(`\\n  ${family}: \\[([^\\]]*)\\]`).exec(prefixSrc)?.[1] ?? null;
+    if (list === null) { auditFail(`${PREFIX_ROUTE}'s prefix map has no '${family}' family`); continue; }
+    const listed = [...list.matchAll(/'(\w+)'/g)].map((m) => m[1]).sort();
+    const owed = kinds.filter((k) => k.startsWith(family)).slice().sort();
+    if (JSON.stringify(listed) !== JSON.stringify(owed)) auditFail(`${PREFIX_ROUTE}'s '${family}' list is [${listed.join(', ')}], not the family's kinds [${owed.join(', ')}]`);
+  }
+
+  // ── CLAUSE 2. THE ONE PORT: the deterministic request_id, the words leaf's description, a failure named and never thrown. ──
+  const port = codeOf(PORT);
+  if (!port.includes('return `booking:${input.reservation.id}:${input.kind}:${input.evidence.id}${input.requestKey ? `:${input.requestKey}` : \'\'}`;')) auditFail(`${PORT}: the request_id is not booking:<reservationId>:<kind>:<evidenceId> — a retry could double-write`);
+  if (!port.includes('request_id: bookingEventRequestId(input),')) auditFail(`${PORT}: the row's request_id is not the deterministic key`);
+  if (!port.includes('description: bookingEventWords(input.kind, { before: input.before, after: input.after }) },')) auditFail(`${PORT}: the description does not come from the words leaf`);
+  if (!/import \{ writeAuditLog \} from '@\/lib\/audit\/writeAuditLog';/.test(port) || !/writer: AuditWriter = writeAuditLog/.test(port)) auditFail(`${PORT}: the port does not write through writeAuditLog (the chain)`);
+  const record = functionBody(port, 'recordBookingEvent') ?? '';
+  if (!/try \{\s*const row = await writer\(bookingAuditInput\(input\)\);\s*return \{ audited: true, id: row\.id \};\s*\} catch \(err\) \{/.test(record)) auditFail(`${PORT}: recordBookingEvent does not write inside its own try and answer { audited: true, id }`);
+  if (!/console\.error\('\[booking audit\] audit row NOT written — the change stands:', \{ request_id, kind: input\.kind, reservationId: input\.reservation\.id, reason \}\);\s*return \{ audited: false, reason \};/.test(record)) auditFail(`${PORT}: a failed audit write is not console.error'd by name and answered { audited: false, reason }`);
+  if (/\bthrow\b/.test(record)) auditFail(`${PORT}: recordBookingEvent throws — an audit failure never enters the change's path`);
+  const inputShape = /export interface BookingEventInput \{([\s\S]*?)\n\}/.exec(port)?.[1] ?? '';
+  if (/\bdescription\??:/.test(inputShape)) auditFail(`${PORT}: BookingEventInput takes a description — no call site types one`);
+  if (!/return \{ type: source === 'webhook' \? 'external_integration' : 'system_automation', userId: ownerId \};/.test(port)) auditFail(`${PORT}: a read's actor is not the webhook → external_integration, the cron/retro → system_automation, both as the OWNER`);
+  if (!/owner: input\.reservation\.userId === null \? 'guest' : 'account',/.test(port)) auditFail(`${PORT}: a guest booking is not named in the metadata`);
+
+  // ── CLAUSE 3. EVERY LISTED WRITER CALLS THE PORT, WITH ITS KINDS; EVERY KIND HAS A WRITER. ──
+  const OWED: Record<string, string[]> = {
+    [HOTEL_BOOK]: ["kind: 'reservation_booked',", "await recordEmailOutcome(booking, bookingActor, 'booking_confirmation', landed.arrivalId, emailStatus);", 'const bookingActor = humanActor(user ? { id: user.id, email: userEmail } : null, ip);'],
+    [FLIGHT_BOOK]: ["kind: 'reservation_booked',", "await recordEmailOutcome(booking, bookingActor, 'flight_confirmation', landed.arrivalId, emailStatus);", 'const bookingActor = humanActor(user ? { id: user.id, email: userEmail } : null, ip);'],
+    [READ_LEAF]: ['for (const change of readChangesOf(applied.locked, wouldWrite, applied.providerStatus)) {', "kind: 'commission_locked',", 'const actor = actorOfReadSource(opts.source, applied.locked.userId);', 'emails.push(await sendLifecycleEmail(emailRow, request, actor));'],
+    [SENDER]: ["await recordEmailOutcome(booking, actor, request.kind, 'lifecycle', { sent: false, error: recipient.reason });", "await recordEmailOutcome(booking, actor, request.kind, 'lifecycle', { sent: true, id });", "await recordEmailOutcome(booking, actor, request.kind, 'lifecycle', { sent: false, error: errorClass });"],
+    [CANCEL]: ["kind: 'reservation_cancel_quoted',", "kind: 'reservation_cancel_requested'", "kind: 'reservation_cancelled'", "kind: 'reservation_cancel_pending'", "kind: 'reservation_cancel_refused'", "kind: 'money_event_stated',", 'await recordEmailOutcome(booking, actor, '],
+    [REVIEW]: ["kind: 'money_event_settled',", "evidence: { table: 'transactions', id: link.transactionId },", "target: { table: 'money_events', id: link.moneyEventId },"],
+    [COMMIT]: ["kind: 'reservation_posted',", "evidence: { table: 'journal_entries', id: journalEntry.id },"],
+  };
+  for (const [file, owed] of Object.entries(OWED)) {
+    const src = codeOf(file);
+    for (const o of owed) if (!src.includes(o)) auditFail(`${file} does not record "${o}" through the audit port`);
+  }
+  const cancelSrc = codeOf(CANCEL);
+  if ((cancelSrc.match(/kind: 'reservation_cancel_requested'/g) ?? []).length !== 2) auditFail(`${CANCEL}: both lanes do not record reservation_cancel_requested`);
+  const readChanges = functionBody(port, 'readChangesOf') ?? '';
+  for (const k of ['reservation_status_changed', 'reservation_confirmation_code_arrived', 'reservation_ticketed', 'reservation_ticket_limit_stated', 'reservation_cancelled']) {
+    if (!readChanges.includes(`kind: '${k}'`)) auditFail(`${PORT}: readChangesOf derives no ${k} from a read's write`);
+  }
+  const emailEvent = functionBody(port, 'emailEventOf') ?? '';
+  if (!emailEvent.includes("kind: 'reservation_email_sent'") || !emailEvent.includes("kind: 'reservation_email_failed'")) auditFail(`${PORT}: emailEventOf does not derive both email kinds`);
+  if (!/evidence: \{ table: 'email', id: status\.id \}/.test(emailEvent)) auditFail(`${PORT}: a sent email's evidence is not the provider's message id`);
+  const everyWriter = [...WRITER_FILES.map((f) => codeOf(f)), port].join('\n');
+  for (const k of kinds) if (!everyWriter.includes(`'${k}'`)) auditFail(`'${k}' has no writer — every booking kind is recorded somewhere`);
+
+  // ── CLAUSE 4. NO RESERVATION WRITE SITE CALLS writeAuditLog DIRECTLY. ──
+  // The one named exception: the review route's link row (target transaction_reservation_links,
+  // PR-MATCH-2b) — the link decision, accept and reject, on the link's own table; its settle goes through the port.
+  const RESERVATION_WRITE = /\b(reservations|money_events|commission_ledger)\s*\.\s*(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(/;
+  for (const { file, src } of srcFiles) {
+    if (file === PORT || file === 'src/lib/audit/writeAuditLog.ts') continue;
+    if (!/\bwriteAuditLog\s*\(/.test(src)) continue;
+    // Each direct call's own text — from `writeAuditLog(` to the first `});` after it.
+    const direct: string[] = [];
+    for (let at = src.search(/\bwriteAuditLog\s*\(/); at >= 0; ) {
+      const end = src.indexOf('});', at);
+      direct.push(src.slice(at, end < 0 ? undefined : end + 3));
+      const next = src.slice(at + 1).search(/\bwriteAuditLog\s*\(/);
+      at = next < 0 ? -1 : at + 1 + next;
+    }
+    for (const call of direct) {
+      for (const k of kinds) if (call.includes(`'${k}'`)) auditFail(`${file} writes the booking kind '${k}' to audit_log directly — every booking event goes through ${PORT}`);
+      if (/target:\s*\{\s*table:\s*'(reservations|money_events|commission_ledger)'/.test(call)) auditFail(`${file} writes an audit row targeting a booking's table directly — through ${PORT}`);
+    }
+    if (RESERVATION_WRITE.test(src) || WRITER_FILES.includes(file)) {
+      if (file !== REVIEW) auditFail(`${file} changes a booking and calls writeAuditLog directly — the booking's changes go through ${PORT}`);
+      else if ((src.match(/\bwriteAuditLog\s*\(/g) ?? []).length !== 1 || !src.includes("target: { table: 'transaction_reservation_links', id: link.id },")) auditFail(`${REVIEW}: its one direct write is not the link row on transaction_reservation_links`);
+    }
+  }
+  for (const f of [SENDER, READ_LEAF, HOTEL_BOOK, FLIGHT_BOOK, CANCEL, COMMIT]) if (/writeAuditLog|'system_other'/.test(codeOf(f))) auditFail(`${f} still writes audit_log by hand (writeAuditLog / 'system_other') — through ${PORT}`);
+
+  // ── CLAUSE 5. THE DESCRIPTIONS COME FROM THE WORDS LEAF — no call site types one. ──
+  for (const f of [...WRITER_FILES, 'scripts/lane-01-retro-flights.ts']) {
+    const src = codeOf(f);
+    let at = src.indexOf('recordBookingEvent(');
+    while (at >= 0) {
+      const call = src.slice(at, src.indexOf('});', at) + 3);
+      if (/\b(description|action_description)\s*:/.test(call)) auditFail(`${f} types a description into recordBookingEvent — the words leaf renders it`);
+      at = src.indexOf('recordBookingEvent(', at + 1);
+    }
+  }
+
+  // ── CLAUSE 6. THE ORDER: every record AFTER its change commits; the cancel request BEFORE the vendor's answer. ──
+  const after = (file: string, first: string, then: string, what: string) => {
+    const src = codeOf(file);
+    const a = src.indexOf(first), b = src.indexOf(then);
+    if (a < 0 || b < 0 || b < a) auditFail(`${file}: ${what}`);
+  };
+  after(HOTEL_BOOK, 'const result = landed.reservation;', "kind: 'reservation_booked',", 'the booking is recorded before its transaction committed');
+  after(FLIGHT_BOOK, 'const result = landed.reservation;', "kind: 'reservation_booked',", 'the booking is recorded before its transaction committed');
+  after(READ_LEAF, 'prisma.$transaction(async (tx) => applyLockedRead(', 'readChangesOf(applied.locked, wouldWrite, applied.providerStatus)', 'the read’s changes are recorded before its transaction committed');
+  if (!/if \(!opts\.dryRun && applied\.arrivalId !== null\) \{/.test(codeOf(READ_LEAF))) auditFail(`${READ_LEAF}: the read records on a dry run, or without its landed read as the evidence`);
+  after(CANCEL, "kind: 'reservation_cancel_requested'", 'cancelledAnswer = await cancelBooking(owned.providerBookingId);', 'the hotel cancel request is not recorded before the vendor’s answer');
+  after(CANCEL, "after: { lane: 'flight' }", 'cancelledAnswer = await cancelFlightBooking(owned.providerBookingId);', 'the flight cancel request is not recorded before the vendor’s answer');
+  after(CANCEL, 'quoted = await getFlightCancellationQuote(owned.providerBookingId);', "kind: 'reservation_cancel_quoted',", 'the quote is recorded before the vendor answered it');
+  after(REVIEW, 'const updated = await prisma.$transaction(', "kind: 'money_event_settled',", 'the settle is recorded before its transaction committed');
+  after(COMMIT, 'const journalEntry = await commitPlaidTransaction(prisma, {', "kind: 'reservation_posted',", 'the posting is recorded before the writer returned');
+  {
+    const refusal = cancelSrc.slice(cancelSrc.indexOf('if (err instanceof LiteApiFlightsApiError && err.status === 409) {', cancelSrc.indexOf('async function cancelFlight(')));
+    const refused = refusal.slice(0, refusal.indexOf('{ status: 409 }'));
+    if (!refused.includes("kind: 'reservation_cancel_refused'") || /reservation_cancelled|money_event_stated|recordStatedMoney|recordEmailOutcome/.test(refused)) auditFail(`${CANCEL}: a refused flight cancel does not record cancel_refused and nothing else`);
+  }
+
+  // ── CLAUSE 7. THE TIMELINE LEAF IS PURE, EVERY KIND HAS ITS WORDS, AN UNKNOWN ACTION RENDERS AS ITSELF. ──
+  const leaf = codeOf(LEAF);
+  const IMPURE: ReadonlyArray<[RegExp, string]> = [
+    [/\bfetch\s*\(/, 'fetches'],
+    [/process\.env/, 'reads the environment'],
+    [/new Date\s*\(\s*\)|Date\.now\s*\(/, 'reads the clock'],
+    [/prisma|PrismaClient/, 'reaches the database'],
+    [/from 'react'|from "react"/, 'imports React'],
+    [/^\s*import\s/m, 'imports a module'],
+  ];
+  for (const [re, what] of IMPURE) if (re.test(leaf)) auditFail(`${LEAF} ${what} — the timeline leaf is pure`);
+  const words = functionBody(leaf, 'bookingEventWords') ?? '';
+  for (const k of kinds) if (!words.includes(`case '${k}':`)) auditFail(`${LEAF}: bookingEventWords has no words for '${k}'`);
+  const fixture = timelineOf({
+    arrivals: [{ id: 'arr_b', resource: 'booking', arrived: '2026-09-20T10:00:01.000Z', asked: '2026-09-20T10:00:00.000Z', payload: { status: 'CONFIRMED' } }],
+    webhookEvents: [],
+    auditRows: [
+      { id: 'al_2', created_at: '2026-09-20T10:00:01.000Z', action_type: 'reservation_booked', action_description: 'stored', payload_before: null, payload_after: { status: 'confirmed', providerBookingId: 'bk_1' } },
+      { id: 'al_9', created_at: '2026-09-19T00:00:00.000Z', action_type: 'system_other', action_description: 'an older row', payload_before: null, payload_after: null },
+    ],
+    moneyEvents: [], commission: [], journalEntries: [], calendarRows: [],
+  });
+  if (JSON.stringify(fixture.map((i) => i.evidence.id)) !== JSON.stringify(['al_9', 'arr_b', 'al_2'])) auditFail(`${LEAF}: the timeline is not ordered by instant, then by kind (the landed answer before its record) — got ${fixture.map((i) => i.evidence.id).join(', ')}`);
+  if (fixture[0]?.words !== 'system_other: an older row') auditFail(`${LEAF}: an audit action the leaf does not know does not render as itself`);
+  if (fixture[2]?.words !== bookingEventWords('reservation_booked', { before: null, after: { status: 'confirmed', providerBookingId: 'bk_1' } })) auditFail(`${LEAF}: a known audit row is not rendered by the words leaf from its stated payload`);
+
+  // ── CLAUSE 8. THE TIMELINE ROUTE READS ONLY, OWNS THE BOOKING, IMPORTS NO VENDOR CLIENT, AND KEEPS COMMISSION OFF THE CUSTOMER'S PAGE. ──
+  const route = codeOf(ROUTE);
+  if (/liteapiClient|liteapiFlightsClient|viator|\bfetch\s*\(|reserveTravelSearch|getFlightBooking|getHotelBooking/.test(route)) auditFail(`${ROUTE} imports a vendor client or calls the wire — the history reads recorded rows only`);
+  if (/\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(|\$executeRaw|\$queryRaw|\$transaction|recordBookingEvent|writeAuditLog/.test(route)) auditFail(`${ROUTE} writes — the timeline route is read-only`);
+  if (!route.includes('where: { id, userId: user.id },') || !route.includes("if (!reservation) return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });")) auditFail(`${ROUTE} does not own the reservation by findFirst { id, userId } with the defensive 404 (the receipt route's auth)`);
+  if (/requireTier|requireTabAccess/.test(route)) auditFail(`${ROUTE} adds a tier gate — the receipt's bar`);
+  if (!route.includes('actor_user_id: user.id,')) auditFail(`${ROUTE} reads audit rows outside the owner's scope (SEC-1)`);
+  if (!route.includes("{ payload_metadata: { path: ['reservationId'], equals: reservation.id } },") || !route.includes("{ target_table: 'reservations', target_id: reservation.id },")) auditFail(`${ROUTE} does not read the audit rows that target the booking or name it`);
+  if (/commission_ledger/.test(route) || !route.includes("action_type: { not: 'commission_locked' },") || !route.includes('commission: [],')) auditFail(`${ROUTE} lets commission onto the customer's page — RECEIPT-01: Temple Stuart's books, never the customer's receipt`);
+  if (!route.includes('timelineOf({')) auditFail(`${ROUTE} does not hand its rows to the one leaf`);
+
+  // ── CLAUSE 9. THE RECEIPT PAGE SHOWS THE HISTORY, IN THE LEAF'S WORDS. ──
+  const page = codeOf(PAGE);
+  if (!page.includes('/api/reservations/${encodeURIComponent(id)}/timeline')) auditFail(`${PAGE} does not read the history from the owner's timeline route`);
+  if (!page.includes('data-receipt-section="history"') || !page.includes('{HISTORY_WORDS.heading}') || !page.includes('{item.words}')) auditFail(`${PAGE} does not render the History section from the leaf's words`);
+  if (/['"`>]\s*History\s*['"`<]/.test(page)) auditFail(`${PAGE} types the History heading — HISTORY_WORDS carries it`);
+
+  if (auditViolations === 0) console.log(`✔ The audit law passed — the ${kinds.length} booking kinds are in the enum, the schema and the read route's three families; every listed writer records through the one port after its change commits (the cancel request before the vendor's answer), with a deterministic request_id and the words leaf's description; no booking write site calls writeAuditLog directly (the review route's link row, named); a failed audit write is named and never thrown; the timeline leaf is pure; its route reads only, owns the booking, imports no vendor client and keeps commission off the customer's page.`);
+  else console.log(`✖ The audit law FAILED — ${auditViolations} violation(s).`);
 });
 
 // ── THE ROW LAW (TRAVEL-ROW-01, 2026-09-23) ─────────────────────────────────

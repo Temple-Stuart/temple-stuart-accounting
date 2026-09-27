@@ -412,7 +412,8 @@ test('the read leaf: the cap, then the GET by lane, then ONE transaction landing
   assert.doesNotMatch(lockedFn, /\brow\b/, 'the caller row never enters the locked apply');
   assert.match(r, /calendar: prismaBookingCalendar\(tx\),/);
   assert.match(r, /cancelCommission: async \(reservationId\) => \(await tx\.commission_ledger\.updateMany\(\{ where: \{ reservationId, status: 'estimated' \}, data: \{ status: 'cancelled' \} \}\)\)\.count,/, 'the commission moves exactly as the cancel route moves it');
-  assert.ok(at('for (const request of applied.emails) emails.push(await sendLifecycleEmail(emailRow, request));') > at('prisma.$transaction(async (tx) => applyLockedRead('), 'emails after the commit');
+  // AUDIT-01 (2026-09-26): the send carries the read's actor (was `(emailRow, request)`).
+  assert.ok(at('for (const request of applied.emails) emails.push(await sendLifecycleEmail(emailRow, request, actor));') > at('prisma.$transaction(async (tx) => applyLockedRead('), 'emails after the commit');
   assert.match(r, /if \(!opts\.dryRun\) \{\s*const emailRow/, 'never on a dry run');
   assert.match(r, /const readAt = read\.answer\.arrived;/, 'lastVendorReadAt is the answer instant');
   assert.match(r, /parse: parseFlightBookingDetails/);
@@ -456,8 +457,11 @@ test('the retro runs the one read leaf over every reservation, rehearses with --
 
 test('the sender: the one attempt, a failed send to audit_log by name, no retry; the flights book route attempts the emails the refresh owes after its own block', () => {
   const s = code(SENDER);
-  assert.match(s, /description: `lifecycle_email_failed — \$\{request\.kind\} for reservation \$\{row\.id\}: \$\{errorClass\}`/);
-  assert.match(s, /type: 'system_automation'/);
+  // AUDIT-01 (2026-09-26): the failed send goes through the ONE audit port by name (reservation_email_failed);
+  // the actor is the caller's (the read's source, or the booking human) — was 'system_other' + system_automation here.
+  assert.match(s, /await recordEmailOutcome\(booking, actor, request\.kind, 'lifecycle', \{ sent: false, error: errorClass \}\);/);
+  assert.match(s, /export async function sendLifecycleEmail\(row: LifecycleSendRow, request: LifecycleEmailRequest, actor: BookingActor\)/);
+  assert.ok(!/writeAuditLog|system_other/.test(s), 'the old direct write is gone');
   assert.match(s, /cancelRecipient\(row, await accountEmailOf\(row\)\)/, 'the CANCEL-02 recipient rule');
   assert.ok(!/setTimeout|for \(let attempt|retries|while \(/.test(s), 'no automatic retry');
   assert.ok(!/accountEmail \?\? |guestEmail \?\? |\?\? accountEmail|\?\? row\.guestEmail/.test(s), 'no fallback address');

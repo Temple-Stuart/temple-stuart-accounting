@@ -11,11 +11,19 @@
  * the lifecycle leaf, the send through the booking emails' own sender. A failed
  * send is written to audit_log BY NAME and is NOT retried automatically — the
  * marker means "the one attempt was made". No fallback address, no retry.
+ *
+ * AUDIT-01 (2026-09-26): both outcomes go through the ONE audit port
+ * (src/lib/reservations/auditTrail.ts) — reservation_email_sent with the
+ * provider's message id as the evidence, reservation_email_failed keyed by the
+ * kind and the error class (a missing recipient is a failure by name too). The
+ * old 'system_other' lifecycle_email_failed write is gone. The actor is the
+ * caller's: the read's source (the cron, the retro, the webhook) or the booking
+ * human — handed in, never guessed here.
  */
 import { prisma } from '@/lib/prisma';
 import { sendTransactionalEmail } from '@/lib/email';
-import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { lifecycleEmail } from '@/lib/emailTemplates/lifecycle';
+import { recordEmailOutcome, type BookingActor } from './auditTrail';
 import { reservationIdentity } from './lane';
 import { cancelRecipient } from './cancellation';
 import type { LifecycleEmailRequest } from './applyVendorState';
@@ -56,10 +64,12 @@ async function accountEmailOf(row: LifecycleSendRow): Promise<string | null> {
   return user ? user.email : null;
 }
 
-export async function sendLifecycleEmail(row: LifecycleSendRow, request: LifecycleEmailRequest): Promise<LifecycleEmailStatus> {
+export async function sendLifecycleEmail(row: LifecycleSendRow, request: LifecycleEmailRequest, actor: BookingActor): Promise<LifecycleEmailStatus> {
+  const booking = { id: row.id, userId: row.userId };
   const recipient = cancelRecipient(row, await accountEmailOf(row));
   if (recipient.to === null) {
     console.error('[lifecycle email] no recipient stated — no email sent:', { reservationId: row.id, kind: request.kind, bookingType: row.bookingType, reason: recipient.reason });
+    await recordEmailOutcome(booking, actor, request.kind, 'lifecycle', { sent: false, error: recipient.reason });
     return { kind: request.kind, sent: false, error: recipient.reason };
   }
   try {
@@ -77,23 +87,15 @@ export async function sendLifecycleEmail(row: LifecycleSendRow, request: Lifecyc
       ? lifecycleEmail({ kind: 'ticketed', ...common, pnr: row.providerConfirmationCode })
       : lifecycleEmail({ kind: 'hotel_confirmation_arrived', ...common, confirmationCode: request.confirmationCode });
     const { id } = await sendTransactionalEmail({ to: recipient.to, subject: rendered.subject, html: rendered.html, text: rendered.text });
+    // AUDIT-01: the send is recorded, the message id its evidence.
+    await recordEmailOutcome(booking, actor, request.kind, 'lifecycle', { sent: true, id });
     return { kind: request.kind, sent: true, id };
   } catch (emailErr) {
     const errorClass = emailErr instanceof Error ? emailErr.name : 'UnknownError';
     const message = emailErr instanceof Error ? emailErr.message : String(emailErr);
     console.error('[lifecycle email] send FAILED — the one attempt was made, the marker stands, no retry:', { reservationId: row.id, kind: request.kind, errorClass, message });
-    // By name, in the tamper-evident log — this is the record that the attempt failed.
-    try {
-      await writeAuditLog({
-        actor: { user_id: row.userId, type: 'system_automation' },
-        action: { type: 'system_other', description: `lifecycle_email_failed — ${request.kind} for reservation ${row.id}: ${errorClass}` },
-        target: { table: 'reservations', id: row.id },
-        payload: { metadata: { kind: request.kind, errorClass, message: message.slice(0, 500) } },
-        request_id: `lifecycle-email-${row.id}-${request.kind}`,
-      });
-    } catch (auditErr) {
-      console.error('[lifecycle email] audit log of the failed send ALSO failed:', { reservationId: row.id, kind: request.kind, error: auditErr instanceof Error ? auditErr.message : auditErr });
-    }
+    // AUDIT-01: by name, in the tamper-evident log, through the one port — the record that the attempt failed.
+    await recordEmailOutcome(booking, actor, request.kind, 'lifecycle', { sent: false, error: errorClass });
     return { kind: request.kind, sent: false, error: errorClass };
   }
 }

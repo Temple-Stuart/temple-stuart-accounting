@@ -21,6 +21,16 @@
  *   4. AFTER the commit, make the one attempt at each email the apply owes
  *      (sendLifecycleEmail — a failed send is audit-logged by name, not retried).
  *
+ * AUDIT-01 (2026-09-26): AFTER the commit, before the emails, every change the
+ * read's ONE write made is recorded through the audit port — one row per fact
+ * (status_changed, or cancelled when the vendor finalized a pending cancel;
+ * confirmation_code_arrived; ticketed; ticket_limit_stated), each with its
+ * before/after, the read's arrival as the evidence; the commission lock as
+ * commission_locked on the ledger row it locked. An unchanged read records
+ * nothing; a dry run records nothing. The actor is the read's source: the cron and
+ * the retro are system_automation, the webhook external_integration — both under
+ * the booking's OWNER. An audit failure is named and never undoes the read.
+ *
  * WHY THE LOCK. Two overlapping reads of the same booking — a duplicate delivery
  * racing itself (the vendor retries on a timeout while the first is still
  * running), or a webhook overlapping the cron — would both see a null marker,
@@ -47,6 +57,7 @@ import { reserveTravelSearch, TravelSearchQuotaError } from '@/lib/travelSearchQ
 import { applyVendorState, type ApplyOutcome, type ApplyPorts, type CommissionFigures, type CommissionLockOutcome, type LifecycleEmailRequest, type ReservationPatch } from './applyVendorState';
 import { refreshFlightReservation, type FlightReservationPatch, type FlightRefreshPorts } from './refreshFlightReservation';
 import { sendLifecycleEmail, type LifecycleEmailStatus } from './lifecycleSend';
+import { actorOfReadSource, readChangesOf, recordBookingEvent, type AuditOutcome, type BookingEventKind } from './auditTrail';
 
 /** Who asked for the read — named in every log line. */
 export type VendorReadSource = 'webhook' | 'cron' | 'retro';
@@ -170,6 +181,8 @@ export type VendorReadOutcome =
       emailsOwed: LifecycleEmailRequest[];
       /** On a dry run: the write that WOULD have been made. */
       wouldWrite: FlightReservationPatch | null;
+      /** AUDIT-01: the audit rows this read recorded, by kind — empty for an unchanged read and on a dry run. */
+      audited: Array<{ kind: BookingEventKind; outcome: AuditOutcome }>;
     }
   | {
       outcome: 'read_failed';
@@ -291,11 +304,46 @@ export async function readAndApplyReservation(row: VendorReadRow, opts: VendorRe
   const wouldWrite = writes[0] ?? null;
   const changed = applied.changes.length > 0 || applied.flight?.calendar === 'inserted';
 
+  // 3b. AUDIT-01 — the changes, recorded after the commit, one row per fact; never on a dry run.
+  const audited: Array<{ kind: BookingEventKind; outcome: AuditOutcome }> = [];
+  const actor = actorOfReadSource(opts.source, applied.locked.userId);
+  if (!opts.dryRun && applied.arrivalId !== null) {
+    const booking = { id: applied.locked.id, userId: applied.locked.userId };
+    const evidence = { table: 'arrivals', id: applied.arrivalId };
+    for (const change of readChangesOf(applied.locked, wouldWrite, applied.providerStatus)) {
+      audited.push({ kind: change.kind, outcome: await recordBookingEvent({ reservation: booking, kind: change.kind, actor, before: change.before, after: change.after, evidence }) });
+    }
+    if (applied.commissionLock.outcome === 'locked') {
+      // The ledger row the lock moved — the one this read's arrival locked.
+      try {
+        const lockedRow = await prisma.commission_ledger.findFirst({
+          where: { reservationId: applied.locked.id, lockArrivalId: applied.arrivalId },
+          select: { id: true, currency: true, lockedCommissionCents: true, distributorCommissionCents: true, clientCommissionCents: true, processingFeeCents: true, lockedAt: true },
+        });
+        if (lockedRow === null) {
+          console.error(`${tag}: AUDIT-01 the commission lock reported a row moved, and no commission_ledger row carries lockArrivalId ${applied.arrivalId} — commission_locked NOT recorded`);
+        } else {
+          audited.push({ kind: 'commission_locked', outcome: await recordBookingEvent({
+            reservation: booking,
+            kind: 'commission_locked',
+            actor,
+            before: { status: 'estimated' },
+            after: { status: 'confirmed', currency: lockedRow.currency, lockedCommissionCents: lockedRow.lockedCommissionCents, distributorCommissionCents: lockedRow.distributorCommissionCents, clientCommissionCents: lockedRow.clientCommissionCents, processingFeeCents: lockedRow.processingFeeCents, lockedAt: lockedRow.lockedAt?.toISOString() ?? null },
+            evidence,
+            target: { table: 'commission_ledger', id: lockedRow.id },
+          }) });
+        }
+      } catch (err) {
+        console.error(`${tag}: AUDIT-01 the locked commission row could not be read back — commission_locked NOT recorded; the lock stands:`, nameErr(err));
+      }
+    }
+  }
+
   // 4. THE EMAILS — after the commit, one attempt each, from the row as it was locked; never on a dry run.
   const emails: LifecycleEmailStatus[] = [];
   if (!opts.dryRun) {
     const emailRow = { ...applied.locked, providerConfirmationCode: wouldWrite?.providerConfirmationCode ?? applied.locked.providerConfirmationCode, displayName: wouldWrite?.displayName ?? applied.locked.displayName };
-    for (const request of applied.emails) emails.push(await sendLifecycleEmail(emailRow, request));
+    for (const request of applied.emails) emails.push(await sendLifecycleEmail(emailRow, request, actor));
   }
 
   log(`${tag}: ${lane} ${row.providerBookingId} read (${applied.providerStatus ?? 'no status'}) — ${changed ? `APPLIED: ${applied.changes.join('; ')}` : 'unchanged'}${applied.emails.length ? `; emails ${opts.dryRun ? 'owed' : 'attempted'}: ${applied.emails.map((e) => e.kind).join(', ')}` : ''}${opts.dryRun ? ' (dry run — no lock, nothing landed, written or sent)' : ''}`);
@@ -312,5 +360,6 @@ export async function readAndApplyReservation(row: VendorReadRow, opts: VendorRe
     emails,
     emailsOwed: applied.emails,
     wouldWrite: opts.dryRun ? wouldWrite : null,
+    audited,
   };
 }
