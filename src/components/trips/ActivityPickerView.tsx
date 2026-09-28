@@ -173,6 +173,14 @@ export function ActivityFiltersBar({ filters, onFiltersChange, searchCount, sent
  *  each card carries the same word below it (one constant, no second copy). */
 const COLUMNS = { activity: 'Activity', rating: 'Rating', duration: 'Duration', cancellation: 'Cancellation', price: 'Price' } as const;
 
+/** FINISH-01b (2026-09-28): at `sm` and up the Rating, Duration, Cancellation and Price
+ *  cells WRAP — normal white-space, at most 12rem — so the table fits a desktop box. On
+ *  main they were `sm:whitespace-nowrap`, and at 1280 the table was 1745px inside a 954px
+ *  box, the row's price and "Book on Viator" past its edge (the FINISH-01 walk); with
+ *  these four wrapping it measures 954 of 954. Below `sm` the phone card already wraps
+ *  (PHONE_CARD.cell) — nothing there changes. */
+const TOUR_WRAP = 'sm:max-w-[12rem] sm:whitespace-normal';
+
 export default function ActivityPickerView({ cards, totalCount, previousTotal, loading, error, selected, onSelect, pageSize, hasMore, filtersChanged, loadingMore, onNextPage, lastPage, savePanel }: Props) {
   if (loading) {
     return (
@@ -272,10 +280,10 @@ export default function ActivityPickerView({ cards, totalCount, previousTotal, l
                         {card.privateTour === true ? ' · private tour' : ''}{card.skipTheLine === true ? ' · skip the line' : ''}
                       </div>
                     </td>
-                    <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} ${PHONE_CARD.nowrap} px-3 py-0.5 text-xs text-text-secondary sm:py-2`}><span className={PHONE_CARD.label}>{COLUMNS.rating}</span><span data-activity-field="rating">{ratingText(card)}</span></td>
-                    <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} ${PHONE_CARD.nowrap} px-3 py-0.5 text-xs text-text-secondary sm:py-2`}><span className={PHONE_CARD.label}>{COLUMNS.duration}</span><span data-activity-field="duration">{durationText(card.duration)}</span></td>
-                    <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} ${PHONE_CARD.nowrap} px-3 py-0.5 text-xs text-text-secondary sm:py-2`}><span className={PHONE_CARD.label}>{COLUMNS.cancellation}</span><span data-activity-field="cancellation">{cancellationText(card)}</span></td>
-                    <td className={`${PHONE_CARD.cell} ${PHONE_CARD.nowrap} ${PHONE_CARD.end} px-3 py-2`}>
+                    <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} ${TOUR_WRAP} px-3 py-0.5 text-xs text-text-secondary sm:py-2`}><span className={PHONE_CARD.label}>{COLUMNS.rating}</span><span data-activity-field="rating">{ratingText(card)}</span></td>
+                    <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} ${TOUR_WRAP} px-3 py-0.5 text-xs text-text-secondary sm:py-2`}><span className={PHONE_CARD.label}>{COLUMNS.duration}</span><span data-activity-field="duration">{durationText(card.duration)}</span></td>
+                    <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} ${TOUR_WRAP} px-3 py-0.5 text-xs text-text-secondary sm:py-2`}><span className={PHONE_CARD.label}>{COLUMNS.cancellation}</span><span data-activity-field="cancellation">{cancellationText(card)}</span></td>
+                    <td className={`${PHONE_CARD.cell} ${TOUR_WRAP} ${PHONE_CARD.end} px-3 py-2`}>
                       <div className={PHONE_CARD.label}>{COLUMNS.price}</div>
                       <div className="font-mono text-sm font-semibold text-brand-gold" data-activity-field="price">{priceText(card)}</div>
                       <div className="text-[10px] text-text-faint" data-activity-field="priceBasis">{card.priceBasis ?? `basis ${NOT_STATED}`}</div>

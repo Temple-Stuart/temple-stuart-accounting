@@ -36,7 +36,8 @@ const SEEDS: Seed[] = [
   {
     name: 'finish01-b a tour rating cell is whitespace-nowrap at the base breakpoint again (the ruling\'s seed)',
     file: `${T}/ActivityPickerView.tsx`,
-    find: '${PHONE_CARD.nowrap} px-3 py-0.5 text-xs text-text-secondary sm:py-2`}><span className={PHONE_CARD.label}>{COLUMNS.rating}',
+    // FINISH-01b (2026-09-28): the rating cell now wraps at sm (TOUR_WRAP); the anchor follows it.
+    find: '${TOUR_WRAP} px-3 py-0.5 text-xs text-text-secondary sm:py-2`}><span className={PHONE_CARD.label}>{COLUMNS.rating}',
     replace: 'whitespace-nowrap px-3 py-0.5 text-xs text-text-secondary sm:py-2`}><span className={PHONE_CARD.label}>{COLUMNS.rating}',
     expect: 'whitespace-nowrap at the base breakpoint',
   },

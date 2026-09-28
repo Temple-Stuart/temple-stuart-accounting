@@ -3549,6 +3549,13 @@ const travelFail = (m: string) => { travelViolations += 1; violations.push(`trav
 //        the Search control, inside its form; no results view draws a filter bar; no
 //        container re-runs a search when a filter changes (no effect on the filter
 //        state), and the transfers request still carries only city and country.
+//    (f) FINISH-01b (2026-09-28): THE TOURS TABLE FITS A DESKTOP. At 1280 the tours
+//        table was 1745px inside a 954px box — Rating, Duration, Cancellation and Price
+//        were `sm:whitespace-nowrap`, so the row's price and "Book on Viator" sat past the
+//        box edge. By Alex's ruling (option a) those four cells of ActivityPickerView WRAP
+//        at `sm` and up (TOUR_WRAP: normal white-space, at most 12rem) — measured 954 of
+//        954 — and no other cell changes: each of the four carries TOUR_WRAP and never a
+//        nowrap; the Link cell keeps its PHONE_CARD.nowrap.
 let finish01Tables = 0;
 let finish01Panels = 0;
 {
@@ -3609,6 +3616,26 @@ let finish01Panels = 0;
   }
   for (const f of [`${TRIPS}/ActivityPickerView.tsx`, `${TRIPS}/ActivityResultsView.tsx`, `${TRIPS}/FlightPickerView.tsx`, `${TRIPS}/HotelResultsView.tsx`]) {
     if (!codeOf(f).includes('${PHONE_CARD.box}')) travelFail(`${f}’s results box is not PHONE_CARD.box — relative, and a sideways scroll at sm only (FINISH-01)`);
+  }
+  // (f) FINISH-01b: the four tour cells wrap at sm and up; the rest are as they were.
+  {
+    const TOURS = `${TRIPS}/ActivityPickerView.tsx`;
+    const src = codeOf(TOURS);
+    if (!src.includes("const TOUR_WRAP = 'sm:max-w-[12rem] sm:whitespace-normal';")) travelFail(`${TOURS} no longer declares TOUR_WRAP as normal white-space at most 12rem at sm — the tours table overflows a desktop box again (FINISH-01b)`);
+    const wraps: string[] = [];
+    for (const t of tagsOf(src, 'td')) {
+      const body = src.slice(t.at + t.text.length, src.indexOf('</td>', t.at));
+      const field = /data-activity-field="(rating|duration|cancellation)"/.exec(body)?.[1] ?? (body.includes('{COLUMNS.price}') ? 'price' : null);
+      if (field === null) {
+        if (body.includes('data-activity-link') && !t.text.includes('${PHONE_CARD.nowrap}')) travelFail(`${TOURS}:${lineOf(src, t.at)} the Link cell lost PHONE_CARD.nowrap — only the four named cells wrap (FINISH-01b)`);
+        continue;
+      }
+      wraps.push(field);
+      if (!t.text.includes('${TOUR_WRAP}')) travelFail(`${TOURS}:${lineOf(src, t.at)} the tours ${field} cell does not wrap at sm (TOUR_WRAP) — the table is 1745px in a 954px box at 1280 without it (FINISH-01b)`);
+      if (/\$\{PHONE_CARD\.nowrap\}|(?<![\w-])sm:whitespace-nowrap/.test(t.text)) travelFail(`${TOURS}:${lineOf(src, t.at)} the tours ${field} cell is kept on one line at sm — it must wrap (FINISH-01b)`);
+    }
+    if (wraps.sort().join(',') !== 'cancellation,duration,price,rating') travelFail(`${TOURS}: the four wrapping tour cells read [${wraps.join(', ')}] — Rating, Duration, Cancellation and Price, each once (FINISH-01b)`);
+    if ((src.match(/\$\{TOUR_WRAP\}/g) ?? []).length !== 4) travelFail(`${TOURS} carries TOUR_WRAP on ${(src.match(/\$\{TOUR_WRAP\}/g) ?? []).length} cells — exactly the four the ruling names (FINISH-01b)`);
   }
   // (d) the classes themselves, and the strip.
   const pairs: Array<[keyof typeof PHONE_CARD, RegExp]> = [
