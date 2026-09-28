@@ -2861,17 +2861,31 @@ lawGuard('The budget report route law', () => {
 //      (src/app/api/ai/cart-plan/route.ts:80-89): a verified cookie or 401, the
 //      user or 404 — before any other read. GET is the only method, and the path
 //      is not public in src/middleware.ts.
-//   2. NO TRAVEL TABLE. Nothing in the route or its import tree names
-//      budget_line_items, trip_itinerary or calendar_events, or is a travel file:
-//      travel budgets are not connected yet, and the response says so.
+//   2. NO TRAVEL TABLE. No Budget file names budget_line_items, trip_itinerary
+//      or calendar_events, or imports a travel file: travel budgets are not
+//      connected yet, and the response says so.
 //   3. LEFT OUT BY NAME. The one actuals query excludes reversal pairs
 //      (is_reversal false, reversed_by_entry_id null) and closing entries
 //      (source_type not year_end_close) in its own where clause, and both are
 //      counted. No raw query can read the ledger around it.
 //   4. IT WRITES NOTHING. No Prisma create, update, delete or upsert and no
-//      executeRaw in the route or anything it imports.
+//      executeRaw in any Budget file.
 //   5. /budget RENDERS THE REPORT. The page mounts BudgetReport, and
 //      BudgetingPage is in nothing it imports.
+// TAB13-02e (ruled 2026-09-28): WHOSE FILES. Clauses 2 and 4 read the Budget
+// files and nothing else (BR_BUDGET_FILES): the route, every file under
+// src/lib/budget and src/components/budget (listed at run time, so a new Budget
+// file is covered), and the routine loader the route calls (LINES-02). They used
+// to read the whole import tree of the route: 20 files, 15 of them owned by other
+// parts of the app. The law matches a table name or a write anywhere in the code
+// of a shared file, and comments are stripped (codeOf is sourceText.code,
+// assert-tool-registry.ts:92; src/lib/sourceText.ts:136-138), so a line of code another tab
+// wrote in a shared file (a calendar_events name in src/lib/calendar/links.ts, a
+// write in src/lib/plaid/failLoud.ts) stopped every deploy with a Budget error,
+// though the Budget route never runs that code. A Budget law fails only on Budget
+// code. The purity law above still reads the shared helpers the Budget math
+// calls: a helper that read the clock, the network or the database would change
+// budget numbers without anyone touching Budget.
 const BR_ROUTE = 'src/app/api/budget/report/route.ts';
 const BR_INPUTS = 'src/lib/budget/reportInputs.ts';
 const BR_PAGE = 'src/app/budget/page.tsx';
@@ -2879,6 +2893,14 @@ const BR_PATH = '/api/budget/report';
 const BR_TRAVEL_TABLES = /\b(budget_line_items|trip_itinerary|calendar_events)\b/;
 const BR_TRAVEL_FILES = /^src\/(lib\/trips|components\/trips|app\/api\/trips|app\/budgets\/trips)\//;
 const BR_WRITE = /\.\w+\.(create|createMany|update|updateMany|delete|deleteMany|upsert)\s*\(|\$executeRaw/;
+// TAB13-02e: the files clauses 2 and 4 read — the Budget files, and only them.
+const BR_LOADER = 'src/lib/operations/routineBudgetInputs.ts';
+const BR_BUDGET_FILES: readonly string[] = [
+  BR_ROUTE,
+  ...tsFiles(resolve(ROOT, 'src/lib/budget')).map((abs) => abs.replace(`${ROOT}/`, '')),
+  ...tsFiles(resolve(ROOT, 'src/components/budget')).map((abs) => abs.replace(`${ROOT}/`, '')),
+  BR_LOADER,
+];
 // The cart-plan gate, whitespace folded — the first statements of the GET body.
 const BR_GATE = [
   'export async function GET(request: NextRequest) { try {',
@@ -2900,7 +2922,6 @@ const brTree = (root: string): string[] => {
   }
   return [...seen];
 };
-let brTreeSize = 0;
 if (!existsSync(resolve(ROOT, BR_ROUTE))) brFail(`${BR_ROUTE} is missing — the budget report has one route`);
 else {
   const route = codeOf(BR_ROUTE);
@@ -2916,16 +2937,18 @@ else {
       if (BR_PATH === m[1] || BR_PATH.startsWith(`${m[1]}/`)) brFail(`${BR_PATH} is a public path (src/middleware.ts lists ${m[1]}) — a guest would reach the books of a person`);
     }
   }
-  // 2 and 4. The whole import tree: no travel table, no travel file, no write.
-  const tree = brTree(BR_ROUTE);
-  brTreeSize = tree.length;
-  for (const f of tree) {
-    if (BR_TRAVEL_FILES.test(f)) brFail(`${f} is a travel file in the import tree of ${BR_ROUTE} — travel budgets are not connected yet`);
+  // 2 and 4. The Budget files: no travel table, no travel file, no write.
+  for (const f of BR_BUDGET_FILES) {
+    if (!existsSync(resolve(ROOT, f))) { brFail(`${f} is missing — it is a Budget file this law reads`); continue; }
+    if (BR_TRAVEL_FILES.test(f)) brFail(`${f} is a travel file among the Budget files — travel budgets are not connected yet`);
+    for (const imported of importsFor(f)) {
+      if (BR_TRAVEL_FILES.test(imported)) brFail(`${f} imports the travel file ${imported} — it is a Budget file, and travel budgets are not connected yet`);
+    }
     const body = codeOf(f);
     const table = BR_TRAVEL_TABLES.exec(body);
-    if (table) brFail(`${f} names the travel table ${table[1]} — it is in the import tree of ${BR_ROUTE}, and no travel table is read`);
+    if (table) brFail(`${f} names the travel table ${table[1]} — it is a Budget file, and no travel table is read`);
     const write = BR_WRITE.exec(body);
-    if (write) brFail(`${f} writes (${write[0].trim()}) — it is in the import tree of ${BR_ROUTE}, and the report writes nothing`);
+    if (write) brFail(`${f} writes (${write[0].trim()}) — it is a Budget file, and the report writes nothing`);
   }
   if (!/travelBudgets: \x27not connected\x27/.test(codeOf(BR_INPUTS))) brFail(`${BR_INPUTS} does not say the travel budgets are not connected`);
   // 3. Left out by name, in the one actuals query.
@@ -2946,7 +2969,7 @@ else {
   if (!/import BudgetReport from \x27@\/components\/budget\/BudgetReport\x27;/.test(page) || !/<BudgetReport\b/.test(page)) brFail(`${BR_PAGE} does not render BudgetReport — /budget is the budget report`);
   if (/BudgetingPage/.test(page) || brTree(BR_PAGE).includes('src/components/dashboard/BudgetingPage.tsx')) brFail(`BudgetingPage is in the import tree of ${BR_PAGE} — /budget renders BudgetReport, not the category room`);
 }
-if (brViolations === 0) console.log(`✔ The budget report route law passed — GET only, the cart-plan gate first, not a public path; ${brTreeSize} files in its import tree name no travel table and write nothing; reversal pairs and closing entries are left out of the actuals by name and counted; /budget renders BudgetReport.`);
+if (brViolations === 0) console.log(`✔ The budget report route law passed — GET only, the cart-plan gate first, not a public path; ${BR_BUDGET_FILES.length} Budget files (the route, src/lib/budget, src/components/budget, the routine budget loader) name no travel table or travel file and write nothing; reversal pairs and closing entries are left out of the actuals by name and counted; /budget renders BudgetReport.`);
 else console.log(`✖ The budget report route law FAILED — ${brViolations} violation(s).`);
 });
 lawGuard('The one-off law', () => {

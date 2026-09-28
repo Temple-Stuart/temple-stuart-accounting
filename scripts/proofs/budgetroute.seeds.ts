@@ -12,6 +12,12 @@
  *   4. it writes nothing — an update in the route (g);
  *   5. /budget renders the report — the page imports BudgetingPage (h).
  *
+ * TAB13-02e (2026-09-28): clauses 2 and 4 read the Budget files only — the
+ * route, src/lib/budget, src/components/budget and the routine loader. Seeds i,
+ * j and k prove the scope reaches past the route: a write in the route-inputs
+ * module (i), a travel table named in the loader (j), and a travel file imported
+ * by the screen (k).
+ *
  * The anchors occur exactly once in their file, which the harness enforces
  * before it runs anything.
  */
@@ -22,6 +28,13 @@ const PAGE = 'src/app/budget/page.tsx';
 const MIDDLEWARE = 'src/middleware.ts';
 const GATE_ANCHOR = '  try {\n    const userEmail = await getVerifiedEmail();';
 const AFTER_GATE_ANCHOR = "    // The server's clock is read HERE, once; the pure half takes the day.";
+// TAB13-02e: three more Budget files, one per new seed.
+const INPUTS = 'src/lib/budget/reportInputs.ts';
+const LOADER = 'src/lib/operations/routineBudgetInputs.ts';
+const SCREEN = 'src/components/budget/BudgetReport.tsx';
+const INPUTS_ANCHOR = 'export function utcDay(instant: Date): IsoDay {';
+const LOADER_ANCHOR = 'export type RoutineBudgetRow = Prisma.operations_routinesGetPayload<{ select: typeof ROUTINE_BUDGET_SELECT }>;';
+const SCREEN_ANCHOR = "import { SECTION_HEADER, toggleChip } from '@/lib/ds';";
 
 export const SEEDS: Seed[] = [
   {
@@ -79,5 +92,27 @@ export const SEEDS: Seed[] = [
     find: "import BudgetReport from '@/components/budget/BudgetReport';",
     replace: "import BudgetReport from '@/components/budget/BudgetReport';\nimport BudgetingPage from '@/components/dashboard/BudgetingPage';\nvoid BudgetingPage;",
     expect: 'BudgetingPage is in the import tree of src/app/budget/page.tsx',
+  },
+  // TAB13-02e — the Budget files beyond the route.
+  {
+    name: 'route-i the route-inputs module writes',
+    file: INPUTS,
+    find: INPUTS_ANCHOR,
+    replace: `const scratchWrite = (db: { users: { update: (a: unknown) => unknown } }) => db.users.update({});\nvoid scratchWrite;\n${INPUTS_ANCHOR}`,
+    expect: 'src/lib/budget/reportInputs.ts writes (.users.update() — it is a Budget file, and the report writes nothing',
+  },
+  {
+    name: 'route-j the routine budget loader names a travel table',
+    file: LOADER,
+    find: LOADER_ANCHOR,
+    replace: `${LOADER_ANCHOR}\nexport const SCRATCH_TRAVEL_TABLE = 'trip_itinerary';`,
+    expect: 'src/lib/operations/routineBudgetInputs.ts names the travel table trip_itinerary — it is a Budget file',
+  },
+  {
+    name: 'route-k the budget screen imports a travel file',
+    file: SCREEN,
+    find: SCREEN_ANCHOR,
+    replace: `${SCREEN_ANCHOR}\nimport { LINE_STATUS } from '@/lib/trips/lineStatus';\nvoid LINE_STATUS;`,
+    expect: 'src/components/budget/BudgetReport.tsx imports the travel file src/lib/trips/lineStatus.ts — it is a Budget file',
   },
 ];
