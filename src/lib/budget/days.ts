@@ -45,22 +45,25 @@
  * arithmetic; a dollar number from routinePlanned becomes cents only when it is
  * whole cents to within 1e-6. Anything else is NotPlaced 'amount not whole cents'.
  *
- * CODES (R4). 'NNNN' or 'L-NNNN' after trimming; the letter must be the plan's
- * own entity's (src/lib/accountString.ts entityLetter). Whether the four digits
- * exist in the chart is the model's job ('not in chart'), not this file's.
+ * CODES (R4; TAB13-02d, ruled 2026-09-27 — one truth, one rule). A code is read
+ * by the chart's OWN rule, src/lib/coa/scheme.ts parseCode, with the plan's own
+ * entity type: whatever the chart accepts, this accepts; whatever it refuses is
+ * 'account code not recognised', in the chart's own words. The one budget fact
+ * added: a plan with no code (null, undefined, blank) is 'no account'. Whether
+ * the four digits exist in the chart is still the model's job ('not in chart').
  */
 import type { BudgetLine, IsoDay } from '@/lib/budget/report';
 import { routinePlanned } from '@/lib/operations/routineLines';
 import { expandBetween, scheduleAnchor } from '@/lib/operations/rruleHelpers';
 import { instantToZoned } from '@/lib/time';
-import { entityLetter } from '@/lib/accountString';
+import { parseCode } from '@/lib/coa/scheme';
+import { ValidationError } from '@/lib/errors/ValidationError';
 
 // ── NOT PLACED ──────────────────────────────────────────────────────────────
 
 /** Why a plan's money could not be placed on a day and an account. Closed. */
 export type NotPlacedReason =
   | 'no account'
-  | 'code names another book'
   | 'account code not recognised'
   | 'amount not whole cents'
   | 'schedule does not parse'
@@ -69,7 +72,7 @@ export type NotPlacedReason =
   | 'not on the calendar';
 
 export const NOT_PLACED_REASONS: readonly NotPlacedReason[] = [
-  'no account', 'code names another book', 'account code not recognised', 'amount not whole cents',
+  'no account', 'account code not recognised', 'amount not whole cents',
   'schedule does not parse', 'start date not recognised', 'timezone not recognised', 'not on the calendar',
 ];
 
@@ -126,24 +129,25 @@ const within = (day: IsoDay, from: IsoDay, to: IsoDay): boolean => from <= day &
 
 export type ParsedCode =
   | { readonly ok: true; readonly code: string }
-  | { readonly ok: false; readonly reason: 'no account' | 'code names another book' | 'account code not recognised'; readonly detail: string | null };
+  | { readonly ok: false; readonly reason: 'no account' | 'account code not recognised'; readonly detail: string | null };
 
-const CODE_RE = /^(?:([A-Z])-)?(\d{4})$/;
-
-/** A plan's code → the bare four digits, or why it cannot go on a line. */
+/**
+ * A plan's code → the bare four digits, or why it cannot go on a line. The
+ * chart's rule decides (scheme.ts parseCode); this adds only that no code is
+ * 'no account'. A refusal carries the chart's own message; any error that is
+ * not the chart's refusal is not a code question, and is thrown on.
+ */
 export function parseBudgetCode(raw: string | null | undefined, entityType: string): ParsedCode {
   if (raw === null || raw === undefined) return { ok: false, reason: 'no account', detail: null };
-  const trimmed = raw.trim();
-  if (trimmed === '') return { ok: false, reason: 'no account', detail: JSON.stringify(raw) };
-  const m = CODE_RE.exec(trimmed);
-  if (!m) return { ok: false, reason: 'account code not recognised', detail: JSON.stringify(raw) };
-  if (m[1] !== undefined) {
-    const mine = entityLetter(entityType);
-    if (m[1] !== mine) {
-      return { ok: false, reason: 'code names another book', detail: `${JSON.stringify(raw)} on a ${entityType} entity, whose letter is ${mine === null ? 'none' : mine}` };
+  if (raw.trim() === '') return { ok: false, reason: 'no account', detail: JSON.stringify(raw) };
+  try {
+    return { ok: true, code: parseCode(raw, entityType) };
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      return { ok: false, reason: 'account code not recognised', detail: `${JSON.stringify(raw)} — ${error.message}` };
     }
+    throw error;
   }
-  return { ok: true, code: m[2] };
 }
 
 // ── CENTS (R5) ──────────────────────────────────────────────────────────────

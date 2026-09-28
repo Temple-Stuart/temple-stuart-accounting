@@ -33,7 +33,8 @@ const MODEL = 'src/lib/budget/report.ts';
 const DAYS = 'src/lib/budget/days.ts';
 const DAYS_TEST = 'src/lib/__tests__/budgetDays.test.ts';
 const DAYS_BODY_ANCHOR = 'export function buildRoutineBudgetLines(routines: readonly RoutinePlanInput[], rangeFrom: IsoDay, rangeTo: IsoDay): DayRuleResult {';
-const DAYS_IMPORT_ANCHOR = "import { entityLetter } from '@/lib/accountString';";
+// TAB13-02d: re-anchored — the day rules no longer import entityLetter (the chart's rule reads codes now).
+const DAYS_IMPORT_ANCHOR = "import { parseCode } from '@/lib/coa/scheme';";
 // TAB13-02b: the third and fourth roots, and their tests.
 const INPUTS = 'src/lib/budget/reportInputs.ts';
 const INPUTS_TEST = 'src/lib/__tests__/budgetReportInputs.test.ts';

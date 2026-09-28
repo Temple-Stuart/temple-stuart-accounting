@@ -281,7 +281,7 @@ test('NOT TOTALLED — a bank row whose amount is not whole cents is listed with
 });
 
 // Ruling 5 (the chat's mutant R6): the entity's type decides which letter a code may carry — pinned on both plans.
-test('BOOK — each plan carries its OWN entity\'s type: a B- code places on a sole_prop book and names another book on a personal one, for routines and tasks', () => {
+test('BOOK — each plan carries its OWN entity\'s type: a B- code places on a sole_prop book and is refused on a personal one, in the chart\'s words, for routines and tasks', () => {
   const saas: RoutineRow = { ...coffee, id: 'r-saas', name: 'SaaS seat', budget_amount: 2, coa_code: 'B-6300' };
   const wrongBook: RoutineRow = { ...coffee, id: 'r-wrong', name: 'Wrong book', coa_code: 'B-6150' };
   const r = budgetReportResponse(WEEK, rows({
@@ -292,10 +292,16 @@ test('BOOK — each plan carries its OWN entity\'s type: a B- code places on a s
   const business = r.report.books.find((b) => b.entityId === 'ent-b');
   assert.ok(business);
   assert.deepEqual(business.rows.map((x) => [x.code, x.cells[0].budgetFull, x.cells[0].budgetToDate]), [['6300', 400 + 12050, 400]]);
-  // The same letter on a personal entity is another book's — listed, never placed.
+  // The same letter on a personal entity is another book's — listed, never placed. TAB13-02d: the reason was
+  // 'code names another book' (the deleted copy's); it is now the chart's refusal, in the chart's words.
+  const otherBook = '"B-6150" — code B-6150 carries the B- letter; this is a P- chart (personal) — enter P-6150 or 6150';
   assert.deepEqual(
-    r.notPlaced.filter((n) => n.reason === 'code names another book').map((n) => `${n.source}:${n.label}:${n.day}:${n.cents}`),
-    ['routine:Wrong book:2026-09-21:500', 'routine:Wrong book:2026-09-22:500', 'task:Personal on B:2026-09-24:12050'],
+    r.notPlaced.filter((n) => n.reason === 'account code not recognised').map((n) => `${n.source}:${n.label}:${n.day}:${n.cents}:${n.detail}`),
+    [
+      `routine:Wrong book:2026-09-21:500:${otherBook}`,
+      `routine:Wrong book:2026-09-22:500:${otherBook}`,
+      `task:Personal on B:2026-09-24:12050:${otherBook}`,
+    ],
   );
 });
 
@@ -360,15 +366,17 @@ test('ALL AT ONCE — every chart code the rule cannot read is named in ONE refu
     }
   }, 'chart-code-unreadable');
   assert.match(message, /3 chart codes cannot be read/);
-  assert.ok(message.includes('Temple Stuart (sole_prop): code "P-5100", "Wrong letter" — code names another book'), message);
-  assert.ok(message.includes('Alex (personal): code "5100-10", "A sub-account typed in" — account code not recognised'), message);
-  assert.ok(message.includes('Alex (personal): code "", "Blank" — no account'), message);
+  // TAB13-02d: each line carries the chart's own words (was the copy's reason alone).
+  assert.ok(message.includes('Temple Stuart (sole_prop): code "P-5100", "Wrong letter" — account code not recognised: "P-5100" — code P-5100 carries the P- letter; this is a B- chart (sole_prop) — enter B-5100 or 5100'), message);
+  assert.ok(message.includes('Alex (personal): code "5100-10", "A sub-account typed in" — account code not recognised: "5100-10" — code "5100-10" is not in the scheme — four digits (6250) or the entity letter and four digits (B-6250)'), message);
+  assert.ok(message.includes('Alex (personal): code "", "Blank" — no account: ""'), message);
   assert.ok(!message.includes('Coffee'), 'a row that reads is not named');
 });
 
 test('NO LETTER — a book whose entity type has no letter cannot carry one: "B-5100" there is refused; "5100" builds and shows bare', () => {
   const L: EntityRow = { id: 'ent-l', name: 'Holdings', entity_type: 'llc' };
-  inputThrows(() => budgetReportResponse(WEEK, rows({ entities: [B, P, L], chart: [chartRow('ent-l', 'B-5100', 'API')] })), 'chart-code-unreadable', 'Holdings (llc): code "B-5100", "API" — code names another book');
+  // TAB13-02d: the chart's words (was 'code names another book').
+  inputThrows(() => budgetReportResponse(WEEK, rows({ entities: [B, P, L], chart: [chartRow('ent-l', 'B-5100', 'API')] })), 'chart-code-unreadable', 'Holdings (llc): code "B-5100", "API" — account code not recognised: "B-5100" — this entity (llc) has no code letter — enter the four digits only');
   const r = budgetReportResponse(WEEK, rows({
     entities: [B, P, L],
     chart: [chartRow('ent-l', '5100', 'API')],
@@ -403,6 +411,27 @@ test('COLLIDE — two rows of one book that are one account are never merged: ev
   }));
   const shown = r.report.books.flatMap((b) => b.rows.map((x) => formatAccountCode(r.report.books, x.entityId, x.code)));
   assert.deepEqual(shown, ['P-5100', 'B-5100'], 'books P then B, each account with its own letter');
+});
+
+// T4 — THE PAGE (TAB13-02d, ruled 2026-09-27): the chart's rows are read by the chart's rule, like every code.
+test('ONE RULE ON THE PAGE — a chart row saved "b-5100" is account B-5100; one saved "0100" is refused in the chart\'s words', () => {
+  const r = budgetReportResponse(WEEK, rows({
+    chart: [chartRow('ent-b', 'b-5100', 'API & Data (COGS)')],
+    ledger: [line({ journal_entry_id: 'je-lower', account: { entity_id: 'ent-b', code: 'b-5100' } })],
+  }));
+  const business = r.report.books.find((b) => b.entityId === 'ent-b');
+  assert.ok(business);
+  assert.deepEqual(business.rows.map((x) => [x.code, x.name]), [['5100', 'API & Data (COGS)']], 'one row, read as the chart reads it');
+  assert.equal(business.rows[0].cells[1].actual, 450, 'the ledger line on it lands on it');
+  assert.equal(formatAccountCode(r.report.books, business.rows[0].entityId, business.rows[0].code), 'B-5100');
+  // And the two saved forms are one account: "b-5100" beside "5100" collides, as "B-5100" beside "5100" does.
+  inputThrows(() => budgetReportResponse(WEEK, rows({ chart: [chartRow('ent-b', 'b-5100', 'a'), chartRow('ent-b', '5100', 'b')] })), 'chart-codes-collide', 'code "b-5100", "a" and code "5100", "b"');
+  // A leading 0 is outside every family — the chart refuses it, so the page names it in the chart's words.
+  inputThrows(
+    () => budgetReportResponse(WEEK, rows({ chart: [chartRow('ent-p', '0100', 'Cash on hand')] })),
+    'chart-code-unreadable',
+    'Alex (personal): code "0100", "Cash on hand" — account code not recognised: "0100" — code 0100 is outside every family — codes run 1000–9999',
+  );
 });
 
 // ── PURITY ──────────────────────────────────────────────────────────────────
