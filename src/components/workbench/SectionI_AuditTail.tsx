@@ -88,7 +88,12 @@ export function SectionI_AuditTail({ onTotals, onChain }: {
       // SectionK_AuditTail.tsx:110).
       const res = await fetch('/api/audit-log/verify-chain', { method: 'POST' });
       if (!res.ok) {
-        setVerifyResult({ state: 'failed', detail: `request failed (${res.status})` });
+        // SEC-TASKS-01: the route's one 403 is the owner-only refusal — shown in
+        // its own words ({ error: 'owner_only', message }), never as INVALID.
+        const detail = res.status === 403
+          ? ((await res.json()) as { message: string }).message
+          : `request failed (${res.status})`;
+        setVerifyResult({ state: 'failed', detail });
         onChain?.('failed');
         return;
       }

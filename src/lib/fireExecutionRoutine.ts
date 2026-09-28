@@ -15,7 +15,10 @@
  * exec_correlation_id for the stored-match).
  *
  * SECURITY / COST (per CLAUDE.md):
- *   - requireExecBudget(userId) gates FIRST — over the daily exec cap throws
+ *   - SEC-TASKS-01: requireRoutineOwner(userId) gates FIRST — the Routine builds the
+ *     owner's repository, so anyone else → RoutineOwnerOnlyError, before the cap is
+ *     touched or the env is read (src/lib/operations/ownerOnly.ts).
+ *   - requireExecBudget(userId) gates next — over the daily exec cap throws
  *     ExecBudgetError and NO fire happens (a SEPARATE Anthropic meter from the pipe
  *     and the audit Routine).
  *   - The task is loaded ownership-scoped ({ id, project_id, user_id }); not found → throw.
@@ -29,6 +32,7 @@
 import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { requireExecBudget } from '@/lib/execFireBudget';
+import { requireRoutineOwner } from '@/lib/operations/ownerOnly';
 
 export interface FireExecutionRoutineInput {
   taskId: string;
@@ -47,7 +51,11 @@ export interface FireExecutionRoutineResult {
 export async function fireExecutionRoutine(input: FireExecutionRoutineInput): Promise<FireExecutionRoutineResult> {
   const { taskId, projectId, userId, userEmail } = input;
 
-  // 1 · COST GATE FIRST — over the daily exec cap → ExecBudgetError, no fire.
+  // 0 · OWNER GATE FIRST (SEC-TASKS-01) — anyone else → RoutineOwnerOnlyError, before
+  //     the cap is touched or the env is read: a refusal spends nothing.
+  requireRoutineOwner(userId);
+
+  // 1 · COST GATE — over the daily exec cap → ExecBudgetError, no fire.
   await requireExecBudget(userId);
 
   // 2 · Config — fail loud if the Routine endpoint/token aren't set (server-only env).
