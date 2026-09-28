@@ -119,6 +119,12 @@ export async function GET(request: NextRequest) {
     //     link → ledger_entry → journal_entry.userId (links carry no userId).
     //   • Coverage is DECLARED per the DIM-1 doctrine: link_count/line_count
     //     ride the payload so the display can say how many lines feed the sum.
+    //   • SEC-TASKS-01: a reversal pair is left out BY NAME, exactly as the budget
+    //     report does (src/app/api/budget/report/route.ts:104) — the journal entry
+    //     must be neither a reversal (is_reversal, schema journal_entries) nor
+    //     reversed (reversed_by_entry_id). A reversal keeps the original's links
+    //     (journal-entry-service.ts reversePlaidTransaction), so without this an
+    //     uncommitted charge still counted, and a re-commit counted twice.
     // Self-reported estimates (estimated/actual_cost_usd) are NOT mixed in.
     type LedgerAllocated = { cents: number; dollars: string; link_count: number; line_count: number };
     let allocByProject: Map<string, LedgerAllocated> | null = null;
@@ -127,7 +133,7 @@ export async function GET(request: NextRequest) {
         ? await prisma.ledger_line_links.findMany({
             where: {
               project_id: { in: projectIds },
-              ledger_entry: { journal_entry: { userId: user.id } },
+              ledger_entry: { journal_entry: { userId: user.id, is_reversal: false, reversed_by_entry_id: null } },
             },
             select: {
               project_id: true,

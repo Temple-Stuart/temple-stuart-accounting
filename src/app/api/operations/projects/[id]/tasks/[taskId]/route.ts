@@ -25,6 +25,7 @@ import { recordTaskStatusChange } from '@/lib/operations/recordTaskStatusChange'
 import { fireExecutionRoutine } from '@/lib/fireExecutionRoutine';
 import { ExecBudgetError } from '@/lib/execFireBudget';
 import { isValidUuid } from '@/lib/operations/parseUuid';
+import { ROUTINE_OWNER_ONLY_BODY, firesBuild, isRoutineOwner } from '@/lib/operations/ownerOnly';
 
 const VALID_STATUSES: OperationsTaskStatus[] = [
   'open',
@@ -310,6 +311,13 @@ export async function PATCH(
       data.status = incoming;
     }
 
+    // SEC-TASKS-01: the move that fires a build (pending_review → open) is the
+    // owner's alone — refused BEFORE any write, so the task stays exactly as it was.
+    // Every other PATCH never reaches the admin rule.
+    if (firesBuild(statusTransition) && !isRoutineOwner(user.id)) {
+      return NextResponse.json(ROUTINE_OWNER_ONLY_BODY, { status: 403 });
+    }
+
     if (body.completed_at !== undefined) {
       data.completed_at =
         typeof body.completed_at === 'string' && body.completed_at.length > 0
@@ -397,7 +405,7 @@ export async function PATCH(
     // (requireExecBudget). Failure is SURFACED (exec_status='fire_failed' + 502) — the
     // status change already committed, but the user SEES the build didn't start. No
     // silent accept-without-fire, no fake success.
-    if (statusTransition && statusTransition.from === 'pending_review' && statusTransition.to === 'open') {
+    if (firesBuild(statusTransition)) {
       try {
         const fired = await fireExecutionRoutine({ taskId, projectId, userId: user.id, userEmail });
         await prisma.operations_project_tasks.update({

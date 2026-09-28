@@ -16,7 +16,9 @@
  *
  * SECURITY. Every verb: cookie → user → user-scoped query. A posting or an item
  * belonging to someone else resolves to a DEFENSIVE 404 (never 403 — a 403
- * confirms the row exists). No paid service is reached at all.
+ * confirms the row exists). No paid service is reached at all. SEC-TASKS-01: the
+ * POST reads the item on its own table, user-scoped, before it writes — until
+ * then the item's id was written unchecked.
  *
  * IT WRITES NOTHING BUT THE LINK. No posting is altered, no journal entry is
  * touched, no task's actual_cost_usd is overwritten. The Books commit flow is
@@ -25,7 +27,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { LINKABLE_KINDS, isLinkableKind, requiresInstant } from '@/lib/calendar/linkKeys';
+import { LINKABLE_KINDS, isLinkableKind, requiresInstant, targetOwnerQuery, type LinkableKind, type TargetOwnerQuery } from '@/lib/calendar/linkKeys';
 
 /** How far either side of the item's date a candidate may sit. Not a match — a window. */
 const CANDIDATE_DAYS = 45;
@@ -71,7 +73,7 @@ const asPosting = (e: EntryRow) => ({
 
 /** The (kind, id, instant) triple, validated. Returns the reason on refusal. */
 function readTarget(kind: string | null, id: string | null, instant: string | null):
-  { ok: true; kind: string; id: string; instant: Date | null } | { ok: false; reason: string } {
+  { ok: true; kind: LinkableKind; id: string; instant: Date | null } | { ok: false; reason: string } {
   if (!kind || !isLinkableKind(kind)) {
     return { ok: false, reason: `kind must be one of ${LINKABLE_KINDS.join(', ')}` };
   }
@@ -84,6 +86,23 @@ function readTarget(kind: string | null, id: string | null, instant: string | nu
   }
   if (instant) return { ok: false, reason: `${kind} carries no occurrence instant` };
   return { ok: true, kind, id, instant: null };
+}
+
+/**
+ * SEC-TASKS-01: does the target row exist AND belong to the caller? One read on
+ * the kind's own table, scoped as targetOwnerQuery says. A null query is an id
+ * that names no row of that table — not the caller's.
+ */
+async function ownsTarget(q: TargetOwnerQuery | null): Promise<boolean> {
+  if (q === null) return false;
+  const select = { id: true } as const;
+  switch (q.table) {
+    case 'calendar_events': return (await prisma.calendar_events.findFirst({ where: q.where, select })) !== null;
+    case 'operations_project_tasks': return (await prisma.operations_project_tasks.findFirst({ where: q.where, select })) !== null;
+    case 'operations_routines': return (await prisma.operations_routines.findFirst({ where: q.where, select })) !== null;
+    case 'operations_routine_steps': return (await prisma.operations_routine_steps.findFirst({ where: q.where, select })) !== null;
+    case 'trip_itinerary': return (await prisma.trip_itinerary.findFirst({ where: q.where, select })) !== null;
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -154,6 +173,13 @@ export async function POST(request: NextRequest) {
   const t = readTarget(body.kind ?? null, body.id ?? null, body.instant ?? null);
   if (!t.ok) return NextResponse.json({ error: t.reason }, { status: 400 });
   if (!body.journalEntryId) return NextResponse.json({ error: 'journalEntryId is required' }, { status: 400 });
+
+  // SEC-TASKS-01: the item must be THIS user's too — one user-scoped read on the
+  // kind's own table (linkKeys.ts targetOwnerQuery). Someone else's, or none, is
+  // the defensive 404 the header promises; nothing is written.
+  if (!(await ownsTarget(targetOwnerQuery(t.kind, t.id, user.id)))) {
+    return NextResponse.json({ error: 'No such item' }, { status: 404 });
+  }
 
   // The posting must be THIS user's. Someone else's resolves to a defensive 404.
   const entry = await prisma.journal_entries.findFirst({

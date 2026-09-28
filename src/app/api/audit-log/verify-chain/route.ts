@@ -1,12 +1,25 @@
 import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { isAdminUser } from '@/lib/admin';
 import { verifyAuditChain } from '@/lib/audit/verifyAuditChain';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
+import { AUDIT_CHAIN_OWNER_ONLY_BODY } from '@/lib/operations/ownerOnly';
 
 export async function POST() {
   try {
     const userEmail = await getVerifiedEmail();
     if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } },
+      select: { id: true },
+    });
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    // SEC-TASKS-01: the chain spans every user's audit_log rows (verifyAuditChain
+    // reads them all), so only the owner verifies it — refused before it runs.
+    if (!isAdminUser(user.id)) return NextResponse.json(AUDIT_CHAIN_OWNER_ONLY_BODY, { status: 403 });
 
     const result = await verifyAuditChain();
 
