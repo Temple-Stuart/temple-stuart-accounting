@@ -23,6 +23,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
+// SEC-02b (2026-09-27): the bearer is compared in constant time — the LiteAPI webhook's own comparator.
+import { constantTimeEqual } from '@/lib/webhooks/liteapiWebhook';
 import { inngest } from '@/inngest/client';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 
@@ -44,7 +46,7 @@ export async function POST(
       return NextResponse.json({ error: 'Audit ingest not configured' }, { status: 500 });
     }
     const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${secret}`) {
+    if (authHeader === null || !constantTimeEqual(authHeader, `Bearer ${secret}`)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

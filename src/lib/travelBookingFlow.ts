@@ -118,7 +118,15 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // message id, or _failed by class). A failed audit write is named and never fails the
   // booking. No prebook/book/pay call, no landing, no write changed.
   // Was 441552e306910d94a0c0aa068f3dd3a1575a544f139fdab45ce57da106332707 at main 651c2f0e.
-  { file: 'src/app/api/travel/liteapi/book/route.ts', sha256: '18ad62a03aa84b5d9ed6c7856958c35a0f44281eedf5122c4404da0a95d60d43' },
+  // SEC-02b (2026-09-27): re-pinned — the stay is the vendor's. checkinDate / checkoutDate
+  // and hotelName / displayName are what the BOOK answer states (parseBookResult:
+  // checkin, checkout, hotel.name) through src/lib/reservations/stayDates.ts, or NULL
+  // logged by bookingId (unstatedStayLine) — the body's dates and name are no longer
+  // declared or read, and the 'checkinDate and checkoutDate are required' 400 is gone.
+  // The calendar, the email and the answer read the row's day back (dayOfColumn). No
+  // prebook/book/pay call, no guard, no currency rule changed.
+  // Was 18ad62a03aa84b5d9ed6c7856958c35a0f44281eedf5122c4404da0a95d60d43 at main 0c6fedca.
+  { file: 'src/app/api/travel/liteapi/book/route.ts', sha256: 'd128348733a1f3688b48d084fe9fd60d6f8ce178833f92a18e5b2dbff1abbe0b' },
   // CAL-01 (2026-09-23): re-pinned — the flight branch. The landed booking object
   // carries NO date of travel (STEP 1.5: NOT FOUND), so this route writes NO
   // calendar row and logs a named reason listing the payload's actual keys. No date

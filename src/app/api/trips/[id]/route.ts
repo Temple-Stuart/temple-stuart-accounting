@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+// SEC-02b (2026-09-27): a participant goes back without its password hash.
+import { PARTICIPANT_RESPONSE_SELECT } from '@/lib/trips/participantSelect';
 import { tripLinesLinkedRefusal } from '@/lib/trips/budgetLinkGuard';
 
 // GET single trip
@@ -28,7 +30,10 @@ export async function GET(
     const trip = await prisma.trips.findFirst({
       where: { id, userId: user.id },
       include: {
+        // SEC-02b (2026-09-27): every participant WITHOUT its password hash — the trip
+        // page used to receive each invitee's bcrypt hash whole.
         participants: {
+          select: PARTICIPANT_RESPONSE_SELECT,
           orderBy: { createdAt: 'asc' }
         },
         expenses: {

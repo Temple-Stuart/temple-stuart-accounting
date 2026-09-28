@@ -37,6 +37,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
+// SEC-02b (2026-09-27): the bearer is compared in constant time — the LiteAPI webhook's own comparator.
+import { constantTimeEqual } from '@/lib/webhooks/liteapiWebhook';
 import { readAndApplyReservation, VENDOR_READ_SELECT, type VendorReadOutcome } from '@/lib/reservations/vendorRead';
 
 export const dynamic = 'force-dynamic';
@@ -57,7 +59,7 @@ async function run(request: NextRequest) {
       );
     }
 
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    if (authHeader === null || !constantTimeEqual(authHeader, `Bearer ${cronSecret}`)) {
       console.error('Unauthorized cron attempt');
       return NextResponse.json(
         { error: 'Unauthorized' },

@@ -18,13 +18,16 @@ import Link from 'next/link';
 // BOOK-3: guest bookings append a session-only trip record (the landing's
 // "YOUR TRIP SO FAR" strip). Guest branch only — account bookings carry tripId.
 import { addGuestTripRecord } from '@/lib/guestTrip';
+// SEC-02b: a booking the vendor named with no name reads as its lane word (LANE-01).
+import { LANE_WORD } from '@/lib/reservations/lane';
 
 interface Confirmation {
   bookingId: string;
   confirmationCode: string | null;
   hotelName: string | null;
-  checkinDate: string;
-  checkoutDate: string;
+  // SEC-02b (2026-09-27): the vendor's stated days, or NULL — said, never the link's.
+  checkinDate: string | null;
+  checkoutDate: string | null;
   finalPriceCents: number | null;
   currency: string | null;
 }
@@ -45,7 +48,11 @@ function BookingConfirm() {
   const params = useSearchParams();
   const prebookId = params.get('prebookId') || '';
   const transactionId = params.get('transactionId') || '';
-  const hotelName = params.get('hotelName') || 'your stay';
+  // SEC-02b (2026-09-27): the name and the dates the SEARCH showed, as the panel put
+  // them in the link — this page's header only. They are never posted: the booking's
+  // name and stay are what the vendor's book answer states, or NULL (book/route.ts).
+  // No name in the link is no name here — the 'your stay' placeholder is gone.
+  const hotelName = params.get('hotelName');
   const checkin = params.get('checkin') || '';
   const checkout = params.get('checkout') || '';
   // SEC-03 (2026-09-25): the currency the SEARCH was made in, as the panel put it
@@ -58,7 +65,8 @@ function BookingConfirm() {
   const price = priceParam !== null && priceParam !== '' && Number.isFinite(Number(priceParam)) ? Number(priceParam) : null;
   const tripId = params.get('tripId') || undefined;
 
-  const ready = !!prebookId && !!transactionId && !!checkin && !!checkout;
+  // The two references the book route needs — the link's dates are not among them.
+  const ready = !!prebookId && !!transactionId;
 
   const [holderFirst, setHolderFirst] = useState('');
   const [holderLast, setHolderLast] = useState('');
@@ -91,9 +99,7 @@ function BookingConfirm() {
           paymentTransactionId: transactionId,
           holder: { firstName: holderFirst.trim(), lastName: holderLast.trim(), email: holderEmail.trim() },
           guests: [{ occupancyNumber: 1, firstName: gFirst.trim(), lastName: gLast.trim(), email: holderEmail.trim() }],
-          checkinDate: checkin,
-          checkoutDate: checkout,
-          hotelName,
+          // SEC-02b: no checkinDate / checkoutDate / hotelName — the stay is the vendor's.
           guestCount: 1,
           // SEC-03: no finalPriceCents — the ledger takes the vendor's stated
           // price or NULL; the search currency only when the link stated one.
@@ -111,7 +117,7 @@ function BookingConfirm() {
       if (!tripId) {
         addGuestTripRecord({
           type: 'hotel',
-          name: hotelName,
+          name: (data.reservation as Confirmation | undefined)?.hotelName ?? LANE_WORD.hotel,
           confirmationCode:
             typeof (data.reservation as Confirmation | undefined)?.confirmationCode === 'string'
               ? (data.reservation as Confirmation).confirmationCode
@@ -132,7 +138,7 @@ function BookingConfirm() {
   return (
     <div className="mx-auto max-w-lg px-4 py-10">
       <h1 className="text-xl font-bold text-text-primary">Finish your booking</h1>
-      <p className="mt-1 text-sm text-text-muted">{hotelName}{checkin && checkout ? ` · ${checkin} → ${checkout}` : ''}</p>
+      <p className="mt-1 text-sm text-text-muted">{[hotelName, checkin && checkout ? `${checkin} → ${checkout}` : null].filter(Boolean).join(' · ')}</p>
 
       {!ready ? (
         <div className="mt-6 rounded-lg border border-border bg-white p-6 text-sm text-brand-red">
@@ -143,10 +149,11 @@ function BookingConfirm() {
         <div className="mt-6 space-y-3 rounded-lg border border-border bg-white p-6 text-center">
           <p className="text-base font-semibold text-brand-green">Booked — you&apos;re all set.</p>
           <div className="rounded border border-border bg-bg-row p-3 text-left text-sm">
-            <Row label="Hotel" value={confirmation.hotelName || hotelName} />
+            <Row label="Hotel" value={confirmation.hotelName ?? LANE_WORD.hotel} />
             <Row label="Confirmation" value={confirmation.confirmationCode || '—'} />
             <Row label="Booking ID" value={confirmation.bookingId} />
-            <Row label="Dates" value={`${confirmation.checkinDate} → ${confirmation.checkoutDate}`} />
+            {/* SEC-02b: the stay the vendor stated — a day it did not state is SAID. */}
+            <Row label="Dates" value={confirmation.checkinDate !== null && confirmation.checkoutDate !== null ? `${confirmation.checkinDate} → ${confirmation.checkoutDate}` : 'dates not stated by the hotel — see your booking ID'} />
             {/* SEC-03: a price the vendor did not state is SAID — never $0, never a missing row. */}
             {confirmation.finalPriceCents !== null && confirmation.currency
               ? <Row label="Total" value={money(confirmation.finalPriceCents, confirmation.currency)} />

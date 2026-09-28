@@ -244,7 +244,8 @@ test('the booking-flow pin holds for every file still on it, with dated HOTEL-01
     // STATUS-01 (2026-09-26): re-pinned — was 667efb921cdd690b6e5c26fc40c6b9deacd520367cf346956592b150d117c597 at main 53900e67.
     // COMM-01 (2026-09-26): re-pinned — was e32251eb8a4e9b541a001e6332bacb8ca1765e7bdb127d938d491665f6120509 at main 0ef428a6.
     // AUDIT-01 (2026-09-26): re-pinned — was 441552e306910d94a0c0aa068f3dd3a1575a544f139fdab45ce57da106332707 at main 651c2f0e.
-    'src/app/api/travel/liteapi/book/route.ts': '18ad62a03aa84b5d9ed6c7856958c35a0f44281eedf5122c4404da0a95d60d43',
+    // SEC-02b (2026-09-27): re-pinned — was 18ad62a03aa84b5d9ed6c7856958c35a0f44281eedf5122c4404da0a95d60d43 at main 0c6fedca.
+    'src/app/api/travel/liteapi/book/route.ts': 'd128348733a1f3688b48d084fe9fd60d6f8ce178833f92a18e5b2dbff1abbe0b',
     // Was 77564ce7471de9c4cb8dee188e596f3fe0b82f3526ba8fb39858e9831f992ff5 before CHECKOUT-01.
     // CHECKOUT-03 (2026-09-23): the panel waits on Stripe.js before handing off.
     // COMM-01 (2026-09-26): re-pinned — was b3fd49cbd8acf9ab3d5afb11fdc42f61089722d2951dd6cbfa6a8dc2bdf19b46 at main 0ef428a6.
