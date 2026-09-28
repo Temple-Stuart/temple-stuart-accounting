@@ -32,6 +32,8 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { compileFormToRRule, expandForward, isOnceRRule, scheduleAnchor } from '@/lib/operations/rruleHelpers';
 import { parseLinesInput, parsePlaceInput } from '@/lib/operations/routineInput';
+import { carriesPlanMoney, planMoney, type PlanBook, type PlanMoney } from '@/lib/operations/planMoney';
+import { loadPlanBook } from '@/lib/operations/loadPlanBook';
 import type { RoutineForm } from '@/components/workbench/operations/routines/types';
 import { parseTimeOrNull } from '@/lib/operations/parseTime';
 
@@ -276,23 +278,24 @@ export async function POST(request: NextRequest) {
       ? body.ideal_time_label.trim()
       : null;
 
-    // HB-4a: per-occurrence budget + COA (both optional). NO FALLBACK — absent/empty → null (a
-    // routine genuinely has no budget, never 0); a present-but-invalid amount fails loud (400),
-    // never coerced. budget_amount is a Decimal(12,2) money column; coa_code is a soft string ref.
-    let budgetAmount: number | null = null;
-    if (body.budget_amount != null && String(body.budget_amount).trim() !== '') {
-      const n = Number(body.budget_amount);
-      if (!Number.isFinite(n) || n < 0) {
-        return NextResponse.json(
-          { error: 'Validation', field: 'budget_amount', message: 'must be a non-negative number' },
-          { status: 400 }
-        );
-      }
-      budgetAmount = n;
+    // INTAKE-01: the routine's money and every line's, by the one rule (planMoney.ts),
+    // against the routine's book — read once, and only when any of them carries money.
+    // Absent/empty → null (no budget, never 0); a refusal is a 400 naming the field.
+    const routineSent = { amount: body.budget_amount, account: body.coa_code };
+    const lineSent = lines.value.map((l) => ({ amount: l.budget_amount, account: l.coa_code }));
+    let book: PlanBook | null = null;
+    if (carriesPlanMoney(routineSent) || lineSent.some(carriesPlanMoney)) {
+      book = await loadPlanBook(prisma, user.id, entityId);
+      if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
-    const coaCode = typeof body.coa_code === 'string' && body.coa_code.trim().length > 0
-      ? body.coa_code.trim()
-      : null;
+    const routineMoney = planMoney(routineSent, book, 'routine', { amount: 'budget_amount', account: 'coa_code' });
+    if ('error' in routineMoney) return NextResponse.json({ error: 'Validation', ...routineMoney.error }, { status: 400 });
+    const lineMoney: PlanMoney[] = [];
+    for (let i = 0; i < lineSent.length; i += 1) {
+      const m = planMoney(lineSent[i], book, 'routine', { amount: `lines[${i}].budget_amount`, account: `lines[${i}].coa_code` });
+      if ('error' in m) return NextResponse.json({ error: 'Validation', ...m.error }, { status: 400 });
+      lineMoney.push(m.value);
+    }
 
     // Compute initial next_due_at. ONEOFF-01: anchored on the routine's
     // start_date, the one mechanism every expansion of it shares.
@@ -334,8 +337,9 @@ export async function POST(request: NextRequest) {
           is_active: body.is_active !== false,
           next_due_at: nextDueAt,
           // HB-4a: nullable money fields — null when unset (no fake 0 / no default COA).
-          budget_amount: budgetAmount,
-          coa_code: coaCode,
+          // INTAKE-01: as the rule read them — the account is the chart row's code as saved.
+          budget_amount: routineMoney.value.amount,
+          coa_code: routineMoney.value.coaCode,
           // ONEOFF-01: the place, or nulls. Never 0,0.
           location: place.value.location,
           latitude: place.value.latitude,
@@ -351,8 +355,8 @@ export async function POST(request: NextRequest) {
             entity_id: entityId,
             step_order: i,
             activity: l.activity,
-            budget_amount: l.budget_amount,
-            coa_code: l.coa_code,
+            budget_amount: lineMoney[i].amount,
+            coa_code: lineMoney[i].coaCode,
             created_by: userEmail,
           })),
         });

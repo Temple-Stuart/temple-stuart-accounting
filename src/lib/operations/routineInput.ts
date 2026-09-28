@@ -44,9 +44,11 @@ export interface ParsedLine {
 
 /**
  * One line authored with a routine: an activity (required), and its own amount
- * and account (each optional, each blank → null). The code is trimmed and
- * length-checked here and validated against the ENTITY'S chart by the same
- * picker the routine uses (CoaSelect), so a code never arrives typed.
+ * and account (each optional, each blank → null). The code is only trimmed and
+ * length-checked here. The screen offers the entity's chart through a picker
+ * (CoaSelect), but the API takes any string — so the route checks every line's
+ * account and amount against the routine's book with the one rule
+ * (src/lib/operations/planMoney.ts, INTAKE-01) before anything is written.
  */
 export function parseLineInput(raw: unknown, index = 0): { value: ParsedLine } | { error: InputRefusal } {
   const at = `lines[${index}]`;

@@ -24,7 +24,10 @@ import { isValidUuid } from '@/lib/operations/parseUuid';
 import { parseTimeOrNull } from '@/lib/operations/parseTime';
 // ONEOFF-01: the LINES-01 amount rule lives in one leaf now — this writer, its
 // sibling and the create route (which writes lines with the routine) read it.
-import { parseBudgetAmountOrNull, trimNullable } from '@/lib/operations/routineInput';
+// INTAKE-01: it reaches the line's money through planMoney.ts, with the account.
+import { trimNullable } from '@/lib/operations/routineInput';
+import { carriesPlanMoney, editedPlanMoney, planMoney, type PlanBook } from '@/lib/operations/planMoney';
+import { loadPlanBook } from '@/lib/operations/loadPlanBook';
 import { loadAuthorizedRoutineStep } from '@/lib/operations/loadAuthorizedRoutineStep';
 
 
@@ -130,18 +133,23 @@ export async function PATCH(
       data.time_of_day = timeResult.value;
     }
 
-    // LINES-01: the line's cost and category.
-    if (body.budget_amount !== undefined) {
-      const amount = parseBudgetAmountOrNull(body.budget_amount);
-      if ('error' in amount) return NextResponse.json({ error: 'Validation', ...amount.error }, { status: 400 });
-      data.budget_amount = amount.value;
-    }
-    if (body.coa_code !== undefined) {
-      const c = trimNullable(body.coa_code);
-      if (c && c.length > 50) {
-        return NextResponse.json({ error: 'Validation', field: 'coa_code', message: 'coa_code exceeds 50 characters' }, { status: 400 });
+    // LINES-01: the line's cost and category. INTAKE-01: neither key sent → both
+    // untouched. Either sent → the EFFECTIVE pair (the body's value, else the stored
+    // one) is checked whole by the one rule (planMoney.ts) against the routine's book,
+    // and both columns are written. The line's entity_id IS its routine's: both line
+    // writers copy it from the routine (routines/route.ts, [id]/steps/route.ts) and
+    // the routine's entity never changes after creation.
+    const sent = editedPlanMoney(body.budget_amount, body.coa_code, { amount: existing.budget_amount, account: existing.coa_code });
+    if (sent !== null) {
+      let book: PlanBook | null = null;
+      if (carriesPlanMoney(sent)) {
+        book = await loadPlanBook(prisma, user.id, existing.entity_id);
+        if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }
-      data.coa_code = c;
+      const money = planMoney(sent, book, 'routine', { amount: 'budget_amount', account: 'coa_code' });
+      if ('error' in money) return NextResponse.json({ error: 'Validation', ...money.error }, { status: 400 });
+      data.budget_amount = money.value.amount;
+      data.coa_code = money.value.coaCode;
     }
 
     const step = await prisma.operations_routine_steps.update({

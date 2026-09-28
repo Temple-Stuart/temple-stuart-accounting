@@ -37,6 +37,8 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { isValidUuid } from '@/lib/operations/parseUuid';
+import { assignedPlanMoney, carriesPlanMoney, planMoney, type PlanBook, type PlanMoney } from '@/lib/operations/planMoney';
+import { loadPlanBook } from '@/lib/operations/loadPlanBook';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -144,19 +146,24 @@ export async function POST(
 
     const allowConflicts = body.allow_conflicts === true;
 
-    // Optional category-on-assign — TASK fields only.
-    const coaCodeRaw =
-      typeof body.coa_code === 'string' && body.coa_code.trim().length > 0 ? body.coa_code.trim() : null;
-    let estCost: Prisma.Decimal | null = null;
-    if (body.estimated_cost_usd !== undefined && body.estimated_cost_usd !== null && body.estimated_cost_usd !== '') {
-      const n = Number(body.estimated_cost_usd);
-      if (!Number.isFinite(n) || n < 0) {
-        return NextResponse.json(
-          { error: 'Validation', field: 'estimated_cost_usd', message: 'must be a non-negative number' },
-          { status: 400 }
-        );
+    // Optional category-on-assign — TASK fields only. INTAKE-01: the pair checked
+    // is the one that will be STORED — the account sent (else the stored one) and
+    // the cost the route keeps (the stored cost when there is one, never
+    // overwritten; else the cost sent) — by the one rule (planMoney.ts), against the
+    // task's own book, before the transaction's first write. Nothing sent (blank
+    // counts as not sent, as before) → the task's money is not touched and the
+    // chart is not read.
+    let taskMoney: PlanMoney | null = null;
+    const sent = assignedPlanMoney(body.estimated_cost_usd, body.coa_code, { amount: task.estimated_cost_usd, account: task.coa_code });
+    if (sent !== null) {
+      let book: PlanBook | null = null;
+      if (carriesPlanMoney(sent)) {
+        book = await loadPlanBook(prisma, user.id, task.entity_id);
+        if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }
-      estCost = new Prisma.Decimal(n);
+      const money = planMoney(sent, book, 'task', { amount: 'estimated_cost_usd', account: 'coa_code' });
+      if ('error' in money) return NextResponse.json({ error: 'Validation', ...money.error }, { status: 400 });
+      taskMoney = money.value;
     }
 
     const entityId = task.entity_id; // server-derived; never from client
@@ -212,12 +219,10 @@ export async function POST(
         },
       });
 
-      // d. category-on-assign: TASK fields only. coa_code if provided;
-      //    estimated_cost_usd only when currently null (don't overwrite).
-      const taskData: Prisma.operations_project_tasksUpdateInput = {};
-      if (coaCodeRaw !== null) taskData.coa_code = coaCodeRaw;
-      if (estCost !== null && task.estimated_cost_usd === null) taskData.estimated_cost_usd = estCost;
-      if (Object.keys(taskData).length > 0) {
+      // d. category-on-assign: TASK fields only — the pair checked above, stored
+      //    whole (the stored cost is kept, never overwritten: it IS the pair's cost).
+      if (taskMoney !== null) {
+        const taskData: Prisma.operations_project_tasksUpdateInput = { coa_code: taskMoney.coaCode, estimated_cost_usd: taskMoney.amount };
         await tx.operations_project_tasks.update({ where: { id: task.id }, data: taskData });
       }
 

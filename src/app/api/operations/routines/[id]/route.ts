@@ -26,6 +26,8 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { compileFormToRRule, expandForward, isOnceRRule, scheduleAnchor } from '@/lib/operations/rruleHelpers';
 import { parsePlaceInput } from '@/lib/operations/routineInput';
+import { carriesPlanMoney, editedPlanMoney, planMoney, type PlanBook } from '@/lib/operations/planMoney';
+import { loadPlanBook } from '@/lib/operations/loadPlanBook';
 import type { RoutineForm } from '@/components/workbench/operations/routines/types';
 import { parseTimeOrNull } from '@/lib/operations/parseTime';
 
@@ -176,28 +178,21 @@ export async function PATCH(
       data.fail_threshold_minutes = n;
     }
 
-    // HB-4a: per-occurrence budget. Absent key → untouched; empty/null → clear to null (no budget,
-    // never 0); present-but-invalid → fail loud (400), never coerced.
-    if (body.budget_amount !== undefined) {
-      if (body.budget_amount === null || String(body.budget_amount).trim() === '') {
-        data.budget_amount = null;
-      } else {
-        const n = Number(body.budget_amount);
-        if (!Number.isFinite(n) || n < 0) {
-          return NextResponse.json(
-            { error: 'Validation', field: 'budget_amount', message: 'must be a non-negative number' },
-            { status: 400 }
-          );
-        }
-        data.budget_amount = n;
+    // INTAKE-01: the per-occurrence budget and its account. Neither key sent → both
+    // untouched. Either sent → the EFFECTIVE pair (the body's value, else the stored
+    // one) is checked whole by the one rule (planMoney.ts) against the routine's book,
+    // and both columns are written — the rule the place follows below.
+    const sent = editedPlanMoney(body.budget_amount, body.coa_code, { amount: existing.budget_amount, account: existing.coa_code });
+    if (sent !== null) {
+      let book: PlanBook | null = null;
+      if (carriesPlanMoney(sent)) {
+        book = await loadPlanBook(prisma, user.id, existing.entity_id);
+        if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }
-    }
-
-    // HB-4a: COA code (soft string ref). Empty → null (no default COA, no coercion).
-    if (body.coa_code !== undefined) {
-      data.coa_code = typeof body.coa_code === 'string' && body.coa_code.trim().length > 0
-        ? body.coa_code.trim()
-        : null;
+      const money = planMoney(sent, book, 'routine', { amount: 'budget_amount', account: 'coa_code' });
+      if ('error' in money) return NextResponse.json({ error: 'Validation', ...money.error }, { status: 400 });
+      data.budget_amount = money.value.amount;
+      data.coa_code = money.value.coaCode;
     }
 
     if (body.timezone !== undefined) {
