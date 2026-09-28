@@ -7,6 +7,8 @@
 import { Fragment, useState, type ReactNode } from 'react';
 import RowActionStrip from './RowActionStrip';
 import { DATA } from '@/lib/ds';
+// FINISH-01 (2026-09-28): below `sm` a result row is a card (src/lib/travel/phoneCard.ts).
+import { PHONE_CARD } from '@/lib/travel/phoneCard';
 // HOTEL-01 (2026-09-22): the session search count is one shared control.
 import SearchCount from './SearchCount';
 import {
@@ -141,6 +143,11 @@ const formatStops = (stops: number) => {
   if (stops === 1) return '1 stop';
   return `${stops} stops`;
 };
+
+/** FINISH-01: the column words of the flight table and the fare table — the header
+ *  rows render them at `sm` and up, and each card carries the same word below it. */
+const COLUMNS = { flight: 'Flight', dep: 'Dep', arr: 'Arr', via: 'Via', duration: 'Duration', from: 'From' } as const;
+const FARE_COLUMNS = { fare: 'Fare', cabin: 'Cabin', checkedBag: 'Checked bag', carryOn: 'Carry-on', changes: 'Changes', refunds: 'Refunds' } as const;
 
 export default function FlightPickerView({
   legs,
@@ -444,19 +451,24 @@ export default function FlightPickerView({
                       {/* LANDING-V5: the caption bar moved to the card top
                           (spec :101 — one caption per card); the table
                           renders beneath it uncaptioned. */}
-                      <div className="overflow-x-auto rounded-lg border border-border bg-white">
-                        <table className="w-full text-sm">
-                          <thead>
+                      {/* FINISH-01 (2026-09-28): below `sm` each flight is a CARD — the carrier,
+                          then departure, arrival, stops and duration each on a line with its
+                          column word, then the price; its fares open beneath it as cards and the
+                          action strip under the chosen fare. At `sm` and up the table is
+                          unchanged (src/lib/travel/phoneCard.ts). */}
+                      <div className={`${PHONE_CARD.box} rounded-lg border border-border bg-white`}>
+                        <table className={`${PHONE_CARD.table} w-full text-sm`}>
+                          <thead className={PHONE_CARD.head}>
                             <tr className="border-b border-border bg-bg-row text-left">
-                              <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Flight</th>
-                              <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Dep</th>
-                              <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Arr</th>
-                              <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Via</th>
-                              <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Duration</th>
-                              <th className={`px-3 py-2 text-right font-semibold ${DATA.columnHeader}`}>From</th>
+                              <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>{COLUMNS.flight}</th>
+                              <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>{COLUMNS.dep}</th>
+                              <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>{COLUMNS.arr}</th>
+                              <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>{COLUMNS.via}</th>
+                              <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>{COLUMNS.duration}</th>
+                              <th className={`px-3 py-2 text-right font-semibold ${DATA.columnHeader}`}>{COLUMNS.from}</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-border">
+                          <tbody className={`${PHONE_CARD.body} divide-y divide-border`}>
                             {groups.map(group => {
                               const rep = group.representative;
                               const outSegs = rep.outboundSegments ?? [];
@@ -472,8 +484,8 @@ export default function FlightPickerView({
                                   data-flight-row={group.key}
                                   data-fare-count={group.fares.length}
                                   onClick={() => setOpenRows(prev => ({ ...prev, [`${leg.id}:${group.key}`]: !isOpen(group.key) }))}
-                                  className={`cursor-pointer transition-colors ${holdsSelected ? 'bg-brand-purple-wash/40' : 'odd:bg-bg-row hover:bg-brand-purple-wash/40'}`}>
-                                  <td className={`border-l-2 px-3 py-2.5 ${holdsSelected ? 'border-brand-purple' : 'border-transparent'}`}>
+                                  className={`${PHONE_CARD.row} cursor-pointer transition-colors ${holdsSelected ? 'bg-brand-purple-wash/40' : 'odd:bg-bg-row hover:bg-brand-purple-wash/40'}`}>
+                                  <td className={`${PHONE_CARD.cell} ${PHONE_CARD.title} border-l-2 px-3 py-2.5 ${holdsSelected ? 'border-brand-purple' : 'border-transparent'}`}>
                                     <div className="text-sm font-medium text-brand-purple" data-flight-carrier>{carrier.name}</div>
                                     {carrier.operatedBy && (
                                       <div className="text-[10px] text-text-secondary" data-flight-operated-by>operated by {carrier.operatedBy}</div>
@@ -483,33 +495,38 @@ export default function FlightPickerView({
                                       <div className="text-[10px] text-text-faint">{rep.outbound?.carriers.slice(1).join(', ')}</div>
                                     )}
                                   </td>
-                                  <td className="whitespace-nowrap px-3 py-2.5">
+                                  <td className={`${PHONE_CARD.cell} ${PHONE_CARD.half} ${PHONE_CARD.nowrap} px-3 py-0.5 sm:py-2.5`}>
+                                    <div className={PHONE_CARD.label}>{COLUMNS.dep}</div>
                                     <div className="font-bold text-sm text-text-primary">{rep.outbound?.departure.localTime}</div>
                                     <div className="text-[10px] text-text-faint" data-flight-origin>{first?.originCode ?? rep.outbound?.departure.airport}{first?.originName ? ` · ${first.originName}` : ''}</div>
                                     {rep.return && (
                                       <div className="mt-1 text-[10px] text-text-faint">{rep.return.departure.localTime} {rep.return.departure.airport}</div>
                                     )}
                                   </td>
-                                  <td className="whitespace-nowrap px-3 py-2.5">
+                                  <td className={`${PHONE_CARD.cell} ${PHONE_CARD.half} ${PHONE_CARD.nowrap} px-3 py-0.5 sm:py-2.5`}>
+                                    <div className={PHONE_CARD.label}>{COLUMNS.arr}</div>
                                     <div className="font-bold text-sm text-text-primary">{rep.outbound?.arrival.localTime}</div>
                                     <div className="text-[10px] text-text-faint" data-flight-destination>{last?.destinationCode ?? rep.outbound?.arrival.airport}{last?.destinationName ? ` · ${last.destinationName}` : ''}</div>
                                     {rep.return && (
                                       <div className="mt-1 text-[10px] text-text-faint">{rep.return.arrival.localTime} {rep.return.arrival.airport}</div>
                                     )}
                                   </td>
-                                  <td className="whitespace-nowrap px-3 py-2.5">
+                                  <td className={`${PHONE_CARD.cell} ${PHONE_CARD.half} ${PHONE_CARD.nowrap} px-3 py-0.5 sm:py-2.5`}>
+                                    <div className={PHONE_CARD.label}>{COLUMNS.via}</div>
                                     <div className="text-xs text-text-secondary">{formatStops(rep.outbound?.stops || 0)}{via ? ` via ${via}` : ''}</div>
                                     {rep.return && (
                                       <div className="mt-1 text-[10px] text-text-faint">{formatStops(rep.return.stops)}</div>
                                     )}
                                   </td>
-                                  <td className="whitespace-nowrap px-3 py-2.5">
+                                  <td className={`${PHONE_CARD.cell} ${PHONE_CARD.half} ${PHONE_CARD.nowrap} px-3 py-0.5 sm:py-2.5`}>
+                                    <div className={PHONE_CARD.label}>{COLUMNS.duration}</div>
                                     <div className="text-xs text-text-secondary">{rep.outbound?.duration}</div>
                                     {rep.return && (
                                       <div className="mt-1 text-[10px] text-text-faint">{rep.return.duration}</div>
                                     )}
                                   </td>
-                                  <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                                  <td className={`${PHONE_CARD.cell} ${PHONE_CARD.nowrap} ${PHONE_CARD.end} px-3 py-2.5`}>
+                                    <div className={PHONE_CARD.label}>{COLUMNS.from}</div>
                                     <div className="font-mono text-sm font-semibold text-brand-gold" data-flight-headline>{money(group.cheapest.price, group.cheapest.currency)}</div>
                                     <div className="text-[10px] text-text-faint">{group.fares.length} fare{group.fares.length === 1 ? '' : 's'} · per person {open ? '▲' : '▼'}</div>
                                   </td>
@@ -517,23 +534,23 @@ export default function FlightPickerView({
                               ];
                               if (open) {
                                 rows.push(
-                                  <tr key={`${group.key}:fares`} className="bg-white">
-                                    <td colSpan={6} className="px-3 pb-3 pt-1">
+                                  <tr key={`${group.key}:fares`} className={`${PHONE_CARD.wideRow} bg-white`}>
+                                    <td colSpan={6} className={`${PHONE_CARD.cell} px-3 pb-3 pt-1`}>
                                       {/* A FARE SAYS WHAT IT BUYS: each option shows its price, cabin, checked bag,
                                           carry-on, changes and refunds — every value the payload carried, and
                                           "not stated by the carrier" where it carried none. Never inferred. */}
-                                      <table className="w-full text-xs" data-fare-options={group.key}>
-                                        <thead>
+                                      <table className={`${PHONE_CARD.table} w-full text-xs`} data-fare-options={group.key}>
+                                        <thead className={PHONE_CARD.head}>
                                           <tr className="text-left">
-                                            <th className={`px-2 py-1 ${DATA.columnHeader}`}>Fare</th>
-                                            <th className={`px-2 py-1 ${DATA.columnHeader}`}>Cabin</th>
-                                            <th className={`px-2 py-1 ${DATA.columnHeader}`}>Checked bag</th>
-                                            <th className={`px-2 py-1 ${DATA.columnHeader}`}>Carry-on</th>
-                                            <th className={`px-2 py-1 ${DATA.columnHeader}`}>Changes</th>
-                                            <th className={`px-2 py-1 ${DATA.columnHeader}`}>Refunds</th>
+                                            <th className={`px-2 py-1 ${DATA.columnHeader}`}>{FARE_COLUMNS.fare}</th>
+                                            <th className={`px-2 py-1 ${DATA.columnHeader}`}>{FARE_COLUMNS.cabin}</th>
+                                            <th className={`px-2 py-1 ${DATA.columnHeader}`}>{FARE_COLUMNS.checkedBag}</th>
+                                            <th className={`px-2 py-1 ${DATA.columnHeader}`}>{FARE_COLUMNS.carryOn}</th>
+                                            <th className={`px-2 py-1 ${DATA.columnHeader}`}>{FARE_COLUMNS.changes}</th>
+                                            <th className={`px-2 py-1 ${DATA.columnHeader}`}>{FARE_COLUMNS.refunds}</th>
                                           </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-border">
+                                        <tbody className={`${PHONE_CARD.body} divide-y divide-border`}>
                                           {group.fares.map(fare => {
                                             const selected = leg.selectedOffer?.id === fare.id;
                                             const f = fare.fare;
@@ -549,16 +566,17 @@ export default function FlightPickerView({
                                                 data-fare-row={fare.id}
                                                 tabIndex={-1}
                                                 onClick={(e) => { e.stopPropagation(); onUpdateLeg(leg.id, { selectedOffer: fare }); }}
-                                                className={`cursor-pointer outline-none transition-colors ${selected ? 'bg-brand-purple-wash/40' : 'hover:bg-brand-purple-wash/40'}`}>
-                                                <td className={`border-l-2 px-2 py-1.5 ${selected ? 'border-brand-purple' : 'border-transparent'}`}>
+                                                className={`${PHONE_CARD.row} cursor-pointer py-1 outline-none transition-colors sm:py-0 ${selected ? 'bg-brand-purple-wash/40' : 'hover:bg-brand-purple-wash/40'}`}>
+                                                <td className={`${PHONE_CARD.cell} ${PHONE_CARD.title} border-l-2 px-2 py-1.5 ${selected ? 'border-brand-purple' : 'border-transparent'}`}>
+                                                  <div className={PHONE_CARD.label}>{FARE_COLUMNS.fare}</div>
                                                   <div className="font-mono font-semibold text-brand-gold" data-fare-field="price">{money(fare.price, fare.currency)}</div>
                                                   {label && <div className="text-[10px] text-text-faint" data-fare-field="family">{label}</div>}
                                                 </td>
-                                                <td className="px-2 py-1.5 text-text-secondary" data-fare-field="cabin">{f?.cabin ?? NOT_STATED}</td>
-                                                <td className="px-2 py-1.5 text-text-secondary" data-fare-field="checkedBag">{statedText(f?.checkedBag, f?.checkedBagDetail ?? 'included', 'not included')}</td>
-                                                <td className="px-2 py-1.5 text-text-secondary" data-fare-field="carryOnBag">{statedText(f?.carryOnBag, f?.carryOnDetail ?? 'included', 'not included')}</td>
-                                                <td className="px-2 py-1.5 text-text-secondary" data-fare-field="changeable">{statedText(f?.changeable, f?.changeFee ? `changeable (${f.changeFee})` : 'changeable', 'not changeable')}</td>
-                                                <td className="px-2 py-1.5 text-text-secondary" data-fare-field="refundable">{statedText(f?.refundable, f?.refundFee ? `refundable (${f.refundFee})` : 'refundable', 'non-refundable')}</td>
+                                                <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} px-2 py-0.5 text-text-secondary sm:py-1.5`}><span className={PHONE_CARD.label}>{FARE_COLUMNS.cabin}</span><span data-fare-field="cabin">{f?.cabin ?? NOT_STATED}</span></td>
+                                                <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} px-2 py-0.5 text-text-secondary sm:py-1.5`}><span className={PHONE_CARD.label}>{FARE_COLUMNS.checkedBag}</span><span data-fare-field="checkedBag">{statedText(f?.checkedBag, f?.checkedBagDetail ?? 'included', 'not included')}</span></td>
+                                                <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} px-2 py-0.5 text-text-secondary sm:py-1.5`}><span className={PHONE_CARD.label}>{FARE_COLUMNS.carryOn}</span><span data-fare-field="carryOnBag">{statedText(f?.carryOnBag, f?.carryOnDetail ?? 'included', 'not included')}</span></td>
+                                                <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} px-2 py-0.5 text-text-secondary sm:py-1.5`}><span className={PHONE_CARD.label}>{FARE_COLUMNS.changes}</span><span data-fare-field="changeable">{statedText(f?.changeable, f?.changeFee ? `changeable (${f.changeFee})` : 'changeable', 'not changeable')}</span></td>
+                                                <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} px-2 py-0.5 text-text-secondary sm:py-1.5`}><span className={PHONE_CARD.label}>{FARE_COLUMNS.refunds}</span><span data-fare-field="refundable">{statedText(f?.refundable, f?.refundFee ? `refundable (${f.refundFee})` : 'refundable', 'non-refundable')}</span></td>
                                               </tr>
                                               {/* TRAVEL-ROW-01: the action strip sits DIRECTLY beneath the fare it acts on. */}
                                               {selected && !leg.committed && (

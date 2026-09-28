@@ -29,11 +29,16 @@
 // The sign-up Book (the onBook callback that opened the register modal for a
 // row whose URL failed validation) is DELETED: signing up booked nothing.
 import { useState } from 'react';
-import ResultsFilterBar from './ResultsFilterBar';
+// FINISH-01 (2026-09-28): the sort/rating CONTROLS moved above Search — the
+// container (PublicTransferSearch) mounts them in its form and hands the values
+// down; the rows' own shown/total note stays here.
+import { ResultsShownNote } from './ResultsFilterBar';
 import { sortAndFilterResults, type SortKey } from '@/lib/resultsSortFilter';
 // TRAVEL-RESULTS-TABLE: the results wear the deck-table anatomy — the
 // DATA.columnHeader micro-label is the one shared class string (ds.ts:225).
 import { DATA } from '@/lib/ds';
+// FINISH-01 (2026-09-28): below `sm` a result row is a card (src/lib/travel/phoneCard.ts).
+import { PHONE_CARD } from '@/lib/travel/phoneCard';
 
 /** The fields this view renders off a transfers result item — the
  *  viatorProductToRecommendation shape minus `website` (stripped at the route).
@@ -71,7 +76,15 @@ interface Props {
    *  transfers/search/route.ts:3 — but different modes), so the view cannot
    *  know its own mode word. Absent → no caption renders (never guessed). */
   caption?: string;
+  /** FINISH-01: the sort and the minimum rating the container's filter bar holds —
+   *  read here to derive the rows; the controls that write them sit above Search. */
+  sort: SortKey;
+  minRating: number;
 }
+
+/** FINISH-01: the column words — the header row renders them at `sm` and up, and
+ *  each card carries the same word below it (one constant, no second copy). */
+const COLUMNS = { activity: 'Activity', rating: 'Rating', duration: 'Duration', from: 'From' } as const;
 
 /** Route-side result cap of this view's one consumer — the transfers search
  *  route slices to 12 (TRANSFER_MAX_RESULTS, transfers/search/route.ts).
@@ -145,10 +158,10 @@ function RatingPill({ activity }: { activity: ActivityResult }) {
   );
 }
 
-export default function ActivityResultsView({ results, loading, error, bookDisabledLabel, caption }: Props) {
-  // Client-side sort/filter over the already-fetched results — NO refetch.
-  const [sort, setSort] = useState<SortKey>('price-asc');
-  const [minRating, setMinRating] = useState(0);
+export default function ActivityResultsView({ results, loading, error, bookDisabledLabel, caption, sort, minRating }: Props) {
+  // Client-side sort/filter over the already-fetched results — NO refetch. The
+  // values come from the bar above Search (FINISH-01); changing one re-derives
+  // these rows and never runs a search.
 
   if (loading) {
     // COMPACT-1: skeleton rows, matching the dense list-row result layout.
@@ -199,12 +212,8 @@ export default function ActivityResultsView({ results, loading, error, bookDisab
   );
 
   return (
-    <div>
-      <ResultsFilterBar
-        sort={sort}
-        minRating={minRating}
-        onSortChange={setSort}
-        onMinRatingChange={setMinRating}
+    <div data-transfer-results>
+      <ResultsShownNote
         shownCount={displayed.length}
         totalCount={results.length}
         capNote={results.length >= ROUTE_RESULT_CAP ? `Top ${ROUTE_RESULT_CAP} results` : undefined}
@@ -226,19 +235,24 @@ export default function ActivityResultsView({ results, loading, error, bookDisab
           {caption && (
             <div className="mb-1 font-mono text-[10px] tracking-wider text-text-faint">{caption}</div>
           )}
-          <div className="overflow-x-auto rounded-lg border border-border bg-white" aria-label="Activity results">
-            <table className="w-full text-sm">
-              <thead>
+          {/* FINISH-01 (2026-09-28): below `sm` each row is a CARD — photo and name,
+              then rating and duration on their own lines with their column word,
+              then the price and Book on the last line; at `sm` and up the table is
+              unchanged (src/lib/travel/phoneCard.ts). The box is `relative`, so the
+              sr-only "Book" header no longer widens the page (705px at 390 on main). */}
+          <div className={`${PHONE_CARD.box} rounded-lg border border-border bg-white`} aria-label="Activity results">
+            <table className={`${PHONE_CARD.table} w-full text-sm`}>
+              <thead className={PHONE_CARD.head}>
                 <tr className="border-b border-border bg-bg-row text-left">
                   <th className="px-2 py-2"><span className="sr-only">Photo</span></th>
-                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Activity</th>
-                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Rating</th>
-                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Duration</th>
-                  <th className={`px-3 py-2 text-right font-semibold ${DATA.columnHeader}`}>From</th>
+                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>{COLUMNS.activity}</th>
+                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>{COLUMNS.rating}</th>
+                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>{COLUMNS.duration}</th>
+                  <th className={`px-3 py-2 text-right font-semibold ${DATA.columnHeader}`}>{COLUMNS.from}</th>
                   <th className="px-3 py-2"><span className="sr-only">Book</span></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className={`${PHONE_CARD.body} divide-y divide-border`}>
                 {displayed.map((activity, idx) => {
                   const duration = formatDuration(activity.durationMinutes);
                   const place = activity.address;
@@ -246,14 +260,14 @@ export default function ActivityResultsView({ results, loading, error, bookDisab
                   return (
                     <tr
                       key={`${activity.viatorProductCode || activity.name}-${idx}`}
-                      className="odd:bg-bg-row transition-colors hover:bg-brand-purple-wash/40"
+                      className={`${PHONE_CARD.row} odd:bg-bg-row transition-colors hover:bg-brand-purple-wash/40`}
                     >
-                      <td className="px-2 py-2">
+                      <td className={`${PHONE_CARD.cell} ${PHONE_CARD.photo} px-2 py-2`}>
                         <div className="h-14 w-20 overflow-hidden rounded">
                           <ActivityCardImage photoUrl={activity.photoUrl} name={activity.name} />
                         </div>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className={`${PHONE_CARD.cell} ${PHONE_CARD.title} px-3 py-2`}>
                         <h3 className="max-w-[16rem] truncate text-sm font-medium text-brand-purple" title={activity.name}>
                           {activity.name}
                         </h3>
@@ -261,17 +275,19 @@ export default function ActivityResultsView({ results, loading, error, bookDisab
                           <p className="mt-0.5 max-w-[16rem] truncate text-xs text-text-faint">{place}</p>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2">
+                      <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} ${PHONE_CARD.nowrap} px-3 py-0.5 sm:py-2 ${activity.googleRating > 0 ? '' : PHONE_CARD.emptyOnPhone}`} data-transfer-field="rating">
+                        <span className={PHONE_CARD.label}>{COLUMNS.rating}</span>
                         <RatingPill activity={activity} />
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2">
+                      <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} ${PHONE_CARD.nowrap} px-3 py-0.5 sm:py-2 ${duration ? '' : PHONE_CARD.emptyOnPhone}`} data-transfer-field="duration">
+                        <span className={PHONE_CARD.label}>{COLUMNS.duration}</span>
                         {duration && (
                           <span className="text-xs text-text-secondary">{duration}</span>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2 text-right">
+                      <td className={`${PHONE_CARD.cell} ${PHONE_CARD.nowrap} ${PHONE_CARD.end} px-3 py-2`} data-transfer-price>
                         {typeof activity.price === 'number' ? (
-                          <div className="flex items-baseline justify-end gap-1">
+                          <div className="flex items-baseline gap-1 sm:justify-end">
                             <span className="text-[10px] text-text-faint">From</span>
                             <span className="font-mono text-sm font-semibold text-brand-gold">{money(activity.price)}</span>
                           </div>
@@ -279,7 +295,7 @@ export default function ActivityResultsView({ results, loading, error, bookDisab
                           <div className="text-xs text-text-faint">Price on request</div>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2 text-right">
+                      <td className={`${PHONE_CARD.cell} ${PHONE_CARD.nowrap} ${PHONE_CARD.end} px-3 py-2`} data-transfer-action>
                         {/* PR-CHIP-1 action precedence: validated affiliate URL → real
                             outbound Book link; no URL + bookDisabledLabel → honest disabled
                             label (no vendor exists); no URL otherwise → nothing. */}

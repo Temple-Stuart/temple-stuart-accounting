@@ -168,6 +168,7 @@ import { buildIcs, escapeIcsText, foldIcsLine } from '../src/lib/calendar/ics';
 // LAW-02: a figure nobody stated is NULL, named on screen.
 import { prebookUnstatedMoney } from '../src/lib/checkout/prebookGate';
 import { ratingLine, ratingValue, scoreWords } from '../src/lib/travel/ratingWords';
+import { PHONE_CARD } from '../src/lib/travel/phoneCard';
 import { OWNED_LOADERS, enclosing, exportedMethods, flatWhere, handlerIdentity, inScope, judgeWrites, topFunctions } from '../src/lib/security/ownershipLaw';
 import { bookedStay, statedStayDay, unstatedStayLine } from '../src/lib/reservations/stayDates';
 import { passwordLeaks, passwordSchema } from '../src/lib/security/passwordLaw';
@@ -3499,7 +3500,134 @@ const travelFail = (m: string) => { travelViolations += 1; violations.push(`trav
   const calls = [...section.matchAll(/fetch\(`([^`]+)`/g)].map((m) => m[1]);
   if (calls.join(' ') !== '/api/trips/${trip.id}/itinerary /api/trips/${trip.id}/vendor-commit') travelFail(`${TRAVEL_ITINERARY} calls [${calls.join(', ')}] — it reads the itinerary and uncommits, and books nothing`);
 }
-if (travelViolations === 0) console.log(`✔ The travel law passed — /travel is ${TRAVEL_SECTIONS.length} plain sections and no strip; ${BOOKING_FLOW_FILES.length} booking-flow files byte-identical to ${BOOKING_FLOW_BASE}; an activity's window draws start-to-end, a start alone stays a marker, a flight and a stay untouched; 'trip_item' is a linkable kind with no instant, NOT LINKED until linked by hand.`);
+// 5. FINISH-01 (2026-09-28): A RESULT ROW IS A CARD ON A PHONE, AND EVERY FILTER SITS
+//    ABOVE SEARCH. Stricter, never deleted. Measured on main 3cd8872f at 390×844: every
+//    result table on the travel tab sat in an `overflow-x-auto` box with
+//    `whitespace-nowrap` cells, so the row's price and its action were past the box's
+//    edge, and the tour and transfer lanes widened the PAGE (1675px, 705px — and 1899px at
+//    1280) through their sr-only header cells. The transfers lane drew its sort and rating
+//    only after a search, below the Search button. THE RULE, as the code states it:
+//    (a) the census — every file the travel strip's search panels reach (relative imports
+//        within src/components/trips, followed to the end) that draws a <table> is a
+//        named result view; a new one fails until the phone card covers it;
+//    (b) in each, every <table> carries PHONE_CARD.table, every <thead> PHONE_CARD.head,
+//        every <tbody> PHONE_CARD.body, every body <tr> PHONE_CARD.row or .wideRow, every
+//        <td> PHONE_CARD.cell; no `whitespace-nowrap` and no `overflow-x-auto` without
+//        `sm:` — the base breakpoint never keeps a line from wrapping or scrolls sideways;
+//        each top-level results box is PHONE_CARD.box (relative: nothing positioned inside
+//        it widens the page);
+//    (c) THE SAME WORDS: every header cell renders a *COLUMNS constant (or an sr-only
+//        name), every card label renders a *COLUMNS constant, and every label word is a
+//        header word — the card can say nothing the table does not;
+//    (d) PHONE_CARD itself restores the table at `sm` in every class, and the action strip
+//        is a wide row of one card cell;
+//    (e) in every search panel the strip reaches, each filter control's JSX — a
+//        *FiltersBar / ResultsFilterBar mount or a data-*-filter control — comes BEFORE
+//        the Search control, inside its form; no results view draws a filter bar; no
+//        container re-runs a search when a filter changes (no effect on the filter
+//        state), and the transfers request still carries only city and country.
+let finish01Tables = 0;
+let finish01Panels = 0;
+{
+  const TRIPS = 'src/components/trips';
+  const FINISH01_RESULT_VIEWS = [
+    `${TRIPS}/ActivityPickerView.tsx`, `${TRIPS}/ActivityResultsView.tsx`, `${TRIPS}/FlightPickerView.tsx`,
+    `${TRIPS}/HotelResultsView.tsx`, `${TRIPS}/PublicActivitySearch.tsx`,
+  ];
+  const STRIP_FILE = `${TRIPS}/RowActionStrip.tsx`;
+  const fileOf = (name: string) => [`${TRIPS}/${name}.tsx`, `${TRIPS}/${name}.ts`].find((f) => existsSync(resolve(ROOT, f))) ?? null;
+  const reached = new Set<string>();
+  const queue = [`${TRIPS}/travelStripModes.tsx`, `${TRIPS}/PublicCategorySearch.tsx`];
+  while (queue.length > 0) {
+    const f = queue.shift()!;
+    if (reached.has(f)) continue;
+    reached.add(f);
+    for (const m of codeOf(f).matchAll(/from '(?:\.\/|@\/components\/trips\/)([A-Za-z0-9_]+)'/g)) {
+      const next = fileOf(m[1]);
+      if (next && !reached.has(next)) queue.push(next);
+    }
+  }
+  const drawn = [...reached].filter((f) => /<table\b/.test(codeOf(f))).sort();
+  for (const f of drawn) if (!FINISH01_RESULT_VIEWS.includes(f)) travelFail(`${f} is reached by the travel strip and draws a <table> the phone card does not cover — below sm a result row is a card (src/lib/travel/phoneCard.ts; FINISH-01)`);
+  for (const f of FINISH01_RESULT_VIEWS) if (!drawn.includes(f)) travelFail(`${f} is a named result view but the travel strip no longer reaches a <table> in it — the census is stale (FINISH-01)`);
+  // A JSX opening tag, to its closing `>` OUTSIDE any {…} — an onClick={() => …} holds a `>` of its own.
+  const tagsOf = (src: string, tag: string) => [...src.matchAll(new RegExp(`<${tag}\\b`, 'g'))].map((m) => {
+    let depth = 0; let i = m.index! + m[0].length;
+    for (; i < src.length; i += 1) { const ch = src[i]; if (ch === '{') depth += 1; else if (ch === '}') depth -= 1; else if (ch === '>' && depth === 0) break; }
+    return { at: m.index!, text: src.slice(m.index!, i + 1) };
+  });
+  const lineOf = (src: string, at: number) => src.slice(0, at).split('\n').length;
+  const COLUMNS_REF = /^\{[A-Z_]*COLUMNS\.\w+\}$/;
+  for (const f of [...FINISH01_RESULT_VIEWS, STRIP_FILE]) {
+    const src = codeOf(f);
+    for (const t of tagsOf(src, 'table')) { finish01Tables += 1; if (!t.text.includes('${PHONE_CARD.table}')) travelFail(`${f}:${lineOf(src, t.at)} a <table> without PHONE_CARD.table — below sm its rows must be cards (FINISH-01)`); }
+    for (const t of tagsOf(src, 'thead')) if (!t.text.includes('className={PHONE_CARD.head}')) travelFail(`${f}:${lineOf(src, t.at)} a <thead> without PHONE_CARD.head — the header row is the card’s labels below sm (FINISH-01)`);
+    for (const t of tagsOf(src, 'tbody')) if (!t.text.includes('${PHONE_CARD.body}')) travelFail(`${f}:${lineOf(src, t.at)} a <tbody> without PHONE_CARD.body (FINISH-01)`);
+    for (const t of tagsOf(src, 'tr')) {
+      const inHead = src.lastIndexOf('<thead', t.at) > src.lastIndexOf('</thead>', t.at);
+      if (!inHead && !/\$\{PHONE_CARD\.(row|wideRow)\}/.test(t.text)) travelFail(`${f}:${lineOf(src, t.at)} a body <tr> that is not PHONE_CARD.row or .wideRow — below sm a row is a card or a full-width block (FINISH-01)`);
+    }
+    for (const t of tagsOf(src, 'td')) if (!t.text.includes('${PHONE_CARD.cell}')) travelFail(`${f}:${lineOf(src, t.at)} a <td> that is not a card cell (PHONE_CARD.cell) — it would keep its table display below sm (FINISH-01)`);
+    for (const m of src.matchAll(/(?<![\w:-])whitespace-nowrap\b/g)) travelFail(`${f}:${lineOf(src, m.index!)} whitespace-nowrap at the base breakpoint — a phone card must wrap; only sm:whitespace-nowrap (FINISH-01)`);
+    for (const m of src.matchAll(/(?<![\w:-])overflow-x-auto\b/g)) travelFail(`${f}:${lineOf(src, m.index!)} overflow-x-auto at the base breakpoint — on a phone nothing scrolls sideways; only PHONE_CARD.box’s sm:overflow-x-auto (FINISH-01)`);
+    // (c) the same words.
+    const headWords = new Set<string>();
+    for (const m of src.matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/g)) {
+      const inner = m[1].trim();
+      if (/^<span className="sr-only">[^<]*<\/span>$/.test(inner)) continue;
+      if (!COLUMNS_REF.test(inner)) travelFail(`${f}:${lineOf(src, m.index!)} a header cell renders "${inner.slice(0, 40)}" — a header word comes from its *COLUMNS constant, the one the card’s label reads (FINISH-01)`);
+      else headWords.add(inner);
+    }
+    for (const m of src.matchAll(/className=\{PHONE_CARD\.label\}>([^<]*)</g)) {
+      const inner = m[1].trim();
+      if (!COLUMNS_REF.test(inner)) travelFail(`${f}:${lineOf(src, m.index!)} a card label renders "${inner.slice(0, 40)}" — a label is its column’s header word, from the *COLUMNS constant (FINISH-01)`);
+      else if (!headWords.has(inner)) travelFail(`${f}:${lineOf(src, m.index!)} the card label ${inner} is no header cell’s word — the card can say nothing the table does not (FINISH-01)`);
+    }
+  }
+  for (const f of [`${TRIPS}/ActivityPickerView.tsx`, `${TRIPS}/ActivityResultsView.tsx`, `${TRIPS}/FlightPickerView.tsx`, `${TRIPS}/HotelResultsView.tsx`]) {
+    if (!codeOf(f).includes('${PHONE_CARD.box}')) travelFail(`${f}’s results box is not PHONE_CARD.box — relative, and a sideways scroll at sm only (FINISH-01)`);
+  }
+  // (d) the classes themselves, and the strip.
+  const pairs: Array<[keyof typeof PHONE_CARD, RegExp]> = [
+    ['box', /^(?=.*\brelative\b)(?=.*\bsm:overflow-x-auto\b)(?!.*(?<![\w:-])overflow-x-auto)/],
+    ['table', /^block sm:table$/], ['head', /^hidden sm:table-header-group$/], ['body', /^block sm:table-row-group$/],
+    ['row', /\bflex\b.*\bflex-wrap\b.*\bsm:table-row$/], ['wideRow', /^block sm:table-row$/],
+    ['cell', /^block\b.*\bmin-w-0\b.*\[overflow-wrap:anywhere\].*\bsm:table-cell\b/],
+    ['nowrap', /^sm:whitespace-nowrap$/], ['end', /^sm:text-right$/], ['label', /\bsm:hidden$/],
+  ];
+  for (const [k, re] of pairs) if (!re.test(PHONE_CARD[k])) travelFail(`PHONE_CARD.${k} is "${PHONE_CARD[k]}" — it must be a card below sm and restore the table at sm (src/lib/travel/phoneCard.ts; FINISH-01)`);
+  const strip = codeOf(STRIP_FILE);
+  if (!strip.includes('<tr ref={stripRef} data-row-strip={rowId} className={`${PHONE_CARD.wideRow} ') || !strip.includes('<td colSpan={colSpan} className={`${PHONE_CARD.cell} ')) travelFail(`${STRIP_FILE}: the action strip is not a wide row of one card cell — below sm it must sit under its card, full width (FINISH-01)`);
+  // (e) every filter above Search, in every panel the strip reaches.
+  const FILTER_MOUNT = /<(?:\w+FiltersBar|ResultsFilterBar)\b|data-[a-z]+-filter=/g;
+  for (const f of [...reached].sort()) {
+    const src = codeOf(f);
+    const form = src.indexOf('<form ');
+    if (form < 0) continue;
+    finish01Panels += 1;
+    const submit = src.indexOf('type="submit"', form);
+    const formEnd = src.indexOf('</form>', form);
+    for (const m of src.matchAll(FILTER_MOUNT)) {
+      const at = m.index!;
+      if (at < form || at > submit || submit > formEnd) travelFail(`${f}:${lineOf(src, at)} ${m[0].replace(/=$/, '')} sits outside its form or after the Search button — every filter comes BEFORE Search (FINISH-01)`);
+    }
+    for (const m of src.matchAll(/useEffect\(\s*\(\)\s*=>[\s\S]*?\},\s*\[([^\]]*)\]\s*\)/g)) {
+      if (/\b(filters|sort|minRating|sentFilters)\b/.test(m[1])) travelFail(`${f}:${lineOf(src, m.index!)} an effect runs on the filter state [${m[1].trim()}] — a filter only writes; a search runs on the Search press (FINISH-01)`);
+    }
+  }
+  const legView = codeOf(`${TRIPS}/FlightPickerView.tsx`);
+  const leg = legView.slice(legView.indexOf('placeholder="LAX"'), legView.indexOf('{leg.error && ('));
+  const lastFlightFilter = [...leg.matchAll(/data-flight-filter=/g)].map((m) => m.index!).pop() ?? -1;
+  if (lastFlightFilter < 0 || lastFlightFilter > leg.indexOf('onSearchLeg(leg.id)')) travelFail(`${TRIPS}/FlightPickerView.tsx: a leg’s filter controls are not all before its SEARCH (FINISH-01)`);
+  for (const [view, bar] of [[`${TRIPS}/HotelResultsView.tsx`, 'HotelFiltersBar'], [`${TRIPS}/ActivityPickerView.tsx`, 'ActivityFiltersBar'], [`${TRIPS}/ActivityResultsView.tsx`, 'ResultsFilterBar']] as const) {
+    if (new RegExp(`<${bar}\\b`).test(codeOf(view))) travelFail(`${view} draws <${bar}> itself — the filters sit above Search, in the container’s form (FINISH-01)`);
+  }
+  const transfer = codeOf(`${TRIPS}/PublicTransferSearch.tsx`);
+  const runSearch = transfer.slice(transfer.indexOf('const runSearch = async'), transfer.indexOf('const search = (e'));
+  if (!/const params = new URLSearchParams\(\{\s*city: cityVal\.trim\(\),\s*country: countryVal\.trim\(\),\s*\}\);/.test(runSearch) || /\b(sort|minRating)\b/.test(runSearch)) travelFail(`${TRIPS}/PublicTransferSearch.tsx: the transfers request is no longer city and country alone — the filters narrow the rows the route returned; they are not sent (FINISH-01)`);
+  if (!/<ActivityResultsView results=\{results\} loading=\{loading\} error=\{error\} caption="[^"]+" sort=\{sort\} minRating=\{minRating\} \/>/.test(transfer)) travelFail(`${TRIPS}/PublicTransferSearch.tsx does not hand its filter values to the results view (FINISH-01)`);
+}
+if (travelViolations === 0) console.log(`✔ The travel law passed — /travel is ${TRAVEL_SECTIONS.length} plain sections and no strip; ${BOOKING_FLOW_FILES.length} booking-flow files byte-identical to ${BOOKING_FLOW_BASE}; an activity's window draws start-to-end, a start alone stays a marker, a flight and a stay untouched; 'trip_item' is a linkable kind with no instant, NOT LINKED until linked by hand; FINISH-01: ${finish01Tables} result tables in the strip’s views are cards below sm (every cell a card cell, no base nowrap, no base sideways scroll, one set of words) and every filter in the ${finish01Panels} search forms sits before Search.`);
 else console.log(`✖ The travel law FAILED — ${travelViolations} violation(s).`);
 });
 lawGuard('The repaint law', () => {

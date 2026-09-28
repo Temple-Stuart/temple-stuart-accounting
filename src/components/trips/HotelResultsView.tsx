@@ -36,6 +36,8 @@
 import { Fragment, useState, type ReactNode } from 'react';
 import RowActionStrip from './RowActionStrip';
 import { DATA } from '@/lib/ds';
+// FINISH-01 (2026-09-28): below `sm` a result row is a card (src/lib/travel/phoneCard.ts).
+import { PHONE_CARD } from '@/lib/travel/phoneCard';
 import SearchCount from './SearchCount';
 import {
   DEFAULT_HOTEL_FILTERS, HOTEL_SORT_OPTIONS, NOT_STATED, STARS_OPTIONS,
@@ -142,6 +144,11 @@ export function HotelFiltersBar({ filters, onFiltersChange, searchCount }: {
   );
 }
 
+/** FINISH-01: the column words of the hotel table and the rate table — the header
+ *  rows render them at `sm` and up, and each card carries the same word below it. */
+const COLUMNS = { hotel: 'Hotel', stars: 'Stars', guests: 'Guests say', perNight: 'From / night', total: 'Stay total' } as const;
+const RATE_COLUMNS = { rate: 'Rate', room: 'Room', board: 'Board', cancellation: 'Cancellation', taxes: 'Taxes', guests: 'Guests' } as const;
+
 export default function HotelResultsView({ cards, loading, error, env, filters, selected, onSelect, onBook, onSave, savingId, checkout, onCloseCheckout }: Props) {
   const [openCards, setOpenCards] = useState<Record<string, boolean>>({});
   const isOpen = (id: string) => openCards[id] === true;
@@ -210,19 +217,24 @@ export default function HotelResultsView({ cards, loading, error, env, filters, 
           <div className="mb-1 font-mono text-[10px] tracking-wider text-text-faint" data-hotel-provider>
             TRAVEL / HOTEL SEARCH — LIVE PRICES VIA LITEAPI
           </div>
-          <div className="overflow-x-auto rounded-lg border border-border bg-white" aria-label="Hotel results">
-            <table className="w-full text-sm">
-              <thead>
+          {/* FINISH-01 (2026-09-28): below `sm` each hotel is a CARD — photo and name,
+              then stars and what guests say each on a line with its column word, then
+              the nightly and the stay price; its rates open beneath it as cards and the
+              action strip under the chosen rate. At `sm` and up the table is unchanged
+              (src/lib/travel/phoneCard.ts). */}
+          <div className={`${PHONE_CARD.box} rounded-lg border border-border bg-white`} aria-label="Hotel results">
+            <table className={`${PHONE_CARD.table} w-full text-sm`}>
+              <thead className={PHONE_CARD.head}>
                 <tr className="border-b border-border bg-bg-row text-left">
                   <th className="px-2 py-2"><span className="sr-only">Photo</span></th>
-                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Hotel</th>
-                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Stars</th>
-                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Guests say</th>
-                  <th className={`px-3 py-2 text-right font-semibold ${DATA.columnHeader}`}>From / night</th>
-                  <th className={`px-3 py-2 text-right font-semibold ${DATA.columnHeader}`}>Stay total</th>
+                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>{COLUMNS.hotel}</th>
+                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>{COLUMNS.stars}</th>
+                  <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>{COLUMNS.guests}</th>
+                  <th className={`px-3 py-2 text-right font-semibold ${DATA.columnHeader}`}>{COLUMNS.perNight}</th>
+                  <th className={`px-3 py-2 text-right font-semibold ${DATA.columnHeader}`}>{COLUMNS.total}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className={`${PHONE_CARD.body} divide-y divide-border`}>
                 {shown.map(card => {
                   const cheapest = card.rates[0];
                   const holdsSelected = !!selected && selected.hotelId === card.hotelId;
@@ -233,45 +245,48 @@ export default function HotelResultsView({ cards, loading, error, env, filters, 
                       data-hotel-row={card.hotelId}
                       data-rate-count={card.rates.length}
                       onClick={() => setOpenCards(prev => ({ ...prev, [card.hotelId]: !isOpen(card.hotelId) }))}
-                      className={`cursor-pointer transition-colors ${holdsSelected ? 'bg-brand-purple-wash/40' : 'odd:bg-bg-row hover:bg-brand-purple-wash/40'}`}>
-                      <td className="px-2 py-2">
+                      className={`${PHONE_CARD.row} cursor-pointer transition-colors ${holdsSelected ? 'bg-brand-purple-wash/40' : 'odd:bg-bg-row hover:bg-brand-purple-wash/40'}`}>
+                      <td className={`${PHONE_CARD.cell} ${PHONE_CARD.photo} px-2 py-2`}>
                         <div className="h-14 w-20 overflow-hidden rounded"><HotelCardImage photoUrl={card.photoUrl} name={card.name} /></div>
                       </td>
-                      <td className={`border-l-2 px-3 py-2 ${holdsSelected ? 'border-brand-purple' : 'border-transparent'}`}>
+                      <td className={`${PHONE_CARD.cell} ${PHONE_CARD.title} border-l-2 px-3 py-2 ${holdsSelected ? 'border-brand-purple' : 'border-transparent'}`}>
                         <div className="max-w-[18rem] truncate text-sm font-medium text-brand-purple" title={card.name} data-hotel-name>{card.name}</div>
                         <div className="max-w-[18rem] truncate text-xs text-text-faint" data-hotel-place>{place || `address ${NOT_STATED}`}</div>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2 text-xs text-text-secondary" data-hotel-stars>{starsText(card.stars)}</td>
-                      <td className="whitespace-nowrap px-3 py-2 text-xs text-text-secondary" data-hotel-guest-rating>
-                        {card.guestRating === null ? `rating ${NOT_STATED}` : `${card.guestRating}/10${card.reviewCount !== null ? ` · ${card.reviewCount} reviews` : ''}`}
+                      <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} ${PHONE_CARD.nowrap} px-3 py-0.5 text-xs text-text-secondary sm:py-2`}><span className={PHONE_CARD.label}>{COLUMNS.stars}</span><span data-hotel-stars>{starsText(card.stars)}</span></td>
+                      <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} ${PHONE_CARD.nowrap} px-3 py-0.5 text-xs text-text-secondary sm:py-2`}>
+                        <span className={PHONE_CARD.label}>{COLUMNS.guests}</span>
+                        <span data-hotel-guest-rating>{card.guestRating === null ? `rating ${NOT_STATED}` : `${card.guestRating}/10${card.reviewCount !== null ? ` · ${card.reviewCount} reviews` : ''}`}</span>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2 text-right">
+                      <td className={`${PHONE_CARD.cell} ${PHONE_CARD.nowrap} ${PHONE_CARD.end} px-3 py-2`}>
+                        <div className={PHONE_CARD.label}>{COLUMNS.perNight}</div>
                         <div className="font-mono text-sm font-semibold text-brand-gold" data-hotel-headline>{cheapest.perNight === null ? `${money(cheapest.total, cheapest.currency)} total` : `${money(cheapest.perNight, cheapest.currency)}`}</div>
                         <div className="text-[10px] text-text-faint">{card.rates.length} rate{card.rates.length === 1 ? '' : 's'} {open ? '▲' : '▼'}</div>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2 text-right text-[10px] text-text-faint" data-hotel-total>
+                      <td className={`${PHONE_CARD.cell} ${PHONE_CARD.nowrap} ${PHONE_CARD.end} px-3 py-2 text-[10px] text-text-faint`} data-hotel-total>
+                        <div className={PHONE_CARD.label}>{COLUMNS.total}</div>
                         {money(cheapest.total, cheapest.currency)} total{card.nights !== null ? ` · ${card.nights} night${card.nights === 1 ? '' : 's'}` : ` · nights ${NOT_STATED}`}
                       </td>
                     </tr>,
                   ];
                   if (open) {
                     rows.push(
-                      <tr key={`${card.hotelId}:rates`} className="bg-white">
-                        <td colSpan={6} className="px-3 pb-3 pt-1">
+                      <tr key={`${card.hotelId}:rates`} className={`${PHONE_CARD.wideRow} bg-white`}>
+                        <td colSpan={6} className={`${PHONE_CARD.cell} px-3 pb-3 pt-1`}>
                           {/* A RATE SAYS WHAT IT BUYS: room, board, refundable with its deadline, taxes, price —
                               every value the payload carried, and "not stated by the property" where it carried none. */}
-                          <table className="w-full text-xs" data-rate-options={card.hotelId}>
-                            <thead>
+                          <table className={`${PHONE_CARD.table} w-full text-xs`} data-rate-options={card.hotelId}>
+                            <thead className={PHONE_CARD.head}>
                               <tr className="text-left">
-                                <th className={`px-2 py-1 ${DATA.columnHeader}`}>Rate</th>
-                                <th className={`px-2 py-1 ${DATA.columnHeader}`}>Room</th>
-                                <th className={`px-2 py-1 ${DATA.columnHeader}`}>Board</th>
-                                <th className={`px-2 py-1 ${DATA.columnHeader}`}>Cancellation</th>
-                                <th className={`px-2 py-1 ${DATA.columnHeader}`}>Taxes</th>
-                                <th className={`px-2 py-1 ${DATA.columnHeader}`}>Guests</th>
+                                <th className={`px-2 py-1 ${DATA.columnHeader}`}>{RATE_COLUMNS.rate}</th>
+                                <th className={`px-2 py-1 ${DATA.columnHeader}`}>{RATE_COLUMNS.room}</th>
+                                <th className={`px-2 py-1 ${DATA.columnHeader}`}>{RATE_COLUMNS.board}</th>
+                                <th className={`px-2 py-1 ${DATA.columnHeader}`}>{RATE_COLUMNS.cancellation}</th>
+                                <th className={`px-2 py-1 ${DATA.columnHeader}`}>{RATE_COLUMNS.taxes}</th>
+                                <th className={`px-2 py-1 ${DATA.columnHeader}`}>{RATE_COLUMNS.guests}</th>
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-border">
+                            <tbody className={`${PHONE_CARD.body} divide-y divide-border`}>
                               {card.rates.map(rate => {
                                 const isSelected = selected?.hotelId === card.hotelId && selected.rateId === rate.rateId;
                                 return (
@@ -280,16 +295,17 @@ export default function HotelResultsView({ cards, loading, error, env, filters, 
                                     data-rate-row={rate.rateId}
                                     tabIndex={-1}
                                     onClick={(e) => { e.stopPropagation(); onSelect(card, isSelected ? null : rate); }}
-                                    className={`cursor-pointer outline-none transition-colors ${isSelected ? 'bg-brand-purple-wash/40' : 'hover:bg-brand-purple-wash/40'}`}>
-                                    <td className={`border-l-2 px-2 py-1.5 ${isSelected ? 'border-brand-purple' : 'border-transparent'}`}>
+                                    className={`${PHONE_CARD.row} cursor-pointer py-1 outline-none transition-colors sm:py-0 ${isSelected ? 'bg-brand-purple-wash/40' : 'hover:bg-brand-purple-wash/40'}`}>
+                                    <td className={`${PHONE_CARD.cell} ${PHONE_CARD.title} border-l-2 px-2 py-1.5 ${isSelected ? 'border-brand-purple' : 'border-transparent'}`}>
+                                      <div className={PHONE_CARD.label}>{RATE_COLUMNS.rate}</div>
                                       <div className="font-mono font-semibold text-brand-gold" data-rate-field="price">{rateHeadline(rate)}</div>
                                       <div className="text-[10px] text-text-faint">{money(rate.total, rate.currency)} total</div>
                                     </td>
-                                    <td className="px-2 py-1.5 text-text-secondary" data-rate-field="room">{rate.roomName ?? NOT_STATED}</td>
-                                    <td className="px-2 py-1.5 text-text-secondary" data-rate-field="board">{rate.boardName ?? rate.boardType ?? NOT_STATED}</td>
-                                    <td className="px-2 py-1.5 text-text-secondary" data-rate-field="refundable">{statedText(rate.refundable, rate.cancelDeadline ? `refundable until ${rate.cancelDeadline}` : 'refundable', 'non-refundable')}</td>
-                                    <td className="px-2 py-1.5 text-text-secondary" data-rate-field="taxesIncluded">{statedText(rate.taxesIncluded, 'included', 'not all included')}</td>
-                                    <td className="px-2 py-1.5 text-text-secondary" data-rate-field="maxOccupancy">{rate.maxOccupancy === null ? NOT_STATED : `up to ${rate.maxOccupancy}`}</td>
+                                    <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} px-2 py-0.5 text-text-secondary sm:py-1.5`}><span className={PHONE_CARD.label}>{RATE_COLUMNS.room}</span><span data-rate-field="room">{rate.roomName ?? NOT_STATED}</span></td>
+                                    <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} px-2 py-0.5 text-text-secondary sm:py-1.5`}><span className={PHONE_CARD.label}>{RATE_COLUMNS.board}</span><span data-rate-field="board">{rate.boardName ?? rate.boardType ?? NOT_STATED}</span></td>
+                                    <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} px-2 py-0.5 text-text-secondary sm:py-1.5`}><span className={PHONE_CARD.label}>{RATE_COLUMNS.cancellation}</span><span data-rate-field="refundable">{statedText(rate.refundable, rate.cancelDeadline ? `refundable until ${rate.cancelDeadline}` : 'refundable', 'non-refundable')}</span></td>
+                                    <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} px-2 py-0.5 text-text-secondary sm:py-1.5`}><span className={PHONE_CARD.label}>{RATE_COLUMNS.taxes}</span><span data-rate-field="taxesIncluded">{statedText(rate.taxesIncluded, 'included', 'not all included')}</span></td>
+                                    <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} px-2 py-0.5 text-text-secondary sm:py-1.5`}><span className={PHONE_CARD.label}>{RATE_COLUMNS.guests}</span><span data-rate-field="maxOccupancy">{rate.maxOccupancy === null ? NOT_STATED : `up to ${rate.maxOccupancy}`}</span></td>
                                   </tr>
                                   {/* TRAVEL-ROW-01: the action strip sits DIRECTLY beneath the rate it acts on. */}
                                   {isSelected && (
