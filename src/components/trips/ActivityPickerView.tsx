@@ -38,6 +38,8 @@
 import { Fragment, useState, type ReactNode } from 'react';
 import RowActionStrip from './RowActionStrip';
 import { DATA } from '@/lib/ds';
+// FINISH-01 (2026-09-28): below `sm` a result row is a card (src/lib/travel/phoneCard.ts).
+import { PHONE_CARD } from '@/lib/travel/phoneCard';
 import SearchCount from './SearchCount';
 import {
   ACTIVITY_SORT_OPTIONS, COUNT_OPTIONS, DURATION_OPTIONS, NOT_STATED, RATING_OPTIONS, SORT_LABEL,
@@ -167,6 +169,10 @@ export function ActivityFiltersBar({ filters, onFiltersChange, searchCount, sent
   );
 }
 
+/** FINISH-01: the column words — the header row renders them at `sm` and up, and
+ *  each card carries the same word below it (one constant, no second copy). */
+const COLUMNS = { activity: 'Activity', rating: 'Rating', duration: 'Duration', cancellation: 'Cancellation', price: 'Price' } as const;
+
 export default function ActivityPickerView({ cards, totalCount, previousTotal, loading, error, selected, onSelect, pageSize, hasMore, filtersChanged, loadingMore, onNextPage, lastPage, savePanel }: Props) {
   if (loading) {
     return (
@@ -224,20 +230,26 @@ export default function ActivityPickerView({ cards, totalCount, previousTotal, l
         <div className="mb-1 font-mono text-[10px] tracking-wider text-text-faint" data-activity-provider>
           TRAVEL / THINGS TO DO — PRICES AS STATED BY THE OPERATOR VIA VIATOR
         </div>
-        <div className="overflow-x-auto rounded-lg border border-border bg-white" aria-label="Activity results">
-          <table className="w-full text-sm">
-            <thead>
+        {/* FINISH-01 (2026-09-28): below `sm` each row is a CARD — photo and name,
+            then rating, duration and cancellation each on a line with its column
+            word, then the price and Book on Viator; at `sm` and up the table is
+            unchanged (src/lib/travel/phoneCard.ts). The box is `relative`, so the
+            sr-only "Link" header no longer widens the page (1675px at 390 and 1899px
+            at 1280 on main). */}
+        <div className={`${PHONE_CARD.box} rounded-lg border border-border bg-white`} aria-label="Activity results">
+          <table className={`${PHONE_CARD.table} w-full text-sm`}>
+            <thead className={PHONE_CARD.head}>
               <tr className="border-b border-border bg-bg-row text-left">
                 <th className="px-2 py-2"><span className="sr-only">Photo</span></th>
-                <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Activity</th>
-                <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Rating</th>
-                <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Duration</th>
-                <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>Cancellation</th>
-                <th className={`px-3 py-2 text-right font-semibold ${DATA.columnHeader}`}>Price</th>
+                <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>{COLUMNS.activity}</th>
+                <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>{COLUMNS.rating}</th>
+                <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>{COLUMNS.duration}</th>
+                <th className={`px-3 py-2 font-semibold ${DATA.columnHeader}`}>{COLUMNS.cancellation}</th>
+                <th className={`px-3 py-2 text-right font-semibold ${DATA.columnHeader}`}>{COLUMNS.price}</th>
                 <th className="px-3 py-2"><span className="sr-only">Link</span></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className={`${PHONE_CARD.body} divide-y divide-border`}>
               {cards.map(card => {
                 const isSelected = selected === card.productCode;
                 const extra = extraChargesText(card);
@@ -248,11 +260,11 @@ export default function ActivityPickerView({ cards, totalCount, previousTotal, l
                     data-activity-row={card.productCode}
                     tabIndex={-1}
                     onClick={() => onSelect(isSelected ? null : card)}
-                    className={`cursor-pointer outline-none transition-colors ${isSelected ? 'bg-brand-purple-wash/40' : 'odd:bg-bg-row hover:bg-brand-purple-wash/40'}`}>
-                    <td className="px-2 py-2">
+                    className={`${PHONE_CARD.row} cursor-pointer outline-none transition-colors ${isSelected ? 'bg-brand-purple-wash/40' : 'odd:bg-bg-row hover:bg-brand-purple-wash/40'}`}>
+                    <td className={`${PHONE_CARD.cell} ${PHONE_CARD.photo} px-2 py-2`}>
                       <div className="h-14 w-20 overflow-hidden rounded"><ActivityCardImage photoUrl={card.photoUrl} name={card.name} /></div>
                     </td>
-                    <td className={`border-l-2 px-3 py-2 ${isSelected ? 'border-brand-purple' : 'border-transparent'}`}>
+                    <td className={`${PHONE_CARD.cell} ${PHONE_CARD.title} border-l-2 px-3 py-2 ${isSelected ? 'border-brand-purple' : 'border-transparent'}`}>
                       <div className="max-w-[18rem] truncate text-sm font-medium text-brand-purple" title={card.name} data-activity-name>{card.name}</div>
                       <div className="max-w-[18rem] truncate text-xs text-text-faint" data-activity-place>{place}</div>
                       <div className="text-[10px] text-text-faint" data-activity-field="confirmation">
@@ -260,10 +272,11 @@ export default function ActivityPickerView({ cards, totalCount, previousTotal, l
                         {card.privateTour === true ? ' · private tour' : ''}{card.skipTheLine === true ? ' · skip the line' : ''}
                       </div>
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-xs text-text-secondary" data-activity-field="rating">{ratingText(card)}</td>
-                    <td className="whitespace-nowrap px-3 py-2 text-xs text-text-secondary" data-activity-field="duration">{durationText(card.duration)}</td>
-                    <td className="whitespace-nowrap px-3 py-2 text-xs text-text-secondary" data-activity-field="cancellation">{cancellationText(card)}</td>
-                    <td className="whitespace-nowrap px-3 py-2 text-right">
+                    <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} ${PHONE_CARD.nowrap} px-3 py-0.5 text-xs text-text-secondary sm:py-2`}><span className={PHONE_CARD.label}>{COLUMNS.rating}</span><span data-activity-field="rating">{ratingText(card)}</span></td>
+                    <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} ${PHONE_CARD.nowrap} px-3 py-0.5 text-xs text-text-secondary sm:py-2`}><span className={PHONE_CARD.label}>{COLUMNS.duration}</span><span data-activity-field="duration">{durationText(card.duration)}</span></td>
+                    <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} ${PHONE_CARD.nowrap} px-3 py-0.5 text-xs text-text-secondary sm:py-2`}><span className={PHONE_CARD.label}>{COLUMNS.cancellation}</span><span data-activity-field="cancellation">{cancellationText(card)}</span></td>
+                    <td className={`${PHONE_CARD.cell} ${PHONE_CARD.nowrap} ${PHONE_CARD.end} px-3 py-2`}>
+                      <div className={PHONE_CARD.label}>{COLUMNS.price}</div>
                       <div className="font-mono text-sm font-semibold text-brand-gold" data-activity-field="price">{priceText(card)}</div>
                       <div className="text-[10px] text-text-faint" data-activity-field="priceBasis">{card.priceBasis ?? `basis ${NOT_STATED}`}</div>
                       {extra && <div className="text-[10px] text-text-secondary" data-activity-field="extraCharges">{extra}</div>}
@@ -271,7 +284,7 @@ export default function ActivityPickerView({ cards, totalCount, previousTotal, l
                         <div className="text-[10px] text-text-faint" data-activity-field="beforeDiscount">before discount {money(card.priceBeforeDiscount, card.currency)} — {card.specialOffer === true ? 'special offer stated by the operator' : `special offer ${NOT_STATED}`}</div>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-right">
+                    <td className={`${PHONE_CARD.cell} ${PHONE_CARD.nowrap} ${PHONE_CARD.end} px-3 py-2`}>
                       {card.productUrl ? (
                         <a href={card.productUrl} target="_blank" rel="noopener noreferrer sponsored" onClick={(e) => e.stopPropagation()}
                           className="shrink-0 rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-purple-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"

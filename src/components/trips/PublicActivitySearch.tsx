@@ -51,6 +51,12 @@ import type { RateRecord } from '@/lib/activities/fx';
 import { conversionText } from '@/lib/activities/save';
 import { endOfQuote, priceQuote, type QuotePrice, type ViatorQuote } from '@/lib/activities/quote';
 import type { Stated } from '@/lib/travel/stated';
+// FINISH-01 (2026-09-28): below `sm` an option row is a card (src/lib/travel/phoneCard.ts).
+import { PHONE_CARD } from '@/lib/travel/phoneCard';
+
+/** FINISH-01: the option table's column words — the header row renders them at `sm`
+ *  and up, and each option card carries the same word below it. */
+const OPTION_COLUMNS = { option: 'Option', start: 'Start', partyPrice: 'Party price', planFigure: 'Plan figure' } as const;
 
 interface Props {
   /** Opens the existing home register/login modal (saving requires sign-in). */
@@ -366,9 +372,12 @@ export default function PublicActivitySearch({ onRequireAuth, authed, currentTri
                   and measured in the walk: it changed nothing about the page's width, and
                   it BROKE the strip's `sticky right-0`, which binds to the nearest
                   scrolling ancestor — Book went to x=1884 on a 1280 screen. */}
-              <table className="w-full text-xs" data-activity-option-table>
-                <thead><tr className="text-left text-text-faint"><th className="px-2 py-1">Option</th><th className="px-2 py-1">Start</th><th className="px-2 py-1">Party price</th><th className="px-2 py-1">Plan figure</th></tr></thead>
-                <tbody className="divide-y divide-border">
+              {/* FINISH-01 (2026-09-28): below `sm` each option is a CARD — the option, then
+                  its start, party price and plan figure each on a line with its column word;
+                  at `sm` and up the table is unchanged (src/lib/travel/phoneCard.ts). */}
+              <table className={`${PHONE_CARD.table} w-full text-xs`} data-activity-option-table>
+                <thead className={PHONE_CARD.head}><tr className="text-left text-text-faint"><th className="px-2 py-1">{OPTION_COLUMNS.option}</th><th className="px-2 py-1">{OPTION_COLUMNS.start}</th><th className="px-2 py-1">{OPTION_COLUMNS.partyPrice}</th><th className="px-2 py-1">{OPTION_COLUMNS.planFigure}</th></tr></thead>
+                <tbody className={`${PHONE_CARD.body} divide-y divide-border`}>
                   {answer.options.map((opt) => {
                     const code = opt.productOptionCode ?? '(no code)';
                     const title = opt.productOptionCode ? optionTitleOf(answer.product, opt.productOptionCode) : null;
@@ -384,11 +393,11 @@ export default function PublicActivitySearch({ onRequireAuth, authed, currentTri
                         <tr data-activity-option={code} data-activity-option-start={st.startTime ?? 'none'} data-activity-option-state={st.unavailable !== null ? 'unavailable' : 'refused' in priced ? 'refused' : 'available'}
                           tabIndex={-1}
                           onClick={() => { if (pickable && opt.productOptionCode && st.quote && st.seal) { setChosen({ productOptionCode: opt.productOptionCode, startTime: st.startTime, quote: st.quote, seal: st.seal }); setEndPick(''); } }}
-                          className={`outline-none ${pickable ? 'cursor-pointer' : 'cursor-default'} ${isChosen ? 'bg-brand-purple-wash/40' : ''}`}>
-                          <td className="px-2 py-1"><span className="font-mono">{code}</span> {title ?? <span className="text-text-faint">title not stated by the operator</span>}</td>
-                          <td className="px-2 py-1 font-mono">{st.startTime ?? <span className="text-text-faint">{st.refused ?? opt.refused}</span>}{st.unavailable !== null && <span className="ml-1 text-brand-red" data-activity-option-reason>{st.unavailable}</span>}</td>
-                          <td className="px-2 py-1 text-text-secondary">{'refused' in priced ? <span className="text-brand-red">{priced.refused}</span> : `${priced.lines.map((l) => priceLineText(l, answer.currency)).join('; ')}${priced.extra ? ` + ${priced.extra.total.toFixed(2)} ${answer.currency} in-destination charges stated by the operator (${priced.extra.perTraveller.toFixed(2)} × ${priced.extra.travellers})` : ''}`}</td>
-                          <td className="px-2 py-1 font-mono">{'refused' in priced ? '—' : <span data-activity-option-total={priced.total.amount}>{conversionText({ native: priced.native, extra: priced.extra, rate: st.quote?.rate ?? null, total: priced.total })}</span>}</td>
+                          className={`${PHONE_CARD.row} py-1 outline-none sm:py-0 ${pickable ? 'cursor-pointer' : 'cursor-default'} ${isChosen ? 'bg-brand-purple-wash/40' : ''}`}>
+                          <td className={`${PHONE_CARD.cell} ${PHONE_CARD.title} px-2 py-1`}><span className={PHONE_CARD.label}>{OPTION_COLUMNS.option}</span><span className="font-mono">{code}</span> {title ?? <span className="text-text-faint">title not stated by the operator</span>}</td>
+                          <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} px-2 py-0.5 font-mono sm:py-1`}><span className={PHONE_CARD.label}>{OPTION_COLUMNS.start}</span>{st.startTime ?? <span className="text-text-faint">{st.refused ?? opt.refused}</span>}{st.unavailable !== null && <span className="ml-1 text-brand-red" data-activity-option-reason>{st.unavailable}</span>}</td>
+                          <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} px-2 py-0.5 text-text-secondary sm:py-1`}><span className={PHONE_CARD.label}>{OPTION_COLUMNS.partyPrice}</span>{'refused' in priced ? <span className="text-brand-red">{priced.refused}</span> : `${priced.lines.map((l) => priceLineText(l, answer.currency)).join('; ')}${priced.extra ? ` + ${priced.extra.total.toFixed(2)} ${answer.currency} in-destination charges stated by the operator (${priced.extra.perTraveller.toFixed(2)} × ${priced.extra.travellers})` : ''}`}</td>
+                          <td className={`${PHONE_CARD.cell} ${PHONE_CARD.fact} px-2 py-0.5 font-mono sm:py-1`}><span className={PHONE_CARD.label}>{OPTION_COLUMNS.planFigure}</span>{'refused' in priced ? '—' : <span data-activity-option-total={priced.total.amount}>{conversionText({ native: priced.native, extra: priced.extra, rate: st.quote?.rate ?? null, total: priced.total })}</span>}</td>
                         </tr>
                         {/* TRAVEL-ROW-01: Save sits at the OPTION line it saves, with the
                             operator's own end-time range when the duration is variable. A tour

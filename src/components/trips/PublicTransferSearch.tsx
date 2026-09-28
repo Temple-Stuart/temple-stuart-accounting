@@ -20,10 +20,22 @@
  * NO booking fetch and constructs NO URL. No fake results: the grid renders
  * exactly what the route returns, and an empty result shows an honest empty
  * state (never sample data).
+ *
+ * FINISH-01 (2026-09-28): THE FILTERS SIT ABOVE SEARCH, here too. The sort and
+ * the minimum rating (ResultsFilterBar) used to render inside the results view,
+ * after the Search button and only once a search had answered. They now sit in
+ * this form, before its submit — the FILTER-01 pattern (PublicHotelSearch mounts
+ * HotelFiltersBar the same way). This container holds the two values; the view
+ * reads them to derive the rows. The controls are the same two, with the same
+ * options and words; the route still takes only city and country, so they narrow
+ * and order the rows the route returned — a control writes its value and nothing
+ * else, and a search runs only on the Search press (no effect, no debounce).
  */
 
 import { useState, useEffect } from 'react';
 import ActivityResultsView, { type ActivityResult } from './ActivityResultsView';
+import ResultsFilterBar from './ResultsFilterBar';
+import type { SortKey } from '@/lib/resultsSortFilter';
 // PR-STRIP-DESIGN-2: icon-inside-field — MapPin marks the destination.
 import { MapPin } from 'lucide-react';
 import TravelSectionShell, { TravelField, TRAVEL_INPUT_CLASS, TRAVEL_BUTTON_CLASS, TRAVEL_LABEL_CLASS } from './travelSection';
@@ -53,6 +65,9 @@ export default function PublicTransferSearch({ onRequireAuth: _onRequireAuth, sh
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searched, setSearched] = useState(false);
+  // FINISH-01: the filter bar's values, set before (or after) a search — they never fire one.
+  const [sort, setSort] = useState<SortKey>('price-asc');
+  const [minRating, setMinRating] = useState(0);
 
   // ── LIVE search against the PUBLIC /api/travel/transfers/search. Reused by both the
   //    form submit and the PR-3 unified-bar fan-out (same fetch, same route). ──
@@ -137,7 +152,18 @@ export default function PublicTransferSearch({ onRequireAuth: _onRequireAuth, sh
             aria-label="Destination country"
           />
         </label>
-        <div className="col-span-full flex items-end sm:col-span-2 lg:col-span-1">
+        {/* FINISH-01 (2026-09-28): the filters, BEFORE the submit (the FILTER-01 pattern). */}
+        <div className="col-span-full">
+          <ResultsFilterBar
+            sort={sort}
+            minRating={minRating}
+            onSortChange={setSort}
+            onMinRatingChange={setMinRating}
+          />
+        </div>
+        {/* FINISH-01: under the bar the button takes the row's last column on wide
+            screens and the full width on a phone (the FILTER-01 hotel/tour layout). */}
+        <div className="col-span-full flex items-end lg:col-span-1 lg:col-start-4">
           <button
             type="submit"
             disabled={loading}
@@ -148,12 +174,12 @@ export default function PublicTransferSearch({ onRequireAuth: _onRequireAuth, sh
         </div>
       </form>
 
-      {/* Results: only after the first search. Empty/loading/error live in the view.
+      {/* Results: only after the first search. The filter controls live in the form above (FINISH-01). Empty/loading/error live in the view.
           PR-TILE-GROUND-A: rows with a validated bookingUrl render the outbound
           Book link (the view's CHIP-1 precedence); URL-less rows render no
           action — no onBook, no disabled label, no fake CTA. */}
       {searched && (
-        <ActivityResultsView results={results} loading={loading} error={error} caption="TRAVEL / TRANSFER SEARCH — LIVE PRICES VIA VIATOR" />
+        <ActivityResultsView results={results} loading={loading} error={error} caption="TRAVEL / TRANSFER SEARCH — LIVE PRICES VIA VIATOR" sort={sort} minRating={minRating} />
       )}
       {!searched && error && (
         <div className="rounded-lg border border-border bg-white p-4 text-sm text-brand-red">{error}</div>

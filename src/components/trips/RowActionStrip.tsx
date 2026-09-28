@@ -48,9 +48,17 @@
  * group is `sticky right-0`: its scrolling ancestor is the table's own
  * `overflow-x-auto` box, and sticky pins it to that box's VISIBLE right edge
  * whenever its static position is past it. Book is at the line, always.
+ *
+ * FINISH-01 (2026-09-28): A CARD ON A PHONE. Below `sm` every result table on the
+ * travel tab renders its rows as stacked cards (src/lib/travel/phoneCard.ts), so
+ * this row and its one cell are full-width BLOCKS there (`PHONE_CARD.wideRow`,
+ * `PHONE_CARD.cell`): the strip sits directly under the card it acts on, as wide
+ * as the phone, and Book is on screen without any sideways scroll. At `sm` and up
+ * both classes restore `table-row` / `table-cell` — the strip is unchanged.
  */
 
 import { useEffect, useRef, type ReactNode } from 'react';
+import { PHONE_CARD } from '@/lib/travel/phoneCard';
 
 export interface RowActionStripProps {
   /** The table's column count — the strip spans all of them, so it is full width. */
@@ -117,8 +125,8 @@ export default function RowActionStrip({
   };
 
   return (
-    <tr ref={stripRef} data-row-strip={rowId} className="bg-brand-purple-wash/20">
-      <td colSpan={colSpan} className="border-l-2 border-brand-purple px-2 py-2">
+    <tr ref={stripRef} data-row-strip={rowId} className={`${PHONE_CARD.wideRow} bg-brand-purple-wash/20`}>
+      <td colSpan={colSpan} className={`${PHONE_CARD.cell} border-l-2 border-brand-purple px-2 py-2`}>
         <div className="flex flex-wrap items-center justify-between gap-2" data-row-strip-actions={rowId}>
           <div className="min-w-0 basis-full text-sm sm:basis-auto" data-row-strip-summary>
             {summary}
