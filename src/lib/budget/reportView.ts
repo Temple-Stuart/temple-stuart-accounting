@@ -21,6 +21,12 @@
  * exists (plans not placed; bank transactions not in the books), none when
  * there is none. The response still carries every count it did.
  *
+ * TAB13-04 (2026-09-29): THE DAY'S PLAN. A third line of that notice — VENDORS
+ * STRANDED, the planned vendors no plan line of this view matches (planLines.ts),
+ * scoped like BUDGET SHORT — and vendorChoices(), what the vendor box offers as a
+ * name is typed: the line's book's vendors, read by the ONE name rule
+ * (src/lib/operations/planVendor.ts vendorNameKey / takenBy / readVendorName).
+ *
  * Pure (the budget report purity law's fifth root, scripts/assert-tool-registry.ts):
  * no framework, no network, no environment, and no clock — today is handed in by
  * the screen, the one place that reads it.
@@ -28,6 +34,8 @@
 import type { ReportBook, ReportRow, UnplacedItem } from './report';
 import type { NotPlaced } from './days';
 import type { BudgetReportResponse } from './reportInputs';
+import type { StrandedVendor } from './planLines';
+import { readVendorName, takenBy, vendorNameKey } from '@/lib/operations/planVendor';
 
 export type ViewKind = 'day' | 'week' | 'year';
 
@@ -236,6 +244,11 @@ export type MissingLine =
       readonly bankCents: number | null;
       /** Bank rows in that column whose amount is not whole cents — listed, never summed. */
       readonly notTotalled: number;
+    }
+  | {
+      /** TAB13-04: planned vendors no plan line of this view matches — the book's own (the vendor's book) on a book, all books elsewhere. */
+      readonly kind: 'vendorsStranded';
+      readonly stranded: readonly StrandedVendor[];
     };
 
 /**
@@ -244,8 +257,10 @@ export type MissingLine =
  * status, ledger lines left out by name (correct accounting, not missing money),
  * travel, the record counts. Bank rows are in no book, so ACTUAL SHORT is every
  * book's; a future widest column (transactions null) has had nothing happen yet.
+ * TAB13-04: VENDORS STRANDED last — a planned vendor that no plan line of this
+ * view matches is a vendor the day holds and the plan does not; a YEAR lists none.
  */
-export function missingMoney(data: Pick<BudgetReportResponse, 'notPlaced' | 'report' | 'notInBooks'>, section: Section): MissingLine[] {
+export function missingMoney(data: Pick<BudgetReportResponse, 'notPlaced' | 'report' | 'notInBooks' | 'plans'>, section: Section): MissingLine[] {
   const lines: MissingLine[] = [];
   const placed = notPlacedIn(data, section);
   if (placed.count > 0) lines.push({ kind: 'budgetShort', placed });
@@ -253,7 +268,46 @@ export function missingMoney(data: Pick<BudgetReportResponse, 'notPlaced' | 'rep
   if (widest.transactions !== null && widest.notTotalled !== null && (widest.transactions > 0 || widest.notTotalled > 0)) {
     lines.push({ kind: 'actualShort', label: widest.label, transactions: widest.transactions, bankCents: widest.bankCents, notTotalled: widest.notTotalled });
   }
+  if (data.plans.listed) {
+    const book = section.kind === 'book' ? section.book.entityId : null;
+    const stranded = book === null ? data.plans.stranded : data.plans.stranded.filter((v) => v.vendor.entityId === book);
+    if (stranded.length > 0) lines.push({ kind: 'vendorsStranded', stranded });
+  }
   return lines;
+}
+
+// ── THE VENDOR BOX (TAB13-04) ───────────────────────────────────────────────
+
+/** A vendor as GET /api/operations/vendor-directory gives it — the caller's ACTIVE vendors only (its where: is_active true). */
+export interface DirectoryVendor {
+  readonly id: string;
+  readonly vendor_name: string;
+  readonly entity_id: string;
+}
+
+export interface VendorChoices {
+  /** The line's book's vendors whose name, read by the one rule, holds what was typed — by name. */
+  readonly offered: readonly DirectoryVendor[];
+  /** The book's vendor that IS the typed name (D1: ignoring case and spacing) — then nothing is added. */
+  readonly exact: DirectoryVendor | null;
+  /** The name to add to the book, as the directory would keep it — when the book has none. */
+  readonly add: string | null;
+  /** Why the typed name cannot be added, in the rule's words. */
+  readonly refusal: string | null;
+}
+
+/** What the vendor box offers as a name is typed: the line's book only, by the ONE name rule. A blank offers nothing. */
+export function vendorChoices(typed: string, vendors: readonly DirectoryVendor[], bookId: string): VendorChoices {
+  const key = vendorNameKey(typed);
+  if (key === '') return { offered: [], exact: null, add: null, refusal: null };
+  const book = vendors.filter((v) => v.entity_id === bookId);
+  const offered = book
+    .filter((v) => vendorNameKey(v.vendor_name).includes(key))
+    .sort((a, b) => (vendorNameKey(a.vendor_name) < vendorNameKey(b.vendor_name) ? -1 : vendorNameKey(a.vendor_name) > vendorNameKey(b.vendor_name) ? 1 : 0));
+  const exact = takenBy(typed, book);
+  if (exact !== null) return { offered, exact, add: null, refusal: null };
+  const name = readVendorName(typed);
+  return name.ok ? { offered, exact: null, add: name.name, refusal: null } : { offered, exact: null, add: null, refusal: name.message };
 }
 
 /** The chip label of each book: its label, and its entity name when another book shares the label. */

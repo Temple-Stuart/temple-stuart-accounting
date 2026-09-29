@@ -42,7 +42,10 @@ import { isValidUuid } from '@/lib/operations/parseUuid';
 import { routinePlanned } from '@/lib/operations/routineLines';
 import type { LinkableKind } from '@/lib/calendar/linkKeys';
 import type { IsoDay } from '@/lib/budget/report';
-import { PLAN_TASK_STATUSES, type DayRuleResult, type RoutinePlanInput } from '@/lib/budget/days';
+import {
+  PLAN_TASK_STATUSES, isIsoDay, occurrenceKey, wholeRoutineKey,
+  type DayRuleResult, type OccurrenceAddress, type OccurrenceKind, type RoutinePlanInput,
+} from '@/lib/budget/days';
 import { BudgetInputError, utcDay } from '@/lib/budget/reportInputs';
 import { instantToZoned } from '@/lib/time';
 
@@ -89,15 +92,11 @@ export function takenBy<V extends { readonly vendor_name: string }>(name: string
 
 // ── THE ADDRESS ─────────────────────────────────────────────────────────────
 
-export const PLAN_VENDOR_KINDS = ['routine_line', 'routine', 'project_task'] as const satisfies readonly LinkableKind[];
+export const PLAN_VENDOR_KINDS = ['routine_line', 'routine', 'project_task'] as const satisfies readonly (LinkableKind & OccurrenceKind)[];
 export type PlanVendorKind = (typeof PLAN_VENDOR_KINDS)[number];
 
-export interface PlanAddress {
-  readonly kind: PlanVendorKind;
-  readonly id: string;
-  /** The occurrence's instant, or null for every occurrence. */
-  readonly instant: Date | null;
-}
+/** TAB13-04: the address IS days.ts's — the key /budget builds reads back into it. The instant, or null for every occurrence. */
+export type PlanAddress = OccurrenceAddress;
 
 /** (b) kind, id, instant — the link route's words; an id that is not a UUID names no row: 404. */
 export function readPlanAddress(kind: unknown, id: unknown, instant: unknown): { readonly ok: true; readonly address: PlanAddress } | Refusal {
@@ -109,6 +108,8 @@ export function readPlanAddress(kind: unknown, id: unknown, instant: unknown): {
   if (instant !== undefined && instant !== null) {
     at = typeof instant === 'string' ? new Date(instant) : new Date(Number.NaN);
     if (Number.isNaN(at.getTime())) return refuse(400, 'bad-instant', 'instant is not a valid timestamp');
+    // TAB13-04 (R7 c): the instant's occurrence window must be days /budget reads — never the builder's 500.
+    if (windowOf(at) === null) return refuse(400, 'bad-instant', `instant ${instant as string} is outside the days /budget reads — its occurrence window is not 'YYYY-MM-DD' days`);
   }
   if (kind === 'project_task' && at !== null) {
     return refuse(400, 'bad-instant', 'project_task carries no occurrence instant — a task happens once: its vendor is for every occurrence');
@@ -201,15 +202,20 @@ export function moneyIsHere(plan: PlanFacts): { readonly ok: true } | Refusal {
 
 const DAY_MS = 86_400_000;
 
-/** Ruled D1 (b): the instant's UTC day and two days either side — every zone's local day and its neighbours. */
-export function occurrenceWindow(instant: Date): { readonly rangeFrom: IsoDay; readonly rangeTo: IsoDay } {
-  return { rangeFrom: utcDay(new Date(instant.getTime() - 2 * DAY_MS)), rangeTo: utcDay(new Date(instant.getTime() + 2 * DAY_MS)) };
+/** The window as 'YYYY-MM-DD' days, or null when either end is no such day (an instant too near the edge of time). */
+function windowOf(instant: Date): { readonly rangeFrom: IsoDay; readonly rangeTo: IsoDay } | null {
+  const from = new Date(instant.getTime() - 2 * DAY_MS);
+  const to = new Date(instant.getTime() + 2 * DAY_MS);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return null;
+  const window = { rangeFrom: utcDay(from), rangeTo: utcDay(to) };
+  return isIsoDay(window.rangeFrom) && isIsoDay(window.rangeTo) ? window : null;
 }
 
-/** The budget line's sourceId this occurrence has (days.ts :276 — `routine:<routine>:<line:<id> | routine>:<instant>`). */
-export function occurrenceSourceId(routineId: string, address: PlanAddress & { readonly instant: Date }): string {
-  const item = address.kind === 'routine_line' ? `line:${address.id}` : 'routine';
-  return `routine:${routineId}:${item}:${address.instant.toISOString()}`;
+/** Ruled D1 (b): the instant's UTC day and two days either side — every zone's local day and its neighbours. readPlanAddress has refused an instant whose window is not days. */
+export function occurrenceWindow(instant: Date): { readonly rangeFrom: IsoDay; readonly rangeTo: IsoDay } {
+  const window = windowOf(instant);
+  if (window === null) throw new Error(`VENDOR-01: instant ${instant.toISOString()} has no occurrence window of days — readPlanAddress refuses it first`);
+  return window;
 }
 
 /** Does the builder's own output hold this exact occurrence — placed or not placed? */
@@ -218,9 +224,10 @@ export function occurrenceIn(
   routine: { readonly id: string; readonly name: string },
   address: PlanAddress & { readonly instant: Date },
 ): { readonly ok: true; readonly day: IsoDay | null } | Refusal {
-  const whole = built.notPlaced.find((n) => n.sourceId === `routine:${routine.id}`);
+  const whole = built.notPlaced.find((n) => n.sourceId === wholeRoutineKey(routine.id));
   if (whole) return refuse(409, 'cannot-place', `/budget cannot place "${routine.name}": ${whole.reason}${whole.detail === null ? '' : ` — ${whole.detail}`}`);
-  const key = occurrenceSourceId(routine.id, address);
+  // TAB13-04 (R1): the key is days.ts's — the builder's own format, never rebuilt here.
+  const key = occurrenceKey({ routineId: routine.id, lineId: address.kind === 'routine_line' ? address.id : null, instant: address.instant });
   const line = built.lines.find((l) => l.sourceId === key);
   if (line) return { ok: true, day: line.day };
   const notPlaced = built.notPlaced.find((n) => n.sourceId === key);
@@ -282,7 +289,13 @@ export function grainAllows(
   const single = held.filter((h) => h.occurrenceAt !== null).sort((a, b) => (a.occurrenceAt as Date).getTime() - (b.occurrenceAt as Date).getTime());
   if (single.length > 0) {
     if (timezone === null) throw new Error(`VENDOR-01: a plan with no zone holds ${single.length} single-occurrence vendor(s) — a task never carries an occurrence`);
-    const days = [...new Set(single.map((h) => instantToZoned(h.occurrenceAt as Date, timezone).date))];
+    let days: string[];
+    try {
+      days = [...new Set(single.map((h) => instantToZoned(h.occurrenceAt as Date, timezone).date))];
+    } catch (error) {
+      // TAB13-04 (R7 d): a zone /budget cannot read names no day — refused in words, never a 500 (the builder's reading, days.ts).
+      return refuse(409, 'grain', `this plan holds a vendor for ${single.length} single occurrence${single.length === 1 ? '' : 's'}, and its routine's zone ${JSON.stringify(timezone)} cannot be read (${error instanceof Error ? error.message : String(error)}) — clear them before setting one vendor for every occurrence`);
+    }
     return refuse(409, 'grain', `this plan holds a vendor for ${single.length} single occurrence${single.length === 1 ? '' : 's'} (${days.slice(0, 3).join(', ')}${days.length > 3 ? ', …' : ''}) — clear them before setting one vendor for every occurrence`);
   }
   return { ok: true, existing: every };

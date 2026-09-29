@@ -19,7 +19,8 @@ const SEP_DAYS = 30;
 const dec = (v: string) => new Prisma.Decimal(v);
 type Step = RoutineBudgetRow['steps'][number];
 const line = (id: string, amount: string | null, coa: string | null, order: number, isActive = true): Step =>
-  ({ id, is_active: isActive, budget_amount: amount === null ? null : dec(amount), coa_code: coa, step_order: order });
+  // TAB13-04: the select grew by the line's activity and time_of_day; the month tables read neither.
+  ({ id, is_active: isActive, budget_amount: amount === null ? null : dec(amount), coa_code: coa, step_order: order, activity: `line ${id}`, time_of_day: null });
 // TAB13-02b: the select grew by id, name and end_date (the budget report's); the month tables read none of them.
 const row = (over: Partial<RoutineBudgetRow>): RoutineBudgetRow =>
   ({ id: 'r1', name: 'a routine', end_date: null, budget_amount: null, coa_code: null, schedule_rrule: DAILY, timezone: 'UTC', start_date: null, steps: [], ...over });
@@ -98,7 +99,8 @@ test('both budget routes read routines through the one loader, and the loader fi
   }
   const loader = code(LOADER);
   assert.match(loader, /where: \{ user_id: userId, entity_id: entityId, is_active: true \},/);
-  assert.match(loader, /steps: \{ where: \{ is_active: true \}, select: \{ id: true, is_active: true, budget_amount: true, coa_code: true, step_order: true \} \}/);
+  // TAB13-04: the lines' select grew, additively, by the words the day's plan lines print.
+  assert.match(loader, /steps: \{ where: \{ is_active: true \}, select: \{ id: true, is_active: true, budget_amount: true, coa_code: true, step_order: true, activity: true, time_of_day: true \} \}/);
   assert.match(loader, /start_date: true,/);
   assert.match(loader, /start_date: r\.start_date,/);
 });

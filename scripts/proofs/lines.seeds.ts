@@ -41,7 +41,8 @@ export const SEEDS: Seed[] = [
   {
     name: 'lines-b the loader stops reading the lines',
     file: LOADER,
-    find: '  steps: { where: { is_active: true }, select: { id: true, is_active: true, budget_amount: true, coa_code: true, step_order: true } },',
+    // TAB13-04: the select grew by the line's activity and time_of_day — the anchor follows it; the seed still removes the whole read.
+    find: '  steps: { where: { is_active: true }, select: { id: true, is_active: true, budget_amount: true, coa_code: true, step_order: true, activity: true, time_of_day: true } },',
     replace: '',
     expect: "does not hand the leaf the routine's active lines",
   },

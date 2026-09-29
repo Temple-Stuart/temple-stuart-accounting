@@ -18,6 +18,12 @@
  * module (i), a travel table named in the loader (j), and a travel file imported
  * by the screen (k).
  *
+ * TAB13-04 (2026-09-29): clause 6 — THE ONE INPUT. Every writing fetch in a
+ * Budget file goes to a vendor route, by literal path and method. Seeds l–p: the
+ * drill writes to another path (l), sends the wrong verb to plan-vendors (m), the
+ * report screen itself writes (n), a path the law cannot read (o), and a method
+ * the law cannot read (p).
+ *
  * The anchors occur exactly once in their file, which the harness enforces
  * before it runs anything.
  */
@@ -35,6 +41,12 @@ const SCREEN = 'src/components/budget/BudgetReport.tsx';
 const INPUTS_ANCHOR = 'export function utcDay(instant: Date): IsoDay {';
 const LOADER_ANCHOR = 'export type RoutineBudgetRow = Prisma.operations_routinesGetPayload<{ select: typeof ROUTINE_BUDGET_SELECT }>;';
 const SCREEN_ANCHOR = "import { SECTION_HEADER, toggleChip } from '@/lib/ds';";
+// TAB13-04: the drill — the one input on /budget — and the screen's one read.
+const DRILL = 'src/components/budget/DayPlanDrill.tsx';
+const ADD_ANCHOR = "    return await answerOf(await fetch('/api/operations/vendor-directory', {\n      method: 'POST',";
+const SET_ANCHOR = "    return await answerOf(await fetch('/api/operations/plan-vendors', {\n      method: 'POST',";
+const CLEAR_ANCHOR = "{ method: 'DELETE', redirect: 'manual' }";
+const READ_ANCHOR = "res = await fetch(`/api/budget/report?${query}`, { cache: 'no-store', redirect: 'manual' });";
 
 export const SEEDS: Seed[] = [
   {
@@ -114,5 +126,40 @@ export const SEEDS: Seed[] = [
     find: SCREEN_ANCHOR,
     replace: `${SCREEN_ANCHOR}\nimport { LINE_STATUS } from '@/lib/trips/lineStatus';\nvoid LINE_STATUS;`,
     expect: 'src/components/budget/BudgetReport.tsx imports the travel file src/lib/trips/lineStatus.ts — it is a Budget file',
+  },
+  {
+    name: 'route-l the drill writes to a path that is not a vendor route',
+    file: DRILL,
+    find: ADD_ANCHOR,
+    replace: "    return await answerOf(await fetch('/api/budget/report', {\n      method: 'POST',",
+    expect: 'src/components/budget/DayPlanDrill.tsx writes (POST /api/budget/report) — the one input on /budget is a plan line vendor',
+  },
+  {
+    name: 'route-m the drill sends plan-vendors a verb it does not take',
+    file: DRILL,
+    find: CLEAR_ANCHOR,
+    replace: "{ method: 'PATCH', redirect: 'manual' }",
+    expect: 'writes (PATCH /api/operations/plan-vendors)',
+  },
+  {
+    name: 'route-n the report screen itself writes',
+    file: SCREEN,
+    find: READ_ANCHOR,
+    replace: "res = await fetch(`/api/budget/report?${query}`, { method: 'POST', cache: 'no-store', redirect: 'manual' });",
+    expect: 'src/components/budget/BudgetReport.tsx writes (POST /api/budget/report)',
+  },
+  {
+    name: 'route-o a write to a path the law cannot read',
+    file: DRILL,
+    find: SET_ANCHOR,
+    replace: "    return await answerOf(await fetch(['/api/operations', 'plan-vendors'].join('/'), {\n      method: 'POST',",
+    expect: 'src/components/budget/DayPlanDrill.tsx writes (POST) to a path the law cannot read as a literal',
+  },
+  {
+    name: 'route-p a method the law cannot read',
+    file: DRILL,
+    find: CLEAR_ANCHOR,
+    replace: "{ method: ['DEL', 'ETE'].join(''), redirect: 'manual' }",
+    expect: 'calls fetch with a method the law cannot read as a literal',
   },
 ];

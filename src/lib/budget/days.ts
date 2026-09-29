@@ -93,6 +93,70 @@ export interface NotPlaced {
   readonly detail: string | null;
 }
 
+// ── THE OCCURRENCE KEY (TAB13-04) ───────────────────────────────────────────
+
+/**
+ * TAB13-04 — ONE FORMAT. A budget line's sourceId (and a not-placed entry's) is
+ * the key of the occurrence it came from. It is written, and read back, HERE —
+ * VENDOR-01's rule asks this file rather than rebuilding the string:
+ *   routine:<routine>:line:<step>:<instant>   a line of a routine whose figure is its lines
+ *   routine:<routine>:routine:<instant>       a routine whose own figure is in force
+ *   task:<task>                               a task — it happens once
+ *   routine:<routine>                         the whole routine, when /budget cannot read it
+ * The instant is Date#toISOString(). A key reads back into the ADDRESS the vendor
+ * routes and the link route speak (linkKeys.ts; plan-vendors) — the step's id for
+ * a line, the routine's for a stepless routine, the task's for a task.
+ */
+export type OccurrenceKind = 'routine_line' | 'routine' | 'project_task';
+
+export interface OccurrenceAddress {
+  readonly kind: OccurrenceKind;
+  /** The step's id for a line, the routine's for a stepless routine, the task's for a task. */
+  readonly id: string;
+  /** The occurrence's instant; null for a task. */
+  readonly instant: Date | null;
+}
+
+export type OccurrenceOf =
+  | { readonly routineId: string; readonly lineId: string | null; readonly instant: Date }
+  | { readonly taskId: string };
+
+/** The one builder of an occurrence's key. */
+export function occurrenceKey(of: OccurrenceOf): string {
+  if ('taskId' in of) return `task:${of.taskId}`;
+  return `routine:${of.routineId}:${of.lineId === null ? 'routine' : `line:${of.lineId}`}:${of.instant.toISOString()}`;
+}
+
+/** The whole routine's key — a routine /budget cannot read at all (its zone, its start date, its schedule). */
+export const wholeRoutineKey = (routineId: string): string => `routine:${routineId}`;
+
+const LINE_KEY = /^routine:([^:]+):line:([^:]+):(.+)$/;
+const ROUTINE_KEY = /^routine:([^:]+):routine:(.+)$/;
+const TASK_KEY = /^task:([^:]+)$/;
+
+/** An instant exactly as occurrenceKey writes it, or null. */
+function keyInstant(text: string): Date | null {
+  const at = new Date(text);
+  return !Number.isNaN(at.getTime()) && at.toISOString() === text ? at : null;
+}
+
+/** A key → the address it names and the routine it belongs to; null when it is no occurrence's key (a whole routine's included). */
+export function readOccurrenceKey(key: string): { readonly address: OccurrenceAddress; readonly routineId: string | null } | null {
+  const line = LINE_KEY.exec(key);
+  if (line) {
+    const instant = keyInstant(line[3]);
+    return instant === null ? null : { address: { kind: 'routine_line', id: line[2], instant }, routineId: line[1] };
+  }
+  const routine = ROUTINE_KEY.exec(key);
+  if (routine) {
+    const instant = keyInstant(routine[2]);
+    return instant === null ? null : { address: { kind: 'routine', id: routine[1], instant }, routineId: routine[1] };
+  }
+  const task = TASK_KEY.exec(key);
+  if (task) return { address: { kind: 'project_task', id: task[1], instant: null }, routineId: null };
+  return null;
+}
+
 /** A call the caller got wrong — refused by name, never coerced. */
 export type BudgetDaysErrorCode = 'bad-range' | 'bad-end-date' | 'bad-plan-date' | 'bad-task-status' | 'bad-block-status' | 'bad-amount';
 
@@ -239,7 +303,7 @@ export function buildRoutineBudgetLines(routines: readonly RoutinePlanInput[], r
 
     const base = { source: 'routine' as const, entityId: routine.entityId, label: routine.name };
     const whole = (reason: NotPlacedReason, detail: string) =>
-      notPlaced.push({ ...base, sourceId: `routine:${routine.id}`, cents: null, day: null, reason, detail });
+      notPlaced.push({ ...base, sourceId: wholeRoutineKey(routine.id), cents: null, day: null, reason, detail });
 
     // The zone first: expandBetween only consults it when an occurrence exists,
     // so an unrecognised zone would otherwise pass unseen in an empty window.
@@ -264,16 +328,15 @@ export function buildRoutineBudgetLines(routines: readonly RoutinePlanInput[], r
     // What each occurrence costs, and on which code — routinePlanned decides
     // both (its codes are trimmed, blank → null); this only reads them.
     const items = planned.from === 'lines'
-      ? planned.lines.filter((l) => l.amount !== null).map((l) => ({ key: `line:${l.id}`, dollars: l.amount as number, code: l.coaCode }))
-      : [{ key: 'routine', dollars: planned.amount as number, code: planned.coaCode }];
+      ? planned.lines.filter((l) => l.amount !== null).map((l) => ({ lineId: l.id as string | null, dollars: l.amount as number, code: l.coaCode }))
+      : [{ lineId: null, dollars: planned.amount as number, code: planned.coaCode }];
 
     for (const instant of occurrences) {
       const day = instantToZoned(instant, routine.timezone).date;
       if (!within(day, rangeFrom, rangeTo)) continue;
       if (routine.endDate !== null && day > routine.endDate) continue;
-      const at = instant.toISOString();
       for (const item of items) {
-        const sourceId = `routine:${routine.id}:${item.key}:${at}`;
+        const sourceId = occurrenceKey({ routineId: routine.id, lineId: item.lineId, instant });
         const cents = centsFromDollars(item.dollars);
         if (!cents.ok) {
           notPlaced.push({ ...base, sourceId, cents: null, day, reason: 'amount not whole cents', detail: cents.detail });
@@ -356,7 +419,7 @@ export function buildTaskBudgetLines(tasks: readonly TaskPlanInput[], rangeFrom:
     // A task with no estimate is not money.
     if (task.estimatedCostUsd === null) continue;
 
-    const base = { source: 'task' as const, sourceId: `task:${task.id}`, entityId: task.entityId, label: task.title };
+    const base = { source: 'task' as const, sourceId: occurrenceKey({ taskId: task.id }), entityId: task.entityId, label: task.title };
     const cents = centsFromDecimalString(task.estimatedCostUsd);
     // The day it counts on: the earliest plan_date with a block that is not cancelled.
     const days = task.planItems

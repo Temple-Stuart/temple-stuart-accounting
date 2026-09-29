@@ -78,8 +78,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    let body: { entityId?: unknown; name?: unknown };
-    try { body = await request.json(); } catch { return NextResponse.json({ error: 'A JSON body is required.' }, { status: 400 }); }
+    let raw: unknown;
+    try { raw = await request.json(); } catch { return NextResponse.json({ error: 'A JSON body is required.' }, { status: 400 }); }
+    // TAB13-04 (R7 b): a body that is not an object — null, an array, a number — is refused, never read as one.
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+      return NextResponse.json({ error: 'A JSON object body is required.' }, { status: 400 });
+    }
+    const body = raw as { entityId?: unknown; name?: unknown };
     const entityId = body.entityId;
     if (typeof entityId !== 'string' || entityId === '') {
       return NextResponse.json({ error: 'Validation', message: 'entityId is required' }, { status: 400 });

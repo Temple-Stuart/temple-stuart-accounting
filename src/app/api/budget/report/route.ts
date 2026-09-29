@@ -7,6 +7,7 @@ import { BudgetReportError, viewRange } from '@/lib/budget/report';
 import { BudgetDaysError } from '@/lib/budget/days';
 import { loadRoutineBudgetInputs } from '@/lib/operations/routineBudgetInputs';
 import { BudgetInputError, budgetReportResponse, parseReportQuery, utcDay } from '@/lib/budget/reportInputs';
+import { vendorWindow } from '@/lib/budget/planLines';
 
 /**
  * TAB13-02b — GET /api/budget/report: what you planned, what posted, and the
@@ -30,6 +31,12 @@ import { BudgetInputError, budgetReportResponse, parseReportQuery, utcDay } from
  *     year-end closing entries (source_type 'year_end_close', which zero the
  *     P&L into retained earnings, src/app/api/ledger/year-end-close/route.ts).
  *     Lines after asOf are counted too — actuals stop at asOf;
+ *   · TAB13-04 — THE DAY'S PLAN'S VENDORS, for a DAY or WEEK view only: every
+ *     every-occurrence plan-vendor row of the viewer, and the occurrence rows whose
+ *     instant is in planLines.ts vendorWindow — each with its vendor (id, name,
+ *     book) and, through its relations, its plan's name, its routine's zone and its
+ *     line's activity. planLines.ts decides which belong to the view. A YEAR reads
+ *     none (null);
  *   · NOT IN THE BOOKS YET: bank rows of the viewer's accounts (accounts.userId)
  *     whose review_status is not 'committed', in range and not after asOf —
  *     counted per column and summed as a BANK figure (Plaid signs outflows
@@ -69,6 +76,7 @@ export async function GET(request: NextRequest) {
     const throughDay = new Date(`${through}T00:00:00.000Z`);
     const asOfDay = new Date(`${asOf}T00:00:00.000Z`);
     const toDay = new Date(`${rangeTo}T00:00:00.000Z`);
+    const vendorsFrom = vendorWindow(view);
 
     const entities = await prisma.entities.findMany({
       where: { userId: user.id },
@@ -83,7 +91,7 @@ export async function GET(request: NextRequest) {
       journal_entry: { userId: user.id, entity_id: { in: entityIds }, ...journal },
     });
 
-    const [chart, routineGroups, tasks, ledger, reversalPairLines, closingEntryLines, linesAfterAsOf, bank] = await Promise.all([
+    const [chart, routineGroups, tasks, ledger, reversalPairLines, closingEntryLines, linesAfterAsOf, bank, planVendors] = await Promise.all([
       prisma.chart_of_accounts.findMany({
         where: { entity_id: { in: entityIds }, entity: { userId: user.id } },
         select: { entity_id: true, code: true, name: true, account_type: true, balance_type: true },
@@ -117,6 +125,17 @@ export async function GET(request: NextRequest) {
         where: { accounts: { userId: user.id }, review_status: { not: 'committed' }, date: { gte: fromDay, lte: new Date(`${through}T23:59:59.999Z`) } },
         select: { id: true, date: true, amount: true },
       }),
+      // TAB13-04: the plan's vendors — a DAY or WEEK only; a YEAR reads none.
+      vendorsFrom === null ? null : prisma.planned_item_vendors.findMany({
+        where: { user_id: user.id, OR: [{ occurrence_at: null }, { occurrence_at: { gte: vendorsFrom.from, lt: vendorsFrom.to } }] },
+        select: {
+          id: true, routine_id: true, step_id: true, task_id: true, occurrence_at: true,
+          vendor: { select: { id: true, vendor_name: true, entity_id: true } },
+          routine: { select: { name: true, timezone: true } },
+          step: { select: { activity: true, routine_id: true, routine: { select: { name: true, timezone: true } } } },
+          task: { select: { title: true } },
+        },
+      }),
     ]);
 
     return NextResponse.json(budgetReportResponse({ view, asOf }, {
@@ -127,6 +146,7 @@ export async function GET(request: NextRequest) {
       ledger,
       excludedLines: { reversalPairLines, closingEntryLines, linesAfterAsOf },
       bank,
+      planVendors,
     }));
   } catch (error) {
     if (error instanceof BudgetReportError) {

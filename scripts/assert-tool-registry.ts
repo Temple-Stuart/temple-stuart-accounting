@@ -2829,8 +2829,10 @@ lawGuard('The budget report purity law', () => {
 // its test, so the route and the screen hold no arithmetic a test cannot load.
 // TAB13-03 (2026-09-29): FIVE roots. The URL-state helper (src/lib/budget/
 // reportView.ts — what /budget shows: the section, the account filter, every link
-// and the strip's counts) joins with its test. It takes today as an argument; only
-// the screen reads the clock.
+// and the missing-money notice's lines) joins with its test. It takes today as an
+// argument; only the screen reads the clock. TAB13-04 (2026-09-29): the day's plan
+// (src/lib/budget/planLines.ts) is read through reportInputs.ts's tree, and the
+// view helper reads the ONE vendor name rule (src/lib/operations/planVendor.ts).
 const REPORT_FORBIDDEN: ReadonlyArray<{ what: string; re: RegExp }> = [
   { what: 'imports @prisma/client', re: /(?:\bfrom\s+|\bimport\s*\(\s*|\brequire\s*\(\s*)[\x27"]@prisma\/client(?:\/[^\x27"]*)?[\x27"]/ },
   { what: 'imports next', re: /(?:\bfrom\s+|\bimport\s*\(\s*|\brequire\s*\(\s*)[\x27"]next(?:\/[^\x27"]*)?[\x27"]/ },
@@ -2875,7 +2877,7 @@ lawGuard('The budget report route law', () => {
 // ── THE BUDGET REPORT ROUTE LAW (TAB13-02b, 2026-09-27) ─────────────────────
 // GET /api/budget/report reads a person's books — the chart, the ledger, the
 // bank rows — and hands them to the pure half (src/lib/budget/reportInputs.ts)
-// and the model. It is read-only and it is the viewer's alone. Five clauses, a
+// and the model. It is read-only and it is the viewer's alone. Six clauses, a
 // seed each (scripts/proofs/budgetroute.seeds.ts):
 //   1. THE GATE COMES FIRST. The GET body opens with the cart-plan auth pattern
 //      (src/app/api/ai/cart-plan/route.ts:80-89): a verified cookie or 401, the
@@ -2892,6 +2894,12 @@ lawGuard('The budget report route law', () => {
 //      executeRaw in any Budget file.
 //   5. /budget RENDERS THE REPORT. The page mounts BudgetReport, and
 //      BudgetingPage is in nothing it imports.
+//   6. THE ONE INPUT (TAB13-04, 2026-09-29). In a Budget file, every fetch that
+//      writes — any method but GET — goes to /api/operations/plan-vendors (POST
+//      or DELETE) or /api/operations/vendor-directory (POST), and to nothing
+//      else: a plan line's vendor (and a new vendor) is the one thing entered on
+//      /budget, never a figure. A fetch whose path or method the law cannot read
+//      as a literal is refused.
 // TAB13-02e (ruled 2026-09-28): WHOSE FILES. Clauses 2 and 4 read the Budget
 // files and nothing else (BR_BUDGET_FILES): the route, every file under
 // src/lib/budget and src/components/budget (listed at run time, so a new Budget
@@ -2971,6 +2979,24 @@ else {
     if (write) brFail(`${f} writes (${write[0].trim()}) — it is a Budget file, and the report writes nothing`);
   }
   if (!/travelBudgets: \x27not connected\x27/.test(codeOf(BR_INPUTS))) brFail(`${BR_INPUTS} does not say the travel budgets are not connected`);
+  // 6. The one input: every writing fetch in a Budget file goes to a vendor route, by literal path and method.
+  const BR_WRITES_ALLOWED: Readonly<Record<string, readonly string[]>> = { '/api/operations/plan-vendors': ['POST', 'DELETE'], '/api/operations/vendor-directory': ['POST'] };
+  for (const f of BR_BUDGET_FILES) {
+    if (!existsSync(resolve(ROOT, f))) continue;
+    const body = codeOf(f);
+    for (const m of body.matchAll(/\bfetch\s*\(/g)) {
+      const open = m.index! + m[0].length - 1;
+      const call = body.slice(open + 1, closingOf(body, open));
+      const url = /^\s*[\x27"`]([^\x27"`?$]*)/.exec(call);
+      const method = /\bmethod:\s*[\x27"](\w+)[\x27"]/.exec(call);
+      if (!method && /\bmethod\s*:/.test(call)) { brFail(`${f} calls fetch with a method the law cannot read as a literal — a Budget file writes only to the two vendor routes`); continue; }
+      const verb = method ? method[1].toUpperCase() : 'GET';
+      if (verb === 'GET') continue;
+      if (!url) { brFail(`${f} writes (${verb}) to a path the law cannot read as a literal — a Budget file writes only to the two vendor routes`); continue; }
+      const allowed = BR_WRITES_ALLOWED[url[1]];
+      if (!allowed || !allowed.includes(verb)) brFail(`${f} writes (${verb} ${url[1]}) — the one input on /budget is a plan line vendor: POST or DELETE /api/operations/plan-vendors, or POST /api/operations/vendor-directory`);
+    }
+  }
   // 3. Left out by name, in the one actuals query.
   const actuals = [...route.matchAll(/ledger_entries\.findMany\(\{([\s\S]*?)select:/g)];
   if (actuals.length !== 1) brFail(`${BR_ROUTE} reads ledger lines ${actuals.length} times — the actuals are ONE query, filtered by name`);
@@ -2989,7 +3015,7 @@ else {
   if (!/import BudgetReport from \x27@\/components\/budget\/BudgetReport\x27;/.test(page) || !/<BudgetReport\b/.test(page)) brFail(`${BR_PAGE} does not render BudgetReport — /budget is the budget report`);
   if (/BudgetingPage/.test(page) || brTree(BR_PAGE).includes('src/components/dashboard/BudgetingPage.tsx')) brFail(`BudgetingPage is in the import tree of ${BR_PAGE} — /budget renders BudgetReport, not the category room`);
 }
-if (brViolations === 0) console.log(`✔ The budget report route law passed — GET only, the cart-plan gate first, not a public path; ${BR_BUDGET_FILES.length} Budget files (the route, src/lib/budget, src/components/budget, the routine budget loader) name no travel table or travel file and write nothing; reversal pairs and closing entries are left out of the actuals by name and counted; /budget renders BudgetReport.`);
+if (brViolations === 0) console.log(`✔ The budget report route law passed — GET only, the cart-plan gate first, not a public path; ${BR_BUDGET_FILES.length} Budget files (the route, src/lib/budget, src/components/budget, the routine budget loader) name no travel table or travel file and write nothing; reversal pairs and closing entries are left out of the actuals by name and counted; /budget renders BudgetReport; every write a Budget file sends is a plan line vendor, through the two vendor routes.`);
 else console.log(`✖ The budget report route law FAILED — ${brViolations} violation(s).`);
 });
 lawGuard('The vendor law', () => {
