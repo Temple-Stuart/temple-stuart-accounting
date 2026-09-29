@@ -179,6 +179,7 @@ import LandingFooter from './LandingFooter';
 // BOOK-3: the session-trip strip (guest-only by construction — Landing renders
 // only on the FD-2 verified-guest branch).
 import GuestTripStrip from './GuestTripStrip';
+import GuestBookingLookup from '@/components/guest/GuestBookingLookup';
 import { PROBLEM_SHEET } from '@/lib/problemSheet';
 import { ANSWER_ROWS, ANSWER_INPUTS } from '@/lib/answers';
 import { PROVIDER_MENU, ROUTING_RULES } from '@/lib/providers';
@@ -2042,6 +2043,13 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           Search &amp; book travel — free today, no account needed.
         </h2>
         <LandingBookingSection onRequireAuth={onRequireAuth} />
+        {/* GUEST-01 (2026-09-29; Alex's ruling 17:04): the door back for a guest who booked
+            without an account — the one lookup box (src/components/guest/GuestBookingLookup.tsx),
+            the reference and the manage code from their booking email. It asks nothing on
+            load; a match goes to /booking/manage, which shows the booking. */}
+        <div className="mt-6 border-t border-border-light pt-4" data-guest-lookup-home>
+          <GuestBookingLookup onOpened={() => window.location.assign('/booking/manage')} />
+        </div>
         {/* LANDING-V5 (spec :174-177): the demo section's footer row — the
             spec's own strings verbatim (the left line already lives in
             the retired SUMMARY_BY_ID's travel lines (git history); NO ACCOUNT NEEDED is the spec's mono

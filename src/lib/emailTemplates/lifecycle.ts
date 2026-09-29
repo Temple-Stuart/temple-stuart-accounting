@@ -25,6 +25,9 @@
 // "undefined", "null", "$0" or "NaN". The manage link points where the booking
 // can be seen TODAY — the travel tab — and is omitted when the caller has no
 // origin to build it from. Pure: no env, no clock, no fetch.
+// GUEST-01 (2026-09-29): a GUEST booking's email carries the manage block instead —
+// its reference, its manage code and the /booking/manage link — handed in by the
+// sender (src/lib/reservations/lifecycleSend.ts guestManageFor).
 
 import { destinationWords } from '@/lib/reservations/cancellationWords';
 
@@ -61,6 +64,20 @@ interface LifecycleCommon {
   checkoutDate: string | null;
   /** Where the booking can be seen today, absolute. Null omits the line. */
   manageUrl: string | null;
+  /** GUEST-01 (2026-09-29): a GUEST booking's way back — its reference, its manage code and
+   *  the manage page's link. Given only for a guest row, which passes manageUrl null: the
+   *  block holds the link, so "See this booking" gives way to it. */
+  guestManage?: GuestManage;
+}
+
+/** GUEST-01: the reference and the manage code that open one guest booking on /booking/manage. */
+export interface GuestManage {
+  /** The booking's Manage reference — the row's providerBookingId. */
+  reference: string;
+  /** The 8-character manage code, shown XXXX-XXXX. */
+  code: string;
+  /** /booking/manage?ref=<reference>, absolute — the code is never in it. Null omits the link line. */
+  url: string | null;
 }
 
 export type LifecycleInput =
@@ -120,6 +137,28 @@ function voucherLine(v: LifecycleVoucher): string {
   return `Voucher ${v.code}${v.airline ? ` (${v.airline})` : ''}: ${amount}${v.expiresAt ? ` · expires ${v.expiresAt}` : ''}`;
 }
 
+/** GUEST-01: the manage block, text — the same five lines in every booking email that carries it. */
+function guestManageText(g: GuestManage): string[] {
+  return [
+    'Manage this booking without an account',
+    `Manage reference: ${g.reference}`,
+    `Manage code: ${g.code.slice(0, 4)}-${g.code.slice(4)}`,
+    ...(g.url ? [g.url] : []),
+    'Keep this code private — with the reference, it opens this booking.',
+  ];
+}
+
+/** GUEST-01: the manage block, HTML — the url as a link, omitted when null. */
+function guestManageHtml(g: GuestManage): string {
+  return `<div style="margin: 0 0 24px; padding: 12px 16px; border: 1px solid #e5e5e5;" data-guest-manage>
+    <p style="margin: 0 0 8px; font-weight: 600;">Manage this booking without an account</p>
+    <p style="margin: 0 0 4px;">Manage reference: <strong>${escapeHtml(g.reference)}</strong></p>
+    <p style="margin: 0 0 4px;">Manage code: <strong>${escapeHtml(`${g.code.slice(0, 4)}-${g.code.slice(4)}`)}</strong></p>
+    ${g.url ? `<p style="margin: 0 0 4px;"><a href="${escapeHtml(g.url)}">${escapeHtml(g.url)}</a></p>` : ''}
+    <p style="margin: 8px 0 0; font-size: 12px; color: #666;">Keep this code private — with the reference, it opens this booking.</p>
+  </div>`;
+}
+
 const FOOTER_TEXT = ['—', 'This is a transactional message from templestuart.com about a booking made', 'with this email address. It is not a marketing message.'];
 const FOOTER_HTML = `<p style="margin: 0; padding-top: 16px; border-top: 1px solid #e5e5e5; font-size: 12px; color: #888;">
     This is a transactional message from templestuart.com about a booking made
@@ -137,6 +176,7 @@ function render(input: LifecycleCommon, headline: string, sentence: string, rows
     '',
     ...paragraphs.flatMap((p) => [p, '']),
     ...(input.manageUrl ? [`See this booking: ${input.manageUrl}`, ''] : []),
+    ...(input.guestManage ? [...guestManageText(input.guestManage), ''] : []),
     ...FOOTER_TEXT,
   ].join('\n');
 
@@ -150,7 +190,7 @@ function render(input: LifecycleCommon, headline: string, sentence: string, rows
     ${rows.map(row).join('\n    ')}
   </table>
   ${paragraphs.map((p) => `<p style="margin: 0 0 16px;">${escapeHtml(p)}</p>`).join('\n  ')}
-  ${input.manageUrl ? `<p style="margin: 0 0 24px;"><a href="${escapeHtml(input.manageUrl)}">See this booking</a></p>` : ''}
+  ${input.manageUrl ? `<p style="margin: 0 0 24px;"><a href="${escapeHtml(input.manageUrl)}">See this booking</a></p>` : ''}${input.guestManage ? `\n  ${guestManageHtml(input.guestManage)}` : ''}
   ${FOOTER_HTML}
 </div>`;
 

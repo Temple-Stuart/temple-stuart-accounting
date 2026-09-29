@@ -126,7 +126,9 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // The calendar, the email and the answer read the row's day back (dayOfColumn). No
   // prebook/book/pay call, no guard, no currency rule changed.
   // Was 18ad62a03aa84b5d9ed6c7856958c35a0f44281eedf5122c4404da0a95d60d43 at main 0c6fedca.
-  { file: 'src/app/api/travel/liteapi/book/route.ts', sha256: 'd128348733a1f3688b48d084fe9fd60d6f8ce178833f92a18e5b2dbff1abbe0b' },
+  // GUEST-01 (2026-09-29): re-pinned — the confirmation email of a GUEST row carries its manage block (guestManage: guestManageFor(result) — the row's reference and its manage code); an account row gets none. No book/pay call, no landing, no write changed.
+  // Was d128348733a1f3688b48d084fe9fd60d6f8ce178833f92a18e5b2dbff1abbe0b at main 37909b85.
+  { file: 'src/app/api/travel/liteapi/book/route.ts', sha256: '0a613de8812682e4e87d8b6cb38d1a7bc42159ab0aca1c82751f508dbf98af82' },
   // CAL-01 (2026-09-23): re-pinned — the flight branch. The landed booking object
   // carries NO date of travel (STEP 1.5: NOT FOUND), so this route writes NO
   // calendar row and logs a named reason listing the payload's actual keys. No date
@@ -183,7 +185,9 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // prebookId (src/lib/reservations/guestContact.ts guestEmailOf); an account booking
   // stays null. No book/pay call, no landing, no other write changed.
   // Was ac3d2ef9fe7e38d561734664e46916a7ed96a90ae1165d072a5173e1e200a462 at main 486be479.
-  { file: 'src/app/api/travel/liteapi/flights/book/route.ts', sha256: 'd762bf4320c7c75a7b802d2d0654f4420913eab1826c9daa74ee53f28022eda8' },
+  // GUEST-01 (2026-09-29): re-pinned — the confirmation email of a GUEST row carries its manage block (guestManage: guestManageFor(result) — the row's reference and its manage code); an account row gets none. No book/pay call, no landing, no write changed.
+  // Was d762bf4320c7c75a7b802d2d0654f4420913eab1826c9daa74ee53f28022eda8 at main 37909b85.
+  { file: 'src/app/api/travel/liteapi/flights/book/route.ts', sha256: '9c25672fa9d2120d6ff4895416c3c2aef3281e53a550e96189bbce7b7a2bad23' },
   // FL-4c (2026-09-23): re-pinned — the envelope gains `paymentEnv`, the key env
   // derived server-side exactly as the hotel prebook returns it. The browser must
   // not guess which mode it is in, and /config is keyed on that label. Nothing

@@ -22,7 +22,9 @@
  */
 import { prisma } from '@/lib/prisma';
 import { sendTransactionalEmail } from '@/lib/email';
-import { lifecycleEmail } from '@/lib/emailTemplates/lifecycle';
+import { lifecycleEmail, type GuestManage } from '@/lib/emailTemplates/lifecycle';
+import { guestKey } from '@/lib/cookie-auth';
+import { manageCode } from '@/lib/guest/guestAccess';
 import { recordEmailOutcome, type BookingActor } from './auditTrail';
 import { reservationIdentity } from './lane';
 import { cancelRecipient } from './cancellation';
@@ -57,6 +59,26 @@ export function bookingManageUrl(reservationId: string): string | null {
   return `${origin.trim().replace(/\/+$/, '')}/travel`;
 }
 
+/** GUEST-01 (2026-09-29): where a GUEST opens their booking — /booking/manage with the
+ *  reference prefilled, absolute, from the deployment's public origin; null (and the link
+ *  line omitted) when it is not set, exactly as bookingManageUrl. The code is never in it. */
+export function guestManageUrl(reference: string): string | null {
+  const origin = process.env.NEXT_PUBLIC_APP_URL;
+  if (typeof origin !== 'string' || origin.trim().length === 0) {
+    console.error('[guest manage] NEXT_PUBLIC_APP_URL is not set — the email carries no manage link:', { reference });
+    return null;
+  }
+  return `${origin.trim().replace(/\/+$/, '')}/booking/manage?ref=${encodeURIComponent(reference)}`;
+}
+
+/** GUEST-01: a GUEST row's manage block — its reference (the row's providerBookingId), its
+ *  manage code (derived from the row's id under the guest key) and the manage link. An
+ *  ACCOUNT row has none: undefined, and its email carries no block. */
+export function guestManageFor(row: { id: string; userId: string | null; bookingType: string; providerBookingId: string }): GuestManage | undefined {
+  if (row.bookingType !== 'guest' || row.userId !== null) return undefined;
+  return { reference: row.providerBookingId, code: manageCode(guestKey(), row.id), url: guestManageUrl(row.providerBookingId) };
+}
+
 /** The account's stored email for an account row, read by the row's userId — null for a guest row or a vanished user. */
 async function accountEmailOf(row: LifecycleSendRow): Promise<string | null> {
   if (row.userId === null) return null;
@@ -74,6 +96,10 @@ export async function sendLifecycleEmail(row: LifecycleSendRow, request: Lifecyc
   }
   try {
     const identity = reservationIdentity(row);
+    // GUEST-01 (2026-09-29): a guest row carries its manage block, and its "See this
+    // booking" line (the travel tab, where a guest has no bookings) gives way to it — the
+    // block holds the link. An account row keeps /travel, unchanged.
+    const guestManage = guestManageFor(row);
     // A reservation row whose lane the reader admits is one of the three; the leaf's type is the reader's.
     const common = {
       name: identity.name,
@@ -81,7 +107,8 @@ export async function sendLifecycleEmail(row: LifecycleSendRow, request: Lifecyc
       reference: row.providerConfirmationCode ?? row.providerBookingId,
       checkinDate: day(row.checkinDate),
       checkoutDate: day(row.checkoutDate),
-      manageUrl: bookingManageUrl(row.id),
+      manageUrl: guestManage ? null : bookingManageUrl(row.id),
+      guestManage,
     };
     const rendered = request.kind === 'ticketed'
       ? lifecycleEmail({ kind: 'ticketed', ...common, pnr: row.providerConfirmationCode })

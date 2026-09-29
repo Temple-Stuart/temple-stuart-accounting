@@ -44,6 +44,19 @@ export interface FlightConfirmationInput {
   currency: string;
   /** The provider's status VERBATIM, or null. Decides the tense, never the truth. */
   status: string | null;
+  /** GUEST-01 (2026-09-29): a GUEST booking's way back — given only for a row with no
+   *  account; the email then carries the manage block. An account booking has none. */
+  guestManage?: GuestManage;
+}
+
+/** GUEST-01: the reference and the manage code that open one guest booking on /booking/manage. */
+export interface GuestManage {
+  /** The booking's Manage reference — the row's providerBookingId. */
+  reference: string;
+  /** The 8-character manage code, shown XXXX-XXXX. */
+  code: string;
+  /** /booking/manage?ref=<reference>, absolute — the code is never in it. Null omits the link line. */
+  url: string | null;
 }
 
 export interface RenderedEmail {
@@ -72,6 +85,28 @@ function escapeHtml(s: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+/** GUEST-01: the manage block, text — the same five lines in every booking email that carries it. */
+function guestManageText(g: GuestManage): string[] {
+  return [
+    'Manage this booking without an account',
+    `Manage reference: ${g.reference}`,
+    `Manage code: ${g.code.slice(0, 4)}-${g.code.slice(4)}`,
+    ...(g.url ? [g.url] : []),
+    'Keep this code private — with the reference, it opens this booking.',
+  ];
+}
+
+/** GUEST-01: the manage block, HTML — the url as a link, omitted when null. */
+function guestManageHtml(g: GuestManage): string {
+  return `<div style="margin: 0 0 24px; padding: 12px 16px; border: 1px solid #e5e5e5;" data-guest-manage>
+    <p style="margin: 0 0 8px; font-weight: 600;">Manage this booking without an account</p>
+    <p style="margin: 0 0 4px;">Manage reference: <strong>${escapeHtml(g.reference)}</strong></p>
+    <p style="margin: 0 0 4px;">Manage code: <strong>${escapeHtml(`${g.code.slice(0, 4)}-${g.code.slice(4)}`)}</strong></p>
+    ${g.url ? `<p style="margin: 0 0 4px;"><a href="${escapeHtml(g.url)}">${escapeHtml(g.url)}</a></p>` : ''}
+    <p style="margin: 8px 0 0; font-size: 12px; color: #666;">Keep this code private — with the reference, it opens this booking.</p>
+  </div>`;
 }
 
 /**
@@ -136,6 +171,7 @@ export function flightConfirmation(input: FlightConfirmationInput): RenderedEmai
     ...(input.pnr ? [`Airline reference (PNR): ${input.pnr}`] : []),
     `Total charged: ${amount}`,
     '',
+    ...(input.guestManage ? [...guestManageText(input.guestManage), ''] : []),
     'Keep this email — it is your proof of booking.',
     '',
     '—',
@@ -155,7 +191,7 @@ export function flightConfirmation(input: FlightConfirmationInput): RenderedEmai
     ${input.bookingRef ? row('Booking reference', escapeHtml(input.bookingRef), true) : ''}
     ${input.pnr ? row('Airline reference (PNR)', escapeHtml(input.pnr), true) : ''}
     ${row('Total charged', escapeHtml(amount))}
-  </table>
+  </table>${input.guestManage ? `\n  ${guestManageHtml(input.guestManage)}` : ''}
   <p style="margin: 0 0 24px;">Keep this email — it is your proof of booking.</p>
   <p style="margin: 0; padding-top: 16px; border-top: 1px solid #e5e5e5; font-size: 12px; color: #888;">
     This is a transactional confirmation from templestuart.com for a booking just made
