@@ -15,6 +15,12 @@
  * never a silent switch to OVERVIEW or to all accounts: a book that is not in
  * the report, an account that is not four digits, an account with no book.
  *
+ * TAB13-03b (2026-09-29): WHAT THIS VIEW IS MISSING. The strip of everything the
+ * report does not hold left the screen; missingMoney() below decides the one
+ * notice that replaces it — a line for each gap in this view's money that
+ * exists (plans not placed; bank transactions not in the books), none when
+ * there is none. The response still carries every count it did.
+ *
  * Pure (the budget report purity law's fifth root, scripts/assert-tool-registry.ts):
  * no framework, no network, no environment, and no clock — today is handed in by
  * the screen, the one place that reads it.
@@ -166,7 +172,7 @@ export function sectionFor(choice: SectionChoice, books: readonly ReportBook[]):
   return { kind: 'book', book, account: { kind: 'one', code, row: rows.length === 1 ? rows[0] : null } };
 }
 
-// ── THE STRIP — WHAT THE REPORT DOES NOT HOLD ───────────────────────────────
+// ── WHAT THIS VIEW IS MISSING (TAB13-03b) ───────────────────────────────────
 
 /** Σ of integer cents, null when there are none; a sum past the safe range is refused, never shown. */
 function sumCents(values: readonly number[]): number | null {
@@ -174,7 +180,7 @@ function sumCents(values: readonly number[]): number | null {
   let total = 0;
   for (const v of values) {
     total += v;
-    if (!Number.isSafeInteger(total)) throw new Error(`BUDGET VIEW: a strip total left the safe integer range of cents (${total})`);
+    if (!Number.isSafeInteger(total)) throw new Error(`BUDGET VIEW: a missing-money total left the safe integer range of cents (${total})`);
   }
   return total;
 }
@@ -214,19 +220,40 @@ export function notPlacedIn(data: Pick<BudgetReportResponse, 'notPlaced' | 'repo
   };
 }
 
-/** The costed tasks set aside by status — ALL TIME, every book: how many, and their estimates. */
-export function excludedTasksTotal(data: Pick<BudgetReportResponse, 'excludedTasks'>): { readonly tasks: number; readonly cents: number | null } {
-  const byStatus = data.excludedTasks.byStatus;
-  return {
-    tasks: byStatus.reduce((n, s) => n + s.tasks, 0),
-    cents: sumCents(byStatus.map((s) => s.cents).filter((c): c is number => c !== null)),
-  };
-}
+/** One line of the notice: a gap in THIS view's money, with what it needs to be drawn. */
+export type MissingLine =
+  | {
+      /** Plans not placed on any row — the book's own on a book, all books on OVERVIEW or a refused section. */
+      readonly kind: 'budgetShort';
+      readonly placed: NotPlacedInScope;
+    }
+  | {
+      /** Bank transactions not yet in the ledger, from the view's widest column (columns[0] — MTD, WEEK or YTD). */
+      readonly kind: 'actualShort';
+      readonly label: string;
+      readonly transactions: number;
+      /** Σ of their Plaid amounts in cents (outflows positive), or null when none totals. */
+      readonly bankCents: number | null;
+      /** Bank rows in that column whose amount is not whole cents — listed, never summed. */
+      readonly notTotalled: number;
+    };
 
-/** The ledger lines left out by name — reversal pairs, closing entries, after asOf. Counts only: the response carries no amount for them. */
-export function leftOutLines(data: Pick<BudgetReportResponse, 'excludedLines'>): number {
-  const e = data.excludedLines;
-  return e.reversalPairLines + e.closingEntryLines + e.linesAfterAsOf;
+/**
+ * TAB13-03b — WHAT THIS VIEW IS MISSING: one line per gap that exists, budget
+ * first, and NONE when there is none. Not a line: costed tasks set aside by
+ * status, ledger lines left out by name (correct accounting, not missing money),
+ * travel, the record counts. Bank rows are in no book, so ACTUAL SHORT is every
+ * book's; a future widest column (transactions null) has had nothing happen yet.
+ */
+export function missingMoney(data: Pick<BudgetReportResponse, 'notPlaced' | 'report' | 'notInBooks'>, section: Section): MissingLine[] {
+  const lines: MissingLine[] = [];
+  const placed = notPlacedIn(data, section);
+  if (placed.count > 0) lines.push({ kind: 'budgetShort', placed });
+  const widest = data.notInBooks.columns[0];
+  if (widest.transactions !== null && widest.notTotalled !== null && (widest.transactions > 0 || widest.notTotalled > 0)) {
+    lines.push({ kind: 'actualShort', label: widest.label, transactions: widest.transactions, bankCents: widest.bankCents, notTotalled: widest.notTotalled });
+  }
+  return lines;
 }
 
 /** The chip label of each book: its label, and its entity name when another book shares the label. */
