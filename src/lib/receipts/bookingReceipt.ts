@@ -545,3 +545,84 @@ export function receiptOf(input: ReceiptInput): BookingReceipt {
     notes: [...RECEIPT_NOTES],
   };
 }
+
+// ─── the guest's receipt (GUEST-01, 2026-09-29) ──────────────────────────────
+// A guest who opened their booking with its reference and manage code sees the
+// VENDOR'S side only: the header, the stay or the flight, the vendor money, and the
+// refunds and fees the vendor stated — never how one settled, and nothing of a bank
+// or a books entry (a guest has neither here). It is receiptOf's own vendor side,
+// unchanged: receiptOf is called with no bank or books input and only those four
+// parts are kept. receiptOf itself is untouched.
+
+/** What a guest may see of a money event: what the vendor stated, never how it settled. */
+export interface GuestMoneyEvent {
+  id: string;
+  kind: string;
+  amountCents: number | null;
+  currency: string | null;
+  statedAt: Date | string;
+}
+
+export interface GuestReceiptInput {
+  reservation: ReceiptReservation;
+  bookArrival: ReceiptArrival | null;
+  latestReadArrival: ReceiptArrival | null;
+  moneyEvents: GuestMoneyEvent[];
+}
+
+/** A refund or fee as the vendor stated it: its kind, its amount, when — no settlement words. */
+export interface GuestRefundRow {
+  kind: string;
+  amount: string;
+  statedAt: string;
+  figure: Figure;
+  raw: { id: string; kind: string; amountCents: string | null; currency: string | null };
+}
+
+export interface GuestReceipt {
+  header: ReceiptHeader;
+  hotel: HotelBody | null;
+  flight: FlightBody | null;
+  vendor: VendorMoney;
+  refunds: GuestRefundRow[];
+  refundsWords: string;
+  notes: string[];
+}
+
+/** RECEIPT_NOTES, written for a guest: every figure is the vendor's landed answer, nothing is computed, Print / Save as PDF. */
+export const GUEST_NOTES: readonly string[] = [
+  'Every figure is the vendor’s own: its landed answer to this booking and its latest booking read. Nothing on this page is computed — the vendor’s price is the total line as the vendor stated it.',
+  'A figure the vendor did not state is shown as not stated. Taxes and fees are not a documented field of the hotel book answer and are shown only when the vendor states them on a flight.',
+  'Downloadable means your browser’s Print / Save as PDF — no file is generated on the server.',
+];
+
+function guestRefundRow(e: GuestMoneyEvent): GuestRefundRow {
+  const cents = e.amountCents === null ? null : String(e.amountCents);
+  return {
+    kind: e.kind,
+    amount: cents === null ? NOT_STATED : `${cents} cents${e.currency ? ` ${e.currency}` : ` (currency ${NOT_STATED})`}`,
+    statedAt: iso(e.statedAt) ?? 'instant not recorded',
+    figure: { source: 'vendor', evidence: e.id },
+    raw: { id: e.id, kind: e.kind, amountCents: cents, currency: e.currency },
+  };
+}
+
+export function guestReceiptOf(input: GuestReceiptInput): GuestReceipt {
+  const vendorSide = receiptOf({
+    reservation: input.reservation,
+    bookArrival: input.bookArrival,
+    latestReadArrival: input.latestReadArrival,
+    chargeLink: null,
+    journalEntry: null,
+    moneyEvents: [],
+  });
+  return {
+    header: vendorSide.header,
+    hotel: vendorSide.hotel,
+    flight: vendorSide.flight,
+    vendor: vendorSide.vendor,
+    refunds: input.moneyEvents.map(guestRefundRow),
+    refundsWords: input.moneyEvents.length === 0 ? NO_REFUNDS : REFUNDS_AS_STATED,
+    notes: [...GUEST_NOTES],
+  };
+}

@@ -128,7 +128,7 @@ import THB_USD from '../src/lib/__tests__/fixtureViatorExchangeRates.thb-usd.jso
 import { parseHotelFilters } from '../src/lib/hotels/searchContract';
 import { PHUKET_EXPECTED, PHUKET_RATES } from '../src/lib/__tests__/fixtureHotelRatesPhuket';
 import { DATE_ONLY_TRIP_TYPES, TIMED_BY_THEMSELVES } from '../src/lib/calendar/tripItem';
-import { createHash } from 'crypto';
+import { createHash, createHmac } from 'crypto';
 import { classifyCadence, compileFormToRRule, expandBetween, expandForward, scheduleAnchor } from '../src/lib/operations/rruleHelpers';
 import { DEFAULT_ROUTINE_FORM } from '../src/components/workbench/operations/routines/types';
 import { PROBLEM_SHEET } from '../src/lib/problemSheet';
@@ -159,7 +159,7 @@ import { NO_SOURCE_WORDS, SOURCE_RULES, coverageOf, documentOf, entrySourceOf, s
 import { documentFromLinks, documentsForBatch } from '../src/lib/posting/documentGate';
 import { BANK_REACHABLE_REFUND_DESTINATIONS, MATCH_REFUND_DATE_WINDOW_DAYS, isBankReachableRefund, proposeRefundMatches, type MatcherRefundEvent } from '../src/lib/runway/reservationMatcher';
 import { refundProposalLine } from '../src/lib/runway/refundWords';
-import { NOT_MATCHED, NOT_POSTED, NOT_STATED as RECEIPT_NOT_STATED, NOT_YET_TICKETED, receiptOf } from '../src/lib/receipts/bookingReceipt';
+import { GUEST_NOTES, NOT_MATCHED, NOT_POSTED, NOT_STATED as RECEIPT_NOT_STATED, NOT_YET_TICKETED, guestReceiptOf, receiptOf } from '../src/lib/receipts/bookingReceipt';
 import { BOOKINGS_LEDGER_COLUMNS, bookingsLedgerRow } from '../src/lib/receipts/bookingsLedgerCsv';
 import { BOOKING_EVENT_KINDS, BUDGET_LINK_KINDS, bookingEventWords, timelineOf } from '../src/lib/reservations/timeline';
 import { LINE_STATUS, lineStatusOf } from '../src/lib/trips/lineStatus';
@@ -176,6 +176,10 @@ import { bookedStay, statedStayDay, unstatedStayLine } from '../src/lib/reservat
 import { passwordLeaks, passwordSchema } from '../src/lib/security/passwordLaw';
 import { PARTICIPANT_RESPONSE_SELECT } from '../src/lib/trips/participantSelect';
 import { DAY_NOT_STATED, bookingConfirmation } from '../src/lib/emailTemplates/bookingConfirmation';
+import { flightConfirmation } from '../src/lib/emailTemplates/flightConfirmation';
+import { lifecycleEmail } from '../src/lib/emailTemplates/lifecycle';
+import { GUEST_COOKIE, GUEST_COOKIE_PATH, GUEST_SESSION_SECONDS, MANAGE_CODE_ALPHABET, codesMatch, displayManageCode, manageCode, parseManageCode, signGuestSession, verifyGuestSession } from '../src/lib/guest/guestAccess';
+import { DUMMY_RESERVATION_ID, GUEST_LIMITS, GUEST_WORDS } from '../src/lib/guest/guestSession';
 import { constantTimeEqual } from '../src/lib/webhooks/liteapiWebhook';
 import { TRIP_NOT_YOURS, requestedTripOf, tripFromUrl, urlTripStep } from '../src/lib/trips/tripFromUrl';
 import { DYNAMIC_READ_ENV, LIBRARY_READ_ENV } from '../src/lib/envLaw';
@@ -207,6 +211,8 @@ const GUEST_ROUTES: ReadonlyArray<{ route: string; why: string }> = [
   { route: '/trips/[id]', why: 'linked from the RSVP flow — RSVPClient.tsx:72, :87, :136' },
   // RECEIPT-01 (2026-09-26): the owner's printable receipt — a flow page, not a tool.
   { route: '/booking/[id]/receipt', why: 'RECEIPT-01: the Receipt link beside Cancel on both bookings lists (TripBookings.tsx, UnattachedBookings.tsx); owner-only — NOT in PUBLIC_PATHS (the middleware cookie gate), and /api/reservations/[id]/receipt does the ownership (findFirst { id, userId } → 404)' },
+  // GUEST-01 (2026-09-29): a guest manages a booking made without an account — a flow page, not a tool.
+  { route: '/booking/manage', why: 'GUEST-01: the home page\u2019s lookup (Landing.tsx, directly under the booking section — GuestBookingLookup; a match goes here) and the manage link in a guest booking\u2019s emails (bookingConfirmation.ts, flightConfirmation.ts, lifecycle.ts — guestManageUrl, lifecycleSend.ts); PUBLIC_PATHS' },
 ];
 
 function pageRoutes(): Array<{ route: string; file: string }> {
@@ -9100,6 +9106,301 @@ const tripsFail = (m: string) => { tripsViolations += 1; violations.push(`trips-
 if (tripsViolations === 0) console.log(`✔ The trips-tab law passed — Travel carries no sub-link; no product file names ${TRIPS_LEGACY} in code but the ${TRIPS_PATH_TESTS.length} listed pathname tests (closed, shrink-only, set ${TRIPS_PATH_TESTS_SET_ON}); the ${TRIPS_PAGES.length} legacy pages are one-hop redirects to the Travel tab with no UI and no data read; /travel?trip=<id> selects only from the user’s loaded list — the row itself, or nothing and the one line.`);
 else console.log(`✖ The trips-tab law FAILED — ${tripsViolations} violation(s).`);
 });
+lawGuard('The guest booking law', () => {
+
+// ── THE GUEST BOOKING LAW (GUEST-01, 2026-09-29) ─────────────────────────────
+// A GUEST OPENS ONE BOOKING — THE VENDOR'S SIDE, READ-ONLY — WITH THE REFERENCE AND
+// THE MANAGE CODE FROM THEIR OWN EMAIL, AND NOTHING ELSE IS OPENED.
+//
+// A guest booking has no owner (userId null) and every owner read fences it out. The
+// way back is a code derived from the reservation id under a server-only key, sent in
+// the emails the booking already sends; a match opens a signed one-hour session for
+// that ONE reservation. Nothing is stored.
+//
+//   1. ONE KEY. guestKey is HMAC-SHA256(JWT_SECRET, 'ts-guest:v1'), derived in
+//      src/lib/cookie-auth.ts only; every code and session is made under it. The leaf
+//      is pure. Probed under the law's own key (no law reads a deployment secret): the
+//      same id gives the same code, different ids different codes; 8 characters of the
+//      alphabet, shown XXXX-XXXX; parse refuses an O, an I, an L and a U; a tampered,
+//      expired, re-versioned or foreign-key session is refused; a signCookie-shaped value
+//      never verifies as a session, and a session value can never pass verifyCookie
+//      (its signature is 43 base64url characters, verifyCookie compares 64 hex).
+//   2. THE LOOKUP LEAKS NOTHING. No IP is the one failure; the shapes; the IP limit and
+//      then the reference limit BEFORE any read; the read names bookingType 'guest' and
+//      userId null; every row compared in constant time with no early exit, and one
+//      dummy compare when none came back; every failure the one 404 and the one line;
+//      no Prisma write, no vendor client, no email sender, no log; the one cookie with
+//      exactly its flags, and the close clears it and does nothing else.
+//   3. ONE BOOKING, THE VENDOR'S SIDE. The session is verified before any read; every
+//      read names the session's reservation (and user_id null and guest_ref for the
+//      arrivals); the money events select no settlement column; the answer is
+//      guestReceiptOf's and carries no bank, books, settlement, margin or history word
+//      (probed on a hotel and a flight); never cached. The one renderer, the guest page
+//      and the lookup box type no money word of their own (the receipt law's list), and
+//      the guest page draws no Bank, Ledger or History.
+//   4. THE PUBLIC SURFACE IS EXACT. PUBLIC_PATHS holds /booking/manage,
+//      /api/guest/session and /api/guest/booking and nothing else under /api/guest;
+//      exactly three route files live there; none exports DELETE, PATCH or PUT or is in
+//      the ownership law's scope; the ownership law's census is unchanged. THE DOOR (Alex's
+//      ruling 17:04) is the lookup, not the header: ONE box (GuestBookingLookup), mounted
+//      by /booking/manage and by the home page directly under the booking section, above
+//      the demo's footer row, and nowhere else; it asks nothing on load (its one call is
+//      the submitted lookup), its fields stack on a phone, and a match on the home page
+//      goes to /booking/manage. LandingHeader carries no link to it.
+//   5. THE CODE TRAVELS ONLY BY EMAIL. The three templates render the same block for a
+//      guest and none for an account (probed); a null url omits the link line; the url
+//      carries ?ref= only; a guest row's lifecycle email drops "See this booking"; the
+//      book routes and the sender hand the block through guestManageFor, which answers
+//      nothing for an account row; no guest route, the page or the lookup box logs,
+//      returns, redirects or puts the code in a URL — and the box's fields stay disabled
+//      until the page is live, so the browser can never submit it natively (a GET).
+//   6. THE TWO RE-PINS ARE DATED. Both book routes sit under a GUEST-01 note with the
+//      hash they had on main 37909b85.
+const G_LEAF = 'src/lib/guest/guestAccess.ts';
+const G_DECISION = 'src/lib/guest/guestSession.ts';
+const G_KEY_FILE = 'src/lib/cookie-auth.ts';
+const G_OPEN = 'src/app/api/guest/session/route.ts';
+const G_END = 'src/app/api/guest/session/end/route.ts';
+const G_BOOKING = 'src/app/api/guest/booking/route.ts';
+const G_ROUTES = [G_OPEN, G_END, G_BOOKING];
+const G_PAGE = 'src/app/booking/manage/page.tsx';
+const G_RENDERER = 'src/components/receipts/ReceiptBody.tsx';
+const G_LOOKUP = 'src/components/guest/GuestBookingLookup.tsx';
+const G_LANDING = 'src/components/landing/Landing.tsx';
+const G_OWNER_PAGE = 'src/app/booking/[id]/receipt/page.tsx';
+const G_SENDER = 'src/lib/reservations/lifecycleSend.ts';
+const G_BOOK_ROUTES = ['src/app/api/travel/liteapi/book/route.ts', 'src/app/api/travel/liteapi/flights/book/route.ts'];
+const G_TEMPLATES = ['src/lib/emailTemplates/bookingConfirmation.ts', 'src/lib/emailTemplates/flightConfirmation.ts', 'src/lib/emailTemplates/lifecycle.ts'];
+let guestViolations = 0;
+const guestFail = (m: string) => { guestViolations += 1; violations.push(`guest booking law: ${m} (GUEST-01)`); };
+for (const f of [G_LEAF, G_DECISION, ...G_ROUTES, G_PAGE, G_RENDERER, G_LOOKUP]) if (!existsSync(resolve(ROOT, f))) guestFail(`${f} is missing`);
+
+// 1. one key; the leaf pure; the probes.
+{
+  const keyFile = codeOf(G_KEY_FILE);
+  if (!keyFile.includes("export function guestKey(): Buffer {\n  return crypto.createHmac('sha256', getSecret()).update('ts-guest:v1').digest();\n}")) guestFail(`${G_KEY_FILE}: guestKey is not HMAC-SHA256(JWT_SECRET, ts-guest:v1) — a guest value must never be a userEmail signature, or the reverse`);
+  for (const { file, src } of srcFiles) if (file !== G_KEY_FILE && /ts-guest:/.test(src)) guestFail(`${file} derives the guest key — guestKey is derived in ${G_KEY_FILE} only`);
+  const leaf = codeOf(G_LEAF);
+  if (/process\.env|\bfetch\(|prisma|from 'react'|Date\.now|new Date\(/.test(leaf)) guestFail(`${G_LEAF} is not pure — no env, no fetch, no prisma, no React, no clock`);
+  const leafImports = leaf.split('\n').filter((l) => /^\s*import\b/.test(l)).map((l) => l.trim());
+  if (leafImports.length !== 1 || leafImports[0] !== "import { createHmac, timingSafeEqual } from 'crypto';") guestFail(`${G_LEAF} imports [${leafImports.join(' | ')}] — crypto only`);
+  if (!/if \(x\.length !== y\.length\) return false;\s*return timingSafeEqual\(x, y\);/.test(leaf)) guestFail(`${G_LEAF}: codesMatch does not compare in constant time`);
+  // Every code and session outside the leaf and the decision is made under guestKey().
+  for (const { file, src } of srcFiles) {
+    if (file === G_LEAF || file === G_DECISION) continue;
+    for (const m of src.matchAll(/\b(manageCode|signGuestSession|verifyGuestSession)\(([^,]*),/g)) {
+      const arg = m[2].trim();
+      if (arg !== 'guestKey()' && !(arg === 'key' && /const key = guestKey\(\);/.test(src))) guestFail(`${file} calls ${m[1]} under ${arg} — every guest code and session is made under guestKey()`);
+    }
+  }
+  // …and every route hands the decision guestKey() and nothing else.
+  if (!codeOf(G_OPEN).includes('const key = guestKey();') || !codeOf(G_OPEN).includes('await openGuestSession(ports, { ip, body, key });') || !codeOf(G_BOOKING).includes('key: guestKey(),')) guestFail('a guest route hands the decision a key other than guestKey()');
+  const k = createHmac('sha256', 'guest-law-probe').update('probe').digest();
+  const k2 = createHmac('sha256', 'guest-law-probe').update('other').digest();
+  const ids = ['4f6c2d1a-9b3e-4c7d-8a2f-1e5b6c7d8e9f', '0b1c2d3e-4f50-4617-8293-a4b5c6d7e8f9', '11111111-2222-4333-8444-555555555555'];
+  const codes = ids.map((id) => manageCode(k, id));
+  if (manageCode(k, ids[0]) !== codes[0]) guestFail('the same id does not give the same code');
+  if (new Set(codes).size !== codes.length) guestFail(`different ids gave the same code (${codes.join(', ')})`);
+  if (manageCode(k2, ids[0]) === codes[0]) guestFail('another key gave the same code — the code is not the key’s');
+  for (const c of codes) if (c.length !== 8 || [...c].some((ch) => !MANAGE_CODE_ALPHABET.includes(ch))) guestFail(`the code ${c} is not 8 characters of the alphabet`);
+  if (MANAGE_CODE_ALPHABET !== '0123456789ABCDEFGHJKMNPQRSTVWXYZ') guestFail(`the alphabet is ${MANAGE_CODE_ALPHABET}`);
+  if (displayManageCode('ABCD2345') !== 'ABCD-2345') guestFail('the code is not shown XXXX-XXXX');
+  if (parseManageCode(' abcd-2345 ') !== 'ABCD2345' || parseManageCode(displayManageCode(codes[0])) !== codes[0]) guestFail('parse does not read a typed code as uppercase with spaces and hyphens removed');
+  for (const bad of ['ABCD234O', 'ABCD234I', 'ABCD234L', 'ABCD234U', 'ABCD234', 'ABCD23456', 'ABCD_2345', '', 12345678]) {
+    if (parseManageCode(bad) !== null) guestFail(`parse reads ${JSON.stringify(bad)} as a code — an O, I, L or U (or a wrong length) is not a code, and no letter is read as another`);
+  }
+  if (!codesMatch('ABCD2345', 'ABCD2345') || codesMatch('ABCD2345', 'ABCD2346') || codesMatch('ABCD2345', 'ABCD234')) guestFail('codesMatch answers wrongly');
+  const now = 1_900_000_000;
+  const session = signGuestSession(k, ids[0], now + 3600);
+  if (verifyGuestSession(k, session, now) !== ids[0]) guestFail('a fresh session does not verify to its reservation');
+  if (verifyGuestSession(k, session, now + 3600) !== null) guestFail('an expired session verifies');
+  if (verifyGuestSession(k2, session, now) !== null) guestFail('a session verifies under another key');
+  const [, , exp, sig] = session.split('.');
+  const flip = (s: string) => s.slice(0, -1) + (s.endsWith('A') ? 'B' : 'A');
+  for (const tampered of [`v2.${ids[0]}.${exp}.${sig}`, `v1.${ids[1]}.${exp}.${sig}`, `v1.${ids[0]}.${Number(exp) + 99999}.${sig}`, `v1.${ids[0]}.${exp}.${flip(sig)}`, `v1.not-a-uuid.${exp}.${sig}`, session + '.x', '']) {
+    if (verifyGuestSession(k, tampered, now) !== null) guestFail(`a tampered or malformed session verifies: ${tampered.slice(0, 40)}`);
+  }
+  const cookieShaped = `guest@example.com.${createHmac('sha256', k).update('guest@example.com').digest('hex')}`;
+  if (verifyGuestSession(k, cookieShaped, now) !== null) guestFail('a signCookie-shaped value (email.hex) verifies as a session');
+  if (sig.length !== 43 || !/\.digest\('hex'\)/.test(codeOf(G_KEY_FILE).slice(codeOf(G_KEY_FILE).indexOf('export function verifyCookie')))) guestFail('a session signature could pass verifyCookie — it must be 43 base64url characters against verifyCookie’s 64 hex');
+}
+
+// 2. the lookup leaks nothing.
+{
+  const d = codeOf(G_DECISION);
+  const open = functionBody(d, 'openGuestSession') ?? '';
+  const at = (needle: string) => open.indexOf(needle);
+  const order = [at('if (input.ip === null || input.ip.length === 0) return notOpened();'), at('const code = parseManageCode(body.code);'), at('ports.limit(`guest-ip:${input.ip}`'), at('ports.limit(`guest-ref:${reference}`'), at('await ports.guestRowsByReference(reference)')];
+  if (order.some((i) => i < 0) || order.some((i, n) => n > 0 && i <= order[n - 1])) guestFail(`${G_DECISION}: the lookup is not IP → shapes → the IP limit → the reference limit → the read (${order.join(', ')}) — both limits come before any read`);
+  if (GUEST_LIMITS.ip.limit !== 10 || GUEST_LIMITS.ip.windowSeconds !== 900 || GUEST_LIMITS.reference.limit !== 5 || GUEST_LIMITS.reference.windowSeconds !== 900) guestFail(`the limits are ${JSON.stringify(GUEST_LIMITS)} — 10 per IP, then 5 per reference, per 900 s`);
+  if (!/for \(const row of rows\) \{\s*if \(codesMatch\(manageCode\(input\.key, row\.id\), code\)\) matched\.push\(row\.id\);\s*\}/.test(open)) guestFail(`${G_DECISION}: not every row is compared in constant time with no early exit`);
+  if (!open.includes('if (rows.length === 0) codesMatch(manageCode(input.key, DUMMY_RESERVATION_ID), code);') || DUMMY_RESERVATION_ID !== '00000000-0000-4000-8000-000000000000') guestFail(`${G_DECISION}: no dummy compare when no row came back — the work differs`);
+  if (!open.includes('return matched.length === 1 ? { status: 200, reservationId: matched[0] } : notOpened();')) guestFail(`${G_DECISION}: a success is not exactly one match, or a failure is not the one 404`);
+  const failures = [...open.matchAll(/return ([^;]*);/g)].map((m) => m[1]).filter((r) => !/status: 200|status: 400|status: 429/.test(r));
+  if (failures.some((r) => r !== 'notOpened()' && !r.endsWith(': notOpened()'))) guestFail(`${G_DECISION}: a failure answers other than the one 404 and the one line [${failures.join(' | ')}] — every failure is the same`);
+  if (!/const notOpened = \(\): GuestLookupAnswer => \(\{ status: 404, error: GUEST_WORDS\.notOpened \}\);/.test(d)) guestFail(`${G_DECISION}: the one 404 is not GUEST_WORDS.notOpened`);
+  if (GUEST_WORDS.notOpened !== 'We couldn\x27t open a booking with that reference and code.' || GUEST_WORDS.badShape !== 'Enter the reference and code from your email.' || GUEST_WORDS.sessionEnded !== 'Your booking session has ended. Enter your reference and code again.') guestFail(`the words are ${JSON.stringify(GUEST_WORDS)}`);
+  const openRoute = codeOf(G_OPEN);
+  if (!openRoute.includes("prisma.reservations.findMany({ where: { providerBookingId: reference, bookingType: 'guest', userId: null }, select: { id: true } })")) guestFail(`${G_OPEN} reads other than guest rows (bookingType guest, userId null), ids only`);
+  if (!/const ip = request\.headers\.get\('x-forwarded-for'\)\?\.split\(','\)\[0\]\?\.trim\(\) \|\| request\.headers\.get\('x-real-ip'\) \|\| null;/.test(openRoute) || /\x27unknown\x27/.test(openRoute)) guestFail(`${G_OPEN} reads the IP with an unknown bucket — no IP is the one failure`);
+  if (!openRoute.includes("res.cookies.set(GUEST_COOKIE, signGuestSession(key, answer.reservationId, expiresAt), {\n      httpOnly: true,\n      secure: true,\n      sameSite: 'strict',\n      path: GUEST_COOKIE_PATH,\n      maxAge: GUEST_SESSION_SECONDS,\n    });") || (openRoute.match(/cookies\.set\(/g) ?? []).length !== 1) guestFail(`${G_OPEN} does not set the one cookie with exactly httpOnly, secure, sameSite strict, path /api/guest, maxAge 3600`);
+  if (GUEST_COOKIE !== 'guestBooking' || GUEST_COOKIE_PATH !== '/api/guest' || GUEST_SESSION_SECONDS !== 3600) guestFail('the cookie is not guestBooking at /api/guest for 3600 s');
+  const end = codeOf(G_END);
+  if (!end.includes("res.cookies.set(GUEST_COOKIE, '', { httpOnly: true, secure: true, sameSite: 'strict', path: GUEST_COOKIE_PATH, maxAge: 0 });") || /prisma|fetch\(|await /.test(end)) guestFail(`${G_END} does more than clear the cookie (maxAge 0, same path)`);
+  for (const f of [...G_ROUTES, G_DECISION]) {
+    const src = codeOf(f);
+    if (/\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(|\$executeRaw|\$queryRaw|\$transaction|recordBookingEvent|writeAuditLog/.test(src)) guestFail(`${f} writes — a guest route writes nothing (the limiter’s counter is the lib’s)`);
+    if (/liteapiClient|liteapiFlightsClient|viator|reserveTravelSearch|sendTransactionalEmail|@\/lib\/email|\bfetch\(/.test(src)) guestFail(`${f} reaches a vendor, a paid call or an email sender`);
+    if (/console\.|redirect\(/.test(src)) guestFail(`${f} logs or redirects — the code is never logged, returned or put in a URL`);
+  }
+}
+
+// 3. one booking, the vendor's side.
+{
+  const d = codeOf(G_DECISION);
+  const book = functionBody(d, 'guestBooking') ?? '';
+  const verifyAt = book.indexOf('const reservationId = verifyGuestSession(input.key, input.cookie, input.now);');
+  const firstRead = book.indexOf('await ports.reservation(reservationId)');
+  if (verifyAt < 0 || firstRead < 0 || verifyAt > firstRead || !book.includes('if (reservationId === null) return { status: 401, error: GUEST_WORDS.sessionEnded };')) guestFail(`${G_DECISION}: the session is not verified before any read (none or invalid → 401)`);
+  if (!book.includes('if (reservation === null) return { status: 404, error: GUEST_WORDS.notOpened };') || !book.includes("return { status: 200, receipt: guestReceiptOf({ reservation, bookArrival, latestReadArrival, moneyEvents }) };")) guestFail(`${G_DECISION}: the answer is not guestReceiptOf’s, or a vanished row is not the lookup’s 404`);
+  const r = codeOf(G_BOOKING);
+  for (const [must, what] of [
+    ["where: { id, bookingType: 'guest', userId: null },", 'the reservation, still a guest’s'],
+    ['where: { id: arrivalId, user_id: null, guest_ref: bookingGuestRef(providerBookingId) },', 'the book answer, the guest’s own'],
+    ['where: { provider: LITEAPI, resource: BOOKING_READ, their_id: bookingReadTheirId(providerBookingId), user_id: null, guest_ref: bookingGuestRef(providerBookingId) },', 'the latest booking read, the guest’s own'],
+    ['select: { id: true, kind: true, amountCents: true, currency: true, statedAt: true },', 'the money events with no settlement column'],
+    ["const NO_STORE = { 'Cache-Control': 'no-store' };", 'no-store'],
+    ['return NextResponse.json({ receipt: answer.receipt }, { headers: NO_STORE });', 'the answer, never cached'],
+  ] as const) if (!r.includes(must)) guestFail(`${G_BOOKING} lost ${what}`);
+  if (/transaction|journal|ledger|commission|settle|timeline|audit/i.test(r)) guestFail(`${G_BOOKING} reads a bank row, a books entry, a margin, a settlement or a history`);
+  const reservation = { id: 'res_g', lane: 'hotel', displayName: 'Sample Hotel', providerBookingId: 'G1', providerConfirmationCode: null, status: 'confirmed', createdAt: '2026-09-20T10:00:00.000Z', checkinDate: '2026-10-01', checkoutDate: '2026-10-02' };
+  const bookArrival = { id: 'arr_g', arrived: '2026-09-20T10:00:01.000Z', payload: { bookingId: 'G1', status: 'CONFIRMED', price: 100, currency: 'USD', sellingPrice: '100', holder: { firstName: 'Ada', lastName: 'Guest' }, bookedRooms: [{ roomType: { name: 'Standard Room' }, adults: 2, children: 0 }], checkin: '2026-10-01', checkout: '2026-10-02' } };
+  const events = [{ id: 'me_1', kind: 'refund', amountCents: 5000, currency: 'USD', statedAt: '2026-09-21T10:00:00.000Z' }];
+  const flightRes = { ...reservation, lane: 'flight', displayName: 'JetBlue Airways JFK → LAX', providerBookingId: 'GF1' };
+  const flightBook = { id: 'arr_gf', arrived: '2026-09-20T10:00:01.000Z', payload: { bookingId: 'GF1', status: 'CONFIRMED', journey: { segments: [{ carrier: { marketingName: 'JetBlue Airways' }, flight: { marketingNumber: '723' }, originCode: 'JFK', destinationCode: 'LAX', departureTime: '2026-04-10T15:30:00', arrivalTime: '2026-04-10T18:40:00' }], price: { base: 238.32, taxes: 48.7, total: 287.02, currency: 'USD' } }, pricing: { totalAmount: 287.02, currency: 'USD' }, passengers: [{ firstName: 'ADA', lastName: 'GUEST' }] } };
+  for (const [what, input] of [['hotel', { reservation, bookArrival, latestReadArrival: null, moneyEvents: events }], ['flight', { reservation: flightRes, bookArrival: flightBook, latestReadArrival: null, moneyEvents: events }]] as const) {
+    const g = guestReceiptOf(input);
+    const owner = receiptOf({ reservation: input.reservation, bookArrival: input.bookArrival, latestReadArrival: null, chargeLink: null, journalEntry: null, moneyEvents: [] });
+    if (Object.keys(g).join(',') !== 'header,hotel,flight,vendor,refunds,refundsWords,notes') guestFail(`the guest ${what} answer carries [${Object.keys(g).join(', ')}] — the vendor’s side only`);
+    if (JSON.stringify([g.header, g.hotel, g.flight, g.vendor]) !== JSON.stringify([owner.header, owner.hotel, owner.flight, owner.vendor])) guestFail(`the guest ${what} answer is not the receipt’s own vendor side`);
+    if (g.refunds.some((row) => Object.keys(row).join(',') !== 'kind,amount,statedAt,figure,raw' || Object.keys(row.raw).join(',') !== 'id,kind,amountCents,currency') || g.refunds[0]?.amount !== '5000 cents USD') guestFail(`a guest ${what} refund carries more than its kind, amount and instant (${JSON.stringify(g.refunds[0])})`);
+    if (/bank|ledger|settle|ommission|history|journal/i.test(JSON.stringify(g))) guestFail(`the guest ${what} answer carries a bank, books, settlement, margin or history word`);
+  }
+  if (GUEST_NOTES.length !== 3 || GUEST_NOTES.some((n) => /bank|ledger/i.test(n)) || !GUEST_NOTES.some((n) => /Print \/ Save as PDF/.test(n)) || !GUEST_NOTES.some((n) => /Nothing on this page is computed/.test(n))) guestFail('GUEST_NOTES are not the receipt notes written for a guest (the vendor’s figures, nothing computed, Print / Save as PDF; no bank, no ledger)');
+  // The one renderer; the guest page draws no Bank, Ledger or History and types no money word.
+  const page = codeOf(G_PAGE);
+  const renderer = codeOf(G_RENDERER);
+  const owner = codeOf(G_OWNER_PAGE);
+  if (!/import ReceiptBody from '@\/components\/receipts\/ReceiptBody';/.test(page) || !/import ReceiptBody, \{ Line \} from '@\/components\/receipts\/ReceiptBody';/.test(owner)) guestFail('the two pages do not mount the one receipt renderer');
+  for (const section of ['header', 'hotel', 'flight', 'vendor', 'refunds']) {
+    if (section !== 'header' && !renderer.includes(`data-receipt-section="${section}"`)) guestFail(`${G_RENDERER} does not draw the ${section} section`);
+    if (section !== 'header' && owner.includes(`data-receipt-section="${section}"`)) guestFail(`${G_OWNER_PAGE} draws its own ${section} section — the one renderer draws it`);
+  }
+  for (const section of ['bank', 'ledger', 'history']) if (renderer.includes(`data-receipt-section="${section}"`)) guestFail(`${G_RENDERER} draws ${section} — the owner page adds it; a guest never sees it`);
+  if (/data-receipt-section|HistorySection|HISTORY_WORDS|\/api\/reservations|settlement|commission/i.test(page)) guestFail(`${G_PAGE} draws a Bank, Ledger or History section, reads an owner route, or names a settlement`);
+  for (const f of [G_PAGE, G_RENDERER, G_LOOKUP]) {
+    const src = codeOf(f);
+    for (const typed of ['not stated', 'stated by the vendor', 'recorded by your bank', 'not posted', 'not yet matched', 'not yet ticketed', 'no refund', 'USD', 'cents']) {
+      if (new RegExp(`['"\`][^'"\`\\n]*${typed}[^'"\`\\n]*['"\`]`, 'i').test(src)) guestFail(`${f} types "${typed}" — every word comes from the receipt leaf`);
+    }
+    if (/commission/i.test(src)) guestFail(`${f} names a margin — never on a receipt`);
+  }
+}
+
+// 4. the public surface is exact.
+{
+  const mw = codeOf('src/middleware.ts');
+  const listed = /const PUBLIC_PATHS = \[([\s\S]*?)\];/.exec(mw);
+  const paths = listed ? Array.from(listed[1].matchAll(/\x27([^\x27]+)\x27/g), (m) => m[1]) : [];
+  for (const p of ['/booking/manage', '/api/guest/session', '/api/guest/booking']) if (!paths.includes(p)) guestFail(`PUBLIC_PATHS lacks ${p}`);
+  const guestEntries = paths.filter((p) => p === '/api/guest' || p.startsWith('/api/guest/') || p === '/booking' || p.startsWith('/booking/manage'));
+  if (guestEntries.sort().join(',') !== '/api/guest/booking,/api/guest/session,/booking/manage') guestFail(`the guest public surface is [${guestEntries.join(', ')}] — exactly /booking/manage, /api/guest/session, /api/guest/booking`);
+  const guestRoutes = srcFiles.filter((f) => f.file.startsWith('src/app/api/guest/')).map((f) => f.file).sort();
+  if (guestRoutes.join(',') !== [...G_ROUTES].sort().join(',')) guestFail(`the files under src/app/api/guest are [${guestRoutes.join(', ')}] — exactly the three routes`);
+  for (const f of G_ROUTES) {
+    const src = codeOf(f);
+    if (exportedMethods(src).some((m) => m.method === 'DELETE' || m.method === 'PATCH' || m.method === 'PUT')) guestFail(`${f} exports DELETE, PATCH or PUT`);
+    if (inScope(src)) guestFail(`${f} is in the ownership law’s scope — a public writer is a ruling`);
+    if (PUBLIC_WRITERS.some((p) => p.file === f)) guestFail(`${f} is listed as a public writer`);
+  }
+  if (PUBLIC_WRITERS.length !== SEC02_PINNED.publicWriters || SEC02_PINNED.publicWriters !== 11) guestFail(`the ownership law’s public writers are ${PUBLIC_WRITERS.length} (pinned ${SEC02_PINNED.publicWriters}) — the census is unchanged at 11`);
+  if (!GUEST_ROUTES.some((g) => g.route === '/booking/manage')) guestFail('GUEST_ROUTES does not door /booking/manage');
+  // THE DOOR (Alex's ruling 17:04): the lookup under the home page's booking section, not a header link.
+  if (/booking\/manage/.test(codeOf('src/components/landing/LandingHeader.tsx'))) guestFail('LandingHeader.tsx links /booking/manage — the door is the home page\u2019s lookup, not the header');
+  const landing = codeOf(G_LANDING);
+  const SECTION = '<LandingBookingSection onRequireAuth={onRequireAuth} />';
+  const BOX = "<GuestBookingLookup onOpened={() => window.location.assign('/booking/manage')} />";
+  const sectionAt = landing.indexOf(SECTION);
+  const boxAt = landing.indexOf(BOX);
+  const footerAt = landing.indexOf('One trip holds everything — plans, bookings, budget.');
+  if (sectionAt < 0 || boxAt < 0 || footerAt < 0 || !(sectionAt < boxAt && boxAt < footerAt) || !/^\s*(\{\s*\})?\s*<div className="[^"]*" data-guest-lookup-home>\s*$/.test(landing.slice(sectionAt + SECTION.length, boxAt))) guestFail(`${G_LANDING} does not mount the lookup directly under the booking section, above the demo\u2019s footer row, going to /booking/manage on a match`);
+  if (!landing.includes("import GuestBookingLookup from '@/components/guest/GuestBookingLookup';")) guestFail(`${G_LANDING} does not import the one lookup box`);
+  const lookupMounts = srcFiles.filter((f) => /<GuestBookingLookup\b/.test(f.src)).map((f) => f.file).sort();
+  if (lookupMounts.join(',') !== [G_PAGE, G_LANDING].sort().join(',') || (landing.match(/<GuestBookingLookup\b/g) ?? []).length !== 1) guestFail(`the lookup box is mounted by [${lookupMounts.join(', ')}] — exactly the home page (once) and /booking/manage`);
+  const page = codeOf(G_PAGE);
+  if (!page.includes('<GuestBookingLookup initialReference={prefill} initialFailure={failure} onOpened={showOpened} />') || /<input\b|fetch\('\/api\/guest\/session',/.test(page)) guestFail(`${G_PAGE} does not mount the one lookup box, or keeps a form of its own`);
+  const lookup = codeOf(G_LOOKUP);
+  for (const words of ['Booked without an account? Look up your booking', 'Look up', 'Your reference and manage code are in your booking email.', 'Manage reference', 'Manage code']) if (!lookup.includes(words)) guestFail(`${G_LOOKUP} lost "${words}"`);
+  if (/useEffect|useLayoutEffect/.test(lookup) || (lookup.match(/\bfetch\(/g) ?? []).length !== 1 || !lookup.includes("fetch('/api/guest/session', {")) guestFail(`${G_LOOKUP} asks something on load, or calls more than the submitted lookup — the home page is the guest\u2019s sales floor`);
+  if (!lookup.includes('className="flex flex-col gap-3 sm:flex-row sm:items-end"') || !lookup.includes('text-brand-red')) guestFail(`${G_LOOKUP}\u2019s fields do not stack on a phone, or its one failure line is not brand red`);
+}
+
+// 5. the code travels only by email.
+{
+  const gm = { reference: 'bk_G1', code: 'ABCD2345', url: 'https://www.templestuart.com/booking/manage?ref=bk_G1' };
+  const lines = ['Manage this booking without an account', 'Manage reference: bk_G1', 'Manage code: ABCD-2345', 'https://www.templestuart.com/booking/manage?ref=bk_G1', 'Keep this code private — with the reference, it opens this booking.'];
+  const hotelBase = { guestName: 'Ada Guest', hotelName: 'Hotel Temple', checkinDate: '2026-10-01', checkoutDate: '2026-10-02', confirmationCode: null, bookingId: 'bk_G1', totalAmountCents: 18000, currency: 'USD' };
+  const flightBase = { passengerName: 'ADA GUEST', passengerCount: 1, bookingId: 'bk_G1', bookingRef: null, pnr: null, totalAmountCents: 28702, currency: 'USD', status: 'CONFIRMED' };
+  const lifeBase = { kind: 'ticketed' as const, name: 'Flight booking bk_G1', lane: 'flight' as const, reference: 'bk_G1', checkinDate: null, checkoutDate: null, pnr: null };
+  const renders: Array<[string, { text: string; html: string }, { text: string; html: string }, { text: string; html: string }]> = [
+    ['hotel', bookingConfirmation({ ...hotelBase, guestManage: gm }), bookingConfirmation(hotelBase), bookingConfirmation({ ...hotelBase, guestManage: { ...gm, url: null } })],
+    ['flight', flightConfirmation({ ...flightBase, guestManage: gm }), flightConfirmation(flightBase), flightConfirmation({ ...flightBase, guestManage: { ...gm, url: null } })],
+    ['lifecycle', lifecycleEmail({ ...lifeBase, manageUrl: null, guestManage: gm }), lifecycleEmail({ ...lifeBase, manageUrl: 'https://www.templestuart.com/travel' }), lifecycleEmail({ ...lifeBase, manageUrl: null, guestManage: { ...gm, url: null } })],
+  ];
+  for (const [what, guest, account, noUrl] of renders) {
+    if (!guest.text.includes(lines.join('\n'))) guestFail(`the ${what} email does not carry the five block lines for a guest`);
+    if (!guest.html.includes('data-guest-manage') || !guest.html.includes('<a href="https://www.templestuart.com/booking/manage?ref=bk_G1">') || !guest.html.includes('ABCD-2345')) guestFail(`the ${what} email’s HTML does not carry the block with its link`);
+    if (/Manage code|Manage reference|data-guest-manage|booking\/manage/.test(account.text + account.html)) guestFail(`the ${what} email carries the block for an account`);
+    if (noUrl.text.includes('booking/manage') || noUrl.html.includes('booking/manage') || !noUrl.text.includes('Manage code: ABCD-2345')) guestFail(`the ${what} email with no url is not the block without its link line`);
+    if (/ABCD-?2345/.test(guest.text.split('\n').filter((l) => l.includes('http')).join('\n'))) guestFail(`the ${what} email puts the code inside the url`);
+  }
+  if (!renders[2][2].text.includes('See this booking') || renders[2][1].text.includes('See this booking')) guestFail('the lifecycle template no longer gives "See this booking" to an account and withholds it when a guest passes manageUrl null');
+  const sender = codeOf(G_SENDER);
+  const forFn = functionBody(sender, 'guestManageFor') ?? '';
+  if (!/\): GuestManage \| undefined \{\s*if \(row\.bookingType !== 'guest' \|\| row\.userId !== null\) return undefined;/.test(forFn) || !forFn.includes('return { reference: row.providerBookingId, code: manageCode(guestKey(), row.id), url: guestManageUrl(row.providerBookingId) };')) guestFail(`${G_SENDER}: guestManageFor answers a block for an account row, or not the row’s reference, code and link`);
+  if (!sender.includes("return `${origin.trim().replace(/\\/+$/, '')}/booking/manage?ref=${encodeURIComponent(reference)}`;") || !/export function guestManageUrl\(reference: string\): string \| null \{/.test(sender)) guestFail(`${G_SENDER}: the manage url is not /booking/manage?ref=<reference> from the reference alone`);
+  if (!sender.includes('manageUrl: guestManage ? null : bookingManageUrl(row.id),') || !sender.includes('const guestManage = guestManageFor(row);')) guestFail(`${G_SENDER}: a guest row’s "See this booking" does not give way to the block`);
+  for (const f of G_BOOK_ROUTES) if ((codeOf(f).match(/guestManage: guestManageFor\(result\),/g) ?? []).length !== 1) guestFail(`${f} does not hand the confirmation exactly the row’s own block (guestManage: guestManageFor(result))`);
+  for (const f of G_TEMPLATES) if (!/guestManage\?: GuestManage;/.test(codeOf(f))) guestFail(`${f} does not take the optional guestManage`);
+  if (!codeOf(G_LOOKUP).includes('body: JSON.stringify({ reference, code }),')) guestFail(`${G_LOOKUP} does not post the code in the body`);
+  // Before hydration the box is a plain <form>: a native submit would be a GET with the code in the URL.
+  if (!codeOf(G_LOOKUP).includes('<fieldset className="space-y-3" disabled={!live}>') || !codeOf(G_LOOKUP).includes('const live = useSyncExternalStore(NO_SUBSCRIPTION, () => true, () => false);')) guestFail(`${G_LOOKUP} can be submitted before the page is live — the browser would send the code in the URL`);
+  for (const f of [G_PAGE, G_LOOKUP]) if (/[?&]code=|get\('code'\)|localStorage|sessionStorage|router\.|location\.href\s*=|console\./.test(codeOf(f))) guestFail(`${f} puts the code in a URL, keeps it in browser storage, or logs it — it is posted in the body only`);
+  const openRoute = codeOf(G_OPEN);
+  if (!openRoute.includes('const res = NextResponse.json({ ok: true });') || /json\(\{[^}]*\bcode\b/.test(openRoute)) guestFail(`${G_OPEN} answers with the code`);
+}
+
+// 6. the two re-pins are dated.
+{
+  const pins = codeOf('src/lib/travelBookingFlow.ts');
+  const notes = commentsOf('src/lib/travelBookingFlow.ts');
+  const was: Record<string, string> = {
+    'src/app/api/travel/liteapi/book/route.ts': 'd128348733a1f3688b48d084fe9fd60d6f8ce178833f92a18e5b2dbff1abbe0b',
+    'src/app/api/travel/liteapi/flights/book/route.ts': 'd762bf4320c7c75a7b802d2d0654f4420913eab1826c9daa74ee53f28022eda8',
+  };
+  for (const f of G_BOOK_ROUTES) {
+    const pinAt = pins.indexOf(`{ file: '${f}', sha256: '`);
+    if (pinAt < 0) { guestFail(`${f} is no longer pinned`); continue; }
+    const above = noteBlockOver(pins, notes, pins.slice(0, pinAt).split('\n').length);
+    if (!new RegExp(`GUEST-01 \\(2026-09-29\\): re-pinned — [^\\n]+\\n[^\\n]*Was ${was[f]} at main 37909b85\\.`).test(above)) guestFail(`${f}’s pin does not sit under a dated GUEST-01 note with the hash it had on main 37909b85`);
+  }
+  if ((notes.match(/GUEST-01 \(2026-09-29\): re-pinned/g) ?? []).length !== 2) guestFail('src/lib/travelBookingFlow.ts carries other than two GUEST-01 re-pin notes — the two book routes');
+}
+
+if (guestViolations === 0) console.log(`✔ The guest booking law passed — one guest key (HMAC-SHA256(JWT_SECRET, ts-guest:v1), in cookie-auth.ts only) under which every 8-character code and one-hour session is made; the lookup counts the IP and then the reference before any read, reads guest rows only, compares every row and a dummy in constant time, and answers every failure the one 404; the booking verifies its session first, reads that reservation alone and answers the vendor’s side only, never cached; ${G_ROUTES.length} routes under /api/guest, none a writer; the door is the one lookup box under the home page\u2019s booking section; the code travels only in the three emails, for a guest row alone; both book routes re-pinned, dated.`);
+else console.log(`✖ The guest booking law FAILED — ${guestViolations} violation(s).`);
+});
+
 lawGuard('The reader law', () => {
 
 // ── THE READER LAW (TEST-TRUTH-01, 2026-09-17) ──────────────────────────────

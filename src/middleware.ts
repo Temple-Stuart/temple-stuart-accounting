@@ -146,6 +146,20 @@ const PUBLIC_PATHS = [
   // FL-4c (2026-09-23): the flights analogue. LiteAPI's documented payment rail
   // REDIRECTS on success, so a guest who just paid must be able to land here.
   '/booking/flight-confirm',
+  // GUEST-01 (2026-09-29): a guest manages a booking made without an account. The
+  // page is a client form — one on-load GET of /api/guest/booking (a 401 before any
+  // read when no session is open), zero paid calls; the lookup is the user-submitted
+  // POST below. Standalone: no AppLayout, which would send a guest to '/'.
+  '/booking/manage',
+  // GUEST-01: the lookup — the reference and the manage code from the guest's own
+  // email. No paid call, no vendor, no email, no write (the rate limiter's counter
+  // aside); no IP is refused; 10/IP then 5/reference per 15 min BEFORE any read; every
+  // failure the same 404 and the same line. Its /end sibling clears the cookie only.
+  '/api/guest/session',
+  // GUEST-01: the one booking a verified guest session names — the signed cookie first
+  // (401 before any read), then that reservation alone, still a guest's, the vendor's
+  // side only; read-only, no vendor call, never cached.
+  '/api/guest/booking',
   // PROPOSAL-FORM: the public project-proposal form page — a static client
   // form (zero on-load fetches, zero authed reads, zero paid calls); its only
   // network call is the user-submitted POST below. Guests are the audience.

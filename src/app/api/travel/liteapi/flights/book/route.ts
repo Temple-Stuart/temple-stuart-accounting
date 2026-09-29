@@ -25,7 +25,7 @@ import { refreshFlightReservation, type FlightRefreshOutcome, type FlightReserva
 // STATUS-01 (2026-09-26): the refresh hands the status to the one apply leaf, which
 // may owe a 'ticketed' email (marker stamped in its write); the one attempt is made
 // here, after the refresh, and never fails the paid booking.
-import { sendLifecycleEmail } from '@/lib/reservations/lifecycleSend';
+import { guestManageFor, sendLifecycleEmail } from '@/lib/reservations/lifecycleSend';
 import { flightProviderStatusToReservation } from '@/lib/reservations/flightStatus';
 
 // ─── PUBLIC LiteAPI flight BOOK (PR-FL-5) ────────────────────────────────────
@@ -434,6 +434,9 @@ export async function POST(request: NextRequest) {
             totalAmountCents: result.finalPriceCents,
             currency: result.currency,
             status: parsed.status ?? null,
+            // GUEST-01 (2026-09-29): a GUEST row's way back — its Manage reference and
+            // manage code; an account row gets none (guestManageFor answers undefined).
+            guestManage: guestManageFor(result),
           });
           const { id } = await sendTransactionalEmail({
             to: contact.contactEmail,

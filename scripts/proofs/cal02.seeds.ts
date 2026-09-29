@@ -189,10 +189,12 @@ const SEEDS: Seed[] = [
     expect: 'calls the vendor (or the refresh that does)',
   },
   {
+    // GUEST-01 (2026-09-29): re-indented only — the link now sits in ReceiptBody's `actions`
+    // prop on the receipt page (16 spaces, was 18); what the seed breaks and expects is unchanged.
     name: 'cal02-v the receipt loses its "Add to calendar" door (clause 7)',
     file: RECEIPT_PAGE,
-    find: '                  <a href={bookingIcsHref(id)} className',
-    replace: '                  <a href="#" className',
+    find: '                <a href={bookingIcsHref(id)} className',
+    replace: '                <a href="#" className',
     expect: 'the receipt carries no "Add to calendar" link',
   },
 ];

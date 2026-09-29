@@ -12,6 +12,7 @@ import { sendTransactionalEmail } from '@/lib/email';
 // AUDIT-01 (2026-09-26): the booking and its confirmation email, recorded through the one audit port.
 import { humanActor, recordBookingEvent, recordEmailOutcome } from '@/lib/reservations/auditTrail';
 import { bookingConfirmation } from '@/lib/emailTemplates/bookingConfirmation';
+import { guestManageFor } from '@/lib/reservations/lifecycleSend';
 // CAL-01: the one calendar row a booking earns, and the prisma port behind it.
 import { stayCalendarDecision, writeBookingCalendarEvent } from '@/lib/calendar/bookingEvent';
 import { prismaBookingCalendar } from '@/lib/calendar/prismaBookingCalendar';
@@ -397,6 +398,9 @@ export async function POST(request: NextRequest) {
           // Integer cents, or NULL — the template says "price not stated" (SEC-03).
           totalAmountCents: result.finalPriceCents,
           currency: result.currency,
+          // GUEST-01 (2026-09-29): a GUEST row's way back — its Manage reference and
+          // manage code; an account row gets none (guestManageFor answers undefined).
+          guestManage: guestManageFor(result),
         });
         const { id } = await sendTransactionalEmail({
           to: holder.email,

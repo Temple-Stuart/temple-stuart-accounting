@@ -22,13 +22,20 @@
  * CAL-02 (2026-09-27): an "Add to calendar" link — the booking's iCalendar file
  * (GET /api/reservations/<id>/ics, the same href and word the bookings list uses,
  * from src/lib/reservations/bookingRow.ts). The route answers it as an attachment; it does not print.
+ *
+ * GUEST-01 (2026-09-29): the header lines, Stay, Flight, Vendor and Refunds are ONE
+ * component now (src/components/receipts/ReceiptBody.tsx), which a guest's
+ * /booking/manage mounts too. This page hands it its own header actions (Add to
+ * calendar, Print / Save as PDF), its Bank and Ledger after the Vendor section and its
+ * History at the foot — the owner's output is unchanged.
  */
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import type { BookingReceipt, ReceiptLine } from '@/lib/receipts/bookingReceipt';
+import type { BookingReceipt } from '@/lib/receipts/bookingReceipt';
 import { HISTORY_WORDS, type TimelineItem } from '@/lib/reservations/timeline';
 import { BOOKING_WORDS, bookingIcsHref } from '@/lib/reservations/bookingRow';
+import ReceiptBody, { Line } from '@/components/receipts/ReceiptBody';
 
 type Loaded = { state: 'loading' } | { state: 'error'; message: string } | { state: 'done'; receipt: BookingReceipt };
 type History = { state: 'loading' } | { state: 'error'; message: string } | { state: 'done'; items: TimelineItem[] };
@@ -53,26 +60,6 @@ function HistorySection({ history }: { history: History }) {
         </ol>
       )}
     </section>
-  );
-}
-
-function Line({ line }: { line: ReceiptLine }) {
-  return (
-    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-x-3 py-1" data-receipt-line={line.label} data-figure-source={line.figure?.source ?? ''} data-figure-evidence={line.figure?.evidence ?? ''}>
-      <dt className="text-xs uppercase tracking-wider text-text-faint">{line.label}</dt>
-      <dd className="text-sm text-text-primary">
-        {line.value}
-        {line.note && <span className="ml-2 text-xs text-text-faint">— {line.note}</span>}
-      </dd>
-    </div>
-  );
-}
-
-function Words({ items, tag }: { items: string[]; tag: string }) {
-  return (
-    <ul className="list-disc space-y-0.5 pl-5 text-sm text-text-primary" data-receipt-list={tag}>
-      {items.map((w, i) => <li key={`${tag}-${i}`}>{w}</li>)}
-    </ul>
   );
 }
 
@@ -123,105 +110,45 @@ export default function BookingReceiptPage() {
       {loaded.state === 'done' && (() => {
         const r = loaded.receipt;
         return (
-          <article className="space-y-6">
-            <header className="border-b border-border pb-4">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h1 className="text-xl font-bold">{r.header.laneWord} receipt · {r.header.name}</h1>
-                <div className="no-print flex items-center gap-2">
-                  <a href={bookingIcsHref(id)} className="rounded border border-border px-3 py-1.5 text-xs font-semibold text-text-secondary" data-receipt-ics>
-                    {BOOKING_WORDS.addToCalendar}
-                  </a>
-                  <button type="button" onClick={() => window.print()} className="rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white" data-receipt-print>
-                    Print / Save as PDF
-                  </button>
-                </div>
-              </div>
-              <dl className="mt-3 divide-y divide-border-light">
-                <Line line={{ label: 'Vendor booking id', value: r.header.vendorBookingId, note: null, figure: null }} />
-                <Line line={{ label: 'Confirmation code', value: r.header.confirmationCode, note: null, figure: null }} />
-                <Line line={{ label: 'Status', value: r.header.statusWord, note: null, figure: null }} />
-                <Line line={{ label: 'Vendor status', value: r.header.vendorStatus, note: null, figure: null }} />
-                <Line line={{ label: 'Booked at', value: r.header.bookedAt, note: null, figure: null }} />
-                <Line line={{ label: 'Holder', value: r.header.holder, note: null, figure: null }} />
-              </dl>
-              <ul className="mt-3 space-y-1 text-xs text-text-faint" data-receipt-notes>
-                {r.notes.map((n, i) => <li key={i}>{n}</li>)}
-              </ul>
-            </header>
-
-            {r.hotel && (
-              <section className="space-y-2" data-receipt-section="hotel">
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">Stay</h2>
-                <Words items={r.hotel.rooms} tag="rooms" />
-                <dl className="divide-y divide-border-light">
-                  <Line line={{ label: 'Check-in', value: r.hotel.checkin, note: null, figure: null }} />
-                  <Line line={{ label: 'Check-out', value: r.hotel.checkout, note: null, figure: null }} />
-                </dl>
-                <h3 className="text-xs uppercase tracking-wider text-text-faint">Check-in instructions</h3>
-                <Words items={r.hotel.checkinInstructions} tag="checkin-instructions" />
-                <h3 className="text-xs uppercase tracking-wider text-text-faint">Cancellation policy</h3>
-                <Words items={r.hotel.cancellationPolicy} tag="cancellation-policy" />
-              </section>
+          <ReceiptBody
+            receipt={r}
+            actions={(
+              <>
+                <a href={bookingIcsHref(id)} className="rounded border border-border px-3 py-1.5 text-xs font-semibold text-text-secondary" data-receipt-ics>
+                  {BOOKING_WORDS.addToCalendar}
+                </a>
+                <button type="button" onClick={() => window.print()} className="rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white" data-receipt-print>
+                  Print / Save as PDF
+                </button>
+              </>
             )}
+            afterVendor={(
+              <>
+                <section className="space-y-2" data-receipt-section="bank">
+                  <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">Bank</h2>
+                  {r.bank.line ? (
+                    <dl className="divide-y divide-border-light"><Line line={r.bank.line} /></dl>
+                  ) : (
+                    <p className="text-sm text-text-secondary" data-receipt-bank-absent>{r.bank.words}</p>
+                  )}
+                </section>
 
-            {r.flight && (
-              <section className="space-y-2" data-receipt-section="flight">
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">Flight</h2>
-                <Words items={r.flight.segments} tag="segments" />
-                <h3 className="text-xs uppercase tracking-wider text-text-faint">Passengers</h3>
-                <Words items={r.flight.passengers} tag="passengers" />
-                <dl className="divide-y divide-border-light">
-                  <Line line={{ label: 'PNR', value: r.flight.pnr, note: null, figure: null }} />
-                  <Line line={{ label: 'Ticketing', value: r.flight.ticketing, note: null, figure: null }} />
-                </dl>
-              </section>
+                <section className="space-y-2" data-receipt-section="ledger">
+                  <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">Ledger</h2>
+                  {r.ledger.entry ? (
+                    <dl className="divide-y divide-border-light">
+                      <Line line={r.ledger.entry} />
+                      {r.ledger.lines.map((l, i) => <Line key={`${l.label}-${i}`} line={l} />)}
+                    </dl>
+                  ) : (
+                    <p className="text-sm text-text-secondary" data-receipt-ledger-absent>{r.ledger.words}</p>
+                  )}
+                </section>
+              </>
             )}
-
-            <section className="space-y-2" data-receipt-section="vendor">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">Vendor</h2>
-              <dl className="divide-y divide-border-light">
-                <Line line={r.vendor.total} />
-                {r.vendor.lines.map((l) => <Line key={l.label} line={l} />)}
-              </dl>
-            </section>
-
-            <section className="space-y-2" data-receipt-section="bank">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">Bank</h2>
-              {r.bank.line ? (
-                <dl className="divide-y divide-border-light"><Line line={r.bank.line} /></dl>
-              ) : (
-                <p className="text-sm text-text-secondary" data-receipt-bank-absent>{r.bank.words}</p>
-              )}
-            </section>
-
-            <section className="space-y-2" data-receipt-section="ledger">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">Ledger</h2>
-              {r.ledger.entry ? (
-                <dl className="divide-y divide-border-light">
-                  <Line line={r.ledger.entry} />
-                  {r.ledger.lines.map((l, i) => <Line key={`${l.label}-${i}`} line={l} />)}
-                </dl>
-              ) : (
-                <p className="text-sm text-text-secondary" data-receipt-ledger-absent>{r.ledger.words}</p>
-              )}
-            </section>
-
-            <section className="space-y-2" data-receipt-section="refunds">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">Refunds and fees the vendor stated</h2>
-              <p className="text-xs text-text-faint" data-receipt-refunds-words>{r.refundsWords}</p>
-              {r.refunds.length > 0 && (
-                <ul className="space-y-1 text-sm" data-receipt-refunds>
-                  {r.refunds.map((f) => (
-                    <li key={f.raw.id} data-money-event={f.raw.id} data-figure-source={f.figure.source} data-figure-evidence={f.figure.evidence}>
-                      <span className="font-medium">{f.kind}</span> · {f.amount} · {f.statedAt} · {f.settlement}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
+          >
             <HistorySection history={history} />
-          </article>
+          </ReceiptBody>
         );
       })()}
     </main>
