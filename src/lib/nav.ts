@@ -96,10 +96,13 @@ export const THE_SORT: readonly PhaseAssignment[] = [
   ...(['01', '02', '03', '04', '05'] as const).map((num): PhaseAssignment => ({ pipe: 'travel', num, owner: 'Travel', rendersSurface: false,
     surfaceNote: 'TRAVEL-01 (2026-09-19): drawn nowhere — the travel tab renders no StageStrip (src/components/home/ModuleLauncher.tsx, data-travel-section); its sections hold the capability' })),
   // runway — the four-way split as ruled, with the two declared state-only cells.
+  // TRIPS-01 (2026-09-29): both citations re-read — the note moved +20 lines with the
+  // Travel tab's ?trip reader (was :622-629); the handler was cited :649-651, stale
+  // already on main 536c862b (it stood at :654-658), and is cited where it stands.
   { pipe: 'runway', num: '01', owner: 'Banking', rendersSurface: false,
-    surfaceNote: 'src/components/home/ModuleLauncher.tsx:622-629 — "STATE-ONLY cells (no surface exists in this tab: accounts link in Books 01 Feed)"; the handler excludes its key at :649-651' },
+    surfaceNote: 'src/components/home/ModuleLauncher.tsx:642-649 — "STATE-ONLY cells (no surface exists in this tab: accounts link in Books 01 Feed)"; the handler excludes its key at :674-678' },
   { pipe: 'runway', num: '02', owner: HOME_OWNER, rendersSurface: false,
-    surfaceNote: 'src/components/home/ModuleLauncher.tsx:622-629 — "ledger history renders only THROUGH the burn/budget figures"; the handler excludes its key at :649-651' },
+    surfaceNote: 'src/components/home/ModuleLauncher.tsx:642-649 — "ledger history renders only THROUGH the burn/budget figures"; the handler excludes its key at :674-678' },
   { pipe: 'runway', num: '03', owner: HOME_OWNER, rendersSurface: true },
   { pipe: 'runway', num: '04', owner: 'Bookkeeping', rendersSurface: true },
   { pipe: 'runway', num: '05', owner: 'Budget', rendersSurface: true },
@@ -156,8 +159,8 @@ export interface NavTool {
    * The pages this tool OWNS that are not its screen — the registry's own
    * `links`, through the registry's own doors. They render as sub-rows beneath
    * the tool's row when it is the open one, which is how /chart-of-accounts,
-   * /dashboard/tax-filing, /soc2, /budgets/trips, /shopping and /hub/itinerary
-   * keep their doors: inside the tool they belong to under THE SORT, never as a
+   * /dashboard/tax-filing, /soc2, /shopping and /hub/itinerary keep their doors
+   * (TRIPS-01, 2026-09-29: Travel has none — its legacy pages are redirects): inside the tool they belong to under THE SORT, never as a
    * top-level row and never pointing at another tool's screen (navLaw rule 7).
    */
   subRows: readonly { label: string; door: OpenDoor }[];

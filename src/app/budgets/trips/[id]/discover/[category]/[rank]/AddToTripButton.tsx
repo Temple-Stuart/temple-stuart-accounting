@@ -118,10 +118,11 @@ export function AddToTripButton({
   };
 
   if (state === 'added') {
+    // TRIPS-01 (2026-09-29): the trip on the Travel tab — the one Trips tab — not the legacy planner.
     return (
       <div className="flex flex-col gap-1">
         <a
-          href={`/budgets/trips/${tripId}`}
+          href={`/travel?trip=${tripId}`}
           className="self-start px-4 py-2 bg-emerald-100 border border-emerald-300 text-emerald-800 text-sm font-medium rounded hover:bg-emerald-200"
         >
           ✓ Added to trip — view budget

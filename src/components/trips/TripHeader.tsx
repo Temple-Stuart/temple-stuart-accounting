@@ -197,7 +197,8 @@ export default function TripHeader({
         <div className="flex items-center gap-1.5 text-text-secondary">
           <Users className="w-4 h-4 text-brand-purple shrink-0" aria-hidden="true" />
           <span>{travelerCount} {travelerCount === 1 ? 'traveler' : 'travelers'}</span>
-          <Link href={`/budgets/trips/${tripId}#travelers`} className="text-xs text-brand-purple underline">Manage</Link>
+          {/* TRIPS-01 (2026-09-29): the trip on the Travel tab, where /budgets/trips/[id] now redirects (it has no #travelers). */}
+          <Link href={`/travel?trip=${tripId}`} className="text-xs text-brand-purple underline">Manage</Link>
         </div>
 
         {/* Trip type */}

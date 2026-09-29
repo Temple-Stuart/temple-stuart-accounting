@@ -90,7 +90,9 @@ test('no content call from a search or a list: the callers are a closed set; the
   for (const f of ['src/app/api/travel/hotels/search/route.ts', VIEW, CONTAINER, 'src/app/api/trips/[id]/ai-assistant/route.ts']) {
     assert.doesNotMatch(code(f), /getHotelContent\(|hotels\/content/, `${f} reads no content`);
   }
-  for (const f of ['src/app/api/travel/hotels/content/route.ts', DETAIL, COMMIT]) assert.match(code(f), /getHotelContent\(/, `${f} is a named reader`);
+  // TRIPS-01 (2026-09-29): the closed set is two — the discover detail page is a redirect to the Travel tab and reads nothing.
+  for (const f of ['src/app/api/travel/hotels/content/route.ts', COMMIT]) assert.match(code(f), /getHotelContent\(/, `${f} is a named reader`);
+  assert.doesNotMatch(code(DETAIL), /getHotelContent\(|getHotelReviews\(|prisma/, 'the detail page is a redirect: it reads no content, no reviews, no row');
   assert.match(code(CHECKOUT), /api\/travel\/hotels\/content/, 'the checkout panel reads the route (the booking surface, pinned)');
   const container = code(CONTAINER);
   assert.match(container, /liteapiHotelId: card\.hotelId,/);

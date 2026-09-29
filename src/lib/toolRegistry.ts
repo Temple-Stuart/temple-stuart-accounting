@@ -228,7 +228,10 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   },
   Travel: {
     slug: 'travel', status: 'LIVE', beats: ALL, home: '/travel', cockpitKey: 'travel',
-    links: [{ label: 'Trips · the legacy pages', href: '/budgets/trips' }],
+    // TRIPS-01 (2026-09-29): no sub-link. The Travel tab IS the one Trips tab; the
+    // legacy planner's pages under /budgets/trips are redirects to it, and no rail
+    // row, button or link leads into them. registryLaw holds Travel to this: ever.
+    links: [],
     citation: 'src/app/api/travel/liteapi/flights/search/route.ts:23 · travel/liteapi/prebook/route.ts:40 · travel/liteapi/book/route.ts:134 · :169, :193',
   },
   Mileage: {
@@ -448,6 +451,8 @@ export function registryLaw(opts: { throwOnFail?: boolean; registry?: readonly T
     if (t.status !== 'PARTIAL' && t.why) violations.push(`${t.name}: why belongs only to a PARTIAL tool`);
     if (t.status === 'NOT_BUILT' && (n !== 0 || t.home !== null || t.cockpitKey || (t.links && t.links.length))) violations.push(`${t.name}: NOT_BUILT must have no beats, no home, no links`);
     if (t.status !== 'NOT_BUILT' && n === 0) violations.push(`${t.name}: ${t.status} with no beats — no beats is NOT_BUILT`);
+    // TRIPS-01 (2026-09-29): there is ONE Trips tab, the Travel tab — Travel carries no sub-link, ever.
+    if (t.name === 'Travel' && (t.links ?? []).length !== 0) violations.push(`Travel: carries ${(t.links ?? []).length} sub-link(s) — the Travel tab is the one Trips tab; Travel carries no sub-link, ever (TRIPS-01)`);
     if (t.home !== null && !t.home.startsWith('/')) violations.push(`${t.name}: home "${t.home}" is not a route`);
     for (const l of t.links ?? []) {
       if ((l.href ? 1 : 0) + (l.cockpitKey ? 1 : 0) !== 1) violations.push(`${t.name}: link "${l.label}" must have exactly one of href / cockpitKey`);

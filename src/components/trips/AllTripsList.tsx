@@ -16,9 +16,17 @@
  * PR-Trips3: each row has a delete button — confirm, then DELETE /api/trips/[id] (an
  * ownership-scoped route that cleans the trip + its bookings). On success it calls
  * `onDeleted(tripId)` so the parent re-fetches and clears the selection if needed.
+ *
+ * TRIPS-01 (2026-09-29): a link into a trip lands on the Travel tab as
+ * /travel?trip=<id>. The parent hands the requested id in; once THIS list has loaded,
+ * it is answered from these rows alone (src/lib/trips/tripFromUrl.ts) — one of yours
+ * is selected with the same `onSelect(trip)` a click makes; any other id selects
+ * nothing and the list says so in one line. No new fetch: the rows are the ones the
+ * list already loads from GET /api/trips.
  */
 
 import { useEffect, useState } from 'react';
+import { TRIP_NOT_YOURS, urlTripStep, type UrlTrip } from '@/lib/trips/tripFromUrl';
 
 export interface TripRow {
   id: string;
@@ -49,6 +57,10 @@ interface Props {
    *  Books onTotals idiom — zero new fetches; the parent's stable setter is
    *  the callback). Feeds the StageStrip's derived states + ProofStrip. */
   onTotals?: (t: { trips: number }) => void;
+  /** TRIPS-01: the trip a link asked for (/travel?trip=<id>), or null when the URL asks for none. */
+  requestedTripId?: string | null;
+  /** TRIPS-01: told once per answered request, after the selection (if any) is made. */
+  onUrlTripAnswered?: (verdict: UrlTrip<TripRow>) => void;
 }
 
 function formatRange(start: string | null, end: string | null): string {
@@ -57,12 +69,15 @@ function formatRange(start: string | null, end: string | null): string {
   return end ? `${fmt(start)} – ${fmt(end)}` : fmt(start);
 }
 
-export default function AllTripsList({ refreshSignal = 0, onSelect, selectedTripId = null, onDeleted, headerAction, onTotals }: Props) {
+export default function AllTripsList({ refreshSignal = 0, onSelect, selectedTripId = null, onDeleted, headerAction, onTotals, requestedTripId = null, onUrlTripAnswered }: Props) {
   const [trips, setTrips] = useState<TripRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  // TRIPS-01: the id last answered from the URL, and what it answered.
+  const [answered, setAnswered] = useState<string | null>(null);
+  const [urlTrip, setUrlTrip] = useState<UrlTrip<TripRow> | null>(null);
 
   // PR-Trips3: confirm, then delete. stopPropagation so the trash click never also
   // selects the row. The route is ownership-scoped (verifies the trip is the session
@@ -105,6 +120,18 @@ export default function AllTripsList({ refreshSignal = 0, onSelect, selectedTrip
     return () => { cancelled = true; };
   }, [refreshSignal]);
 
+  // TRIPS-01: answer the URL's trip from the rows this list loaded — never before they
+  // load, never from anywhere else, once per arrival.
+  useEffect(() => {
+    const step = urlTripStep(requestedTripId, !loading && error === null, trips, answered);
+    if (step.kind === 'wait') return;
+    if (step.kind === 'forget') { setAnswered(null); return; }
+    setAnswered(step.id);
+    setUrlTrip(step.verdict);
+    if (step.verdict.kind === 'selected') onSelect?.(step.verdict.trip);
+    onUrlTripAnswered?.(step.verdict);
+  }, [requestedTripId, loading, error, trips, answered, onSelect, onUrlTripAnswered]);
+
   return (
     <div className="mt-6">
       <div className="mb-2 flex items-center justify-between gap-3">
@@ -114,6 +141,10 @@ export default function AllTripsList({ refreshSignal = 0, onSelect, selectedTrip
           {headerAction}
         </div>
       </div>
+
+      {urlTrip?.kind === 'notYours' && (
+        <p className="mb-2 rounded-lg border border-border bg-white p-3 text-sm text-text-muted" data-url-trip-missing>{TRIP_NOT_YOURS}</p>
+      )}
 
       {loading && <p className="text-sm text-text-faint">Loading your trips…</p>}
       {error && <p className="rounded-lg border border-border bg-white p-4 text-sm text-brand-red">{error}</p>}

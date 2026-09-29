@@ -13,10 +13,10 @@
  * placeholder page. Nothing is retyped, reordered or renamed.
  *
  * The open tool shows the pages IT owns (the registry's own links) as sub-rows:
- * that is how /chart-of-accounts, /dashboard/tax-filing, /soc2, /budgets/trips,
- * /shopping and /hub/itinerary keep their doors — inside the tool they belong
- * to, never as a top-level row, and never pointing at another tool's screen
- * (navLaw rule 7).
+ * that is how /chart-of-accounts, /dashboard/tax-filing, /soc2, /shopping and
+ * /hub/itinerary keep their doors — inside the tool they belong to, never as a
+ * top-level row, and never pointing at another tool's screen (navLaw rule 7).
+ * (TRIPS-01, 2026-09-29: Travel has no sub-row — its legacy pages are redirects.)
  *
  * Open / collapsed is REACT STATE ONLY — no localStorage, no sessionStorage, no
  * cookie. ACCOUNTS-01: that state is held by the provider the ROOT LAYOUT mounts
@@ -73,8 +73,8 @@ function covers(href: string, pathname: string): boolean {
 /**
  * The tool the viewer is in: the cockpit's own section first (its primary tool),
  * then the tool whose screen or owned page covers the path — the longest match
- * wins, so /budgets/trips/42 resolves to Travel and not to whatever else is
- * shallower. Where several tools once shared a screen (/trading, /operations — both retired); the FIRST in registry
+ * wins, so /agenda/42 resolves to Budget (its owned page /agenda) and not to
+ * whatever else is shallower. Where several tools once shared a screen (/trading, /operations — both retired); the FIRST in registry
  * order is the one the rail marks, and both rows stay visible either way.
  */
 export function activeToolOf(pathname: string | null, activeModule?: string): NavTool | null {

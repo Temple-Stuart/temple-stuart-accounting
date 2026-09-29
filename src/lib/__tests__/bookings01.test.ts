@@ -70,7 +70,8 @@ test('a confirmed hotel, with and without its code: every word exact', () => {
     id: 'r_h', laneWord: 'Hotel', name: 'Hotel Temple', dates: '2026-10-01 → 2026-10-03', status: 'confirmed', cancellation: null,
     confirmation: 'HCC-4421', ticketing: null, vendorRead: 'vendor state read at 2026-09-26T08:00:00.000Z',
     bank: 'not matched', ledger: 'not posted', budgetLine: 'no budget line', price: '180.00 USD',
-    receiptHref: '/booking/r_h/receipt', tripHref: '/budgets/trips/t1',
+    // TRIPS-01 (2026-09-29): the Trip button opens the trip on the Travel tab, never the legacy planner.
+    receiptHref: '/booking/r_h/receipt', tripHref: '/travel?trip=t1',
     // CAL-02 (2026-09-27): the booking's calendar file.
     icsHref: '/api/reservations/r_h/ics',
   });
