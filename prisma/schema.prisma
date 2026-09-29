@@ -347,6 +347,50 @@ model planned_item_links {
   @@map("planned_item_links")
 }
 
+/// VENDOR-01 (2026-09-29) — THE VENDOR IS PLANNED: who a plan's money is paid to.
+/// The vendor is a row of the ONE vendor list, operations_vendor_directory (DIM-1),
+/// of the plan's own book. A plan — a routine, a routine's line or a project task:
+/// exactly one of routine_id, step_id, task_id — names its vendor at one of TWO
+/// GRAINS, never both: occurrence_at NULL is EVERY occurrence (a subscription);
+/// occurrence_at SET is ONE occurrence, keyed on its INSTANT as a posting's link
+/// is (planned_item_links.target_instant) — today's lunch at one place, tomorrow's
+/// at another. A task happens once: its row never carries an instant.
+///
+/// HELD BY THE DATABASE (prisma/migrations/20260929190000_vendor_01_planned_item_
+/// vendors — Prisma cannot express a partial index or a trigger; the migration
+/// holds them, the journal_entries precedent :209): a CHECK that exactly one plan
+/// column is set; a CHECK that a task row has no occurrence; partial unique
+/// indexes — one every-occurrence row per plan, one row per (plan, occurrence);
+/// and a BEFORE INSERT OR UPDATE trigger that refuses a row whose plan already
+/// holds the other grain, after locking the plan's own row FOR NO KEY UPDATE.
+///
+/// Written by ONE route (src/app/api/operations/plan-vendors/route.ts), decided by
+/// one pure rule (src/lib/operations/planVendor.ts). onDelete: a plan's vendor goes
+/// with the plan (Cascade — every set and clear is in the audit log); a vendor a
+/// plan names cannot vanish (Restrict); a deleted user's rows go with them.
+model planned_item_vendors {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String
+  routine_id    String?   @db.Uuid
+  step_id       String?   @db.Uuid
+  task_id       String?   @db.Uuid
+  /// The occurrence INSTANT. NULL = every occurrence of the plan.
+  occurrence_at DateTime? @db.Timestamptz(6)
+  vendor_id     String    @db.Uuid
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @updatedAt @db.Timestamptz(6)
+
+  user    users                       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  routine operations_routines?        @relation(fields: [routine_id], references: [id], onDelete: Cascade)
+  step    operations_routine_steps?   @relation(fields: [step_id], references: [id], onDelete: Cascade)
+  task    operations_project_tasks?   @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  vendor  operations_vendor_directory @relation(fields: [vendor_id], references: [id], onDelete: Restrict)
+
+  @@index([user_id, occurrence_at])
+  @@index([vendor_id])
+  @@map("planned_item_vendors")
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // MERCHANT COA MAPPINGS — Now with entity_id
 // ═══════════════════════════════════════════════════════════════════
@@ -673,6 +717,8 @@ model users {
   commission_ledger       commission_ledger[]
   transaction_reservation_links transaction_reservation_links[]
   planned_item_links            planned_item_links[]
+  // VENDOR-01: who each of this user's plans is paid to.
+  planned_item_vendors          planned_item_vendors[]
   provider_responses      provider_responses[]
   arrivals                arrivals[]
   verification_tokens     verification_tokens[]
@@ -2851,6 +2897,12 @@ enum AuditActionType {
   // by the owner — migration 20260927120000_link_02_reservation_budget_links.
   reservation_budget_linked
   reservation_budget_unlinked
+  // VENDOR-01 (2026-09-29): a plan's vendor set / cleared by its owner, appended in
+  // the order ALTER TYPE ... ADD VALUE gives them — migration
+  // 20260929190000_vendor_01_planned_item_vendors. Both are in the audit-log route's
+  // operations_ list.
+  operations_plan_vendor_set
+  operations_plan_vendor_cleared
 }
 
 model audit_log {
@@ -3415,6 +3467,8 @@ model operations_project_tasks {
   daily_plan_items    operations_daily_plan_items[]
   status_history      operations_task_status_history[]
   hub_scheduled_items hub_scheduled_items[]
+  // VENDOR-01: the task's vendor — every occurrence only (a task happens once).
+  planned_item_vendors planned_item_vendors[]
 
   @@index([project_id, status, display_order])
   @@index([user_id, status, priority_score])
@@ -3554,6 +3608,8 @@ model operations_routines {
   content_scene_group operations_content_scene_groups?
   hub_scheduled_items hub_scheduled_items[]
   ledger_line_links   ledger_line_links[]
+  // VENDOR-01: the routine's vendor, when its own figure is in force.
+  planned_item_vendors planned_item_vendors[]
 
   @@unique([user_id, name])
   @@index([user_id, is_active, next_due_at])
@@ -3596,6 +3652,8 @@ model operations_routine_steps {
   routine             operations_routines        @relation(fields: [routine_id], references: [id], onDelete: Cascade)
   content_scene       operations_content_scenes?
   hub_scheduled_items hub_scheduled_items[]
+  // VENDOR-01: the line's vendor, when the routine's figure is its lines.
+  planned_item_vendors planned_item_vendors[]
 
   @@index([routine_id, step_order])
   @@index([routine_id])
@@ -3935,6 +3993,8 @@ model operations_vendor_directory {
 
   // DIM-1: this directory is THE vendor table — journal entries reference it.
   journal_entries journal_entries[]
+  // VENDOR-01: and the plans that name it (RESTRICT — a named vendor cannot vanish).
+  planned_item_vendors planned_item_vendors[]
 
   @@unique([user_id, entity_id, vendor_name])
   @@index([user_id, is_active])

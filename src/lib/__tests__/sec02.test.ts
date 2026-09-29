@@ -46,8 +46,11 @@ test('every export form is read — the destructured PUT a `function|const` coun
   const all = routes();
   const narrow = all.filter((f) => /export\s+(?:async\s+)?(?:function|const)\s+(?:DELETE|PATCH|PUT)\b/.test(code(f)));
   const wide = all.filter((f) => exportedMethods(code(f)).some((m) => m.method === 'DELETE' || m.method === 'PATCH' || m.method === 'PUT'));
-  assert.equal(narrow.length, 47, 'the count the ruling verified on main 11445ca1');
-  assert.equal(wide.length, 48, 'the census: 47 + the inngest route');
+  // VENDOR-01 (2026-09-29): + src/app/api/operations/plan-vendors/route.ts DELETE — an owned writer the
+  // ownership law reads (the cart-plan gate first, every write scoped to user.id); the only change.
+  assert.ok(narrow.includes('src/app/api/operations/plan-vendors/route.ts'));
+  assert.equal(narrow.length, 48, 'the count the ruling verified on main 11445ca1 (47), + the plan-vendors DELETE (VENDOR-01)');
+  assert.equal(wide.length, 49, 'the census: 48 + the inngest route');
   assert.deepEqual(wide.filter((f) => !narrow.includes(f)), ['src/app/api/inngest/route.ts']);
 });
 
