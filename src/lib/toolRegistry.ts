@@ -258,8 +258,11 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
       { label: 'Itinerary budget builder', href: '/hub/itinerary' },
       { label: 'Runway · the read-only view', cockpitKey: 'calendar' },
     ],
-    citation: 'src/app/api/budget/report/route.ts:49-60 (the gate) · :102-119 (actuals by name, the counts, the bank rows) · src/lib/budget/reportInputs.ts:352-399 (routine and task lines, the model) · src/components/budget/BudgetReport.tsx:330 · :352 (the screen, its one read) · src/app/budget/page.tsx:31 · src/app/api/home/route.ts:33-63 · :89 (draft :107) · src/app/api/home/[id]/route.ts:143 · :118-139, :81-89',
-    note: 'TAB13-02b: /budget renders the read-only budget report; the six category URLs redirect to it, and BudgetingPage (with its draft form) is mounted nowhere — the recurring-line routes cited after the report have no screen now.',
+    // TAB13-03 (2026-09-29): re-cited on what is on main — the screen's lines moved, a
+    // book's own totals and the view helper joined, and the /api/home routes no screen
+    // mounts are no longer cited (the row claims only what a customer reaches).
+    citation: 'src/app/api/budget/report/route.ts:49-60 (the gate) · :102-119 (actuals by name, the counts, the bank rows) · src/lib/budget/reportInputs.ts:405-406 (routine and task lines) · :442-449 (the model) · src/lib/budget/report.ts:511 (totalsOf — the report\'s totals and each book\'s) · src/lib/budget/reportView.ts:155 (the section) · :118-128 (every link keeps it) · src/components/budget/BudgetReport.tsx:412 · :436 (the screen, its one read) · :172 (the chips) · :200 (a book, its totals, the Account filter) · :261 (the strip) · src/app/budget/page.tsx:31',
+    note: 'TAB13-02b: /budget renders the read-only budget report; the six category URLs redirect to it, and BudgetingPage (with its draft form) is mounted nowhere. TAB13-03: one section at a time — the Overview, or one book with its own totals, its Account column filtering to one account.',
     customer: 'You can compare what you planned in your routines and tasks with what you actually spent, by book and account; travel and income budgets are not connected yet.',
   },
   // ── WHAT YOU OWN ──

@@ -425,3 +425,82 @@ test('PURITY — the model imports no database client, framework or network, and
   assert.doesNotMatch(src, /\bprocess\.env\b/);
   assert.doesNotMatch(code('src/lib/__tests__/budgetReport.test.ts'), /['"]@prisma\/client/);
 });
+
+// ── TAB13-03 · EACH BOOK STANDS ALONE (T1) ──────────────────────────────────
+
+test('T1 BOOK TOTALS — every book carries its own totals, by the SAME function as the report\'s; each report figure is the sum over the books, null only when every book\'s is', () => {
+  const OTHER: ReportEntity = { id: 'ent-x', name: 'Holdings', entityType: 'business' };
+  // WEEK of Sat 2026-09-26: WEEK in progress, Mon–Sat closed, Sun future — every column state.
+  const r = buildBudgetReport(input({
+    view: { kind: 'week', weekOf: AS_OF },
+    entities: [PERSONAL, BUSINESS, TRADING, OTHER],
+    accounts: [
+      revenue('ent-p', '4000', 'Salary'), expense('ent-p', '6100', 'Coffee'),
+      expense('ent-b', '6200', 'Software'), expense('ent-b', '6300', 'Hosting'),
+      expense('ent-t', '6400', 'Data'),
+    ],
+    budgetLines: [
+      line('ent-p', '6100', '2026-09-21', 1000, 'r-coffee-mon'),
+      line('ent-p', '6100', '2026-09-27', 500, 'r-coffee-sun'), // Sunday: future
+      line('ent-p', '4000', '2026-09-22', 20000, 'r-salary'),
+      line('ent-b', '6200', '2026-09-23', 3000, 'r-software'),
+    ],
+    postings: [
+      post('ent-p', '6100', '2026-09-21', 'D', 800, 'je-coffee'),
+      post('ent-p', '4000', '2026-09-22', 'C', 25000, 'je-salary'),
+      post('ent-b', '6300', '2026-09-24', 'D', 1200, 'je-hosting'), // no budget → unbudgeted actual
+      post('ent-t', '6400', '2026-09-25', 'D', 700, 'je-data'),
+    ],
+  }));
+  assert.deepEqual(r.columns.map((c) => c.state), ['inProgress', 'closed', 'closed', 'closed', 'closed', 'closed', 'closed', 'future']);
+  assert.deepEqual(r.books.map((b) => b.entityId), ['ent-p', 'ent-b', 'ent-t', 'ent-x']);
+  for (const b of r.books) assert.equal(b.totals.length, r.columns.length, `${b.label}: one total per column`);
+
+  const FIELDS = ['budgetFull', 'budgetToDate', 'actual', 'variance', 'unbudgetedActual'] as const;
+  const COVERAGE = ['rows', 'withBudget', 'withBudgetToDate', 'withActual', 'withVariance'] as const;
+  for (let i = 0; i < r.columns.length; i += 1) {
+    for (const side of ['income', 'expense'] as const) {
+      for (const f of FIELDS) {
+        const known = r.books.map((b) => b.totals[i][side][f]).filter((v): v is number => v !== null);
+        const expected = known.length === 0 ? null : known.reduce((a, v) => a + v, 0);
+        assert.equal(r.totals[i][side][f], expected, `${r.columns[i].key} ${side}.${f}: the report is the sum over the books`);
+      }
+      for (const c of COVERAGE) {
+        assert.equal(r.totals[i][side].coverage[c], r.books.reduce((n, b) => n + b.totals[i][side].coverage[c], 0), `${r.columns[i].key} ${side}.coverage.${c}`);
+      }
+    }
+  }
+
+  // Worked by hand, the WEEK column (index 0): Personal plans 1000 + 500 of Coffee and 20000 of Salary.
+  const week = col(r, 'week');
+  const [p, b, t, x] = r.books;
+  assert.deepEqual([p.totals[week].income.budgetFull, p.totals[week].expense.budgetFull], [20000, 1500]);
+  assert.deepEqual([b.totals[week].expense.budgetFull, b.totals[week].expense.actual, b.totals[week].expense.unbudgetedActual], [3000, 1200, 1200]);
+  assert.equal(t.totals[week].expense.actual, 700);
+  assert.equal(t.totals[week].expense.budgetFull, null, 'Trade planned nothing: blank, never 0');
+  assert.equal(r.totals[week].expense.actual, 800 + 1200 + 700);
+  // NET is strict — both sides or nothing — so the report's NET need not be the sum of the books' NETs:
+  // Business has no income budget, so its NET budget is blank, yet the report's is Personal's income less every expense.
+  assert.equal(b.totals[week].net.budgetFull, null);
+  assert.equal(p.totals[week].net.budgetFull, 20000 - 1500);
+  assert.equal(r.totals[week].net.budgetFull, 20000 - (1500 + 3000));
+  assert.notEqual(r.totals[week].net.budgetFull, p.totals[week].net.budgetFull, 'not the sum of the books\' NETs');
+
+  // A book with no rows: totals of zero coverage and nulls — never zeros.
+  assert.deepEqual(x.rows, []);
+  for (const ct of x.totals) {
+    for (const side of ['income', 'expense', 'net'] as const) {
+      for (const f of FIELDS) assert.equal(ct[side][f], null, `the empty book's ${side}.${f}`);
+      assert.deepEqual(ct[side].coverage, { rows: 0, withBudget: 0, withBudgetToDate: 0, withActual: 0, withVariance: 0 });
+    }
+  }
+});
+
+test('T1 ONE FUNCTION, TWO SCOPES — totalsOf builds the report\'s totals and each book\'s; sectionOf is called nowhere else', () => {
+  const src = code(MODEL);
+  assert.match(src, /function totalsOf\(rows: readonly ReportRow\[\], columns: readonly ReportColumn\[\]\): ColumnTotals\[\] \{/);
+  assert.match(src, /totals: totalsOf\(rows, columns\),/, 'each book');
+  assert.match(src, /const totals = totalsOf\(books\.flatMap\(\(b\) => b\.rows\), columns\);/, 'the report');
+  assert.equal((src.match(/\bsectionOf\(/g) ?? []).length, 3, 'its definition and the two sides inside totalsOf — no second totals builder');
+  assert.equal((src.match(/\bnetOf\(/g) ?? []).length, 2, 'its definition and totalsOf');
+});

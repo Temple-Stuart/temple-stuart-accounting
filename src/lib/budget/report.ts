@@ -186,6 +186,12 @@ export interface ReportBook {
   readonly label: string;
   /** Revenue before expense, code ascending. Empty when the entity has no activity in the view. */
   readonly rows: readonly ReportRow[];
+  /**
+   * TAB13-03: this book's own totals, one per column — built by the SAME function
+   * as the report's (totalsOf), over this book's rows only. A book with no rows
+   * has totals of zero coverage and nulls, never zeros.
+   */
+  readonly totals: readonly ColumnTotals[];
 }
 
 /** How many rows a total was built from (day.ts CoveredTotal's idea). */
@@ -494,6 +500,22 @@ function netOf(income: SectionTotal, expense: SectionTotal): SectionTotal {
   };
 }
 
+/**
+ * TAB13-03: the totals of a set of rows, one per column — income, expense, NET.
+ * ONE function, two scopes: the report's totals over every book's rows, and each
+ * book's over its own. Because a section sums only the known values of its cells
+ * (sumOrNull), a report figure is the sum of the books' figures, and is null only
+ * when every book's is. NET is strict — both sides or nothing — so a report's NET
+ * need not be the sum of the books' NETs.
+ */
+function totalsOf(rows: readonly ReportRow[], columns: readonly ReportColumn[]): ColumnTotals[] {
+  return columns.map((_, i) => {
+    const income = sectionOf(rows.filter((r) => r.family === 'revenue').map((r) => r.cells[i]));
+    const expense = sectionOf(rows.filter((r) => r.family === 'expense').map((r) => r.cells[i]));
+    return { income, expense, net: netOf(income, expense) };
+  });
+}
+
 // ── THE REPORT ──────────────────────────────────────────────────────────────
 
 export function buildBudgetReport(input: BudgetReportInput): BudgetReport {
@@ -616,22 +638,21 @@ export function buildBudgetReport(input: BudgetReportInput): BudgetReport {
     .map((e) => ({ e, letter: letterFor(e.entityType) }))
     .sort((a, b) =>
       cmp(a.letter ? LETTER_RANK[a.letter] : 3, b.letter ? LETTER_RANK[b.letter] : 3) || cmp(a.e.name, b.e.name) || cmp(a.e.id, b.e.id))
-    .map(({ e, letter }) => ({
-      entityId: e.id,
-      entityName: e.name,
-      entityType: e.entityType,
-      letter,
-      label: letter ? BOOK_LABEL[letter] : `${e.name} (${e.entityType})`,
-      rows: [...(rowsByEntity.get(e.id) ?? [])].sort((a, b) =>
-        cmp(a.family === 'revenue' ? 0 : 1, b.family === 'revenue' ? 0 : 1) || cmp(a.code, b.code)),
-    }));
+    .map(({ e, letter }) => {
+      const rows = [...(rowsByEntity.get(e.id) ?? [])].sort((a, b) =>
+        cmp(a.family === 'revenue' ? 0 : 1, b.family === 'revenue' ? 0 : 1) || cmp(a.code, b.code));
+      return {
+        entityId: e.id,
+        entityName: e.name,
+        entityType: e.entityType,
+        letter,
+        label: letter ? BOOK_LABEL[letter] : `${e.name} (${e.entityType})`,
+        rows,
+        totals: totalsOf(rows, columns),
+      };
+    });
 
-  const allRows = books.flatMap((b) => b.rows);
-  const totals: ColumnTotals[] = columns.map((_, i) => {
-    const income = sectionOf(allRows.filter((r) => r.family === 'revenue').map((r) => r.cells[i]));
-    const expense = sectionOf(allRows.filter((r) => r.family === 'expense').map((r) => r.cells[i]));
-    return { income, expense, net: netOf(income, expense) };
-  });
+  const totals = totalsOf(books.flatMap((b) => b.rows), columns);
 
   return { asOf, view, columns, books, totals, unplaced: unplaced.sort(compareUnplaced) };
 }

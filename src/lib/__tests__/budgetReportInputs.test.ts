@@ -446,3 +446,24 @@ test('PURITY — the route\'s pure half imports no database client, framework or
   assert.doesNotMatch(src, /\bprocess\.env\b/);
   assert.doesNotMatch(code('src/lib/__tests__/budgetReportInputs.test.ts'), /['"]@prisma\/client/);
 });
+
+// ── M4 (owed since the TAB13-02c audit; ruled 2026-09-29) ───────────────────
+
+test('M4 — a ledger line whose code is saved lettered, in an entity that is NOT rows.entities[0], is read with ITS book and placed on its account', () => {
+  // The TAB13-02c mutant read every posting with the input's FIRST entity. Trading is
+  // the THIRD input entity (B, P, T): read with B's book, "T-6100" would be refused.
+  const T: EntityRow = { id: 'ent-t', name: 'Trading', entity_type: 'trading' };
+  const r = budgetReportResponse(WEEK, rows({
+    entities: [B, P, T],
+    chart: [...rows().chart, { entity_id: 'ent-t', code: 'T-6100', name: 'Data feed', account_type: 'expense', balance_type: 'D' }],
+    ledger: [line({ journal_entry_id: 'je-trade', amount: BigInt(2500), account: { entity_id: 'ent-t', code: 'T-6100' }, journal_entry: { date: at('2026-09-21') } })],
+  }));
+  assert.equal(r.report.books.findIndex((b) => b.entityId === 'ent-t'), 2, 'TRADE is the third book');
+  const trade = r.report.books.find((b) => b.entityId === 'ent-t');
+  assert.ok(trade);
+  assert.deepEqual(trade.rows.map((x) => [x.code, x.name]), [['6100', 'Data feed']], 'read with its own book — one account, T-6100');
+  assert.equal(trade.rows[0].cells[0].actual, 2500, 'placed: $25.00 posted Monday, in the WEEK column');
+  assert.deepEqual(r.report.unplaced, [], 'the posting found its account');
+  assert.equal(formatAccountCode(r.report.books, 'ent-t', trade.rows[0].code), 'T-6100');
+  assert.equal(trade.totals[0].expense.actual, 2500, 'and its book\'s own total holds it');
+});
