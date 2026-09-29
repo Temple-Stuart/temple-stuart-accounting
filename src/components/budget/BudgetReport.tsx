@@ -15,14 +15,20 @@
  * the choice is in the URL too (?book=<entityId>), and on a book the Account
  * column's header filters to one account (?account=<four digits>). Every link
  * keeps the choice — src/lib/budget/reportView.ts builds them all, and refuses
- * by name a choice the report cannot honour. A book shows its OWN totals, made
- * by the model (report.ts totalsOf), never summed here.
+ * by name a choice the report cannot honour.
+ *
+ * TAB13-03b (2026-09-29): A BOOK IS ITS ITEMIZED TABLE — its heading and its
+ * accounts, the Account filter in the header, nothing above the table (the
+ * book's own totals stay in the model and the response). The Overview keeps the
+ * report's totals, made by the model (report.ts totalsOf), never summed here.
  *
  * Every figure comes from GET /api/budget/report and is written by the one
  * formatter (src/lib/budget/format.ts): '—' is blank, never zero; an
- * unfavourable variance is in parentheses and brand red. What the report does
- * NOT hold is always on screen — THE STRIP under whichever section is shown —
- * never hidden.
+ * unfavourable variance is in parentheses and brand red. What THIS view is
+ * missing is DECLARED, never filled in: under whichever section is shown, one
+ * line for each gap in its money that exists — plans not placed (BUDGET SHORT),
+ * bank transactions not in the books (ACTUAL SHORT) — and nothing when there is
+ * none (reportView.ts missingMoney, TAB13-03b).
  *
  * Styled like the Travel tab: SECTION_HEADER headings (ModuleLauncher.tsx
  * TravelHeading), TripBudgetActual's statement table, ToggleStrip's toggleChip.
@@ -33,10 +39,9 @@ import { SECTION_HEADER, toggleChip } from '@/lib/ds';
 import { formatAccountCode, formatBudget, formatCents, formatVariance } from '@/lib/budget/format';
 import type { ColumnTotals, ReportBook, ReportCell, ReportColumn, SectionTotal, UnplacedItem } from '@/lib/budget/report';
 import type { BudgetReportResponse } from '@/lib/budget/reportInputs';
-import { EXCLUDED_TASK_STATUSES } from '@/lib/budget/days';
 import {
-  accountHref, anchorOf, bookChipLabels, choiceOf, excludedTasksTotal, hrefFor, leftOutLines, notPlacedIn,
-  sectionFor, sectionHref, stepHref, viewParams, type Section, type SectionChoice,
+  accountHref, anchorOf, bookChipLabels, choiceOf, hrefFor, missingMoney, sectionFor, sectionHref, stepHref,
+  viewParams, type Section, type SectionChoice,
 } from '@/lib/budget/reportView';
 
 type Kind = 'day' | 'week' | 'year';
@@ -136,8 +141,9 @@ function netBlanks(totals: ColumnTotals): string[] {
 }
 
 /**
- * The Overview's table and its NET-blank lines — the report's totals on OVERVIEW,
- * a book's OWN totals on a book (both from the model, report.ts totalsOf).
+ * The Overview's table and its NET-blank lines — the report's totals, from the
+ * model (report.ts totalsOf). TAB13-03b: drawn on the Overview only; a book is
+ * its itemized table.
  */
 function TotalsTable({ columns, totals }: { columns: readonly ReportColumn[]; totals: readonly ColumnTotals[] }) {
   const blanks = totals.length > 0 ? netBlanks(totals[0]) : [];
@@ -196,7 +202,7 @@ function SectionChips({ books, choice, go, search }: {
   );
 }
 
-/** A book, standing alone: its heading, its OWN totals, then its accounts — the Account header filters to one. */
+/** A book is its itemized table (TAB13-03b): its heading, then its accounts — the Account header filters to one. */
 function BookSection({ section, report, go, search }: {
   section: Extract<Section, { kind: 'book' }>;
   report: BudgetReportResponse['report'];
@@ -225,7 +231,6 @@ function BookSection({ section, report, go, search }: {
   return (
     <section className="space-y-3" data-budget-section="book">
       <Heading>{book.label} · {book.entityName}</Heading>
-      <TotalsTable columns={columns} totals={book.totals} />
       <div className="overflow-x-auto rounded-lg border border-border bg-white">
         <table className="w-full text-sm">
           <TableHead columns={columns} first={filter} />
@@ -242,145 +247,84 @@ function BookSection({ section, report, go, search }: {
   );
 }
 
-/** A line of the strip: a native <details>, its summary the kind, its count and amount. */
-function StripLine({ kind, open, summary, children }: { kind: string; open?: boolean; summary: React.ReactNode; children?: React.ReactNode }) {
-  return (
-    <details open={open} className="rounded border border-border bg-white px-3 py-2" data-strip={kind}>
-      <summary className="cursor-pointer text-sm text-text-primary">{summary}</summary>
-      {children !== undefined && <div className="mt-2 space-y-1 text-sm text-text-muted">{children}</div>}
-    </details>
-  );
-}
-
-/** The excluded statuses, named from the day rules' own list (days.ts EXCLUDED_TASK_STATUSES) — never typed here. */
-const EXCLUDED_STATUS_WORDS = EXCLUDED_TASK_STATUSES.length > 1
-  ? `${EXCLUDED_TASK_STATUSES.slice(0, -1).join(', ')} or ${EXCLUDED_TASK_STATUSES[EXCLUDED_TASK_STATUSES.length - 1]}`
-  : EXCLUDED_TASK_STATUSES.join('');
-
-/** THE STRIP — what the report does not hold, under whichever section is shown. Nothing listed is unreachable. */
-function Strip({ data, section }: { data: BudgetReportResponse; section: Section }) {
+/**
+ * TAB13-03b — WHAT THIS VIEW IS MISSING, under whichever section is shown: one
+ * line per gap in its money that exists (reportView.ts missingMoney), NOTHING
+ * when there is none. Each line's items open in place in a native <details>.
+ */
+function MissingNotice({ data, section }: { data: BudgetReportResponse; section: Section }) {
+  const lines = missingMoney(data, section);
+  if (lines.length === 0) return null;
   const { report } = data;
-  const placed = notPlacedIn(data, section);
-  const tasks = excludedTasksTotal(data);
-  const excludedTasks = data.excludedTasks.byStatus.filter((s) => s.tasks > 0);
-  const whole = data.notInBooks.columns[0];
-  const leftOut = leftOutLines(data);
-  const scope = placed.scope === 'book' ? 'this book' : 'all books';
   return (
-    <section className="space-y-2" data-budget-section="strip">
-      <Heading>What this report does not hold</Heading>
-
-      <StripLine
-        kind="not-placed"
-        open={placed.count > 0}
-        summary={<>
-          <span className="font-bold">Not placed</span> — {placed.count} · {formatCents(placed.plannedCents)} planned
-          {placed.withoutAmount > 0 && <span> · {placed.withoutAmount} with no amount</span>}
-          {placed.postings > 0 && <span> · {placed.postings} ledger line{placed.postings === 1 ? '' : 's'}</span>}
-          <span className="text-xs text-text-faint"> · {scope}</span>
-        </>}
-      >
-        {placed.count === 0 ? (
-          <p className="text-text-faint">Nothing — every plan and posting in this view is on a row.</p>
-        ) : (
-          <ul className="space-y-1">
-            {placed.notPlaced.map((n) => (
+    <div className="space-y-2" data-missing-money>
+      {lines.map((line) => (line.kind === 'budgetShort' ? (
+        <details key="budget-short" open className="rounded border border-border bg-white px-3 py-2" data-missing="budget-short">
+          <summary className="cursor-pointer text-sm text-text-primary">
+            <span className="font-bold">BUDGET SHORT</span> — {line.placed.count} not placed · {formatCents(line.placed.plannedCents)} planned
+            {line.placed.withoutAmount > 0 && <span> · {line.placed.withoutAmount} with no amount</span>}
+            {line.placed.postings > 0 && <span> · {line.placed.postings} ledger line{line.placed.postings === 1 ? '' : 's'}</span>}
+            <span className="text-xs text-text-faint"> · {line.placed.scope === 'book' ? 'this book' : 'all books'}</span>
+          </summary>
+          <ul className="mt-2 space-y-1 text-sm text-text-muted">
+            {line.placed.notPlaced.map((n) => (
               <li key={`${n.sourceId}:${n.reason}`}>
                 <span className="font-medium text-text-primary">{n.label}</span> · {n.source} · {n.day === null ? 'undated' : n.day} · {formatCents(n.cents)} · {n.reason}
                 {n.detail !== null && <span className="text-xs text-text-faint"> ({n.detail})</span>}
               </li>
             ))}
-            {placed.unplaced.map((u, i) => <li key={`unplaced:${i}`}>{unplacedLine(u, report.books)}</li>)}
+            {line.placed.unplaced.map((u, i) => <li key={`unplaced:${i}`}>{unplacedLine(u, report.books)}</li>)}
           </ul>
-        )}
-      </StripLine>
-
-      <StripLine
-        kind="excluded-tasks"
-        summary={<>
-          <span className="font-bold">Not counted as plans</span> — {tasks.tasks} costed task{tasks.tasks === 1 ? '' : 's'} · {formatCents(tasks.cents)}
-          <span className="text-xs text-text-faint"> · status {EXCLUDED_STATUS_WORDS} · ALL TIME · all books</span>
-        </>}
-      >
-        {excludedTasks.length === 0 ? (
-          <p className="text-text-faint">None.</p>
-        ) : (
-          <ul className="space-y-1">
-            {excludedTasks.map((s) => (
-              <li key={s.status}><span className="rounded-full bg-bg-row px-2 py-0.5 text-xs font-medium text-text-muted">{s.status}</span> {s.tasks} task{s.tasks === 1 ? '' : 's'} · {formatCents(s.cents)}</li>
-            ))}
-          </ul>
-        )}
-      </StripLine>
-
-      <StripLine
-        kind="not-in-books"
-        summary={<>
-          <span className="font-bold">Not in the books yet</span>
- — {whole.label}: {whole.transactions === null ? '—' : whole.transactions} bank transaction{whole.transactions === 1 ? '' : 's'} · {formatCents(whole.bankCents)}
-          {data.notInBooks.notTotalled.length > 0 && <span> · {data.notInBooks.notTotalled.length} not totalled</span>}
-          <span className="text-xs text-text-faint"> · all books</span>
-        </>}
-      >
-        <p className="text-xs text-text-faint">Bank transactions not yet committed to the ledger — a bank figure, not an actual. {data.notInBooks.sign}.</p>
-        <div className="overflow-x-auto rounded-lg border border-border bg-white">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-white font-mono text-[10px] uppercase tracking-wider">
-                <th className={th}>Column</th>
-                <th className={`${th} text-right`}>Transactions</th>
-                <th className={`${th} text-right`}>Bank amount</th>
-                <th className={`${th} text-right`}>Not totalled</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.notInBooks.columns.map((c) => (
-                <tr key={c.key} className="border-b border-border last:border-0">
-                  <td className={`${td} text-text-muted`}>{c.label}</td>
-                  <td className={num}>{c.transactions === null ? <span className="text-text-faint">—</span> : c.transactions}</td>
-                  <td className={num}>{formatCents(c.bankCents)}</td>
-                  <td className={num}>{c.notTotalled === null ? <span className="text-text-faint">—</span> : c.notTotalled}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {/* Ruled 2026-09-27: a row whose amount is not whole cents is listed here, never summed and never fatal. */}
-        <p className="text-xs text-text-faint" data-not-totalled={data.notInBooks.notTotalled.length}>
-          Left out of these totals: {data.notInBooks.notTotalled.length} bank row{data.notInBooks.notTotalled.length === 1 ? '' : 's'} whose amount is not a whole number of cents.
-        </p>
-        {data.notInBooks.notTotalled.length > 0 && (
-          <ul className="space-y-1">
-            {data.notInBooks.notTotalled.map((row) => (
-              <li key={row.id}>
-                <span className="font-mono">{row.day}</span> · {row.id} · <span className="font-mono">{row.amount}</span> as stored
-                <span className="text-xs text-text-faint"> ({row.detail})</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </StripLine>
-
-      <StripLine
-        kind="left-out"
-        summary={<>
-          <span className="font-bold">Left out by name</span> — {leftOut} ledger line{leftOut === 1 ? '' : 's'}
-          <span className="text-xs text-text-faint"> · all books</span>
-        </>}
-      >
-        <ul className="space-y-1">
-          <li>Reversal pairs — {data.excludedLines.reversalPairLines} ledger line{data.excludedLines.reversalPairLines === 1 ? '' : 's'}</li>
-          <li>Closing entries — {data.excludedLines.closingEntryLines} ledger line{data.excludedLines.closingEntryLines === 1 ? '' : 's'}</li>
-          <li>Posted after {data.asOf} — {data.excludedLines.linesAfterAsOf} ledger line{data.excludedLines.linesAfterAsOf === 1 ? '' : 's'}</li>
-        </ul>
-      </StripLine>
-
-      <p className="px-3 text-sm text-text-muted" data-strip="travel">Travel budgets connect after the Travel tab ships.</p>
-
-      <p className="px-3 text-xs text-text-faint" data-strip="records">
-        Read: {data.records.entities} books · {data.records.accounts} accounts · {data.records.routines} routines · {data.records.costedTasks} costed tasks · {data.records.ledgerLines} ledger lines · {data.records.bankRows} bank rows → {data.records.budgetLines.routine} routine and {data.records.budgetLines.task} task budget lines.
-      </p>
-    </section>
+        </details>
+      ) : (
+        <details key="actual-short" className="rounded border border-border bg-white px-3 py-2" data-missing="actual-short">
+          <summary className="cursor-pointer text-sm text-text-primary">
+            <span className="font-bold">ACTUAL SHORT</span> — {line.label}: {line.transactions} bank transaction{line.transactions === 1 ? '' : 's'} ({formatCents(line.bankCents)}) {line.transactions === 1 ? "isn't" : "aren't"} in the books yet — no Actual includes {line.transactions === 1 ? 'it' : 'them'}
+            {line.notTotalled > 0 && <span> · {line.notTotalled} more not totalled</span>}
+            <span className="text-xs text-text-faint"> · all books</span>
+          </summary>
+          <div className="mt-2 space-y-1 text-sm text-text-muted">
+            <p className="text-xs text-text-faint">Bank transactions not yet committed to the ledger — a bank figure, not an actual. {data.notInBooks.sign}.</p>
+            <div className="overflow-x-auto rounded-lg border border-border bg-white">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-white font-mono text-[10px] uppercase tracking-wider">
+                    <th className={th}>Column</th>
+                    <th className={`${th} text-right`}>Transactions</th>
+                    <th className={`${th} text-right`}>Bank amount</th>
+                    <th className={`${th} text-right`}>Not totalled</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.notInBooks.columns.map((c) => (
+                    <tr key={c.key} className="border-b border-border last:border-0">
+                      <td className={`${td} text-text-muted`}>{c.label}</td>
+                      <td className={num}>{c.transactions === null ? <span className="text-text-faint">—</span> : c.transactions}</td>
+                      <td className={num}>{formatCents(c.bankCents)}</td>
+                      <td className={num}>{c.notTotalled === null ? <span className="text-text-faint">—</span> : c.notTotalled}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Ruled 2026-09-27: a row whose amount is not whole cents is listed here, never summed and never fatal. */}
+            <p className="text-xs text-text-faint" data-not-totalled={data.notInBooks.notTotalled.length}>
+              Left out of these totals: {data.notInBooks.notTotalled.length} bank row{data.notInBooks.notTotalled.length === 1 ? '' : 's'} whose amount is not a whole number of cents.
+            </p>
+            {data.notInBooks.notTotalled.length > 0 && (
+              <ul className="space-y-1">
+                {data.notInBooks.notTotalled.map((row) => (
+                  <li key={row.id}>
+                    <span className="font-mono">{row.day}</span> · {row.id} · <span className="font-mono">{row.amount}</span> as stored
+                    <span className="text-xs text-text-faint"> ({row.detail})</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </details>
+      )))}
+    </div>
   );
 }
 
@@ -394,7 +338,7 @@ function Report({ data, search, go }: { data: BudgetReportResponse; search: URLS
     <div className="space-y-6">
       <SectionChips books={report.books} choice={choice} go={go} search={search} />
 
-      {/* ONE SECTION AT A TIME — the Overview, one book, or a choice refused by name. */}
+      {/* ONE SECTION AT A TIME — the Overview, one book, or a choice refused by name — then what this view is missing, if anything. */}
       {section.kind === 'overview' && (
         <section className="space-y-3" data-budget-section="overview">
           <Heading>Overview</Heading>
@@ -404,7 +348,7 @@ function Report({ data, search, go }: { data: BudgetReportResponse; search: URLS
       {section.kind === 'book' && <BookSection section={section} report={report} go={go} search={search} />}
       {section.kind === 'refused' && <p className="text-sm text-brand-red" data-section-refused>{section.message}</p>}
 
-      <Strip data={data} section={section} />
+      <MissingNotice data={data} section={section} />
     </div>
   );
 }
