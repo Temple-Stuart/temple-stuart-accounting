@@ -19,7 +19,10 @@ import { isValidUuid } from '@/lib/operations/parseUuid';
 import { parseTimeOrNull } from '@/lib/operations/parseTime';
 // ONEOFF-01: the LINES-01 amount rule lives in one leaf now — this writer, its
 // sibling and the create route (which writes lines with the routine) read it.
-import { parseBudgetAmountOrNull, trimNullable } from '@/lib/operations/routineInput';
+// INTAKE-01: it reaches the line's money through planMoney.ts, with the account.
+import { trimNullable } from '@/lib/operations/routineInput';
+import { carriesPlanMoney, planMoney, type PlanBook } from '@/lib/operations/planMoney';
+import { loadPlanBook } from '@/lib/operations/loadPlanBook';
 
 
 export async function POST(
@@ -97,12 +100,16 @@ export async function POST(
     const timeResult = parseTimeOrNull(body.time_of_day, 'time_of_day');
     if (timeResult.error) return timeResult.error;
 
-    const amount = parseBudgetAmountOrNull(body.budget_amount);
-    if ('error' in amount) return NextResponse.json({ error: 'Validation', ...amount.error }, { status: 400 });
-    const coaCode = trimNullable(body.coa_code);
-    if (coaCode && coaCode.length > 50) {
-      return NextResponse.json({ error: 'Validation', field: 'coa_code', message: 'coa_code exceeds 50 characters' }, { status: 400 });
+    // INTAKE-01: the line's amount and account, by the one rule (planMoney.ts),
+    // against the routine's book — read only when the line carries money.
+    const sent = { amount: body.budget_amount, account: body.coa_code };
+    let book: PlanBook | null = null;
+    if (carriesPlanMoney(sent)) {
+      book = await loadPlanBook(prisma, user.id, routine.entity_id);
+      if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
+    const money = planMoney(sent, book, 'routine', { amount: 'budget_amount', account: 'coa_code' });
+    if ('error' in money) return NextResponse.json({ error: 'Validation', ...money.error }, { status: 400 });
 
     // step_order = max+1 within the routine (α-1 documented race-acceptance).
     const maxOrder = await prisma.operations_routine_steps.findFirst({
@@ -124,8 +131,8 @@ export async function POST(
         location,
         duration_minutes: durationMinutes,
         notes,
-        budget_amount: amount.value,
-        coa_code: coaCode,
+        budget_amount: money.value.amount,
+        coa_code: money.value.coaCode,
         created_by: userEmail,
       },
     });

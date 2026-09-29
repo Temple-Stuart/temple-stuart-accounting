@@ -22,6 +22,8 @@ import { Prisma, OperationsTaskStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
+import { carriesPlanMoney, planMoney, type PlanBook } from '@/lib/operations/planMoney';
+import { loadPlanBook } from '@/lib/operations/loadPlanBook';
 
 const STATUS_ORDER: Record<OperationsTaskStatus, number> = {
   // PHASE2-1: auto-fired tasks awaiting the user's accept sort FIRST (need attention).
@@ -154,50 +156,21 @@ export async function POST(
       estimated_minutes = n;
     }
 
-    let estimated_cost_usd: Prisma.Decimal | null = null;
-    if (typeof body.estimated_cost_usd === 'string' && body.estimated_cost_usd.trim().length > 0) {
-      estimated_cost_usd = new Prisma.Decimal(body.estimated_cost_usd.trim());
-    } else if (typeof body.estimated_cost_usd === 'number') {
-      estimated_cost_usd = new Prisma.Decimal(body.estimated_cost_usd);
+    // INTAKE-01: the task's cost and its account, by the one rule (planMoney.ts),
+    // against the task's book — the project's entity, which the task inherits
+    // (β-1 below). The book is read only when the task carries money; a refusal
+    // is a 400 naming the field, and the account stored is the chart row's code
+    // exactly as the chart saves it.
+    const sent = { amount: body.estimated_cost_usd, account: body.coa_code };
+    let book: PlanBook | null = null;
+    if (carriesPlanMoney(sent)) {
+      book = await loadPlanBook(prisma, user.id, project.entity_id);
+      if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
-
-    // coa_code is optional at create; if supplied, must reference an
-    // existing non-archived chart_of_accounts row owned by this user for
-    // the project's entity. Strict-existence mirror of the PATCH check in
-    // src/app/api/operations/projects/[id]/tasks/[taskId]/route.ts.
-    let coa_code: string | null = trimNullable(body.coa_code);
-    if (coa_code !== null) {
-      if (coa_code.length > 50) {
-        return NextResponse.json(
-          { error: 'Validation', field: 'coa_code', message: 'max 50 chars' },
-          { status: 400 }
-        );
-      }
-      const account = await prisma.chart_of_accounts.findUnique({
-        where: {
-          userId_entity_id_code: {
-            userId: user.id,
-            entity_id: project.entity_id,
-            code: coa_code,
-          },
-        },
-      });
-      if (!account || account.is_archived) {
-        const available = await prisma.chart_of_accounts.findMany({
-          where: { userId: user.id, entity_id: project.entity_id, is_archived: false },
-          select: { code: true },
-          orderBy: { code: 'asc' },
-        });
-        return NextResponse.json(
-          {
-            error: 'Validation',
-            field: 'coa_code',
-            message: `Unknown coa_code "${coa_code}" for this entity. Available codes: ${available.map((a) => a.code).join(', ')}`,
-          },
-          { status: 400 }
-        );
-      }
-    }
+    const money = planMoney(sent, book, 'task', { amount: 'estimated_cost_usd', account: 'coa_code' });
+    if ('error' in money) return NextResponse.json({ error: 'Validation', ...money.error }, { status: 400 });
+    const estimated_cost_usd = money.value.amount;
+    const coa_code = money.value.coaCode;
 
     // α-1: server-computed display_order = max(existing) + 1.
     // Race-acceptance asterisk: two simultaneous POSTs against the same

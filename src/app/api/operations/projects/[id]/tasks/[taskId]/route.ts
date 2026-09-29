@@ -26,6 +26,8 @@ import { fireExecutionRoutine } from '@/lib/fireExecutionRoutine';
 import { ExecBudgetError } from '@/lib/execFireBudget';
 import { isValidUuid } from '@/lib/operations/parseUuid';
 import { ROUTINE_OWNER_ONLY_BODY, firesBuild, isRoutineOwner } from '@/lib/operations/ownerOnly';
+import { carriesPlanMoney, editedPlanMoney, planMoney, type PlanBook } from '@/lib/operations/planMoney';
+import { loadPlanBook } from '@/lib/operations/loadPlanBook';
 
 const VALID_STATUSES: OperationsTaskStatus[] = [
   'open',
@@ -177,17 +179,6 @@ export async function PATCH(
       }
     }
 
-    if (body.estimated_cost_usd !== undefined) {
-      const v = body.estimated_cost_usd;
-      if (v === null || v === '') {
-        data.estimated_cost_usd = null;
-      } else if (typeof v === 'string' && v.trim().length > 0) {
-        data.estimated_cost_usd = new Prisma.Decimal(v.trim());
-      } else if (typeof v === 'number') {
-        data.estimated_cost_usd = new Prisma.Decimal(v);
-      }
-    }
-
     if (body.actual_minutes !== undefined) {
       const v = body.actual_minutes;
       if (v === null || v === '') {
@@ -228,46 +219,21 @@ export async function PATCH(
       }
     }
 
-    if (body.coa_code !== undefined) {
-      const c = trimNonEmpty(body.coa_code);
-      if (c === null) {
-        data.coa_code = null;
-      } else {
-        if (c.length > 50) {
-          return NextResponse.json(
-            { error: 'Validation', field: 'coa_code', message: 'max 50 chars' },
-            { status: 400 }
-          );
-        }
-        // Strict existence check against the user's chart_of_accounts for the
-        // task's entity. Uses the @@unique([userId, entity_id, code]) composite
-        // (precedent: src/app/api/trading/commit-to-ledger/route.ts:45).
-        const account = await prisma.chart_of_accounts.findUnique({
-          where: {
-            userId_entity_id_code: {
-              userId: user.id,
-              entity_id: existing.entity_id,
-              code: c,
-            },
-          },
-        });
-        if (!account || account.is_archived) {
-          const available = await prisma.chart_of_accounts.findMany({
-            where: { userId: user.id, entity_id: existing.entity_id, is_archived: false },
-            select: { code: true },
-            orderBy: { code: 'asc' },
-          });
-          return NextResponse.json(
-            {
-              error: 'Validation',
-              field: 'coa_code',
-              message: `Unknown coa_code "${c}" for this entity. Available codes: ${available.map((a) => a.code).join(', ')}`,
-            },
-            { status: 400 }
-          );
-        }
-        data.coa_code = c;
+    // INTAKE-01: the task's cost and its account. Neither key sent → both untouched.
+    // Either sent → the EFFECTIVE pair (the body's value, else the stored one) is
+    // checked whole by the one rule (planMoney.ts) against the task's own book, and
+    // both columns are written — the account as the chart saves it.
+    const sent = editedPlanMoney(body.estimated_cost_usd, body.coa_code, { amount: existing.estimated_cost_usd, account: existing.coa_code });
+    if (sent !== null) {
+      let book: PlanBook | null = null;
+      if (carriesPlanMoney(sent)) {
+        book = await loadPlanBook(prisma, user.id, existing.entity_id);
+        if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }
+      const money = planMoney(sent, book, 'task', { amount: 'estimated_cost_usd', account: 'coa_code' });
+      if ('error' in money) return NextResponse.json({ error: 'Validation', ...money.error }, { status: 400 });
+      data.estimated_cost_usd = money.value.amount;
+      data.coa_code = money.value.coaCode;
     }
 
     if (body.display_order !== undefined) {
