@@ -94,6 +94,8 @@ import { CHAIN_STATES, KIND_FACTS, EVENT_SOURCE_OWNER, buildChain } from '../src
 import { LINKABLE_KINDS, requiresInstant } from '../src/lib/calendar/linkKeys';
 import { sumLinks } from '../src/lib/calendar/links';
 import { routinePlanned } from '../src/lib/operations/routineLines';
+// VENDOR-01 (2026-09-29): the plan-vendor rule, probed by the vendor law.
+import { GRAIN_TAG, VENDOR_NAME_MAX, grainAllows, readVendorName, takenBy, vendorNameKey } from '../src/lib/operations/planVendor';
 import { MARKER_MINUTES, assignLanes, blockExtent, unverifiedDurationExtent } from '../src/lib/calendar/extent';
 import { clockOfTime, overlayTripItems, type TripItemRow, type TripOverlayEvent } from '../src/lib/calendar/tripItem';
 import { BOOKING_FLOW_BASE, BOOKING_FLOW_FILES, bookingFlowSha256 } from '../src/lib/travelBookingFlow';
@@ -169,7 +171,7 @@ import { buildIcs, escapeIcsText, foldIcsLine } from '../src/lib/calendar/ics';
 import { prebookUnstatedMoney } from '../src/lib/checkout/prebookGate';
 import { ratingLine, ratingValue, scoreWords } from '../src/lib/travel/ratingWords';
 import { PHONE_CARD } from '../src/lib/travel/phoneCard';
-import { OWNED_LOADERS, enclosing, exportedMethods, flatWhere, handlerIdentity, inScope, judgeWrites, topFunctions } from '../src/lib/security/ownershipLaw';
+import { OWNED_LOADERS, closingOf, enclosing, exportedMethods, flatWhere, handlerIdentity, inScope, judgeWrites, topFunctions } from '../src/lib/security/ownershipLaw';
 import { bookedStay, statedStayDay, unstatedStayLine } from '../src/lib/reservations/stayDates';
 import { passwordLeaks, passwordSchema } from '../src/lib/security/passwordLaw';
 import { PARTICIPANT_RESPONSE_SELECT } from '../src/lib/trips/participantSelect';
@@ -2983,6 +2985,137 @@ else {
 }
 if (brViolations === 0) console.log(`✔ The budget report route law passed — GET only, the cart-plan gate first, not a public path; ${BR_BUDGET_FILES.length} Budget files (the route, src/lib/budget, src/components/budget, the routine budget loader) name no travel table or travel file and write nothing; reversal pairs and closing entries are left out of the actuals by name and counted; /budget renders BudgetReport.`);
 else console.log(`✖ The budget report route law FAILED — ${brViolations} violation(s).`);
+});
+lawGuard('The vendor law', () => {
+
+// ── THE VENDOR LAW (VENDOR-01, 2026-09-29) ──────────────────────────────────
+// THE VENDOR IS PLANNED: who a plan's money is paid to, at one of two grains —
+// every occurrence, or one — never both. Written by ONE route, decided by ONE
+// pure rule (src/lib/operations/planVendor.ts), held by the database. Four
+// clauses:
+//
+//   1. ONE WRITER. Anywhere under src, planned_item_vendors is created, updated
+//      or deleted only in the plan-vendors route; operations_vendor_directory is
+//      created only in the directory route, and never updated or deleted — by
+//      the client, in raw SQL, or through a relation.
+//   2. THE CALLER FIRST. Both routes export exactly their handlers; every handler
+//      opens with the cart-plan gate; every query in them names the caller; no 403
+//      anywhere in either file (a helper a handler answers through included);
+//      neither path is public (the budget report route law's reading of
+//      PUBLIC_PATHS).
+//   3. THE DATABASE HOLDS IT. The migration carries the exactly-one CHECK, the
+//      task CHECK, both partial unique indexes for each plan column, the grain
+//      trigger — locking the plan's own row FOR NO KEY UPDATE (ruled D3) and
+//      raising the rule's GRAIN_TAG — and RESTRICT on vendor_id.
+//   4. THE RULE, PROBED at build time: an every-occurrence vendor refuses an
+//      occurrence and the reverse; " pho  24 " and "Pho 24" are one name; a
+//      201-character name is refused.
+const PV_ROUTE = 'src/app/api/operations/plan-vendors/route.ts';
+const PV_DIRECTORY = 'src/app/api/operations/vendor-directory/route.ts';
+const PV_MIGRATION = 'prisma/migrations/20260929190000_vendor_01_planned_item_vendors/migration.sql';
+const PV_HANDLERS: Record<string, readonly string[]> = { [PV_DIRECTORY]: ['GET', 'POST'], [PV_ROUTE]: ['POST', 'DELETE'] };
+const PV_WRITE = '(create|createMany|createManyAndReturn|update|updateMany|upsert|delete|deleteMany)';
+let pvViolations = 0;
+const pvFail = (m: string) => { pvViolations += 1; violations.push(`vendor law: ${m} (VENDOR-01)`); };
+
+// 1. ONE WRITER.
+for (const { file, src } of srcFiles) {
+  for (const m of src.matchAll(new RegExp(`\\.planned_item_vendors\\s*\\.\\s*${PV_WRITE}\\s*\\(`, 'g'))) {
+    if (file !== PV_ROUTE) pvFail(`${file} writes planned_item_vendors (.${m[1]}) — a plan’s vendor is written by ${PV_ROUTE} alone`);
+  }
+  for (const m of src.matchAll(new RegExp(`\\.operations_vendor_directory\\s*\\.\\s*${PV_WRITE}\\s*\\(`, 'g'))) {
+    if (m[1] === 'create' && file === PV_DIRECTORY) continue;
+    if (m[1].startsWith('create')) pvFail(`${file} creates a vendor (.${m[1]}) — a vendor is created by ${PV_DIRECTORY} alone`);
+    else pvFail(`${file} ${m[1]}s the vendor directory — a vendor is created, never updated or deleted`);
+  }
+  const raw = /\b(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+"?(planned_item_vendors|operations_vendor_directory)\b/i.exec(src);
+  if (raw) pvFail(`${file} writes ${raw[2]} in raw SQL (${raw[1]}) — the one writer is the route, through the client`);
+  const nested = /\b(planned_item_vendors|vendor)\s*:\s*\{\s*(create|createMany|connectOrCreate|upsert|update|updateMany|delete|deleteMany)\b/.exec(src);
+  if (nested) pvFail(`${file} writes ${nested[1]} through a relation (${nested[2]}) — the one writer is the route`);
+}
+
+// 2. THE CALLER FIRST.
+const PV_GATE = /^export async function (GET|POST|DELETE)\((?:request: NextRequest)?\) \{ try \{ const userEmail = await getVerifiedEmail\(\); if \(!userEmail\) \{ return NextResponse\.json\(\{ error: \x27Unauthorized\x27 \}, \{ status: 401 \}\); \} const user = await prisma\.users\.findFirst\(\{ where: \{ email: \{ equals: userEmail, mode: \x27insensitive\x27 \} \}(?:, select: \{ id: true \},)? \}\); if \(!user\) \{ return NextResponse\.json\(\{ error: \x27User not found\x27 \}, \{ status: 404 \}\); \}/;
+{
+  const mw = codeOf('src/middleware.ts');
+  const publicList = /const PUBLIC_PATHS = \[([\s\S]*?)\];/.exec(mw);
+  if (!publicList) pvFail('src/middleware.ts no longer declares PUBLIC_PATHS — the law cannot see whether a vendor route is public');
+  for (const [file, expected] of Object.entries(PV_HANDLERS)) {
+    if (!existsSync(resolve(ROOT, file))) { pvFail(`${file} is missing`); continue; }
+    const src = codeOf(file);
+    const methods = exportedMethods(src).map((e) => e.method);
+    if (methods.join(',') !== expected.join(',')) pvFail(`${file} exports ${methods.join(', ')} — it exports exactly ${expected.join(', ')}`);
+    for (const method of expected) {
+      const at = src.indexOf(`export async function ${method}(`);
+      if (at < 0) { pvFail(`${file} has no ${method} handler written as a function`); continue; }
+      const open = src.indexOf('{', src.indexOf(')', at));
+      const body = src.slice(at, closingOf(src, open) + 1);
+      if (!PV_GATE.test(body.replace(/\s+/g, ' '))) pvFail(`${file} ${method} does not open with the cart-plan gate — a verified cookie or 401, the user or 404, before anything else`);
+    }
+    // No 403 anywhere in the file — a handler, or a helper it answers through.
+    if (/status: 403/.test(src)) pvFail(`${file} answers 403 — another user’s row is a defensive 404, which does not confirm it exists`);
+    // Every query names the caller: the client (prisma or tx), raw SQL, and the one loader.
+    for (const m of src.matchAll(/\b(prisma|tx)\.(\w+)\.(\w+)\s*\(/g)) {
+      if (m[2].startsWith('$')) continue;
+      const open = m.index! + m[0].length - 1;
+      const call = src.slice(m.index!, closingOf(src, open) + 1);
+      if (m[2] === 'users' && m[3] === 'findFirst' && /where: \{ email: \{ equals: userEmail, mode: \x27insensitive\x27 \} \}/.test(call.replace(/\s+/g, ' '))) continue;
+      if (!/\buser\.id\b/.test(call)) pvFail(`${file}: ${m[1]}.${m[2]}.${m[3]} names no caller — every query in a vendor route is scoped to user.id`);
+    }
+    for (const m of src.matchAll(/\$queryRaw(?:Unsafe)?\s*(?:<[^`(]*?>)?\s*`([^`]*)`/g)) {
+      if (!/\$\{user\.id\}/.test(m[1])) pvFail(`${file}: a raw query names no caller — every query in a vendor route is scoped to user.id`);
+    }
+    for (const m of src.matchAll(/\bloadRoutineBudgetInputs\(([^)]*)\)/g)) {
+      if (!/\buser\.id\b/.test(m[1])) pvFail(`${file}: loadRoutineBudgetInputs is called without the caller — every query in a vendor route is scoped to user.id`);
+    }
+    // Not public: the budget report route law's reading of PUBLIC_PATHS.
+    const url = file.slice('src/app'.length, -'/route.ts'.length);
+    if (publicList) {
+      for (const p of publicList[1].matchAll(/\x27([^\x27]+)\x27/g)) {
+        if (url === p[1] || url.startsWith(`${p[1]}/`)) pvFail(`${url} is a public path (src/middleware.ts lists ${p[1]}) — a guest would write a person’s vendors`);
+      }
+    }
+  }
+}
+
+// 3. THE DATABASE HOLDS IT.
+if (!existsSync(resolve(ROOT, PV_MIGRATION))) pvFail(`${PV_MIGRATION} is missing — the table and its rules are the database’s`);
+else {
+  const sql = codeOf(PV_MIGRATION).replace(/\s+/g, ' ');
+  if (!/ADD CONSTRAINT "planned_item_vendors_one_plan" CHECK \(num_nonnulls\("routine_id", "step_id", "task_id"\) = 1\);/.test(sql)) pvFail(`${PV_MIGRATION} has no CHECK that exactly one plan column is set`);
+  if (!/ADD CONSTRAINT "planned_item_vendors_task_every_occurrence" CHECK \("task_id" IS NULL OR "occurrence_at" IS NULL\);/.test(sql)) pvFail(`${PV_MIGRATION} has no CHECK that a task row carries no occurrence — a task happens once`);
+  const tables: Record<string, string> = { routine_id: 'operations_routines', step_id: 'operations_routine_steps', task_id: 'operations_project_tasks' };
+  for (const [col, table] of Object.entries(tables)) {
+    if (!new RegExp(`CREATE UNIQUE INDEX "\\w+" ON "planned_item_vendors"\\("${col}"\\) WHERE "${col}" IS NOT NULL AND "occurrence_at" IS NULL;`).test(sql)) pvFail(`${PV_MIGRATION} has no partial unique index holding one every-occurrence vendor per ${col}`);
+    if (!new RegExp(`CREATE UNIQUE INDEX "\\w+" ON "planned_item_vendors"\\("${col}", "occurrence_at"\\) WHERE "${col}" IS NOT NULL;`).test(sql)) pvFail(`${PV_MIGRATION} has no partial unique index holding one vendor per (${col}, occurrence)`);
+    if (!new RegExp(`PERFORM 1 FROM "${table}" WHERE "id" = NEW\\."${col}" FOR NO KEY UPDATE;`).test(sql)) pvFail(`${PV_MIGRATION}: the grain trigger does not lock the plan’s own ${table} row FOR NO KEY UPDATE before it reads — two concurrent writes could both pass`);
+    if (!new RegExp(`FOREIGN KEY \\("${col}"\\) REFERENCES "${table}"\\("id"\\) ON DELETE CASCADE`).test(sql)) pvFail(`${PV_MIGRATION}: ${col} does not CASCADE — a plan’s vendor goes with the plan`);
+  }
+  if (!/CREATE TRIGGER "planned_item_vendors_one_grain" BEFORE INSERT OR UPDATE ON "planned_item_vendors" FOR EACH ROW EXECUTE FUNCTION "planned_item_vendors_one_grain"\(\);/.test(sql)) pvFail(`${PV_MIGRATION} has no BEFORE INSERT OR UPDATE grain trigger on planned_item_vendors`);
+  if (!/AND \(\(v\."occurrence_at" IS NULL\) <> \(NEW\."occurrence_at" IS NULL\)\);/.test(sql)) pvFail(`${PV_MIGRATION}: the grain trigger does not look for the other grain`);
+  const raises = [...sql.matchAll(/RAISE EXCEPTION \x27([^\x27]*)\x27/g)].map((m) => m[1]);
+  if (raises.length !== 2 || !raises.every((r) => r.startsWith(`${GRAIN_TAG}: `))) pvFail(`${PV_MIGRATION}: the grain trigger’s refusals do not open with the rule’s tag ${GRAIN_TAG} — the route could not answer a race 409`);
+  if (!/FOREIGN KEY \("vendor_id"\) REFERENCES "operations_vendor_directory"\("id"\) ON DELETE RESTRICT/.test(sql)) pvFail(`${PV_MIGRATION}: vendor_id is not ON DELETE RESTRICT — a vendor a plan names could vanish`);
+}
+
+// 4. THE RULE, PROBED.
+{
+  const plan = '00000000-0000-4000-8000-000000000001';
+  const instant = new Date('2026-09-29T19:00:00.000Z');
+  const everyHeld = [{ id: 'a', occurrenceAt: null, vendorId: 'v1', vendorName: 'Netflix' }];
+  const singleHeld = [{ id: 'b', occurrenceAt: instant, vendorId: 'v2', vendorName: 'Pho 24' }];
+  const refusesSingle = grainAllows({ kind: 'routine', id: plan, instant }, everyHeld, 'America/Los_Angeles');
+  if (refusesSingle.ok || refusesSingle.status !== 409) pvFail('the rule lets an every-occurrence vendor sit beside a single-occurrence one (planVendor.ts grainAllows) — no reader may choose between two vendors');
+  const refusesEvery = grainAllows({ kind: 'routine', id: plan, instant: null }, singleHeld, 'America/Los_Angeles');
+  if (refusesEvery.ok || refusesEvery.status !== 409) pvFail('the rule lets a single-occurrence vendor sit beside an every-occurrence one (planVendor.ts grainAllows) — no reader may choose between two vendors');
+  if (vendorNameKey(' pho  24 ') !== vendorNameKey('Pho 24') || takenBy(' pho  24 ', [{ vendor_name: 'Pho 24' }]) === null) pvFail('" pho  24 " and "Pho 24" are not one name (planVendor.ts vendorNameKey) — one book would hold two vendors that differ only by case or spacing');
+  const at200 = readVendorName('x'.repeat(VENDOR_NAME_MAX));
+  const at201 = readVendorName('x'.repeat(VENDOR_NAME_MAX + 1));
+  if (VENDOR_NAME_MAX !== 200 || !at200.ok || at201.ok) pvFail('a 201-character vendor name is not refused, or a 200-character one is (planVendor.ts readVendorName) — vendor_name is VarChar(200)');
+}
+
+if (pvViolations === 0) console.log(`✔ The vendor law passed — planned_item_vendors is written only by ${PV_ROUTE} and the vendor directory is created only by ${PV_DIRECTORY}, never updated or deleted; every handler of both opens with the cart-plan gate, every query names the caller, no 403, neither path public; the migration holds one plan per row, no instant on a task, one vendor per address, the grain (a trigger locking the plan’s row FOR NO KEY UPDATE) and RESTRICT on vendor_id; the rule refuses the other grain both ways, reads " pho  24 " as "Pho 24" and refuses a 201-character name.`);
+else console.log(`✖ The vendor law FAILED — ${pvViolations} violation(s).`);
 });
 lawGuard('The one-off law', () => {
 

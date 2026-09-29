@@ -214,7 +214,7 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   },
   // ── MONEY OUT ──
   'Bill Pay': {
-    slug: 'bill-pay', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 8 — operations_vendor_directory (schema:3478) is a read-only GET (vendor-directory/route.ts:12)',
+    slug: 'bill-pay', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 8 — operations_vendor_directory (schema:3973): its GET lists vendors (vendor-directory/route.ts:20) and, since VENDOR-01, its POST creates one (:67) — never updates or deletes one; the bill columns (amount_usd, billing_rrule, next_due_date, last_paid_date, last_paid_amount_usd) are written by nothing, so no bill is scheduled or paid',
     customer: 'You cannot schedule or pay a bill here yet.',
   },
   Payroll: {
