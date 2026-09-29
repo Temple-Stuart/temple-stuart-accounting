@@ -2819,6 +2819,10 @@ lawGuard('The budget report purity law', () => {
 // reportInputs.ts — the query, every row to input mapping, the response) and the
 // formatter (src/lib/budget/format.ts — cents to text on /budget) join, each with
 // its test, so the route and the screen hold no arithmetic a test cannot load.
+// TAB13-03 (2026-09-29): FIVE roots. The URL-state helper (src/lib/budget/
+// reportView.ts — what /budget shows: the section, the account filter, every link
+// and the strip's counts) joins with its test. It takes today as an argument; only
+// the screen reads the clock.
 const REPORT_FORBIDDEN: ReadonlyArray<{ what: string; re: RegExp }> = [
   { what: 'imports @prisma/client', re: /(?:\bfrom\s+|\bimport\s*\(\s*|\brequire\s*\(\s*)[\x27"]@prisma\/client(?:\/[^\x27"]*)?[\x27"]/ },
   { what: 'imports next', re: /(?:\bfrom\s+|\bimport\s*\(\s*|\brequire\s*\(\s*)[\x27"]next(?:\/[^\x27"]*)?[\x27"]/ },
@@ -2832,6 +2836,7 @@ const REPORT_ROOTS: ReadonlyArray<{ root: string; name: string; noun: string; te
   { root: 'src/lib/budget/days.ts', name: 'the day module', noun: 'day module', test: 'src/lib/__tests__/budgetDays.test.ts' },
   { root: 'src/lib/budget/reportInputs.ts', name: 'the route-inputs module', noun: 'route-inputs module', test: 'src/lib/__tests__/budgetReportInputs.test.ts' },
   { root: 'src/lib/budget/format.ts', name: 'the formatter', noun: 'formatter', test: 'src/lib/__tests__/budgetFormat.test.ts' },
+  { root: 'src/lib/budget/reportView.ts', name: 'the view helper', noun: 'view helper', test: 'src/lib/__tests__/budgetReportView.test.ts' },
 ];
 let reportViolations = 0;
 const reportFail = (m: string) => { reportViolations += 1; violations.push(`budget report law: ${m} (TAB13-01)`); };

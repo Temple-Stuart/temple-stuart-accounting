@@ -10,10 +10,19 @@
  * today — read once on mount (never during the server render, whose clock and
  * zone are the server's). No browser storage of any kind.
  *
+ * TAB13-03 (2026-09-29): ONE SECTION AT A TIME. Under the view bar, a chip for
+ * OVERVIEW and one per book (report.books — P, B, T, then books with no letter);
+ * the choice is in the URL too (?book=<entityId>), and on a book the Account
+ * column's header filters to one account (?account=<four digits>). Every link
+ * keeps the choice — src/lib/budget/reportView.ts builds them all, and refuses
+ * by name a choice the report cannot honour. A book shows its OWN totals, made
+ * by the model (report.ts totalsOf), never summed here.
+ *
  * Every figure comes from GET /api/budget/report and is written by the one
  * formatter (src/lib/budget/format.ts): '—' is blank, never zero; an
  * unfavourable variance is in parentheses and brand red. What the report does
- * NOT hold is always on screen (the COMPLETENESS section) — never hidden.
+ * NOT hold is always on screen — THE STRIP under whichever section is shown —
+ * never hidden.
  *
  * Styled like the Travel tab: SECTION_HEADER headings (ModuleLauncher.tsx
  * TravelHeading), TripBudgetActual's statement table, ToggleStrip's toggleChip.
@@ -22,8 +31,13 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { SECTION_HEADER, toggleChip } from '@/lib/ds';
 import { formatAccountCode, formatBudget, formatCents, formatVariance } from '@/lib/budget/format';
-import type { ReportBook, ReportCell, ReportColumn, SectionTotal, UnplacedItem } from '@/lib/budget/report';
+import type { ColumnTotals, ReportBook, ReportCell, ReportColumn, SectionTotal, UnplacedItem } from '@/lib/budget/report';
 import type { BudgetReportResponse } from '@/lib/budget/reportInputs';
+import { EXCLUDED_TASK_STATUSES } from '@/lib/budget/days';
+import {
+  accountHref, anchorOf, bookChipLabels, choiceOf, excludedTasksTotal, hrefFor, leftOutLines, notPlacedIn,
+  sectionFor, sectionHref, stepHref, viewParams, type Section, type SectionChoice,
+} from '@/lib/budget/reportView';
 
 type Kind = 'day' | 'week' | 'year';
 const KINDS: readonly { kind: Kind; label: string }[] = [
@@ -44,65 +58,10 @@ const th = 'px-3 py-2 text-left font-medium text-text-faint whitespace-nowrap';
 const td = 'px-3 py-2 whitespace-nowrap';
 const num = `${td} text-right font-mono`;
 
-/** The browser's local date, 'YYYY-MM-DD'. */
+/** The browser's local date, 'YYYY-MM-DD' — the screen is the one place the clock is read. */
 function localToday(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-}
-
-/** A 'YYYY-MM-DD' day moved by n days, by UTC arithmetic (no zone can shift it). */
-function shiftDay(day: string, n: number): string {
-  return new Date(Date.parse(`${day}T00:00:00.000Z`) + n * 86_400_000).toISOString().slice(0, 10);
-}
-
-/** The URL's view parameters, or DAY of today when the URL names no view. Anything else passes to the route, which refuses it by name. */
-function viewParams(search: URLSearchParams, today: string): URLSearchParams {
-  const out = new URLSearchParams();
-  const view = search.get('view');
-  if (view === null) {
-    out.set('view', 'day');
-    out.set('day', today);
-    return out;
-  }
-  out.set('view', view);
-  for (const key of ['day', 'weekOf', 'year']) {
-    const value = search.get(key);
-    if (value !== null) out.set(key, value);
-  }
-  return out;
-}
-
-/**
- * The day a switch of view starts from: the day shown, the week's weekOf, or —
- * from YEAR — today when it is this year and Jan 1 otherwise. Null when the URL's
- * view is not one the route accepts: the toggles are then disabled, and the
- * route's refusal says why on screen.
- */
-function anchorOf(params: URLSearchParams, asOf: string): string | null {
-  const view = params.get('view');
-  const isDay = (v: string | null): v is string => v !== null && /^\d{4}-\d{2}-\d{2}$/.test(v);
-  if (view === 'day') return isDay(params.get('day')) ? params.get('day') : null;
-  if (view === 'week') return isDay(params.get('weekOf')) ? params.get('weekOf') : null;
-  const year = params.get('year');
-  if (view !== 'year' || year === null || !/^\d{4}$/.test(year)) return null;
-  return year === asOf.slice(0, 4) ? asOf : `${year}-01-01`;
-}
-
-function hrefFor(kind: Kind, anchor: string): string {
-  if (kind === 'day') return `/budget?view=day&day=${anchor}`;
-  if (kind === 'week') return `/budget?view=week&weekOf=${anchor}`;
-  return `/budget?view=year&year=${anchor.slice(0, 4)}`;
-}
-
-function stepHref(params: URLSearchParams, direction: -1 | 1): string | null {
-  const view = params.get('view');
-  const day = params.get('day');
-  const weekOf = params.get('weekOf');
-  const year = params.get('year');
-  if (view === 'day' && day) return hrefFor('day', shiftDay(day, direction));
-  if (view === 'week' && weekOf) return hrefFor('week', shiftDay(weekOf, 7 * direction));
-  if (view === 'year' && year && /^\d{4}$/.test(year)) return `/budget?view=year&year=${String(Number(year) + direction).padStart(4, '0')}`;
-  return null;
 }
 
 function Heading({ children }: { children: React.ReactNode }) {
@@ -150,7 +109,7 @@ function FigureRows({ label, columns, cells }: {
   );
 }
 
-function TableHead({ columns, first }: { columns: readonly ReportColumn[]; first: string }) {
+function TableHead({ columns, first }: { columns: readonly ReportColumn[]; first: React.ReactNode }) {
   return (
     <thead>
       <tr className="border-b border-border bg-white font-mono text-[10px] uppercase tracking-wider">
@@ -163,7 +122,7 @@ function TableHead({ columns, first }: { columns: readonly ReportColumn[]; first
 }
 
 /** Why a NET figure in the first column is blank: NET is strict — both sides or nothing. */
-function netBlanks(totals: BudgetReportResponse['report']['totals'][number]): string[] {
+function netBlanks(totals: ColumnTotals): string[] {
   const why: string[] = [];
   if (totals.net.budgetToDate === null) {
     if (totals.income.budgetToDate === null) why.push('NET budget is blank: income has no budget yet');
@@ -176,6 +135,29 @@ function netBlanks(totals: BudgetReportResponse['report']['totals'][number]): st
   return why;
 }
 
+/**
+ * The Overview's table and its NET-blank lines — the report's totals on OVERVIEW,
+ * a book's OWN totals on a book (both from the model, report.ts totalsOf).
+ */
+function TotalsTable({ columns, totals }: { columns: readonly ReportColumn[]; totals: readonly ColumnTotals[] }) {
+  const blanks = totals.length > 0 ? netBlanks(totals[0]) : [];
+  return (
+    <>
+      <div className="overflow-x-auto rounded-lg border border-border bg-white">
+        <table className="w-full text-sm">
+          <TableHead columns={columns} first="Total" />
+          <tbody>
+            <FigureRows label="Total income" columns={columns} cells={totals.map((t) => t.income)} />
+            <FigureRows label="Total expenses" columns={columns} cells={totals.map((t) => t.expense)} />
+            <FigureRows label="Net" columns={columns} cells={totals.map((t) => t.net)} />
+          </tbody>
+        </table>
+      </div>
+      {blanks.map((line) => <p key={line} className="text-xs text-text-faint" data-net-blank>{line}</p>)}
+    </>
+  );
+}
+
 /** TAB13-02c: every account printed as its account string (B-5100, P-1500), by its book. */
 function unplacedLine(item: UnplacedItem, books: readonly ReportBook[]): string {
   if (item.kind === 'budgetLine') {
@@ -186,144 +168,243 @@ function unplacedLine(item: UnplacedItem, books: readonly ReportBook[]): string 
   return `${p.day} · ledger line on ${formatAccountCode(books, p.entityId, p.code)} (${p.entryType}) · ${formatCents(p.cents)} · ${item.reason}`;
 }
 
-function Report({ data }: { data: BudgetReportResponse }) {
-  const { report } = data;
-  const { columns } = report;
-  const blanks = report.totals.length > 0 ? netBlanks(report.totals[0]) : [];
-  const excludedTasks = data.excludedTasks.byStatus.filter((s) => s.tasks > 0);
-
+/** THE TOGGLE — OVERVIEW, then one chip per book, in the report's own order. */
+function SectionChips({ books, choice, go, search }: {
+  books: readonly ReportBook[];
+  choice: SectionChoice;
+  go: (href: string) => void;
+  search: URLSearchParams;
+}) {
+  const labels = bookChipLabels(books);
   return (
-    <div className="space-y-6">
-      {/* OVERVIEW — the three totals first. */}
-      <section className="space-y-3" data-budget-section="overview">
-        <Heading>Overview</Heading>
+    <div className="flex flex-wrap gap-1.5" data-budget-sections>
+      <button type="button" className={toggleChip(choice.book === null)} aria-pressed={choice.book === null} onClick={() => go(sectionHref(search, null))}>
+        OVERVIEW
+      </button>
+      {books.map((b) => (
+        <button
+          key={b.entityId}
+          type="button"
+          className={toggleChip(choice.book === b.entityId)}
+          aria-pressed={choice.book === b.entityId}
+          onClick={() => go(sectionHref(search, b.entityId))}
+        >
+          {labels.get(b.entityId)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** A book, standing alone: its heading, its OWN totals, then its accounts — the Account header filters to one. */
+function BookSection({ section, report, go, search }: {
+  section: Extract<Section, { kind: 'book' }>;
+  report: BudgetReportResponse['report'];
+  go: (href: string) => void;
+  search: URLSearchParams;
+}) {
+  const { book, account } = section;
+  const { columns } = report;
+  const shown = account.kind === 'all' ? book.rows : account.row === null ? [] : [account.row];
+  const missing = account.kind === 'one' && account.row === null ? formatAccountCode(report.books, book.entityId, account.code) : null;
+  const filter = (
+    <select
+      className="bg-white font-mono text-[10px] uppercase tracking-wider text-text-faint"
+      aria-label="Filter by account"
+      value={account.kind === 'all' ? '' : account.code}
+      onChange={(e) => go(accountHref(search, book.entityId, e.target.value === '' ? null : e.target.value))}
+      data-account-filter
+    >
+      <option value="">All accounts</option>
+      {book.rows.map((row) => (
+        <option key={row.code} value={row.code}>{formatAccountCode(report.books, row.entityId, row.code)} · {row.name}</option>
+      ))}
+      {missing !== null && account.kind === 'one' && <option value={account.code}>{missing}</option>}
+    </select>
+  );
+  return (
+    <section className="space-y-3" data-budget-section="book">
+      <Heading>{book.label} · {book.entityName}</Heading>
+      <TotalsTable columns={columns} totals={book.totals} />
+      <div className="overflow-x-auto rounded-lg border border-border bg-white">
+        <table className="w-full text-sm">
+          <TableHead columns={columns} first={filter} />
+          <tbody>
+            {shown.map((row) => (
+              <FigureRows key={row.code} label={`${formatAccountCode(report.books, row.entityId, row.code)} · ${row.name}`} columns={columns} cells={row.cells} />
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {missing !== null && <p className="text-sm text-text-muted" data-account-missing>{missing} has no planned or posted money in this view</p>}
+      {missing === null && shown.length === 0 && <span className="text-xs text-text-muted italic">no planned or posted income or expense in this view.</span>}
+    </section>
+  );
+}
+
+/** A line of the strip: a native <details>, its summary the kind, its count and amount. */
+function StripLine({ kind, open, summary, children }: { kind: string; open?: boolean; summary: React.ReactNode; children?: React.ReactNode }) {
+  return (
+    <details open={open} className="rounded border border-border bg-white px-3 py-2" data-strip={kind}>
+      <summary className="cursor-pointer text-sm text-text-primary">{summary}</summary>
+      {children !== undefined && <div className="mt-2 space-y-1 text-sm text-text-muted">{children}</div>}
+    </details>
+  );
+}
+
+/** The excluded statuses, named from the day rules' own list (days.ts EXCLUDED_TASK_STATUSES) — never typed here. */
+const EXCLUDED_STATUS_WORDS = EXCLUDED_TASK_STATUSES.length > 1
+  ? `${EXCLUDED_TASK_STATUSES.slice(0, -1).join(', ')} or ${EXCLUDED_TASK_STATUSES[EXCLUDED_TASK_STATUSES.length - 1]}`
+  : EXCLUDED_TASK_STATUSES.join('');
+
+/** THE STRIP — what the report does not hold, under whichever section is shown. Nothing listed is unreachable. */
+function Strip({ data, section }: { data: BudgetReportResponse; section: Section }) {
+  const { report } = data;
+  const placed = notPlacedIn(data, section);
+  const tasks = excludedTasksTotal(data);
+  const excludedTasks = data.excludedTasks.byStatus.filter((s) => s.tasks > 0);
+  const whole = data.notInBooks.columns[0];
+  const leftOut = leftOutLines(data);
+  const scope = placed.scope === 'book' ? 'this book' : 'all books';
+  return (
+    <section className="space-y-2" data-budget-section="strip">
+      <Heading>What this report does not hold</Heading>
+
+      <StripLine
+        kind="not-placed"
+        open={placed.count > 0}
+        summary={<>
+          <span className="font-bold">Not placed</span> — {placed.count} · {formatCents(placed.plannedCents)} planned
+          {placed.withoutAmount > 0 && <span> · {placed.withoutAmount} with no amount</span>}
+          {placed.postings > 0 && <span> · {placed.postings} ledger line{placed.postings === 1 ? '' : 's'}</span>}
+          <span className="text-xs text-text-faint"> · {scope}</span>
+        </>}
+      >
+        {placed.count === 0 ? (
+          <p className="text-text-faint">Nothing — every plan and posting in this view is on a row.</p>
+        ) : (
+          <ul className="space-y-1">
+            {placed.notPlaced.map((n) => (
+              <li key={`${n.sourceId}:${n.reason}`}>
+                <span className="font-medium text-text-primary">{n.label}</span> · {n.source} · {n.day === null ? 'undated' : n.day} · {formatCents(n.cents)} · {n.reason}
+                {n.detail !== null && <span className="text-xs text-text-faint"> ({n.detail})</span>}
+              </li>
+            ))}
+            {placed.unplaced.map((u, i) => <li key={`unplaced:${i}`}>{unplacedLine(u, report.books)}</li>)}
+          </ul>
+        )}
+      </StripLine>
+
+      <StripLine
+        kind="excluded-tasks"
+        summary={<>
+          <span className="font-bold">Not counted as plans</span> — {tasks.tasks} costed task{tasks.tasks === 1 ? '' : 's'} · {formatCents(tasks.cents)}
+          <span className="text-xs text-text-faint"> · status {EXCLUDED_STATUS_WORDS} · ALL TIME · all books</span>
+        </>}
+      >
+        {excludedTasks.length === 0 ? (
+          <p className="text-text-faint">None.</p>
+        ) : (
+          <ul className="space-y-1">
+            {excludedTasks.map((s) => (
+              <li key={s.status}><span className="rounded-full bg-bg-row px-2 py-0.5 text-xs font-medium text-text-muted">{s.status}</span> {s.tasks} task{s.tasks === 1 ? '' : 's'} · {formatCents(s.cents)}</li>
+            ))}
+          </ul>
+        )}
+      </StripLine>
+
+      <StripLine
+        kind="not-in-books"
+        summary={<>
+          <span className="font-bold">Not in the books yet</span>
+ — {whole.label}: {whole.transactions === null ? '—' : whole.transactions} bank transaction{whole.transactions === 1 ? '' : 's'} · {formatCents(whole.bankCents)}
+          {data.notInBooks.notTotalled.length > 0 && <span> · {data.notInBooks.notTotalled.length} not totalled</span>}
+          <span className="text-xs text-text-faint"> · all books</span>
+        </>}
+      >
+        <p className="text-xs text-text-faint">Bank transactions not yet committed to the ledger — a bank figure, not an actual. {data.notInBooks.sign}.</p>
         <div className="overflow-x-auto rounded-lg border border-border bg-white">
           <table className="w-full text-sm">
-            <TableHead columns={columns} first="Total" />
+            <thead>
+              <tr className="border-b border-border bg-white font-mono text-[10px] uppercase tracking-wider">
+                <th className={th}>Column</th>
+                <th className={`${th} text-right`}>Transactions</th>
+                <th className={`${th} text-right`}>Bank amount</th>
+                <th className={`${th} text-right`}>Not totalled</th>
+              </tr>
+            </thead>
             <tbody>
-              <FigureRows label="Total income" columns={columns} cells={report.totals.map((t) => t.income)} />
-              <FigureRows label="Total expenses" columns={columns} cells={report.totals.map((t) => t.expense)} />
-              <FigureRows label="Net" columns={columns} cells={report.totals.map((t) => t.net)} />
+              {data.notInBooks.columns.map((c) => (
+                <tr key={c.key} className="border-b border-border last:border-0">
+                  <td className={`${td} text-text-muted`}>{c.label}</td>
+                  <td className={num}>{c.transactions === null ? <span className="text-text-faint">—</span> : c.transactions}</td>
+                  <td className={num}>{formatCents(c.bankCents)}</td>
+                  <td className={num}>{c.notTotalled === null ? <span className="text-text-faint">—</span> : c.notTotalled}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
-        {blanks.map((line) => <p key={line} className="text-xs text-text-faint" data-net-blank>{line}</p>)}
-      </section>
+        {/* Ruled 2026-09-27: a row whose amount is not whole cents is listed here, never summed and never fatal. */}
+        <p className="text-xs text-text-faint" data-not-totalled={data.notInBooks.notTotalled.length}>
+          Left out of these totals: {data.notInBooks.notTotalled.length} bank row{data.notInBooks.notTotalled.length === 1 ? '' : 's'} whose amount is not a whole number of cents.
+        </p>
+        {data.notInBooks.notTotalled.length > 0 && (
+          <ul className="space-y-1">
+            {data.notInBooks.notTotalled.map((row) => (
+              <li key={row.id}>
+                <span className="font-mono">{row.day}</span> · {row.id} · <span className="font-mono">{row.amount}</span> as stored
+                <span className="text-xs text-text-faint"> ({row.detail})</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </StripLine>
 
-      {/* THE BOOKS — each book, then each account. */}
-      {report.books.map((book) => (
-        <section key={book.entityId} className="space-y-3" data-budget-section="book">
-          <Heading>{book.label} · {book.entityName}</Heading>
-          {book.rows.length === 0 ? (
-            <span className="text-xs text-text-muted italic">no planned or posted income or expense in this view.</span>
-          ) : (
-            <div className="overflow-x-auto rounded-lg border border-border bg-white">
-              <table className="w-full text-sm">
-                <TableHead columns={columns} first="Account" />
-                <tbody>
-                  {book.rows.map((row) => (
-                    <FigureRows key={row.code} label={`${formatAccountCode(report.books, row.entityId, row.code)} · ${row.name}`} columns={columns} cells={row.cells} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+      <StripLine
+        kind="left-out"
+        summary={<>
+          <span className="font-bold">Left out by name</span> — {leftOut} ledger line{leftOut === 1 ? '' : 's'}
+          <span className="text-xs text-text-faint"> · all books</span>
+        </>}
+      >
+        <ul className="space-y-1">
+          <li>Reversal pairs — {data.excludedLines.reversalPairLines} ledger line{data.excludedLines.reversalPairLines === 1 ? '' : 's'}</li>
+          <li>Closing entries — {data.excludedLines.closingEntryLines} ledger line{data.excludedLines.closingEntryLines === 1 ? '' : 's'}</li>
+          <li>Posted after {data.asOf} — {data.excludedLines.linesAfterAsOf} ledger line{data.excludedLines.linesAfterAsOf === 1 ? '' : 's'}</li>
+        </ul>
+      </StripLine>
+
+      <p className="px-3 text-sm text-text-muted" data-strip="travel">Travel budgets connect after the Travel tab ships.</p>
+
+      <p className="px-3 text-xs text-text-faint" data-strip="records">
+        Read: {data.records.entities} books · {data.records.accounts} accounts · {data.records.routines} routines · {data.records.costedTasks} costed tasks · {data.records.ledgerLines} ledger lines · {data.records.bankRows} bank rows → {data.records.budgetLines.routine} routine and {data.records.budgetLines.task} task budget lines.
+      </p>
+    </section>
+  );
+}
+
+function Report({ data, search, go }: { data: BudgetReportResponse; search: URLSearchParams; go: (href: string) => void }) {
+  const { report } = data;
+  const { columns } = report;
+  const choice = choiceOf(search);
+  const section = sectionFor(choice, report.books);
+
+  return (
+    <div className="space-y-6">
+      <SectionChips books={report.books} choice={choice} go={go} search={search} />
+
+      {/* ONE SECTION AT A TIME — the Overview, one book, or a choice refused by name. */}
+      {section.kind === 'overview' && (
+        <section className="space-y-3" data-budget-section="overview">
+          <Heading>Overview</Heading>
+          <TotalsTable columns={columns} totals={report.totals} />
         </section>
-      ))}
+      )}
+      {section.kind === 'book' && <BookSection section={section} report={report} go={go} search={search} />}
+      {section.kind === 'refused' && <p className="text-sm text-brand-red" data-section-refused>{section.message}</p>}
 
-      {/* COMPLETENESS — what the figures above do NOT hold. Always on screen. */}
-      <section className="space-y-3" data-budget-section="completeness">
-        <Heading>What this report does not hold</Heading>
-        <div className="rounded-lg border border-border bg-white p-4 space-y-4">
-          <div data-completeness="not-placed">
-            <p className="text-sm font-bold text-text-primary">Not placed — {data.notPlaced.length + report.unplaced.length}</p>
-            <p className="text-xs text-text-faint">Plans and postings whose money is on no row above, with the reason.</p>
-            {data.notPlaced.length + report.unplaced.length === 0 ? (
-              <p className="text-sm text-text-faint">Nothing — every plan and posting in this view is on a row.</p>
-            ) : (
-              <ul className="mt-2 space-y-1 text-sm text-text-muted">
-                {data.notPlaced.map((n) => (
-                  <li key={`${n.sourceId}:${n.reason}`}>
-                    <span className="font-medium text-text-primary">{n.label}</span> · {n.source} · {n.day === null ? 'undated' : n.day} · {formatCents(n.cents)} · {n.reason}
-                    {n.detail !== null && <span className="text-xs text-text-faint"> ({n.detail})</span>}
-                  </li>
-                ))}
-                {report.unplaced.map((u, i) => <li key={`unplaced:${i}`}>{unplacedLine(u, report.books)}</li>)}
-              </ul>
-            )}
-          </div>
-
-          <div data-completeness="excluded-tasks">
-            <p className="text-sm font-bold text-text-primary">Not counted as plans — ALL TIME</p>
-            <p className="text-xs text-text-faint">Costed tasks nobody accepted, across all time — not only this view.</p>
-            {excludedTasks.length === 0 ? (
-              <p className="text-sm text-text-faint">None.</p>
-            ) : (
-              <ul className="mt-2 space-y-1 text-sm text-text-muted">
-                {excludedTasks.map((s) => (
-                  <li key={s.status}><span className="rounded-full bg-bg-row px-2 py-0.5 text-xs font-medium text-text-muted">{s.status}</span> {s.tasks} task{s.tasks === 1 ? '' : 's'} · {formatCents(s.cents)}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div data-completeness="not-in-books">
-            <p className="text-sm font-bold text-text-primary">Not in the books yet</p>
-            <p className="text-xs text-text-faint">Bank transactions not yet committed to the ledger — a bank figure, not an actual. {data.notInBooks.sign}.</p>
-            <div className="mt-2 overflow-x-auto rounded-lg border border-border bg-white">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-white font-mono text-[10px] uppercase tracking-wider">
-                    <th className={th}>Column</th>
-                    <th className={`${th} text-right`}>Transactions</th>
-                    <th className={`${th} text-right`}>Bank amount</th>
-                    <th className={`${th} text-right`}>Not totalled</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.notInBooks.columns.map((c) => (
-                    <tr key={c.key} className="border-b border-border last:border-0">
-                      <td className={`${td} text-text-muted`}>{c.label}</td>
-                      <td className={num}>{c.transactions === null ? <span className="text-text-faint">—</span> : c.transactions}</td>
-                      <td className={num}>{formatCents(c.bankCents)}</td>
-                      <td className={num}>{c.notTotalled === null ? <span className="text-text-faint">—</span> : c.notTotalled}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {/* Ruled 2026-09-27: a row whose amount is not whole cents is listed here, never summed and never fatal. */}
-            <p className="mt-2 text-xs text-text-faint" data-not-totalled={data.notInBooks.notTotalled.length}>
-              Left out of these totals: {data.notInBooks.notTotalled.length} bank row{data.notInBooks.notTotalled.length === 1 ? '' : 's'} whose amount is not a whole number of cents.
-            </p>
-            {data.notInBooks.notTotalled.length > 0 && (
-              <ul className="mt-1 space-y-1 text-sm text-text-muted">
-                {data.notInBooks.notTotalled.map((row) => (
-                  <li key={row.id}>
-                    <span className="font-mono">{row.day}</span> · {row.id} · <span className="font-mono">{row.amount}</span> as stored
-                    <span className="text-xs text-text-faint"> ({row.detail})</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div data-completeness="left-out">
-            <p className="text-sm font-bold text-text-primary">Left out by name</p>
-            <ul className="mt-2 space-y-1 text-sm text-text-muted">
-              <li>Reversal pairs — {data.excludedLines.reversalPairLines} ledger line{data.excludedLines.reversalPairLines === 1 ? '' : 's'}</li>
-              <li>Closing entries — {data.excludedLines.closingEntryLines} ledger line{data.excludedLines.closingEntryLines === 1 ? '' : 's'}</li>
-              <li>Posted after {data.asOf} — {data.excludedLines.linesAfterAsOf} ledger line{data.excludedLines.linesAfterAsOf === 1 ? '' : 's'}</li>
-            </ul>
-          </div>
-
-          <p className="text-sm text-text-muted" data-completeness="travel">Travel budgets connect after the Travel tab ships.</p>
-
-          <p className="text-xs text-text-faint" data-completeness="records">
-            Read: {data.records.entities} books · {data.records.accounts} accounts · {data.records.routines} routines · {data.records.costedTasks} costed tasks · {data.records.ledgerLines} ledger lines · {data.records.bankRows} bank rows → {data.records.budgetLines.routine} routine and {data.records.budgetLines.task} task budget lines.
-          </p>
-        </div>
-      </section>
+      <Strip data={data} section={section} />
     </div>
   );
 }
@@ -337,8 +418,10 @@ export default function BudgetReport() {
 
   useEffect(() => { setAsOf(localToday()); }, []);
 
-  const params = asOf === null ? null : viewParams(new URLSearchParams(search.toString()), asOf);
+  const current = new URLSearchParams(search.toString());
+  const params = asOf === null ? null : viewParams(current, asOf);
   const query = params === null || asOf === null ? null : `${params.toString()}&asOf=${asOf}`;
+  const choice = choiceOf(current);
 
   useEffect(() => {
     if (query === null) return;
@@ -382,13 +465,13 @@ export default function BudgetReport() {
 
   const view = params === null ? null : params.get('view');
   const anchor = params === null || asOf === null ? null : anchorOf(params, asOf);
-  const back = params === null ? null : stepHref(params, -1);
-  const forward = params === null ? null : stepHref(params, 1);
+  const back = params === null ? null : stepHref(params, -1, choice);
+  const forward = params === null ? null : stepHref(params, 1, choice);
   const shown = view === 'day' ? params?.get('day') : view === 'week' ? `week of ${params?.get('weekOf')}` : view === 'year' ? params?.get('year') : null;
 
   return (
     <div className="space-y-6">
-      {/* THE VIEW BAR — DAY · WEEK · YEAR, the date, ‹ › to step, and as of. */}
+      {/* THE VIEW BAR — DAY · WEEK · YEAR, the date, ‹ › to step, and as of. Every link keeps the section and the account. */}
       <div className="flex flex-wrap items-center gap-3" data-budget-view-bar>
         <div className="flex gap-1.5">
           {KINDS.map((k) => (
@@ -398,7 +481,7 @@ export default function BudgetReport() {
               className={toggleChip(view === k.kind)}
               aria-pressed={view === k.kind}
               disabled={anchor === null}
-              onClick={() => { if (anchor !== null) router.push(hrefFor(k.kind, anchor)); }}
+              onClick={() => { if (anchor !== null) router.push(hrefFor(k.kind, anchor, choice)); }}
             >
               {k.label}
             </button>
@@ -420,7 +503,7 @@ export default function BudgetReport() {
           The report failed: {load.code}{load.message !== null && <span> — {load.message}</span>}
         </p>
       )}
-      {load.state === 'ok' && <Report data={load.data} />}
+      {load.state === 'ok' && <Report data={load.data} search={current} go={(href) => router.push(href)} />}
     </div>
   );
 }
