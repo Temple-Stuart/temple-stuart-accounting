@@ -135,7 +135,8 @@ test('every legacy page hangs under the tool that OWNS it — never another tool
     // the /operations prefix that doored them went with the room.
     // NORTH-01: the North Star joins them, by the same door.
     Tasks: ['/operations/north-star', '/operations/issues', '/operations/audit-log'],
-    Travel: ['/budgets/trips'],
+    // TRIPS-01 (2026-09-29): Travel is gone from this map — it carries no sub-row, ever.
+    // The Travel tab is the one Trips tab; the legacy pages are redirects to it.
     Budget: ['/agenda', '/shopping', '/hub/itinerary', '/runway'],
     Bookkeeping: ['/chart-of-accounts'],
     Tax: ['/dashboard/tax-filing'],
@@ -146,6 +147,9 @@ test('every legacy page hangs under the tool that OWNS it — never another tool
   const banking = hung.flatMap((f) => f.tools).find((t) => t.name === 'Banking')!;
   banking.subRows = [{ label: 'Bookkeeping pipe', door: { kind: 'route', href: '/books' } }];
   assert.throws(() => navLaw({ gate: TOOL_GATE, families: hung }), NavLawError);
+  // TRIPS-01: and no sub-row anywhere opens the legacy planner.
+  for (const t of navRows(TOOL_GATE)) for (const r of t.subRows) assert.ok(!r.door.href.startsWith('/budgets/trips'), `${t.name} opens ${r.door.href}`);
+  assert.deepEqual(navRows(TOOL_GATE).find((t) => t.name === 'Travel')?.subRows, []);
 });
 
 test('the law throws on a reordered family, a legacy row, and a phase owned by nothing, two things, or a second non-tool', () => {

@@ -175,6 +175,7 @@ import { passwordLeaks, passwordSchema } from '../src/lib/security/passwordLaw';
 import { PARTICIPANT_RESPONSE_SELECT } from '../src/lib/trips/participantSelect';
 import { DAY_NOT_STATED, bookingConfirmation } from '../src/lib/emailTemplates/bookingConfirmation';
 import { constantTimeEqual } from '../src/lib/webhooks/liteapiWebhook';
+import { TRIP_NOT_YOURS, requestedTripOf, tripFromUrl, urlTripStep } from '../src/lib/trips/tripFromUrl';
 import { DYNAMIC_READ_ENV, LIBRARY_READ_ENV } from '../src/lib/envLaw';
 import { EXPECTED_FEED_COUNT, FEED_COST, FEED_IDS, SCAN_COST, feedCostLaw, scanCostLine } from '../src/lib/observatory/feedCost';
 import { FINNHUB_TTL, finnhubCallsPerSymbol, finnhubTtlLaw, slowTierEndpoints } from '../src/lib/convergence/finnhub-ttl';
@@ -506,6 +507,11 @@ const findDoor = (route: string) => {
 };
 for (const p of pages) reach.set(p.route, findDoor(p.route));
 // redirects: reachable when the target is (fixpoint over the page list)
+// TRIPS-01 (2026-09-29): a target's query names no other page — /travel?trip=<id> is
+// served by /travel — so the target's door is looked up by its path, exactly as every
+// door's own route already is (`d.route.split('?')[0]` above) and as the page fallback
+// below already reads it. Before, a redirect to a cockpit path with a query found no
+// door at all.
 let changed = true;
 while (changed) {
   changed = false;
@@ -513,7 +519,7 @@ while (changed) {
     if (reach.get(p.route)) continue;
     const target = redirectTarget(p.file);
     if (!target) continue;
-    const targetDoor = findDoor(target) ?? (pages.some((q) => q.route === target.split('?')[0] && reach.get(q.route)) ? reach.get(target.split('?')[0]) : null);
+    const targetDoor = findDoor(target.split('?')[0]) ?? (pages.some((q) => q.route === target.split('?')[0] && reach.get(q.route)) ? reach.get(target.split('?')[0]) : null);
     if (targetDoor) { reach.set(p.route, { route: target, kind: 'redirect', via: `→ ${target} (${targetDoor.kind}: ${targetDoor.via})` }); changed = true; }
   }
 }
@@ -4331,10 +4337,11 @@ lawGuard('The stay law', () => {
 //      lodging commit, after validation and the row check, preceded by exactly one
 //      'hotelcontent' reservation, before the transaction; its failure is an explicit
 //      502 / 503 with a fixed reason before the catch-all. The callers of the content
-//      read under src are a CLOSED set: the content route (the checkout's read), the
-//      discover detail page (one hotel opened — grandfathered, dated, reported: it
-//      reserves no cap and swallows its failure) and the commit; no search route, no
-//      results view, no planner list, no assistant reads it. "Once per booking" is a
+//      read under src are a CLOSED set: the content route (the checkout's read) and
+//      the commit; no search route, no results view, no planner list, no assistant
+//      reads it. (TRIPS-01, 2026-09-29: the set was three — the discover detail page,
+//      grandfathered, reserved no cap and swallowed its failure. It is a redirect to
+//      the Travel tab now, reading nothing, so the set shrank to two.) "Once per booking" is a
 //      code shape (one call site per commit POST), not a runtime dedupe — said so.
 //   3. TIMELINE EDITS KEEP THE TWO TIMES EQUAL. The itinerary PATCH pairs every write
 //      of block_start_time with homeTime and block_end_time with destTime, in the one
@@ -4355,8 +4362,8 @@ const STAY_PLANNER = 'src/components/trips/TripPlannerAI.tsx';
 const STAY_CHECKOUT = 'src/components/trips/CheckoutPanel.tsx';
 const STAY_DETAIL = 'src/app/budgets/trips/[id]/discover/[category]/[rank]/page.tsx';
 const STAY_CONTENT_ROUTE = 'src/app/api/travel/hotels/content/route.ts';
-/** The closed set of content readers (dated 2026-09-22): the route the checkout fetches, the detail page (grandfathered), the commit. */
-const STAY_CONTENT_CALLERS = [STAY_CONTENT_ROUTE, STAY_DETAIL, HOTEL_COMMIT];
+/** The closed set of content readers (dated 2026-09-22; TRIPS-01, 2026-09-29, removed the detail page — a redirect now): the route the checkout fetches, the commit. */
+const STAY_CONTENT_CALLERS = [STAY_CONTENT_ROUTE, HOTEL_COMMIT];
 const STAY_REDATED = [HOTEL_CONTAINER, HOTEL_VIEW, STAY_CHECKOUT, STAY_PLANNER, HOTEL_CLIENT];
 let stayViolations = 0;
 const stayFail = (m: string) => { stayViolations += 1; violations.push(`stay law: ${m} (HOTEL-02)`); };
@@ -4476,7 +4483,7 @@ const stayFail = (m: string) => { stayViolations += 1; violations.push(`stay law
   if (!/re-dated by HOTEL-02 \(2026-09-22\), the stay's clock is the property's/.test(BOOKING_FLOW_BASE)) stayFail('BOOKING_FLOW_BASE does not record the HOTEL-02 re-dating');
   if (BOOKING_FLOW_FILES.some((p) => p.file === HOTEL_COMMIT)) stayFail(`${HOTEL_COMMIT} is pinned — it is the itinerary writer, not the booking flow (TRAVEL-01)`);
 }
-if (stayViolations === 0) console.log(`✔ The stay law passed — the commit resolves a stay's clock once (the property's, read at commit, or the caller's stated one) and writes it to both columns or null; no clock literal in the commit, the button or the planner; the content read's callers are the closed set of ${STAY_CONTENT_CALLERS.length} (the route, the detail page, the commit) with one call and one reservation per commit and explicit 502 / 503 reasons; the itinerary PATCH pairs every block write with the ledger's clock and refuses a flight's; the content rating renders /5 and the catalog's /10, nothing re-scales; ${STAY_REDATED.length} files re-dated, dated.`);
+if (stayViolations === 0) console.log(`✔ The stay law passed — the commit resolves a stay's clock once (the property's, read at commit, or the caller's stated one) and writes it to both columns or null; no clock literal in the commit, the button or the planner; the content read's callers are the closed set of ${STAY_CONTENT_CALLERS.length} (the route and the commit; the detail page is a redirect) with one call and one reservation per commit and explicit 502 / 503 reasons; the itinerary PATCH pairs every block write with the ledger's clock and refuses a flight's; the content rating renders /5 and the catalog's /10, nothing re-scales; ${STAY_REDATED.length} files re-dated, dated.`);
 else console.log(`✖ The stay law FAILED — ${stayViolations} violation(s).`);
 });
 lawGuard('The activity law', () => {
@@ -8766,6 +8773,195 @@ lawGuard('The row law', () => {
   else console.log(`✖ The row law FAILED — ${rowViolations} violation(s).`);
 });
 
+lawGuard('The trips-tab law', () => {
+
+// ── THE TRIPS-TAB LAW (TRIPS-01, 2026-09-29) ─────────────────────────────────
+// THERE IS ONE TRIPS TAB — THE TRAVEL TAB — AND NOTHING LEADS TO THE LEGACY PLANNER.
+//
+// Alex's ruling, given three times: the old trip planner under /budgets/trips is
+// legacy and unused. Before this law, Travel carried a rail sub-link into it
+// ("Trips · the legacy pages", toolRegistry.ts:231), a booking's "Trip" button went
+// there (bookingRow.ts:194, BOOKINGS-01), and the create form's no-callback branch
+// navigated there (CreateTripForm.tsx:139).
+//
+//   1. TRAVEL CARRIES NO SUB-LINK. Its registry links are empty and the rail draws no
+//      sub-row under it. registryLaw holds the same at module scope — ever.
+//   2. NOTHING NAMES THE LEGACY PATH. No product file under src — every .ts / .tsx
+//      outside __tests__ (a test names the path to prove its absence) — holds
+//      "/budgets/trips" in its code: no href, no router push, no redirect, no email
+//      URL, no row field. The redirect pages themselves do not either. The one
+//      exception is a CLOSED list of PATHNAME TESTS that send no one anywhere — each
+//      named, dated and reasoned, each line present exactly as listed; the list may
+//      only shrink (the deletion ruling that follows TRIPS-01 empties it).
+//   3. EACH LEGACY PAGE IS A REDIRECT. The four page.tsx files under
+//      src/app/budgets/trips carry a dated TRIPS-01 note, import only `redirect` from
+//      next/navigation, render nothing (no JSX, no 'use client'), read no data (no
+//      prisma, no fetch, no cookie, no session), and redirect exactly once: the index
+//      and the create page to /travel; a trip and its discover detail to
+//      /travel?trip=<id>. The reachability law doors each through /travel.
+//   4. THE ?trip SELECTION PICKS ONLY FROM THE USER'S LOADED LIST. The leaf
+//      (src/lib/trips/tripFromUrl.ts) is pure and answers a request from the rows it
+//      is handed — probed: an own id returns THE ROW ITSELF; a foreign or unknown id
+//      selects nothing and says the one line; a request waits for the list to load,
+//      is answered once per arrival, and is forgotten when the URL stops asking; a
+//      path other than /travel asks for nothing. AllTripsList answers with the rows it
+//      fetched, only once loaded, and selects with the same `onSelect` a click makes;
+//      its two requests are still GET /api/trips and the row DELETE — no new fetch.
+//      ModuleLauncher reads ?trip through the leaf, hands it ONLY to AllTripsList
+//      (mounted only for a signed-in user, so the guest tab is unchanged), and never
+//      sets the current trip from the URL itself.
+//   5. THE ONE PIN TOUCHED IS RE-PINNED, DATED. TripPlannerAI.tsx (a discover card now
+//      opens its trip on the Travel tab) sits under exactly one TRIPS-01 note with the
+//      hash it had on main 536c862b; the travel law checks the hash itself.
+const TRIPS_LEAF = 'src/lib/trips/tripFromUrl.ts';
+const TRIPS_LIST = 'src/components/trips/AllTripsList.tsx';
+const TRIPS_LAUNCHER = 'src/components/home/ModuleLauncher.tsx';
+const TRIPS_LEGACY = '/budgets/trips';
+const TRIPS_TO_TRIP = '`/travel?trip=${encodeURIComponent(id)}`';
+const TRIPS_PAGES: ReadonlyArray<{ route: string; file: string; target: string }> = [
+  { route: '/budgets/trips', file: 'src/app/budgets/trips/page.tsx', target: "'/travel'" },
+  { route: '/budgets/trips/new', file: 'src/app/budgets/trips/new/page.tsx', target: "'/travel'" },
+  { route: '/budgets/trips/[id]', file: 'src/app/budgets/trips/[id]/page.tsx', target: TRIPS_TO_TRIP },
+  { route: '/budgets/trips/[id]/discover/[category]/[rank]', file: 'src/app/budgets/trips/[id]/discover/[category]/[rank]/page.tsx', target: TRIPS_TO_TRIP },
+];
+/**
+ * THE CLOSED LIST — pathname tests that name the legacy path and send no one anywhere.
+ * Set 2026-09-29 at two; it may only shrink. Both are in code the deletion ruling
+ * removes: the bar is mounted by AppLayout behind this very gate, and no AppLayout page
+ * lives under /budgets/trips any more (they are redirects), so the gate never opens.
+ */
+const TRIPS_PATH_TESTS: ReadonlyArray<{ file: string; line: string; why: string }> = [
+  { file: 'src/components/ui/AppLayout.tsx', line: "const TRAVEL_PREFIXES = ['/budgets/trips', '/trips'];", why: 'the travel search bar route gate (showTravelSearch) — a pathname test, not a door; it can no longer open under /budgets/trips' },
+  { file: 'src/components/trips/TripCreationBar.tsx', line: "const isOnNewPage = pathname === '/budgets/trips/new';", why: 'the legacy bar reading which legacy page it sits on — a pathname test, not a door; the create page is a redirect, so it is never true' },
+];
+const TRIPS_PATH_TESTS_SET_ON = '2026-09-29';
+const TRIPS_PATH_TESTS_MAX = 2;
+let tripsViolations = 0;
+const tripsFail = (m: string) => { tripsViolations += 1; violations.push(`trips-tab law: ${m} (TRIPS-01)`); };
+
+// 1. Travel carries no sub-link.
+{
+  const travel = TOOL_REGISTRY.find((t) => t.name === 'Travel');
+  if (!travel) tripsFail('the registry has no Travel row');
+  else if ((travel.links ?? []).length !== 0) tripsFail(`Travel carries ${(travel.links ?? []).length} sub-link(s) — the Travel tab is the one Trips tab; Travel carries no sub-link, ever`);
+  const row = navRows(TOOL_GATE).find((t) => t.name === 'Travel');
+  if (!row || row.subRows.length !== 0) tripsFail(`the rail draws ${row ? row.subRows.length : 'no'} sub-row(s) under Travel — Travel carries no sub-link, ever`);
+  for (const t of TOOL_REGISTRY) {
+    if (t.home?.startsWith(TRIPS_LEGACY) || (t.links ?? []).some((l) => l.href?.startsWith(TRIPS_LEGACY))) tripsFail(`${t.name} opens ${TRIPS_LEGACY} from the registry — nothing leads to the legacy planner`);
+  }
+}
+
+// 2. nothing names the legacy path — except the closed list of pathname tests.
+{
+  if (TRIPS_PATH_TESTS.length > TRIPS_PATH_TESTS_MAX) tripsFail(`the pathname-test list grew to ${TRIPS_PATH_TESTS.length} (set ${TRIPS_PATH_TESTS_SET_ON} at ${TRIPS_PATH_TESTS_MAX}) — it may only shrink`);
+  for (const e of TRIPS_PATH_TESTS) if (!e.why) tripsFail(`${e.file} is on the pathname-test list with no reason`);
+  let named = 0;
+  for (const { file, src } of srcFiles) {
+    const hits = src.split('\n').map((l) => l.trim()).filter((l) => l.includes(TRIPS_LEGACY));
+    const listed = TRIPS_PATH_TESTS.filter((e) => e.file === file).map((e) => e.line);
+    for (const line of hits) {
+      if (listed.includes(line)) continue;
+      named += 1;
+      tripsFail(`${file} names ${TRIPS_LEGACY} in its code — "${line.slice(0, 140)}"; every link into a trip is /travel?trip=<id>, and nothing leads to the legacy planner`);
+    }
+    for (const line of listed) {
+      const n = hits.filter((h) => h === line).length;
+      if (n !== 1) tripsFail(`${file} holds the listed pathname test ${n} time(s), not once — "${line}"; the list may only shrink, so remove an entry that is gone`);
+    }
+  }
+  for (const e of TRIPS_PATH_TESTS) if (!srcFiles.some((f) => f.file === e.file)) tripsFail(`${e.file} is on the pathname-test list but is not a source file — remove it`);
+  if (named === 0) {
+    const bookingRow = codeOf('src/lib/reservations/bookingRow.ts');
+    if (!bookingRow.includes('tripHref: r.tripId === null ? null : `/travel?trip=${r.tripId}`,')) tripsFail('bookingRow.ts does not send a booking’s Trip button to /travel?trip=<its trip>');
+    if (!codeOf('src/components/trips/CreateTripForm.tsx').includes('router.push(`/travel?trip=${newId}`);')) tripsFail('CreateTripForm.tsx does not send a new trip, created without a callback, to /travel?trip=<its id>');
+  }
+}
+
+// 3. each legacy page is a redirect: no UI, no data read, one hop to the Travel tab.
+{
+  for (const p of TRIPS_PAGES) {
+    if (!pages.some((q) => q.route === p.route && q.file === p.file)) { tripsFail(`${p.file} is not the page for ${p.route}`); continue; }
+    const body = codeOf(p.file);
+    if (!/TRIPS-01 \(2026-09-29\)/.test(commentsOf(p.file))) tripsFail(`${p.file} carries no dated TRIPS-01 note`);
+    const imports = body.split('\n').filter((l) => /^\s*import\b/.test(l)).map((l) => l.trim());
+    if (imports.length !== 1 || imports[0] !== "import { redirect } from 'next/navigation';") tripsFail(`${p.file} imports something other than redirect from next/navigation — [${imports.join(' | ')}]`);
+    if (/['"]use client['"]/.test(body)) tripsFail(`${p.file} is a client component — a redirect renders nothing`);
+    if (/<[A-Za-z][\w.]*(\s|\/?>)/.test(body) || /\breturn\b/.test(body)) tripsFail(`${p.file} renders UI — a redirect carries none`);
+    if (/\bprisma\b|\bfetch\(|\bcookies\(|\bheaders\(|getVerifiedEmail|getCurrentUser|verifyCookie|getServerSession|getToken/.test(body)) tripsFail(`${p.file} reads data — the redirect reads nothing; the Travel tab owns the trip, from the user’s own list`);
+    const calls = [...body.matchAll(/\bredirect\(([^;]*)\);/g)].map((m) => m[1].trim());
+    if (calls.length !== 1) tripsFail(`${p.file} calls redirect ${calls.length} time(s) — exactly once`);
+    else if (calls[0] !== p.target) tripsFail(`${p.file} redirects to ${calls[0]} — it does not redirect to ${p.target === TRIPS_TO_TRIP ? '/travel?trip=<its id>' : '/travel'}`);
+    const door = reach.get(p.route);
+    if (!door || door.kind !== 'redirect' || !door.via.startsWith('→ /travel')) tripsFail(`${p.route} is not doored as a redirect to /travel (${door ? `${door.kind}: ${door.via}` : 'no door'})`);
+  }
+}
+
+// 4. the ?trip selection picks only from the user's loaded list.
+{
+  const leaf = codeOf(TRIPS_LEAF);
+  if (/\bfetch\(|process\.env|\bwindow\b|\bdocument\b|^\s*import\b/m.test(leaf) || !/PURE: no fetch, no env, no window, no React\./.test(commentsOf(TRIPS_LEAF))) tripsFail(`${TRIPS_LEAF} is not pure`);
+  if (TRIP_NOT_YOURS !== 'That trip isn\x27t in your trips.') tripsFail(`the one line reads "${TRIP_NOT_YOURS}"`);
+  const rows = [{ id: 'mine-1', name: 'Phuket' }, { id: 'mine-2', name: 'Lisbon' }] as const;
+  const own = tripFromUrl('mine-2', rows);
+  if (own.kind !== 'selected' || own.trip !== rows[1]) tripsFail(`an own id answers ${JSON.stringify(own)} — it selects the row itself, from the list`);
+  for (const id of ['theirs-9', 'mine-', '', 'MINE-1']) {
+    const v = tripFromUrl(id, rows);
+    if (v.kind !== 'notYours' || 'trip' in v) tripsFail(`the id "${id}" answers ${JSON.stringify(v)} — it selects a trip that is not in the list`);
+  }
+  if (tripFromUrl('mine-1', []).kind !== 'notYours') tripsFail('an empty list selects a trip that is not in the list');
+  const step = (req: string | null, loaded: boolean, answered: string | null) => urlTripStep(req, loaded, rows, answered);
+  if (step('mine-1', false, null).kind !== 'wait') tripsFail('a request is answered before the list has loaded — the selection does not wait for its list to load');
+  const answer = step('mine-1', true, null);
+  if (answer.kind !== 'answer' || answer.verdict.kind !== 'selected' || answer.verdict.trip !== rows[0]) tripsFail(`a loaded own id steps to ${JSON.stringify(answer)}`);
+  if (step('mine-1', true, 'mine-1').kind !== 'wait') tripsFail('an answered request is answered again — a refresh would jump the selection back');
+  if (step(null, true, 'mine-1').kind !== 'forget') tripsFail('a consumed request is not forgotten — the same link followed again would do nothing');
+  if (step(null, true, null).kind !== 'wait') tripsFail('no request still steps');
+  const q = (s: string) => new URLSearchParams(s);
+  if (requestedTripOf('/travel', q('trip=mine-1')) !== 'mine-1') tripsFail('/travel?trip=<id> asks for nothing');
+  for (const path of ['/runway', '/budgets/trips', '/', null]) if (requestedTripOf(path, q('trip=mine-1')) !== null) tripsFail(`the leaf reads ?trip off /travel (on ${path})`);
+  if (requestedTripOf('/travel', null) !== null || requestedTripOf('/travel', q('')) !== null) tripsFail('a /travel URL with no ?trip asks for a trip');
+
+  const list = codeOf(TRIPS_LIST);
+  if (!list.includes('const step = urlTripStep(requestedTripId, !loading && error === null, trips, answered);')) tripsFail(`${TRIPS_LIST} does not answer from its own loaded rows (urlTripStep over trips, once !loading and no error) — the selection does not wait for its list to load`);
+  if (!list.includes("if (step.verdict.kind === 'selected') onSelect?.(step.verdict.trip);")) tripsFail(`${TRIPS_LIST} does not select with the same onSelect a click makes`);
+  if ((list.match(/\bonSelect\?\.\(/g) ?? []).length !== 2 || !list.includes('onClick={() => onSelect?.(trip)}')) tripsFail(`${TRIPS_LIST} selects other than by a click or the URL answer`);
+  const fetches = [...list.matchAll(/\bfetch\(([^)]*)\)/g)].map((m) => m[1]).sort();
+  if (fetches.length !== 2 || fetches[0] !== "'/api/trips'" || fetches[1] !== "`/api/trips/${trip.id}`, { method: 'DELETE' }") tripsFail(`${TRIPS_LIST} makes requests [${fetches.join(' | ')}] — its two are GET /api/trips and the row DELETE; no new fetch`);
+  if (!/\{urlTrip\?\.kind === 'notYours' && \(\s*<p [^>]*data-url-trip-missing>\{TRIP_NOT_YOURS\}<\/p>/.test(list)) tripsFail(`${TRIPS_LIST} does not say the one line when the id is not in the list`);
+
+  const launcher = codeOf(TRIPS_LAUNCHER);
+  if (!launcher.includes('const requestedTripId = requestedTripOf(usePathname(), useSearchParams());')) tripsFail(`${TRIPS_LAUNCHER} does not read ?trip through the leaf`);
+  const uses = (launcher.match(/\brequestedTripId\b/g) ?? []).length;
+  if (uses !== 3 || (launcher.match(/requestedTripId=\{requestedTripId\}/g) ?? []).length !== 1) tripsFail(`${TRIPS_LAUNCHER} hands ?trip to something other than AllTripsList (${uses} use(s))`);
+  const listAt = launcher.indexOf('<AllTripsList');
+  const listTag = listAt >= 0 ? launcher.slice(listAt, launcher.indexOf('/>', listAt)) : '';
+  if (!listTag.includes('requestedTripId={requestedTripId}') || !listTag.includes('onUrlTripAnswered={answerUrlTrip}') || !listTag.includes('onSelect={setCurrentTrip}')) tripsFail(`${TRIPS_LAUNCHER} does not hand ?trip to AllTripsList with its click selection`);
+  const authedAt = launcher.lastIndexOf('{authed === true ? (', listAt);
+  const tripsAt = launcher.indexOf('data-travel-section="trips"');
+  if (!(tripsAt >= 0 && tripsAt < authedAt && authedAt < listAt)) tripsFail(`${TRIPS_LAUNCHER} mounts AllTripsList outside the signed-in branch of the trips section — a guest tab would change`);
+  const sets = [...launcher.matchAll(/\bsetCurrentTrip\b[^\n]*/g)].map((m) => m[0]);
+  if (sets.length !== 3 || !sets.some((s) => s.startsWith('setCurrentTrip] = useState')) || !sets.some((s) => s.startsWith('setCurrentTrip}')) || !sets.some((s) => s.startsWith('setCurrentTrip((cur) => (cur?.id === deletedId ? null : cur));'))) tripsFail(`${TRIPS_LAUNCHER} sets the current trip other than by a click, the URL answer or a delete — it sets the current trip from the URL itself: [${sets.join(' | ')}]`);
+  const answerAt = launcher.indexOf('const answerUrlTrip = useCallback(');
+  const answerBody = answerAt >= 0 ? launcher.slice(answerAt, launcher.indexOf('}, []);', answerAt)) : '';
+  if (!answerBody || /setCurrentTrip|\bfetch\(/.test(answerBody) || !answerBody.includes("params.delete('trip');") || !answerBody.includes("if (verdict.kind === 'selected') tripsSection.current?.scrollIntoView({ block: 'start' });")) tripsFail(`${TRIPS_LAUNCHER}’s answer does not only scroll to the trips section and drop ?trip from the URL`);
+  if (!launcher.includes('<section ref={tripsSection} className="space-y-3" data-travel-section="trips">')) tripsFail(`${TRIPS_LAUNCHER} does not scroll to the trips section itself`);
+}
+
+// 5. the one pinned file TRIPS-01 touched is re-pinned, dated, the old hash stacked.
+{
+  const pins = codeOf('src/lib/travelBookingFlow.ts');
+  const notes = commentsOf('src/lib/travelBookingFlow.ts');
+  const f = 'src/components/trips/TripPlannerAI.tsx';
+  const pinAt = pins.indexOf(`{ file: '${f}', sha256: '`);
+  if (pinAt < 0) tripsFail(`${f} is no longer pinned`);
+  else if (!/TRIPS-01 \(2026-09-29\): re-pinned — [^\n]+ No commit, no booking call changed\.\n[^\n]*Was 2199015c8e7688ec81e77d44c50c1c23bd123ae0b97c02443767c90f13b7ac3b at main 536c862b\./.test(noteBlockOver(pins, notes, pins.slice(0, pinAt).split('\n').length))) tripsFail(`${f}\u2019s pin does not sit under a dated TRIPS-01 note with the hash it had on main 536c862b`);
+  const dated = (notes.match(/TRIPS-01 \(2026-09-29\): re-pinned/g) ?? []).length;
+  if (dated !== 1) tripsFail(`src/lib/travelBookingFlow.ts carries ${dated} TRIPS-01 re-pin note(s) — one: the planner`);
+}
+
+if (tripsViolations === 0) console.log(`✔ The trips-tab law passed — Travel carries no sub-link; no product file names ${TRIPS_LEGACY} in code but the ${TRIPS_PATH_TESTS.length} listed pathname tests (closed, shrink-only, set ${TRIPS_PATH_TESTS_SET_ON}); the ${TRIPS_PAGES.length} legacy pages are one-hop redirects to the Travel tab with no UI and no data read; /travel?trip=<id> selects only from the user’s loaded list — the row itself, or nothing and the one line.`);
+else console.log(`✖ The trips-tab law FAILED — ${tripsViolations} violation(s).`);
+});
 lawGuard('The reader law', () => {
 
 // ── THE READER LAW (TEST-TRUTH-01, 2026-09-17) ──────────────────────────────

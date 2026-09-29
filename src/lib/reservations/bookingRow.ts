@@ -79,6 +79,7 @@ export interface BookingRow {
   budgetLine: string;
   price: string;
   receiptHref: string;
+  /** TRIPS-01 (2026-09-29): the trip on the Travel tab — the one Trips tab — never the legacy planner. */
   tripHref: string | null;
   /** CAL-02 (2026-09-27): the booking as an iCalendar file — its rows, for any calendar app. */
   icsHref: string;
@@ -191,7 +192,7 @@ export function bookingRowOf(facts: BookingRowFacts): BookingRow {
     budgetLine: facts.budgetLine === null ? BOOKING_WORDS.noBudgetLine : lineDescription.length > 0 ? lineDescription : BOOKING_WORDS.noDescription,
     price: priceWords(r.finalPriceCents, r.currency),
     receiptHref: `/booking/${r.id}/receipt`,
-    tripHref: r.tripId === null ? null : `/budgets/trips/${r.tripId}`,
+    tripHref: r.tripId === null ? null : `/travel?trip=${r.tripId}`,
     icsHref: bookingIcsHref(r.id),
   };
 }

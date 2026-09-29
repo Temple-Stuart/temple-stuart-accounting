@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Script from 'next/script';
+import { usePathname, useSearchParams } from 'next/navigation';
 import {
   Calendar, Plane, Repeat, FolderKanban, TrendingUp, BookOpen, Receipt, ShieldCheck, Clapperboard, MapPin,
   type LucideIcon,
@@ -16,6 +17,7 @@ import UnattachedBookings from '@/components/trips/UnattachedBookings';
 import AllBookings from '@/components/trips/AllBookings';
 import { BOOKING_WORDS } from '@/lib/reservations/bookingRow';
 import AllTripsList, { type TripRow } from '@/components/trips/AllTripsList';
+import { requestedTripOf, type UrlTrip } from '@/lib/trips/tripFromUrl';
 import TripFormModal from '@/components/trips/TripFormModal';
 import TripBudgetActual from '@/components/trips/TripBudgetActual';
 import TripItinerarySection from '@/components/trips/TripItinerarySection';
@@ -242,6 +244,24 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // actions in the Travel section can read which trip they attach to. Selection +
   // context only — no budget writes here.
   const [currentTrip, setCurrentTrip] = useState<TripRow | null>(null);
+  // TRIPS-01 (2026-09-29): the Travel tab is the one Trips tab — every link into a
+  // trip lands here as /travel?trip=<id> (the legacy planner's four URLs redirect
+  // here too). The id is read from the URL as it changes, not once on mount, because
+  // a booking's "Trip" button (AllBookings) links here FROM this tab, and a same-page
+  // link keeps this component mounted. It is only ever handed to AllTripsList, which
+  // answers it from the user's own loaded trips; a guest's tab never mounts that list
+  // and is unchanged. Once answered, the tab scrolls to its trips (when one was
+  // selected) and drops `trip` from the URL — the selection is state, like a click's,
+  // and the URL may not go on claiming a trip the user has since moved off.
+  const requestedTripId = requestedTripOf(usePathname(), useSearchParams());
+  const tripsSection = useRef<HTMLElement>(null);
+  const answerUrlTrip = useCallback((verdict: UrlTrip<TripRow>) => {
+    if (verdict.kind === 'selected') tripsSection.current?.scrollIntoView({ block: 'start' });
+    const params = new URLSearchParams(window.location.search);
+    params.delete('trip');
+    const qs = params.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`);
+  }, []);
   // PR-Trip-Modal: the create-trip form now lives in a modal off the "Your trips"
   // table (the table is the primary view; creating is one tap → modal). This is open
   // when the "+ Create a trip" button is tapped; a successful create closes it.
@@ -780,7 +800,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               <ToolOpener tools={[navToolByName('Travel', TOOL_GATE)]} />
             </div>
 
-            <section className="space-y-3" data-travel-section="trips">
+            <section ref={tripsSection} className="space-y-3" data-travel-section="trips">
               <TravelHeading>Trips</TravelHeading>
               <div className="rounded-lg border border-border bg-ts-white">
                 <div className={`${SECTION_HEADER} rounded-t-lg`}>YOUR TRIPS</div>
@@ -797,6 +817,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
                             setCurrentTrip((cur) => (cur?.id === deletedId ? null : cur));
                           }}
                           headerAction={createTripButton}
+                          requestedTripId={requestedTripId}
+                          onUrlTripAnswered={answerUrlTrip}
                         />
                         {currentTrip && (
                           <p className="text-sm text-text-secondary">

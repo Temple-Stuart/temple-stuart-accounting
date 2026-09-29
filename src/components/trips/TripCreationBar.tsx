@@ -152,23 +152,12 @@ export default function TripCreationBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [handleClickOutside]);
 
-  const buildParams = () => {
-    const params = new URLSearchParams();
-    if (barName) params.set('tripName', barName);
-    if (selectedDestinations.length > 0) params.set('destinations', selectedDestinations.join(','));
-    if (barStartDate) params.set('startDate', barStartDate);
-    if (barEndDate) params.set('endDate', barEndDate);
-    if (barTravelers > 1) params.set('travelers', String(barTravelers));
-    if (tripType !== 'personal') params.set('tripType', tripType);
-    return params;
-  };
+  // TRIPS-01 (2026-09-29): the query this bar built for the create page is gone with
+  // that page — /budgets/trips/new is a redirect to /travel, which reads none of it.
 
   const [updating, setUpdating] = useState(false);
 
   const handleButtonClick = async () => {
-    const params = buildParams();
-    const qs = params.toString() ? '?' + params.toString() : '';
-
     if (mode === 'detail' && detailTripId) {
       // PATCH the existing trip
       setUpdating(true);
@@ -192,11 +181,11 @@ export default function TripCreationBar() {
       } catch { /* ignore */ }
       finally { setUpdating(false); }
     } else if (mode === 'new') {
-      params.set('save', '1');
-      const saveQs = params.toString() ? '?' + params.toString() : '';
-      router.replace(`/budgets/trips/new${saveQs}`, { scroll: false });
+      // TRIPS-01: straight to the Travel tab — the one Trips tab — where the create
+      // page now redirects.
+      router.replace('/travel', { scroll: false });
     } else {
-      router.push(`/budgets/trips/new${qs}`);
+      router.push('/travel');
     }
   };
 

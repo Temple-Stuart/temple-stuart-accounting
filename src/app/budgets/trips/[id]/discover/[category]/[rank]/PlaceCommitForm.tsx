@@ -93,9 +93,10 @@ export function PlaceCommitForm({ tripId, category, placeName, location, suggest
   };
 
   if (state === 'added') {
+    // TRIPS-01 (2026-09-29): the trip on the Travel tab — the one Trips tab — not the legacy planner.
     return (
       <a
-        href={`/budgets/trips/${tripId}`}
+        href={`/travel?trip=${tripId}`}
         className="px-4 py-2 bg-emerald-100 border border-emerald-300 text-emerald-800 text-sm font-medium rounded hover:bg-emerald-200"
       >
         ✓ Added to trip — view budget

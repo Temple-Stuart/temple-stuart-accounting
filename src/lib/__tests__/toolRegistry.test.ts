@@ -61,12 +61,12 @@ test('the law rejects a four-beat PARTIAL without `why`, a `why` on a non-PARTIA
   assert.match(registryLaw({ throwOnFail: false, registry: withTool('Travel', { beats: { discover: true, decide: true, commit: true, record: false } }) }).join('\n'), /Travel: LIVE needs four beats and a home \(beats 3/);
   assert.match(registryLaw({ throwOnFail: false, registry: withTool('Banking', { beats: { discover: false, decide: false, commit: false, record: false } }) }).join('\n'), /Banking: PARTIAL with no beats — no beats is NOT_BUILT/);
   assert.match(registryLaw({ throwOnFail: false, registry: withTool('CRM', { beats: { discover: true, decide: false, commit: false, record: false } }) }).join('\n'), /CRM: NOT_BUILT must have no beats, no home, no links/);
-  assert.match(registryLaw({ throwOnFail: false, registry: withTool('Expenses', { home: '/budgets/trips' }) }).join('\n'), /Expenses: NOT_BUILT must have no beats, no home, no links/);
+  assert.match(registryLaw({ throwOnFail: false, registry: withTool('Expenses', { home: '/travel' }) }).join('\n'), /Expenses: NOT_BUILT must have no beats, no home, no links/);
   // a wrong count is named (Calendar back to LIVE → 3/8/14)
   assert.match(registryLaw({ throwOnFail: false, registry: withTool('Calendar', { status: 'LIVE', why: undefined }) }).join('\n'), /LIVE count 3 ≠ census 2/);
 });
 
-test('CRM and Expenses are NOT_BUILT with the census citation, no home, no beats; their former pages keep a door — /owner in the owner utilities, /budgets/trips as Travel\'s link', () => {
+test('CRM and Expenses are NOT_BUILT with the census citation, no home, no beats; /owner keeps its door in the owner utilities, and Travel carries no sub-link (TRIPS-01)', () => {
   for (const name of ['CRM', 'Expenses']) {
     const t = byName(name);
     assert.equal(t.status, 'NOT_BUILT');
@@ -77,7 +77,24 @@ test('CRM and Expenses are NOT_BUILT with the census citation, no home, no beats
   assert.match(byName('CRM').citation, /proposals inbox — no contact or deal object \(src\/app\/api\/owner\/proposals\/route\.ts\)/);
   assert.match(byName('Expenses').citation, /trip cost split on the trip planner \(src\/app\/api\/trips\/\[id\]\/expenses\/route\.ts:70\) is Travel's/);
   assert.ok(OWNER_UTILITIES.some((u) => u.href === '/owner'), '/owner keeps its door in the utilities menu');
-  assert.ok(byName('Travel').links?.some((l) => l.href === '/budgets/trips'), '/budgets/trips keeps its door as Travel\'s link');
+  // TRIPS-01 (2026-09-29): the trip planner Expenses' citation names is the Travel tab's
+  // now — the legacy pages under /budgets/trips are redirects to it, and Travel carries
+  // no sub-link: not to them, not to anything.
+  assert.deepEqual(byName('Travel').links, []);
+});
+
+test('TRIPS-01: Travel carries no sub-link, ever — the registry law refuses one, whatever it opens', () => {
+  assert.deepEqual(registryLaw({ throwOnFail: false }), []);
+  for (const links of [
+    [{ label: 'Trips · the legacy pages', href: '/budgets/trips' }],
+    [{ label: 'Anything', href: '/travel' }],
+    [{ label: 'A cockpit row', cockpitKey: 'travel' }],
+  ]) {
+    const found = registryLaw({ throwOnFail: false, registry: withTool('Travel', { links }) }).join('\n');
+    assert.match(found, /Travel: carries 1 sub-link\(s\) — the Travel tab is the one Trips tab; Travel carries no sub-link, ever \(TRIPS-01\)/);
+  }
+  assert.throws(() => registryLaw({ registry: withTool('Travel', { links: [{ label: 'x', href: '/budgets/trips' }] }) }), /TOOL REGISTRY LAW failed/);
+  assert.deepEqual(registryLaw({ throwOnFail: false, registry: withTool('Travel', { links: [] }) }), []);
 });
 
 test('derived surfaces: the free set is Travel alone', () => {

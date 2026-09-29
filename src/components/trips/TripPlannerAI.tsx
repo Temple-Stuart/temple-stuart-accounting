@@ -825,7 +825,7 @@ export function TripScanControls() {
  *  TravelCarousel (28b filters + 28d load-more + honest empty/error preserved).
  *  Reads byCategory[catKey] / loadingCategories / categoryErrors from context. */
 export function TripApiSection({ catKey, title }: { catKey: string; title?: string }) {
-  const { router, byCategory, loadingCategories, categoryErrors, tripId, city, country } = useTripScanCtx();
+  const { router, byCategory, loadingCategories, categoryErrors, tripId } = useTripScanCtx();
   if (!ACTIVE_SCAN_SET.has(catKey)) return null;
   const isLoading = loadingCategories.has(catKey);
   const items = byCategory[catKey] || [];
@@ -850,15 +850,10 @@ export function TripApiSection({ catKey, title }: { catKey: string; title?: stri
         isLoading={isLoading}
         items={items}
         error={err}
-        onCardClick={(rec) => {
-          const idForRoute = String(rec.valueRank ?? 0);
-          // Thread the destination so the detail resolver disambiguates valueRank
-          // (unique only WITHIN a destination's scanner row) across destinations of
-          // the same category. Mirror the EXACT string the scan writes —
-          // `${city}, ${country}` (ai-assistant/route.ts) — which is the
-          // trip_scanner_results unique key (tripId, destination, category).
-          const destination = `${city}, ${country}`;
-          router.push(`/budgets/trips/${tripId}/discover/${encodeURIComponent(catKey)}/${idForRoute}?destination=${encodeURIComponent(destination)}`);
+        onCardClick={() => {
+          // TRIPS-01 (2026-09-29): the discover detail page is a redirect to the trip on
+          // the Travel tab — the one Trips tab — so a card goes there directly.
+          router.push(`/travel?trip=${tripId}`);
         }}
       />
     </SectionCard>

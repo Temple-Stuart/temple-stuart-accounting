@@ -22,9 +22,10 @@ interface Props {
    *  the inner band/card would be a redundant second banner. */
   showHeader?: boolean;
   /** PR-HCR-Trips1: when set, a successful create calls this with the new trip id
-   *  INSTEAD of navigating to /budgets/trips/[id]. The home launcher passes it so
-   *  the new trip refreshes the All Trips list in place. Omit it (trips index) →
-   *  the existing navigation is unchanged. */
+   *  INSTEAD of navigating to the new trip. The home launcher passes it so the new
+   *  trip refreshes the All Trips list in place. Omit it → the form navigates to the
+   *  new trip on the Travel tab, /travel?trip=<id> (TRIPS-01, 2026-09-29: the legacy
+   *  trips index that omitted it is a redirect to /travel now). */
   onCreated?: (tripId: string) => void;
   /** T1: stack the fields vertically for narrow containers (TripFormModal's
    *  max-w-lg card) — the form's lg: breakpoints key off the VIEWPORT, so the
@@ -135,8 +136,9 @@ export default function CreateTripForm({ onUnauthenticated, showHeader = true, o
         setCreating(false);
         onCreated(newId);
       } else {
-        // Trips index: unchanged — navigate to the new trip.
-        router.push(`/budgets/trips/${newId}`);
+        // TRIPS-01 (2026-09-29): navigate to the new trip on the Travel tab — the one
+        // Trips tab; the legacy planner at /budgets/trips/[id] is a redirect to it.
+        router.push(`/travel?trip=${newId}`);
       }
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : 'Failed to create trip');

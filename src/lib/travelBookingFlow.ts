@@ -490,7 +490,9 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // src/lib/travel/ratingWords.ts (was `${rating} stars`, "Rated 0 out of 5"); the
   // recommendation type carries NULL. No commit, no booking call changed.
   // Was 9cdf491def14615d0f5b0d8ba168bb7026131b05c12b3d3a113be0b3ee3ddf9d at main 0ca0f678.
-  { file: 'src/components/trips/TripPlannerAI.tsx', sha256: '2199015c8e7688ec81e77d44c50c1c23bd123ae0b97c02443767c90f13b7ac3b' },
+  // TRIPS-01 (2026-09-29): re-pinned — a discover card opens its trip on the Travel tab (/travel?trip=<id>), where the legacy discover page now redirects; the card no longer builds that page's route. No commit, no booking call changed.
+  // Was 2199015c8e7688ec81e77d44c50c1c23bd123ae0b97c02443767c90f13b7ac3b at main 536c862b.
+  { file: 'src/components/trips/TripPlannerAI.tsx', sha256: 'ebf0111bf70990fbdf974d2981ae14cc664b5b8dfe8173d243d99c90c13af14b' },
   // the provider clients and their helpers
   // HOTEL-01 (2026-09-22): re-pinned — the search half carries the vendor's filter and sort fields; every booking function is byte-identical (the hotel law pins each body). Search and display are not booking; no prebook/book/pay/cancel call changed.
   // Was 9806e3b58ab2b8d4845e7870f89078d473d27007cae0adb247af0673907f176a at main d56b2cc9.
