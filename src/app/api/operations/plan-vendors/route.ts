@@ -89,8 +89,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    let body: { kind?: unknown; id?: unknown; instant?: unknown; vendorId?: unknown };
-    try { body = await request.json(); } catch { return NextResponse.json({ error: 'A JSON body is required.' }, { status: 400 }); }
+    let raw: unknown;
+    try { raw = await request.json(); } catch { return NextResponse.json({ error: 'A JSON body is required.' }, { status: 400 }); }
+    // TAB13-04 (R7 b): a body that is not an object — null, an array, a number — is refused, never read as one.
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+      return NextResponse.json({ error: 'A JSON object body is required.' }, { status: 400 });
+    }
+    const body = raw as { kind?: unknown; id?: unknown; instant?: unknown; vendorId?: unknown };
 
     // (b) The address.
     const read = readPlanAddress(body.kind, body.id, body.instant);

@@ -12,9 +12,9 @@ import assert from 'node:assert/strict';
 import { code, comments } from '../sourceText';
 import { LINKABLE_KINDS } from '../calendar/linkKeys';
 import { closingOf } from '../security/ownershipLaw';
-import { buildRoutineBudgetLines, type RoutinePlanInput } from '../budget/days';
+import { buildRoutineBudgetLines, occurrenceKey, type RoutinePlanInput } from '../budget/days';
 import {
-  GRAIN_TAG, PLAN_VENDOR_KINDS, VENDOR_NAME_MAX, grainAllows, isGrainRefusal, moneyIsHere, occurrenceIn, occurrenceSourceId,
+  GRAIN_TAG, PLAN_VENDOR_KINDS, VENDOR_NAME_MAX, grainAllows, isGrainRefusal, moneyIsHere, occurrenceIn,
   occurrenceWindow, readPlanAddress, readVendorName, routineAsBudgetReads, takenBy, taskAsBudgetReads, vendorFits, vendorNameKey,
   writeFor, type Book, type HeldVendor, type PlanAddress,
 } from '../operations/planVendor';
@@ -142,7 +142,7 @@ test('T4 a real instant is accepted — placed, or not placed because the chart 
   const noon = at('2026-09-29T19:00:00.000Z'); // 12:00 in Los Angeles
   assert.deepEqual(occurrenceWindow(noon), { rangeFrom: '2026-09-27', rangeTo: '2026-10-01' }, 'ruled D1 (b): the UTC day and two either side');
   assert.deepEqual(ask(routine(), { kind: 'routine_line', id: LUNCH, instant: noon }), { ok: true, day: '2026-09-29' });
-  assert.equal(occurrenceSourceId(PLAN, { kind: 'routine_line', id: LUNCH, instant: noon }), `routine:${PLAN}:line:${LUNCH}:2026-09-29T19:00:00.000Z`);
+  assert.equal(occurrenceKey({ routineId: PLAN, lineId: LUNCH, instant: noon }), `routine:${PLAN}:line:${LUNCH}:2026-09-29T19:00:00.000Z`, 'TAB13-04: the key is days.ts\'s');
   // A B- code on a personal book: /budget lists the occurrence as not placed — still an occurrence it builds.
   const unreadable = routine({ steps: [{ id: LUNCH, isActive: true, stepOrder: 0, budgetAmount: '20.00', coaCode: 'B-6150' }] });
   const w = occurrenceWindow(noon);
@@ -352,4 +352,66 @@ test('T7 the schema model\'s columns match the migration\'s, and no column of th
   }
   assert.match(schema, /operations_plan_vendor_set\s+operations_plan_vendor_cleared\s+\}/, 'appended to AuditActionType in ALTER TYPE order');
   assert.match(code('src/app/api/audit-log/route.ts'), /'operations_plan_vendor_set',\s*'operations_plan_vendor_cleared',\s*\],/);
+});
+
+// ── TAB13-04 T7 · VENDOR-01'S AUDIT ITEMS ────────────────────────────────────
+
+test('TAB13-04 T7 (a) the audit survivors, pinned: the vendor checked against the plan\'s book (V8), a line among its routine\'s active lines (V9), a taken name refused (V13), DELETE\'s plan 404 (V14)', () => {
+  const route = code(ROUTE);
+  const post = handler(route, 'POST');
+  const del = handler(route, 'DELETE');
+  // V8 — plan-vendors/route.ts:161 on main 047e2c5b.
+  assert.match(post, /const fits = vendorFits\(vendorRow, planBook, books\);\s*if \(!fits\.ok\) return refused\(fits\);/);
+  assert.match(post, /planBook = bookOf\(books, routineRef\.entity_id, `routine \$\{routineRef\.id\}`\);/);
+  assert.match(post, /planBook = bookOf\(books, t\.entity_id, `task \$\{address\.id\}`\);/);
+  // V9 — plan-vendors/route.ts:129.
+  assert.match(post, /const asRead = routineAsBudgetReads\(loaded\.map\(\(row\) => toRoutinePlanInput\(row, entity\)\), routineRef, address\.kind === 'routine_line' \? address\.id : null\);\s*if \(!asRead\.ok\) return refused\(asRead\);/);
+  // V14 — plan-vendors/route.ts:230.
+  assert.match(del, /if \(owned === null\) return noPlan\(\);/);
+  assert.ok(del.indexOf('if (owned === null) return noPlan();') < del.indexOf('prisma.planned_item_vendors.findFirst('), 'the plan is the caller\'s before its row is read');
+  assert.match(route, /const noPlan = \(\) => NextResponse\.json\(\{ error: 'not-found', message: 'No such plan' \}, \{ status: 404 \}\);/);
+  // V13 — vendor-directory/route.ts:99.
+  const dir = handler(code(DIRECTORY), 'POST');
+  assert.match(dir, /const taken = takenBy\(name\.name, vendors\);\s*if \(taken\) return \{ kind: 'taken', vendor: taken \} as const;/);
+  assert.ok(dir.indexOf("if (taken) return { kind: 'taken', vendor: taken } as const;") < dir.indexOf('tx.operations_vendor_directory.create('), 'refused before anything is created');
+  assert.match(dir, /if \(outcome\.kind === 'taken'\) \{[\s\S]{0,420}\}, \{ status: 409 \}\);/);
+});
+
+test('TAB13-04 T7 (b) a JSON body that is not an object — null, an array, a number — is a 400 on both POSTs, before any field is read', () => {
+  for (const f of [ROUTE, DIRECTORY]) {
+    const post = handler(code(f), 'POST');
+    assert.match(post, /let raw: unknown;\s*try \{ raw = await request\.json\(\); \} catch \{ return NextResponse\.json\(\{ error: 'A JSON body is required\.' \}, \{ status: 400 \}\); \}\s*if \(raw === null \|\| typeof raw !== 'object' \|\| Array\.isArray\(raw\)\) \{\s*return NextResponse\.json\(\{ error: 'A JSON object body is required\.' \}, \{ status: 400 \}\);\s*\}\s*const body = raw as \{/, f);
+    assert.ok(post.indexOf('Array.isArray(raw)') < post.indexOf('body.'), `${f}: refused before any field is read`);
+  }
+  // The same test the route runs, over the three shapes.
+  const notAnObject = (raw: unknown) => raw === null || typeof raw !== 'object' || Array.isArray(raw);
+  for (const raw of [null, [], [1], 42, 'x', true]) assert.equal(notAnObject(raw), true, JSON.stringify(raw));
+  assert.equal(notAnObject({}), false);
+});
+
+test('TAB13-04 T7 (c) an instant whose occurrence window leaves \'YYYY-MM-DD\' days is a 400 in readPlanAddress — never the builder\'s 500', () => {
+  for (const edge of ['9999-12-31T12:00:00.000Z', '+275760-09-13T00:00:00.000Z', '+010000-01-01T00:00:00.000Z']) {
+    for (const kind of ['routine', 'routine_line', 'project_task']) {
+      const r = refusal(readPlanAddress(kind, PLAN, edge));
+      assert.deepEqual([r.status, r.error], [400, 'bad-instant'], `${kind} ${edge}`);
+      assert.match(r.message, /is outside the days \/budget reads — its occurrence window is not 'YYYY-MM-DD' days$/);
+    }
+  }
+  assert.ok(readPlanAddress('routine', PLAN, '0001-01-03T00:00:00.000Z').ok, 'a window of real days is an address');
+  assert.deepEqual(occurrenceWindow(at('0001-01-03T00:00:00.000Z')), { rangeFrom: '0001-01-01', rangeTo: '0001-01-05' });
+  assert.throws(() => occurrenceWindow(at('9999-12-31T12:00:00.000Z')), /readPlanAddress refuses it first/, 'never a quiet window of non-days');
+});
+
+test('TAB13-04 T7 (d) an every-occurrence write on a plan holding occurrence vendors whose routine\'s zone cannot be read is a 409 naming the zone and how many — never a 500', () => {
+  const held: HeldVendor[] = [
+    { id: 's-1', occurrenceAt: at('2026-09-29T19:00:00.000Z'), vendorId: 'v-1', vendorName: 'Pho 24' },
+    { id: 's-2', occurrenceAt: at('2026-09-30T19:00:00.000Z'), vendorId: 'v-2', vendorName: 'Banh Mi 25' },
+  ];
+  let r: ReturnType<typeof grainAllows> | undefined;
+  assert.doesNotThrow(() => { r = grainAllows({ kind: 'routine', id: PLAN, instant: null }, held, 'Mars/Olympus'); });
+  const refused = refusal(r as ReturnType<typeof grainAllows>);
+  assert.deepEqual([refused.status, refused.error], [409, 'grain']);
+  assert.match(refused.message, /^this plan holds a vendor for 2 single occurrences, and its routine's zone "Mars\/Olympus" cannot be read \(.+\) — clear them before setting one vendor for every occurrence$/);
+  // A readable zone still names the days (VENDOR-01's T6 message, unchanged).
+  assert.match(refusal(grainAllows({ kind: 'routine', id: PLAN, instant: null }, held, LA)).message, /\(2026-09-29, 2026-09-30\)/);
 });

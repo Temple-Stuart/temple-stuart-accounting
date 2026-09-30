@@ -28,6 +28,12 @@ import type { RoutineBudgetInput } from './routineBudget';
  * end_date as well, so the select and the mapping GREW by those three columns,
  * additively: every field the month tables read is unchanged, and
  * routinesMonthlyByCoa() ignores the three it does not take.
+ *
+ * TAB13-04 (2026-09-29): the report lists the day's plan lines by their words, so
+ * a line's activity and time_of_day are read here too — the same read, grown
+ * additively again. The time is read ONCE, here: a @db.Time value's UTC parts as
+ * 'HH:MM', as src/lib/calendar/ics.ts:133-135 reads one — so it is the string
+ * RoutineLineInput already types (routineLines.ts). The month tables read neither.
  */
 
 /** The columns a routine's monthly budget is built from — the lines and the anchor included. */
@@ -38,7 +44,7 @@ export const ROUTINE_BUDGET_SELECT = {
   // ONEOFF-01: the anchor the month's occurrence count is built on.
   start_date: true,
   // LINES-01: the routine's active lines; routinePlanned() decides whether they carry the figure.
-  steps: { where: { is_active: true }, select: { id: true, is_active: true, budget_amount: true, coa_code: true, step_order: true } },
+  steps: { where: { is_active: true }, select: { id: true, is_active: true, budget_amount: true, coa_code: true, step_order: true, activity: true, time_of_day: true } },
 } as const;
 
 export type RoutineBudgetRow = Prisma.operations_routinesGetPayload<{ select: typeof ROUTINE_BUDGET_SELECT }>;
@@ -53,7 +59,8 @@ export interface LoadedRoutineBudgetInput extends RoutineBudgetInput {
   name: string;
   start_date: Date | null;
   end_date: Date | null;
-  steps: { id: string; is_active: boolean; budget_amount: number | null; coa_code: string | null; step_order: number }[];
+  /** TAB13-04: activity and time_of_day ('HH:MM', or null when the line has no time) are the day's plan lines' words — the month tables read neither. */
+  steps: { id: string; is_active: boolean; budget_amount: number | null; coa_code: string | null; step_order: number; activity: string; time_of_day: string | null }[];
 }
 
 /** A row as read → the input routinesMonthlyByCoa() takes. Decimal → number; null stays null, never 0. */
@@ -67,7 +74,7 @@ export function toRoutineBudgetInput(r: RoutineBudgetRow): LoadedRoutineBudgetIn
     schedule_rrule: r.schedule_rrule,
     timezone: r.timezone,
     start_date: r.start_date,
-    steps: r.steps.map((s) => ({ id: s.id, is_active: s.is_active, budget_amount: s.budget_amount != null ? Number(s.budget_amount) : null, coa_code: s.coa_code, step_order: s.step_order })),
+    steps: r.steps.map((s) => ({ id: s.id, is_active: s.is_active, budget_amount: s.budget_amount != null ? Number(s.budget_amount) : null, coa_code: s.coa_code, step_order: s.step_order, activity: s.activity, time_of_day: s.time_of_day === null ? null : s.time_of_day.toISOString().slice(11, 16) })),
   };
 }
 

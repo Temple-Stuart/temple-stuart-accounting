@@ -25,6 +25,10 @@
  *   · THE CALLS. The day rules (src/lib/budget/days.ts) place routines and
  *     tasks on days; the model (src/lib/budget/report.ts) builds the report.
  *     Neither is restated here.
+ *   · THE DAY'S PLAN (TAB13-04). For a DAY or WEEK view, the plan lines on the
+ *     view's day columns, each with its vendor, and the vendors a day holds that
+ *     no plan line matches — src/lib/budget/planLines.ts decides; a YEAR says in
+ *     words that it lists none.
  *   · THE RESPONSE. The report plus what is NOT in it, always stated: plans not
  *     placed, costed tasks excluded by status (ALL TIME), bank rows not in the
  *     books yet per column (a row whose amount is not whole cents is listed as
@@ -44,13 +48,16 @@ import {
   buildRoutineBudgetLines, buildTaskBudgetLines, centsFromDollars, isIsoDay, parseBudgetCode,
   type ExcludedByStatus, type NotPlaced, type ParsedCode, type RoutinePlanInput, type TaskPlanInput,
 } from '@/lib/budget/days';
+import { dayPlanOf, type DayPlan, type PlanLinesErrorCode, type PlanVendorRow, type RoutineWords } from '@/lib/budget/planLines';
 
 // ── FAIL LOUD ───────────────────────────────────────────────────────────────
 
 export type BudgetInputErrorCode =
   | 'bad-server-day' | 'unsafe-cents' | 'bank-row-outside-range' | 'unknown-entity'
   // TAB13-02c: a saved chart code the rule cannot read; two saved codes of one book that are one account.
-  | 'chart-code-unreadable' | 'chart-codes-collide';
+  | 'chart-code-unreadable' | 'chart-codes-collide'
+  // TAB13-04: the plan-vendor rows the route read, and the day's plan lines, refused by name (planLines.ts).
+  | PlanLinesErrorCode;
 
 /** A row the route read that cannot become an input — named, never coerced. The route answers 500. */
 export class BudgetInputError extends Error {
@@ -149,7 +156,8 @@ export interface RoutineRow {
   readonly timezone: string;
   readonly start_date: Date | null;
   readonly end_date: Date | null;
-  readonly steps: readonly { readonly id: string; readonly is_active: boolean; readonly budget_amount: number | string | null; readonly coa_code: string | null; readonly step_order: number }[];
+  /** TAB13-04: each line's activity and time_of_day ('HH:MM', read once by the loader) are the day's plan lines' words. */
+  readonly steps: readonly { readonly id: string; readonly is_active: boolean; readonly budget_amount: number | string | null; readonly coa_code: string | null; readonly step_order: number; readonly activity: string; readonly time_of_day: string | null }[];
 }
 
 export interface TaskRow {
@@ -203,6 +211,12 @@ export interface ReportRows {
   readonly excludedLines: ExcludedLines;
   /** Bank rows not committed to the books, in [rangeFrom, min(rangeTo, asOf)]. */
   readonly bank: readonly BankRow[];
+  /**
+   * TAB13-04: the caller's plan-vendor rows — for a DAY or WEEK view, every
+   * every-occurrence row and the occurrence rows in planLines.ts vendorWindow; for
+   * a YEAR, null (not read). The other way round is the route's bug, refused by name.
+   */
+  readonly planVendors: readonly PlanVendorRow[] | null;
 }
 
 // ── ROW → INPUT ─────────────────────────────────────────────────────────────
@@ -348,6 +362,8 @@ export interface BudgetReportResponse {
     readonly budgetLines: { readonly routine: number; readonly task: number };
   };
   readonly travelBudgets: 'not connected';
+  /** TAB13-04: the day's plan — its lines and their vendors, and the stranded vendors — or, for a YEAR, why none are listed. */
+  readonly plans: DayPlan;
 }
 
 function notInBooksOf(report: BudgetReport, bank: readonly BankRow[], rangeFrom: IsoDay, rangeTo: IsoDay): { columns: NotInBooksColumn[]; notTotalled: BankRowNotTotalled[] } {
@@ -439,14 +455,31 @@ export function budgetReportResponse(query: { readonly view: BudgetView; readonl
     throw new BudgetInputError('chart-codes-collide', `${pairs.length} pair${pairs.length === 1 ? '' : 's'} of chart rows are one account in one book — ${pairs.join('; ')}`);
   }
 
+  const budgetLines = [...routines.lines, ...tasks.lines];
   const report = buildBudgetReport({
     asOf: query.asOf,
     view: query.view,
     entities,
     accounts: readable.map((r) => toReportAccount(r.row, r.book)),
-    budgetLines: [...routines.lines, ...tasks.lines],
+    budgetLines,
     postings: rows.ledger.map((row) => toPosting(row, entityOf(row.account.entity_id, `journal entry ${row.journal_entry_id}`))),
   });
+
+  // TAB13-04: the day's plan — the lines handed to the model, their words, their vendors (planLines.ts decides).
+  const routineWords = new Map<string, RoutineWords>(rows.routines.flatMap((group) => group.rows.map((row): [string, RoutineWords] => [row.id, {
+    name: row.name,
+    timezone: row.timezone,
+    steps: new Map(row.steps.map((s) => [s.id, { activity: s.activity, timeOfDay: s.time_of_day }])),
+  }])));
+  const plans = dayPlanOf({
+    view: report.view,
+    lines: budgetLines,
+    notPlaced: [...routines.notPlaced, ...tasks.notPlaced],
+    routines: routineWords,
+    tasks: new Map(rows.tasks.map((t) => [t.id, t.title])),
+    vendors: rows.planVendors,
+  });
+  if (!plans.ok) throw new BudgetInputError(plans.code, plans.message);
 
   return {
     asOf: report.asOf,
@@ -466,5 +499,6 @@ export function budgetReportResponse(query: { readonly view: BudgetView; readonl
       budgetLines: { routine: routines.lines.length, task: tasks.lines.length },
     },
     travelBudgets: 'not connected',
+    plans: plans.plan,
   };
 }

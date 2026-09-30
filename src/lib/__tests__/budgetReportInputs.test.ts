@@ -96,7 +96,7 @@ const coffee: RoutineRow = {
 };
 
 test('MAPPING — a routine from the loader: dates as UTC days, the entity\'s type, every line', () => {
-  const lined: RoutineRow = { ...coffee, start_date: null, end_date: null, steps: [{ id: 's1', is_active: true, budget_amount: 4.25, coa_code: 'P-6150', step_order: 2 }] };
+  const lined: RoutineRow = { ...coffee, start_date: null, end_date: null, steps: [{ id: 's1', is_active: true, budget_amount: 4.25, coa_code: 'P-6150', step_order: 2, activity: 'Coffee', time_of_day: '08:00' }] };
   assert.deepEqual(toRoutinePlanInput(coffee, toReportEntity(P)), {
     id: 'r-coffee', name: 'Coffee', entityId: 'ent-p', entityType: 'personal', timezone: 'UTC', scheduleRrule: coffee.schedule_rrule,
     startDate: '2026-09-01', endDate: '2026-09-22', budgetAmount: 5, coaCode: '6150', steps: [],
@@ -180,6 +180,8 @@ const rows = (over: Partial<ReportRows> = {}): ReportRows => ({
     { id: 'tx-1', date: at('2026-09-21'), amount: 12.34 },
     { id: 'tx-2', date: at('2026-09-23'), amount: -50 },
   ],
+  // TAB13-04 (ruled 2026-09-29): an explicit empty list — a DAY or WEEK view is handed the vendor rows it read.
+  planVendors: [],
   ...over,
 });
 
@@ -466,4 +468,54 @@ test('M4 — a ledger line whose code is saved lettered, in an entity that is NO
   assert.deepEqual(r.report.unplaced, [], 'the posting found its account');
   assert.equal(formatAccountCode(r.report.books, 'ent-t', trade.rows[0].code), 'T-6100');
   assert.equal(trade.totals[0].expense.actual, 2500, 'and its book\'s own total holds it');
+});
+
+// ── TAB13-04 T3 · THE DAY'S PLAN IN THE RESPONSE ─────────────────────────────
+
+test('TAB13-04 T3 a WEEK and a DAY carry their plan lines, a YEAR its sentence; every other field as before', () => {
+  const week = budgetReportResponse(WEEK, rows());
+  assert.deepEqual(Object.keys(week), ['asOf', 'view', 'report', 'notPlaced', 'excludedTasks', 'notInBooks', 'excludedLines', 'records', 'travelBudgets', 'plans'], 'one field added, none changed');
+  assert.ok(week.plans.listed);
+  assert.deepEqual(week.plans.days, ['2026-09-21', '2026-09-22', '2026-09-23', '2026-09-24', '2026-09-25', '2026-09-26', '2026-09-27']);
+  // Coffee ends on the 22nd; the license is Thursday's; the routine in a zone /budget cannot read builds no line.
+  assert.deepEqual(week.plans.lines.map((l) => [l.day, l.time, l.label, l.line, l.cents, l.entityId, l.code, l.address.kind, l.vendor]), [
+    ['2026-09-21', '08:00', 'Coffee', null, 500, 'ent-p', '6150', 'routine', null],
+    ['2026-09-22', '08:00', 'Coffee', null, 500, 'ent-p', '6150', 'routine', null],
+    ['2026-09-24', null, 'Buy license', null, 12050, 'ent-b', '6300', 'project_task', null],
+  ]);
+  assert.deepEqual(week.plans.stranded, []);
+  // A DAY is its day — not the month to date its MTD column spans.
+  const day = budgetReportResponse({ view: { kind: 'day', day: '2026-09-22' }, asOf: '2026-09-23' }, rows({ bank: [{ id: 'tx-1', date: at('2026-09-21'), amount: 12.34 }] }));
+  assert.ok(day.plans.listed);
+  assert.deepEqual(day.plans.lines.map((l) => `${l.day}:${l.label}`), ['2026-09-22:Coffee']);
+  assert.equal(day.report.columns[0].from, '2026-09-01', 'while its MTD column spans the month');
+  const year = budgetReportResponse({ view: { kind: 'year', year: 2026 }, asOf: '2026-09-23' }, rows({ planVendors: null }));
+  assert.deepEqual(year.plans, { listed: false, words: 'a year lists no plan lines — open a day or a week' });
+});
+
+test('TAB13-04 T3 the vendor rows reach the plan by grain; rows that do not match the view, or a plan holding both grains, are the route\'s bug — refused by name', () => {
+  const every = {
+    id: 'pv-1', routine_id: 'r-coffee', step_id: null, task_id: null, occurrence_at: null,
+    vendor: { id: 'v-1', vendor_name: 'Blue Bottle', entity_id: 'ent-p' }, routine: { name: 'Coffee', timezone: 'UTC' }, step: null, task: null,
+  };
+  const r = budgetReportResponse(WEEK, rows({ planVendors: [every] }));
+  assert.ok(r.plans.listed);
+  assert.deepEqual(r.plans.lines.filter((l) => l.label === 'Coffee').map((l) => l.vendor), [
+    { id: 'v-1', name: 'Blue Bottle', entityId: 'ent-p', grain: 'every' },
+    { id: 'v-1', name: 'Blue Bottle', entityId: 'ent-p', grain: 'every' },
+  ]);
+  inputThrows(() => budgetReportResponse(WEEK, rows({ planVendors: null })), 'plan-vendors-not-read', 'WEEK');
+  inputThrows(() => budgetReportResponse({ view: { kind: 'year', year: 2026 }, asOf: '2026-09-23' }, rows()), 'plan-vendors-read-for-year', 'YEAR');
+  const single = { ...every, id: 'pv-2', occurrence_at: new Date('2026-09-21T08:00:00.000Z'), vendor: { ...every.vendor, vendor_name: 'Philz' } };
+  inputThrows(() => budgetReportResponse(WEEK, rows({ planVendors: [every, single] })), 'plan-vendor-both-grains', 'Blue Bottle');
+});
+
+test('TAB13-04 T3 the route reads the plan vendors user-scoped, in the window, for a DAY or WEEK only — and no other read changes', () => {
+  const route = code('src/app/api/budget/report/route.ts');
+  assert.match(route, /const vendorsFrom = vendorWindow\(view\);/);
+  assert.match(route, /vendorsFrom === null \? null : prisma\.planned_item_vendors\.findMany\(\{\s*where: \{ user_id: user\.id, OR: \[\{ occurrence_at: null \}, \{ occurrence_at: \{ gte: vendorsFrom\.from, lt: vendorsFrom\.to \} \}\] \},/);
+  assert.match(route, /vendor: \{ select: \{ id: true, vendor_name: true, entity_id: true \} \},\s*routine: \{ select: \{ name: true, timezone: true \} \},\s*step: \{ select: \{ activity: true, routine_id: true, routine: \{ select: \{ name: true, timezone: true \} \} \} \},\s*task: \{ select: \{ title: true \} \},/);
+  assert.match(route, /bank,\s*planVendors,\s*\}\)\);/);
+  assert.equal((route.match(/\bprisma\.\w+\.(findMany|findFirst|count)\(/g) ?? []).length, 10, 'the user, the entities, the chart, the tasks, the ledger, three counts, the bank — and the plan vendors');
+  assert.doesNotMatch(route, /export\s+async\s+function\s+(POST|PUT|PATCH|DELETE)/, 'GET only');
 });

@@ -15,12 +15,13 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { code } from '../sourceText';
+import { code, comments } from '../sourceText';
 import { buildBudgetReport, type BudgetReport, type ReportEntity } from '../budget/report';
 import { EXCLUDED_TASK_STATUSES, type NotPlaced } from '../budget/days';
 import type { BudgetReportResponse, NotInBooksColumn } from '../budget/reportInputs';
+import { YEAR_WORDS, planDays, type DayPlan, type StrandedVendor } from '../budget/planLines';
 import {
-  SECTION_REFUSAL, accountHref, anchorOf, bookChipLabels, choiceOf, hrefFor, missingMoney,
+  SECTION_REFUSAL, accountHref, anchorOf, bookChipLabels, choiceOf, hrefFor, missingMoney, vendorChoices,
   notPlacedIn, sectionFor, sectionHref, stepHref, unplacedEntityId, viewParams,
 } from '../budget/reportView';
 
@@ -165,6 +166,11 @@ function bank(r: BudgetReport, figures: readonly Figures[], notTotalled: Bank['n
 /** A report with nothing unplaced: every book, no lines. */
 const bare = (view: BudgetReport['view'] = { kind: 'day', day: AS_OF }): BudgetReport => buildBudgetReport({ asOf: AS_OF, view, entities: [P, B, T], accounts: [], budgetLines: [], postings: [] });
 const NONE: Figures = [0, null, 0];
+/** TAB13-04: the view's day plan holding nothing — a YEAR's words, or a DAY's or WEEK's days with no line and nothing stranded. */
+const quiet = (r: BudgetReport): DayPlan => {
+  const days = planDays(r.view);
+  return days === null ? { listed: false, words: YEAR_WORDS } : { listed: true, days, lines: [], stranded: [] };
+};
 const sectionsOf = (r: BudgetReport) => [
   sectionFor({ book: null, account: null }, r.books),
   ...r.books.map((b) => sectionFor({ book: b.entityId, account: null }, r.books)),
@@ -174,10 +180,10 @@ const sectionsOf = (r: BudgetReport) => [
 test('TAB13-03b T1 nothing missing → NO line, on every section — and set-aside tasks, left-out ledger lines, travel and record counts never make one', () => {
   const r = bare();
   assert.deepEqual(r.columns.map((c) => c.label), ['MTD', 'Tue'], 'DAY: columns[0] is MTD');
-  const data = { report: r, notPlaced: [], notInBooks: bank(r, [NONE, NONE]) };
+  const data = { report: r, notPlaced: [], notInBooks: bank(r, [NONE, NONE]), plans: quiet(r) };
   for (const s of sectionsOf(r)) assert.deepEqual(missingMoney(data, s), [], s.kind);
   // The response's other counts, all non-zero, are not missing money: still no line.
-  const full: Pick<BudgetReportResponse, 'notPlaced' | 'report' | 'notInBooks' | 'excludedTasks' | 'excludedLines' | 'records' | 'travelBudgets'> = {
+  const full: Pick<BudgetReportResponse, 'notPlaced' | 'report' | 'notInBooks' | 'plans' | 'excludedTasks' | 'excludedLines' | 'records' | 'travelBudgets'> = {
     ...data,
     excludedTasks: { scope: 'ALL TIME', byStatus: [{ status: 'cancelled', tasks: 4, cents: 90000 }] },
     excludedLines: { reversalPairLines: 2, closingEntryLines: 1, linesAfterAsOf: 3 },
@@ -190,7 +196,7 @@ test('TAB13-03b T1 nothing missing → NO line, on every section — and set-asi
 
 test('TAB13-03b T1 BUDGET SHORT is notPlacedIn\'s scope and sums — the book\'s own on a book, all books on OVERVIEW and on a refused section', () => {
   const r = report();
-  const data = { report: r, notPlaced: [np('ent-b', 'routine:gym', 1500), np('ent-b', 'routine:zone', null), np('ent-p', 'routine:tea', 200)], notInBooks: bank(r, [NONE, NONE]) };
+  const data = { report: r, notPlaced: [np('ent-b', 'routine:gym', 1500), np('ent-b', 'routine:zone', null), np('ent-p', 'routine:tea', 200)], notInBooks: bank(r, [NONE, NONE]), plans: quiet(r) };
   for (const s of sectionsOf(r)) {
     const placed = notPlacedIn(data, s);
     assert.deepEqual(missingMoney(data, s), placed.count === 0 ? [] : [{ kind: 'budgetShort', placed }], s.kind === 'book' ? s.book.entityId : s.kind);
@@ -208,7 +214,7 @@ test('TAB13-03b T1 BUDGET SHORT is notPlacedIn\'s scope and sums — the book\'s
 
 test('TAB13-03b T1 ACTUAL SHORT reads columns[0] — the view\'s widest — on every section, and nothing else', () => {
   const r = bare();
-  const short = { report: r, notPlaced: [], notInBooks: bank(r, [[3, 12345, 0], [1, 400, 0]]) };
+  const short = { report: r, notPlaced: [], notInBooks: bank(r, [[3, 12345, 0], [1, 400, 0]]), plans: quiet(r) };
   for (const s of sectionsOf(r)) {
     assert.deepEqual(missingMoney(short, s), [{ kind: 'actualShort', label: 'MTD', transactions: 3, bankCents: 12345, notTotalled: 0 }], 'bank rows are in no book: every section');
   }
@@ -219,34 +225,37 @@ test('TAB13-03b T1 ACTUAL SHORT reads columns[0] — the view\'s widest — on e
   // WEEK and YEAR: the widest column is WEEK / YTD.
   for (const [view, label] of [[{ kind: 'week', weekOf: '2026-09-28' }, 'WEEK'], [{ kind: 'year', year: 2026 }, 'YTD']] as const) {
     const w = bare(view);
-    const lines = missingMoney({ report: w, notPlaced: [], notInBooks: bank(w, w.columns.map((c, i) => (i === 0 ? [5, 700, 0] : c.state === 'future' ? [null, null, null] : NONE))) }, { kind: 'overview' });
+    const lines = missingMoney({ report: w, notPlaced: [], notInBooks: bank(w, w.columns.map((c, i) => (i === 0 ? [5, 700, 0] : c.state === 'future' ? [null, null, null] : NONE))), plans: quiet(w) }, { kind: 'overview' });
     assert.deepEqual(lines, [{ kind: 'actualShort', label, transactions: 5, bankCents: 700, notTotalled: 0 }], label);
   }
   // A view wholly in the future: nothing can have happened yet — no ACTUAL SHORT.
   const future = bare({ kind: 'week', weekOf: '2026-10-05' });
   assert.ok(future.columns.every((c) => c.state === 'future'));
-  assert.deepEqual(missingMoney({ report: future, notPlaced: [], notInBooks: bank(future, future.columns.map((): Figures => [null, null, null])) }, { kind: 'overview' }), []);
+  assert.deepEqual(missingMoney({ report: future, notPlaced: [], notInBooks: bank(future, future.columns.map((): Figures => [null, null, null])), plans: quiet(future) }, { kind: 'overview' }), []);
   assert.match(code(HELPER), /const widest = data\.notInBooks\.columns\[0\];/);
 });
 
 test('TAB13-03b T1 both gaps → two lines, BUDGET SHORT first; the notice has no third kind', () => {
   const r = report();
-  const data = { report: r, notPlaced: [np('ent-p', 'routine:tea', 200)], notInBooks: bank(r, [[4, 9900, 1], [0, null, 0]]) };
+  const data = { report: r, notPlaced: [np('ent-p', 'routine:tea', 200)], notInBooks: bank(r, [[4, 9900, 1], [0, null, 0]]), plans: quiet(r) };
   const lines = missingMoney(data, sectionFor({ book: 'ent-p', account: null }, r.books));
   assert.deepEqual(lines.map((l) => l.kind), ['budgetShort', 'actualShort']);
   assert.deepEqual(lines[1], { kind: 'actualShort', label: 'MTD', transactions: 4, bankCents: 9900, notTotalled: 1 });
   const type = /export type MissingLine =([\s\S]*?)\};/.exec(code(HELPER));
   assert.ok(type !== null, 'MissingLine is declared');
-  assert.deepEqual([...type[1].matchAll(/readonly kind: '(\w+)'/g)].map((m) => m[1]), ['budgetShort', 'actualShort']);
+  // TAB13-04: a third kind — VENDORS STRANDED — and no fourth.
+  assert.deepEqual([...type[1].matchAll(/readonly kind: '(\w+)'/g)].map((m) => m[1]), ['budgetShort', 'actualShort', 'vendorsStranded']);
 });
 
-test('T2 PURITY — the helper imports types only, and reads no clock, network or environment; this test imports no @prisma/client', () => {
+test('T2 PURITY — the helper imports types, and (TAB13-04) the ONE vendor name rule; it reads no clock, network or environment; this test imports no @prisma/client', () => {
   const src = code(HELPER);
   const imports = src.split('\n').filter((l) => /^\s*import\b/.test(l));
   assert.deepEqual(imports, [
     "import type { ReportBook, ReportRow, UnplacedItem } from './report';",
     "import type { NotPlaced } from './days';",
     "import type { BudgetReportResponse } from './reportInputs';",
+    "import type { StrandedVendor } from './planLines';",
+    "import { readVendorName, takenBy, vendorNameKey } from '@/lib/operations/planVendor';",
   ]);
   assert.doesNotMatch(src, /\bfetch\s*\(|\bDate\.now\s*\(|\bnew\s+Date\s*\(\s*\)|\bprocess\.env\b|localStorage|sessionStorage/);
   assert.doesNotMatch(code('src/lib/__tests__/budgetReportView.test.ts'), /['"]@prisma\/client/);
@@ -260,9 +269,9 @@ test('T3 one section at a time: the Overview, one book, or a refusal — then wh
   const s = code(SCREEN);
   assert.match(s, /const section = sectionFor\(choice, report\.books\);/);
   assert.match(s, /\{section\.kind === 'overview' && \(/);
-  assert.match(s, /\{section\.kind === 'book' && <BookSection section=\{section\} report=\{report\} go=\{go\} search=\{search\} \/>\}/);
+  assert.match(s, /\{section\.kind === 'book' && <BookSection section=\{section\} report=\{report\} plans=\{data\.plans\} go=\{go\} search=\{search\} reload=\{reload\} \/>\}/);
   assert.match(s, /\{section\.kind === 'refused' && <p className="text-sm text-brand-red" data-section-refused>\{section\.message\}<\/p>\}/);
-  assert.equal((s.match(/<MissingNotice data=\{data\} section=\{section\} \/>/g) ?? []).length, 1, 'mounted once, under whichever section is shown');
+  assert.equal((s.match(/<MissingNotice data=\{data\} section=\{section\} reload=\{reload\} \/>/g) ?? []).length, 1, 'mounted once, under whichever section is shown');
   assert.doesNotMatch(s, /<Strip\b|function Strip\b|function StripLine\b|data-strip/, 'the strip is gone');
   assert.equal((s.match(/data-budget-section="overview"/g) ?? []).length, 1);
   assert.equal((s.match(/data-budget-section="book"/g) ?? []).length, 1);
@@ -322,7 +331,7 @@ test('TAB13-03b T2 the notice: its lines from missingMoney alone, nothing drawn 
   assert.match(notice, /· all books<\/span>\s*<\/summary>/);
   assert.match(notice, /\{data\.notInBooks\.columns\.map\(\(c\) => \(/);
   assert.match(notice, /\{data\.notInBooks\.notTotalled\.map\(\(row\) => \(/);
-  assert.equal((notice.match(/<details /g) ?? []).length, 2, 'two kinds of line, no third');
+  assert.equal((notice.match(/<details /g) ?? []).length, 3, 'three kinds of line (TAB13-04: VENDORS STRANDED), no fourth');
 });
 
 test('TAB13-03b T2 no line for set-aside tasks, left-out ledger lines, travel or record counts — the screen does not read them', () => {
@@ -341,4 +350,129 @@ test('T3 every link goes through the helper, and the screen stays storage-free',
   assert.doesNotMatch(s, /['"`]\/budget\?/, 'no /budget link is built on the screen');
   assert.doesNotMatch(s, /localStorage|sessionStorage|document\.cookie|indexedDB/);
   assert.match(s, /const params = asOf === null \? null : viewParams\(current, asOf\);/, 'the fetch takes the view keys only');
+});
+
+// ── TAB13-04 T4 · THE VENDOR BOX'S CHOICES, AND VENDORS STRANDED ─────────────
+
+const DIR = [
+  { id: 'v-pho', vendor_name: 'Pho 24', entity_id: 'ent-p' },
+  { id: 'v-pho-b', vendor_name: 'Pho 24', entity_id: 'ent-b' },
+  { id: 'v-banh', vendor_name: 'Banh Mi 25', entity_id: 'ent-p' },
+  { id: 'v-phoenix', vendor_name: 'Phoenix Diner', entity_id: 'ent-p' },
+];
+
+test('TAB13-04 T4 the vendor choices: the line\'s book only, by the ONE name rule — an exact match offers no add, no match offers it, a blank offers nothing', () => {
+  const exact = vendorChoices(' pho  24 ', DIR, 'ent-p');
+  assert.deepEqual([exact.offered.map((v) => v.id), exact.exact?.id, exact.add, exact.refusal], [['v-pho'], 'v-pho', null, null], '" pho  24 " IS "Pho 24" — nothing to add');
+  const partial = vendorChoices('pho', DIR, 'ent-p');
+  assert.deepEqual([partial.offered.map((v) => v.id), partial.exact, partial.add], [['v-pho', 'v-phoenix'], null, 'pho'], 'the book\'s names that hold it, and the add');
+  assert.deepEqual(vendorChoices('Pho 24', DIR, 'ent-b').offered.map((v) => v.id), ['v-pho-b'], 'another book\'s vendor is never offered');
+  assert.deepEqual(vendorChoices('  Com   Tam ', DIR, 'ent-p'), { offered: [], exact: null, add: 'Com Tam', refusal: null }, 'the add names the name as the directory would keep it');
+  for (const blank of ['', '   ', '\t']) assert.deepEqual(vendorChoices(blank, DIR, 'ent-p'), { offered: [], exact: null, add: null, refusal: null });
+  const long = vendorChoices('x'.repeat(201), DIR, 'ent-p');
+  assert.deepEqual([long.add, long.refusal], [null, 'a vendor name is at most 200 characters — this one is 201']);
+  // Active only: the list the box is fed is the directory GET's, which reads active vendors only.
+  assert.match(code('src/app/api/operations/vendor-directory/route.ts'), /where: \{ user_id: user\.id, is_active: true \},\s*orderBy: \{ vendor_name: 'asc' \},/);
+  const helper = code(HELPER);
+  assert.match(helper, /const key = vendorNameKey\(typed\);/);
+  assert.match(helper, /const exact = takenBy\(typed, book\);/);
+  assert.match(helper, /const name = readVendorName\(typed\);/);
+});
+
+const stranded = (vendorName: string, entityId: string): StrandedVendor => ({
+  vendor: { id: `v-${vendorName}`, name: vendorName, entityId }, label: 'Meals', line: 'Lunch', day: AS_OF, time: '12:01',
+  address: { kind: 'routine_line', id: `s-${vendorName}`, instant: '2026-09-29T19:01:00.000Z' }, reason: 'why',
+});
+
+test('TAB13-04 T4 VENDORS STRANDED is the notice\'s last line — the vendor\'s own book on a book, all books elsewhere, none on a YEAR or when there are none', () => {
+  const r = report();
+  const plans: DayPlan = { listed: true, days: [AS_OF], lines: [], stranded: [stranded('Pho 24', 'ent-p'), stranded('Kopi', 'ent-b')] };
+  const data = { report: r, notPlaced: [], notInBooks: bank(r, [NONE, NONE]), plans };
+  const names = (s: ReturnType<typeof sectionFor>) => missingMoney(data, s).filter((l) => l.kind === 'vendorsStranded').flatMap((l) => (l.kind === 'vendorsStranded' ? l.stranded.map((v) => v.vendor.name) : []));
+  assert.deepEqual(names({ kind: 'overview' }), ['Pho 24', 'Kopi']);
+  assert.deepEqual(names(sectionFor({ book: 'ent-p', account: null }, r.books)), ['Pho 24']);
+  assert.deepEqual(names(sectionFor({ book: 'ent-t', account: null }, r.books)), []);
+  assert.deepEqual(names(sectionFor({ book: 'ent-gone', account: null }, r.books)), ['Pho 24', 'Kopi']);
+  const kinds = (d: Pick<BudgetReportResponse, 'notPlaced' | 'report' | 'notInBooks' | 'plans'>) => missingMoney(d, { kind: 'overview' }).map((l) => l.kind);
+  assert.deepEqual(kinds(data), ['budgetShort', 'vendorsStranded'], 'last — this report also has plans not placed');
+  assert.ok(!kinds({ ...data, plans: { listed: false, words: YEAR_WORDS } }).includes('vendorsStranded'), 'a YEAR lists none');
+  assert.ok(!kinds({ ...data, plans: { ...plans, stranded: [] } }).includes('vendorsStranded'), 'nothing when there are none');
+});
+
+// ── TAB13-04 T5 · THE SCREEN ─────────────────────────────────────────────────
+
+const DRILL = 'src/components/budget/DayPlanDrill.tsx';
+
+test('TAB13-04 T5 the drill only under a filtered account with a row, on a DAY or a WEEK; a YEAR shows its sentence', () => {
+  const s = code(SCREEN);
+  const bookSection = s.slice(s.indexOf('function BookSection('), s.indexOf('function MissingNotice('));
+  assert.match(bookSection, /\{account\.kind === 'one' && account\.row !== null && \(plans\.listed \? \(\s*<DayPlanDrill/);
+  assert.match(bookSection, /lines=\{plans\.lines\.filter\(\(l\) => l\.entityId === book\.entityId && l\.code === account\.code\)\}/);
+  assert.match(bookSection, /dayColumns=\{columns\.filter\(\(c\) => c\.kind === 'day'\)\}/);
+  assert.match(bookSection, /week=\{report\.view\.kind === 'week'\}/);
+  assert.match(bookSection, /\) : <p className="text-sm text-text-muted" data-plans-year>\{plans\.words\}<\/p>\)\}/);
+  assert.equal((s.match(/<DayPlanDrill\b/g) ?? []).length, 1, 'in the book section, and nowhere else');
+  const d = code(DRILL);
+  assert.match(d, /\{lines\.length > 0 && !week && <PlanRows /, 'a DAY: one table');
+  assert.match(d, /\{lines\.length > 0 && week && dayColumns\.map\(\(column\) => \{\s*const ofDay = lines\.filter\(\(l\) => l\.day === column\.key\);/, 'a WEEK: grouped by day');
+  for (const h of ['When', 'Plan', 'Amount', 'Vendor']) assert.match(d, new RegExp(`>${h}</th>`), h);
+  assert.match(d, /\{line\.time === null \? '—' : line\.time\}/);
+  assert.match(d, /<td className=\{num\}>\{formatCents\(line\.cents\)\}<\/td>/, 'the amount through the one formatter — read-only');
+});
+
+test('TAB13-04 T5 the three writes — POST and DELETE to plan-vendors, POST to the directory — and no other', () => {
+  const d = code(DRILL);
+  const s = code(SCREEN);
+  assert.match(d, /await fetch\('\/api\/operations\/plan-vendors', \{\s*method: 'POST',/);
+  assert.match(d, /await fetch\(`\/api\/operations\/plan-vendors\?\$\{query\.toString\(\)\}`, \{ method: 'DELETE', redirect: 'manual' \}\)/);
+  assert.match(d, /await fetch\('\/api\/operations\/vendor-directory', \{\s*method: 'POST',/);
+  assert.match(d, /await fetch\('\/api\/operations\/vendor-directory', \{ cache: 'no-store', redirect: 'manual' \}\)/, 'the directory read is a GET');
+  assert.equal((d.match(/\bmethod: '/g) ?? []).length, 3, 'three writes, no fourth');
+  assert.equal((d.match(/\bfetch\(/g) ?? []).length, 4, 'the three writes and the directory read');
+  assert.equal((s.match(/\bfetch\(/g) ?? []).length, 1, 'the report screen reads once; its writes are the drill\'s');
+  assert.match(d, /body: JSON\.stringify\(\{ kind: address\.kind, id: address\.id, instant, vendorId \}\)/);
+  assert.match(d, /const query = new URLSearchParams\(\{ kind: address\.kind, id: address\.id \}\);\s*if \(address\.instant !== null\) query\.set\('instant', address\.instant\);/);
+  assert.match(d, /body: JSON\.stringify\(\{ entityId, name \}\)/);
+});
+
+test('TAB13-04 T5 the vendor box: every time, this occurrence, none — the grain chosen by two buttons with nothing pre-selected, one for a task', () => {
+  const d = code(DRILL);
+  assert.match(d, /data-vendor="every">\{line\.vendor\.name\} · every time<\/span>\s*<ClearVendor address=\{everyAddress\} reload=\{reload\} \/>/);
+  assert.match(d, /const everyAddress: PlanAddressText = \{ \.\.\.line\.address, instant: null \};/, 'Clear of an every-time vendor clears exactly that address');
+  assert.match(d, /data-vendor="occurrence">\{line\.vendor\.name\}<\/span>\s*<button type="button" className=\{toggleChip\(false\)\} onClick=\{\(\) => setPicking\(true\)\}>Change<\/button>\s*<ClearVendor address=\{line\.address\} reload=\{reload\} \/>/);
+  assert.match(d, /\{line\.vendor === null && <button type="button" className=\{toggleChip\(false\)\} onClick=\{\(\) => setPicking\(true\)\}>\+ vendor<\/button>\}/);
+  assert.match(d, /\{task \? \(\s*<button type="button" className=\{toggleChip\(false\)\} disabled=\{busy\} onClick=\{\(\) => write\(null\)\}>Set<\/button>\s*\) : \(\s*<>\s*<button type="button" className=\{toggleChip\(false\)\} disabled=\{busy\} onClick=\{\(\) => write\(line\.address\.instant\)\}>This day<\/button>\s*<button type="button" className=\{toggleChip\(false\)\} disabled=\{busy\} onClick=\{\(\) => write\(null\)\}>Every time<\/button>/);
+  assert.doesNotMatch(d, /\[grain, setGrain\]|useState<'day' \| 'every'/, 'no grain is held — nothing is pre-selected');
+  assert.match(d, /const choices = directory\.vendors === null \? null : vendorChoices\(typed, directory\.vendors, line\.entityId\);/, 'the line\'s book, by the one rule');
+  assert.match(d, /\+ add \{choices\.add\} to \{bookName\}/);
+  // The directory's 409 carries the vendor it matched: used, and said.
+  assert.match(d, /!answer\.ok && answer\.status === 409 && answer\.body !== null && typeof answer\.body\.vendor === 'object'/);
+  assert.match(d, /setChosen\(\{ id: matched\.id, vendor_name: matched\.vendor_name, entity_id: line\.entityId \}\);/);
+  assert.match(d, /is already a vendor of \$\{bookName\}\$\{matched\.is_active \? '' : ' \(archived\)'\} — using it\./);
+});
+
+test('TAB13-04 T5 refusals verbatim, a 401 as signed out, and the report read again after a write — never an optimistic copy', () => {
+  const d = code(DRILL);
+  const s = code(SCREEN);
+  assert.match(d, /if \(res\.type === 'opaqueredirect' \|\| res\.status === 401\) return \{ ok: false, status: res\.status, words: SIGNED_OUT, body: null \};/);
+  assert.match(d, /const words = typeof body\.message === 'string' \? body\.message : typeof body\.error === 'string' \? body\.error : `the route answered \$\{res\.status\}`;/, 'the route\'s own words');
+  assert.equal((d.match(/data-vendor-refused>\{words\}<\/span>/g) ?? []).length, 2, 'shown where the line is, and beside a Clear');
+  assert.match(d, /if \(answer\.ok\) \{ reset\(\); reload\(\); \} else setWords\(answer\.words\);/);
+  assert.match(d, /if \(answer\.ok\) reload\(\);\s*else setWords\(answer\.words\);/);
+  assert.match(s, /\}, \[query, reads\]\);/);
+  assert.match(s, /reload=\{\(\) => setReads\(\(n\) => n \+ 1\)\}/);
+  assert.doesNotMatch(d, /setLoad|plans\.lines|\.vendor = /, 'the drill never edits the report it was handed');
+});
+
+test('TAB13-04 T5 the stranded line in the notice, each with Clear — and the header says what is true', () => {
+  const s = code(SCREEN);
+  const notice = s.slice(s.indexOf('function MissingNotice('), s.indexOf('function Report('));
+  assert.match(notice, /<details key="vendors-stranded" open className="[^"]*" data-missing="vendors-stranded">/);
+  assert.match(notice, /VENDORS STRANDED<\/span> — \{line\.stranded\.length\} planned vendor\{line\.stranded\.length === 1 \? '' : 's'\} match\{line\.stranded\.length === 1 \? 'es' : ''\} no plan line in this view/);
+  assert.match(notice, /\{v\.day === null \? 'undated' : v\.day\}/);
+  assert.match(notice, /<ClearVendor address=\{v\.address\} reload=\{reload\} \/>/);
+  const header = comments(SCREEN);
+  assert.match(header, /EVERY FIGURE IS READ-ONLY\. TAB13-04: the\s+\*\s+one input on this screen writes a plan line's vendor \(and a new vendor\), through\s+\*\s+the two vendor routes/);
+  assert.doesNotMatch(header, /nothing on this screen writes/);
+  assert.match(comments(DRILL), /THE ONE INPUT on \/budget: a plan line's vendor \(and a new vendor\), through the\s+\*\s+two vendor routes — never a figure/);
 });

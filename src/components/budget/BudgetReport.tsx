@@ -2,7 +2,10 @@
 
 /**
  * TAB13-02b — THE BUDGET REPORT on /budget: what you planned, what posted, and
- * the difference, by book and account. READ-ONLY — nothing on this screen writes.
+ * the difference, by book and account. EVERY FIGURE IS READ-ONLY. TAB13-04: the
+ * one input on this screen writes a plan line's vendor (and a new vendor), through
+ * the two vendor routes (/api/operations/plan-vendors, /api/operations/
+ * vendor-directory) — never a figure.
  *
  * THE VIEW lives in the URL (?view=day&day= · ?view=week&weekOf= · ?view=year&year=),
  * so a link is shareable and the back button works; with no view in the URL the
@@ -30,6 +33,14 @@
  * bank transactions not in the books (ACTUAL SHORT) — and nothing when there is
  * none (reportView.ts missingMoney, TAB13-03b).
  *
+ * TAB13-04 (2026-09-29): THE DAY'S PLAN AND ITS VENDORS. On a book filtered to one
+ * account with a row, under the table, the plan lines behind that account's
+ * figure on a DAY or WEEK, each with its vendor box (DayPlanDrill.tsx); a YEAR
+ * says in words that it lists none. VENDORS STRANDED — planned vendors no plan
+ * line of this view matches — is one more line of the notice, each with Clear.
+ * After a write the report is fetched again with the same query: the screen
+ * shows what the server holds, never an optimistic copy.
+ *
  * Styled like the Travel tab: SECTION_HEADER headings (ModuleLauncher.tsx
  * TravelHeading), TripBudgetActual's statement table, ToggleStrip's toggleChip.
  */
@@ -43,6 +54,7 @@ import {
   accountHref, anchorOf, bookChipLabels, choiceOf, hrefFor, missingMoney, sectionFor, sectionHref, stepHref,
   viewParams, type Section, type SectionChoice,
 } from '@/lib/budget/reportView';
+import DayPlanDrill, { ClearVendor } from '@/components/budget/DayPlanDrill';
 
 type Kind = 'day' | 'week' | 'year';
 const KINDS: readonly { kind: Kind; label: string }[] = [
@@ -203,11 +215,13 @@ function SectionChips({ books, choice, go, search }: {
 }
 
 /** A book is its itemized table (TAB13-03b): its heading, then its accounts — the Account header filters to one. */
-function BookSection({ section, report, go, search }: {
+function BookSection({ section, report, plans, go, search, reload }: {
   section: Extract<Section, { kind: 'book' }>;
   report: BudgetReportResponse['report'];
+  plans: BudgetReportResponse['plans'];
   go: (href: string) => void;
   search: URLSearchParams;
+  reload: () => void;
 }) {
   const { book, account } = section;
   const { columns } = report;
@@ -243,6 +257,17 @@ function BookSection({ section, report, go, search }: {
       </div>
       {missing !== null && <p className="text-sm text-text-muted" data-account-missing>{missing} has no planned or posted money in this view</p>}
       {missing === null && shown.length === 0 && <span className="text-xs text-text-muted italic">no planned or posted income or expense in this view.</span>}
+      {/* TAB13-04: THE DAY'S PLAN — under an account filtered to one with a row: its plan lines and their vendors, or a YEAR's words. */}
+      {account.kind === 'one' && account.row !== null && (plans.listed ? (
+        <DayPlanDrill
+          lines={plans.lines.filter((l) => l.entityId === book.entityId && l.code === account.code)}
+          dayColumns={columns.filter((c) => c.kind === 'day')}
+          week={report.view.kind === 'week'}
+          bookName={`${book.label} · ${book.entityName}`}
+          account={`${formatAccountCode(report.books, book.entityId, account.code)} · ${account.row.name}`}
+          reload={reload}
+        />
+      ) : <p className="text-sm text-text-muted" data-plans-year>{plans.words}</p>)}
     </section>
   );
 }
@@ -252,7 +277,7 @@ function BookSection({ section, report, go, search }: {
  * line per gap in its money that exists (reportView.ts missingMoney), NOTHING
  * when there is none. Each line's items open in place in a native <details>.
  */
-function MissingNotice({ data, section }: { data: BudgetReportResponse; section: Section }) {
+function MissingNotice({ data, section, reload }: { data: BudgetReportResponse; section: Section; reload: () => void }) {
   const lines = missingMoney(data, section);
   if (lines.length === 0) return null;
   const { report } = data;
@@ -276,7 +301,7 @@ function MissingNotice({ data, section }: { data: BudgetReportResponse; section:
             {line.placed.unplaced.map((u, i) => <li key={`unplaced:${i}`}>{unplacedLine(u, report.books)}</li>)}
           </ul>
         </details>
-      ) : (
+      ) : line.kind === 'actualShort' ? (
         <details key="actual-short" className="rounded border border-border bg-white px-3 py-2" data-missing="actual-short">
           <summary className="cursor-pointer text-sm text-text-primary">
             <span className="font-bold">ACTUAL SHORT</span> — {line.label}: {line.transactions} bank transaction{line.transactions === 1 ? '' : 's'} ({formatCents(line.bankCents)}) {line.transactions === 1 ? "isn't" : "aren't"} in the books yet — no Actual includes {line.transactions === 1 ? 'it' : 'them'}
@@ -323,12 +348,29 @@ function MissingNotice({ data, section }: { data: BudgetReportResponse; section:
             )}
           </div>
         </details>
+      ) : (
+        /* TAB13-04: planned vendors no plan line of this view matches — each named, each with Clear. */
+        <details key="vendors-stranded" open className="rounded border border-border bg-white px-3 py-2" data-missing="vendors-stranded">
+          <summary className="cursor-pointer text-sm text-text-primary">
+            <span className="font-bold">VENDORS STRANDED</span> — {line.stranded.length} planned vendor{line.stranded.length === 1 ? '' : 's'} match{line.stranded.length === 1 ? 'es' : ''} no plan line in this view
+            <span className="text-xs text-text-faint"> · {section.kind === 'book' ? 'this book' : 'all books'}</span>
+          </summary>
+          <ul className="mt-2 space-y-1 text-sm text-text-muted">
+            {line.stranded.map((v) => (
+              <li key={JSON.stringify(v.address)} className="flex flex-wrap items-center gap-1.5">
+                <span className="font-medium text-text-primary">{v.label}{v.line !== null && ` — ${v.line}`}</span>
+                <span>· {v.day === null ? 'undated' : v.day}{v.time !== null && ` ${v.time}`} · {v.vendor.name} · {v.reason}</span>
+                <ClearVendor address={v.address} reload={reload} />
+              </li>
+            ))}
+          </ul>
+        </details>
       )))}
     </div>
   );
 }
 
-function Report({ data, search, go }: { data: BudgetReportResponse; search: URLSearchParams; go: (href: string) => void }) {
+function Report({ data, search, go, reload }: { data: BudgetReportResponse; search: URLSearchParams; go: (href: string) => void; reload: () => void }) {
   const { report } = data;
   const { columns } = report;
   const choice = choiceOf(search);
@@ -345,10 +387,10 @@ function Report({ data, search, go }: { data: BudgetReportResponse; search: URLS
           <TotalsTable columns={columns} totals={report.totals} />
         </section>
       )}
-      {section.kind === 'book' && <BookSection section={section} report={report} go={go} search={search} />}
+      {section.kind === 'book' && <BookSection section={section} report={report} plans={data.plans} go={go} search={search} reload={reload} />}
       {section.kind === 'refused' && <p className="text-sm text-brand-red" data-section-refused>{section.message}</p>}
 
-      <MissingNotice data={data} section={section} />
+      <MissingNotice data={data} section={section} reload={reload} />
     </div>
   );
 }
@@ -359,6 +401,8 @@ export default function BudgetReport() {
   // The viewer's today, read on mount only — the server render has no business guessing it.
   const [asOf, setAsOf] = useState<string | null>(null);
   const [load, setLoad] = useState<Load>({ state: 'loading' });
+  // TAB13-04: after a vendor write, the report is read again with the same query — never an optimistic copy.
+  const [reads, setReads] = useState(0);
 
   useEffect(() => { setAsOf(localToday()); }, []);
 
@@ -405,7 +449,7 @@ export default function BudgetReport() {
       else setLoad({ state: 'failed', status: res.status, code: String(body.error), message: typeof body.message === 'string' && body.message !== body.error ? body.message : null });
     })();
     return () => { live = false; };
-  }, [query]);
+  }, [query, reads]);
 
   const view = params === null ? null : params.get('view');
   const anchor = params === null || asOf === null ? null : anchorOf(params, asOf);
@@ -447,7 +491,7 @@ export default function BudgetReport() {
           The report failed: {load.code}{load.message !== null && <span> — {load.message}</span>}
         </p>
       )}
-      {load.state === 'ok' && <Report data={load.data} search={current} go={(href) => router.push(href)} />}
+      {load.state === 'ok' && <Report data={load.data} search={current} go={(href) => router.push(href)} reload={() => setReads((n) => n + 1)} />}
     </div>
   );
 }
