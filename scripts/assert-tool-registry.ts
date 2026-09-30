@@ -170,7 +170,7 @@ import { buildIcs, escapeIcsText, foldIcsLine } from '../src/lib/calendar/ics';
 // LAW-02: a figure nobody stated is NULL, named on screen.
 import { prebookUnstatedMoney } from '../src/lib/checkout/prebookGate';
 import { PHONE_CARD } from '../src/lib/travel/phoneCard';
-import { OWNED_LOADERS, closingOf, enclosing, exportedMethods, flatWhere, handlerIdentity, inScope, judgeWrites, topFunctions } from '../src/lib/security/ownershipLaw';
+import { OWNED_LOADERS, closingOf, enclosing, entryCalls, exportedMethods, flatWhere, flowWriteRefusals, handlerIdentity, importSpecifiers, inScope, judgeWrites, topFunctions } from '../src/lib/security/ownershipLaw';
 import { bookedStay, statedStayDay, unstatedStayLine } from '../src/lib/reservations/stayDates';
 import { passwordLeaks, passwordSchema } from '../src/lib/security/passwordLaw';
 import { PARTICIPANT_RESPONSE_SELECT } from '../src/lib/trips/participantSelect';
@@ -178,7 +178,7 @@ import { DAY_NOT_STATED, bookingConfirmation } from '../src/lib/emailTemplates/b
 import { flightConfirmation } from '../src/lib/emailTemplates/flightConfirmation';
 import { lifecycleEmail } from '../src/lib/emailTemplates/lifecycle';
 import { GUEST_COOKIE, GUEST_COOKIE_PATH, GUEST_SESSION_SECONDS, MANAGE_CODE_ALPHABET, codesMatch, displayManageCode, manageCode, parseManageCode, signGuestSession, verifyGuestSession } from '../src/lib/guest/guestAccess';
-import { DUMMY_RESERVATION_ID, GUEST_LIMITS, GUEST_WORDS } from '../src/lib/guest/guestSession';
+import { DUMMY_RESERVATION_ID, GUEST_CANCEL_LIMITS, GUEST_LIMITS, GUEST_WORDS, guestCancelOffer } from '../src/lib/guest/guestSession';
 import { constantTimeEqual } from '../src/lib/webhooks/liteapiWebhook';
 import { TRIP_NOT_YOURS, requestedTripOf, tripFromUrl, urlTripStep } from '../src/lib/trips/tripFromUrl';
 import { DYNAMIC_READ_ENV, LIBRARY_READ_ENV } from '../src/lib/envLaw';
@@ -5914,6 +5914,13 @@ lawGuard('The cancel law', () => {
   const cancelFail = (m: string) => { cancelViolations += 1; violations.push(`cancel law: ${m} (CANCEL-01)`); };
 
   const ROUTE = 'src/app/api/reservations/[id]/cancel/route.ts';
+  // GUEST-02 (2026-09-30): ONE CANCEL FLOW, TWO GATES. The quote and the cancel moved word for
+  // word from the account's route into the flow; the account's route and the guest's are gates
+  // that read their row and hand it, with their caller, to the same two entries. Every check
+  // below that read the route's lanes, quote and email reads the flow now; the gates are read
+  // for what they still own.
+  const FLOW = 'src/lib/reservations/cancelFlow.ts';
+  const GUEST_CANCEL = 'src/app/api/guest/booking/cancel/route.ts';
   const DIALOG = 'src/components/trips/CancelBookingDialog.tsx';
   const LISTS = ['src/components/trips/TripBookings.tsx', 'src/components/trips/UnattachedBookings.tsx'];
   const FCLIENT = 'src/lib/liteapiFlightsClient.ts';
@@ -5925,49 +5932,63 @@ lawGuard('The cancel law', () => {
   const CANCEL_MIGRATION = ALL_MIGRATIONS.find((m) => /_cancel_01_/.test(m.dir));
 
   const route = codeOf(ROUTE);
+  const flow = codeOf(FLOW);
   // 1. THE LANE DECIDES THE ENDPOINT.
   // CANCEL-02 widened the select (the recipient and identity fields ride beside the lane).
-  if (!/select: \{\s*id: true, status: true, provider: true, providerBookingId: true, lane: true,/.test(route)) cancelFail(`${ROUTE} does not read the lane off the owned row`);
-  if (!/if \(owned\.lane === 'hotel'\) return cancelHotel\(owned, userId, accountEmail\);/.test(route)) cancelFail(`${ROUTE} does not send the hotel lane to the hotel cancel`);
-  if (!/if \(owned\.lane === 'flight'\) return cancelFlight\(owned, userId, accountEmail\);/.test(route)) cancelFail(`${ROUTE} does not send the flight lane to the flight cancel — a flight bookingId would reach the hotel endpoint`);
-  if (!/code: 'cancel_lane_unsupported'/.test(route)) cancelFail(`${ROUTE} does not refuse an unsupported lane by name before any vendor call`);
+  // GUEST-02: the select is the flow's CANCEL_ROW_SELECT, and the owner (userId) rides with it.
+  if (!/export const CANCEL_ROW_SELECT = \{\s*id: true, status: true, provider: true, providerBookingId: true, lane: true,/.test(flow) || !/\n  userId: true,\n\} satisfies Prisma\.reservationsSelect;/.test(flow)) cancelFail(`${FLOW} does not read the lane (and the owner) off the owned row`);
+  if (!/if \(owned\.lane === 'hotel'\) return cancelHotel\(owned, caller\);/.test(flow)) cancelFail(`${FLOW} does not send the hotel lane to the hotel cancel`);
+  if (!/if \(owned\.lane === 'flight'\) return cancelFlight\(owned, caller\);/.test(flow)) cancelFail(`${FLOW} does not send the flight lane to the flight cancel — a flight bookingId would reach the hotel endpoint`);
+  if (!/code: 'cancel_lane_unsupported'/.test(flow)) cancelFail(`${FLOW} does not refuse an unsupported lane by name before any vendor call`);
+  // GUEST-02: the account's gate reads its row by { id, userId: user.id, provider in the two }, with the one select.
+  if (!/const owned = await prisma\.reservations\.findFirst\(\{\s*where: \{ id, userId: user\.id, provider: \{ in: \['liteapi', 'duffel'\] \} \},\s*select: CANCEL_ROW_SELECT,\s*\}\);/.test(route)) cancelFail(`${ROUTE}: the account\u2019s gate does not read { id, userId: user.id, provider liteapi | duffel } with CANCEL_ROW_SELECT`);
+  // GUEST-02: both gates AWAIT the flow inside their try — a lane that throws reaches the gate's catch and its named 500.
+  for (const [gateFile, gateSrc] of [[ROUTE, route], [GUEST_CANCEL, codeOf(GUEST_CANCEL)]] as const) {
+    for (const [verb, entry] of [['GET', 'quoteCancellation'], ['POST', 'cancelReservation']] as const) {
+      const body = functionBody(gateSrc, verb) ?? '';
+      const tryAt = body.indexOf('try {');
+      const callAt = body.indexOf(`await ${entry}(`);
+      const catchAt = body.indexOf('} catch (error) {');
+      if (!(tryAt >= 0 && callAt > tryAt && catchAt > callAt) || new RegExp(`return (?:noStore\\()?${entry}\\(`).test(body)) cancelFail(`${gateFile}: ${verb} does not await ${entry} inside its try — the flow is awaited where the gate\u2019s catch can answer it`);
+    }
+  }
   {
-    const hotelAt = route.indexOf('async function cancelHotel(');
-    const flightAt = route.indexOf('async function cancelFlight(');
-    const hotel = hotelAt >= 0 && flightAt > hotelAt ? route.slice(hotelAt, flightAt) : '';
-    const flight = flightAt >= 0 ? route.slice(flightAt) : '';
-    if (!hotel || !flight) cancelFail(`${ROUTE} lacks the two lane functions`);
-    if (!/await cancelBooking\(owned\.providerBookingId\)/.test(hotel)) cancelFail(`${ROUTE}: the hotel cancel does not call the hotel client`);
-    if (/cancelFlightBooking\(/.test(hotel)) cancelFail(`${ROUTE}: the hotel cancel reaches the flight endpoint`);
-    if (!/await cancelFlightBooking\(owned\.providerBookingId\)/.test(flight)) cancelFail(`${ROUTE}: the flight cancel does not call the flights client`);
-    if (/cancelBooking\(owned/.test(flight)) cancelFail(`${ROUTE}: the flight cancel reaches the hotel endpoint`);
-    if (!/code: 'cancel_refused'/.test(flight) || flight.indexOf("code: 'cancel_refused'") > flight.indexOf('prisma.$transaction')) cancelFail(`${ROUTE}: a vendor 409 is not a named refusal before any write`);
+    const hotelAt = flow.indexOf('async function cancelHotel(');
+    const flightAt = flow.indexOf('async function cancelFlight(');
+    const hotel = hotelAt >= 0 && flightAt > hotelAt ? flow.slice(hotelAt, flightAt) : '';
+    const flight = flightAt >= 0 ? flow.slice(flightAt) : '';
+    if (!hotel || !flight) cancelFail(`${FLOW} lacks the two lane functions`);
+    if (!/await cancelBooking\(owned\.providerBookingId\)/.test(hotel)) cancelFail(`${FLOW}: the hotel cancel does not call the hotel client`);
+    if (/cancelFlightBooking\(/.test(hotel)) cancelFail(`${FLOW}: the hotel cancel reaches the flight endpoint`);
+    if (!/await cancelFlightBooking\(owned\.providerBookingId\)/.test(flight)) cancelFail(`${FLOW}: the flight cancel does not call the flights client`);
+    if (/cancelBooking\(owned/.test(flight)) cancelFail(`${FLOW}: the flight cancel reaches the hotel endpoint`);
+    if (!/code: 'cancel_refused'/.test(flight) || flight.indexOf("code: 'cancel_refused'") > flight.indexOf('prisma.$transaction')) cancelFail(`${FLOW}: a vendor 409 is not a named refusal before any write`);
     // 3. THE MONEY FACTS, both lanes.
-    if (!/hotelCancelMoneyEvents\(parsed, \{ reservationId: owned\.id, arrivalId, statedAt: answer\.arrived \}\)/.test(hotel) || !/tx\.money_events\.createMany\(\{ data: moneyEvents \}\)/.test(hotel)) cancelFail(`${ROUTE}: the hotel cancel discards the refund and fee the answer states — they are money_events rows pointed at the arrival`);
-    if (!/flightCancelDecision\(parsed, answer\.httpStatus, \{ reservationId: owned\.id, arrivalId, statedAt: answer\.arrived \}\)/.test(flight)) cancelFail(`${ROUTE}: the flight cancel does not decide its writes from the arrival and the HTTP status`);
-    if (!/tx\.money_events\.createMany\(\{ data: decision\.moneyEvents \}\)/.test(flight)) cancelFail(`${ROUTE}: the flight cancel does not write its money facts`);
+    if (!/hotelCancelMoneyEvents\(parsed, \{ reservationId: owned\.id, arrivalId, statedAt: answer\.arrived \}\)/.test(hotel) || !/tx\.money_events\.createMany\(\{ data: moneyEvents \}\)/.test(hotel)) cancelFail(`${FLOW}: the hotel cancel discards the refund and fee the answer states — they are money_events rows pointed at the arrival`);
+    if (!/flightCancelDecision\(parsed, answer\.httpStatus, \{ reservationId: owned\.id, arrivalId, statedAt: answer\.arrived \}\)/.test(flight)) cancelFail(`${FLOW}: the flight cancel does not decide its writes from the arrival and the HTTP status`);
+    if (!/tx\.money_events\.createMany\(\{ data: decision\.moneyEvents \}\)/.test(flight)) cancelFail(`${FLOW}: the flight cancel does not write its money facts`);
     // 4. THE 202.
     const read = flight.indexOf("reserveTravelSearch('liteapiflightbookingread')");
     const getBooking = flight.indexOf('getFlightBooking(owned.providerBookingId)');
-    if (!(read > 0 && getBooking > read)) cancelFail(`${ROUTE}: the cancelIntentAt read after a 202 is not metered immediately before it runs`);
-    if (!/cancelIntentAt: new Date\(details\.cancelIntentAt\)/.test(flight)) cancelFail(`${ROUTE}: cancelIntentAt is not the vendor own word from GET /flights/bookings`);
-    if (/cancelIntentAt: new Date\(\)/.test(route)) cancelFail(`${ROUTE} writes our clock into cancelIntentAt — the vendor column holds the vendor word or NULL`);
+    if (!(read > 0 && getBooking > read)) cancelFail(`${FLOW}: the cancelIntentAt read after a 202 is not metered immediately before it runs`);
+    if (!/cancelIntentAt: new Date\(details\.cancelIntentAt\)/.test(flight)) cancelFail(`${FLOW}: cancelIntentAt is not the vendor own word from GET /flights/bookings`);
+    for (const [f, src] of [[ROUTE, route], [FLOW, flow]] as const) if (/cancelIntentAt: new Date\(\)/.test(src)) cancelFail(`${f} writes our clock into cancelIntentAt — the vendor column holds the vendor word or NULL`);
     // 5. THE DAY AND THE MARGIN.
-    if (!/const calendar = decision\.final \? await markCalendar\(owned\.id, owned\.providerBookingId\) : 'pending';/.test(flight)) cancelFail(`${ROUTE}: a final flight cancel does not mark the calendar row (and a pending one must not)`);
-    if (!/await markCalendar\(owned\.id, owned\.providerBookingId\)/.test(hotel)) cancelFail(`${ROUTE}: a hotel cancel does not mark the calendar row`);
-    if (!/where: \{ reservationId: owned\.id, status: 'estimated' \}, data: \{ status: 'cancelled' \}/.test(flight)) cancelFail(`${ROUTE}: a final flight cancel does not move the estimated commission to cancelled`);
-    if (!/status: 'estimated' \},\s*data: \{ status: 'cancelled' \}/.test(hotel)) cancelFail(`${ROUTE}: a hotel cancel does not move the estimated commission to cancelled`);
+    if (!/const calendar = decision\.final \? await markCalendar\(owned\.id, owned\.providerBookingId\) : 'pending';/.test(flight)) cancelFail(`${FLOW}: a final flight cancel does not mark the calendar row (and a pending one must not)`);
+    if (!/await markCalendar\(owned\.id, owned\.providerBookingId\)/.test(hotel)) cancelFail(`${FLOW}: a hotel cancel does not mark the calendar row`);
+    if (!/where: \{ reservationId: owned\.id, status: 'estimated' \}, data: \{ status: 'cancelled' \}/.test(flight)) cancelFail(`${FLOW}: a final flight cancel does not move the estimated commission to cancelled`);
+    if (!/status: 'estimated' \},\s*data: \{ status: 'cancelled' \}/.test(hotel)) cancelFail(`${FLOW}: a hotel cancel does not move the estimated commission to cancelled`);
   }
   // 2. THE QUOTE COMES FIRST.
   {
-    const getAt = route.indexOf('export async function GET(');
-    const postAt = route.indexOf('export async function POST(');
-    const get = getAt >= 0 && postAt > getAt ? route.slice(getAt, postAt) : '';
-    if (!get) cancelFail(`${ROUTE} has no GET — the quote verb`);
+    const getAt = flow.indexOf('export async function quoteCancellation(');
+    const postAt = flow.indexOf('export async function cancelReservation(');
+    const get = getAt >= 0 && postAt > getAt ? flow.slice(getAt, postAt) : '';
+    if (!get) cancelFail(`${FLOW} has no quoteCancellation — the quote verb`);
     const reserve = get.indexOf("reserveTravelSearch('liteapiflightcancelquote')");
     const vendor = get.indexOf('getFlightCancellationQuote(owned.providerBookingId)');
-    if (!(reserve > 0 && vendor > reserve)) cancelFail(`${ROUTE}: the quote is not reserved against liteapiflightcancelquote immediately before the vendor read`);
-    if (!/code: 'quote_refused'/.test(get)) cancelFail(`${ROUTE}: a vendor 409 on the quote is not named`);
+    if (!(reserve > 0 && vendor > reserve)) cancelFail(`${FLOW}: the quote is not reserved against liteapiflightcancelquote immediately before the vendor read`);
+    if (!/code: 'quote_refused'/.test(get)) cancelFail(`${FLOW}: a vendor 409 on the quote is not named`);
     if (dailyCap('liteapiflightcancelquote') > 100) cancelFail(`liteapiflightcancelquote has no tight safe-default cap (${dailyCap('liteapiflightcancelquote')})`);
     const dialog = codeOf(DIALOG);
     if (!/const canConfirm = !isFlight \|\| quote\.state === 'quoted';/.test(dialog)) cancelFail(`${DIALOG} renders a Cancel control before the quote has rendered — a customer is never asked to confirm blind`);
@@ -5980,6 +6001,8 @@ lawGuard('The cancel law', () => {
       if (!dialog.includes(shown)) cancelFail(`${DIALOG} does not render ${shown} before the customer confirms`);
     }
     if (!/confidenceWords\(quote\.quote\.confidence\)/.test(dialog) || !/destinationWords\(quote\.quote\.destination\)/.test(dialog)) cancelFail(`${DIALOG} does not render the vendor words as what they mean`);
+    // GUEST-02: the quote is read from its caller's quoteUrl — required, no default, no route of its own.
+    if (!/\n  quoteUrl: string;\n/.test(dialog) || !/const res = await fetch\(quoteUrl\);/.test(dialog) || /\/api\/reservations\/|\/api\/guest\//.test(dialog)) cancelFail(`${DIALOG} does not read the quote from its caller\u2019s quoteUrl (required, with no route of its own)`);
     const fclient = codeOf(FCLIENT);
     if (!/getFlightsAnswer\(base, `\/flights\/bookings\/\$\{encodeURIComponent\(bookingId\)\}\/cancellations`\)/.test(fclient)) cancelFail(`${FCLIENT}: the quote does not read the documented path GET /flights/bookings/{id}/cancellations`);
     if (!/postFlightsAnswer\(base, `\/flights\/bookings\/\$\{encodeURIComponent\(bookingId\)\}\/cancellations`, undefined\)/.test(fclient)) cancelFail(`${FCLIENT}: the action does not call the documented path POST /flights/bookings/{id}/cancellations with no body`);
@@ -5988,7 +6011,7 @@ lawGuard('The cancel law', () => {
   {
     const leaf = codeOf(LEAF);
     if (!/if \(amount === null\) return null;/.test(leaf)) cancelFail(`${LEAF}: an amount the vendor did not state is not NULL — never 0`);
-    if (/\?\? 0\b/.test(leaf) || /\?\? 0\b/.test(route)) cancelFail(`a cancel writes ?? 0 — a missing figure is NULL with the vendor own words`);
+    if (/\?\? 0\b/.test(leaf) || /\?\? 0\b/.test(route) || /\?\? 0\b/.test(flow)) cancelFail(`a cancel writes ?? 0 — a missing figure is NULL with the vendor own words`);
     if (!/return \{ status: 'cancel_pending', final: false, moneyEvents: \[\], vouchers: \[\], vouchersWithoutCode: \[\], commission: 'leave' \};/.test(leaf)) cancelFail(`${LEAF}: a 202 writes money — nothing is stated finally until the airline answers (item 3)`);
     if ((leaf.match(/arrivalId: ev\.arrivalId/g) ?? []).length < 3) cancelFail(`${LEAF}: not every money row points at the arrival`);
     // Scoped to the money_events model block — vouchers carries an arrivalId line too.
@@ -6021,6 +6044,8 @@ lawGuard('The cancel law', () => {
     if (/r\.provider === 'liteapi' && r\.status === 'confirmed'/.test(src)) cancelFail(`${f} gates Cancel on the provider — LiteAPI is both rails`);
     if (!/lane=\{cancelTarget\.type\}/.test(src)) cancelFail(`${f} does not hand the dialog the lane through the one reader`);
     if (!/cancellation requested — awaiting the airline/.test(src)) cancelFail(`${f} does not say a cancel_pending row is awaiting the airline`);
+    // GUEST-02: the account's lists hand the dialog the account's quote URL.
+    if (!src.includes('quoteUrl={`/api/reservations/${cancelTarget.id}/cancel`}')) cancelFail(`${f} does not hand the dialog the account\u2019s quote URL (/api/reservations/<id>/cancel)`);
   }
   // 5. THE DAY — marked, never removed.
   {
@@ -6031,33 +6056,33 @@ lawGuard('The cancel law', () => {
   // 6. THE NAMED ABSENCES — and, since CANCEL-02 (2026-09-26), THE EMAIL THAT IS
   //    NO LONGER ONE: both lanes send after the commit, from the rows, to a
   //    recipient the rule stated or to nobody by name; never failing the cancel.
-  const routeNotes = commentsOf(ROUTE);
+  const flowNotes = commentsOf(FLOW);
   for (const named of ['item 3: the webhook receiver and scheduled refresh', 'item 7: journal posting of these money facts attaches here — NOT this PR']) {
-    if (!routeNotes.includes(named)) cancelFail(`${ROUTE} does not name "${named.slice(0, 40)}..." where it attaches`);
+    if (!flowNotes.includes(named)) cancelFail(`${FLOW} does not name "${named.slice(0, 40)}..." where it attaches`);
   }
-  if (/CANCEL-02: the cancellation EMAIL attaches here — NOT this PR/.test(routeNotes)) cancelFail(`${ROUTE} still names the cancellation email as absent — CANCEL-02 sends it`);
+  for (const [f, notes] of [[ROUTE, commentsOf(ROUTE)], [FLOW, flowNotes]] as const) if (/CANCEL-02: the cancellation EMAIL attaches here — NOT this PR/.test(notes)) cancelFail(`${f} still names the cancellation email as absent — CANCEL-02 sends it`);
   {
-    const hotelAt = route.indexOf('async function cancelHotel(');
-    const flightAt = route.indexOf('async function cancelFlight(');
-    const hotel = hotelAt >= 0 && flightAt > hotelAt ? route.slice(hotelAt, flightAt) : '';
-    const flight = flightAt >= 0 ? route.slice(flightAt) : '';
+    const hotelAt = flow.indexOf('async function cancelHotel(');
+    const flightAt = flow.indexOf('async function cancelFlight(');
+    const hotel = hotelAt >= 0 && flightAt > hotelAt ? flow.slice(hotelAt, flightAt) : '';
+    const flight = flightAt >= 0 ? flow.slice(flightAt) : '';
     for (const [name, lane] of [['hotel', hotel], ['flight', flight]] as const) {
       const tx = lane.indexOf('prisma.$transaction');
       const send = lane.indexOf('await sendCancellationEmail(');
-      if (!(tx > 0 && send > tx)) cancelFail(`${ROUTE}: the ${name} cancel does not email the customer AFTER the transaction commits`);
-      if (!/email: emailStatus,/.test(lane)) cancelFail(`${ROUTE}: the ${name} cancel does not report email.sent in its envelope`);
+      if (!(tx > 0 && send > tx)) cancelFail(`${FLOW}: the ${name} cancel does not email the customer AFTER the transaction commits`);
+      if (!/email: emailStatus,/.test(lane)) cancelFail(`${FLOW}: the ${name} cancel does not report email.sent in its envelope`);
     }
-    if (!/const emailStatus = await sendCancellationEmail\(owned, accountEmail, \{ kind: 'cancelled', moneyEvents, vouchers: \[\], providerStatus: landed\.parsed\.status \}\);/.test(hotel)) cancelFail(`${ROUTE}: the hotel email is not rendered from the money_events rows the transaction wrote`);
-    if (!/\? \{ kind: 'cancelled', moneyEvents: decision\.moneyEvents, vouchers: decision\.vouchers, providerStatus: landed\.parsed\.status \}\s*: \{ kind: 'cancel_pending' \}/.test(flight)) cancelFail(`${ROUTE}: the flight email is not the final figures from the rows on a 200, or the pending template on a 202`);
+    if (!/const emailStatus = await sendCancellationEmail\(owned, caller\.accountEmail, \{ kind: 'cancelled', moneyEvents, vouchers: \[\], providerStatus: landed\.parsed\.status \}\);/.test(hotel)) cancelFail(`${FLOW}: the hotel email is not rendered from the money_events rows the transaction wrote`);
+    if (!/\? \{ kind: 'cancelled', moneyEvents: decision\.moneyEvents, vouchers: decision\.vouchers, providerStatus: landed\.parsed\.status \}\s*: \{ kind: 'cancel_pending' \}/.test(flight)) cancelFail(`${FLOW}: the flight email is not the final figures from the rows on a 200, or the pending template on a 202`);
     // The email function ends where the next declaration begins (statusRefusal) — never a comment anchor, never a character count.
-    const sender = route.slice(route.indexOf('async function sendCancellationEmail('), route.indexOf('function statusRefusal('));
-    if (!sender) cancelFail(`${ROUTE} has no sendCancellationEmail`);
-    if (!/const recipient = cancelRecipient\(owned, accountEmail\);/.test(sender)) cancelFail(`${ROUTE}: the recipient is not resolved by the one rule (cancelRecipient)`);
-    if (!/return \{ sent: false, error: recipient\.reason \};/.test(sender)) cancelFail(`${ROUTE}: a missing recipient is not reported by name with no send`);
-    if (!/catch \(emailErr\)/.test(sender) || /throw |return NextResponse/.test(sender.slice(sender.indexOf('catch (emailErr)')))) cancelFail(`${ROUTE}: an email failure would fail the cancel`);
-    if (!/cancellationEmailFacts\(outcome\.moneyEvents, outcome\.vouchers\)/.test(sender)) cancelFail(`${ROUTE}: the email figures are not read from the rows`);
+    const sender = flow.slice(flow.indexOf('async function sendCancellationEmail('), flow.indexOf('function statusRefusal('));
+    if (!sender) cancelFail(`${FLOW} has no sendCancellationEmail`);
+    if (!/const recipient = cancelRecipient\(owned, accountEmail\);/.test(sender)) cancelFail(`${FLOW}: the recipient is not resolved by the one rule (cancelRecipient)`);
+    if (!/return \{ sent: false, error: recipient\.reason \};/.test(sender)) cancelFail(`${FLOW}: a missing recipient is not reported by name with no send`);
+    if (!/catch \(emailErr\)/.test(sender) || /throw |return NextResponse/.test(sender.slice(sender.indexOf('catch (emailErr)')))) cancelFail(`${FLOW}: an email failure would fail the cancel`);
+    if (!/cancellationEmailFacts\(outcome\.moneyEvents, outcome\.vouchers\)/.test(sender)) cancelFail(`${FLOW}: the email figures are not read from the rows`);
     for (const banned of ['userEmail ??', 'accountEmail ??', 'guestEmail ??', '?? accountEmail', '?? owned.guestEmail', 'retry', 'setTimeout']) {
-      if (sender.includes(banned)) cancelFail(`${ROUTE}: the email path carries a fallback or a retry (${banned})`);
+      if (sender.includes(banned)) cancelFail(`${FLOW}: the email path carries a fallback or a retry (${banned})`);
     }
   }
   {
@@ -6079,7 +6104,7 @@ lawGuard('The cancel law', () => {
   }
   if (!/item 8/.test(commentsOf('prisma/migrations/20260926090000_cancel_01_money_events/migration.sql'))) cancelFail('the CANCEL-01 migration does not name item 8 (refund matching) as the settled status owner');
 
-  if (cancelViolations === 0) console.log(`✔ The cancel law passed — the cancel route reads the lane and sends a hotel to PUT /v3.0/bookings/{id} and a flight to POST /flights/bookings/{id}/cancellations, refusing any other lane and a vendor 409 by name before any write; the quote is metered (${dailyCap('liteapiflightcancelquote')}/day) and rendered before any Cancel control; both lanes write money_events rows pointed at the arrival with NULL, never 0, for an unstated amount and none on a 202; cancelIntentAt is the vendor word from one metered GET; the refresh does not undo a pending cancel; a final cancel marks the day and moves the margin; both lanes email the customer after the commit from the rows, to the one recipient the rule states or to nobody by name, never failing the cancel (CANCEL-02); the two STATUS-01 slots are fired only by the apply leaf and the sender (STATUS-01).`);
+  if (cancelViolations === 0) console.log(`✔ The cancel law passed — one cancel flow behind two gates (GUEST-02: the account\u2019s route reads { id, userId, provider } with the one select, and both gates await the flow inside their try; the dialog reads its caller\u2019s quoteUrl and both lists pass the account\u2019s); the flow reads the lane and sends a hotel to PUT /v3.0/bookings/{id} and a flight to POST /flights/bookings/{id}/cancellations, refusing any other lane and a vendor 409 by name before any write; the quote is metered (${dailyCap('liteapiflightcancelquote')}/day) and rendered before any Cancel control; both lanes write money_events rows pointed at the arrival with NULL, never 0, for an unstated amount and none on a 202; cancelIntentAt is the vendor word from one metered GET; the refresh does not undo a pending cancel; a final cancel marks the day and moves the margin; both lanes email the customer after the commit from the rows, to the one recipient the rule states or to nobody by name, never failing the cancel (CANCEL-02); the two STATUS-01 slots are fired only by the apply leaf and the sender (STATUS-01).`);
   else console.log(`✖ The cancel law FAILED — ${cancelViolations} violation(s).`);
 });
 
@@ -6163,6 +6188,9 @@ lawGuard('The status law', () => {
   const FLIGHT_BOOK = 'src/app/api/travel/liteapi/flights/book/route.ts';
   const HOTEL_CLIENT = 'src/lib/liteapiClient.ts';
   const CANCEL_ROUTE = 'src/app/api/reservations/[id]/cancel/route.ts';
+  // GUEST-02 (2026-09-30): the cancel moved into the one flow; the guest's gate calls it too.
+  const CANCEL_FLOW = 'src/lib/reservations/cancelFlow.ts';
+  const GUEST_CANCEL_ROUTE = 'src/app/api/guest/booking/cancel/route.ts';
   const RETRO = 'scripts/status-01-retro-reservations.ts';
   const LANE_RETRO = 'scripts/lane-01-retro-flights.ts';
   const STATUS_MIGRATION = ALL_MIGRATIONS.find((m) => /_status_01_/.test(m.dir));
@@ -6269,7 +6297,7 @@ lawGuard('The status law', () => {
       if (file === HOTEL_LEAF || file === FLIGHT_LEAF) continue;
       if (VENDOR.test(src) && OURS.test(src)) statusFail(`${file} turns a vendor status word into ours outside the two leaves`);
     }
-    for (const f of [HOTEL_BOOK, FLIGHT_BOOK, REFRESH, APPLY, READ_LEAF, WEBHOOK_ROUTE, CRON_ROUTE, CANCEL_ROUTE]) {
+    for (const f of [HOTEL_BOOK, FLIGHT_BOOK, REFRESH, APPLY, READ_LEAF, WEBHOOK_ROUTE, CRON_ROUTE, CANCEL_ROUTE, CANCEL_FLOW, GUEST_CANCEL_ROUTE]) {
       if (VENDOR.test(codeOf(f))) statusFail(`${f} compares a vendor status word — only the two lane leaves may`);
     }
     const hotel = codeOf(HOTEL_LEAF);
@@ -7092,11 +7120,15 @@ lawGuard('The audit law', () => {
   const FLIGHT_BOOK = 'src/app/api/travel/liteapi/flights/book/route.ts';
   const READ_LEAF = 'src/lib/reservations/vendorRead.ts';
   const SENDER = 'src/lib/reservations/lifecycleSend.ts';
-  const CANCEL = 'src/app/api/reservations/[id]/cancel/route.ts';
+  // GUEST-02 (2026-09-30): the cancel's facts are recorded by the one cancel flow now; the two gates
+  // build the caller (the actor) and record nothing of their own.
+  const CANCEL = 'src/lib/reservations/cancelFlow.ts';
+  const CANCEL_ROUTE = 'src/app/api/reservations/[id]/cancel/route.ts';
+  const GUEST_CANCEL = 'src/app/api/guest/booking/cancel/route.ts';
   const REVIEW = 'src/app/api/runway/match/review/route.ts';
   const COMMIT = 'src/app/api/transactions/commit-to-ledger/route.ts';
   const WRITER_FILES = [HOTEL_BOOK, FLIGHT_BOOK, READ_LEAF, SENDER, CANCEL, REVIEW, COMMIT];
-  for (const f of [PORT, LEAF, ROUTE, PAGE, PREFIX_ROUTE, ...WRITER_FILES]) {
+  for (const f of [PORT, LEAF, ROUTE, PAGE, PREFIX_ROUTE, ...WRITER_FILES, CANCEL_ROUTE, GUEST_CANCEL]) {
     if (!existsSync(resolve(ROOT, f))) auditFail(`${f} is missing`);
   }
   const kinds: readonly string[] = BOOKING_EVENT_KINDS;
@@ -7152,6 +7184,13 @@ lawGuard('The audit law', () => {
   }
   const cancelSrc = codeOf(CANCEL);
   if ((cancelSrc.match(/kind: 'reservation_cancel_requested'/g) ?? []).length !== 2) auditFail(`${CANCEL}: both lanes do not record reservation_cancel_requested`);
+  // GUEST-02: the flow builds NO actor — the caller's is used as handed; each gate builds its own.
+  if (/\b(humanActor|actorOfReadSource)\s*\(|COMMISSION_ACTOR/.test(cancelSrc)) auditFail(`${CANCEL} builds an actor — the actor is the caller\u2019s, built by its gate`);
+  if (!cancelSrc.includes('actor: caller.actor,') || (cancelSrc.match(/const actor = caller\.actor;/g) ?? []).length !== 2) auditFail(`${CANCEL}: the quote and both lanes do not record under the caller\u2019s actor`);
+  if ((codeOf(CANCEL_ROUTE).match(/const caller: CancelCaller = \{ actor: humanActor\(\{ id: g\.userId, email: g\.accountEmail \}\), accountEmail: g\.accountEmail \};/g) ?? []).length !== 2) auditFail(`${CANCEL_ROUTE}: the account\u2019s caller is not humanActor({ id: g.userId, email: g.accountEmail }) in both verbs`);
+  if ((codeOf(GUEST_CANCEL).match(/const caller: CancelCaller = \{ actor: humanActor\(null, g\.ip\), accountEmail: null \};/g) ?? []).length !== 2) auditFail(`${GUEST_CANCEL}: the guest\u2019s caller is not humanActor(null, g.ip) in both verbs — the guest is named by the request\u2019s IP`);
+  // GUEST-02: the audit's owner is the row's own userId (null for a guest row) — never the gate's user.
+  if (!cancelSrc.includes('reservation: { id: owned.id, userId: owned.userId },') || (cancelSrc.match(/const booking = \{ id: owned\.id, userId: owned\.userId \};/g) ?? []).length !== 2 || (cancelSrc.match(/await recordStatedMoney\(owned, owned\.userId, actor, landed\.arrivalId\);/g) ?? []).length !== 2) auditFail(`${CANCEL}: the audit\u2019s owner is not the row\u2019s own userId in the quote and both lanes`);
   const readChanges = functionBody(port, 'readChangesOf') ?? '';
   for (const k of ['reservation_status_changed', 'reservation_confirmation_code_arrived', 'reservation_ticketed', 'reservation_ticket_limit_stated', 'reservation_cancelled']) {
     if (!readChanges.includes(`kind: '${k}'`)) auditFail(`${PORT}: readChangesOf derives no ${k} from a read's write`);
@@ -7186,7 +7225,7 @@ lawGuard('The audit law', () => {
       else if ((src.match(/\bwriteAuditLog\s*\(/g) ?? []).length !== 1 || !src.includes("target: { table: 'transaction_reservation_links', id: link.id },")) auditFail(`${REVIEW}: its one direct write is not the link row on transaction_reservation_links`);
     }
   }
-  for (const f of [SENDER, READ_LEAF, HOTEL_BOOK, FLIGHT_BOOK, CANCEL, COMMIT]) if (/writeAuditLog|'system_other'/.test(codeOf(f))) auditFail(`${f} still writes audit_log by hand (writeAuditLog / 'system_other') — through ${PORT}`);
+  for (const f of [SENDER, READ_LEAF, HOTEL_BOOK, FLIGHT_BOOK, CANCEL, CANCEL_ROUTE, GUEST_CANCEL, COMMIT]) if (/writeAuditLog|'system_other'/.test(codeOf(f))) auditFail(`${f} still writes audit_log by hand (writeAuditLog / 'system_other') — through ${PORT}`);
 
   // ── CLAUSE 5. THE DESCRIPTIONS COME FROM THE WORDS LEAF — no call site types one. ──
   for (const f of [...WRITER_FILES, 'scripts/lane-01-retro-flights.ts']) {
@@ -7960,6 +7999,19 @@ lawGuard('The document-freeze law', () => {
 // Each table is CLOSED at the census: its count is pinned and only shrinks, and an
 // entry nothing uses fails as stale. A new writing route that is neither fails the
 // build by name.
+//
+// GUEST-02 (2026-09-30): A GATED FLOW. The account's cancel moved its writes into the
+// one cancel flow (src/lib/reservations/cancelFlow.ts), and the guest's cancel route
+// calls the same flow, so a route's writes can now sit in a lib. GATED_FLOWS is a
+// closed table: the lib, its entries, the name of the owned row each entry takes
+// first, and its callers — each with the precondition that must stand, in the same
+// function, before EVERY entry call, and the gate's own row the call must be handed.
+// A route calling an entry is a WRITING route (so the census counts it and its public
+// surface is judged: the guest's route is a listed public writer). The lib is imported
+// by its listed callers only; a listed caller calling no entry, or an entry no caller
+// calls, is stale. Every update/updateMany in the lib names the owned row's id (as id
+// or reservationId), and the lib has no delete, deleteMany, upsert or raw SQL
+// (src/lib/security/ownershipLaw.ts entryCalls, importSpecifiers, flowWriteRefusals).
 type SecGuard = { name: string; re: RegExp };
 const PUBLIC_WRITERS: ReadonlyArray<{ file: string; kind: 'public' | 'bypass' | 'token'; reason: string; guards: readonly SecGuard[] }> = [
   { file: 'src/app/api/auth/signup/route.ts', kind: 'public', reason: '/api/auth is public: a new account has no session yet', guards: [{ name: 'per-IP rate limit 5/hour', re: /await rateLimit\(`auth-signup:\$\{ip\}`, \{ limit: 5, windowSeconds: 3600 \}\)/ }] },
@@ -7973,6 +8025,7 @@ const PUBLIC_WRITERS: ReadonlyArray<{ file: string; kind: 'public' | 'bypass' | 
   { file: 'src/app/api/travel/liteapi/book/route.ts', kind: 'public', reason: 'guest checkout (D2): booking is never locked; a tripId, when sent, is the signed-in owner\'s or 404', guards: [{ name: 'per-IP rate limit 3/5min', re: /await rateLimit\(`hotel-book:\$\{ip\}`, \{ limit: 3, windowSeconds: 300 \}\)/ }, { name: "daily cap 'hotelbooking'", re: /await reserveTravelSearch\('hotelbooking'\)/ }, { name: 'tripId owned', re: /where: \{ id: tripId, userId: user!\.id \}/ }] },
   { file: 'src/app/api/travel/liteapi/flights/book/route.ts', kind: 'public', reason: 'PR-FL-5: flight booking completion, guest-ok like the hotel book; the row it refreshes is the row this request committed', guards: [{ name: 'per-IP rate limit 3/5min', re: /await rateLimit\(`liteapi-flight-book:\$\{ip\}`, \{ limit: 3, windowSeconds: 300 \}\)/ }, { name: "daily cap 'liteapiflightbooking'", re: /await reserveTravelSearch\('liteapiflightbooking'\)/ }, { name: 'tripId owned', re: /where: \{ id: tripId, userId: user!\.id \}/ }] },
   { file: 'src/app/api/travel/liteapi/flights/prebook/route.ts', kind: 'public', reason: 'PR-FL-3: the flight checkout session, guest-ok; the contact it keeps is keyed by the vendor\'s prebookId', guards: [{ name: 'per-IP rate limit 5/min', re: /await rateLimit\(`liteapi-flight-prebook:\$\{ip\}`, \{ limit: 5, windowSeconds: 60 \}\)/ }, { name: "daily cap 'flightprebook'", re: /await reserveTravelSearch\('flightprebook'\)/ }] },
+  { file: 'src/app/api/guest/booking/cancel/route.ts', kind: 'public', reason: 'GUEST-02: a guest booking has no owner and a guest no session — the signed guestBooking session (one reservation, one hour, minted only by the rate-limited lookup) is the key, and the row is read again as still a guest\u2019s before the one cancel flow runs', guards: [{ name: 'the guest cancel gate under guestKey() (the session verified first, then the IP and both limits, then the row)', re: /await guestCancelGate\(ports, \{\s*cookie: request\.cookies\.get\(GUEST_COOKIE\)\?\.value \?\? null,\s*ip,\s*key: guestKey\(\),/ }, { name: 'the row read again as still a guest\u2019s', re: /where: \{ id, bookingType: 'guest', userId: null, provider: \{ in: \['liteapi', 'duffel'\] \} \},\s*select: CANCEL_ROW_SELECT,/ }, { name: 'the limiter (10 per IP, then 5 per reservation, per 15 minutes — GUEST_CANCEL_LIMITS)', re: /limit: async \(key, limit, windowSeconds\) => \{\s*try \{\s*await rateLimit\(key, \{ limit, windowSeconds \}\);/ }] },
 ];
 const OWNER_CONSOLE: ReadonlyArray<{ file: string; why: string }> = [
   { file: 'src/app/api/admin/backfill-transaction-fields/route.ts', why: "the owner's own Plaid items (plaid_items { userId }), rows by Plaid's transaction_id" },
@@ -7991,12 +8044,23 @@ const DERIVED_OWNED: ReadonlyArray<{ file: string; fn: string; write: string; wh
   { file: 'src/app/api/stock-lots/commit/route.ts', fn: 'POST', write: 'stock_lots.update { id: lot.id }', why: 'lot iterates sortedLots — a reordering (FIFO/LIFO/min-tax/specific) of lots = stock_lots.findMany({ where: { user_id: user.id, … } })', proof: /const lots = await prisma\.stock_lots\.findMany\(\{\s*where: \{\s*user_id: user\.id,/ },
   { file: 'src/app/api/transactions/sync-complete/route.ts', fn: 'POST', write: 'accounts.update { id: dbAccount.id }', why: "dbAccount is one of item.accounts, item one of the caller's plaid_items ({ userId: user.id, retired_at: null }) handed to syncTransactions", proof: /prisma\.plaid_items\.findMany\(\{\s*where: \{ userId: user\.id, retired_at: null \}/ },
 ];
+// GUEST-02 (2026-09-30): the two cancel entries (cancelHotel, cancelFlight) left with the flow —
+// their precondition is GATED_FLOWS' now, checked at every entry call in both gates.
 const HELPER_PRECONDITIONS: ReadonlyArray<{ file: string; helper: string; precondition: RegExp; why: string }> = [
-  { file: 'src/app/api/reservations/[id]/cancel/route.ts', helper: 'cancelHotel', precondition: /const g = await gate\(id\);\s*if \(!g\.ok\) return g\.response;/, why: 'receives the row gate() read with { id, userId: user.id } (404 otherwise)' },
-  { file: 'src/app/api/reservations/[id]/cancel/route.ts', helper: 'cancelFlight', precondition: /const g = await gate\(id\);\s*if \(!g\.ok\) return g\.response;/, why: 'receives the row gate() read with { id, userId: user.id } (404 otherwise)' },
   { file: 'src/app/api/trips/[id]/vendor-commit/route.ts', helper: 'setOptionStatus', precondition: /\b(getOptionDetails|optionBelongsToTrip)\(/, why: 'every call follows getOptionDetails (POST) or optionBelongsToTrip (DELETE): the option read by { id: optionId, trip_id } of a trip read by { id, userId }' },
 ];
-const SEC02_PINNED = { publicWriters: 11, ownerConsole: 6, sharedRows: 1, derivedOwned: 4, helperPreconditions: 3 } as const;
+const GATED_FLOWS: ReadonlyArray<{ lib: string; entries: readonly string[]; owned: string; callers: ReadonlyArray<{ file: string; precondition: RegExp; row: string; why: string }> }> = [
+  {
+    lib: 'src/lib/reservations/cancelFlow.ts',
+    entries: ['quoteCancellation', 'cancelReservation'],
+    owned: 'owned',
+    callers: [
+      { file: 'src/app/api/reservations/[id]/cancel/route.ts', precondition: /const g = await gate\(id\);\s*if \(!g\.ok\) return g\.response;/, row: 'g.owned', why: 'the account\u2019s gate: the verified user, then the row read with { id, userId: user.id, provider liteapi | duffel } (404 otherwise)' },
+      { file: 'src/app/api/guest/booking/cancel/route.ts', precondition: /const g = await guestGate\(request\);\s*if \(!g\.ok\) return g\.response;/, row: 'g.row', why: 'the guest\u2019s gate: the signed session, the IP, both limits, then the row read with { id, bookingType guest, userId null, provider liteapi | duffel } (401 / 404 / 429 otherwise)' },
+    ],
+  },
+];
+const SEC02_PINNED = { publicWriters: 12, ownerConsole: 6, sharedRows: 1, derivedOwned: 4, helperPreconditions: 1, gatedFlows: 1 } as const;
 
 lawGuard('The ownership law', () => {
   let secViolations = 0;
@@ -8016,7 +8080,7 @@ lawGuard('The ownership law', () => {
   const isBypassUrl = (url: string) => exactBypass.includes(url) || suffixBypass.some((b) => url.startsWith(b.prefix) && url.endsWith(b.suffix));
 
   // The pins: every table is closed at the census.
-  const counts = { publicWriters: PUBLIC_WRITERS.length, ownerConsole: OWNER_CONSOLE.length, sharedRows: SHARED_ROWS.length, derivedOwned: DERIVED_OWNED.length, helperPreconditions: HELPER_PRECONDITIONS.length };
+  const counts = { publicWriters: PUBLIC_WRITERS.length, ownerConsole: OWNER_CONSOLE.length, sharedRows: SHARED_ROWS.length, derivedOwned: DERIVED_OWNED.length, helperPreconditions: HELPER_PRECONDITIONS.length, gatedFlows: GATED_FLOWS.length };
   for (const k of Object.keys(SEC02_PINNED) as Array<keyof typeof SEC02_PINNED>) {
     if (counts[k] > SEC02_PINNED[k]) secFail(`${k} holds ${counts[k]} entries, pinned at ${SEC02_PINNED[k]} by the census — a new public writer, console route or unproven write is a ruling, not an entry`);
   }
@@ -8034,11 +8098,15 @@ lawGuard('The ownership law', () => {
     }
   }
 
+  // GUEST-02: a route that imports a gated flow and calls one of its entries writes through it.
+  const importsLib = (file: string, src: string, lib: string) => importSpecifiers(src).some((spec) => resolveImport(file, spec) === lib);
+  const callsGatedFlow = (file: string, src: string) => GATED_FLOWS.some((g) => importsLib(file, src, g.lib) && entryCalls(src, g.entries).length > 0);
+
   const used = { pub: new Set<string>(), console: new Set<string>(), shared: new Set<string>(), derived: new Set<number>(), helper: new Set<number>() };
   let inScopeCount = 0;
   let dppCount = 0;
   for (const { file, src } of routes) {
-    if (!inScope(src)) continue;
+    if (!inScope(src) && !callsGatedFlow(file, src)) continue;
     inScopeCount += 1;
     const methods = exportedMethods(src);
     if (methods.some((m) => m.method === 'DELETE' || m.method === 'PATCH' || m.method === 'PUT')) dppCount += 1;
@@ -8109,7 +8177,39 @@ lawGuard('The ownership law', () => {
   DERIVED_OWNED.forEach((e, i) => { if (!used.derived.has(i)) secFail(`DERIVED_OWNED lists ${e.file} ${e.write}, which the reader now proves or which is gone — remove it`); });
   HELPER_PRECONDITIONS.forEach((e, i) => { if (!used.helper.has(i)) secFail(`HELPER_PRECONDITIONS lists ${e.file} ${e.helper}, which no longer writes unproven — remove it`); });
 
-  if (secViolations === 0) console.log(`✔ The ownership law passed — ${inScopeCount} writing routes (${dppCount} export DELETE/PATCH/PUT in some form): ${PUBLIC_WRITERS.length} public writers each with its reason and guard, and every other one proves who is asking before its first write and scopes every update/delete to the caller or a row it proved the caller's (${OWNER_CONSOLE.length} owner-console routes, ${SHARED_ROWS.length} shared row, ${DERIVED_OWNED.length} derived-owned writes and ${HELPER_PRECONDITIONS.length} checked helpers named).`);
+  // GUEST-02: the gated flows — the lib's writes, its importers, and every entry call behind its gate.
+  let gatedCalls = 0;
+  for (const flow of GATED_FLOWS) {
+    if (!existsSync(resolve(ROOT, flow.lib))) { secFail(`the gated flow ${flow.lib} is missing`); continue; }
+    const lib = codeOf(flow.lib);
+    for (const e of flow.entries) {
+      if (!new RegExp(`export (?:async )?function ${e}\\(${flow.owned}\\b`).test(lib)) secFail(`${flow.lib} does not export ${e}(${flow.owned}, …) — every entry takes the gate\u2019s row first`);
+    }
+    for (const r of flowWriteRefusals(lib, flow.owned)) secFail(`${flow.lib}:${r.line} ${r.write} — ${r.why}: a gated flow updates only by ${flow.owned}.id (as id or reservationId) and never deletes, upserts or runs raw SQL`);
+    const callerFiles = flow.callers.map((c) => c.file);
+    for (const { file, src } of srcFiles) {
+      if (file === flow.lib || !importsLib(file, src, flow.lib)) continue;
+      if (!callerFiles.includes(file)) secFail(`${file} imports the gated flow ${flow.lib} — only its listed callers may (${callerFiles.join(', ')})`);
+    }
+    const entriesCalled = new Set<string>();
+    for (const c of flow.callers) {
+      if (!existsSync(resolve(ROOT, c.file))) { secFail(`GATED_FLOWS lists ${c.file}, which is gone — remove it`); continue; }
+      const src = codeOf(c.file);
+      if (!c.file.startsWith(`${API}/`) || !c.file.endsWith('/route.ts')) secFail(`GATED_FLOWS lists ${c.file} as a caller of ${flow.lib} — a caller is a route`);
+      if (!importsLib(c.file, src, flow.lib)) secFail(`GATED_FLOWS lists ${c.file}, which does not import ${flow.lib} — the entry is stale`);
+      const calls = entryCalls(src, flow.entries);
+      if (calls.length === 0) secFail(`GATED_FLOWS lists ${c.file}, which calls no entry of ${flow.lib} — the entry is stale`);
+      for (const call of calls) {
+        gatedCalls += 1;
+        entriesCalled.add(call.entry);
+        if (call.fn === null || !c.precondition.test(call.before)) secFail(`${c.file}:${call.line} calls ${call.entry} without its gate first in the same function (${c.why})`);
+        if (call.firstArg !== c.row) secFail(`${c.file}:${call.line} hands ${call.entry} ${call.firstArg || 'nothing'} — the gate\u2019s own row is ${c.row}`);
+      }
+    }
+    for (const e of flow.entries) if (!entriesCalled.has(e)) secFail(`${flow.lib} exports the entry ${e}, which no listed caller calls — the entry is stale`);
+  }
+
+  if (secViolations === 0) console.log(`✔ The ownership law passed — ${inScopeCount} writing routes (${dppCount} export DELETE/PATCH/PUT in some form): ${PUBLIC_WRITERS.length} public writers each with its reason and guard, and every other one proves who is asking before its first write and scopes every update/delete to the caller or a row it proved the caller's (${OWNER_CONSOLE.length} owner-console routes, ${SHARED_ROWS.length} shared row, ${DERIVED_OWNED.length} derived-owned writes and ${HELPER_PRECONDITIONS.length} checked helper named); ${GATED_FLOWS.length} gated flow (${GATED_FLOWS.map((g) => `${g.lib}: ${g.entries.length} entries, ${g.callers.length} gated callers, ${gatedCalls} calls each behind its gate`).join('; ')}).`);
   else console.log(`✖ The ownership law FAILED — ${secViolations} violation(s).`);
 });
 
@@ -9343,6 +9443,30 @@ lawGuard('The guest booking law', () => {
 //      until the page is live, so the browser can never submit it natively (a GET).
 //   6. THE TWO RE-PINS ARE DATED. Both book routes sit under a GUEST-01 note with the
 //      hash they had on main 37909b85.
+//
+// GUEST-02 (2026-09-30): clause 3's answer is { receipt, cancel } — the receipt unchanged,
+// beside it the cancel offer. Clause 4 reads FOUR route files under /api/guest: the three
+// above stay non-writers, out of the ownership law's scope and off its public writers; the
+// fourth, the cancel, is the one public writer (the ownership law's census: 12).
+//   7. A GUEST CANCELS THE ONE BOOKING THEIR SESSION OPENED.
+//      1. THE GATE (guestCancelGate): the session verified first (none or invalid → 401),
+//         then no IP → the one 404, then 10 per IP and 5 per reservation per 900 s in the
+//         cancel's own buckets (guest-cancel-ip:, guest-cancel:), both before the read; the
+//         read names { id, bookingType 'guest', userId null, provider liteapi | duffel }; the
+//         decision does not know the flow.
+//      2. THE ROUTE: the IP read as the lookup reads it; the gate before every flow call in
+//         the same function; the guest's caller (humanActor(null, g.ip), no account email);
+//         every answer never cached; the cookie never logged.
+//      3. THE OFFER (guestCancelOffer), probed: a confirmed hotel and flight on liteapi are
+//         offered; cancelled, cancel_pending, pending, an activity, Duffel and Viator are not.
+//      4. THE PAGE: the control only from the offer; the one dialog with the guest's URL; the
+//         cancel posted to the guest's route; its lines as ruled; no money word.
+//      5. THE OWNER: the cancellation landing's guest_ref is booking:<id> for a guest row (user
+//         null) and null for an account's; the flow's email hands guestManageFor and drops
+//         "See this booking" for a guest — probed through the template, cancelled and
+//         cancel_pending.
+//      6. THE PINS: five re-pinned and two pinned new, under dated GUEST-02 notes, each re-pin
+//         with the hash it had on main 6e71ad0d.
 const G_LEAF = 'src/lib/guest/guestAccess.ts';
 const G_DECISION = 'src/lib/guest/guestSession.ts';
 const G_KEY_FILE = 'src/lib/cookie-auth.ts';
@@ -9350,6 +9474,10 @@ const G_OPEN = 'src/app/api/guest/session/route.ts';
 const G_END = 'src/app/api/guest/session/end/route.ts';
 const G_BOOKING = 'src/app/api/guest/booking/route.ts';
 const G_ROUTES = [G_OPEN, G_END, G_BOOKING];
+// GUEST-02 (2026-09-30): the cancel — the one public writer under /api/guest.
+const G_CANCEL = 'src/app/api/guest/booking/cancel/route.ts';
+const G_FLOW = 'src/lib/reservations/cancelFlow.ts';
+const G_DIALOG = 'src/components/trips/CancelBookingDialog.tsx';
 const G_PAGE = 'src/app/booking/manage/page.tsx';
 const G_RENDERER = 'src/components/receipts/ReceiptBody.tsx';
 const G_LOOKUP = 'src/components/guest/GuestBookingLookup.tsx';
@@ -9360,7 +9488,7 @@ const G_BOOK_ROUTES = ['src/app/api/travel/liteapi/book/route.ts', 'src/app/api/
 const G_TEMPLATES = ['src/lib/emailTemplates/bookingConfirmation.ts', 'src/lib/emailTemplates/flightConfirmation.ts', 'src/lib/emailTemplates/lifecycle.ts'];
 let guestViolations = 0;
 const guestFail = (m: string) => { guestViolations += 1; violations.push(`guest booking law: ${m} (GUEST-01)`); };
-for (const f of [G_LEAF, G_DECISION, ...G_ROUTES, G_PAGE, G_RENDERER, G_LOOKUP]) if (!existsSync(resolve(ROOT, f))) guestFail(`${f} is missing`);
+for (const f of [G_LEAF, G_DECISION, ...G_ROUTES, G_CANCEL, G_FLOW, G_PAGE, G_RENDERER, G_LOOKUP]) if (!existsSync(resolve(ROOT, f))) guestFail(`${f} is missing`);
 
 // 1. one key; the leaf pure; the probes.
 {
@@ -9449,7 +9577,8 @@ for (const f of [G_LEAF, G_DECISION, ...G_ROUTES, G_PAGE, G_RENDERER, G_LOOKUP])
   const verifyAt = book.indexOf('const reservationId = verifyGuestSession(input.key, input.cookie, input.now);');
   const firstRead = book.indexOf('await ports.reservation(reservationId)');
   if (verifyAt < 0 || firstRead < 0 || verifyAt > firstRead || !book.includes('if (reservationId === null) return { status: 401, error: GUEST_WORDS.sessionEnded };')) guestFail(`${G_DECISION}: the session is not verified before any read (none or invalid → 401)`);
-  if (!book.includes('if (reservation === null) return { status: 404, error: GUEST_WORDS.notOpened };') || !book.includes("return { status: 200, receipt: guestReceiptOf({ reservation, bookArrival, latestReadArrival, moneyEvents }) };")) guestFail(`${G_DECISION}: the answer is not guestReceiptOf’s, or a vanished row is not the lookup’s 404`);
+  // GUEST-02: beside the receipt, unchanged, the cancel offer.
+  if (!book.includes('if (reservation === null) return { status: 404, error: GUEST_WORDS.notOpened };') || !book.includes("return { status: 200, receipt: guestReceiptOf({ reservation, bookArrival, latestReadArrival, moneyEvents }), cancel: guestCancelOffer(reservation) };")) guestFail(`${G_DECISION}: the answer is not guestReceiptOf’s beside the cancel offer, or a vanished row is not the lookup’s 404`);
   const r = codeOf(G_BOOKING);
   for (const [must, what] of [
     ["where: { id, bookingType: 'guest', userId: null },", 'the reservation, still a guest’s'],
@@ -9457,7 +9586,7 @@ for (const f of [G_LEAF, G_DECISION, ...G_ROUTES, G_PAGE, G_RENDERER, G_LOOKUP])
     ['where: { provider: LITEAPI, resource: BOOKING_READ, their_id: bookingReadTheirId(providerBookingId), user_id: null, guest_ref: bookingGuestRef(providerBookingId) },', 'the latest booking read, the guest’s own'],
     ['select: { id: true, kind: true, amountCents: true, currency: true, statedAt: true },', 'the money events with no settlement column'],
     ["const NO_STORE = { 'Cache-Control': 'no-store' };", 'no-store'],
-    ['return NextResponse.json({ receipt: answer.receipt }, { headers: NO_STORE });', 'the answer, never cached'],
+    ['return NextResponse.json({ receipt: answer.receipt, cancel: answer.cancel }, { headers: NO_STORE });', 'the answer ({ receipt, cancel }), never cached'],
   ] as const) if (!r.includes(must)) guestFail(`${G_BOOKING} lost ${what}`);
   if (/transaction|journal|ledger|commission|settle|timeline|audit/i.test(r)) guestFail(`${G_BOOKING} reads a bank row, a books entry, a margin, a settlement or a history`);
   const reservation = { id: 'res_g', lane: 'hotel', displayName: 'Sample Hotel', providerBookingId: 'G1', providerConfirmationCode: null, status: 'confirmed', createdAt: '2026-09-20T10:00:00.000Z', checkinDate: '2026-10-01', checkoutDate: '2026-10-02' };
@@ -9503,14 +9632,20 @@ for (const f of [G_LEAF, G_DECISION, ...G_ROUTES, G_PAGE, G_RENDERER, G_LOOKUP])
   const guestEntries = paths.filter((p) => p === '/api/guest' || p.startsWith('/api/guest/') || p === '/booking' || p.startsWith('/booking/manage'));
   if (guestEntries.sort().join(',') !== '/api/guest/booking,/api/guest/session,/booking/manage') guestFail(`the guest public surface is [${guestEntries.join(', ')}] — exactly /booking/manage, /api/guest/session, /api/guest/booking`);
   const guestRoutes = srcFiles.filter((f) => f.file.startsWith('src/app/api/guest/')).map((f) => f.file).sort();
-  if (guestRoutes.join(',') !== [...G_ROUTES].sort().join(',')) guestFail(`the files under src/app/api/guest are [${guestRoutes.join(', ')}] — exactly the three routes`);
+  // GUEST-02: exactly FOUR — the three GUEST-01 routes and the cancel.
+  if (guestRoutes.join(',') !== [...G_ROUTES, G_CANCEL].sort().join(',')) guestFail(`the files under src/app/api/guest are [${guestRoutes.join(', ')}] — exactly the four routes (the three GUEST-01 routes and the GUEST-02 cancel)`);
   for (const f of G_ROUTES) {
     const src = codeOf(f);
     if (exportedMethods(src).some((m) => m.method === 'DELETE' || m.method === 'PATCH' || m.method === 'PUT')) guestFail(`${f} exports DELETE, PATCH or PUT`);
     if (inScope(src)) guestFail(`${f} is in the ownership law’s scope — a public writer is a ruling`);
     if (PUBLIC_WRITERS.some((p) => p.file === f)) guestFail(`${f} is listed as a public writer`);
   }
-  if (PUBLIC_WRITERS.length !== SEC02_PINNED.publicWriters || SEC02_PINNED.publicWriters !== 11) guestFail(`the ownership law’s public writers are ${PUBLIC_WRITERS.length} (pinned ${SEC02_PINNED.publicWriters}) — the census is unchanged at 11`);
+  // GUEST-02: the cancel is the one public writer under /api/guest — listed, public, exporting no DELETE, PATCH or PUT.
+  const cancelSrc = codeOf(G_CANCEL);
+  if (!PUBLIC_WRITERS.some((p) => p.file === G_CANCEL && p.kind === 'public')) guestFail(`${G_CANCEL} is not a listed PUBLIC writer with its reason and guards`);
+  if (exportedMethods(cancelSrc).map((m) => m.method).join(',') !== 'GET,POST') guestFail(`${G_CANCEL} exports [${exportedMethods(cancelSrc).map((m) => m.method).join(', ')}] — the quote (GET) and the cancel (POST) only`);
+  if (PUBLIC_WRITERS.filter((p) => p.file.startsWith('src/app/api/guest/')).map((p) => p.file).join(',') !== G_CANCEL) guestFail('the public writers under /api/guest are not exactly the cancel');
+  if (PUBLIC_WRITERS.length !== SEC02_PINNED.publicWriters || SEC02_PINNED.publicWriters !== 12) guestFail(`the ownership law’s public writers are ${PUBLIC_WRITERS.length} (pinned ${SEC02_PINNED.publicWriters}) — the census is 12: GUEST-01’s 11 and the guest’s cancel`);
   if (!GUEST_ROUTES.some((g) => g.route === '/booking/manage')) guestFail('GUEST_ROUTES does not door /booking/manage');
   // THE DOOR (Alex's ruling 17:04): the lookup under the home page's booking section, not a header link.
   if (/booking\/manage/.test(codeOf('src/components/landing/LandingHeader.tsx'))) guestFail('LandingHeader.tsx links /booking/manage — the door is the home page\u2019s lookup, not the header');
@@ -9584,7 +9719,108 @@ for (const f of [G_LEAF, G_DECISION, ...G_ROUTES, G_PAGE, G_RENDERER, G_LOOKUP])
   if ((notes.match(/GUEST-01 \(2026-09-29\): re-pinned/g) ?? []).length !== 2) guestFail('src/lib/travelBookingFlow.ts carries other than two GUEST-01 re-pin notes — the two book routes');
 }
 
-if (guestViolations === 0) console.log(`✔ The guest booking law passed — one guest key (HMAC-SHA256(JWT_SECRET, ts-guest:v1), in cookie-auth.ts only) under which every 8-character code and one-hour session is made; the lookup counts the IP and then the reference before any read, reads guest rows only, compares every row and a dummy in constant time, and answers every failure the one 404; the booking verifies its session first, reads that reservation alone and answers the vendor’s side only, never cached; ${G_ROUTES.length} routes under /api/guest, none a writer; the door is the one lookup box under the home page\u2019s booking section; the code travels only in the three emails, for a guest row alone; both book routes re-pinned, dated.`);
+// 7. GUEST-02 (2026-09-30): a guest cancels the one booking their session opened.
+{
+  // A generic function (`NAME<T>(`) is sliced from its head to the next top-level export —
+  // functionBody reads `NAME(` only.
+  const fnFrom = (src: string, head: string) => { const a = src.indexOf(head); if (a < 0) return ''; const b = src.indexOf('\nexport ', a + head.length); return src.slice(a, b < 0 ? undefined : b); };
+  // 7.1 THE GATE — in the decision: the session, the IP, the two limits, then the read.
+  const d = codeOf(G_DECISION);
+  const gate = fnFrom(d, 'export async function guestCancelGate<Row>(');
+  const at = (needle: string) => gate.indexOf(needle);
+  const order = [
+    at('const reservationId = verifyGuestSession(input.key, input.cookie, input.now);'),
+    at('if (reservationId === null) return { status: 401, error: GUEST_WORDS.sessionEnded };'),
+    at('if (input.ip === null || input.ip.length === 0) return { status: 404, error: GUEST_WORDS.notOpened };'),
+    at('await ports.limit(`guest-cancel-ip:${input.ip}`, GUEST_CANCEL_LIMITS.ip.limit, GUEST_CANCEL_LIMITS.ip.windowSeconds);'),
+    at('await ports.limit(`guest-cancel:${reservationId}`, GUEST_CANCEL_LIMITS.reservation.limit, GUEST_CANCEL_LIMITS.reservation.windowSeconds);'),
+    at('const row = await ports.reservation(reservationId);'),
+    at('if (row === null) return { status: 404, error: GUEST_WORDS.notOpened };'),
+    at('return { status: 200, ip: input.ip, row };'),
+  ];
+  if (order.some((i) => i < 0) || order.some((i, n) => n > 0 && i <= order[n - 1])) guestFail(`${G_DECISION}: guestCancelGate is not session → 401 → IP → the IP limit → the reservation limit → the read → 404 → the row (${order.join(', ')})`);
+  if ((gate.match(/await ports\.limit\(/g) ?? []).length !== 2 || (gate.match(/await ports\.reservation\(/g) ?? []).length !== 1) guestFail(`${G_DECISION}: guestCancelGate counts or reads other than the two limits and the one row`);
+  if (GUEST_CANCEL_LIMITS.ip.limit !== 10 || GUEST_CANCEL_LIMITS.ip.windowSeconds !== 900 || GUEST_CANCEL_LIMITS.reservation.limit !== 5 || GUEST_CANCEL_LIMITS.reservation.windowSeconds !== 900) guestFail(`the cancel limits are ${JSON.stringify(GUEST_CANCEL_LIMITS)} — 10 per IP, then 5 per reservation, per 900 s`);
+  if (/cancelFlow|CANCEL_ROW_SELECT/.test(d)) guestFail(`${G_DECISION} knows the cancel flow — the gate\u2019s row type is its caller\u2019s`);
+  const route = codeOf(G_CANCEL);
+  if (!route.includes("where: { id, bookingType: 'guest', userId: null, provider: { in: ['liteapi', 'duffel'] } },")) guestFail(`${G_CANCEL}: the gate\u2019s read is not { id, bookingType guest, userId null, provider liteapi | duffel }`);
+  // 7.2 THE ROUTE — the IP as the lookup reads it, the gate before every flow call, the guest's caller, never cached.
+  if (!/const ip = request\.headers\.get\('x-forwarded-for'\)\?\.split\(','\)\[0\]\?\.trim\(\) \|\| request\.headers\.get\('x-real-ip'\) \|\| null;/.test(route) || /\x27unknown\x27/.test(route)) guestFail(`${G_CANCEL} does not read the IP as the lookup reads it (no unknown bucket)`);
+  if (!route.includes('cookie: request.cookies.get(GUEST_COOKIE)?.value ?? null,') || !route.includes('key: guestKey(),') || !route.includes('now: Math.floor(Date.now() / 1000),')) guestFail(`${G_CANCEL} does not hand the gate the guestBooking cookie, guestKey() and the time in whole seconds`);
+  for (const [verb, entry] of [['GET', 'quoteCancellation'], ['POST', 'cancelReservation']] as const) {
+    const body = functionBody(route, verb) ?? '';
+    const gateAt = body.indexOf('const g = await guestGate(request);\n    if (!g.ok) return g.response;');
+    const callerAt = body.indexOf('const caller: CancelCaller = { actor: humanActor(null, g.ip), accountEmail: null };');
+    const callAt = body.indexOf(`return noStore(await ${entry}(g.row, caller));`);
+    if (!(gateAt >= 0 && callerAt > gateAt && callAt > callerAt) || (body.match(new RegExp(`\\b${entry}\\(`, 'g')) ?? []).length !== 1) guestFail(`${G_CANCEL}: ${verb} does not run the gate, then build the guest\u2019s caller, then hand ${entry} the gate\u2019s row — once, never cached`);
+  }
+  const answers = (route.match(/NextResponse\.json\(/g) ?? []).length;
+  const noStored = (route.match(/headers: NO_STORE \}|headers: \{ \.\.\.NO_STORE, 'Retry-After': String\(answer\.retryAfterSeconds\) \}/g) ?? []).length;
+  if (answers === 0 || answers !== noStored || !route.includes("const NO_STORE = { 'Cache-Control': 'no-store' };") || !route.includes("res.headers.set('Cache-Control', 'no-store');")) guestFail(`${G_CANCEL}: an answer can be cached — every answer carries Cache-Control no-store (${noStored} of ${answers}, and the flow\u2019s through noStore)`);
+  const logs = [...route.matchAll(/console\.\w+\(([^;]*)\);/g)].map((m) => m[1]);
+  if (logs.join(' | ') !== "'[Guest cancel quote] request error:', error | '[Guest cancel] request error:', error") guestFail(`${G_CANCEL} logs [${logs.join(' | ')}] — the two named errors only; the cookie is never logged`);
+  const routeNotes = commentsOf(G_CANCEL);
+  if (!/^\/\/ GUEST-02 \(2026-09-30\)/.test(routeNotes.trimStart()) || !routeNotes.includes('PUBLIC') || !routeNotes.includes('why that\n// is safe to be')) guestFail(`${G_CANCEL}: its first lines do not say why it is safe to be public`);
+  // 7.3 THE OFFER — probed.
+  const base = { id: 'res_o', lane: 'hotel', displayName: 'Sample Hotel', providerBookingId: 'G1', providerConfirmationCode: null, status: 'confirmed', createdAt: '2026-09-20T10:00:00.000Z', checkinDate: '2026-10-01', checkoutDate: '2026-10-03', arrival_id: null, provider: 'liteapi', cancellationPolicyJson: { refundableTag: 'RFN' } };
+  const hotelOffer = guestCancelOffer(base);
+  if (JSON.stringify(hotelOffer) !== JSON.stringify({ lane: 'hotel', policy: { refundableTag: 'RFN' }, checkIn: '2026-10-01', checkOut: '2026-10-03' })) guestFail(`a confirmed LiteAPI hotel is not offered with its lane, stored terms and dates (${JSON.stringify(hotelOffer)})`);
+  if (guestCancelOffer({ ...base, lane: 'flight', checkinDate: null, checkoutDate: null, cancellationPolicyJson: null })?.lane !== 'flight') guestFail('a confirmed LiteAPI flight is not offered');
+  for (const [what, row] of [['cancelled', { ...base, status: 'cancelled' }], ['cancel_pending', { ...base, status: 'cancel_pending' }], ['pending', { ...base, status: 'pending' }], ['an activity', { ...base, lane: 'activity' }], ['Duffel', { ...base, provider: 'duffel' }], ['Viator', { ...base, provider: 'viator', lane: 'activity' }]] as const) {
+    if (guestCancelOffer(row) !== null) guestFail(`${what} is offered Cancel — the offer is a confirmed LiteAPI hotel or flight only`);
+  }
+  // 7.4 THE PAGE — the control only from the offer, the one dialog with the guest's URL, the guest's POST.
+  const page = codeOf(G_PAGE);
+  const offerAt = page.indexOf('{view.cancel && (');
+  const controlAt = page.indexOf('data-guest-cancel>');
+  if (offerAt < 0 || controlAt < offerAt || (page.match(/data-guest-cancel>/g) ?? []).length !== 1 || !/\{view\.cancel && \(\s*<button type="button" onClick=\{\(\) => setCancelOpen\(true\)\}/.test(page)) guestFail(`${G_PAGE}: the Cancel control is not drawn only from the offer`);
+  if ((page.match(/<CancelBookingDialog\b/g) ?? []).length !== 1 || !page.includes('{cancelOpen && view.cancel && (') || !page.includes('quoteUrl="/api/guest/booking/cancel"') || !page.includes("import CancelBookingDialog from '@/components/trips/CancelBookingDialog';")) guestFail(`${G_PAGE} does not open the one cancel dialog with the guest\u2019s quote URL, from the offer`);
+  for (const prop of ['lane={view.cancel.lane}', 'bookingName={view.receipt.header.name}', 'checkIn={view.cancel.checkIn}', 'checkOut={view.cancel.checkOut}', 'policy={view.cancel.policy}']) if (!page.includes(prop)) guestFail(`${G_PAGE} does not hand the dialog ${prop}`);
+  if ((page.match(/fetch\('\/api\/guest\/booking\/cancel', \{ method: 'POST' \}\)/g) ?? []).length !== 1) guestFail(`${G_PAGE} does not post the cancel to the guest\u2019s route, once`);
+  for (const line of ['Your booking is cancelled.', 'Your cancellation request is with the airline — the booking stays confirmed until it answers.', 'We emailed the confirmation to the address on this booking.', 'No confirmation email was sent — print or save this page as your record.']) if (!page.includes(`'${line}'`)) guestFail(`${G_PAGE} lost the line "${line}"`);
+  const dialogMounts = srcFiles.filter((f) => /<CancelBookingDialog\b/.test(f.src)).map((f) => f.file).sort();
+  if (dialogMounts.join(',') !== [G_PAGE, 'src/components/trips/TripBookings.tsx', 'src/components/trips/UnattachedBookings.tsx'].sort().join(',')) guestFail(`the cancel dialog is mounted by [${dialogMounts.join(', ')}] — the two lists and the guest\u2019s page, one dialog`);
+  if (!codeOf(G_DIALOG).includes('const res = await fetch(quoteUrl);')) guestFail(`${G_DIALOG} does not read its quote from the caller\u2019s quoteUrl`);
+  // 7.5 THE OWNER — the landing's guest_ref, and the flow's email block, probed through the template.
+  const landing = fnFrom(codeOf('src/lib/arrivals/liteapiBooking.ts'), 'export async function landLiteApiCancellation<P, R>(');
+  if (!landing.includes('const guestRef = input.userId === null ? bookingGuestRef(input.bookingId) : null;') || (landing.match(/\n    guestRef,\n/g) ?? []).length !== 2 || /guestRef: null/.test(landing)) guestFail('src/lib/arrivals/liteapiBooking.ts: the cancellation landing does not name its owner — guest_ref booking:<id> for a guest row (userId null), null for an account\u2019s, in both the response and the object');
+  const flow = codeOf(G_FLOW);
+  if (!flow.includes('const guestManage = guestManageFor(owned);') || !flow.includes('manageUrl: guestManage ? null : manageUrl(owned.id),') || !/\n      guestManage,\n/.test(flow) || !flow.includes("import { guestManageFor } from '@/lib/reservations/lifecycleSend';")) guestFail(`${G_FLOW}: the cancellation email does not hand guestManageFor’s block, dropping "See this booking" for a guest`);
+  const gm = { reference: 'bk_G2', code: 'ABCD2345', url: 'https://www.templestuart.com/booking/manage?ref=bk_G2' };
+  const common = { name: 'Hotel Temple', lane: 'hotel' as const, reference: 'bk_G2', checkinDate: '2026-10-01', checkoutDate: '2026-10-03' };
+  const facts = { refund: { amountCents: null, currency: null }, fee: { amountCents: null, currency: null }, destination: null, vouchers: [], providerStatus: 'CANCELLED' };
+  for (const [what, guest, account] of [
+    ['cancelled', lifecycleEmail({ kind: 'cancelled', ...common, ...facts, manageUrl: null, guestManage: gm }), lifecycleEmail({ kind: 'cancelled', ...common, ...facts, manageUrl: 'https://www.templestuart.com/travel' })],
+    ['cancel_pending', lifecycleEmail({ kind: 'cancel_pending', ...common, lane: 'flight', manageUrl: null, guestManage: gm }), lifecycleEmail({ kind: 'cancel_pending', ...common, lane: 'flight', manageUrl: 'https://www.templestuart.com/travel' })],
+  ] as const) {
+    if (!guest.text.includes('Manage code: ABCD-2345') || !guest.html.includes('data-guest-manage') || guest.text.includes('See this booking')) guestFail(`the ${what} email for a guest does not carry the block in place of "See this booking"`);
+    if (/Manage code|data-guest-manage/.test(account.text + account.html) || !account.text.includes('See this booking')) guestFail(`the ${what} email for an account carries the block, or lost "See this booking"`);
+  }
+  // 7.6 THE PINS — five re-pinned, two pinned new, under dated GUEST-02 notes.
+  const pins = codeOf('src/lib/travelBookingFlow.ts');
+  const notes = commentsOf('src/lib/travelBookingFlow.ts');
+  const repinned: Record<string, string> = {
+    'src/app/api/reservations/[id]/cancel/route.ts': 'b3c8bad8121ece5e4aa0413d3e340290ac71773e2a73da8632efa888635350b5',
+    'src/lib/arrivals/liteapiBooking.ts': '7f3624eb31305dcd65f6a4be92a9c3a5e9682d8f5a0ff5ae5bc1528af051e7fb',
+    'src/components/trips/CancelBookingDialog.tsx': 'b8df9e669084d61c4d92c352dbd6f6b8870db9d3499b111dd9042babae6fca02',
+    'src/components/trips/TripBookings.tsx': '603ec077eb2bf3fdd47672afdf842405c71c304fe01336fd764d9effd22f3e08',
+    'src/components/trips/UnattachedBookings.tsx': '9acd17f2c336eba34f91d431cb4ab640e99d6348204c968cfaaf9b7219eb0b4e',
+  };
+  const pinnedNew = [G_FLOW, G_CANCEL];
+  for (const pin of BOOKING_FLOW_FILES) {
+    const pinAt = pins.indexOf(`{ file: '${pin.file}', sha256: '`);
+    const above = noteBlockOver(pins, notes, pins.slice(0, pinAt).split('\n').length);
+    if (repinned[pin.file]) {
+      if (!new RegExp(`GUEST-02 \\(2026-09-30\\): re-pinned — [^\\n]+\\n[^\\n]*Was ${repinned[pin.file]} at main 6e71ad0d\\.`).test(above)) guestFail(`${pin.file}’s pin does not sit under a dated GUEST-02 note with the hash it had on main 6e71ad0d`);
+    } else if (pinnedNew.includes(pin.file)) {
+      if (!/GUEST-02 \(2026-09-30\): pinned — [^\n]+$/.test(above)) guestFail(`${pin.file}’s pin does not sit under a dated GUEST-02 note saying why it is pinned`);
+    } else if (/GUEST-02/.test(above)) guestFail(`${pin.file} carries a GUEST-02 note — GUEST-02 re-pinned five files, pinned two, and nothing else`);
+  }
+  for (const f of [...Object.keys(repinned), ...pinnedNew]) if (!BOOKING_FLOW_FILES.some((p) => p.file === f)) guestFail(`${f} is not pinned`);
+  if ((notes.match(/GUEST-02 \(2026-09-30\): re-pinned/g) ?? []).length !== 5 || (notes.match(/GUEST-02 \(2026-09-30\): pinned/g) ?? []).length !== 2) guestFail('src/lib/travelBookingFlow.ts carries other than five GUEST-02 re-pin notes and two GUEST-02 pin notes');
+}
+
+if (guestViolations === 0) console.log(`✔ The guest booking law passed — one guest key (HMAC-SHA256(JWT_SECRET, ts-guest:v1), in cookie-auth.ts only) under which every 8-character code and one-hour session is made; the lookup counts the IP and then the reference before any read, reads guest rows only, compares every row and a dummy in constant time, and answers every failure the one 404; the booking verifies its session first, reads that reservation alone and answers the vendor’s side only, never cached; ${G_ROUTES.length} GUEST-01 routes under /api/guest, none a writer, and GUEST-02’s cancel the one public writer (${G_ROUTES.length + 1} route files); the door is the one lookup box under the home page\u2019s booking section; the code travels only in the three emails, for a guest row alone; both book routes re-pinned, dated. GUEST-02: a guest cancels the one booking their session opened — the session, the IP, 10 per IP and 5 per reservation in the cancel’s own buckets, then the row read again as still a guest’s, then the ONE cancel flow under the guest’s caller, never cached; offered only on a confirmed LiteAPI hotel or flight (probed); the page opens the one dialog with the guest’s URL; the landing names its owner and the email carries the block; five re-pins and two pins, dated.`);
 else console.log(`✖ The guest booking law FAILED — ${guestViolations} violation(s).`);
 });
 

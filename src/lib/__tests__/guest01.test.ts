@@ -264,7 +264,8 @@ test('T2 the lookup route: the IP as signup reads it with no unknown bucket; the
 
 // ── T3. the booking ──────────────────────────────────────────────────────────
 
-const GUEST_ROW: GuestReservationRow = { id: ID_A, lane: 'hotel', displayName: 'Sample Hotel', providerBookingId: 'ABC123', providerConfirmationCode: 'HOTEL123', status: 'confirmed', createdAt: '2026-09-20T10:00:00.000Z', checkinDate: '2025-01-01', checkoutDate: '2025-01-02', arrival_id: 'arr_book_h' };
+// GUEST-02 (2026-09-30): the row also carries the two reads the cancel offer makes.
+const GUEST_ROW: GuestReservationRow = { id: ID_A, lane: 'hotel', displayName: 'Sample Hotel', providerBookingId: 'ABC123', providerConfirmationCode: 'HOTEL123', status: 'confirmed', createdAt: '2026-09-20T10:00:00.000Z', checkinDate: '2025-01-01', checkoutDate: '2025-01-02', arrival_id: 'arr_book_h', provider: 'liteapi', cancellationPolicyJson: null };
 
 function booking(row: GuestReservationRow | null) {
   const calls: string[] = [];
@@ -318,7 +319,8 @@ test('T3 the booking route: GET only; every read fenced to the guest and the ses
   assert.ok(src.includes('cookie: request.cookies.get(GUEST_COOKIE)?.value ?? null,'));
   assert.ok(src.includes('key: guestKey(),'));
   assert.ok(src.includes("const NO_STORE = { 'Cache-Control': 'no-store' };"));
-  assert.ok(src.includes('return NextResponse.json({ receipt: answer.receipt }, { headers: NO_STORE });'));
+  // GUEST-02 (2026-09-30): beside the receipt, unchanged, the cancel offer.
+  assert.ok(src.includes('return NextResponse.json({ receipt: answer.receipt, cancel: answer.cancel }, { headers: NO_STORE });'));
   assert.ok(src.includes('status: answer.status, headers: NO_STORE'));
   assert.doesNotMatch(src, /settle|transaction|journal|ledger|commission|timeline|\.(create|update|upsert|delete)\w*\s*\(/i);
 });

@@ -17,22 +17,24 @@
  */
 import type { Seed } from '../prove';
 
-const ROUTE = 'src/app/api/reservations/[id]/cancel/route.ts';
+// GUEST-02 (2026-09-30): the lanes and the sender moved word for word into the one cancel flow;
+// the seeds that broke them follow them there (the hotel send hands the caller's account email).
+const FLOW = 'src/lib/reservations/cancelFlow.ts';
 const LEAF = 'src/lib/reservations/cancellation.ts';
 
 const SEEDS: Seed[] = [
   {
     name: 'cancel02-a the hotel cancel stops emailing (clause 6)',
-    file: ROUTE,
-    find: "  const emailStatus = await sendCancellationEmail(owned, accountEmail, { kind: 'cancelled', moneyEvents, vouchers: [], providerStatus: landed.parsed.status });",
+    file: FLOW,
+    find: "  const emailStatus = await sendCancellationEmail(owned, caller.accountEmail, { kind: 'cancelled', moneyEvents, vouchers: [], providerStatus: landed.parsed.status });",
     replace: "  const emailStatus = { sent: false as const, error: 'not sent' };",
     expect: 'the hotel cancel does not email the customer AFTER the transaction commits',
   },
   {
     name: 'cancel02-b the flight cancel emails before the transaction commits (clause 6)',
-    file: ROUTE,
+    file: FLOW,
     find: "  // ─── Land, then persist — ONE transaction ────────────────────────────────\n  // The answer lands as an arrival (liteapi · cancellation, composed id), and",
-    replace: "  await sendCancellationEmail(owned, accountEmail, { kind: 'cancel_pending' });\n  // ─── Land, then persist — ONE transaction ────────────────────────────────\n  // The answer lands as an arrival (liteapi · cancellation, composed id), and",
+    replace: "  await sendCancellationEmail(owned, caller.accountEmail, { kind: 'cancel_pending' });\n  // ─── Land, then persist — ONE transaction ────────────────────────────────\n  // The answer lands as an arrival (liteapi · cancellation, composed id), and",
     expect: 'the flight cancel does not email the customer AFTER the transaction commits',
   },
   {
@@ -44,14 +46,14 @@ const SEEDS: Seed[] = [
   },
   {
     name: 'cancel02-d an email failure fails the cancel (clause 6)',
-    file: ROUTE,
+    file: FLOW,
     find: '    return { sent: false, error: errorClass };\n  }\n}',
     replace: '    throw emailErr;\n  }\n}',
     expect: 'an email failure would fail the cancel',
   },
   {
     name: 'cancel02-e the figures come from the answer instead of the rows (clause 6)',
-    file: ROUTE,
+    file: FLOW,
     find: "      ? lifecycleEmail({ kind: 'cancelled', ...common, ...cancellationEmailFacts(outcome.moneyEvents, outcome.vouchers), providerStatus: outcome.providerStatus })",
     replace: "      ? lifecycleEmail({ kind: 'cancelled', ...common, refund: { amountCents: null, currency: null }, fee: { amountCents: null, currency: null }, destination: null, vouchers: [], providerStatus: outcome.providerStatus })",
     expect: 'the email figures are not read from the rows',

@@ -516,7 +516,8 @@ test('no default status word anywhere in src; the two lane leaves are the only f
   const VENDOR = /=== '(CONFIRMED|CANCELED|CANCELLED|CANCELLED_WITH_CHARGES|TICKETED|CREATED|PENDING_CONFIRMATION|PENDING|FAILED|EXPIRED)'/;
   const mappers = files.filter((f) => { const c = code(f); return VENDOR.test(c) && OUR.test(c); }).sort();
   assert.deepEqual(mappers, [HOTEL_LEAF, FLIGHT_LEAF].sort());
-  for (const f of [HOTEL_BOOK, FLIGHT_BOOK, REFRESH, APPLY, READ_LEAF, WEBHOOK_ROUTE, CRON_ROUTE, 'src/app/api/reservations/[id]/cancel/route.ts']) {
+  // GUEST-02 (2026-09-30): the cancel moved into the one flow, which the guest's gate calls too.
+  for (const f of [HOTEL_BOOK, FLIGHT_BOOK, REFRESH, APPLY, READ_LEAF, WEBHOOK_ROUTE, CRON_ROUTE, 'src/app/api/reservations/[id]/cancel/route.ts', 'src/lib/reservations/cancelFlow.ts', 'src/app/api/guest/booking/cancel/route.ts']) {
     assert.ok(!VENDOR.test(code(f)), `${f} compares no vendor status word`);
   }
 });

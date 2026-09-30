@@ -152,8 +152,9 @@ const SEEDS: Seed[] = [
   {
     name: 'guest01-q the booking is read with no session check',
     file: DECISION,
-    find: '  if (reservationId === null) return { status: 401, error: GUEST_WORDS.sessionEnded };\n',
-    replace: '',
+    // GUEST-02 (2026-09-30): the guest's cancel gate verifies the same way; the anchor names the booking's read.
+    find: '  if (reservationId === null) return { status: 401, error: GUEST_WORDS.sessionEnded };\n  const reservation = await ports.reservation(reservationId);\n',
+    replace: '  const reservation = await ports.reservation(reservationId);\n',
     expect: 'the session is not verified before any read',
   },
   {
@@ -173,8 +174,8 @@ const SEEDS: Seed[] = [
   {
     name: 'guest01-t the booking answer may be cached',
     file: BOOKING,
-    find: 'return NextResponse.json({ receipt: answer.receipt }, { headers: NO_STORE });',
-    replace: 'return NextResponse.json({ receipt: answer.receipt });',
+    find: 'return NextResponse.json({ receipt: answer.receipt, cancel: answer.cancel }, { headers: NO_STORE });',
+    replace: 'return NextResponse.json({ receipt: answer.receipt, cancel: answer.cancel });',
     expect: 'lost the answer, never cached',
   },
   {

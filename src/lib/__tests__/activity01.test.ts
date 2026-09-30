@@ -294,5 +294,5 @@ test('the pin holds, dated: six files re-dated by ACTIVITY-01 with the hash they
   assert.ok(!BOOKING_FLOW_FILES.some((p) => p.file === 'src/app/api/trips/[id]/vendor-commit/route.ts'));
   // LEGACY-DEL-01 (2026-09-29): 51 less the four pins that left with the legacy planner's deleted files — the travel law holds each deleted.
   // LEGACY-DEL-02 (2026-09-30): 47 less HotelPicker's pin, which left with the file — the travel law holds it deleted.
-  assert.equal(BOOKING_FLOW_FILES.length, 46, 'the census grew by the options route (STEP 4) and by TRAVEL-ROW-01\'s RowActionStrip.tsx, and shrank only by the four deleted pins (LEGACY-DEL-01) and HotelPicker\'s (LEGACY-DEL-02)');
+  assert.equal(BOOKING_FLOW_FILES.length, 48, 'the census grew by the options route (STEP 4), by TRAVEL-ROW-01\'s RowActionStrip.tsx and by GUEST-02\'s cancel flow and guest cancel route, and shrank only by the four deleted pins (LEGACY-DEL-01) and HotelPicker\'s (LEGACY-DEL-02)');
 });
