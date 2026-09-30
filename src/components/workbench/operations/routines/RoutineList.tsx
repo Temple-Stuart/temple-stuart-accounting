@@ -1,10 +1,13 @@
 /**
- * RoutineList — cadence-grouped list of routines + inline create form.
+ * RoutineList — the routines as ONE table + inline create form.
  *
  * Self-fetches via GET /api/operations/routines on mount. Filters to
  * is_active=true by default with a "show inactive" toggle.
  *
- * Renders rows grouped by classifyCadence(schedule_rrule):
+ * ROUTINES-01: one table — Routine · Where · Activity · When · Minutes ·
+ * Amount · Account, and a last column for each row's controls. Every line of
+ * every routine is on screen at once; nothing collapses. The cadence groups
+ * (classifyCadence(schedule_rrule)) are full-width label rows, in order:
  *   Once (ONEOFF-01) / Daily / Weekly / Monthly / Quarterly / Yearly / Custom
  *
  * "+ new routine" button opens an inline create form using the same
@@ -13,22 +16,19 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import RoutineRow from './RoutineRow';
 import RoutineCreateForm from './RoutineCreateForm';
+import { ROUTINE_TABLE_COLUMNS } from './RoutineStepList';
 import type { CadenceGroup, Routine } from './types';
 import { CADENCE_GROUP_LABELS, CADENCE_GROUP_ORDER } from './types';
-import type { Scene, Take } from '../content/ContentTable';
+import type { Entity } from '../EntitySelector';
 import { SETUP_DOOR } from '@/lib/entities/kinds';
 import { isOnceRRule } from '@/lib/operations/rruleHelpers';
 
 
-interface Entity {
-  id: string;
-  name: string;
-}
-
 interface Props {
+  /** The tab's entity list (useOperationsEntity) — each code is drawn against its book. */
   entities: Entity[];
   onCommitted?: () => void;
   /** TASKS-01: a change of this value refetches the list — the parent bumps it
@@ -81,33 +81,6 @@ export default function RoutineList({ entities, onCommitted, refreshKey = 0, cre
   const refresh = () => {
     fetchRoutines();
     onCommitted?.();
-  };
-
-  // Optimistic update — a successful scenify POST adds the content_scene_group
-  // relation to the routine so the 🎬 badge appears without a refetch.
-  const handleScenify = (newScene: Scene) => {
-    setRoutines((prev) =>
-      prev.map((r) =>
-        r.id === newScene.routine_id
-          ? { ...r, content_scene_group: { id: newScene.id } }
-          : r
-      )
-    );
-  };
-
-  // Optimistic update — a successful take-ify POST adds the content_scene
-  // relation to the matching step so its 🎬 badge appears without a refetch.
-  const handleTakeify = (newTake: Take) => {
-    setRoutines((prev) =>
-      prev.map((r) => ({
-        ...r,
-        steps: r.steps.map((s) =>
-          s.id === newTake.routine_step_id
-            ? { ...s, content_scene: { id: newTake.id } }
-            : s
-        ),
-      }))
-    );
   };
 
   const startCreate = () => {
@@ -217,16 +190,32 @@ export default function RoutineList({ entities, onCommitted, refreshKey = 0, cre
           no routines yet — click "+ new routine" to create your first one. Bridgewater's Principles operationalize through cadence; this is where you set yours.
         </div>
       ) : (
-        <div className="space-y-3">
-          {CADENCE_GROUP_ORDER.map((g) => {
-            const items = grouped.get(g);
-            if (!items || items.length === 0) return null;
-            return (
-              <div key={g}>
-                <div className="text-xs text-text-faint uppercase tracking-wide mb-1">
-                  {CADENCE_GROUP_LABELS[g]} ({items.length})
-                </div>
-                <div className="space-y-1.5">
+        <div className="overflow-x-auto border border-border rounded bg-white">
+          <table className="w-full min-w-[56rem] border-collapse text-xs" data-routines-table>
+            <thead>
+              <tr className="text-left text-text-faint uppercase tracking-wide">
+                <th className="px-2 py-1.5 font-normal">Routine</th>
+                <th className="px-2 py-1.5 font-normal">Where</th>
+                <th className="px-2 py-1.5 font-normal">Activity</th>
+                <th className="px-2 py-1.5 font-normal">When</th>
+                <th className="px-2 py-1.5 font-normal">Minutes</th>
+                <th className="px-2 py-1.5 font-normal">Amount</th>
+                <th className="px-2 py-1.5 font-normal">Account</th>
+                <th className="px-2 py-1.5 font-normal"><span className="sr-only">controls</span></th>
+              </tr>
+            </thead>
+            {CADENCE_GROUP_ORDER.map((g) => {
+              const items = grouped.get(g);
+              if (!items || items.length === 0) return null;
+              return (
+                <Fragment key={g}>
+                  <tbody>
+                    <tr data-cadence-group={g}>
+                      <td colSpan={ROUTINE_TABLE_COLUMNS} className="px-2 py-1 border-t border-border bg-bg-row text-xs text-text-faint uppercase tracking-wide">
+                        {CADENCE_GROUP_LABELS[g]} ({items.length})
+                      </td>
+                    </tr>
+                  </tbody>
                   {items.map((r) => (
                     <RoutineRow
                       key={r.id}
@@ -234,14 +223,12 @@ export default function RoutineList({ entities, onCommitted, refreshKey = 0, cre
                       entities={entities}
                       onUpdate={refresh}
                       onDelete={refresh}
-                      onScenify={handleScenify}
-                      onTakeify={handleTakeify}
                     />
                   ))}
-                </div>
-              </div>
-            );
-          })}
+                </Fragment>
+              );
+            })}
+          </table>
         </div>
       )}
     </div>

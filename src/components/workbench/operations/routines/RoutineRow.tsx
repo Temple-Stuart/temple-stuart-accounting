@@ -1,45 +1,39 @@
 /**
- * RoutineRow — single routine in the cadence-grouped list.
+ * RoutineRow — one routine in the routines table (RoutineList).
  *
- * Three modes (mirrors ProjectRow's pattern at routine scale):
- *   1. Compact: name + cadence-group pill + the planned figure + next-due
- *   2. Expanded: + description + ideal time + last completed + delete
- *   3. Edit: full RRULEBuilder + name/description fields
- *
- * Click row body → toggle expand. "edit" → swap to edit mode. "deactivate"/
- * "reactivate" pill toggles is_active via PATCH. Audit trail shows the
- * discrimination (deactivated as its own action_type; reactivated as
- * generic _updated with metadata.activation_toggle='reactivated').
+ * ROUTINES-01: a routine is rows, not a card. Its own cell spans its lines'
+ * rows (RoutineStepList) and holds the name, the description, the book, the
+ * small print (time window, time zone, next due, active dates, fail threshold),
+ * the figure per occurrence from the lines leaf, its place, "last done", and
+ * its controls: edit · deactivate/reactivate · delete · + line. Nothing
+ * collapses. "edit" opens the edit form as a full-width row directly under the
+ * routine's rows. "deactivate"/"reactivate" toggles is_active via PATCH. Audit
+ * trail shows the discrimination (deactivated as its own action_type;
+ * reactivated as generic _updated with metadata.activation_toggle='reactivated').
  */
 
 'use client';
 
 import { useState } from 'react';
 import type { Routine, RoutineForm } from './types';
-import { DEFAULT_ROUTINE_FORM, formatBudgetPerOccurrence } from './types';
+import { DEFAULT_ROUTINE_FORM } from './types';
 import RRULEBuilder from './RRULEBuilder';
 import CoaSelect from './CoaSelect';
 import FindThisPlace from './FindThisPlace';
-import { RoutineStepList } from './RoutineStepList';
+import { AccountText, ROUTINE_TABLE_COLUMNS, RoutineStepList } from './RoutineStepList';
 import { ignoredLine, plannedLine, routinePlanned } from '@/lib/operations/routineLines';
 import { isOnceRRule } from '@/lib/operations/rruleHelpers';
+import { ACCOUNT_CELL_WORDS, accountCell } from '@/lib/coa/accountCell';
 import type { PlaceMatch } from '@/lib/calendar/findPlace';
-import ScenifyButton from '../content/ScenifyButton';
-import type { Scene, Take } from '../content/ContentTable';
+import type { Entity } from '../EntitySelector';
 
-
-interface Entity {
-  id: string;
-  name: string;
-}
 
 interface Props {
   routine: Routine;
+  /** The tab's entity list (useOperationsEntity) — the book's name and letter. */
   entities: Entity[];
   onUpdate: () => void;
   onDelete: () => void;
-  onScenify: (newScene: Scene) => void;
-  onTakeify: (newTake: Take) => void;
 }
 
 function routineToForm(r: Routine): RoutineForm {
@@ -110,10 +104,9 @@ function formatTime12h(hhmm: string): string {
   return `${h12}:${String(m || 0).padStart(2, '0')} ${ampm}`;
 }
 
-export default function RoutineRow({ routine, entities, onUpdate, onDelete, onScenify, onTakeify }: Props & { }) {
+export default function RoutineRow({ routine, entities, onUpdate, onDelete }: Props & { }) {
   // LINES-01: ONE leaf decides the routine's figure. Read here, rendered below.
   const planned = routinePlanned({ budget_amount: routine.budget_amount ?? null, coa_code: routine.coa_code ?? null, steps: routine.steps });
-  const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<RoutineForm>(() => routineToForm(routine));
   const [saving, setSaving] = useState(false);
@@ -217,405 +210,351 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
     'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
   const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
 
-  return (
-    <div
-      className={
-        'border rounded bg-white ' +
-        (routine.is_active ? 'border-border' : 'border-border-light opacity-60')
-      }
-    >
-      <div
-        className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-bg-row text-xs"
-        onClick={() => !editing && setExpanded((x) => !x)}
-      >
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <span className="text-text-faint">{expanded ? '▾' : '▸'}</span>
-          <span className="font-bold text-text-primary truncate">{routine.name}</span>
-          {!routine.is_active && (
-            <span className="px-2 py-0.5 border rounded text-xs bg-gray-100 text-gray-600 border-gray-300">
-              inactive
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-3 text-text-muted shrink-0">
-          {/* ROUTINES-UX-2: the routine's money renders — display of the
-              already-fetched budget_amount/coa_code (in scope since HB-4b for
-              edit pre-fill, never shown). Null budget → NOTHING renders
-              (absence is honest — no dashes); the COA micro-chip rides beside
-              the money cell only. Label lifted from the forms via title. */}
-          {/* LINES-01: the figure is the leaf's — the sum of the lines when any
-              carries an amount, else the routine-level pair. A lined routine
-              shows its coverage and NO single COA chip: it has one per line. */}
-          {planned.amount !== null && (
-            <>
-              <span
-                className="font-mono tabular-nums font-bold text-text-primary"
-                title={planned.from === 'lines' ? 'sum of the lines / occurrence' : 'budget / occurrence'}
-                data-routine-planned={planned.from}
-              >
-                {planned.from === 'lines' ? plannedLine(planned) : `${formatBudgetPerOccurrence(String(planned.amount))} / occurrence`}
-              </span>
-              {planned.coaCode && (
-                <span
-                  className="font-mono text-[10px] border border-border rounded px-1.5 py-0.5"
-                  title="COA"
-                >
-                  {planned.coaCode}
-                </span>
-              )}
-            </>
-          )}
-          {/* TASKS-01: no streak counter renders here — the columns and the
-              evaluator are untouched; the row shows what is planned and when. */}
-          <span title="next scheduled occurrence" data-routine-next-due>
-            next: {formatDateTime(routine.next_due_at, routine.timezone)}
+  // ROUTINES-01: the routine's own cell — the first cell of its first row,
+  // spanning every row of its lines (RoutineStepList draws them).
+  const book = entities.find((e) => e.id === routine.entity_id);
+  const routineCell = (rowSpan: number, addLine: (() => void) | null) => (
+    <td rowSpan={rowSpan} className="px-2 py-1.5 align-top border-t border-border-light w-64 min-w-[16rem]" data-routine-cell>
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="font-bold text-text-primary">{routine.name}</span>
+        {!routine.is_active && (
+          <span className="px-2 py-0.5 border rounded text-xs bg-gray-100 text-gray-600 border-gray-300">
+            inactive
           </span>
-          {(routine.start_date || routine.end_date) && (
-            <span className="text-xs text-text-muted" title="active date window">
-              {(() => {
-                const startStr = routine.start_date ? formatDate(routine.start_date) : null;
-                const endStr = routine.end_date ? formatDate(routine.end_date) : null;
-                if (startStr && endStr) return `active ${startStr} – ${endStr}`;
-                if (startStr) return `active from ${startStr}`;
-                if (endStr) return `active until ${endStr}`;
-                return '';
-              })()}
-            </span>
-          )}
-          {(routine.start_time || routine.end_time) && (
-            <span className="text-xs text-text-muted" title="intent time window">
-              {(() => {
-                const startStr = routine.start_time ? formatTime12h(routine.start_time.slice(11, 16)) : null;
-                const endStr = routine.end_time ? formatTime12h(routine.end_time.slice(11, 16)) : null;
-                if (startStr && endStr) return `${startStr} – ${endStr}`;
-                if (startStr) return `from ${startStr}`;
-                if (endStr) return `until ${endStr}`;
-                return '';
-              })()}
-            </span>
-          )}
-        </div>
+        )}
       </div>
-
-      {expanded && !editing && (
-        <div className="px-4 py-3 border-t border-border-light text-xs space-y-3">
-          {error && (
-            <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
-              {error}
-            </div>
+      {routine.description && (
+        <div className="text-text-secondary whitespace-pre-wrap">{routine.description}</div>
+      )}
+      <div className="text-text-muted" data-routine-book>{book ? book.name : ACCOUNT_CELL_WORDS.bookNotLoaded}</div>
+      <div className="mt-1 flex flex-wrap gap-x-2 text-[10px] text-text-muted" data-routine-small-print>
+        {(routine.start_time || routine.end_time) && (
+          <span title="intent time window">
+            {(() => {
+              const startStr = routine.start_time ? formatTime12h(routine.start_time.slice(11, 16)) : null;
+              const endStr = routine.end_time ? formatTime12h(routine.end_time.slice(11, 16)) : null;
+              if (startStr && endStr) return `${startStr} – ${endStr}`;
+              if (startStr) return `from ${startStr}`;
+              if (endStr) return `until ${endStr}`;
+              return '';
+            })()}
+          </span>
+        )}
+        <span title="time zone">{routine.timezone}</span>
+        {/* TASKS-01: no streak counter renders here — the columns and the
+            evaluator are untouched; the row shows what is planned and when. */}
+        <span title="next scheduled occurrence" data-routine-next-due>
+          next: {formatDateTime(routine.next_due_at, routine.timezone)}
+        </span>
+        {(routine.start_date || routine.end_date) && (
+          <span title="active date window">
+            {(() => {
+              const startStr = routine.start_date ? formatDate(routine.start_date) : null;
+              const endStr = routine.end_date ? formatDate(routine.end_date) : null;
+              if (startStr && endStr) return `active ${startStr} – ${endStr}`;
+              if (startStr) return `active from ${startStr}`;
+              if (endStr) return `active until ${endStr}`;
+              return '';
+            })()}
+          </span>
+        )}
+        <span title="fail threshold">fail threshold {routine.fail_threshold_minutes} min</span>
+      </div>
+      {/* LINES-01: the figure is the leaf's — the sum of the lines when any
+          carries an amount, else the routine-level pair. A lined routine shows
+          its coverage; the routine-level account rides beside the figure only
+          when that figure is the one in force. A routine with no lines draws
+          its own account in its row's Account cell. */}
+      {planned.amount !== null && (
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <span
+            className="font-mono tabular-nums font-bold text-text-primary"
+            title={planned.from === 'lines' ? 'sum of the lines / occurrence' : 'budget / occurrence'}
+            data-routine-planned={planned.from}
+          >
+            {plannedLine(planned)}
+          </span>
+          {planned.coaCode !== null && planned.lines.length > 0 && (
+            <span className="text-[10px]" title="COA" data-routine-planned-coa>
+              <AccountText cell={accountCell(entities, routine.entity_id, planned.coaCode)} />
+            </span>
           )}
-          {routine.description ? (
-            <div>
-              <div className={labelClass}>description</div>
-              <div className="text-text-primary whitespace-pre-wrap">{routine.description}</div>
-            </div>
-          ) : (
-            <div className="text-text-muted italic">no description</div>
-          )}
-
-          <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border-light">
-            <div>
-              <div className={labelClass}>schedule (rrule)</div>
-              <div className="text-text-primary font-mono break-all">{routine.schedule_rrule}</div>
-            </div>
-            <div>
-              <div className={labelClass}>timezone</div>
-              <div className="text-text-primary">{routine.timezone}</div>
-            </div>
-            <div>
-              <div className={labelClass}>fail threshold</div>
-              <div className="text-text-primary">{routine.fail_threshold_minutes} min</div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border-light">
-            <div>
-              <div className={labelClass}>last completed</div>
-              <div className="text-text-primary">{formatDateTime(routine.last_completed_at, routine.timezone)}</div>
-            </div>
-            <div>
-              <div className={labelClass}>last evaluated</div>
-              <div className="text-text-primary">{formatDateTime(routine.last_evaluated_at, routine.timezone)}</div>
-            </div>
-            <div>
-              <div className={labelClass}>ideal time</div>
-              <div className="text-text-primary">{routine.ideal_time_label ?? '—'}</div>
-            </div>
-          </div>
-
-          {/* ROUTINES-UX-2: budget + COA join the detail fields — the same
-              label + value idiom as their neighbors; a null field renders
-              nothing, and the whole block skips when both are null. */}
-          {(routine.budget_amount != null || !!routine.coa_code) && (
-            <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border-light">
-              {routine.budget_amount != null && (
-                <div>
-                  <div className={labelClass}>budget / occurrence</div>
-                  <div className="text-text-primary font-mono tabular-nums font-bold">
-                    {formatBudgetPerOccurrence(routine.budget_amount)}
-                  </div>
-                </div>
-              )}
-              {!!routine.coa_code && (
-                <div>
-                  <div className={labelClass}>COA</div>
-                  <div className="text-text-primary font-mono">{routine.coa_code}</div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ONEOFF-01: the routine's place, when it has one — the name and, with
-              both coordinates stored, the pin the day map plots. */}
-          {(routine.location || (routine.latitude != null && routine.longitude != null)) && (
-            <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border-light" data-routine-place-view>
-              <div>
-                <div className={labelClass}>place</div>
-                <div className="text-text-primary" data-routine-place-text>{routine.location ?? '—'}</div>
-              </div>
-              {routine.latitude != null && routine.longitude != null && (
-                <div>
-                  <div className={labelClass}>pin</div>
-                  <div className="text-text-primary font-mono" data-routine-pin>
-                    {Number(routine.latitude).toFixed(5)}, {Number(routine.longitude).toFixed(5)}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          <RoutineStepList routine={routine} onUpdate={onUpdate} onTakeify={onTakeify} />
-
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border-light">
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); enterEdit(); }}
-              className="px-2 py-1 border border-border rounded hover:bg-bg-row"
-            >
-              edit
-            </button>
-            <button
-              type="button"
-              onClick={handleToggleActive}
-              disabled={toggling}
-              className="px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
-            >
-              {toggling ? '…' : routine.is_active ? 'deactivate' : 'reactivate'}
-            </button>
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={deleting}
-              className="px-2 py-1 border border-red-300 text-red-700 rounded hover:bg-red-50 disabled:opacity-50"
-            >
-              {deleting ? 'deleting…' : 'delete'}
-            </button>
-            <ScenifyButton routine={routine} onScenify={onScenify} />
-          </div>
         </div>
       )}
+      {/* LINES-01: the routine-level figure is REPORTED as set aside when the
+          lines carry amounts — never silently ignored, never added. */}
+      {ignoredLine(planned) && (
+        <div className="mt-1 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-800" data-routine-ignored>
+          {ignoredLine(planned)}
+        </div>
+      )}
+      {/* ONEOFF-01: the routine's place, when it has one — the name and, with
+          both coordinates stored, the pin the day map plots. */}
+      {(routine.location || (routine.latitude != null && routine.longitude != null)) && (
+        <div className="mt-1 text-text-muted" data-routine-place-view>
+          <span data-routine-place-text>{routine.location ?? '—'}</span>
+          {routine.latitude != null && routine.longitude != null && (
+            <span className="ml-1 font-mono text-[10px]" data-routine-pin>
+              {Number(routine.latitude).toFixed(5)}, {Number(routine.longitude).toFixed(5)}
+            </span>
+          )}
+        </div>
+      )}
+      <div className="mt-1 text-text-muted" title="last completed" data-routine-last-done>
+        last done {formatDateTime(routine.last_completed_at, routine.timezone)}
+      </div>
+      {error && !editing && (
+        <div className="mt-1 px-2 py-1 rounded border bg-red-50 border-red-200 text-red-800" data-routine-error>
+          {error}
+        </div>
+      )}
+      <div className="mt-1.5 flex flex-wrap items-center gap-1">
+        <button
+          type="button"
+          onClick={enterEdit}
+          disabled={editing}
+          className="px-2 py-0.5 border border-border rounded hover:bg-bg-row disabled:opacity-50"
+        >
+          edit
+        </button>
+        <button
+          type="button"
+          onClick={handleToggleActive}
+          disabled={toggling}
+          className="px-2 py-0.5 border border-border rounded hover:bg-bg-row disabled:opacity-50"
+        >
+          {toggling ? '…' : routine.is_active ? 'deactivate' : 'reactivate'}
+        </button>
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={deleting}
+          className="px-2 py-0.5 border border-red-300 text-red-700 rounded hover:bg-red-50 disabled:opacity-50"
+        >
+          {deleting ? 'deleting…' : 'delete'}
+        </button>
+        <button
+          type="button"
+          onClick={() => addLine?.()}
+          disabled={addLine === null}
+          className="px-2 py-0.5 border border-border rounded hover:bg-bg-row disabled:opacity-50"
+          data-routine-add-line
+        >
+          + line
+        </button>
+      </div>
+    </td>
+  );
 
+  return (
+    <tbody className={'text-xs ' + (routine.is_active ? '' : 'opacity-60')} data-routine-rows={routine.id}>
+      <RoutineStepList routine={routine} entities={entities} onUpdate={onUpdate} routineCell={routineCell} />
+
+      {/* ROUTINES-01: the edit form is a full-width row directly under the
+          routine's rows — the same fields, prefilled by routineToForm. */}
       {editing && (
-        <div className="px-4 py-3 border-t border-border-light text-xs space-y-3">
-          {error && (
-            <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
-              {error}
-            </div>
-          )}
+        <tr data-routine-editing>
+          <td colSpan={ROUTINE_TABLE_COLUMNS} className="px-4 py-3 border-t border-border-light text-xs space-y-3 bg-bg-row">
+            {error && (
+              <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
+                {error}
+              </div>
+            )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
-              <div className={labelClass}>name</div>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className={inputClass}
-                maxLength={200}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <div className={labelClass}>name</div>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className={inputClass}
+                  maxLength={200}
+                />
+              </div>
+              <div className="col-span-2">
+                <div className={labelClass}>description</div>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  rows={2}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <div className={labelClass}>entity</div>
+                <select
+                  value={form.entity_id}
+                  onChange={(e) => setForm({ ...form, entity_id: e.target.value })}
+                  className={inputClass}
+                  disabled
+                  title="entity cannot be changed after creation"
+                >
+                  {entities.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div className="col-span-2">
-              <div className={labelClass}>description</div>
-              <textarea
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                rows={2}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <div className={labelClass}>entity</div>
-              <select
-                value={form.entity_id}
-                onChange={(e) => setForm({ ...form, entity_id: e.target.value })}
-                className={inputClass}
-                disabled
-                title="entity cannot be changed after creation"
-              >
-                {entities.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
 
-          {/* HB-4b: per-occurrence budget + COA (pre-filled from the routine; empty → null on save).
-              COA scoped to the routine's entity (entity is fixed after creation). */}
-          {/* ROUTINES-UX-1: the anchor pair gets the same strongest-cell
-              treatment as the create form (see RoutineCreateForm) — the
-              edit form is the other of the tab's two money renders. */}
-          {/* LINES-01: the routine-level figure is REPORTED as set aside when the
-              lines carry amounts — never silently ignored, never added. */}
-          {ignoredLine(planned) && (
-            <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800" data-routine-level-ignored>
-              {ignoredLine(planned)}
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <div className="font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs">budget / occurrence (optional)</div>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.budget_amount ?? ''}
-                onChange={(e) => setForm({ ...form, budget_amount: e.target.value })}
-                className={`${inputClass} font-mono tabular-nums font-bold`}
-                placeholder="e.g., 60"
-              />
-            </div>
-            <div>
-              <div className="font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs">COA (optional)</div>
-              <CoaSelect
-                entityId={form.entity_id}
-                value={form.coa_code ?? ''}
-                onChange={(code) => setForm({ ...form, coa_code: code })}
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          <RRULEBuilder form={form} setForm={setForm} />
-
-          {/* ONEOFF-01: a one-off has ONE date — the occurrence is counted from it. */}
-          {onceForm ? (
-            <div>
-              <div className={labelClass}>date</div>
-              <input
-                type="date"
-                value={form.start_date}
-                onChange={(e) => setForm({ ...form, start_date: e.target.value, end_date: e.target.value })}
-                className={inputClass}
-                required
-                data-routine-once-date
-              />
-            </div>
-          ) : (
+            {/* HB-4b: per-occurrence budget + COA (pre-filled from the routine; empty → null on save).
+                COA scoped to the routine's entity (entity is fixed after creation). */}
+            {/* ROUTINES-UX-1: the anchor pair gets the same strongest-cell
+                treatment as the create form (see RoutineCreateForm) — the
+                edit form is the other of the tab's two money renders. */}
+            {/* LINES-01: the routine-level figure is REPORTED as set aside when the
+                lines carry amounts — never silently ignored, never added. */}
+            {ignoredLine(planned) && (
+              <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800" data-routine-level-ignored>
+                {ignoredLine(planned)}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <div className={labelClass}>start date (optional)</div>
+                <div className="font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs">budget / occurrence (optional)</div>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.budget_amount ?? ''}
+                  onChange={(e) => setForm({ ...form, budget_amount: e.target.value })}
+                  className={`${inputClass} font-mono tabular-nums font-bold`}
+                  placeholder="e.g., 60"
+                />
+              </div>
+              <div>
+                <div className="font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs">COA (optional)</div>
+                <CoaSelect
+                  entityId={form.entity_id}
+                  value={form.coa_code ?? ''}
+                  onChange={(code) => setForm({ ...form, coa_code: code })}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            <RRULEBuilder form={form} setForm={setForm} />
+
+            {/* ONEOFF-01: a one-off has ONE date — the occurrence is counted from it. */}
+            {onceForm ? (
+              <div>
+                <div className={labelClass}>date</div>
                 <input
                   type="date"
                   value={form.start_date}
-                  onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+                  onChange={(e) => setForm({ ...form, start_date: e.target.value, end_date: e.target.value })}
                   className={inputClass}
+                  required
+                  data-routine-once-date
                 />
               </div>
-              <div>
-                <div className={labelClass}>end date (optional)</div>
-                <input
-                  type="date"
-                  value={form.end_date}
-                  onChange={(e) => setForm({ ...form, end_date: e.target.value })}
-                  className={inputClass}
-                />
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className={labelClass}>start date (optional)</div>
+                  <input
+                    type="date"
+                    value={form.start_date}
+                    onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <div className={labelClass}>end date (optional)</div>
+                  <input
+                    type="date"
+                    value={form.end_date}
+                    onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+                    className={inputClass}
+                  />
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <div className={labelClass}>start time (optional)</div>
-              <input
-                type="time"
-                value={form.start_time}
-                /* ONEOFF-01: on a one-off the start time is the occurrence's hour and minute. */
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setForm({ ...form, start_time: v, ...(onceForm && v ? { byhour: v.slice(0, 2), byminute: v.slice(3, 5) } : {}) });
-                }}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <div className={labelClass}>end time (optional)</div>
-              <input
-                type="time"
-                value={form.end_time}
-                onChange={(e) => setForm({ ...form, end_time: e.target.value })}
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          {/* ONEOFF-01: THE PLACE — the same three fields and the same one-press
-              lookup the create form has. */}
-          <div className="space-y-2 pt-2 border-t border-border-light" data-routine-place>
-            <div>
-              <div className={labelClass}>location (optional)</div>
-              <input
-                type="text"
-                value={form.location}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setForm({ ...form, location: v });
-                  if (picked && v.trim() !== picked.name) setPicked(null);
-                }}
-                className={inputClass}
-                maxLength={255}
-                data-routine-location
-              />
-            </div>
-            <FindThisPlace
-              location={form.location}
-              picked={picked}
-              onPick={(m) => { setForm({ ...form, location: m.name, latitude: String(m.latitude), longitude: String(m.longitude) }); setPicked(m); }}
-              onClear={() => { setForm({ ...form, latitude: '', longitude: '' }); setPicked(null); }}
-            />
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <div className={labelClass}>latitude</div>
-                <input inputMode="decimal" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: e.target.value })} className={`${inputClass} font-mono`} placeholder="optional" data-routine-latitude />
+                <div className={labelClass}>start time (optional)</div>
+                <input
+                  type="time"
+                  value={form.start_time}
+                  /* ONEOFF-01: on a one-off the start time is the occurrence's hour and minute. */
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setForm({ ...form, start_time: v, ...(onceForm && v ? { byhour: v.slice(0, 2), byminute: v.slice(3, 5) } : {}) });
+                  }}
+                  className={inputClass}
+                />
               </div>
               <div>
-                <div className={labelClass}>longitude</div>
-                <input inputMode="decimal" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: e.target.value })} className={`${inputClass} font-mono`} placeholder="optional" data-routine-longitude />
+                <div className={labelClass}>end time (optional)</div>
+                <input
+                  type="time"
+                  value={form.end_time}
+                  onChange={(e) => setForm({ ...form, end_time: e.target.value })}
+                  className={inputClass}
+                />
               </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2 pt-2 border-t border-border-light">
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}
-            >
-              {saving ? 'saving…' : 'save'}
-            </button>
-            <button
-              type="button"
-              onClick={cancelEdit}
-              disabled={saving}
-              className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
-            >
-              cancel
-            </button>
-          </div>
-        </div>
+            {/* ONEOFF-01: THE PLACE — the same three fields and the same one-press
+                lookup the create form has. */}
+            <div className="space-y-2 pt-2 border-t border-border-light" data-routine-place>
+              <div>
+                <div className={labelClass}>location (optional)</div>
+                <input
+                  type="text"
+                  value={form.location}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setForm({ ...form, location: v });
+                    if (picked && v.trim() !== picked.name) setPicked(null);
+                  }}
+                  className={inputClass}
+                  maxLength={255}
+                  data-routine-location
+                />
+              </div>
+              <FindThisPlace
+                location={form.location}
+                picked={picked}
+                onPick={(m) => { setForm({ ...form, location: m.name, latitude: String(m.latitude), longitude: String(m.longitude) }); setPicked(m); }}
+                onClear={() => { setForm({ ...form, latitude: '', longitude: '' }); setPicked(null); }}
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className={labelClass}>latitude</div>
+                  <input inputMode="decimal" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: e.target.value })} className={`${inputClass} font-mono`} placeholder="optional" data-routine-latitude />
+                </div>
+                <div>
+                  <div className={labelClass}>longitude</div>
+                  <input inputMode="decimal" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: e.target.value })} className={`${inputClass} font-mono`} placeholder="optional" data-routine-longitude />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2 border-t border-border-light">
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}
+              >
+                {saving ? 'saving…' : 'save'}
+              </button>
+              <button
+                type="button"
+                onClick={cancelEdit}
+                disabled={saving}
+                className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
+              >
+                cancel
+              </button>
+            </div>
+          </td>
+        </tr>
       )}
-    </div>
+    </tbody>
   );
 }
