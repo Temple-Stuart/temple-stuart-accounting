@@ -46,9 +46,9 @@ async function getOptionDetails(
     case 'lodging': {
       const opt = await tx.trip_lodging_options.findFirst({ where: { id: optionId, trip_id: tripId } });
       if (!opt) return null;
-      // PR-Lodging-Total-Guard: total_price is the canonical WHOLE-STAY amount — the active path
-      // writes price_per_night × nights + taxes (LodgingOptions.tsx:72). NEVER fall back to bare
-      // price_per_night: that is ONE night masquerading as the full stay (a silent under-count).
+      // PR-Lodging-Total-Guard: total_price is the canonical WHOLE-STAY amount — its one writer, lodging/route.ts:46, fed
+      // price_per_night × nights + taxes by LodgingOptions.tsx:72; both were deleted (LEGACY-DEL-02, 2026-09-30), so only rows
+      // written before that reach here. NEVER fall back to bare price_per_night: that is ONE night masquerading as the full stay (a silent under-count).
       // If total_price is absent/non-positive, FAIL LOUD — trip_lodging_options persists no nights
       // count to recompute from, so any substitute would either undercount (one night) or invent a
       // divisor. The outer catch surfaces this as a 500 with the message.

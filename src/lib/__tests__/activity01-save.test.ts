@@ -395,5 +395,6 @@ test('the pin holds, dated: six files re-dated and one pinned by ACTIVITY-01; th
   assert.match(BOOKING_FLOW_BASE, /the options route pinned by ACTIVITY-01/);
   // LEGACY-DEL-01 (2026-09-29): 51 less the four pins that left with the legacy planner's deleted files (HotelGallery,
   // HotelMap, FlightPicker, TripPlannerAI) — the travel law holds each deleted.
-  assert.equal(BOOKING_FLOW_FILES.length, 47, 'the census grew by the options route (ACTIVITY-01) and by RowActionStrip.tsx (TRAVEL-ROW-01), and lost the four deleted pins (LEGACY-DEL-01)');
+  // LEGACY-DEL-02 (2026-09-30): 47 less HotelPicker's pin, which left with the file (the dead travel code) — held deleted too.
+  assert.equal(BOOKING_FLOW_FILES.length, 46, 'the census grew by the options route (ACTIVITY-01) and by RowActionStrip.tsx (TRAVEL-ROW-01), and lost the four deleted pins (LEGACY-DEL-01) and HotelPicker\'s (LEGACY-DEL-02)');
 });

@@ -284,7 +284,8 @@ test('the booking surfaces still mount under Search, and the booking flow is byt
   // The pins: a whole-file equality through the reader's two halves, rejoined.
   // LEGACY-DEL-01 (2026-09-29): the four pins that left with the legacy planner's deleted files count toward the audit's
   // 49 — the census may shrink by a named deletion alone (the travel law names the four and holds each deleted).
-  assert.ok(BOOKING_FLOW_FILES.length + 4 >= 49, `${BOOKING_FLOW_FILES.length} files pinned, and four held deleted`);
+  // LEGACY-DEL-02 (2026-09-30): + HotelPicker's pin, deleted with the dead travel code — five held deleted.
+  assert.ok(BOOKING_FLOW_FILES.length + 5 >= 49, `${BOOKING_FLOW_FILES.length} files pinned, and five held deleted`);
   assert.match(BOOKING_FLOW_BASE, /b9eac34a/);
   const names = BOOKING_FLOW_FILES.map((p) => p.file);
   assert.equal(new Set(names).size, names.length, 'no file pinned twice');
@@ -306,8 +307,8 @@ test('the pin is exact because rejoin is: a file with an astral character rejoin
   assert.equal(c.length, raw.length);
   assert.equal(n.length, raw.length);
   assert.equal(rejoin(c, n), raw);
-  const f = 'src/components/trips/HotelPicker.tsx';
-  assert.equal(rejoin(code(f), comments(f)).length, code(f).length);
+  // LEGACY-DEL-02 (2026-09-30): the real-file check read HotelPicker.tsx, deleted with the dead travel code; the
+  // two lines that read it went with it. The astral rejoin stays proven on the string above.
 });
 
 test('FORBIDDEN held: no booking call from the itinerary, no automatic match, no fallback', () => {

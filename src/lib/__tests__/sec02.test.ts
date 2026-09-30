@@ -51,8 +51,10 @@ test('every export form is read — the destructured PUT a `function|const` coun
   assert.ok(narrow.includes('src/app/api/operations/plan-vendors/route.ts'));
   // LEGACY-DEL-01 (2026-09-29): four of them were the legacy planner's — the scanner-results, destinations, commit and
   // participants routes, each exporting DELETE — deleted with it.
-  assert.equal(narrow.length, 44, 'the count the ruling verified on main 11445ca1 (47), + the plan-vendors DELETE (VENDOR-01), − the four legacy-planner routes (LEGACY-DEL-01)');
-  assert.equal(wide.length, 45, 'the census: 44 + the inngest route (49 before the four legacy-planner routes left — LEGACY-DEL-01)');
+  // LEGACY-DEL-02 (2026-09-30): four more went with the dead travel code — the lodging, transfers, vehicles and
+  // activities [optionId] routes, each exporting PATCH and DELETE.
+  assert.equal(narrow.length, 40, 'the count the ruling verified on main 11445ca1 (47), + the plan-vendors DELETE (VENDOR-01), − the four legacy-planner routes (LEGACY-DEL-01), − the four option routes (LEGACY-DEL-02)');
+  assert.equal(wide.length, 41, 'the census: 40 + the inngest route (49 before the four legacy-planner routes left — LEGACY-DEL-01; 45 before the four option routes left — LEGACY-DEL-02)');
   assert.deepEqual(wide.filter((f) => !narrow.includes(f)), ['src/app/api/inngest/route.ts']);
 });
 
@@ -133,12 +135,10 @@ test('the real routes the ruling sampled read as the house pattern, write for wr
   for (const f of [
     // LEGACY-DEL-01 (2026-09-29): the participants, destinations, commit and scanner-results routes were
     // deleted with the legacy trip planner and left this sample; the live routes keep every check.
+    // LEGACY-DEL-02 (2026-09-30): the lodging, transfers, vehicles and activities [optionId] routes were deleted
+    // with the dead travel code and left this sample; the two live trip writers keep every check.
     'src/app/api/trips/[id]/route.ts',
     'src/app/api/trips/[id]/budget-line/route.ts',
-    'src/app/api/trips/[id]/lodging/[optionId]/route.ts',
-    'src/app/api/trips/[id]/transfers/[optionId]/route.ts',
-    'src/app/api/trips/[id]/vehicles/[optionId]/route.ts',
-    'src/app/api/trips/[id]/activities/[optionId]/route.ts',
   ]) {
     const c = code(f);
     for (const v of judgeWrites(c)) assert.ok(v.ok, `${f}:${v.site.line} ${v.site.model}.${v.site.op}`);

@@ -324,9 +324,6 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // FINISH-01 (2026-09-28): re-pinned — layout only. Below sm a hotel, its rates and the action strip are cards (src/lib/travel/phoneCard.ts); the header words come from one constant the card labels read; the stars value sits in its own data-hotel-stars span. HotelFiltersBar, the selection and Book are unchanged — only markup changed.
   // Was cc27467be798a446c716f083867d2fd4799306405f20021685869bf9ac4e9689 at main 3cd8872f.
   { file: 'src/components/trips/HotelResultsView.tsx', sha256: 'c467f135f0d711d77db70244d8f1f739f9ea6ae829a157a7b284a5953bf69562' },
-  // HOTEL-01 (2026-09-22): re-pinned — the dead provider's two lines deleted; a null rating says so (the showroom's picker, mounted nowhere). Search and display are not booking; no prebook/book/pay/cancel call changed.
-  // Was 91e32a6df274f9f92a39329181d5ba3c7980c2a389a49044126f819f1e55284a at main d56b2cc9.
-  { file: 'src/components/trips/HotelPicker.tsx', sha256: 'e869b851fb14b80d4a73e01f8113a902004498822d0f2af128f1215394972c41' },
   // FINISH-01 (2026-09-28): re-pinned — layout only. Below sm a flight, its fares and the action strip are cards (src/lib/travel/phoneCard.ts); the header words come from one constant the card labels read. Every handler, the SEARCH press and the filter bar are unchanged — only markup changed in the view's functions (the FINISH-01 function diff).
   // Was a02b7addacddafac6c59a625e4d29c5194202f1e7dfe997b0ba782e41ae4dcbe at main 3cd8872f.
   // FILTER-01 (2026-09-25): re-dated — per leg, the field strip is the fields alone (FROM · TO · DEPART · RETURN · TRIP), the six filter controls and their statement follow, and the leg's actions (✕ · the session count · SEARCH) close the leg beneath them; SEARCH used to sit at the strip's right end above the bar. Same controls, same state, same handler, same request. Display is not booking; no prebook/book/pay/cancel call changed.
@@ -560,6 +557,10 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   //   src/components/trips/HotelMap.tsx — the planner's hotel map. Was 59b57e947baaec731a14f226b9f95434445e56286cebfd5f0ac1e234aa0cac3a at main 047e2c5b.
   //   src/components/trips/FlightPicker.tsx — the planner's in-trip flight picker (re-pinned by the flight ruling of 2026-09-22). Was fab753b0ba0166c634fd82b95c69fa009965c170ca7f07f795105214c5429d73 at main 047e2c5b.
   //   src/components/trips/TripPlannerAI.tsx — the AI planner (re-dated by the stay ruling, re-pinned by the stated-figure and trips-tab rulings). Was ebf0111bf70990fbdf974d2981ae14cc664b5b8dfe8173d243d99c90c13af14b at main 047e2c5b.
+  // LEGACY-DEL-02 (2026-09-30): one pin left this census — its file was deleted with the rest of the dead
+  // travel code, mounted by nothing (imported only by the showroom, itself mounted nowhere). The travel law
+  // holds it deleted (not on disk, not pinned). What it held, and its last hash:
+  //   src/components/trips/HotelPicker.tsx — the showroom's hotel picker (re-pinned by the hotel ruling of 2026-09-22). Was e869b851fb14b80d4a73e01f8113a902004498822d0f2af128f1215394972c41 at main 1cd7993b.
 ];
 
 /** The pin: the sha256 hex of a file's whole text, UTF-8. */
