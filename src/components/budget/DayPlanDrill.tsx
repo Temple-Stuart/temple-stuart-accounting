@@ -102,7 +102,7 @@ async function addVendor(entityId: string, name: string): Promise<Answer> {
 }
 
 /** The caller's active vendors (GET — the directory's own list; the box filters to the line's book). */
-function useDirectory(): { vendors: DirectoryVendor[] | null; words: string | null; refresh: () => void } {
+export function useDirectory(): { vendors: DirectoryVendor[] | null; words: string | null; refresh: () => void } {
   const [vendors, setVendors] = useState<DirectoryVendor[] | null>(null);
   const [words, setWords] = useState<string | null>(null);
   const [asks, setAsks] = useState(0);
@@ -151,7 +151,7 @@ export function ClearVendor({ address, reload, label = 'Clear' }: { address: Pla
   );
 }
 
-function VendorBox({ line, bookName, directory, reload }: {
+export function VendorBox({ line, bookName, directory, reload }: {
   line: PlanLine;
   bookName: string;
   directory: ReturnType<typeof useDirectory>;

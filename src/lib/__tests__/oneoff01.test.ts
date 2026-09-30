@@ -132,7 +132,9 @@ test('the anchor changes nothing for a rule that names its own components — an
 
 test('every expansion is anchored on the routine\'s start_date — one mechanism, no second path', () => {
   const callers = [CREATE_ROUTE, PATCH_ROUTE, 'src/app/api/operations/routines/[id]/completions/route.ts',
-    'src/app/api/operations/routines/[id]/upcoming/route.ts', 'src/app/api/operations/routines/today/route.ts',
+    'src/app/api/operations/routines/[id]/upcoming/route.ts',
+    // WEEK-01 (2026-09-30): the today route's day logic — its anchored expansion with it — moved into the pure day module.
+    'src/lib/operations/routineDay.ts',
     WINDOW_ROUTE, 'src/inngest/functions/routine-evaluator.ts', 'src/lib/operations/routineBudget.ts',
     // TAB13-02a: the budget report's day rules expand a routine, anchored like every caller.
     'src/lib/budget/days.ts'];
@@ -142,6 +144,10 @@ test('every expansion is anchored on the routine\'s start_date — one mechanism
     assert.ok(calls.length > 0, `${f} expands a schedule`);
     for (const c of calls) assert.match(c, /scheduleAnchor\(/, `${f}: ${c.slice(0, 60)} carries the anchor`);
   }
+  // WEEK-01: the today route reads its day through the module alone — moved, never loosened.
+  const today = code('src/app/api/operations/routines/today/route.ts');
+  assert.match(today, /const day = routineDay\(r, asked\.day, now\);/);
+  assert.doesNotMatch(today, /\bexpand(?:Forward|Between)\(/, 'the route expands nothing itself');
   // The evaluator and the budget bridge read the column they anchor on.
   assert.match(code('src/inngest/functions/routine-evaluator.ts'), /start_date: true/);
   // LINES-02: the budget bridge's routine read lives in the one loader both budget routes share.

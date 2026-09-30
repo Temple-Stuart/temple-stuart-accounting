@@ -9,6 +9,9 @@
  * GET items endpoint is user-scoped (no entity filter), so the operations
  * entity selector is intentionally ignored here. Ad-hoc creation still needs
  * an entity_id, so the create form carries its own entity selector.
+ *
+ * WEEK-01 (2026-09-30): a routine the today read cannot place (its zone, its
+ * schedule) is named with its reason under "routines", never dropped.
  */
 
 'use client';
@@ -18,7 +21,8 @@ import { useOperationsEntity } from './EntitySelector';
 import DailyPlanItemRow from './dailyplan/DailyPlanItemRow';
 import { DailyPlanRoutineRow } from './dailyplan/DailyPlanRoutineRow';
 import type { DailyPlanItem } from './dailyplan/types';
-import type { TodayRoutineEntry } from './routines/types';
+import type { RefusedRoutine, TodayRoutineEntry } from './routines/types';
+import RefusedRoutines from './routines/RefusedRoutines';
 
 
 const inputClass =
@@ -54,6 +58,7 @@ export default function SectionC_DailyPlan({ }: { } = {}) {
   const [error, setError] = useState<string | null>(null);
 
   const [routines, setRoutines] = useState<TodayRoutineEntry[]>([]);
+  const [refused, setRefused] = useState<RefusedRoutine[]>([]);
   const [routinesLoading, setRoutinesLoading] = useState(false);
   const [routinesError, setRoutinesError] = useState<string | null>(null);
 
@@ -94,6 +99,9 @@ export default function SectionC_DailyPlan({ }: { } = {}) {
       const entries: TodayRoutineEntry[] = body.entries ?? [];
       entries.sort((a, b) => a.expected_at.localeCompare(b.expected_at));
       setRoutines(entries);
+      // WEEK-01: the routines the read could not place — named, never dropped.
+      if (!Array.isArray(body.refused)) throw new Error('the today read came back without its refused list');
+      setRefused(body.refused);
     } catch (e) {
       setRoutinesError(e instanceof Error ? e.message : 'Failed to load routines');
     } finally {
@@ -107,6 +115,7 @@ export default function SectionC_DailyPlan({ }: { } = {}) {
       Promise.all([fetchItems(), fetchRoutines()]);
     } else {
       setRoutines([]);
+      setRefused([]);
       setRoutinesError(null);
       fetchItems();
     }
@@ -281,8 +290,9 @@ export default function SectionC_DailyPlan({ }: { } = {}) {
       {(() => {
         const isToday = currentDate === todayIso();
         const hasRoutines = isToday && routines.length > 0;
+        const hasRefused = isToday && refused.length > 0;
         const hasItems = items.length > 0;
-        const showEmpty = !hasRoutines && !hasItems && !loading && !error;
+        const showEmpty = !hasRoutines && !hasRefused && !hasItems && !loading && !error;
 
         if (loading) {
           return <div className="text-text-muted font-mono text-sm">loading daily plan…</div>;
@@ -315,6 +325,7 @@ export default function SectionC_DailyPlan({ }: { } = {}) {
                     routines unavailable: {routinesError}
                   </div>
                 )}
+                <RefusedRoutines refused={refused} />
                 {hasRoutines && (
                   <>
                     <div className="text-xs font-mono text-text-faint uppercase tracking-wide mt-1">

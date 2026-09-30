@@ -147,6 +147,26 @@ export interface TodayRoutineEntry {
   completion: RoutineCompletion | null;  // populated if status === 'completed'
 }
 
+/** WEEK-01: the words each status shows in — moved from TodaysStrip.tsx (its STATUS_LABEL), the one copy. */
+export const TODAY_STATUS_LABEL: Record<TodayStatus, string> = {
+  pending: 'pending',
+  completed: 'completed',
+  missed: 'missed',
+  upcoming: 'upcoming',
+};
+
+/**
+ * WEEK-01: a routine the today read could not place — its zone cannot be read,
+ * or its schedule does not parse (the day rules' words, src/lib/budget/days.ts).
+ * Listed in the response's `refused`, named on every screen that reads it.
+ */
+export interface RefusedRoutine {
+  routine_id: string;
+  name: string;
+  reason: string;
+  detail: string;
+}
+
 /**
  * RRULE form-side shape. The UI compiles structured selections into an
  * RFC 5545 RRULE string under the hood. Users do not write RRULE strings

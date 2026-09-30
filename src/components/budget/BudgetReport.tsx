@@ -55,6 +55,8 @@ import {
   viewParams, type Section, type SectionChoice,
 } from '@/lib/budget/reportView';
 import DayPlanDrill, { ClearVendor } from '@/components/budget/DayPlanDrill';
+// WEEK-01: the browser's date — the one module that reads it (moved from this file).
+import { localToday } from '@/lib/localToday';
 
 type Kind = 'day' | 'week' | 'year';
 const KINDS: readonly { kind: Kind; label: string }[] = [
@@ -74,12 +76,6 @@ type Load =
 const th = 'px-3 py-2 text-left font-medium text-text-faint whitespace-nowrap';
 const td = 'px-3 py-2 whitespace-nowrap';
 const num = `${td} text-right font-mono`;
-
-/** The browser's local date, 'YYYY-MM-DD' — the screen is the one place the clock is read. */
-function localToday(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-}
 
 function Heading({ children }: { children: React.ReactNode }) {
   return <h2 className={SECTION_HEADER}>{children}</h2>;

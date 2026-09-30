@@ -32,7 +32,11 @@ const TASKS_TREE = [PAGE, SECTION_D, SECTION_E, ROW, ROW_VIEW, PIPE_VIEW, ROUTIN
   // table — its files are in the tree, and draw no strip either.
   'src/components/workbench/operations/projects/ProjectsTable.tsx',
   'src/components/workbench/operations/projects/ProjectTableRows.tsx',
-  'src/components/workbench/operations/projects/TaskTableRow.tsx'];
+  'src/components/workbench/operations/projects/TaskTableRow.tsx',
+  // WEEK-01 (2026-09-30): this week, first on the page — its files are in the tree too.
+  'src/components/workbench/operations/week/WeekSection.tsx',
+  'src/components/workbench/operations/week/WeekCell.tsx',
+  'src/components/workbench/operations/routines/RefusedRoutines.tsx'];
 
 // ───────────────────────────────────────────────────────────────────────────
 test('the page is two lists and the daily plan — no strip, no pipe label, no receipts', () => {
@@ -40,6 +44,8 @@ test('the page is two lists and the daily plan — no strip, no pipe label, no r
   assert.match(page, /<SectionD_ProjectBacklog \/>/);
   assert.match(page, /<SectionE_Routines \/>/);
   assert.match(page, /<SectionC_DailyPlan \/>/);
+  // WEEK-01 (2026-09-30): a fourth mount, FIRST — this week, then the two lists and the daily plan.
+  assert.match(page, /<WeekSection \/>\s*<SectionD_ProjectBacklog \/>\s*<SectionE_Routines \/>\s*<SectionC_DailyPlan \/>/);
   assert.doesNotMatch(page, /data-pipe-section|data-pipe-label|PIPE_LABEL|PIPE_PHASES|<StageStrip|<ProofStrip/);
   // The tool header stays: family, name, registry line — nothing else.
   assert.equal((page.match(/<ToolOpener/g) ?? []).length, 1);

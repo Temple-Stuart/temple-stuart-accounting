@@ -20,74 +20,27 @@
  *         5. Else if expected_at <= now → status='pending'.
  *         6. Else → status='upcoming'.
  *         7. Routines with NO occurrence today are excluded.
+ *
+ * WEEK-01 (2026-09-30) — ONE DAY, ANY DAY; NOTHING DROPPED.
+ *   ?date=YYYY-MM-DD (optional): each routine's day is that local date in its
+ *   own zone; absent, today, as before. A date that is not a real day is a 400
+ *   naming the field — never today instead. The day logic (the bounds, the
+ *   start/end dates, the anchored expansion, the first occurrence, the status)
+ *   lives in ONE pure module, src/lib/operations/routineDay.ts; this route keeps
+ *   the auth, the reads and the response. A routine whose zone cannot be read,
+ *   or whose schedule does not parse, is listed in `refused` with the day
+ *   rules' words — every other routine is still answered:
+ *         { generated_at, entries, refused: [{ routine_id, name, reason, detail }] }
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { expandBetween, scheduleAnchor } from '@/lib/operations/rruleHelpers';
+import { parseDayParam, routineDay, routineStatus, type RoutineDayRefusal } from '@/lib/operations/routineDay';
 import type { TodayStatus } from '@/components/workbench/operations/routines/types';
 
-/**
- * Format a Date as YYYY-MM-DD in a specific timezone (the routine's timezone).
- * Used for comparing the routine's local calendar date against its DATE-typed bounds.
- */
-function formatLocalDate(d: Date, timezone: string): string {
-  try {
-    return new Intl.DateTimeFormat('en-CA', {
-      timeZone: timezone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(d);
-  } catch {
-    // Fallback for invalid timezone — use UTC.
-    return d.toISOString().slice(0, 10);
-  }
-}
-
-/**
- * Compute today's start and end in the given timezone, returned as UTC Date.
- * Today's start is "00:00 in tz today"; today's end is "00:00 in tz tomorrow".
- */
-function todayBounds(tz: string, now: Date): { start: Date; end: Date } {
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour12: false,
-  });
-  const parts = formatter.formatToParts(now);
-  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? '0');
-  const year = get('year');
-  const month = get('month');
-  const day = get('day');
-
-  // Construct UTC midnight for the local date, then shift by the tz's
-  // offset at that instant to get the actual UTC instant of local midnight.
-  const utcMidnight = Date.UTC(year, month - 1, day, 0, 0, 0);
-  const fmt2 = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
-  });
-  const partsAtUtcMidnight = fmt2.formatToParts(new Date(utcMidnight));
-  const get2 = (type: string) => Number(partsAtUtcMidnight.find((p) => p.type === type)?.value ?? '0');
-  const tzShown = Date.UTC(
-    get2('year'), get2('month') - 1, get2('day'),
-    get2('hour') === 24 ? 0 : get2('hour'), get2('minute'), get2('second')
-  );
-  const offsetMs = tzShown - utcMidnight;
-  const localMidnightUtc = utcMidnight - offsetMs;
-
-  return {
-    start: new Date(localMidnightUtc),
-    end: new Date(localMidnightUtc + 24 * 60 * 60 * 1000),
-  };
-}
-
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     const userEmail = await getVerifiedEmail();
     if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -96,6 +49,12 @@ export async function GET(_request: NextRequest) {
       where: { email: { equals: userEmail, mode: 'insensitive' } },
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    // WEEK-01: the day asked for, or today — a bad day is refused by name.
+    const asked = parseDayParam(request.nextUrl.searchParams.get('date'));
+    if (!asked.ok) {
+      return NextResponse.json({ error: 'Validation', field: 'date', message: asked.message }, { status: 400 });
+    }
 
     const now = new Date();
 
@@ -116,38 +75,17 @@ export async function GET(_request: NextRequest) {
       completion: unknown;
     }> = [];
 
+    const refused: Array<{ routine_id: string; name: string; reason: RoutineDayRefusal; detail: string }> = [];
+
     for (const r of routines) {
-      const { start, end } = todayBounds(r.timezone, now);
-
-      // Bounds check: routine is in scope today iff within [start_date, end_date].
-      // Compute the routine's local calendar date for accurate comparison against
-      // the timezone-naive @db.Date bounds columns.
-      const localToday = formatLocalDate(now, r.timezone);
-      if (r.start_date) {
-        const startDateStr = formatLocalDate(r.start_date, 'UTC'); // @db.Date stored as midnight UTC
-        if (startDateStr > localToday) {
-          continue; // Routine hasn't started yet in its own timezone.
-        }
-      }
-      if (r.end_date) {
-        const endDateStr = formatLocalDate(r.end_date, 'UTC');
-        if (endDateStr < localToday) {
-          continue; // Routine has expired in its own timezone.
-        }
-      }
-
-      let occurrences: Date[] = [];
-      try {
-        // ONEOFF-01: anchored on the routine's start_date — the one mechanism.
-        occurrences = expandBetween(r.schedule_rrule, r.timezone, start, end, scheduleAnchor(r.start_date));
-      } catch (e) {
-        console.error(`[Today GET] RRULE parse failed for ${r.id}: ${e}`);
+      const day = routineDay(r, asked.day, now);
+      if (day.kind === 'refused') {
+        refused.push({ routine_id: r.id, name: r.name, reason: day.reason, detail: day.detail });
         continue;
       }
+      if (day.kind === 'none') continue;
 
-      if (occurrences.length === 0) continue;
-
-      const expectedAt = occurrences[0];
+      const expectedAt = day.expectedAt;
 
       // Look up completion at this expected_at.
       const completion = await prisma.operations_routine_completions.findUnique({
@@ -159,19 +97,7 @@ export async function GET(_request: NextRequest) {
         },
       });
 
-      let status: TodayStatus;
-      if (completion) {
-        status = 'completed';
-      } else {
-        const failThresholdMs = r.fail_threshold_minutes * 60 * 1000;
-        if (now.getTime() > expectedAt.getTime() + failThresholdMs) {
-          status = 'missed';
-        } else if (expectedAt.getTime() <= now.getTime()) {
-          status = 'pending';
-        } else {
-          status = 'upcoming';
-        }
-      }
+      const status: TodayStatus = routineStatus(expectedAt, completion !== null, r.fail_threshold_minutes, now);
 
       entries.push({
         routine: r,
@@ -184,6 +110,7 @@ export async function GET(_request: NextRequest) {
     return NextResponse.json({
       generated_at: now.toISOString(),
       entries,
+      refused,
     });
   } catch (error) {
     return failClosedResponse('Today GET', 'Failed to load today', error);
