@@ -5,8 +5,9 @@
  * (src/lib/budget/report.ts viewRange); the rows are the active routines in the
  * order they start; each of the budget report's plan lines sits in its row and
  * its day by its address kind; a cell may be marked done on today or an earlier
- * day, on the statuses Today lets you complete. No fetch, no clock, no React —
- * the tests drive every rule with fixtures.
+ * day, on the statuses Today lets you complete. WEEK-02: the time filter —
+ * which rows are drawn, and the words for what it hid. No fetch, no clock, no
+ * React — the tests drive every rule with fixtures.
  */
 import { viewRange } from '@/lib/budget/report';
 import type { PlanLine } from '@/lib/budget/planLines';
@@ -64,6 +65,68 @@ export function timeWindow(start: string | null, end: string | null): string | n
   if (start !== null) return `from ${clockOf(start)}`;
   if (end !== null) return `until ${clockOf(end)}`;
   return null;
+}
+
+/** The time filter's two boxes, each 'HH:MM', or '' when the box is empty (WEEK-02). */
+export interface TimeFilter {
+  readonly from: string;
+  readonly to: string;
+}
+
+/** The rows the filter keeps, and what it hid — counted, so nothing is hidden silently. */
+export interface FilteredRows<R> {
+  /** The routines drawn, in the order given (orderRoutines'). */
+  readonly shown: R[];
+  /** How many routines the filter hid. */
+  readonly hidden: number;
+  /** Of those hidden, how many have no start time. */
+  readonly hiddenNoStart: number;
+  /** from is after to: no routine can start in that window. */
+  readonly inverted: boolean;
+}
+
+const CLOCK = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/**
+ * Which routines the week draws (WEEK-02). Both boxes empty → every routine.
+ * Otherwise a routine shows only when it has a start time and from ≤ start ≤ to
+ * — both ends included, a missing bound open; a routine with no start time does
+ * not show while a box is set. from after to → none. A bound that is not
+ * 'HH:MM' throws, naming it.
+ */
+export function filterByStart<R extends WeekRoutine>(rows: readonly R[], filter: TimeFilter): FilteredRows<R> {
+  for (const [name, bound] of [['from', filter.from], ['to', filter.to]] as const) {
+    if (bound !== '' && !CLOCK.test(bound)) throw new Error(`weekPlan: the time filter's ${name} "${bound}" is not HH:MM`);
+  }
+  if (filter.from === '' && filter.to === '') return { shown: [...rows], hidden: 0, hiddenNoStart: 0, inverted: false };
+  const inverted = filter.from !== '' && filter.to !== '' && filter.from > filter.to;
+  const keeps = (r: R): boolean => {
+    if (r.start_time === null) return false;
+    const start = clockOf(r.start_time);
+    return (filter.from === '' || filter.from <= start) && (filter.to === '' || start <= filter.to);
+  };
+  const shown = rows.filter(keeps);
+  const hiddenRows = rows.filter((r) => !keeps(r));
+  return { shown, hidden: hiddenRows.length, hiddenNoStart: hiddenRows.filter((r) => r.start_time === null).length, inverted };
+}
+
+const asTime = (clock: string): string | null => (clock === '' ? null : `1970-01-01T${clock}:00.000Z`);
+
+/** The filter's window in the Time column's own words: "07:00–12:00" · "from 07:00" · "until 12:00" · null when both boxes are empty. */
+export const filterWindow = (filter: TimeFilter): string | null => timeWindow(asTime(filter.from), asTime(filter.to));
+
+/**
+ * The one line above the table while a box is set and a routine is hidden —
+ * "<n> routines hidden by the time filter (<window>)", then " · <k> with no
+ * start time" when k > 0; when from is after to, why no routine can show.
+ * null when nothing is hidden.
+ */
+export function hiddenLine(filter: TimeFilter, result: FilteredRows<unknown>): string | null {
+  const window = filterWindow(filter);
+  if (window === null || result.hidden === 0) return null;
+  if (result.inverted) return `from ${filter.from} is after to ${filter.to} — no routine can start in that window`;
+  const count = result.hidden === 1 ? '1 routine' : `${result.hidden} routines`;
+  return `${count} hidden by the time filter (${window})${result.hiddenNoStart > 0 ? ` · ${result.hiddenNoStart} with no start time` : ''}`;
 }
 
 /** Where the report's plan lines sit: a routine's row on a day, the Tasks row on a day, or — named — no row. */

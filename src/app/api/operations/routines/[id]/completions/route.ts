@@ -19,6 +19,7 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { expandForward, scheduleAnchor } from '@/lib/operations/rruleHelpers';
+import { completionNote } from '@/lib/operations/completionNote';
 
 export async function POST(
   request: NextRequest,
@@ -67,9 +68,8 @@ export async function POST(
 
     const deltaMinutes = Math.round((completedAt.getTime() - expectedAt.getTime()) / 60000);
 
-    const notes = typeof body.notes === 'string' && body.notes.trim().length > 0
-      ? body.notes.trim()
-      : null;
+    // WEEK-02: the one note rule — trimmed; blank, or not a string, is no note.
+    const notes = completionNote(body.notes);
 
     // Pre-emptive uniqueness check on (routine_id, expected_at).
     const existing = await prisma.operations_routine_completions.findUnique({
