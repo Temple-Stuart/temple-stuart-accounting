@@ -27,7 +27,12 @@ const PREVIEW_ROUTE = 'src/app/api/operations/projects/[id]/deletion/route.ts';
 const TASKS_TREE = [PAGE, SECTION_D, SECTION_E, ROW, ROW_VIEW, PIPE_VIEW, ROUTINE_LIST, ROUTINE_ROW, TODAY,
   'src/components/workbench/operations/SectionC_DailyPlan.tsx',
   'src/components/workbench/operations/projects/TaskList.tsx',
-  'src/components/workbench/operations/dailyplan/DailyPlanRoutineRow.tsx'];
+  'src/components/workbench/operations/dailyplan/DailyPlanRoutineRow.tsx',
+  // PROJECTS-01 (2026-09-30): the projects list's markup moved into the one
+  // table — its files are in the tree, and draw no strip either.
+  'src/components/workbench/operations/projects/ProjectsTable.tsx',
+  'src/components/workbench/operations/projects/ProjectTableRows.tsx',
+  'src/components/workbench/operations/projects/TaskTableRow.tsx'];
 
 // ───────────────────────────────────────────────────────────────────────────
 test('the page is two lists and the daily plan — no strip, no pipe label, no receipts', () => {

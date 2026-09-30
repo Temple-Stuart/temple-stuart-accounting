@@ -22,8 +22,11 @@
 'use client';
 
 import { ExternalLink } from 'lucide-react';
-import type { Task, TaskForm, TaskStatus, CoaAccountSummary } from './types';
+import type { Task, TaskForm, CoaAccountSummary } from './types';
 import { TASK_STATUS_LABELS, TASK_STATUS_PILL_CLASSES } from './types';
+import TaskScheduleMenu from './TaskScheduleMenu';
+import TaskHistoryList from './TaskHistoryList';
+import TaskEditInputs from './TaskEditInputs';
 
 
 export type TaskStatusHistoryRow = {
@@ -34,14 +37,6 @@ export type TaskStatusHistoryRow = {
   changed_by: string | null;
   reason: string | null;
 };
-
-const STATUS_OPTIONS: TaskStatus[] = [
-  'open',
-  'in_progress',
-  'blocked',
-  'completed',
-  'cancelled',
-];
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—';
@@ -140,8 +135,6 @@ export default function TaskRowView({ task,
   onAcceptPending,
   onRejectPending,
 }: TaskRowViewProps & { }) {
-  const inputClass =
-    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
   const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
   const pillClass = `inline-block px-2 py-0.5 rounded-full text-xs font-medium ${TASK_STATUS_PILL_CLASSES[task.status]}`;
 
@@ -251,71 +244,17 @@ export default function TaskRowView({ task,
       </div>
 
       {scheduleMenuOpen && (
-        <div
-          className="mx-6 mt-2 mb-2 p-2 border border-border-light rounded bg-bg-row text-xs"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-text-muted">schedule for:</span>
-            <input
-              type="date"
-              value={scheduleDate}
-              onChange={(e) => onScheduleDateChange(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-              className="px-2 py-0.5 border border-border rounded text-text-primary"
-            />
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onSchedule(scheduleDate); }}
-              disabled={scheduling || !scheduleDate}
-              className="px-2 py-0.5 border border-border text-text-primary rounded hover:bg-white disabled:opacity-50"
-            >
-              schedule
-            </button>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onCloseScheduleMenu(); }}
-              className="px-2 py-0.5 text-text-muted hover:bg-bg-row rounded"
-            >
-              cancel
-            </button>
-          </div>
-        </div>
+        <TaskScheduleMenu
+          scheduleDate={scheduleDate}
+          scheduling={scheduling}
+          onScheduleDateChange={onScheduleDateChange}
+          onSchedule={onSchedule}
+          onCloseScheduleMenu={onCloseScheduleMenu}
+        />
       )}
 
       {showHistory && (
-        <div className="mx-6 mt-2 mb-2 p-2 border border-border-light rounded bg-bg-row text-xs">
-          {historyLoading && <div className="text-text-muted">loading history…</div>}
-          {historyError && <div className="text-red-700">{historyError}</div>}
-          {!historyLoading && !historyError && history !== null && history.length === 0 && (
-            <div className="text-text-muted italic">no status changes recorded yet</div>
-          )}
-          {!historyLoading && !historyError && history !== null && history.length > 0 && (
-            <ul className="space-y-1">
-              {history.map((h) => (
-                <li key={h.id} className="flex flex-col">
-                  <div>
-                    <span className="text-text-muted">
-                      {new Date(h.changed_at).toLocaleString()}
-                    </span>
-                    {' · '}
-                    <span className="text-text-primary">
-                      {h.previous_status ?? '—'} → {h.new_status}
-                    </span>
-                    {h.changed_by && (
-                      <span className="text-text-muted"> · {h.changed_by}</span>
-                    )}
-                  </div>
-                  {h.reason && (
-                    <div className="text-text-muted pl-2 italic">
-                      &ldquo;{h.reason}&rdquo;
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <TaskHistoryList history={history} historyLoading={historyLoading} historyError={historyError} />
       )}
 
       {/* EXEC-2: always-visible review feedback — the accept fired the build (green)
@@ -479,182 +418,15 @@ export default function TaskRowView({ task,
       )}
 
       {editing && (
-        <div className="px-4 py-3 border-t border-border-light text-xs space-y-3">
-          {error && (
-            <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
-              {error}
-            </div>
-          )}
-
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-3">
-              <div className={labelClass}>title</div>
-              <input
-                type="text"
-                value={form.title}
-                onChange={(e) => onFormChange({ ...form, title: e.target.value })}
-                className={inputClass}
-                maxLength={500}
-              />
-            </div>
-            <div>
-              <div className={labelClass}>status</div>
-              <select
-                value={form.status}
-                onChange={(e) => onFormChange({ ...form, status: e.target.value as TaskStatus })}
-                className={inputClass}
-              >
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {TASK_STATUS_LABELS[s]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <div className={labelClass}>deadline</div>
-              <input
-                type="date"
-                value={form.deadline}
-                onChange={(e) => onFormChange({ ...form, deadline: e.target.value })}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <div className={labelClass}>category</div>
-              <select
-                value={form.coa_code}
-                onChange={(e) => onFormChange({ ...form, coa_code: e.target.value })}
-                className={inputClass}
-              >
-                <option value="">— None —</option>
-                {/* If the task's current code isn't in the dropdown options
-                    (e.g., archived or out-of-entity), still surface it so the
-                    user isn't silently re-categorized when they save. */}
-                {form.coa_code !== '' && !coaAccounts.some((a) => a.code === form.coa_code) && (
-                  <option value={form.coa_code}>{form.coa_code} ⚠ (not in current COA)</option>
-                )}
-                {coaAccounts.map((a) => (
-                  <option key={a.code} value={a.code}>
-                    {a.code} · {a.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <div className={labelClass}>description</div>
-            <textarea
-              value={form.description}
-              onChange={(e) => onFormChange({ ...form, description: e.target.value })}
-              rows={3}
-              className={inputClass}
-              placeholder="what does this task entail?"
-            />
-          </div>
-
-          <div>
-            <div className={labelClass}>unblocks (rationale for priority engine)</div>
-            <textarea
-              value={form.unblocks_label}
-              onChange={(e) => onFormChange({ ...form, unblocks_label: e.target.value })}
-              rows={2}
-              className={inputClass}
-              placeholder="what does completing this unblock? — fed to the priority ranker (PR-Ops-4)"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <div className={labelClass}>est. minutes</div>
-              <input
-                type="number"
-                min={0}
-                value={form.estimated_minutes}
-                onChange={(e) => onFormChange({ ...form, estimated_minutes: e.target.value })}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <div className={labelClass}>actual minutes</div>
-              <input
-                type="number"
-                min={0}
-                step={1}
-                value={form.actual_minutes}
-                onChange={(e) => onFormChange({ ...form, actual_minutes: e.target.value })}
-                className={inputClass}
-                placeholder="(empty)"
-              />
-            </div>
-            <div>
-              <div className={labelClass}>est. cost (usd)</div>
-              <input
-                type="text"
-                value={form.estimated_cost_usd}
-                onChange={(e) => onFormChange({ ...form, estimated_cost_usd: e.target.value })}
-                className={inputClass}
-                placeholder="0.00"
-              />
-            </div>
-            <div>
-              <div className={labelClass}>actual cost (usd)</div>
-              <input
-                type="number"
-                min={0}
-                step={0.01}
-                value={form.actual_cost_usd}
-                onChange={(e) => onFormChange({ ...form, actual_cost_usd: e.target.value })}
-                className={inputClass}
-                placeholder="(empty)"
-              />
-            </div>
-          </div>
-
-          <div>
-            <div className={labelClass}>link url (vendor / portal)</div>
-            <input
-              type="url"
-              value={form.link_url ?? ''}
-              onChange={(e) => onFormChange({ ...form, link_url: e.target.value })}
-              className={inputClass}
-              maxLength={500}
-              placeholder="https://..."
-            />
-          </div>
-
-          <div>
-            <div className={labelClass}>notes (institutional context)</div>
-            <textarea
-              value={form.notes ?? ''}
-              onChange={(e) => onFormChange({ ...form, notes: e.target.value })}
-              rows={6}
-              className={inputClass}
-              maxLength={1500}
-              placeholder="dependencies, timing anchors, decision points, gotchas..."
-            />
-          </div>
-
-          <div className="flex items-center gap-2 pt-2 border-t border-border-light">
-            <button
-              type="button"
-              onClick={onSave}
-              disabled={saving}
-              className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}
-            >
-              {saving ? 'saving…' : 'save'}
-            </button>
-            <button
-              type="button"
-              onClick={onCancelEdit}
-              disabled={saving}
-              className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
-            >
-              cancel
-            </button>
-          </div>
-        </div>
+        <TaskEditInputs
+          form={form}
+          coaAccounts={coaAccounts}
+          saving={saving}
+          error={error}
+          onFormChange={onFormChange}
+          onSave={onSave}
+          onCancelEdit={onCancelEdit}
+        />
       )}
     </div>
   );

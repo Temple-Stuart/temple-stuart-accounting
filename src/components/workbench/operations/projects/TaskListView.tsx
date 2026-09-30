@@ -18,6 +18,7 @@
 
 import { Fragment } from 'react';
 import type { Task, TaskForm, CoaAccountSummary } from './types';
+import TaskCreateInputs from './TaskCreateInputs';
 
 
 export interface TaskListViewProps {
@@ -61,10 +62,6 @@ export default function TaskListView({ tasks,
   onCreate,
   renderTaskRow,
 }: TaskListViewProps & { }) {
-  const inputClass =
-    'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
-  const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
-
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -99,109 +96,15 @@ export default function TaskListView({ tasks,
       )}
 
       {showCreate && (
-        <div className="border border-border rounded p-3 bg-white text-xs space-y-3">
-          <div className="font-bold text-text-primary">new task</div>
-          {createError && (
-            <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
-              {createError}
-            </div>
-          )}
-          <div>
-            <div className={labelClass}>title</div>
-            <input
-              type="text"
-              value={createForm.title}
-              onChange={(e) => onCreateFormChange({ ...createForm, title: e.target.value })}
-              className={inputClass}
-              maxLength={500}
-              placeholder="what is the atomic unit of work?"
-            />
-          </div>
-          <div>
-            <div className={labelClass}>description (optional)</div>
-            <textarea
-              value={createForm.description}
-              onChange={(e) => onCreateFormChange({ ...createForm, description: e.target.value })}
-              rows={2}
-              className={inputClass}
-              placeholder="more detail if the title isn't enough"
-            />
-          </div>
-          <div>
-            <div className={labelClass}>unblocks (optional — rationale for priority engine)</div>
-            <textarea
-              value={createForm.unblocks_label}
-              onChange={(e) => onCreateFormChange({ ...createForm, unblocks_label: e.target.value })}
-              rows={2}
-              className={inputClass}
-              placeholder="what does completing this unblock?"
-            />
-          </div>
-          <div className="grid grid-cols-4 gap-3">
-            <div>
-              <div className={labelClass}>deadline (optional)</div>
-              <input
-                type="date"
-                value={createForm.deadline}
-                onChange={(e) => onCreateFormChange({ ...createForm, deadline: e.target.value })}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <div className={labelClass}>est. minutes (optional)</div>
-              <input
-                type="number"
-                min={0}
-                value={createForm.estimated_minutes}
-                onChange={(e) => onCreateFormChange({ ...createForm, estimated_minutes: e.target.value })}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <div className={labelClass}>est. cost usd (optional)</div>
-              <input
-                type="text"
-                value={createForm.estimated_cost_usd}
-                onChange={(e) => onCreateFormChange({ ...createForm, estimated_cost_usd: e.target.value })}
-                className={inputClass}
-                placeholder="0.00"
-              />
-            </div>
-            <div>
-              <div className={labelClass}>category (optional)</div>
-              <select
-                value={createForm.coa_code}
-                onChange={(e) => onCreateFormChange({ ...createForm, coa_code: e.target.value })}
-                className={inputClass}
-              >
-                <option value="">— None —</option>
-                {coaAccounts.map((a) => (
-                  <option key={a.code} value={a.code}>
-                    {a.code} · {a.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 pt-2 border-t border-border-light">
-            <button
-              type="button"
-              onClick={onCreate}
-              disabled={createSaving}
-              className={`px-3 py-1 border text-white rounded hover:opacity-90 disabled:opacity-50 ${'border-brand-purple bg-brand-purple'}`}
-            >
-              {createSaving ? 'creating…' : 'create task'}
-            </button>
-            <button
-              type="button"
-              onClick={onCancelCreate}
-              disabled={createSaving}
-              className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
-            >
-              cancel
-            </button>
-          </div>
-        </div>
+        <TaskCreateInputs
+          createForm={createForm}
+          createSaving={createSaving}
+          createError={createError}
+          coaAccounts={coaAccounts}
+          onCreateFormChange={onCreateFormChange}
+          onCreate={onCreate}
+          onCancelCreate={onCancelCreate}
+        />
       )}
 
       {loading ? (

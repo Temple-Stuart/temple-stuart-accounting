@@ -12,14 +12,19 @@
  *
  * "+ new project" affordance at the top right toggles an inline create
  * form ABOVE the list (matches COA management table's add pattern).
+ *
+ * PROJECTS-01 (2026-09-30): the list is ONE table (ProjectsTable) — every task
+ * of every project on screen at once, a row per task under its project, the
+ * project's detail one click away as a full-width row. The queue card that
+ * opened one project at a time is gone. "show archived" is the one toggle: it
+ * reads archived projects AND archived tasks.
  */
 
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useOperationsEntity } from './EntitySelector';
-import ProjectRow from './projects/ProjectRow';
-import ProjectQueueCard from './projects/ProjectQueueCard';
+import ProjectsTable from './projects/ProjectsTable';
 import ProjectCreateForm from './projects/ProjectCreateForm';
 import type { Project } from './projects/types';
 
@@ -41,8 +46,9 @@ export default function SectionD_ProjectBacklog({ }: { } = {}) {
   const [showArchived, setShowArchived] = useState(false);
 
   // Lifted target state for cross-row navigation. When a dependency in
-  // ProjectRow A is clicked, this is set to the target project's id;
-  // ProjectRow B's useEffect on isJumpTarget triggers scroll + expand.
+  // ProjectRow A is clicked, this is set to the target project's id; the
+  // table opens B's details, and ProjectRow B's useEffect on isJumpTarget
+  // triggers scroll + expand.
   const [targetProjectId, setTargetProjectId] = useState<string | null>(null);
 
   const fetchProjects = async () => {
@@ -143,31 +149,15 @@ export default function SectionD_ProjectBacklog({ }: { } = {}) {
             : 'no projects yet — click "+ new project" to scope your first one.'}
         </div>
       ) : (
-        <div className="space-y-2">
-          {projects.map((p) => (
-            // PD-2: the queue is separated clean cards. The card opens the existing
-            // ProjectRow detail (defaultExpanded) — click→detail navigation preserved.
-            <ProjectQueueCard
-              key={p.id}
-              project={p}
-              taskCount={p.task_count ?? 0}
-              runCount={p.run_count ?? 0}
-              forceOpen={targetProjectId === p.id}
-            >
-              <ProjectRow
-                project={p}
-                entities={entities}
-                allProjects={projects}
-                onUpdate={fetchProjects}
-                onDelete={fetchProjects}
-                isJumpTarget={targetProjectId === p.id}
-                onClearTarget={() => setTargetProjectId(null)}
-                onJumpTo={setTargetProjectId}
-                defaultExpanded
-              />
-            </ProjectQueueCard>
-          ))}
-        </div>
+        <ProjectsTable
+          projects={projects}
+          entities={entities}
+          showArchived={showArchived}
+          targetProjectId={targetProjectId}
+          onJumpTo={setTargetProjectId}
+          onClearTarget={() => setTargetProjectId(null)}
+          onProjectsChanged={fetchProjects}
+        />
       )}
     </section>
   );

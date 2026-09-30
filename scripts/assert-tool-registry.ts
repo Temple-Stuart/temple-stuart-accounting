@@ -1168,10 +1168,11 @@ lawGuard('The citation law', () => {
 //      tool.
 //   2. That page renders ONLY that tool's own phases, from src/lib/pipePhases.ts,
 //      via the shared StageStrip. NOTE: this does NOT require a PAGE-LEVEL
-//      strip. Tasks' projects strip is per project row and behind that row's own
-//      pipelineMode toggle (TruthMachineView.tsx:374-376, ProjectRow.tsx:556);
-//      that is where the strip already lives and it satisfies this rule. Do not
-//      add a page-level strip to satisfy a requirement this rule does not make.
+//      strip. Since TASKS-01 Tasks draws no strip at all: the per-project strip
+//      is gone (TruthMachineView.tsx:12), and the pipeline is a plain view
+//      behind each project’s own pipelineMode toggle (ProjectRow.tsx:129, :581 —
+//      re-cited PROJECTS-01, 2026-09-30). Do not add a page-level strip to
+//      satisfy a requirement this rule does not make.
 //   3. A tool's page opens with its family, its name and its registry line. No
 //      other prose. (ToolOpener is the one opener; a `line` prop is the room's
 //      own words about itself, never a second heading for a grouping layer.)

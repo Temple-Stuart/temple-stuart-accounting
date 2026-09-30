@@ -51,6 +51,12 @@ interface Props {
   /** PD-2: start expanded (the queue card opens straight into the detail). Default false
    *  → existing behavior unchanged everywhere else. */
   defaultExpanded?: boolean;
+  /** PROJECTS-01: the projects table draws the tasks on its own rows, so its
+   *  "details" row passes NO task section — in the standard row or the pipeline. */
+  withoutTaskSection?: boolean;
+  /** PROJECTS-01: called whenever this project's tasks change (the pipe landed
+   *  tasks, or generated tasks were accepted) — the table re-reads them. */
+  onTasksChanged?: () => void;
 }
 
 function projectToForm(p: Project): ProjectForm {
@@ -73,7 +79,7 @@ function projectToForm(p: Project): ProjectForm {
   };
 }
 
-export default function ProjectRow({ project, entities, allProjects, onUpdate, onDelete, isJumpTarget, onClearTarget, onJumpTo, defaultExpanded = false }: Props & { }) {
+export default function ProjectRow({ project, entities, allProjects, onUpdate, onDelete, isJumpTarget, onClearTarget, onJumpTo, defaultExpanded = false, withoutTaskSection = false, onTasksChanged }: Props & { }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<ProjectForm>(() => projectToForm(project));
@@ -128,6 +134,12 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   const [promptsLoading, setPromptsLoading] = useState(false);
   const [promptsRefresh, setPromptsRefresh] = useState(0);
   const rowRef = useRef<HTMLDivElement>(null);
+  // PROJECTS-01: the latest onTasksChanged, read by the pipe poll below — a ref,
+  // so a parent re-render never restarts the poll (it keeps its baseline).
+  const onTasksChangedRef = useRef(onTasksChanged);
+  useEffect(() => {
+    onTasksChangedRef.current = onTasksChanged;
+  }, [onTasksChanged]);
 
   // When SectionD sets isJumpTarget=true on this row, scroll into view,
   // auto-expand, flash highlight for ~1.5s, then clear the target so the
@@ -198,6 +210,7 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
         } else if (count > baseline) {
           setPipeQueued(false);            // clears the badge (cleanup stops the poll)
           setTaskRefresh((n) => n + 1);    // TaskList re-fetches → shows the new tasks
+          onTasksChangedRef.current?.();   // PROJECTS-01: the table's rows re-read too
           return;
         }
       }
@@ -587,9 +600,9 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
           tasksGenError={tasksGenError}
           tasksPreview={tasksPreview}
           onGenerateTasks={handleGenerateTasks}
-          onTasksAccepted={() => { setTasksPreview(null); setTasksGenError(null); }}
+          onTasksAccepted={() => { setTasksPreview(null); setTasksGenError(null); onTasksChanged?.(); }}
           onTasksDiscarded={() => { setTasksPreview(null); setTasksGenError(null); }}
-          taskSection={<TaskList projectId={project.id} entity_id={project.entity_id} refreshKey={taskRefresh} />}
+          taskSection={withoutTaskSection ? null : <TaskList projectId={project.id} entity_id={project.entity_id} refreshKey={taskRefresh} />}
           onRunPipe={handleRunPipe}
           runningPipe={runningPipe}
           pipeQueued={pipeQueued}
@@ -617,7 +630,7 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
       // actually renders it (taskSection/dependencySection inside the expanded
       // block, evolutionSection only when showEvolution), so the lazy-fetch
       // behavior is byte-for-byte identical to the pre-slot inline renders.
-      taskSection={<TaskList projectId={project.id} entity_id={project.entity_id} refreshKey={taskRefresh} />}
+      taskSection={withoutTaskSection ? null : <TaskList projectId={project.id} entity_id={project.entity_id} refreshKey={taskRefresh} />}
       evolutionSection={<EvolutionTimeline projectId={project.id} />}
       dependencySection={
         <DependencyList
@@ -665,7 +678,7 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
       onUseGeneratedDesign={handleUseGeneratedDesign}
       onDiscardGeneratedDesign={handleDiscardGeneratedDesign}
       onGenerateTasks={handleGenerateTasks}
-      onTasksAccepted={() => { setTasksPreview(null); setTasksGenError(null); }}
+      onTasksAccepted={() => { setTasksPreview(null); setTasksGenError(null); onTasksChanged?.(); }}
       onTasksDiscarded={() => { setTasksPreview(null); setTasksGenError(null); }}
       onDelete={handleDelete}
       onArchive={handleArchive}
