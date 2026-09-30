@@ -96,6 +96,20 @@ test('T1 the account: refusals in the chart\'s words, every account shown as its
   assert.equal(refused({ amount: '5', account: '3000' }).message, "B-3000 Owner equity is an equity account — a plan's money goes on an income or expense account");
 });
 
+test('M13 a chart row whose account_type is "Expense" (capital E) is refused as not an income or expense account', () => {
+  // The report reads account_type 'revenue' and 'expense' exactly (report/route.ts);
+  // a row saved "Expense" is not one it reads, so a plan on it would never reach /budget.
+  const capital: PlanBook = { id: 'e_cap', name: 'Capital Co', entityType: 'sole_prop', chart: [row('6120', 'Supplies', 'Expense')] };
+  assert.deepEqual(refused({ amount: '5', account: '6120' }, 'routine', capital), {
+    field: 'coa_code',
+    message: "B-6120 Supplies is an Expense account — a plan's money goes on an income or expense account",
+  });
+  assert.deepEqual(refused({ amount: '5', account: 'B-6120' }, 'task', capital), {
+    field: 'coa_code',
+    message: "B-6120 Supplies is an Expense account — a plan's money goes on an income or expense account",
+  });
+});
+
 test('T1 the amount: exact to the cent, never negative, never rounded, and it fits its column', () => {
   const rule = 'must be a non-negative amount with at most 2 decimals';
   for (const bad of ['1.005', '-1', '1e3', 'twelve', 0.1 + 0.2, -3, Number.NaN, Number.POSITIVE_INFINITY]) {

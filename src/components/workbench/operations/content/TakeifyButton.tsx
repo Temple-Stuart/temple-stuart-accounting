@@ -14,6 +14,10 @@
  *
  * Sized to step-row density (py-0.5) to match RoutineStepList's
  * existing edit/delete buttons.
+ *
+ * UNMOUNTED (ROUTINES-01, 2026-09-30): the Tasks tab's routines table no
+ * longer carries it — Take left that screen with Scenify. The file stays in
+ * the repo, mounted nowhere, and waits for the Content tab.
  */
 
 'use client';
