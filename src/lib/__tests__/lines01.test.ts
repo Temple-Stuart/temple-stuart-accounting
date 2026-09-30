@@ -190,6 +190,8 @@ test('every HB-4a reader reads the leaf — none restates the rule', () => {
     'src/components/workbench/operations/routines/RoutineRow.tsx',
     'src/components/workbench/operations/routines/TodaysStrip.tsx',
     'src/components/hub/HubCalendar.tsx',
+    // WEEK-01 (2026-09-30): the week's row heads read the leaf too.
+    'src/components/workbench/operations/week/WeekSection.tsx',
   ]) assert.match(code(f), /routinePlanned\(/, `${f} reads the leaf`);
   // The HB-4d bridge reads it THROUGH routinesMonthlyByCoa, and no longer hides a
   // lined routine with blank routine-level fields.

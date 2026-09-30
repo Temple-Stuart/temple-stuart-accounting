@@ -15,14 +15,21 @@
  * cadence-grouped list refetches (next-due moves on). TASKS-01: it refetches
  * itself when refreshKey changes — a routine created or edited in the list
  * shows up here without a reload.
+ *
+ * WEEK-01 (2026-09-30): mark done goes through the ONE completion writer
+ * (completeRoutine.ts — the same request, { expected_at }); a routine the today
+ * read cannot place (its zone, its schedule) is named with its reason, never
+ * dropped; the status words live in types.ts (TODAY_STATUS_LABEL).
  */
 
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { TodayStatus } from './types';
-import { formatBudgetPerOccurrence } from './types';
+import type { RefusedRoutine, TodayStatus } from './types';
+import { TODAY_STATUS_LABEL, formatBudgetPerOccurrence } from './types';
 import { plannedLine, routinePlanned } from '@/lib/operations/routineLines';
+import { completeRoutine } from './completeRoutine';
+import RefusedRoutines from './RefusedRoutines';
 
 
 interface TodayEntry {
@@ -65,13 +72,6 @@ const STATUS_PILL: Record<TodayStatus, string> = {
   upcoming: 'bg-blue-50 text-blue-800',
 };
 
-const STATUS_LABEL: Record<TodayStatus, string> = {
-  pending: 'pending',
-  completed: 'completed',
-  missed: 'missed',
-  upcoming: 'upcoming',
-};
-
 function formatTime(iso: string, tz: string): string {
   return new Date(iso).toLocaleTimeString(undefined, {
     timeZone: tz,
@@ -82,6 +82,7 @@ function formatTime(iso: string, tz: string): string {
 
 export default function TodaysStrip({ onCommitted, onCreateRequest, refreshKey = 0 }: Props & { }) {
   const [entries, setEntries] = useState<TodayEntry[]>([]);
+  const [refused, setRefused] = useState<RefusedRoutine[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
@@ -99,6 +100,13 @@ export default function TodaysStrip({ onCommitted, onCreateRequest, refreshKey =
       }
       const list: TodayEntry[] = body.entries ?? [];
       setEntries(list);
+      // WEEK-01: the routines the read could not place — named below, never dropped.
+      if (!Array.isArray(body.refused)) {
+        setError('the today read came back without its refused list');
+        setRefused([]);
+        return;
+      }
+      setRefused(body.refused);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'failed to load today');
     } finally {
@@ -114,14 +122,9 @@ export default function TodaysStrip({ onCommitted, onCreateRequest, refreshKey =
     setCompletingId(routineId);
     setError(null);
     try {
-      const res = await fetch(`/api/operations/routines/${routineId}/completions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ expected_at: expectedAt }),
-      });
-      const body = await res.json();
-      if (!res.ok) {
-        setError(body?.message ?? body?.error ?? 'failed to mark complete');
+      const answer = await completeRoutine(routineId, expectedAt);
+      if (!answer.ok) {
+        setError(answer.message);
         return;
       }
       fetchToday();
@@ -147,6 +150,12 @@ export default function TodaysStrip({ onCommitted, onCreateRequest, refreshKey =
     // "+ new routine", byte-reused for one vocabulary.
     return (
       <div className="flex flex-wrap items-center gap-3">
+        <RefusedRoutines refused={refused} />
+        {error && (
+          <div className="text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
+            {error}
+          </div>
+        )}
         <span className="text-xs text-text-muted italic">
           no routines scheduled for today.
         </span>
@@ -177,6 +186,8 @@ export default function TodaysStrip({ onCommitted, onCreateRequest, refreshKey =
         </div>
       )}
 
+      <RefusedRoutines refused={refused} />
+
       <div className="space-y-1">
         {entries.map((e) => {
           const pillClass = `inline-block px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_PILL[e.status]}`;
@@ -197,7 +208,7 @@ export default function TodaysStrip({ onCommitted, onCreateRequest, refreshKey =
                 }>
                   {e.routine.name}
                 </span>
-                <span className={pillClass}>{STATUS_LABEL[e.status]}</span>
+                <span className={pillClass}>{TODAY_STATUS_LABEL[e.status]}</span>
                 {e.status === 'completed' && e.completion && (
                   <span className="text-text-muted">
                     Δ {e.completion.delta_minutes} min

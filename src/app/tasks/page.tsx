@@ -28,6 +28,11 @@
  * /api/operations/daily-plan/items (:130), which the grid reads back as blocks
  * (HubCalendar.tsx:147).
  *
+ * WEEK-01 (2026-09-30): THIS WEEK comes first — Monday to Sunday, every
+ * routine on every day, done with its note, each paid routine's place and
+ * amount for the day, each day's tasks (week/WeekSection.tsx). It reads
+ * useOperationsEntity, so it sits inside the provider with the lists.
+ *
  * NORTH-01 (2026-09-18): the North Star is not rendered inline here. It is
  * still Tasks' — reached the way Issue log and Audit trail are, as a sub-row
  * of this tool's rail entry (a `links` entry on the registry row) that opens
@@ -41,6 +46,7 @@ import { OperationsEntityProvider } from '@/components/workbench/operations/Enti
 import SectionC_DailyPlan from '@/components/workbench/operations/SectionC_DailyPlan';
 import SectionD_ProjectBacklog from '@/components/workbench/operations/SectionD_ProjectBacklog';
 import SectionE_Routines from '@/components/workbench/operations/SectionE_Routines';
+import WeekSection from '@/components/workbench/operations/week/WeekSection';
 
 export default function TasksPage() {
   return (
@@ -48,6 +54,7 @@ export default function TasksPage() {
       <ToolOpener tools={[navToolByName('Tasks', TOOL_GATE)]} />
       <OperationsEntityProvider>
         <div className="space-y-3" data-tool-page="Tasks">
+          <WeekSection />
           <SectionD_ProjectBacklog />
           <SectionE_Routines />
           <SectionC_DailyPlan />

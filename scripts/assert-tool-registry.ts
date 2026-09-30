@@ -2730,6 +2730,8 @@ const LINES_READERS = [
   'src/components/workbench/operations/routines/RoutineRow.tsx',
   'src/components/workbench/operations/routines/TodaysStrip.tsx',
   'src/components/hub/HubCalendar.tsx',
+  // WEEK-01 (2026-09-30): the week reads each row’s figure through the leaf too.
+  'src/components/workbench/operations/week/WeekSection.tsx',
 ];
 let linesViolations = 0;
 const linesFail = (m: string) => { linesViolations += 1; violations.push(`lines law: ${m} (LINES-01)`); };
@@ -3169,12 +3171,17 @@ const ONEOFF_CAL_PAGE = 'src/app/calendar/page.tsx';
 const ONEOFF_EV_ROUTE = 'src/app/api/calendar/events/route.ts';
 const ONEOFF_HELPERS = 'src/lib/operations/rruleHelpers.ts';
 const ONEOFF_MIGRATION = 'prisma/migrations/20260918150000_oneoff_01_a_routine_that_happens_once/migration.sql';
+const ONEOFF_TODAY_ROUTE = 'src/app/api/operations/routines/today/route.ts';
+const ONEOFF_DAY_MODULE = 'src/lib/operations/routineDay.ts';
 const ONEOFF_CALLERS = [
   'src/app/api/operations/routines/route.ts',
   'src/app/api/operations/routines/[id]/route.ts',
   'src/app/api/operations/routines/[id]/completions/route.ts',
   'src/app/api/operations/routines/[id]/upcoming/route.ts',
-  'src/app/api/operations/routines/today/route.ts',
+  // WEEK-01 (2026-09-30): the today route’s day logic moved into one pure module —
+  // the anchored expansion moved with it, and the route reads a day only through
+  // it (checked below: moved, never loosened).
+  'src/lib/operations/routineDay.ts',
   'src/app/api/hub/operations-routines/route.ts',
   'src/inngest/functions/routine-evaluator.ts',
   'src/lib/operations/routineBudget.ts',
@@ -3237,6 +3244,13 @@ for (const rel of walkSrc('src/components/workbench/operations/routines')) {
   if (!/export function scheduleAnchor\(/.test(helpers)) oneoffFail(`${ONEOFF_HELPERS} exports no scheduleAnchor`);
   if (!/dtstart: anchor \?\? FLOATING_ANCHOR/.test(helpers)) oneoffFail(`${ONEOFF_HELPERS} does not build the rule on the routine's anchor`);
   const callerSet = new Set(ONEOFF_CALLERS);
+  // WEEK-01: the today route answers a day through the day module alone — it calls
+  // routineDay( and expands nothing itself.
+  {
+    const todayRoute = codeOf(ONEOFF_TODAY_ROUTE);
+    if (!/routineDay\(r, asked\.day, now\)/.test(todayRoute)) oneoffFail(`${ONEOFF_TODAY_ROUTE} no longer reads a day through ${ONEOFF_DAY_MODULE} — the anchored expansion lives there`);
+    if (/\bexpand(?:Forward|Between)\(/.test(todayRoute)) oneoffFail(`${ONEOFF_TODAY_ROUTE} expands a schedule itself — its day is ${ONEOFF_DAY_MODULE}’s`);
+  }
   for (const rel of ONEOFF_CALLERS) {
     const body = codeOf(rel);
     const calls = [...body.matchAll(/expand(?:Forward|Between)\([^;]*;/g)].map((m) => m[0]);
@@ -3323,9 +3337,13 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
   }
   const page = codeOf(TWO_LISTS_PAGE);
   if (/data-pipe-label|PIPE_LABEL|PIPE_PHASES/.test(page)) twoListsFail(`${TWO_LISTS_PAGE} labels a pipe — there is no strip to label`);
-  for (const section of ['<SectionD_ProjectBacklog />', '<SectionE_Routines />', '<SectionC_DailyPlan />']) {
-    if (!page.includes(section)) twoListsFail(`${TWO_LISTS_PAGE} no longer mounts ${section} — the page is the projects list, the routines list and the daily plan`);
+  // WEEK-01 (2026-09-30): the page gains a fourth mount, FIRST — this week, then the two lists and the daily plan.
+  const TWO_LISTS_MOUNTS = ['<WeekSection />', '<SectionD_ProjectBacklog />', '<SectionE_Routines />', '<SectionC_DailyPlan />'];
+  for (const section of TWO_LISTS_MOUNTS) {
+    if (!page.includes(section)) twoListsFail(`${TWO_LISTS_PAGE} no longer mounts ${section} — the page is this week, the projects list, the routines list and the daily plan`);
   }
+  const mountAt = TWO_LISTS_MOUNTS.map((section) => page.indexOf(section));
+  if (mountAt.some((at, i) => i > 0 && at < mountAt[i - 1])) twoListsFail(`${TWO_LISTS_PAGE} mounts its sections out of order — this week first, then projects, routines and the daily plan`);
   if ((PHASES_RENDERED_AT['/tasks'] ?? ['?']).length !== 0) twoListsFail(`nav.ts declares /tasks draws [${(PHASES_RENDERED_AT['/tasks'] ?? []).join(' ')}] — it draws nothing`);
   // Every control the strips held is still a control: the list headers' create
   // buttons, the row's edit/archive/delete and its pipeline door, Today's mark-done.
