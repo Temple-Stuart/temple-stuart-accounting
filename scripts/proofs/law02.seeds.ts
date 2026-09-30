@@ -64,19 +64,21 @@ const SEEDS: Seed[] = [
     replace: '  const reviewCount = h.reviewCount ?? 0;',
     expect: 'defaults a figure',
   },
+  // LEGACY-DEL-01 (2026-09-29): the planner and its words leaf were deleted; clause 3 holds them deleted. Each
+  // seed that broke one now RE-CREATES it (the harness's create form: find '').
   {
-    name: 'law02-f the planner prints an unstated rating as a bare number again (stated-figure 3)',
+    name: 'law02-f the planner comes back (stated-figure 3, held deleted — LEGACY-DEL-01)',
     file: PLANNER,
-    find: '<span className="text-text-primary">{ratingValue(rec.googleRating)}</span>',
-    replace: '<span className="text-text-primary">{rec.googleRating || \'—\'}</span>',
-    expect: 'prints an unstated rating as a number',
+    find: '',
+    replace: "export default function TripPlannerAI() { return null; }\n",
+    expect: 'stated-figure law: src/components/trips/TripPlannerAI.tsx exists',
   },
   {
-    name: 'law02-g the rating words read the old 0 default as a rating (stated-figure 3)',
+    name: 'law02-g the rating words leaf comes back (stated-figure 3, held deleted — LEGACY-DEL-01)',
     file: WORDS,
-    find: "  return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null;",
-    replace: "  return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null;",
-    expect: 'the rating words do not say "not rated"',
+    find: '',
+    replace: "export const ratingValue = (v: unknown) => (typeof v === 'number' ? v : null);\n",
+    expect: 'stated-figure law: src/lib/travel/ratingWords.ts exists',
   },
   {
     name: "law02-h Plaid's unstated account currency becomes 'USD' again (stated-figure 4)",

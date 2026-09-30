@@ -635,14 +635,14 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       return NextResponse.json({ error: 'optionType and optionId are required' }, { status: 400 });
     }
 
-    // Synthetic commits — Google places via PlaceCommitForm (`place-…`,
-    // PlaceCommitForm.tsx:52) and LiteAPI hotels via AddToTripButton (`hotel-…`,
-    // AddToTripButton.tsx:77) — carry a NON-UUID placeholder in vendorOptionId and
+    // Synthetic commits — LiteAPI hotels via PublicHotelSearch (`hotel-…`, PublicHotelSearch.tsx:167), and Google places
+    // (`place-…`) and hotels committed by the legacy planner's PlaceCommitForm and AddToTripButton before they were deleted
+    // (LEGACY-DEL-01, 2026-09-29; their rows stay) — carry a NON-UUID placeholder in vendorOptionId and
     // have NO option row: the commit POST builds them from the payload and skips
     // the option-row update via its guard (route.ts:158). Mirror that guard here so
     // the uncommit never looks the placeholder up in a @db.Uuid option table (which
     // throws "Error creating UUID"). These `place-`/`hotel-`/`viator-` prefixes are the
-    // only three synthetic optionId constructors in the codebase. NON-synthetic optionIds
+    // only three synthetic optionId forms in the codebase (`place-` has no constructor now). NON-synthetic optionIds
     // are untouched, so a genuinely malformed UUID still surfaces its error below.
     // ACTIVITY-01 STEP 4 (2026-09-22): a Viator tour's Save is the third synthetic constructor (`viator-`, PublicActivitySearch.tsx).
     const isSynthetic = optionId.startsWith('place-') || optionId.startsWith('hotel-') || optionId.startsWith('viator-');

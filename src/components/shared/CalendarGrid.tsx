@@ -43,9 +43,9 @@ export interface CalendarEvent {
   coaCode?: string | null;
   /**
    *  DAY-01: the event's stored coordinates (calendar_events.latitude/longitude,
-   *  snake→camel like coaCode). Only the trip commit writes them today
-   *  (trips/[id]/commit/route.ts:189); every other source leaves them null. The
-   *  grid itself does not draw them — the day view plots what is stored.
+   *  snake→camel like coaCode). Nothing writes them now: their one writer, the legacy planner's trip
+   *  commit (trips/[id]/commit/route.ts), was deleted (LEGACY-DEL-01, 2026-09-29); stored rows keep theirs,
+   *  every other source leaves them null. The grid itself does not draw them — the day view plots what is stored.
    */
   latitude?: number | null;
   longitude?: number | null;

@@ -15,7 +15,7 @@
  *
  * THE CENSUS THIS IS DERIVED FROM (DAY-01 STEP 0.2, every INSERT INTO
  * calendar_events in src/):
- *   trip      — trips/[id]/commit/route.ts:187 and trips/[id]/vendor-commit/route.ts:425
+ *   trip      — trips/[id]/vendor-commit/route.ts:595 (the other, trips/[id]/commit/route.ts, was deleted with the legacy planner — LEGACY-DEL-01, 2026-09-29)
  *   agenda    — agenda/[id]/route.ts:84
  *   home      — home/[id]/route.ts:83
  *   shopping  — shopping/[id]/route.ts:83 and shopping/commit/route.ts:84
@@ -96,8 +96,8 @@ export const CALENDAR_SOURCES: readonly CalendarSourceRule[] = [
     icon: '✈️',
     tint: TINTS.cyan,
     label: 'Trips',
-    writtenBy: 'src/app/api/trips/[id]/commit/route.ts:187 · src/app/api/trips/[id]/vendor-commit/route.ts:425',
-    why: 'the trip itself and every committed flight, hotel, transfer and activity — the only source that carries a time of day and coordinates',
+    writtenBy: 'src/app/api/trips/[id]/vendor-commit/route.ts:595 (the one writer now: the legacy planner\'s src/app/api/trips/[id]/commit/route.ts, which also wrote a row for a trip itself and its coordinates, was deleted — LEGACY-DEL-01, 2026-09-29)',
+    why: 'every committed flight, hotel, transfer and activity, and the rows for a trip itself that the legacy planner\'s commit wrote before it was deleted (LEGACY-DEL-01) — the only source that carries a time of day, and on those older rows coordinates',
   },
   {
     source: 'agenda',

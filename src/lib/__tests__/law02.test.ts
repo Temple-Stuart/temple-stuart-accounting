@@ -16,7 +16,6 @@ import { liteApiHotelToRecommendation, prebookRate } from '../liteapiClient';
 /** The mapper's own input type (the client does not export it). */
 type LiteApiHotelRate = Parameters<typeof liteApiHotelToRecommendation>[0];
 import { prebookUnstatedMoney } from '../checkout/prebookGate';
-import { RATING_WORDS, ratingLine, ratingValue, scoreWords } from '../travel/ratingWords';
 import { lowestFareLine } from '../flights/fares';
 
 /** Run prebookRate against one stubbed vendor answer — no network, no key of consequence. */
@@ -85,22 +84,12 @@ test('item 1 — an unstated hotel rating is NULL with everything derived from i
   assert.equal(full.googleRating, 4.2);
   assert.equal(full.sentiment, 'neutral');
   assert.equal(typeof full.compositeScore, 'number');
-  // The AI assistant ranks a NULL composite after every rated hotel — never as 0.
-  assert.match(code('src/app/api/trips/[id]/ai-assistant/route.ts'), /\(a\.compositeScore === null \? 1 : 0\) - \(b\.compositeScore === null \? 1 : 0\)/);
+  // LEGACY-DEL-01 (2026-09-29): the AI assistant route that ranked a NULL composite last was deleted with the
+  // legacy trip planner; the NULL itself is still the client's, checked above.
 });
 
-test('item 1 — the planner says "not rated", never "0 stars" or "Rated 0 out of 5"', () => {
-  assert.equal(ratingLine(null, null), RATING_WORDS.notRated);
-  assert.equal(ratingLine(0, 0), 'not rated', "the old `|| 0` default is not a rating");
-  assert.equal(ratingLine(4.5, 1203), '4.5 stars (1,203 reviews)');
-  assert.equal(ratingLine(4.5, null), '4.5 stars (reviews not stated)');
-  assert.equal(ratingValue(undefined), 'not rated');
-  assert.equal(scoreWords(null), 'not rated');
-  assert.equal(scoreWords(7), '7/10');
-  const planner = code('src/components/trips/TripPlannerAI.tsx');
-  assert.doesNotMatch(planner, /\$\{rec\.googleRating\} stars|Rated \$\{rec\.googleRating \|\| 0\}|\{rec\.googleRating \|\| '—'\}/);
-  assert.match(planner, /aria-label=\{ratingLine\(rec\.googleRating, rec\.reviewCount\)\}/);
-});
+// LEGACY-DEL-01 (2026-09-29): 'the planner says "not rated"…' went with the planner and its words leaf
+// (src/components/trips/TripPlannerAI.tsx, src/lib/travel/ratingWords.ts) — the only code it exercised was deleted.
 
 test('item 1 — Plaid\'s account currency is stored as stated or NULL; the refund pass EXCLUDES the amount on NULL; a flight with no outbound is never "nonstop"', () => {
   const exchange = code('src/app/api/plaid/exchange-token/route.ts');

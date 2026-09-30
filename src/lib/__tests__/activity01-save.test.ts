@@ -38,7 +38,6 @@ const COMMIT = 'src/app/api/trips/[id]/vendor-commit/route.ts';
 const CLIENT = 'src/lib/viatorClient.ts';
 const CONTAINER = 'src/components/trips/PublicActivitySearch.tsx';
 const VIEW = 'src/components/trips/ActivityPickerView.tsx';
-const PLANNER = 'src/components/trips/TripPlannerAI.tsx';
 const STRIP = 'src/components/trips/travelStripModes.tsx';
 const QUOTA = 'src/lib/travelSearchQuota.ts';
 
@@ -312,7 +311,8 @@ test('the options route: the user first, the query by name, the per-user limit, 
   assert.doesNotMatch(route, /error\.message|error\.body|err\.body|\.slice\(0, 12\)/);
   assert.ok(!code('src/middleware.ts').includes("'/api/travel/activities/options'"), 'not a public path');
   // The three reads have no other caller under the search route, the picker, the planner or the client's old paths.
-  for (const f of [SEARCH_ROUTE, VIEW, PLANNER, CONTAINER, 'src/app/api/travel/transfers/search/route.ts']) {
+  // LEGACY-DEL-01 (2026-09-29): the planner (TripPlannerAI.tsx) was deleted and left this list.
+  for (const f of [SEARCH_ROUTE, VIEW, CONTAINER, 'src/app/api/travel/transfers/search/route.ts']) {
     assert.doesNotMatch(code(f), /getProductRaw\(|getScheduleRaw\(|fetchExchangeRatesRaw\(|availability\/schedules|exchange-rates/, `${f} makes none of the Save's reads`);
   }
   const client = code(CLIENT);
@@ -393,5 +393,7 @@ test('the pin holds, dated: six files re-dated and one pinned by ACTIVITY-01; th
   assert.equal((notes.match(/ACTIVITY-01 \(2026-09-22\): pinned — /g) ?? []).length, 1);
   assert.ok(pins.includes(`{ file: '${OPTIONS_ROUTE}', sha256: '`), 'the options route joins the census');
   assert.match(BOOKING_FLOW_BASE, /the options route pinned by ACTIVITY-01/);
-  assert.equal(BOOKING_FLOW_FILES.length, 51, 'the census grew by the options route (ACTIVITY-01) and by RowActionStrip.tsx (TRAVEL-ROW-01)');
+  // LEGACY-DEL-01 (2026-09-29): 51 less the four pins that left with the legacy planner's deleted files (HotelGallery,
+  // HotelMap, FlightPicker, TripPlannerAI) — the travel law holds each deleted.
+  assert.equal(BOOKING_FLOW_FILES.length, 47, 'the census grew by the options route (ACTIVITY-01) and by RowActionStrip.tsx (TRAVEL-ROW-01), and lost the four deleted pins (LEGACY-DEL-01)');
 });

@@ -127,7 +127,7 @@ export const KIND_VIEW_CENSUS: readonly FeedTable[] = [
 /** Tables whose rows come from a provider answer but whose feed the rule book does not name — reported, never viewed. */
 export const STOPPED_TABLES: ReadonlyArray<{ table: string; why: string }> = [
   { table: 'reservations (provider duffel)', why: "history rows from a retired provider (LAUNCH-01 RETIRE-01 deleted its book route; nothing writes provider 'duffel' any more) — the rows are kept, labeled by their provider, and stay outside the event view (the bookings view reads provider 'liteapi' only)" },
-  { table: 'trip_scanner_results', why: 'src/app/api/trips/[id]/ai-assistant/route.ts writes AI recommendations per trip/category; the book names no such feed (anthropic · classification is the only anthropic row)' },
+  { table: 'trip_scanner_results', why: "AI recommendations per trip/category, written by nothing now: their one writer, the legacy planner's paid AI scan (src/app/api/trips/[id]/ai-assistant/route.ts), was deleted (LEGACY-DEL-01, 2026-09-29); the rows it wrote stay, and the vendor commit reads one for an activity's location (src/app/api/trips/[id]/vendor-commit/route.ts:426); the book names no such feed (anthropic · classification is the only anthropic row)" },
   { table: 'scan_snapshots', why: 'src/lib/convergence/snapshot-logger.prisma.ts writes our own scores over quotes — math we did, not a provider answer; no rule-book feed' },
   { table: 'operations_ai_usage', why: 'src/lib/ai/recordUsage.ts:158 stores our AI calls (purpose, tokens, full_response) — the book\'s anthropic row is classification, not a usage log' },
   { table: 'discovery_proposals', why: 'AI-authored proposals (src/lib/discovery); not the book\'s anthropic · classification by name' },

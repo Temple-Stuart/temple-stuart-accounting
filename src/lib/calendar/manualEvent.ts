@@ -25,7 +25,9 @@ import { MANUAL_EVENT_SOURCE } from './sources';
  * existing writers put in calendar_events, gathered so a hand-entered event
  * chooses from what the grid already renders and never invents a palette.
  *
- *   trip        ✈️ cyan     trips/[id]/commit/route.ts:192
+ *   trip        ✈️ cyan     trips/[id]/vendor-commit/route.ts:596 (a flight's ✈️ at :575; the census's
+ *                            trips/[id]/commit/route.ts:192 was deleted with the legacy planner —
+ *                            LEGACY-DEL-01, 2026-09-29)
  *   lodging     🏨 cyan  ┐
  *   flight      ✈️ cyan  │
  *   transfer    🚕 cyan  ├ trips/[id]/vendor-commit/route.ts:404-407 (the option
@@ -66,7 +68,9 @@ export interface EventCategory {
 }
 
 export const EVENT_CATEGORIES: readonly EventCategory[] = [
-  { category: 'trip',      icon: '✈️', color: 'cyan',   evidence: 'src/app/api/trips/[id]/commit/route.ts:192' },
+  // LEGACY-DEL-01 (2026-09-29): the census cited the legacy planner's commit (trips/[id]/commit/route.ts:192),
+  // deleted with it; the vendor commit writes the same trio for a flight.
+  { category: 'trip',      icon: '✈️', color: 'cyan',   evidence: 'src/app/api/trips/[id]/vendor-commit/route.ts:596' },
   { category: 'lodging',   icon: '🏨', color: 'cyan',   evidence: 'src/app/api/trips/[id]/vendor-commit/route.ts:405' },
   { category: 'transfer',  icon: '🚕', color: 'cyan',   evidence: 'src/app/api/trips/[id]/vendor-commit/route.ts:405' },
   { category: 'activity',  icon: '🎯', color: 'cyan',   evidence: 'src/app/api/trips/[id]/vendor-commit/route.ts:405' },
