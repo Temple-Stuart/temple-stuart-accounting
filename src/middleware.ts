@@ -160,6 +160,7 @@ const PUBLIC_PATHS = [
   // (401 before any read), then that reservation alone, still a guest's, the vendor's
   // side only; read-only, no vendor call, never cached.
   '/api/guest/booking',
+  // GUEST-02 (2026-09-30): the prefix also serves /api/guest/booking/cancel — the session, both limits and the guest's row before the one cancel flow; never cached.
   // PROPOSAL-FORM: the public project-proposal form page — a static client
   // form (zero on-load fetches, zero authed reads, zero paid calls); its only
   // network call is the user-submitted POST below. Guests are the audience.

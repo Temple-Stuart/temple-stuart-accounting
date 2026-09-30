@@ -327,7 +327,7 @@ export interface BookingCalendarCancelPort {
  * CANCEL-01 (2026-09-26): A CANCELLED BOOKING'S ROW IS MARKED, NOT REMOVED.
  *
  * The reservation row is never deleted — the financial record lives forever
- * (reservations/[id]/cancel/route.ts) — and its calendar row is the day-side of
+ * (the one cancel flow, src/lib/reservations/cancelFlow.ts) — and its calendar row is the day-side of
  * that same record: it was keyed (source='reservation', source_id=reservation.id)
  * by CAL-01 exactly so the deferred budget retro-map can find the bookings it
  * must map. Removing the row would make the day read as if nothing had ever been

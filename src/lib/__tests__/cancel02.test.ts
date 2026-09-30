@@ -5,6 +5,10 @@
  * The route cannot be executed here (a database, a vendor, a mail provider), so
  * its contract — the send after the commit, its own catch, the recipient rule,
  * email.sent in the envelope — is read from source through the reader.
+ *
+ * GUEST-02 (2026-09-30): the lanes and the sender moved word for word into the one cancel
+ * flow (src/lib/reservations/cancelFlow.ts); those checks read the flow, the account's
+ * email read stays on its gate, and the hotel send hands the caller's account email.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,6 +21,7 @@ import { parseCancelResult } from '../liteapiClient';
 import { flightCancellationObjectOf, parseFlightCancellationResult } from '../liteapiFlightsClient';
 
 const ROUTE = 'src/app/api/reservations/[id]/cancel/route.ts';
+const FLOW = 'src/lib/reservations/cancelFlow.ts';
 const TEMPLATE = 'src/lib/emailTemplates/lifecycle.ts';
 const LEAF = 'src/lib/reservations/cancellation.ts';
 
@@ -189,7 +194,7 @@ test('recipient: account → the user email; guest with guestEmail → it; guest
 // ── the route ───────────────────────────────────────────────────────────────
 
 test('the route: both lanes send AFTER the transaction, once, in their own catch; a failure or a missing recipient never fails the cancel; email.sent rides both envelopes', () => {
-  const src = code(ROUTE);
+  const src = code(FLOW);
   const hotel = src.slice(src.indexOf('async function cancelHotel('), src.indexOf('async function cancelFlight('));
   const flight = src.slice(src.indexOf('async function cancelFlight('));
   for (const [name, lane] of [['hotel', hotel], ['flight', flight]] as const) {
@@ -218,8 +223,9 @@ test('the route: both lanes send AFTER the transaction, once, in their own catch
     assert.ok(!sender.includes(banned), `no ${banned} in the email path`);
   }
   // The gate reads what the recipient rule and the identity lines need.
-  assert.match(src, /select: \{ id: true, email: true \}/, 'the account email from the users row');
+  assert.match(code(ROUTE), /select: \{ id: true, email: true \}/, 'the account email from the users row');
   assert.match(src, /bookingType: true, guestEmail: true, displayName: true, providerConfirmationCode: true, checkinDate: true, checkoutDate: true,/);
   assert.match(src, /reservationIdentity\(owned\)/, 'the name through the one reader');
   assert.ok(!/CANCEL-02: the cancellation EMAIL attaches here — NOT this PR/.test(comments(ROUTE)), 'the absence note is gone');
+  assert.ok(!/CANCEL-02: the cancellation EMAIL attaches here — NOT this PR/.test(comments(FLOW)), 'the absence note is gone from the flow');
 });

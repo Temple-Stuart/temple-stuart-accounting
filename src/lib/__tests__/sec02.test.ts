@@ -4,13 +4,17 @@
  * driven over fixtures — the house pattern passes, each broken shape fails — and
  * over the real routes the census named: the 48th DELETE/PATCH/PUT file a narrower
  * count missed, and the one FAIL, fixed.
+ *
+ * GUEST-02 (2026-09-30): the gated flow's three readers — the entry calls in a file, the
+ * modules a file imports, the writes a gated flow may not make — driven over fixtures and
+ * over the one cancel flow and its two gates.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { code, functionBody } from '../sourceText';
-import { exportedMethods, handlerIdentity, inScope, judgeWrites, provenOwned, writeSites } from '../security/ownershipLaw';
+import { entryCalls, exportedMethods, flowWriteRefusals, handlerIdentity, importSpecifiers, inScope, judgeWrites, provenOwned, writeSites } from '../security/ownershipLaw';
 
 function routes(dir = 'src/app/api'): string[] {
   const out: string[] = [];
@@ -143,5 +147,77 @@ test('the real routes the ruling sampled read as the house pattern, write for wr
     const c = code(f);
     for (const v of judgeWrites(c)) assert.ok(v.ok, `${f}:${v.site.line} ${v.site.model}.${v.site.op}`);
     for (const h of handlerIdentity(c)) assert.ok(h.identityAt !== null && (h.firstWriteAt === null || h.identityAt < h.firstWriteAt), `${f} ${h.method}`);
+  }
+});
+
+// ── GUEST-02 (2026-09-30): the gated flow's readers ──────────────────────────
+
+const GATED = `
+import { quoteCancellation, cancelReservation } from '@/lib/reservations/cancelFlow';
+export async function quoteCancellation(owned: Row) { return null; }
+async function gate(id: string) { return { ok: true, owned: { id } }; }
+export async function GET(request: Request) {
+  const g = await gate('x');
+  if (!g.ok) return g.response;
+  return await quoteCancellation(g.owned, caller);
+}
+export async function POST(request: Request) {
+  return cancelReservation(body.row, caller);
+}
+`;
+
+test('GUEST-02 entryCalls: every call of an entry — its function, the text before it there, its first argument; a definition is not a call', () => {
+  const calls = entryCalls(GATED, ['quoteCancellation', 'cancelReservation']);
+  assert.deepEqual(calls.map((c) => [c.entry, c.fn, c.firstArg]), [['quoteCancellation', 'GET', 'g.owned'], ['cancelReservation', 'POST', 'body.row']]);
+  assert.match(calls[0].before, /const g = await gate\('x'\);\s*if \(!g\.ok\) return g\.response;\s*return await $/, 'the gate stands before the call in its function');
+  assert.ok(!/gate\(/.test(calls[1].before), 'no gate before the ungated call');
+  assert.deepEqual(entryCalls(GATED, []), []);
+});
+
+test('GUEST-02 importSpecifiers: import … from, export … from, a side-effect import, import() and require()', () => {
+  const src = "import a from './a';\nimport type { B } from \"@/lib/b\";\nexport { c } from '../c';\nimport './d';\nconst e = await import('@/lib/e');\nconst f = require('f');\n";
+  assert.deepEqual(importSpecifiers(src).sort(), ['./a', './d', '../c', '@/lib/b', '@/lib/e', 'f'].sort());
+});
+
+test('GUEST-02 flowWriteRefusals: an update names the owned row\'s id (as id or reservationId); a delete, an upsert and raw SQL are refused; a create is not judged', () => {
+  const ok = `
+async function f(owned: Row) {
+  await tx.reservations.update({ where: { id: owned.id }, data: { status: 'cancelled' } });
+  await tx.commission_ledger.updateMany({ where: { reservationId: owned.id, status: 'estimated' }, data: { status: 'cancelled' } });
+  await tx.money_events.createMany({ data: rows });
+}`;
+  assert.deepEqual(flowWriteRefusals(ok, 'owned'), []);
+  const bad = `
+async function f(owned: Row, body: Body) {
+  await tx.reservations.update({ where: { id: body.id }, data: {} });
+  await prisma.reservations.updateMany({ where: { userId: owned.userId }, data: {} });
+  await prisma.money_events.delete({ where: { id: owned.id } });
+  await prisma.vouchers.upsert({ where: { id: owned.id }, create: {}, update: {} });
+  await prisma.$executeRaw\`UPDATE reservations SET status = 'x' WHERE id = \${owned.id}\`;
+  await prisma.$queryRaw\`SELECT 1\`;
+}`;
+  assert.deepEqual(flowWriteRefusals(bad, 'owned').map((r) => r.why), [
+    'an update whose WHERE does not name owned.id',
+    'an updateMany whose WHERE does not name owned.id',
+    'a delete',
+    'an upsert',
+    'raw SQL',
+    'raw SQL',
+  ]);
+});
+
+test('GUEST-02 the one cancel flow and its two gates, read: no refused write in the flow; each gate calls both entries with its own row, behind its gate', () => {
+  assert.deepEqual(flowWriteRefusals(code('src/lib/reservations/cancelFlow.ts'), 'owned'), []);
+  const entries = ['quoteCancellation', 'cancelReservation'];
+  for (const [file, gate, row] of [
+    ['src/app/api/reservations/[id]/cancel/route.ts', /const g = await gate\(id\);\s*if \(!g\.ok\) return g\.response;/, 'g.owned'],
+    ['src/app/api/guest/booking/cancel/route.ts', /const g = await guestGate\(request\);\s*if \(!g\.ok\) return g\.response;/, 'g.row'],
+  ] as const) {
+    const src = code(file);
+    const calls = entryCalls(src, entries);
+    assert.deepEqual(calls.map((c) => [c.entry, c.fn, c.firstArg]), [['quoteCancellation', 'GET', row], ['cancelReservation', 'POST', row]], file);
+    for (const c of calls) assert.match(c.before, gate, `${file}: ${c.entry} behind its gate`);
+    assert.ok(importSpecifiers(src).includes('@/lib/reservations/cancelFlow'), file);
+    assert.equal(inScope(src), false, `${file}: its writes are the flow's — the law counts it as a writer by its entry calls`);
   }
 });

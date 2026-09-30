@@ -1,0 +1,645 @@
+import { NextResponse } from 'next/server';
+import { createHash } from 'crypto';
+import { Prisma } from '@prisma/client';
+import { failClosedResponse } from '@/lib/http/failClosedResponse';
+import { prisma } from '@/lib/prisma';
+import { cancelBooking, parseCancelResult, type CancelBookingResult } from '@/lib/liteapiClient';
+// CANCEL-01 (2026-09-26): the FLIGHT lane's own two endpoints — the quote a
+// customer reads first, and the action — plus the post-202 read of cancelIntentAt.
+import {
+  cancelFlightBooking,
+  getFlightBooking,
+  getFlightCancellationQuote,
+  parseFlightCancellationResult,
+  LiteApiFlightsApiError,
+  type FlightCancellationResult,
+} from '@/lib/liteapiFlightsClient';
+import { landLiteApiCancellation } from '@/lib/arrivals/liteapiBooking';
+import { prismaLanding } from '@/lib/arrivals/prismaLanding';
+import { MissingLiteApiKeyError, LiteApiError } from '@/lib/travelErrors';
+import { reserveTravelSearch } from '@/lib/travelSearchQuota';
+import { cancelRecipient, cancellationEmailFacts, flightCancelDecision, hotelCancelMoneyEvents, type MoneyEventRow, type VoucherRow } from '@/lib/reservations/cancellation';
+import { markBookingCalendarCancelled } from '@/lib/calendar/bookingEvent';
+import { prismaBookingCalendar } from '@/lib/calendar/prismaBookingCalendar';
+// CANCEL-02 (2026-09-26): a cancellation is confirmed in writing — the lifecycle
+// leaf renders it; the sender is the booking emails' own (email.ts).
+import { sendTransactionalEmail } from '@/lib/email';
+import { lifecycleEmail } from '@/lib/emailTemplates/lifecycle';
+import { reservationIdentity } from '@/lib/reservations/lane';
+// AUDIT-01 (2026-09-26): every cancel fact — the quote, the request, the outcome,
+// each money fact, the email — recorded through the one audit port.
+import { recordBookingEvent, recordEmailOutcome, type BookingActor } from '@/lib/reservations/auditTrail';
+// GUEST-02 (2026-09-30): a guest row's manage block — the lifecycle sender's own rule.
+import { guestManageFor } from '@/lib/reservations/lifecycleSend';
+
+// GUEST-02 (2026-09-30) — THE ONE CANCEL FLOW, TWO GATES. Everything the account's cancel route
+// (src/app/api/reservations/[id]/cancel/route.ts) did after its gate, moved here word for word and
+// in the order it stood, so the guest's cancel (src/app/api/guest/booking/cancel/route.ts) runs the
+// SAME code — never a second copy of a money path. Each gate reads its row with CANCEL_ROW_SELECT
+// and hands it here with its caller: the actor who clicked (the flow builds none) and the account's
+// stored address (null for a guest). The booking's OWNER — the audit's reservation.userId and the
+// landing's userId — is the row's own userId, null for a guest row (its cancellation lands with
+// guest_ref booking:<bookingId>, src/lib/arrivals/liteapiBooking.ts); a guest row's email carries
+// its manage block. Every vendor call, landing, write, refusal, answer, log line and email of an
+// account cancel is as it was.
+//
+// The two verbs, as they stood on the account route — "Authed, user-scoped" and "the same guards"
+// name the account's gate; the guest's gate is its own route (the session, both limits, the row
+// still a guest's):
+//   GET  — THE QUOTE (CANCEL-01, flights only): what cancelling would do, read
+//          from the vendor and shown to the customer BEFORE they can confirm.
+//          Authed, user-scoped, no vendor money moved, reserved against
+//          'liteapiflightcancelquote'. A hotel has no quote endpoint at the vendor;
+//          its stored policy is what the dialog shows.
+//   POST — THE ACTION: the same guards as PR-Cancel-1 (getVerifiedEmail → user →
+//          ownership → status gate), then the LANE decides the endpoint:
+//            hotel  → PUT /v3.0/bookings/{id} (liteapiClient cancelBooking), as
+//                     since PR-Cancel-1 — and now its refund and fee are KEPT as
+//                     money_events rows pointed at the arrival, not discarded.
+//            flight → POST /flights/bookings/{id}/cancellations (CANCEL-01):
+//                     200 CANCELLED / CANCELLED_WITH_CHARGES → 'cancelled' + the
+//                     money facts; 202 → 'cancel_pending' with the vendor's own
+//                     cancelIntentAt (one GET); 409 → named refusal, nothing changed.
+//            other  → 409 cancel_lane_unsupported, before any vendor call.
+//   LAUNCH-01 RETIRE-01: provider 'duffel' rows are HISTORY — Duffel is retired
+//   (no client, no credentials), so an in-app cancel of one is refused with a
+//   declared 409 naming the manual path; the row is never touched. The bookings
+//   lists no longer offer the action for those rows; this branch answers a
+//   direct call honestly instead of a 404 that would deny the record exists.
+//
+// Money truth: the provider's response is the ONLY authority; absent fields
+// are null ("not stated"), never defaulted. Rows are NEVER deleted — the
+// financial record lives forever.
+//
+// CANCEL-02 (2026-09-26): A CANCELLATION IS CONFIRMED IN WRITING. Both lanes,
+// both outcomes: after the transaction commits, in its own try/catch, logged
+// loudly, reported as email: { sent, id | error } — and never failing the
+// cancel (the book routes' own pattern, liteapi/book/route.ts). The recipient is
+// the account's email for an account row, reservations.guestEmail for a guest
+// row when stated, and otherwise NO send with reason 'no_recipient_stated' —
+// no fallback address, ever (src/lib/reservations/cancellation.ts
+// cancelRecipient). The body is rendered from the money_events and vouchers
+// ROWS the transaction wrote, never from the answer again.
+//
+// NOT IN THIS PR, by name: the webhook receiver and scheduled refresh that
+// resolve a 202 into its final status and money facts (item 3); refund
+// matching in the bank matcher (item 8); journal posting of the money facts
+// (item 7). Each is named at the point it attaches.
+//
+// AUDIT-01 (2026-09-26): EVERY CANCEL FACT LEAVES A CHAINED ROW, after its commit,
+// through the one audit port (src/lib/reservations/auditTrail.ts), never thrown:
+//   GET  → reservation_cancel_quoted — the quote is NOT landed, so its evidence is
+//          the sha256 of the vendor's answer bytes (the same answer = the same row);
+//   POST → reservation_cancel_requested BEFORE the vendor call (our own refusals —
+//          the status gate, a retired provider, an unsupported lane — are not
+//          requests and record nothing), evidence the row as it stood (its id at its
+//          updatedAt: a repeated click on the unchanged row is the same request);
+//          then by outcome: reservation_cancelled (200, and every hotel cancel) /
+//          reservation_cancel_pending (202) with the landed cancellation as the
+//          evidence, a money_event_stated per money_events row written (each row its
+//          own evidence), or reservation_cancel_refused (the vendor's 409 — nothing
+//          else); and the email's outcome. The actor is the human who clicked.
+
+/**
+ * GUEST-02 (2026-09-30): the row BOTH gates read — the account gate's select as it stood,
+ * plus userId (the booking's owner). The account's gate reads it by { id, userId: user.id,
+ * provider in the two }; the guest's by { id, bookingType 'guest', userId null, provider in
+ * the two }.
+ */
+export const CANCEL_ROW_SELECT = {
+  // CANCEL-01: the lane decides which vendor endpoint a cancel may reach.
+  id: true, status: true, provider: true, providerBookingId: true, lane: true,
+  // CANCEL-02: the recipient rule and the email's identity lines read these.
+  bookingType: true, guestEmail: true, displayName: true, providerConfirmationCode: true, checkinDate: true, checkoutDate: true,
+  // AUDIT-01: the row as it stood — the evidence of a request made against it.
+  updatedAt: true,
+  // GUEST-02: the booking's OWNER — the audit's reservation.userId and the landing's userId; null for a guest row.
+  userId: true,
+} satisfies Prisma.reservationsSelect;
+
+/** The row CANCEL_ROW_SELECT reads. */
+export type CancelRow = Prisma.reservationsGetPayload<{ select: typeof CANCEL_ROW_SELECT }>;
+
+/** GUEST-02: who clicked — the actor, built by the gate — and the account's stored address (null for a guest). */
+export type CancelCaller = { actor: BookingActor; accountEmail: string | null };
+
+// ─── CANCEL-02: the email, after the commit ──────────────────────────────────
+type EmailStatus = { sent: true; id: string } | { sent: false; error: string };
+
+/** YYYY-MM-DD of a DATE-column value, or null. */
+const day = (d: Date | null): string | null => (d === null ? null : d.toISOString().slice(0, 10));
+
+/** Where the booking can be seen TODAY: the travel tab. Absolute, from the
+ *  deployment's public origin; null (and the line omitted) when it is not set —
+ *  a host is never invented. */
+function manageUrl(reservationId: string): string | null {
+  const origin = process.env.NEXT_PUBLIC_APP_URL;
+  if (typeof origin !== 'string' || origin.trim().length === 0) {
+    console.error('[Reservation cancel] CANCEL-02 NEXT_PUBLIC_APP_URL is not set — the email carries no manage link:', { reservationId });
+    return null;
+  }
+  return `${origin.trim().replace(/\/+$/, '')}/travel`;
+}
+
+/**
+ * Send the lifecycle email for a cancel outcome. Its own try/catch: a failure is
+ * logged loudly by reservation id and reported, and NEVER fails the cancel — the
+ * booking is already cancelled (or pending) at the vendor and in the ledger. No
+ * retry, no alternate transport, no substituted recipient.
+ */
+async function sendCancellationEmail(
+  owned: CancelRow,
+  accountEmail: string | null,
+  outcome: { kind: 'cancelled'; moneyEvents: MoneyEventRow[]; vouchers: VoucherRow[]; providerStatus: string | null } | { kind: 'cancel_pending' },
+): Promise<EmailStatus> {
+  const recipient = cancelRecipient(owned, accountEmail);
+  if (recipient.to === null) {
+    console.error('[Reservation cancel] CANCEL-02 no recipient stated — no email sent:', { reservationId: owned.id, bookingType: owned.bookingType, reason: recipient.reason });
+    return { sent: false, error: recipient.reason };
+  }
+  try {
+    const identity = reservationIdentity(owned);
+    // GUEST-02 (2026-09-30): a guest row carries its manage block, and its "See this booking"
+    // line (the travel tab, where a guest has no bookings) gives way to it — the sender's own
+    // rule (src/lib/reservations/lifecycleSend.ts). An account row is unchanged: guestManageFor
+    // answers nothing for it, and its email keeps the travel-tab line.
+    const guestManage = guestManageFor(owned);
+    const common = {
+      name: identity.name,
+      lane: identity.type,
+      reference: owned.providerConfirmationCode ?? owned.providerBookingId,
+      checkinDate: day(owned.checkinDate),
+      checkoutDate: day(owned.checkoutDate),
+      manageUrl: guestManage ? null : manageUrl(owned.id),
+      guestManage,
+    };
+    const rendered = outcome.kind === 'cancelled'
+      ? lifecycleEmail({ kind: 'cancelled', ...common, ...cancellationEmailFacts(outcome.moneyEvents, outcome.vouchers), providerStatus: outcome.providerStatus })
+      : lifecycleEmail({ kind: 'cancel_pending', ...common });
+    const { id } = await sendTransactionalEmail({ to: recipient.to, subject: rendered.subject, html: rendered.html, text: rendered.text });
+    return { sent: true, id };
+  } catch (emailErr) {
+    const errorClass = emailErr instanceof Error ? emailErr.name : 'UnknownError';
+    const message = emailErr instanceof Error ? emailErr.message : String(emailErr);
+    console.error('[Reservation cancel] CANCEL-02 email FAILED (the cancel itself succeeded):', {
+      reservationId: owned.id, providerBookingId: owned.providerBookingId, kind: outcome.kind, errorClass, message,
+    });
+    return { sent: false, error: errorClass };
+  }
+}
+
+/** The status gate, shared: only a confirmed booking can be quoted or cancelled. */
+function statusRefusal(owned: CancelRow): NextResponse | null {
+  if (owned.status === 'confirmed') return null;
+  if (owned.status === 'cancel_pending') {
+    return NextResponse.json(
+      { error: 'A cancellation of this booking is already awaiting the airline — nothing more to request.', code: 'cancel_already_pending' },
+      { status: 409 }
+    );
+  }
+  return NextResponse.json(
+    { error: `Only a confirmed booking can be cancelled — this one is ${owned.status}.`, code: 'cancel_status' },
+    { status: 409 }
+  );
+}
+
+// ─── AUDIT-01: the cancel facts, through the one port ────────────────────────
+/** The row as the request found it — its id at its updatedAt. */
+const asItStood = (owned: CancelRow) => ({ table: 'reservations', id: `${owned.id}@${owned.updatedAt.toISOString()}` });
+
+/** Every money_events row this cancellation's arrival wrote — each its own evidence, each its own row. */
+async function recordStatedMoney(owned: CancelRow, userId: string | null, actor: BookingActor, arrivalId: string): Promise<void> {
+  try {
+    const rows = await prisma.money_events.findMany({
+      where: { arrivalId, reservationId: owned.id },
+      orderBy: { id: 'asc' },
+      select: { id: true, kind: true, amountCents: true, currency: true, refundDestination: true },
+    });
+    for (const m of rows) {
+      await recordBookingEvent({
+        reservation: { id: owned.id, userId },
+        kind: 'money_event_stated',
+        actor,
+        before: null,
+        after: { kind: m.kind, amountCents: m.amountCents, currency: m.currency, refundDestination: m.refundDestination },
+        evidence: { table: 'money_events', id: m.id },
+        target: { table: 'money_events', id: m.id },
+      });
+    }
+  } catch (err) {
+    console.error('[Reservation cancel] AUDIT-01 the money_events rows could not be read back — money_event_stated NOT recorded; the cancel stands:', {
+      reservationId: owned.id, arrivalId, error: err instanceof Error ? err.message : err,
+    });
+  }
+}
+
+// ─── GET — THE QUOTE (CANCEL-01) ─────────────────────────────────────────────
+export async function quoteCancellation(owned: CancelRow, caller: CancelCaller): Promise<NextResponse> {
+  if (owned.lane !== 'flight') {
+    return NextResponse.json(
+      { error: 'Only a flight cancellation has a quote — a hotel shows the terms stored at booking.', code: 'quote_lane_unsupported', lane: owned.lane },
+      { status: 409 }
+    );
+  }
+  const refused = statusRefusal(owned);
+  if (refused) return refused;
+
+  // Metered immediately before the vendor read — the reference says nothing
+  // about this call's cost.
+  await reserveTravelSearch('liteapiflightcancelquote');
+
+  let quoted;
+  try {
+    quoted = await getFlightCancellationQuote(owned.providerBookingId);
+  } catch (err) {
+    if (err instanceof MissingLiteApiKeyError) {
+      return NextResponse.json(
+        { error: err.message, source: 'liteapi', kind: 'missing_key', mode: err.mode },
+        { status: 500 }
+      );
+    }
+    if (err instanceof LiteApiFlightsApiError && err.status === 409) {
+      // 49006 "cannot be quoted in its current state" / 49007 "a cancellation
+      // is already in progress" — the vendor's refusal, by its own words.
+      return NextResponse.json(
+        { error: err.providerMessage !== null ? err.providerMessage : err.message, source: 'liteapi', kind: 'quote_refused', code: 'quote_refused', providerCode: err.providerCode },
+        { status: 409 }
+      );
+    }
+    if (err instanceof LiteApiError) {
+      return NextResponse.json(
+        { error: err.message, source: 'liteapi', kind: 'api_error', status: err.status },
+        { status: 502 }
+      );
+    }
+    return failClosedResponse('Reservation cancel quote', 'Cancellation quote failed', err);
+  }
+  // AUDIT-01: the quote the customer read. It is NOT landed, so its evidence is
+  // the sha256 of the vendor's answer bytes — the same answer is the same fact.
+  await recordBookingEvent({
+    reservation: { id: owned.id, userId: owned.userId },
+    kind: 'reservation_cancel_quoted',
+    actor: caller.actor,
+    before: { status: owned.status },
+    after: {
+      refundAmount: quoted.quote.refund?.amount ?? null, refundCurrency: quoted.quote.refund?.currency ?? null,
+      penaltyAmount: quoted.quote.penalty?.amount ?? null, penaltyCurrency: quoted.quote.penalty?.currency ?? null,
+      confidence: quoted.quote.confidence, destination: quoted.quote.destination, expiresAt: quoted.quote.expiresAt,
+    },
+    evidence: { table: 'provider_answer', id: createHash('sha256').update(quoted.answer.body).digest('hex') },
+  });
+  // The parsed quote, verbatim shape — every field the vendor did not state is
+  // null; the dialog renders the words as words (confidence, destination).
+  return NextResponse.json({ quote: quoted.quote });
+}
+
+// ─── POST — THE ACTION ───────────────────────────────────────────────────────
+export async function cancelReservation(owned: CancelRow, caller: CancelCaller): Promise<NextResponse> {
+  const refused = statusRefusal(owned);
+  if (refused) return refused;
+
+  // ─── Provider dispatch ───────────────────────────────────────────────────
+  if (owned.provider === 'duffel') {
+    // LAUNCH-01 RETIRE-01: a history row from the retired provider — declared,
+    // untouched. The carrier holds the booking; support cancels it by hand.
+    return NextResponse.json(
+      {
+        error:
+          "This flight was booked through Duffel, a provider Temple Stuart no longer uses — it can't be cancelled in-app. Contact support and we will cancel it with the carrier.",
+        source: 'duffel',
+        kind: 'provider_retired',
+      },
+      { status: 409 }
+    );
+  }
+
+  // ─── CANCEL-01: THE LANE DECIDES THE ENDPOINT ────────────────────────────
+  if (owned.lane === 'hotel') return cancelHotel(owned, caller);
+  if (owned.lane === 'flight') return cancelFlight(owned, caller);
+  // An activity has no cancel lane. Refused by name, before any vendor call,
+  // and the row is untouched.
+  return NextResponse.json(
+    {
+      error: `This cancellation is not available yet — the ${owned.lane} lane has no in-app cancel; contact support and we will cancel it with the vendor.`,
+      code: 'cancel_lane_unsupported',
+      lane: owned.lane,
+    },
+    { status: 409 }
+  );
+}
+
+/** After a FINAL cancel, outside the transaction, in its own try/catch (CAL-01's
+ *  posture: real money outranks a calendar row): the reservation's calendar row is
+ *  MARKED cancelled — never removed (src/lib/calendar/bookingEvent.ts). */
+async function markCalendar(reservationId: string, providerBookingId: string): Promise<'marked' | 'no_row' | 'failed'> {
+  try {
+    const { marked } = await markBookingCalendarCancelled(prismaBookingCalendar(prisma), reservationId);
+    if (marked === 0) {
+      console.error('[Reservation cancel] CANCEL-01 no calendar row to mark (cancel + persist succeeded):', { reservationId, providerBookingId });
+      return 'no_row';
+    }
+    return 'marked';
+  } catch (calErr) {
+    console.error('[Reservation cancel] CANCEL-01 calendar mark FAILED (cancel + persist succeeded):', {
+      reservationId, providerBookingId, error: calErr instanceof Error ? calErr.message : calErr,
+    });
+    return 'failed';
+  }
+}
+
+// ─── provider 'liteapi' HOTEL (PR-Cancel-1; money kept by CANCEL-01) ─────────
+async function cancelHotel(owned: CancelRow, caller: CancelCaller) {
+  // AUDIT-01: the request, before the vendor's answer — the human who clicked.
+  const actor = caller.actor;
+  const booking = { id: owned.id, userId: owned.userId };
+  await recordBookingEvent({ reservation: booking, kind: 'reservation_cancel_requested', actor, before: { status: owned.status }, after: { lane: 'hotel' }, evidence: asItStood(owned) });
+  // The provider cancel — the only money authority. REBUILD-01 PR-5: the
+  // client hands the answer back as received (the bytes) beside the parsed
+  // result; `cancelled` serves the failure branch below — what is answered
+  // is parsed from the arrival.
+  let cancelledAnswer;
+  try {
+    cancelledAnswer = await cancelBooking(owned.providerBookingId);
+  } catch (err) {
+    if (err instanceof MissingLiteApiKeyError) {
+      return NextResponse.json(
+        { error: err.message, source: 'liteapi', kind: 'missing_key', mode: err.mode },
+        { status: 500 }
+      );
+    }
+    if (err instanceof LiteApiError) {
+      // Policy-rejected (NRFN / past deadline) or provider-side failure: the
+      // booking stands, our row is untouched, the provider's message surfaces.
+      return NextResponse.json(
+        { error: err.message, source: 'liteapi', kind: 'api_error', status: err.status },
+        { status: 502 }
+      );
+    }
+    return failClosedResponse('Reservation cancel', 'Cancellation failed', err);
+  }
+  const { answer, object, cancelled } = cancelledAnswer;
+
+  // ─── Land, then persist — ONE transaction (REBUILD-01 PR-5) ──────────────
+  // The cancel answer's exact bytes land (provider_responses) and its object
+  // lands as one arrival (liteapi · cancellation; the answer carries no id of
+  // its own, so their_id is composed from the booking and labeled composed);
+  // then the status write exactly as before, AND — CANCEL-01 — the money facts
+  // the answer states (refund_amount, cancellation_fee) as money_events rows
+  // pointed at that arrival, and the 'estimated' commission moved to
+  // 'cancelled'. A landing failure rolls all of it back and the catch declares
+  // it (src/lib/arrivals/liteapiBooking.ts).
+  let landed;
+  try {
+    landed = await prisma.$transaction(async (tx) =>
+      landLiteApiCancellation({
+        landing: prismaLanding(tx),
+        log: (line) => console.log(line),
+        writeStatus: async (parsed: CancelBookingResult, arrivalId) => {
+          const row = await tx.reservations.update({
+            where: { id: owned.id },
+            data: { status: 'cancelled' },
+          });
+          const moneyEvents = hotelCancelMoneyEvents(parsed, { reservationId: owned.id, arrivalId, statedAt: answer.arrived });
+          await tx.money_events.createMany({ data: moneyEvents });
+          // item 7: journal posting of these money facts attaches here — NOT this PR.
+          const commission = await tx.commission_ledger.updateMany({
+            where: { reservationId: owned.id, status: 'estimated' },
+            data: { status: 'cancelled' },
+          });
+          return { row, moneyEvents, commissionMoved: commission.count };
+        },
+      }, {
+        answer,
+        bookingId: owned.providerBookingId,
+        payload: object,
+        parse: parseCancelResult,
+        userId: owned.userId,
+      }),
+    );
+  } catch (dbErr) {
+    // The provider ALREADY cancelled — the money truth exists upstream but our
+    // row still says confirmed (the landing rolled back with the flip).
+    // Surface loudly (mirrors the book routes' DB-fail-after convention);
+    // include the provider outcome so it isn't lost.
+    console.error('[Reservation cancel] DB update failed AFTER provider cancel:', {
+      reservationId: owned.id, providerBookingId: owned.providerBookingId, error: dbErr,
+    });
+    return NextResponse.json(
+      {
+        error:
+          'The booking was cancelled at the provider, but we could not update the local record — refresh, and contact support if it still shows confirmed.',
+        cancellation: {
+          providerStatus: cancelled.status,
+          cancellationFee: cancelled.cancellationFee,
+          refundAmount: cancelled.refundAmount,
+          currency: cancelled.currency,
+        },
+      },
+      { status: 500 }
+    );
+  }
+  const { row, moneyEvents, commissionMoved } = landed.reservation;
+  // AUDIT-01: the outcome — the landed cancellation its evidence — and each money fact.
+  await recordBookingEvent({ reservation: booking, kind: 'reservation_cancelled', actor, before: { status: owned.status }, after: { status: row.status, providerStatus: landed.parsed.status }, evidence: { table: 'arrivals', id: landed.arrivalId } });
+  await recordStatedMoney(owned, owned.userId, actor, landed.arrivalId);
+  const calendar = await markCalendar(owned.id, owned.providerBookingId);
+  // CANCEL-02: the customer is told, from the rows just written; never fails the cancel.
+  const emailStatus = await sendCancellationEmail(owned, caller.accountEmail, { kind: 'cancelled', moneyEvents, vouchers: [], providerStatus: landed.parsed.status });
+  await recordEmailOutcome(booking, actor, 'cancellation', landed.arrivalId, emailStatus);
+
+  return NextResponse.json({
+    reservation: { id: row.id, status: row.status },
+    // Provider verbatim (parsed from the arrival) — null means "not stated by
+    // provider", never zero.
+    cancellation: {
+      providerStatus: landed.parsed.status,
+      cancellationFee: landed.parsed.cancellationFee,
+      refundAmount: landed.parsed.refundAmount,
+      currency: landed.parsed.currency,
+      destination: null,
+      vouchers: [],
+      pending: false,
+      cancelIntentAt: null,
+      moneyEvents: moneyEvents.length,
+      commissionMoved,
+      calendar,
+    },
+    email: emailStatus,
+  });
+}
+
+// ─── provider 'liteapi' FLIGHT (CANCEL-01) ───────────────────────────────────
+async function cancelFlight(owned: CancelRow, caller: CancelCaller) {
+  // AUDIT-01: the request, before the vendor's answer — the human who clicked.
+  const actor = caller.actor;
+  const booking = { id: owned.id, userId: owned.userId };
+  await recordBookingEvent({ reservation: booking, kind: 'reservation_cancel_requested', actor, before: { status: owned.status }, after: { lane: 'flight' }, evidence: asItStood(owned) });
+  let cancelledAnswer;
+  try {
+    cancelledAnswer = await cancelFlightBooking(owned.providerBookingId);
+  } catch (err) {
+    if (err instanceof MissingLiteApiKeyError) {
+      return NextResponse.json(
+        { error: err.message, source: 'liteapi', kind: 'missing_key', mode: err.mode },
+        { status: 500 }
+      );
+    }
+    if (err instanceof LiteApiFlightsApiError && err.status === 409) {
+      // The vendor REFUSED — nothing changed, at the airline or here. Its own
+      // words are what the customer reads. AUDIT-01: the refusal is recorded, and
+      // nothing else — the row is as it stood.
+      await recordBookingEvent({ reservation: booking, kind: 'reservation_cancel_refused', actor, before: { status: owned.status }, after: { status: owned.status, providerCode: err.providerCode, providerMessage: err.providerMessage }, evidence: asItStood(owned), requestKey: err.providerCode === null ? 'no_code' : String(err.providerCode) });
+      return NextResponse.json(
+        { error: err.providerMessage !== null ? err.providerMessage : err.message, source: 'liteapi', kind: 'cancel_refused', code: 'cancel_refused', providerCode: err.providerCode },
+        { status: 409 }
+      );
+    }
+    if (err instanceof LiteApiError) {
+      return NextResponse.json(
+        { error: err.message, source: 'liteapi', kind: 'api_error', status: err.status },
+        { status: 502 }
+      );
+    }
+    return failClosedResponse('Reservation cancel', 'Cancellation failed', err);
+  }
+  const { answer, object, cancelled } = cancelledAnswer;
+
+  // ─── Land, then persist — ONE transaction ────────────────────────────────
+  // The answer lands as an arrival (liteapi · cancellation, composed id), and
+  // the leaf decides the writes from the ARRIVAL payload and the HTTP status:
+  //   200 → 'cancelled' + money_events (refund, cancellation_fee, a voucher_issued
+  //         per voucher) + vouchers rows, each pointed at the arrival; the
+  //         'estimated' commission moves to 'cancelled'.
+  //   202 → 'cancel_pending'; NOTHING to money_events (item 3 resolves it).
+  let landed;
+  try {
+    landed = await prisma.$transaction(async (tx) =>
+      landLiteApiCancellation({
+        landing: prismaLanding(tx),
+        log: (line) => console.log(line),
+        writeStatus: async (parsed: FlightCancellationResult, arrivalId) => {
+          const decision = flightCancelDecision(parsed, answer.httpStatus, { reservationId: owned.id, arrivalId, statedAt: answer.arrived });
+          const row = await tx.reservations.update({
+            where: { id: owned.id },
+            data: { status: decision.status },
+          });
+          if (decision.moneyEvents.length > 0) await tx.money_events.createMany({ data: decision.moneyEvents });
+          if (decision.vouchers.length > 0) {
+            await tx.vouchers.createMany({
+              data: decision.vouchers.map((v) => ({
+                ...v,
+                // NULL = the vendor stated no names (SQL NULL, not JSON null).
+                passengerNames: v.passengerNames === null ? Prisma.DbNull : v.passengerNames,
+              })),
+            });
+          }
+          for (const v of decision.vouchersWithoutCode) {
+            console.error('[Reservation cancel] CANCEL-01 the vendor stated a voucher with no code — its money fact is recorded, no voucher row:', { reservationId: owned.id, voucher: v });
+          }
+          // item 7: journal posting of these money facts attaches here — NOT this PR.
+          const commission = decision.commission === 'cancel'
+            ? await tx.commission_ledger.updateMany({ where: { reservationId: owned.id, status: 'estimated' }, data: { status: 'cancelled' } })
+            : { count: 0 };
+          return { row, decision, commissionMoved: commission.count };
+        },
+      }, {
+        answer,
+        bookingId: owned.providerBookingId,
+        payload: object,
+        parse: parseFlightCancellationResult,
+        userId: owned.userId,
+      }),
+    );
+  } catch (dbErr) {
+    console.error('[Reservation cancel] DB update failed AFTER provider cancel (flight):', {
+      reservationId: owned.id, providerBookingId: owned.providerBookingId, httpStatus: answer.httpStatus, error: dbErr,
+    });
+    return NextResponse.json(
+      {
+        error:
+          'The cancellation was accepted at the provider, but we could not update the local record — refresh, and contact support if it still shows confirmed.',
+        cancellation: {
+          providerStatus: cancelled.status,
+          cancellationFee: cancelled.cancellationFee,
+          refundAmount: cancelled.refundAmount,
+          currency: cancelled.currency,
+          destination: cancelled.destination,
+          vouchers: cancelled.vouchers,
+          pending: answer.httpStatus === 202,
+        },
+      },
+      { status: 500 }
+    );
+  }
+  const { row, decision, commissionMoved } = landed.reservation;
+
+  // ─── 202: the vendor's own cancelIntentAt, one GET ───────────────────────
+  // The 202 body carries no cancelIntentAt; GET /flights/bookings/{id} does
+  // ("set when a cancellation was requested and is awaiting airline
+  // confirmation"). One read, reserved against LANE-01's bucket, outside the
+  // transaction, in its own try/catch: a failed or silent read leaves the
+  // column NULL and says so — never our clock in the vendor's column.
+  // item 3: the webhook receiver and scheduled refresh that resolve this 202
+  // into CANCELLED / CANCELLED_WITH_CHARGES and its money facts attach here —
+  // NOT this PR.
+  let cancelIntentAt: string | null = null;
+  if (!decision.final) {
+    try {
+      await reserveTravelSearch('liteapiflightbookingread');
+      const { details } = await getFlightBooking(owned.providerBookingId);
+      if (details.cancelIntentAt !== null && !Number.isNaN(Date.parse(details.cancelIntentAt))) {
+        await prisma.reservations.update({ where: { id: owned.id }, data: { cancelIntentAt: new Date(details.cancelIntentAt) } });
+        cancelIntentAt = details.cancelIntentAt;
+      } else {
+        console.error('[Reservation cancel] CANCEL-01 202 accepted but GET /flights/bookings stated no cancelIntentAt — left NULL:', {
+          reservationId: owned.id, providerBookingId: owned.providerBookingId, stated: details.cancelIntentAt,
+        });
+      }
+    } catch (readErr) {
+      console.error('[Reservation cancel] CANCEL-01 cancelIntentAt read FAILED after a 202 (cancel_pending persisted) — left NULL:', {
+        reservationId: owned.id, providerBookingId: owned.providerBookingId, error: readErr instanceof Error ? readErr.message : readErr,
+      });
+    }
+  }
+
+  // AUDIT-01: the outcome — the landed cancellation its evidence — and, when final, each money fact.
+  if (decision.final) {
+    await recordBookingEvent({ reservation: booking, kind: 'reservation_cancelled', actor, before: { status: owned.status }, after: { status: row.status, providerStatus: landed.parsed.status }, evidence: { table: 'arrivals', id: landed.arrivalId } });
+    await recordStatedMoney(owned, owned.userId, actor, landed.arrivalId);
+  } else {
+    await recordBookingEvent({ reservation: booking, kind: 'reservation_cancel_pending', actor, before: { status: owned.status }, after: { status: row.status, providerStatus: landed.parsed.status, cancelIntentAt }, evidence: { table: 'arrivals', id: landed.arrivalId } });
+  }
+  // A FINAL cancel marks the day; a pending one leaves the row — the flight is
+  // still booked at the airline until it says otherwise.
+  const calendar = decision.final ? await markCalendar(owned.id, owned.providerBookingId) : 'pending';
+  // CANCEL-02: the customer is told — the final figures from the rows just
+  // written, or that the request is awaiting the airline; never fails the cancel.
+  const emailStatus = await sendCancellationEmail(
+    owned,
+    caller.accountEmail,
+    decision.final
+      ? { kind: 'cancelled', moneyEvents: decision.moneyEvents, vouchers: decision.vouchers, providerStatus: landed.parsed.status }
+      : { kind: 'cancel_pending' },
+  );
+  await recordEmailOutcome(booking, actor, decision.final ? 'cancellation' : 'cancel_pending', landed.arrivalId, emailStatus);
+
+  return NextResponse.json({
+    reservation: { id: row.id, status: row.status },
+    // Provider verbatim (parsed from the arrival) — null means "not stated by
+    // provider", never zero.
+    cancellation: {
+      providerStatus: landed.parsed.status,
+      cancellationFee: landed.parsed.cancellationFee,
+      refundAmount: landed.parsed.refundAmount,
+      currency: landed.parsed.currency,
+      destination: landed.parsed.destination,
+      vouchers: landed.parsed.vouchers,
+      pending: !decision.final,
+      cancelIntentAt,
+      moneyEvents: decision.moneyEvents.length,
+      commissionMoved,
+      calendar,
+    },
+    email: emailStatus,
+  });
+}

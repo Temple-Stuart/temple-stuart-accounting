@@ -24,7 +24,9 @@
  */
 import type { Seed } from '../prove';
 
-const ROUTE = 'src/app/api/reservations/[id]/cancel/route.ts';
+// GUEST-02 (2026-09-30): the quote, the action and both lanes moved word for word into the one
+// cancel flow (dedented where they left a handler body); the seeds that broke them follow them there.
+const FLOW = 'src/lib/reservations/cancelFlow.ts';
 const DIALOG = 'src/components/trips/CancelBookingDialog.tsx';
 const LEAF = 'src/lib/reservations/cancellation.ts';
 const FCLIENT = 'src/lib/liteapiFlightsClient.ts';
@@ -35,9 +37,9 @@ const CAL_IMPL = 'src/lib/calendar/prismaBookingCalendar.ts';
 const SEEDS: Seed[] = [
   {
     name: 'cancel01-a the flight lane is sent to the hotel endpoint again (clause 1)',
-    file: ROUTE,
-    find: "    if (owned.lane === 'flight') return cancelFlight(owned, userId, accountEmail);",
-    replace: "    if (owned.lane === 'flight') return cancelHotel(owned, userId, accountEmail);",
+    file: FLOW,
+    find: "  if (owned.lane === 'flight') return cancelFlight(owned, caller);",
+    replace: "  if (owned.lane === 'flight') return cancelHotel(owned, caller);",
     expect: 'does not send the flight lane to the flight cancel',
   },
   {
@@ -49,9 +51,9 @@ const SEEDS: Seed[] = [
   },
   {
     name: 'cancel01-c the quote goes unmetered (clause 2)',
-    file: ROUTE,
-    find: "    await reserveTravelSearch('liteapiflightcancelquote');\n",
-    replace: '    // (unmetered)\n',
+    file: FLOW,
+    find: "  await reserveTravelSearch('liteapiflightcancelquote');\n",
+    replace: '  // (unmetered)\n',
     expect: 'the quote is not reserved against liteapiflightcancelquote',
   },
   {
@@ -77,7 +79,7 @@ const SEEDS: Seed[] = [
   },
   {
     name: 'cancel01-g the hotel cancel discards its refund and fee again (clause 3)',
-    file: ROUTE,
+    file: FLOW,
     find: '          await tx.money_events.createMany({ data: moneyEvents });\n          // item 7',
     replace: '          // item 7',
     expect: 'the hotel cancel discards the refund and fee',
@@ -91,7 +93,7 @@ const SEEDS: Seed[] = [
   },
   {
     name: 'cancel01-i cancelIntentAt takes our clock (clause 4)',
-    file: ROUTE,
+    file: FLOW,
     find: 'data: { cancelIntentAt: new Date(details.cancelIntentAt) }',
     replace: 'data: { cancelIntentAt: new Date() }',
     expect: 'writes our clock into cancelIntentAt',
@@ -119,7 +121,7 @@ const SEEDS: Seed[] = [
   },
   {
     name: 'cancel01-m a final flight cancel leaves the estimated commission (clause 5)',
-    file: ROUTE,
+    file: FLOW,
     find: "            ? await tx.commission_ledger.updateMany({ where: { reservationId: owned.id, status: 'estimated' }, data: { status: 'cancelled' } })",
     replace: '            ? { count: 0 }',
     expect: 'does not move the estimated commission to cancelled',

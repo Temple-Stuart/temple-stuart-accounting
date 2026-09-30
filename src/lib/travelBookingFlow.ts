@@ -246,7 +246,11 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // updatedAt for the request's evidence. The vendor calls, the landing and every write
   // are unchanged; an audit failure is named and never fails the cancel.
   // Was d9b52813b8bf26b624a6f476a1def46a9f1e37085d30f5ee58d9199b2eb9e9fe at main 651c2f0e.
-  { file: 'src/app/api/reservations/[id]/cancel/route.ts', sha256: 'b3c8bad8121ece5e4aa0413d3e340290ac71773e2a73da8632efa888635350b5' },
+  // GUEST-02 (2026-09-30): re-pinned — the route is the account's GATE only: the quote and the cancel moved word for word into the one cancel flow (src/lib/reservations/cancelFlow.ts), which each verb awaits inside its try with the account's caller (the signed-in human, the account's email). The URL, the auth chain and every answer are unchanged; an unexpected lane throw now reaches the route's named 500.
+  // Was b3c8bad8121ece5e4aa0413d3e340290ac71773e2a73da8632efa888635350b5 at main 6e71ad0d.
+  { file: 'src/app/api/reservations/[id]/cancel/route.ts', sha256: 'bec175908237033d64af8221935b92a3ad37ddc02689b233c3b745f9c32d85ad' },
+  // GUEST-02 (2026-09-30): pinned — the guest's cancel gate: the signed session, the IP, 10 per IP then 5 per reservation per 15 minutes, the row read again as still a guest's (bookingType 'guest', userId null, liteapi or duffel) — then the SAME cancel flow, with the guest's caller (humanActor(null, ip)); never cached.
+  { file: 'src/app/api/guest/booking/cancel/route.ts', sha256: 'f1d3bafcf93eb9a652c51fd36f07970fc87ed76936957ae249f96d0ec8ad17fb' },
   // LANE-01 (2026-09-25): re-pinned — type and name come from the one reader keyed on
   // reservations.lane (src/lib/reservations/lane.ts); the local PROVIDER_TYPE map and
   // hotelName ?? provider are gone. The auth chain and the one field it writes are unchanged.
@@ -435,7 +439,9 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // control; a quote it cannot fetch is named and leaves only Keep booking. The hotel
   // path (the stored policy) is unchanged.
   // Was 7e50c4ece72171929446f4734622ccdf8b6b75bb87c2c6c3c5aa101ec26fd95d at main dccb3380.
-  { file: 'src/components/trips/CancelBookingDialog.tsx', sha256: 'b8df9e669084d61c4d92c352dbd6f6b8870db9d3499b111dd9042babae6fca02' },
+  // GUEST-02 (2026-09-30): re-pinned — the quote is read from the caller's quoteUrl (required, no default): the two lists pass the account's /api/reservations/<id>/cancel, the guest's page its own /api/guest/booking/cancel. Display only; no call changed.
+  // Was b8df9e669084d61c4d92c352dbd6f6b8870db9d3499b111dd9042babae6fca02 at main 6e71ad0d.
+  { file: 'src/components/trips/CancelBookingDialog.tsx', sha256: '90963621c3f8be7c6c8d8bca1d711c223d06a9bd901e74f574062ac8be3f175f' },
   // SEC-03 (2026-09-25): re-pinned — a booking whose price the vendor did not state
   // (amountUsd null) renders "price not stated" and is left out of the total, which
   // says how many it left out. Display only; no call changed.
@@ -458,7 +464,9 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // the linked line with Unlink, through POST/DELETE /api/reservations/[id]/budget-link.
   // Display and the owner's link only; no prebook/book/pay/cancel call changed.
   // Was 12cef6fc6415b72bc836edf9b9b05b613727c2a3914675a3e0e0f502a984d3c4 at main 7689c9c8.
-  { file: 'src/components/trips/TripBookings.tsx', sha256: '603ec077eb2bf3fdd47672afdf842405c71c304fe01336fd764d9effd22f3e08' },
+  // GUEST-02 (2026-09-30): re-pinned — the dialog is handed the account's quote URL (/api/reservations/<id>/cancel), and two comments say what is true now. Display only; no call changed.
+  // Was 603ec077eb2bf3fdd47672afdf842405c71c304fe01336fd764d9effd22f3e08 at main 6e71ad0d.
+  { file: 'src/components/trips/TripBookings.tsx', sha256: '7b2e3cacc5a0e56ad1f23b5cc40d2299abccefe0c3a44ada916957ac7ad0faf1' },
   // REPAINT-04 (2026-09-21): re-pinned — one class on the "Add to <trip>" ghost button
   // (text-white → text-brand-purple, invisible on cream). Paint only; no call changed.
   // Was d5f8e0be428de6054eb756c0301c1e064e825f6ddb013d45cc332b7ca6157492 at main b9eac34a.
@@ -479,7 +487,9 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // owner's printable receipt (/booking/<id>/receipt: the vendor's landed words, the
   // bank row, the ledger entry). Display only; no prebook/book/pay/cancel call changed.
   // Was cff86c0203191650923d4eb23609098e06e21e97a53794aea6f3956daf4a8f2d at main fe50c127.
-  { file: 'src/components/trips/UnattachedBookings.tsx', sha256: '9acd17f2c336eba34f91d431cb4ab640e99d6348204c968cfaaf9b7219eb0b4e' },
+  // GUEST-02 (2026-09-30): re-pinned — the dialog is handed the account's quote URL (/api/reservations/<id>/cancel), and three comments say what is true now. Display only; no call changed.
+  // Was 9acd17f2c336eba34f91d431cb4ab640e99d6348204c968cfaaf9b7219eb0b4e at main 6e71ad0d.
+  { file: 'src/components/trips/UnattachedBookings.tsx', sha256: '88504f5230fa0fe4828cc2ea49c6ba14c740cd50d084034d2e3c7eaaf15ecaba' },
   // the provider clients and their helpers
   // HOTEL-01 (2026-09-22): re-pinned — the search half carries the vendor's filter and sort fields; every booking function is byte-identical (the hotel law pins each body). Search and display are not booking; no prebook/book/pay/cancel call changed.
   // Was 9806e3b58ab2b8d4845e7870f89078d473d27007cae0adb247af0673907f176a at main d56b2cc9.
@@ -539,7 +549,11 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // webhook, their_id = event_id) APPENDED; the booking and cancellation landings
   // are untouched.
   // Was 2297a1c8cf1e0de4e3255545835a909b367cc27aeaf18bf14533803f1f954aff at main 53900e67.
-  { file: 'src/lib/arrivals/liteapiBooking.ts', sha256: '7f3624eb31305dcd65f6a4be92a9c3a5e9682d8f5a0ff5ae5bc1528af051e7fb' },
+  // GUEST-02 (2026-09-30): re-pinned — the cancellation landing names its owner: userId is the row's own (null for a guest row), and a guest cancel lands under guest_ref booking:<id>, as the guest's booking landed. No other landing changed.
+  // Was 7f3624eb31305dcd65f6a4be92a9c3a5e9682d8f5a0ff5ae5bc1528af051e7fb at main 6e71ad0d.
+  { file: 'src/lib/arrivals/liteapiBooking.ts', sha256: '521a763a25a3a87e6a4a56b314ae4d8528a1d7a444902849c8dc72d388ef5c98' },
+  // GUEST-02 (2026-09-30): pinned — the ONE cancel flow: the quote and the cancel, moved word for word from the account's route; each gate hands it the row it read and its caller. The actor is the caller's, the owner the row's own userId, and a guest row's email carries its manage block. Every vendor call, landing, write, refusal, answer, log and email of an account cancel is unchanged.
+  { file: 'src/lib/reservations/cancelFlow.ts', sha256: 'b87f1a574c529f79bd62832ce874849f266ea583afb49a952fa6bad96be7537d' },
   // ACTIVITY-01 (2026-09-22): re-dated — the 'viatorsave' safe default cap (300/day: three reservations per Save attempt, ~100 attempts, the prebook precedent) joins PROVIDER_SAFE_DEFAULT_CAP; no existing bucket or function changed. A tour takes its time on the day; no prebook/book/pay/cancel call changed.
   // Was d85603f7cc6567c02769ac997bfdc8d6112855249b44f4bde9fdd8f35ffeeeea at main dfc02881.
   // LANE-01 (2026-09-25): re-dated — the 'liteapiflightbookingread' safe default cap (50/day) joins PROVIDER_SAFE_DEFAULT_CAP for the one GET /flights/bookings/{id} per flight booking and per retro row; no existing bucket or function changed. No prebook/book/pay/cancel call changed.

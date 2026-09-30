@@ -37,6 +37,16 @@
  * Nothing here decides a verdict about a file: the law holds the tables (the
  * public writers, the owner console, the named derived-owned writes) and says
  * which file fails, by name.
+ *
+ * GUEST-02 (2026-09-30) — A GATED FLOW is a lib that holds a route's writes and
+ * whose entries take, first, the row the calling route's own gate read (the one
+ * cancel flow, src/lib/reservations/cancelFlow.ts: the account's cancel route and
+ * the guest's call it). Its writes are no longer in the route file, so three
+ * readers carry what the route-file reading can no longer see: the entry calls in
+ * a file (where each sits, its function, the text of that function before it,
+ * its first argument), the modules a file imports, and the writes in the lib (an
+ * update names the owned row's id; no delete, no upsert, no raw SQL). The law
+ * holds the table (GATED_FLOWS) and counts a route calling an entry as a writer.
  */
 
 export type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -458,3 +468,64 @@ export function judgeWrites(code: string): WriteVerdict[] {
 
 /** A where, one line, for the allowlist and the verdicts. */
 export const flatWhere = (where: string | null) => (where ?? '(no where)').replace(/\s+/g, ' ').trim();
+
+// ── GUEST-02 (2026-09-30): THE GATED FLOW'S READERS ─────────────────────────
+
+export interface EntryCall {
+  entry: string;
+  index: number;
+  line: number;
+  /** The top-level function holding the call, or null at the top level. */
+  fn: string | null;
+  /** That function's text from its body's opening brace up to the call — where its precondition must stand. */
+  before: string;
+  /** The call's first argument, trimmed — the row it is handed. */
+  firstArg: string;
+}
+
+/** Every call of one of the named entries in a file's code (a definition is not a call). */
+export function entryCalls(code: string, entries: readonly string[]): EntryCall[] {
+  if (entries.length === 0) return [];
+  const spans = topFunctions(code);
+  const out: EntryCall[] = [];
+  for (const m of code.matchAll(new RegExp(`\\b(${entries.map(escape).join('|')})\\s*\\(`, 'g'))) {
+    if (/\bfunction\s+$/.test(code.slice(Math.max(0, m.index! - 24), m.index!))) continue;
+    const open = m.index! + m[0].length - 1;
+    const close = closingOf(code, open);
+    const args = close < 0 ? [] : splitArgs(code.slice(open + 1, close));
+    const fn = enclosing(spans, m.index!);
+    out.push({ entry: m[1], index: m.index!, line: lineAt(code, m.index!), fn: fn ? fn.name : null, before: code.slice(fn ? fn.bodyStart : 0, m.index!), firstArg: (args[0] ?? '').trim() });
+  }
+  return out;
+}
+
+/** Every module a file names: `import … from '…'`, `export … from '…'`, `import('…')`, `require('…')`. */
+export function importSpecifiers(code: string): string[] {
+  const out: string[] = [];
+  for (const m of code.matchAll(/\bfrom\s*(['"])([^'"]+)\1/g)) out.push(m[2]);
+  for (const m of code.matchAll(/\bimport\s*(['"])([^'"]+)\1/g)) out.push(m[2]);
+  for (const m of code.matchAll(/\b(?:import|require)\s*\(\s*(['"])([^'"]+)\1\s*\)/g)) out.push(m[2]);
+  return Array.from(new Set(out));
+}
+
+/**
+ * The writes a gated flow may not make. Every update/updateMany names the owned
+ * row's id (`id: <owned>.id` or `reservationId: <owned>.id`); a delete, deleteMany,
+ * upsert or any raw SQL is refused outright — the lib writes only the row its
+ * caller's gate proved, and what hangs off it.
+ */
+export function flowWriteRefusals(code: string, owned: string): Array<{ line: number; write: string; why: string }> {
+  const out: Array<{ line: number; write: string; why: string }> = [];
+  const names = new RegExp(`(?:^|[{,])\\s*(?:id|reservationId)\\s*:\\s*${escape(owned)}\\.id\\s*(?=[,}])`);
+  for (const site of writeSites(code)) {
+    const write = `${site.model}.${site.op} ${flatWhere(site.where)}`;
+    if (site.kind === 'raw') out.push({ line: site.line, write, why: 'raw SQL' });
+    else if (site.op === 'delete' || site.op === 'deleteMany' || site.op === 'upsert') out.push({ line: site.line, write, why: site.op === 'upsert' ? 'an upsert' : `a ${site.op}` });
+    else if ((site.op === 'update' || site.op === 'updateMany') && !(site.where !== null && names.test(site.where))) out.push({ line: site.line, write, why: `an ${site.op} whose WHERE does not name ${owned}.id` });
+  }
+  for (const m of code.matchAll(/\$(executeRaw|executeRawUnsafe|queryRaw|queryRawUnsafe)\b/g)) {
+    const line = lineAt(code, m.index!);
+    if (!out.some((o) => o.line === line && o.why === 'raw SQL')) out.push({ line, write: `$${m[1]}`, why: 'raw SQL' });
+  }
+  return out.sort((a, b) => a.line - b.line);
+}

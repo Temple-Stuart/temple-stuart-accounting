@@ -2,7 +2,8 @@
 
 /**
  * CancelBookingDialog (PR-Cancel-1) — the pre-confirm step of in-app
- * cancellation, shared by TripBookings and UnattachedBookings.
+ * cancellation, shared by TripBookings and UnattachedBookings — and, GUEST-02
+ * (2026-09-30), by the guest's /booking/manage (src/app/booking/manage/page.tsx).
  *
  * HOTEL: it renders the STORED cancellationPolicyJson (written at book time by
  * liteapi/book) truthfully: only the fields that actually exist — refundableTag
@@ -12,7 +13,9 @@
  * policy. The vendor has no quote endpoint for a hotel.
  *
  * FLIGHT — CANCEL-01 (2026-09-26): THE QUOTE COMES FIRST. On open the dialog
- * reads GET /api/reservations/{id}/cancel — the vendor's cancellation quote —
+ * reads GET <quoteUrl> — the vendor's cancellation quote, from its caller's route
+ * (GUEST-02: the account's /api/reservations/{id}/cancel, the guest's
+ * /api/guest/booking/cancel) —
  * and shows the refund, the penalty, the currency, the CONFIDENCE in its own
  * word and what that word means ("estimated" is not "confirmed"), where the
  * refund goes in plain words, and any vouchers. The Cancel control is not
@@ -63,8 +66,9 @@ type QuoteState =
   | { state: 'quote_failed'; message: string };
 
 interface Props {
-  /** The reservation row's id — the quote is read for it (flights). */
-  reservationId: string;
+  /** GUEST-02 (2026-09-30): where the quote is read (flights) — its caller's route: the account's
+   *  /api/reservations/<id>/cancel, or the guest's /api/guest/booking/cancel. Required. */
+  quoteUrl: string;
   /** The lane, through the one reader (the row's `type`): 'hotel' | 'flight' | 'activity'. */
   lane: string;
   /** Row display context — name + dates, so the user confirms the RIGHT booking. */
@@ -95,7 +99,7 @@ function policyInfoLine(info: unknown): string | null {
 
 const money = (m: QuoteMoney | null) => moneyWords(m === null ? null : m.amount, m === null ? null : m.currency);
 
-export default function CancelBookingDialog({ reservationId, lane, bookingName, checkIn, checkOut, policy, busy, onConfirm, onClose }: Props) {
+export default function CancelBookingDialog({ quoteUrl, lane, bookingName, checkIn, checkOut, policy, busy, onConfirm, onClose }: Props) {
   const isFlight = lane === 'flight';
   const [quote, setQuote] = useState<QuoteState>({ state: 'quoting' });
 
@@ -105,7 +109,7 @@ export default function CancelBookingDialog({ reservationId, lane, bookingName, 
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/reservations/${reservationId}/cancel`);
+        const res = await fetch(quoteUrl);
         const data = await res.json().catch(() => ({}));
         if (cancelled) return;
         if (!res.ok || !data?.quote || typeof data.quote.confidence !== 'string') {
@@ -119,7 +123,7 @@ export default function CancelBookingDialog({ reservationId, lane, bookingName, 
       }
     })();
     return () => { cancelled = true; };
-  }, [isFlight, reservationId]);
+  }, [isFlight, quoteUrl]);
 
   const p: PolicyShape | null =
     policy && typeof policy === 'object' && !Array.isArray(policy) ? (policy as PolicyShape) : null;

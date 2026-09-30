@@ -32,6 +32,8 @@ const FLIGHT_BOOK = 'src/app/api/travel/liteapi/flights/book/route.ts';
 const READ_LEAF = 'src/lib/reservations/vendorRead.ts';
 const SENDER = 'src/lib/reservations/lifecycleSend.ts';
 const CANCEL = 'src/app/api/reservations/[id]/cancel/route.ts';
+// GUEST-02 (2026-09-30): the cancel's facts are recorded by the one cancel flow; the route is the account's gate.
+const CANCEL_FLOW = 'src/lib/reservations/cancelFlow.ts';
 const REVIEW = 'src/app/api/runway/match/review/route.ts';
 const COMMIT = 'src/app/api/transactions/commit-to-ledger/route.ts';
 const RETRO = 'scripts/lane-01-retro-flights.ts';
@@ -183,8 +185,8 @@ test('both book routes record reservation_booked after the transaction, the land
 });
 
 test('the cancel: 200 → requested, cancelled, a money_event_stated per row; 202 → requested, cancel_pending; 409 → requested, cancel_refused, nothing else', () => {
-  const s = code(CANCEL);
-  // The two lanes are the route's own (not exported) — each read from its declaration to the next top-level one.
+  const s = code(CANCEL_FLOW);
+  // The two lanes are the flow's own (not exported) — each read from its declaration to the next top-level one.
   const lane = (name: string) => { const from = s.indexOf(`\nasync function ${name}(`); const next = s.slice(from + 1).search(/\n(?:async )?function |\nexport /); return from < 0 ? '' : s.slice(from, next < 0 ? undefined : from + 1 + next); };
   const hotel = lane('cancelHotel');
   const flight = lane('cancelFlight');
@@ -193,10 +195,10 @@ test('the cancel: 200 → requested, cancelled, a money_event_stated per row; 20
   assert.ok(hotel.indexOf("kind: 'reservation_cancel_requested'") < hotel.indexOf('await cancelBooking(owned.providerBookingId)'));
   assert.ok(flight.indexOf("kind: 'reservation_cancel_requested'") < flight.indexOf('await cancelFlightBooking(owned.providerBookingId)'));
   // Hotel 200: cancelled with the landed cancellation, then the money, then the email.
-  const hc = hotel.indexOf("kind: 'reservation_cancelled'"), hm = hotel.indexOf('await recordStatedMoney(owned, userId, actor, landed.arrivalId);'), he = hotel.indexOf("await recordEmailOutcome(booking, actor, 'cancellation', landed.arrivalId, emailStatus);");
+  const hc = hotel.indexOf("kind: 'reservation_cancelled'"), hm = hotel.indexOf('await recordStatedMoney(owned, owned.userId, actor, landed.arrivalId);'), he = hotel.indexOf("await recordEmailOutcome(booking, actor, 'cancellation', landed.arrivalId, emailStatus);");
   assert.ok(hc > hotel.indexOf('landed = await prisma.$transaction(') && hc < hm && hm < he);
   // Flight: final → cancelled + money; pending → cancel_pending; 409 → refused and nothing else.
-  assert.match(flight, /if \(decision\.final\) \{\s*await recordBookingEvent\(\{ reservation: booking, kind: 'reservation_cancelled',[^\n]*\n\s*await recordStatedMoney\(owned, userId, actor, landed\.arrivalId\);\s*\} else \{\s*await recordBookingEvent\(\{ reservation: booking, kind: 'reservation_cancel_pending',/);
+  assert.match(flight, /if \(decision\.final\) \{\s*await recordBookingEvent\(\{ reservation: booking, kind: 'reservation_cancelled',[^\n]*\n\s*await recordStatedMoney\(owned, owned\.userId, actor, landed\.arrivalId\);\s*\} else \{\s*await recordBookingEvent\(\{ reservation: booking, kind: 'reservation_cancel_pending',/);
   const refusal = flight.slice(flight.indexOf('if (err instanceof LiteApiFlightsApiError && err.status === 409) {'));
   const refused = refusal.slice(0, refusal.indexOf('{ status: 409 }'));
   assert.match(refused, /kind: 'reservation_cancel_refused'/);
@@ -209,7 +211,7 @@ test('the cancel: 200 → requested, cancelled, a money_event_stated per row; 20
   // The quote: after the vendor answered it; its evidence the answer's bytes.
   assert.ok(s.indexOf('quoted = await getFlightCancellationQuote(owned.providerBookingId);') < s.indexOf("kind: 'reservation_cancel_quoted',"));
   assert.match(s, /evidence: \{ table: 'provider_answer', id: createHash\('sha256'\)\.update\(quoted\.answer\.body\)\.digest\('hex'\) \},/);
-  assert.match(code(CANCEL), /await recordEmailOutcome\(booking, actor, decision\.final \? 'cancellation' : 'cancel_pending', landed\.arrivalId, emailStatus\);/);
+  assert.match(code(CANCEL_FLOW), /await recordEmailOutcome\(booking, actor, decision\.final \? 'cancellation' : 'cancel_pending', landed\.arrivalId, emailStatus\);/);
 });
 
 test('the settle → money_event_settled with the bank row as its evidence, after the transaction, beside the link row; the posting → reservation_posted with the entry as its evidence', async () => {

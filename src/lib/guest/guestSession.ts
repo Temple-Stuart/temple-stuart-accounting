@@ -22,11 +22,25 @@
  * THE BOOKING (guestBooking): the session first — none or invalid is 401; then that ONE
  * reservation, still a guest's, or the lookup's 404; its landed answers and the refunds
  * the vendor stated; the answer is guestReceiptOf's — the vendor's side only.
+ * GUEST-02 (2026-09-30): beside the receipt, unchanged, the answer carries the cancel offer
+ * (guestCancelOffer) — Cancel is offered exactly when the flow would take the booking.
+ *
+ * THE CANCEL (guestCancelGate, GUEST-02, 2026-09-30), in this order:
+ *   1. the session — none or invalid is 401, before anything is counted or read;
+ *   2. the caller's IP — none is the one 404 (there is no 'unknown' bucket);
+ *   3. the limits — per IP, then per reservation, the cancel's OWN buckets (a cancel never
+ *      spends the lookup's attempts) — BOTH before any read; over is 429;
+ *   4. the session's reservation, still a guest's, on a cancel lane — the port reads
+ *      { id, bookingType 'guest', userId null, provider liteapi | duffel } — or the one 404;
+ *   5. the row, handed to the one cancel flow by the guest's route.
+ * It writes nothing (the limiter's counter is the lib's), calls no vendor and logs nothing;
+ * the row's type is the caller's — this file does not know the flow.
  *
  * No clock and no env here: the key and "now" are arguments.
  */
 import { REFERENCE_SHAPE, codesMatch, manageCode, parseManageCode, verifyGuestSession } from './guestAccess';
 import { guestReceiptOf, type GuestMoneyEvent, type GuestReceipt, type ReceiptArrival, type ReceiptReservation } from '../receipts/bookingReceipt';
+import { reservationIdentity } from '../reservations/lane';
 
 /** The words the guest routes answer — one line per outcome, the same every time. */
 export const GUEST_WORDS = {
@@ -92,6 +106,35 @@ export async function openGuestSession(ports: GuestLookupPorts, input: { ip: str
 /** A guest reservation as the booking read selects it. */
 export interface GuestReservationRow extends ReceiptReservation {
   arrival_id: string | null;
+  /** GUEST-02: the offer reads the provider and the stored terms. */
+  provider: string;
+  cancellationPolicyJson: unknown;
+}
+
+/** GUEST-02: what the page needs to open the one cancel dialog. */
+export interface GuestCancelOffer {
+  lane: 'hotel' | 'flight';
+  /** The row's stored cancellationPolicyJson, verbatim (a hotel's terms at booking). */
+  policy: unknown;
+  /** YYYY-MM-DD, or null. */
+  checkIn: string | null;
+  checkOut: string | null;
+}
+
+/** YYYY-MM-DD of a DATE-column value (a Date or its string), or null. */
+const ymd = (d: Date | string | null): string | null => (d === null ? null : typeof d === 'string' ? d.slice(0, 10) : d.toISOString().slice(0, 10));
+
+/**
+ * GUEST-02 (2026-09-30): Cancel is offered exactly when the flow would take the booking —
+ * provider liteapi, status confirmed, and a hotel or a flight through the one reader — never
+ * a control the flow must refuse (a retired provider's history row, an activity, a booking
+ * already cancelled or awaiting the airline). Pure.
+ */
+export function guestCancelOffer(row: GuestReservationRow): GuestCancelOffer | null {
+  if (row.provider !== 'liteapi' || row.status !== 'confirmed') return null;
+  const { type } = reservationIdentity(row);
+  if (type !== 'hotel' && type !== 'flight') return null;
+  return { lane: type, policy: row.cancellationPolicyJson, checkIn: ymd(row.checkinDate), checkOut: ymd(row.checkoutDate) };
 }
 
 export interface GuestBookingPorts {
@@ -106,7 +149,7 @@ export interface GuestBookingPorts {
 }
 
 export type GuestBookingAnswer =
-  | { status: 200; receipt: GuestReceipt }
+  | { status: 200; receipt: GuestReceipt; cancel: GuestCancelOffer | null }
   | { status: 401 | 404; error: string };
 
 export async function guestBooking(ports: GuestBookingPorts, input: { cookie: string | null; key: Buffer; now: number }): Promise<GuestBookingAnswer> {
@@ -117,5 +160,45 @@ export async function guestBooking(ports: GuestBookingPorts, input: { cookie: st
   const bookArrival = reservation.arrival_id === null ? null : await ports.bookArrival(reservation.arrival_id, reservation.providerBookingId);
   const latestReadArrival = await ports.latestRead(reservation.providerBookingId);
   const moneyEvents = await ports.moneyEvents(reservation.id);
-  return { status: 200, receipt: guestReceiptOf({ reservation, bookArrival, latestReadArrival, moneyEvents }) };
+  return { status: 200, receipt: guestReceiptOf({ reservation, bookArrival, latestReadArrival, moneyEvents }), cancel: guestCancelOffer(reservation) };
+}
+
+/** GUEST-02: the cancel's own limits — 10 per IP, then 5 per reservation, per 15 minutes. */
+export const GUEST_CANCEL_LIMITS = {
+  ip: { limit: 10, windowSeconds: 900 },
+  reservation: { limit: 5, windowSeconds: 900 },
+} as const;
+
+export interface GuestCancelPorts<Row> {
+  /** One attempt counted against `key`; over the limit answers ok false with the wait. */
+  limit(key: string, limit: number, windowSeconds: number): Promise<LimitOutcome>;
+  /** The session's reservation, still a guest's, on a cancel lane — { id, bookingType 'guest', userId null, provider in liteapi | duffel } — or null. */
+  reservation(id: string): Promise<Row | null>;
+}
+
+export type GuestCancelGateAnswer<Row> =
+  | { status: 200; ip: string; row: Row }
+  | { status: 401 | 404; error: string }
+  | { status: 429; error: string; retryAfterSeconds: number };
+
+export async function guestCancelGate<Row>(ports: GuestCancelPorts<Row>, input: { cookie: string | null; ip: string | null; key: Buffer; now: number }): Promise<GuestCancelGateAnswer<Row>> {
+  // 1. The session first — none or invalid is 401, before anything is counted or read.
+  const reservationId = verifyGuestSession(input.key, input.cookie, input.now);
+  if (reservationId === null) return { status: 401, error: GUEST_WORDS.sessionEnded };
+
+  // 2. No IP → the one 404: nothing to count the attempt against.
+  if (input.ip === null || input.ip.length === 0) return { status: 404, error: GUEST_WORDS.notOpened };
+
+  // 3. Both limits, the cancel's own buckets, before any read.
+  const byIp = await ports.limit(`guest-cancel-ip:${input.ip}`, GUEST_CANCEL_LIMITS.ip.limit, GUEST_CANCEL_LIMITS.ip.windowSeconds);
+  if (!byIp.ok) return { status: 429, error: GUEST_WORDS.tooMany, retryAfterSeconds: byIp.retryAfterSeconds };
+  const byReservation = await ports.limit(`guest-cancel:${reservationId}`, GUEST_CANCEL_LIMITS.reservation.limit, GUEST_CANCEL_LIMITS.reservation.windowSeconds);
+  if (!byReservation.ok) return { status: 429, error: GUEST_WORDS.tooMany, retryAfterSeconds: byReservation.retryAfterSeconds };
+
+  // 4. The session's reservation, still a guest's — or the one 404.
+  const row = await ports.reservation(reservationId);
+  if (row === null) return { status: 404, error: GUEST_WORDS.notOpened };
+
+  // 5. The row, for the one cancel flow.
+  return { status: 200, ip: input.ip, row };
 }

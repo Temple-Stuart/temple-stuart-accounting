@@ -7,23 +7,31 @@
  * lane only. The route cannot be executed here (a database and a vendor), so its
  * contract is read from source through the reader, the way this repo proves a
  * route it cannot run.
+ *
+ * GUEST-02 (2026-09-30): the quote, the action and both lanes moved word for word into the
+ * one cancel flow (src/lib/reservations/cancelFlow.ts), which the account's route and the
+ * guest's call; every check of that text reads the flow now, the dispatch hands the lanes
+ * the caller, and the dialog reads its quote from its caller's quoteUrl.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { code, comments } from '../sourceText';
 
 const ROUTE = 'src/app/api/reservations/[id]/cancel/route.ts';
+const FLOW = 'src/lib/reservations/cancelFlow.ts';
 const LISTS = ['src/components/trips/TripBookings.tsx', 'src/components/trips/UnattachedBookings.tsx'];
 
 test('COMMIT 1, as it stands after COMMIT 3: the lane is READ, and a lane with no cancel is refused by name before any vendor call', () => {
-  const src = code(ROUTE);
+  const src = code(FLOW);
   // The lane is READ off the row the auth chain scoped.
   // CANCEL-02 widened the select (the recipient and identity fields ride beside the lane).
-  assert.match(src, /select: \{\s*id: true, status: true, provider: true, providerBookingId: true, lane: true,/, 'the lane is selected');
+  // GUEST-02: the select is the flow's CANCEL_ROW_SELECT, which the account's gate reads with.
+  assert.match(src, /export const CANCEL_ROW_SELECT = \{\s*id: true, status: true, provider: true, providerBookingId: true, lane: true,/, 'the lane is selected');
+  assert.match(code(ROUTE), /select: CANCEL_ROW_SELECT,/, 'the account\'s gate reads with it');
   // COMMIT 1 refused every non-hotel lane here; COMMIT 3 gave the flight lane its own
   // endpoint. What stands: an activity (any lane without a cancel) is refused BY NAME
   // in the dispatch, before either lane function — and so before any vendor call.
-  const post = src.slice(src.indexOf('export async function POST('), src.indexOf('async function markCalendar('));
+  const post = src.slice(src.indexOf('export async function cancelReservation('), src.indexOf('async function markCalendar('));
   const named = post.indexOf("code: 'cancel_lane_unsupported'");
   const statusGate = post.indexOf('const refused = statusRefusal(owned);');
   assert.ok(named > 0 && statusGate > 0 && statusGate < named, 'named, after the ownership and status gates');
@@ -31,10 +39,10 @@ test('COMMIT 1, as it stands after COMMIT 3: the lane is READ, and a lane with n
   assert.ok(!post.includes('cancelBooking('), 'the dispatch itself calls no vendor');
   assert.ok(!post.includes('cancelFlightBooking('), 'the dispatch itself calls no vendor');
   // A flight is no longer refused: it is sent to its OWN endpoint (COMMIT 3), never the hotel one.
-  assert.match(post, /if \(owned\.lane === 'flight'\) return cancelFlight\(owned, userId, accountEmail\);/);
+  assert.match(post, /if \(owned\.lane === 'flight'\) return cancelFlight\(owned, caller\);/);
   // The hotel client is imported for the hotel lane only; the header tells the truth.
   assert.match(src, /import \{ cancelBooking, parseCancelResult, type CancelBookingResult \} from '@\/lib\/liteapiClient';/, 'the hotel client');
-  const head = comments(ROUTE);
+  const head = comments(FLOW);
   assert.match(head, /hotel  → PUT \/v3\.0\/bookings\/\{id\}/, 'the header names the hotel endpoint for the hotel lane');
   assert.match(head, /flight → POST \/flights\/bookings\/\{id\}\/cancellations/, 'and the flight endpoint for the flight lane');
   assert.ok(!/provider 'liteapi' \(hotels and flights\)/.test(head), 'and no longer claims one endpoint serves both');
@@ -260,6 +268,7 @@ test('refund absent in an answer → amountCents NULL, never 0', () => {
   assert.throws(() => centsOf(Number.NaN), /finite/);
   assert.ok(!code(LEAF).includes('?? 0'), 'no ?? 0 in the leaf');
   assert.ok(!code(ROUTE).includes('?? 0'), 'no ?? 0 in the route');
+  assert.ok(!code(FLOW).includes('?? 0'), 'no ?? 0 in the flow');
 });
 
 test('the HOTEL cancel now KEEPS its refund and fee as money_events from the answer it always parsed; status behavior unchanged', () => {
@@ -272,7 +281,7 @@ test('the HOTEL cancel now KEEPS its refund and fee as money_events from the ans
   const silent = hotelCancelMoneyEvents(parseCancelResult({ bookingId: 'h', status: 'CANCELLED' }), { reservationId: 'r', arrivalId: 'a', statedAt: ARRIVED });
   assert.equal(silent[0].amountCents, null);
   assert.equal(silent[1].amountCents, null);
-  const src = code(ROUTE);
+  const src = code(FLOW);
   const hotel = src.slice(src.indexOf('async function cancelHotel('), src.indexOf('async function cancelFlight('));
   assert.match(hotel, /data: \{ status: 'cancelled' \}/, 'the status write, exactly as before');
   assert.match(hotel, /hotelCancelMoneyEvents\(parsed, \{ reservationId: owned\.id, arrivalId, statedAt: answer\.arrived \}\)/, 'pointed at the arrival it lands');
@@ -313,8 +322,8 @@ test('a cancelled reservation\'s calendar row is MARKED, never removed', async (
   assert.match(impl, /SET title = \$\{CANCELLED_TITLE_PREFIX\} \|\| title, status = 'cancelled'/);
   assert.ok(!/DELETE FROM calendar_events/.test(impl), 'nothing is removed');
   assert.equal(CANCELLED_TITLE_PREFIX, 'Cancelled: ');
-  // The route marks AFTER the transaction, in its own try/catch, on a FINAL cancel only.
-  const src = code(ROUTE);
+  // The flow marks AFTER the transaction, in its own try/catch, on a FINAL cancel only.
+  const src = code(FLOW);
   assert.match(src, /const calendar = decision\.final \? await markCalendar\(owned\.id, owned\.providerBookingId\) : 'pending';/);
   assert.match(src.slice(src.indexOf('async function markCalendar('), src.indexOf('async function cancelHotel(')), /catch \(calErr\)/);
 });
@@ -350,17 +359,17 @@ test('the refresh does not flip a cancel_pending row back to confirmed while the
 });
 
 test('the route: GET is the quote, reserved before the vendor; POST dispatches on the lane; 202 reads cancelIntentAt from the vendor, never our clock; 409 is named', () => {
-  const src = code(ROUTE);
-  const get = src.slice(src.indexOf('export async function GET('), src.indexOf('export async function POST('));
+  const src = code(FLOW);
+  const get = src.slice(src.indexOf('export async function quoteCancellation('), src.indexOf('export async function cancelReservation('));
   const reserve = get.indexOf("reserveTravelSearch('liteapiflightcancelquote')");
   const vendor = get.indexOf('getFlightCancellationQuote(owned.providerBookingId)');
   assert.ok(reserve > 0 && vendor > reserve, 'metered immediately before the vendor read');
   assert.match(get, /code: 'quote_lane_unsupported'/);
   assert.match(get, /code: 'quote_refused'/);
   assert.match(get, /err instanceof LiteApiFlightsApiError && err\.status === 409/);
-  const post = src.slice(src.indexOf('export async function POST('), src.indexOf('async function markCalendar('));
-  assert.match(post, /if \(owned\.lane === 'hotel'\) return cancelHotel\(owned, userId, accountEmail\);/);
-  assert.match(post, /if \(owned\.lane === 'flight'\) return cancelFlight\(owned, userId, accountEmail\);/);
+  const post = src.slice(src.indexOf('export async function cancelReservation('), src.indexOf('async function markCalendar('));
+  assert.match(post, /if \(owned\.lane === 'hotel'\) return cancelHotel\(owned, caller\);/);
+  assert.match(post, /if \(owned\.lane === 'flight'\) return cancelFlight\(owned, caller\);/);
   assert.match(post, /code: 'cancel_lane_unsupported'/, 'an activity is still refused by name');
   assert.match(src, /code: 'cancel_already_pending'/, 'a second request on a pending cancel is named');
   const flight = src.slice(src.indexOf('async function cancelFlight('));
@@ -374,11 +383,12 @@ test('the route: GET is the quote, reserved before the vendor; POST dispatches o
   assert.ok(read > 0 && getBooking > read, 'the cancelIntentAt read is metered');
   assert.match(flight, /cancelIntentAt: new Date\(details\.cancelIntentAt\)/, 'the vendor word');
   assert.ok(!/cancelIntentAt: new Date\(\)/.test(src), 'never our clock');
+  assert.ok(!/cancelIntentAt: new Date\(\)/.test(code(ROUTE)), 'never our clock, in the gate either');
   assert.match(flight, /passengerNames: v\.passengerNames === null \? Prisma\.DbNull : v\.passengerNames/, 'SQL NULL when the vendor stated no names');
   // The named absences, at their attach points (comments, read as comments).
   // CANCEL-02 (2026-09-26) turned the email absence into the send: the header
   // now states it, and the absence line is gone.
-  const head = comments(ROUTE);
+  const head = comments(FLOW);
   assert.match(head, /CANCEL-02 \(2026-09-26\): A CANCELLATION IS CONFIRMED IN WRITING/);
   assert.ok(!/CANCEL-02: the cancellation EMAIL attaches here — NOT this PR/.test(head), 'the absence note is gone');
   assert.match(head, /item 3: the webhook receiver and scheduled refresh/);
@@ -393,7 +403,7 @@ test('the dialog: for a flight the quote renders BEFORE any Cancel control; a qu
   const gate = src.indexOf('{canConfirm && (');
   assert.ok(gate > 0 && button > gate && src.slice(gate, button).includes('<button'), 'the Cancel control sits inside the quoted gate');
   assert.equal((src.match(/'Cancel booking'/g) ?? []).length, 1, 'one Cancel control, and it is the gated one');
-  assert.match(src, /fetch\(`\/api\/reservations\/\$\{reservationId\}\/cancel`\)/, 'GET the quote on open');
+  assert.match(src, /const res = await fetch\(quoteUrl\);/, 'GET the quote on open, from the caller\'s quoteUrl (GUEST-02)');
   for (const shown of ['data-quote-refund', 'data-quote-penalty', 'data-quote-confidence', 'data-quote-destination', 'data-quote-vouchers']) assert.ok(src.includes(shown), `${shown} is rendered`);
   assert.match(src, /confidenceWords\(quote\.quote\.confidence\)/, 'the confidence in its word AND its meaning');
   assert.match(src, /destinationWords\(quote\.quote\.destination\)/, 'the destination in plain words');
@@ -410,7 +420,7 @@ test('the lists: Cancel on hotel AND flight (never activity); a pending row says
     assert.match(src, /\(r\.type === 'hotel' \|\| r\.type === 'flight'\) && r\.status === 'confirmed' && \(/, f);
     assert.match(src, /r\.status === 'cancel_pending' \? 'cancellation requested — awaiting the airline' : r\.status/, f);
     assert.match(src, /lane=\{cancelTarget\.type\}/, `${f}: the lane through the one reader`);
-    assert.match(src, /reservationId=\{cancelTarget\.id\}/);
+    assert.ok(src.includes('quoteUrl={`/api/reservations/${cancelTarget.id}/cancel`}'), `${f}: the account\'s quote URL (GUEST-02)`);
     assert.match(src, /data-cancel-outcome=\{outcome\.pending \? 'pending' : 'final'\}/);
     assert.match(src, /Cancellation requested — awaiting the airline/);
     assert.ok(!/\.lane\b/.test(src), `${f}: no raw lane read`);

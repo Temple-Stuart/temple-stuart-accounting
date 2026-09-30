@@ -70,8 +70,9 @@ interface BookingRow {
 
 /** PR-Cancel-1: the per-row cancellation outcome — the provider's verbatim
  *  numbers on success (null = not stated by provider), or the failure message.
- *  LAUNCH-01 RETIRE-01: the Duffel `flight` variant is gone with the provider —
- *  a 'duffel' history row offers no Cancel action (the route refuses one, 409). */
+ *  LAUNCH-01 RETIRE-01: the Duffel `flight` variant is gone with the provider.
+ *  GUEST-02 (2026-09-30): since CANCEL-01 the list offers Cancel on any confirmed hotel or
+ *  flight row, a 'duffel' history row included, and the flow refuses that one by name (409). */
 // CANCEL-01 (2026-09-26): the flight lane adds where the refund goes, any vouchers,
 // and the PENDING outcome (a 202 — the airline accepted the request and has not
 // finalized; the booking stays confirmed until it does).
@@ -339,10 +340,10 @@ export default function TripBookings({ tripId, onChanged, onTotals }: Props) {
                       {r.confirmationCode ?? ''}
                     </td>
                     <td className="px-3 py-2 text-right">
-                      {/* PR-Cancel-1: liteapi rows ONLY while confirmed — after the
-                          flip the action disappears, the row stays (record-keeping).
-                          Opens the stored-policy dialog. LAUNCH-01 RETIRE-01: 'duffel'
-                          history rows get no action (the provider is retired). */}
+                      {/* PR-Cancel-1: only while confirmed — after the flip the action
+                          disappears, the row stays (record-keeping). Opens the stored-policy
+                          dialog. GUEST-02 (2026-09-30): since CANCEL-01 a 'duffel' history row
+                          gets the action too, and the flow refuses it by name (409). */}
                       {/* CANCEL-01 (2026-09-26): the two lanes the cancel route serves — a hotel
                           through the hotel endpoint, a flight through its own (quote first). `type`
                           is the lane through the one reader (reservations/lane.ts); an activity has
@@ -430,7 +431,7 @@ export default function TripBookings({ tripId, onChanged, onTotals }: Props) {
 
       {cancelTarget && (
         <CancelBookingDialog
-          reservationId={cancelTarget.id}
+          quoteUrl={`/api/reservations/${cancelTarget.id}/cancel`}
           lane={cancelTarget.type}
           bookingName={cancelTarget.name}
           checkIn={cancelTarget.checkIn}

@@ -191,7 +191,8 @@ export interface CancellationLandingInput<P> {
   payload: JsonObject;
   /** The parser — runs over the arrival payload. */
   parse: (payload: JsonObject) => P;
-  userId: string;
+  /** GUEST-02 (2026-09-30): the booking's OWNER — the row's own userId, null for a guest row. */
+  userId: string | null;
 }
 
 export interface CancellationLandingResult<P, R> {
@@ -209,11 +210,14 @@ export interface CancellationLandingResult<P, R> {
 export async function landLiteApiCancellation<P, R>(ports: CancellationPorts<P, R>, input: CancellationLandingInput<P>): Promise<CancellationLandingResult<P, R>> {
   const { answer } = input;
   const theirId = cancellationTheirId(input.bookingId);
+  // GUEST-02 (2026-09-30): the cancellation names its owner the booking landing's way (above):
+  // a guest's booking is guest_ref booking:<bookingId>; an account's lands exactly as before.
+  const guestRef = input.userId === null ? bookingGuestRef(input.bookingId) : null;
   const response = await landResponse(ports.landing, {
     provider: LITEAPI,
     resource: CANCELLATION,
     userId: input.userId,
-    guestRef: null,
+    guestRef,
     httpStatus: answer.httpStatus,
     body: answer.body,
     asked: answer.asked,
@@ -224,7 +228,7 @@ export async function landLiteApiCancellation<P, R>(ports: CancellationPorts<P, 
     resource: CANCELLATION,
     connection: null,
     userId: input.userId,
-    guestRef: null,
+    guestRef,
     responseId: response.id,
     asked: answer.asked,
     arrived: answer.arrived,

@@ -36,7 +36,9 @@ const ROUTE = 'src/app/api/reservations/[id]/timeline/route.ts';
 const PAGE = 'src/app/booking/[id]/receipt/page.tsx';
 const HOTEL_BOOK = 'src/app/api/travel/liteapi/book/route.ts';
 const READ_LEAF = 'src/lib/reservations/vendorRead.ts';
-const CANCEL = 'src/app/api/reservations/[id]/cancel/route.ts';
+// GUEST-02 (2026-09-30): the cancel's facts are recorded by the one cancel flow (the quote dedented where it
+// left the GET); the seeds that broke them follow them there, and the audit's owner is the row's own userId.
+const CANCEL = 'src/lib/reservations/cancelFlow.ts';
 const REVIEW = 'src/app/api/runway/match/review/route.ts';
 const COMMIT = 'src/app/api/transactions/commit-to-ledger/route.ts';
 const READ_ROUTE = 'src/app/api/audit-log/route.ts';
@@ -108,8 +110,8 @@ const SEEDS: Seed[] = [
   {
     name: 'audit01-j the quote goes back to writeAuditLog by hand (clause 4)',
     file: CANCEL,
-    find: "    await recordBookingEvent({\n      reservation: { id: owned.id, userId: g.userId },\n      kind: 'reservation_cancel_quoted',",
-    replace: "    await writeAuditLog({ actor: { user_id: g.userId, type: 'human_user' }, action: { type: 'reservation_cancel_quoted', description: 'quoted' }, target: { table: 'reservations', id: owned.id }, request_id: `quote-${owned.id}` });\n    await recordBookingEvent({\n      reservation: { id: owned.id, userId: g.userId },\n      kind: 'reservation_cancel_quoted',",
+    find: "  await recordBookingEvent({\n    reservation: { id: owned.id, userId: owned.userId },\n    kind: 'reservation_cancel_quoted',",
+    replace: "  await writeAuditLog({ actor: { user_id: owned.userId, type: 'human_user' }, action: { type: 'reservation_cancel_quoted', description: 'quoted' }, target: { table: 'reservations', id: owned.id }, request_id: `quote-${owned.id}` });\n  await recordBookingEvent({\n    reservation: { id: owned.id, userId: owned.userId },\n    kind: 'reservation_cancel_quoted',",
     expect: "writes the booking kind 'reservation_cancel_quoted' to audit_log directly",
   },
   {
@@ -137,7 +139,7 @@ const SEEDS: Seed[] = [
     name: 'audit01-n a refused flight cancel records more than the refusal (clause 6)',
     file: CANCEL,
     find: "      await recordBookingEvent({ reservation: booking, kind: 'reservation_cancel_refused',",
-    replace: "      await recordStatedMoney(owned, userId, actor, 'refused');\n      await recordBookingEvent({ reservation: booking, kind: 'reservation_cancel_refused',",
+    replace: "      await recordStatedMoney(owned, owned.userId, actor, 'refused');\n      await recordBookingEvent({ reservation: booking, kind: 'reservation_cancel_refused',",
     expect: 'a refused flight cancel does not record cancel_refused and nothing else',
   },
   {
