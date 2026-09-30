@@ -19,6 +19,11 @@
  *     awaited flow, a vendor word in the flow, the flow's own actor, the audit's owner and
  *     the account's caller.
  *
+ * GUEST-02b (2026-09-30) adds six: the flow's answer carries commissionMoved again; a lane lands
+ * with userId null; the flight lane emails with no account address; the page skips the re-read;
+ * a third caller listed in GATED_FLOWS; a caller that is not a route (two seeds edit the law
+ * file itself, as sec02-m does).
+ *
  * Each must fail the build by name. The anchors of the edit seeds occur exactly once in
  * their file, which the harness enforces first; a create seed names a file that must not
  * exist (find '').
@@ -244,6 +249,49 @@ const SEEDS: Seed[] = [
     find: '',
     replace: 'import { prisma } from \'@/lib/prisma\';\nexport async function POST() { await prisma.reservations.update({ where: { id: \'x\' }, data: {} }); return new Response(null); }\n',
     expect: 'exactly the four routes (the three GUEST-01 routes and the GUEST-02 cancel)',
+  },
+  // ── GUEST-02b (2026-09-30): what only the pin held, now law; the gated flow’s callers closed ──
+  {
+    name: 'guest02b-a the flow’s answer carries commissionMoved again',
+    file: 'src/lib/reservations/cancelFlow.ts',
+    find: '      moneyEvents: moneyEvents.length,\n      calendar,',
+    replace: '      moneyEvents: moneyEvents.length,\n      commissionMoved,\n      calendar,',
+    expect: 'answers commission — Temple Stuart’s books, never the customer’s cancel answer (RECEIPT-01)',
+  },
+  {
+    name: 'guest02b-b a lane lands its cancellation with userId null',
+    file: 'src/lib/reservations/cancelFlow.ts',
+    find: '        parse: parseFlightCancellationResult,\n        userId: owned.userId,',
+    replace: '        parse: parseFlightCancellationResult,\n        userId: null,',
+    expect: 'a lane lands its cancellation without the row’s owner (userId: owned.userId)',
+  },
+  {
+    name: 'guest02b-c the flight lane emails with no account address',
+    file: 'src/lib/reservations/cancelFlow.ts',
+    find: '    owned,\n    caller.accountEmail,\n    decision.final',
+    replace: '    owned,\n    null,\n    decision.final',
+    expect: 'the flight lane does not email the caller’s address (sendCancellationEmail(owned, caller.accountEmail, …))',
+  },
+  {
+    name: 'guest02b-d the page skips reading the booking again after a cancel',
+    file: 'src/app/booking/manage/page.tsx',
+    find: '      const read = await readBooking();\n      if (read.ok) {\n        setFailure(null);\n        setView({ state: \'open\', receipt: read.receipt, cancel: read.cancel });\n      } else {\n        setFailure(read.error);\n      }\n',
+    replace: '',
+    expect: 'does not read the booking again after a successful cancel, before it writes its line',
+  },
+  {
+    name: 'guest02b-e a third caller is listed in GATED_FLOWS',
+    file: 'scripts/assert-tool-registry.ts',
+    find: '      { file: \'src/app/api/guest/booking/cancel/route.ts\', precondition: /const g = await guestGate\\(request\\);\\s*if \\(!g\\.ok\\) return g\\.response;/, row: \'g.row\', why: \'the guest\\u2019s gate: the signed session, the IP, both limits, then the row read with { id, bookingType guest, userId null, provider liteapi | duffel } (401 / 404 / 429 otherwise)\' },\n',
+    replace: '      { file: \'src/app/api/guest/booking/cancel/route.ts\', precondition: /const g = await guestGate\\(request\\);\\s*if \\(!g\\.ok\\) return g\\.response;/, row: \'g.row\', why: \'the guest\\u2019s gate: the signed session, the IP, both limits, then the row read with { id, bookingType guest, userId null, provider liteapi | duffel } (401 / 404 / 429 otherwise)\' },\n      { file: \'src/app/api/reservations/[id]/timeline/route.ts\', precondition: /seeded/, row: \'g.row\', why: \'seeded\' },\n',
+    expect: 'gatedCallers holds 3 entries, pinned at 2',
+  },
+  {
+    name: 'guest02b-f a caller that is not a route',
+    file: 'scripts/assert-tool-registry.ts',
+    find: '      { file: \'src/app/api/guest/booking/cancel/route.ts\', precondition: /const g = await guestGate',
+    replace: '      { file: \'src/app/booking/manage/page.tsx\', precondition: /const g = await guestGate',
+    expect: 'GATED_FLOWS lists src/app/booking/manage/page.tsx as a caller of src/lib/reservations/cancelFlow.ts — a caller is a route',
   },
 ];
 
