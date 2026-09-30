@@ -47,6 +47,13 @@ const SUBTREE_FILES = [
   `${BASE}/EvolutionTimelineView.tsx`,
   `${BASE}/DependencyListView.tsx`,
   `${BASE}/TaskRowView.tsx`,
+  // PROJECTS-01 (2026-09-30): the four parts the task views render — moved out
+  // of TaskRowView (edit inputs, schedule date menu, history list) and
+  // TaskListView (create inputs) so the projects table renders the same ones.
+  `${BASE}/TaskEditInputs.tsx`,
+  `${BASE}/TaskScheduleMenu.tsx`,
+  `${BASE}/TaskHistoryList.tsx`,
+  `${BASE}/TaskCreateInputs.tsx`,
   // Day + Script panels (PR B/C views, PR D seed) — now public via PR E.
   `${OPS}/content/DayCalendarView.tsx`,
   `${OPS}/content/ScriptGeneratorView.tsx`,
