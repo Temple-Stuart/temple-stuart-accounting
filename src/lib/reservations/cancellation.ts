@@ -171,15 +171,15 @@ export type CancelRecipient = { to: string } | { to: null; reason: 'no_recipient
  * named. NO FALLBACK: a guest row is never sent to the account holder's address,
  * an account row is never sent to a guest address, nothing is invented.
  *
- * Which rows can be emailed today (main c17dc9dd): every account row (hotel or
- * flight — the cancel route is owner-only, so every cancel it serves is one);
+ * Which rows can be emailed (main c17dc9dd; GUEST-02, 2026-09-30): every account row
+ * (hotel or flight — the account's cancel route serves the owner's rows);
  * a guest HOTEL row (book/route.ts writes guestEmail = holder.email); a guest
  * FLIGHT row booked from BOOKINGS-01 (2026-09-27) on (flights/book/route.ts writes
  * guestEmail = the prebook_contacts row's contactEmail it read by prebookId). A
  * guest flight booked BEFORE that carries guestEmail null and CANNOT be reached —
- * the row stores no prebookId to join its contact by, so no retro fills it. Guest rows cannot reach the cancel
- * route at all (its ownership gate needs userId), so today this rule serves
- * account rows and states the guest case honestly.
+ * the row stores no prebookId to join its contact by, so no retro fills it. GUEST-02 (2026-09-30):
+ * guest rows reach the cancel through the guest's own route now (src/app/api/guest/booking/cancel/
+ * route.ts — the one flow, src/lib/reservations/cancelFlow.ts), so this rule serves both.
  */
 export function cancelRecipient(row: RecipientRow, accountEmail: string | null): CancelRecipient {
   if (row.bookingType === 'account') {

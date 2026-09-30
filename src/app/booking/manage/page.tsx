@@ -20,20 +20,30 @@
  *
  * "Downloadable" is the browser's Print / Save as PDF (window.print()), as on the
  * owner's receipt.
+ *
+ * GUEST-02 (2026-09-30): the guest cancels here. When the booking's answer carries a cancel
+ * offer (guestCancelOffer — a confirmed LiteAPI hotel or flight), "Cancel booking" sits beside
+ * Print and Close and opens the ONE cancel dialog (src/components/trips/CancelBookingDialog.tsx)
+ * with the guest's own route as its quote URL. Confirm posts /api/guest/booking/cancel — the
+ * same cancel flow the account runs, behind the guest's gate; the dialog closes when it answers.
+ * A success reads the booking again and says, in one line, what happened and whether the
+ * confirmation email went; a failure is the answer's own error on the failure line.
  */
 
 import { useEffect, useState } from 'react';
 import type { GuestReceipt } from '@/lib/receipts/bookingReceipt';
+import type { GuestCancelOffer } from '@/lib/guest/guestSession';
 import ReceiptBody from '@/components/receipts/ReceiptBody';
 import GuestBookingLookup from '@/components/guest/GuestBookingLookup';
+import CancelBookingDialog from '@/components/trips/CancelBookingDialog';
 
-type View = { state: 'checking' } | { state: 'form' } | { state: 'open'; receipt: GuestReceipt };
-type Read = { ok: true; receipt: GuestReceipt } | { ok: false; status: number; error: string };
+type View = { state: 'checking' } | { state: 'form' } | { state: 'open'; receipt: GuestReceipt; cancel: GuestCancelOffer | null };
+type Read = { ok: true; receipt: GuestReceipt; cancel: GuestCancelOffer | null } | { ok: false; status: number; error: string };
 
 async function readBooking(): Promise<Read> {
   const res = await fetch('/api/guest/booking', { cache: 'no-store' });
   const data = await res.json().catch(() => ({}));
-  if (res.ok) return { ok: true, receipt: data.receipt as GuestReceipt };
+  if (res.ok) return { ok: true, receipt: data.receipt as GuestReceipt, cancel: data.cancel as GuestCancelOffer | null };
   return { ok: false, status: res.status, error: typeof data.error === 'string' ? data.error : `the booking read answered ${res.status}` };
 }
 
@@ -42,6 +52,10 @@ export default function ManageBookingPage() {
   const [prefill, setPrefill] = useState('');
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // GUEST-02: the cancel dialog, its POST in flight, and the one line a success leaves.
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancelOutcome, setCancelOutcome] = useState<string | null>(null);
 
   useEffect(() => {
     const ref = new URLSearchParams(window.location.search).get('ref');
@@ -51,7 +65,7 @@ export default function ManageBookingPage() {
       try {
         const read = await readBooking();
         if (!alive) return;
-        if (read.ok) { setView({ state: 'open', receipt: read.receipt }); return; }
+        if (read.ok) { setView({ state: 'open', receipt: read.receipt, cancel: read.cancel }); return; }
         // 401 is no session — the form, with nothing to say. Anything else is said.
         if (read.status !== 401) setFailure(read.error);
         setView({ state: 'form' });
@@ -70,7 +84,8 @@ export default function ManageBookingPage() {
     const read = await readBooking();
     if (!read.ok) throw new Error(read.error);
     setFailure(null);
-    setView({ state: 'open', receipt: read.receipt });
+    setCancelOutcome(null);
+    setView({ state: 'open', receipt: read.receipt, cancel: read.cancel });
   };
 
   const close = async () => {
@@ -79,11 +94,55 @@ export default function ManageBookingPage() {
       const res = await fetch('/api/guest/session/end', { method: 'POST' });
       if (!res.ok) throw new Error(`closing the booking answered ${res.status}`);
       setFailure(null);
+      setCancelOutcome(null);
       setView({ state: 'form' });
     } catch (err) {
       setFailure(err instanceof Error ? err.message : 'the booking could not be closed');
     } finally {
       setBusy(false);
+    }
+  };
+
+  // GUEST-02: the confirmed cancel. The dialog closes when the route answers. A success reads
+  // the booking again and leaves one line — what happened, then whether the email went; a
+  // failure is the answer's own error, verbatim.
+  const doCancel = async () => {
+    setCancelBusy(true);
+    setCancelOutcome(null);
+    try {
+      const res = await fetch('/api/guest/booking/cancel', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      setCancelOpen(false);
+      if (!res.ok) {
+        setFailure(typeof data.error === 'string' ? data.error : `the cancel answered ${res.status}`);
+        return;
+      }
+      const status = data.reservation?.status;
+      const what = status === 'cancelled'
+        ? 'Your booking is cancelled.'
+        : status === 'cancel_pending'
+          ? 'Your cancellation request is with the airline — the booking stays confirmed until it answers.'
+          : null;
+      if (what === null) {
+        setFailure(`the cancel answered the status ${String(status)}`);
+        return;
+      }
+      const told = data.email?.sent === true
+        ? 'We emailed the confirmation to the address on this booking.'
+        : 'No confirmation email was sent — print or save this page as your record.';
+      const read = await readBooking();
+      if (read.ok) {
+        setFailure(null);
+        setView({ state: 'open', receipt: read.receipt, cancel: read.cancel });
+      } else {
+        setFailure(read.error);
+      }
+      setCancelOutcome(`${what} ${told}`);
+    } catch (err) {
+      setCancelOpen(false);
+      setFailure(err instanceof Error ? err.message : 'the booking could not be cancelled');
+    } finally {
+      setCancelBusy(false);
     }
   };
 
@@ -100,6 +159,7 @@ export default function ManageBookingPage() {
       {view.state === 'open' && (
         <>
           {failure && <p className="no-print mb-4 text-sm text-brand-red" role="alert" data-guest-failure>{failure}</p>}
+          {cancelOutcome && <p className="mb-4 text-sm text-text-primary" role="status" data-guest-cancel-outcome>{cancelOutcome}</p>}
           <ReceiptBody
             receipt={view.receipt}
             actions={(
@@ -107,12 +167,30 @@ export default function ManageBookingPage() {
                 <button type="button" onClick={() => window.print()} className="rounded bg-brand-purple px-3 py-1.5 text-xs font-semibold text-white" data-guest-print>
                   Print / Save as PDF
                 </button>
+                {view.cancel && (
+                  <button type="button" onClick={() => setCancelOpen(true)} disabled={cancelBusy} className="rounded border border-brand-red/40 px-3 py-1.5 text-xs font-semibold text-brand-red hover:bg-brand-red/10 disabled:opacity-60" data-guest-cancel>
+                    Cancel booking
+                  </button>
+                )}
                 <button type="button" onClick={close} disabled={busy} className="rounded border border-border px-3 py-1.5 text-xs font-semibold text-text-secondary disabled:opacity-60" data-guest-close>
                   Close this booking
                 </button>
               </>
             )}
           />
+          {cancelOpen && view.cancel && (
+            <CancelBookingDialog
+              quoteUrl="/api/guest/booking/cancel"
+              lane={view.cancel.lane}
+              bookingName={view.receipt.header.name}
+              checkIn={view.cancel.checkIn}
+              checkOut={view.cancel.checkOut}
+              policy={view.cancel.policy}
+              busy={cancelBusy}
+              onConfirm={doCancel}
+              onClose={() => { if (!cancelBusy) setCancelOpen(false); }}
+            />
+          )}
         </>
       )}
     </main>

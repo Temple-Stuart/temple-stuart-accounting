@@ -10,6 +10,9 @@
 // stated — no bank row, no link, no books entry, no margin. The answer is
 // guestReceiptOf's (src/lib/receipts/bookingReceipt.ts). It writes nothing, calls no
 // vendor, and is never cached.
+// GUEST-02 (2026-09-30): beside the receipt, unchanged, the answer carries the cancel offer
+// (guestCancelOffer) — so the row also reads its provider and its stored terms. The cancel
+// itself is src/app/api/guest/booking/cancel/route.ts.
 // The decision is src/lib/guest/guestSession.ts guestBooking; this file wires it.
 import { NextResponse, type NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -28,6 +31,8 @@ const ports: GuestBookingPorts = {
       select: {
         id: true, lane: true, displayName: true, providerBookingId: true, providerConfirmationCode: true, status: true,
         createdAt: true, checkinDate: true, checkoutDate: true, arrival_id: true,
+        // GUEST-02: the cancel offer's two reads.
+        provider: true, cancellationPolicyJson: true,
       },
     }),
   bookArrival: (arrivalId, providerBookingId) =>
@@ -57,7 +62,7 @@ export async function GET(request: NextRequest) {
       now: Math.floor(Date.now() / 1000),
     });
     if (answer.status !== 200) return NextResponse.json({ error: answer.error }, { status: answer.status, headers: NO_STORE });
-    return NextResponse.json({ receipt: answer.receipt }, { headers: NO_STORE });
+    return NextResponse.json({ receipt: answer.receipt, cancel: answer.cancel }, { headers: NO_STORE });
   } catch (err) {
     const failed = failClosedResponse('Guest booking read', 'Could not read the booking right now', err);
     failed.headers.set('Cache-Control', 'no-store');

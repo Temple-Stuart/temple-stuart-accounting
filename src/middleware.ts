@@ -159,6 +159,9 @@ const PUBLIC_PATHS = [
   // GUEST-01: the one booking a verified guest session names — the signed cookie first
   // (401 before any read), then that reservation alone, still a guest's, the vendor's
   // side only; read-only, no vendor call, never cached.
+  // GUEST-02 (2026-09-30): the prefix also serves /api/guest/booking/cancel — the guest's
+  // cancel: the session verified first, 10/IP then 5/reservation per 15 min BEFORE any read,
+  // the row still a guest's, then the one cancel flow's metered calls; never cached.
   '/api/guest/booking',
   // PROPOSAL-FORM: the public project-proposal form page — a static client
   // form (zero on-load fetches, zero authed reads, zero paid calls); its only
