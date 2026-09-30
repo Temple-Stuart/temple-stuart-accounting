@@ -26,7 +26,6 @@ const ACTUALS = 'src/app/api/trips/[id]/actuals/route.ts';
 const LEDGER = 'src/components/trips/TripBudgetActual.tsx';
 const CONTROL = 'src/components/trips/TripBookings.tsx';
 const TRIP_ROUTE = 'src/app/api/trips/[id]/route.ts';
-const COMMIT_ROUTE = 'src/app/api/trips/[id]/commit/route.ts';
 const ATTACH_ROUTE = 'src/app/api/reservations/[id]/route.ts';
 const MIGRATION = 'prisma/migrations/20260927120000_link_02_reservation_budget_links/migration.sql';
 const LAW = 'scripts/assert-tool-registry.ts';
@@ -234,12 +233,10 @@ test('the route is the prisma adapter of the leaf: the owner scope on every read
   assert.ok(!/writeAuditLog|requireTier|amount|finalPriceCents/.test(s));
 });
 
-test('the writers that would break the link ask FIRST: the trip delete, the uncommit, the attach PATCH; the guard only reads', () => {
+test('the writers that would break the link ask FIRST: the trip delete and the attach PATCH (the uncommit was deleted — LEGACY-DEL-01); the guard only reads', () => {
   const fn = (src: string, verb: string) => src.slice(src.indexOf(`export async function ${verb}(`));
   const tripDelete = fn(code(TRIP_ROUTE), 'DELETE');
   assert.ok(tripDelete.indexOf('const linked = await tripLinesLinkedRefusal(user.id, id);') < tripDelete.indexOf('deleteMany('));
-  const uncommit = fn(code(COMMIT_ROUTE), 'DELETE');
-  assert.ok(uncommit.indexOf('const linked = await tripLinesLinkedRefusal(user.id, id);') < uncommit.indexOf('DELETE FROM calendar_events'));
   const attach = code(ATTACH_ROUTE);
   assert.match(attach, /select: \{ id: true, tripId: true \},/);
   assert.match(attach, /if \(tripId !== owned\.tripId\) \{\s*const linked = await bookingLinkedRefusal\(user\.id, owned\.id\);\s*if \(linked\) return linked;\s*\}\s*const r = await prisma\.reservations\.update\(/);

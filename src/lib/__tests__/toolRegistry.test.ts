@@ -75,11 +75,13 @@ test('CRM and Expenses are NOT_BUILT with the census citation, no home, no beats
     assert.equal(t.links, undefined);
   }
   assert.match(byName('CRM').citation, /proposals inbox — no contact or deal object \(src\/app\/api\/owner\/proposals\/route\.ts\)/);
-  assert.match(byName('Expenses').citation, /trip cost split on the trip planner \(src\/app\/api\/trips\/\[id\]\/expenses\/route\.ts:70\) is Travel's/);
+  // LEGACY-DEL-01 (2026-09-29): the trip cost split Expenses cited was deleted with the legacy trip planner;
+  // the citation says so and names what is true now, word for word.
+  assert.match(byName('Expenses').citation, /^no expenses tool: the trip cost split that was Travel's \(src\/app\/api\/trips\/\[id\]\/expenses\/route\.ts\) was deleted with the legacy trip planner \(LEGACY-DEL-01\); nothing writes trip_expenses now — the trip delete clears a trip's rows \(src\/app\/api\/trips\/\[id\]\/route\.ts:135\) and the export reads them \(src\/app\/api\/export\/route\.ts:154\)$/);
   assert.ok(OWNER_UTILITIES.some((u) => u.href === '/owner'), '/owner keeps its door in the utilities menu');
-  // TRIPS-01 (2026-09-29): the trip planner Expenses' citation names is the Travel tab's
-  // now — the legacy pages under /budgets/trips are redirects to it, and Travel carries
-  // no sub-link: not to them, not to anything.
+  // TRIPS-01 (2026-09-29): the legacy pages under /budgets/trips are redirects to the Travel
+  // tab, and Travel carries no sub-link: not to them, not to anything. (LEGACY-DEL-01: the
+  // planner those pages mounted is deleted.)
   assert.deepEqual(byName('Travel').links, []);
 });
 

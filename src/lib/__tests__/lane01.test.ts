@@ -374,8 +374,8 @@ test('the trip rides from the surface through the panel and the returnUrl to the
   assert.match(confirm, /params\.get\('tripId'\)/);
   // SEC-03 (2026-09-25): the address the link carried is stored at prebook now.
   assert.match(confirm, /body: JSON\.stringify\(\{ prebookId, transactionId, \.\.\.\(tripId \? \{ tripId \} : \{\}\) \}\)/);
-  // The in-trip planner mounts no flight checkout — there is no second launch site to carry it from.
-  assert.ok(!code('src/components/trips/TripPlannerAI.tsx').includes('LiteApiFlightCheckoutPanel'), 'TripPlannerAI mounts only the hotel CheckoutPanel');
+  // LEGACY-DEL-01 (2026-09-29): the in-trip planner, which mounted no flight checkout, was deleted — there is no
+  // second launch site at all.
 });
 
 // ── the column and its one-time backfill ────────────────────────────────────

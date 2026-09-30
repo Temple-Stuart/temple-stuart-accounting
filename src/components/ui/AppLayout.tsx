@@ -2,8 +2,7 @@
 
 import { useRouter, usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { useEffect, useState, Suspense } from 'react';
-import TripCreationBar from '@/components/trips/TripCreationBar';
+import { useEffect, useState } from 'react';
 import ShellBar from '@/components/ui/ShellBar';
 // ACCOUNTS-01: the rail is on every signed-in page. AppLayout is where most rooms
 // mount their shell, so mounting it here gives them all the same navigation — its
@@ -71,13 +70,6 @@ interface CookieUser {
   /** /api/auth/me → entitledCategories; the rail's lock chip reads these (no second request). */
   entitledCategories?: string[];
 }
-
-// ─── Route Groups ────────────────────────────────────────────────────────────
-// NAV-01b: the Sidebar (five module links duplicating the cockpit) is gone; the
-// families are the navigation. Only the Travel prefixes remain here, to gate the
-// Travel search bar below.
-
-const TRAVEL_PREFIXES = ['/budgets/trips', '/trips'];
 
 // FD-4: routes that RENDER for guests despite mounting AppLayout. EMPTY since
 // PR-PRICE-3: '/pricing' (the only entry) no longer mounts AppLayout — it
@@ -183,21 +175,6 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
 
   // ─── Active State Detection ────────────────────────────────────────────────
 
-  // PR-29: the search/create bar shows on travel routes EXCEPT a committed trip's
-  // detail page (/budgets/trips/{id} or /trips/{id}, but not .../new) — there the
-  // detail page renders the editable TripHeader instead. Landing (/budgets/trips)
-  // and /new keep the search/create bar.
-  // PR-32: also suppress on the discover detail route
-  // (/budgets/trips/{id}/discover/{category}/{rank}) — the `(\/discover\/.*)?`
-  // group lets the match extend past {id} into the detail page, which the old
-  // `$`-anchored single-segment pattern missed. Landing (/budgets/trips) and
-  // /new still show the search/create bar.
-  const isTripDetail = /^\/(budgets\/)?trips\/[^/]+(\/discover\/.*)?\/?$/.test(pathname || '') && !(pathname || '').endsWith('/new');
-  // PR-37a: the trips INDEX (/budgets/trips or /trips) now renders its own
-  // in-page create-trip form, so suppress the global search/create bar there too
-  // (it would double up). /budgets/trips/new still shows the bar (create page).
-  const isTripIndex = /^\/(budgets\/)?trips\/?$/.test(pathname || '');
-  const showTravelSearch = TRAVEL_PREFIXES.some(r => pathname?.startsWith(r)) && !isTripDetail && !isTripIndex;
   const userLabel = currentUser?.name || currentUser?.email?.split('@')[0] || '';
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -221,15 +198,6 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
         />
       )}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Travel Search Bar (only on Travel routes) */}
-        {showTravelSearch && (
-          <div className="bg-brand-purple border-t border-white/[.06]">
-            <div className="max-w-[1800px] mx-auto px-6 py-4">
-              <Suspense><TripCreationBar /></Suspense>
-            </div>
-          </div>
-        )}
-
         {/* ROW 3 — Bookkeeping Cockpit Bar (same pattern as Travel) */}
         {bookkeepingBar && (
           <div className="bg-brand-purple border-t border-white/[.06]">

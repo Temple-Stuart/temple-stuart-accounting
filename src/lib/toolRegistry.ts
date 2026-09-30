@@ -223,7 +223,7 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   },
   Expenses: {
     slug: 'expenses', status: 'NOT_BUILT', beats: NONE, home: null,
-    citation: "trip cost split on the trip planner (src/app/api/trips/[id]/expenses/route.ts:70) is Travel's, not an expenses tool",
+    citation: "no expenses tool: the trip cost split that was Travel's (src/app/api/trips/[id]/expenses/route.ts) was deleted with the legacy trip planner (LEGACY-DEL-01); nothing writes trip_expenses now — the trip delete clears a trip's rows (src/app/api/trips/[id]/route.ts:135) and the export reads them (src/app/api/export/route.ts:154)",
     customer: 'Receipts are not yet matched to the charge that made them.',
   },
   Travel: {

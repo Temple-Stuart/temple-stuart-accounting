@@ -63,9 +63,9 @@ export const VIATOR_MCID = '42383';
 // d{destId}-{productCode}) — the reported breakage. RULING: the API's own
 // `productUrl` is PRIMARY everywhere; our affiliate params are appended to it
 // only when absent (its existing query preserved); the constructed short path
-// survives ONLY as the no-productUrl fallback. Pure + client-safe (the
-// discover page imports it); viatorClient (server) and the scanner-results
-// read-time re-map use the same function — one builder, zero drift.
+// survives ONLY as the no-productUrl fallback. Pure + client-safe (no client
+// imports it today); viatorClient (server) is its one caller — the scanner-results
+// read-time re-map that shared it was deleted with the legacy planner (LEGACY-DEL-01).
 //
 // GATE LOCKSTEP (declared, no gate change required): validatedAffiliateUrl
 // checks https + viator.com host + literal pid=P00294427 via searchParams —

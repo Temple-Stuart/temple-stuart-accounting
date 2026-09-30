@@ -68,8 +68,8 @@
 
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, rmdirSync, symlinkSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 
 const ROOT = resolve(__dirname, '..');
 const PROOF_DIR = resolve(ROOT, '.proofs');
@@ -80,9 +80,15 @@ export interface Seed {
   name: string;
   /** The file it changes, relative to the repo root. */
   file: string;
-  /** An exact string that must occur EXACTLY ONCE in that file. */
+  /**
+   * An exact string that must occur EXACTLY ONCE in that file — or '' for the CREATE
+   * form (LEGACY-DEL-01, 2026-09-29): the file must NOT exist; the harness creates it
+   * (and any folder it needs) holding `replace`, runs the laws, and removes both. A
+   * create seed whose file already exists is a HARNESS FAILURE — it never overwrites
+   * a real file. It proves a law that holds a DELETED file deleted.
+   */
   find: string;
-  /** What it becomes. */
+  /** What it becomes (the create form: the whole file). */
   replace: string;
   /** A substring of the violation the law must raise. */
   expect: string;
@@ -94,6 +100,8 @@ const arg = (name: string): string | null => {
 };
 
 const sha = (text: string): string => createHash('sha256').update(text).digest('hex');
+/** LEGACY-DEL-01: the create form — find '' names a file that must not exist. */
+const creates = (seed: Seed): boolean => seed.find === '';
 const readAt = (dir: string, file: string): string => readFileSync(resolve(dir, file), 'utf8');
 
 function git(args: string[], cwd = ROOT): string {
@@ -149,16 +157,33 @@ function runSuite(dir: string): Promise<{ status: number | null; output: string 
 }
 
 async function runSeed(dir: string, seed: Seed): Promise<Result> {
-  const before = readAt(dir, seed.file);
-  const hits = before.split(seed.find).length - 1;
-  if (hits !== 1) throw new Error(`HARNESS FAILURE — seed "${seed.name}": its find occurs ${hits} time(s) in ${seed.file}, and a seed must name exactly one place`);
-  writeFileSync(resolve(dir, seed.file), before.replace(seed.find, seed.replace));
+  const file = resolve(dir, seed.file);
+  // LEGACY-DEL-01: the create form makes the file (and its missing folders), then removes both.
+  const made: string[] = [];
+  let before = '';
+  if (creates(seed)) {
+    if (existsSync(file)) throw new Error(`HARNESS FAILURE — create seed "${seed.name}": ${seed.file} already exists; the create form never overwrites a real file`);
+    for (let d = dirname(file); !existsSync(d); d = dirname(d)) made.unshift(d);
+    for (const d of made) mkdirSync(d);
+    writeFileSync(file, seed.replace);
+  } else {
+    before = readAt(dir, seed.file);
+    const hits = before.split(seed.find).length - 1;
+    if (hits !== 1) throw new Error(`HARNESS FAILURE — seed "${seed.name}": its find occurs ${hits} time(s) in ${seed.file}, and a seed must name exactly one place`);
+    writeFileSync(file, before.replace(seed.find, seed.replace));
+  }
   const started = Date.now();
   const run = await runSuite(dir);
   const ms = Date.now() - started;
   const output = run.output;
-  writeFileSync(resolve(dir, seed.file), before);
-  if (sha(readAt(dir, seed.file)) !== sha(before)) throw new Error(`HARNESS FAILURE — seed "${seed.name}" did not restore ${seed.file} byte-for-byte`);
+  if (creates(seed)) {
+    rmSync(file);
+    for (const d of [...made].reverse()) rmdirSync(d);
+    if (existsSync(file) || made.some((d) => existsSync(d))) throw new Error(`HARNESS FAILURE — create seed "${seed.name}" did not remove ${seed.file} and the folders it made`);
+  } else {
+    writeFileSync(file, before);
+    if (sha(readAt(dir, seed.file)) !== sha(before)) throw new Error(`HARNESS FAILURE — seed "${seed.name}" did not restore ${seed.file} byte-for-byte`);
+  }
   const failed = run.status !== 0;
   const named = output.includes(seed.expect);
   const why = !failed ? 'the suite passed — the law does not forbid this'
@@ -181,9 +206,15 @@ async function main(): Promise<void> {
   if (seeds.length === 0) { console.error(`scripts/proofs/${law}.seeds.ts exports no seeds`); process.exit(2); }
 
   // The working tree is the thing being proved AND the thing that must not move.
-  const touched = [...new Set(seeds.map((s) => s.file))].sort();
+  const touched = [...new Set(seeds.filter((s) => !creates(s)).map((s) => s.file))].sort();
   const beforeHashes = new Map(touched.map((f) => [f, sha(readAt(ROOT, f))] as const));
+  // LEGACY-DEL-01: a create seed's file must not exist — here, before any worktree is made.
+  const absent = [...new Set(seeds.filter(creates).map((s) => s.file))].sort();
   for (const seed of seeds) {
+    if (creates(seed)) {
+      if (existsSync(resolve(ROOT, seed.file))) { console.error(`✖ HARNESS FAILURE — create seed "${seed.name}": ${seed.file} already exists; the create form never overwrites a real file`); process.exit(2); }
+      continue;
+    }
     const hits = readAt(ROOT, seed.file).split(seed.find).length - 1;
     if (hits !== 1) { console.error(`✖ HARNESS FAILURE — seed "${seed.name}": its find occurs ${hits} time(s) in ${seed.file}, and a seed must name exactly one place`); process.exit(2); }
   }
@@ -231,7 +262,7 @@ async function main(): Promise<void> {
   console.log(`\n${caught}/${seeds.length} caught · ${wall}s wall · ${workers} worktree(s)`);
 
   const leftover = proofWorktrees();
-  const moved = touched.filter((f) => sha(readAt(ROOT, f)) !== beforeHashes.get(f));
+  const moved = [...touched.filter((f) => sha(readAt(ROOT, f)) !== beforeHashes.get(f)), ...absent.filter((f) => existsSync(resolve(ROOT, f)))];
   if (harnessError) { console.error(`\n✖ ${harnessError.message}`); process.exit(2); }
   if (leftover.length > 0) { console.error(`\n✖ HARNESS FAILURE — ${leftover.length} worktree(s) left behind: ${leftover.join(', ')}`); process.exit(2); }
   if (moved.length > 0) { console.error(`\n✖ HARNESS FAILURE — the working tree moved: ${moved.join(', ')}`); process.exit(2); }

@@ -169,7 +169,6 @@ import { bookingCalendarRowsWhere, flightSegmentSourceId, flightSegmentsCalendar
 import { buildIcs, escapeIcsText, foldIcsLine } from '../src/lib/calendar/ics';
 // LAW-02: a figure nobody stated is NULL, named on screen.
 import { prebookUnstatedMoney } from '../src/lib/checkout/prebookGate';
-import { ratingLine, ratingValue, scoreWords } from '../src/lib/travel/ratingWords';
 import { PHONE_CARD } from '../src/lib/travel/phoneCard';
 import { OWNED_LOADERS, closingOf, enclosing, exportedMethods, flatWhere, handlerIdentity, inScope, judgeWrites, topFunctions } from '../src/lib/security/ownershipLaw';
 import { bookedStay, statedStayDay, unstatedStayLine } from '../src/lib/reservations/stayDates';
@@ -3508,7 +3507,11 @@ lawGuard('The travel law', () => {
 //   2. THE BOOKING FLOW IS BYTE-IDENTICAL. Every file of search → prebook → pay
 //      (src/lib/travelBookingFlow.ts) hashes, its whole text through the
 //      reader's two halves rejoined, to its pin from main — and every route
-//      under src/app/api/travel is in that census.
+//      under src/app/api/travel is in that census. LEGACY-DEL-01 (2026-09-29): four
+//      pinned files were deleted with the legacy trip planner (HotelGallery, HotelMap,
+//      FlightPicker, TripPlannerAI); each is held deleted — not on disk, not pinned,
+//      its last hash in the pins file's LEGACY-DEL-01 note — and the census may
+//      shrink by those four alone.
 //   3. AN ITEM WITH TIMES DRAWS START-TO-END. The overlay leaf copies a date-only
 //      item's block window onto its calendar row and nothing else's — probed: an
 //      activity 14:00–16:00 lands at that extent with vendor and place; a start
@@ -3567,7 +3570,22 @@ const travelFail = (m: string) => { travelViolations += 1; violations.push(`trav
 
 // 2. the booking flow is byte-identical to main.
 {
-  if (BOOKING_FLOW_FILES.length < 49) travelFail(`the booking-flow census names ${BOOKING_FLOW_FILES.length} files — the audit named 49; the list may not shrink`);
+  // LEGACY-DEL-01 (2026-09-29): the four pinned files deleted with the legacy trip planner — each
+  // held deleted, its last hash (at main 047e2c5b) in the pins file's LEGACY-DEL-01 note.
+  const TRAVEL_DELETED_PINS: ReadonlyArray<{ file: string; sha256: string }> = [
+    { file: 'src/components/trips/HotelGallery.tsx', sha256: '64e34a08a092e0b8aed934fdf1fe5dc4416212bcc4cc4a2d3dcd855ab011b810' },
+    { file: 'src/components/trips/HotelMap.tsx', sha256: '59b57e947baaec731a14f226b9f95434445e56286cebfd5f0ac1e234aa0cac3a' },
+    { file: 'src/components/trips/FlightPicker.tsx', sha256: 'fab753b0ba0166c634fd82b95c69fa009965c170ca7f07f795105214c5429d73' },
+    { file: 'src/components/trips/TripPlannerAI.tsx', sha256: 'ebf0111bf70990fbdf974d2981ae14cc664b5b8dfe8173d243d99c90c13af14b' },
+  ];
+  if (BOOKING_FLOW_FILES.length + TRAVEL_DELETED_PINS.length < 49) travelFail(`the booking-flow census names ${BOOKING_FLOW_FILES.length} files and holds ${TRAVEL_DELETED_PINS.length} deleted — the audit named 49; the list may not shrink but by a named deletion`);
+  const flowNoteLines = commentsOf('src/lib/travelBookingFlow.ts').split('\n');
+  for (const d of TRAVEL_DELETED_PINS) {
+    if (existsSync(resolve(ROOT, d.file))) travelFail(`${d.file} exists — it was deleted with the legacy trip planner (LEGACY-DEL-01) and is held deleted`);
+    if (BOOKING_FLOW_FILES.some((p) => p.file === d.file)) travelFail(`${d.file} is pinned again — its pin left the census with the file (LEGACY-DEL-01)`);
+    if (!flowNoteLines.some((l) => l.includes(`${d.file} — `) && l.includes(`Was ${d.sha256} at main 047e2c5b.`))) travelFail(`src/lib/travelBookingFlow.ts carries no LEGACY-DEL-01 note naming ${d.file} with its last hash`);
+  }
+  if (!flowNoteLines.some((l) => l.includes('LEGACY-DEL-01 (2026-09-29): four pins left this census'))) travelFail('src/lib/travelBookingFlow.ts carries no dated LEGACY-DEL-01 note over the four deleted pins');
   const pinned = new Set<string>();
   for (const pin of BOOKING_FLOW_FILES) {
     if (pinned.has(pin.file)) travelFail(`${pin.file} is pinned twice`);
@@ -3981,9 +3999,11 @@ const FLIGHT_LEAF = 'src/lib/flights/fares.ts';
 const FLIGHT_ADAPTER = 'src/lib/liteapiFlightAdapter.ts';
 const FLIGHT_CLIENT = 'src/lib/liteapiFlightsClient.ts';
 const FLIGHT_VIEW = 'src/components/trips/FlightPickerView.tsx';
-const FLIGHT_CONTAINERS = ['src/components/trips/FlightPicker.tsx', 'src/components/trips/PublicFlightSearch.tsx'];
+// LEGACY-DEL-01 (2026-09-29): the in-trip picker (src/components/trips/FlightPicker.tsx) was deleted with the
+// legacy trip planner and left both lists; the travel law holds it deleted. The live container keeps every check.
+const FLIGHT_CONTAINERS = ['src/components/trips/PublicFlightSearch.tsx'];
 const FLIGHT_PIN_FILE = 'src/lib/travelBookingFlow.ts';
-const FLIGHT_REPINNED = [FLIGHT_ROUTE, 'src/components/trips/PublicFlightSearch.tsx', 'src/components/trips/FlightPicker.tsx', FLIGHT_VIEW, FLIGHT_ADAPTER];
+const FLIGHT_REPINNED = [FLIGHT_ROUTE, 'src/components/trips/PublicFlightSearch.tsx', FLIGHT_VIEW, FLIGHT_ADAPTER];
 const FLIGHT_CALL_KEYS = ['legs', 'adults', 'currency', 'cabinClass', 'filters', 'sort'];
 let flightViolations = 0;
 const flightFail = (m: string) => { flightViolations += 1; violations.push(`flight law: ${m} (FLIGHT-01)`); };
@@ -4169,7 +4189,7 @@ const flightFnBody = (src: string, name: string): string => {
   const notes = commentsOf(FLIGHT_PIN_FILE);
   const pins = codeOf(FLIGHT_PIN_FILE);
   const noteLines = [...notes.matchAll(/FLIGHT-01 \(2026-09-22\): re-pinned[^\n]*/g)];
-  if (noteLines.length !== FLIGHT_REPINNED.length) flightFail(`${FLIGHT_PIN_FILE} carries ${noteLines.length} FLIGHT-01 re-pin note(s) — five: the route, the two containers, the view, the adapter`);
+  if (noteLines.length !== FLIGHT_REPINNED.length) flightFail(`${FLIGHT_PIN_FILE} carries ${noteLines.length} FLIGHT-01 re-pin note(s) — four: the route, the container, the view, the adapter (the fifth, the in-trip picker, was deleted with its pin — LEGACY-DEL-01)`);
   for (const f of FLIGHT_REPINNED) {
     const pinAt = pins.indexOf(`{ file: '${f}', sha256: '`);
     if (pinAt < 0) { flightFail(`${FLIGHT_PIN_FILE} no longer pins ${f}`); continue; }
@@ -4241,7 +4261,9 @@ const HOTEL_TRIP_ITEM = 'src/lib/calendar/tripItem.ts';
 const HOTEL_PANEL = 'src/components/hub/EventDetailPanel.tsx';
 const HOTEL_GRID = 'src/components/shared/CalendarGrid.tsx';
 const STATED_LEAF = 'src/lib/travel/stated.ts';
-const HOTEL_SURFACES = [HOTEL_VIEW, HOTEL_CONTAINER, 'src/components/trips/HotelPicker.tsx', 'src/components/trips/CheckoutPanel.tsx', 'src/components/trips/HotelGallery.tsx', 'src/components/trips/HotelMap.tsx', 'src/components/trips/LodgingOptions.tsx', 'src/components/trips/TransferPicker.tsx'];
+// LEGACY-DEL-01 (2026-09-29): HotelGallery.tsx and HotelMap.tsx (the planner's) were deleted and left the list;
+// the travel law holds them deleted. Every live surface keeps the check.
+const HOTEL_SURFACES = [HOTEL_VIEW, HOTEL_CONTAINER, 'src/components/trips/HotelPicker.tsx', 'src/components/trips/CheckoutPanel.tsx', 'src/components/trips/LodgingOptions.tsx', 'src/components/trips/TransferPicker.tsx'];
 const HOTEL_REPINNED = [HOTEL_ROUTE, HOTEL_VIEW, HOTEL_CONTAINER, 'src/components/trips/HotelPicker.tsx', HOTEL_CLIENT, 'src/lib/liteapiFlightAdapter.ts', 'src/components/trips/FlightPickerView.tsx'];
 /** The client's booking functions and paid content reads, hashed body-for-body on main d56b2cc9 (code half). */
 const HOTEL_BOOKING_FUNCTIONS: Record<string, string> = {
@@ -4473,7 +4495,9 @@ lawGuard('The stay law', () => {
 //      for a stay that names its hotel, or the caller's stated one — and writes it
 //      to both columns or null; no clock literal stands in the commit, the button
 //      or the planner; the button has no time input and no prefill; the planner's
-//      dead default is gone; the search sends no clock. Probed on the documented
+//      dead default is gone; the search sends no clock. LEGACY-DEL-01 (2026-09-29):
+//      the button (the discover page's AddToTripButton) and the planner were deleted
+//      with the legacy trip planner — held deleted; the commit keeps every check. Probed on the documented
 //      content shape: a stated clock reads to HH:MM, silence reads null, words the
 //      reader cannot read are refused — never nulled.
 //   2. THE CONTENT CALL THAT SETS A STAY'S CLOCK FIRES ONLY FROM COMMIT, ONCE. The
@@ -4499,6 +4523,8 @@ lawGuard('The stay law', () => {
 //   5. THE PIN HOLDS, DATED. Five files re-dated by HOTEL-02 carry a dated note with
 //      the hash they had on main 81045434; no other file carries one; the booking
 //      functions stay body-for-body (the hotel law); BOOKING_FLOW_BASE records it.
+//      LEGACY-DEL-01 (2026-09-29): four now — the planner, the fifth, was deleted and
+//      its pin and note left with it; the travel law holds it deleted.
 const STAY_LEAF = 'src/lib/hotels/stayTimes.ts';
 const STAY_PATCH = 'src/app/api/trips/[id]/itinerary/[itineraryId]/route.ts';
 const STAY_BUTTON = 'src/app/budgets/trips/[id]/discover/[category]/[rank]/AddToTripButton.tsx';
@@ -4508,25 +4534,24 @@ const STAY_DETAIL = 'src/app/budgets/trips/[id]/discover/[category]/[rank]/page.
 const STAY_CONTENT_ROUTE = 'src/app/api/travel/hotels/content/route.ts';
 /** The closed set of content readers (dated 2026-09-22; TRIPS-01, 2026-09-29, removed the detail page — a redirect now): the route the checkout fetches, the commit. */
 const STAY_CONTENT_CALLERS = [STAY_CONTENT_ROUTE, HOTEL_COMMIT];
-const STAY_REDATED = [HOTEL_CONTAINER, HOTEL_VIEW, STAY_CHECKOUT, STAY_PLANNER, HOTEL_CLIENT];
+// LEGACY-DEL-01 (2026-09-29): the planner left with its pin and its HOTEL-02 note; four remain.
+const STAY_REDATED = [HOTEL_CONTAINER, HOTEL_VIEW, STAY_CHECKOUT, HOTEL_CLIENT];
 let stayViolations = 0;
 const stayFail = (m: string) => { stayViolations += 1; violations.push(`stay law: ${m} (HOTEL-02)`); };
 
 // 1. no lodging time is written that the vendor or the user did not state.
 {
   const commit = codeOf(HOTEL_COMMIT);
-  for (const [f, src] of [[HOTEL_COMMIT, commit], [STAY_BUTTON, codeOf(STAY_BUTTON)], [STAY_PLANNER, codeOf(STAY_PLANNER)]] as const) {
+  for (const [f, src] of [[HOTEL_COMMIT, commit]] as const) {
     if (/'15:00'|'11:00'|'22:00'|'07:00'|'16:00'/.test(src)) stayFail(`${f} holds a lodging clock literal — a time nobody stated`);
   }
   if (!/const stayStart = propertyClock \? parseTimeOrNull\(propertyClock\.checkin, 'block_start_time'\) : blockStartParse;/.test(commit)) stayFail(`${HOTEL_COMMIT} does not resolve the stay's start from the property's clock or the caller's stated one`);
   if (!/const ledgerStart: string \| null = propertyClock \? propertyClock\.checkin : \(startTime \|\| null\);/.test(commit)) stayFail(`${HOTEL_COMMIT} does not write the ledger's clock from the same resolution`);
   if (!/if \(sentClock\(startTime\) \|\| sentClock\(endTime\)\) \{/.test(commit)) stayFail(`${HOTEL_COMMIT} accepts a caller's clock beside the hotel id — two sources for one stay`);
-  const button = codeOf(STAY_BUTTON);
-  if (/type="time"|windowStart|windowEnd|startTime|endTime/.test(button)) stayFail(`${STAY_BUTTON} still offers or sends a stay time — the property states it at commit`);
-  if (!/\.\.\.\(liteapiHotelId \? \{ liteapiHotelId \} : \{\}\),/.test(button)) stayFail(`${STAY_BUTTON} does not name the vendor's hotel on commit`);
-  const planner = codeOf(STAY_PLANNER);
-  if (/CATEGORY_DEFAULT_TIMES/.test(planner)) stayFail(`${STAY_PLANNER} still holds the dead lodging default`);
-  if (!/catInfo\.optionType === 'lodging' && rec\.liteapiHotelId \? \{ liteapiHotelId: rec\.liteapiHotelId \} : \{\}/.test(planner)) stayFail(`${STAY_PLANNER} does not name the vendor's hotel on a lodging commit`);
+  // LEGACY-DEL-01 (2026-09-29): the button and the planner were deleted with the legacy trip planner. What
+  // these checks held of them — no clock literal, no time input or prefill, the vendor's hotel named on a
+  // lodging commit, no dead lodging default — is held by their absence.
+  for (const f of [STAY_BUTTON, STAY_PLANNER]) if (existsSync(resolve(ROOT, f))) stayFail(`${f} exists — it was deleted with the legacy trip planner (LEGACY-DEL-01); a stay's clock is the property's, written by the commit alone`);
   const stated = propertyClockOf({ checkin_start: '02:00 PM', checkout: '12:00 PM', checkin_end: '12:00 AM' });
   if (!('clock' in stated) || stated.clock.checkin !== '14:00' || stated.clock.checkout !== '12:00') stayFail(`a stated 02:00 PM / 12:00 PM read as ${JSON.stringify(stated)}`);
   const silent = propertyClockOf(undefined);
@@ -4563,7 +4588,8 @@ const stayFail = (m: string) => { stayViolations += 1; violations.push(`stay law
   if (JSON.stringify(callers) !== JSON.stringify(expected)) stayFail(`the content read's callers are ${JSON.stringify(callers)} — the closed set is ${JSON.stringify(expected)}`);
   const fetchers = staySrcFiles().filter((f) => /api\/travel\/hotels\/content/.test(codeOf(f)) && !/travelBookingFlow\.ts$|middleware\.ts$/.test(f)).sort();
   if (JSON.stringify(fetchers) !== JSON.stringify([STAY_CHECKOUT])) stayFail(`the content route is fetched by ${JSON.stringify(fetchers)} — only the checkout panel reads it from the browser`);
-  for (const f of [HOTEL_ROUTE, HOTEL_VIEW, HOTEL_CONTAINER, 'src/app/api/trips/[id]/ai-assistant/route.ts']) {
+  // LEGACY-DEL-01 (2026-09-29): the AI planner's route (trips/[id]/ai-assistant) was deleted and left this list.
+  for (const f of [HOTEL_ROUTE, HOTEL_VIEW, HOTEL_CONTAINER]) {
     if (/getHotelContent\(|hotels\/content/.test(codeOf(f))) stayFail(`${f} reads the content — a search, a list or a view may not`);
   }
 }
@@ -4606,7 +4632,7 @@ const stayFail = (m: string) => { stayViolations += 1; violations.push(`stay law
   const notes = commentsOf('src/lib/travelBookingFlow.ts');
   const pins = codeOf('src/lib/travelBookingFlow.ts');
   const count = (notes.match(/HOTEL-02 \(2026-09-22\): re-dated/g) ?? []).length;
-  if (count !== STAY_REDATED.length) stayFail(`src/lib/travelBookingFlow.ts carries ${count} HOTEL-02 note(s) — ${STAY_REDATED.length}: the two hotel surfaces, the checkout panel, the planner and the client`);
+  if (count !== STAY_REDATED.length) stayFail(`src/lib/travelBookingFlow.ts carries ${count} HOTEL-02 note(s) — ${STAY_REDATED.length}: the two hotel surfaces, the checkout panel and the client (the planner was deleted with its pin — LEGACY-DEL-01)`);
   for (const f of STAY_REDATED) {
     const pinAt = pins.indexOf(`{ file: '${f}', sha256: '`);
     if (pinAt < 0) { stayFail(`src/lib/travelBookingFlow.ts no longer pins ${f}`); continue; }
@@ -4627,7 +4653,7 @@ const stayFail = (m: string) => { stayViolations += 1; violations.push(`stay law
   if (!/re-dated by HOTEL-02 \(2026-09-22\), the stay's clock is the property's/.test(BOOKING_FLOW_BASE)) stayFail('BOOKING_FLOW_BASE does not record the HOTEL-02 re-dating');
   if (BOOKING_FLOW_FILES.some((p) => p.file === HOTEL_COMMIT)) stayFail(`${HOTEL_COMMIT} is pinned — it is the itinerary writer, not the booking flow (TRAVEL-01)`);
 }
-if (stayViolations === 0) console.log(`✔ The stay law passed — the commit resolves a stay's clock once (the property's, read at commit, or the caller's stated one) and writes it to both columns or null; no clock literal in the commit, the button or the planner; the content read's callers are the closed set of ${STAY_CONTENT_CALLERS.length} (the route and the commit; the detail page is a redirect) with one call and one reservation per commit and explicit 502 / 503 reasons; the itinerary PATCH pairs every block write with the ledger's clock and refuses a flight's; the content rating renders /5 and the catalog's /10, nothing re-scales; ${STAY_REDATED.length} files re-dated, dated.`);
+if (stayViolations === 0) console.log(`✔ The stay law passed — the commit resolves a stay's clock once (the property's, read at commit, or the caller's stated one) and writes it to both columns or null; no clock literal in the commit (the button and the planner deleted, held deleted); the content read's callers are the closed set of ${STAY_CONTENT_CALLERS.length} (the route and the commit; the detail page is a redirect) with one call and one reservation per commit and explicit 502 / 503 reasons; the itinerary PATCH pairs every block write with the ledger's clock and refuses a flight's; the content rating renders /5 and the catalog's /10, nothing re-scales; ${STAY_REDATED.length} files re-dated, dated.`);
 else console.log(`✖ The stay law FAILED — ${stayViolations} violation(s).`);
 });
 lawGuard('The activity law', () => {
@@ -4681,7 +4707,8 @@ lawGuard('The activity law', () => {
 //      name → the per-user limit, each reserved once under 'viatorsave' (safe cap
 //      300/day: three reservations per attempt, ~100 attempts, the prebook
 //      precedent) immediately before the call; the route is not a public path; the
-//      search route, the picker and the planner never call them. The rate is cached
+//      search route and the picker never call them (the planner, which never did,
+//      was deleted — LEGACY-DEL-01, 2026-09-29). The rate is cached
 //      per pair until ITS OWN expiry and never past it; an expired rate the vendor
 //      hands back, or a rate it does not state, refuses by name; a schedule already
 //      in the plan's currency skips the rate and says so. Probed on the captures:
@@ -4744,7 +4771,6 @@ const ACTIVITY_AS_OF = '2026-09-22T12:00:00.000Z';
 const ACTIVITY_PROBE_SECRET_A = 'activity-law-probe-secret-A-not-a-deployment-value';
 const ACTIVITY_PROBE_SECRET_B = 'activity-law-probe-secret-B-not-a-deployment-value';
 const ACTIVITY_SEAL_LEAF = 'src/lib/activities/quoteSeal.ts';
-const ACTIVITY_PLANNER = 'src/components/trips/TripPlannerAI.tsx';
 const ACTIVITY_REDATED = [ACTIVITY_ROUTE, ACTIVITY_STRIP, ACTIVITY_CONTAINER, ACTIVITY_OLD_VIEW, ACTIVITY_CLIENT, ACTIVITY_QUOTA];
 const ACTIVITY_PINNED_NEW = [ACTIVITY_OPTIONS_ROUTE];
 /** The Save's three reads: each has one call site under src — the options route. */
@@ -4901,8 +4927,9 @@ const activityResolvers = { validateUrl: (u: string) => validatedAffiliateUrl(u,
     const callers = staySrcFiles().filter((f) => f !== ACTIVITY_CLIENT && re.test(codeOf(f))).sort();
     if (JSON.stringify(callers) !== JSON.stringify([ACTIVITY_OPTIONS_ROUTE])) activityFail(`${call} is called from ${JSON.stringify(callers)} — one call site, the options route`);
   }
-  for (const f of [ACTIVITY_ROUTE, ACTIVITY_VIEW, ACTIVITY_PLANNER, ACTIVITY_CONTAINER, ACTIVITY_LEAF, 'src/app/api/travel/transfers/search/route.ts']) {
-    if (/availability\/schedules|exchange-rates|\/products\/\$\{/.test(codeOf(f))) activityFail(`${f} names one of the Save's endpoints — the search route, the picker and the planner never call them`);
+  // LEGACY-DEL-01 (2026-09-29): the planner (TripPlannerAI.tsx) was deleted and left this list; the trips-tab law holds it deleted.
+  for (const f of [ACTIVITY_ROUTE, ACTIVITY_VIEW, ACTIVITY_CONTAINER, ACTIVITY_LEAF, 'src/app/api/travel/transfers/search/route.ts']) {
+    if (/availability\/schedules|exchange-rates|\/products\/\$\{/.test(codeOf(f))) activityFail(`${f} names one of the Save's endpoints — the search route and the picker never call them`);
   }
   if (codeOf('src/middleware.ts').includes("'/api/travel/activities/options'")) activityFail('the options route is a public path — the Save\'s reads are authed');
   if (!/if \(isExpired\(read, now\)\) return NextResponse\.json\(\{ error: `Viator's \$\{currency\}→\$\{ACTIVITY_SEARCH_CURRENCY\} rate had already expired at/.test(route)) activityFail(`${ACTIVITY_OPTIONS_ROUTE} does not refuse an expired rate the vendor hands back, by name`);
@@ -7262,7 +7289,7 @@ lawGuard('The budget-link law', () => {
   const COMMIT_ROUTE = 'src/app/api/trips/[id]/commit/route.ts';
   const ATTACH_ROUTE = 'src/app/api/reservations/[id]/route.ts';
   const WORDS_LEAF = 'src/lib/reservations/timeline.ts';
-  for (const f of [ROUTE, LEAF, STATUS_LEAF, GUARD, ACTUALS, LEDGER, CONTROL, TRIP_ROUTE, COMMIT_ROUTE, ATTACH_ROUTE, WORDS_LEAF]) {
+  for (const f of [ROUTE, LEAF, STATUS_LEAF, GUARD, ACTUALS, LEDGER, CONTROL, TRIP_ROUTE, ATTACH_ROUTE, WORDS_LEAF]) {
     if (!existsSync(resolve(ROOT, f))) blFail(`${f} is missing`);
   }
   const route = codeOf(ROUTE);
@@ -7384,16 +7411,17 @@ lawGuard('The budget-link law', () => {
     const tripDelete = fn(codeOf(TRIP_ROUTE), 'DELETE');
     const tg = tripDelete.indexOf('const linked = await tripLinesLinkedRefusal(user.id, id);');
     if (tg < 0 || tg > tripDelete.indexOf('deleteMany(')) blFail(`${TRIP_ROUTE}: the trip delete does not refuse a linked trip BEFORE its first delete — RESTRICT would leave it half-deleted`);
-    const uncommit = fn(codeOf(COMMIT_ROUTE), 'DELETE');
-    const ug = uncommit.indexOf('const linked = await tripLinesLinkedRefusal(user.id, id);');
-    if (ug < 0 || ug > uncommit.indexOf('DELETE FROM calendar_events')) blFail(`${COMMIT_ROUTE}: the uncommit does not refuse a linked trip BEFORE its first write`);
+    // LEGACY-DEL-01 (2026-09-29): the trip uncommit (the legacy planner's commit route, whose DELETE deleted a
+    // trip's budget lines — the second writer of a booking's line, claude/pr-audit-ledger.md D1) was deleted.
+    // Its refusal before the first write is held by its absence.
+    if (existsSync(resolve(ROOT, COMMIT_ROUTE))) blFail(`${COMMIT_ROUTE} exists — the legacy planner's commit and uncommit route was deleted (LEGACY-DEL-01); a trip's budget lines have no second writer`);
     const attach = codeOf(ATTACH_ROUTE);
     const ag = attach.indexOf('const linked = await bookingLinkedRefusal(user.id, owned.id);');
     if (ag < 0 || ag > attach.indexOf('prisma.reservations.update(') || !/if \(tripId !== owned\.tripId\) \{\s*const linked = await bookingLinkedRefusal/.test(attach)) blFail(`${ATTACH_ROUTE}: a linked booking can be moved off its trip — the link would name another trip's line`);
     if (/\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(/.test(codeOf(GUARD))) blFail(`${GUARD} writes — the guard only asks`);
   }
 
-  if (blViolations === 0) console.log(`✔ The budget-link law passed — only the budget-link route writes reservation_budget_links, the line it writes is the one the owner named (no matcher, no ranking, no pre-selection); lineStatusOf is pure, computes no money and reads Saved / Booked / Booked · paid over the owner's links; link and unlink go through the audit port; the database holds one line per booking and RESTRICT both ways; the trip delete, the uncommit and the attach PATCH ask before they write.`);
+  if (blViolations === 0) console.log(`✔ The budget-link law passed — only the budget-link route writes reservation_budget_links, the line it writes is the one the owner named (no matcher, no ranking, no pre-selection); lineStatusOf is pure, computes no money and reads Saved / Booked / Booked · paid over the owner's links; link and unlink go through the audit port; the database holds one line per booking and RESTRICT both ways; the trip delete and the attach PATCH ask before they write, and the uncommit is deleted (LEGACY-DEL-01).`);
   else console.log(`✖ The budget-link law FAILED — ${blViolations} violation(s).`);
 });
 
@@ -7740,14 +7768,16 @@ lawGuard('The calendar law', () => {
 //      hold missing either BY NAME (CHECKOUT-01's 'prebook' failure) before any card
 //      form, and the returnUrl carries no `commission` param (no reader reads it).
 //   3. THE RATING: NULL when unstated, everything derived from it NULL; the planner
-//      renders "not rated" through the one words leaf.
+//      renders "not rated" through the one words leaf. LEGACY-DEL-01 (2026-09-29): the
+//      planner and its words leaf were deleted — both held deleted; the client's
+//      NULL-carrying mapper keeps every check.
 //   4. THE BANK CURRENCY: stored as Plaid states it, or NULL.
 const FIGURE_BOUNDARY_FILES = ['src/lib/liteapiClient.ts', 'src/lib/liteapiFlightsClient.ts', 'src/lib/liteapiFlightAdapter.ts', 'src/lib/viatorClient.ts'];
 const FIGURE_BOUNDARY_DIRS = ['src/lib/hotels', 'src/lib/flights', 'src/lib/activities', 'src/lib/receipts', 'src/lib/reservations', 'src/lib/arrivals', 'src/lib/runway', 'src/lib/posting', 'src/lib/plaid', 'src/lib/checkout', 'src/lib/travel', 'src/app/api/plaid', 'src/app/api/travel', 'src/app/api/reservations', 'src/app/api/transactions'];
 /** Every default that remains at the boundary, each with its reason. May only shrink. */
 const FIGURE_DEFAULTS_ALLOWED: ReadonlyArray<{ file: string; snippet: string; reason: string }> = [
-  { file: 'src/lib/liteapiClient.ts', snippet: "currency: params.currency || 'USD',", reason: "STOPPED (LAW-02 item 1): both searchHotelRates callers send no currency (PublicHotelSearch.tsx, trips/[id]/ai-assistant/route.ts); refusing it at the route needs a declared search currency (ACTIVITY-01's ACTIVITY_SEARCH_CURRENCY precedent) — Alex's ruling" },
-  { file: 'src/lib/viatorClient.ts', snippet: 'const rating = p.reviews?.combinedAverageRating || 0;', reason: "the legacy Viator recommendation mapper for the AI planner — the same change as the hotel mapper, not in this ruling; its 0 renders 'not rated' (src/lib/travel/ratingWords.ts)" },
+  { file: 'src/lib/liteapiClient.ts', snippet: "currency: params.currency || 'USD',", reason: "STOPPED (LAW-02 item 1): the one searchHotelRates caller sends no currency (src/app/api/travel/hotels/search/route.ts, behind PublicHotelSearch.tsx; the second, trips/[id]/ai-assistant/route.ts, was deleted with the legacy planner — LEGACY-DEL-01); refusing it at the route needs a declared search currency (ACTIVITY-01's ACTIVITY_SEARCH_CURRENCY precedent) — Alex's ruling" },
+  { file: 'src/lib/viatorClient.ts', snippet: 'const rating = p.reviews?.combinedAverageRating || 0;', reason: "the legacy Viator recommendation mapper (viatorProductToRecommendation) — its one caller now is the transfers search (src/app/api/travel/transfers/search/route.ts), whose view draws no rating for a 0 (ActivityResultsView.tsx RatingPill); the AI planner that also read it, and the words leaf that said 'not rated', were deleted (LEGACY-DEL-01). The same change as the hotel mapper, not in this ruling" },
   { file: 'src/lib/viatorClient.ts', snippet: 'const reviewCount = p.reviews?.totalReviews || 0;', reason: 'the same legacy Viator mapper — listed with its rating' },
   { file: 'src/lib/viatorClient.ts', snippet: 'onSale: (p.pricing?.summary?.fromPriceBeforeDiscount || 0) > (fromPrice || 0),', reason: 'the same legacy Viator mapper — a derived flag, listed with it' },
   { file: 'src/lib/activities/product.ts', snippet: '(party[b.ageBand] ?? 0) < b.minTravelersPerBooking', reason: "the customer's own party count per age band — an age band nobody chose is 0 travellers, not a vendor figure" },
@@ -7822,11 +7852,10 @@ lawGuard('The stated-figure law', () => {
     if (/\?\?\s*0|\|\|\s*0(?![.\d])/.test(mapper.replace(/Math\.max\(reviewCount, 1\)/, ''))) figFail(`${HOTEL_CLIENT_F}: the hotel recommendation mapper defaults a figure to 0`);
     for (const must of ['googleRating: number | null;', 'reviewCount: number | null;', 'compositeScore: number | null;']) if (!client.includes(must)) figFail(`${HOTEL_CLIENT_F}: HotelRecommendation does not carry ${must}`);
     if (!/const sentiment = googleRating === null \? null/.test(mapper) || !/let compositeScore: number \| null = null;/.test(mapper)) figFail(`${HOTEL_CLIENT_F}: a missing rating does not make its derived scores NULL`);
-    if (ratingLine(null, null) !== 'not rated' || ratingLine(0, 12) !== 'not rated' || ratingLine(4.5, 1203) !== '4.5 stars (1,203 reviews)' || ratingLine(4.5, null) !== '4.5 stars (reviews not stated)' || ratingValue(null) !== 'not rated' || scoreWords(null) !== 'not rated' || scoreWords(8) !== '8/10') figFail(`${WORDS_F}: the rating words do not say "not rated" for an unstated (or 0) rating`);
-    const planner = codeOf(PLANNER_F);
-    // A sort key that orders an unrated hotel last prints nothing; these are the PRINTED forms.
-    if (/\$\{rec\.googleRating\} stars|Rated \$\{rec\.googleRating \|\| 0\}|\{rec\.googleRating \|\| '—'\}|googleRating\} stars/.test(planner)) figFail(`${PLANNER_F} prints an unstated rating as a number — it says "not rated" through ${WORDS_F}`);
-    if (!/ratingLine\(rec\.googleRating, rec\.reviewCount\)/.test(planner) || !/ratingValue\(rec\.googleRating\)/.test(planner)) figFail(`${PLANNER_F} does not render the rating through the one words leaf`);
+    // LEGACY-DEL-01 (2026-09-29): the planner, which printed the rating, and its words leaf were deleted with
+    // the legacy trip planner. What these checks held — "not rated" for an unstated or 0 rating, never a bare
+    // number — is held by their absence.
+    for (const f of [WORDS_F, PLANNER_F]) if (existsSync(resolve(ROOT, f))) figFail(`${f} exists — it was deleted with the legacy trip planner (LEGACY-DEL-01) and is held deleted`);
   }
 
   // 4. THE BANK CURRENCY, AND THE FLIGHT STOPS.
@@ -7836,7 +7865,7 @@ lawGuard('The stated-figure law', () => {
     if (!codeOf('src/lib/flights/fares.ts').includes('const stops = rep.outbound ? stopsText(rep.outbound.stops) : null;')) figFail('src/lib/flights/fares.ts: a flight with no stated outbound is called "nonstop" again');
   }
 
-  if (figViolations === 0) console.log(`✔ The stated-figure law passed — at the vendor and bank boundary (${FIGURE_BOUNDARY_FILES.length} clients + ${FIGURE_BOUNDARY_DIRS.length} directories) no figure defaults to 0 or USD except the ${FIGURE_DEFAULTS_ALLOWED.length} listed, each with its reason; a prebook with no stated price or currency is refused by name before any card form, and the returnUrl carries no commission; an unstated hotel rating is NULL with everything derived from it and reads "not rated"; Plaid's account currency is stated or NULL; a flight with no outbound is never "nonstop".`);
+  if (figViolations === 0) console.log(`✔ The stated-figure law passed — at the vendor and bank boundary (${FIGURE_BOUNDARY_FILES.length} clients + ${FIGURE_BOUNDARY_DIRS.length} directories) no figure defaults to 0 or USD except the ${FIGURE_DEFAULTS_ALLOWED.length} listed, each with its reason; a prebook with no stated price or currency is refused by name before any card form, and the returnUrl carries no commission; an unstated hotel rating is NULL with everything derived from it (the planner that read it "not rated" is deleted); Plaid's account currency is stated or NULL; a flight with no outbound is never "nonstop".`);
   else console.log(`✖ The stated-figure law FAILED — ${figViolations} violation(s).`);
 });
 
@@ -8937,6 +8966,9 @@ lawGuard('The trips-tab law', () => {
 //      exception is a CLOSED list of PATHNAME TESTS that send no one anywhere — each
 //      named, dated and reasoned, each line present exactly as listed; the list may
 //      only shrink (the deletion ruling that follows TRIPS-01 empties it).
+//      LEGACY-DEL-01 (2026-09-29): EMPTIED — both pathname tests lived in code that
+//      ruling deleted (AppLayout's travel-bar gate and TripCreationBar); the maximum
+//      is 0, so no product file may name the legacy path at all.
 //   3. EACH LEGACY PAGE IS A REDIRECT. The four page.tsx files under
 //      src/app/budgets/trips carry a dated TRIPS-01 note, import only `redirect` from
 //      next/navigation, render nothing (no JSX, no 'use client'), read no data (no
@@ -8957,6 +8989,15 @@ lawGuard('The trips-tab law', () => {
 //   5. THE ONE PIN TOUCHED IS RE-PINNED, DATED. TripPlannerAI.tsx (a discover card now
 //      opens its trip on the Travel tab) sits under exactly one TRIPS-01 note with the
 //      hash it had on main 536c862b; the travel law checks the hash itself.
+//      LEGACY-DEL-01 (2026-09-29): the planner was deleted — its pin and that note left
+//      with it (its last hash stands in the pins file's LEGACY-DEL-01 note); it is held
+//      deleted, and no TRIPS-01 re-pin note remains.
+//   6. THE LEGACY PLANNER IS DELETED (LEGACY-DEL-01, 2026-09-29). The 12 files only it
+//      used and the 8 routes only it called do not exist, and no file under src —
+//      tests included — imports one of the files or fetches one of the routes (a path
+//      string that begins the call: '/api/…', '${origin}/api/…', or the route's own
+//      last segment built onto '/api/trips/' + id). The rows those routes wrote stay;
+//      the four legacy pages stay redirects.
 const TRIPS_LEAF = 'src/lib/trips/tripFromUrl.ts';
 const TRIPS_LIST = 'src/components/trips/AllTripsList.tsx';
 const TRIPS_LAUNCHER = 'src/components/home/ModuleLauncher.tsx';
@@ -8970,16 +9011,47 @@ const TRIPS_PAGES: ReadonlyArray<{ route: string; file: string; target: string }
 ];
 /**
  * THE CLOSED LIST — pathname tests that name the legacy path and send no one anywhere.
- * Set 2026-09-29 at two; it may only shrink. Both are in code the deletion ruling
+ * Set 2026-09-29 at two; it may only shrink. Both were in code the deletion ruling
  * removes: the bar is mounted by AppLayout behind this very gate, and no AppLayout page
  * lives under /budgets/trips any more (they are redirects), so the gate never opens.
+ * LEGACY-DEL-01 (2026-09-29): EMPTIED, and the maximum is 0 — the two entries were
+ * AppLayout's TRAVEL_PREFIXES gate (removed with the bar it gated) and TripCreationBar's
+ * isOnNewPage (the file deleted).
  */
-const TRIPS_PATH_TESTS: ReadonlyArray<{ file: string; line: string; why: string }> = [
-  { file: 'src/components/ui/AppLayout.tsx', line: "const TRAVEL_PREFIXES = ['/budgets/trips', '/trips'];", why: 'the travel search bar route gate (showTravelSearch) — a pathname test, not a door; it can no longer open under /budgets/trips' },
-  { file: 'src/components/trips/TripCreationBar.tsx', line: "const isOnNewPage = pathname === '/budgets/trips/new';", why: 'the legacy bar reading which legacy page it sits on — a pathname test, not a door; the create page is a redirect, so it is never true' },
-];
+const TRIPS_PATH_TESTS: ReadonlyArray<{ file: string; line: string; why: string }> = [];
 const TRIPS_PATH_TESTS_SET_ON = '2026-09-29';
-const TRIPS_PATH_TESTS_MAX = 2;
+const TRIPS_PATH_TESTS_MAX = 0;
+/** LEGACY-DEL-01 (2026-09-29): the 12 files only the legacy planner used — deleted, held deleted. */
+const LEGACY_DELETED_FILES: readonly string[] = [
+  'src/components/trips/TripPlannerAI.tsx',
+  'src/components/trips/TripHeader.tsx',
+  'src/components/trips/DestinationSelector.tsx',
+  'src/components/trips/DestinationMap.tsx',
+  'src/components/trips/FlightPicker.tsx',
+  'src/components/trips/HotelGallery.tsx',
+  'src/components/trips/HotelMap.tsx',
+  'src/components/trips/HScrollRow.tsx',
+  'src/app/budgets/trips/[id]/discover/[category]/[rank]/AddToTripButton.tsx',
+  'src/app/budgets/trips/[id]/discover/[category]/[rank]/PlaceCommitForm.tsx',
+  'src/lib/travel/ratingWords.ts',
+  'src/components/trips/TripCreationBar.tsx',
+];
+/**
+ * LEGACY-DEL-01 (2026-09-29): the 8 routes only the legacy planner called — deleted, held
+ * deleted — with the call each would take: a path string that BEGINS at a quote or an
+ * interpolation ('/api/…', `${origin}/api/…`), or the route's last segment as its own
+ * string built onto '/api/trips/' + id. A citation ("src/app/api/…/route.ts") is not a call.
+ */
+const LEGACY_DELETED_ROUTES: ReadonlyArray<{ file: string; path: string; call: RegExp }> = [
+  { file: 'src/app/api/fetch-og/route.ts', path: '/api/fetch-og', call: /(?:['"`]|\})\/api\/fetch-og\b/ },
+  { file: 'src/app/api/resorts/route.ts', path: '/api/resorts', call: /(?:['"`]|\})\/api\/resorts\b/ },
+  { file: 'src/app/api/trips/[id]/ai-assistant/route.ts', path: '/api/trips/[id]/ai-assistant', call: /(?:['"`]|\})\/api\/trips\/[^'"`\s]*\/ai-assistant\b|['"`]\/ai-assistant\b/ },
+  { file: 'src/app/api/trips/[id]/scanner-results/route.ts', path: '/api/trips/[id]/scanner-results', call: /(?:['"`]|\})\/api\/trips\/[^'"`\s]*\/scanner-results\b|['"`]\/scanner-results\b/ },
+  { file: 'src/app/api/trips/[id]/destinations/route.ts', path: '/api/trips/[id]/destinations', call: /(?:['"`]|\})\/api\/trips\/[^'"`\s]*\/destinations\b|['"`]\/destinations\b/ },
+  { file: 'src/app/api/trips/[id]/commit/route.ts', path: '/api/trips/[id]/commit', call: /(?:['"`]|\})\/api\/trips\/[^'"`\s]*\/commit\b|['"`]\/commit\b/ },
+  { file: 'src/app/api/trips/[id]/expenses/route.ts', path: '/api/trips/[id]/expenses', call: /(?:['"`]|\})\/api\/trips\/[^'"`\s]*\/expenses\b|['"`]\/expenses\b/ },
+  { file: 'src/app/api/trips/[id]/participants/route.ts', path: '/api/trips/[id]/participants', call: /(?:['"`]|\})\/api\/trips\/[^'"`\s]*\/participants\b|['"`]\/participants\b/ },
+];
 let tripsViolations = 0;
 const tripsFail = (m: string) => { tripsViolations += 1; violations.push(`trips-tab law: ${m} (TRIPS-01)`); };
 
@@ -9091,19 +9163,51 @@ const tripsFail = (m: string) => { tripsViolations += 1; violations.push(`trips-
   if (!launcher.includes('<section ref={tripsSection} className="space-y-3" data-travel-section="trips">')) tripsFail(`${TRIPS_LAUNCHER} does not scroll to the trips section itself`);
 }
 
-// 5. the one pinned file TRIPS-01 touched is re-pinned, dated, the old hash stacked.
+// 5. the one pinned file TRIPS-01 touched — the planner — is deleted; its pin and its TRIPS-01 note left with it.
 {
   const pins = codeOf('src/lib/travelBookingFlow.ts');
   const notes = commentsOf('src/lib/travelBookingFlow.ts');
   const f = 'src/components/trips/TripPlannerAI.tsx';
   const pinAt = pins.indexOf(`{ file: '${f}', sha256: '`);
-  if (pinAt < 0) tripsFail(`${f} is no longer pinned`);
-  else if (!/TRIPS-01 \(2026-09-29\): re-pinned — [^\n]+ No commit, no booking call changed\.\n[^\n]*Was 2199015c8e7688ec81e77d44c50c1c23bd123ae0b97c02443767c90f13b7ac3b at main 536c862b\./.test(noteBlockOver(pins, notes, pins.slice(0, pinAt).split('\n').length))) tripsFail(`${f}\u2019s pin does not sit under a dated TRIPS-01 note with the hash it had on main 536c862b`);
+  // LEGACY-DEL-01 (2026-09-29): the planner was deleted — held deleted; its last hash stands in the pins file's LEGACY-DEL-01 note (the travel law).
+  if (existsSync(resolve(ROOT, f))) tripsFail(`${f} exists — the legacy planner was deleted (LEGACY-DEL-01) and is held deleted`);
+  if (pinAt >= 0) tripsFail(`${f} is pinned again — its pin left the census with the file (LEGACY-DEL-01)`);
   const dated = (notes.match(/TRIPS-01 \(2026-09-29\): re-pinned/g) ?? []).length;
-  if (dated !== 1) tripsFail(`src/lib/travelBookingFlow.ts carries ${dated} TRIPS-01 re-pin note(s) — one: the planner`);
+  if (dated !== 0) tripsFail(`src/lib/travelBookingFlow.ts carries ${dated} TRIPS-01 re-pin note(s) — none: the one stood over the planner, and left with its pin (LEGACY-DEL-01)`);
 }
 
-if (tripsViolations === 0) console.log(`✔ The trips-tab law passed — Travel carries no sub-link; no product file names ${TRIPS_LEGACY} in code but the ${TRIPS_PATH_TESTS.length} listed pathname tests (closed, shrink-only, set ${TRIPS_PATH_TESTS_SET_ON}); the ${TRIPS_PAGES.length} legacy pages are one-hop redirects to the Travel tab with no UI and no data read; /travel?trip=<id> selects only from the user’s loaded list — the row itself, or nothing and the one line.`);
+// 6. the legacy planner is deleted: its 12 files and 8 routes do not exist; nothing under src imports or fetches one.
+{
+  for (const f of [...LEGACY_DELETED_FILES, ...LEGACY_DELETED_ROUTES.map((r) => r.file)]) {
+    if (existsSync(resolve(ROOT, f))) tripsFail(`${f} exists — the legacy planner was deleted (LEGACY-DEL-01); it is held deleted`);
+  }
+  const deletedBases = LEGACY_DELETED_FILES.map((f) => f.replace(/\.(ts|tsx)$/, ''));
+  const importBase = (from: string, spec: string): string | null => {
+    let base: string;
+    if (spec.startsWith('@/')) base = `src/${spec.slice(2)}`;
+    else if (spec.startsWith('.')) {
+      const dir = from.split('/').slice(0, -1);
+      for (const part of spec.split('/')) { if (part === '.') continue; if (part === '..') dir.pop(); else dir.push(part); }
+      base = dir.join('/');
+    } else return null;
+    return base.replace(/\.(ts|tsx|js|jsx)$/, '').replace(/\/index$/, '');
+  };
+  const walkAll = (dir: string): string[] => readdirSync(resolve(ROOT, dir), { withFileTypes: true }).flatMap((e) => e.isDirectory() ? (e.name === 'node_modules' ? [] : walkAll(`${dir}/${e.name}`)) : /\.(ts|tsx)$/.test(e.name) ? [`${dir}/${e.name}`] : []);
+  let legacyHits = 0;
+  for (const file of walkAll('src')) {
+    const src = codeOf(file);
+    for (const m of src.matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*)['"]([^'"]+)['"]/g)) {
+      const base = importBase(file, m[1]);
+      if (base !== null && deletedBases.includes(base)) { legacyHits += 1; tripsFail(`${file} imports ${m[1]} — the legacy planner's file was deleted (LEGACY-DEL-01); nothing imports it`); }
+    }
+    for (const r of LEGACY_DELETED_ROUTES) {
+      if (r.call.test(src)) { legacyHits += 1; tripsFail(`${file} fetches ${r.path} — the legacy planner's route was deleted (LEGACY-DEL-01); nothing calls it`); }
+    }
+  }
+  if (legacyHits === 0 && (LEGACY_DELETED_FILES.length !== 12 || LEGACY_DELETED_ROUTES.length !== 8)) tripsFail(`the deleted set is ${LEGACY_DELETED_FILES.length} files and ${LEGACY_DELETED_ROUTES.length} routes — the ruling deleted 12 and 8`);
+}
+
+if (tripsViolations === 0) console.log(`✔ The trips-tab law passed — Travel carries no sub-link; no product file names ${TRIPS_LEGACY} in code (the pathname-test list is empty — its maximum ${TRIPS_PATH_TESTS_MAX}, set ${TRIPS_PATH_TESTS_SET_ON}, emptied by LEGACY-DEL-01); the ${TRIPS_PAGES.length} legacy pages are one-hop redirects to the Travel tab with no UI and no data read; /travel?trip=<id> selects only from the user’s loaded list — the row itself, or nothing and the one line; the legacy planner is deleted — its ${LEGACY_DELETED_FILES.length} files and ${LEGACY_DELETED_ROUTES.length} routes do not exist, and nothing under src imports or fetches one.`);
 else console.log(`✖ The trips-tab law FAILED — ${tripsViolations} violation(s).`);
 });
 lawGuard('The guest booking law', () => {
