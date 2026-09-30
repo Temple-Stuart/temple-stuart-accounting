@@ -9604,7 +9604,7 @@ for (const f of [G_LEAF, G_DECISION, ...G_ROUTES, G_CANCEL, G_FLOW, G_PAGE, G_RE
     ['where: { provider: LITEAPI, resource: BOOKING_READ, their_id: bookingReadTheirId(providerBookingId), user_id: null, guest_ref: bookingGuestRef(providerBookingId) },', 'the latest booking read, the guest’s own'],
     ['select: { id: true, kind: true, amountCents: true, currency: true, statedAt: true },', 'the money events with no settlement column'],
     ["const NO_STORE = { 'Cache-Control': 'no-store' };", 'no-store'],
-    ['return NextResponse.json({ receipt: answer.receipt, cancel: answer.cancel }, { headers: NO_STORE });', 'the answer ({ receipt, cancel }), never cached'],
+    ['return NextResponse.json({ receipt: answer.receipt, cancel: answer.cancel }, { headers: NO_STORE });', 'the answer, never cached'],
   ] as const) if (!r.includes(must)) guestFail(`${G_BOOKING} lost ${what}`);
   if (/transaction|journal|ledger|commission|settle|timeline|audit/i.test(r)) guestFail(`${G_BOOKING} reads a bank row, a books entry, a margin, a settlement or a history`);
   const reservation = { id: 'res_g', lane: 'hotel', displayName: 'Sample Hotel', providerBookingId: 'G1', providerConfirmationCode: null, status: 'confirmed', createdAt: '2026-09-20T10:00:00.000Z', checkinDate: '2026-10-01', checkoutDate: '2026-10-02' };
