@@ -34,7 +34,8 @@ const PANEL = 'src/components/hub/EventDetailPanel.tsx';
 const GRID = 'src/components/shared/CalendarGrid.tsx';
 const STATED = 'src/lib/travel/stated.ts';
 // LEGACY-DEL-01 (2026-09-29): HotelGallery.tsx and HotelMap.tsx (the planner's) were deleted and left this list.
-const HOTEL_SURFACES = [VIEW, CONTAINER, 'src/components/trips/HotelPicker.tsx', 'src/components/trips/CheckoutPanel.tsx', 'src/components/trips/LodgingOptions.tsx', 'src/components/trips/TransferPicker.tsx'];
+// LEGACY-DEL-02 (2026-09-30): HotelPicker.tsx, LodgingOptions.tsx and TransferPicker.tsx (mounted by nothing) were deleted and left it too.
+const HOTEL_SURFACES = [VIEW, CONTAINER, 'src/components/trips/CheckoutPanel.tsx'];
 
 const cards = () => hotelCardsOf(PHUKET_RATES);
 const rateOf = (id: string) => cards().flatMap((c) => c.rates).find((r) => r.rateId === id)!;
@@ -201,7 +202,7 @@ test('no hotel surface names a provider other than the one the env selects; the 
   assert.match(code(CONTAINER), /setEnv\(data\.env === 'live' \? 'live' : data\.env === 'sandbox' \? 'sandbox' : null\);/);
   assert.match(code(CLIENT), /export function liteApiPaymentEnv\(\): 'live' \| 'sandbox' \{\n\s+return getMode\(\) === 'production' \? 'live' : 'sandbox';/);
   assert.match(code(CLIENT), /return process\.env\.LITEAPI_MODE === 'production' \? 'production' : 'sandbox';/);
-  assert.doesNotMatch(code('src/components/trips/HotelPicker.tsx'), /Test data from|test data/i);
+  // LEGACY-DEL-02 (2026-09-30): the showroom picker's "no test data" line went with HotelPicker.tsx (deleted).
 });
 
 test('no search fires on a filter change — five controls write the filters; one SEARCH press, counted', () => {
@@ -230,7 +231,8 @@ test('the booking-flow pin holds for every file still on it, with dated HOTEL-01
   }
   assert.match(BOOKING_FLOW_BASE, /HOTEL-01 \(2026-09-22\), search and display are not booking/);
   const notes = comments('src/lib/travelBookingFlow.ts');
-  const repinned = ['hotels/search/route.ts', 'HotelResultsView.tsx', 'PublicHotelSearch.tsx', 'HotelPicker.tsx', 'liteapiClient.ts', 'liteapiFlightAdapter.ts', 'FlightPickerView.tsx'];
+  // LEGACY-DEL-02 (2026-09-30): HotelPicker.tsx left with its pin and its HOTEL-01 note (7 → 6).
+  const repinned = ['hotels/search/route.ts', 'HotelResultsView.tsx', 'PublicHotelSearch.tsx', 'liteapiClient.ts', 'liteapiFlightAdapter.ts', 'FlightPickerView.tsx'];
   assert.equal((notes.match(/HOTEL-01 \(2026-09-22\): re-pinned/g) ?? []).length, repinned.length);
   for (const f of repinned) assert.match(code('src/lib/travelBookingFlow.ts'), new RegExp(`\\{ file: '[^']*${f.replace(/[.\[\]]/g, '\\$&')}', sha256: '[0-9a-f]{64}' \\}`));
   // The booking files keep their TRAVEL-01 hashes. CheckoutPanel is the one

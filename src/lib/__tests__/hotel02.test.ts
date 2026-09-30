@@ -141,5 +141,6 @@ test('the pin holds, dated: four live files re-dated by HOTEL-02 with the hash t
   assert.match(BOOKING_FLOW_BASE, /re-dated by HOTEL-02 \(2026-09-22\), the stay's clock is the property's/);
   assert.ok(!BOOKING_FLOW_FILES.some((p) => p.file === COMMIT), 'vendor-commit is the itinerary writer, not the booking flow');
   // LEGACY-DEL-01 (2026-09-29): 51 less the four pins that left with the legacy planner's deleted files — the travel law holds each deleted.
-  assert.equal(BOOKING_FLOW_FILES.length, 47, 'the census shrank only by the four deleted pins (ACTIVITY-01 STEP 4 pinned the options route: 49 → 50; TRAVEL-ROW-01 pinned RowActionStrip.tsx: 50 → 51; LEGACY-DEL-01 deleted four: 51 → 47)');
+  // LEGACY-DEL-02 (2026-09-30): 47 less HotelPicker's pin, which left with the file — the travel law holds it deleted.
+  assert.equal(BOOKING_FLOW_FILES.length, 46, 'the census shrank only by the deleted pins (ACTIVITY-01 STEP 4 pinned the options route: 49 → 50; TRAVEL-ROW-01 pinned RowActionStrip.tsx: 50 → 51; LEGACY-DEL-01 deleted four: 51 → 47; LEGACY-DEL-02 deleted one: 47 → 46)');
 });

@@ -22,12 +22,14 @@ import type { Seed } from '../prove';
 const LAW = 'scripts/assert-tool-registry.ts';
 
 const SEEDS: Seed[] = [
+  // LEGACY-DEL-02 (2026-09-30): this seed broke the lodging [optionId] route, deleted with the dead travel code;
+  // it moves to the live trip DELETE and breaks the same clause there — the ownership check goes, every write under it is anyone's.
   {
     name: 'sec02-a a trip DELETE loses its ownership check (the ruling\'s first seed)',
-    file: 'src/app/api/trips/[id]/lodging/[optionId]/route.ts',
-    find: "    const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });\n    if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });\n\n    // SEC-2: option must belong to THIS trip before deleting.\n",
-    replace: '    // SEC-2: option must belong to THIS trip before deleting.\n',
-    expect: 'trip_lodging_options.delete { id: optionId } — the WHERE names no caller',
+    file: 'src/app/api/trips/[id]/route.ts',
+    find: "    const trip = await prisma.trips.findFirst({\n      where: { id, userId: user.id }\n    });\n\n    if (!trip) {\n      return NextResponse.json({ error: 'Trip not found or not authorized' }, { status: 404 });\n    }\n\n    // LINK-02",
+    replace: '    // LINK-02',
+    expect: 'trips.delete { id } — the WHERE names no caller',
   },
   {
     name: 'sec02-b an unlisted public writer — a writing route becomes a public path (the ruling\'s second seed)',
@@ -50,12 +52,14 @@ const SEEDS: Seed[] = [
     replace: "      where: { id },\n      include: { account: { select: { userId: true } } },\n    });\n    if (!mapping) {\n      return NextResponse.json({ error: 'Mapping not found' }, { status: 404 });\n    }\n    if (mapping.account.userId !== user.id) {\n      return NextResponse.json({ error: 'Mapping does not belong to this user' }, { status: 403 });\n    }\n",
     expect: 'account_tax_mappings.delete { id: mapping.id } — the WHERE names no caller',
   },
+  // LEGACY-DEL-02 (2026-09-30): this seed broke the transfers [optionId] route, deleted with the dead travel code;
+  // it moves to the live itinerary PATCH, a child row under an owned trip, and breaks the same clause there.
   {
-    name: 'sec02-e the child check goes — the trip is owned, the option is anyone\'s',
-    file: 'src/app/api/trips/[id]/transfers/[optionId]/route.ts',
-    find: "    const option = await prisma.trip_transfer_options.findFirst({ where: { id: optionId, trip_id: id }, select: { id: true } });\n    if (!option) return NextResponse.json({ error: 'Option not found' }, { status: 404 });\n\n    await prisma.trip_transfer_options.delete(",
-    replace: '    await prisma.trip_transfer_options.delete(',
-    expect: 'trip_transfer_options.delete { id: optionId } — the WHERE names no caller',
+    name: 'sec02-e the child check goes — the trip is owned, the itinerary row is anyone\'s',
+    file: 'src/app/api/trips/[id]/itinerary/[itineraryId]/route.ts',
+    find: "    const existing = await prisma.trip_itinerary.findFirst({ where: { id: itineraryId, tripId } });\n    if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });\n",
+    replace: '',
+    expect: 'trip_itinerary.update { id: itineraryId } — the WHERE names no caller',
   },
   {
     name: 'sec02-f the batch count goes — some of the ids may be another user\'s',

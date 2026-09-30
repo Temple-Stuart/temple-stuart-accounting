@@ -3598,20 +3598,24 @@ const travelFail = (m: string) => { travelViolations += 1; violations.push(`trav
 {
   // LEGACY-DEL-01 (2026-09-29): the four pinned files deleted with the legacy trip planner — each
   // held deleted, its last hash (at main 047e2c5b) in the pins file's LEGACY-DEL-01 note.
-  const TRAVEL_DELETED_PINS: ReadonlyArray<{ file: string; sha256: string }> = [
-    { file: 'src/components/trips/HotelGallery.tsx', sha256: '64e34a08a092e0b8aed934fdf1fe5dc4416212bcc4cc4a2d3dcd855ab011b810' },
-    { file: 'src/components/trips/HotelMap.tsx', sha256: '59b57e947baaec731a14f226b9f95434445e56286cebfd5f0ac1e234aa0cac3a' },
-    { file: 'src/components/trips/FlightPicker.tsx', sha256: 'fab753b0ba0166c634fd82b95c69fa009965c170ca7f07f795105214c5429d73' },
-    { file: 'src/components/trips/TripPlannerAI.tsx', sha256: 'ebf0111bf70990fbdf974d2981ae14cc664b5b8dfe8173d243d99c90c13af14b' },
+  // LEGACY-DEL-02 (2026-09-30): + HotelPicker.tsx, deleted with the rest of the dead travel code —
+  // held deleted the same way, its last hash (at main 1cd7993b) in the pins file's LEGACY-DEL-02 note.
+  const TRAVEL_DELETED_PINS: ReadonlyArray<{ file: string; sha256: string; ruling: 'LEGACY-DEL-01' | 'LEGACY-DEL-02'; main: string; with: string }> = [
+    { file: 'src/components/trips/HotelGallery.tsx', sha256: '64e34a08a092e0b8aed934fdf1fe5dc4416212bcc4cc4a2d3dcd855ab011b810', ruling: 'LEGACY-DEL-01', main: '047e2c5b', with: 'the legacy trip planner' },
+    { file: 'src/components/trips/HotelMap.tsx', sha256: '59b57e947baaec731a14f226b9f95434445e56286cebfd5f0ac1e234aa0cac3a', ruling: 'LEGACY-DEL-01', main: '047e2c5b', with: 'the legacy trip planner' },
+    { file: 'src/components/trips/FlightPicker.tsx', sha256: 'fab753b0ba0166c634fd82b95c69fa009965c170ca7f07f795105214c5429d73', ruling: 'LEGACY-DEL-01', main: '047e2c5b', with: 'the legacy trip planner' },
+    { file: 'src/components/trips/TripPlannerAI.tsx', sha256: 'ebf0111bf70990fbdf974d2981ae14cc664b5b8dfe8173d243d99c90c13af14b', ruling: 'LEGACY-DEL-01', main: '047e2c5b', with: 'the legacy trip planner' },
+    { file: 'src/components/trips/HotelPicker.tsx', sha256: 'e869b851fb14b80d4a73e01f8113a902004498822d0f2af128f1215394972c41', ruling: 'LEGACY-DEL-02', main: '1cd7993b', with: 'the dead travel code' },
   ];
   if (BOOKING_FLOW_FILES.length + TRAVEL_DELETED_PINS.length < 49) travelFail(`the booking-flow census names ${BOOKING_FLOW_FILES.length} files and holds ${TRAVEL_DELETED_PINS.length} deleted — the audit named 49; the list may not shrink but by a named deletion`);
   const flowNoteLines = commentsOf('src/lib/travelBookingFlow.ts').split('\n');
   for (const d of TRAVEL_DELETED_PINS) {
-    if (existsSync(resolve(ROOT, d.file))) travelFail(`${d.file} exists — it was deleted with the legacy trip planner (LEGACY-DEL-01) and is held deleted`);
-    if (BOOKING_FLOW_FILES.some((p) => p.file === d.file)) travelFail(`${d.file} is pinned again — its pin left the census with the file (LEGACY-DEL-01)`);
-    if (!flowNoteLines.some((l) => l.includes(`${d.file} — `) && l.includes(`Was ${d.sha256} at main 047e2c5b.`))) travelFail(`src/lib/travelBookingFlow.ts carries no LEGACY-DEL-01 note naming ${d.file} with its last hash`);
+    if (existsSync(resolve(ROOT, d.file))) travelFail(`${d.file} exists — it was deleted with ${d.with} (${d.ruling}) and is held deleted`);
+    if (BOOKING_FLOW_FILES.some((p) => p.file === d.file)) travelFail(`${d.file} is pinned again — its pin left the census with the file (${d.ruling})`);
+    if (!flowNoteLines.some((l) => l.includes(`${d.file} — `) && l.includes(`Was ${d.sha256} at main ${d.main}.`))) travelFail(`src/lib/travelBookingFlow.ts carries no ${d.ruling} note naming ${d.file} with its last hash`);
   }
   if (!flowNoteLines.some((l) => l.includes('LEGACY-DEL-01 (2026-09-29): four pins left this census'))) travelFail('src/lib/travelBookingFlow.ts carries no dated LEGACY-DEL-01 note over the four deleted pins');
+  if (!flowNoteLines.some((l) => l.includes('LEGACY-DEL-02 (2026-09-30): one pin left this census'))) travelFail('src/lib/travelBookingFlow.ts carries no dated LEGACY-DEL-02 note over the deleted pin');
   const pinned = new Set<string>();
   for (const pin of BOOKING_FLOW_FILES) {
     if (pinned.has(pin.file)) travelFail(`${pin.file} is pinned twice`);
@@ -4289,8 +4293,12 @@ const HOTEL_GRID = 'src/components/shared/CalendarGrid.tsx';
 const STATED_LEAF = 'src/lib/travel/stated.ts';
 // LEGACY-DEL-01 (2026-09-29): HotelGallery.tsx and HotelMap.tsx (the planner's) were deleted and left the list;
 // the travel law holds them deleted. Every live surface keeps the check.
-const HOTEL_SURFACES = [HOTEL_VIEW, HOTEL_CONTAINER, 'src/components/trips/HotelPicker.tsx', 'src/components/trips/CheckoutPanel.tsx', 'src/components/trips/LodgingOptions.tsx', 'src/components/trips/TransferPicker.tsx'];
-const HOTEL_REPINNED = [HOTEL_ROUTE, HOTEL_VIEW, HOTEL_CONTAINER, 'src/components/trips/HotelPicker.tsx', HOTEL_CLIENT, 'src/lib/liteapiFlightAdapter.ts', 'src/components/trips/FlightPickerView.tsx'];
+// LEGACY-DEL-02 (2026-09-30): HotelPicker.tsx, LodgingOptions.tsx and TransferPicker.tsx (mounted by nothing) were
+// deleted and left the list; the trips-tab law holds them deleted. The three live surfaces keep the check, word for word.
+const HOTEL_SURFACES = [HOTEL_VIEW, HOTEL_CONTAINER, 'src/components/trips/CheckoutPanel.tsx'];
+// LEGACY-DEL-02 (2026-09-30): the showroom's picker (HotelPicker.tsx) was deleted with its pin and its HOTEL-01 note —
+// the note count follows, 7 → 6; the travel law holds the pin gone and the file deleted.
+const HOTEL_REPINNED = [HOTEL_ROUTE, HOTEL_VIEW, HOTEL_CONTAINER, HOTEL_CLIENT, 'src/lib/liteapiFlightAdapter.ts', 'src/components/trips/FlightPickerView.tsx'];
 /** The client's booking functions and paid content reads, hashed body-for-body on main d56b2cc9 (code half). */
 const HOTEL_BOOKING_FUNCTIONS: Record<string, string> = {
   // COMM-01 (2026-09-26): prebookRate states null for an absent commission (was
@@ -4475,7 +4483,7 @@ const hotelFail = (m: string) => { hotelViolations += 1; violations.push(`hotel 
   const notes = commentsOf('src/lib/travelBookingFlow.ts');
   const pins = codeOf('src/lib/travelBookingFlow.ts');
   const count = (notes.match(/HOTEL-01 \(2026-09-22\): re-pinned/g) ?? []).length;
-  if (count !== HOTEL_REPINNED.length) hotelFail(`src/lib/travelBookingFlow.ts carries ${count} HOTEL-01 re-pin note(s) — ${HOTEL_REPINNED.length}: the route, the two hotel surfaces, the showroom picker, the client, the flight adapter and the flight view`);
+  if (count !== HOTEL_REPINNED.length) hotelFail(`src/lib/travelBookingFlow.ts carries ${count} HOTEL-01 re-pin note(s) — ${HOTEL_REPINNED.length}: the route, the two hotel surfaces, the client, the flight adapter and the flight view (the showroom picker was deleted with its pin — LEGACY-DEL-02)`);
   for (const f of HOTEL_REPINNED) {
     const pinAt = pins.indexOf(`{ file: '${f}', sha256: '`);
     if (pinAt < 0) { hotelFail(`src/lib/travelBookingFlow.ts no longer pins ${f}`); continue; }
@@ -9024,6 +9032,10 @@ lawGuard('The trips-tab law', () => {
 //      string that begins the call: '/api/…', '${origin}/api/…', or the route's own
 //      last segment built onto '/api/trips/' + id). The rows those routes wrote stay;
 //      the four legacy pages stay redirects.
+//      LEGACY-DEL-02 (2026-09-30): + THE REST OF THE DEAD TRAVEL CODE — the 14 files
+//      nothing mounted and the 8 trip option routes only they called — held deleted the
+//      same way: none exists, and nothing under src imports one or fetches one. The
+//      option rows those routes wrote stay.
 const TRIPS_LEAF = 'src/lib/trips/tripFromUrl.ts';
 const TRIPS_LIST = 'src/components/trips/AllTripsList.tsx';
 const TRIPS_LAUNCHER = 'src/components/home/ModuleLauncher.tsx';
@@ -9078,6 +9090,40 @@ const LEGACY_DELETED_ROUTES: ReadonlyArray<{ file: string; path: string; call: R
   { file: 'src/app/api/trips/[id]/expenses/route.ts', path: '/api/trips/[id]/expenses', call: /(?:['"`]|\})\/api\/trips\/[^'"`\s]*\/expenses\b|['"`]\/expenses\b/ },
   { file: 'src/app/api/trips/[id]/participants/route.ts', path: '/api/trips/[id]/participants', call: /(?:['"`]|\})\/api\/trips\/[^'"`\s]*\/participants\b|['"`]\/participants\b/ },
 ];
+/**
+ * LEGACY-DEL-02 (2026-09-30): the rest of the dead travel code — the 14 files nothing mounted
+ * (HotelPicker and TransferPicker imported only by the showroom, itself mounted nowhere; the
+ * rest imported by nothing) — deleted, held deleted.
+ */
+const LEGACY_DEL02_FILES: readonly string[] = [
+  'src/components/trips/ActivityDestinationSelector.tsx',
+  'src/components/trips/ActivityExpenses.tsx',
+  'src/components/trips/CarPicker.tsx',
+  'src/components/trips/HotelPicker.tsx',
+  'src/components/trips/ItineraryComparison.tsx',
+  'src/components/trips/LodgingOptions.tsx',
+  'src/components/trips/RidesharePicker.tsx',
+  'src/components/trips/TransferOptions.tsx',
+  'src/components/trips/TransferPicker.tsx',
+  'src/components/trips/TripMonthCalendar.tsx',
+  'src/components/trips/VehicleOptions.tsx',
+  'src/components/hub/TripExpensesCard.tsx',
+  'src/components/trips/showroom/TravelPipelineShowroom.tsx',
+  'src/components/trips/showroom/demoTravel.ts',
+];
+/**
+ * LEGACY-DEL-02 (2026-09-30): the 8 trip option routes only those files called — the only
+ * writers of the four option tables — deleted, held deleted, with the call each would take
+ * (as LEGACY_DELETED_ROUTES): a list route is its segment ending the path; an [optionId]
+ * route is its segment followed by '/'. A citation ("src/app/api/…/route.ts") is not a call.
+ */
+const OPTION_ROUTE_CALL = (seg: string, one: boolean): RegExp => new RegExp(one
+  ? `(?:['"\`]|\\})\\/api\\/trips\\/[^'"\`\\s]*\\/${seg}\\/|['"\`]\\/${seg}\\/`
+  : `(?:['"\`]|\\})\\/api\\/trips\\/[^'"\`\\s]*\\/${seg}(?![\\w/-])|['"\`]\\/${seg}(?![\\w/-])`);
+const LEGACY_DEL02_ROUTES: ReadonlyArray<{ file: string; path: string; call: RegExp }> = ['lodging', 'transfers', 'vehicles', 'activities'].flatMap((seg) => [
+  { file: `src/app/api/trips/[id]/${seg}/route.ts`, path: `/api/trips/[id]/${seg}`, call: OPTION_ROUTE_CALL(seg, false) },
+  { file: `src/app/api/trips/[id]/${seg}/[optionId]/route.ts`, path: `/api/trips/[id]/${seg}/[optionId]`, call: OPTION_ROUTE_CALL(seg, true) },
+]);
 let tripsViolations = 0;
 const tripsFail = (m: string) => { tripsViolations += 1; violations.push(`trips-tab law: ${m} (TRIPS-01)`); };
 
@@ -9203,11 +9249,16 @@ const tripsFail = (m: string) => { tripsViolations += 1; violations.push(`trips-
 }
 
 // 6. the legacy planner is deleted: its 12 files and 8 routes do not exist; nothing under src imports or fetches one.
+//    LEGACY-DEL-02 (2026-09-30): the rest of the dead travel code — 14 files and 8 routes — held deleted the same way.
 {
   for (const f of [...LEGACY_DELETED_FILES, ...LEGACY_DELETED_ROUTES.map((r) => r.file)]) {
     if (existsSync(resolve(ROOT, f))) tripsFail(`${f} exists — the legacy planner was deleted (LEGACY-DEL-01); it is held deleted`);
   }
+  for (const f of [...LEGACY_DEL02_FILES, ...LEGACY_DEL02_ROUTES.map((r) => r.file)]) {
+    if (existsSync(resolve(ROOT, f))) tripsFail(`${f} exists — the dead travel code was deleted (LEGACY-DEL-02); it is held deleted`);
+  }
   const deletedBases = LEGACY_DELETED_FILES.map((f) => f.replace(/\.(ts|tsx)$/, ''));
+  const deletedBases02 = LEGACY_DEL02_FILES.map((f) => f.replace(/\.(ts|tsx)$/, ''));
   const importBase = (from: string, spec: string): string | null => {
     let base: string;
     if (spec.startsWith('@/')) base = `src/${spec.slice(2)}`;
@@ -9225,15 +9276,20 @@ const tripsFail = (m: string) => { tripsViolations += 1; violations.push(`trips-
     for (const m of src.matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*)['"]([^'"]+)['"]/g)) {
       const base = importBase(file, m[1]);
       if (base !== null && deletedBases.includes(base)) { legacyHits += 1; tripsFail(`${file} imports ${m[1]} — the legacy planner's file was deleted (LEGACY-DEL-01); nothing imports it`); }
+      if (base !== null && deletedBases02.includes(base)) { legacyHits += 1; tripsFail(`${file} imports ${m[1]} — the dead travel code's file was deleted (LEGACY-DEL-02); nothing imports it`); }
     }
     for (const r of LEGACY_DELETED_ROUTES) {
       if (r.call.test(src)) { legacyHits += 1; tripsFail(`${file} fetches ${r.path} — the legacy planner's route was deleted (LEGACY-DEL-01); nothing calls it`); }
     }
+    for (const r of LEGACY_DEL02_ROUTES) {
+      if (r.call.test(src)) { legacyHits += 1; tripsFail(`${file} fetches ${r.path} — the dead travel code's route was deleted (LEGACY-DEL-02); nothing calls it`); }
+    }
   }
   if (legacyHits === 0 && (LEGACY_DELETED_FILES.length !== 12 || LEGACY_DELETED_ROUTES.length !== 8)) tripsFail(`the deleted set is ${LEGACY_DELETED_FILES.length} files and ${LEGACY_DELETED_ROUTES.length} routes — the ruling deleted 12 and 8`);
+  if (legacyHits === 0 && (LEGACY_DEL02_FILES.length !== 14 || LEGACY_DEL02_ROUTES.length !== 8)) tripsFail(`the LEGACY-DEL-02 set is ${LEGACY_DEL02_FILES.length} files and ${LEGACY_DEL02_ROUTES.length} routes — the ruling deleted 14 and 8`);
 }
 
-if (tripsViolations === 0) console.log(`✔ The trips-tab law passed — Travel carries no sub-link; no product file names ${TRIPS_LEGACY} in code (the pathname-test list is empty — its maximum ${TRIPS_PATH_TESTS_MAX}, set ${TRIPS_PATH_TESTS_SET_ON}, emptied by LEGACY-DEL-01); the ${TRIPS_PAGES.length} legacy pages are one-hop redirects to the Travel tab with no UI and no data read; /travel?trip=<id> selects only from the user’s loaded list — the row itself, or nothing and the one line; the legacy planner is deleted — its ${LEGACY_DELETED_FILES.length} files and ${LEGACY_DELETED_ROUTES.length} routes do not exist, and nothing under src imports or fetches one.`);
+if (tripsViolations === 0) console.log(`✔ The trips-tab law passed — Travel carries no sub-link; no product file names ${TRIPS_LEGACY} in code (the pathname-test list is empty — its maximum ${TRIPS_PATH_TESTS_MAX}, set ${TRIPS_PATH_TESTS_SET_ON}, emptied by LEGACY-DEL-01); the ${TRIPS_PAGES.length} legacy pages are one-hop redirects to the Travel tab with no UI and no data read; /travel?trip=<id> selects only from the user’s loaded list — the row itself, or nothing and the one line; the legacy planner is deleted — its ${LEGACY_DELETED_FILES.length} files and ${LEGACY_DELETED_ROUTES.length} routes do not exist, and nothing under src imports or fetches one; the rest of the dead travel code too — ${LEGACY_DEL02_FILES.length} files and ${LEGACY_DEL02_ROUTES.length} option routes (LEGACY-DEL-02).`);
 else console.log(`✖ The trips-tab law FAILED — ${tripsViolations} violation(s).`);
 });
 lawGuard('The guest booking law', () => {
