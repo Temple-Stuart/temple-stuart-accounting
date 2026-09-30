@@ -16,9 +16,7 @@ import { PHUKET_RATES } from './fixtureHotelRatesPhuket';
 
 const COMMIT = 'src/app/api/trips/[id]/vendor-commit/route.ts';
 const PATCH = 'src/app/api/trips/[id]/itinerary/[itineraryId]/route.ts';
-const BUTTON = 'src/app/budgets/trips/[id]/discover/[category]/[rank]/AddToTripButton.tsx';
 const DETAIL = 'src/app/budgets/trips/[id]/discover/[category]/[rank]/page.tsx';
-const PLANNER = 'src/components/trips/TripPlannerAI.tsx';
 const CHECKOUT = 'src/components/trips/CheckoutPanel.tsx';
 const CONTAINER = 'src/components/trips/PublicHotelSearch.tsx';
 const VIEW = 'src/components/trips/HotelResultsView.tsx';
@@ -87,7 +85,8 @@ test('the commit makes ONE content call for the hotel being booked, reserved onc
 });
 
 test('no content call from a search or a list: the callers are a closed set; the search sends the hotel, not a clock', () => {
-  for (const f of ['src/app/api/travel/hotels/search/route.ts', VIEW, CONTAINER, 'src/app/api/trips/[id]/ai-assistant/route.ts']) {
+  // LEGACY-DEL-01 (2026-09-29): the AI planner's route (trips/[id]/ai-assistant) was deleted and left this list.
+  for (const f of ['src/app/api/travel/hotels/search/route.ts', VIEW, CONTAINER]) {
     assert.doesNotMatch(code(f), /getHotelContent\(|hotels\/content/, `${f} reads no content`);
   }
   // TRIPS-01 (2026-09-29): the closed set is two — the discover detail page is a redirect to the Travel tab and reads nothing.
@@ -101,15 +100,8 @@ test('no content call from a search or a list: the callers are a closed set; the
   assert.match(container, /data-save-note=\{saveNote\.kind\}/);
 });
 
-test('the three invented times are gone: no prefill on the button, no dead default in the planner, no clock literal anywhere on the commit path', () => {
-  const button = code(BUTTON);
-  assert.doesNotMatch(button, /type="time"|windowStart|windowEnd|startTime|endTime|'22:00'|'07:00'/);
-  assert.match(button, /\.\.\.\(liteapiHotelId \? \{ liteapiHotelId \} : \{\}\),/);
-  assert.match(button, /data-stay-times/);
-  const planner = code(PLANNER);
-  assert.doesNotMatch(planner, /CATEGORY_DEFAULT_TIMES|'15:00'|'11:00'/);
-  assert.match(planner, /catInfo\.optionType === 'lodging' && rec\.liteapiHotelId \? \{ liteapiHotelId: rec\.liteapiHotelId \} : \{\}/);
-});
+// LEGACY-DEL-01 (2026-09-29): 'the three invented times are gone: no prefill on the button, no dead default in the
+// planner…' went with the discover page's AddToTripButton and TripPlannerAI — the only code it exercised was deleted.
 
 test('a timeline edit moves both representations in the one update, or is refused with the reason; a flight keeps its own clock', () => {
   const patch = code(PATCH);
@@ -134,10 +126,10 @@ test('the rating scale is one: the checkout renders /5 as the client types, the 
   assert.match(code(CLIENT), /checkinCheckoutTimes\?: CheckinCheckoutTimes;/);
 });
 
-test('the pin holds, dated: five files re-dated by HOTEL-02 with the hash they had on main 81045434; the commit is not pinned', () => {
+test('the pin holds, dated: four live files re-dated by HOTEL-02 with the hash they had on main 81045434 (the planner was deleted with its pin — LEGACY-DEL-01); the commit is not pinned', () => {
   const notes = comments('src/lib/travelBookingFlow.ts');
   const pins = code('src/lib/travelBookingFlow.ts');
-  const redated = [CONTAINER, VIEW, CHECKOUT, PLANNER, CLIENT];
+  const redated = [CONTAINER, VIEW, CHECKOUT, CLIENT];
   assert.equal((notes.match(/HOTEL-02 \(2026-09-22\): re-dated/g) ?? []).length, redated.length);
   for (const f of redated) {
     const pinAt = pins.indexOf(`{ file: '${f}', sha256: '`);
@@ -148,5 +140,6 @@ test('the pin holds, dated: five files re-dated by HOTEL-02 with the hash they h
   }
   assert.match(BOOKING_FLOW_BASE, /re-dated by HOTEL-02 \(2026-09-22\), the stay's clock is the property's/);
   assert.ok(!BOOKING_FLOW_FILES.some((p) => p.file === COMMIT), 'vendor-commit is the itinerary writer, not the booking flow');
-  assert.equal(BOOKING_FLOW_FILES.length, 51, 'the census did not shrink (ACTIVITY-01 STEP 4 pinned the options route: 49 → 50; TRAVEL-ROW-01 pinned RowActionStrip.tsx: 50 → 51)');
+  // LEGACY-DEL-01 (2026-09-29): 51 less the four pins that left with the legacy planner's deleted files — the travel law holds each deleted.
+  assert.equal(BOOKING_FLOW_FILES.length, 47, 'the census shrank only by the four deleted pins (ACTIVITY-01 STEP 4 pinned the options route: 49 → 50; TRAVEL-ROW-01 pinned RowActionStrip.tsx: 50 → 51; LEGACY-DEL-01 deleted four: 51 → 47)');
 });

@@ -61,12 +61,13 @@ const SEEDS: Seed[] = [
     replace: 'router.push(`/budgets/trips/${newId}`);',
     expect: 'src/components/trips/CreateTripForm.tsx names /budgets/trips',
   },
+  // LEGACY-DEL-01 (2026-09-29): the planner was deleted; its seed now RE-CREATES it (the create form).
   {
-    name: 'trips01-f a planner card goes back to the discover page',
+    name: 'trips01-f the planner comes back (held deleted — LEGACY-DEL-01)',
     file: 'src/components/trips/TripPlannerAI.tsx',
-    find: 'router.push(`/travel?trip=${tripId}`);',
-    replace: 'router.push(`/budgets/trips/${tripId}/discover`);',
-    expect: 'src/components/trips/TripPlannerAI.tsx names /budgets/trips',
+    find: '',
+    replace: "export default function TripPlannerAI() { return null; }\n",
+    expect: 'trips-tab law: src/components/trips/TripPlannerAI.tsx exists — the legacy planner was deleted (LEGACY-DEL-01) and is held deleted',
   },
   // ── each legacy page is a redirect ──
   {
@@ -134,19 +135,20 @@ const SEEDS: Seed[] = [
     expect: 'it sets the current trip from the URL itself',
   },
   // ── the closed list, and the re-pin ──
+  // LEGACY-DEL-01 (2026-09-29): the list was emptied (its maximum 0) and the planner's pin left with the file.
   {
-    name: 'trips01-p the pathname-test list grows',
+    name: 'trips01-p the pathname-test list grows from empty (LEGACY-DEL-01 set its maximum to 0)',
     file: 'scripts/assert-tool-registry.ts',
-    find: "  { file: 'src/components/trips/TripCreationBar.tsx', line:",
-    replace: "  { file: 'src/components/trips/AllBookings.tsx', line: 'seeded', why: 'seeded' },\n  { file: 'src/components/trips/TripCreationBar.tsx', line:",
-    expect: 'the pathname-test list grew to 3',
+    find: "const TRIPS_PATH_TESTS: ReadonlyArray<{ file: string; line: string; why: string }> = [];",
+    replace: "const TRIPS_PATH_TESTS: ReadonlyArray<{ file: string; line: string; why: string }> = [\n  { file: 'src/components/trips/AllBookings.tsx', line: 'seeded', why: 'seeded' },\n];",
+    expect: 'the pathname-test list grew to 1',
   },
   {
-    name: 'trips01-q the planner\'s re-pin loses the hash it had on main',
+    name: 'trips01-q the deleted planner is pinned again (LEGACY-DEL-01)',
     file: 'src/lib/travelBookingFlow.ts',
-    find: '  // Was 2199015c8e7688ec81e77d44c50c1c23bd123ae0b97c02443767c90f13b7ac3b at main 536c862b.\n',
-    replace: '',
-    expect: 'pin does not sit under a dated TRIPS-01 note with the hash it had on main 536c862b',
+    find: "  { file: 'src/lib/travelSourceRegistry.ts', sha256: '93646472a2376cecc49695c98626b04f9f8caa5e8fcdf80d015bbdae05dfae65' },\n",
+    replace: "  { file: 'src/lib/travelSourceRegistry.ts', sha256: '93646472a2376cecc49695c98626b04f9f8caa5e8fcdf80d015bbdae05dfae65' },\n  { file: 'src/components/trips/TripPlannerAI.tsx', sha256: 'ebf0111bf70990fbdf974d2981ae14cc664b5b8dfe8173d243d99c90c13af14b' },\n",
+    expect: 'trips-tab law: src/components/trips/TripPlannerAI.tsx is pinned again',
   },
 ];
 

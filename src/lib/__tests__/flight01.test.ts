@@ -22,7 +22,8 @@ const ROUTE = 'src/app/api/travel/liteapi/flights/search/route.ts';
 const CONTRACT = 'src/lib/flights/searchContract.ts';
 const VIEW = 'src/components/trips/FlightPickerView.tsx';
 const ADAPTER = 'src/lib/liteapiFlightAdapter.ts';
-const CONTAINERS = ['src/components/trips/FlightPicker.tsx', 'src/components/trips/PublicFlightSearch.tsx'];
+// LEGACY-DEL-01 (2026-09-29): the in-trip picker (FlightPicker.tsx) was deleted with the legacy trip planner.
+const CONTAINERS = ['src/components/trips/PublicFlightSearch.tsx'];
 
 const offers = () => liteApiResultsToFlightOffers(BKK_HKT_RATES);
 const groups = () => groupFlights(offers());
@@ -225,14 +226,14 @@ test('no search fires on a filter change — the SEARCH press is the only trigge
   }
 });
 
-test('the booking-flow pin still holds for every file it names — five search files re-pinned, dated; no booking file changed', () => {
+test('the booking-flow pin still holds for every file it names — four search files re-pinned, dated (the fifth, the in-trip picker, deleted with its pin — LEGACY-DEL-01); no booking file changed', () => {
   for (const pin of BOOKING_FLOW_FILES) {
     assert.equal(bookingFlowSha256(rejoin(code(pin.file), comments(pin.file))), pin.sha256, `${pin.file} hashes to its pin`);
   }
   assert.match(BOOKING_FLOW_BASE, /FLIGHT-01 \(2026-09-22\), search is not booking/);
   const notes = comments('src/lib/travelBookingFlow.ts');
-  assert.equal((notes.match(/FLIGHT-01 \(2026-09-22\): re-pinned/g) ?? []).length, 5, 'five dated re-pin notes, one per search-path file');
-  for (const f of ['flights/search/route.ts', 'PublicFlightSearch.tsx', 'FlightPicker.tsx', 'FlightPickerView.tsx', 'liteapiFlightAdapter.ts']) {
+  assert.equal((notes.match(/FLIGHT-01 \(2026-09-22\): re-pinned/g) ?? []).length, 4, 'four dated re-pin notes, one per live search-path file');
+  for (const f of ['flights/search/route.ts', 'PublicFlightSearch.tsx', 'FlightPickerView.tsx', 'liteapiFlightAdapter.ts']) {
     // comments() blanks the code lines, so the note and the pin line are read
     // from the two channels separately: the dated note with its old hash from
     // comments(), the pin entry it precedes from code().

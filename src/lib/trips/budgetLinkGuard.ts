@@ -6,10 +6,11 @@ import { prisma } from '@/lib/prisma';
  *
  * reservation_budget_links holds a booking to the budget line it fulfils, RESTRICT
  * both ways (migration 20260927120000_link_02_reservation_budget_links), and a
- * booking fulfils a line of ITS OWN trip. Three existing writers could break that:
+ * booking fulfils a line of ITS OWN trip. Two existing writers could break that
+ * (LEGACY-DEL-01, 2026-09-29: a third, the legacy planner's trip uncommit —
+ * src/app/api/trips/[id]/commit/route.ts DELETE — was deleted with the planner):
  *
- *   · the trip delete (src/app/api/trips/[id]/route.ts) and the trip uncommit
- *     (src/app/api/trips/[id]/commit/route.ts DELETE) delete a trip's lines AFTER
+ *   · the trip delete (src/app/api/trips/[id]/route.ts) deletes a trip's lines AFTER
  *     other writes that share no transaction — Postgres's RESTRICT would refuse
  *     mid-way and leave the trip half-deleted, or its budgets already removed;
  *   · the attach/detach PATCH (src/app/api/reservations/[id]/route.ts) would move a

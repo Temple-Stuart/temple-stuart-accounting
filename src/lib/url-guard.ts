@@ -1,9 +1,11 @@
 import dns from 'dns/promises';
 import net from 'net';
 
-// SEC-5: SSRF guard for server-side fetches of USER-SUPPLIED URLs (fetch-og).
-// The og-preview feature legitimately fetches arbitrary PUBLIC listing pages, so
-// a domain allowlist would break it. Instead we block the SSRF vector: non-http(s)
+// SEC-5: SSRF guard for server-side fetches of URLs we did not choose — today the citation
+// verifier's AI/web-search-supplied URLs (src/lib/citations/verifyCitation.ts); written for
+// the og-preview route (fetch-og), deleted with the legacy planner (LEGACY-DEL-01, 2026-09-29).
+// The verifier fetches arbitrary PUBLIC pages (as the og-preview did), so a domain allowlist would break
+// it. Instead we block the SSRF vector: non-http(s)
 // schemes and any host that resolves to a private / loopback / link-local /
 // cloud-metadata address. Deny-by-default — a malformed or unresolvable host is
 // blocked, never fetched.

@@ -285,7 +285,11 @@ export function buildChain(input: ChainInput): Chain | null {
  * STEP 3 — THE DOOR. Every row's owner is the tool whose path WROTE it, taken
  * from the allowlist's own `writtenBy` (src/lib/calendar/sources.ts):
  *   manual   ← /api/calendar/events            → Calendar's own row
- *   trip     ← /api/trips/[id]/commit          → Travel
+ *   trip     ← /api/trips/[id]/vendor-commit   → Travel  (LEGACY-DEL-01, 2026-09-29:
+ *                                                        the legacy planner's
+ *                                                        /api/trips/[id]/commit,
+ *                                                        its other writer, was
+ *                                                        deleted)
  *   agenda   ← /api/agenda/[id]                → Budget (its /agenda sub-row)
  *   shopping ← /api/shopping/[id]              → Budget (its /shopping sub-row)
  *   home     ← /api/home/[id] (home_expenses)  → Budget
@@ -317,7 +321,8 @@ export const EVENT_SOURCE_OWNER: Readonly<Record<string, string>> = {
  * TRAVEL-01: a trip row that carries its trip_itinerary id is a trip ITEM, not a
  * plain calendar_event — the kind is decided by the row's own key, never by
  * guessing from a title. A trip row with no item id (the whole-trip row the
- * trip commit writes) stays a calendar_event owned by Travel.
+ * legacy planner's trip commit wrote, before it was deleted — LEGACY-DEL-01)
+ * stays a calendar_event owned by Travel.
  */
 export function kindOf(e: { source: string; tripItemId?: string | null }): DrillKind {
   if (e.tripItemId) return 'trip_item';

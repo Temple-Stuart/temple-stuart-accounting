@@ -33,7 +33,8 @@ const COMMIT = 'src/app/api/trips/[id]/vendor-commit/route.ts';
 const PANEL = 'src/components/hub/EventDetailPanel.tsx';
 const GRID = 'src/components/shared/CalendarGrid.tsx';
 const STATED = 'src/lib/travel/stated.ts';
-const HOTEL_SURFACES = [VIEW, CONTAINER, 'src/components/trips/HotelPicker.tsx', 'src/components/trips/CheckoutPanel.tsx', 'src/components/trips/HotelGallery.tsx', 'src/components/trips/HotelMap.tsx', 'src/components/trips/LodgingOptions.tsx', 'src/components/trips/TransferPicker.tsx'];
+// LEGACY-DEL-01 (2026-09-29): HotelGallery.tsx and HotelMap.tsx (the planner's) were deleted and left this list.
+const HOTEL_SURFACES = [VIEW, CONTAINER, 'src/components/trips/HotelPicker.tsx', 'src/components/trips/CheckoutPanel.tsx', 'src/components/trips/LodgingOptions.tsx', 'src/components/trips/TransferPicker.tsx'];
 
 const cards = () => hotelCardsOf(PHUKET_RATES);
 const rateOf = (id: string) => cards().flatMap((c) => c.rates).find((r) => r.rateId === id)!;

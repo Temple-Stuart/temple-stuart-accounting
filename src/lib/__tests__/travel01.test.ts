@@ -282,7 +282,9 @@ test('the booking surfaces still mount under Search, and the booking flow is byt
   assert.match(search, /\.\.\.travelStripModes\(\{\s*onRequireAuth,\s*authed,\s*currentTrip,\s*onCommitted: \(\) => setTripsRefresh\(\(n\) => n \+ 1\),\s*\}\)/);
   assert.match(search, /\{HOMEPAGE_CATEGORIES\.map\(\(catKey\) => \(\s*<PublicCategorySearch/);
   // The pins: a whole-file equality through the reader's two halves, rejoined.
-  assert.ok(BOOKING_FLOW_FILES.length >= 49, `${BOOKING_FLOW_FILES.length} files pinned`);
+  // LEGACY-DEL-01 (2026-09-29): the four pins that left with the legacy planner's deleted files count toward the audit's
+  // 49 — the census may shrink by a named deletion alone (the travel law names the four and holds each deleted).
+  assert.ok(BOOKING_FLOW_FILES.length + 4 >= 49, `${BOOKING_FLOW_FILES.length} files pinned, and four held deleted`);
   assert.match(BOOKING_FLOW_BASE, /b9eac34a/);
   const names = BOOKING_FLOW_FILES.map((p) => p.file);
   assert.equal(new Set(names).size, names.length, 'no file pinned twice');

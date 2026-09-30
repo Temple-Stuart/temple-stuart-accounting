@@ -37,7 +37,8 @@ export const INTEREST_CATEGORIES = Object.keys(TRAVEL_INTERESTS);
 export const ALL_INTEREST_VALUES: string[] = Object.values(TRAVEL_INTERESTS).flat();
 
 // ─── Backward-Compatible Exports ─────────────────────────────────────────────
-// Used by: TripProfileCard, TripPlannerAI, ai-assistant API route
+// Used by: viatorClient.ts (ACTIVITY_LABELS) and travelCOA.ts (ACTIVITY_SEARCH_EXPANSIONS). TripPlannerAI and the ai-assistant
+// route also used them and were deleted with the legacy planner (LEGACY-DEL-01, 2026-09-29); TripProfileCard is not in the repo.
 
 export interface Activity {
   value: string;

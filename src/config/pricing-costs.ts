@@ -186,16 +186,6 @@ export const API_COSTS: ApiCostEntry[] = [
     monthlyCost: 0,
     note: 'free tier (5 checks/day cap sized to it); becomes per-use above the free tier',
   },
-  {
-    id: 'fetch-og',
-    name: 'Listing previews (fetch-og)',
-    usedFor: 'preview of user-pasted listing URLs (SSRF-guarded direct fetch)',
-    modules: ['travel'],
-    costType: 'FREE',
-    cadence: 'free',
-    monthlyCost: 0,
-    note: 'no vendor — fetches public pages directly',
-  },
 
   // ── Compliance (PRICING-AUDIT.md §1 Compliance) ─────────────────────────
   {
@@ -271,7 +261,7 @@ export const PRODUCTS: ProductEntry[] = [
     id: 'travel',
     name: 'Travel',
     what: 'flight/hotel/activity search, trip budgets & itineraries, booking',
-    deps: ['liteapi', 'viator', 'google-places', 'rapidapi-visa', 'fetch-og'],
+    deps: ['liteapi', 'viator', 'google-places', 'rapidapi-visa'],
     monthlyPrice: null,
   },
   {

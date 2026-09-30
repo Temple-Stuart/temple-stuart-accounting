@@ -49,8 +49,10 @@ test('every export form is read — the destructured PUT a `function|const` coun
   // VENDOR-01 (2026-09-29): + src/app/api/operations/plan-vendors/route.ts DELETE — an owned writer the
   // ownership law reads (the cart-plan gate first, every write scoped to user.id); the only change.
   assert.ok(narrow.includes('src/app/api/operations/plan-vendors/route.ts'));
-  assert.equal(narrow.length, 48, 'the count the ruling verified on main 11445ca1 (47), + the plan-vendors DELETE (VENDOR-01)');
-  assert.equal(wide.length, 49, 'the census: 48 + the inngest route');
+  // LEGACY-DEL-01 (2026-09-29): four of them were the legacy planner's — the scanner-results, destinations, commit and
+  // participants routes, each exporting DELETE — deleted with it.
+  assert.equal(narrow.length, 44, 'the count the ruling verified on main 11445ca1 (47), + the plan-vendors DELETE (VENDOR-01), − the four legacy-planner routes (LEGACY-DEL-01)');
+  assert.equal(wide.length, 45, 'the census: 44 + the inngest route (49 before the four legacy-planner routes left — LEGACY-DEL-01)');
   assert.deepEqual(wide.filter((f) => !narrow.includes(f)), ['src/app/api/inngest/route.ts']);
 });
 
@@ -129,12 +131,10 @@ test('a proof covers the name it proved, not a later declaration of the same nam
 
 test('the real routes the ruling sampled read as the house pattern, write for write', () => {
   for (const f of [
+    // LEGACY-DEL-01 (2026-09-29): the participants, destinations, commit and scanner-results routes were
+    // deleted with the legacy trip planner and left this sample; the live routes keep every check.
     'src/app/api/trips/[id]/route.ts',
-    'src/app/api/trips/[id]/participants/route.ts',
-    'src/app/api/trips/[id]/destinations/route.ts',
     'src/app/api/trips/[id]/budget-line/route.ts',
-    'src/app/api/trips/[id]/commit/route.ts',
-    'src/app/api/trips/[id]/scanner-results/route.ts',
     'src/app/api/trips/[id]/lodging/[optionId]/route.ts',
     'src/app/api/trips/[id]/transfers/[optionId]/route.ts',
     'src/app/api/trips/[id]/vehicles/[optionId]/route.ts',
