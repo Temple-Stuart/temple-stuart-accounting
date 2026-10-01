@@ -553,7 +553,9 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // Was 7f3624eb31305dcd65f6a4be92a9c3a5e9682d8f5a0ff5ae5bc1528af051e7fb at main 6e71ad0d.
   { file: 'src/lib/arrivals/liteapiBooking.ts', sha256: '521a763a25a3a87e6a4a56b314ae4d8528a1d7a444902849c8dc72d388ef5c98' },
   // GUEST-02 (2026-09-30): pinned — the ONE cancel flow: the quote and the cancel, moved word for word from the account's route; each gate hands it the row it read and its caller. The actor is the caller's, the owner the row's own userId, and a guest row's email carries its manage block. Every vendor call, landing, write, refusal, answer, log and email of an account cancel is unchanged.
-  { file: 'src/lib/reservations/cancelFlow.ts', sha256: 'b87f1a574c529f79bd62832ce874849f266ea583afb49a952fa6bad96be7537d' },
+  // GUEST-02b (2026-09-30): re-pinned — the cancel's success answers carry no commission: the rows moved go to the server log after the transaction, the apply leaf's way; the header says what is true of the lists. No vendor call, landing, write, refusal or email changed.
+  // Was b87f1a574c529f79bd62832ce874849f266ea583afb49a952fa6bad96be7537d at main ca276847.
+  { file: 'src/lib/reservations/cancelFlow.ts', sha256: '269938b151b24ad0be0bd24a3adbb485f0201dd40df0bbbec3125d08e0ef0002' },
   // ACTIVITY-01 (2026-09-22): re-dated — the 'viatorsave' safe default cap (300/day: three reservations per Save attempt, ~100 attempts, the prebook precedent) joins PROVIDER_SAFE_DEFAULT_CAP; no existing bucket or function changed. A tour takes its time on the day; no prebook/book/pay/cancel call changed.
   // Was d85603f7cc6567c02769ac997bfdc8d6112855249b44f4bde9fdd8f35ffeeeea at main dfc02881.
   // LANE-01 (2026-09-25): re-dated — the 'liteapiflightbookingread' safe default cap (50/day) joins PROVIDER_SAFE_DEFAULT_CAP for the one GET /flights/bookings/{id} per flight booking and per retro row; no existing bucket or function changed. No prebook/book/pay/cancel call changed.

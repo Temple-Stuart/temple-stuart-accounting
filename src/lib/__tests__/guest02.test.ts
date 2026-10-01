@@ -11,6 +11,9 @@
  *   G5 the email — the manage block for a guest and none for an account, through the template;
  *   G6 the two gates and the page, read from source the way this repo proves what it cannot
  *      run without a database and a vendor (R2, R5, R7, R8).
+ *   G7 GUEST-02b (2026-09-30): what only the pin held — no cancel answer names commission (the
+ *      count goes to the server log), both lanes land with the row's owner and email the caller's
+ *      address, and the page reads the booking again before its line.
  * No live call, no database.
  */
 import { test } from 'node:test';
@@ -27,6 +30,7 @@ import { lifecycleEmail } from '../emailTemplates/lifecycle';
 import { bookingGuestRef, landLiteApiCancellation, type LiteApiAnswer } from '../arrivals/liteapiBooking';
 import { flightCancellationObjectOf, parseFlightCancellationResult } from '../liteapiFlightsClient';
 import { FakeLanding } from './fakeLanding';
+import { closingOf, splitArgs } from '../security/ownershipLaw';
 
 const DECISION = 'src/lib/guest/guestSession.ts';
 const ACCOUNT_ROUTE = 'src/app/api/reservations/[id]/cancel/route.ts';
@@ -315,4 +319,80 @@ test('G6 R8 the dialog reads its quote from its caller’s quoteUrl — required
   assert.ok(src.includes('const res = await fetch(quoteUrl);'));
   assert.ok(!/\/api\/reservations\/|\/api\/guest\//.test(src), 'no route of its own');
   for (const f of LISTS) assert.ok(code(f).includes('quoteUrl={`/api/reservations/${cancelTarget.id}/cancel`}'), f);
+});
+
+// ── G7. GUEST-02b (2026-09-30): what only the pin held ───────────────────────
+
+/** Every call of `name(` in the code (a definition is not a call), with its arguments trimmed. */
+function callsOf(src: string, name: string): Array<{ at: number; args: string[] }> {
+  return [...src.matchAll(new RegExp(`\\b${name}\\(`, 'g'))]
+    .filter((m) => !/function\s+$/.test(src.slice(Math.max(0, m.index! - 24), m.index!)))
+    .map((m) => {
+      const open = src.indexOf('(', m.index!);
+      const close = closingOf(src, open);
+      return { at: m.index!, args: close < 0 ? [] : splitArgs(src.slice(open + 1, close)).map((a) => a.trim()) };
+    });
+}
+const laneOf = (src: string, lane: 'hotel' | 'flight') => lane === 'hotel'
+  ? src.slice(src.indexOf('async function cancelHotel('), src.indexOf('async function cancelFlight('))
+  : src.slice(src.indexOf('async function cancelFlight('));
+
+test('G7 (a) no cancel answer names commission — not the flow’s, not either gate’s (Temple Stuart’s books, never the customer’s)', () => {
+  let answers = 0;
+  for (const f of [FLOW, ACCOUNT_ROUTE, GUEST_ROUTE]) {
+    for (const call of callsOf(code(f), 'NextResponse\\.json')) {
+      answers += 1;
+      assert.doesNotMatch(call.args[0] ?? '', /commission/i, `${f}: ${(call.args[0] ?? '').slice(0, 80)}`);
+    }
+  }
+  assert.ok(answers > 10, `every answer was read (${answers})`);
+  for (const lane of ['hotel', 'flight'] as const) {
+    const success = callsOf(laneOf(code(FLOW), lane), 'NextResponse\\.json').at(-1)!;
+    assert.match(success.args[0], /moneyEvents: [^\n]*\.length,\s*calendar,/, `${lane}: the success answer keeps its other fields, commissionMoved gone`);
+  }
+});
+
+test('G7 the commission count reaches the server log after the transaction, never an answer — every hotel cancel; a flight’s when final', () => {
+  const flow = code(FLOW);
+  for (const lane of ['hotel', 'flight'] as const) {
+    const text = laneOf(flow, lane);
+    const committed = text.indexOf('commissionMoved } = landed.reservation;');
+    const logged = text.indexOf('commission rows moved ${commissionMoved}`);');
+    const why = text.indexOf("if (commissionMoved === 0) console.log(`[Reservation cancel] reservation ${owned.id}: no 'estimated' commission row to move — a commission already locked ('confirmed') is left as is (COMM-01)`);");
+    assert.ok(committed > 0 && logged > committed && why > logged, `${lane}: the count logged after the transaction, and a none-moved line saying why by name`);
+    assert.match(text.slice(logged - 120, logged), /console\.log\(`\[Reservation cancel\] reservation \$\{owned\.id\}: /, `${lane}: to the server log, with the reservation id`);
+  }
+  assert.match(laneOf(flow, 'flight'), /if \(decision\.commission === 'cancel'\) \{\s*console\.log\(`\[Reservation cancel\] reservation \$\{owned\.id\}: final flight cancel committed — commission rows moved \$\{commissionMoved\}`\);/, 'a flight logs it when final — a 202 moves none');
+  const reads = flow.split('\n').filter((l) => /\bcommissionMoved\b/.test(l));
+  assert.equal(reads.length, 8, 'the two returns from the transaction, the two destructures, and the two log lines with their two none-moved guards');
+  for (const l of reads) assert.match(l, /commissionMoved: commission\.count|commissionMoved \} = landed\.reservation|console\.log\(/, l.trim());
+  // The apply leaf keeps its own count, as it did — logged, never shown (its caller is no customer).
+  assert.ok(code('src/lib/reservations/applyVendorState.ts').includes('commission rows moved ${commissionMoved}'));
+});
+
+test('G7 (b) both lanes land their cancellation with the row’s owner — userId: owned.userId, never null', () => {
+  const landings = callsOf(code(FLOW), 'landLiteApiCancellation');
+  assert.equal(landings.length, 2, 'the hotel lane and the flight lane');
+  for (const l of landings) {
+    assert.match(l.args[1], /(^|[{,\s])userId: owned\.userId,/);
+    assert.doesNotMatch(l.args[1], /\buserId:\s*null\b/);
+  }
+});
+
+test('G7 (c) both lanes email the caller’s address — an account holder’s hotel and flight cancel alike', () => {
+  for (const lane of ['hotel', 'flight'] as const) {
+    const sends = callsOf(laneOf(code(FLOW), lane), 'sendCancellationEmail');
+    assert.equal(sends.length, 1, lane);
+    assert.deepEqual(sends[0].args.slice(0, 2), ['owned', 'caller.accountEmail'], lane);
+  }
+});
+
+test('G7 (d) the page reads the booking again after a successful cancel, before it writes its line', () => {
+  const page = code(PAGE);
+  const doCancel = page.slice(page.indexOf('const doCancel = async () => {'), page.indexOf('return (\n    <main'));
+  const refused = doCancel.indexOf('if (!res.ok) {');
+  const reread = doCancel.indexOf('const read = await readBooking();');
+  const shown = doCancel.indexOf("setView({ state: 'open', receipt: read.receipt, cancel: read.cancel });");
+  const line = doCancel.indexOf('setCancelOutcome(`${what} ${told}`);');
+  assert.ok(refused > 0 && reread > refused && shown > reread && line > shown, `refused ${refused} → re-read ${reread} → shown ${shown} → line ${line}`);
 });

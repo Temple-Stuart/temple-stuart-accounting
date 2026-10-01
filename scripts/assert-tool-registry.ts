@@ -170,7 +170,7 @@ import { buildIcs, escapeIcsText, foldIcsLine } from '../src/lib/calendar/ics';
 // LAW-02: a figure nobody stated is NULL, named on screen.
 import { prebookUnstatedMoney } from '../src/lib/checkout/prebookGate';
 import { PHONE_CARD } from '../src/lib/travel/phoneCard';
-import { OWNED_LOADERS, closingOf, enclosing, entryCalls, exportedMethods, flatWhere, flowWriteRefusals, handlerIdentity, importSpecifiers, inScope, judgeWrites, topFunctions } from '../src/lib/security/ownershipLaw';
+import { OWNED_LOADERS, closingOf, enclosing, entryCalls, exportedMethods, flatWhere, flowWriteRefusals, handlerIdentity, importSpecifiers, inScope, judgeWrites, splitArgs, topFunctions } from '../src/lib/security/ownershipLaw';
 import { bookedStay, statedStayDay, unstatedStayLine } from '../src/lib/reservations/stayDates';
 import { passwordLeaks, passwordSchema } from '../src/lib/security/passwordLaw';
 import { PARTICIPANT_RESPONSE_SELECT } from '../src/lib/trips/participantSelect';
@@ -8078,7 +8078,8 @@ const GATED_FLOWS: ReadonlyArray<{ lib: string; entries: readonly string[]; owne
     ],
   },
 ];
-const SEC02_PINNED = { publicWriters: 12, ownerConsole: 6, sharedRows: 1, derivedOwned: 4, helperPreconditions: 1, gatedFlows: 1 } as const;
+// GUEST-02b (2026-09-30): the callers of the gated flows are closed by count too, like every other table.
+const SEC02_PINNED = { publicWriters: 12, ownerConsole: 6, sharedRows: 1, derivedOwned: 4, helperPreconditions: 1, gatedFlows: 1, gatedCallers: 2 } as const;
 
 lawGuard('The ownership law', () => {
   let secViolations = 0;
@@ -8098,7 +8099,7 @@ lawGuard('The ownership law', () => {
   const isBypassUrl = (url: string) => exactBypass.includes(url) || suffixBypass.some((b) => url.startsWith(b.prefix) && url.endsWith(b.suffix));
 
   // The pins: every table is closed at the census.
-  const counts = { publicWriters: PUBLIC_WRITERS.length, ownerConsole: OWNER_CONSOLE.length, sharedRows: SHARED_ROWS.length, derivedOwned: DERIVED_OWNED.length, helperPreconditions: HELPER_PRECONDITIONS.length, gatedFlows: GATED_FLOWS.length };
+  const counts = { publicWriters: PUBLIC_WRITERS.length, ownerConsole: OWNER_CONSOLE.length, sharedRows: SHARED_ROWS.length, derivedOwned: DERIVED_OWNED.length, helperPreconditions: HELPER_PRECONDITIONS.length, gatedFlows: GATED_FLOWS.length, gatedCallers: GATED_FLOWS.reduce((n, g) => n + g.callers.length, 0) };
   for (const k of Object.keys(SEC02_PINNED) as Array<keyof typeof SEC02_PINNED>) {
     if (counts[k] > SEC02_PINNED[k]) secFail(`${k} holds ${counts[k]} entries, pinned at ${SEC02_PINNED[k]} by the census — a new public writer, console route or unproven write is a ruling, not an entry`);
   }
@@ -9485,6 +9486,13 @@ lawGuard('The guest booking law', () => {
 //         cancel_pending.
 //      6. THE PINS: five re-pinned and two pinned new, under dated GUEST-02 notes, each re-pin
 //         with the hash it had on main 6e71ad0d.
+//      7. GUEST-02b (2026-09-30): WHAT ONLY THE PIN HELD. (a) No answer names commission — no
+//         NextResponse.json( in the flow or either gate answers an object carrying it, and the
+//         flow reads its commission count only to log it (Temple Stuart's books, never the
+//         customer's — RECEIPT-01); (b) both lanes land their cancellation with the row's owner
+//         (userId: owned.userId, never null); (c) both lanes email the caller's address
+//         (sendCancellationEmail(owned, caller.accountEmail, …)); (d) the page reads the booking
+//         again after a successful cancel, before it writes its line.
 const G_LEAF = 'src/lib/guest/guestAccess.ts';
 const G_DECISION = 'src/lib/guest/guestSession.ts';
 const G_KEY_FILE = 'src/lib/cookie-auth.ts';
@@ -9831,14 +9839,45 @@ for (const f of [G_LEAF, G_DECISION, ...G_ROUTES, G_CANCEL, G_FLOW, G_PAGE, G_RE
     if (repinned[pin.file]) {
       if (!new RegExp(`GUEST-02 \\(2026-09-30\\): re-pinned — [^\\n]+\\n[^\\n]*Was ${repinned[pin.file]} at main 6e71ad0d\\.`).test(above)) guestFail(`${pin.file}’s pin does not sit under a dated GUEST-02 note with the hash it had on main 6e71ad0d`);
     } else if (pinnedNew.includes(pin.file)) {
-      if (!/GUEST-02 \(2026-09-30\): pinned — [^\n]+$/.test(above)) guestFail(`${pin.file}’s pin does not sit under a dated GUEST-02 note saying why it is pinned`);
+      // GUEST-02b (2026-09-30): a newer dated note may stack below this one, nearest the pin.
+      if (!/GUEST-02 \(2026-09-30\): pinned — [^\n]+(\n|$)/.test(above)) guestFail(`${pin.file}’s pin does not sit under a dated GUEST-02 note saying why it is pinned`);
     } else if (/GUEST-02/.test(above)) guestFail(`${pin.file} carries a GUEST-02 note — GUEST-02 re-pinned five files, pinned two, and nothing else`);
   }
   for (const f of [...Object.keys(repinned), ...pinnedNew]) if (!BOOKING_FLOW_FILES.some((p) => p.file === f)) guestFail(`${f} is not pinned`);
   if ((notes.match(/GUEST-02 \(2026-09-30\): re-pinned/g) ?? []).length !== 5 || (notes.match(/GUEST-02 \(2026-09-30\): pinned/g) ?? []).length !== 2) guestFail('src/lib/travelBookingFlow.ts carries other than five GUEST-02 re-pin notes and two GUEST-02 pin notes');
+  // 7.7 GUEST-02b (2026-09-30): what only the pin held, now law.
+  const flowSrc = codeOf(G_FLOW);
+  const argsOf = (src: string, at: number) => { const open = src.indexOf('(', at); const close = closingOf(src, open); return close < 0 ? [] : splitArgs(src.slice(open + 1, close)).map((a) => a.trim()); };
+  const callsOf = (src: string, name: string) => [...src.matchAll(new RegExp(`\\b${name}\\(`, 'g'))].filter((m) => !/function\s+$/.test(src.slice(Math.max(0, m.index! - 24), m.index!))).map((m) => ({ at: m.index!, args: argsOf(src, m.index!) }));
+  const lineOf = (src: string, at: number) => src.slice(0, at).split('\n').length;
+  // (a) no answer names commission; the flow reads its count only to log it.
+  for (const f of [G_FLOW, 'src/app/api/reservations/[id]/cancel/route.ts', G_CANCEL]) {
+    const src = codeOf(f);
+    for (const call of callsOf(src, 'NextResponse\\.json')) if (/commission/i.test(call.args[0] ?? '')) guestFail(`${f}:${lineOf(src, call.at)} answers commission — Temple Stuart\u2019s books, never the customer\u2019s cancel answer (RECEIPT-01)`);
+  }
+  const commissionReads = flowSrc.split('\n').filter((l) => /\bcommissionMoved\b/.test(l) && !/return \{ row, (moneyEvents|decision), commissionMoved: commission\.count \};|const \{ row, (moneyEvents|decision), commissionMoved \} = landed\.reservation;|^\s*(if \(commissionMoved === 0\) )?console\.log\(`\[Reservation cancel\] reservation \$\{owned\.id\}: /.test(l));
+  if (commissionReads.length > 0) guestFail(`${G_FLOW} reads its commission count other than to log it [${commissionReads.map((l) => l.trim()).join(' | ')}] — the count goes to the server log, never an answer`);
+  // (b) both lanes land their cancellation with the row's owner.
+  const landings = callsOf(flowSrc, 'landLiteApiCancellation');
+  if (landings.length !== 2 || landings.some((c) => !/(^|[{,\s])userId: owned\.userId,/.test(c.args[1] ?? '') || /\buserId:\s*null\b/.test(c.args[1] ?? ''))) guestFail(`${G_FLOW}: a lane lands its cancellation without the row\u2019s owner (userId: owned.userId) — an account\u2019s cancel evidence filed under a guest reference, or a guest\u2019s with no owner`);
+  // (c) both lanes email the caller's address.
+  const hotelLane = flowSrc.slice(flowSrc.indexOf('async function cancelHotel('), flowSrc.indexOf('async function cancelFlight('));
+  const flightLane = flowSrc.slice(flowSrc.indexOf('async function cancelFlight('));
+  for (const [lane, text] of [['hotel', hotelLane], ['flight', flightLane]] as const) {
+    const sends = callsOf(text, 'sendCancellationEmail');
+    if (sends.length !== 1 || sends[0].args[0] !== 'owned' || sends[0].args[1] !== 'caller.accountEmail') guestFail(`${G_FLOW}: the ${lane} lane does not email the caller\u2019s address (sendCancellationEmail(owned, caller.accountEmail, …)) — an account holder\u2019s ${lane} cancel would send no email`);
+  }
+  // (d) the page reads the booking again after a successful cancel, before it writes its line.
+  const managePage = codeOf(G_PAGE);
+  const doCancel = managePage.slice(managePage.indexOf('const doCancel = async () => {'), managePage.indexOf('return (\n    <main'));
+  const refusedAt = doCancel.indexOf('if (!res.ok) {');
+  const rereadAt = doCancel.indexOf('const read = await readBooking();');
+  const shownAt = doCancel.indexOf("setView({ state: 'open', receipt: read.receipt, cancel: read.cancel });");
+  const lineWrittenAt = doCancel.indexOf('setCancelOutcome(`${what} ${told}`);');
+  if (!(refusedAt >= 0 && rereadAt > refusedAt && shownAt > rereadAt && lineWrittenAt > shownAt)) guestFail(`${G_PAGE} does not read the booking again after a successful cancel, before it writes its line — the old status and the Cancel control would stay on screen`);
 }
 
-if (guestViolations === 0) console.log(`✔ The guest booking law passed — one guest key (HMAC-SHA256(JWT_SECRET, ts-guest:v1), in cookie-auth.ts only) under which every 8-character code and one-hour session is made; the lookup counts the IP and then the reference before any read, reads guest rows only, compares every row and a dummy in constant time, and answers every failure the one 404; the booking verifies its session first, reads that reservation alone and answers the vendor’s side only, never cached; ${G_ROUTES.length} GUEST-01 routes under /api/guest, none a writer, and GUEST-02’s cancel the one public writer (${G_ROUTES.length + 1} route files); the door is the one lookup box under the home page\u2019s booking section; the code travels only in the three emails, for a guest row alone; both book routes re-pinned, dated. GUEST-02: a guest cancels the one booking their session opened — the session, the IP, 10 per IP and 5 per reservation in the cancel’s own buckets, then the row read again as still a guest’s, then the ONE cancel flow under the guest’s caller, never cached; offered only on a confirmed LiteAPI hotel or flight (probed); the page opens the one dialog with the guest’s URL; the landing names its owner and the email carries the block; five re-pins and two pins, dated.`);
+if (guestViolations === 0) console.log(`✔ The guest booking law passed — one guest key (HMAC-SHA256(JWT_SECRET, ts-guest:v1), in cookie-auth.ts only) under which every 8-character code and one-hour session is made; the lookup counts the IP and then the reference before any read, reads guest rows only, compares every row and a dummy in constant time, and answers every failure the one 404; the booking verifies its session first, reads that reservation alone and answers the vendor’s side only, never cached; ${G_ROUTES.length} GUEST-01 routes under /api/guest, none a writer, and GUEST-02’s cancel the one public writer (${G_ROUTES.length + 1} route files); the door is the one lookup box under the home page\u2019s booking section; the code travels only in the three emails, for a guest row alone; both book routes re-pinned, dated. GUEST-02: a guest cancels the one booking their session opened — the session, the IP, 10 per IP and 5 per reservation in the cancel’s own buckets, then the row read again as still a guest’s, then the ONE cancel flow under the guest’s caller, never cached; offered only on a confirmed LiteAPI hotel or flight (probed); the page opens the one dialog with the guest’s URL; the landing names its owner and the email carries the block; five re-pins and two pins, dated. GUEST-02b: no cancel answer names commission (the count goes to the server log), both lanes land with the row’s owner and email the caller’s address, and the page reads the booking again before its line.`);
 else console.log(`✖ The guest booking law FAILED — ${guestViolations} violation(s).`);
 });
 

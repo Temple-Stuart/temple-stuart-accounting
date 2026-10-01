@@ -63,9 +63,11 @@ import { guestManageFor } from '@/lib/reservations/lifecycleSend';
 //            other  → 409 cancel_lane_unsupported, before any vendor call.
 //   LAUNCH-01 RETIRE-01: provider 'duffel' rows are HISTORY — Duffel is retired
 //   (no client, no credentials), so an in-app cancel of one is refused with a
-//   declared 409 naming the manual path; the row is never touched. The bookings
-//   lists no longer offer the action for those rows; this branch answers a
-//   direct call honestly instead of a 404 that would deny the record exists.
+//   declared 409 naming the manual path; the row is never touched. GUEST-02b
+//   (2026-09-30): since CANCEL-01 the lists offer Cancel on a confirmed hotel or
+//   flight row whatever its provider, a Duffel history row included, and this
+//   branch answers that one by name (409) instead of a 404 that would deny the
+//   record exists.
 //
 // Money truth: the provider's response is the ONLY authority; absent fields
 // are null ("not stated"), never defaulted. Rows are NEVER deleted — the
@@ -439,6 +441,11 @@ async function cancelHotel(owned: CancelRow, caller: CancelCaller) {
     );
   }
   const { row, moneyEvents, commissionMoved } = landed.reservation;
+  // GUEST-02b (2026-09-30): the commission rows this cancel moved are Temple Stuart's books, never
+  // the customer's answer — told to the server log after the transaction, the apply leaf's way
+  // (src/lib/reservations/applyVendorState.ts).
+  console.log(`[Reservation cancel] reservation ${owned.id}: hotel cancel committed — commission rows moved ${commissionMoved}`);
+  if (commissionMoved === 0) console.log(`[Reservation cancel] reservation ${owned.id}: no 'estimated' commission row to move — a commission already locked ('confirmed') is left as is (COMM-01)`);
   // AUDIT-01: the outcome — the landed cancellation its evidence — and each money fact.
   await recordBookingEvent({ reservation: booking, kind: 'reservation_cancelled', actor, before: { status: owned.status }, after: { status: row.status, providerStatus: landed.parsed.status }, evidence: { table: 'arrivals', id: landed.arrivalId } });
   await recordStatedMoney(owned, owned.userId, actor, landed.arrivalId);
@@ -461,7 +468,6 @@ async function cancelHotel(owned: CancelRow, caller: CancelCaller) {
       pending: false,
       cancelIntentAt: null,
       moneyEvents: moneyEvents.length,
-      commissionMoved,
       calendar,
     },
     email: emailStatus,
@@ -572,6 +578,13 @@ async function cancelFlight(owned: CancelRow, caller: CancelCaller) {
     );
   }
   const { row, decision, commissionMoved } = landed.reservation;
+  // GUEST-02b (2026-09-30): on a FINAL answer the commission could move — the rows moved go to the
+  // server log after the transaction, the apply leaf's way (src/lib/reservations/applyVendorState.ts),
+  // never to the customer's answer. A 202 moves none by design (item 3 resolves it).
+  if (decision.commission === 'cancel') {
+    console.log(`[Reservation cancel] reservation ${owned.id}: final flight cancel committed — commission rows moved ${commissionMoved}`);
+    if (commissionMoved === 0) console.log(`[Reservation cancel] reservation ${owned.id}: no 'estimated' commission row to move — a commission already locked ('confirmed') is left as is (COMM-01)`);
+  }
 
   // ─── 202: the vendor's own cancelIntentAt, one GET ───────────────────────
   // The 202 body carries no cancelIntentAt; GET /flights/bookings/{id} does
@@ -637,7 +650,6 @@ async function cancelFlight(owned: CancelRow, caller: CancelCaller) {
       pending: !decision.final,
       cancelIntentAt,
       moneyEvents: decision.moneyEvents.length,
-      commissionMoved,
       calendar,
     },
     email: emailStatus,
