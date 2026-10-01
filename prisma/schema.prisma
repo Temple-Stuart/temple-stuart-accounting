@@ -2903,6 +2903,11 @@ enum AuditActionType {
   // operations_ list.
   operations_plan_vendor_set
   operations_plan_vendor_cleared
+  // WEEK-02 (2026-09-30): a done's note edited by its owner, appended in the order
+  // ALTER TYPE ... ADD VALUE gives it — migration
+  // 20260930210000_week_02_completion_note_edited. It is in the audit-log route's
+  // operations_ list.
+  operations_routine_completion_note_edited
 }
 
 model audit_log {

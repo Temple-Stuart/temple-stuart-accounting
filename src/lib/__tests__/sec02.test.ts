@@ -57,8 +57,12 @@ test('every export form is read — the destructured PUT a `function|const` coun
   // participants routes, each exporting DELETE — deleted with it.
   // LEGACY-DEL-02 (2026-09-30): four more went with the dead travel code — the lodging, transfers, vehicles and
   // activities [optionId] routes, each exporting PATCH and DELETE.
-  assert.equal(narrow.length, 40, 'the count the ruling verified on main 11445ca1 (47), + the plan-vendors DELETE (VENDOR-01), − the four legacy-planner routes (LEGACY-DEL-01), − the four option routes (LEGACY-DEL-02)');
-  assert.equal(wide.length, 41, 'the census: 40 + the inngest route (49 before the four legacy-planner routes left — LEGACY-DEL-01; 45 before the four option routes left — LEGACY-DEL-02)');
+  // WEEK-02 (2026-09-30): + src/app/api/operations/routines/[id]/completions/[completionId]/route.ts PATCH — a
+  // done's note edited; an owned writer the ownership law reads (the cart-plan gate first, the completion read by
+  // { id, routine_id, user_id } and refused on a miss, the update keyed on that owned row); the only change.
+  assert.ok(narrow.includes('src/app/api/operations/routines/[id]/completions/[completionId]/route.ts'));
+  assert.equal(narrow.length, 41, 'the count the ruling verified on main 11445ca1 (47), + the plan-vendors DELETE (VENDOR-01), − the four legacy-planner routes (LEGACY-DEL-01), − the four option routes (LEGACY-DEL-02), + the completion note PATCH (WEEK-02)');
+  assert.equal(wide.length, 42, 'the census: 41 + the inngest route (49 before the four legacy-planner routes left — LEGACY-DEL-01; 45 before the four option routes left — LEGACY-DEL-02; 41 before the completion note PATCH — WEEK-02)');
   assert.deepEqual(wide.filter((f) => !narrow.includes(f)), ['src/app/api/inngest/route.ts']);
 });
 

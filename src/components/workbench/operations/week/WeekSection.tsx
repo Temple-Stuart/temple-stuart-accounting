@@ -5,8 +5,9 @@
  * active routines down in the order they start. ‹ › moves a week, "this week"
  * comes back; today's column is marked (the browser's date, src/lib/localToday).
  *
- *   · Each row's head: the name, the time window, the book, the figure per
- *     occurrence (the lines leaf — routinePlanned / plannedLine).
+ *   · Each row's head: the name, the book, the figure per occurrence (the
+ *     lines leaf — routinePlanned / plannedLine). Its time window is its own
+ *     column, Time (WEEK-02).
  *   · Each cell: that day's occurrence from GET /api/operations/routines/today
  *     ?date=<day> — seven reads (WeekCell: done with its note, or a note box and
  *     "✓ done" on today or earlier).
@@ -20,6 +21,12 @@
  * reason above the grid; a report the section cannot read says so once, and the
  * routines, completions and tasks still show; stranded vendors, and any plan
  * line with no row, are named once above the grid. Every fetch is weekReads.ts's.
+ *
+ * WEEK-02 (2026-09-30): the time filter — "Show [from] to [to]", both ends
+ * included (weekPlan.ts filterByStart). It draws fewer rows and says how many it
+ * hid; it never narrows what is named above the grid (the refused, the report,
+ * stranded vendors, lines with no row read every routine). The Tasks row always
+ * shows. The filter lasts while the page is open — nothing is stored.
  */
 
 'use client';
@@ -37,11 +44,12 @@ import RefusedRoutines from '../routines/RefusedRoutines';
 import type { RefusedRoutine, Routine } from '../routines/types';
 import { taskStatusWords } from '../projects/projectsTableText';
 import WeekCell, { DayPlanLines } from './WeekCell';
-import { WEEKDAY_WORDS, cellKey, orderRoutines, placeLines, shiftWeek, timeWindow, weekDays } from './weekPlan';
+import { WEEKDAY_WORDS, cellKey, filterByStart, hiddenLine, orderRoutines, placeLines, shiftWeek, timeWindow, weekDays } from './weekPlan';
 import { readDay, readItems, readReport, readRoutines, type DayAnswer, type Read } from './weekReads';
 
 const cellClass = 'px-2 py-1.5 align-top border-t border-border-light text-xs min-w-[8rem]';
 const chip = 'px-2 py-0.5 border border-border rounded hover:bg-bg-row text-xs disabled:opacity-50';
+const timeBox = 'px-1.5 py-0.5 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
 
 export default function WeekSection() {
   const { entities } = useOperationsEntity();
@@ -53,6 +61,9 @@ export default function WeekSection() {
   const [report, setReport] = useState<Read<BudgetReportResponse> | null>(null);
   const [items, setItems] = useState<Read<DailyPlanItem[]> | null>(null);
   const [reportReads, setReportReads] = useState(0);
+  // The time filter's boxes — 'HH:MM', or '' when empty. React state only.
+  const [timeFrom, setTimeFrom] = useState('');
+  const [timeTo, setTimeTo] = useState('');
   const directory = useDirectory();
 
   useEffect(() => {
@@ -128,6 +139,10 @@ export default function WeekSection() {
   const plans = report !== null && report.ok ? report.value.plans : null;
   const listedLines: readonly PlanLine[] = plans !== null && plans.listed ? plans.lines : [];
   const placed = placeLines(listedLines, rows);
+  // The rows drawn: the filter reads every ordered routine and keeps their order.
+  const filter = { from: timeFrom, to: timeTo };
+  const filtered = filterByStart(rows, filter);
+  const hidden = hiddenLine(filter, filtered);
   const itemsOf = (day: string): DailyPlanItem[] => (items !== null && items.ok ? items.value.filter((it) => it.plan_date.slice(0, 10) === day) : []);
   const planProps = (lines: readonly PlanLine[]) => ({ lines, bookName, directory, reload: reloadReport });
 
@@ -141,6 +156,13 @@ export default function WeekSection() {
           <button type="button" className={chip} aria-label="Forward one week" onClick={() => setWeekOf(shiftWeek(weekOf, 1))}>›</button>
           <button type="button" className={chip} disabled={weekOf === shiftWeek(today, 0)} onClick={() => setWeekOf(shiftWeek(today, 0))}>this week</button>
         </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5 text-xs" data-week-time-filter>
+        <span className="text-text-muted">Show</span>
+        <input type="time" value={timeFrom} onChange={(e) => setTimeFrom(e.target.value)} aria-label="Start time from" className={timeBox} data-week-time-from />
+        <span className="text-text-muted">to</span>
+        <input type="time" value={timeTo} onChange={(e) => setTimeTo(e.target.value)} aria-label="Start time to" className={timeBox} data-week-time-to />
+        <button type="button" className={chip} disabled={timeFrom === '' && timeTo === ''} onClick={() => { setTimeFrom(''); setTimeTo(''); }}>clear</button>
       </div>
 
       {/* Named once above the grid — never dropped, never filled in. */}
@@ -166,11 +188,13 @@ export default function WeekSection() {
         </div>
       )}
 
+      {hidden !== null && <p className="text-xs text-amber-900" data-week-hidden>{hidden}</p>}
       <div className="overflow-x-auto border border-border rounded bg-white">
         <table className="w-full min-w-[64rem] border-collapse text-xs" data-week-table>
           <thead>
             <tr className="text-left text-text-faint uppercase tracking-wide">
               <th className="px-2 py-1.5 font-normal">Routine</th>
+              <th className="px-2 py-1.5 font-normal">Time</th>
               {days.map((day, i) => (
                 <th key={day} className={`px-2 py-1.5 font-normal ${day === today ? 'bg-purple-50 text-brand-purple' : ''}`} data-week-day={day} data-week-today={day === today ? '' : undefined}>
                   {WEEKDAY_WORDS[i]} {day.slice(8, 10)}{day === today && ' · today'}
@@ -180,12 +204,15 @@ export default function WeekSection() {
           </thead>
           <tbody>
             {routines === null && (
-              <tr><td colSpan={8} className={cellClass}>loading the routines…</td></tr>
+              <tr><td colSpan={9} className={cellClass}>loading the routines…</td></tr>
             )}
             {routines !== null && routines.ok && rows.length === 0 && (
-              <tr><td colSpan={8} className={`${cellClass} italic text-text-muted`}>no active routines</td></tr>
+              <tr><td colSpan={9} className={`${cellClass} italic text-text-muted`}>no active routines</td></tr>
             )}
-            {rows.map((r) => {
+            {rows.length > 0 && filtered.shown.length === 0 && (
+              <tr><td colSpan={9} className={`${cellClass} italic text-text-muted`} data-week-all-hidden>no routine starts in this window</td></tr>
+            )}
+            {filtered.shown.map((r) => {
               const planned = routinePlanned({ budget_amount: r.budget_amount ?? null, coa_code: r.coa_code ?? null, steps: r.steps });
               const hours = timeWindow(r.start_time, r.end_time);
               const isRefused = refused.some((x) => x.routine_id === r.id);
@@ -193,12 +220,14 @@ export default function WeekSection() {
                 <tr key={r.id} data-week-row={r.id}>
                   <td className={`${cellClass} w-56`} data-week-row-head>
                     <div className="font-bold text-text-primary">{r.name}</div>
-                    {hours !== null && <div className="font-mono text-text-muted">{hours}</div>}
                     <div className="text-text-muted">{bookName(r.entity_id)}</div>
                     {planned.amount !== null && (
                       <div className="font-mono tabular-nums text-text-primary" data-week-planned={planned.from}>{plannedLine(planned)}</div>
                     )}
                     {isRefused && <div className="text-amber-900">cannot be placed — named above</div>}
+                  </td>
+                  <td className={`${cellClass} font-mono whitespace-nowrap text-text-primary`} data-week-time>
+                    {hours === null ? <span className="text-text-muted">—</span> : hours}
                   </td>
                   {days.map((day) => {
                     const read = daysRead[day];
@@ -227,6 +256,7 @@ export default function WeekSection() {
             })}
             <tr data-week-tasks-row>
               <td className={`${cellClass} font-bold text-text-primary`}>Tasks</td>
+              <td className={cellClass} data-week-tasks-time><span className="text-text-muted">—</span></td>
               {days.map((day) => {
                 const dayItems = itemsOf(day);
                 const lines = placed.taskCells.get(day) ?? [];

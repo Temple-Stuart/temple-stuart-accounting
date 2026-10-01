@@ -5,10 +5,15 @@
  * beneath (a Daily Vision journal is the note on that routine's day). Not done,
  * on today or an earlier day, on a status Today lets you complete → a note box
  * and "✓ done": the note goes with the completion through the one writer
- * (routines/completeRoutine.ts). A later day offers no done. A saved note is
- * read-only here — no route edits a completion. A refusal shows the route's own
- * words in the cell. Beneath: the day's plan lines for the routine, each with
- * its amount and Budget's own vendor box.
+ * (routines/completeRoutine.ts). A later day offers no done. A refusal shows
+ * the route's own words in the cell. Beneath: the day's plan lines for the
+ * routine, each with its amount and Budget's own vendor box.
+ *
+ * WEEK-02 (2026-09-30): a done's note can be edited, on any day it is done —
+ * "edit note" opens a box holding the note (empty when there is none); "save"
+ * sends it through the same one writer (editCompletionNote) and the day is read
+ * again; "cancel" closes the box and sends nothing. Saving an empty box removes
+ * the note. A refusal shows the route's own words under the done.
  */
 
 'use client';
@@ -18,7 +23,7 @@ import { formatCents } from '@/lib/budget/format';
 import type { PlanLine } from '@/lib/budget/planLines';
 import { instantToZoned } from '@/lib/time';
 import { VendorBox, type useDirectory } from '@/components/budget/DayPlanDrill';
-import { completeRoutine } from '../routines/completeRoutine';
+import { completeRoutine, editCompletionNote } from '../routines/completeRoutine';
 import type { TodayRoutineEntry } from '../routines/types';
 import { TODAY_STATUS_LABEL } from '../routines/types';
 import { offersDone } from './weekPlan';
@@ -64,6 +69,8 @@ export default function WeekCell({ entry, timezone, day, today, onDone, plan }: 
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [words, setWords] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
 
   if (entry === undefined) {
     return (
@@ -89,6 +96,34 @@ export default function WeekCell({ entry, timezone, day, today, onDone, plan }: 
     }
   };
 
+  const editNote = () => {
+    if (entry.completion === null) throw new Error('WeekCell: "edit note" is offered on a done only');
+    setDraft(entry.completion.notes ?? '');
+    setWords(null);
+    setEditing(true);
+  };
+
+  const saveNote = async () => {
+    setBusy(true);
+    setWords(null);
+    try {
+      if (entry.completion === null) throw new Error('WeekCell: "save" is offered on a done only');
+      const answer = await editCompletionNote(entry.routine.id, entry.completion.id, draft);
+      if (!answer.ok) { setWords(answer.message); return; }
+      setEditing(false);
+      onDone();
+    } catch (e) {
+      setWords(e instanceof Error ? e.message : 'failed to save the note');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cancelNote = () => {
+    setEditing(false);
+    setWords(null);
+  };
+
   return (
     <>
       {entry.status === 'completed' && entry.completion !== null ? (
@@ -96,6 +131,44 @@ export default function WeekCell({ entry, timezone, day, today, onDone, plan }: 
           <span className="text-green-800">✓ done {instantToZoned(new Date(entry.completion.completed_at), timezone).time}</span>
           {entry.completion.notes !== null && (
             <div className="mt-0.5 whitespace-pre-wrap text-text-primary" data-week-note>{entry.completion.notes}</div>
+          )}
+          {editing ? (
+            <div className="mt-1 space-y-1" data-week-note-edit>
+              <textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                rows={2}
+                className="w-full min-w-[9rem] px-1.5 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple"
+                data-week-note-edit-box
+              />
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={saveNote}
+                  disabled={busy}
+                  className="px-2 py-0.5 border border-border rounded hover:bg-bg-row disabled:opacity-50 text-xs"
+                  data-week-note-save
+                >
+                  {busy ? '…' : 'save'}
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelNote}
+                  disabled={busy}
+                  className="px-2 py-0.5 border border-border rounded hover:bg-bg-row disabled:opacity-50 text-xs"
+                  data-week-note-cancel
+                >
+                  cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" onClick={editNote} className="block mt-0.5 text-text-muted underline hover:text-brand-purple" data-week-edit-note>
+              edit note
+            </button>
+          )}
+          {words !== null && (
+            <div className="mt-1 px-2 py-1 rounded border bg-red-50 border-red-200 text-red-800" data-week-refused>{words}</div>
           )}
         </div>
       ) : (

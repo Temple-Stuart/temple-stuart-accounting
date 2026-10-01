@@ -350,8 +350,9 @@ test('T7 the schema model\'s columns match the migration\'s, and no column of th
     const block = new RegExp(`model ${parent} \\{([\\s\\S]*?)\\n\\}`).exec(schema);
     assert.ok(block && /planned_item_vendors\s+planned_item_vendors\[\]/.test(block[1]), `${parent} carries the back-relation`);
   }
-  assert.match(schema, /operations_plan_vendor_set\s+operations_plan_vendor_cleared\s+\}/, 'appended to AuditActionType in ALTER TYPE order');
-  assert.match(code('src/app/api/audit-log/route.ts'), /'operations_plan_vendor_set',\s*'operations_plan_vendor_cleared',\s*\],/);
+  // WEEK-02 (2026-09-30): the next value is appended after them, in ALTER TYPE order — the pair stays in place, then it.
+  assert.match(schema, /operations_plan_vendor_set\s+operations_plan_vendor_cleared\s+operations_routine_completion_note_edited\s+\}/, 'appended to AuditActionType in ALTER TYPE order');
+  assert.match(code('src/app/api/audit-log/route.ts'), /'operations_plan_vendor_set',\s*'operations_plan_vendor_cleared',\s*'operations_routine_completion_note_edited',\s*\],/);
 });
 
 // ── TAB13-04 T7 · VENDOR-01'S AUDIT ITEMS ────────────────────────────────────

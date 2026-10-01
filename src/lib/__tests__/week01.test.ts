@@ -248,7 +248,9 @@ test('T3 a cell: "—", done with its note in full, or a note box and ✓ done s
   assert.match(c, /\{offersDone\(entry\.status, day, today\) && \(/);
   assert.match(c, /const answer = await completeRoutine\(entry\.routine\.id, entry\.expected_at, note\.trim\(\) === '' \? undefined : note\);/);
   assert.match(c, /if \(!answer\.ok\) \{ setWords\(answer\.message\); return; \}/, "a refusal is the route's own words, in the cell");
-  assert.doesNotMatch(c, /method: 'PATCH'|\/completions/, 'a saved note is read-only here');
+  // WEEK-02 (2026-09-30): a done's note is edited now — through the one writer; the cell still sends nothing of its own.
+  assert.doesNotMatch(c, /method: 'PATCH'|\/completions/, 'the edit goes through the one writer — the cell names no route');
+  assert.match(c, /await editCompletionNote\(entry\.routine\.id, entry\.completion\.id, draft\)/, "the writer's edit, with the row's routine and its completion");
   // The amount and Budget's own vendor box — imported, never copied.
   assert.match(c, /import \{ VendorBox, type useDirectory \} from '@\/components\/budget\/DayPlanDrill';/);
   assert.match(c, /<VendorBox line=\{line\} bookName=\{bookName\(line\.entityId\)\} directory=\{directory\} reload=\{reload\} \/>/);
@@ -348,7 +350,8 @@ test('T4 Today marks done through the one writer; Today and the Daily Plan name 
   assert.match(p, /<RefusedRoutines refused=\{refused\} \/>/);
   assert.match(p, /const showEmpty = !hasRoutines && !hasRefused && !hasItems && !loading && !error;/, 'a refused routine is never hidden behind "nothing scheduled"');
   // The writer is the only place a completion is posted from a screen.
-  const posters = [...tsFilesUnder('src/components'), ...tsFilesUnder('src/app')].filter((f) => !f.startsWith('src/app/api/') && /\/completions`/.test(code(f)));
+  // WEEK-02 (2026-09-30): the scan reads every completions URL — the POST's and the PATCH's.
+  const posters = [...tsFilesUnder('src/components'), ...tsFilesUnder('src/app')].filter((f) => !f.startsWith('src/app/api/') && /\/completions(`|\/\$\{)/.test(code(f)));
   assert.deepEqual(posters, [WRITER]);
   assert.match(comments(WRITER), /With no note the body\s*\n\s*\*\s*is exactly what Today always sent/);
 });
