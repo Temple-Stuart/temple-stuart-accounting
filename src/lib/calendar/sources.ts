@@ -96,7 +96,7 @@ export const CALENDAR_SOURCES: readonly CalendarSourceRule[] = [
     icon: '✈️',
     tint: TINTS.cyan,
     label: 'Trips',
-    writtenBy: 'src/app/api/trips/[id]/vendor-commit/route.ts:595 (the one writer now: the legacy planner\'s src/app/api/trips/[id]/commit/route.ts, which also wrote a row for a trip itself and its coordinates, was deleted — LEGACY-DEL-01, 2026-09-29)',
+    writtenBy: 'src/app/api/trips/[id]/vendor-commit/route.ts:595 (the one insert now: the legacy planner\'s src/app/api/trips/[id]/commit/route.ts, which also wrote a row for a trip itself and its coordinates, was deleted — LEGACY-DEL-01, 2026-09-29) · src/app/api/trips/[id]/itinerary/[itineraryId]/route.ts:233 (PATCH — TRIPDATE-01: an itinerary edit moves the row\'s dates with its itinerary row, in one transaction)',
     why: 'every committed flight, hotel, transfer and activity, and the rows for a trip itself that the legacy planner\'s commit wrote before it was deleted (LEGACY-DEL-01) — the only source that carries a time of day, and on those older rows coordinates',
   },
   {

@@ -41,6 +41,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { TripRow } from './AllTripsList';
 import { formatMoney, moneyColorClass } from '@/lib/money';
 import { LINE_STATUS, LINE_WORDS, lineStatusOf, type LineStatus, type StatusLink } from '@/lib/trips/lineStatus';
+// TRIPDATE-01 (2026-10-01): the fixed clock's one sentence — a display-only date or time cell's title.
+import { CLOCK_FIXED_WORDS } from '@/lib/trips/itineraryEdit';
 
 interface LedgerItem {
   id: string;
@@ -60,6 +62,9 @@ interface LedgerItem {
   // Vendor-option keys → which removal path a row uses (Remove vs Delete).
   vendorOptionId?: string | null;
   vendorOptionType?: string | null;
+  /** TRIPDATE-01 (2026-10-01): true when a vendor fixed the item's clock with its zone (a flight, a
+   *  timed tour) — its dates and times are shown, not editable; null on a manual line. */
+  clockFixed?: boolean | null;
 }
 
 type RowState = 'loading' | 'ok' | 'error';
@@ -161,11 +166,14 @@ function EditableCell({
   kind,
   value,
   editable,
+  title,
   onSave,
 }: {
   kind: 'date' | 'time';
   value: string | null;
   editable: boolean;
+  /** TRIPDATE-01: why a display-only cell is not editable (the fixed clock's sentence). */
+  title?: string;
   onSave: (next: string) => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
@@ -175,7 +183,7 @@ function EditableCell({
   const display = kind === 'date' ? fmtDate(value) : fmtTime(value);
   const inputVal = kind === 'date' ? toDateInput(value) : toTimeInput(value);
 
-  if (!editable) return <span className="text-text-faint">{display}</span>;
+  if (!editable) return <span className="text-text-faint" title={title}>{display}</span>;
 
   if (!editing) {
     return (
@@ -419,10 +427,12 @@ export default function TripBudgetActual({ trip, onTotals }: { trip: TripRow;
                       return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_PAINT[status]}`} data-line-status={status}>{status}</span>;
                     })()}
                   </td>
-                  <td className={td}><EditableCell kind="date" value={it.startDate} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'startDate', v)} /></td>
-                  <td className={td}><EditableCell kind="time" value={it.startTime} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'startTime', v)} /></td>
-                  <td className={td}><EditableCell kind="date" value={it.endDate} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'endDate', v)} /></td>
-                  <td className={td}><EditableCell kind="time" value={it.endTime} editable={!!it.itineraryId} onSave={(v) => saveCell(it, 'endTime', v)} /></td>
+                  {/* TRIPDATE-01 (2026-10-01): a clock a vendor fixed (clockFixed, from the one rule) is shown,
+                      not editable — the route refuses it; re-commit the item to change it. */}
+                  <td className={td}><EditableCell kind="date" value={it.startDate} editable={!!it.itineraryId && it.clockFixed !== true} title={it.clockFixed === true ? CLOCK_FIXED_WORDS : undefined} onSave={(v) => saveCell(it, 'startDate', v)} /></td>
+                  <td className={td}><EditableCell kind="time" value={it.startTime} editable={!!it.itineraryId && it.clockFixed !== true} title={it.clockFixed === true ? CLOCK_FIXED_WORDS : undefined} onSave={(v) => saveCell(it, 'startTime', v)} /></td>
+                  <td className={td}><EditableCell kind="date" value={it.endDate} editable={!!it.itineraryId && it.clockFixed !== true} title={it.clockFixed === true ? CLOCK_FIXED_WORDS : undefined} onSave={(v) => saveCell(it, 'endDate', v)} /></td>
+                  <td className={td}><EditableCell kind="time" value={it.endTime} editable={!!it.itineraryId && it.clockFixed !== true} title={it.clockFixed === true ? CLOCK_FIXED_WORDS : undefined} onSave={(v) => saveCell(it, 'endTime', v)} /></td>
                   <td className={`${td} text-text-muted`}>{fmtCadence(it.cadence)}</td>
                   <td className={`${td} text-text-muted`}>{txt(it.coaCode)}</td>
                   <td className={`${td} text-text-muted`}>{txt(it.vendor)}</td>

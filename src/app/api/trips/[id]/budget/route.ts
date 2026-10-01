@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+// TRIPDATE-01 (2026-10-01): the one rule — a clock a vendor fixed moves only by re-commit.
+import { clockIsFixed } from '@/lib/trips/itineraryEdit';
 
 export async function GET(
   request: Request,
@@ -45,6 +47,8 @@ export async function GET(
             id: true, vendorOptionId: true, vendorOptionType: true,
             homeDate: true, homeTime: true, destDate: true, destTime: true,
             recurrence: true, vendor: true, vendor_name: true,
+            // TRIPDATE-01: the instant a vendor fixed with its zone — clockIsFixed reads it.
+            start_at: true,
           },
         })
       : [];
@@ -64,6 +68,9 @@ export async function GET(
         endTime: itin?.destTime ?? null,
         cadence: itin?.recurrence ?? null,
         vendor: itin?.vendor_name ?? itin?.vendor ?? null,
+        // TRIPDATE-01: true when a vendor fixed this item's clock (the ledger shows its dates and
+        // times, not editable — re-commit to change them); null on a manual line, as above.
+        clockFixed: itin ? clockIsFixed(itin) : null,
       };
     });
 

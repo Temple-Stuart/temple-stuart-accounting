@@ -12,6 +12,8 @@
 
 import { useMemo, useState } from 'react';
 import { minuteOfDayFromTime, compareDayOrder } from '@/lib/content/dayOrder';
+// TRIPDATE-01 (2026-10-01): the one rule — a clock a vendor fixed (a flight, a timed tour) is shown, not edited.
+import { CLOCK_FIXED_WORDS, clockIsFixed } from '@/lib/trips/itineraryEdit';
 
 // Raw trip_itinerary row (Prisma → JSON: Decimal→string, DateTime/@db.Time→ISO).
 export interface TripItineraryRow {
@@ -34,6 +36,8 @@ export interface TripItineraryRow {
   vendorOptionId?: string | null;
   vendorOptionType?: string | null;
   note?: string | null;
+  /** TRIPDATE-01: the instant a vendor fixed with its zone at commit (a flight, a timed tour) — ISO, or null. */
+  start_at?: string | null;
 }
 
 /** Result of the inline time/date PATCH — the container does the fetch and
@@ -46,7 +50,8 @@ export interface PatchResult {
 export interface TripTimelineViewProps {
   itinerary: TripItineraryRow[];
   /** Trip startDate/endDate (ISO) — the day range. Falls back to the min/max
-   *  itinerary date when absent. */
+   *  itinerary date when absent. TRIPDATE-01: the range always takes every item's
+   *  days too — an item dated outside the trip is drawn on its own day. */
   startDate: string | null;
   endDate: string | null;
   /** The SAME uncommit handler the agenda popover wired to (page.tsx
@@ -181,8 +186,13 @@ export default function TripTimelineView({ itinerary, startDate, endDate, onUnco
     });
 
   const itinDates = itinerary.flatMap((r) => [dateOnly(r.homeDate), dateOnly(r.destDate)]).filter(Boolean);
-  const rangeStart = startDate ? dateOnly(startDate) : itinDates.length ? itinDates.slice().sort()[0] : null;
-  const rangeEnd = endDate ? dateOnly(endDate) : itinDates.length ? itinDates.slice().sort().at(-1)! : null;
+  // TRIPDATE-01 (2026-10-01): THE TIMELINE NEVER HIDES AN ITEM — the range covers the trip's
+  // stated days AND every item's days, so an item dated outside the trip is drawn on its own day.
+  const itinSorted = itinDates.slice().sort();
+  const startBounds = [startDate ? dateOnly(startDate) : null, itinSorted[0] ?? null].filter((d): d is string => !!d).sort();
+  const endBounds = [endDate ? dateOnly(endDate) : null, itinSorted.at(-1) ?? null].filter((d): d is string => !!d).sort();
+  const rangeStart = startBounds[0] ?? null;
+  const rangeEnd = endBounds.at(-1) ?? null;
 
   // Trip total = SUM of STORED costs (the real number — each row once). Never
   // month-filtered (the audited figure).
@@ -404,6 +414,11 @@ function BlockRow({
               </button>
             </span>
             {error && <span className="text-[10px] text-red-100 bg-red-600/40 rounded px-1">{error}</span>}
+          </span>
+        ) : clockIsFixed(row) ? (
+          // TRIPDATE-01: a clock a vendor fixed is shown, not offered for edit — re-commit to change it.
+          <span className="text-white whitespace-nowrap" title={CLOCK_FIXED_WORDS} data-itinerary-clock-fixed>
+            {block.timeText || '—'}
           </span>
         ) : (
           <button type="button" onClick={() => setEditing(true)} title="Edit time"
