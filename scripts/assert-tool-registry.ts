@@ -163,6 +163,8 @@ import { GUEST_NOTES, NOT_MATCHED, NOT_POSTED, NOT_STATED as RECEIPT_NOT_STATED,
 import { BOOKINGS_LEDGER_COLUMNS, bookingsLedgerRow } from '../src/lib/receipts/bookingsLedgerCsv';
 import { BOOKING_EVENT_KINDS, BUDGET_LINK_KINDS, bookingEventWords, timelineOf } from '../src/lib/reservations/timeline';
 import { LINE_STATUS, lineStatusOf } from '../src/lib/trips/lineStatus';
+import { CLOCK_FIXED_WORDS, ITINERARY_DATE_KEYS, ITINERARY_DATE_TIME_KEYS, clockIsFixed, datesAfterEdit, rangeRefusal, tripVendorSourceId, utcDay } from '../src/lib/trips/itineraryEdit';
+import { parseTripVendorSourceId } from '../src/lib/calendar/tripItem';
 import { BOOKING_WORDS, STATUS_WORDS, bookingIcsHref, bookingRowOf } from '../src/lib/reservations/bookingRow';
 // CAL-02: every leg of a booking on the calendar, and the booking as an iCalendar file.
 import { bookingCalendarRowsWhere, flightSegmentSourceId, flightSegmentsCalendarDecision, reservationIdOfCalendarSourceId, stayCalendarDecision } from '../src/lib/calendar/bookingEvent';
@@ -9879,6 +9881,223 @@ for (const f of [G_LEAF, G_DECISION, ...G_ROUTES, G_CANCEL, G_FLOW, G_PAGE, G_RE
 
 if (guestViolations === 0) console.log(`✔ The guest booking law passed — one guest key (HMAC-SHA256(JWT_SECRET, ts-guest:v1), in cookie-auth.ts only) under which every 8-character code and one-hour session is made; the lookup counts the IP and then the reference before any read, reads guest rows only, compares every row and a dummy in constant time, and answers every failure the one 404; the booking verifies its session first, reads that reservation alone and answers the vendor’s side only, never cached; ${G_ROUTES.length} GUEST-01 routes under /api/guest, none a writer, and GUEST-02’s cancel the one public writer (${G_ROUTES.length + 1} route files); the door is the one lookup box under the home page\u2019s booking section; the code travels only in the three emails, for a guest row alone; both book routes re-pinned, dated. GUEST-02: a guest cancels the one booking their session opened — the session, the IP, 10 per IP and 5 per reservation in the cancel’s own buckets, then the row read again as still a guest’s, then the ONE cancel flow under the guest’s caller, never cached; offered only on a confirmed LiteAPI hotel or flight (probed); the page opens the one dialog with the guest’s URL; the landing names its owner and the email carries the block; five re-pins and two pins, dated. GUEST-02b: no cancel answer names commission (the count goes to the server log), both lanes land with the row’s owner and email the caller’s address, and the page reads the booking again before its line.`);
 else console.log(`✖ The guest booking law FAILED — ${guestViolations} violation(s).`);
+});
+
+lawGuard('The trip date law', () => {
+
+// ── THE TRIP DATE LAW (TRIPDATE-01, 2026-10-01) ─────────────────────────────
+// A DATE EDIT MOVES THE DAY. The itinerary row is the fact; the calendar row
+// vendor-commit wrote for it (source trip, source_id trip:<tripId>:vendor:<optionId>)
+// is the projection the grid reads, and the feed SELECTS it by its stored dates.
+// Before TRIPDATE-01 the ledger and the timeline moved the itinerary row alone and
+// the tile stayed on the old day. Seven clauses:
+//   1. ONE TRANSACTION, TWO ROWS. The PATCH writes the itinerary row (the one update
+//      the stay law reads) and its calendar row in ONE array-form $transaction. The
+//      calendar where names user_id: user.id, source trip and the row’s own key,
+//      built by the leaf from the row’s tripId and vendorOptionId (probed: it parses
+//      back through parseTripVendorSourceId, and it is the key vendor-commit writes).
+//      start_date and end_date are the row’s after the edit, computed once before any
+//      write (probed). It runs on every edit, a time-only one included. The calendar
+//      registry names the PATCH beside vendor-commit’s insert, at its line (R7).
+//   2. THE RANGE. A date key that leaves the end before the start is refused by
+//      name, before any write (probed on UTC days).
+//   3. THE FIXED CLOCK. clockIsFixed probed on a flight with and without start_at, a
+//      timed tour, a stay, a transfer and a row with no vendor option; the PATCH
+//      refuses every date and time key on such a row, by name, before any write; the
+//      HOTEL-02 refusal stands word for word, ahead of it.
+//   4. ONE RULE. clockIsFixed is defined once, in a pure leaf; the PATCH, the budget
+//      route and the timeline call it and no other file does; the ledger’s four date
+//      and time cells and the timeline’s edit control are gated on it.
+//   5. BOOKED STAYS KEEP THE VENDOR’S DATES. The PATCH writes no calendar row but the
+//      item’s own trip row: one updateMany, no other calendar write, no reservation,
+//      no other source or key, no raw SQL. vendor-commit’s insert and delete are
+//      unchanged (their sha256 on main fc842031, pinned here).
+//   6. THE TIMELINE. Its range takes the trip’s stated days and every item’s days.
+//   7. THE ANSWER. Both success answers name the calendar outcome; moved 0 on a row
+//      with a vendor option is logged by name, and is not an error.
+// NOT HERE, said: the PATCH does not recompute the row’s day column (its readers only
+// order by it); a transfer’s calendar row, which vendor-commit spans from the
+// commit’s startDate to its endDate, takes the row’s own day on its first edit.
+const TD_LEAF = 'src/lib/trips/itineraryEdit.ts';
+const TD_PATCH = 'src/app/api/trips/[id]/itinerary/[itineraryId]/route.ts';
+const TD_BUDGET = 'src/app/api/trips/[id]/budget/route.ts';
+const TD_LEDGER = 'src/components/trips/TripBudgetActual.tsx';
+const TD_TIMELINE = 'src/components/trips/TripTimelineView.tsx';
+const TD_ITINERARY_GET = 'src/app/api/trips/[id]/itinerary/route.ts';
+const TD_COMMIT = 'src/app/api/trips/[id]/vendor-commit/route.ts';
+/** The closed set of the rule’s callers (TRIPDATE-01, 2026-10-01): the route that refuses, the route that tells the ledger, the timeline. */
+const TD_RULE_CALLERS = [TD_PATCH, TD_BUDGET, TD_TIMELINE];
+/** vendor-commit’s calendar insert and delete, sha256 of each statement’s text on main fc842031 (TRIPDATE-01, 2026-10-01). */
+const TD_COMMIT_CALENDAR_SHA256 = [
+  'd4560d57fb629383bcfe0cdf2c505851f7d914ec8b065cba84c1538f19e03acb',
+  'cb1480ed637199bee3a0bfef632b3d3ffc4c70eefe6b17922ac454eea6e3fc46',
+];
+let tripDateViolations = 0;
+const tripDateFail = (m: string) => { tripDateViolations += 1; violations.push(`trip date law: ${m} (TRIPDATE-01)`); };
+const tdCount = (src: string, needle: string) => src.split(needle).length - 1;
+const tdArgs = (src: string, at: number): string[] => { const open = src.indexOf('(', at); const close = closingOf(src, open); return close < 0 ? [] : splitArgs(src.slice(open + 1, close)).map((a) => a.trim()).filter(Boolean); };
+const tdBlock = (src: string, at: number): string => { const open = src.indexOf('{', at); const close = closingOf(src, open); return at < 0 || close < 0 ? '' : src.slice(at, close + 1); };
+const tdPatch = codeOf(TD_PATCH);
+// The first write: every refusal sits above it.
+const tdFirstWrite = tdPatch.indexOf('prisma.trip_itinerary.update(');
+const tdAfterAt = tdPatch.indexOf('const after = datesAfterEdit(');
+const tdTxAt = tdPatch.indexOf('await prisma.$transaction(');
+
+// 1. ONE TRANSACTION, TWO ROWS.
+{
+  if (tdCount(tdPatch, 'prisma.$transaction(') !== 1 || tdTxAt < 0) tripDateFail(`${TD_PATCH} does not write in exactly one prisma.$transaction — the itinerary row and its calendar row move together or not at all`);
+  else {
+    const txArgs = tdArgs(tdPatch, tdTxAt);
+    const items = txArgs.length === 1 && txArgs[0].startsWith('[') && txArgs[0].endsWith(']') ? splitArgs(txArgs[0].slice(1, -1)).map((a) => a.trim()).filter(Boolean) : null;
+    if (!items) tripDateFail(`${TD_PATCH}’s transaction is not the array form — the two writes are one transaction, nothing between them`);
+    else if (items.length !== 2 || items[0] !== 'itineraryWrite' || !items[1].startsWith('prisma.calendar_events.updateMany(')) tripDateFail(`${TD_PATCH}’s transaction holds ${JSON.stringify(items.map((i) => i.split('(')[0]))} — it holds the itinerary write and the calendar updateMany, those two`);
+  }
+  if (!/\n {4}const itineraryWrite = prisma\.trip_itinerary\.update\(\{ where: \{ id: itineraryId \}, data \}\);\n/.test(tdPatch) || tdCount(tdPatch, 'prisma.trip_itinerary.update(') !== 1 || /trip_itinerary\.(updateMany|upsert|create|createMany|delete|deleteMany)\(/.test(tdPatch)) tripDateFail(`${TD_PATCH} does not hold the itinerary write as the one update (prisma.trip_itinerary.update({ where: { id: itineraryId }, data })) its transaction carries`);
+  const calAt = tdPatch.indexOf('prisma.calendar_events.updateMany(');
+  const [calArg] = calAt >= 0 ? tdArgs(tdPatch, calAt) : [''];
+  if (!/^\{\s*where: \{ user_id: user\.id, source: 'trip', source_id: calendarKey \},/.test(calArg ?? '')) tripDateFail(`${TD_PATCH}: the calendar where does not name user_id: user.id, source trip and the row’s own key (calendarKey) — another user’s row, or another row than this one’s`);
+  if (!/\bdata: \{ start_date: after\.homeDate, end_date: after\.destDate \},?\s*\}$/.test(calArg ?? '')) tripDateFail(`${TD_PATCH}: the calendar row’s start_date and end_date are not the row’s after the edit (after.homeDate, after.destDate)`);
+  if (!/\n {4}const calendarKey = tripVendorSourceId\(existing\.tripId, existing\.vendorOptionId\);\n/.test(tdPatch) || tdCount(tdPatch, 'tripVendorSourceId(') !== 1) tripDateFail(`${TD_PATCH} does not build the calendar key once, from the row’s own tripId and vendorOptionId, through the leaf’s tripVendorSourceId`);
+  for (const [tripId, optionId] of [['cm1trip0001', 'cm1opt0001'], ['trip-2', 'act:27424P2:TG1']] as const) {
+    const key = tripVendorSourceId(tripId, optionId);
+    const back = parseTripVendorSourceId(key);
+    if (!back || back.tripId !== tripId || back.optionId !== optionId) tripDateFail(`the key ${key} does not parse back through parseTripVendorSourceId to (${tripId}, ${optionId}) — got ${JSON.stringify(back)}`);
+  }
+  const commitKeys = [...codeOf(TD_COMMIT).matchAll(/const calSourceId = `([^`]*)`;/g)].map((m) => m[1].replace(/\$\{id\}/g, 'T').replace(/\$\{optionId\}/g, 'O'));
+  if (commitKeys.length !== 2 || commitKeys.some((k) => k !== tripVendorSourceId('T', 'O'))) tripDateFail(`the leaf’s key is not the one vendor-commit writes and deletes under (${JSON.stringify(commitKeys)} vs ${tripVendorSourceId('T', 'O')})`);
+  if (tdAfterAt < 0 || tdCount(tdPatch, 'datesAfterEdit(') !== 1 || tdAfterAt > tdFirstWrite) tripDateFail(`${TD_PATCH} does not compute the row after the edit once, before any write`);
+  else {
+    const [stored, set] = tdArgs(tdPatch, tdAfterAt);
+    if (stored !== '{ homeDate: existing.homeDate, destDate: existing.destDate }' || !/^\{ homeDate: data\.homeDate( as Date \| undefined)?, destDate: data\.destDate( as Date \| undefined)? \}$/.test(set ?? '')) tripDateFail(`${TD_PATCH}’s row after the edit is not each date the body sets over every other as stored (${stored} / ${set})`);
+  }
+  const stored = { homeDate: new Date('2026-03-01T00:00:00Z'), destDate: new Date('2026-03-04T00:00:00Z') };
+  const moved = datesAfterEdit(stored, { homeDate: new Date('2026-03-02T00:00:00Z') });
+  if (utcDay(moved.homeDate) !== '2026-03-02' || utcDay(moved.destDate) !== '2026-03-04') tripDateFail(`datesAfterEdit replaced a date the body did not set — ${utcDay(moved.homeDate)}–${utcDay(moved.destDate)}`);
+  const timeOnly = datesAfterEdit(stored, {});
+  if (timeOnly.homeDate !== stored.homeDate || timeOnly.destDate !== stored.destDate) tripDateFail('a time-only edit does not carry the stored dates through datesAfterEdit');
+  // On every edit: between the row after the edit and the transaction, the only gates are the range and the missing vendor option.
+  const gates = tdTxAt > tdAfterAt && tdAfterAt >= 0 ? [...tdPatch.slice(tdAfterAt, tdTxAt).matchAll(/\bif \((.*?)\)(?= \{| return)/g)].map((m) => m[1]) : [];
+  if (JSON.stringify(gates) !== JSON.stringify(['dateKey !== undefined', 'refused', 'existing.vendorOptionId === null']) || !/\n {4}const \[updated, calendar\] = await prisma\.\$transaction\(\[\n/.test(tdPatch)) tripDateFail(`${TD_PATCH}’s calendar move is gated on ${JSON.stringify(gates)} — it runs on every edit (a time-only one included), skipped only for a row with no vendor option`);
+  const trip = CALENDAR_SOURCES.find((r) => r.source === 'trip');
+  const patchLine = calAt >= 0 ? tdPatch.slice(0, calAt).split('\n').length : -1;
+  if (!trip || !trip.writtenBy.includes(`${TD_PATCH}:${patchLine} (PATCH`) || !new RegExp(`${TD_COMMIT.replace(/[[\]]/g, '\\$&')}:\\d+`).test(trip.writtenBy)) tripDateFail(`the calendar registry’s trip source does not name the PATCH at ${TD_PATCH}:${patchLine} beside vendor-commit’s insert (R7)`);
+}
+
+// 2. THE RANGE.
+{
+  if (JSON.stringify(ITINERARY_DATE_KEYS) !== JSON.stringify(['date', 'startDate', 'endDate'])) tripDateFail(`the date keys are ${JSON.stringify(ITINERARY_DATE_KEYS)} — date, startDate, endDate`);
+  const ranges: Array<[string, string, string, string | null]> = [
+    ['a forward range', '2026-03-01T00:00:00Z', '2026-03-04T00:00:00Z', null],
+    ['one day', '2026-03-01T00:00:00Z', '2026-03-01T00:00:00Z', null],
+    ['one UTC day, the end earlier in it', '2026-03-01T23:00:00Z', '2026-03-01T01:00:00Z', null],
+    ['a reversed range', '2026-03-04T00:00:00Z', '2026-03-01T00:00:00Z', 'the end date 2026-03-01 is before the start date 2026-03-04 — a range runs forward; move the start or the end'],
+    ['a range reversed across UTC midnight', '2026-03-02T00:00:00Z', '2026-03-01T23:59:59Z', 'the end date 2026-03-01 is before the start date 2026-03-02 — a range runs forward; move the start or the end'],
+  ];
+  for (const [name, home, dest, want] of ranges) {
+    const got = rangeRefusal({ homeDate: new Date(home), destDate: new Date(dest) });
+    if (got !== want) tripDateFail(`rangeRefusal on ${name} answered ${JSON.stringify(got)} — ${JSON.stringify(want)}`);
+  }
+  const keyAt = tdPatch.indexOf('const dateKey = ITINERARY_DATE_KEYS.find((k) => body[k] !== undefined);');
+  const rangeAt = tdPatch.indexOf('if (dateKey !== undefined) {\n      const refused = rangeRefusal(after);');
+  const refuseAt = tdPatch.indexOf("if (refused) return NextResponse.json({ error: 'Validation', field: dateKey, message: refused }, { status: 400 });");
+  if (!(tdAfterAt >= 0 && keyAt > tdAfterAt && rangeAt > keyAt && refuseAt > rangeAt && refuseAt < tdFirstWrite)) tripDateFail(`${TD_PATCH} does not refuse a date edit that leaves the end before the start, by name, before any write (${tdAfterAt}, ${keyAt}, ${rangeAt}, ${refuseAt}, ${tdFirstWrite})`);
+}
+
+// 3. THE FIXED CLOCK.
+{
+  const rows: Array<[string, { vendorOptionType: string | null; start_at: Date | string | null }, boolean]> = [
+    ['a flight with start_at', { vendorOptionType: 'flight', start_at: new Date('2026-03-01T08:15:00Z') }, true],
+    ['a flight without start_at', { vendorOptionType: 'flight', start_at: null }, true],
+    ['a timed tour', { vendorOptionType: 'activity', start_at: new Date('2026-03-02T02:00:00Z') }, true],
+    ['a timed tour as the timeline reads it (ISO)', { vendorOptionType: 'activity', start_at: '2026-03-02T02:00:00.000Z' }, true],
+    ['an untimed activity', { vendorOptionType: 'activity', start_at: null }, false],
+    ['a stay', { vendorOptionType: 'lodging', start_at: null }, false],
+    ['a transfer', { vendorOptionType: 'transfer', start_at: null }, false],
+    ['a row with no vendor option', { vendorOptionType: null, start_at: null }, false],
+  ];
+  for (const [name, row, want] of rows) if (clockIsFixed(row) !== want) tripDateFail(`clockIsFixed reads ${name} as ${!want} — ${want ? 'a clock a vendor fixed would move in place' : 'a clock nobody fixed could not be moved'}`);
+  if (JSON.stringify(ITINERARY_DATE_TIME_KEYS) !== JSON.stringify(['date', 'startDate', 'endDate', 'startTime', 'endTime', 'blockStartTime', 'blockEndTime'])) tripDateFail(`the date and time keys are ${JSON.stringify(ITINERARY_DATE_TIME_KEYS)} — every one the PATCH reads`);
+  if (!/re-commit the item to change its dates or times/.test(CLOCK_FIXED_WORDS)) tripDateFail('the fixed clock’s sentence does not say how to change it (re-commit)');
+  const hotelAt = tdPatch.search(/if \(existing\.vendorOptionType === 'flight' && \(body\.blockStartTime !== undefined \|\| body\.blockEndTime !== undefined\)\)/);
+  if (hotelAt < 0 || !tdPatch.includes('a flight has no block window — its departure and arrival were written by its commit with their zones; re-commit the flight to change them')) tripDateFail(`${TD_PATCH}’s HOTEL-02 refusal no longer stands word for word`);
+  const fixedAt = tdPatch.indexOf('if (clockIsFixed(existing)) {');
+  const fixed = tdBlock(tdPatch, fixedAt);
+  const firstData = tdPatch.search(/\bdata\.\w+ = /);
+  if (fixedAt < 0 || !fixed.includes('const sent = ITINERARY_DATE_TIME_KEYS.find((k) => body[k] !== undefined);') || !fixed.includes("return NextResponse.json({ error: 'Validation', field: sent, message: CLOCK_FIXED_WORDS }, { status: 400 });")) tripDateFail(`${TD_PATCH} does not refuse every date and time key on a row whose clock a vendor fixed, by name`);
+  else if (!(hotelAt >= 0 && hotelAt < fixedAt && fixedAt < firstData && fixedAt < tdFirstWrite)) tripDateFail(`${TD_PATCH}’s fixed-clock refusal is not after the HOTEL-02 refusal and before any write (${hotelAt}, ${fixedAt}, ${firstData}, ${tdFirstWrite})`);
+}
+
+// 4. ONE RULE.
+{
+  const defs = srcFiles.filter((f) => /\bfunction clockIsFixed\b|\bclockIsFixed\s*=/.test(f.src)).map((f) => f.file);
+  if (JSON.stringify(defs) !== JSON.stringify([TD_LEAF])) tripDateFail(`clockIsFixed is defined in ${JSON.stringify(defs)} — once, in ${TD_LEAF}`);
+  const leaf = codeOf(TD_LEAF);
+  if (/^\s*import\b|\bprisma\b|\bfetch\(|process\.env|Date\.now\(|new Date\(\)|useState|useEffect/m.test(leaf) || !/THIS FILE IS PURE/.test(commentsOf(TD_LEAF))) tripDateFail(`${TD_LEAF} is not pure`);
+  const callers = srcFiles.filter((f) => f.file !== TD_LEAF && /\bclockIsFixed\(/.test(f.src)).map((f) => f.file).sort();
+  if (JSON.stringify(callers) !== JSON.stringify([...TD_RULE_CALLERS].sort())) tripDateFail(`the rule’s callers are ${JSON.stringify(callers)} — the closed set is ${JSON.stringify([...TD_RULE_CALLERS].sort())}`);
+  for (const f of TD_RULE_CALLERS) if (!/import \{[^}]*\bclockIsFixed\b[^}]*\} from '@\/lib\/trips\/itineraryEdit';/.test(codeOf(f))) tripDateFail(`${f} does not import clockIsFixed from the leaf`);
+  const budget = codeOf(TD_BUDGET);
+  if (!/\bvendorOptionType: true,/.test(budget) || !/\bstart_at: true,/.test(budget)) tripDateFail(`${TD_BUDGET} does not select the two fields the rule reads (vendorOptionType, start_at)`);
+  if (!/\n\s+clockFixed: itin \? clockIsFixed\(itin\) : null,\n/.test(budget)) tripDateFail(`${TD_BUDGET} does not answer clockFixed on each ledger item through the rule (null on a manual line)`);
+  const ledger = codeOf(TD_LEDGER);
+  const gate = 'editable={!!it.itineraryId && it.clockFixed !== true} title={it.clockFixed === true ? CLOCK_FIXED_WORDS : undefined}';
+  const cells = [...ledger.matchAll(/<EditableCell kind="(?:date|time)" value=\{it\.(\w+)\} (.*?) onSave=\{\(v\) => saveCell\(it, '(\w+)', v\)\} \/>/g)];
+  if (cells.length !== 4 || tdCount(ledger, '<EditableCell ') !== 4 || JSON.stringify(cells.map((c) => c[3])) !== JSON.stringify(['startDate', 'startTime', 'endDate', 'endTime'])) tripDateFail(`${TD_LEDGER} renders ${tdCount(ledger, '<EditableCell ')} date and time cells (${JSON.stringify(cells.map((c) => c[3]))}) — the four`);
+  for (const c of cells) if (c[2] !== gate || c[1] !== c[3]) tripDateFail(`${TD_LEDGER}: the ${c[3]} cell is not gated on the rule (${gate})`);
+  if (!ledger.includes('if (!editable) return <span className="text-text-faint" title={title}>{display}</span>;') || !/import \{ CLOCK_FIXED_WORDS \} from '@\/lib\/trips\/itineraryEdit';/.test(ledger)) tripDateFail(`${TD_LEDGER}: a display-only cell does not carry the fixed clock’s sentence as its title`);
+  const timeline = codeOf(TD_TIMELINE);
+  const shownAt = timeline.indexOf(') : clockIsFixed(row) ? (');
+  const editAt = timeline.indexOf('<button type="button" onClick={() => setEditing(true)} title="Edit time"');
+  if (tdCount(timeline, 'setEditing(true)') !== 1 || shownAt < 0 || editAt < shownAt) tripDateFail(`${TD_TIMELINE} offers its edit control on a row whose clock a vendor fixed`);
+  else if (!/<span [^>]*title=\{CLOCK_FIXED_WORDS\}[^>]*data-itinerary-clock-fixed>/.test(timeline.slice(shownAt, editAt))) tripDateFail(`${TD_TIMELINE} does not show a fixed clock as text with the leaf’s sentence as its title`);
+  if (!/\n\s+start_at\?: string \| null;\n/.test(timeline)) tripDateFail(`${TD_TIMELINE}’s row type does not carry start_at — the rule cannot see a timed tour`);
+  const get = codeOf(TD_ITINERARY_GET);
+  const findAt = get.indexOf('prisma.trip_itinerary.findMany(');
+  const [findArg] = findAt >= 0 ? tdArgs(get, findAt) : [''];
+  if (findAt < 0 || (/\bselect:/.test(findArg ?? '') && !/\bstart_at: true\b/.test(findArg ?? ''))) tripDateFail(`${TD_ITINERARY_GET} no longer hands the timeline start_at`);
+}
+
+// 5. BOOKED STAYS KEEP THE VENDOR’S DATES.
+{
+  const calCalls = [...tdPatch.matchAll(/calendar_events\.(\w+)\(/g)].map((m) => m[1]);
+  if (JSON.stringify(calCalls) !== JSON.stringify(['updateMany'])) tripDateFail(`${TD_PATCH} touches calendar_events through ${JSON.stringify(calCalls)} — one updateMany, of the item’s own trip row`);
+  if (/\$(queryRaw|executeRaw)/.test(tdPatch)) tripDateFail(`${TD_PATCH} writes raw SQL — the product writes through the client, the row’s where in the open`);
+  if (/\breservations?\b/i.test(tdPatch)) tripDateFail(`${TD_PATCH} names a reservation — a booked stay’s calendar row keeps the vendor’s dates; it is never moved here`);
+  const sources = [...tdPatch.matchAll(/\bsource: ([^,}\n]+)/g)].map((m) => m[1].trim());
+  const keys = [...tdPatch.matchAll(/\bsource_id: ([^,}\n]+)/g)].map((m) => m[1].trim());
+  if (JSON.stringify(sources) !== JSON.stringify([`'trip'`]) || JSON.stringify(keys) !== JSON.stringify(['calendarKey'])) tripDateFail(`${TD_PATCH} writes calendar rows of source ${JSON.stringify(sources)} under ${JSON.stringify(keys)} — the item’s own trip row, no other`);
+  const commit = codeOf(TD_COMMIT);
+  const statements = [...commit.matchAll(/await prisma\.\$queryRaw`([^`]*)`/g)].map((m) => m[1]).filter((s) => /calendar_events/.test(s));
+  const hashes = statements.map((s) => createHash('sha256').update(s).digest('hex'));
+  if (JSON.stringify(hashes) !== JSON.stringify(TD_COMMIT_CALENDAR_SHA256) || /calendar_events\.\w+\(/.test(commit)) tripDateFail(`${TD_COMMIT}’s calendar insert and delete changed (${JSON.stringify(hashes)}) — TRIPDATE-01 moves the row; writing and removing it stay vendor-commit’s, unchanged`);
+}
+
+// 6. THE TIMELINE.
+{
+  const timeline = codeOf(TD_TIMELINE);
+  for (const line of [
+    'const itinDates = itinerary.flatMap((r) => [dateOnly(r.homeDate), dateOnly(r.destDate)]).filter(Boolean);',
+    'const itinSorted = itinDates.slice().sort();',
+    'const startBounds = [startDate ? dateOnly(startDate) : null, itinSorted[0] ?? null].filter((d): d is string => !!d).sort();',
+    'const endBounds = [endDate ? dateOnly(endDate) : null, itinSorted.at(-1) ?? null].filter((d): d is string => !!d).sort();',
+    'const rangeStart = startBounds[0] ?? null;',
+    'const rangeEnd = endBounds.at(-1) ?? null;',
+  ]) if (!timeline.includes(line)) tripDateFail(`${TD_TIMELINE}’s range does not take every item’s days (missing: ${line}) — an item dated outside the trip would be hidden`);
+  const assigns = (timeline.match(/\brange(Start|End)\s*=(?!=)/g) ?? []).length;
+  if (assigns !== 2) tripDateFail(`${TD_TIMELINE} sets its range ${assigns} time(s) — once each, from the trip’s days and every item’s`);
+}
+
+// 7. THE ANSWER.
+{
+  const answers = [...tdPatch.matchAll(/return NextResponse\.json\(/g)].map((m) => tdArgs(tdPatch, m.index!)).filter((a) => a.length === 1).map((a) => a[0]);
+  if (JSON.stringify(answers) !== JSON.stringify([`{ itinerary, calendar: { moved: 0, reason: 'no_vendor_option' } }`, '{ itinerary: updated, calendar: { moved: calendar.count } }'])) tripDateFail(`${TD_PATCH}’s answers are ${JSON.stringify(answers)} — each names the calendar outcome`);
+  const logAt = tdPatch.indexOf('if (calendar.count === 0) {');
+  const log = tdBlock(tdPatch, logAt);
+  if (logAt < tdTxAt || !/console\.log\(`\[Trip Itinerary PATCH\] TRIPDATE-01: itinerary \$\{itineraryId\} moved; no calendar row \$\{calendarKey\} to move/.test(log) || /console\.(error|warn)/.test(log)) tripDateFail(`${TD_PATCH} does not log moved 0 by name (the itinerary and the key) after the transaction — and it is not an error`);
+}
+
+if (tripDateViolations === 0) console.log(`✔ The trip date law passed — an itinerary edit writes its row and its calendar row in one array-form transaction, on every edit, the calendar row found by the caller’s user_id, source trip and the row’s own key (probed back through parseTripVendorSourceId; the key vendor-commit writes) and given the row’s dates after the edit, computed once before any write; the calendar registry names the PATCH beside vendor-commit’s insert; an end before its start is refused by name before any write (probed on UTC days); a clock a vendor fixed (the rule probed on 8 rows) is refused every one of the ${ITINERARY_DATE_TIME_KEYS.length} date and time keys, after the HOTEL-02 refusal that stands word for word; the rule is defined once and called by the PATCH, the budget route and the timeline, gating the ledger’s four cells and the timeline’s edit control; the PATCH writes no calendar row but the item’s own, and vendor-commit’s insert and delete are unchanged; the timeline’s range takes every item’s days; both answers name the calendar outcome and moved 0 is logged by name.`);
+else console.log(`✖ The trip date law FAILED — ${tripDateViolations} violation(s).`);
 });
 
 lawGuard('The reader law', () => {
