@@ -100,15 +100,20 @@ test('T2 every occurrence of T1 falls on the day asked for, in the routine’s o
 
 test('T3 Los Angeles across a DST change — the fall-back day and the spring-forward day — the two reads agree, on the day', () => {
   const LA = 'America/Los_Angeles';
-  // What THIS PR promises on a DST-change day: the two reads name ONE instant,
-  // and its local day is the day asked for. The wall-clock HOUR of that instant
+  // What THIS PR promises on a DST-change day: the two reads AGREE — one instant
+  // for both, on the day, or none for both. The wall-clock HOUR of that instant
   // is the one expansion's (rruleHelpers.ts shiftFloatingToZone), not this PR's:
   // it takes the zone's offset at the floating instant read as UTC, so for the
   // hours between the change and offset-many hours after it, the shifted instant
   // is an hour off (2026-11-01 BYHOUR=8 lands at 07:00 PST, 2026-03-08 BYHOUR=8
-  // at 09:00 PDT) — for the Budget and the today read alike. Found by this PR's
-  // probe, reported, not pinned here and not fixed here (rruleHelpers is out of
-  // scope). A fix there moves no pin below.
+  // at 09:00 PDT) — for the Budget and the today read alike. In a zone east of
+  // UTC whose change lies within its offset of midnight (Auckland, Sydney), a
+  // BYHOUR=0 rule on the spring-forward day (and BYHOUR=23 on the fall-back day)
+  // is shifted across the day line: the Budget's single-day view already placed
+  // nothing, and the today read now answers none too (main answered a wrong-day
+  // instant). Found by this PR's probe, reported, not pinned as right here and
+  // not fixed here (rruleHelpers is out of scope); the agreement pins below hold
+  // either side of a fix there.
   for (const [day, hour, note] of [
     ['2026-11-01', 8, 'the fall-back day (02:00 PDT → 01:00 PST)'],
     ['2026-11-01', 1, 'the fall-back day — 01:00 happens twice; the rule names one occurrence'],
@@ -130,6 +135,41 @@ test('T3 Los Angeles across a DST change — the fall-back day and the spring-fo
   assert.equal(todayInstant(LA, daily(8), '2026-11-02'), budgetInstant(LA, daily(8), '2026-11-02'));
 });
 
+test('T3 east of UTC across a DST change — Auckland and Sydney at midnight — the two reads still agree, whatever the one expansion gives', () => {
+  // The agreement is pinned, not the answer: today the one expansion carries a
+  // BYHOUR=0 occurrence across the day line on the spring-forward day and both
+  // reads answer none (the comment above); a fix in rruleHelpers would make both
+  // answer the day's 00:00 — and this test would still pass. Either side of the
+  // change, the hour is the rule's and the two reads agree on it.
+  const agree = (zone: string, hour: number, day: string, note: string) => {
+    const today = routineDay(dayInput(zone, daily(hour)), day, NOW);
+    const { lines, notPlaced } = buildRoutineBudgetLines([planInput(zone, daily(hour))], day, day);
+    assert.equal(notPlaced.length, 0, `${zone} ${day} BYHOUR=${hour}: nothing not placed`);
+    if (today.kind === 'occurrence') {
+      assert.equal(lines.length, 1, `${zone} ${day} BYHOUR=${hour}: the today read names an instant, so the Budget has its line — ${note}`);
+      assert.equal(today.expectedAt.toISOString(), budgetInstant(zone, daily(hour), day), `${zone} ${day} BYHOUR=${hour}: the same instant — ${note}`);
+      assert.equal(instantToZoned(today.expectedAt, zone).date, day, `${zone} ${day} BYHOUR=${hour}: on the day — ${note}`);
+    } else {
+      assert.equal(today.kind, 'none', `${zone} ${day} BYHOUR=${hour}: ${note}`);
+      assert.equal(lines.length, 0, `${zone} ${day} BYHOUR=${hour}: the today read names none, so the Budget has no line either — ${note}`);
+    }
+  };
+  for (const [zone, change, before, after] of [
+    ['Pacific/Auckland', '2026-09-27', '2026-09-26', '2026-09-28'],
+    ['Australia/Sydney', '2026-10-04', '2026-10-03', '2026-10-05'],
+  ] as const) {
+    agree(zone, 0, change, 'the spring-forward day at midnight');
+    agree(zone, 23, change, 'the spring-forward day at 23:00');
+    agree(zone, 0, before, 'the day before at midnight');
+    agree(zone, 0, after, 'the day after at midnight');
+    // Either side of the change the day's own 00:00 is named by both.
+    for (const day of [before, after]) {
+      const r = routineDay(dayInput(zone, daily(0)), day, NOW);
+      assert.ok(r.kind === 'occurrence' && instantToZoned(r.expectedAt, zone).date === day && instantToZoned(r.expectedAt, zone).time === '00:00', `${zone} ${day}: 00:00 on the day`);
+    }
+  }
+});
+
 // ── T4 · NOTHING ELSE MOVED ──────────────────────────────────────────────────
 
 test('T4 the day’s other answers stand: none on a day a weekly rule skips, outside start/end dates; refused by name; a once routine on its day only', () => {
@@ -143,10 +183,17 @@ test('T4 the day’s other answers stand: none on a day a weekly rule skips, out
   assert.ok(mars.kind === 'refused' && mars.reason === 'timezone not recognised' && mars.detail.startsWith('"Mars/Olympus": '));
   const garbled = routineDay(dayInput(BKK, 'NOT A RULE'), DAY, NOW);
   assert.ok(garbled.kind === 'refused' && garbled.reason === 'schedule does not parse' && garbled.detail.startsWith('"NOT A RULE": '));
-  // ONEOFF-01: a once routine, anchored on its start_date — one occurrence on its day, none the day after.
+  // ONEOFF-01: a once routine, anchored on its start_date — one occurrence on its
+  // day. As the routes write it (end_date = start_date), the day after is answered
+  // none by the end-date gate before any expansion; WITHOUT the end date it is
+  // still none — the anchor, not a bound, makes it one (as week01 T1 pins).
   const once = { start_date: new Date('2026-10-11T00:00:00.000Z'), end_date: new Date('2026-10-11T00:00:00.000Z') };
   assert.equal(todayInstant(BKK, 'FREQ=DAILY;COUNT=1;BYHOUR=12;BYMINUTE=0', '2026-10-11', once), '2026-10-11T05:00:00.000Z', '12:00 +07 on its day');
-  assert.equal(todayInstant(BKK, 'FREQ=DAILY;COUNT=1;BYHOUR=12;BYMINUTE=0', '2026-10-12', once), 'none', 'the day after');
+  assert.equal(todayInstant(BKK, 'FREQ=DAILY;COUNT=1;BYHOUR=12;BYMINUTE=0', '2026-10-12', once), 'none', 'the day after — the end-date gate');
+  const unbounded = { start_date: new Date('2026-10-11T00:00:00.000Z'), end_date: null };
+  assert.equal(todayInstant(BKK, 'FREQ=DAILY;COUNT=1;BYHOUR=12;BYMINUTE=0', '2026-10-11', unbounded), '2026-10-11T05:00:00.000Z', '12:00 +07 on its day, no end date');
+  assert.equal(todayInstant(BKK, 'FREQ=DAILY;COUNT=1;BYHOUR=12;BYMINUTE=0', '2026-10-12', unbounded), 'none', 'the day after, no end date — the anchor alone');
+  assert.equal(todayInstant(BKK, 'FREQ=DAILY;BYHOUR=12;BYMINUTE=0', '2026-10-12', unbounded), '2026-10-12T05:00:00.000Z', 'the same rule without COUNT=1 does happen the day after — so it is the count, from the anchor');
   // The once routine's instant is the Budget's too.
   assert.equal(
     todayInstant(BKK, 'FREQ=DAILY;COUNT=1;BYHOUR=12;BYMINUTE=0', '2026-10-11', once),
