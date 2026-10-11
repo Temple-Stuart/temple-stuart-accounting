@@ -15,7 +15,7 @@ import { code, comments } from '../sourceText';
 import { NOT_PLACED_REASONS } from '../budget/days';
 import { viewRange } from '../budget/report';
 import type { PlanLine } from '../budget/planLines';
-import { dayBounds, parseDayParam, routineDay, routineStatus, type RoutineDayInput } from '../operations/routineDay';
+import { parseDayParam, routineDay, routineStatus, type RoutineDayInput } from '../operations/routineDay';
 import { completeRoutine } from '@/components/workbench/operations/routines/completeRoutine';
 import { TODAY_STATUS_LABEL } from '@/components/workbench/operations/routines/types';
 import {
@@ -66,8 +66,13 @@ test('T1 a daily routine on a given day — the instant and the local day, in Ba
   // No day asked: TODAY — each routine's own, at now.
   assert.deepEqual(routineDay(routine(), null, NOW), { kind: 'occurrence', day: '2026-10-01', expectedAt: new Date('2026-10-01T00:00:00.000Z') }, 'already Oct 1 in Bangkok');
   assert.deepEqual(routineDay(routine({ timezone: 'America/Los_Angeles' }), null, NOW), { kind: 'occurrence', day: '2026-09-30', expectedAt: new Date('2026-09-30T14:00:00.000Z') }, 'still Sep 30 in LA');
-  // The bounds are today's rule for any day: local midnight, then 24 hours.
-  assert.deepEqual(dayBounds('2026-11-01', 'America/Los_Angeles'), { start: new Date('2026-11-01T07:00:00.000Z'), end: new Date('2026-11-02T07:00:00.000Z') });
+  // DAYBOUNDS-01 (2026-10-11): the day is the Budget's day, stated once — the module
+  // expands over days.ts dayWindow and places by days.ts within; dayBounds (local
+  // midnight as a real instant, off by the zone's offset) is gone. The pin on it
+  // moved here to the new truth; the instants above did not move.
+  const m = code(MODULE);
+  assert.match(m, /import \{ dayWindow, isIsoDay, within \} from '@\/lib\/budget\/days';/, 'the Budget’s window and its test, imported by name');
+  assert.doesNotMatch(m, /dayBounds/, 'no second definition of a day');
 });
 
 test('T1 a weekly routine not on that day → none; the start and end dates bound the day', () => {
@@ -126,7 +131,8 @@ test('T1 the date parameter: absent is today; anything but a real YYYY-MM-DD day
 test('T1 the module is pure: no client, no request, no clock', () => {
   const m = code(MODULE);
   assert.doesNotMatch(m, /@prisma\/client|@\/lib\/prisma|next\/server|process\.env|Date\.now\(|new Date\(\s*\)|console\./);
-  assert.match(m, /expandBetween\(r\.schedule_rrule, r\.timezone, start, end, scheduleAnchor\(r\.start_date\)\);/, 'the one anchored expansion');
+  // DAYBOUNDS-01: the window's names are the Budget's (dayWindow) — the pin moved with them.
+  assert.match(m, /expandBetween\(r\.schedule_rrule, r\.timezone, windowFrom, windowTo, scheduleAnchor\(r\.start_date\)\);/, 'the one anchored expansion');
   assert.match(m, /instantToZoned\(now, r\.timezone\);/, 'the zone is read first');
 });
 

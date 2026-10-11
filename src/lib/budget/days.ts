@@ -187,7 +187,24 @@ function checkRange(rangeFrom: IsoDay, rangeTo: IsoDay): void {
   if (rangeFrom > rangeTo) throw new BudgetDaysError('bad-range', `rangeFrom ${rangeFrom} is after rangeTo ${rangeTo}`);
 }
 
-const within = (day: IsoDay, from: IsoDay, to: IsoDay): boolean => from <= day && day <= to;
+/** Is `day` in [from, to]? The one test of whether an occurrence's local day is in a view (DAYBOUNDS-01: exported — the today read asks the same question). */
+export const within = (day: IsoDay, from: IsoDay, to: IsoDay): boolean => from <= day && day <= to;
+
+/**
+ * DAYBOUNDS-01 (2026-10-11) — THE ONE DEFINITION OF A DAY. The window a
+ * routine is expanded over for the local days [rangeFrom, rangeTo]: FLOATING
+ * bounds, the wall-clock day written as UTC, because expandBetween compares the
+ * rule's floating occurrences against them before shifting to the zone
+ * (rruleHelpers.ts). A real instant here (local midnight as UTC) would be off by
+ * the zone's offset — in Bangkok, 17:00 the day before to 17:00 that day. The
+ * occurrence's own local day (instantToZoned(...).date, within) is then the
+ * test that places it. Stated once; the today read (routineDay.ts) uses this.
+ */
+export function dayWindow(rangeFrom: IsoDay, rangeTo: IsoDay): { windowFrom: Date; windowTo: Date } {
+  const windowFrom = new Date(`${rangeFrom}T00:00:00.000Z`);
+  const windowTo = new Date(`${rangeTo}T23:59:59.999Z`);
+  return { windowFrom, windowTo };
+}
 
 // ── CODES (R4) ──────────────────────────────────────────────────────────────
 
@@ -284,8 +301,7 @@ const messageOf = (error: unknown): string => (error instanceof Error ? error.me
 /** Every routine's occurrences in [rangeFrom, rangeTo], as dated budget lines, and what could not be placed. */
 export function buildRoutineBudgetLines(routines: readonly RoutinePlanInput[], rangeFrom: IsoDay, rangeTo: IsoDay): DayRuleResult {
   checkRange(rangeFrom, rangeTo);
-  const windowFrom = new Date(`${rangeFrom}T00:00:00.000Z`);
-  const windowTo = new Date(`${rangeTo}T23:59:59.999Z`);
+  const { windowFrom, windowTo } = dayWindow(rangeFrom, rangeTo);
   const lines: BudgetLine[] = [];
   const notPlaced: NotPlaced[] = [];
 
