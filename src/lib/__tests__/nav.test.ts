@@ -134,7 +134,8 @@ test('every legacy page hangs under the tool that OWNS it — never another tool
     // TOOL-LAW-01: the Issue log and Audit trail return as Tasks' own sub-rows —
     // the /operations prefix that doored them went with the room.
     // NORTH-01: the North Star joins them, by the same door.
-    Tasks: ['/operations/north-star', '/operations/issues', '/operations/audit-log'],
+    // DAYCARD-01 (2026-10-11): the day card is the fourth, by the same door.
+    Tasks: ['/operations/north-star', '/operations/issues', '/operations/audit-log', '/tasks/day'],
     // TRIPS-01 (2026-09-29): Travel is gone from this map — it carries no sub-row, ever.
     // The Travel tab is the one Trips tab; the legacy pages are redirects to it.
     Budget: ['/agenda', '/shopping', '/hub/itinerary', '/runway'],

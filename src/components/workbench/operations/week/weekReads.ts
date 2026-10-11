@@ -21,7 +21,8 @@ export type Read<T> = { readonly ok: true; readonly value: T } | { readonly ok: 
 
 export const SIGNED_OUT_WORDS = 'You are signed out — sign in to see this week.';
 
-async function readJson(url: string): Promise<Read<Record<string, unknown>>> {
+/** DAYCARD-01 (2026-10-11): exported — the day card's one read of its own (day/dayReads.ts) reads through it too. Body unchanged. */
+export async function readJson(url: string): Promise<Read<Record<string, unknown>>> {
   let res: Response;
   try {
     res = await fetch(url, { cache: 'no-store', redirect: 'manual' });

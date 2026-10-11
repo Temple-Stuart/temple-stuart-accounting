@@ -23,10 +23,12 @@ test('the registry row names all three, and each is a rail sub-row of Tasks', ()
     ['North Star', '/operations/north-star'],
     ['Issue log', '/operations/issues'],
     ['Audit trail', '/operations/audit-log'],
+    // DAYCARD-01 (2026-10-11): the day card, reached the same way — the pin moved from three to four.
+    ['Day card', '/tasks/day'],
   ]);
   const rail = navToolByName('Tasks', TOOL_GATE);
-  assert.deepEqual(rail.subRows.map((r) => r.label), ['North Star', 'Issue log', 'Audit trail']);
-  assert.deepEqual(rail.subRows.map((r) => r.door.href), ['/operations/north-star', '/operations/issues', '/operations/audit-log']);
+  assert.deepEqual(rail.subRows.map((r) => r.label), ['North Star', 'Issue log', 'Audit trail', 'Day card']);
+  assert.deepEqual(rail.subRows.map((r) => r.door.href), ['/operations/north-star', '/operations/issues', '/operations/audit-log', '/tasks/day']);
   // The door is nobody's screen (navLaw rule 7), and the law is clean.
   assert.deepEqual(navLaw({ throwOnFail: false }), []);
   assert.equal(TOOL_REGISTRY.some((t) => t.home === '/operations/north-star'), false);

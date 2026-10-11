@@ -251,6 +251,8 @@ test('the registry why is a customer\'s line; the founder note is a code comment
     ['North Star', '/operations/north-star'],
     ['Issue log', '/operations/issues'],
     ['Audit trail', '/operations/audit-log'],
+    // DAYCARD-01 (2026-10-11): the day card, by the same door — the pin moved from three to four.
+    ['Day card', '/tasks/day'],
   ]);
 });
 
@@ -267,10 +269,11 @@ test('every lettered header lost its letter', () => {
   }
 });
 
-test('the rail under Tasks shows three links and no phase — the rail never rendered phases, and the opener lists none', () => {
+test('the rail under Tasks shows four links and no phase — the rail never rendered phases, and the opener lists none', () => {
   assert.deepEqual(navLaw({ throwOnFail: false, gate: TOOL_GATE }), []);
   const tasks = navToolByName('Tasks', TOOL_GATE);
-  assert.deepEqual(tasks.subRows.map((r) => r.label), ['North Star', 'Issue log', 'Audit trail']);
+  // DAYCARD-01 (2026-10-11): three became four — the day card, by the same door.
+  assert.deepEqual(tasks.subRows.map((r) => r.label), ['North Star', 'Issue log', 'Audit trail', 'Day card']);
   // The rail's sub-rows are the registry links — never tool.phases.
   const rail = code('src/components/shell/Rail.tsx');
   assert.match(rail, /tool\.subRows\.map/);
