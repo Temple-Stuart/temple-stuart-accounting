@@ -20,7 +20,7 @@ import type { DailyPlanItem } from '@/components/workbench/operations/dailyplan/
 import type { Routine, RoutineStep, TodayRoutineEntry, TodayStatus } from '@/components/workbench/operations/routines/types';
 import {
   BRAND_WORDS, TASK_WORD, TODAY_WORD, UNTITLED_WORDS, badDateWords, badStepWords, dayStops, dayWords, focusStop,
-  linesWithoutStopWords, notPlacedWords, notPricedWords, ofWords, provenanceWords, soFarWords, stopsWords, unmatchedWords,
+  linesUnreadWords, linesWithoutStopWords, notPlacedWords, notPricedWords, ofWords, provenanceWords, routineFigureWords, soFarWords, stopsWords, strandedWords, unmatchedWords,
   type DayCardInput,
 } from '@/components/workbench/operations/day/dayCard';
 import { dayReportFailedWords, readDayReport } from '@/components/workbench/operations/day/dayReads';
@@ -193,6 +193,40 @@ test('T2 two lines matching one stop → both unmatched, neither used; a steples
   assert.deepEqual(tasks.unmatched, []);
 });
 
+test('T2 the kind decides too: a routine-kind line whose id is a STEP’s id, and a line-kind line whose id is a ROUTINE’s, match nothing; a $0 line is priced', () => {
+  const wrongKind = line({ address: { kind: 'routine', id: 'coffee', instant: AT }, cents: 500, label: 'Morning' });
+  const r = dayStops(input({ entries: [entry(morning)], lines: [wrongKind] }));
+  assert.equal(r.stops.find((s) => s.line === 'Coffee')!.cents, null, 'a routine-kind line is not a step’s');
+  assert.deepEqual(r.linesWithoutStop, [wrongKind]);
+  const lineKind = line({ address: { kind: 'routine_line', id: 'gym', instant: GYM_AT }, cents: 1500, label: 'Gym' });
+  const g = dayStops(input({ entries: [entry(gym, 'pending', GYM_AT)], lines: [lineKind] }));
+  assert.equal(g.stops[0].cents, null, 'a line-kind line is not a stepless routine’s');
+  assert.deepEqual(g.linesWithoutStop, [lineKind]);
+  const free = dayStops(input({ entries: [entry(gym, 'pending', GYM_AT)], lines: [line({ address: { kind: 'routine', id: 'gym', instant: GYM_AT }, cents: 0, label: 'Gym' })] }));
+  assert.equal(free.stops[0].cents, 0, 'a planned $0 is a price');
+  assert.equal(free.notPriced, 0, '— and the stop is priced');
+});
+
+test('T2 a routine priced as a whole (its lines carry no amount): the Budget’s routine-kind line at its occurrence is a routine figure, named as such, in the hero and on no stop', () => {
+  const whole = line({ address: { kind: 'routine', id: 'morning', instant: AT }, cents: 6000, label: 'Morning', time: '07:00' });
+  const r = dayStops(input({ entries: [entry(morning)], lines: [whole] }));
+  assert.deepEqual(r.stops.map((s) => s.cents), [null, null, null], 'no one stop carries the routine’s figure');
+  assert.equal(r.notPriced, 3);
+  assert.equal(r.plannedCents, 6000, 'the hero is the Budget’s figure');
+  assert.deepEqual(r.routineFigures, [whole]);
+  assert.deepEqual(r.linesWithoutStop, [], 'named once, as the routine’s own figure');
+  assert.deepEqual(r.unmatched, []);
+  // At another instant it is not this occurrence's figure: a line with no stop.
+  const moved = { ...whole, address: { ...whole.address, instant: '2026-10-11T01:00:00.000Z' } };
+  const m = dayStops(input({ entries: [entry(morning)], lines: [moved] }));
+  assert.deepEqual(m.routineFigures, []);
+  assert.deepEqual(m.linesWithoutStop, [moved]);
+  // A stepless routine's routine-kind line is its stop's, never a routine figure.
+  const g = dayStops(input({ entries: [entry(gym, 'pending', GYM_AT)], lines: [line({ address: { kind: 'routine', id: 'gym', instant: GYM_AT }, cents: 1500, label: 'Gym' })] }));
+  assert.deepEqual(g.routineFigures, []);
+  assert.equal(g.stops[0].cents, 1500);
+});
+
 test('T2 a line on the day that no stop carries → linesWithoutStop; a line on another day is not the card’s', () => {
   const orphan = line({ address: { kind: 'routine_line', id: 'no-such-step', instant: AT }, cents: 700, label: 'Gone', line: 'Gone line' });
   const other = line({ address: { kind: 'routine_line', id: 'coffee', instant: '2026-10-12T00:00:00.000Z' }, cents: 500, label: 'Morning', line: 'Coffee', day: '2026-10-12' });
@@ -256,17 +290,36 @@ test('T3 the words, exact', () => {
   assert.equal(badDateWords('yesterday'), '?date=yesterday is not a day (YYYY-MM-DD) — showing today');
   assert.equal(badStepWords('9', 7), "?step=9 is not one of this day's 7 stops — showing the whole card");
   assert.equal(unmatchedWords([{ label: 'Morning', line: 'Coffee', cents: 500, lineInstant: '2026-10-11T01:00:00.000Z', stopInstant: AT, reason: 'instant differs' }]),
-    '1 plan line does not match its stop — Morning — Coffee $5.00: the line is at 2026-10-11T01:00:00.000Z, the stop at 2026-10-11T00:00:00.000Z (instant differs)');
+    "1 plan line is at another instant than its stop — Morning — Coffee $5.00: planned at 2026-10-11T01:00:00.000Z, the day's one stop is at 2026-10-11T00:00:00.000Z (the today read names one occurrence per routine per day — this line has no stop)");
   assert.equal(unmatchedWords([
     { label: 'Gym', line: null, cents: 1500, lineInstant: GYM_AT, stopInstant: GYM_AT, reason: 'two plan lines for one stop' },
     { label: 'Gym', line: null, cents: 1600, lineInstant: GYM_AT, stopInstant: GYM_AT, reason: 'two plan lines for one stop' },
-  ]), '2 plan lines do not match their stops — Gym $15.00: two plan lines for one stop · Gym $16.00: two plan lines for one stop');
+  ]), '2 plan lines are at another instant than their stops — Gym $15.00: two plan lines for one stop — neither used · Gym $16.00: two plan lines for one stop — neither used');
   assert.equal(linesWithoutStopWords([line({ address: { kind: 'routine_line', id: 'ghost', instant: AT }, cents: 300, label: 'Ghost', line: 'Boo', time: '09:00' })]),
     '1 plan line has no stop today — Ghost — Boo $3.00 at 09:00');
   assert.equal(linesWithoutStopWords([
     line({ address: { kind: 'routine', id: 'g', instant: AT }, cents: 300, label: 'Ghost' }),
     line({ address: { kind: 'project_task', id: 't', instant: null }, cents: 2000, label: 'Task' }),
   ]), '2 plan lines have no stop today — Ghost $3.00 · Task $20.00');
+  assert.equal(linesUnreadWords([line({ address: { kind: 'routine', id: 'g', instant: AT }, cents: 300, label: 'Ghost' })]),
+    '1 plan line today — its stop could not be read — Ghost $3.00');
+  assert.equal(linesUnreadWords([
+    line({ address: { kind: 'routine', id: 'g', instant: AT }, cents: 300, label: 'Ghost' }),
+    line({ address: { kind: 'project_task', id: 't', instant: null }, cents: 2000, label: 'Task' }),
+  ]), '2 plan lines today — their stops could not be read — Ghost $3.00 · Task $20.00');
+  assert.equal(routineFigureWords([line({ address: { kind: 'routine', id: 'morning', instant: AT }, cents: 6000, label: 'Morning', time: '07:00' })]),
+    "1 routine is priced as a whole — its lines carry no amount, so none of its stops is — Morning $60.00 at 07:00");
+  assert.equal(routineFigureWords([
+    line({ address: { kind: 'routine', id: 'morning', instant: AT }, cents: 6000, label: 'Morning' }),
+    line({ address: { kind: 'routine', id: 'night', instant: AT }, cents: 1000, label: 'Night' }),
+  ]), '2 routines are priced as a whole — their lines carry no amount, so none of their stops is — Morning $60.00 · Night $10.00');
+  const v = { id: 'v', name: 'Luka', entityId: 'P' };
+  assert.equal(strandedWords([{ vendor: v, label: 'Morning', line: 'Coffee', day: DAY, time: '07:30', address: { kind: 'routine_line', id: 'coffee', instant: AT }, reason: 'no occurrence' }]),
+    '1 vendor stranded — Luka (Morning — Coffee, 2026-10-11): no occurrence');
+  assert.equal(strandedWords([
+    { vendor: v, label: 'Gym', line: null, day: null, time: null, address: { kind: 'routine', id: 'gym', instant: GYM_AT }, reason: 'zone unreadable' },
+    { vendor: v, label: 'Gym', line: null, day: DAY, time: '20:00', address: { kind: 'routine', id: 'gym', instant: GYM_AT }, reason: 'no occurrence' },
+  ]), '2 vendors stranded — Luka (Gym): zone unreadable · Luka (Gym, 2026-10-11): no occurrence');
   assert.equal(notPlacedWords([
     { source: 'routine', sourceId: 'routine:night', entityId: 'P', label: 'Night', cents: null, day: null, reason: 'timezone not recognised', detail: '"Mars/Olympus"' },
     { source: 'routine', sourceId: 'x', entityId: 'P', label: 'Dinner', cents: 1500, day: DAY, reason: 'no account', detail: null },
@@ -331,13 +384,13 @@ test('T5 the day folder prices nothing, writes nothing and paints no dark surfac
 test('T6 the stage, the hero, the rows, the focus, the URL — pinned in the screen', () => {
   const c = code(CARD);
   assert.match(c, /^'use client';/m);
-  assert.match(c, /className="bg-white border border-border rounded-lg overflow-hidden flex flex-col" style=\{\{ width: 540, height: 960 \}\} data-day-card/, 'the stage: 9:16, half of 1080×1920, white, the app’s border');
+  assert.match(c, /className="bg-white border border-border rounded-lg overflow-hidden flex flex-col mx-auto" style=\{\{ width: 540, height: 960 \}\} data-day-card/, 'the stage: 9:16, half of 1080×1920, white, the app’s border, centered');
   assert.match(c, /data-day-planned>\{formatCents\(plannedCents\)\}/, 'the hero is the Budget’s figure through formatCents');
   assert.match(c, /const plannedCents = report !== null && report\.ok \? result\.plannedCents : null;/, 'the hero is ’—’ while the report cannot be read — never a sum of the stops');
   assert.match(c, /data-day-amount>\{formatCents\(s\.cents\)\}/, 'every row amount through formatCents — ’—’ for null, never $0.00');
   assert.match(c, /data-day-amount>\{formatCents\(focus\.stop\.cents\)\}/);
   assert.match(c, /\{stopsWords\(N\)\}\{result\.notPriced > 0 && ` · \$\{notPricedWords\(result\.notPriced\)\}`\}/);
-  for (const attr of ['data-day-card', 'data-day-stop=', 'data-day-status=', 'data-day-focus', 'data-day-unmatched', 'data-day-lines-without-stop', 'data-day-not-placed', 'data-day-report-failed', 'data-day-bad-date', 'data-day-bad-step', 'data-day-failed', 'data-day-so-far', 'data-day-provenance', 'data-day-controls']) {
+  for (const attr of ['data-day-card', 'data-day-stop=', 'data-day-status=', 'data-day-focus', 'data-day-unmatched', 'data-day-routine-figures', 'data-day-lines-without-stop', 'data-day-not-placed', 'data-day-stranded', 'data-day-report-failed', 'data-day-bad-date', 'data-day-bad-step', 'data-day-failed', 'data-day-so-far', 'data-day-provenance', 'data-day-controls']) {
     assert.ok(c.includes(attr), `the screen carries ${attr}`);
   }
   assert.match(c, /import \{ useRouter, useSearchParams \} from 'next\/navigation';/);
@@ -345,8 +398,25 @@ test('T6 the stage, the hero, the rows, the focus, the URL — pinned in the scr
   assert.match(c, /const dateParam = search\.get\('date'\);\n\s*const stepParam = search\.get\('step'\);/);
   assert.match(c, /const day = today === null \? null : dateParam !== null && isIsoDay\(dateParam\) \? dateParam : today;/, 'the day is ?date= when it is a day, else today');
   assert.match(c, /const badDate = dateParam !== null && !isIsoDay\(dateParam\) \? dateParam : null;/, 'a ?date= that is not a day is named');
-  assert.match(c, /const badStep = n !== null && focus === null \? stepParam : null;/, 'a step outside 1..N is named, never clamped');
+  assert.match(c, /const focus = loaded && n !== null \? focusStop\(result, n\) : null;/, 'the step is the rules’ focus, judged once the reads are in — never clamped on the screen');
+  assert.match(c, /const badStep = loaded && n !== null && focus === null \? stepParam : null;/, 'a step outside 1..N is named, never clamped — and not before the day has its stops');
+  assert.match(c, /data-day-words>\{dayWords\(day\)\}/, 'the header day is written from the day string — never the browser’s zone');
   assert.match(c, /const go = \(href: string\) => router\.push\(href\);/);
+  // The controls push the URLs the rules name: the day either side, today, all, the step either side.
+  assert.match(c, /aria-label="Back one day" onClick=\{\(\) => go\(hrefFor\(shiftDay\(day, -1\), null\)\)\}/);
+  assert.match(c, /aria-label="Forward one day" onClick=\{\(\) => go\(hrefFor\(shiftDay\(day, 1\), null\)\)\}/);
+  assert.match(c, /disabled=\{day === today\} onClick=\{\(\) => go\(hrefFor\(today, null\)\)\}>\{TODAY_WORD\}<\/button>/);
+  assert.match(c, /disabled=\{stepParam === null\} onClick=\{\(\) => go\(hrefFor\(day, null\)\)\}>all<\/button>/, '"all" clears any step, a bad one too');
+  assert.match(c, /aria-label="Back one step" disabled=\{focus === null \|\| focus\.index === 1\} onClick=\{\(\) => \{ if \(focus !== null\) go\(hrefFor\(day, focus\.index - 1\)\); \}\}>‹ step<\/button>/);
+  assert.match(c, /aria-label="Forward one step" disabled=\{N === 0 \|\| \(focus !== null && focus\.index === N\)\} onClick=\{\(\) => go\(hrefFor\(day, focus === null \? 1 : focus\.index \+ 1\)\)\}>step ›<\/button>/);
+  // A read that lands after the day changed is dropped — the live guard.
+  assert.match(c, /let live = true;\n[\s\S]*?if \(!live\) return;\n[\s\S]*?return \(\) => \{ live = false; \};/);
+  // The stage is centered; the foot scrolls rather than clips; the day's lines read "could not be read" while the day read failed.
+  assert.match(c, /overflow-hidden flex flex-col mx-auto" style=\{\{ width: 540, height: 960 \}\} data-day-card/);
+  assert.match(c, /shrink-0 overflow-y-auto" style=\{\{ maxHeight: 320 \}\} data-day-foot/);
+  assert.match(c, /data-day-lines-without-stop>\{dayFailed \? linesUnreadWords\(result\.linesWithoutStop\) : linesWithoutStopWords\(result\.linesWithoutStop\)\}/);
+  assert.match(c, /data-day-routine-figures>\{routineFigureWords\(result\.routineFigures\)\}/);
+  assert.match(c, /data-day-stranded>\{strandedWords\(stranded\)\}/);
   assert.match(c, /<button\n\s*type="button"\n\s*key=\{s\.key\}\n\s*className="[^"]*"\n\s*data-day-stop=\{s\.key\}\n\s*data-day-status=\{s\.status\}\n\s*onClick=\{\(\) => go\(hrefFor\(day, i \+ 1\)\)\}/, 'a row is a real button that pushes ?step=');
   assert.match(c, /const hrefFor = \(day: string, step: number \| null\): string => `\/tasks\/day\?date=\$\{day\}\$\{step === null \? '' : `&step=\$\{step\}`\}`;/);
   assert.match(c, /import \{ localToday \} from '@\/lib\/localToday';/);

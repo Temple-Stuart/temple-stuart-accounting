@@ -34,7 +34,7 @@
  */
 import type { NotPlaced } from '@/lib/budget/days';
 import { formatCents } from '@/lib/budget/format';
-import type { PlanLine } from '@/lib/budget/planLines';
+import type { PlanLine, StrandedVendor } from '@/lib/budget/planLines';
 import { instantToZoned } from '@/lib/time';
 import type { DailyPlanItem } from '../dailyplan/types';
 import type { TodayRoutineEntry, TodayStatus } from '../routines/types';
@@ -100,6 +100,13 @@ export interface DayStops {
   /** How many stops have no amount. */
   readonly notPriced: number;
   readonly unmatched: readonly UnmatchedLine[];
+  /**
+   * A routine's OWN figure on the day (a 'routine'-kind line at the occurrence
+   * of a routine that has lines) — the lines leaf's rule when no line carries an
+   * amount (routineLines.ts): the Budget prices the routine, not any one line,
+   * so no stop of it is priced. Named for what it is, in the hero's total.
+   */
+  readonly routineFigures: readonly PlanLine[];
   /** The day's lines no stop carries. */
   readonly linesWithoutStop: readonly PlanLine[];
   /** The report's not-placed entries for the day, and every undated one. */
@@ -236,12 +243,19 @@ export function dayStops(input: DayCardInput): DayStops {
   timed.sort((a, b) => cmp(a.time as string, b.time as string) || cmp(a.label, b.label) || cmpMaybe(a.line, b.line));
   const stops = [...timed, ...untimed];
 
+  // A 'routine'-kind line at the occurrence of a routine that HAS lines is the routine's own figure
+  // (its lines carry no amount) — named as such, not as a line with no stop.
+  const linedAt = new Map(input.entries.filter((e) => e.routine.steps.length > 0).map((e) => [e.routine.id, e.expected_at]));
+  const isRoutineFigure = (l: PlanLine): boolean => l.address.kind === 'routine' && linedAt.get(l.address.id) === l.address.instant;
+  const unused = dayLines.filter((l) => !used.has(l));
+
   return {
     stops,
     plannedCents: dayLines.reduce((sum, l) => sum + l.cents, 0),
     notPriced: stops.filter((s) => s.cents === null).length,
     unmatched,
-    linesWithoutStop: dayLines.filter((l) => !used.has(l)),
+    routineFigures: unused.filter(isRoutineFigure),
+    linesWithoutStop: unused.filter((l) => !isRoutineFigure(l)),
     notPlacedToday: input.notPlaced.filter((n) => n.day === null || n.day === input.day),
   };
 }
@@ -281,18 +295,45 @@ export const badStepWords = (raw: string | number, of: number): string => `?step
 
 const lineName = (label: string, line: string | null): string => (line === null ? label : `${label} — ${line}`);
 
+/**
+ * A line of the stop's kind and id at another instant of the day: the Budget
+ * plans it at that instant, the today read names ONE occurrence per routine per
+ * day (routineDay.ts, the first) — so a second occurrence has no stop here, and
+ * a line whose schedule moved has none either. Both instants are named; nothing
+ * is matched by nearness.
+ */
 export const unmatchedWords = (list: readonly UnmatchedLine[]): string => {
-  const head = list.length === 1 ? '1 plan line does not match its stop' : `${list.length} plan lines do not match their stops`;
+  const head = list.length === 1 ? '1 plan line is at another instant than its stop' : `${list.length} plan lines are at another instant than their stops`;
   return `${head} — ${list.map((u) => (
     u.reason === 'instant differs'
-      ? `${lineName(u.label, u.line)} ${formatCents(u.cents)}: the line is at ${u.lineInstant ?? 'no instant'}, the stop at ${u.stopInstant ?? 'no instant'} (instant differs)`
-      : `${lineName(u.label, u.line)} ${formatCents(u.cents)}: two plan lines for one stop`
+      ? `${lineName(u.label, u.line)} ${formatCents(u.cents)}: planned at ${u.lineInstant ?? 'no instant'}, the day's one stop is at ${u.stopInstant ?? 'no instant'} (the today read names one occurrence per routine per day — this line has no stop)`
+      : `${lineName(u.label, u.line)} ${formatCents(u.cents)}: two plan lines for one stop — neither used`
   )).join(' · ')}`;
 };
 
+const lineList = (list: readonly PlanLine[]): string => list.map((l) => `${lineName(l.label, l.line)} ${formatCents(l.cents)}${l.time !== null ? ` at ${l.time}` : ''}`).join(' · ');
+
 export const linesWithoutStopWords = (list: readonly PlanLine[]): string => {
   const head = list.length === 1 ? '1 plan line has no stop today' : `${list.length} plan lines have no stop today`;
-  return `${head} — ${list.map((l) => `${lineName(l.label, l.line)} ${formatCents(l.cents)}${l.time !== null ? ` at ${l.time}` : ''}`).join(' · ')}`;
+  return `${head} — ${lineList(list)}`;
+};
+
+/** The same lines while the day could not be read: their stops are unknown, not absent. */
+export const linesUnreadWords = (list: readonly PlanLine[]): string => {
+  const head = list.length === 1 ? '1 plan line today — its stop could not be read' : `${list.length} plan lines today — their stops could not be read`;
+  return `${head} — ${lineList(list)}`;
+};
+
+/** A routine priced by its own figure: its lines carry no amount, so the Budget prices the routine and no one stop. */
+export const routineFigureWords = (list: readonly PlanLine[]): string => {
+  const head = list.length === 1 ? "1 routine is priced as a whole — its lines carry no amount, so none of its stops is" : `${list.length} routines are priced as a whole — their lines carry no amount, so none of their stops is`;
+  return `${head} — ${lineList(list)}`;
+};
+
+/** The report's stranded vendors on the day, in the week's own words (WeekSection.tsx). */
+export const strandedWords = (list: readonly StrandedVendor[]): string => {
+  const head = list.length === 1 ? '1 vendor stranded' : `${list.length} vendors stranded`;
+  return `${head} — ${list.map((s) => `${s.vendor.name} (${s.label}${s.line !== null ? ` — ${s.line}` : ''}${s.day !== null ? `, ${s.day}` : ''}): ${s.reason}`).join(' · ')}`;
 };
 
 export const notPlacedWords = (list: readonly NotPlaced[]): string => {

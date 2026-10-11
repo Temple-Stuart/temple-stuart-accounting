@@ -43,7 +43,7 @@ import { readDay, readItems, type DayAnswer, type Read } from '../week/weekReads
 import { readDayReport } from './dayReads';
 import {
   BRAND_WORDS, TASK_WORD, TODAY_WORD, badDateWords, badStepWords, dayStops, dayWords, focusStop,
-  linesWithoutStopWords, notPlacedWords, notPricedWords, ofWords, provenanceWords, soFarWords, stopsWords, unmatchedWords,
+  linesUnreadWords, linesWithoutStopWords, notPlacedWords, notPricedWords, ofWords, provenanceWords, routineFigureWords, soFarWords, stopsWords, strandedWords, unmatchedWords,
   type Stop,
 } from './dayCard';
 
@@ -110,20 +110,23 @@ export default function DayCard() {
   }
 
   const loaded = dayRead !== null && report !== null && items !== null;
+  const dayFailed = dayRead !== null && !dayRead.ok;
   const entries = dayRead !== null && dayRead.ok ? dayRead.value.entries : [];
   const refused = dayRead !== null && dayRead.ok ? dayRead.value.refused : [];
   const plans = report !== null && report.ok ? report.value.plans : null;
   const lines = plans !== null && plans.listed ? plans.lines : [];
+  const stranded = plans !== null && plans.listed ? plans.stranded : [];
   const notPlaced = report !== null && report.ok ? report.value.notPlaced : [];
   const dayItems = items !== null && items.ok ? items.value : [];
   const result = dayStops({ day, entries, lines, notPlaced, items: dayItems, viewerZone: zone });
   // The hero is the Budget's figure — '—' while the report cannot be read, never a sum of the stops.
   const plannedCents = report !== null && report.ok ? result.plannedCents : null;
 
-  // ?step=n: one stop, or the whole card with the bad step named — never clamped.
+  // ?step=n: one stop, or the whole card with the bad step named — never clamped; judged only once the reads are in
+  // (before that the day has no stops yet, and "not one of this day's 0 stops" would be a false sentence).
   const n = stepParam === null ? null : /^\d+$/.test(stepParam) ? Number(stepParam) : Number.NaN;
-  const focus = n === null ? null : focusStop(result, n);
-  const badStep = n !== null && focus === null ? stepParam : null;
+  const focus = loaded && n !== null ? focusStop(result, n) : null;
+  const badStep = loaded && n !== null && focus === null ? stepParam : null;
   const N = result.stops.length;
 
   const go = (href: string) => router.push(href);
@@ -138,7 +141,7 @@ export default function DayCard() {
           <button type="button" className={chip} aria-label="Forward one day" onClick={() => go(hrefFor(shiftDay(day, 1), null))}>›</button>
           <button type="button" className={chip} disabled={day === today} onClick={() => go(hrefFor(today, null))}>{TODAY_WORD}</button>
           <span className="w-2" aria-hidden="true" />
-          <button type="button" className={chip} disabled={focus === null} onClick={() => go(hrefFor(day, null))}>all</button>
+          <button type="button" className={chip} disabled={stepParam === null} onClick={() => go(hrefFor(day, null))}>all</button>
           <button type="button" className={chip} aria-label="Back one step" disabled={focus === null || focus.index === 1} onClick={() => { if (focus !== null) go(hrefFor(day, focus.index - 1)); }}>‹ step</button>
           <button type="button" className={chip} aria-label="Forward one step" disabled={N === 0 || (focus !== null && focus.index === N)} onClick={() => go(hrefFor(day, focus === null ? 1 : focus.index + 1))}>step ›</button>
         </div>
@@ -151,7 +154,7 @@ export default function DayCard() {
       {items !== null && !items.ok && <p className="text-xs text-brand-red" data-day-items-failed>The day&apos;s tasks could not be read — {items.words}</p>}
 
       {/* THE STAGE — 9:16, half of 1080×1920; every size inside is half its video size. Record this box alone. */}
-      <div className="bg-white border border-border rounded-lg overflow-hidden flex flex-col" style={{ width: 540, height: 960 }} data-day-card data-day-step={focus === null ? undefined : focus.index}>
+      <div className="bg-white border border-border rounded-lg overflow-hidden flex flex-col mx-auto" style={{ width: 540, height: 960 }} data-day-card data-day-step={focus === null ? undefined : focus.index}>
         <div className="flex items-baseline justify-between px-6 pt-5">
           <span className="text-text-faint tracking-widest" style={{ fontSize: 11 }}>{BRAND_WORDS}</span>
           <span className="font-mono text-text-primary" style={{ fontSize: 13 }} data-day-words>{dayWords(day)}</span>
@@ -204,12 +207,14 @@ export default function DayCard() {
           </div>
         )}
 
-        {/* The foot — only when there is something to say. */}
-        {loaded && (result.unmatched.length > 0 || result.linesWithoutStop.length > 0 || result.notPlacedToday.length > 0 || refused.length > 0 || (report !== null && !report.ok) || (plans !== null && !plans.listed)) && (
-          <div className="px-6 py-3 space-y-1 border-t border-border-light text-xs" data-day-foot>
+        {/* The foot — only when there is something to say; it scrolls rather than clips, so nothing named is hidden. */}
+        {loaded && (result.unmatched.length > 0 || result.routineFigures.length > 0 || result.linesWithoutStop.length > 0 || result.notPlacedToday.length > 0 || stranded.length > 0 || refused.length > 0 || (report !== null && !report.ok) || (plans !== null && !plans.listed)) && (
+          <div className="px-6 py-3 space-y-1 border-t border-border-light text-xs shrink-0 overflow-y-auto" style={{ maxHeight: 320 }} data-day-foot>
             {result.unmatched.length > 0 && <p className="text-brand-amber" data-day-unmatched>{unmatchedWords(result.unmatched)}</p>}
-            {result.linesWithoutStop.length > 0 && <p className="text-brand-amber" data-day-lines-without-stop>{linesWithoutStopWords(result.linesWithoutStop)}</p>}
+            {result.routineFigures.length > 0 && <p className="text-brand-amber" data-day-routine-figures>{routineFigureWords(result.routineFigures)}</p>}
+            {result.linesWithoutStop.length > 0 && <p className="text-brand-amber" data-day-lines-without-stop>{dayFailed ? linesUnreadWords(result.linesWithoutStop) : linesWithoutStopWords(result.linesWithoutStop)}</p>}
             {result.notPlacedToday.length > 0 && <p className="text-brand-amber" data-day-not-placed>{notPlacedWords(result.notPlacedToday)}</p>}
+            {stranded.length > 0 && <p className="text-brand-amber" data-day-stranded>{strandedWords(stranded)}</p>}
             <RefusedRoutines refused={refused} />
             {report !== null && !report.ok && <p className="text-brand-red" data-day-report-failed>{report.words}</p>}
             {plans !== null && !plans.listed && <p className="text-text-muted" data-day-plans-words>{plans.words}</p>}
