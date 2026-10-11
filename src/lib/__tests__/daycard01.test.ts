@@ -19,8 +19,9 @@ import { TOOL_REGISTRY } from '../toolRegistry';
 import type { DailyPlanItem } from '@/components/workbench/operations/dailyplan/types';
 import type { Routine, RoutineStep, TodayRoutineEntry, TodayStatus } from '@/components/workbench/operations/routines/types';
 import {
-  BRAND_WORDS, TASK_WORD, TODAY_WORD, UNTITLED_WORDS, badDateWords, badStepWords, dayStops, dayWords, focusStop,
-  linesUnreadWords, linesWithoutStopWords, notPlacedWords, notPricedWords, ofWords, provenanceWords, routineFigureWords, soFarWords, stopsWords, strandedWords, unmatchedWords,
+  BADGE_WORDS, BRAND_WORDS, HOOK_WORDS, PLAN_WORD, TASK_WORD, TODAY_WORD, UNTITLED_WORDS, badDateWords, badStepWords, completenessWords, dayShortWords, dayStops, dayWords, focusStop,
+  hookWords, linesUnreadWords, linesWithoutStopWords, notPlacedWords, notPricedWords, ofWords, planDollars, progressPercent, provenanceWords, quarterDay, quarterDayWords,
+  routineFigureWords, soFarWords, stepHeaderWords, stopsWords, strandedWords, unmatchedWords,
   type DayCardInput,
 } from '@/components/workbench/operations/day/dayCard';
 import { dayReportFailedWords, readDayReport } from '@/components/workbench/operations/day/dayReads';
@@ -284,9 +285,10 @@ test('T3 the words, exact', () => {
   assert.equal(stopsWords(7), '7 stops');
   assert.equal(notPricedWords(3), '3 not priced');
   assert.equal(ofWords(4, 7), '4 of 7');
-  assert.equal(soFarWords(1400, 5000), 'so far $14.00 of $50.00');
+  assert.equal(soFarWords(1400, 5000), 'so far $14 of $50');
+  assert.equal(soFarWords(1461, 5000), 'so far $14.61 of $50');
   assert.equal(soFarWords(null, null), 'so far — of —');
-  assert.equal(provenanceWords('2026-10-11', '2026-10-11'), "amounts: the Budget's plan lines for 2026-10-11 · as of 2026-10-11");
+  assert.equal(provenanceWords('2026-10-11'), "plan: the Budget's lines · as of 2026-10-11");
   assert.equal(badDateWords('yesterday'), '?date=yesterday is not a day (YYYY-MM-DD) — showing today');
   assert.equal(badStepWords('9', 7), "?step=9 is not one of this day's 7 stops — showing the whole card");
   assert.equal(unmatchedWords([{ label: 'Morning', line: 'Coffee', cents: 500, lineInstant: '2026-10-11T01:00:00.000Z', stopInstant: AT, reason: 'instant differs' }]),
@@ -325,6 +327,58 @@ test('T3 the words, exact', () => {
     { source: 'routine', sourceId: 'x', entityId: 'P', label: 'Dinner', cents: 1500, day: DAY, reason: 'no account', detail: null },
   ]), '2 plans not placed — Night: timezone not recognised ("Mars/Olympus"), undated · Dinner: no account');
   assert.equal(notPlacedWords([{ source: 'task', sourceId: 'task:t', entityId: 'P', label: 'T', cents: 100, day: DAY, reason: 'no account', detail: null }]), '1 plan not placed — T: no account');
+});
+
+test('T3 the reel plate’s words, exact (DAYCARD-01b): whole dollars, the day of the quarter, the hook line, the step header, the bar, the completeness line', () => {
+  assert.equal(BADGE_WORDS, 'TS');
+  assert.equal(HOOK_WORDS, 'under or over?');
+  assert.equal(PLAN_WORD, 'PLAN');
+  // planDollars: lossless — a trailing ".00" removed, cents kept, null '—', a negative kept.
+  assert.equal(planDollars(7500), '$75');
+  assert.equal(planDollars(507), '$5.07');
+  assert.equal(planDollars(0), '$0');
+  assert.equal(planDollars(123456), '$1,234.56');
+  assert.equal(planDollars(-1200), '−$12');
+  assert.equal(planDollars(null), '—');
+  assert.equal(dayShortWords('2026-10-13'), 'Tue Oct 13');
+  // The day of its calendar quarter: Q4 2026 has 92 days (31 + 30 + 31); Q1 2026 has 90 (no leap day); Q1 2028 has 91.
+  assert.deepEqual(quarterDay('2026-10-01'), { n: 1, of: 92 });
+  assert.deepEqual(quarterDay('2026-10-11'), { n: 11, of: 92 });
+  assert.deepEqual(quarterDay('2026-12-31'), { n: 92, of: 92 });
+  assert.deepEqual(quarterDay('2026-01-01'), { n: 1, of: 90 });
+  assert.deepEqual(quarterDay('2026-03-31'), { n: 90, of: 90 });
+  assert.deepEqual(quarterDay('2028-02-29'), { n: 60, of: 91 });
+  assert.deepEqual(quarterDay('2026-04-01'), { n: 1, of: 91 });
+  assert.deepEqual(quarterDay('2026-07-15'), { n: 15, of: 92 });
+  assert.equal(quarterDayWords('2026-10-13'), 'DAY 13 OF 92');
+  assert.equal(hookWords('2026-10-13', 7), 'Tue Oct 13 · 7 stops · under or over?');
+  assert.equal(hookWords('2026-10-13', 1), 'Tue Oct 13 · 1 stop · under or over?');
+  assert.equal(stepHeaderWords(4, 7, '12:30'), '4 OF 7 · 12:30');
+  assert.equal(stepHeaderWords(7, 7, null), '7 OF 7 · —');
+  // The bar: whole percent of the plan, 0..100; null when the plan is unknown or nothing is planned.
+  assert.equal(progressPercent(1461, 5000), 29);
+  assert.equal(progressPercent(0, 5000), 0);
+  assert.equal(progressPercent(5000, 5000), 100);
+  assert.equal(progressPercent(6000, 5000), 100, 'never past the end');
+  assert.equal(progressPercent(500, 0), null, 'nothing planned — no bar');
+  assert.equal(progressPercent(null, 5000), null);
+  assert.equal(progressPercent(500, null), null);
+  // The completeness line counts; the sentences name.
+  const empty = dayStops(input());
+  assert.equal(completenessWords(empty, 0), null);
+  const r = dayStops(input({
+    entries: [entry(morning)],
+    lines: [
+      line({ address: { kind: 'routine_line', id: 'coffee', instant: '2026-10-11T01:00:00.000Z' }, cents: 500, label: 'Morning', line: 'Coffee' }),
+      line({ address: { kind: 'routine_line', id: 'ghost', instant: AT }, cents: 300, label: 'Ghost', line: 'Boo' }),
+    ],
+    notPlaced: [{ source: 'routine', sourceId: 'routine:night', entityId: 'P', label: 'Night', cents: null, day: null, reason: 'timezone not recognised', detail: null }],
+  }));
+  assert.equal(completenessWords(r, 2), '3 not priced · 1 line at another instant · 1 line with no stop · 1 plan not placed · 2 vendors stranded');
+  const whole = dayStops(input({ entries: [entry(morning)], lines: [line({ address: { kind: 'routine', id: 'morning', instant: AT }, cents: 6000, label: 'Morning' })] }));
+  assert.equal(completenessWords(whole, 0), '3 not priced · 1 routine priced as a whole');
+  const priced = dayStops(input({ entries: [entry(gym, 'pending', GYM_AT)], lines: [line({ address: { kind: 'routine', id: 'gym', instant: GYM_AT }, cents: 1500, label: 'Gym' })] }));
+  assert.equal(completenessWords(priced, 0), null);
 });
 
 // ── T4 · THE READS ───────────────────────────────────────────────────────────
@@ -373,7 +427,9 @@ test('T5 the day folder prices nothing, writes nothing and paints no dark surfac
     assert.doesNotMatch(body, /plan-vendors|vendor-directory|VendorBox|completeRoutine|editCompletionNote|completions/, `${f} writes nothing — no vendor box, no mark-done, no note`);
     assert.doesNotMatch(body, /method:\s*'(POST|PATCH|PUT|DELETE)'/, `${f} sends no write`);
     assert.doesNotMatch(body, /localStorage|sessionStorage|document\.cookie/, `${f} stores nothing`);
-    assert.doesNotMatch(body, /\b(bg-black|bg-brand-purple|bg-panel|bg-brand-gold|bg-brand-green|bg-brand-red)\b(?!\/)/, `${f} paints no dark surface (the repaint law)`);
+    assert.doesNotMatch(body, /\b(bg-black|bg-brand-purple|bg-panel|bg-brand-red)\b(?!\/)/, `${f} paints no dark surface (the repaint law)`);
+    // DAYCARD-01b: the reel plate's two solid fills, and only those — the gold TS badge (dark ink on it) and the green progress bar (no ink on it).
+    assert.deepEqual([...body.matchAll(/\b(bg-brand-gold|bg-brand-green)\b/g)].map((m) => m[1]), f === CARD ? ['bg-brand-gold', 'bg-brand-green'] : [], `${f}: the badge and the bar are the only solid fills`);
     assert.doesNotMatch(body, /consecutive_(completion|miss)_streak/, `${f} reads no streak (the two-lists law)`);
   }
   assert.doesNotMatch(code(RULES), /\bfetch\b|new Date\(\)|Date\.now\(|from 'react'|@prisma\/client/, 'the rules are pure: no fetch, no clock, no React, no Prisma');
@@ -381,58 +437,72 @@ test('T5 the day folder prices nothing, writes nothing and paints no dark surfac
 
 // ── T6 · THE SCREEN, THE PAGE AND THE DOORS ──────────────────────────────────
 
-test('T6 the stage, the hero, the rows, the focus, the URL — pinned in the screen', () => {
+test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the screen', () => {
   const c = code(CARD);
   assert.match(c, /^'use client';/m);
-  assert.match(c, /className="bg-white border border-border rounded-lg overflow-hidden flex flex-col mx-auto" style=\{\{ width: 540, height: 960 \}\} data-day-card/, 'the stage: 9:16, half of 1080×1920, white, the app’s border, centered');
-  assert.match(c, /data-day-planned>\{formatCents\(plannedCents\)\}/, 'the hero is the Budget’s figure through formatCents');
-  assert.match(c, /const plannedCents = report !== null && report\.ok \? result\.plannedCents : null;/, 'the hero is ’—’ while the report cannot be read — never a sum of the stops');
-  assert.match(c, /data-day-amount>\{formatCents\(s\.cents\)\}/, 'every row amount through formatCents — ’—’ for null, never $0.00');
-  assert.match(c, /data-day-amount>\{formatCents\(focus\.stop\.cents\)\}/);
-  assert.match(c, /\{stopsWords\(N\)\}\{result\.notPriced > 0 && ` · \$\{notPricedWords\(result\.notPriced\)\}`\}/);
-  for (const attr of ['data-day-card', 'data-day-stop=', 'data-day-status=', 'data-day-focus', 'data-day-unmatched', 'data-day-routine-figures', 'data-day-lines-without-stop', 'data-day-not-placed', 'data-day-stranded', 'data-day-report-failed', 'data-day-bad-date', 'data-day-bad-step', 'data-day-failed', 'data-day-so-far', 'data-day-provenance', 'data-day-controls']) {
+  // THE PLATE (DAYCARD-01b): the reel's card at two thirds — 540 wide, white, the app's hairline, rounded, centered; its height is its content's.
+  assert.match(c, /className="bg-white border border-border shadow-sm flex flex-col mx-auto" style=\{\{ width: 540, borderRadius: 23, padding: '25px 29px 24px', gap: 11 \}\} data-day-card/, 'the plate');
+  assert.doesNotMatch(c, /height: 960/, 'no fixed 9:16 box — the plate grows with its stops');
+  assert.equal((c.match(/overflow-hidden/g) ?? []).length, 1, 'nothing clipped but the bar’s own track');
+  // The header: the badge, the wordmark, DAY n OF m on the full card, "n OF N · time" on the step card.
+  assert.match(c, /className="bg-brand-gold text-text-primary rounded-lg flex items-center justify-center font-extrabold" style=\{\{ width: 32, height: 32, fontSize: 16 \}\} aria-hidden="true">\{BADGE_WORDS\}/, 'the gold TS badge, dark ink');
+  assert.match(c, /\{BRAND_WORDS\}<\/span>/);
+  assert.match(c, /<PlateHeader right=\{focus === null \? quarterDayWords\(day\) : stepHeaderWords\(focus\.index, focus\.of, focus\.stop\.time\)\} \/>/);
+  assert.match(c, /data-day-words>\{right\}/, 'the header words are the rules’ — never the browser’s zone');
+  // The hero: the Budget's figure in whole dollars; '—' while the report cannot be read — never a sum of the stops.
+  assert.match(c, /data-day-planned>\{planDollars\(plannedCents\)\}/);
+  assert.match(c, /const plannedCents = report !== null && report\.ok \? result\.plannedCents : null;/);
+  assert.match(c, /data-day-hook>\{hookWords\(day, N\)\}/, 'the hook line under the hero');
+  // The rows: every amount through planDollars — '—' for null, never $0.00 for a blank; the row is a real button that pushes ?step=.
+  assert.match(c, /data-day-amount>\{planDollars\(s\.cents\)\}/);
+  assert.match(c, /data-day-amount>\{planDollars\(focus\.stop\.cents\)\}/);
+  assert.match(c, /<button\n\s*type="button"\n\s*key=\{s\.key\}\n\s*className="[^"]*"\n\s*style=\{\{ padding: '8px 0' \}\}\n\s*data-day-stop=\{s\.key\}\n\s*data-day-status=\{s\.status\}\n\s*onClick=\{\(\) => go\(hrefFor\(day, i \+ 1\)\)\}/, 'a row is a real button that pushes ?step=');
+  // The plate's foot: the completeness line counts, the provenance names the source; the sentences sit under the plate.
+  assert.match(c, /const completeness = completenessWords\(result, stranded\.length\);/);
+  assert.match(c, /data-day-count>\{completeness\}/);
+  assert.match(c, /data-day-provenance>\{provenanceWords\(today\)\}/);
+  assert.ok(c.indexOf('data-day-provenance') < c.indexOf('data-day-foot'), 'the provenance is on the plate; the sentences are under it');
+  assert.match(c, /data-day-lines-without-stop>\{dayFailed \? linesUnreadWords\(result\.linesWithoutStop\) : linesWithoutStopWords\(result\.linesWithoutStop\)\}/);
+  assert.match(c, /data-day-routine-figures>\{routineFigureWords\(result\.routineFigures\)\}/);
+  assert.match(c, /data-day-stranded>\{strandedWords\(stranded\)\}/);
+  assert.match(c, /<RefusedRoutines refused=\{refused\} \/>/);
+  // The step card: PLAN and its amount, "so far" and the bar — both null-safe while the report cannot be read.
+  assert.match(c, /\{PLAN_WORD\}<\/div>/);
+  assert.match(c, /data-day-so-far>\{soFarWords\(plannedCents === null \? null : focus\.soFarCents, plannedCents\)\}/);
+  assert.match(c, /\{progressPercent\(plannedCents === null \? null : focus\.soFarCents, plannedCents\) !== null && \(/, 'no bar without a known plan');
+  assert.match(c, /className="bg-brand-green rounded-full" style=\{\{ height: 9, width: `\$\{progressPercent\(focus\.soFarCents, plannedCents\)\}%` \}\}/);
+  for (const attr of ['data-day-card', 'data-day-header', 'data-day-hero', 'data-day-hook', 'data-day-stop=', 'data-day-status=', 'data-day-focus', 'data-day-plate-foot', 'data-day-count', 'data-day-provenance', 'data-day-foot', 'data-day-unmatched', 'data-day-routine-figures', 'data-day-lines-without-stop', 'data-day-not-placed', 'data-day-stranded', 'data-day-report-failed', 'data-day-bad-date', 'data-day-bad-step', 'data-day-failed', 'data-day-so-far', 'data-day-controls']) {
     assert.ok(c.includes(attr), `the screen carries ${attr}`);
   }
+  // The URL: ?date= and ?step= read with useSearchParams, pushed with router.push; the step judged once the reads are in, never clamped.
   assert.match(c, /import \{ useRouter, useSearchParams \} from 'next\/navigation';/);
   assert.match(c, /const search = useSearchParams\(\);/);
   assert.match(c, /const dateParam = search\.get\('date'\);\n\s*const stepParam = search\.get\('step'\);/);
   assert.match(c, /const day = today === null \? null : dateParam !== null && isIsoDay\(dateParam\) \? dateParam : today;/, 'the day is ?date= when it is a day, else today');
   assert.match(c, /const badDate = dateParam !== null && !isIsoDay\(dateParam\) \? dateParam : null;/, 'a ?date= that is not a day is named');
-  assert.match(c, /const focus = loaded && n !== null \? focusStop\(result, n\) : null;/, 'the step is the rules’ focus, judged once the reads are in — never clamped on the screen');
-  assert.match(c, /const badStep = loaded && n !== null && focus === null \? stepParam : null;/, 'a step outside 1..N is named, never clamped — and not before the day has its stops');
-  assert.match(c, /data-day-words>\{dayWords\(day\)\}/, 'the header day is written from the day string — never the browser’s zone');
+  assert.match(c, /const focus = loaded && n !== null \? focusStop\(result, n\) : null;/);
+  assert.match(c, /const badStep = loaded && n !== null && focus === null \? stepParam : null;/);
   assert.match(c, /const go = \(href: string\) => router\.push\(href\);/);
-  // The controls push the URLs the rules name: the day either side, today, all, the step either side.
-  assert.match(c, /aria-label="Back one day" onClick=\{\(\) => go\(hrefFor\(shiftDay\(day, -1\), null\)\)\}/);
-  assert.match(c, /aria-label="Forward one day" onClick=\{\(\) => go\(hrefFor\(shiftDay\(day, 1\), null\)\)\}/);
-  assert.match(c, /disabled=\{day === today\} onClick=\{\(\) => go\(hrefFor\(today, null\)\)\}>\{TODAY_WORD\}<\/button>/);
-  assert.match(c, /disabled=\{stepParam === null\} onClick=\{\(\) => go\(hrefFor\(day, null\)\)\}>all<\/button>/, '"all" clears any step, a bad one too');
-  assert.match(c, /aria-label="Back one step" disabled=\{focus === null \|\| focus\.index === 1\} onClick=\{\(\) => \{ if \(focus !== null\) go\(hrefFor\(day, focus\.index - 1\)\); \}\}>‹ step<\/button>/);
-  assert.match(c, /aria-label="Forward one step" disabled=\{N === 0 \|\| \(focus !== null && focus\.index === N\)\} onClick=\{\(\) => go\(hrefFor\(day, focus === null \? 1 : focus\.index \+ 1\)\)\}>step ›<\/button>/);
-  // A read that lands after the day changed is dropped — the live guard.
-  assert.match(c, /let live = true;\n[\s\S]*?if \(!live\) return;\n[\s\S]*?return \(\) => \{ live = false; \};/);
-  // The stage is centered; the foot scrolls rather than clips; the day's lines read "could not be read" while the day read failed.
-  assert.match(c, /overflow-hidden flex flex-col mx-auto" style=\{\{ width: 540, height: 960 \}\} data-day-card/);
-  assert.match(c, /shrink-0 overflow-y-auto" style=\{\{ maxHeight: 320 \}\} data-day-foot/);
-  assert.match(c, /data-day-lines-without-stop>\{dayFailed \? linesUnreadWords\(result\.linesWithoutStop\) : linesWithoutStopWords\(result\.linesWithoutStop\)\}/);
-  assert.match(c, /data-day-routine-figures>\{routineFigureWords\(result\.routineFigures\)\}/);
-  assert.match(c, /data-day-stranded>\{strandedWords\(stranded\)\}/);
-  assert.match(c, /<button\n\s*type="button"\n\s*key=\{s\.key\}\n\s*className="[^"]*"\n\s*data-day-stop=\{s\.key\}\n\s*data-day-status=\{s\.status\}\n\s*onClick=\{\(\) => go\(hrefFor\(day, i \+ 1\)\)\}/, 'a row is a real button that pushes ?step=');
   assert.match(c, /const hrefFor = \(day: string, step: number \| null\): string => `\/tasks\/day\?date=\$\{day\}\$\{step === null \? '' : `&step=\$\{step\}`\}`;/);
   assert.match(c, /import \{ localToday \} from '@\/lib\/localToday';/);
   assert.match(c, /setToday\(localToday\(\)\);\n\s*setZone\(Intl\.DateTimeFormat\(\)\.resolvedOptions\(\)\.timeZone\);/);
   assert.match(c, /import \{ isIsoDay \} from '@\/lib\/budget\/days';/);
   assert.match(c, /import \{ shiftDay \} from '@\/lib\/budget\/reportView';/);
   assert.match(c, /await Promise\.all\(\[readDay\(day\), readDayReport\(day, today\), readItems\(day, day\)\]\)/, 'the three reads, in parallel, asOf today');
-  assert.match(c, /<RefusedRoutines refused=\{refused\} \/>/);
-  assert.match(c, /soFarWords\(plannedCents === null \? null : focus\.soFarCents, plannedCents\)/);
-  assert.match(c, /\{provenanceWords\(day, today\)\}/);
-  // The controls sit outside the stage: the stage's box opens after the controls' div closes.
-  assert.ok(c.indexOf('data-day-controls') < c.indexOf('data-day-card'), 'the controls come before the stage');
-  // Tokens only: text, border, bg-white, bg-bg-row, the purple heading, the green and amber marks, mono.
+  // The controls push the URLs the rules name, and sit outside the plate.
+  assert.match(c, /aria-label="Back one day" onClick=\{\(\) => go\(hrefFor\(shiftDay\(day, -1\), null\)\)\}/);
+  assert.match(c, /aria-label="Forward one day" onClick=\{\(\) => go\(hrefFor\(shiftDay\(day, 1\), null\)\)\}/);
+  assert.match(c, /disabled=\{day === today\} onClick=\{\(\) => go\(hrefFor\(today, null\)\)\}>\{TODAY_WORD\}<\/button>/);
+  assert.match(c, /disabled=\{stepParam === null\} onClick=\{\(\) => go\(hrefFor\(day, null\)\)\}>all<\/button>/, '"all" clears any step, a bad one too');
+  assert.match(c, /aria-label="Back one step" disabled=\{focus === null \|\| focus\.index === 1\} onClick=\{\(\) => \{ if \(focus !== null\) go\(hrefFor\(day, focus\.index - 1\)\); \}\}>‹ step<\/button>/);
+  assert.match(c, /aria-label="Forward one step" disabled=\{N === 0 \|\| \(focus !== null && focus\.index === N\)\} onClick=\{\(\) => go\(hrefFor\(day, focus === null \? 1 : focus\.index \+ 1\)\)\}>step ›<\/button>/);
+  assert.ok(c.indexOf('data-day-controls') < c.indexOf('data-day-card'), 'the controls come before the plate');
+  // A read that lands after the day changed is dropped — the live guard.
+  assert.match(c, /let live = true;\n[\s\S]*?if \(!live\) return;\n[\s\S]*?return \(\) => \{ live = false; \};/);
+  // Tokens only: text, border, bg-white, bg-bg-row, the purple heading, the gold badge, the green bar and marks, the amber marks and notices, mono.
   const classes = [...c.matchAll(/className="([^"]*)"/g)].flatMap((m) => m[1].split(/\s+/)).concat([...c.matchAll(/className=\{`([^`]*)`\}/g)].flatMap((m) => m[1].replace(/\$\{[^}]*\}/g, '').split(/\s+/)));
   const colour = classes.filter((k) => /^(text|bg|border)-/.test(k));
-  const allowed = /^(text-text-(primary|secondary|muted|faint)|text-brand-(purple|green|amber|red)|text-left|text-xs|text-lg|border-border(-light)?|border-t|border|bg-white|bg-bg-row|hover:bg-bg-row)$/;
+  const allowed = /^(text-text-(primary|secondary|muted|faint)|text-brand-(purple|green|amber|red)|text-left|text-right|text-center|text-xs|text-lg|border-border(-light)?|border-t|border|bg-white|bg-bg-row|bg-brand-gold|bg-brand-green|hover:bg-bg-row)$/;
   assert.deepEqual(colour.filter((k) => !allowed.test(k)), [], 'every colour class is a token');
 });
 
