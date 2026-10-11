@@ -51,7 +51,7 @@ import { readDay, readItems, type DayAnswer, type Read } from '../week/weekReads
 import { readDayReport } from './dayReads';
 import {
   BADGE_WORDS, BRAND_WORDS, PLAN_WORD, TASK_WORD, TODAY_WORD, badDateWords, badStepWords, completenessWords, dayStops, focusStop,
-  hookWords, linesUnreadWords, linesWithoutStopWords, notPlacedWords, planDollars, progressPercent, provenanceWords, quarterDayWords,
+  heroWord, hookWords, linesUnreadWords, linesWithoutStopWords, notPlacedWords, planDollars, progressPercent, provenanceWords, quarterDayWords,
   routineFigureWords, soFarWords, stepHeaderWords, strandedWords, unmatchedWords,
   type Stop,
 } from './dayCard';
@@ -150,7 +150,9 @@ export default function DayCard() {
   const focus = loaded && n !== null ? focusStop(result, n) : null;
   const badStep = loaded && n !== null && focus === null ? stepParam : null;
   const N = result.stops.length;
-  const completeness = completenessWords(result, stranded.length);
+  const reportRead = report !== null && report.ok;
+  const completeness = completenessWords(result, stranded.length, { day: !dayFailed, report: reportRead });
+  const bar = progressPercent(plannedCents === null || focus === null ? null : focus.soFarCents, plannedCents);
   const foot = loaded && (result.unmatched.length > 0 || result.routineFigures.length > 0 || result.linesWithoutStop.length > 0 || result.notPlacedToday.length > 0 || stranded.length > 0 || refused.length > 0 || (report !== null && !report.ok) || (plans !== null && !plans.listed));
 
   const go = (href: string) => router.push(href);
@@ -178,7 +180,7 @@ export default function DayCard() {
       {items !== null && !items.ok && <p className="text-xs text-brand-red" data-day-items-failed>The day&apos;s tasks could not be read — {items.words}</p>}
 
       {/* THE PLATE — the reel's card at two thirds of its size (540 wide); the page shows it on its own, the editor places it over the footage. Record this box alone. */}
-      <div className="bg-white border border-border shadow-sm flex flex-col mx-auto" style={{ width: 540, borderRadius: 23, padding: '25px 29px 24px', gap: 11 }} data-day-card data-day-step={focus === null ? undefined : focus.index}>
+      <div className="bg-ts-white border border-border flex flex-col mx-auto" style={{ width: 540, borderRadius: 23, padding: '25px 29px 24px', gap: 11 }} data-day-card data-day-step={focus === null ? undefined : focus.index}>
         <PlateHeader right={focus === null ? quarterDayWords(day) : stepHeaderWords(focus.index, focus.of, focus.stop.time)} />
 
         {!loaded && <p className="pt-4 text-text-muted" style={{ fontSize: 23 }} data-day-loading>loading the day…</p>}
@@ -187,9 +189,9 @@ export default function DayCard() {
           <>
             <div className="flex items-baseline gap-3 pt-1" data-day-hero>
               <span className="font-extrabold text-text-primary tabular-nums" style={{ fontSize: 69, lineHeight: 1, letterSpacing: '-0.02em' }} data-day-planned>{planDollars(plannedCents)}</span>
-              <span className="font-bold text-text-secondary" style={{ fontSize: 29, lineHeight: 1 }}>{TODAY_WORD}</span>
+              <span className="font-bold text-text-secondary" style={{ fontSize: 29, lineHeight: 1 }} data-day-hero-word>{heroWord(day, today)}</span>
             </div>
-            <div className="font-semibold text-text-secondary" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-hook>{hookWords(day, N)}</div>
+            <div className="font-semibold text-text-secondary" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-hook>{hookWords(day, dayFailed ? null : N)}</div>
             <div className="flex flex-col" data-day-stops>
               {result.stops.map((s, i) => (
                 <button
@@ -204,8 +206,8 @@ export default function DayCard() {
                   <span className="shrink-0 text-center font-extrabold" style={{ width: 22, fontSize: 26, lineHeight: 1 }}><Mark status={s.status} /></span>
                   <span className={`font-mono font-semibold tabular-nums shrink-0 ${s.time === null ? 'text-text-faint' : 'text-text-muted'}`} style={{ width: 87, fontSize: 28 }}>{s.time === null ? '—' : s.time}</span>
                   <span className="min-w-0 flex-1 flex flex-col" style={{ gap: 3 }}>
-                    <span className="font-bold text-text-primary" style={{ fontSize: 31, lineHeight: 1.05 }}>{boldOf(s)}</span>
-                    {smallOf(s) !== null && <span className="font-medium text-text-muted" style={{ fontSize: 23, lineHeight: 1.1 }}>{smallOf(s)}</span>}
+                    <span className="font-bold text-text-primary break-words" style={{ fontSize: 31, lineHeight: 1.05 }} data-day-bold>{boldOf(s)}</span>
+                    {smallOf(s) !== null && <span className="font-medium text-text-muted break-words" style={{ fontSize: 23, lineHeight: 1.1 }} data-day-small>{smallOf(s)}</span>}
                   </span>
                   <span className={`font-extrabold tabular-nums shrink-0 text-right ${s.cents === null ? 'text-text-faint' : 'text-text-primary'}`} style={{ fontSize: 31, lineHeight: 1.05 }} data-day-amount>{planDollars(s.cents)}</span>
                 </button>
@@ -214,7 +216,7 @@ export default function DayCard() {
             </div>
             <div className="flex flex-col" style={{ gap: 4 }} data-day-plate-foot>
               {completeness !== null && <div className="font-semibold text-text-secondary" style={{ fontSize: 23, lineHeight: 1.2 }} data-day-count>{completeness}</div>}
-              <div className="font-mono font-medium text-text-muted" style={{ fontSize: 18, lineHeight: 1.2 }} data-day-provenance>{provenanceWords(today)}</div>
+              <div className="font-mono font-medium text-text-muted" style={{ fontSize: 20, lineHeight: 1.2 }} data-day-provenance>{provenanceWords(today, reportRead)}</div>
             </div>
           </>
         )}
@@ -223,8 +225,8 @@ export default function DayCard() {
           <div className="flex flex-col" style={{ gap: 13 }} data-day-focus>
             <div className="flex items-end justify-between gap-4 pt-1">
               <div className="min-w-0 flex flex-col" style={{ gap: 4 }}>
-                <div className="font-extrabold text-text-primary" style={{ fontSize: 43, lineHeight: 1, letterSpacing: '-0.01em' }}>{boldOf(focus.stop)}</div>
-                {smallOf(focus.stop) !== null && <div className="font-medium text-text-muted" style={{ fontSize: 27, lineHeight: 1.1 }}>{smallOf(focus.stop)}</div>}
+                <div className="font-extrabold text-text-primary break-words" style={{ fontSize: 43, lineHeight: 1, letterSpacing: '-0.01em' }} data-day-bold>{boldOf(focus.stop)}</div>
+                {smallOf(focus.stop) !== null && <div className="font-medium text-text-muted break-words" style={{ fontSize: 27, lineHeight: 1.1 }} data-day-small>{smallOf(focus.stop)}</div>}
               </div>
               <div className="shrink-0 flex flex-col items-end" style={{ gap: 3 }}>
                 <div className="font-semibold text-text-muted" style={{ fontSize: 24, lineHeight: 1.1, letterSpacing: '0.04em' }}>{PLAN_WORD}</div>
@@ -233,11 +235,12 @@ export default function DayCard() {
             </div>
             <div className="flex flex-col border-t border-border" style={{ gap: 8, paddingTop: 13 }}>
               <div className="font-bold text-text-secondary tabular-nums" style={{ fontSize: 27 }} data-day-so-far>{soFarWords(plannedCents === null ? null : focus.soFarCents, plannedCents)}</div>
-              {progressPercent(plannedCents === null ? null : focus.soFarCents, plannedCents) !== null && (
-                <div className="bg-bg-row rounded-full overflow-hidden" style={{ height: 9 }} aria-hidden="true" data-day-progress={progressPercent(focus.soFarCents, plannedCents) ?? undefined}>
-                  <div className="bg-brand-green rounded-full" style={{ height: 9, width: `${progressPercent(focus.soFarCents, plannedCents)}%` }} />
+              {bar !== null && (
+                <div className="bg-bg-row rounded-full overflow-hidden" style={{ height: 9 }} aria-hidden="true" data-day-progress={bar}>
+                  <div className="bg-brand-green rounded-full" style={{ height: 9, width: `${bar}%` }} />
                 </div>
               )}
+              <div className="font-mono font-medium text-text-muted" style={{ fontSize: 20, lineHeight: 1.2 }} data-day-provenance>{provenanceWords(today, reportRead)}</div>
             </div>
           </div>
         )}

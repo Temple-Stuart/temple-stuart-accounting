@@ -289,8 +289,11 @@ export const notPricedWords = (k: number): string => `${k} not priced`;
 export const ofWords = (n: number, of: number): string => `${n} of ${of}`;
 /** "so far $14.00 of $50.00" — both '—' while the report cannot be read (null), never $0.00 for an unknown figure. */
 export const soFarWords = (soFarCents: number | null, plannedCents: number | null): string => `so far ${planDollars(soFarCents)} of ${planDollars(plannedCents)}`;
-/** The plate's source line — the day itself is in the hook line above it. */
-export const provenanceWords = (asOf: string): string => `plan: the Budget's lines · as of ${asOf}`;
+/** The plate's source line — the day itself is in the hook line above it; when the report could not be read, it says so. */
+export const provenanceWords = (asOf: string, reportRead: boolean): string => (reportRead ? `Budget plan lines · as of ${asOf}` : `Budget plan lines NOT READ · as of ${asOf}`);
+
+/** The hero's word: "today" on the browser's day, "planned" on any other day. */
+export const heroWord = (day: string, today: string): string => (day === today ? TODAY_WORD : PLANNED_WORD);
 
 // ── THE REEL PLATE'S WORDS (DAYCARD-01b, 2026-10-12 — the look Alex approved on the demo's reel frames) ──
 
@@ -324,11 +327,13 @@ export const quarterDayWords = (day: string): string => {
 };
 
 export const HOOK_WORDS = 'under or over?';
+export const PLANNED_WORD = 'planned';
+export const STOPS_NOT_READ_WORDS = 'stops not read';
 export const PLAN_WORD = 'PLAN';
 export const BADGE_WORDS = 'TS';
 
-/** "Tue Oct 13 · 7 stops · under or over?" — the line under the hero. */
-export const hookWords = (day: string, stops: number): string => `${dayShortWords(day)} · ${stopsWords(stops)} · ${HOOK_WORDS}`;
+/** "Tue Oct 13 · 7 stops · under or over?" — the line under the hero; the stops are unknown (null) while the day read failed. */
+export const hookWords = (day: string, stops: number | null): string => `${dayShortWords(day)} · ${stops === null ? STOPS_NOT_READ_WORDS : stopsWords(stops)} · ${HOOK_WORDS}`;
 
 /** "4 OF 7 · 12:30" — the step card's header words ('—' for a stop with no time). */
 export const stepHeaderWords = (n: number, of: number, time: string | null): string => `${n} OF ${of} · ${time === null ? '—' : time}`;
@@ -344,12 +349,22 @@ export function progressPercent(soFarCents: number | null, plannedCents: number 
  * counted, in one line; null when every stop is priced and nothing is set aside.
  * The sentences that name each item follow it in the foot.
  */
-export function completenessWords(result: DayStops, stranded: number): string | null {
+export function completenessWords(result: DayStops, stranded: number, read: { readonly day: boolean; readonly report: boolean }): string | null {
   const parts: string[] = [];
-  if (result.notPriced > 0) parts.push(notPricedWords(result.notPriced));
+  // What was not read is unknown, not zero — said as such, never counted as "not priced" or "no stop".
+  if (!read.day) parts.push(STOPS_NOT_READ_WORDS);
+  if (!read.report) parts.push('amounts not read');
+  if (read.day && read.report && result.notPriced > 0) parts.push(notPricedWords(result.notPriced));
   if (result.routineFigures.length > 0) parts.push(result.routineFigures.length === 1 ? '1 routine priced as a whole' : `${result.routineFigures.length} routines priced as a whole`);
-  if (result.unmatched.length > 0) parts.push(result.unmatched.length === 1 ? '1 line at another instant' : `${result.unmatched.length} lines at another instant`);
-  if (result.linesWithoutStop.length > 0) parts.push(result.linesWithoutStop.length === 1 ? '1 line with no stop' : `${result.linesWithoutStop.length} lines with no stop`);
+  const moved = result.unmatched.filter((u) => u.reason === 'instant differs').length;
+  const doubled = result.unmatched.filter((u) => u.reason === 'two plan lines for one stop').length;
+  if (moved > 0) parts.push(moved === 1 ? '1 line at another instant' : `${moved} lines at another instant`);
+  if (doubled > 0) parts.push(`${doubled} plan lines for one stop`);
+  if (result.linesWithoutStop.length > 0) {
+    parts.push(read.day
+      ? (result.linesWithoutStop.length === 1 ? '1 line with no stop' : `${result.linesWithoutStop.length} lines with no stop`)
+      : (result.linesWithoutStop.length === 1 ? '1 line, its stop not read' : `${result.linesWithoutStop.length} lines, their stops not read`));
+  }
   if (result.notPlacedToday.length > 0) parts.push(result.notPlacedToday.length === 1 ? '1 plan not placed' : `${result.notPlacedToday.length} plans not placed`);
   if (stranded > 0) parts.push(stranded === 1 ? '1 vendor stranded' : `${stranded} vendors stranded`);
   return parts.length === 0 ? null : parts.join(' · ');
@@ -367,7 +382,13 @@ const lineName = (label: string, line: string | null): string => (line === null 
  * is matched by nearness.
  */
 export const unmatchedWords = (list: readonly UnmatchedLine[]): string => {
-  const head = list.length === 1 ? '1 plan line is at another instant than its stop' : `${list.length} plan lines are at another instant than their stops`;
+  const allMoved = list.every((u) => u.reason === 'instant differs');
+  const allDoubled = list.every((u) => u.reason === 'two plan lines for one stop');
+  const head = allMoved
+    ? (list.length === 1 ? '1 plan line is at another instant than its stop' : `${list.length} plan lines are at another instant than their stops`)
+    : allDoubled
+      ? `${list.length} plan lines for one stop`
+      : `${list.length} plan lines not matched to a stop`;
   return `${head} — ${list.map((u) => (
     u.reason === 'instant differs'
       ? `${lineName(u.label, u.line)} ${formatCents(u.cents)}: planned at ${u.lineInstant ?? 'no instant'}, the day's one stop is at ${u.stopInstant ?? 'no instant'} (the today read names one occurrence per routine per day — this line has no stop)`
