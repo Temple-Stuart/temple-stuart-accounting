@@ -3,10 +3,20 @@
  *
  * The day logic GET /api/operations/routines/today ran inline, moved here so
  * the route can answer any day and a test can drive it: the routine's local day
- * in its OWN zone (today at `now`, or the day asked for), that day's bounds,
- * the start/end-date checks against it, the expansion anchored on the routine's
- * start_date (scheduleAnchor — the one-off law's one mechanism), the first
- * occurrence of the day, and its status against `now`.
+ * in its OWN zone (today at `now`, or the day asked for), the start/end-date
+ * checks against it, the expansion anchored on the routine's start_date
+ * (scheduleAnchor — the one-off law's one mechanism), the first occurrence of
+ * the day, and its status against `now`.
+ *
+ * DAYBOUNDS-01 (2026-10-11) — THE DAY IS THE BUDGET'S DAY. The expansion runs
+ * over the Budget's own window (src/lib/budget/days.ts dayWindow — the floating
+ * day, because expandBetween compares the rule's floating occurrences before
+ * shifting them to the zone), and the day's occurrence is the first whose local
+ * day in the routine's zone is the day (days.ts within) — the same test the
+ * Budget's lines pass. The earlier dayBounds (local midnight as a real UTC
+ * instant, +24h) was off by the zone's offset: in Bangkok it answered 17:00 the
+ * day before to 17:00 that day, so an evening routine was the previous day's.
+ * There is no second definition of a day here.
  *
  * NOTHING DROPPED. A routine whose zone cannot be read, or whose schedule does
  * not parse, is REFUSED in the day rules' own words (src/lib/budget/days.ts
@@ -15,7 +25,7 @@
  * Pure: no Prisma, no request, no clock — `now` is the caller's.
  */
 import type { NotPlacedReason } from '@/lib/budget/days';
-import { isIsoDay } from '@/lib/budget/days';
+import { dayWindow, isIsoDay, within } from '@/lib/budget/days';
 import { expandBetween, scheduleAnchor } from '@/lib/operations/rruleHelpers';
 import { instantToZoned } from '@/lib/time';
 import type { TodayStatus } from '@/components/workbench/operations/routines/types';
@@ -69,37 +79,10 @@ function localDayOf(now: Date, tz: string): LocalDay {
 }
 
 /**
- * A local day's start and end in `tz`, as UTC instants: "00:00 in tz that day"
- * and 24 hours later (the today route's todayBounds, :68-87, for any day).
- */
-export function dayBounds(day: LocalDay, tz: string): { start: Date; end: Date } {
-  const [year, month, date] = day.split('-').map(Number);
-  // Construct UTC midnight for the local date, then shift by the tz's
-  // offset at that instant to get the actual UTC instant of local midnight.
-  const utcMidnight = Date.UTC(year, month - 1, date, 0, 0, 0);
-  const fmt2 = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
-  });
-  const partsAtUtcMidnight = fmt2.formatToParts(new Date(utcMidnight));
-  const get2 = (type: string) => Number(partsAtUtcMidnight.find((p) => p.type === type)?.value ?? '0');
-  const tzShown = Date.UTC(
-    get2('year'), get2('month') - 1, get2('day'),
-    get2('hour') === 24 ? 0 : get2('hour'), get2('minute'), get2('second')
-  );
-  const offsetMs = tzShown - utcMidnight;
-  const localMidnightUtc = utcMidnight - offsetMs;
-
-  return {
-    start: new Date(localMidnightUtc),
-    end: new Date(localMidnightUtc + 24 * 60 * 60 * 1000),
-  };
-}
-
-/**
  * The routine's day: `day` (a local date in the routine's own zone) or, when
- * null, today in its zone at `now`. The first occurrence in the day's bounds, or
- * none, or a refusal.
+ * null, today in its zone at `now`. The first occurrence whose local day is
+ * that day — expanded over the Budget's window (dayWindow) and placed by the
+ * Budget's test (within) — or none, or a refusal.
  */
 export function routineDay(r: RoutineDayInput, day: LocalDay | null, now: Date): RoutineDay {
   // The zone first — an unreadable zone is refused, never read as UTC.
@@ -109,22 +92,25 @@ export function routineDay(r: RoutineDayInput, day: LocalDay | null, now: Date):
     return { kind: 'refused', reason: 'timezone not recognised', detail: `${JSON.stringify(r.timezone)}: ${messageOf(error)}` };
   }
   const localDay = day === null ? localDayOf(now, r.timezone) : day;
-  const { start, end } = dayBounds(localDay, r.timezone);
 
   // In scope that day iff within [start_date, end_date] — the @db.Date bounds
   // are UTC midnights, compared as calendar days against the routine's local day.
   if (r.start_date && r.start_date.toISOString().slice(0, 10) > localDay) return { kind: 'none', day: localDay };
   if (r.end_date && r.end_date.toISOString().slice(0, 10) < localDay) return { kind: 'none', day: localDay };
 
+  // DAYBOUNDS-01: the Budget's window for this one day (days.ts dayWindow — the two lines buildRoutineBudgetLines ran inline before).
+  const { windowFrom, windowTo } = dayWindow(localDay, localDay);
   let occurrences: Date[];
   try {
     // ONEOFF-01: anchored on the routine's start_date — the one mechanism.
-    occurrences = expandBetween(r.schedule_rrule, r.timezone, start, end, scheduleAnchor(r.start_date));
+    occurrences = expandBetween(r.schedule_rrule, r.timezone, windowFrom, windowTo, scheduleAnchor(r.start_date));
   } catch (error) {
     return { kind: 'refused', reason: 'schedule does not parse', detail: `${JSON.stringify(r.schedule_rrule)}: ${messageOf(error)}` };
   }
-  if (occurrences.length === 0) return { kind: 'none', day: localDay };
-  return { kind: 'occurrence', day: localDay, expectedAt: occurrences[0] };
+  // The day's occurrence: the first whose local day is the day — the Budget's own test (days.ts:351-352, instantToZoned(...).date + within).
+  const expectedAt = occurrences.find((instant) => within(instantToZoned(instant, r.timezone).date, localDay, localDay));
+  if (expectedAt === undefined) return { kind: 'none', day: localDay };
+  return { kind: 'occurrence', day: localDay, expectedAt };
 }
 
 /**
