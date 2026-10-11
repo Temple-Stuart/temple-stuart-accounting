@@ -1,31 +1,40 @@
 /**
- * DayCard — THE DAY CARD at /tasks/day (DAYCARD-01, 2026-10-11).
+ * DayCard — THE DAY CARD at /tasks/day (DAYCARD-01, 2026-10-11; the reel plate,
+ * DAYCARD-01b, 2026-10-12).
  *
- * One phone-shaped card (9:16 — 540×960 CSS px, half of 1080×1920, so a
- * recording of the stage is the reel's overlay at half size) in the app's own
- * light style: the day, the Budget's planned total for the day as the hero,
- * "N stops · k not priced", then every stop in clock order — the time, the
- * line (the step's activity) or the routine's name or the task's title, the
- * place (the day's vendor, else the location) and the planned amount ('—' when
- * the Budget lists none, never $0.00); ✓ on a done routine's stops, ✕ on a
- * missed one's. ?step=n shows ONE stop, large, with "n of N" and "so far $x of
- * $y"; the URL carries the day and the step, so both can be set before the
- * record button. Every control sits OUTSIDE the stage, so the stage records
- * clean.
+ * THE STAGE IS THE REEL PLATE — the card Alex approved on the demo's reel frames,
+ * at two thirds of its 1080-wide size (the plate 540 CSS px wide; a recording
+ * of it is placed over the footage in the editor): the gold TS badge and the
+ * wordmark, "DAY n OF m" (the day's place in its calendar quarter — pure
+ * calendar math), the day's planned total in heavy type ("$75" — whole dollars
+ * read without ".00"), "Tue Oct 13 · 7 stops · under or over?", then every stop
+ * in clock order — the time, the line (the step's activity) or the routine's
+ * name or the task's title, the place under it (the day's vendor, else the
+ * location), the planned amount ('—' where the Budget lists none, never $0.00);
+ * ✓ on a done routine's stops, ✕ on a missed one's — and a foot that counts what
+ * the hero does not price or place, with the sentences that name each item.
+ * ?step=n is the demo's STEP card: "n OF N · time", the stop large, PLAN and
+ * its amount, "so far $x of $y" with its bar. The URL carries the day and the
+ * step, so both can be set before the record button; every control sits
+ * OUTSIDE the plate, so the plate records clean. No ฿ yet (CURRENCY-01 — the
+ * typed rate needs a place to live); no ACTUAL yet (a posting linked to the
+ * stop); the plate leaves them their places.
  *
  * THE RULES are day/dayCard.ts (pure); THE READS are week/weekReads.ts
  * (readDay, readItems) and day/dayReads.ts (readDayReport) — this file fetches
  * nothing of its own. The day is ?date= when it is a 'YYYY-MM-DD' day, else the
  * browser's date (localToday, read on mount); a ?date= that is not a day is
  * named above the card, never silently replaced; a ?step= outside 1..N is named
- * above the full card, never clamped. asOf for the report is today, as the week.
+ * above the full card, never clamped — and judged only once the reads are in.
+ * asOf for the report is today, as the week.
  *
  * NOTHING DROPPED. A read that fails is named with its words and the card still
  * draws what it has (a report that cannot be read leaves the stops with '—' and
  * the hero '—'); a refused routine is listed (RefusedRoutines, as the week);
- * unmatched lines, lines with no stop and the day's not-placed plans are named
- * in the card's foot. THE CARD WRITES NOTHING: no vendor box, no mark-done, no
- * note — it is a view of what Tasks and Budget already hold. Nothing is stored.
+ * unmatched lines, a routine priced as a whole, lines with no stop, the day's
+ * not-placed plans and stranded vendors are counted on the plate and named under
+ * it. THE CARD WRITES NOTHING: no vendor box, no mark-done, no note — it is a
+ * view of what Tasks and Budget already hold. Nothing is stored.
  */
 
 'use client';
@@ -33,7 +42,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { isIsoDay } from '@/lib/budget/days';
-import { formatCents } from '@/lib/budget/format';
 import type { BudgetReportResponse } from '@/lib/budget/reportInputs';
 import { shiftDay } from '@/lib/budget/reportView';
 import { localToday } from '@/lib/localToday';
@@ -42,8 +50,9 @@ import RefusedRoutines from '../routines/RefusedRoutines';
 import { readDay, readItems, type DayAnswer, type Read } from '../week/weekReads';
 import { readDayReport } from './dayReads';
 import {
-  BRAND_WORDS, TASK_WORD, TODAY_WORD, badDateWords, badStepWords, dayStops, dayWords, focusStop,
-  linesUnreadWords, linesWithoutStopWords, notPlacedWords, notPricedWords, ofWords, provenanceWords, routineFigureWords, soFarWords, stopsWords, strandedWords, unmatchedWords,
+  BADGE_WORDS, BRAND_WORDS, PLAN_WORD, TASK_WORD, TODAY_WORD, badDateWords, badStepWords, completenessWords, dayStops, focusStop,
+  heroWord, hookWords, linesUnreadWords, linesWithoutStopWords, notPlacedWords, planDollars, progressPercent, provenanceWords, quarterDayWords,
+  routineFigureWords, soFarWords, stepHeaderWords, strandedWords, unmatchedWords,
   type Stop,
 } from './dayCard';
 
@@ -66,6 +75,19 @@ function Mark({ status }: { status: Stop['status'] }) {
   if (status === 'done') return <span className="text-brand-green" aria-label="done">✓</span>;
   if (status === 'missed') return <span className="text-brand-amber" aria-label="missed">✕</span>;
   return null;
+}
+
+/** The plate's header: the badge, the wordmark, and the right-hand words. */
+function PlateHeader({ right }: { right: string }) {
+  return (
+    <div className="flex items-center justify-between" data-day-header>
+      <div className="flex items-center gap-2.5">
+        <span className="bg-brand-gold text-text-primary rounded-lg flex items-center justify-center font-extrabold" style={{ width: 32, height: 32, fontSize: 16 }} aria-hidden="true">{BADGE_WORDS}</span>
+        <span className="font-bold text-text-secondary" style={{ fontSize: 19, letterSpacing: '0.16em' }}>{BRAND_WORDS}</span>
+      </div>
+      <span className="font-mono font-semibold text-text-muted" style={{ fontSize: 21, letterSpacing: '0.04em' }} data-day-words>{right}</span>
+    </div>
+  );
 }
 
 export default function DayCard() {
@@ -128,6 +150,10 @@ export default function DayCard() {
   const focus = loaded && n !== null ? focusStop(result, n) : null;
   const badStep = loaded && n !== null && focus === null ? stepParam : null;
   const N = result.stops.length;
+  const reportRead = report !== null && report.ok;
+  const completeness = completenessWords(result, stranded.length, { day: !dayFailed, report: reportRead });
+  const bar = progressPercent(plannedCents === null || focus === null ? null : focus.soFarCents, plannedCents);
+  const foot = loaded && (result.unmatched.length > 0 || result.routineFigures.length > 0 || result.linesWithoutStop.length > 0 || result.notPlacedToday.length > 0 || stranded.length > 0 || refused.length > 0 || (report !== null && !report.ok) || (plans !== null && !plans.listed));
 
   const go = (href: string) => router.push(href);
 
@@ -153,76 +179,86 @@ export default function DayCard() {
       {dayRead !== null && !dayRead.ok && <p className="text-xs text-brand-red" data-day-failed>{day} could not be read — {dayRead.words}</p>}
       {items !== null && !items.ok && <p className="text-xs text-brand-red" data-day-items-failed>The day&apos;s tasks could not be read — {items.words}</p>}
 
-      {/* THE STAGE — 9:16, half of 1080×1920; every size inside is half its video size. Record this box alone. */}
-      <div className="bg-white border border-border rounded-lg overflow-hidden flex flex-col mx-auto" style={{ width: 540, height: 960 }} data-day-card data-day-step={focus === null ? undefined : focus.index}>
-        <div className="flex items-baseline justify-between px-6 pt-5">
-          <span className="text-text-faint tracking-widest" style={{ fontSize: 11 }}>{BRAND_WORDS}</span>
-          <span className="font-mono text-text-primary" style={{ fontSize: 13 }} data-day-words>{dayWords(day)}</span>
-        </div>
+      {/* THE PLATE — the reel's card at two thirds of its size (540 wide); the page shows it on its own, the editor places it over the footage. Record this box alone. */}
+      <div className="bg-ts-white border border-border flex flex-col mx-auto" style={{ width: 540, borderRadius: 23, padding: '25px 29px 24px', gap: 11 }} data-day-card data-day-step={focus === null ? undefined : focus.index}>
+        <PlateHeader right={focus === null ? quarterDayWords(day) : stepHeaderWords(focus.index, focus.of, focus.stop.time)} />
 
-        {!loaded && <p className="px-6 pt-6 text-text-muted" style={{ fontSize: 18 }} data-day-loading>loading the day…</p>}
+        {!loaded && <p className="pt-4 text-text-muted" style={{ fontSize: 23 }} data-day-loading>loading the day…</p>}
 
         {loaded && focus === null && (
           <>
-            <div className="px-6 pt-6" data-day-hero>
-              <div className="flex items-baseline gap-3">
-                <span className="font-mono tabular-nums font-bold text-text-primary" style={{ fontSize: 52, lineHeight: 1 }} data-day-planned>{formatCents(plannedCents)}</span>
-                <span className="text-text-secondary" style={{ fontSize: 22 }}>{TODAY_WORD}</span>
-              </div>
-              <div className="text-text-muted pt-2" style={{ fontSize: 18 }} data-day-count>
-                {stopsWords(N)}{result.notPriced > 0 && ` · ${notPricedWords(result.notPriced)}`}
-              </div>
+            <div className="flex items-baseline gap-3 pt-1" data-day-hero>
+              <span className="font-extrabold text-text-primary tabular-nums" style={{ fontSize: 69, lineHeight: 1, letterSpacing: '-0.02em' }} data-day-planned>{planDollars(plannedCents)}</span>
+              <span className="font-bold text-text-secondary" style={{ fontSize: 29, lineHeight: 1 }} data-day-hero-word>{heroWord(day, today)}</span>
             </div>
-            <div className="mt-4 flex-1 min-h-0 overflow-y-auto" data-day-stops>
+            <div className="font-semibold text-text-secondary" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-hook>{hookWords(day, dayFailed ? null : N)}</div>
+            <div className="flex flex-col" data-day-stops>
               {result.stops.map((s, i) => (
                 <button
                   type="button"
                   key={s.key}
-                  className="w-full text-left flex items-baseline gap-3 px-6 py-2 border-t border-border-light hover:bg-bg-row"
+                  className="w-full text-left flex items-center gap-3 border-t border-border hover:bg-bg-row"
+                  style={{ padding: '8px 0' }}
                   data-day-stop={s.key}
                   data-day-status={s.status}
                   onClick={() => go(hrefFor(day, i + 1))}
                 >
-                  <span className="w-5 shrink-0" style={{ fontSize: 20 }}><Mark status={s.status} /></span>
-                  <span className={`font-mono tabular-nums shrink-0 ${s.time === null ? 'text-text-muted' : 'text-text-primary'}`} style={{ fontSize: 23 }}>{s.time === null ? '—' : s.time}</span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-bold text-text-primary truncate" style={{ fontSize: 23 }}>{boldOf(s)}</span>
-                    {smallOf(s) !== null && <span className="block text-text-muted truncate" style={{ fontSize: 17 }}>{smallOf(s)}</span>}
+                  <span className="shrink-0 text-center font-extrabold" style={{ width: 22, fontSize: 26, lineHeight: 1 }}><Mark status={s.status} /></span>
+                  <span className={`font-mono font-semibold tabular-nums shrink-0 ${s.time === null ? 'text-text-faint' : 'text-text-muted'}`} style={{ width: 87, fontSize: 28 }}>{s.time === null ? '—' : s.time}</span>
+                  <span className="min-w-0 flex-1 flex flex-col" style={{ gap: 3 }}>
+                    <span className="font-bold text-text-primary break-words" style={{ fontSize: 31, lineHeight: 1.05 }} data-day-bold>{boldOf(s)}</span>
+                    {smallOf(s) !== null && <span className="font-medium text-text-muted break-words" style={{ fontSize: 23, lineHeight: 1.1 }} data-day-small>{smallOf(s)}</span>}
                   </span>
-                  <span className={`font-mono tabular-nums font-bold shrink-0 ${s.cents === null ? 'text-text-muted' : 'text-text-primary'}`} style={{ fontSize: 23 }} data-day-amount>{formatCents(s.cents)}</span>
+                  <span className={`font-extrabold tabular-nums shrink-0 text-right ${s.cents === null ? 'text-text-faint' : 'text-text-primary'}`} style={{ fontSize: 31, lineHeight: 1.05 }} data-day-amount>{planDollars(s.cents)}</span>
                 </button>
               ))}
+              {N > 0 && <div className="border-t border-border" aria-hidden="true" />}
+            </div>
+            <div className="flex flex-col" style={{ gap: 4 }} data-day-plate-foot>
+              {completeness !== null && <div className="font-semibold text-text-secondary" style={{ fontSize: 23, lineHeight: 1.2 }} data-day-count>{completeness}</div>}
+              <div className="font-mono font-medium text-text-muted" style={{ fontSize: 20, lineHeight: 1.2 }} data-day-provenance>{provenanceWords(today, reportRead)}</div>
             </div>
           </>
         )}
 
         {loaded && focus !== null && (
-          <div className="px-8 pt-10 space-y-4 flex-1 min-h-0" data-day-focus>
-            <div className="font-mono text-text-muted" style={{ fontSize: 15 }}>{ofWords(focus.index, focus.of)}</div>
-            <div className={`font-mono tabular-nums ${focus.stop.time === null ? 'text-text-muted' : 'text-text-primary'}`} style={{ fontSize: 40, lineHeight: 1 }}>{focus.stop.time === null ? '—' : focus.stop.time}</div>
-            <div className="font-bold text-text-primary" style={{ fontSize: 34, lineHeight: 1.15 }}>{boldOf(focus.stop)}</div>
-            {smallOf(focus.stop) !== null && <div className="text-text-muted" style={{ fontSize: 20 }}>{smallOf(focus.stop)}</div>}
-            <div className={`font-mono tabular-nums font-bold ${focus.stop.cents === null ? 'text-text-muted' : 'text-text-primary'}`} style={{ fontSize: 40, lineHeight: 1 }} data-day-amount>{formatCents(focus.stop.cents)}</div>
-            <div className="text-text-muted" style={{ fontSize: 18 }} data-day-so-far>{soFarWords(plannedCents === null ? null : focus.soFarCents, plannedCents)}</div>
-          </div>
-        )}
-
-        {/* The foot — only when there is something to say; it scrolls rather than clips, so nothing named is hidden. */}
-        {loaded && (result.unmatched.length > 0 || result.routineFigures.length > 0 || result.linesWithoutStop.length > 0 || result.notPlacedToday.length > 0 || stranded.length > 0 || refused.length > 0 || (report !== null && !report.ok) || (plans !== null && !plans.listed)) && (
-          <div className="px-6 py-3 space-y-1 border-t border-border-light text-xs shrink-0 overflow-y-auto" style={{ maxHeight: 320 }} data-day-foot>
-            {result.unmatched.length > 0 && <p className="text-brand-amber" data-day-unmatched>{unmatchedWords(result.unmatched)}</p>}
-            {result.routineFigures.length > 0 && <p className="text-brand-amber" data-day-routine-figures>{routineFigureWords(result.routineFigures)}</p>}
-            {result.linesWithoutStop.length > 0 && <p className="text-brand-amber" data-day-lines-without-stop>{dayFailed ? linesUnreadWords(result.linesWithoutStop) : linesWithoutStopWords(result.linesWithoutStop)}</p>}
-            {result.notPlacedToday.length > 0 && <p className="text-brand-amber" data-day-not-placed>{notPlacedWords(result.notPlacedToday)}</p>}
-            {stranded.length > 0 && <p className="text-brand-amber" data-day-stranded>{strandedWords(stranded)}</p>}
-            <RefusedRoutines refused={refused} />
-            {report !== null && !report.ok && <p className="text-brand-red" data-day-report-failed>{report.words}</p>}
-            {plans !== null && !plans.listed && <p className="text-text-muted" data-day-plans-words>{plans.words}</p>}
+          <div className="flex flex-col" style={{ gap: 13 }} data-day-focus>
+            <div className="flex items-end justify-between gap-4 pt-1">
+              <div className="min-w-0 flex flex-col" style={{ gap: 4 }}>
+                <div className="font-extrabold text-text-primary break-words" style={{ fontSize: 43, lineHeight: 1, letterSpacing: '-0.01em' }} data-day-bold>{boldOf(focus.stop)}</div>
+                {smallOf(focus.stop) !== null && <div className="font-medium text-text-muted break-words" style={{ fontSize: 27, lineHeight: 1.1 }} data-day-small>{smallOf(focus.stop)}</div>}
+              </div>
+              <div className="shrink-0 flex flex-col items-end" style={{ gap: 3 }}>
+                <div className="font-semibold text-text-muted" style={{ fontSize: 24, lineHeight: 1.1, letterSpacing: '0.04em' }}>{PLAN_WORD}</div>
+                <div className={`font-extrabold tabular-nums ${focus.stop.cents === null ? 'text-text-faint' : 'text-text-primary'}`} style={{ fontSize: 37, lineHeight: 1 }} data-day-amount>{planDollars(focus.stop.cents)}</div>
+              </div>
+            </div>
+            <div className="flex flex-col border-t border-border" style={{ gap: 8, paddingTop: 13 }}>
+              <div className="font-bold text-text-secondary tabular-nums" style={{ fontSize: 27 }} data-day-so-far>{soFarWords(plannedCents === null ? null : focus.soFarCents, plannedCents)}</div>
+              {bar !== null && (
+                <div className="bg-bg-row rounded-full overflow-hidden" style={{ height: 9 }} aria-hidden="true" data-day-progress={bar}>
+                  <div className="bg-brand-green rounded-full" style={{ height: 9, width: `${bar}%` }} />
+                </div>
+              )}
+              <div className="font-mono font-medium text-text-muted" style={{ fontSize: 20, lineHeight: 1.2 }} data-day-provenance>{provenanceWords(today, reportRead)}</div>
+            </div>
           </div>
         )}
       </div>
 
-      <p className="text-xs text-text-muted" data-day-provenance>{provenanceWords(day, today)}</p>
+      {/* Under the plate — the sentences that name what the plate counted; only when there is something to say. */}
+      {foot && (
+        <div className="mx-auto space-y-1 text-xs" style={{ width: 540 }} data-day-foot>
+          {result.unmatched.length > 0 && <p className="text-brand-amber" data-day-unmatched>{unmatchedWords(result.unmatched)}</p>}
+          {result.routineFigures.length > 0 && <p className="text-brand-amber" data-day-routine-figures>{routineFigureWords(result.routineFigures)}</p>}
+          {result.linesWithoutStop.length > 0 && <p className="text-brand-amber" data-day-lines-without-stop>{dayFailed ? linesUnreadWords(result.linesWithoutStop) : linesWithoutStopWords(result.linesWithoutStop)}</p>}
+          {result.notPlacedToday.length > 0 && <p className="text-brand-amber" data-day-not-placed>{notPlacedWords(result.notPlacedToday)}</p>}
+          {stranded.length > 0 && <p className="text-brand-amber" data-day-stranded>{strandedWords(stranded)}</p>}
+          <RefusedRoutines refused={refused} />
+          {report !== null && !report.ok && <p className="text-brand-red" data-day-report-failed>{report.words}</p>}
+          {plans !== null && !plans.listed && <p className="text-text-muted" data-day-plans-words>{plans.words}</p>}
+        </div>
+      )}
     </section>
   );
 }
