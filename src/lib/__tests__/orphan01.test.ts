@@ -111,7 +111,8 @@ test('the survivors are the registry\'s, and the registry still says so', () => 
   // not nothing.
   const tasks = TOOL_REGISTRY.find((t) => t.name === 'Tasks');
   // NORTH-01: the North Star is the third, reached the same way.
-  assert.deepEqual((tasks?.links ?? []).map((l) => l.href), ['/operations/north-star', '/operations/issues', '/operations/audit-log']);
+  // DAYCARD-01 (2026-10-11): the day card is the fourth, reached the same way.
+  assert.deepEqual((tasks?.links ?? []).map((l) => l.href), ['/operations/north-star', '/operations/issues', '/operations/audit-log', '/tasks/day']);
   // /operations itself is gone — no page, and no tool claims it.
   assert.equal(existsSync(`${process.cwd()}/src/app/operations/page.tsx`), false);
   assert.equal(TOOL_REGISTRY.some((t) => t.home === '/operations'), false);

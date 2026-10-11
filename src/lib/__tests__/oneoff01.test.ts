@@ -439,7 +439,8 @@ test('the Calendar row lost commit and kept record; Tasks\' row gained nothing',
   // link reads "Audit trail" — pinned in tasks01.test.ts; here only that the
   // row's shape did not move with ONEOFF-01.
   assert.doesNotMatch(tasks.why ?? '', /founder|Claude Code/);
-  assert.deepEqual(tasks.links?.map((l) => l.label), ['North Star', 'Issue log', 'Audit trail']);
+  // DAYCARD-01 (2026-10-11): a fourth link, the day card — the pin moved with it.
+  assert.deepEqual(tasks.links?.map((l) => l.label), ['North Star', 'Issue log', 'Audit trail', 'Day card']);
 });
 
 // ───────────────────────────────────────────────────────────────────────────
