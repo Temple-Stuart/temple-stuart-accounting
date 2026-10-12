@@ -66,8 +66,21 @@ export const ALSO_TODAY_WORDS = 'also today';
 export const NOT_A_STOP_WORDS = 'in the day\'s plan, not a stop';
 /** The hint under the full plate — the record lives on the step view. */
 export const TAP_A_STOP_WORDS = 'tap a stop to record it';
-/** A place stop with no amount on its line has no plan line, so no vendor can be planned on it (VENDOR-01's rule). */
+/** Why a place stop has no plan line to plan its vendor on — one sentence per cause, never one for all. */
 export const NO_AMOUNT_NO_VENDOR_WORDS = 'give this line an amount on the Tasks tab to plan its vendor';
+export const REPORT_NOT_READ_NO_VENDOR_WORDS = "the day's amounts could not be read — no vendor can be planned until they are";
+export const UNMATCHED_NO_VENDOR_WORDS = "the Budget's line for this stop is at another instant (named under the plate) — no vendor can be planned on it here";
+/** The stops route's refusal: an all-day routine is not a stop, so it takes no record. */
+export const NOT_A_STOP_RECORD_WORDS = 'the routine is all day — not a stop, so it takes no record';
+/** The band's words when some of its lines carry no amount: those are not in the day's plan at all. */
+export const allDayBandWords = (withoutAmount: number): string =>
+  (withoutAmount === 0 ? NOT_A_STOP_WORDS : `${NOT_A_STOP_WORDS} · ${withoutAmount === 1 ? '1 with no amount, not in the plan' : `${withoutAmount} with no amount, not in the plan`}`);
+/** The labels the screens print. */
+export const VENDOR_LABEL_WORDS = 'Vendor';
+export const ROLE_FIELD_WORDS = 'on the day card';
+export const ROLE_TITLE_WORDS = 'role on the day card';
+/** "$11 all day" — the band's money, said beside the step card's running figure so its denominator reads right. */
+export const allDayCentsWords = (dollars: string): string => `${dollars} all day`;
 
 /** The note box's prompt, by role — what the plain record asks for at a work stop. */
 export const NOTE_PROMPT_WORDS: Readonly<Record<Exclude<StopRole, 'all_day'>, string>> = {

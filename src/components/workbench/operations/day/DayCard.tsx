@@ -76,11 +76,11 @@ import StayBar from '../stays/StayBar';
 import StopForm from '../stops/StopForm';
 import { ACCOUNT_CELL_WORDS } from '@/lib/coa/accountCell';
 import { ratingWords } from '@/lib/operations/stopRecord';
-import { ALSO_TODAY_WORDS, NOT_A_STOP_WORDS, TAP_A_STOP_WORDS } from '@/lib/operations/stopRole';
+import { ALSO_TODAY_WORDS, TAP_A_STOP_WORDS, allDayBandWords, allDayCentsWords } from '@/lib/operations/stopRole';
 import { readDayReport, readStays, readStopRecords, type StaysAnswer, type StopRecordsAnswer } from './dayReads';
 import {
   ACTUAL_WORD, BADGE_WORDS, BRAND_WORDS, PLAN_WORD, TASK_WORD, TODAY_WORD, badDateWords, badStepWords, completenessWords, dayStops, deltaWords, focusStop,
-  headerWords, heroWord, hookWords, linesUnreadWords, linesWithoutStopWords, minutesLine, notPlacedWords, planDollars, progressPercent, provenanceWords,
+  bandNameOf, headerWords, heroWord, hookWords, linesUnreadWords, linesWithoutStopWords, minutesLine, notPlacedWords, planDollars, progressPercent, provenanceWords,
   recordsUnplacedWords, recordsWithoutStopWords, routineFigureWords, rowActualWords, soFarWords, spentLineWords, spentSoFarWords, statusWords, stepHeaderWords,
   strandedWords, unmatchedWords, whereWords,
   type StayState, type Stop,
@@ -160,6 +160,8 @@ export default function DayCard() {
     setDayRead(null);
     setReport(null);
     setItems(null);
+    // ROLE-01: a new day starts its own report read here; the re-read counter goes back to zero so the second effect stays quiet.
+    setReportReads(0);
     (async () => {
       const [d, r, i] = await Promise.all([readDay(day), readDayReport(day, today), readItems(day, day)]);
       if (!live) return;
@@ -314,11 +316,11 @@ export default function DayCard() {
                 <div className="font-bold text-text-faint" style={{ fontSize: 17, letterSpacing: '0.14em' }}>{ALSO_TODAY_WORDS.toUpperCase()}</div>
                 {result.allDay.map((s) => (
                   <div key={s.key} className="flex items-baseline justify-between gap-3" data-day-all-day-row={s.key}>
-                    <span className="font-semibold text-text-secondary break-words" style={{ fontSize: 23, lineHeight: 1.1 }}>{boldOf(s)}</span>
+                    <span className="font-semibold text-text-secondary break-words" style={{ fontSize: 23, lineHeight: 1.1 }}>{bandNameOf(s)}</span>
                     <span className={`font-bold tabular-nums shrink-0 ${s.cents === null ? 'text-text-faint' : 'text-text-secondary'}`} style={{ fontSize: 23, lineHeight: 1.1 }} data-day-all-day-amount>{planDollars(s.cents)}</span>
                   </div>
                 ))}
-                <div className="font-medium text-text-muted" style={{ fontSize: 20, lineHeight: 1.2 }}>{NOT_A_STOP_WORDS}</div>
+                <div className="font-medium text-text-muted" style={{ fontSize: 20, lineHeight: 1.2 }} data-day-all-day-words>{allDayBandWords(result.allDay.filter((s) => s.cents === null).length)}</div>
               </div>
             )}
             <div className="flex flex-col" style={{ gap: 4 }} data-day-plate-foot>
@@ -355,7 +357,7 @@ export default function DayCard() {
               </div>
             </div>
             <div className="flex flex-col border-t border-border" style={{ gap: 8, paddingTop: 13 }}>
-              <div className="font-bold text-text-secondary tabular-nums" style={{ fontSize: 27 }} data-day-so-far>{soFarWords(plannedCents === null ? null : focus.soFarCents, plannedCents)}</div>
+              <div className="font-bold text-text-secondary tabular-nums" style={{ fontSize: 27 }} data-day-so-far>{soFarWords(plannedCents === null ? null : focus.soFarCents, plannedCents)}{plannedCents !== null && result.allDayCents > 0 && <span className="font-medium text-text-muted" data-day-so-far-all-day> · {allDayCentsWords(planDollars(result.allDayCents))}</span>}</div>
               {bar !== null && (
                 <div className="bg-bg-row rounded-full overflow-hidden" style={{ height: 9 }} aria-hidden="true" data-day-progress={bar}>
                   <div className="bg-brand-green rounded-full" style={{ height: 9, width: `${bar}%` }} />
@@ -373,7 +375,7 @@ export default function DayCard() {
 
       {/* STOP-01: the record, typed under the plate on the step view — outside the recorded box; a write reads the records again. Keyed by the stop and its record so each starts from what is held; never offered while the records could not be read (a save would write over a record the screen cannot see). */}
       {loaded && recordsOk && focus !== null && focus.stop.address !== null && (
-        <StopForm key={`${focus.stop.key}:${focus.stop.record === null ? 'none' : focus.stop.record.id}`} stop={focus.stop} day={day} bookName={focus.stop.planLine === null ? ACCOUNT_CELL_WORDS.bookNotLoaded : bookNameOf(focus.stop.planLine.entityId)} onChanged={() => setRecordReads((n) => n + 1)} onPlanChanged={() => setReportReads((n) => n + 1)} />
+        <StopForm key={`${focus.stop.key}:${focus.stop.record === null ? 'none' : focus.stop.record.id}`} stop={focus.stop} day={day} bookName={focus.stop.planLine === null ? ACCOUNT_CELL_WORDS.bookNotLoaded : bookNameOf(focus.stop.planLine.entityId)} reportRead={reportRead} onChanged={() => setRecordReads((n) => n + 1)} onPlanChanged={() => setReportReads((n) => n + 1)} />
       )}
 
       {/* Under the plate — the sentences that name what the plate counted; only when there is something to say. */}

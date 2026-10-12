@@ -39,6 +39,7 @@ import {
   ARCHIVED_LINE_WORDS, BODY_NOT_JSON_WORDS, INACTIVE_ROUTINE_WORDS, LINES_WORDS, RACE_WORDS, noStopWords, planOf, recordWindow, refusedWords, stopInput, stopRecordRowOf, unchanged,
   type StopRecordRow,
 } from '@/lib/operations/stopRecord';
+import { NOT_A_STOP_RECORD_WORDS, isStop, isStopRole } from '@/lib/operations/stopRole';
 import { instantToZoned } from '@/lib/time';
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
@@ -102,11 +103,11 @@ export async function POST(request: NextRequest) {
     // The plan is the caller's own — an id that is no UUID, another user's plan and a missing one get the same 404 (nothing reaches Prisma malformed).
     if (!isValidUuid(v.id)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    let routine: { id: string; name: string; timezone: string; schedule_rrule: string; start_date: Date | null; end_date: Date | null; is_active: boolean };
+    let routine: { id: string; name: string; timezone: string; schedule_rrule: string; start_date: Date | null; end_date: Date | null; is_active: boolean; role: string };
     if (v.kind === 'routine_line') {
       const step = await prisma.operations_routine_steps.findFirst({
         where: { id: v.id, routine: { user_id: user.id } },
-        select: { id: true, is_active: true, routine: { select: { id: true, name: true, timezone: true, schedule_rrule: true, start_date: true, end_date: true, is_active: true } } },
+        select: { id: true, is_active: true, routine: { select: { id: true, name: true, timezone: true, schedule_rrule: true, start_date: true, end_date: true, is_active: true, role: true } } },
       });
       if (!step) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       if (!step.is_active) return NextResponse.json({ error: 'Validation', field: 'id', message: ARCHIVED_LINE_WORDS }, { status: 400 });
@@ -114,7 +115,7 @@ export async function POST(request: NextRequest) {
     } else {
       const r = await prisma.operations_routines.findFirst({
         where: { id: v.id, user_id: user.id },
-        select: { id: true, name: true, timezone: true, schedule_rrule: true, start_date: true, end_date: true, is_active: true, steps: { where: { is_active: true }, select: { id: true }, take: 1 } },
+        select: { id: true, name: true, timezone: true, schedule_rrule: true, start_date: true, end_date: true, is_active: true, role: true, steps: { where: { is_active: true }, select: { id: true }, take: 1 } },
       });
       if (!r) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       if (r.steps.length > 0) return NextResponse.json({ error: 'Validation', field: 'id', message: LINES_WORDS }, { status: 400 });
@@ -122,6 +123,9 @@ export async function POST(request: NextRequest) {
     }
     // The today read lists active routines only — an inactive one has no stop on the card, so no record either.
     if (!routine.is_active) return NextResponse.json({ error: 'Validation', field: 'id', message: INACTIVE_ROUTINE_WORDS }, { status: 400 });
+    // ROLE-01: an all-day routine is in the day's plan, not a stop — it takes no record. A role outside the six is the database's error.
+    if (!isStopRole(routine.role)) throw new Error(`stops POST: routine ${routine.id} carries role ${JSON.stringify(routine.role)} — not one of the six`);
+    if (!isStop(routine.role)) return NextResponse.json({ error: 'Validation', field: 'id', message: NOT_A_STOP_RECORD_WORDS }, { status: 400 });
 
     // The instant is THE stop of this routine on its local day — the today read's rule, nothing nearer.
     const instant = v.instant.toISOString();

@@ -17,13 +17,14 @@ import { resolve } from 'node:path';
 import { code, comments } from '../sourceText';
 import type { PlanLine } from '../budget/planLines';
 import {
-  ALSO_TODAY_WORDS, DEFAULT_ROLE, NOTE_PROMPT_WORDS, NOT_A_STOP_WORDS, NO_AMOUNT_NO_VENDOR_WORDS, ROLE_SHORT_WORDS, ROLE_WORDS, STOP_ROLES, TAP_A_STOP_WORDS, isStop, isStopRole, roleInput,
+  ALSO_TODAY_WORDS, DEFAULT_ROLE, NOTE_PROMPT_WORDS, NOT_A_STOP_RECORD_WORDS, NOT_A_STOP_WORDS, NO_AMOUNT_NO_VENDOR_WORDS, REPORT_NOT_READ_NO_VENDOR_WORDS, ROLE_FIELD_WORDS, ROLE_SHORT_WORDS,
+  ROLE_TITLE_WORDS, ROLE_WORDS, STOP_ROLES, TAP_A_STOP_WORDS, UNMATCHED_NO_VENDOR_WORDS, VENDOR_LABEL_WORDS, allDayBandWords, allDayCentsWords, isStop, isStopRole, roleInput,
 } from '../operations/stopRole';
 import type { StopRecordRow } from '../operations/stopRecord';
 import type { DailyPlanItem } from '@/components/workbench/operations/dailyplan/types';
 import type { Routine, RoutineStep, TodayRoutineEntry, TodayStatus } from '@/components/workbench/operations/routines/types';
 import { DEFAULT_ROUTINE_FORM } from '@/components/workbench/operations/routines/types';
-import { completenessWords, dayStops, focusStop, hookWords, type DayCardInput } from '@/components/workbench/operations/day/dayCard';
+import { bandNameOf, completenessWords, dayStops, focusStop, hookWords, type DayCardInput } from '@/components/workbench/operations/day/dayCard';
 
 const RULES = 'src/lib/operations/stopRole.ts';
 const CARD_RULES = 'src/components/workbench/operations/day/dayCard.ts';
@@ -33,6 +34,8 @@ const ROUTE_CREATE = 'src/app/api/operations/routines/route.ts';
 const ROUTE_PATCH = 'src/app/api/operations/routines/[id]/route.ts';
 const CREATE_FORM = 'src/components/workbench/operations/routines/RoutineCreateForm.tsx';
 const ROW = 'src/components/workbench/operations/routines/RoutineRow.tsx';
+const TODAY_ROUTE = 'src/app/api/operations/routines/today/route.ts';
+const STOPS_ROUTE = 'src/app/api/operations/stops/route.ts';
 const TYPES = 'src/components/workbench/operations/routines/types.ts';
 const SCHEMA = 'prisma/schema.prisma';
 const MIGRATIONS = 'prisma/migrations';
@@ -117,6 +120,14 @@ test('T1 the words, exact', () => {
   assert.equal(NOT_A_STOP_WORDS, "in the day's plan, not a stop");
   assert.equal(TAP_A_STOP_WORDS, 'tap a stop to record it');
   assert.equal(NO_AMOUNT_NO_VENDOR_WORDS, 'give this line an amount on the Tasks tab to plan its vendor');
+  assert.equal(REPORT_NOT_READ_NO_VENDOR_WORDS, "the day's amounts could not be read — no vendor can be planned until they are");
+  assert.equal(UNMATCHED_NO_VENDOR_WORDS, "the Budget's line for this stop is at another instant (named under the plate) — no vendor can be planned on it here");
+  assert.equal(NOT_A_STOP_RECORD_WORDS, 'the routine is all day — not a stop, so it takes no record');
+  assert.equal(allDayBandWords(0), "in the day's plan, not a stop");
+  assert.equal(allDayBandWords(1), "in the day's plan, not a stop · 1 with no amount, not in the plan");
+  assert.equal(allDayBandWords(2), "in the day's plan, not a stop · 2 with no amount, not in the plan");
+  assert.equal(allDayCentsWords('$11'), '$11 all day');
+  assert.deepEqual([VENDOR_LABEL_WORDS, ROLE_FIELD_WORDS, ROLE_TITLE_WORDS], ['Vendor', 'on the day card', 'role on the day card']);
   assert.deepEqual(NOTE_PROMPT_WORDS, { journal: "today's vision — one line", plan: 'the plan — one line', execute: 'finished up to here', place: 'why the delta', none: 'note' });
 });
 
@@ -160,7 +171,25 @@ test('T2 every stop carries its routine’s role; an all-day routine is in the p
   const late = routine({ id: 'late', name: 'A late one', role: 'all_day', schedule_rrule: 'FREQ=DAILY;BYHOUR=9;BYMINUTE=0' });
   const two = dayStops(input({ entries: [entry(late, 'pending', '2026-10-11T02:00:00.000Z'), entry(hbo, 'pending', HBO_AT)] }));
   assert.deepEqual(two.allDay.map((s) => s.label), ['HBO Subscription', 'A late one']);
+  const same = routine({ id: 'same', name: 'Apple TV', role: 'all_day', schedule_rrule: 'FREQ=DAILY;BYHOUR=8;BYMINUTE=0' });
+  assert.deepEqual(dayStops(input({ entries: [entry(hbo, 'pending', HBO_AT), entry(same, 'pending', HBO_AT)] })).allDay.map((s) => s.label), ['Apple TV', 'HBO Subscription'], 'the same clock: by name');
   assert.doesNotMatch(code(CARD_RULES), /role === 'all_day'|=== 'all_day'/, 'the card asks the rule (isStop), never the value');
+  // The counts never touch the band: a done all-day routine is not "done", an unpriced one not "not priced", a missed one not skipped or missed.
+  const doneHbo = dayStops(input({ entries: [entry(hbo, 'completed', HBO_AT), entry(gym, 'pending', GYM_AT)], records: [] }));
+  assert.deepEqual([doneHbo.done, doneHbo.skipped, doneHbo.notRecorded, doneHbo.withoutActual, doneHbo.notPriced, doneHbo.stops.length, doneHbo.allDay.length], [0, 0, 1, 1, 1, 1, 1]);
+  const unpriced = dayStops(input({ entries: [entry(hbo, 'missed', HBO_AT)], records: [] }));
+  assert.deepEqual([unpriced.notPriced, unpriced.plannedCents, unpriced.allDayCents, unpriced.allDay[0].cents, completenessWords(unpriced, 0, { day: true, report: true, records: true })], [0, 0, 0, null, null], 'an unpriced all-day line is not a count on the plate — the band says it has no amount');
+  assert.equal(dayStops(input({ entries: [entry(hbo, 'pending', HBO_AT)], lines: [hboLine] })).allDayCents, 1100, 'the band’s money, for the step card’s denominator');
+  assert.equal(bandNameOf(l.allDay[0]), 'Memberships — Gym membership', 'the band names the routine and its line');
+  assert.equal(bandNameOf(r.allDay[0]), 'HBO Subscription');
+  // The plan-line state says why a stop has no line: matched / unmatched (the Budget lists one at another instant) / none.
+  assert.equal(r.stops.find((s) => s.label === 'Brunch')!.planLineState, 'matched');
+  assert.equal(r.stops.find((s) => s.label === 'Gym')!.planLineState, 'none');
+  const moved = dayStops(input({ entries: [entry(brunch, 'pending', BRUNCH_AT)], lines: [{ ...brunchLine, address: { ...brunchLine.address, instant: '2026-10-11T06:30:00.000Z' } }] })).stops[0];
+  assert.deepEqual([moved.planLine, moved.planLineState, moved.cents], [null, 'unmatched', null]);
+  // A role outside the six on the wire is the read's error, never a work stop.
+  assert.throws(() => dayStops(input({ entries: [entry({ ...gym, role: 'subscription' as never })] })), /carries role "subscription" — not one of the six/);
+  assert.throws(() => dayStops(input({ entries: [entry({ ...gym, role: undefined as never })] })), /not one of the six/, 'a read that strips the column is caught, not read as none');
 });
 
 // ── T3 · THE MIGRATION, THE SCHEMA, THE ROUTES, THE TASKS TAB ────────────────
@@ -191,13 +220,25 @@ test('T3 the routes read the role by the one rule: the create route writes it (a
   const patch = code(ROUTE_PATCH);
   assert.match(patch, /if \(body\.role !== undefined\) \{\n\s*const role = roleInput\(body\.role\);\n\s*if \(!role\.ok\) return NextResponse\.json\(\{ error: 'Validation', field: role\.field, message: role\.message \}, \{ status: 400 \}\);\n\s*data\.role = role\.role;\n\s*\}/, 'not sent → untouched; sent → by name');
   for (const f of [ROUTE_CREATE, ROUTE_PATCH]) assert.match(code(f), /import \{ roleInput \} from '@\/lib\/operations\/stopRole';/);
+  // The two reads the card and the week stand on hand the routine over whole — no select strips the column.
+  assert.match(code(TODAY_ROUTE), /prisma\.operations_routines\.findMany\(\{\n\s*where: \{ user_id: user\.id, is_active: true \},\n\s*orderBy: \{ name: 'asc' \},\n\s*include: \{\n\s*steps: \{ where: \{ is_active: true \}, orderBy: \{ step_order: 'asc' \} \},\n\s*\},\n\s*\}\);/, 'the today read: the whole routine, with its active lines');
+  const list = /prisma\.operations_routines\.findMany\(\{([\s\S]*?)\}\);/.exec(code(ROUTE_CREATE));
+  assert.ok(list !== null && !/\bselect:/.test(list[1].split('include')[0]), 'the routines list: the whole routine');
+  // The stops route: an all-day routine takes no record; a role outside the six is the database’s error.
+  const stops = code(STOPS_ROUTE);
+  assert.match(stops, /if \(!isStopRole\(routine\.role\)\) throw new Error\(`stops POST: routine \$\{routine\.id\} carries role \$\{JSON\.stringify\(routine\.role\)\} — not one of the six`\);\n\s*if \(!isStop\(routine\.role\)\) return NextResponse\.json\(\{ error: 'Validation', field: 'id', message: NOT_A_STOP_RECORD_WORDS \}, \{ status: 400 \}\);/);
+  assert.ok(stops.indexOf('NOT_A_STOP_RECORD_WORDS }') < stops.indexOf('routineDay(routine, localDay, now)'), 'refused before the instant is judged');
+  assert.match(code(CREATE_FORM), /useState<RoutineForm>\(\{\n\s*\.\.\.DEFAULT_ROUTINE_FORM,/, 'a new routine starts from the default — none');
+  assert.doesNotMatch(/useState<RoutineForm>\(\{([\s\S]*?)\}\)/.exec(code(CREATE_FORM))![1], /\brole\b/, 'the create form never seeds a role of its own');
   // The create form and the edit form: one select over STOP_ROLES, each option its sentence; the row's small print shows a set role.
   const form = code(CREATE_FORM);
   assert.match(form, /<select\n\s*value=\{createForm\.role\}\n\s*onChange=\{\(e\) => setCreateForm\(\{ \.\.\.createForm, role: e\.target\.value as StopRole \}\)\}\n\s*className=\{inputClass\}\n\s*data-routine-role\n\s*>\n\s*\{STOP_ROLES\.map\(\(r\) => \(\n\s*<option key=\{r\} value=\{r\}>\{ROLE_WORDS\[r\]\}<\/option>/);
   const row = code(ROW);
   assert.match(row, /<select\n\s*value=\{form\.role\}\n\s*onChange=\{\(e\) => setForm\(\{ \.\.\.form, role: e\.target\.value as StopRole \}\)\}\n\s*className=\{inputClass\}\n\s*data-routine-role-select\n\s*>\n\s*\{STOP_ROLES\.map\(\(r\) => \(\n\s*<option key=\{r\} value=\{r\}>\{ROLE_WORDS\[r\]\}<\/option>/);
   assert.match(row, /    role: r\.role,\n/, 'routineToForm carries it, so an edit never resets it');
-  assert.match(row, /\{routine\.role !== 'none' && <span title="role on the day card" data-routine-role=\{routine\.role\}>\{ROLE_SHORT_WORDS\[routine\.role\]\}<\/span>\}/);
+  assert.match(row, /\{routine\.role !== 'none' && <span title=\{ROLE_TITLE_WORDS\} data-routine-role=\{routine\.role\}>\{ROLE_SHORT_WORDS\[routine\.role\]\}<\/span>\}/);
+  assert.equal((form.match(/\{ROLE_FIELD_WORDS\}/g) ?? []).length, 1);
+  assert.equal((row.match(/\{ROLE_FIELD_WORDS\}/g) ?? []).length, 1);
   assert.match(form, /body: JSON\.stringify\(\{\n\s*\.\.\.createForm,/, 'the form is sent whole — the role rides with it');
   assert.match(row, /body: JSON\.stringify\(\{\n\s*\.\.\.form,/);
 });
@@ -206,22 +247,37 @@ test('T3 the routes read the role by the one rule: the create route writes it (a
 
 test('T4 the form asks what the role asks; a place stop plans its vendor on its matched line; the plate’s band and hint', () => {
   const f = code(FORM);
-  assert.match(f, /const role = stop\.role === 'all_day' \? 'none' : stop\.role;/);
-  assert.match(f, /const differs = typedCents !== null && stop\.cents !== null && typedCents !== stop\.cents;/, '"why" only once the amount differs from the plan');
+  assert.match(f, /if \(stop\.role === 'all_day'\) throw new Error\(`StopForm: \$\{stop\.key\} is an all-day line — it takes no record`\);\n\s*const role: Exclude<StopRole, 'all_day'> = stop\.role;/, 'an all-day line is never this form’s — the rule, not a case');
+  assert.match(f, /const differs = typedCents !== null && \(stop\.cents === null \|\| typedCents !== stop\.cents\);/, '"why" once the amount differs from the plan — or whenever the plan is unknown');
+  assert.match(f, /try \{ const r = centsFromDecimalString\(draft\.amount\); return r\.ok \? r\.cents : null; \} catch \{ return null; \}/, 'a non-amount typed is no amount yet — never a render crash');
+  // A field the role does not ask is shown while it holds a value; what is not shown is sent as null — never carried unseen.
+  assert.match(f, /const shown = \{\n\s*amount: asks\.amount \|\| draft\.amount !== '',\n\s*rating: asks\.rating \|\| draft\.rating !== null,\n\s*minutes: asks\.minutes \|\| draft\.minutes !== '',\n\s*note: asks\.note \|\| draft\.note !== '',\n\s*\};/);
+  assert.match(f, /if \(shown\.amount && d\.amount\.trim\(\) !== ''\) \{/);
+  assert.match(f, /if \(shown\.minutes && d\.minutes\.trim\(\) !== ''\) \{/);
+  assert.match(f, /const note = shown\.note \? d\.note\.trim\(\) : '';/);
+  assert.match(f, /rating: shown\.rating \? d\.rating : null/);
   assert.match(f, /const asks = role === 'place'\n\s*\? \{ amount: true, rating: true, minutes: false, note: draft\.outcome === 'skipped' \|\| differs \}\n\s*: role === 'none'\n\s*\? \{ amount: true, rating: true, minutes: true, note: true \}\n\s*: \{ amount: false, rating: false, minutes: true, note: true \};/);
-  for (const ask of ['asks.amount', 'asks.rating', 'asks.minutes', 'asks.note']) assert.ok(f.includes(`{${ask} && (`), `${ask} gates its field`);
+  for (const ask of ['shown.amount', 'shown.rating', 'shown.minutes', 'shown.note']) assert.ok(f.includes(`{${ask} && (`), `${ask} gates its field`);
+  assert.doesNotMatch(f, /\{asks\.\w+ && \(/, 'the screen gates on shown, never on asks alone');
   assert.match(f, /placeholder=\{draft\.outcome === 'skipped' \? 'why — required' : NOTE_PROMPT_WORDS\[role\]\}/, 'the note is prompted by the role');
-  assert.match(f, /\{role === 'place' && \(\n\s*<div className="flex flex-wrap items-center gap-1\.5 text-xs" data-stop-vendor>/);
-  assert.match(f, /\{stop\.planLine !== null\n\s*\? <VendorBox line=\{stop\.planLine\} bookName=\{bookName\} directory=\{directory\} reload=\{onPlanChanged\} \/>\n\s*: <span className="text-text-muted" data-stop-no-vendor>\{NO_AMOUNT_NO_VENDOR_WORDS\}<\/span>\}/, 'Budget’s own vendor box on the matched plan line; no line, no vendor — said so');
+  assert.match(f, /\{role === 'place' && <PlaceVendor stop=\{stop\} bookName=\{bookName\} reportRead=\{reportRead\} reload=\{onPlanChanged\} \/>\}/, 'the vendor child for a place stop only');
+  assert.match(f, /function PlaceVendor\(\{ stop, bookName, reportRead, reload \}[\s\S]*?const directory = useDirectory\(\);/, 'the directory is read inside the place child only');
+  assert.equal((f.match(/useDirectory\(\)/g) ?? []).length, 1);
+  assert.match(f, /const reason = !reportRead \? REPORT_NOT_READ_NO_VENDOR_WORDS : stop\.planLineState === 'unmatched' \? UNMATCHED_NO_VENDOR_WORDS : NO_AMOUNT_NO_VENDOR_WORDS;/, 'one reason per cause — the report unread, the line at another instant, no amount');
+  assert.match(f, /\{stop\.planLine !== null && reportRead\n\s*\? <VendorBox line=\{stop\.planLine\} bookName=\{bookName\} directory=\{directory\} reload=\{reload\} \/>\n\s*: <span className="text-text-muted" data-stop-no-vendor>\{reason\}<\/span>\}/, 'Budget’s own vendor box on the matched plan line, else the reason');
   assert.match(f, /import \{ VendorBox, useDirectory \} from '@\/components\/budget\/DayPlanDrill';/);
-  assert.match(f, /const directory = useDirectory\(\);/);
+  assert.match(f, /\{VENDOR_LABEL_WORDS\}/);
   assert.doesNotMatch(f, /\bfetch\s*\(|\/api\//, 'the form still names no route of its own');
   const c = code(CARD);
   assert.doesNotMatch(c, /VendorBox|useDirectory|vendor-directory|plan-vendors/, 'the day folder names no vendor box — the stops folder does');
   assert.match(c, /\{result\.allDay\.length > 0 && \(\n\s*<div className="flex flex-col" style=\{\{ gap: 4 \}\} data-day-all-day>/, 'the band, on the plate, after the rows');
   assert.match(c, /\{ALSO_TODAY_WORDS\.toUpperCase\(\)\}/);
   assert.match(c, /data-day-all-day-amount>\{planDollars\(s\.cents\)\}/);
-  assert.match(c, /\{NOT_A_STOP_WORDS\}<\/div>/);
+  assert.match(c, /\{bandNameOf\(s\)\}<\/span>/, 'the routine and its line');
+  assert.match(c, /data-day-all-day-words>\{allDayBandWords\(result\.allDay\.filter\(\(s\) => s\.cents === null\)\.length\)\}/, 'the band’s words count its lines with no amount');
+  assert.match(c, /const N = result\.stops\.length;/, 'the stops, never the band');
+  assert.match(c, /data-day-so-far>\{soFarWords\(plannedCents === null \? null : focus\.soFarCents, plannedCents\)\}\{plannedCents !== null && result\.allDayCents > 0 && <span className="font-medium text-text-muted" data-day-so-far-all-day> · \{allDayCentsWords\(planDollars\(result\.allDayCents\)\)\}<\/span>\}/, 'the step card says how much of its denominator is the band');
+  assert.match(c, /setItems\(null\);\n[\s\S]*?setReportReads\(0\);/, 'a new day resets the re-read counter — one report read per day change');
   assert.ok(c.indexOf('data-day-stops') < c.indexOf('data-day-all-day') && c.indexOf('data-day-all-day') < c.indexOf('data-day-plate-foot'), 'between the rows and the plate’s foot');
   assert.match(c, /\{loaded && focus === null && N > 0 && <p className="mx-auto text-xs text-text-muted" style=\{\{ width: 540 \}\} data-day-hint>\{TAP_A_STOP_WORDS\}<\/p>\}/, 'the hint, under the full plate, outside it');
   assert.ok(c.indexOf('data-day-card') < c.indexOf('data-day-hint'), 'outside the recorded box');

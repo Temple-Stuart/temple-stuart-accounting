@@ -90,7 +90,7 @@ const GYM_AT = '2026-10-11T13:00:00.000Z';
 /** records: null — not read (STOP-01); the record-side rules are stop01.test.ts's. */
 const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: null, ...over });
 /** STOP-01: what every stop carries when the records were not read — the status its routine's (or the task's), nothing recorded. */
-const unrecorded = (statusSource: 'routine' | 'task' = 'routine') => ({ statusSource, record: null, actualCents: null, actualSource: null, doneAt: null, lateMinutes: null, actualMinutes: null, role: 'none' as const, planLine: null });
+const unrecorded = (statusSource: 'routine' | 'task' = 'routine') => ({ statusSource, record: null, actualCents: null, actualSource: null, doneAt: null, lateMinutes: null, actualMinutes: null, role: 'none' as const, planLine: null, planLineState: 'none' as const });
 
 // ── T1 · THE RULES ───────────────────────────────────────────────────────────
 

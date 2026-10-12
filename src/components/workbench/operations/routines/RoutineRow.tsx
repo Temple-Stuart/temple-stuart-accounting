@@ -14,7 +14,7 @@
 
 'use client';
 
-import { ROLE_SHORT_WORDS, ROLE_WORDS, STOP_ROLES, type StopRole } from '@/lib/operations/stopRole';
+import { ROLE_FIELD_WORDS, ROLE_SHORT_WORDS, ROLE_TITLE_WORDS, ROLE_WORDS, STOP_ROLES, type StopRole } from '@/lib/operations/stopRole';
 import { useState } from 'react';
 import type { Routine, RoutineForm } from './types';
 import { DEFAULT_ROUTINE_FORM } from './types';
@@ -261,7 +261,7 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete }: Pr
           </span>
         )}
         <span title="fail threshold">fail threshold {routine.fail_threshold_minutes} min</span>
-        {routine.role !== 'none' && <span title="role on the day card" data-routine-role={routine.role}>{ROLE_SHORT_WORDS[routine.role]}</span>}
+        {routine.role !== 'none' && <span title={ROLE_TITLE_WORDS} data-routine-role={routine.role}>{ROLE_SHORT_WORDS[routine.role]}</span>}
       </div>
       {/* LINES-01: the figure is the leaf's — the sum of the lines when any
           carries an amount, else the routine-level pair. A lined routine shows
@@ -385,7 +385,7 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete }: Pr
                 />
               </div>
               <div className="col-span-2">
-                <div className={labelClass}>on the day card</div>
+                <div className={labelClass}>{ROLE_FIELD_WORDS}</div>
                 <select
                   value={form.role}
                   onChange={(e) => setForm({ ...form, role: e.target.value as StopRole })}
