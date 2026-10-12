@@ -176,7 +176,9 @@ test('T5 the migration: the table with its two CHECKs, the trigger that locks th
   assert.doesNotMatch(sql, /DROP /);
   assert.match(comments(MIGRATION), /AUTHORED here, applied at deploy/);
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 1], MIGRATION_DIR, 'the newest migration');
+  // STOP-01 (2026-10-12): the stop records migration is newer — this one is the one before it. The pin moved; the order holds.
+  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the migration before the newest (STOP-01 followed)');
+  assert.equal(dirs[dirs.length - 1], '20261012140000_stop_01_operations_stop_records', 'the newest migration');
   assert.ok(MIGRATION_DIR.slice(0, 14) > '20260930210000');
 });
 
@@ -197,10 +199,11 @@ test('T5 the schema: the model column for column with the SQL; the user’s rela
   const auditEnum = /enum AuditActionType \{([\s\S]*?)\}/.exec(schema);
   assert.ok(auditEnum !== null);
   const values = auditEnum[1].split(/\s+/).filter(Boolean);
-  assert.deepEqual(values.slice(-2), ['operations_stay_set', 'operations_stay_deleted']);
+  // STOP-01 (2026-10-12): two values follow them in ALTER TYPE order — the pin moved from "last two" to "the two before the last two".
+  assert.deepEqual(values.slice(-4, -2), ['operations_stay_set', 'operations_stay_deleted']);
   assert.equal(AuditActionType.operations_stay_set, 'operations_stay_set', 'prisma generate ran');
   assert.equal(AuditActionType.operations_stay_deleted, 'operations_stay_deleted');
-  assert.match(code(AUDIT_LOG), /'operations_routine_completion_note_edited',\s*'operations_stay_set',\s*'operations_stay_deleted',\s*\],/);
+  assert.match(code(AUDIT_LOG), /'operations_routine_completion_note_edited',\s*'operations_stay_set',\s*'operations_stay_deleted',\s*'operations_stop_set',\s*'operations_stop_cleared',\s*\],/);
 });
 
 // ── T6 · THE ROUTES ──────────────────────────────────────────────────────────

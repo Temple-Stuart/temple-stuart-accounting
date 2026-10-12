@@ -56,6 +56,9 @@ const SUBSYSTEM_ACTION_TYPES: Record<string, AuditActionType[]> = {
     // STAY-01 (2026-10-12): a stay set / deleted (stays routes).
     'operations_stay_set',
     'operations_stay_deleted',
+    // STOP-01 (2026-10-12): a stop's record set / cleared (stops routes).
+    'operations_stop_set',
+    'operations_stop_cleared',
   ],
   // AUDIT-01 (2026-09-26): the booking audit trail's families. AUDIT-01b (2026-09-27):
   // 'commission_' is gone — commission_locked is never returned by this route (below),

@@ -9,6 +9,7 @@
  *   · GET /api/operations/daily-plan/items?from=&to=      weekReads.readItems(day, day)
  *   · GET /api/budget/report?view=day&day=&asOf=          readDayReport, here
  *   · GET /api/operations/stays?day=<day>                 readStays, here (STAY-01)
+ *   · GET /api/operations/stops?day=<day>                 readStopRecords, here (STOP-01)
  *
  * The report's answer is read exactly as the week reads its own (readReport):
  * the body as BudgetReportResponse, a failure in the card's words. Every fetch
@@ -16,6 +17,7 @@
  */
 import type { BudgetReportResponse } from '@/lib/budget/reportInputs';
 import type { StayRow } from '@/lib/operations/stay';
+import type { StopRecordRow } from '@/lib/operations/stopRecord';
 import { readJson, type Read } from '../week/weekReads';
 
 export const dayReportFailedWords = (words: string): string => `The day's amounts and places could not be read — ${words}`;
@@ -41,4 +43,20 @@ export async function readStays(day: string): Promise<Read<StaysAnswer>> {
   if (!read.ok) return { ok: false, words: staysFailedWords(read.words) };
   if (!Array.isArray(read.value.stays) || !('covering' in read.value)) return { ok: false, words: staysFailedWords('the stays came back without their list') };
   return { ok: true, value: { stays: read.value.stays as StayRow[], covering: read.value.covering as StayRow | null } };
+}
+
+export interface StopRecordsAnswer {
+  readonly records: readonly StopRecordRow[];
+  /** Records whose routine's zone could not be read — named with the reason, never placed in UTC. */
+  readonly unplaced: readonly { readonly record: StopRecordRow; readonly detail: string }[];
+}
+
+export const stopRecordsFailedWords = (words: string): string => `The stop records could not be read — ${words}`;
+
+/** STOP-01: the day's stop records — done-at, what was paid, the rating, the note — each placed by its routine's own zone. */
+export async function readStopRecords(day: string): Promise<Read<StopRecordsAnswer>> {
+  const read = await readJson(`/api/operations/stops?${new URLSearchParams({ day }).toString()}`);
+  if (!read.ok) return { ok: false, words: stopRecordsFailedWords(read.words) };
+  if (!Array.isArray(read.value.records) || !Array.isArray(read.value.unplaced)) return { ok: false, words: stopRecordsFailedWords('the records came back without their list') };
+  return { ok: true, value: { records: read.value.records as StopRecordRow[], unplaced: read.value.unplaced as StopRecordsAnswer['unplaced'] } };
 }
