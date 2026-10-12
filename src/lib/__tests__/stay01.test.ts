@@ -14,9 +14,10 @@ import { resolve } from 'node:path';
 import { AuditActionType } from '@prisma/client';
 import { code, comments } from '../sourceText';
 import {
-  NO_STAY_WORDS, OVERLAP_TAG, PLACE_MAX, asDate, coveringStay, endsOnFor, meeting, overlapWords, overlaps, stayDay, stayDayWords, stayInput,
-  stayLength, stayLengthWords, stayRowOf, type StayRow,
+  NO_STAY_WORDS, OVERLAP_TAG, PLACE_MAX, RACE_WORDS, STAY_LOADING_WORDS, STAY_NOT_READ_WORDS, asDate, coveringStay, deleteStayQuestion, endsOnFor, meeting,
+  otherStaysWords, overlapWords, overlaps, stayAtWords, stayDay, stayDayWords, stayInput, stayLength, stayLengthWords, stayRowOf, type StayRow,
 } from '../operations/stay';
+import { staysFailedWords } from '@/components/workbench/operations/day/dayReads';
 import { changeStay, createStay, removeStay } from '@/components/workbench/operations/stays/stayWrites';
 import { NO_STAY_COVERS, stayLine } from '@/components/workbench/operations/stays/StayBar';
 
@@ -54,6 +55,8 @@ test('T1 stayInput: the place trimmed and its spaces collapsed, 1–80 character
     [{ place: 'Pai', starts_on: '2026-10-20', ends_on: 'next week' }, 'ends_on', `ends_on "next week" is not a 'YYYY-MM-DD' day`],
     [{ place: 'Pai', starts_on: '2026-10-20', ends_on: '2026-10-19' }, 'ends_on', 'ends_on 2026-10-19 is before starts_on 2026-10-20'],
     [{ place: 'Pai', starts_on: 20261020, ends_on: '2026-11-02' }, 'starts_on', 'is not a'],
+    [{ place: 'Pai\u0000', starts_on: '2026-10-20', ends_on: '2026-11-02' }, 'place', 'control characters are not a place'],
+    [{ place: 'a\u0001b', starts_on: '2026-10-20', ends_on: '2026-11-02' }, 'place', 'control characters'],
   ] as const) {
     const r = stayInput(body);
     assert.ok(!r.ok, JSON.stringify(body));
@@ -93,6 +96,8 @@ test('T2 stayDay and stayLength: 1 on the first day, the length on the last; nul
   assert.equal(stayDay(c, '2026-10-19'), null);
   assert.deepEqual(stayDay({ startsOn: '2026-10-25', endsOn: '2026-10-25' }, '2026-10-25'), { n: 1, of: 1 });
   assert.equal(stayLength({ startsOn: lax.starts_on, endsOn: lax.ends_on }), 92);
+  assert.throws(() => stayLength({ startsOn: '2026-10-20', endsOn: '2026-10-19' }), /ends before it starts/, 'never a negative count');
+  assert.equal(stayInput({ place: 'a\tb', starts_on: '2026-10-20', ends_on: '2026-11-02' }).ok, true, 'a tab is whitespace — collapsed to a space, not refused');
   assert.deepEqual(stayDay({ startsOn: '2026-03-07', endsOn: '2026-03-09' }, '2026-03-09'), { n: 3, of: 3 }, 'across a DST change in any zone — days are days');
 });
 
@@ -114,6 +119,13 @@ test('T3 endsOnFor: a week is 7 days; a month ends the day before the same date 
   assert.equal(endsOnFor('2026-10-20', { days: 1 }), '2026-10-20');
   assert.throws(() => endsOnFor('2026-10-20', { days: 0 }), /at least 1 day/);
   assert.throws(() => endsOnFor('2026-10-20', { days: 2.5 }), /at least 1 day/);
+  // A first day that is not a day is refused by name — a cleared date box ('') or a loose '2026-2-3' never rolls over into a date.
+  assert.throws(() => endsOnFor('', 'month'), /the first day "" is not a 'YYYY-MM-DD' day/);
+  assert.throws(() => endsOnFor('2026-2-3', 'week'), /is not a 'YYYY-MM-DD' day/);
+  assert.throws(() => endsOnFor('2026-02-30', 'month'), /is not a 'YYYY-MM-DD' day/);
+  // Years 0001–0099 are years, not 1901–1999 (Date.UTC would remap them).
+  assert.equal(endsOnFor('0099-01-31', 'month'), '0099-02-28');
+  assert.equal(endsOnFor('0001-01-31', 'quarter'), '0001-04-30');
   assert.equal(stayLength({ startsOn: '2026-10-20', endsOn: endsOnFor('2026-10-20', 'week') }), 7);
 });
 
@@ -121,7 +133,15 @@ test('T3 endsOnFor: a week is 7 days; a month ends the day before the same date 
 
 test('T4 the words, exact; a row’s days read as days; the rules read every day by its UTC parts', () => {
   assert.equal(NO_STAY_WORDS, 'NO STAY');
+  assert.equal(STAY_NOT_READ_WORDS, 'STAY NOT READ');
+  assert.equal(STAY_LOADING_WORDS, 'loading the stay…');
   assert.equal(OVERLAP_TAG, 'STAY_OVERLAP');
+  assert.equal(stayAtWords(3, 14), 'day 3 of 14');
+  assert.equal(otherStaysWords(false, 1), 'show 1 other stay');
+  assert.equal(otherStaysWords(true, 2), 'hide 2 other stays');
+  assert.equal(RACE_WORDS('2026-10-25', '2026-10-25'), '2026-10-25 to 2026-10-25 meets another stay (written moments ago)');
+  assert.equal(deleteStayQuestion(cnx), 'Delete the stay "Chiang Mai" (2026-10-20 to 2026-11-02)? The audit log keeps it; the card forgets it.');
+  assert.equal(staysFailedWords('x'), 'The stay could not be read — x');
   assert.equal(stayDayWords(3, 14), 'DAY 3 OF 14');
   assert.equal(stayLengthWords(1), '1 day');
   assert.equal(stayLengthWords(14), '14 days');
@@ -192,21 +212,25 @@ test('T6 the routes: the caller proven, then the row, then the input, then the o
   // GET: the cookie, the user, the day by name, the caller's rows, the covering stay through the one rule.
   const get = r.slice(r.indexOf('export async function GET('), r.indexOf('export async function POST('));
   assert.ok(get.indexOf('getVerifiedEmail()') < get.indexOf('prisma.users.findFirst('), 'the cookie first');
-  assert.match(get, /parseDayParam\(request\.nextUrl\.searchParams\.get\('day'\)\)/);
+  assert.match(get, /if \(day !== null && !isIsoDay\(day\)\) \{\n\s*return NextResponse\.json\(\{ error: 'Validation', field: 'day', message: `day \$\{JSON\.stringify\(day\)\} is not a 'YYYY-MM-DD' day` \}, \{ status: 400 \}\);/, 'a day that is not a day is a 400 naming the field, in the field’s own word');
   assert.match(get, /prisma\.operations_stays\.findMany\(\{ where: \{ user_id: user\.id \}, orderBy: \{ starts_on: 'asc' \} \}\)/);
-  assert.match(get, /covering: asked\.day === null \? null : coveringStay\(stays, asked\.day\)/);
+  assert.match(get, /covering: day === null \? null : coveringStay\(stays, day\)/);
   // POST, in order.
   const post = r.slice(r.indexOf('export async function POST('));
   const order = ['getVerifiedEmail()', 'prisma.users.findFirst(', 'stayInput(await request.json())', "status: 400", 'prisma.operations_stays.findMany({ where: { user_id: user.id } })', 'meeting(others, { startsOn, endsOn })', 'status: 409', 'prisma.operations_stays.create(', 'error.message.includes(OVERLAP_TAG)', "type: 'operations_stay_set'", 'status: 201'];
   let at = -1;
   for (const step of order) { const i = post.indexOf(step); assert.ok(i > at, `POST: ${step} comes after the step before it`); at = i; }
   assert.match(post, /data: \{ user_id: user\.id, place, starts_on: asDate\(startsOn\), ends_on: asDate\(endsOn\) \}/, 'the write is the rule’s answer, days as dates');
+  assert.match(post, /const met = meeting\(others, \{ startsOn, endsOn \}\);\n\s*if \(met\.length > 0\) return NextResponse\.json\(\{ error: 'Conflict', message: overlapWords\(\{ startsOn, endsOn \}, met\[0\]\) \}, \{ status: 409 \}\);/, 'one meeting stay is enough to refuse');
+  assert.match(post, /message: RACE_WORDS\(startsOn, endsOn\) \}, \{ status: 409 \}/, 'the race’s words are the rules’');
   assert.match(post, /payload: \{ before: null, after: created \}/);
   // [id]: the row by { id, user_id }; unchanged writes nothing; the edited row is not its own neighbour; DELETE audits before.
   const i = code(ROUTE_ID);
   for (const method of ['PATCH', 'DELETE']) assert.match(i, new RegExp(`export async function ${method}\\(`));
   assert.doesNotMatch(i, /export (const|function) (?!PATCH|DELETE)/);
   assert.equal((i.match(/prisma\.operations_stays\.findFirst\(\{ where: \{ id, user_id: user\.id \} \}\)/g) ?? []).length, 2, 'the caller’s own row, proven in each handler (the ownership law reads the handler itself)');
+  assert.equal((i.match(/if \(!isValidUuid\(id\)\) return NextResponse\.json\(\{ error: 'Not found' \}, \{ status: 404 \}\);/g) ?? []).length, 2, 'an id that is no UUID is the same 404, before any query');
+  assert.match(i, /const met = meeting\(others, \{ startsOn, endsOn \}, row\.id\);\n\s*if \(met\.length > 0\) return/);
   assert.match(i, /if \(place === before\.place && startsOn === before\.starts_on && endsOn === before\.ends_on\) \{\n\s*return NextResponse\.json\(\{ stay: before, changed: false \}\);/);
   assert.match(i, /meeting\(others, \{ startsOn, endsOn \}, row\.id\)/);
   const patch = i.slice(i.indexOf('export async function PATCH('), i.indexOf('export async function DELETE('));
@@ -256,8 +280,14 @@ test('T7 the one writer: POST / PATCH / DELETE to the stays routes, the answer r
   assert.match(bar, /setLength\('week'\)|setLength\('month'\)|setLength\('quarter'\)|setLength\(\{ days: Number\(draft\.days\) \}\)/);
   for (const preset of ["'week'", "'month'", "'quarter'", '{ days: Number(draft.days) }']) assert.ok(bar.includes(`setLength(${preset})`), `the ${preset} length`);
   assert.match(bar, /endsOnFor\(draft\.startsOn, preset\)/, 'the last day from the one rule');
-  assert.match(bar, /if \(!answer\.ok\) \{ setWords\(answer\.message\); return; \}/, 'a refusal is the route’s own words');
-  assert.match(bar, /setDraft\(null\);\n\s*onChanged\(\);/, 'after a write the caller reads the stays again');
+  assert.equal((bar.match(/if \(!answer\.ok\) \{ setWords\(answer\.message\); return; \}/g) ?? []).length, 2, 'a refusal is the route’s own words — on save AND on delete');
+  assert.match(bar, /const answer = draft\.id === null \? await createStay\(body\) : await changeStay\(draft\.id, body\);\n\s*if \(!answer\.ok\) \{ setWords\(answer\.message\); return; \}\n\s*setDraft\(null\);\n\s*onChanged\(\);/, 'save: the writer, the refusal, then the form closes and the caller reads again');
+  assert.match(bar, /const answer = await removeStay\(s\.id\);\n\s*if \(!answer\.ok\) \{ setWords\(answer\.message\); return; \}\n[\s\S]*?if \(draft !== null && draft\.id === s\.id\) setDraft\(null\);\n\s*onChanged\(\);/, 'delete: the writer, the refusal, the dead draft closed, the caller reads again');
+  assert.match(bar, /if \(busy \|\| !window\.confirm\(deleteStayQuestion\(s\)\)\) return;/, 'a delete asks first, in the rules’ words');
+  assert.match(bar, /if \(draft === null \|\| busy\) return;/, 'no double submit');
+  assert.match(bar, /const hasFirstDay = draft !== null && isIsoDay\(draft\.startsOn\);/, 'the length buttons need a real first day');
+  for (const preset of ["'week'", "'month'", "'quarter'"]) assert.ok(bar.includes(`disabled={!hasFirstDay} onClick={() => setLength(${preset})}`), `${preset} waits for a first day`);
+  assert.match(bar, /throw new Error\(`StayBar: the stay \$\{covering\.starts_on\}\.\.\$\{covering\.ends_on\} does not cover \$\{day\}/, 'a covering stay that does not cover the day is the route’s error — no second branch draws it');
   assert.equal((code(WRITES).match(/\bfetch\s*\(/g) ?? []).length, 3, 'three requests, in the one writer');
   assert.match(code(READS), /export async function readStays\(day: string\)/);
   assert.doesNotMatch(code(CARD), /\bfetch\s*\(|stayWrites|method:/, 'the card fetches and writes nothing of its own');

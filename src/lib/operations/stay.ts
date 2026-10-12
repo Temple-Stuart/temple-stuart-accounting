@@ -66,6 +66,8 @@ export function stayInput(body: unknown): StayInputResult {
   if (typeof b.place !== 'string') return { ok: false, field: 'place', message: 'required (a string — the place as you name it)' };
   const place = b.place.trim().replace(/\s+/g, ' ');
   if (place.length === 0) return { ok: false, field: 'place', message: 'required (a blank is no place)' };
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u001f\u007f]/.test(place)) return { ok: false, field: 'place', message: 'control characters are not a place' };
   if (place.length > PLACE_MAX) return { ok: false, field: 'place', message: `at most ${PLACE_MAX} characters (${place.length} given)` };
   if (!isIsoDay(b.starts_on)) return { ok: false, field: 'starts_on', message: `starts_on ${JSON.stringify(b.starts_on)} is not a 'YYYY-MM-DD' day` };
   if (!isIsoDay(b.ends_on)) return { ok: false, field: 'ends_on', message: `ends_on ${JSON.stringify(b.ends_on)} is not a 'YYYY-MM-DD' day` };
@@ -92,9 +94,14 @@ export const meeting = (stays: readonly StayRow[], span: StaySpan, exceptId: str
 const DAY_MS = 86_400_000;
 const utc = (day: string): number => Date.parse(`${day}T00:00:00.000Z`);
 const isoOf = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
+/** A UTC instant from calendar parts, month 0-based, overflowing like Date.UTC — but never remapping years 0–99 (setUTCFullYear). */
+const utcParts = (y: number, m0: number, d: number): number => { const t = new Date(0); t.setUTCFullYear(y, m0, d); return t.getTime(); };
 
-/** How many days a span holds, both ends counted. */
-export const stayLength = (span: StaySpan): number => (utc(span.endsOn) - utc(span.startsOn)) / DAY_MS + 1;
+/** How many days a span holds, both ends counted; a span whose last day is before its first is refused, never a negative count. */
+export function stayLength(span: StaySpan): number {
+  if (span.endsOn < span.startsOn) throw new Error(`stay: ${span.startsOn}..${span.endsOn} ends before it starts`);
+  return (utc(span.endsOn) - utc(span.startsOn)) / DAY_MS + 1;
+}
 
 /** Where `day` sits in its stay: n (1 on the first day) of the stay's length; null when the day is outside it. */
 export function stayDay(stay: StaySpan, day: string): { readonly n: number; readonly of: number } | null {
@@ -111,6 +118,7 @@ export type StayPreset = 'week' | 'month' | 'quarter' | { readonly days: number 
  * (Nov 3 → Feb 2); N days is N days, the first counted. N below 1 throws.
  */
 export function endsOnFor(startsOn: string, preset: StayPreset): string {
+  if (!isIsoDay(startsOn)) throw new Error(`stay: the first day ${JSON.stringify(startsOn)} is not a 'YYYY-MM-DD' day`);
   if (typeof preset === 'object') {
     if (!Number.isInteger(preset.days) || preset.days < 1) throw new Error(`stay: a stay is at least 1 day, not ${preset.days}`);
     return isoOf(utc(startsOn) + (preset.days - 1) * DAY_MS);
@@ -118,8 +126,8 @@ export function endsOnFor(startsOn: string, preset: StayPreset): string {
   if (preset === 'week') return isoOf(utc(startsOn) + 6 * DAY_MS);
   const months = preset === 'month' ? 1 : 3;
   const [y, m, d] = startsOn.split('-').map(Number);
-  const targetLast = Date.UTC(y, m - 1 + months + 1, 0); // day 0 of the month after = the target month's last day
-  const sameDate = Date.UTC(y, m - 1 + months, d); // overflows past the target month when it has no such date
+  const targetLast = utcParts(y, m - 1 + months + 1, 0); // day 0 of the month after = the target month's last day
+  const sameDate = utcParts(y, m - 1 + months, d); // overflows past the target month when it has no such date
   // The day before the same date `months` on — or the target month's last day when that date does not exist there.
   return isoOf(sameDate > targetLast ? targetLast : sameDate - DAY_MS);
 }
@@ -127,6 +135,13 @@ export function endsOnFor(startsOn: string, preset: StayPreset): string {
 // ── WORDS ───────────────────────────────────────────────────────────────────
 
 export const NO_STAY_WORDS = 'NO STAY';
+export const STAY_NOT_READ_WORDS = 'STAY NOT READ';
+/** "day 3 of 14" — the bar's lowercase twin of stayDayWords. */
+export const stayAtWords = (n: number, of: number): string => `day ${n} of ${of}`;
+export const otherStaysWords = (shown: boolean, n: number): string => `${shown ? 'hide' : 'show'} ${n === 1 ? '1 other stay' : `${n} other stays`}`;
+export const STAY_LOADING_WORDS = 'loading the stay…';
+export const RACE_WORDS = (startsOn: string, endsOn: string): string => `${startsOn} to ${endsOn} meets another stay (written moments ago)`;
+export const deleteStayQuestion = (s: StayRow): string => `Delete the stay "${s.place}" (${s.starts_on} to ${s.ends_on})? The audit log keeps it; the card forgets it.`;
 export const stayDayWords = (n: number, of: number): string => `DAY ${n} OF ${of}`;
 export const stayLengthWords = (of: number): string => (of === 1 ? '1 day' : `${of} days`);
 export const overlapWords = (span: StaySpan, other: StayRow): string =>

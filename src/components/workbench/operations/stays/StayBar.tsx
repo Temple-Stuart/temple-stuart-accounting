@@ -16,7 +16,8 @@
 'use client';
 
 import { useState } from 'react';
-import { endsOnFor, stayDay, stayLength, stayLengthWords, type StayPreset, type StayRow } from '@/lib/operations/stay';
+import { isIsoDay } from '@/lib/budget/days';
+import { STAY_LOADING_WORDS, deleteStayQuestion, endsOnFor, otherStaysWords, stayAtWords, stayDay, stayLength, stayLengthWords, type StayPreset, type StayRow } from '@/lib/operations/stay';
 import type { Read } from '../week/weekReads';
 import type { StaysAnswer } from '../day/dayReads';
 import { changeStay, createStay, removeStay } from './stayWrites';
@@ -43,12 +44,13 @@ export default function StayBar({ day, stays, onChanged }: { day: string; stays:
   const [busy, setBusy] = useState(false);
   const [others, setOthers] = useState(false);
 
-  if (stays === null) return <p className="text-xs text-text-muted" data-stay-bar>loading the stay…</p>;
+  if (stays === null) return <p className="text-xs text-text-muted" data-stay-bar>{STAY_LOADING_WORDS}</p>;
   if (!stays.ok) return <p className="text-xs text-brand-red" data-stay-bar data-stay-failed>{stays.words}</p>;
 
   const covering = stays.value.covering;
   const rest = stays.value.stays.filter((s) => covering === null || s.id !== covering.id);
   const at = covering === null ? null : stayDay({ startsOn: covering.starts_on, endsOn: covering.ends_on }, day);
+  if (covering !== null && at === null) throw new Error(`StayBar: the stay ${covering.starts_on}..${covering.ends_on} does not cover ${day} — the route answered the wrong stay`);
 
   const open = (s: StayRow | null) => {
     setWords(null);
@@ -63,7 +65,7 @@ export default function StayBar({ day, stays, onChanged }: { day: string; stays:
     }
   };
   const save = async () => {
-    if (draft === null) return;
+    if (draft === null || busy) return;
     setBusy(true);
     setWords(null);
     try {
@@ -79,11 +81,14 @@ export default function StayBar({ day, stays, onChanged }: { day: string; stays:
     }
   };
   const remove = async (s: StayRow) => {
+    if (busy || !window.confirm(deleteStayQuestion(s))) return;
     setBusy(true);
     setWords(null);
     try {
       const answer = await removeStay(s.id);
       if (!answer.ok) { setWords(answer.message); return; }
+      // The deleted row's draft, if open, goes with it — a save on a dead id would be "Not found".
+      if (draft !== null && draft.id === s.id) setDraft(null);
       onChanged();
     } catch (error) {
       setWords(error instanceof Error ? error.message : String(error));
@@ -91,6 +96,9 @@ export default function StayBar({ day, stays, onChanged }: { day: string; stays:
       setBusy(false);
     }
   };
+
+  // The length buttons need a real first day (a cleared date box is '').
+  const hasFirstDay = draft !== null && isIsoDay(draft.startsOn);
 
   const row = (s: StayRow, mark: string | null) => (
     <div key={s.id} className="flex flex-wrap items-center gap-1.5 text-xs" data-stay-row={s.id}>
@@ -105,15 +113,10 @@ export default function StayBar({ day, stays, onChanged }: { day: string; stays:
     <div className="space-y-1" data-stay-bar>
       <div className="flex flex-wrap items-center gap-1.5 text-xs">
         <span className="text-text-faint uppercase tracking-wide">Stay</span>
-        {covering !== null && at !== null ? row(covering, `day ${at.n} of ${at.of}`) : (
-          <>
-            <span className="text-text-muted" data-stay-none>{NO_STAY_COVERS(day)}</span>
-            <button type="button" className={chip} disabled={busy} onClick={() => open(null)}>+ stay</button>
-          </>
-        )}
-        {covering !== null && <button type="button" className={chip} disabled={busy} onClick={() => open(null)}>+ stay</button>}
+        {covering !== null && at !== null ? row(covering, stayAtWords(at.n, at.of)) : <span className="text-text-muted" data-stay-none>{NO_STAY_COVERS(day)}</span>}
+        <button type="button" className={chip} disabled={busy} onClick={() => open(null)}>+ stay</button>
         {rest.length > 0 && (
-          <button type="button" className={chip} onClick={() => setOthers((o) => !o)} data-stay-others>{others ? 'hide' : 'show'} {rest.length === 1 ? '1 other stay' : `${rest.length} other stays`}</button>
+          <button type="button" className={chip} onClick={() => setOthers((o) => !o)} data-stay-others>{otherStaysWords(others, rest.length)}</button>
         )}
       </div>
       {others && rest.map((s) => row(s, null))}
@@ -123,11 +126,11 @@ export default function StayBar({ day, stays, onChanged }: { day: string; stays:
           <input type="date" value={draft.startsOn} onChange={(e) => setDraft({ ...draft, startsOn: e.target.value })} aria-label="First day" className={`${box} font-mono`} data-stay-starts />
           <span className="text-text-muted">→</span>
           <input type="date" value={draft.endsOn} onChange={(e) => setDraft({ ...draft, endsOn: e.target.value })} aria-label="Last day" className={`${box} font-mono`} data-stay-ends />
-          <button type="button" className={chip} onClick={() => setLength('week')}>1 week</button>
-          <button type="button" className={chip} onClick={() => setLength('month')}>1 month</button>
-          <button type="button" className={chip} onClick={() => setLength('quarter')}>3 months</button>
+          <button type="button" className={chip} disabled={!hasFirstDay} onClick={() => setLength('week')}>1 week</button>
+          <button type="button" className={chip} disabled={!hasFirstDay} onClick={() => setLength('month')}>1 month</button>
+          <button type="button" className={chip} disabled={!hasFirstDay} onClick={() => setLength('quarter')}>3 months</button>
           <input type="number" min={1} value={draft.days} onChange={(e) => setDraft({ ...draft, days: e.target.value })} placeholder="N" aria-label="Days" className={`${box} w-14 font-mono`} data-stay-days />
-          <button type="button" className={chip} disabled={!/^\d+$/.test(draft.days)} onClick={() => setLength({ days: Number(draft.days) })}>days</button>
+          <button type="button" className={chip} disabled={!hasFirstDay || !/^[1-9]\d*$/.test(draft.days)} onClick={() => setLength({ days: Number(draft.days) })}>days</button>
           <button type="submit" className={chip} disabled={busy}>{draft.id === null ? 'add' : 'save'}</button>
           <button type="button" className={chip} disabled={busy} onClick={() => { setDraft(null); setWords(null); }}>cancel</button>
         </form>

@@ -35,7 +35,7 @@
 import type { NotPlaced } from '@/lib/budget/days';
 import { formatCents } from '@/lib/budget/format';
 import type { PlanLine, StrandedVendor } from '@/lib/budget/planLines';
-import { NO_STAY_WORDS, stayDay, stayDayWords, type StayRow } from '@/lib/operations/stay';
+import { NO_STAY_WORDS, STAY_NOT_READ_WORDS, stayDay, stayDayWords, type StayRow } from '@/lib/operations/stay';
 import { instantToZoned } from '@/lib/time';
 import type { DailyPlanItem } from '../dailyplan/types';
 import type { TodayRoutineEntry, TodayStatus } from '../routines/types';
@@ -310,15 +310,22 @@ export function dayShortWords(day: string): string {
  * meaning: the day's place in where you are. (DAYCARD-01b counted the calendar
  * quarter here; that counter is gone — a stay is what Alex counts.)
  */
-export function headerWords(stay: StayRow | null, day: string): string {
-  if (stay === null) return NO_STAY_WORDS;
-  const at = stayDay({ startsOn: stay.starts_on, endsOn: stay.ends_on }, day);
-  if (at === null) throw new Error(`dayCard: the stay ${stay.starts_on}..${stay.ends_on} does not cover ${day} — the route answered the wrong stay`);
+export type StayState =
+  | { readonly kind: 'unread' }
+  | { readonly kind: 'failed' }
+  | { readonly kind: 'read'; readonly stay: StayRow | null };
+
+export function headerWords(state: StayState, day: string): string {
+  if (state.kind === 'unread') return '';
+  if (state.kind === 'failed') return STAY_NOT_READ_WORDS;
+  if (state.stay === null) return NO_STAY_WORDS;
+  const at = stayDay({ startsOn: state.stay.starts_on, endsOn: state.stay.ends_on }, day);
+  if (at === null) throw new Error(`dayCard: the stay ${state.stay.starts_on}..${state.stay.ends_on} does not cover ${day} — the route answered the wrong stay`);
   return stayDayWords(at.n, at.of);
 }
 
-/** "Tue Oct 13 · Chiang Mai" — the day and, when a stay covers it, its place. */
-export const whereWords = (day: string, stay: { readonly place: string } | null): string => (stay === null ? dayShortWords(day) : `${dayShortWords(day)} · ${stay.place}`);
+/** "Tue Oct 13 · Chiang Mai" — the day and, when a read stay covers it, its place; the day alone while unread, failed or none. */
+export const whereWords = (day: string, state: StayState): string => (state.kind === 'read' && state.stay !== null ? `${dayShortWords(day)} · ${state.stay.place}` : dayShortWords(day));
 
 export const HOOK_WORDS = 'under or over?';
 export const PLANNED_WORD = 'planned';

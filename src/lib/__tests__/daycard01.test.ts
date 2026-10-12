@@ -349,13 +349,18 @@ test('T3 the reel plate’s words, exact (DAYCARD-01b): whole dollars, the day o
   assert.equal(dayShortWords('2026-10-13'), 'Tue Oct 13');
   // STAY-01: the header counts the stay covering the day — never the calendar quarter; no stay says so.
   const chiangMai = { id: 's1', place: 'Chiang Mai', starts_on: '2026-10-20', ends_on: '2026-11-02' };
-  assert.equal(headerWords(chiangMai, '2026-10-22'), 'DAY 3 OF 14');
-  assert.equal(headerWords(chiangMai, '2026-10-20'), 'DAY 1 OF 14');
-  assert.equal(headerWords(chiangMai, '2026-11-02'), 'DAY 14 OF 14');
-  assert.equal(headerWords(null, '2026-10-13'), 'NO STAY');
-  assert.throws(() => headerWords(chiangMai, '2026-11-03'), /does not cover 2026-11-03/, 'a stay that does not cover the day is the route’s error, never counted');
-  assert.equal(whereWords('2026-10-22', chiangMai), 'Thu Oct 22 · Chiang Mai');
-  assert.equal(whereWords('2026-10-13', null), 'Tue Oct 13');
+  const read = (stay: typeof chiangMai | null) => ({ kind: 'read' as const, stay });
+  assert.equal(headerWords(read(chiangMai), '2026-10-22'), 'DAY 3 OF 14');
+  assert.equal(headerWords(read(chiangMai), '2026-10-20'), 'DAY 1 OF 14');
+  assert.equal(headerWords(read(chiangMai), '2026-11-02'), 'DAY 14 OF 14');
+  assert.equal(headerWords(read(null), '2026-10-13'), 'NO STAY', 'read, and none covers the day');
+  assert.equal(headerWords({ kind: 'unread' }, '2026-10-13'), '', 'in flight: nothing, never a false NO STAY');
+  assert.equal(headerWords({ kind: 'failed' }, '2026-10-13'), 'STAY NOT READ');
+  assert.throws(() => headerWords(read(chiangMai), '2026-11-03'), /does not cover 2026-11-03/, 'a stay that does not cover the day is the route’s error, never counted');
+  assert.equal(whereWords('2026-10-22', read(chiangMai)), 'Thu Oct 22 · Chiang Mai');
+  assert.equal(whereWords('2026-10-13', read(null)), 'Tue Oct 13');
+  assert.equal(whereWords('2026-10-13', { kind: 'unread' }), 'Tue Oct 13');
+  assert.equal(whereWords('2026-10-13', { kind: 'failed' }), 'Tue Oct 13');
   assert.equal(hookWords(7), '7 stops · under or over?');
   assert.equal(hookWords(1), '1 stop · under or over?');
   assert.equal(hookWords(null), 'stops not read · under or over?', 'unknown is not zero');
@@ -470,10 +475,15 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   // The header: the badge, the wordmark, DAY n OF m on the full card, "n OF N · time" on the step card.
   assert.match(c, /className="bg-brand-gold text-text-primary rounded-lg flex items-center justify-center font-extrabold" style=\{\{ width: 32, height: 32, fontSize: 16 \}\} aria-hidden="true">\{BADGE_WORDS\}/, 'the gold TS badge, dark ink');
   assert.match(c, /\{BRAND_WORDS\}<\/span>/);
-  assert.match(c, /<PlateHeader right=\{focus === null \? headerWords\(stay, day\) : stepHeaderWords\(focus\.index, focus\.of, focus\.stop\.time\)\} \/>/, 'the header counts the stay (STAY-01)');
-  assert.match(c, /const stay = stays !== null && stays\.ok \? stays\.value\.covering : null;/, 'the stay covering the day — null while unread, failed, or none');
-  assert.match(c, /data-day-where>\{whereWords\(day, stay\)\}/, 'the day and the place');
-  assert.match(c, /<StayBar day=\{day\} stays=\{stays\} onChanged=\{\(\) => setStayReads\(\(n\) => n \+ 1\)\} \/>/, 'the stay bar, outside the plate, re-reading after a write');
+  assert.match(c, /<PlateHeader right=\{focus === null \? headerWords\(stayState, day\) : stepHeaderWords\(focus\.index, focus\.of, focus\.stop\.time\)\} \/>/, 'the header counts the stay (STAY-01)');
+  // The stays are kept WITH the day they were read for: a day change never pairs the old answer with the new day (that pairing threw).
+  assert.match(c, /useState<\{ readonly day: string; readonly read: Read<StaysAnswer> \} \| null>\(null\)/);
+  assert.match(c, /if \(live\) setStays\(\{ day, read: s \}\);/, 'the read lands with its day, under the live guard');
+  assert.match(c, /const staysRead = stays !== null && stays\.day === day \? stays\.read : null;/, 'another day’s answer is unread here');
+  assert.match(c, /const stayState: StayState = staysRead === null \? \{ kind: 'unread' \} : !staysRead\.ok \? \{ kind: 'failed' \} : \{ kind: 'read', stay: staysRead\.value\.covering \};/, 'unread, failed and read are three states — never one null');
+  assert.match(c, /data-day-where>\{whereWords\(day, stayState\)\}/, 'the day and the place');
+  assert.match(c, /<StayBar day=\{day\} stays=\{staysRead\} onChanged=\{\(\) => setStayReads\(\(n\) => n \+ 1\)\} \/>/, 'the stay bar, outside the plate, re-reading after a write');
+  assert.doesNotMatch(c, /setStays\(null\)/, 'a re-read never blanks the plate first');
   assert.ok(c.indexOf('<StayBar') < c.indexOf('data-day-card'), 'the stay bar sits above the plate');
   assert.match(c, /data-day-words>\{right\}/, 'the header words are the rules’ — never the browser’s zone');
   // The hero: the Budget's figure in whole dollars; '—' while the report cannot be read — never a sum of the stops.

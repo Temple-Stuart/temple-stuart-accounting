@@ -20,8 +20,8 @@ import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
-import { parseDayParam } from '@/lib/operations/routineDay';
-import { OVERLAP_TAG, asDate, coveringStay, meeting, overlapWords, stayInput, stayRowOf, type StayRow } from '@/lib/operations/stay';
+import { isIsoDay } from '@/lib/budget/days';
+import { OVERLAP_TAG, RACE_WORDS, asDate, coveringStay, meeting, overlapWords, stayInput, stayRowOf, type StayRow } from '@/lib/operations/stay';
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,12 +30,14 @@ export async function GET(request: NextRequest) {
     const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const asked = parseDayParam(request.nextUrl.searchParams.get('day'));
-    if (!asked.ok) return NextResponse.json({ error: 'Validation', field: 'day', message: asked.message }, { status: 400 });
+    const day = request.nextUrl.searchParams.get('day');
+    if (day !== null && !isIsoDay(day)) {
+      return NextResponse.json({ error: 'Validation', field: 'day', message: `day ${JSON.stringify(day)} is not a 'YYYY-MM-DD' day` }, { status: 400 });
+    }
 
     const rows = await prisma.operations_stays.findMany({ where: { user_id: user.id }, orderBy: { starts_on: 'asc' } });
     const stays = rows.map(stayRowOf);
-    return NextResponse.json({ stays, covering: asked.day === null ? null : coveringStay(stays, asked.day) });
+    return NextResponse.json({ stays, covering: day === null ? null : coveringStay(stays, day) });
   } catch (error) {
     return failClosedResponse('Stays GET', 'Failed to load the stays', error);
   }
@@ -64,7 +66,7 @@ export async function POST(request: NextRequest) {
       }));
     } catch (error) {
       if (error instanceof Error && error.message.includes(OVERLAP_TAG)) {
-        return NextResponse.json({ error: 'Conflict', message: `${startsOn} to ${endsOn} meets another stay (written moments ago)` }, { status: 409 });
+        return NextResponse.json({ error: 'Conflict', message: RACE_WORDS(startsOn, endsOn) }, { status: 409 });
       }
       throw error;
     }

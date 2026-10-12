@@ -11,7 +11,8 @@
  * DELETE → { deleted: true }. Audited operations_stay_deleted (before) after.
  *
  * The caller's own row only: the verified cookie, then the user, then the stay
- * by { id, user_id } — another user's row and a missing one get the same 404.
+ * by { id, user_id } — another user's row, a missing one and an id that is no
+ * UUID get the same 404.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -19,7 +20,8 @@ import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
-import { OVERLAP_TAG, asDate, meeting, overlapWords, stayInput, stayRowOf } from '@/lib/operations/stay';
+import { isValidUuid } from '@/lib/operations/parseUuid';
+import { OVERLAP_TAG, RACE_WORDS, asDate, meeting, overlapWords, stayInput, stayRowOf } from '@/lib/operations/stay';
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -28,7 +30,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
     const { id } = await params;
-    // The caller's own row — another user's and a missing one get the same 404.
+    // The caller's own row — another user's, a missing one and an id that is no UUID get the same 404 (nothing reaches Prisma malformed).
+    if (!isValidUuid(id)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const row = await prisma.operations_stays.findFirst({ where: { id, user_id: user.id } });
     if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const before = stayRowOf(row);
@@ -53,7 +56,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }));
     } catch (error) {
       if (error instanceof Error && error.message.includes(OVERLAP_TAG)) {
-        return NextResponse.json({ error: 'Conflict', message: `${startsOn} to ${endsOn} meets another stay (written moments ago)` }, { status: 409 });
+        return NextResponse.json({ error: 'Conflict', message: RACE_WORDS(startsOn, endsOn) }, { status: 409 });
       }
       throw error;
     }
@@ -78,7 +81,8 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
     const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
     const { id } = await params;
-    // The caller's own row — another user's and a missing one get the same 404.
+    // The caller's own row — another user's, a missing one and an id that is no UUID get the same 404 (nothing reaches Prisma malformed).
+    if (!isValidUuid(id)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const row = await prisma.operations_stays.findFirst({ where: { id, user_id: user.id } });
     if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const before = stayRowOf(row);
