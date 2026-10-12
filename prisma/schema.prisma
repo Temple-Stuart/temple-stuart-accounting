@@ -420,6 +420,56 @@ model operations_stays {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// STOP-01 (2026-10-12) — THE RECORD AT A STOP: what happened at one stop of
+// one day — done at an instant (or skipped, with the reason), what was actually
+// paid, a rating, a note, the minutes. Addressed the Budget's way (days.ts
+// OccurrenceAddress): exactly one of step_id ('routine_line') or routine_id
+// ('routine'), and the occurrence INSTANT. A task's record is the task's own row
+// (actual_cost_usd, actual_minutes, completed_at) — no task column here.
+//
+// HELD BY THE DATABASE (prisma/migrations/20261012140000_stop_01_operations_
+// stop_records — Prisma cannot express a partial index): the CHECKs (one plan
+// column; outcome done|skipped; done_at iff done; a skipped stop's reason; a
+// note not blank; cents ≥ 0; rating 1–5; minutes within a day) and two partial
+// unique indexes — one record per (plan, occurrence). Written by one route
+// (src/app/api/operations/stops/route.ts), read by one rule
+// (src/lib/operations/stopRecord.ts). onDelete: the plan's records go with the
+// plan (Cascade — the audit log keeps every set and clear); a deleted user's
+// rows go with them.
+// ═══════════════════════════════════════════════════════════════════
+
+model operations_stop_records {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id        String
+  /// Exactly one of the two (the migration's CHECK): the line, or the routine with no lines.
+  routine_id     String?   @db.Uuid
+  step_id        String?   @db.Uuid
+  /// The occurrence INSTANT the stop is at (the today read's expected_at) — never a day.
+  occurrence_at  DateTime  @db.Timestamptz(6)
+  /// 'done' | 'skipped' (CHECK).
+  outcome        String    @db.VarChar(10)
+  /// SET exactly when done (CHECK) — the instant it was done.
+  done_at        DateTime? @db.Timestamptz(6)
+  /// Typed on the day, USD cents, 0 or more; NULL = not typed (CHECK ≥ 0).
+  actual_cents   Int?
+  /// 1–5 (CHECK), the rubric in src/lib/operations/stopRecord.ts RATING_WORDS.
+  rating         Int?      @db.SmallInt
+  /// One line, 1–280 characters, not blank; the reason when skipped (CHECKs).
+  note           String?   @db.VarChar(280)
+  /// 0–1440 (CHECK).
+  actual_minutes Int?
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime  @updatedAt @db.Timestamptz(6)
+
+  user    users                     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  routine operations_routines?      @relation(fields: [routine_id], references: [id], onDelete: Cascade)
+  step    operations_routine_steps? @relation(fields: [step_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, occurrence_at])
+  @@map("operations_stop_records")
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // MERCHANT COA MAPPINGS — Now with entity_id
 // ═══════════════════════════════════════════════════════════════════
 
@@ -749,6 +799,7 @@ model users {
   planned_item_vendors          planned_item_vendors[]
   // STAY-01: where this user is, day by day — their stays.
   operations_stays              operations_stays[]
+  operations_stop_records       operations_stop_records[]
   provider_responses      provider_responses[]
   arrivals                arrivals[]
   verification_tokens     verification_tokens[]
@@ -2944,6 +2995,12 @@ enum AuditActionType {
   // operations_ list.
   operations_stay_set
   operations_stay_deleted
+  // STOP-01 (2026-10-12): a stop's record set (created or changed) / cleared by its
+  // owner, appended in ALTER TYPE order — migration
+  // 20261012140000_stop_01_operations_stop_records. Both are in the audit-log
+  // route's operations_ list.
+  operations_stop_set
+  operations_stop_cleared
 }
 
 model audit_log {
@@ -3651,6 +3708,8 @@ model operations_routines {
   ledger_line_links   ledger_line_links[]
   // VENDOR-01: the routine's vendor, when its own figure is in force.
   planned_item_vendors planned_item_vendors[]
+  // STOP-01: the records at this routine's stops — a routine with no lines only.
+  stop_records         operations_stop_records[]
 
   @@unique([user_id, name])
   @@index([user_id, is_active, next_due_at])
@@ -3695,6 +3754,8 @@ model operations_routine_steps {
   hub_scheduled_items hub_scheduled_items[]
   // VENDOR-01: the line's vendor, when the routine's figure is its lines.
   planned_item_vendors planned_item_vendors[]
+  // STOP-01: the records at this line's stops.
+  stop_records         operations_stop_records[]
 
   @@index([routine_id, step_order])
   @@index([routine_id])

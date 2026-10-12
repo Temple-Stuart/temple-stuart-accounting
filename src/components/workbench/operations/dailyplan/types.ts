@@ -31,6 +31,8 @@ export type LinkedTaskSummary = {
   estimated_cost_usd: string | null;  // Prisma Decimal serialized as string
   actual_cost_usd: string | null;
   actual_minutes: number | null;
+  /** STOP-01: when the task was completed (ISO), the task's own done-at — the day card's task stops read it. */
+  completed_at: string | null;
 };
 
 export type DailyPlanItem = {

@@ -72,7 +72,7 @@ const block = (scheduled_start: string, status: DailyPlanItem['calendar_blocks']
 });
 
 const task = (id: string, title: string, status: NonNullable<DailyPlanItem['task']>['status'] = 'open') => ({
-  id, title, status, project_id: 'proj', coa_code: null, estimated_cost_usd: null, actual_cost_usd: null, actual_minutes: null,
+  id, title, status, project_id: 'proj', coa_code: null, estimated_cost_usd: null, actual_cost_usd: null, actual_minutes: null, completed_at: null,
 });
 
 /** The morning: three lines — two timed, one not — and a routine-level location. */
@@ -87,7 +87,10 @@ const morning = routine({
 const gym = routine({ id: 'gym', name: 'Gym', location: 'Fitness First', schedule_rrule: 'FREQ=DAILY;BYHOUR=20;BYMINUTE=0' });
 const GYM_AT = '2026-10-11T13:00:00.000Z';
 
-const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, ...over });
+/** records: null — not read (STOP-01); the record-side rules are stop01.test.ts's. */
+const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: null, ...over });
+/** STOP-01: what every stop carries when the records were not read — the status its routine's (or the task's), nothing recorded. */
+const unrecorded = (statusSource: 'routine' | 'task' = 'routine') => ({ statusSource, record: null, actualCents: null, actualSource: null, doneAt: null, lateMinutes: null, actualMinutes: null });
 
 // ── T1 · THE RULES ───────────────────────────────────────────────────────────
 
@@ -110,7 +113,7 @@ test('T1 a stepless routine is one stop at its occurrence’s time; the statuses
     [`line:coffee:${AT}`, '07:30', 'missed'],
     [`routine:gym:${GYM_AT}`, '20:00', 'done'],
   ]);
-  assert.deepEqual(r.stops[3], { kind: 'routine', key: `routine:gym:${GYM_AT}`, time: '20:00', label: 'Gym', line: null, place: 'Fitness First', minutes: null, cents: null, status: 'done' });
+  assert.deepEqual(r.stops[3], { kind: 'routine', key: `routine:gym:${GYM_AT}`, time: '20:00', label: 'Gym', line: null, place: 'Fitness First', minutes: null, cents: null, status: 'done', address: { kind: 'routine', id: 'gym', instant: GYM_AT }, zone: BKK, ...unrecorded() });
   for (const [status, expected] of [['pending', 'open'], ['upcoming', 'later'], ['completed', 'done'], ['missed', 'missed']] as const) {
     assert.equal(dayStops(input({ entries: [entry(gym, status, GYM_AT)] })).stops[0].status, expected);
   }
@@ -137,7 +140,7 @@ test('T1 a task: its first block that is not cancelled, in the viewer’s zone; 
     viewerZone: 'Asia/Bangkok',
     items: [item({ id: 'i1', task_id: 't1', task: task('t1', 'Ship DAYCARD-01'), calendar_blocks: [block('2026-10-11T02:00:00.000Z', 'cancelled'), block('2026-10-11T03:00:00.000Z'), block('2026-10-11T05:00:00.000Z')] })],
   }));
-  assert.deepEqual(viewer.stops[0], { kind: 'task', key: 'task:i1', time: '10:00', label: 'Ship DAYCARD-01', line: null, place: null, minutes: null, cents: null, status: 'open' });
+  assert.deepEqual(viewer.stops[0], { kind: 'task', key: 'task:i1', time: '10:00', label: 'Ship DAYCARD-01', line: null, place: null, minutes: null, cents: null, status: 'open', address: null, zone: null, ...unrecorded('task') });
   const la = dayStops(input({ viewerZone: 'America/Los_Angeles', items: [item({ id: 'i1', task_id: 't1', task: task('t1', 'Ship DAYCARD-01'), calendar_blocks: [block('2026-10-11T03:00:00.000Z')] })] }));
   assert.equal(la.stops[0].time, '20:00', 'the day before in Los Angeles, at 20:00 — the block’s clock in the viewer’s zone, as Tab 1 draws it');
   const none = dayStops(input({ items: [item({ id: 'i2', task_id: 't2', task: task('t2', 'Audit the week', 'completed'), calendar_blocks: [block('2026-10-11T03:00:00.000Z', 'cancelled')] }), item({ id: 'i3', ad_hoc_title: 'Walk', calendar_blocks: [block('2026-10-11T04:00:00.000Z')] })] }));
@@ -265,9 +268,10 @@ test('T3 focusStop: 1..N with soFarCents over the priced stops only; 0, N+1, a f
   ];
   const r = dayStops(input({ entries: [entry(morning), entry(gym, 'pending', GYM_AT)], lines }));
   assert.equal(r.stops.length, 4);
-  assert.deepEqual(focusStop(r, 1), { index: 1, of: 4, stop: r.stops[0], soFarCents: 0 });
-  assert.deepEqual(focusStop(r, 3), { index: 3, of: 4, stop: r.stops[2], soFarCents: 500 });
-  assert.deepEqual(focusStop(r, 4), { index: 4, of: 4, stop: r.stops[3], soFarCents: 2000 });
+  // spentSoFarCents null and withoutActualSoFar 0 while the records were not read (STOP-01).
+  assert.deepEqual(focusStop(r, 1), { index: 1, of: 4, stop: r.stops[0], soFarCents: 0, spentSoFarCents: null, withoutActualSoFar: 0 });
+  assert.deepEqual(focusStop(r, 3), { index: 3, of: 4, stop: r.stops[2], soFarCents: 500, spentSoFarCents: null, withoutActualSoFar: 0 });
+  assert.deepEqual(focusStop(r, 4), { index: 4, of: 4, stop: r.stops[3], soFarCents: 2000, spentSoFarCents: null, withoutActualSoFar: 0 });
   for (const n of [0, 5, 2.5, Number.NaN, -1]) assert.equal(focusStop(r, n), null, `step ${n}`);
   assert.equal(focusStop(dayStops(input()), 1), null, 'no stops, no step');
 });
@@ -287,8 +291,11 @@ test('T3 the words, exact', () => {
   assert.equal(soFarWords(1400, 5000), 'so far $14 of $50');
   assert.equal(soFarWords(1461, 5000), 'so far $14.61 of $50');
   assert.equal(soFarWords(null, null), 'so far — of —');
-  assert.equal(provenanceWords('2026-10-11', true), 'Budget plan lines · as of 2026-10-11');
-  assert.equal(provenanceWords('2026-10-11', false), 'Budget plan lines NOT READ · as of 2026-10-11');
+  // STOP-01: the records are a source too — each named NOT READ when it was not.
+  assert.equal(provenanceWords('2026-10-11', true, true), 'Budget plan lines · stop records · as of 2026-10-11');
+  assert.equal(provenanceWords('2026-10-11', false, true), 'Budget plan lines NOT READ · stop records · as of 2026-10-11');
+  assert.equal(provenanceWords('2026-10-11', true, false), 'Budget plan lines · stop records NOT READ · as of 2026-10-11');
+  assert.equal(provenanceWords('2026-10-11', false, false), 'Budget plan lines NOT READ · stop records NOT READ · as of 2026-10-11');
   assert.equal(badDateWords('yesterday'), '?date=yesterday is not a day (YYYY-MM-DD) — showing today');
   assert.equal(badStepWords('9', 7), "?step=9 is not one of this day's 7 stops — showing the whole card");
   assert.equal(unmatchedWords([{ label: 'Morning', line: 'Coffee', cents: 500, lineInstant: '2026-10-11T01:00:00.000Z', stopInstant: AT, reason: 'instant differs' }]),
@@ -380,15 +387,16 @@ test('T3 the reel plate’s words, exact (DAYCARD-01b): whole dollars, the day o
   assert.equal(progressPercent(null, 5000), null);
   assert.equal(progressPercent(500, null), null);
   // The completeness line counts; the sentences name.
-  const READ = { day: true, report: true };
-  const empty = dayStops(input());
+  const READ = { day: true, report: true, records: true };
+  const empty = dayStops(input({ records: [] }));
   assert.equal(completenessWords(empty, 0, READ), null);
   // What was not read is unknown, not zero: said as such, never counted.
-  assert.equal(completenessWords(empty, 0, { day: false, report: true }), 'stops not read');
-  assert.equal(completenessWords(dayStops(input({ entries: [entry(morning)] })), 0, { day: true, report: false }), 'amounts not read', 'three unpriced stops are not "3 not priced" while the amounts were not read');
-  const unread = dayStops(input({ lines: [line({ address: { kind: 'routine_line', id: 'coffee', instant: AT }, cents: 500, label: 'Morning', line: 'Coffee' })] }));
-  assert.equal(completenessWords(unread, 0, { day: false, report: true }), 'stops not read · 1 line, its stop not read');
-  assert.equal(completenessWords(empty, 0, { day: false, report: false }), 'stops not read · amounts not read');
+  assert.equal(completenessWords(empty, 0, { ...READ, day: false }), 'stops not read');
+  assert.equal(completenessWords(dayStops(input({ entries: [entry(morning)], records: [] })), 0, { ...READ, report: false }), 'amounts not read · 3 not recorded', 'three unpriced stops are not "3 not priced" while the amounts were not read');
+  const unread = dayStops(input({ lines: [line({ address: { kind: 'routine_line', id: 'coffee', instant: AT }, cents: 500, label: 'Morning', line: 'Coffee' })], records: [] }));
+  assert.equal(completenessWords(unread, 0, { ...READ, day: false }), 'stops not read · 1 line, its stop not read');
+  assert.equal(completenessWords(empty, 0, { day: false, report: false, records: false }), 'stops not read · amounts not read · records not read');
+  assert.equal(completenessWords(dayStops(input({ entries: [entry(morning)] })), 0, { ...READ, records: false }), 'records not read · 3 not priced', 'three unrecorded stops are not "3 not recorded" while the records were not read (STOP-01) — their prices were read, so "3 not priced" stands');
   const r = dayStops(input({
     entries: [entry(morning)],
     lines: [
@@ -397,14 +405,14 @@ test('T3 the reel plate’s words, exact (DAYCARD-01b): whole dollars, the day o
     ],
     notPlaced: [{ source: 'routine', sourceId: 'routine:night', entityId: 'P', label: 'Night', cents: null, day: null, reason: 'timezone not recognised', detail: null }],
   }));
-  assert.equal(completenessWords(r, 2, READ), '3 not priced · 1 line at another instant · 1 line with no stop · 1 plan not placed · 2 vendors stranded');
+  assert.equal(completenessWords(r, 2, { ...READ, records: false }), 'records not read · 3 not priced · 1 line at another instant · 1 line with no stop · 1 plan not placed · 2 vendors stranded');
   const whole = dayStops(input({ entries: [entry(morning)], lines: [line({ address: { kind: 'routine', id: 'morning', instant: AT }, cents: 6000, label: 'Morning' })] }));
-  assert.equal(completenessWords(whole, 0, READ), '3 not priced · 1 routine priced as a whole');
-  const priced = dayStops(input({ entries: [entry(gym, 'pending', GYM_AT)], lines: [line({ address: { kind: 'routine', id: 'gym', instant: GYM_AT }, cents: 1500, label: 'Gym' })] }));
-  assert.equal(completenessWords(priced, 0, READ), null);
+  assert.equal(completenessWords(whole, 0, { ...READ, records: false }), 'records not read · 3 not priced · 1 routine priced as a whole');
+  const priced = dayStops(input({ entries: [entry(gym, 'pending', GYM_AT)], lines: [line({ address: { kind: 'routine', id: 'gym', instant: GYM_AT }, cents: 1500, label: 'Gym' })], records: [] }));
+  assert.equal(completenessWords(priced, 0, READ), '1 not recorded');
   const l1 = line({ address: { kind: 'routine', id: 'gym', instant: GYM_AT }, cents: 1500, label: 'Gym' });
-  const doubled = dayStops(input({ entries: [entry(gym, 'pending', GYM_AT)], lines: [l1, { ...l1, cents: 1600 }] }));
-  assert.equal(completenessWords(doubled, 0, READ), '1 not priced · 2 plan lines for one stop', 'two lines at the stop’s own instant are not "at another instant"');
+  const doubled = dayStops(input({ entries: [entry(gym, 'pending', GYM_AT)], lines: [l1, { ...l1, cents: 1600 }], records: [] }));
+  assert.equal(completenessWords(doubled, 0, READ), '1 not priced · 1 not recorded · 2 plan lines for one stop', 'two lines at the stop’s own instant are not "at another instant"');
 });
 
 // ── T4 · THE READS ───────────────────────────────────────────────────────────
@@ -436,7 +444,8 @@ test('T4 readJson is the week’s, exported; readDayReport asks the one URL and 
   assert.match(reads, /import \{ readJson, type Read \} from '\.\.\/week\/weekReads';/);
   assert.equal((reads.match(/\bfetch\s*\(/g) ?? []).length, 0, 'the read goes through readJson');
   assert.match(code(CARD), /import \{ readDay, readItems, type DayAnswer, type Read \} from '\.\.\/week\/weekReads';/);
-  assert.match(code(CARD), /import \{ readDayReport, readStays, type StaysAnswer \} from '\.\/dayReads';/);
+  assert.match(code(CARD), /import \{ readDayReport, readStays, readStopRecords, type StaysAnswer, type StopRecordsAnswer \} from '\.\/dayReads';/);
+  assert.match(reads, /await readJson\(`\/api\/operations\/stops\?\$\{new URLSearchParams\(\{ day \}\)\.toString\(\)\}`\)/, 'the records read, through the one reader (STOP-01)');
   assert.match(reads, /await readJson\(`\/api\/operations\/stays\?\$\{new URLSearchParams\(\{ day \}\)\.toString\(\)\}`\)/, 'the stays read, through the one reader (STAY-01)');
   for (const f of [CARD, RULES]) assert.doesNotMatch(code(f), /\bfetch\s*\(/, `${f} fetches nothing of its own`);
   // The week's reader still makes its one fetch and lists its four URLs (week01 pins them); exporting readJson added nothing.
@@ -451,7 +460,7 @@ test('T5 the day folder prices nothing, writes nothing and paints no dark surfac
   for (const f of files) {
     const body = code(f);
     assert.doesNotMatch(body, /budget_amount|coa_code|routinePlanned/, `${f} reads no routine figure — the report's lines are the only amounts`);
-    assert.doesNotMatch(body, /plan-vendors|vendor-directory|VendorBox|completeRoutine|editCompletionNote|completions/, `${f} writes nothing — no vendor box, no mark-done, no note`);
+    assert.doesNotMatch(body, /plan-vendors|vendor-directory|VendorBox|completeRoutine|editCompletionNote|completions|stopWrites/, `${f} writes nothing of its own — no vendor box, no mark-done, no note; the stop form (stops/StopForm.tsx) is the one writer's caller`);
     assert.doesNotMatch(body, /method:\s*'(POST|PATCH|PUT|DELETE)'/, `${f} sends no write`);
     assert.doesNotMatch(body, /localStorage|sessionStorage|document\.cookie/, `${f} stores nothing`);
     assert.doesNotMatch(body, /\b(bg-black|bg-brand-purple|bg-panel|bg-brand-red)\b(?!\/)/, `${f} paints no dark surface (the repaint law)`);
@@ -501,15 +510,16 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.doesNotMatch(c, /truncate/, 'nothing is cut on the recorded plate');
   // The rows: every amount through planDollars — '—' for null, never $0.00 for a blank; the row is a real button that pushes ?step=.
   assert.match(c, /data-day-amount>\{planDollars\(s\.cents\)\}/);
+  assert.match(c, /\{s\.actualCents !== null && <span className=\{`font-semibold tabular-nums text-right \$\{actualTone\(deltaWords\(s\.actualCents, s\.cents\)\.over\)\}`\} style=\{\{ fontSize: 21, lineHeight: 1\.05 \}\} data-day-actual>\{rowActualWords\(s\.actualCents, s\.cents\)\}<\/span>\}/, 'STOP-01: the actual under the plan, red over, green under or on');
   assert.match(c, /data-day-amount>\{planDollars\(focus\.stop\.cents\)\}/);
   assert.match(c, /<button\n\s*type="button"\n\s*key=\{s\.key\}\n\s*className="[^"]*"\n\s*style=\{\{ padding: '8px 0' \}\}\n\s*data-day-stop=\{s\.key\}\n\s*data-day-status=\{s\.status\}\n\s*onClick=\{\(\) => go\(hrefFor\(day, i \+ 1\)\)\}/, 'a row is a real button that pushes ?step=');
   // The plate's foot: the completeness line counts, the provenance names the source; the sentences sit under the plate.
-  assert.match(c, /const reportRead = report !== null && report\.ok;\n\s*const completeness = completenessWords\(result, stranded\.length, \{ day: !dayFailed, report: reportRead \}\);/, 'the plate’s count knows what was not read');
+  assert.match(c, /const reportRead = report !== null && report\.ok;\n\s*const recordsOk = recordsRead !== null && recordsRead\.ok;\n\s*const completeness = completenessWords\(result, stranded\.length, \{ day: !dayFailed, report: reportRead, records: recordsOk \}\);/, 'the plate’s count knows what was not read');
   assert.match(c, /data-day-count>\{completeness\}/);
-  assert.equal((c.match(/data-day-provenance>\{provenanceWords\(today, reportRead\)\}/g) ?? []).length, 2, 'the source line on the full card AND on the step card');
+  assert.equal((c.match(/data-day-provenance>\{provenanceWords\(today, reportRead, recordsOk\)\}/g) ?? []).length, 2, 'the source line on the full card AND on the step card — the records a source too (STOP-01)');
   assert.ok(c.indexOf('data-day-provenance') < c.indexOf('data-day-foot'), 'the provenance is on the plate; the sentences are under it');
   assert.match(c, /\{foot && \(\n\s*<div className="mx-auto space-y-1 text-xs" style=\{\{ width: 540 \}\} data-day-foot>/, 'the sentences under the plate render whenever there is one');
-  assert.match(c, /const foot = loaded && \(result\.unmatched\.length > 0 \|\| result\.routineFigures\.length > 0 \|\| result\.linesWithoutStop\.length > 0 \|\| result\.notPlacedToday\.length > 0 \|\| stranded\.length > 0 \|\| refused\.length > 0 \|\| \(report !== null && !report\.ok\) \|\| \(plans !== null && !plans\.listed\)\);/);
+  assert.match(c, /const foot = loaded && \(result\.unmatched\.length > 0 \|\| result\.routineFigures\.length > 0 \|\| result\.linesWithoutStop\.length > 0 \|\| result\.notPlacedToday\.length > 0 \|\| stranded\.length > 0 \|\| refused\.length > 0 \|\| \(report !== null && !report\.ok\) \|\| \(plans !== null && !plans\.listed\) \|\| result\.recordsWithoutStop\.length > 0 \|\| unplacedRecords\.length > 0 \|\| \(recordsRead !== null && !recordsRead\.ok\)\);/);
   assert.match(c, /data-day-lines-without-stop>\{dayFailed \? linesUnreadWords\(result\.linesWithoutStop\) : linesWithoutStopWords\(result\.linesWithoutStop\)\}/);
   assert.match(c, /data-day-routine-figures>\{routineFigureWords\(result\.routineFigures\)\}/);
   assert.match(c, /data-day-stranded>\{strandedWords\(stranded\)\}/);
@@ -520,7 +530,7 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.match(c, /const bar = progressPercent\(plannedCents === null \|\| focus === null \? null : focus\.soFarCents, plannedCents\);/, 'the bar is the rules’ percent, once');
   assert.match(c, /\{bar !== null && \(/, 'no bar without a known plan');
   assert.match(c, /className="bg-brand-green rounded-full" style=\{\{ height: 9, width: `\$\{bar\}%` \}\}/);
-  for (const attr of ['data-day-card', 'data-day-header', 'data-day-hero', 'data-day-hook', 'data-day-stop=', 'data-day-status=', 'data-day-focus', 'data-day-plate-foot', 'data-day-count', 'data-day-provenance', 'data-day-foot', 'data-day-unmatched', 'data-day-routine-figures', 'data-day-lines-without-stop', 'data-day-not-placed', 'data-day-stranded', 'data-day-report-failed', 'data-day-bad-date', 'data-day-bad-step', 'data-day-failed', 'data-day-so-far', 'data-day-controls']) {
+  for (const attr of ['data-day-card', 'data-day-header', 'data-day-hero', 'data-day-hook', 'data-day-stop=', 'data-day-status=', 'data-day-focus', 'data-day-plate-foot', 'data-day-count', 'data-day-provenance', 'data-day-foot', 'data-day-unmatched', 'data-day-routine-figures', 'data-day-lines-without-stop', 'data-day-not-placed', 'data-day-stranded', 'data-day-report-failed', 'data-day-bad-date', 'data-day-bad-step', 'data-day-failed', 'data-day-so-far', 'data-day-controls', 'data-day-spent', 'data-day-record', 'data-day-status>', 'data-day-actual', 'data-day-delta', 'data-day-rating', 'data-day-note', 'data-day-minutes', 'data-day-spent-so-far', 'data-day-records-without-stop', 'data-day-records-unplaced', 'data-day-records-failed']) {
     assert.ok(c.includes(attr), `the screen carries ${attr}`);
   }
   // The URL: ?date= and ?step= read with useSearchParams, pushed with router.push; the step judged once the reads are in, never clamped.

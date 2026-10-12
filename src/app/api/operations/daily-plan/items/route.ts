@@ -102,6 +102,8 @@ export async function GET(request: NextRequest) {
             estimated_cost_usd: true,
             actual_cost_usd: true,
             actual_minutes: true,
+            // STOP-01: the task's own done-at, for the day card.
+            completed_at: true,
           },
         },
       },

@@ -27,16 +27,33 @@
  * plannedCents is the Budget's own planned figure for the day — the sum of
  * EVERY line of the day, matched or not — so the two agree by construction.
  *
+ * STOP-01 (2026-10-12) — THE RECORD AT A STOP. The day's stop records (GET
+ * /api/operations/stops?day=<day>, src/lib/operations/stopRecord.ts) join the
+ * stops by the same key — kind, id AND the exact instant. A line or a stepless
+ * routine with a record of its own takes its status from it (done at an
+ * instant, or skipped with the reason), its ACTUAL from what was typed, its
+ * rating, note and minutes; one with none keeps the routine's completion as its
+ * status and SAYS SO (statusSource 'routine' — the card prints "routine marked
+ * done", never passes it off as the line's). A task's actual is the task's own
+ * actual_cost_usd and its done is the task's status — one fact, one home. The
+ * day's SPENT is the sum of the stops' actuals, with the count of stops that
+ * have none beside it — never a zero filled in; null while the records were not
+ * read. A record of the day whose key matches no stop is named, never dropped.
+ *
  * Pure: no fetch, no clock, no React, no Prisma (as week/weekPlan.ts) — the
  * tests drive every rule with fixtures. Every sentence the card prints from
  * here is an exported constant or a function returning one, so the tests pin
  * the exact words.
  */
-import type { NotPlaced } from '@/lib/budget/days';
+import { centsFromDecimalString, type NotPlaced } from '@/lib/budget/days';
 import { formatCents } from '@/lib/budget/format';
 import type { PlanLine, StrandedVendor } from '@/lib/budget/planLines';
 import { NO_STAY_WORDS, STAY_NOT_READ_WORDS, stayDay, stayDayWords, type StayRow } from '@/lib/operations/stay';
-import { instantToZoned } from '@/lib/time';
+import {
+  DONE_WORD, LATER_WORD, NOT_RECORDED_WORDS, OPEN_WORD, ROUTINE_DONE_WORDS, ROUTINE_MISSED_WORDS, SKIPPED_WORD, TASK_DONE_WORDS, TASK_OPEN_WORDS, doneWords, lateWords, recordKey, skippedWords,
+  type StopRecordKind, type StopRecordRow,
+} from '@/lib/operations/stopRecord';
+import { instantToZoned, zonedToInstant } from '@/lib/time';
 import type { DailyPlanItem } from '../dailyplan/types';
 import type { TodayRoutineEntry, TodayStatus } from '../routines/types';
 
@@ -55,12 +72,25 @@ export interface DayCardInput {
   readonly items: readonly DailyPlanItem[];
   /** The viewer's zone — a task block's clock time is drawn in it (Tab 1's rule). */
   readonly viewerZone: string;
+  /** STOP-01: the day's stop records when read; null while they were not (unread or failed) — unknown, never none. */
+  readonly records: readonly StopRecordRow[] | null;
 }
 
 // ── OUTPUT ──────────────────────────────────────────────────────────────────
 
 export type StopKind = 'line' | 'routine' | 'task';
-export type StopStatus = 'done' | 'missed' | 'open' | 'later';
+export type StopStatus = 'done' | 'missed' | 'open' | 'later' | 'skipped';
+/** Where a stop's status came from: its own record, its routine's completion, or the task. */
+export type StatusSource = 'record' | 'routine' | 'task';
+/** Where a stop's actual came from: the record (typed on the day) or the task's own column. */
+export type ActualSource = 'typed' | 'task';
+
+/** The address a record is written at — the Budget's kind, the plan's id, the occurrence's instant. */
+export interface StopAddress {
+  readonly kind: StopRecordKind;
+  readonly id: string;
+  readonly instant: string;
+}
 
 export interface Stop {
   readonly kind: StopKind;
@@ -78,6 +108,22 @@ export interface Stop {
   /** The matched plan line's cents; null when the report lists none for this stop. */
   readonly cents: number | null;
   readonly status: StopStatus;
+  readonly statusSource: StatusSource;
+  /** STOP-01: where a record is written for this stop; null for a task (its record is the task). */
+  readonly address: StopAddress | null;
+  /** The routine's zone (a record's done-at is drawn in it); null for a task. */
+  readonly zone: string | null;
+  /** The stop's own record, or null — none, or the records not read. */
+  readonly record: StopRecordRow | null;
+  /** The record's typed cents, or a task's own actual; null when neither states one. */
+  readonly actualCents: number | null;
+  readonly actualSource: ActualSource | null;
+  /** The record's done-at as a clock in the routine's zone, with its local day; null when not done by a record. */
+  readonly doneAt: { readonly day: string; readonly time: string } | null;
+  /** Minutes after the planned instant the stop was done (negative: early); null when no record says when. */
+  readonly lateMinutes: number | null;
+  /** The record's minutes, or a task's own; null when neither states them. */
+  readonly actualMinutes: number | null;
 }
 
 export type UnmatchedReason = 'instant differs' | 'two plan lines for one stop';
@@ -112,6 +158,19 @@ export interface DayStops {
   readonly linesWithoutStop: readonly PlanLine[];
   /** The report's not-placed entries for the day, and every undated one. */
   readonly notPlacedToday: readonly NotPlaced[];
+  /**
+   * STOP-01: the sum of the stops' actuals (typed, or a task's own); null while
+   * the records were not read — a task's actual alone is not the day's spent.
+   */
+  readonly spentCents: number | null;
+  /** Stops with no actual (records read) — printed beside every sum, never a zero filled in. */
+  readonly withoutActual: number;
+  readonly done: number;
+  readonly skipped: number;
+  /** Line and routine stops with no record of their own (records read). */
+  readonly notRecorded: number;
+  /** Records of the day whose key matches no stop — named, never dropped. */
+  readonly recordsWithoutStop: readonly StopRecordRow[];
 }
 
 export interface Focus {
@@ -121,6 +180,10 @@ export interface Focus {
   readonly stop: Stop;
   /** The sum of the priced stops 1..index. */
   readonly soFarCents: number;
+  /** STOP-01: the sum of the actuals of stops 1..index; null while the records were not read. */
+  readonly spentSoFarCents: number | null;
+  /** Of stops 1..index, how many have no actual (records read). */
+  readonly withoutActualSoFar: number;
 }
 
 // ── THE RULES ───────────────────────────────────────────────────────────────
@@ -176,6 +239,45 @@ function matchLine(
   return null;
 }
 
+/** A task's own actual (a Decimal string) as cents; a value the Books' rule cannot read as cents is the database's error, never a figure. */
+function taskCents(value: string | null, what: string): number | null {
+  if (value === null) return null;
+  const read = centsFromDecimalString(value);
+  if (!read.ok) throw new Error(`dayCard: ${what} ${JSON.stringify(value)} cannot be read as cents — ${read.detail}`);
+  return read.cents;
+}
+
+/**
+ * STOP-01: what a line's or a routine's record adds to its stop. With a record
+ * the status is the record's (done, or skipped) and the actual is what was typed;
+ * without one the status stays the routine's completion — labelled 'routine'.
+ * The done-at is drawn in the routine's zone; lateness is against the planned
+ * instant: the line's time of day on the card's day, else the occurrence.
+ */
+function recorded(
+  record: StopRecordRow | null,
+  routineStatus: StopStatus,
+  zone: string,
+  day: string,
+  plannedInstant: Date,
+): Pick<Stop, 'status' | 'statusSource' | 'record' | 'actualCents' | 'actualSource' | 'doneAt' | 'lateMinutes' | 'actualMinutes'> {
+  if (record === null) {
+    return { status: routineStatus, statusSource: 'routine', record: null, actualCents: null, actualSource: null, doneAt: null, lateMinutes: null, actualMinutes: null };
+  }
+  const done = record.outcome === 'done' && record.done_at !== null ? new Date(record.done_at) : null;
+  const at = done === null ? null : instantToZoned(done, zone);
+  return {
+    status: record.outcome === 'done' ? 'done' : 'skipped',
+    statusSource: 'record',
+    record,
+    actualCents: record.actual_cents,
+    actualSource: record.actual_cents === null ? null : 'typed',
+    doneAt: at === null ? null : { day: at.date, time: at.time },
+    lateMinutes: done === null ? null : Math.round((done.getTime() - plannedInstant.getTime()) / 60_000),
+    actualMinutes: record.actual_minutes,
+  };
+}
+
 /** The day's stops, their amounts from the Budget's lines, and everything the card must name. */
 export function dayStops(input: DayCardInput): DayStops {
   const dayLines = input.lines.filter((l) => l.day === input.day);
@@ -184,38 +286,63 @@ export function dayStops(input: DayCardInput): DayStops {
   const timed: Stop[] = [];
   const untimed: Stop[] = [];
   const push = (stop: Stop) => (stop.time === null ? untimed : timed).push(stop);
+  // STOP-01: the records by the card's own key; each one a stop takes is marked, the rest are named.
+  const records = input.records === null ? [] : input.records;
+  const byKey = new Map<string, StopRecordRow>();
+  for (const r of records) {
+    const key = recordKey(r);
+    if (byKey.has(key)) throw new Error(`dayCard: two records at ${key} — the database holds one per (plan, occurrence)`);
+    byKey.set(key, r);
+  }
+  const taken = new Set<string>();
+  const recordAt = (key: string): StopRecordRow | null => {
+    const found = byKey.get(key);
+    if (found === undefined) return null;
+    taken.add(key);
+    return found;
+  };
 
   for (const entry of input.entries) {
     const r = entry.routine;
     const status = STATUS[entry.status];
-    const occurrenceTime = instantToZoned(new Date(entry.expected_at), r.timezone).time;
+    const occurrence = new Date(entry.expected_at);
+    const occurrenceTime = instantToZoned(occurrence, r.timezone).time;
     if (r.steps.length === 0) {
+      const key = `routine:${r.id}:${entry.expected_at}`;
       const line = matchLine(dayLines.filter((l) => l.address.kind === 'routine' && l.address.id === r.id), entry.expected_at, r.name, null, used, unmatched);
       push({
         kind: 'routine',
-        key: `routine:${r.id}:${entry.expected_at}`,
+        key,
         time: occurrenceTime,
         label: r.name,
         line: null,
         place: placeOf(line, r.location),
         minutes: null,
         cents: line === null ? null : line.cents,
-        status,
+        address: { kind: 'routine', id: r.id, instant: entry.expected_at },
+        zone: r.timezone,
+        ...recorded(recordAt(key), status, r.timezone, input.day, occurrence),
       });
       continue;
     }
     for (const step of [...r.steps].sort((a, b) => a.step_order - b.step_order)) {
+      const key = `line:${step.id}:${entry.expected_at}`;
       const line = matchLine(dayLines.filter((l) => l.address.kind === 'routine_line' && l.address.id === step.id), entry.expected_at, r.name, step.activity, used, unmatched);
+      const time = step.time_of_day === null ? occurrenceTime : clockOf(step.time_of_day);
+      // The planned instant: the line's own time of day on the card's day in the routine's zone, else the occurrence.
+      const planned = step.time_of_day === null ? occurrence : zonedToInstant(input.day, time, r.timezone);
       push({
         kind: 'line',
-        key: `line:${step.id}:${entry.expected_at}`,
-        time: step.time_of_day === null ? occurrenceTime : clockOf(step.time_of_day),
+        key,
+        time,
         label: r.name,
         line: step.activity,
         place: placeOf(line, step.location, r.location),
         minutes: step.duration_minutes,
         cents: line === null ? null : line.cents,
-        status,
+        address: { kind: 'routine_line', id: step.id, instant: entry.expected_at },
+        zone: r.timezone,
+        ...recorded(recordAt(key), status, r.timezone, input.day, planned),
       });
     }
   }
@@ -227,6 +354,8 @@ export function dayStops(input: DayCardInput): DayStops {
     const line = item.task_id === null
       ? null
       : matchLine(dayLines.filter((l) => l.address.kind === 'project_task' && l.address.id === item.task_id), null, label, null, used, unmatched);
+    // A task's record is the task: its status, its own actual and minutes (one fact, one home).
+    const actualCents = item.task === null ? null : taskCents(item.task.actual_cost_usd, `task ${item.task.id} actual_cost_usd`);
     push({
       kind: 'task',
       key: `task:${item.id}`,
@@ -237,6 +366,15 @@ export function dayStops(input: DayCardInput): DayStops {
       minutes: null,
       cents: line === null ? null : line.cents,
       status: item.task !== null && item.task.status === 'completed' ? 'done' : 'open',
+      statusSource: 'task',
+      address: null,
+      zone: null,
+      record: null,
+      actualCents,
+      actualSource: actualCents === null ? null : 'task',
+      doneAt: null,
+      lateMinutes: null,
+      actualMinutes: item.task === null ? null : item.task.actual_minutes,
     });
   }
 
@@ -250,6 +388,7 @@ export function dayStops(input: DayCardInput): DayStops {
   const isRoutineFigure = (l: PlanLine): boolean => l.address.kind === 'routine' && linedAt.get(l.address.id) === l.address.instant;
   const unused = dayLines.filter((l) => !used.has(l));
 
+  const read = input.records !== null;
   return {
     stops,
     plannedCents: dayLines.reduce((sum, l) => sum + l.cents, 0),
@@ -258,15 +397,30 @@ export function dayStops(input: DayCardInput): DayStops {
     routineFigures: unused.filter(isRoutineFigure),
     linesWithoutStop: unused.filter((l) => !isRoutineFigure(l)),
     notPlacedToday: input.notPlaced.filter((n) => n.day === null || n.day === input.day),
+    // The sum of the actuals that exist — the stops without one are COUNTED beside it (withoutActual), never summed as zero.
+    spentCents: read ? stops.map((s) => s.actualCents).filter((c): c is number => c !== null).reduce((sum, c) => sum + c, 0) : null,
+    withoutActual: read ? stops.filter((s) => s.actualCents === null).length : 0,
+    done: stops.filter((s) => s.status === 'done').length,
+    skipped: stops.filter((s) => s.status === 'skipped').length,
+    notRecorded: read ? stops.filter((s) => s.kind !== 'task' && s.record === null).length : 0,
+    recordsWithoutStop: records.filter((r) => !taken.has(recordKey(r))),
   };
 }
 
-/** Stop n of N (1-based) and the sum of the priced stops up to it; null for an n outside 1..N — never clamped. */
+/** Stop n of N (1-based) and the sums over the stops up to it — the priced, and the actuals; null for an n outside 1..N — never clamped. */
 export function focusStop(result: DayStops, n: number): Focus | null {
   if (!Number.isInteger(n) || n < 1 || n > result.stops.length) return null;
-  const priced = result.stops.slice(0, n).map((s) => s.cents).filter((c): c is number => c !== null);
-  const soFarCents = priced.reduce((sum, c) => sum + c, 0);
-  return { index: n, of: result.stops.length, stop: result.stops[n - 1], soFarCents };
+  const upTo = result.stops.slice(0, n);
+  const priced = upTo.map((s) => s.cents).filter((c): c is number => c !== null);
+  const actuals = upTo.map((s) => s.actualCents).filter((c): c is number => c !== null);
+  return {
+    index: n,
+    of: result.stops.length,
+    stop: result.stops[n - 1],
+    soFarCents: priced.reduce((sum, c) => sum + c, 0),
+    spentSoFarCents: result.spentCents === null ? null : actuals.reduce((sum, c) => sum + c, 0),
+    withoutActualSoFar: result.spentCents === null ? 0 : upTo.length - actuals.length,
+  };
 }
 
 // ── WORDS ───────────────────────────────────────────────────────────────────
@@ -283,8 +437,102 @@ export const stopsWords = (n: number): string => (n === 1 ? '1 stop' : `${n} sto
 export const notPricedWords = (k: number): string => `${k} not priced`;
 /** "so far $14.00 of $50.00" — both '—' while the report cannot be read (null), never $0.00 for an unknown figure. */
 export const soFarWords = (soFarCents: number | null, plannedCents: number | null): string => `so far ${planDollars(soFarCents)} of ${planDollars(plannedCents)}`;
-/** The plate's source line — the day itself is in the hook line above it; when the report could not be read, it says so. */
-export const provenanceWords = (asOf: string, reportRead: boolean): string => (reportRead ? `Budget plan lines · as of ${asOf}` : `Budget plan lines NOT READ · as of ${asOf}`);
+/** The plate's source line — the day itself is in the hook line above it; what could not be read says so (STOP-01: the records are a source too). */
+export const provenanceWords = (asOf: string, reportRead: boolean, recordsRead: boolean): string =>
+  `Budget plan lines${reportRead ? '' : ' NOT READ'} · stop records${recordsRead ? '' : ' NOT READ'} · as of ${asOf}`;
+
+// ── STOP-01: THE RECORD'S WORDS ON THE CARD ──────────────────────────────────
+
+export const ACTUAL_WORD = 'ACTUAL';
+export const SPENT_WORD = 'spent';
+export const RECORDS_NOT_READ_WORDS = 'records not read';
+export const ON_PLAN_WORDS = 'on plan';
+
+/** "2 without an amount" — the stops a sum of actuals does not cover; printed beside every such sum. */
+export const withoutAmountWords = (n: number): string => `${n} without an amount`;
+
+/** "spent $14 · 2 without an amount" · "spent $14" · "spent — · records not read" (null: the records were not read). */
+export function spentWords(spentCents: number | null, withoutActual: number): string {
+  if (spentCents === null) return `${SPENT_WORD} — · ${RECORDS_NOT_READ_WORDS}`;
+  return withoutActual > 0 ? `${SPENT_WORD} ${planDollars(spentCents)} · ${withoutAmountWords(withoutActual)}` : `${SPENT_WORD} ${planDollars(spentCents)}`;
+}
+
+/** "spent so far $14 · 2 without an amount" — the step card's running actual. */
+export const spentSoFarWords = (spentCents: number | null, withoutActual: number): string => spentWords(spentCents, withoutActual).replace(/^spent/, 'spent so far');
+
+/** The plate's line under the hook: "spent $14 · 2 without an amount · 3 of 7 done" — the done count only when the stops were read. */
+export const spentLineWords = (spentCents: number | null, withoutActual: number, done: number, of: number | null): string =>
+  (of === null ? spentWords(spentCents, withoutActual) : `${spentWords(spentCents, withoutActual)} · ${doneOfWords(done, of)}`);
+
+/** A row's actual under its plan: "$12 ▲ $2" · "$12 ▼ $3" · "$12 on plan" · "$12" when the plan is unknown. */
+export function rowActualWords(actualCents: number, planCents: number | null): string {
+  const d = deltaWords(actualCents, planCents);
+  if (d.over === null) return planDollars(actualCents);
+  return `${planDollars(actualCents)} ${d.text.replace(/ (over|under)$/, '')}`;
+}
+
+export interface DeltaWords {
+  readonly text: string;
+  /** true over the plan (paints red), false under or on it (green); null when either figure is unknown. */
+  readonly over: boolean | null;
+}
+
+/** "▲ $4.25 over" · "▼ $3 under" · "on plan" · '—' when the plan or the actual is unknown. */
+export function deltaWords(actualCents: number | null, planCents: number | null): DeltaWords {
+  if (actualCents === null || planCents === null) return { text: '—', over: null };
+  const d = actualCents - planCents;
+  if (d === 0) return { text: ON_PLAN_WORDS, over: false };
+  return d > 0 ? { text: `▲ ${planDollars(d)} over`, over: true } : { text: `▼ ${planDollars(-d)} under`, over: false };
+}
+
+/** "3 of 7 done" */
+export const doneOfWords = (done: number, of: number): string => `${done} of ${of} ${DONE_WORD}`;
+/** "1 skipped" */
+export const skippedCountWords = (n: number): string => `${n} ${SKIPPED_WORD}`;
+
+/**
+ * The stop's status line, with its source said: a record's "done 12:41 · 11 min
+ * late" (another day: "done Oct 12 12:41"), "skipped — closed"; a line with no
+ * record of its own carries its routine's completion and says so ("routine
+ * marked done", "routine missed"); a task says "task done" / "task open";
+ * otherwise "open" / "later".
+ */
+export function statusWords(stop: Stop, day: string): string {
+  if (stop.statusSource === 'record') {
+    if (stop.status === 'skipped') return skippedWords(stop.record !== null && stop.record.note !== null ? stop.record.note : '');
+    if (stop.doneAt === null) throw new Error(`dayCard: ${stop.key} is done by its record but has no done-at`);
+    const when = stop.doneAt.day === day ? stop.doneAt.time : `${monthDayWords(stop.doneAt.day)} ${stop.doneAt.time}`;
+    return stop.lateMinutes === null ? doneWords(when) : `${doneWords(when)} · ${lateWords(stop.lateMinutes)}`;
+  }
+  if (stop.statusSource === 'task') return stop.status === 'done' ? TASK_DONE_WORDS : TASK_OPEN_WORDS;
+  if (stop.status === 'done') return ROUTINE_DONE_WORDS;
+  if (stop.status === 'missed') return ROUTINE_MISSED_WORDS;
+  return stop.status === 'later' ? LATER_WORD : OPEN_WORD;
+}
+
+/** "30 min planned · 42 min" · "30 min planned" · "42 min" · null when neither is stated. */
+export function minutesLine(planned: number | null, actual: number | null): string | null {
+  if (planned === null && actual === null) return null;
+  const parts: string[] = [];
+  if (planned !== null) parts.push(`${planned} min planned`);
+  if (actual !== null) parts.push(`${actual} min`);
+  return parts.join(' · ');
+}
+
+/** The sentence under the plate for records whose key matches no stop. */
+export const recordsWithoutStopWords = (list: readonly StopRecordRow[]): string => {
+  const head = list.length === 1 ? '1 record of the day matches no stop' : `${list.length} records of the day match no stop`;
+  return `${head} — ${list.map((r) => `${r.kind} ${r.target_id} at ${r.occurrence_at}: ${r.outcome}${r.actual_cents === null ? '' : `, ${formatCents(r.actual_cents)}`} (the line is archived, or its routine's schedule moved)`).join(' · ')}`;
+};
+
+/** The sentence under the plate for records the route could not place in a day. */
+export const recordsUnplacedWords = (list: readonly { readonly record: StopRecordRow; readonly detail: string }[]): string => {
+  const head = list.length === 1 ? '1 record could not be placed in a day' : `${list.length} records could not be placed in a day`;
+  return `${head} — ${list.map((u) => `${u.record.kind} ${u.record.target_id} at ${u.record.occurrence_at}: ${u.detail}`).join(' · ')}`;
+};
+
+/** "not recorded" is a count on the plate's completeness line; its word is the record's own. */
+export const notRecordedWords = (n: number): string => `${n} ${NOT_RECORDED_WORDS}`;
 
 /** The hero's word: "today" on the browser's day, "planned" on any other day. */
 export const heroWord = (day: string, today: string): string => (day === today ? TODAY_WORD : PLANNED_WORD);
@@ -302,6 +550,12 @@ export const planDollars = (cents: number | null): string => formatCents(cents).
 export function dayShortWords(day: string): string {
   const d = new Date(`${day}T00:00:00.000Z`);
   return `${WEEKDAY_WORDS[d.getUTCDay()]} ${MONTH_WORDS[d.getUTCMonth()]} ${d.getUTCDate()}`;
+}
+
+/** "Oct 13" — a done-at on another day than the card's. */
+export function monthDayWords(day: string): string {
+  const d = new Date(`${day}T00:00:00.000Z`);
+  return `${MONTH_WORDS[d.getUTCMonth()]} ${d.getUTCDate()}`;
 }
 
 /**
@@ -350,12 +604,16 @@ export function progressPercent(soFarCents: number | null, plannedCents: number 
  * counted, in one line; null when every stop is priced and nothing is set aside.
  * The sentences that name each item follow it in the foot.
  */
-export function completenessWords(result: DayStops, stranded: number, read: { readonly day: boolean; readonly report: boolean }): string | null {
+export function completenessWords(result: DayStops, stranded: number, read: { readonly day: boolean; readonly report: boolean; readonly records: boolean }): string | null {
   const parts: string[] = [];
-  // What was not read is unknown, not zero — said as such, never counted as "not priced" or "no stop".
+  // What was not read is unknown, not zero — said as such, never counted as "not priced", "no stop" or "not recorded".
   if (!read.day) parts.push(STOPS_NOT_READ_WORDS);
   if (!read.report) parts.push('amounts not read');
+  if (!read.records) parts.push(RECORDS_NOT_READ_WORDS);
   if (read.day && read.report && result.notPriced > 0) parts.push(notPricedWords(result.notPriced));
+  // STOP-01: the stops with no record of their own, and the skipped ones — counted here, named on their rows.
+  if (read.day && read.records && result.notRecorded > 0) parts.push(notRecordedWords(result.notRecorded));
+  if (result.skipped > 0) parts.push(skippedCountWords(result.skipped));
   if (result.routineFigures.length > 0) parts.push(result.routineFigures.length === 1 ? '1 routine priced as a whole' : `${result.routineFigures.length} routines priced as a whole`);
   const moved = result.unmatched.filter((u) => u.reason === 'instant differs').length;
   const doubled = result.unmatched.filter((u) => u.reason === 'two plan lines for one stop').length;
