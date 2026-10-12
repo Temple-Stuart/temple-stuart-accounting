@@ -392,6 +392,34 @@ model planned_item_vendors {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// STAY-01 (2026-10-12) — THE STAY: where the user is, from a first day to a
+// last day. "Chiang Mai, Oct 20 → Nov 2" · "Los Angeles, Nov 3 → Feb 2". The
+// day card reads the stay covering its day for DAY n OF m and the place.
+// Dates, not instants: a stay is a span of calendar days wherever the user
+// is. One user's stays never overlap — held by the migration's trigger
+// (STAY_OVERLAP), which locks the user's row before it reads — and refused by
+// name in the route before any write. Nothing here is the North Star's
+// current_location_label; reconciling the two is its own PR.
+// ═══════════════════════════════════════════════════════════════════
+
+model operations_stays {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String
+  /// The place as the user names it ("Chiang Mai"); trimmed, 1–80 characters (the route's rule, the migration's CHECK).
+  place      String   @db.VarChar(80)
+  /// The first and the last day of the stay, inclusive — calendar days (@db.Date, UTC midnight), ends_on >= starts_on (CHECK).
+  starts_on  DateTime @db.Date
+  ends_on    DateTime @db.Date
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, starts_on])
+  @@map("operations_stays")
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // MERCHANT COA MAPPINGS — Now with entity_id
 // ═══════════════════════════════════════════════════════════════════
 
@@ -719,6 +747,8 @@ model users {
   planned_item_links            planned_item_links[]
   // VENDOR-01: who each of this user's plans is paid to.
   planned_item_vendors          planned_item_vendors[]
+  // STAY-01: where this user is, day by day — their stays.
+  operations_stays              operations_stays[]
   provider_responses      provider_responses[]
   arrivals                arrivals[]
   verification_tokens     verification_tokens[]
@@ -2908,6 +2938,12 @@ enum AuditActionType {
   // 20260930210000_week_02_completion_note_edited. It is in the audit-log route's
   // operations_ list.
   operations_routine_completion_note_edited
+  // STAY-01 (2026-10-12): a stay set (created or changed) / deleted by its owner,
+  // appended in the order ALTER TYPE ... ADD VALUE gives them — migration
+  // 20261012090000_stay_01_operations_stays. Both are in the audit-log route's
+  // operations_ list.
+  operations_stay_set
+  operations_stay_deleted
 }
 
 model audit_log {

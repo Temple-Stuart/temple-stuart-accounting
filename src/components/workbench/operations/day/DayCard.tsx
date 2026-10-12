@@ -5,9 +5,11 @@
  * THE STAGE IS THE REEL PLATE — the card Alex approved on the demo's reel frames,
  * at two thirds of its 1080-wide size (the plate 540 CSS px wide; a recording
  * of it is placed over the footage in the editor): the gold TS badge and the
- * wordmark, "DAY n OF m" (the day's place in its calendar quarter — pure
- * calendar math), the day's planned total in heavy type ("$75" — whole dollars
- * read without ".00"), "Tue Oct 13 · 7 stops · under or over?", then every stop
+ * wordmark, "DAY n OF m" (STAY-01: the day's place in the stay covering it —
+ * "Chiang Mai, Oct 20 → Nov 2"; NO STAY when none; STAY NOT READ when the
+ * stays could not be read; blank while in flight), the day's planned total in
+ * heavy type ("$75" — whole dollars read without ".00"), "Tue Oct 13 · Chiang
+ * Mai" then "7 stops · under or over?", then every stop
  * in clock order — the time, the line (the step's activity) or the routine's
  * name or the task's title, the place under it (the day's vendor, else the
  * location), the planned amount ('—' where the Budget lists none, never $0.00);
@@ -21,8 +23,10 @@
  * stop); the plate leaves them their places.
  *
  * THE RULES are day/dayCard.ts (pure); THE READS are week/weekReads.ts
- * (readDay, readItems) and day/dayReads.ts (readDayReport) — this file fetches
- * nothing of its own. The day is ?date= when it is a 'YYYY-MM-DD' day, else the
+ * (readDay, readItems) and day/dayReads.ts (readDayReport, readStays) — this
+ * file fetches nothing of its own. The stay bar above the plate (stays/StayBar.tsx)
+ * edits stays through the one writer (stays/stayWrites.ts) and asks this file to
+ * read the stays again; the plate itself writes nothing. The day is ?date= when it is a 'YYYY-MM-DD' day, else the
  * browser's date (localToday, read on mount); a ?date= that is not a day is
  * named above the card, never silently replaced; a ?step= outside 1..N is named
  * above the full card, never clamped — and judged only once the reads are in.
@@ -33,8 +37,8 @@
  * the hero '—'); a refused routine is listed (RefusedRoutines, as the week);
  * unmatched lines, a routine priced as a whole, lines with no stop, the day's
  * not-placed plans and stranded vendors are counted on the plate and named under
- * it. THE CARD WRITES NOTHING: no vendor box, no mark-done, no note — it is a
- * view of what Tasks and Budget already hold. Nothing is stored.
+ * it. THE PLATE WRITES NOTHING: no vendor box, no mark-done, no note — it is a
+ * view of what Tasks and Budget already hold. Nothing is stored in the browser.
  */
 
 'use client';
@@ -48,12 +52,13 @@ import { localToday } from '@/lib/localToday';
 import type { DailyPlanItem } from '../dailyplan/types';
 import RefusedRoutines from '../routines/RefusedRoutines';
 import { readDay, readItems, type DayAnswer, type Read } from '../week/weekReads';
-import { readDayReport } from './dayReads';
+import StayBar from '../stays/StayBar';
+import { readDayReport, readStays, type StaysAnswer } from './dayReads';
 import {
   BADGE_WORDS, BRAND_WORDS, PLAN_WORD, TASK_WORD, TODAY_WORD, badDateWords, badStepWords, completenessWords, dayStops, focusStop,
-  heroWord, hookWords, linesUnreadWords, linesWithoutStopWords, notPlacedWords, planDollars, progressPercent, provenanceWords, quarterDayWords,
-  routineFigureWords, soFarWords, stepHeaderWords, strandedWords, unmatchedWords,
-  type Stop,
+  headerWords, heroWord, hookWords, linesUnreadWords, linesWithoutStopWords, notPlacedWords, planDollars, progressPercent, provenanceWords,
+  routineFigureWords, soFarWords, stepHeaderWords, strandedWords, unmatchedWords, whereWords,
+  type StayState, type Stop,
 } from './dayCard';
 
 const chip = 'px-2 py-0.5 border border-border rounded hover:bg-bg-row text-xs disabled:opacity-50';
@@ -99,6 +104,10 @@ export default function DayCard() {
   const [dayRead, setDayRead] = useState<Read<DayAnswer> | null>(null);
   const [report, setReport] = useState<Read<BudgetReportResponse> | null>(null);
   const [items, setItems] = useState<Read<DailyPlanItem[]> | null>(null);
+  // STAY-01: the stays, read for a day and again after a write from the stay bar — kept WITH the day they
+  // were read for, so a day change never pairs the old answer with the new day (a render in between would).
+  const [stays, setStays] = useState<{ readonly day: string; readonly read: Read<StaysAnswer> } | null>(null);
+  const [stayReads, setStayReads] = useState(0);
 
   useEffect(() => {
     setToday(localToday());
@@ -126,6 +135,16 @@ export default function DayCard() {
     })();
     return () => { live = false; };
   }, [day, today]);
+
+  useEffect(() => {
+    if (day === null) return;
+    let live = true;
+    (async () => {
+      const s = await readStays(day);
+      if (live) setStays({ day, read: s });
+    })();
+    return () => { live = false; };
+  }, [day, stayReads]);
 
   if (today === null || zone === null || day === null) {
     return <section className="text-xs text-text-muted" data-day-section>loading the day…</section>;
@@ -156,6 +175,9 @@ export default function DayCard() {
   const foot = loaded && (result.unmatched.length > 0 || result.routineFigures.length > 0 || result.linesWithoutStop.length > 0 || result.notPlacedToday.length > 0 || stranded.length > 0 || refused.length > 0 || (report !== null && !report.ok) || (plans !== null && !plans.listed));
 
   const go = (href: string) => router.push(href);
+  // The stay covering THIS day — unread (in flight, or read for another day), failed, or read (with or without one).
+  const staysRead = stays !== null && stays.day === day ? stays.read : null;
+  const stayState: StayState = staysRead === null ? { kind: 'unread' } : !staysRead.ok ? { kind: 'failed' } : { kind: 'read', stay: staysRead.value.covering };
 
   return (
     <section className="space-y-2" data-day-section>
@@ -179,9 +201,12 @@ export default function DayCard() {
       {dayRead !== null && !dayRead.ok && <p className="text-xs text-brand-red" data-day-failed>{day} could not be read — {dayRead.words}</p>}
       {items !== null && !items.ok && <p className="text-xs text-brand-red" data-day-items-failed>The day&apos;s tasks could not be read — {items.words}</p>}
 
+      {/* STAY-01: where you are — outside the recorded box; a write reads the stays again. */}
+      <StayBar day={day} stays={staysRead} onChanged={() => setStayReads((n) => n + 1)} />
+
       {/* THE PLATE — the reel's card at two thirds of its size (540 wide); the page shows it on its own, the editor places it over the footage. Record this box alone. */}
       <div className="bg-ts-white border border-border flex flex-col mx-auto" style={{ width: 540, borderRadius: 23, padding: '25px 29px 24px', gap: 11 }} data-day-card data-day-step={focus === null ? undefined : focus.index}>
-        <PlateHeader right={focus === null ? quarterDayWords(day) : stepHeaderWords(focus.index, focus.of, focus.stop.time)} />
+        <PlateHeader right={focus === null ? headerWords(stayState, day) : stepHeaderWords(focus.index, focus.of, focus.stop.time)} />
 
         {!loaded && <p className="pt-4 text-text-muted" style={{ fontSize: 23 }} data-day-loading>loading the day…</p>}
 
@@ -191,7 +216,8 @@ export default function DayCard() {
               <span className="font-extrabold text-text-primary tabular-nums" style={{ fontSize: 69, lineHeight: 1, letterSpacing: '-0.02em' }} data-day-planned>{planDollars(plannedCents)}</span>
               <span className="font-bold text-text-secondary" style={{ fontSize: 29, lineHeight: 1 }} data-day-hero-word>{heroWord(day, today)}</span>
             </div>
-            <div className="font-semibold text-text-secondary" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-hook>{hookWords(day, dayFailed ? null : N)}</div>
+            <div className="font-semibold text-text-secondary" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-where>{whereWords(day, stayState)}</div>
+            <div className="font-semibold text-text-secondary" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-hook>{hookWords(dayFailed ? null : N)}</div>
             <div className="flex flex-col" data-day-stops>
               {result.stops.map((s, i) => (
                 <button

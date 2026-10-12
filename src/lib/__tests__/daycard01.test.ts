@@ -19,9 +19,9 @@ import { TOOL_REGISTRY } from '../toolRegistry';
 import type { DailyPlanItem } from '@/components/workbench/operations/dailyplan/types';
 import type { Routine, RoutineStep, TodayRoutineEntry, TodayStatus } from '@/components/workbench/operations/routines/types';
 import {
-  BADGE_WORDS, BRAND_WORDS, HOOK_WORDS, PLAN_WORD, PLANNED_WORD, STOPS_NOT_READ_WORDS, TASK_WORD, TODAY_WORD, UNTITLED_WORDS, badDateWords, badStepWords, completenessWords, dayShortWords, dayStops, dayWords, focusStop,
-  heroWord, hookWords, linesUnreadWords, linesWithoutStopWords, notPlacedWords, notPricedWords, ofWords, planDollars, progressPercent, provenanceWords, quarterDay, quarterDayWords,
-  routineFigureWords, soFarWords, stepHeaderWords, stopsWords, strandedWords, unmatchedWords,
+  BADGE_WORDS, BRAND_WORDS, HOOK_WORDS, PLAN_WORD, PLANNED_WORD, STOPS_NOT_READ_WORDS, TASK_WORD, TODAY_WORD, UNTITLED_WORDS, badDateWords, badStepWords, completenessWords, dayShortWords, dayStops, focusStop,
+  headerWords, heroWord, hookWords, linesUnreadWords, linesWithoutStopWords, notPlacedWords, notPricedWords, planDollars, progressPercent, provenanceWords,
+  routineFigureWords, soFarWords, stepHeaderWords, stopsWords, strandedWords, unmatchedWords, whereWords,
   type DayCardInput,
 } from '@/components/workbench/operations/day/dayCard';
 import { dayReportFailedWords, readDayReport } from '@/components/workbench/operations/day/dayReads';
@@ -278,13 +278,12 @@ test('T3 the words, exact', () => {
   assert.equal(TASK_WORD, 'task');
   assert.equal(UNTITLED_WORDS, 'untitled item');
   // 2026-10-11 is a Sunday (the prompt's example said "Sat" — the calendar says otherwise); the words come from the day's UTC parts.
-  assert.equal(dayWords('2026-10-11'), 'Sun Oct 11 2026');
-  assert.equal(dayWords('2026-01-01'), 'Thu Jan 1 2026');
-  assert.equal(dayWords('2026-10-10'), 'Sat Oct 10 2026');
+  assert.equal(dayShortWords('2026-10-11'), 'Sun Oct 11');
+  assert.equal(dayShortWords('2026-01-01'), 'Thu Jan 1');
+  assert.equal(dayShortWords('2026-10-10'), 'Sat Oct 10');
   assert.equal(stopsWords(1), '1 stop');
   assert.equal(stopsWords(7), '7 stops');
   assert.equal(notPricedWords(3), '3 not priced');
-  assert.equal(ofWords(4, 7), '4 of 7');
   assert.equal(soFarWords(1400, 5000), 'so far $14 of $50');
   assert.equal(soFarWords(1461, 5000), 'so far $14.61 of $50');
   assert.equal(soFarWords(null, null), 'so far — of —');
@@ -348,19 +347,23 @@ test('T3 the reel plate’s words, exact (DAYCARD-01b): whole dollars, the day o
   assert.equal(planDollars(1000000), '$10,000');
   assert.equal(planDollars(null), '—');
   assert.equal(dayShortWords('2026-10-13'), 'Tue Oct 13');
-  // The day of its calendar quarter: Q4 2026 has 92 days (31 + 30 + 31); Q1 2026 has 90 (no leap day); Q1 2028 has 91.
-  assert.deepEqual(quarterDay('2026-10-01'), { n: 1, of: 92 });
-  assert.deepEqual(quarterDay('2026-10-11'), { n: 11, of: 92 });
-  assert.deepEqual(quarterDay('2026-12-31'), { n: 92, of: 92 });
-  assert.deepEqual(quarterDay('2026-01-01'), { n: 1, of: 90 });
-  assert.deepEqual(quarterDay('2026-03-31'), { n: 90, of: 90 });
-  assert.deepEqual(quarterDay('2028-02-29'), { n: 60, of: 91 });
-  assert.deepEqual(quarterDay('2026-04-01'), { n: 1, of: 91 });
-  assert.deepEqual(quarterDay('2026-07-15'), { n: 15, of: 92 });
-  assert.equal(quarterDayWords('2026-10-13'), 'DAY 13 OF 92');
-  assert.equal(hookWords('2026-10-13', 7), 'Tue Oct 13 · 7 stops · under or over?');
-  assert.equal(hookWords('2026-10-13', 1), 'Tue Oct 13 · 1 stop · under or over?');
-  assert.equal(hookWords('2026-10-13', null), 'Tue Oct 13 · stops not read · under or over?', 'unknown is not zero');
+  // STAY-01: the header counts the stay covering the day — never the calendar quarter; no stay says so.
+  const chiangMai = { id: 's1', place: 'Chiang Mai', starts_on: '2026-10-20', ends_on: '2026-11-02' };
+  const read = (stay: typeof chiangMai | null) => ({ kind: 'read' as const, stay });
+  assert.equal(headerWords(read(chiangMai), '2026-10-22'), 'DAY 3 OF 14');
+  assert.equal(headerWords(read(chiangMai), '2026-10-20'), 'DAY 1 OF 14');
+  assert.equal(headerWords(read(chiangMai), '2026-11-02'), 'DAY 14 OF 14');
+  assert.equal(headerWords(read(null), '2026-10-13'), 'NO STAY', 'read, and none covers the day');
+  assert.equal(headerWords({ kind: 'unread' }, '2026-10-13'), '', 'in flight: nothing, never a false NO STAY');
+  assert.equal(headerWords({ kind: 'failed' }, '2026-10-13'), 'STAY NOT READ');
+  assert.throws(() => headerWords(read(chiangMai), '2026-11-03'), /does not cover 2026-11-03/, 'a stay that does not cover the day is the route’s error, never counted');
+  assert.equal(whereWords('2026-10-22', read(chiangMai)), 'Thu Oct 22 · Chiang Mai');
+  assert.equal(whereWords('2026-10-13', read(null)), 'Tue Oct 13');
+  assert.equal(whereWords('2026-10-13', { kind: 'unread' }), 'Tue Oct 13');
+  assert.equal(whereWords('2026-10-13', { kind: 'failed' }), 'Tue Oct 13');
+  assert.equal(hookWords(7), '7 stops · under or over?');
+  assert.equal(hookWords(1), '1 stop · under or over?');
+  assert.equal(hookWords(null), 'stops not read · under or over?', 'unknown is not zero');
   assert.equal(STOPS_NOT_READ_WORDS, 'stops not read');
   assert.equal(PLANNED_WORD, 'planned');
   assert.equal(heroWord('2026-10-13', '2026-10-13'), 'today');
@@ -433,7 +436,8 @@ test('T4 readJson is the week’s, exported; readDayReport asks the one URL and 
   assert.match(reads, /import \{ readJson, type Read \} from '\.\.\/week\/weekReads';/);
   assert.equal((reads.match(/\bfetch\s*\(/g) ?? []).length, 0, 'the read goes through readJson');
   assert.match(code(CARD), /import \{ readDay, readItems, type DayAnswer, type Read \} from '\.\.\/week\/weekReads';/);
-  assert.match(code(CARD), /import \{ readDayReport \} from '\.\/dayReads';/);
+  assert.match(code(CARD), /import \{ readDayReport, readStays, type StaysAnswer \} from '\.\/dayReads';/);
+  assert.match(reads, /await readJson\(`\/api\/operations\/stays\?\$\{new URLSearchParams\(\{ day \}\)\.toString\(\)\}`\)/, 'the stays read, through the one reader (STAY-01)');
   for (const f of [CARD, RULES]) assert.doesNotMatch(code(f), /\bfetch\s*\(/, `${f} fetches nothing of its own`);
   // The week's reader still makes its one fetch and lists its four URLs (week01 pins them); exporting readJson added nothing.
   assert.equal((code(WEEK_READS).match(/\bfetch\s*\(/g) ?? []).length, 1);
@@ -471,12 +475,21 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   // The header: the badge, the wordmark, DAY n OF m on the full card, "n OF N · time" on the step card.
   assert.match(c, /className="bg-brand-gold text-text-primary rounded-lg flex items-center justify-center font-extrabold" style=\{\{ width: 32, height: 32, fontSize: 16 \}\} aria-hidden="true">\{BADGE_WORDS\}/, 'the gold TS badge, dark ink');
   assert.match(c, /\{BRAND_WORDS\}<\/span>/);
-  assert.match(c, /<PlateHeader right=\{focus === null \? quarterDayWords\(day\) : stepHeaderWords\(focus\.index, focus\.of, focus\.stop\.time\)\} \/>/);
+  assert.match(c, /<PlateHeader right=\{focus === null \? headerWords\(stayState, day\) : stepHeaderWords\(focus\.index, focus\.of, focus\.stop\.time\)\} \/>/, 'the header counts the stay (STAY-01)');
+  // The stays are kept WITH the day they were read for: a day change never pairs the old answer with the new day (that pairing threw).
+  assert.match(c, /useState<\{ readonly day: string; readonly read: Read<StaysAnswer> \} \| null>\(null\)/);
+  assert.match(c, /if \(live\) setStays\(\{ day, read: s \}\);/, 'the read lands with its day, under the live guard');
+  assert.match(c, /const staysRead = stays !== null && stays\.day === day \? stays\.read : null;/, 'another day’s answer is unread here');
+  assert.match(c, /const stayState: StayState = staysRead === null \? \{ kind: 'unread' \} : !staysRead\.ok \? \{ kind: 'failed' \} : \{ kind: 'read', stay: staysRead\.value\.covering \};/, 'unread, failed and read are three states — never one null');
+  assert.match(c, /data-day-where>\{whereWords\(day, stayState\)\}/, 'the day and the place');
+  assert.match(c, /<StayBar day=\{day\} stays=\{staysRead\} onChanged=\{\(\) => setStayReads\(\(n\) => n \+ 1\)\} \/>/, 'the stay bar, outside the plate, re-reading after a write');
+  assert.doesNotMatch(c, /setStays\(null\)/, 'a re-read never blanks the plate first');
+  assert.ok(c.indexOf('<StayBar') < c.indexOf('data-day-card'), 'the stay bar sits above the plate');
   assert.match(c, /data-day-words>\{right\}/, 'the header words are the rules’ — never the browser’s zone');
   // The hero: the Budget's figure in whole dollars; '—' while the report cannot be read — never a sum of the stops.
   assert.match(c, /data-day-planned>\{planDollars\(plannedCents\)\}/);
   assert.match(c, /const plannedCents = report !== null && report\.ok \? result\.plannedCents : null;/);
-  assert.match(c, /data-day-hook>\{hookWords\(day, dayFailed \? null : N\)\}/, 'the hook line under the hero — the stops unknown while the day read failed');
+  assert.match(c, /data-day-hook>\{hookWords\(dayFailed \? null : N\)\}/, 'the hook line under the place — the stops unknown while the day read failed');
   assert.match(c, /data-day-hero-word>\{heroWord\(day, today\)\}/, '"today" only on today; "planned" on another day');
   // The rows: the mark, the time or '—', the bold and the place at the reel's sizes (two thirds of the demo's 46/42/34), wrapping, never clipped.
   assert.match(c, /style=\{\{ width: 22, fontSize: 26, lineHeight: 1 \}\}><Mark status=\{s\.status\} \/><\/span>/, 'the ✓/✕ mark');

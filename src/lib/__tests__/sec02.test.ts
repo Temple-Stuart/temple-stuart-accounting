@@ -61,8 +61,10 @@ test('every export form is read — the destructured PUT a `function|const` coun
   // done's note edited; an owned writer the ownership law reads (the cart-plan gate first, the completion read by
   // { id, routine_id, user_id } and refused on a miss, the update keyed on that owned row); the only change.
   assert.ok(narrow.includes('src/app/api/operations/routines/[id]/completions/[completionId]/route.ts'));
-  assert.equal(narrow.length, 41, 'the count the ruling verified on main 11445ca1 (47), + the plan-vendors DELETE (VENDOR-01), − the four legacy-planner routes (LEGACY-DEL-01), − the four option routes (LEGACY-DEL-02), + the completion note PATCH (WEEK-02)');
-  assert.equal(wide.length, 42, 'the census: 41 + the inngest route (49 before the four legacy-planner routes left — LEGACY-DEL-01; 45 before the four option routes left — LEGACY-DEL-02; 41 before the completion note PATCH — WEEK-02)');
+  // STAY-01 (2026-10-12): the stay's PATCH and DELETE, one route file — named, so the count moves by exactly one.
+  assert.ok(narrow.includes('src/app/api/operations/stays/[id]/route.ts'));
+  assert.equal(narrow.length, 42, 'the count the ruling verified on main 11445ca1 (47), + the plan-vendors DELETE (VENDOR-01), − the four legacy-planner routes (LEGACY-DEL-01), − the four option routes (LEGACY-DEL-02), + the completion note PATCH (WEEK-02), + the stay PATCH/DELETE (STAY-01)');
+  assert.equal(wide.length, 43, 'the census: 42 + the inngest route (49 before the four legacy-planner routes left — LEGACY-DEL-01; 45 before the four option routes left — LEGACY-DEL-02; 41 before the completion note PATCH — WEEK-02; 42 before the stay routes — STAY-01)');
   assert.deepEqual(wide.filter((f) => !narrow.includes(f)), ['src/app/api/inngest/route.ts']);
 });
 

@@ -374,7 +374,9 @@ test('T7 the migration: the one ADD VALUE line and nothing else, after the last 
   assert.equal(comments(MIGRATION).trim(), '', 'not even a comment');
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
   assert.ok(MIGRATION_DIR.slice(0, 14) > '20260929190000');
-  assert.equal(dirs[dirs.length - 1], MIGRATION_DIR, 'the newest migration');
+  // STAY-01 (2026-10-12): the stays migration is newer — this one is the one before it. The pin moved; the order holds.
+  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the migration before the newest (STAY-01 followed)');
+  assert.equal(dirs[dirs.length - 1], '20261012090000_stay_01_operations_stays', 'the newest migration');
 });
 
 test('T7 the schema’s enum holds the value, last; the client knows it; the audit log lists it under operations_', () => {
@@ -382,8 +384,9 @@ test('T7 the schema’s enum holds the value, last; the client knows it; the aud
   const auditEnum = /enum AuditActionType \{([\s\S]*?)\}/.exec(schema);
   assert.ok(auditEnum !== null);
   const values = auditEnum[1].split(/\s+/).filter(Boolean);
-  assert.equal(values[values.length - 1], 'operations_routine_completion_note_edited');
+  // STAY-01 (2026-10-12): two values follow it in ALTER TYPE order — the pin moved from "last" to "third from last".
+  assert.deepEqual(values.slice(-3), ['operations_routine_completion_note_edited', 'operations_stay_set', 'operations_stay_deleted']);
   assert.equal(values.filter((v) => v === 'operations_routine_completion_note_edited').length, 1);
   assert.equal(AuditActionType.operations_routine_completion_note_edited, 'operations_routine_completion_note_edited', 'prisma generate ran');
-  assert.match(code(AUDIT_LOG), /'operations_plan_vendor_cleared',\s*'operations_routine_completion_note_edited',\s*\],/);
+  assert.match(code(AUDIT_LOG), /'operations_plan_vendor_cleared',\s*'operations_routine_completion_note_edited',\s*'operations_stay_set',\s*'operations_stay_deleted',\s*\],/);
 });
