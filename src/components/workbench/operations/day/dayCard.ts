@@ -35,6 +35,7 @@
 import type { NotPlaced } from '@/lib/budget/days';
 import { formatCents } from '@/lib/budget/format';
 import type { PlanLine, StrandedVendor } from '@/lib/budget/planLines';
+import { NO_STAY_WORDS, stayDay, stayDayWords, type StayRow } from '@/lib/operations/stay';
 import { instantToZoned } from '@/lib/time';
 import type { DailyPlanItem } from '../dailyplan/types';
 import type { TodayRoutineEntry, TodayStatus } from '../routines/types';
@@ -273,12 +274,6 @@ export function focusStop(result: DayStops, n: number): Focus | null {
 const WEEKDAY_WORDS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 const MONTH_WORDS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
-/** "Sat Oct 11 2026" from the day string, by its UTC parts — never the browser's zone. */
-export function dayWords(day: string): string {
-  const d = new Date(`${day}T00:00:00.000Z`);
-  return `${WEEKDAY_WORDS[d.getUTCDay()]} ${MONTH_WORDS[d.getUTCMonth()]} ${d.getUTCDate()} ${d.getUTCFullYear()}`;
-}
-
 export const TODAY_WORD = 'today';
 export const TASK_WORD = 'task';
 export const BRAND_WORDS = 'TEMPLE STUART';
@@ -286,7 +281,6 @@ export const UNTITLED_WORDS = 'untitled item';
 
 export const stopsWords = (n: number): string => (n === 1 ? '1 stop' : `${n} stops`);
 export const notPricedWords = (k: number): string => `${k} not priced`;
-export const ofWords = (n: number, of: number): string => `${n} of ${of}`;
 /** "so far $14.00 of $50.00" — both '—' while the report cannot be read (null), never $0.00 for an unknown figure. */
 export const soFarWords = (soFarCents: number | null, plannedCents: number | null): string => `so far ${planDollars(soFarCents)} of ${planDollars(plannedCents)}`;
 /** The plate's source line — the day itself is in the hook line above it; when the report could not be read, it says so. */
@@ -310,21 +304,21 @@ export function dayShortWords(day: string): string {
   return `${WEEKDAY_WORDS[d.getUTCDay()]} ${MONTH_WORDS[d.getUTCMonth()]} ${d.getUTCDate()}`;
 }
 
-/** Which day of its calendar quarter the day is, and how many days that quarter has — pure calendar math on the day string. */
-export function quarterDay(day: string): { readonly n: number; readonly of: number } {
-  const [y, m, d] = day.split('-').map(Number);
-  const firstMonth = Math.floor((m - 1) / 3) * 3; // 0, 3, 6, 9
-  const start = Date.UTC(y, firstMonth, 1);
-  const end = Date.UTC(y, firstMonth + 3, 1);
-  const DAY_MS = 86_400_000;
-  return { n: (Date.UTC(y, m - 1, d) - start) / DAY_MS + 1, of: (end - start) / DAY_MS };
+/**
+ * STAY-01: the header's right-hand words — "DAY 3 OF 14" from the stay covering
+ * the day (src/lib/operations/stay.ts stayDay), or NO STAY when none does. One
+ * meaning: the day's place in where you are. (DAYCARD-01b counted the calendar
+ * quarter here; that counter is gone — a stay is what Alex counts.)
+ */
+export function headerWords(stay: StayRow | null, day: string): string {
+  if (stay === null) return NO_STAY_WORDS;
+  const at = stayDay({ startsOn: stay.starts_on, endsOn: stay.ends_on }, day);
+  if (at === null) throw new Error(`dayCard: the stay ${stay.starts_on}..${stay.ends_on} does not cover ${day} — the route answered the wrong stay`);
+  return stayDayWords(at.n, at.of);
 }
 
-/** "DAY 13 OF 92" — the header's right-hand words. */
-export const quarterDayWords = (day: string): string => {
-  const q = quarterDay(day);
-  return `DAY ${q.n} OF ${q.of}`;
-};
+/** "Tue Oct 13 · Chiang Mai" — the day and, when a stay covers it, its place. */
+export const whereWords = (day: string, stay: { readonly place: string } | null): string => (stay === null ? dayShortWords(day) : `${dayShortWords(day)} · ${stay.place}`);
 
 export const HOOK_WORDS = 'under or over?';
 export const PLANNED_WORD = 'planned';
@@ -332,8 +326,8 @@ export const STOPS_NOT_READ_WORDS = 'stops not read';
 export const PLAN_WORD = 'PLAN';
 export const BADGE_WORDS = 'TS';
 
-/** "Tue Oct 13 · 7 stops · under or over?" — the line under the hero; the stops are unknown (null) while the day read failed. */
-export const hookWords = (day: string, stops: number | null): string => `${dayShortWords(day)} · ${stops === null ? STOPS_NOT_READ_WORDS : stopsWords(stops)} · ${HOOK_WORDS}`;
+/** "7 stops · under or over?" — the line under the place; the stops are unknown (null) while the day read failed. */
+export const hookWords = (stops: number | null): string => `${stops === null ? STOPS_NOT_READ_WORDS : stopsWords(stops)} · ${HOOK_WORDS}`;
 
 /** "4 OF 7 · 12:30" — the step card's header words ('—' for a stop with no time). */
 export const stepHeaderWords = (n: number, of: number, time: string | null): string => `${n} OF ${of} · ${time === null ? '—' : time}`;

@@ -53,6 +53,9 @@ const SUBSYSTEM_ACTION_TYPES: Record<string, AuditActionType[]> = {
     'operations_plan_vendor_cleared',
     // WEEK-02 (2026-09-30): a done's note edited (completions/[completionId] PATCH).
     'operations_routine_completion_note_edited',
+    // STAY-01 (2026-10-12): a stay set / deleted (stays routes).
+    'operations_stay_set',
+    'operations_stay_deleted',
   ],
   // AUDIT-01 (2026-09-26): the booking audit trail's families. AUDIT-01b (2026-09-27):
   // 'commission_' is gone — commission_locked is never returned by this route (below),

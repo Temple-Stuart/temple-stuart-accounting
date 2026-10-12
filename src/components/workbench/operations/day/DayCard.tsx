@@ -48,11 +48,12 @@ import { localToday } from '@/lib/localToday';
 import type { DailyPlanItem } from '../dailyplan/types';
 import RefusedRoutines from '../routines/RefusedRoutines';
 import { readDay, readItems, type DayAnswer, type Read } from '../week/weekReads';
-import { readDayReport } from './dayReads';
+import StayBar from '../stays/StayBar';
+import { readDayReport, readStays, type StaysAnswer } from './dayReads';
 import {
   BADGE_WORDS, BRAND_WORDS, PLAN_WORD, TASK_WORD, TODAY_WORD, badDateWords, badStepWords, completenessWords, dayStops, focusStop,
-  heroWord, hookWords, linesUnreadWords, linesWithoutStopWords, notPlacedWords, planDollars, progressPercent, provenanceWords, quarterDayWords,
-  routineFigureWords, soFarWords, stepHeaderWords, strandedWords, unmatchedWords,
+  headerWords, heroWord, hookWords, linesUnreadWords, linesWithoutStopWords, notPlacedWords, planDollars, progressPercent, provenanceWords,
+  routineFigureWords, soFarWords, stepHeaderWords, strandedWords, unmatchedWords, whereWords,
   type Stop,
 } from './dayCard';
 
@@ -99,6 +100,9 @@ export default function DayCard() {
   const [dayRead, setDayRead] = useState<Read<DayAnswer> | null>(null);
   const [report, setReport] = useState<Read<BudgetReportResponse> | null>(null);
   const [items, setItems] = useState<Read<DailyPlanItem[]> | null>(null);
+  // STAY-01: the stays, read with the day and again after a write from the stay bar.
+  const [stays, setStays] = useState<Read<StaysAnswer> | null>(null);
+  const [stayReads, setStayReads] = useState(0);
 
   useEffect(() => {
     setToday(localToday());
@@ -126,6 +130,17 @@ export default function DayCard() {
     })();
     return () => { live = false; };
   }, [day, today]);
+
+  useEffect(() => {
+    if (day === null) return;
+    let live = true;
+    setStays(null);
+    (async () => {
+      const s = await readStays(day);
+      if (live) setStays(s);
+    })();
+    return () => { live = false; };
+  }, [day, stayReads]);
 
   if (today === null || zone === null || day === null) {
     return <section className="text-xs text-text-muted" data-day-section>loading the day…</section>;
@@ -156,6 +171,8 @@ export default function DayCard() {
   const foot = loaded && (result.unmatched.length > 0 || result.routineFigures.length > 0 || result.linesWithoutStop.length > 0 || result.notPlacedToday.length > 0 || stranded.length > 0 || refused.length > 0 || (report !== null && !report.ok) || (plans !== null && !plans.listed));
 
   const go = (href: string) => router.push(href);
+  // The stay covering the day — DAY n OF m and the place; null while unread, failed, or none.
+  const stay = stays !== null && stays.ok ? stays.value.covering : null;
 
   return (
     <section className="space-y-2" data-day-section>
@@ -179,9 +196,12 @@ export default function DayCard() {
       {dayRead !== null && !dayRead.ok && <p className="text-xs text-brand-red" data-day-failed>{day} could not be read — {dayRead.words}</p>}
       {items !== null && !items.ok && <p className="text-xs text-brand-red" data-day-items-failed>The day&apos;s tasks could not be read — {items.words}</p>}
 
+      {/* STAY-01: where you are — outside the recorded box; a write reads the stays again. */}
+      <StayBar day={day} stays={stays} onChanged={() => setStayReads((n) => n + 1)} />
+
       {/* THE PLATE — the reel's card at two thirds of its size (540 wide); the page shows it on its own, the editor places it over the footage. Record this box alone. */}
       <div className="bg-ts-white border border-border flex flex-col mx-auto" style={{ width: 540, borderRadius: 23, padding: '25px 29px 24px', gap: 11 }} data-day-card data-day-step={focus === null ? undefined : focus.index}>
-        <PlateHeader right={focus === null ? quarterDayWords(day) : stepHeaderWords(focus.index, focus.of, focus.stop.time)} />
+        <PlateHeader right={focus === null ? headerWords(stay, day) : stepHeaderWords(focus.index, focus.of, focus.stop.time)} />
 
         {!loaded && <p className="pt-4 text-text-muted" style={{ fontSize: 23 }} data-day-loading>loading the day…</p>}
 
@@ -191,7 +211,8 @@ export default function DayCard() {
               <span className="font-extrabold text-text-primary tabular-nums" style={{ fontSize: 69, lineHeight: 1, letterSpacing: '-0.02em' }} data-day-planned>{planDollars(plannedCents)}</span>
               <span className="font-bold text-text-secondary" style={{ fontSize: 29, lineHeight: 1 }} data-day-hero-word>{heroWord(day, today)}</span>
             </div>
-            <div className="font-semibold text-text-secondary" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-hook>{hookWords(day, dayFailed ? null : N)}</div>
+            <div className="font-semibold text-text-secondary" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-where>{whereWords(day, stay)}</div>
+            <div className="font-semibold text-text-secondary" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-hook>{hookWords(dayFailed ? null : N)}</div>
             <div className="flex flex-col" data-day-stops>
               {result.stops.map((s, i) => (
                 <button
