@@ -4,10 +4,15 @@
  * Under the day card's plate on the step view, outside the recorded box: for a
  * line or a stepless routine, "✓ done now" (one tap: done at this moment, saved
  * at once with whatever else is typed), "skipped" (with its reason), the done
- * time in the routine's zone, the amount in dollars, the rating 1–5 (the rubric
- * in src/lib/operations/stopRecord.ts RATING_WORDS), the minutes, a note; save;
- * clear when a record exists. A task has no form here — its record is the task
- * (the Tasks tab). Every write goes through the one writer (stopWrites.ts) and
+ * time in the routine's zone; then WHAT THE STOP'S ROLE ASKS (ROLE-01,
+ * src/lib/operations/stopRole.ts): a PLACE stop asks for its vendor (Budget's
+ * own vendor box on the matched plan line — a line with no amount has no vendor
+ * to plan), the amount paid, the stars (the rubric in stopRecord.ts
+ * RATING_WORDS), and "why" only once the amount differs from the plan; a WORK
+ * stop (journal · plan · execute) asks for the minutes and one line, prompted
+ * by its role ("finished up to here"); a stop with no role set asks everything,
+ * as before. Save; clear when a record exists. A task has no form here — its
+ * record is the task (the Tasks tab). Every write goes through the one writer (stopWrites.ts) and
  * the route's refusal is shown in its own words under the form; after a write
  * the caller reads the records again — never an optimistic copy. The caller
  * keys this form by the stop AND its record, so another stop (‹ step ›), a
@@ -21,7 +26,9 @@
 import { useState } from 'react';
 import { centsFromDecimalString } from '@/lib/budget/days';
 import { NEGATIVE_AMOUNT_WORDS, RATING_WORDS, SKIP_REASON_WORDS, WHEN_WORDS, amountWords, clearStopQuestion, minutesTypedWords, type StopOutcome } from '@/lib/operations/stopRecord';
+import { NOTE_PROMPT_WORDS, NO_AMOUNT_NO_VENDOR_WORDS } from '@/lib/operations/stopRole';
 import { instantToZoned, zonedToInstant } from '@/lib/time';
+import { VendorBox, useDirectory } from '@/components/budget/DayPlanDrill';
 import { statusWords, type Stop } from '../day/dayCard';
 import { clearStopRecord, setStopRecord, type StopBody } from './stopWrites';
 
@@ -56,15 +63,30 @@ function draftOf(stop: Stop, day: string): Draft {
   };
 }
 
-export default function StopForm({ stop, day, onChanged }: { stop: Stop; day: string; onChanged: () => void }) {
+export default function StopForm({ stop, day, bookName, onChanged, onPlanChanged }: { stop: Stop; day: string; bookName: string; onChanged: () => void; onPlanChanged: () => void }) {
   const [draft, setDraft] = useState<Draft>(() => draftOf(stop, day));
   const [words, setWords] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // The vendor directory, for a place stop's vendor box (Budget's own, on the matched plan line).
+  const directory = useDirectory();
 
   // A task's record is the task's own row — nothing to type here.
   if (stop.address === null || stop.zone === null) return null;
   const address = stop.address;
   const zone = stop.zone;
+  const role = stop.role === 'all_day' ? 'none' : stop.role;
+  // What this stop's role asks for. A place: the amount, the stars, and "why" only once the typed amount differs from the plan.
+  // A work stop (journal · plan · execute): the minutes and one line. No role set: everything, as before.
+  const typedCents = ((): number | null => {
+    if (draft.amount.trim() === '') return null;
+    try { const r = centsFromDecimalString(draft.amount); return r.ok ? r.cents : null; } catch { return null; }
+  })();
+  const differs = typedCents !== null && stop.cents !== null && typedCents !== stop.cents;
+  const asks = role === 'place'
+    ? { amount: true, rating: true, minutes: false, note: draft.outcome === 'skipped' || differs }
+    : role === 'none'
+      ? { amount: true, rating: true, minutes: true, note: true }
+      : { amount: false, rating: false, minutes: true, note: true };
 
   /** The body the route reads, or the form's own refusal — nothing guessed. */
   const bodyOf = (d: Draft): { ok: true; body: StopBody } | { ok: false; message: string } => {
@@ -149,27 +171,46 @@ export default function StopForm({ stop, day, onChanged }: { stop: Stop; day: st
         {draft.outcome === 'done' && (
           <input type="text" inputMode="numeric" value={draft.doneTime} onChange={(e) => setDraft({ ...draft, doneTime: e.target.value })} placeholder="HH:MM" aria-label={`Done at (${zone})`} className={`${box} w-16 font-mono`} maxLength={5} data-stop-time />
         )}
-        <span className="text-text-muted">$</span>
-        <input type="text" inputMode="decimal" value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} placeholder="paid" aria-label="Amount paid, dollars" className={`${box} w-20 font-mono`} data-stop-amount />
-        <span className="flex items-center" role="group" aria-label="Rating" data-stop-rating={draft.rating === null ? undefined : draft.rating}>
-          {([1, 2, 3, 4, 5] as const).map((n) => (
-            <button
-              type="button"
-              key={n}
-              className={`px-0.5 text-base leading-none ${draft.rating !== null && n <= draft.rating ? 'text-brand-gold' : 'text-text-faint'}`}
-              disabled={busy}
-              title={RATING_WORDS[n]}
-              aria-label={`${n}: ${RATING_WORDS[n]}`}
-              onClick={() => setDraft({ ...draft, rating: draft.rating === n ? null : n })}
-            >★</button>
-          ))}
-        </span>
-        <input type="text" inputMode="numeric" value={draft.minutes} onChange={(e) => setDraft({ ...draft, minutes: e.target.value })} placeholder="min" aria-label="Minutes" className={`${box} w-14 font-mono`} data-stop-minutes />
-        <input type="text" value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} placeholder={draft.outcome === 'skipped' ? 'why — required' : 'note — why the delta'} aria-label="Note" className={`${box} w-56`} maxLength={280} data-stop-note />
+        {asks.amount && (
+          <>
+            <span className="text-text-muted">$</span>
+            <input type="text" inputMode="decimal" value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} placeholder="paid" aria-label="Amount paid, dollars" className={`${box} w-20 font-mono`} data-stop-amount />
+          </>
+        )}
+        {asks.rating && (
+          <span className="flex items-center" role="group" aria-label="Rating" data-stop-rating={draft.rating === null ? undefined : draft.rating}>
+            {([1, 2, 3, 4, 5] as const).map((n) => (
+              <button
+                type="button"
+                key={n}
+                className={`px-0.5 text-base leading-none ${draft.rating !== null && n <= draft.rating ? 'text-brand-gold' : 'text-text-faint'}`}
+                disabled={busy}
+                title={RATING_WORDS[n]}
+                aria-label={`${n}: ${RATING_WORDS[n]}`}
+                onClick={() => setDraft({ ...draft, rating: draft.rating === n ? null : n })}
+              >★</button>
+            ))}
+          </span>
+        )}
+        {asks.minutes && (
+          <input type="text" inputMode="numeric" value={draft.minutes} onChange={(e) => setDraft({ ...draft, minutes: e.target.value })} placeholder="min" aria-label="Minutes" className={`${box} w-14 font-mono`} data-stop-minutes />
+        )}
+        {asks.note && (
+          <input type="text" value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} placeholder={draft.outcome === 'skipped' ? 'why — required' : NOTE_PROMPT_WORDS[role]} aria-label="Note" className={`${box} w-56`} maxLength={280} data-stop-note />
+        )}
         <button type="submit" className={chip} disabled={busy}>save</button>
         {stop.record !== null && <button type="button" className={chip} disabled={busy} onClick={clear} data-stop-clear>clear</button>}
       </form>
       {words !== null && <p className="text-xs text-brand-red" data-stop-words>{words}</p>}
+      {/* ROLE-01: a place stop plans its vendor here — Budget's own box on the matched plan line; a write reads the report again so the plate shows the place. */}
+      {role === 'place' && (
+        <div className="flex flex-wrap items-center gap-1.5 text-xs" data-stop-vendor>
+          <span className="text-text-faint uppercase tracking-wide">Vendor</span>
+          {stop.planLine !== null
+            ? <VendorBox line={stop.planLine} bookName={bookName} directory={directory} reload={onPlanChanged} />
+            : <span className="text-text-muted" data-stop-no-vendor>{NO_AMOUNT_NO_VENDOR_WORDS}</span>}
+        </div>
+      )}
     </div>
   );
 }

@@ -53,7 +53,7 @@ const routine = (over: Partial<Routine> & { id: string; name: string }): Routine
   next_due_at: null, last_evaluated_at: null, last_completed_at: null, consecutive_completion_streak: 0, consecutive_miss_streak: 0,
   ideal_time_label: null, fail_threshold_minutes: 30, start_date: null, end_date: null, start_time: null, end_time: null, is_active: true,
   created_at: '2026-09-01T00:00:00.000Z', updated_at: '2026-09-01T00:00:00.000Z', created_by: null, budget_amount: null, coa_code: null,
-  location: null, steps: [], ...over,
+  location: null, steps: [], role: 'none', ...over,
 });
 
 const entry = (r: Routine, status: TodayStatus = 'pending', expected_at: string = AT): TodayRoutineEntry => ({ routine: r, expected_at, status, completion: null });
@@ -90,7 +90,7 @@ const GYM_AT = '2026-10-11T13:00:00.000Z';
 /** records: null — not read (STOP-01); the record-side rules are stop01.test.ts's. */
 const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: null, ...over });
 /** STOP-01: what every stop carries when the records were not read — the status its routine's (or the task's), nothing recorded. */
-const unrecorded = (statusSource: 'routine' | 'task' = 'routine') => ({ statusSource, record: null, actualCents: null, actualSource: null, doneAt: null, lateMinutes: null, actualMinutes: null });
+const unrecorded = (statusSource: 'routine' | 'task' = 'routine') => ({ statusSource, record: null, actualCents: null, actualSource: null, doneAt: null, lateMinutes: null, actualMinutes: null, role: 'none' as const, planLine: null });
 
 // ── T1 · THE RULES ───────────────────────────────────────────────────────────
 

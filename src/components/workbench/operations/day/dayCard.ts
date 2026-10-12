@@ -40,6 +40,14 @@
  * have none beside it — never a zero filled in; null while the records were not
  * read. A record of the day whose key matches no stop is named, never dropped.
  *
+ * ROLE-01 (2026-10-13) — THE ROUTINE'S ROLE. Every stop carries its routine's
+ * role (src/lib/operations/stopRole.ts): what the step card asks. A routine
+ * whose role is all_day (a subscription, a membership) is in the day's plan —
+ * its line is in the hero's figure — but is NOT a stop: it is listed under
+ * allDay for the plate's "also today" band, never numbered, never counted among
+ * the stops' spent or done, and it takes no record. A line of a routine takes
+ * its routine's role.
+ *
  * Pure: no fetch, no clock, no React, no Prisma (as week/weekPlan.ts) — the
  * tests drive every rule with fixtures. Every sentence the card prints from
  * here is an exported constant or a function returning one, so the tests pin
@@ -53,6 +61,7 @@ import {
   DONE_WORD, LATER_WORD, NOT_RECORDED_WORDS, OPEN_WORD, ROUTINE_DONE_WORDS, ROUTINE_MISSED_WORDS, SKIPPED_WORD, TASK_DONE_WORDS, TASK_OPEN_WORDS, doneWords, lateWords, recordKey, skippedWords,
   type StopRecordKind, type StopRecordRow,
 } from '@/lib/operations/stopRecord';
+import { isStop, type StopRole } from '@/lib/operations/stopRole';
 import { instantToZoned, zonedToInstant } from '@/lib/time';
 import type { DailyPlanItem } from '../dailyplan/types';
 import type { TodayRoutineEntry, TodayStatus } from '../routines/types';
@@ -109,6 +118,10 @@ export interface Stop {
   readonly cents: number | null;
   readonly status: StopStatus;
   readonly statusSource: StatusSource;
+  /** ROLE-01: the routine's role — what the step card asks; 'none' for a task. */
+  readonly role: StopRole;
+  /** The matched plan line itself (the vendor box plans a vendor on it); null when the report lists none. */
+  readonly planLine: PlanLine | null;
   /** STOP-01: where a record is written for this stop; null for a task (its record is the task). */
   readonly address: StopAddress | null;
   /** The routine's zone (a record's done-at is drawn in it); null for a task. */
@@ -142,6 +155,8 @@ export interface UnmatchedLine {
 
 export interface DayStops {
   readonly stops: readonly Stop[];
+  /** ROLE-01: the day's all-day lines (role all_day) — in the plan, not stops; the "also today" band. */
+  readonly allDay: readonly Stop[];
   /** The Budget's planned figure for the day: every line of the day, matched or not. */
   readonly plannedCents: number;
   /** How many stops have no amount. */
@@ -289,7 +304,9 @@ export function dayStops(input: DayCardInput): DayStops {
   const unmatched: UnmatchedLine[] = [];
   const timed: Stop[] = [];
   const untimed: Stop[] = [];
-  const push = (stop: Stop) => (stop.time === null ? untimed : timed).push(stop);
+  const allDay: Stop[] = [];
+  // An all-day line is in the plan, not on the itinerary — it goes to the band, whatever its clock says.
+  const push = (stop: Stop) => (isStop(stop.role) ? (stop.time === null ? untimed : timed) : allDay).push(stop);
   // STOP-01: the records by the card's own key; each one a stop takes is marked, the rest are named.
   const records = input.records === null ? [] : input.records;
   const byKey = new Map<string, StopRecordRow>();
@@ -311,6 +328,8 @@ export function dayStops(input: DayCardInput): DayStops {
     const status = STATUS[entry.status];
     const occurrence = new Date(entry.expected_at);
     const occurrenceTime = instantToZoned(occurrence, r.timezone).time;
+    // An all-day routine takes no record: its key is never looked up, so a record written at it is named as matching no stop.
+    const recordFor = (key: string): StopRecordRow | null => (isStop(r.role) ? recordAt(key) : null);
     if (r.steps.length === 0) {
       const key = `routine:${r.id}:${entry.expected_at}`;
       const line = matchLine(dayLines.filter((l) => l.address.kind === 'routine' && l.address.id === r.id), entry.expected_at, r.name, null, used, unmatched);
@@ -323,9 +342,11 @@ export function dayStops(input: DayCardInput): DayStops {
         place: placeOf(line, r.location),
         minutes: null,
         cents: line === null ? null : line.cents,
+        role: r.role,
+        planLine: line,
         address: { kind: 'routine', id: r.id, instant: entry.expected_at },
         zone: r.timezone,
-        ...recorded(recordAt(key), status, r.timezone, input.day, occurrence),
+        ...recorded(recordFor(key), status, r.timezone, input.day, occurrence),
       });
       continue;
     }
@@ -344,9 +365,11 @@ export function dayStops(input: DayCardInput): DayStops {
         place: placeOf(line, step.location, r.location),
         minutes: step.duration_minutes,
         cents: line === null ? null : line.cents,
+        role: r.role,
+        planLine: line,
         address: { kind: 'routine_line', id: step.id, instant: entry.expected_at },
         zone: r.timezone,
-        ...recorded(recordAt(key), status, r.timezone, input.day, planned),
+        ...recorded(recordFor(key), status, r.timezone, input.day, planned),
       });
     }
   }
@@ -372,6 +395,8 @@ export function dayStops(input: DayCardInput): DayStops {
       cents: line === null ? null : line.cents,
       status: item.task !== null && item.task.status === 'completed' ? 'done' : 'open',
       statusSource: 'task',
+      role: 'none',
+      planLine: line,
       address: null,
       zone: null,
       record: null,
@@ -395,8 +420,11 @@ export function dayStops(input: DayCardInput): DayStops {
   const unused = dayLines.filter((l) => !used.has(l));
 
   const read = input.records !== null;
+  // The band keeps the clock order too, so a day's subscriptions read the same way every day.
+  allDay.sort((a, b) => cmpMaybe(a.time, b.time) || cmp(a.label, b.label) || cmpMaybe(a.line, b.line));
   return {
     stops,
+    allDay,
     plannedCents: dayLines.reduce((sum, l) => sum + l.cents, 0),
     notPriced: stops.filter((s) => s.cents === null).length,
     unmatched,

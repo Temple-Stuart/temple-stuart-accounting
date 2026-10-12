@@ -176,9 +176,10 @@ test('T5 the migration: the table with its two CHECKs, the trigger that locks th
   assert.doesNotMatch(sql, /DROP /);
   assert.match(comments(MIGRATION), /AUTHORED here, applied at deploy/);
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
-  // STOP-01 (2026-10-12): the stop records migration is newer — this one is the one before it. The pin moved; the order holds.
-  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the migration before the newest (STOP-01 followed)');
-  assert.equal(dirs[dirs.length - 1], '20261012140000_stop_01_operations_stop_records', 'the newest migration');
+  // STOP-01 (2026-10-12): the stop records migration is newer; ROLE-01 (2026-10-13): the role migration newer still. The pin moved twice; the order holds.
+  assert.equal(dirs[dirs.length - 3], MIGRATION_DIR, 'the migration two before the newest (STOP-01, then ROLE-01 followed)');
+  assert.equal(dirs[dirs.length - 2], '20261012140000_stop_01_operations_stop_records');
+  assert.equal(dirs[dirs.length - 1], '20261013030000_role_01_routine_role', 'the newest migration');
   assert.ok(MIGRATION_DIR.slice(0, 14) > '20260930210000');
 });
 

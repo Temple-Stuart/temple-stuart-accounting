@@ -22,6 +22,8 @@
  * and calls /api/operations/routines/[id]/upcoming for forward windows.
  */
 
+import type { StopRole } from '@/lib/operations/stopRole';
+
 export interface Routine {
   id: string;
   user_id: string;
@@ -60,6 +62,8 @@ export interface Routine {
   // bare chart_of_accounts.code (e.g. "B-9200") or null.
   budget_amount: string | null;
   coa_code: string | null;
+  /** ROLE-01: what kind of stop this routine is on the day card (src/lib/operations/stopRole.ts). */
+  role: StopRole;
   /**
    * ONEOFF-01: the routine's place — location text and, when both are stored,
    * a coordinate pair (Decimal → JSON string, like budget_amount). Null is no
@@ -197,6 +201,7 @@ export interface RoutineForm {
   timezone: string;                   // default 'America/Los_Angeles'
   ideal_time_label: string;           // free-text "morning", "before lunch"
   fail_threshold_minutes: string;     // grace period in minutes before "miss"
+  role: StopRole;                     // ROLE-01: what kind of stop; 'none' until set
   start_date: string;                 // YYYY-MM-DD window start; '' = unset (active from creation)
   end_date: string;                   // YYYY-MM-DD window end; '' = unset (never expires)
   start_time: string;                 // HH:MM intent-window start; '' = unset
@@ -242,6 +247,7 @@ export const DEFAULT_ROUTINE_FORM: RoutineForm = {
   timezone: 'America/Los_Angeles',
   ideal_time_label: '',
   fail_threshold_minutes: '30',
+  role: 'none',
   start_date: '',
   end_date: '',
   start_time: '',

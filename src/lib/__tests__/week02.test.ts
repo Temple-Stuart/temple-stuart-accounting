@@ -376,9 +376,11 @@ test('T7 the migration: the one ADD VALUE line and nothing else, after the last 
   assert.ok(MIGRATION_DIR.slice(0, 14) > '20260929190000');
   // STAY-01 (2026-10-12): the stays migration is newer — this one is the one before it. STOP-01 (2026-10-12): the stop records
   // migration is newer still. The pin moved twice; the order holds.
-  assert.equal(dirs[dirs.length - 3], MIGRATION_DIR, 'the migration two before the newest (STAY-01, then STOP-01 followed)');
-  assert.equal(dirs[dirs.length - 2], '20261012090000_stay_01_operations_stays');
-  assert.equal(dirs[dirs.length - 1], '20261012140000_stop_01_operations_stop_records', 'the newest migration');
+  // ROLE-01 (2026-10-13) followed too.
+  assert.equal(dirs[dirs.length - 4], MIGRATION_DIR, 'the migration three before the newest (STAY-01, STOP-01, then ROLE-01 followed)');
+  assert.equal(dirs[dirs.length - 3], '20261012090000_stay_01_operations_stays');
+  assert.equal(dirs[dirs.length - 2], '20261012140000_stop_01_operations_stop_records');
+  assert.equal(dirs[dirs.length - 1], '20261013030000_role_01_routine_role', 'the newest migration');
 });
 
 test('T7 the schema’s enum holds the value, last; the client knows it; the audit log lists it under operations_', () => {
