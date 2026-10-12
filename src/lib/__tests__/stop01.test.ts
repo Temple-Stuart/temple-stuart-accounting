@@ -17,9 +17,9 @@ import { AuditActionType } from '@prisma/client';
 import { code, comments } from '../sourceText';
 import type { PlanLine } from '../budget/planLines';
 import {
-  ARCHIVED_LINE_WORDS, CENTS_MAX, LINES_WORDS, MINUTES_MAX, NOTE_MAX, RACE_WORDS, RATING_WORDS, ROUTINE_DONE_WORDS, ROUTINE_MISSED_WORDS, STOP_KINDS, STOP_OUTCOMES,
-  TASK_DONE_WORDS, TASK_OPEN_WORDS, WHEN_WORDS, amountWords, clearStopQuestion, doneWords, lateWords, minutesTypedWords, noStopWords, planOf, ratingWords, recordKey, recordWindow,
-  refusedWords, skippedWords, starsWords, stopInput, stopRecordRowOf, unchanged, type StopRecordRow,
+  ARCHIVED_LINE_WORDS, BODY_NOT_JSON_WORDS, CENTS_MAX, DONE_AT_SKEW_MS, INACTIVE_ROUTINE_WORDS, LINES_WORDS, MINUTES_MAX, NEGATIVE_AMOUNT_WORDS, NOTE_MAX, RACE_WORDS, RATING_WORDS,
+  ROUTINE_DONE_WORDS, ROUTINE_MISSED_WORDS, SKIP_REASON_WORDS, STOP_KINDS, STOP_OUTCOMES, TASK_DONE_WORDS, TASK_OPEN_WORDS, WHEN_WORDS, amountWords, clearStopQuestion, doneWords, instantOf,
+  lateWords, minutesTypedWords, noStopWords, planOf, ratingWords, recordKey, recordWindow, refusedWords, skippedWords, starsWords, stopInput, stopRecordRowOf, unchanged, type StopRecordRow,
 } from '../operations/stopRecord';
 import type { DailyPlanItem } from '@/components/workbench/operations/dailyplan/types';
 import type { Routine, RoutineStep, TodayRoutineEntry, TodayStatus } from '@/components/workbench/operations/routines/types';
@@ -51,6 +51,8 @@ const AUDIT_LOG = 'src/app/api/audit-log/route.ts';
 
 const DAY = '2026-10-11';
 const BKK = 'Asia/Bangkok';
+/** The route's clock when the rule runs — 10:00 Bangkok on the day. */
+const NOW = new Date('2026-10-11T03:00:00.000Z');
 /** 07:00 Bangkok on the day. */
 const AT = '2026-10-11T00:00:00.000Z';
 const GYM_AT = '2026-10-11T13:00:00.000Z';
@@ -76,6 +78,9 @@ const item = (over: Partial<DailyPlanItem> & { id: string }): DailyPlanItem => (
   user_id: 'u', entity_id: 'P', plan_date: `${DAY}T00:00:00.000Z`, task_id: null, ad_hoc_title: null, ad_hoc_description: null, display_order: 0,
   notes: null, created_at: '2026-10-01T00:00:00.000Z', updated_at: '2026-10-01T00:00:00.000Z', created_by: null, task: null, calendar_blocks: [], ...over,
 });
+const block = (scheduled_start: string, status: DailyPlanItem['calendar_blocks'][number]['status'] = 'scheduled') => ({
+  id: `b-${scheduled_start}`, scheduled_start, scheduled_end: scheduled_start, actual_start: null, actual_end: null, status, notes: null,
+});
 const task = (id: string, title: string, status: NonNullable<DailyPlanItem['task']>['status'] = 'open', actual_cost_usd: string | null = null, actual_minutes: number | null = null) => ({
   id, title, status, project_id: 'proj', coa_code: null, estimated_cost_usd: null, actual_cost_usd, actual_minutes, completed_at: null,
 });
@@ -100,22 +105,27 @@ const coffeeLine = line({ address: { kind: 'routine_line', id: STEP_ID, instant:
 
 test('T1 stopInput: the kind, the id, the instant, the outcome; done_at when done and never when skipped; cents 0 or more; rating 1–5; a note trimmed, 1–280, required when skipped; minutes within a day — the first bad field named, nothing filled in', () => {
   const base = { kind: 'routine_line', id: STEP_ID, instant: AT, outcome: 'done', done_at: '2026-10-11T00:41:00.000Z' };
-  const ok = stopInput({ ...base, actual_cents: 1200, rating: 4, note: '  the  oat milk ', actual_minutes: 42 });
+  const ok = stopInput({ ...base, actual_cents: 1200, rating: 4, note: '  the  oat milk ', actual_minutes: 42 }, NOW);
   assert.ok(ok.ok);
   assert.deepEqual(ok.value, { kind: 'routine_line', id: STEP_ID, instant: new Date(AT), outcome: 'done', doneAt: new Date('2026-10-11T00:41:00.000Z'), actualCents: 1200, rating: 4, note: 'the oat milk', actualMinutes: 42 });
-  const bare = stopInput(base);
+  const bare = stopInput(base, NOW);
   assert.ok(bare.ok);
   assert.deepEqual([bare.value.actualCents, bare.value.rating, bare.value.note, bare.value.actualMinutes], [null, null, null, null], 'absent is null — never 0, never ""');
-  const nulls = stopInput({ ...base, actual_cents: null, rating: null, note: null, actual_minutes: null });
+  const nulls = stopInput({ ...base, actual_cents: null, rating: null, note: null, actual_minutes: null }, NOW);
   assert.ok(nulls.ok && nulls.value.actualCents === null, 'null is absent too');
-  assert.ok(stopInput({ ...base, actual_cents: 0 }).ok, '0 cents is a price — a free thing');
-  assert.ok(stopInput({ ...base, actual_cents: CENTS_MAX }).ok);
-  const skipped = stopInput({ kind: 'routine', id: GYM_ID, instant: GYM_AT, outcome: 'skipped', note: 'closed' });
+  assert.ok(stopInput({ ...base, actual_cents: 0 }, NOW).ok, '0 cents is a price — a free thing');
+  assert.ok(stopInput({ ...base, actual_cents: CENTS_MAX }, NOW).ok);
+  const skipped = stopInput({ kind: 'routine', id: GYM_ID, instant: GYM_AT, outcome: 'skipped', note: 'closed' }, NOW);
   assert.ok(skipped.ok);
   assert.deepEqual([skipped.value.outcome, skipped.value.doneAt, skipped.value.note], ['skipped', null, 'closed']);
-  const blankNote = stopInput({ ...base, note: '   ' });
+  const blankNote = stopInput({ ...base, note: '   ' }, NOW);
   assert.ok(blankNote.ok && blankNote.value.note === null, 'a blank note is no note');
-  assert.ok(stopInput({ ...base, instant: '2026-10-11T07:00:00+07:00' }).ok, 'an offset instant parses');
+  assert.ok(stopInput({ ...base, instant: '2026-10-11T07:00:00+07:00' }, NOW).ok, 'an offset instant parses');
+  assert.ok(stopInput({ ...base, done_at: new Date(NOW.getTime() + DONE_AT_SKEW_MS).toISOString() }, NOW).ok, 'a done-at up to the skew ahead of the server is the browser’s clock');
+  assert.equal(DONE_AT_SKEW_MS, 10 * 60_000);
+  assert.deepEqual(['2026-10-11T07:00+07:00', '2026-10-11T07:00:00-05:00', '2026-10-11T23:59:59.999Z', '2026-10-11T07:00:00.1Z'].map((x) => instantOf(x)?.toISOString()), ['2026-10-11T00:00:00.000Z', '2026-10-11T12:00:00.000Z', '2026-10-11T23:59:59.999Z', '2026-10-11T07:00:00.100Z']);
+  assert.equal(instantOf('2026-10-11T24:00:00Z'), null);
+  assert.equal(instantOf(''), null);
   for (const [body, field, words] of [
     [null, 'kind', 'the body must be an object'],
     [[], 'kind', 'the body must be an object'],
@@ -124,6 +134,15 @@ test('T1 stopInput: the kind, the id, the instant, the outcome; done_at when don
     [{ ...base, id: 7 }, 'id', 'required'],
     [{ ...base, instant: 'yesterday' }, 'instant', 'instant "yesterday" is not an ISO instant'],
     [{ ...base, instant: 1760000000000 }, 'instant', 'is not an ISO instant'],
+    [{ ...base, instant: '2026-10-11T07:00' }, 'instant', 'is not an ISO instant'],
+    [{ ...base, instant: '2026-10-11' }, 'instant', 'is not an ISO instant'],
+    [{ ...base, instant: 'Oct 11 2026' }, 'instant', 'is not an ISO instant'],
+    [{ ...base, instant: '+010000-01-01T00:00:00Z' }, 'instant', 'is not an ISO instant'],
+    [{ ...base, instant: '0000-01-01T00:00:00Z' }, 'instant', 'is not an ISO instant'],
+    [{ ...base, instant: '2026-02-30T00:00:00Z' }, 'instant', 'is not an ISO instant'],
+    [{ ...base, instant: '2026-10-11T07:00:00+0700' }, 'instant', 'is not an ISO instant'],
+    [{ ...base, done_at: '2026-10-11T03:11:00.000Z' }, 'done_at', 'done_at 2026-10-11T03:11:00.000Z is in the future'],
+    [{ ...base, done_at: '2099-01-01T00:00:00Z' }, 'done_at', 'is in the future'],
     [{ ...base, outcome: 'missed' }, 'outcome', 'outcome must be one of done, skipped'],
     [{ ...base, done_at: undefined }, 'done_at', 'a done stop says when'],
     [{ ...base, done_at: 'noon' }, 'done_at', 'done_at "noon" is not an ISO instant'],
@@ -138,14 +157,17 @@ test('T1 stopInput: the kind, the id, the instant, the outcome; done_at when don
     [{ ...base, rating: '4' }, 'rating', 'is not 1 to 5'],
     [{ ...base, note: 7 }, 'note', 'note must be a string'],
     [{ ...base, note: 'a\u0000b' }, 'note', 'control characters are not a note'],
+    [{ ...base, note: 'a\u0085b' }, 'note', 'control characters are not a note'],
+    [{ ...base, note: 'a\ud800b' }, 'note', 'control characters are not a note'],
+    [{ ...base, actual_minutes: '42' }, 'actual_minutes', 'is not 0 to 1440'],
     [{ ...base, note: 'x'.repeat(281) }, 'note', 'note is at most 280 characters (281 given)'],
-    [{ kind: 'routine', id: GYM_ID, instant: GYM_AT, outcome: 'skipped' }, 'note', 'a skipped stop needs its reason (note)'],
+    [{ kind: 'routine', id: GYM_ID, instant: GYM_AT, outcome: 'skipped' }, 'note', SKIP_REASON_WORDS],
     [{ kind: 'routine', id: GYM_ID, instant: GYM_AT, outcome: 'skipped', note: '  ' }, 'note', 'a skipped stop needs its reason (note)'],
     [{ ...base, actual_minutes: -1 }, 'actual_minutes', 'is not 0 to 1440'],
     [{ ...base, actual_minutes: 1441 }, 'actual_minutes', 'is not 0 to 1440'],
     [{ ...base, actual_minutes: 2.5 }, 'actual_minutes', 'is not 0 to 1440'],
   ] as const) {
-    const r = stopInput(body);
+    const r = stopInput(body, NOW);
     assert.ok(!r.ok, JSON.stringify(body));
     assert.equal(r.field, field, JSON.stringify(body));
     assert.ok(r.message.includes(words), `${JSON.stringify(body)} → ${r.message}`);
@@ -153,8 +175,8 @@ test('T1 stopInput: the kind, the id, the instant, the outcome; done_at when don
   assert.deepEqual([NOTE_MAX, MINUTES_MAX, CENTS_MAX], [280, 1440, 2_147_483_647]);
   assert.deepEqual([...STOP_KINDS], ['routine_line', 'routine']);
   assert.deepEqual([...STOP_OUTCOMES], ['done', 'skipped']);
-  assert.ok(stopInput({ ...base, note: 'x'.repeat(280) }).ok, '280 is allowed');
-  assert.ok(stopInput({ ...base, actual_minutes: 1440 }).ok, '1440 is allowed');
+  assert.ok(stopInput({ ...base, note: 'x'.repeat(280) }, NOW).ok, '280 is allowed');
+  assert.ok(stopInput({ ...base, actual_minutes: 1440 }, NOW).ok, '1440 is allowed');
 });
 
 test('T1 rows, keys, the plan columns, unchanged, the window', () => {
@@ -168,11 +190,15 @@ test('T1 rows, keys, the plan columns, unchanged, the window', () => {
   assert.equal(recordKey(record({ kind: 'routine', target_id: GYM_ID, occurrence_at: GYM_AT })), `routine:${GYM_ID}:${GYM_AT}`);
   assert.deepEqual(planOf('routine_line', STEP_ID), { routine_id: null, step_id: STEP_ID });
   assert.deepEqual(planOf('routine', GYM_ID), { routine_id: GYM_ID, step_id: null });
-  const v = (stopInput({ kind: 'routine_line', id: STEP_ID, instant: AT, outcome: 'done', done_at: '2026-10-11T00:41:00.000Z', actual_cents: 1200, rating: 4, note: 'the oat milk', actual_minutes: 42 }) as { ok: true; value: Parameters<typeof unchanged>[1] }).value;
+  const v = (stopInput({ kind: 'routine_line', id: STEP_ID, instant: AT, outcome: 'done', done_at: '2026-10-11T00:41:00.000Z', actual_cents: 1200, rating: 4, note: 'the oat milk', actual_minutes: 42 }, NOW) as { ok: true; value: Parameters<typeof unchanged>[1] }).value;
   assert.equal(unchanged(coffeeDone, v), true);
   assert.equal(unchanged(coffeeDone, { ...v, actualCents: 1250 }), false);
   assert.equal(unchanged(coffeeDone, { ...v, note: null }), false);
   assert.equal(unchanged(coffeeDone, { ...v, doneAt: new Date('2026-10-11T00:42:00.000Z') }), false);
+  assert.equal(unchanged(coffeeDone, { ...v, rating: 5 }), false, 'a rating-only edit is a change');
+  assert.equal(unchanged(coffeeDone, { ...v, actualMinutes: 43 }), false);
+  assert.equal(unchanged(coffeeDone, { ...v, outcome: 'skipped', doneAt: null }), false);
+  assert.equal(unchanged(coffeeDone, { ...v, rating: null }), false);
   // The window: a local day in any zone — UTC+14 starts it at D−1 10:00Z, UTC−12 ends it at D+1 12:00Z.
   assert.deepEqual(recordWindow('2026-10-11'), { gte: new Date('2026-10-10T10:00:00.000Z'), lt: new Date('2026-10-12T12:00:00.000Z') });
   assert.throws(() => recordWindow('nope'), /is not a day/);
@@ -194,6 +220,24 @@ test('T2 a line with a record of its own takes its status, actual, done-at, late
   assert.equal(coffee.zone, BKK);
   const stretch = r.stops.find((s) => s.line === 'Stretch')!;
   assert.deepEqual([stretch.status, stretch.statusSource, stretch.record, stretch.actualCents, stretch.doneAt, stretch.lateMinutes], ['done', 'routine', null, null, null, null], 'the routine’s completion, labelled as such');
+  assert.equal(statusWords(stretch, DAY), ROUTINE_DONE_WORDS, 'said as the routine’s — never printed as the line’s own done');
+  assert.equal(statusWords(coffee, DAY), 'done 07:41 · 11 min late');
+  const missed = dayStops(input({ entries: [entry(morning, 'missed')], records: [] })).stops[0];
+  assert.equal(statusWords(missed, DAY), ROUTINE_MISSED_WORDS);
+  assert.equal(statusWords(dayStops(input({ entries: [entry(morning, 'pending')], records: [] })).stops[0], DAY), 'open');
+  assert.equal(statusWords(dayStops(input({ entries: [entry(morning, 'upcoming')], records: [] })).stops[0], DAY), 'later');
+  // The done-at and the planned instant are the ROUTINE's zone, whatever the viewer's: a Los Angeles viewer sees the Bangkok clock.
+  const la = dayStops(input({ entries: [entry(morning, 'completed')], lines: [coffeeLine], records: [coffeeDone], viewerZone: 'America/Los_Angeles' })).stops.find((s) => s.line === 'Coffee')!;
+  assert.deepEqual([la.doneAt, la.lateMinutes], [{ day: DAY, time: '07:41' }, 11]);
+  // A record at the same line but another instant is NOT this stop's — named as matching no stop, nothing matched by nearness.
+  const movedRecord = { ...coffeeDone, id: 'moved', occurrence_at: '2026-10-11T01:00:00.000Z' };
+  const mv = dayStops(input({ entries: [entry(morning)], lines: [coffeeLine], records: [movedRecord] }));
+  assert.equal(mv.stops.find((s) => s.line === 'Coffee')!.record, null);
+  assert.deepEqual(mv.recordsWithoutStop, [movedRecord]);
+  // Whole minutes: done at 07:30:40 against a 07:30 line is on time, not "1 min late".
+  const seconds = { ...coffeeDone, done_at: '2026-10-11T00:30:40.000Z' };
+  assert.equal(dayStops(input({ entries: [entry(morning)], records: [seconds] })).stops.find((s) => s.line === 'Coffee')!.lateMinutes, 0);
+  assert.equal(dayStops(input({ entries: [entry(morning)], records: [{ ...coffeeDone, done_at: '2026-10-11T00:29:59.000Z' }] })).stops.find((s) => s.line === 'Coffee')!.lateMinutes, -1);
   // Lateness for a line with no time of day is against the occurrence (07:00).
   const journalDone = record({ kind: 'routine_line', target_id: 'journal', occurrence_at: AT, done_at: '2026-10-10T23:50:00.000Z' });
   const j = dayStops(input({ entries: [entry(morning)], records: [journalDone] })).stops.find((s) => s.line === 'Journal')!;
@@ -215,12 +259,20 @@ test('T2 a line with a record of its own takes its status, actual, done-at, late
   const b = dayStops(input({ entries: [entry(morning)], records: [broken] })).stops.find((st) => st.line === 'Coffee')!;
   assert.equal(b.doneAt, null);
   assert.throws(() => statusWords(b, DAY), /done by its record but has no done-at/);
+  const noReason = record({ kind: 'routine', target_id: GYM_ID, occurrence_at: GYM_AT, outcome: 'skipped', note: null });
+  assert.throws(() => statusWords(dayStops(input({ entries: [entry(gym, 'pending', GYM_AT)], records: [noReason] })).stops[0], DAY), /skipped by its record but carries no reason/, 'never a blank reason');
 });
 
 test('T2 a task’s actual is the task’s own; the records not read → every record field null and the sums unknown; two records at one key is the database’s error', () => {
   const t = dayStops(input({ items: [item({ id: 'i1', task_id: 't1', task: task('t1', 'Ship it', 'completed', '12.50', 25) })], records: [] })).stops[0];
-  assert.deepEqual([t.status, t.statusSource, t.actualCents, t.actualSource, t.actualMinutes, t.record, t.address, t.zone], ['done', 'task', 1250, 'task', 25, null, null, null]);
-  assert.equal(statusWords(t, DAY), TASK_DONE_WORDS);
+  assert.deepEqual([t.status, t.statusSource, t.actualCents, t.actualSource, t.actualMinutes, t.record, t.address, t.zone, t.doneAt, t.lateMinutes], ['done', 'task', 1250, 'task', 25, null, null, null, null, null]);
+  assert.equal(statusWords(t, DAY), TASK_DONE_WORDS, 'completed with no completed_at: the word alone');
+  // The task's own completed_at is its done-at, drawn in the VIEWER's zone (as its block's time); no lateness is drawn for a task.
+  const done = dayStops(input({ viewerZone: 'America/Los_Angeles', items: [item({ id: 'i1', task_id: 't1', task: { ...task('t1', 'Ship it', 'completed'), completed_at: '2026-10-11T21:05:00.000Z' }, calendar_blocks: [block('2026-10-11T20:00:00.000Z')] })], records: [] })).stops[0];
+  assert.deepEqual([done.doneAt, done.lateMinutes], [{ day: DAY, time: '14:05' }, null]);
+  assert.equal(statusWords(done, DAY), 'task done 14:05');
+  const open = dayStops(input({ items: [item({ id: 'i1', task_id: 't1', task: { ...task('t1', 'Ship it'), completed_at: '2026-10-11T21:05:00.000Z' } })], records: [] })).stops[0];
+  assert.equal(open.doneAt, null, 'an open task’s stale completed_at is not a done-at');
   assert.equal(statusWords(dayStops(input({ items: [item({ id: 'i2', task_id: 't2', task: task('t2', 'Open') })] })).stops[0], DAY), TASK_OPEN_WORDS);
   assert.throws(() => dayStops(input({ items: [item({ id: 'i3', task_id: 't3', task: task('t3', 'Bad', 'open', '12.345') })] })), /cannot be read as cents/, 'a task actual with three decimals is the database’s error, never a figure');
   const unread = dayStops(input({ entries: [entry(morning, 'completed')], lines: [coffeeLine] }));
@@ -257,6 +309,12 @@ test('T2 the day’s spent is the sum of the actuals that exist, the stops witho
   const sk = dayStops(input({ entries: [entry(gym, 'pending', GYM_AT)], records: [skipped] }));
   assert.deepEqual([sk.done, sk.skipped, sk.notRecorded, sk.withoutActual, sk.spentCents], [0, 1, 0, 1, 0]);
   assert.equal(completenessWords(sk, 0, { day: true, report: true, records: true }), '1 not priced · 1 skipped');
+  // The done count is the marks' — a line done by its routine's completion counts (its row wears ✓); a task without an actual counts as without.
+  const byRoutine = dayStops(input({ entries: [entry(morning, 'completed')], items: [item({ id: 'i1', task_id: 't1', task: task('t1', 'Ship it') })], records: [] }));
+  assert.deepEqual([byRoutine.done, byRoutine.withoutActual, byRoutine.notRecorded], [3, 4, 3]);
+  // A routine-kind orphan is named like a line-kind one.
+  const routineOrphan = record({ kind: 'routine', target_id: 'gone-routine', occurrence_at: GYM_AT });
+  assert.deepEqual(dayStops(input({ entries: [entry(gym, 'pending', GYM_AT)], records: [routineOrphan] })).recordsWithoutStop, [routineOrphan]);
 });
 
 // ── T3 · THE WORDS, EXACT ────────────────────────────────────────────────────
@@ -280,6 +338,10 @@ test('T3 the record’s words: the rubric, the stars, the status with its source
   assert.equal(TASK_OPEN_WORDS, 'task open');
   assert.equal(LINES_WORDS, 'the routine has lines — record each line, not the routine');
   assert.equal(ARCHIVED_LINE_WORDS, 'the line is archived — it has no stop');
+  assert.equal(INACTIVE_ROUTINE_WORDS, 'the routine is inactive — it has no stop');
+  assert.equal(SKIP_REASON_WORDS, 'a skipped stop needs its reason (note)');
+  assert.equal(BODY_NOT_JSON_WORDS, 'the body is not JSON');
+  assert.equal(NEGATIVE_AMOUNT_WORDS, 'an amount is 0 or more');
   assert.equal(RACE_WORDS(AT), `a record at ${AT} was written moments ago — read the day again`);
   assert.equal(noStopWords(AT, DAY, null), `no stop at ${AT} — the routine has no stop on ${DAY}`);
   assert.equal(noStopWords('2026-10-11T01:00:00.000Z', DAY, AT), `no stop at 2026-10-11T01:00:00.000Z — on ${DAY} the routine's stop is at ${AT}`);
@@ -320,12 +382,13 @@ test('T3 the record’s words: the rubric, the stars, the status with its source
   assert.equal(minutesLine(null, null), null);
   assert.equal(monthDayWords('2026-10-12'), 'Oct 12');
   assert.equal(recordsWithoutStopWords([record({ kind: 'routine_line', target_id: 'archived-step', occurrence_at: AT, actual_cents: 300 })]),
-    `1 record of the day matches no stop — routine_line archived-step at ${AT}: done, $3.00 (the line is archived, or its routine's schedule moved)`);
+    `1 record of the day matches no stop — routine_line archived-step at ${AT}: done, $3.00`, 'the facts; no guessed cause');
   assert.equal(recordsWithoutStopWords([record({ kind: 'routine', target_id: 'g', occurrence_at: AT, outcome: 'skipped', note: 'x' }), record({ kind: 'routine', target_id: 'h', occurrence_at: AT })]).split(' — ')[0], '2 records of the day match no stop');
   assert.equal(recordsUnplacedWords([{ record: record({ kind: 'routine', target_id: 'g', occurrence_at: AT }), detail: 'the routine\'s day cannot be read — timezone not recognised: "Mars/Olympus"' }]),
     `1 record could not be placed in a day — routine g at ${AT}: the routine's day cannot be read — timezone not recognised: "Mars/Olympus"`);
   assert.equal(stopRecordsFailedWords('x'), 'The stop records could not be read — x');
   assert.doesNotMatch(code(RULES), /\bfetch\b|new Date\(\)|Date\.now\(|@prisma\/client|from 'react'|\.get(Day|Month|Date|FullYear|Hours)\(|new Date\(\s*\w+\s*,/, 'pure, and never the process’s zone');
+  assert.equal((code(RULES).match(/Date\.parse\(/g) ?? []).length, 2, 'Date.parse twice: behind the strict regex, and on the window’s own fixed-format day — never on a caller’s text as given');
 });
 
 // ── T4 · THE MIGRATION AND THE SCHEMA ────────────────────────────────────────
@@ -418,10 +481,11 @@ test('T5 the routes: the caller proven, the day placed by each routine’s zone;
   assert.match(get, /return NextResponse\.json\(\{ day, records, unplaced \}\);/);
   const post = r.slice(r.indexOf('export async function POST('));
   const order = [
-    'getVerifiedEmail()', 'prisma.users.findFirst(', 'stopInput(await request.json())', 'status: 400', 'if (!isValidUuid(v.id)) return NextResponse.json({ error: \'Not found\' }, { status: 404 });',
+    'getVerifiedEmail()', 'prisma.users.findFirst(', 'raw = await request.json();', 'BODY_NOT_JSON_WORDS', 'status: 400', 'const now = new Date();', 'stopInput(raw, now)', 'if (!isValidUuid(v.id)) return NextResponse.json({ error: \'Not found\' }, { status: 404 });',
     "if (v.kind === 'routine_line')", 'prisma.operations_routine_steps.findFirst(', 'routine: { user_id: user.id }', 'if (!step.is_active) return', 'ARCHIVED_LINE_WORDS',
     'prisma.operations_routines.findFirst(', 'where: { id: v.id, user_id: user.id }', 'if (r.steps.length > 0) return', 'LINES_WORDS',
-    'instantToZoned(v.instant, routine.timezone).date', 'routineDay(routine, localDay, new Date())', "if (that.kind === 'refused')", "if (that.kind === 'none')", 'noStopWords(instant, localDay, null)',
+    'if (!routine.is_active) return', 'INACTIVE_ROUTINE_WORDS',
+    'instantToZoned(v.instant, routine.timezone).date', 'routineDay(routine, localDay, now)', "if (that.kind === 'refused')", "if (that.kind === 'none')", 'noStopWords(instant, localDay, null)',
     'if (that.expectedAt.getTime() !== v.instant.getTime())', 'noStopWords(instant, localDay, that.expectedAt.toISOString())',
     'prisma.operations_stop_records.findFirst({ where: { user_id: user.id, routine_id: plan.routine_id, step_id: plan.step_id, occurrence_at: v.instant } })',
     'if (before !== null && unchanged(before, v)) return NextResponse.json({ record: before, changed: false });',
@@ -433,6 +497,8 @@ test('T5 the routes: the caller proven, the day placed by each routine’s zone;
   assert.match(post, /data: \{ user_id: user\.id, routine_id: plan\.routine_id, step_id: plan\.step_id, occurrence_at: v\.instant, \.\.\.data \}/, 'the write is the rule’s answer at the plan’s address');
   assert.match(post, /const data = \{ outcome: v\.outcome, done_at: v\.doneAt, actual_cents: v\.actualCents, rating: v\.rating, note: v\.note, actual_minutes: v\.actualMinutes \};/);
   assert.doesNotMatch(post, /project_task|operations_project_tasks/, 'a task has no record here');
+  assert.equal((post.match(/is_active: true/g) ?? []).length, 4, 'the line’s flag, the routine’s flag in both branches, and the active-lines filter');
+  assert.equal((post.match(/new Date\(\)/g) ?? []).length, 1, 'one clock for the rule and the day');
   // [id]: DELETE by { id, user_id }, the UUID gate before any query, delete then audit before → null.
   const i = code(ROUTE_ID);
   assert.match(i, /export async function DELETE\(/);
@@ -498,6 +564,8 @@ test('T6 the form: under the plate on the step view, for a line or a routine onl
   assert.match(f, /read = centsFromDecimalString\(d\.amount\);/, 'the amount by the Budget’s rule — string arithmetic');
   assert.match(f, /if \(!read\.ok\) return \{ ok: false, message: amountWords\(d\.amount\) \};/);
   assert.match(f, /if \(!\/\^\\d\+\$\/\.test\(d\.minutes\.trim\(\)\)\) return \{ ok: false, message: minutesTypedWords\(d\.minutes\) \};/);
+  assert.match(f, /if \(read\.cents < 0\) return \{ ok: false, message: NEGATIVE_AMOUNT_WORDS \};/, 'a negative amount refused before any request');
+  assert.match(f, /if \(d\.outcome === 'skipped' && note === ''\) return \{ ok: false, message: SKIP_REASON_WORDS \};/, 'a skipped stop without its reason refused before any request');
   assert.equal((f.match(/if \(!answer\.ok\) \{ setWords\(answer\.message\); return; \}/g) ?? []).length, 2, 'a refusal is the route’s own words — on save AND on clear');
   assert.match(f, /if \(r === null \|\| busy \|\| !window\.confirm\(clearStopQuestion\(statusWords\(stop, day\)\)\)\) return;/, 'a clear asks first, in the rules’ words');
   assert.match(f, /if \(busy\) return;\n\s*const read = bodyOf\(d\);/, 'no double submit');
@@ -516,7 +584,7 @@ test('T6 the form: under the plate on the step view, for a line or a routine onl
   assert.match(c, /<StopForm key=\{`\$\{focus\.stop\.key\}:\$\{focus\.stop\.record === null \? 'none' : focus\.stop\.record\.id\}`\} stop=\{focus\.stop\} day=\{day\} onChanged=\{\(\) => setRecordReads\(\(n\) => n \+ 1\)\} \/>/);
   assert.ok(c.indexOf('data-day-card') < c.indexOf('<StopForm'), 'the form sits under the plate');
   assert.ok(c.indexOf('<StopForm') < c.indexOf('data-day-foot'), '— above the sentences');
-  assert.match(c, /\{loaded && focus !== null && focus\.stop\.address !== null && \(/, 'on the step view, for a stop that has an address');
+  assert.match(c, /\{loaded && recordsOk && focus !== null && focus\.stop\.address !== null && \(/, 'on the step view, for a stop that has an address — never while the records could not be read');
   assert.match(c, /data-day-spent>\{spentLineWords\(result\.spentCents, result\.withoutActual, result\.done, dayFailed \? null : N\)\}/, 'the spent line under the hook');
   assert.match(c, /data-day-status>\{statusWords\(focus\.stop, day\)\}/);
   assert.match(c, /data-day-actual>\{planDollars\(focus\.stop\.actualCents\)\}/);

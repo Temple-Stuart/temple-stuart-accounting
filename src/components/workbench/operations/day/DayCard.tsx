@@ -329,8 +329,8 @@ export default function DayCard() {
         )}
       </div>
 
-      {/* STOP-01: the record, typed under the plate on the step view — outside the recorded box; a write reads the records again. Keyed by the stop and its record so each starts from what is held. */}
-      {loaded && focus !== null && focus.stop.address !== null && (
+      {/* STOP-01: the record, typed under the plate on the step view — outside the recorded box; a write reads the records again. Keyed by the stop and its record so each starts from what is held; never offered while the records could not be read (a save would write over a record the screen cannot see). */}
+      {loaded && recordsOk && focus !== null && focus.stop.address !== null && (
         <StopForm key={`${focus.stop.key}:${focus.stop.record === null ? 'none' : focus.stop.record.id}`} stop={focus.stop} day={day} onChanged={() => setRecordReads((n) => n + 1)} />
       )}
 

@@ -121,12 +121,30 @@ export type StopInputResult =
 
 const refuse = (field: StopField, message: string): StopInputResult => ({ ok: false, field, message });
 
-/** An ISO instant, or null for anything that is not one. */
-function instantOf(raw: unknown): Date | null {
-  if (typeof raw !== 'string' || raw.trim() === '') return null;
+/**
+ * An ISO 8601 instant with its offset stated — 'YYYY-MM-DDTHH:MM[:SS[.sss]]Z'
+ * or '±HH:MM' — a four-digit year, and a real date (the round trip through the
+ * Date must land on the same calendar fields). Date.parse alone would read a
+ * zone-less 'YYYY-MM-DDTHH:MM' in the PROCESS's zone and accept 'Oct 11 2026'
+ * and six-digit years; none of those is an instant the card wrote.
+ */
+const INSTANT_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?(Z|[+-]\d{2}:\d{2})$/;
+export function instantOf(raw: unknown): Date | null {
+  if (typeof raw !== 'string') return null;
+  const m = INSTANT_RE.exec(raw);
+  if (m === null || m[1] === '0000') return null; // there is no year 0 (Postgres refuses it)
   const ms = Date.parse(raw);
-  return Number.isFinite(ms) ? new Date(ms) : null;
+  if (!Number.isFinite(ms)) return null;
+  const d = new Date(ms);
+  // The calendar fields as written must survive the round trip (Feb 30 would roll to Mar 2; 25:00 is refused by Date.parse already).
+  const offsetMin = m[8] === 'Z' ? 0 : (m[8].startsWith('-') ? -1 : 1) * (Number(m[8].slice(1, 3)) * 60 + Number(m[8].slice(4, 6)));
+  const local = new Date(ms + offsetMin * 60_000);
+  if (local.getUTCFullYear() !== Number(m[1]) || local.getUTCMonth() + 1 !== Number(m[2]) || local.getUTCDate() !== Number(m[3]) || local.getUTCHours() !== Number(m[4]) || local.getUTCMinutes() !== Number(m[5])) return null;
+  return d;
 }
+
+/** A done-at may run ahead of the server's clock by this much (the browser's clock is the user's) — never further into the future. */
+export const DONE_AT_SKEW_MS = 10 * 60_000;
 
 /** absent and null both mean "not given". */
 const given = (raw: unknown): boolean => raw !== undefined && raw !== null;
@@ -141,7 +159,7 @@ const given = (raw: unknown): boolean => raw !== undefined && raw !== null;
  * when skipped; actual_minutes 0–1440 or absent. The first bad field is named;
  * nothing is filled in.
  */
-export function stopInput(body: unknown): StopInputResult {
+export function stopInput(body: unknown, now: Date): StopInputResult {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
     return refuse('kind', 'the body must be an object with kind, id, instant and outcome');
   }
@@ -156,6 +174,7 @@ export function stopInput(body: unknown): StopInputResult {
   if (b.outcome === 'done') {
     doneAt = instantOf(b.done_at);
     if (doneAt === null) return refuse('done_at', `done_at ${JSON.stringify(b.done_at)} is not an ISO instant — a done stop says when`);
+    if (doneAt.getTime() > now.getTime() + DONE_AT_SKEW_MS) return refuse('done_at', `done_at ${doneAt.toISOString()} is in the future`);
   } else if (given(b.done_at)) {
     return refuse('done_at', 'a skipped stop has no done_at');
   }
@@ -179,12 +198,13 @@ export function stopInput(body: unknown): StopInputResult {
   if (given(b.note)) {
     if (typeof b.note !== 'string') return refuse('note', 'note must be a string');
     const n = b.note.trim().replace(/\s+/g, ' ');
+    // C0 and C1 controls, and a surrogate half with no partner (not UTF-8 — the database would refuse it).
     // eslint-disable-next-line no-control-regex
-    if (/[\u0000-\u001f\u007f]/.test(n)) return refuse('note', 'control characters are not a note');
+    if (/[\u0000-\u001f\u007f-\u009f]/.test(n) || /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/.test(n)) return refuse('note', 'control characters are not a note');
     if (n.length > NOTE_MAX) return refuse('note', `note is at most ${NOTE_MAX} characters (${n.length} given)`);
     note = n === '' ? null : n;
   }
-  if (b.outcome === 'skipped' && note === null) return refuse('note', 'a skipped stop needs its reason (note)');
+  if (b.outcome === 'skipped' && note === null) return refuse('note', SKIP_REASON_WORDS);
 
   let actualMinutes: number | null = null;
   if (given(b.actual_minutes)) {
@@ -252,6 +272,9 @@ export const minutesWords = (minutes: number): string => `${minutes} min`;
 /** The route's refusals, by name. */
 export const LINES_WORDS = 'the routine has lines — record each line, not the routine';
 export const ARCHIVED_LINE_WORDS = 'the line is archived — it has no stop';
+export const INACTIVE_ROUTINE_WORDS = 'the routine is inactive — it has no stop';
+export const SKIP_REASON_WORDS = 'a skipped stop needs its reason (note)';
+export const BODY_NOT_JSON_WORDS = 'the body is not JSON';
 export const RACE_WORDS = (instant: string): string => `a record at ${instant} was written moments ago — read the day again`;
 export const noStopWords = (instant: string, day: string, thatDays: string | null): string =>
   (thatDays === null ? `no stop at ${instant} — the routine has no stop on ${day}` : `no stop at ${instant} — on ${day} the routine's stop is at ${thatDays}`);
@@ -262,4 +285,5 @@ export const clearStopQuestion = (what: string): string => `Clear this stop's re
 /** The form's own refusals, before any request. */
 export const WHEN_WORDS = 'say when it was done (HH:MM)';
 export const amountWords = (typed: string): string => `${JSON.stringify(typed)} is not an amount (dollars, at most two decimals)`;
+export const NEGATIVE_AMOUNT_WORDS = 'an amount is 0 or more';
 export const minutesTypedWords = (typed: string): string => `${JSON.stringify(typed)} is not a number of minutes`;

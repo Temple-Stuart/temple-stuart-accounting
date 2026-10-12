@@ -13,9 +13,10 @@
  *      written, nothing audited). Read by the one rule (stopInput — a 400 names
  *      the first bad field). The plan is the caller's own — a line by its
  *      routine's user, a routine by its user; an id that is no UUID, another
- *      user's plan and a missing one get the same 404. An archived line and a
- *      routine that has lines are refused by name (400): neither is a stop the
- *      card shows. The instant must be THE stop of that routine on its local
+ *      user's plan and a missing one get the same 404. An archived line, an
+ *      inactive routine and a routine that has lines are refused by name (400):
+ *      none is a stop the card shows (the today read lists active routines
+ *      only). A body that is not JSON is a 400. The instant must be THE stop of that routine on its local
  *      day — routineDay, the today read's own rule — else 400 naming the
  *      instant the day's stop is at (or that there is none). The partial unique
  *      index is the backstop for a race between two creates, answered 409.
@@ -35,7 +36,7 @@ import { isIsoDay } from '@/lib/budget/days';
 import { isValidUuid } from '@/lib/operations/parseUuid';
 import { routineDay } from '@/lib/operations/routineDay';
 import {
-  ARCHIVED_LINE_WORDS, LINES_WORDS, RACE_WORDS, noStopWords, planOf, recordWindow, refusedWords, stopInput, stopRecordRowOf, unchanged,
+  ARCHIVED_LINE_WORDS, BODY_NOT_JSON_WORDS, INACTIVE_ROUTINE_WORDS, LINES_WORDS, RACE_WORDS, noStopWords, planOf, recordWindow, refusedWords, stopInput, stopRecordRowOf, unchanged,
   type StopRecordRow,
 } from '@/lib/operations/stopRecord';
 import { instantToZoned } from '@/lib/time';
@@ -88,17 +89,24 @@ export async function POST(request: NextRequest) {
     const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const read = stopInput(await request.json());
+    let raw: unknown;
+    try {
+      raw = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Validation', field: 'kind', message: BODY_NOT_JSON_WORDS }, { status: 400 });
+    }
+    const now = new Date();
+    const read = stopInput(raw, now);
     if (!read.ok) return NextResponse.json({ error: 'Validation', field: read.field, message: read.message }, { status: 400 });
     const v = read.value;
     // The plan is the caller's own — an id that is no UUID, another user's plan and a missing one get the same 404 (nothing reaches Prisma malformed).
     if (!isValidUuid(v.id)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    let routine: { id: string; name: string; timezone: string; schedule_rrule: string; start_date: Date | null; end_date: Date | null };
+    let routine: { id: string; name: string; timezone: string; schedule_rrule: string; start_date: Date | null; end_date: Date | null; is_active: boolean };
     if (v.kind === 'routine_line') {
       const step = await prisma.operations_routine_steps.findFirst({
         where: { id: v.id, routine: { user_id: user.id } },
-        select: { id: true, is_active: true, routine: { select: { id: true, name: true, timezone: true, schedule_rrule: true, start_date: true, end_date: true } } },
+        select: { id: true, is_active: true, routine: { select: { id: true, name: true, timezone: true, schedule_rrule: true, start_date: true, end_date: true, is_active: true } } },
       });
       if (!step) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       if (!step.is_active) return NextResponse.json({ error: 'Validation', field: 'id', message: ARCHIVED_LINE_WORDS }, { status: 400 });
@@ -106,12 +114,14 @@ export async function POST(request: NextRequest) {
     } else {
       const r = await prisma.operations_routines.findFirst({
         where: { id: v.id, user_id: user.id },
-        select: { id: true, name: true, timezone: true, schedule_rrule: true, start_date: true, end_date: true, steps: { where: { is_active: true }, select: { id: true }, take: 1 } },
+        select: { id: true, name: true, timezone: true, schedule_rrule: true, start_date: true, end_date: true, is_active: true, steps: { where: { is_active: true }, select: { id: true }, take: 1 } },
       });
       if (!r) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       if (r.steps.length > 0) return NextResponse.json({ error: 'Validation', field: 'id', message: LINES_WORDS }, { status: 400 });
       routine = r;
     }
+    // The today read lists active routines only — an inactive one has no stop on the card, so no record either.
+    if (!routine.is_active) return NextResponse.json({ error: 'Validation', field: 'id', message: INACTIVE_ROUTINE_WORDS }, { status: 400 });
 
     // The instant is THE stop of this routine on its local day — the today read's rule, nothing nearer.
     const instant = v.instant.toISOString();
@@ -121,7 +131,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       return NextResponse.json({ error: 'Validation', field: 'instant', message: refusedWords('timezone not recognised', `${JSON.stringify(routine.timezone)}: ${messageOf(error)}`) }, { status: 400 });
     }
-    const that = routineDay(routine, localDay, new Date());
+    const that = routineDay(routine, localDay, now);
     if (that.kind === 'refused') return NextResponse.json({ error: 'Validation', field: 'instant', message: refusedWords(that.reason, that.detail) }, { status: 400 });
     if (that.kind === 'none') return NextResponse.json({ error: 'Validation', field: 'instant', message: noStopWords(instant, localDay, null) }, { status: 400 });
     if (that.expectedAt.getTime() !== v.instant.getTime()) {

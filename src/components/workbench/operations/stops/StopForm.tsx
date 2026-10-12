@@ -20,7 +20,7 @@
 
 import { useState } from 'react';
 import { centsFromDecimalString } from '@/lib/budget/days';
-import { RATING_WORDS, WHEN_WORDS, amountWords, clearStopQuestion, minutesTypedWords, type StopOutcome } from '@/lib/operations/stopRecord';
+import { NEGATIVE_AMOUNT_WORDS, RATING_WORDS, SKIP_REASON_WORDS, WHEN_WORDS, amountWords, clearStopQuestion, minutesTypedWords, type StopOutcome } from '@/lib/operations/stopRecord';
 import { instantToZoned, zonedToInstant } from '@/lib/time';
 import { statusWords, type Stop } from '../day/dayCard';
 import { clearStopRecord, setStopRecord, type StopBody } from './stopWrites';
@@ -82,6 +82,7 @@ export default function StopForm({ stop, day, onChanged }: { stop: Stop; day: st
         return { ok: false, message: amountWords(d.amount) };
       }
       if (!read.ok) return { ok: false, message: amountWords(d.amount) };
+      if (read.cents < 0) return { ok: false, message: NEGATIVE_AMOUNT_WORDS };
       actualCents = read.cents;
     }
     let actualMinutes: number | null = null;
@@ -90,6 +91,7 @@ export default function StopForm({ stop, day, onChanged }: { stop: Stop; day: st
       actualMinutes = Number(d.minutes.trim());
     }
     const note = d.note.trim();
+    if (d.outcome === 'skipped' && note === '') return { ok: false, message: SKIP_REASON_WORDS };
     return {
       ok: true,
       body: { kind: address.kind, id: address.id, instant: address.instant, outcome: d.outcome, done_at: doneAt, actual_cents: actualCents, rating: d.rating, note: note === '' ? null : note, actual_minutes: actualMinutes },

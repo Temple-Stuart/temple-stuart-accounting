@@ -273,10 +273,14 @@ function recorded(
     actualCents: record.actual_cents,
     actualSource: record.actual_cents === null ? null : 'typed',
     doneAt: at === null ? null : { day: at.date, time: at.time },
-    lateMinutes: done === null ? null : Math.round((done.getTime() - plannedInstant.getTime()) / 60_000),
+    // Whole minutes, as the clocks print them: 07:30:40 against 07:30 is on time, not "1 min late".
+    lateMinutes: done === null ? null : (toMinute(done) - toMinute(plannedInstant)) / 60_000,
     actualMinutes: record.actual_minutes,
   };
 }
+
+/** An instant floored to its minute, in ms. */
+const toMinute = (d: Date): number => Math.floor(d.getTime() / 60_000) * 60_000;
 
 /** The day's stops, their amounts from the Budget's lines, and everything the card must name. */
 export function dayStops(input: DayCardInput): DayStops {
@@ -354,8 +358,9 @@ export function dayStops(input: DayCardInput): DayStops {
     const line = item.task_id === null
       ? null
       : matchLine(dayLines.filter((l) => l.address.kind === 'project_task' && l.address.id === item.task_id), null, label, null, used, unmatched);
-    // A task's record is the task: its status, its own actual and minutes (one fact, one home).
+    // A task's record is the task: its status, its own actual, minutes and completed-at (one fact, one home) — the clock in the viewer's zone, as its block.
     const actualCents = item.task === null ? null : taskCents(item.task.actual_cost_usd, `task ${item.task.id} actual_cost_usd`);
+    const completed = item.task !== null && item.task.status === 'completed' && item.task.completed_at !== null ? instantToZoned(new Date(item.task.completed_at), input.viewerZone) : null;
     push({
       kind: 'task',
       key: `task:${item.id}`,
@@ -372,7 +377,8 @@ export function dayStops(input: DayCardInput): DayStops {
       record: null,
       actualCents,
       actualSource: actualCents === null ? null : 'task',
-      doneAt: null,
+      doneAt: completed === null ? null : { day: completed.date, time: completed.time },
+      // A task's block is when it was planned to start, its completed-at when it was marked done — no lateness is drawn between the two.
       lateMinutes: null,
       actualMinutes: item.task === null ? null : item.task.actual_minutes,
     });
@@ -498,13 +504,17 @@ export const skippedCountWords = (n: number): string => `${n} ${SKIPPED_WORD}`;
  * otherwise "open" / "later".
  */
 export function statusWords(stop: Stop, day: string): string {
+  const when = stop.doneAt === null ? null : stop.doneAt.day === day ? stop.doneAt.time : `${monthDayWords(stop.doneAt.day)} ${stop.doneAt.time}`;
   if (stop.statusSource === 'record') {
-    if (stop.status === 'skipped') return skippedWords(stop.record !== null && stop.record.note !== null ? stop.record.note : '');
-    if (stop.doneAt === null) throw new Error(`dayCard: ${stop.key} is done by its record but has no done-at`);
-    const when = stop.doneAt.day === day ? stop.doneAt.time : `${monthDayWords(stop.doneAt.day)} ${stop.doneAt.time}`;
+    if (stop.status === 'skipped') {
+      // A skipped record carries its reason (the migration's CHECK) — one without is the database's error, never a blank.
+      if (stop.record === null || stop.record.note === null) throw new Error(`dayCard: ${stop.key} is skipped by its record but carries no reason`);
+      return skippedWords(stop.record.note);
+    }
+    if (when === null) throw new Error(`dayCard: ${stop.key} is done by its record but has no done-at`);
     return stop.lateMinutes === null ? doneWords(when) : `${doneWords(when)} · ${lateWords(stop.lateMinutes)}`;
   }
-  if (stop.statusSource === 'task') return stop.status === 'done' ? TASK_DONE_WORDS : TASK_OPEN_WORDS;
+  if (stop.statusSource === 'task') return stop.status === 'done' ? (when === null ? TASK_DONE_WORDS : `${TASK_DONE_WORDS} ${when}`) : TASK_OPEN_WORDS;
   if (stop.status === 'done') return ROUTINE_DONE_WORDS;
   if (stop.status === 'missed') return ROUTINE_MISSED_WORDS;
   return stop.status === 'later' ? LATER_WORD : OPEN_WORD;
@@ -522,7 +532,7 @@ export function minutesLine(planned: number | null, actual: number | null): stri
 /** The sentence under the plate for records whose key matches no stop. */
 export const recordsWithoutStopWords = (list: readonly StopRecordRow[]): string => {
   const head = list.length === 1 ? '1 record of the day matches no stop' : `${list.length} records of the day match no stop`;
-  return `${head} — ${list.map((r) => `${r.kind} ${r.target_id} at ${r.occurrence_at}: ${r.outcome}${r.actual_cents === null ? '' : `, ${formatCents(r.actual_cents)}`} (the line is archived, or its routine's schedule moved)`).join(' · ')}`;
+  return `${head} — ${list.map((r) => `${r.kind} ${r.target_id} at ${r.occurrence_at}: ${r.outcome}${r.actual_cents === null ? '' : `, ${formatCents(r.actual_cents)}`}`).join(' · ')}`;
 };
 
 /** The sentence under the plate for records the route could not place in a day. */
