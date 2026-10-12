@@ -3697,6 +3697,12 @@ model operations_routines {
   // only genuinely new column. No DB change for coa_code.
   budget_amount                 Decimal?  @db.Decimal(12, 2)
   coa_code                      String?   @db.VarChar(50)
+  // ROLE-01 (2026-10-13): what kind of stop this routine is on the day card —
+  // 'journal' | 'plan' | 'execute' | 'place' | 'all_day' | 'none' (the migration's
+  // CHECK; the one rule src/lib/operations/stopRole.ts). It decides what the step
+  // card asks; 'all_day' is in the day's plan but not a stop. A line takes its
+  // routine's role. NOT NULL, default 'none' — no row rewritten.
+  role                          String    @default("none") @db.VarChar(10)
   created_at                    DateTime  @default(now()) @db.Timestamptz(6)
   updated_at                    DateTime  @updatedAt @db.Timestamptz(6)
   created_by                    String?

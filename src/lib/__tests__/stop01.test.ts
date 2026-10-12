@@ -68,7 +68,7 @@ const routine = (over: Partial<Routine> & { id: string; name: string }): Routine
   next_due_at: null, last_evaluated_at: null, last_completed_at: null, consecutive_completion_streak: 0, consecutive_miss_streak: 0,
   ideal_time_label: null, fail_threshold_minutes: 30, start_date: null, end_date: null, start_time: null, end_time: null, is_active: true,
   created_at: '2026-09-01T00:00:00.000Z', updated_at: '2026-09-01T00:00:00.000Z', created_by: null, budget_amount: null, coa_code: null,
-  location: null, steps: [], ...over,
+  location: null, steps: [], role: 'none', ...over,
 });
 const entry = (r: Routine, status: TodayStatus = 'pending', expected_at: string = AT): TodayRoutineEntry => ({ routine: r, expected_at, status, completion: null });
 const line = (over: Partial<PlanLine> & { address: PlanLine['address']; cents: number; label: string }): PlanLine => ({
@@ -266,7 +266,7 @@ test('T2 a line with a record of its own takes its status, actual, done-at, late
 
 test('T2 a task’s actual is the task’s own; the records not read → every record field null and the sums unknown; two records at one key is the database’s error', () => {
   const t = dayStops(input({ items: [item({ id: 'i1', task_id: 't1', task: task('t1', 'Ship it', 'completed', '12.50', 25) })], records: [] })).stops[0];
-  assert.deepEqual([t.status, t.statusSource, t.actualCents, t.actualSource, t.actualMinutes, t.record, t.address, t.zone, t.doneAt, t.lateMinutes], ['done', 'task', 1250, 'task', 25, null, null, null, null, null]);
+  assert.deepEqual([t.status, t.statusSource, t.actualCents, t.actualSource, t.actualMinutes, t.record, t.address, t.zone, t.doneAt, t.lateMinutes, t.role, t.planLine, t.planLineState], ['done', 'task', 1250, 'task', 25, null, null, null, null, null, 'none', null, 'none']);
   assert.equal(statusWords(t, DAY), TASK_DONE_WORDS, 'completed with no completed_at: the word alone');
   // The task's own completed_at is its done-at, drawn in the VIEWER's zone (as its block's time); no lateness is drawn for a task.
   const done = dayStops(input({ viewerZone: 'America/Los_Angeles', items: [item({ id: 'i1', task_id: 't1', task: { ...task('t1', 'Ship it', 'completed'), completed_at: '2026-10-11T21:05:00.000Z' }, calendar_blocks: [block('2026-10-11T20:00:00.000Z')] })], records: [] })).stops[0];
@@ -425,7 +425,9 @@ test('T4 the migration: the table with its CHECKs, three cascades, two partial u
   assert.doesNotMatch(sql, /DROP |task_id/, 'no task column — a task’s record is the task');
   assert.match(comments(MIGRATION), /AUTHORED here, applied at deploy/);
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 1], MIGRATION_DIR, 'the newest migration');
+  // ROLE-01 (2026-10-13): the role migration is newer — this one is the one before it. The pin moved; the order holds.
+  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the migration before the newest (ROLE-01 followed)');
+  assert.equal(dirs[dirs.length - 1], '20261013030000_role_01_routine_role', 'the newest migration');
   assert.ok(MIGRATION_DIR.slice(0, 14) > '20261012090000', 'after STAY-01’s');
 });
 
@@ -485,7 +487,7 @@ test('T5 the routes: the caller proven, the day placed by each routine’s zone;
     'getVerifiedEmail()', 'prisma.users.findFirst(', 'raw = await request.json();', 'BODY_NOT_JSON_WORDS', 'status: 400', 'const now = new Date();', 'stopInput(raw, now)', 'if (!isValidUuid(v.id)) return NextResponse.json({ error: \'Not found\' }, { status: 404 });',
     "if (v.kind === 'routine_line')", 'prisma.operations_routine_steps.findFirst(', 'routine: { user_id: user.id }', 'if (!step.is_active) return', 'ARCHIVED_LINE_WORDS',
     'prisma.operations_routines.findFirst(', 'where: { id: v.id, user_id: user.id }', 'if (r.steps.length > 0) return', 'LINES_WORDS',
-    'if (!routine.is_active) return', 'INACTIVE_ROUTINE_WORDS',
+    'if (!routine.is_active) return', 'INACTIVE_ROUTINE_WORDS', 'if (!isStopRole(routine.role)) throw', 'if (!isStop(routine.role)) return', 'NOT_A_STOP_RECORD_WORDS',
     'instantToZoned(v.instant, routine.timezone).date', 'routineDay(routine, localDay, now)', "if (that.kind === 'refused')", "if (that.kind === 'none')", 'noStopWords(instant, localDay, null)',
     'if (that.expectedAt.getTime() !== v.instant.getTime())', 'noStopWords(instant, localDay, that.expectedAt.toISOString())',
     'prisma.operations_stop_records.findFirst({ where: { user_id: user.id, routine_id: plan.routine_id, step_id: plan.step_id, occurrence_at: v.instant } })',
@@ -499,6 +501,7 @@ test('T5 the routes: the caller proven, the day placed by each routine’s zone;
   assert.match(post, /const data = \{ outcome: v\.outcome, done_at: v\.doneAt, actual_cents: v\.actualCents, rating: v\.rating, note: v\.note, actual_minutes: v\.actualMinutes \};/);
   assert.doesNotMatch(post, /project_task|operations_project_tasks/, 'a task has no record here');
   assert.equal((post.match(/is_active: true/g) ?? []).length, 4, 'the line’s flag, the routine’s flag in both branches, and the active-lines filter');
+  assert.equal((post.match(/role: true/g) ?? []).length, 2, 'the routine’s role read in both branches (ROLE-01: an all-day routine takes no record)');
   assert.equal((post.match(/new Date\(\)/g) ?? []).length, 1, 'one clock for the rule and the day');
   // [id]: DELETE by { id, user_id }, the UUID gate before any query, delete then audit before → null.
   const i = code(ROUTE_ID);
@@ -582,7 +585,7 @@ test('T6 the form: under the plate on the step view, for a line or a routine onl
   assert.match(c, /const loaded = dayRead !== null && report !== null && items !== null && recordsRead !== null;/, 'the plate waits for the records too');
   assert.doesNotMatch(c, /setRecords\(null\)/, 'a re-read never blanks the plate first');
   assert.match(c, /dayStops\(\{ day, entries, lines, notPlaced, items: dayItems, viewerZone: zone, records: recordRows \}\)/);
-  assert.match(c, /<StopForm key=\{`\$\{focus\.stop\.key\}:\$\{focus\.stop\.record === null \? 'none' : focus\.stop\.record\.id\}`\} stop=\{focus\.stop\} day=\{day\} onChanged=\{\(\) => setRecordReads\(\(n\) => n \+ 1\)\} \/>/);
+  assert.match(c, /<StopForm key=\{`\$\{focus\.stop\.key\}:\$\{focus\.stop\.record === null \? 'none' : focus\.stop\.record\.id\}`\} stop=\{focus\.stop\} day=\{day\} bookName=\{focus\.stop\.planLine === null \? ACCOUNT_CELL_WORDS\.bookNotLoaded : bookNameOf\(focus\.stop\.planLine\.entityId\)\} reportRead=\{reportRead\} onChanged=\{\(\) => setRecordReads\(\(n\) => n \+ 1\)\} onPlanChanged=\{\(\) => setReportReads\(\(n\) => n \+ 1\)\} \/>/, 'keyed by the stop and its record; the book by name from the report, whether the report was read, and the report re-read for the vendor box (ROLE-01)');
   assert.ok(c.indexOf('data-day-card') < c.indexOf('<StopForm'), 'the form sits under the plate');
   assert.ok(c.indexOf('<StopForm') < c.indexOf('data-day-foot'), '— above the sentences');
   assert.match(c, /\{loaded && recordsOk && focus !== null && focus\.stop\.address !== null && \(/, 'on the step view, for a stop that has an address — never while the records could not be read');
@@ -600,7 +603,7 @@ test('T6 the form: under the plate on the step view, for a line or a routine onl
   assert.doesNotMatch(code(CARD_RULES), /sum \+ \(s\.actualCents === null \? 0/, 'an unknown is never summed as zero');
   assert.match(code(CARD_RULES), /stops\.map\(\(s\) => s\.actualCents\)\.filter\(\(c\): c is number => c !== null\)\.reduce/, 'the sum is over the actuals that exist');
   // A Stop carries what the form and the plate need, nothing the lines law forbids the day folder.
-  const keys: (keyof Stop)[] = ['kind', 'key', 'time', 'label', 'line', 'place', 'minutes', 'cents', 'status', 'statusSource', 'address', 'zone', 'record', 'actualCents', 'actualSource', 'doneAt', 'lateMinutes', 'actualMinutes'];
+  const keys: (keyof Stop)[] = ['kind', 'key', 'time', 'label', 'line', 'place', 'minutes', 'cents', 'status', 'statusSource', 'role', 'planLine', 'planLineState', 'address', 'zone', 'record', 'actualCents', 'actualSource', 'doneAt', 'lateMinutes', 'actualMinutes'];
   const sample = dayStops(input({ entries: [entry(morning)], records: [coffeeDone] })).stops[0];
   assert.deepEqual(Object.keys(sample).sort(), [...keys].sort());
 });

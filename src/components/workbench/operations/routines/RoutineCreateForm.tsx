@@ -33,6 +33,7 @@
 
 'use client';
 
+import { ROLE_FIELD_WORDS, ROLE_WORDS, STOP_ROLES, type StopRole } from '@/lib/operations/stopRole';
 import { useEffect, useState } from 'react';
 import RRULEBuilder from './RRULEBuilder';
 import type { RoutineForm } from './types';
@@ -183,6 +184,19 @@ export default function RoutineCreateForm({ entities, defaultEntityId, onCreated
             className={inputClass}
             placeholder="what does this routine accomplish?"
           />
+        </div>
+        <div className="col-span-2">
+          <div className={labelClass}>{ROLE_FIELD_WORDS}</div>
+          <select
+            value={createForm.role}
+            onChange={(e) => setCreateForm({ ...createForm, role: e.target.value as StopRole })}
+            className={inputClass}
+            data-routine-role
+          >
+            {STOP_ROLES.map((r) => (
+              <option key={r} value={r}>{ROLE_WORDS[r]}</option>
+            ))}
+          </select>
         </div>
         <div>
           <div className={labelClass}>entity</div>

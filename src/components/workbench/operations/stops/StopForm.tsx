@@ -4,10 +4,22 @@
  * Under the day card's plate on the step view, outside the recorded box: for a
  * line or a stepless routine, "✓ done now" (one tap: done at this moment, saved
  * at once with whatever else is typed), "skipped" (with its reason), the done
- * time in the routine's zone, the amount in dollars, the rating 1–5 (the rubric
- * in src/lib/operations/stopRecord.ts RATING_WORDS), the minutes, a note; save;
- * clear when a record exists. A task has no form here — its record is the task
- * (the Tasks tab). Every write goes through the one writer (stopWrites.ts) and
+ * time in the routine's zone; then WHAT THE STOP'S ROLE ASKS (ROLE-01,
+ * src/lib/operations/stopRole.ts): a PLACE stop asks for its vendor (Budget's
+ * own vendor box on the matched plan line — a line with no amount has no vendor
+ * to plan), the amount paid, the stars (the rubric in stopRecord.ts
+ * RATING_WORDS), and "why" only once the amount differs from the plan; a WORK
+ * stop (journal · plan · execute) asks for the minutes and one line, prompted
+ * by its role ("finished up to here"); a stop with no role set asks everything,
+ * as before. A field the role does not ask is still SHOWN whenever the held
+ * record carries a value for it (a record written before the role was set, an
+ * amount corrected back to the plan after a "why" was typed) — so it can be
+ * read and corrected; a field neither asked nor shown is sent as null, never
+ * carried along unseen. Save; clear when a record exists. A task has no form
+ * here — its record is the task (the Tasks tab). Every RECORD write goes
+ * through the one writer (stopWrites.ts); the vendor is planned through
+ * Budget's own box (budget/DayPlanDrill.tsx VendorBox, its own writer), mounted
+ * for a place stop only (PlaceVendor) so the directory is read only there, and
  * the route's refusal is shown in its own words under the form; after a write
  * the caller reads the records again — never an optimistic copy. The caller
  * keys this form by the stop AND its record, so another stop (‹ step ›), a
@@ -21,7 +33,9 @@
 import { useState } from 'react';
 import { centsFromDecimalString } from '@/lib/budget/days';
 import { NEGATIVE_AMOUNT_WORDS, RATING_WORDS, SKIP_REASON_WORDS, WHEN_WORDS, amountWords, clearStopQuestion, minutesTypedWords, type StopOutcome } from '@/lib/operations/stopRecord';
+import { NOTE_PROMPT_WORDS, NO_AMOUNT_NO_VENDOR_WORDS, REPORT_NOT_READ_NO_VENDOR_WORDS, UNMATCHED_NO_VENDOR_WORDS, VENDOR_LABEL_WORDS, type StopRole } from '@/lib/operations/stopRole';
 import { instantToZoned, zonedToInstant } from '@/lib/time';
+import { VendorBox, useDirectory } from '@/components/budget/DayPlanDrill';
 import { statusWords, type Stop } from '../day/dayCard';
 import { clearStopRecord, setStopRecord, type StopBody } from './stopWrites';
 
@@ -56,7 +70,21 @@ function draftOf(stop: Stop, day: string): Draft {
   };
 }
 
-export default function StopForm({ stop, day, onChanged }: { stop: Stop; day: string; onChanged: () => void }) {
+/** A place stop's vendor: Budget's own box on the matched plan line, or the one reason there is no line to plan on. Mounted for a place stop only. */
+function PlaceVendor({ stop, bookName, reportRead, reload }: { stop: Stop; bookName: string; reportRead: boolean; reload: () => void }) {
+  const directory = useDirectory();
+  const reason = !reportRead ? REPORT_NOT_READ_NO_VENDOR_WORDS : stop.planLineState === 'unmatched' ? UNMATCHED_NO_VENDOR_WORDS : NO_AMOUNT_NO_VENDOR_WORDS;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-xs" data-stop-vendor>
+      <span className="text-text-faint uppercase tracking-wide">{VENDOR_LABEL_WORDS}</span>
+      {stop.planLine !== null && reportRead
+        ? <VendorBox line={stop.planLine} bookName={bookName} directory={directory} reload={reload} />
+        : <span className="text-text-muted" data-stop-no-vendor>{reason}</span>}
+    </div>
+  );
+}
+
+export default function StopForm({ stop, day, bookName, reportRead, onChanged, onPlanChanged }: { stop: Stop; day: string; bookName: string; reportRead: boolean; onChanged: () => void; onPlanChanged: () => void }) {
   const [draft, setDraft] = useState<Draft>(() => draftOf(stop, day));
   const [words, setWords] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -65,6 +93,29 @@ export default function StopForm({ stop, day, onChanged }: { stop: Stop; day: st
   if (stop.address === null || stop.zone === null) return null;
   const address = stop.address;
   const zone = stop.zone;
+  // An all-day line is never a stop, so never this form's — the rule, not a case.
+  if (stop.role === 'all_day') throw new Error(`StopForm: ${stop.key} is an all-day line — it takes no record`);
+  const role: Exclude<StopRole, 'all_day'> = stop.role;
+  // What this stop's role asks for. A place: the amount, the stars, and "why" once the typed amount differs from the plan —
+  // or whenever the plan is unknown (nothing to differ from). A work stop (journal · plan · execute): the minutes and one
+  // line. No role set: everything, as before.
+  const typedCents = ((): number | null => {
+    if (draft.amount.trim() === '') return null;
+    try { const r = centsFromDecimalString(draft.amount); return r.ok ? r.cents : null; } catch { return null; }
+  })();
+  const differs = typedCents !== null && (stop.cents === null || typedCents !== stop.cents);
+  const asks = role === 'place'
+    ? { amount: true, rating: true, minutes: false, note: draft.outcome === 'skipped' || differs }
+    : role === 'none'
+      ? { amount: true, rating: true, minutes: true, note: true }
+      : { amount: false, rating: false, minutes: true, note: true };
+  // A field the role does not ask is shown anyway while it holds a value — read, corrected, or cleared in the open.
+  const shown = {
+    amount: asks.amount || draft.amount !== '',
+    rating: asks.rating || draft.rating !== null,
+    minutes: asks.minutes || draft.minutes !== '',
+    note: asks.note || draft.note !== '',
+  };
 
   /** The body the route reads, or the form's own refusal — nothing guessed. */
   const bodyOf = (d: Draft): { ok: true; body: StopBody } | { ok: false; message: string } => {
@@ -73,8 +124,9 @@ export default function StopForm({ stop, day, onChanged }: { stop: Stop; day: st
       if (!TIME_RE.test(d.doneTime)) return { ok: false, message: WHEN_WORDS };
       doneAt = zonedToInstant(d.doneDay, d.doneTime, zone).toISOString();
     }
+    // Only what is on the screen is sent; a field neither asked nor shown goes as null — never carried along unseen.
     let actualCents: number | null = null;
-    if (d.amount.trim() !== '') {
+    if (shown.amount && d.amount.trim() !== '') {
       let read: ReturnType<typeof centsFromDecimalString>;
       try {
         read = centsFromDecimalString(d.amount);
@@ -86,15 +138,15 @@ export default function StopForm({ stop, day, onChanged }: { stop: Stop; day: st
       actualCents = read.cents;
     }
     let actualMinutes: number | null = null;
-    if (d.minutes.trim() !== '') {
+    if (shown.minutes && d.minutes.trim() !== '') {
       if (!/^\d+$/.test(d.minutes.trim())) return { ok: false, message: minutesTypedWords(d.minutes) };
       actualMinutes = Number(d.minutes.trim());
     }
-    const note = d.note.trim();
+    const note = shown.note ? d.note.trim() : '';
     if (d.outcome === 'skipped' && note === '') return { ok: false, message: SKIP_REASON_WORDS };
     return {
       ok: true,
-      body: { kind: address.kind, id: address.id, instant: address.instant, outcome: d.outcome, done_at: doneAt, actual_cents: actualCents, rating: d.rating, note: note === '' ? null : note, actual_minutes: actualMinutes },
+      body: { kind: address.kind, id: address.id, instant: address.instant, outcome: d.outcome, done_at: doneAt, actual_cents: actualCents, rating: shown.rating ? d.rating : null, note: note === '' ? null : note, actual_minutes: actualMinutes },
     };
   };
 
@@ -149,27 +201,39 @@ export default function StopForm({ stop, day, onChanged }: { stop: Stop; day: st
         {draft.outcome === 'done' && (
           <input type="text" inputMode="numeric" value={draft.doneTime} onChange={(e) => setDraft({ ...draft, doneTime: e.target.value })} placeholder="HH:MM" aria-label={`Done at (${zone})`} className={`${box} w-16 font-mono`} maxLength={5} data-stop-time />
         )}
-        <span className="text-text-muted">$</span>
-        <input type="text" inputMode="decimal" value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} placeholder="paid" aria-label="Amount paid, dollars" className={`${box} w-20 font-mono`} data-stop-amount />
-        <span className="flex items-center" role="group" aria-label="Rating" data-stop-rating={draft.rating === null ? undefined : draft.rating}>
-          {([1, 2, 3, 4, 5] as const).map((n) => (
-            <button
-              type="button"
-              key={n}
-              className={`px-0.5 text-base leading-none ${draft.rating !== null && n <= draft.rating ? 'text-brand-gold' : 'text-text-faint'}`}
-              disabled={busy}
-              title={RATING_WORDS[n]}
-              aria-label={`${n}: ${RATING_WORDS[n]}`}
-              onClick={() => setDraft({ ...draft, rating: draft.rating === n ? null : n })}
-            >★</button>
-          ))}
-        </span>
-        <input type="text" inputMode="numeric" value={draft.minutes} onChange={(e) => setDraft({ ...draft, minutes: e.target.value })} placeholder="min" aria-label="Minutes" className={`${box} w-14 font-mono`} data-stop-minutes />
-        <input type="text" value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} placeholder={draft.outcome === 'skipped' ? 'why — required' : 'note — why the delta'} aria-label="Note" className={`${box} w-56`} maxLength={280} data-stop-note />
+        {shown.amount && (
+          <>
+            <span className="text-text-muted">$</span>
+            <input type="text" inputMode="decimal" value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} placeholder="paid" aria-label="Amount paid, dollars" className={`${box} w-20 font-mono`} data-stop-amount />
+          </>
+        )}
+        {shown.rating && (
+          <span className="flex items-center" role="group" aria-label="Rating" data-stop-rating={draft.rating === null ? undefined : draft.rating}>
+            {([1, 2, 3, 4, 5] as const).map((n) => (
+              <button
+                type="button"
+                key={n}
+                className={`px-0.5 text-base leading-none ${draft.rating !== null && n <= draft.rating ? 'text-brand-gold' : 'text-text-faint'}`}
+                disabled={busy}
+                title={RATING_WORDS[n]}
+                aria-label={`${n}: ${RATING_WORDS[n]}`}
+                onClick={() => setDraft({ ...draft, rating: draft.rating === n ? null : n })}
+              >★</button>
+            ))}
+          </span>
+        )}
+        {shown.minutes && (
+          <input type="text" inputMode="numeric" value={draft.minutes} onChange={(e) => setDraft({ ...draft, minutes: e.target.value })} placeholder="min" aria-label="Minutes" className={`${box} w-14 font-mono`} data-stop-minutes />
+        )}
+        {shown.note && (
+          <input type="text" value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} placeholder={draft.outcome === 'skipped' ? 'why — required' : NOTE_PROMPT_WORDS[role]} aria-label="Note" className={`${box} w-56`} maxLength={280} data-stop-note />
+        )}
         <button type="submit" className={chip} disabled={busy}>save</button>
         {stop.record !== null && <button type="button" className={chip} disabled={busy} onClick={clear} data-stop-clear>clear</button>}
       </form>
       {words !== null && <p className="text-xs text-brand-red" data-stop-words>{words}</p>}
+      {/* ROLE-01: a place stop plans its vendor here — Budget's own box on the matched plan line; a write reads the report again so the plate shows the place. */}
+      {role === 'place' && <PlaceVendor stop={stop} bookName={bookName} reportRead={reportRead} reload={onPlanChanged} />}
     </div>
   );
 }

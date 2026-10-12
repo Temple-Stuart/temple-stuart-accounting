@@ -25,6 +25,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { roleInput } from '@/lib/operations/stopRole';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
@@ -277,6 +278,9 @@ export async function POST(request: NextRequest) {
     const idealTimeLabel = typeof body.ideal_time_label === 'string' && body.ideal_time_label.trim().length > 0
       ? body.ideal_time_label.trim()
       : null;
+    // ROLE-01: what kind of stop this routine is — absent → 'none'; anything else by name.
+    const role = roleInput(body.role);
+    if (!role.ok) return NextResponse.json({ error: 'Validation', field: role.field, message: role.message }, { status: 400 });
 
     // INTAKE-01: the routine's money and every line's, by the one rule (planMoney.ts),
     // against the routine's book — read once, and only when any of them carries money.
@@ -330,6 +334,7 @@ export async function POST(request: NextRequest) {
           timezone: body.timezone,
           ideal_time_label: idealTimeLabel,
           fail_threshold_minutes: failThreshold,
+          role: role.role,
           start_date: startResult.value,
           end_date: endDate,
           start_time: startTimeResult.value,

@@ -19,6 +19,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { roleInput } from '@/lib/operations/stopRole';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
@@ -176,6 +177,13 @@ export async function PATCH(
         );
       }
       data.fail_threshold_minutes = n;
+    }
+
+    // ROLE-01: the role, by name; not sent → untouched.
+    if (body.role !== undefined) {
+      const role = roleInput(body.role);
+      if (!role.ok) return NextResponse.json({ error: 'Validation', field: role.field, message: role.message }, { status: 400 });
+      data.role = role.role;
     }
 
     // INTAKE-01: the per-occurrence budget and its account. Neither key sent → both

@@ -51,6 +51,14 @@
  * THE PLATE WRITES NOTHING: it is a view of what Tasks, Budget and the stop
  * records hold; the form under it is the one way a record is written. Nothing
  * is stored in the browser.
+ *
+ * ROLE-01 (2026-10-13) — the routine's role. A routine whose role is all_day is
+ * in the day's plan (its line is in the hero) but not a stop: it sits in the
+ * plate's "also today" band under the rows, unnumbered, with no record. The
+ * form under the plate asks what the stop's role asks (stops/StopForm.tsx); a
+ * place stop plans its vendor there on its matched plan line, and the plate
+ * reads the report again so the place shows. "tap a stop to record it" sits
+ * under the full plate, outside the recorded box.
  */
 
 'use client';
@@ -66,11 +74,13 @@ import RefusedRoutines from '../routines/RefusedRoutines';
 import { readDay, readItems, type DayAnswer, type Read } from '../week/weekReads';
 import StayBar from '../stays/StayBar';
 import StopForm from '../stops/StopForm';
+import { ACCOUNT_CELL_WORDS } from '@/lib/coa/accountCell';
 import { ratingWords } from '@/lib/operations/stopRecord';
+import { ALSO_TODAY_WORDS, TAP_A_STOP_WORDS, allDayBandWords, allDayCentsWords } from '@/lib/operations/stopRole';
 import { readDayReport, readStays, readStopRecords, type StaysAnswer, type StopRecordsAnswer } from './dayReads';
 import {
   ACTUAL_WORD, BADGE_WORDS, BRAND_WORDS, PLAN_WORD, TASK_WORD, TODAY_WORD, badDateWords, badStepWords, completenessWords, dayStops, deltaWords, focusStop,
-  headerWords, heroWord, hookWords, linesUnreadWords, linesWithoutStopWords, minutesLine, notPlacedWords, planDollars, progressPercent, provenanceWords,
+  bandNameOf, headerWords, heroWord, hookWords, linesUnreadWords, linesWithoutStopWords, minutesLine, notPlacedWords, planDollars, progressPercent, provenanceWords,
   recordsUnplacedWords, recordsWithoutStopWords, routineFigureWords, rowActualWords, soFarWords, spentLineWords, spentSoFarWords, statusWords, stepHeaderWords,
   strandedWords, unmatchedWords, whereWords,
   type StayState, type Stop,
@@ -130,6 +140,8 @@ export default function DayCard() {
   // STOP-01: the records, the same way — kept with their day, read again after a write from the form under the plate.
   const [records, setRecords] = useState<{ readonly day: string; readonly read: Read<StopRecordsAnswer> } | null>(null);
   const [recordReads, setRecordReads] = useState(0);
+  // ROLE-01: the report read again after a vendor is planned from the step card — in place, never blanking the plate first.
+  const [reportReads, setReportReads] = useState(0);
 
   useEffect(() => {
     setToday(localToday());
@@ -148,6 +160,8 @@ export default function DayCard() {
     setDayRead(null);
     setReport(null);
     setItems(null);
+    // ROLE-01: a new day starts its own report read here; the re-read counter goes back to zero so the second effect stays quiet.
+    setReportReads(0);
     (async () => {
       const [d, r, i] = await Promise.all([readDay(day), readDayReport(day, today), readItems(day, day)]);
       if (!live) return;
@@ -177,6 +191,16 @@ export default function DayCard() {
     })();
     return () => { live = false; };
   }, [day, recordReads]);
+
+  useEffect(() => {
+    if (day === null || today === null || reportReads === 0) return;
+    let live = true;
+    (async () => {
+      const r = await readDayReport(day, today);
+      if (live) setReport(r);
+    })();
+    return () => { live = false; };
+  }, [day, today, reportReads]);
 
   if (today === null || zone === null || day === null) {
     return <section className="text-xs text-text-muted" data-day-section>loading the day…</section>;
@@ -211,6 +235,11 @@ export default function DayCard() {
   const bar = progressPercent(plannedCents === null || focus === null ? null : focus.soFarCents, plannedCents);
   const foot = loaded && (result.unmatched.length > 0 || result.routineFigures.length > 0 || result.linesWithoutStop.length > 0 || result.notPlacedToday.length > 0 || stranded.length > 0 || refused.length > 0 || (report !== null && !report.ok) || (plans !== null && !plans.listed) || result.recordsWithoutStop.length > 0 || unplacedRecords.length > 0 || (recordsRead !== null && !recordsRead.ok));
   const delta = focus === null ? null : deltaWords(focus.stop.actualCents, focus.stop.cents);
+  // The matched line's book, by name, from the report's own books — named as not loaded when the report lists none.
+  const bookNameOf = (entityId: string): string => {
+    const book = report !== null && report.ok ? report.value.report.books.find((b) => b.entityId === entityId) : undefined;
+    return book === undefined ? ACCOUNT_CELL_WORDS.bookNotLoaded : book.entityName;
+  };
 
   const go = (href: string) => router.push(href);
   // The stay covering THIS day — unread (in flight, or read for another day), failed, or read (with or without one).
@@ -282,6 +311,18 @@ export default function DayCard() {
               ))}
               {N > 0 && <div className="border-t border-border" aria-hidden="true" />}
             </div>
+            {result.allDay.length > 0 && (
+              <div className="flex flex-col" style={{ gap: 4 }} data-day-all-day>
+                <div className="font-bold text-text-faint" style={{ fontSize: 17, letterSpacing: '0.14em' }}>{ALSO_TODAY_WORDS.toUpperCase()}</div>
+                {result.allDay.map((s) => (
+                  <div key={s.key} className="flex items-baseline justify-between gap-3" data-day-all-day-row={s.key}>
+                    <span className="font-semibold text-text-secondary break-words" style={{ fontSize: 23, lineHeight: 1.1 }}>{bandNameOf(s)}</span>
+                    <span className={`font-bold tabular-nums shrink-0 ${s.cents === null ? 'text-text-faint' : 'text-text-secondary'}`} style={{ fontSize: 23, lineHeight: 1.1 }} data-day-all-day-amount>{planDollars(s.cents)}</span>
+                  </div>
+                ))}
+                <div className="font-medium text-text-muted" style={{ fontSize: 20, lineHeight: 1.2 }} data-day-all-day-words>{allDayBandWords(result.allDay.filter((s) => s.cents === null).length)}</div>
+              </div>
+            )}
             <div className="flex flex-col" style={{ gap: 4 }} data-day-plate-foot>
               {completeness !== null && <div className="font-semibold text-text-secondary" style={{ fontSize: 23, lineHeight: 1.2 }} data-day-count>{completeness}</div>}
               <div className="font-mono font-medium text-text-muted" style={{ fontSize: 20, lineHeight: 1.2 }} data-day-provenance>{provenanceWords(today, reportRead, recordsOk)}</div>
@@ -316,7 +357,7 @@ export default function DayCard() {
               </div>
             </div>
             <div className="flex flex-col border-t border-border" style={{ gap: 8, paddingTop: 13 }}>
-              <div className="font-bold text-text-secondary tabular-nums" style={{ fontSize: 27 }} data-day-so-far>{soFarWords(plannedCents === null ? null : focus.soFarCents, plannedCents)}</div>
+              <div className="font-bold text-text-secondary tabular-nums" style={{ fontSize: 27 }} data-day-so-far>{soFarWords(plannedCents === null ? null : focus.soFarCents, plannedCents)}{plannedCents !== null && result.allDayCents > 0 && <span className="font-medium text-text-muted" data-day-so-far-all-day> · {allDayCentsWords(planDollars(result.allDayCents))}</span>}</div>
               {bar !== null && (
                 <div className="bg-bg-row rounded-full overflow-hidden" style={{ height: 9 }} aria-hidden="true" data-day-progress={bar}>
                   <div className="bg-brand-green rounded-full" style={{ height: 9, width: `${bar}%` }} />
@@ -329,9 +370,12 @@ export default function DayCard() {
         )}
       </div>
 
+      {/* ROLE-01: the record lives on the step view — said under the full plate, outside the recorded box. */}
+      {loaded && focus === null && N > 0 && <p className="mx-auto text-xs text-text-muted" style={{ width: 540 }} data-day-hint>{TAP_A_STOP_WORDS}</p>}
+
       {/* STOP-01: the record, typed under the plate on the step view — outside the recorded box; a write reads the records again. Keyed by the stop and its record so each starts from what is held; never offered while the records could not be read (a save would write over a record the screen cannot see). */}
       {loaded && recordsOk && focus !== null && focus.stop.address !== null && (
-        <StopForm key={`${focus.stop.key}:${focus.stop.record === null ? 'none' : focus.stop.record.id}`} stop={focus.stop} day={day} onChanged={() => setRecordReads((n) => n + 1)} />
+        <StopForm key={`${focus.stop.key}:${focus.stop.record === null ? 'none' : focus.stop.record.id}`} stop={focus.stop} day={day} bookName={focus.stop.planLine === null ? ACCOUNT_CELL_WORDS.bookNotLoaded : bookNameOf(focus.stop.planLine.entityId)} reportRead={reportRead} onChanged={() => setRecordReads((n) => n + 1)} onPlanChanged={() => setReportReads((n) => n + 1)} />
       )}
 
       {/* Under the plate — the sentences that name what the plate counted; only when there is something to say. */}

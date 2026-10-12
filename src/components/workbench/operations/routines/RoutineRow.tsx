@@ -14,6 +14,7 @@
 
 'use client';
 
+import { ROLE_FIELD_WORDS, ROLE_SHORT_WORDS, ROLE_TITLE_WORDS, ROLE_WORDS, STOP_ROLES, type StopRole } from '@/lib/operations/stopRole';
 import { useState } from 'react';
 import type { Routine, RoutineForm } from './types';
 import { DEFAULT_ROUTINE_FORM } from './types';
@@ -54,6 +55,7 @@ function routineToForm(r: Routine): RoutineForm {
     timezone: r.timezone,
     ideal_time_label: r.ideal_time_label ?? '',
     fail_threshold_minutes: String(r.fail_threshold_minutes),
+    role: r.role,
     start_date: r.start_date ? r.start_date.slice(0, 10) : '',
     end_date: r.end_date ? r.end_date.slice(0, 10) : '',
     start_time: r.start_time ? r.start_time.slice(11, 16) : '',
@@ -259,6 +261,7 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete }: Pr
           </span>
         )}
         <span title="fail threshold">fail threshold {routine.fail_threshold_minutes} min</span>
+        {routine.role !== 'none' && <span title={ROLE_TITLE_WORDS} data-routine-role={routine.role}>{ROLE_SHORT_WORDS[routine.role]}</span>}
       </div>
       {/* LINES-01: the figure is the leaf's — the sum of the lines when any
           carries an amount, else the routine-level pair. A lined routine shows
@@ -380,6 +383,19 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete }: Pr
                   rows={2}
                   className={inputClass}
                 />
+              </div>
+              <div className="col-span-2">
+                <div className={labelClass}>{ROLE_FIELD_WORDS}</div>
+                <select
+                  value={form.role}
+                  onChange={(e) => setForm({ ...form, role: e.target.value as StopRole })}
+                  className={inputClass}
+                  data-routine-role-select
+                >
+                  {STOP_ROLES.map((r) => (
+                    <option key={r} value={r}>{ROLE_WORDS[r]}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <div className={labelClass}>entity</div>
