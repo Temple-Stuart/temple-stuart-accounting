@@ -198,6 +198,7 @@ test('T1 rows, keys, the plan columns, unchanged, the window', () => {
   assert.equal(unchanged(coffeeDone, { ...v, rating: 5 }), false, 'a rating-only edit is a change');
   assert.equal(unchanged(coffeeDone, { ...v, actualMinutes: 43 }), false);
   assert.equal(unchanged(coffeeDone, { ...v, outcome: 'skipped', doneAt: null }), false);
+  assert.equal(unchanged(coffeeDone, { ...v, outcome: 'skipped' }), false, 'the outcome alone is a change (unchanged compares, it does not validate)');
   assert.equal(unchanged(coffeeDone, { ...v, rating: null }), false);
   // The window: a local day in any zone — UTC+14 starts it at D−1 10:00Z, UTC−12 ends it at D+1 12:00Z.
   assert.deepEqual(recordWindow('2026-10-11'), { gte: new Date('2026-10-10T10:00:00.000Z'), lt: new Date('2026-10-12T12:00:00.000Z') });
