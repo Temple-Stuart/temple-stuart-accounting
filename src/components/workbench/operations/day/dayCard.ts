@@ -416,7 +416,8 @@ export function dayStops(input: DayCardInput): DayStops {
       time: block === undefined ? null : instantToZoned(new Date(block.scheduled_start), input.viewerZone).time,
       label,
       line: null,
-      vendor: null,
+      // The matched project_task line's vendor, as every stop's (TABLE-01 review): a vendor planned on a task is a fact, never dropped. A task has no step and no routine, so no location.
+      vendor: vendorOf(line),
       location: null,
       minutes: null,
       cents: line === null ? null : line.cents,
@@ -856,17 +857,23 @@ export const BUDGET_HEAD_WORD = 'BUDGET';
 
 const MINUTES_IN_A_DAY = 24 * 60;
 
+/** The days a span's end lies past its start's day — "+1d" after the end's clock; nothing when the end is the same day. */
+export const dayCarryWords = (days: number): string => (days === 0 ? '' : ` +${days}d`);
+
 /**
  * "07:00–07:30" when the stop states a start and a duration — the end is the
- * start plus the minutes, never a default duration (a span past midnight wraps
- * to the clock, "23:45–00:15"); "07:00" when it states a start alone; null when
- * nothing states a time. The dash is the week's (weekPlan.ts timeWindow).
+ * start plus the minutes, never a default duration; "07:00" when it states a
+ * start alone; null when nothing states a time. An end past the start's day
+ * says so: the clock it lands on and the days it carried ("23:45–00:15 +1d";
+ * a day-long step "07:00–07:00 +1d") — the modulo never hides a day (TABLE-01
+ * review). The dash is the week's (weekPlan.ts timeWindow).
  */
 export function intervalWords(time: string | null, minutes: number | null): string | null {
   if (time === null) return null;
   if (minutes === null) return time;
   if (!Number.isInteger(minutes) || minutes < 0) throw new Error(`dayCard: a duration is a whole number of minutes, 0 or more, not ${minutes}`);
   const [h, m] = time.split(':').map(Number);
-  const end = (h * 60 + m + minutes) % MINUTES_IN_A_DAY;
-  return `${time}–${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}`;
+  const total = h * 60 + m + minutes;
+  const end = total % MINUTES_IN_A_DAY;
+  return `${time}–${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}${dayCarryWords(Math.floor(total / MINUTES_IN_A_DAY))}`;
 }

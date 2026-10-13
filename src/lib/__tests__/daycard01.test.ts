@@ -20,7 +20,7 @@ import type { DailyPlanItem } from '@/components/workbench/operations/dailyplan/
 import type { Routine, RoutineStep, TodayRoutineEntry, TodayStatus } from '@/components/workbench/operations/routines/types';
 import {
   BADGE_WORDS, BRAND_WORDS, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, HOOK_WORDS, LOCATION_HEAD_WORD, PLAN_WORD, PLANNED_WORD, STOPS_NOT_READ_WORDS, TASK_WORD, TIME_HEAD_WORD, TODAY_WORD, UNTITLED_WORDS, VENDOR_HEAD_WORD,
-  badDateWords, badStepWords, completenessWords, dayShortWords, dayStops, focusStop,
+  badDateWords, badStepWords, completenessWords, dayCarryWords, dayShortWords, dayStops, focusStop,
   headerWords, heroWord, hookWords, intervalWords, linesUnreadWords, linesWithoutStopWords, notPlacedWords, notPricedWords, planDollars, progressPercent, provenanceWords,
   routineFigureWords, soFarWords, stepHeaderWords, stopsWords, strandedWords, unmatchedWords, whereWords,
   type DayCardInput,
@@ -186,18 +186,27 @@ test('T1 TABLE-01: the vendor and the location are two facts — the vendor is t
   assert.deepEqual([dayStops(input({ entries: [entry(nowhere)] })).stops[0].vendor, dayStops(input({ entries: [entry(nowhere)] })).stops[0].location], [null, null]);
   const blank = dayStops(input({ entries: [entry(routine({ id: 'g', name: 'G', location: '' }), 'pending', GYM_AT)] })).stops[0];
   assert.deepEqual([blank.vendor, blank.location], [null, null]);
-  // A task states neither.
+  // A task with no line states neither; a task whose matched project_task line carries a vendor states that vendor (never dropped) and still no location — a task has no step and no routine.
   const taskStop = dayStops(input({ items: [item({ id: 'i1', ad_hoc_title: 'Ship it' })] })).stops[0];
   assert.deepEqual([taskStop.kind, taskStop.vendor, taskStop.location], ['task', null, null]);
+  const taskLine = line({ address: { kind: 'project_task', id: 't1', instant: null }, cents: 2000, label: 'Ship DAYCARD-01', source: 'task', vendor: { ...vendor, name: 'Kinkos Silom', grain: 'every' } });
+  const vendoredTask = dayStops(input({ items: [item({ id: 'i1', task_id: 't1', task: task('t1', 'Ship DAYCARD-01') })], lines: [taskLine] })).stops[0];
+  assert.deepEqual([vendoredTask.kind, vendoredTask.vendor, vendoredTask.location, vendoredTask.cents], ['task', 'Kinkos Silom', null, 2000]);
+  assert.match(code(RULES), /kind: 'task',[\s\S]*?vendor: vendorOf\(line\),\n\s*location: null,/, 'the task stop reads its line’s vendor like every stop; its location is null');
   // The rules name no `place` any more — the two facts are the two fields.
   assert.doesNotMatch(code(RULES), /\bplaceOf\b|readonly place\b|\bplace: /, 'no one field for two facts');
 });
 
-test('T1 TABLE-01: intervalWords — the start and its end from the minutes, the start alone, nothing', () => {
+test('T1 TABLE-01: intervalWords — the start and its end from the minutes, the start alone, nothing; an end past the day names its days', () => {
   assert.equal(intervalWords('07:00', 30), '07:00–07:30');
   assert.equal(intervalWords('07:00', 90), '07:00–08:30');
   assert.equal(intervalWords('07:00', 0), '07:00–07:00', 'a stated duration of 0 is a stated duration');
-  assert.equal(intervalWords('23:45', 30), '23:45–00:15', 'past midnight the clock wraps');
+  assert.equal(intervalWords('00:00', 1439), '00:00–23:59', 'the last minute of the day is still the day');
+  assert.equal(intervalWords('23:45', 30), '23:45–00:15 +1d', 'past midnight: the clock it lands on and the day it carried');
+  assert.equal(intervalWords('07:00', 1440), '07:00–07:00 +1d', 'a day-long step is not a 0-minute one — the modulo never hides a day');
+  assert.equal(intervalWords('07:00', 1500), '07:00–08:00 +1d');
+  assert.equal(intervalWords('07:00', 2880), '07:00–07:00 +2d');
+  assert.deepEqual([dayCarryWords(0), dayCarryWords(1), dayCarryWords(3)], ['', ' +1d', ' +3d']);
   assert.equal(intervalWords('07:00', null), '07:00', 'a start alone — no default duration');
   assert.equal(intervalWords(null, 30), null, 'no time, no interval — the minutes alone place nothing');
   assert.equal(intervalWords(null, null), null);
