@@ -91,7 +91,7 @@ import JournalForm from '../stops/JournalForm';
 import StopForm from '../stops/StopForm';
 import { ACCOUNT_CELL_WORDS } from '@/lib/coa/accountCell';
 import {
-  JOURNAL_LOADING_WORDS, JOURNAL_NOT_READ_WORDS, NO_ANSWERS, NO_YESTERDAY_WORDS, PAIRS, PLAN_BLOCK_WORD, QUESTION_WORDS, TODAY_BLOCK_WORD, YESTERDAY_LOADING_WORDS, YESTERDAY_WORD,
+  JOURNAL_LOADING_WORDS, JOURNAL_NOT_READ_WORDS, NO_ANSWERS, NONE_TYPED_WORDS, NO_YESTERDAY_WORDS, PAIRS, PLAN_BLOCK_WORD, QUESTION_WORDS, TODAY_BLOCK_WORD, YESTERDAY_LOADING_WORDS, YESTERDAY_WORD,
   answerLine, answersOf, journalProvenanceWords, noJournalWords, pairLine, yesterdayFailedWords,
   type Answers,
 } from '@/lib/operations/journal';
@@ -184,7 +184,8 @@ function JournalPlate({ day, zone, stop, plannedCents, stops, journal, yesterday
   const yJournal = yesterday === null ? null : yesterday.journal;
   const yRow = yJournal !== null && yJournal.ok ? yJournal.value.journal : null;
   const built = yesterday === null ? null : yesterdayTally(yday, yesterday, zone);
-  const typed = row === null ? null : typedAtWords(row.typed_at, day, zone);
+  // The words' state on the source line: in flight, failed, none typed, or when they were typed — an unknown is never "none typed".
+  const typedState = journal === null ? JOURNAL_LOADING_WORDS : !journal.ok ? JOURNAL_NOT_READ_WORDS : row === null ? NONE_TYPED_WORDS : typedAtWords(row.typed_at, day, zone);
   return (
     <div className="flex flex-col border-t border-border" style={{ gap: 11, paddingTop: 13 }} data-day-journal>
       <div className="flex flex-col" style={{ gap: 3 }} data-day-journal-yesterday>
@@ -226,14 +227,14 @@ function JournalPlate({ day, zone, stop, plannedCents, stops, journal, yesterday
         ))}
       </div>
       {journal === null && <div className="font-medium text-text-muted" style={plateSmall} data-day-journal-loading>{JOURNAL_LOADING_WORDS}</div>}
-      {journal !== null && !journal.ok && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-journal-failed>{JOURNAL_NOT_READ_WORDS} — {journal.words}</div>}
+      {journal !== null && !journal.ok && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-journal-failed>{journal.words}</div>}
       {journal !== null && journal.ok && row === null && <div className="font-medium text-text-muted" style={plateSmall} data-day-journal-none>{noJournalWords(dayShortWords(day))}</div>}
       {/* The journal stop's OWN record — its status with its source, its minutes — stays on the plate the record block gave way to. */}
       <div className="flex flex-col border-t border-border" style={{ gap: 3, paddingTop: 10 }} data-day-journal-record>
         <div className="font-semibold text-text-secondary break-words" style={plateLine} data-day-journal-status>{statusWords(stop, day)}</div>
         {minutesLine(stop.minutes, stop.actualMinutes) !== null && <div className="font-medium text-text-muted" style={plateSmall} data-day-journal-minutes>{minutesLine(stop.minutes, stop.actualMinutes)}</div>}
       </div>
-      <div className="font-mono font-medium text-text-muted" style={plateSmall} data-day-journal-provenance>{journalProvenanceWords(typed)}</div>
+      <div className="font-mono font-medium text-text-muted" style={plateSmall} data-day-journal-provenance>{journalProvenanceWords(typedState)}</div>
     </div>
   );
 }

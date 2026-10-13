@@ -8,9 +8,10 @@
  *     · 200 { journal, changed: false } (the same answers again — nothing
  *     written, nothing audited). Read by the one rule (journalInput — a 400
  *     names the first bad field; a body that is not JSON is a 400). An existing
- *     row is written with its updated_at as the guard: a row that moved or was
- *     cleared under the writer matches nothing and is answered 409, so the
- *     audited `before` is always the true pre-image; a new row that races a
+ *     row is written in ONE statement guarded by { id, user_id, updated_at } as
+ *     read: a row that moved or was cleared under the writer matches nothing
+ *     (P2025) and is answered 409, so the audited `before` is always the true
+ *     pre-image and `after` is this write's own answer; a new row that races a
  *     second create meets the UNIQUE (user_id, day) and is answered 409 too.
  *     Audited operations_journal_set (before → after) after the write.
  *
@@ -70,12 +71,16 @@ export async function PUT(request: NextRequest) {
 
     let after: JournalRow;
     if (existing !== null) {
-      // The guard: the row as it was read. A row written or cleared since matches nothing — 409, and `before` stays the true pre-image.
-      const moved = await prisma.operations_day_journals.updateMany({ where: { id: existing.id, user_id: user.id, updated_at: existing.updated_at }, data: answers });
-      if (moved.count === 0) return NextResponse.json({ error: 'Conflict', message: RACE_WORDS(day) }, { status: 409 });
-      const written = await prisma.operations_day_journals.findFirst({ where: { id: existing.id, user_id: user.id } });
-      if (written === null) throw new Error(`journal PUT: row ${existing.id} was written and is gone`);
-      after = journalRowOf(written);
+      // The guard: the row as it was read, the caller's own — ONE statement that answers the row it wrote. A row written or
+      // cleared since matches nothing (P2025) and is answered 409, so `before` stays the true pre-image and `after` is this write's.
+      try {
+        after = journalRowOf(await prisma.operations_day_journals.update({ where: { id: existing.id, user_id: user.id, updated_at: existing.updated_at }, data: answers }));
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+          return NextResponse.json({ error: 'Conflict', message: RACE_WORDS(day) }, { status: 409 });
+        }
+        throw error;
+      }
     } else {
       try {
         after = journalRowOf(await prisma.operations_day_journals.create({ data: { user_id: user.id, day: asJournalDate(day), ...answers } }));

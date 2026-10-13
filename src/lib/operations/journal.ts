@@ -196,8 +196,13 @@ export const typedWords = (time: string): string => `typed ${time}`;
 /** "typed Oct 12 06:40" — the typed instant fell on another day than the card's (the day words: dayCard.ts monthDayWords). */
 export const typedOnWords = (dayWords: string, time: string): string => `typed ${dayWords} ${time}`;
 export const NONE_TYPED_WORDS = 'none typed';
-/** The plate's source line: the numbers' sources, and when the words were typed. */
-export const journalProvenanceWords = (typed: string | null): string => `numbers: the Budget · stop records · words: ${typed === null ? NONE_TYPED_WORDS : typed}`;
+/**
+ * The plate's source line: the numbers' sources, and the words' state — when
+ * they were typed (typedWords / typedOnWords), NONE_TYPED_WORDS when the read
+ * answered no row, JOURNAL_LOADING_WORDS while it is in flight, and
+ * JOURNAL_NOT_READ_WORDS when it failed — never "none typed" for an unknown.
+ */
+export const journalProvenanceWords = (words: string): string => `numbers: the Budget · stop records · words: ${words}`;
 /** The question before a clear — the audit log keeps the answers. */
 export const clearJournalQuestion = (dayWords: string): string => `Clear the journal for ${dayWords}? The audit log keeps it; the card forgets it.`;
 /** The route's 409: the row moved or was cleared under the writer. */
