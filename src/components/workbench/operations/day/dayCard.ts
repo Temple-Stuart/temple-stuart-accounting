@@ -17,8 +17,11 @@
  *     with the occurrence's instant as ISO text (planLines.ts textOf; days.ts
  *     OccurrenceAddress). A stop whose line the report does not list shows '—',
  *     never $0.00.
- *   · The place is the matched line's vendor (the day's vendor, VENDOR-01),
- *     else the line's location, else the routine's — never invented.
+ *   · TABLE-01 (2026-10-13): the vendor and the location are TWO facts. The
+ *     vendor is the matched line's vendor (the day's vendor, VENDOR-01) and
+ *     nothing else — never a location. The location is the line's, when the
+ *     stop is a line and the step states one, else the routine's — never a
+ *     vendor. Neither is invented; a blank is no location.
  *
  * NOTHING DROPPED. A line of the same kind and id whose instant differs is
  * UNMATCHED and named (both instants); two lines for one stop are both named
@@ -119,8 +122,10 @@ export interface Stop {
   readonly label: string;
   /** The line's activity; null for a stepless routine and a task. */
   readonly line: string | null;
-  /** The matched line's vendor, else the line's location, else the routine's; null when none. */
-  readonly place: string | null;
+  /** TABLE-01: the matched plan line's vendor name — nothing else, never a location; null when the line has none or there is no line. */
+  readonly vendor: string | null;
+  /** TABLE-01: the line's location when the stop is a line and the step states one, else the routine's — never a vendor; null when neither states one. */
+  readonly location: string | null;
   readonly minutes: number | null;
   /** The matched plan line's cents; null when the report lists none for this stop. */
   readonly cents: number | null;
@@ -224,15 +229,17 @@ const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 /** null sorts last. */
 const cmpMaybe = (a: string | null, b: string | null): number => (a === b ? 0 : a === null ? 1 : b === null ? -1 : cmp(a, b));
 
-/** A stored place, or null — a blank is no place, not a place called "". */
-const placeText = (text: string | null | undefined): string | null => (typeof text === 'string' && text.trim() !== '' ? text : null);
+/** A stored location, or null — a blank is no location, not a location called "". */
+const locationText = (text: string | null | undefined): string | null => (typeof text === 'string' && text.trim() !== '' ? text : null);
 
-/** The stop's place: the matched line's vendor, else the first stated location in the order given. */
-const placeOf = (line: PlanLine | null, ...locations: readonly (string | null | undefined)[]): string | null => {
-  if (line !== null && line.vendor !== null) return line.vendor.name;
+/** TABLE-01: the stop's vendor — the matched plan line's, by name; null when the line names none or there is no line. Never a location. */
+const vendorOf = (line: PlanLine | null): string | null => (line !== null && line.vendor !== null ? line.vendor.name : null);
+
+/** TABLE-01: the stop's location — the first stated one in the order given (the line's, then the routine's); null when none is stated. Never a vendor. */
+const locationOf = (...locations: readonly (string | null | undefined)[]): string | null => {
   for (const l of locations) {
-    const p = placeText(l);
-    if (p !== null) return p;
+    const stated = locationText(l);
+    if (stated !== null) return stated;
   }
   return null;
 };
@@ -353,7 +360,8 @@ export function dayStops(input: DayCardInput): DayStops {
         time: occurrenceTime,
         label: r.name,
         line: null,
-        place: placeOf(line, r.location),
+        vendor: vendorOf(line),
+        location: locationOf(r.location),
         minutes: null,
         cents: line === null ? null : line.cents,
         role: r.role,
@@ -377,7 +385,8 @@ export function dayStops(input: DayCardInput): DayStops {
         time,
         label: r.name,
         line: step.activity,
-        place: placeOf(line, step.location, r.location),
+        vendor: vendorOf(line),
+        location: locationOf(step.location, r.location),
         minutes: step.duration_minutes,
         cents: line === null ? null : line.cents,
         role: r.role,
@@ -407,7 +416,9 @@ export function dayStops(input: DayCardInput): DayStops {
       time: block === undefined ? null : instantToZoned(new Date(block.scheduled_start), input.viewerZone).time,
       label,
       line: null,
-      place: null,
+      // The matched project_task line's vendor, as every stop's (TABLE-01 review): a vendor planned on a task is a fact, never dropped. A task has no step and no routine, so no location.
+      vendor: vendorOf(line),
+      location: null,
       minutes: null,
       cents: line === null ? null : line.cents,
       status: item.task !== null && item.task.status === 'completed' ? 'done' : 'open',
@@ -834,4 +845,38 @@ export const todayPlanWords = (plannedCents: number | null, stops: number | null
 export function typedAtWords(typedAt: string, day: string, zone: string): string {
   const at = instantToZoned(new Date(typedAt), zone);
   return at.date === day ? typedWords(at.time) : typedOnWords(monthDayWords(at.date), at.time);
+}
+
+// ── TABLE-01 (2026-10-13): THE STOPS AS A TABLE — TIME · VENDOR · LOCATION · DESCRIPTION · BUDGET ──
+
+export const TIME_HEAD_WORD = 'TIME';
+export const VENDOR_HEAD_WORD = 'VENDOR';
+export const LOCATION_HEAD_WORD = 'LOCATION';
+export const DESCRIPTION_HEAD_WORD = 'DESCRIPTION';
+export const BUDGET_HEAD_WORD = 'BUDGET';
+/** TABLE-01: a row's door, named for a screen reader — the step it opens and the row's own words (the visible words stay inside the name). */
+export const openStepWords = (index: number, what: string): string => `Open step ${index}: ${what}`;
+
+const MINUTES_IN_A_DAY = 24 * 60;
+
+/** The days a span's end lies past its start's day — "+1d" after the end's clock; nothing when the end is the same day. */
+export const dayCarryWords = (days: number): string => (days === 0 ? '' : ` +${days}d`);
+
+/**
+ * "07:00–07:30" when the stop states a start and a duration — the end is the
+ * start plus the minutes, never a default duration; "07:00" when it states a
+ * start alone; null when nothing states a time. An end past the start's day
+ * says so: the clock it lands on and the days it carried ("23:45–00:15 +1d";
+ * a day-long step "07:00–07:00 +1d") — the modulo never hides a day (TABLE-01
+ * review). The dash is the week's (weekPlan.ts timeWindow).
+ */
+export function intervalWords(time: string | null, minutes: number | null): string | null {
+  if (time === null) return null;
+  if (minutes === null) return time;
+  if (!Number.isInteger(minutes) || minutes < 0) throw new Error(`dayCard: a duration is a whole number of minutes, 0 or more, not ${minutes}`);
+  if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time)) throw new Error(`dayCard: a time is HH:MM, not ${time}`);
+  const [h, m] = time.split(':').map(Number);
+  const total = h * 60 + m + minutes;
+  const end = total % MINUTES_IN_A_DAY;
+  return `${time}–${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}${dayCarryWords(Math.floor(total / MINUTES_IN_A_DAY))}`;
 }

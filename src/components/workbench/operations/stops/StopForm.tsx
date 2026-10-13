@@ -235,7 +235,7 @@ export default function StopForm({ stop, day, bookName, reportRead, onChanged, o
         {stop.record !== null && <button type="button" className={chip} disabled={busy} onClick={clear} data-stop-clear>clear</button>}
       </form>
       {words !== null && <p className="text-xs text-brand-red" data-stop-words>{words}</p>}
-      {/* ROLE-01: a place stop plans its vendor here — Budget's own box on the matched plan line; a write reads the report again so the plate shows the place. */}
+      {/* ROLE-01: a place stop plans its vendor here — Budget's own box on the matched plan line; a write reads the report again so the plate's VENDOR shows it. */}
       {role === 'place' && <PlaceVendor stop={stop} bookName={bookName} reportRead={reportRead} reload={onPlanChanged} />}
     </div>
   );
