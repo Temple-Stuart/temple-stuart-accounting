@@ -226,6 +226,14 @@ test('T1 the words — each a constant or a function, exact', () => {
   assert.equal(BODY_WORDS, 'the body must be an object with day and the answers');
   assert.equal(CONTROLS_WORDS, 'control characters are not an answer');
   assert.equal(BIDI_WORDS, 'direction-reversing characters (U+202A–U+202E, U+2066–U+2069) are not an answer');
+  // The sentences themselves — the refusals above prove the field and the function; these prove the words.
+  assert.equal(dayWords('2026-13-01'), 'day "2026-13-01" is not a \'YYYY-MM-DD\' day');
+  assert.equal(dayWords(undefined), 'day undefined is not a \'YYYY-MM-DD\' day');
+  assert.equal(notStringWords('one_thing'), 'one_thing must be a string');
+  assert.equal(tooLongWords('one_thing', 121), 'one_thing is at most 120 characters (121 given)');
+  assert.equal(tooLongWords('shipped', 501), 'shipped is at most 500 characters (501 given)');
+  assert.equal(pairWords('plan_1_then', 'plan_1_if'), 'plan_1_then goes with plan_1_if — give both or neither');
+  assert.equal(pairWords('obstacle_if', 'obstacle_then'), 'obstacle_if goes with obstacle_then — give both or neither');
   assert.doesNotMatch(code(RULE), /\bfetch\b|new Date\(\)|Date\.now\(|@prisma\/client|from 'react'/, 'pure: no fetch, no clock, no Prisma, no React');
 });
 
@@ -359,6 +367,7 @@ test('T4 the routes: GET by the caller and the day; PUT — the caller, the body
   const put = r.slice(r.indexOf('export async function PUT('));
   inOrder(put, [
     'getVerifiedEmail()', 'prisma.users.findFirst(', 'raw = await request.json();', 'BODY_NOT_JSON_WORDS', 'status: 400', 'journalInput(raw)', 'if (!read.ok) return NextResponse.json({ error: \'Validation\', field: read.field, message: read.message }, { status: 400 });',
+    'const { day, answers } = read.value;',
     'prisma.operations_day_journals.findFirst({ where: { user_id: user.id, day: asJournalDate(day) } })',
     'if (before !== null && journalUnchanged(before, answers)) return NextResponse.json({ journal: before, changed: false });',
     'if (existing !== null) {', 'prisma.operations_day_journals.update(', "error.code === 'P2025'", 'RACE_WORDS(day)', 'status: 409',
@@ -373,10 +382,13 @@ test('T4 the routes: GET by the caller and the day; PUT — the caller, the body
   assert.ok(put.indexOf("type: 'operations_journal_set'") > put.lastIndexOf('prisma.operations_day_journals.create('), 'the audit after the write');
   assert.equal((put.match(/prisma\.operations_day_journals\.(?:update|updateMany|upsert|findFirst)\(/g) ?? []).length, 2, 'one read before the write, one guarded write — no re-read after it, no updateMany, no upsert');
   assert.doesNotMatch(put, /updateMany\(|upsert\(/);
+  assert.doesNotMatch(put, /answers = raw|raw as /, 'the answers written are the rule’s, never the body’s');
   const i = code(ROUTE_ID);
   assert.match(i, /export async function DELETE\(/);
   assert.doesNotMatch(i, /export (?:const|(?:async )?function) (?!DELETE)/, 'a route file exports its handlers only — an async function too');
-  inOrder(i, ['getVerifiedEmail()', 'prisma.users.findFirst(', 'const { id } = await params;', "if (!isValidUuid(id)) return NextResponse.json({ error: 'Not found' }, { status: 404 });", 'prisma.operations_day_journals.findFirst({ where: { id, user_id: user.id } })', "if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 });", 'prisma.operations_day_journals.delete({ where: { id: row.id } })', "type: 'operations_journal_cleared'", 'payload: { before, after: null }', 'return NextResponse.json({ cleared: true });'], 'DELETE');
+  inOrder(i, ['getVerifiedEmail()', 'prisma.users.findFirst(', 'const { id } = await params;', "if (!isValidUuid(id)) return NextResponse.json({ error: 'Not found' }, { status: 404 });", 'prisma.operations_day_journals.findFirst({ where: { id, user_id: user.id } })', "if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 });", 'const before = journalRowOf(row);', 'prisma.operations_day_journals.delete({ where: { id: row.id, user_id: user.id, updated_at: row.updated_at } })', "error.code === 'P2025'", 'RACE_WORDS(before.day)', 'status: 409', "type: 'operations_journal_cleared'", 'payload: { before, after: null }', 'return NextResponse.json({ cleared: true });'], 'DELETE');
+  assert.match(i, /await prisma\.operations_day_journals\.delete\(\{ where: \{ id: row\.id, user_id: user\.id, updated_at: row\.updated_at \} \}\);/, 'the clear guarded on the row as it was read — the PUT’s own bar');
+  assert.doesNotMatch(i, /deleteMany\(/);
   for (const f of [ROUTE, ROUTE_ID]) {
     const body = code(f);
     assert.equal((body.match(/getVerifiedEmail\(\)/g) ?? []).length, (body.match(/export async function/g) ?? []).length, `${f}: every handler proves the caller`);
@@ -414,6 +426,9 @@ test('T5 the one writer: PUT / DELETE to the journal routes, every answer in wor
     assert.deepEqual(await setJournal(DAY, answers), { ok: false, message: 'the request did not reach the server: boom' });
     answer = () => json({}, 500);
     assert.deepEqual(await setJournal(DAY, answers), { ok: false, message: SET_FAILED_WORDS });
+    assert.equal(SET_FAILED_WORDS, 'failed to save the journal');
+    assert.equal(CLEAR_FAILED_WORDS, 'failed to clear the journal');
+    assert.equal(journalFailedWords('x'), 'The journal could not be read — x');
     answer = () => json({ cleared: true }, 200);
     assert.deepEqual(await clearJournal('j1'), { ok: true });
     answer = () => json({ error: 'Not found' }, 404);
@@ -476,7 +491,9 @@ test('T6 the form: one box per answer in the plate’s order, the pairs on one l
 test('T6 the plate: the three blocks in order, "—" for the unanswered, the stop’s own record inside it, reads only when a journal stop exists, in flight and failed as different words, the try/catch around yesterday, the form keyed by the day and the journal', () => {
   const c = code(CARD);
   assert.match(c, /import JournalForm from '\.\.\/stops\/JournalForm';/);
-  assert.match(c, /const hasJournalStop = dayRead !== null && dayRead\.ok && dayRead\.value\.entries\.some\(\(e\) => e\.routine\.role === 'journal'\);/, 'the day has a journal stop');
+  assert.match(c, /const hasJournalStop = readsDay === day && dayRead !== null && dayRead\.ok && dayRead\.value\.entries\.some\(\(e\) => e\.routine\.role === 'journal'\);/, 'the day has a journal stop — judged on the reads that landed for THIS day, so a day change fires nothing on the old day’s answer');
+  assert.match(c, /setItems\(null\);\n\s*setReadsDay\(null\);/, 'a day change blanks the reads’ day with the reads');
+  assert.match(c, /setItems\(i\);\n\s*setReadsDay\(day\);/, 'the reads land with their day');
   assert.match(c, /if \(day === null \|\| !hasJournalStop\) return;\n\s*let live = true;\n\s*\(async \(\) => \{\n\s*const j = await readJournal\(day\);\n\s*if \(live\) setJournal\(\{ day, read: j \}\);/, 'the journal read, only then, landing with its day under the live guard');
   assert.match(c, /\}, \[day, hasJournalStop, journalReads\]\);/, 'again after a write');
   assert.match(c, /if \(day === null \|\| today === null \|\| !hasJournalStop\) return;\n\s*const yday = shiftDay\(day, -1\);\n\s*let live = true;\n\s*\(async \(\) => \{\n\s*const \[d, r, i, s, j\] = await Promise\.all\(\[readDay\(yday\), readDayReport\(yday, today\), readItems\(yday, yday\), readStopRecords\(yday\), readJournal\(yday\)\]\);\n\s*if \(live\) setYesterday\(\{ day, reads: \{ day: d, report: r, items: i, records: s, journal: j \} \}\);/, 'the five yesterday reads, only then, landing with the card’s day');
@@ -502,6 +519,6 @@ test('T6 the plate: the three blocks in order, "—" for the unanswered, the sto
   assert.match(c, /data-day-journal-provenance>\{journalProvenanceWords\(typedState\)\}/);
   assert.match(c, /<JournalForm key=\{`\$\{day\}:\$\{journalRead\.value\.journal === null \? 'none' : journalRead\.value\.journal\.id\}`\} day=\{day\} journal=\{journalRead\.value\.journal\} onChanged=\{\(\) => setJournalReads\(\(n\) => n \+ 1\)\} \/>/, 'keyed by the day and the journal; a write bumps the read counter');
   assert.match(c, /\{loaded && focus !== null && focus\.stop\.role === 'journal' && journalRead !== null && journalRead\.ok && \(/, 'never offered while the journal could not be read');
-  assert.ok(c.indexOf('<StopForm') < c.indexOf('<JournalForm') && c.indexOf('<JournalForm') < c.indexOf('data-day-foot'), 'under the plate, after the record form, above the sentences');
+  inOrder(c, ['data-day-card', '<StopForm', '<JournalForm', 'data-day-foot'], 'under the plate, after the record form, above the sentences');
   assert.doesNotMatch(c, /\bfetch\s*\(|journalWrites|method:/, 'the card fetches and writes nothing of its own');
 });

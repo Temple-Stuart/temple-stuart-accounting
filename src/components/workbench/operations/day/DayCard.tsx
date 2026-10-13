@@ -275,8 +275,9 @@ export default function DayCard() {
   const [journal, setJournal] = useState<{ readonly day: string; readonly read: Read<JournalAnswer> } | null>(null);
   const [journalReads, setJournalReads] = useState(0);
   const [yesterday, setYesterday] = useState<{ readonly day: string; readonly reads: YesterdayReads } | null>(null);
-  // The day has a journal stop: a routine whose role is journal occurs on it (the today read's entries).
-  const hasJournalStop = dayRead !== null && dayRead.ok && dayRead.value.entries.some((e) => e.routine.role === 'journal');
+  // The day the three reads above landed for: a day change renders once with the old day's reads before they are blanked, and
+  // the journal and yesterday effects must not fire on that render.
+  const [readsDay, setReadsDay] = useState<string | null>(null);
 
   useEffect(() => {
     setToday(localToday());
@@ -288,6 +289,8 @@ export default function DayCard() {
   // The day: ?date= when it is a day, else today; a ?date= that is not a day is named, never replaced in silence.
   const badDate = dateParam !== null && !isIsoDay(dateParam) ? dateParam : null;
   const day = today === null ? null : dateParam !== null && isIsoDay(dateParam) ? dateParam : today;
+  // The day has a journal stop: a routine whose role is journal occurs on it (the today read's entries, landed for THIS day).
+  const hasJournalStop = readsDay === day && dayRead !== null && dayRead.ok && dayRead.value.entries.some((e) => e.routine.role === 'journal');
 
   useEffect(() => {
     if (day === null || today === null) return;
@@ -295,6 +298,7 @@ export default function DayCard() {
     setDayRead(null);
     setReport(null);
     setItems(null);
+    setReadsDay(null);
     // ROLE-01: a new day starts its own report read here; the re-read counter goes back to zero so the second effect stays quiet.
     setReportReads(0);
     (async () => {
@@ -303,6 +307,7 @@ export default function DayCard() {
       setDayRead(d);
       setReport(r);
       setItems(i);
+      setReadsDay(day);
     })();
     return () => { live = false; };
   }, [day, today]);

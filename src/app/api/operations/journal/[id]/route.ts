@@ -3,6 +3,10 @@
  *
  * DELETE → { cleared: true }: the answers are gone from the card; the audit log
  *          keeps them (operations_journal_cleared, before → null), written after.
+ *          The clear is ONE statement guarded by { id, user_id, updated_at } as
+ *          read — a row written or cleared under the caller since matches
+ *          nothing (P2025) and is answered 409, so the audited `before` is the
+ *          true pre-image of what was cleared (the PUT's own bar).
  *
  * The caller's own row only: the verified cookie, then the user, then the row
  * by { id, user_id } — another user's row, a missing one and an id that is no
@@ -10,12 +14,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { isValidUuid } from '@/lib/operations/parseUuid';
-import { journalRowOf } from '@/lib/operations/journal';
+import { RACE_WORDS, journalRowOf } from '@/lib/operations/journal';
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -30,7 +35,16 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
     if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const before = journalRowOf(row);
 
-    await prisma.operations_day_journals.delete({ where: { id: row.id } });
+    // The guard: the row as it was read, the caller's own. A row written or cleared since matches nothing (P2025) — 409, and
+    // `before` stays the true pre-image of what was cleared.
+    try {
+      await prisma.operations_day_journals.delete({ where: { id: row.id, user_id: user.id, updated_at: row.updated_at } });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        return NextResponse.json({ error: 'Conflict', message: RACE_WORDS(before.day) }, { status: 409 });
+      }
+      throw error;
+    }
 
     await writeAuditLog({
       actor: { user_id: user.id, email: userEmail, type: 'human_user' },
