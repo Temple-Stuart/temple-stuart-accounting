@@ -12,7 +12,16 @@
  * the one writer (journalWrites.ts); a refusal is shown in the route's words
  * under the form; after a write the caller reads the journal again — never an
  * optimistic copy. Next to the PLAN, when yesterday left steps open, a button
- * appends them to the plan box (the draft only — saved on save). No maxLength
+ * appends them to the plan box (the draft only — saved on save).
+ *
+ * PLAN-01 (2026-10-13): each plan and goal line loses a pasted list's leading
+ * marker ("1." "1)" "-" "•" "*" and a space — stripListMarker) after linesOf
+ * and before carryTicks; the plate numbers and bullets them itself. "copy plan
+ * prompt" beside the PLAN writes planPromptText — yesterday's END OF DAY and
+ * not-finished steps, today's goals and blocker FROM THE DRAFT — to the
+ * clipboard; it says "copied" or the clipboard's refusal in words, and tries
+ * nothing else. It is offered only once yesterday's journal is read: an unread
+ * or failed yesterday is said, never written as "nothing typed". No maxLength
  * on a box: it counts UTF-16 units and would stop a person short of the
  * column, which counts characters — the rule's refusal is the limit. Clear
  * asks first and is offered only while a journal exists. The caller keys this
@@ -24,11 +33,11 @@
 
 import { useState } from 'react';
 import {
-  ADD_OPEN_STEPS_WORDS, BLOCKERS_QUESTION, END_OF_DAY_QUESTION, GOALS_EXAMPLE, PLAN_EXAMPLE, PLAN_QUESTION, TODAY_GOALS_QUESTION,
-  carryTicks, clearJournalQuestion, journalInput, linesOf,
-  type JournalRow,
+  ADD_OPEN_STEPS_WORDS, BLOCKERS_QUESTION, COPY_PLAN_PROMPT_WORDS, END_OF_DAY_QUESTION, GOALS_EXAMPLE, PLAN_EXAMPLE, PLAN_PROMPT_COPIED_WORDS, PLAN_QUESTION, TODAY_GOALS_QUESTION,
+  carryTicks, clearJournalQuestion, journalInput, linesOf, planPromptFailedWords, planPromptText, planPromptWaitsWords, stripListMarker,
+  type JournalRow, type YesterdayForPrompt,
 } from '@/lib/operations/journal';
-import { dayShortWords } from '../day/dayCard';
+import { PLATE_WIDTH, dayShortWords } from '../day/dayCard';
 import { clearJournal, setJournal } from './journalWrites';
 
 const chip = 'px-2 py-0.5 border border-border rounded hover:bg-bg-row text-xs disabled:opacity-50';
@@ -50,19 +59,21 @@ const draftOf = (journal: JournalRow | null): Draft => ({
   shipped: journal === null || journal.shipped === null ? '' : journal.shipped,
 });
 
-export default function JournalForm({ day, journal, yesterdayOpen, onChanged }: {
-  day: string; journal: JournalRow | null; yesterdayOpen: readonly string[]; onChanged: () => void;
+export default function JournalForm({ day, journal, yesterday, onChanged }: {
+  day: string; journal: JournalRow | null; yesterday: YesterdayForPrompt; onChanged: () => void;
 }) {
   const [draft, setDraft] = useState<Draft>(() => draftOf(journal));
   const [words, setWords] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [copyWords, setCopyWords] = useState<{ readonly ok: boolean; readonly words: string } | null>(null);
+  const yesterdayOpen = yesterday.ok ? yesterday.notFinished : [];
 
   const save = async () => {
     if (busy) return;
-    // The lines as typed (blank lines dropped), the saved ticks carried to the same steps, then the route's rule — a refusal is the words the route would answer.
-    const steps = linesOf(draft.plan);
+    // The lines as typed (blank lines dropped, a pasted list's marker off — PLAN-01), the saved ticks carried to the same steps, then the route's rule — a refusal is the words the route would answer.
+    const steps = linesOf(draft.plan).map(stripListMarker);
     const ticks = carryTicks(journal === null ? [] : journal.plan_steps, journal === null ? [] : journal.plan_done, steps);
-    const read = journalInput({ day, goals: linesOf(draft.goals), blocker: draft.blocker === '' ? null : draft.blocker, plan_steps: steps, plan_done: ticks, shipped: draft.shipped === '' ? null : draft.shipped });
+    const read = journalInput({ day, goals: linesOf(draft.goals).map(stripListMarker), blocker: draft.blocker === '' ? null : draft.blocker, plan_steps: steps, plan_done: ticks, shipped: draft.shipped === '' ? null : draft.shipped });
     if (!read.ok) { setWords(read.message); return; }
     setBusy(true);
     setWords(null);
@@ -88,11 +99,25 @@ export default function JournalForm({ day, journal, yesterdayOpen, onChanged }: 
     }
   };
 
+  /** PLAN-01: yesterday and today's DRAFT, as the plan prompt, to the clipboard — "copied", or the clipboard's refusal in words; nothing else is tried. */
+  const copyPrompt = async () => {
+    if (!yesterday.ok) return;
+    const blocker = linesOf(draft.blocker).join(' ');
+    const text = planPromptText({ dayWords: dayShortWords(day), yesterdayAccomplished: yesterday.accomplished, yesterdayNotFinished: yesterday.notFinished, goals: linesOf(draft.goals).map(stripListMarker), blocker: blocker === '' ? null : blocker });
+    setCopyWords(null);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyWords({ ok: true, words: PLAN_PROMPT_COPIED_WORDS });
+    } catch (error) {
+      setCopyWords({ ok: false, words: planPromptFailedWords(error instanceof Error ? error.message : String(error)) });
+    }
+  };
+
   /** Yesterday's open steps, appended to the plan box — the draft only; saved on save. */
   const addOpen = () => setDraft({ ...draft, plan: [...linesOf(draft.plan), ...yesterdayOpen].join('\n') });
 
   return (
-    <div className="mx-auto space-y-1" style={{ width: 540 }} data-journal-form>
+    <div className="mx-auto space-y-1" style={{ width: PLATE_WIDTH }} data-journal-form>
       <form className="flex flex-col gap-2 text-xs" onSubmit={(e) => { e.preventDefault(); save(); }}>
         <label className="flex flex-col gap-0.5" data-journal-block="goals">
           <span className={question}>{TODAY_GOALS_QUESTION}</span>
@@ -105,8 +130,13 @@ export default function JournalForm({ day, journal, yesterdayOpen, onChanged }: 
         <div className="flex flex-col gap-0.5" data-journal-block="plan">
           <div className="flex items-center justify-between gap-2">
             <label htmlFor="journal-plan" className={question}>{PLAN_QUESTION}</label>
-            {yesterdayOpen.length > 0 && <button type="button" className={chip} disabled={busy} onClick={addOpen} data-journal-add-open>{ADD_OPEN_STEPS_WORDS(yesterdayOpen.length)}</button>}
+            <div className="flex items-center gap-1.5">
+              {yesterdayOpen.length > 0 && <button type="button" className={chip} disabled={busy} onClick={addOpen} data-journal-add-open>{ADD_OPEN_STEPS_WORDS(yesterdayOpen.length)}</button>}
+              <button type="button" className={chip} disabled={!yesterday.ok} onClick={copyPrompt} data-journal-copy-prompt>{COPY_PLAN_PROMPT_WORDS}</button>
+            </div>
           </div>
+          {!yesterday.ok && <p className="text-text-muted" data-journal-copy-waits>{planPromptWaitsWords(yesterday.words)}</p>}
+          {copyWords !== null && <p className={copyWords.ok ? 'text-text-muted' : 'text-brand-red'} data-journal-copy-words>{copyWords.words}</p>}
           <textarea id="journal-plan" rows={5} value={draft.plan} onChange={(e) => setDraft({ ...draft, plan: e.target.value })} placeholder={PLAN_EXAMPLE} className={box} disabled={busy} data-journal-field="plan_steps" />
         </div>
         <label className="flex flex-col gap-0.5" data-journal-block="shipped">

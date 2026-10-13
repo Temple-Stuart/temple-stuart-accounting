@@ -284,6 +284,14 @@ export const refusedWords = (reason: string, detail: string): string => `the rou
 export const clearStopQuestion = (what: string): string => `Clear this stop's record (${what})? The audit log keeps it; the card forgets it.`;
 /** The form's own refusals, before any request. */
 export const WHEN_WORDS = 'say when it was done (HH:MM)';
+/**
+ * PLAN-01 (2026-10-13): the record's time box says the zone it reads a typed
+ * time in — "HH:MM" when the routine's zone is the browser's, "HH:MM
+ * (America/Los_Angeles)" when it is not — so a time typed in Chiang Mai is never
+ * silently read in a routine's other zone. The rule that reads it is unchanged.
+ */
+export const TIME_BOX_WORDS = 'HH:MM';
+export const timeBoxWords = (routineZone: string, viewerZone: string): string => (routineZone === viewerZone ? TIME_BOX_WORDS : `${TIME_BOX_WORDS} (${routineZone})`);
 export const amountWords = (typed: string): string => `${JSON.stringify(typed)} is not an amount (dollars, at most two decimals)`;
 export const NEGATIVE_AMOUNT_WORDS = 'an amount is 0 or more';
 export const minutesTypedWords = (typed: string): string => `${JSON.stringify(typed)} is not a number of minutes`;

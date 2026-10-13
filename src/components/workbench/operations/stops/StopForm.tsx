@@ -32,12 +32,12 @@
 
 import { useState } from 'react';
 import { centsFromDecimalString } from '@/lib/budget/days';
-import { NEGATIVE_AMOUNT_WORDS, RATING_WORDS, SKIP_REASON_WORDS, WHEN_WORDS, amountWords, clearStopQuestion, minutesTypedWords, type StopOutcome } from '@/lib/operations/stopRecord';
+import { NEGATIVE_AMOUNT_WORDS, RATING_WORDS, SKIP_REASON_WORDS, WHEN_WORDS, amountWords, clearStopQuestion, minutesTypedWords, timeBoxWords, type StopOutcome } from '@/lib/operations/stopRecord';
 import { NOTE_PROMPT_WORDS, NO_AMOUNT_NO_VENDOR_WORDS, REPORT_NOT_READ_NO_VENDOR_WORDS, UNMATCHED_NO_VENDOR_WORDS, VENDOR_LABEL_WORDS, type StopRole } from '@/lib/operations/stopRole';
 import { JOURNAL_RECORD_WORDS } from '@/lib/operations/journal';
 import { instantToZoned, zonedToInstant } from '@/lib/time';
 import { VendorBox, useDirectory } from '@/components/budget/DayPlanDrill';
-import { statusWords, type Stop } from '../day/dayCard';
+import { PLATE_WIDTH, statusWords, type Stop } from '../day/dayCard';
 import { clearStopRecord, setStopRecord, type StopBody } from './stopWrites';
 
 const chip = 'px-2 py-0.5 border border-border rounded hover:bg-bg-row text-xs disabled:opacity-50';
@@ -85,7 +85,7 @@ function PlaceVendor({ stop, bookName, reportRead, reload }: { stop: Stop; bookN
   );
 }
 
-export default function StopForm({ stop, day, bookName, reportRead, onChanged, onPlanChanged }: { stop: Stop; day: string; bookName: string; reportRead: boolean; onChanged: () => void; onPlanChanged: () => void }) {
+export default function StopForm({ stop, day, bookName, reportRead, viewerZone, onChanged, onPlanChanged }: { stop: Stop; day: string; bookName: string; reportRead: boolean; viewerZone: string; onChanged: () => void; onPlanChanged: () => void }) {
   const [draft, setDraft] = useState<Draft>(() => draftOf(stop, day));
   const [words, setWords] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -196,7 +196,7 @@ export default function StopForm({ stop, day, bookName, reportRead, onChanged, o
   };
 
   return (
-    <div className="mx-auto space-y-1" style={{ width: 540 }} data-stop-form>
+    <div className="mx-auto space-y-1" style={{ width: PLATE_WIDTH }} data-stop-form>
       <form className="flex flex-wrap items-center gap-1.5 text-xs" onSubmit={(e) => { e.preventDefault(); save(draft); }}>
         {/* JOURNAL-02 (2026-10-13): on a journal stop the label says what the record is — when the journal was done. */}
         {role === 'journal'
@@ -206,7 +206,7 @@ export default function StopForm({ stop, day, bookName, reportRead, onChanged, o
         <button type="button" className={`${chip} ${draft.outcome === 'done' ? 'font-bold' : ''}`} disabled={busy} onClick={() => setDraft({ ...draft, outcome: 'done' })} data-stop-outcome="done">done</button>
         <button type="button" className={`${chip} ${draft.outcome === 'skipped' ? 'font-bold' : ''}`} disabled={busy} onClick={() => setDraft({ ...draft, outcome: 'skipped' })} data-stop-outcome="skipped">skipped</button>
         {draft.outcome === 'done' && (
-          <input type="text" inputMode="numeric" value={draft.doneTime} onChange={(e) => setDraft({ ...draft, doneTime: e.target.value })} placeholder="HH:MM" aria-label={`Done at (${zone})`} className={`${box} w-16 font-mono`} maxLength={5} data-stop-time />
+          <input type="text" inputMode="numeric" value={draft.doneTime} onChange={(e) => setDraft({ ...draft, doneTime: e.target.value })} placeholder={timeBoxWords(zone, viewerZone)} title={timeBoxWords(zone, viewerZone)} aria-label={`Done at (${zone})`} className={`${box} ${zone === viewerZone ? 'w-16' : 'w-56'} font-mono`} maxLength={5} data-stop-time />
         )}
         {shown.amount && (
           <>

@@ -200,6 +200,8 @@ export interface DayStops {
   readonly spentCents: number | null;
   /** Stops with no actual (records read) — printed beside every sum, never a zero filled in. */
   readonly withoutActual: number;
+  /** PLAN-01: stops that carry an actual (records read) — none means nothing is recorded: "spent —", unknown, never $0. */
+  readonly withActual: number;
   readonly done: number;
   readonly skipped: number;
   /** Line and routine stops with no record of their own (records read). */
@@ -219,6 +221,8 @@ export interface Focus {
   readonly spentSoFarCents: number | null;
   /** Of stops 1..index, how many have no actual (records read). */
   readonly withoutActualSoFar: number;
+  /** PLAN-01: of stops 1..index, how many carry an actual (records read) — none: "spent so far —" and no spent bar. */
+  readonly withActualSoFar: number;
 }
 
 // ── THE RULES ───────────────────────────────────────────────────────────────
@@ -467,6 +471,7 @@ export function dayStops(input: DayCardInput): DayStops {
     // The sum of the actuals that exist — the stops without one are COUNTED beside it (withoutActual), never summed as zero.
     spentCents: read ? stops.map((s) => s.actualCents).filter((c): c is number => c !== null).reduce((sum, c) => sum + c, 0) : null,
     withoutActual: read ? stops.filter((s) => s.actualCents === null).length : 0,
+    withActual: read ? stops.filter((s) => s.actualCents !== null).length : 0,
     done: stops.filter((s) => s.status === 'done').length,
     skipped: stops.filter((s) => s.status === 'skipped').length,
     notRecorded: read ? stops.filter((s) => s.kind !== 'task' && s.record === null).length : 0,
@@ -487,6 +492,7 @@ export function focusStop(result: DayStops, n: number): Focus | null {
     soFarCents: priced.reduce((sum, c) => sum + c, 0),
     spentSoFarCents: result.spentCents === null ? null : actuals.reduce((sum, c) => sum + c, 0),
     withoutActualSoFar: result.spentCents === null ? 0 : upTo.length - actuals.length,
+    withActualSoFar: result.spentCents === null ? 0 : actuals.length,
   };
 }
 
@@ -502,8 +508,8 @@ export const UNTITLED_WORDS = 'untitled item';
 
 export const stopsWords = (n: number): string => (n === 1 ? '1 stop' : `${n} stops`);
 export const notPricedWords = (k: number): string => `${k} not priced`;
-/** "so far $14.00 of $50.00" — both '—' while the report cannot be read (null), never $0.00 for an unknown figure. */
-export const soFarWords = (soFarCents: number | null, plannedCents: number | null): string => `so far ${planDollars(soFarCents)} of ${planDollars(plannedCents)}`;
+/** PLAN-01: "plan so far $10 of $75" — the PLAN bar's words (the planned money of stops 1..n against the day's planned total); both '—' while the report cannot be read (null), never $0.00 for an unknown figure. */
+export const planSoFarWords = (soFarCents: number | null, plannedCents: number | null): string => `plan so far ${planDollars(soFarCents)} of ${planDollars(plannedCents)}`;
 /** The plate's source line — the day itself is in the hook line above it; what could not be read says so (STOP-01: the records are a source too). */
 export const provenanceWords = (asOf: string, reportRead: boolean, recordsRead: boolean): string =>
   `Budget plan lines${reportRead ? '' : ' NOT READ'} · stop records${recordsRead ? '' : ' NOT READ'} · as of ${asOf}`;
@@ -518,18 +524,39 @@ export const ON_PLAN_WORDS = 'on plan';
 /** "2 without an amount" — the stops a sum of actuals does not cover; printed beside every such sum. */
 export const withoutAmountWords = (n: number): string => `${n} without an amount`;
 
-/** "spent $14 · 2 without an amount" · "spent $14" · "spent — · records not read" (null: the records were not read). */
-export function spentWords(spentCents: number | null, withoutActual: number): string {
+/**
+ * "spent $14 · 2 without an amount" · "spent $14" · "spent — · records not read"
+ * (null: the records were not read). PLAN-01 (2026-10-13, Alex's ruling): when
+ * the records were read but NO stop carries an actual, "spent — · 7 without an
+ * amount" — nothing recorded is unknown, not zero; "spent $X" once one exists.
+ */
+export function spentWords(spentCents: number | null, withoutActual: number, withActual: number): string {
   if (spentCents === null) return `${SPENT_WORD} — · ${RECORDS_NOT_READ_WORDS}`;
-  return withoutActual > 0 ? `${SPENT_WORD} ${planDollars(spentCents)} · ${withoutAmountWords(withoutActual)}` : `${SPENT_WORD} ${planDollars(spentCents)}`;
+  const head = withActual === 0 ? `${SPENT_WORD} —` : `${SPENT_WORD} ${planDollars(spentCents)}`;
+  return withoutActual > 0 ? `${head} · ${withoutAmountWords(withoutActual)}` : head;
 }
 
-/** "spent so far $14 · 2 without an amount" — the step card's running actual. */
-export const spentSoFarWords = (spentCents: number | null, withoutActual: number): string => spentWords(spentCents, withoutActual).replace(/^spent/, 'spent so far');
+/**
+ * PLAN-01: the SPENT bar's words — "spent so far $2.25 of $75 · 1 without an
+ * amount": the actuals of stops 1..n against the day's planned total; "spent so
+ * far — of $75 · 3 without an amount" while none carries an actual; "spent so far
+ * — · records not read" when the records were not read.
+ */
+export function spentSoFarWords(spentCents: number | null, withoutActual: number, withActual: number, plannedCents: number | null): string {
+  if (spentCents === null) return `${SPENT_SO_FAR_WORDS} — · ${RECORDS_NOT_READ_WORDS}`;
+  const head = `${SPENT_SO_FAR_WORDS} ${withActual === 0 ? '—' : planDollars(spentCents)} of ${planDollars(plannedCents)}`;
+  return withoutActual > 0 ? `${head} · ${withoutAmountWords(withoutActual)}` : head;
+}
+export const SPENT_SO_FAR_WORDS = 'spent so far';
+/** "over by $5" — the actuals past the day's planned total, in the card's over tone. */
+export const overByWords = (cents: number): string => `over by ${planDollars(cents)}`;
+/** The step view draws no bars when the day's planned total is unknown or nothing is planned — and says why. */
+export const BARS_PLAN_NOT_READ_WORDS = 'no bars — the day’s planned total is not known (the Budget’s plan lines were not read)';
+export const BARS_NOTHING_PLANNED_WORDS = 'no bars — nothing is planned for the day';
 
 /** The plate's line under the hook: "spent $14 · 2 without an amount · 3 of 7 done" — the done count only when the stops were read. */
-export const spentLineWords = (spentCents: number | null, withoutActual: number, done: number, of: number | null): string =>
-  (of === null ? spentWords(spentCents, withoutActual) : `${spentWords(spentCents, withoutActual)} · ${doneOfWords(done, of)}`);
+export const spentLineWords = (spentCents: number | null, withoutActual: number, withActual: number, done: number, of: number | null): string =>
+  (of === null ? spentWords(spentCents, withoutActual, withActual) : `${spentWords(spentCents, withoutActual, withActual)} · ${doneOfWords(done, of)}`);
 
 /** A row's actual under its plan: "$12 ▲ $2" · "$12 ▼ $3" · "$12 on plan" · "$12" when the plan is unknown. */
 export function rowActualWords(actualCents: number, planCents: number | null): string {
@@ -779,6 +806,8 @@ export interface DayTally {
   readonly spentCents: number | null;
   /** Stops whose form asks an amount and that have none (records read); 0 while unread — the words say "records not read" then, never "0 without an amount". */
   readonly withoutAmount: number;
+  /** PLAN-01: stops that carry an actual (records read) — none: "spent —", never $0. */
+  readonly withActual: number;
   /** The Budget's figure for the day; null while the report was not read. */
   readonly plannedCents: number | null;
   /** How many stops carry both an actual and a plan. */
@@ -806,6 +835,7 @@ export function dayTally(result: DayStops, day: string, plannedCents: number | n
     of: result.stops.length,
     spentCents: result.spentCents,
     withoutAmount: read ? result.stops.filter((s) => asksAmount(s.role) && s.actualCents === null).length : 0,
+    withActual: read ? result.withActual : 0,
     plannedCents,
     compared: compared.length,
     largest,
@@ -816,9 +846,14 @@ export function dayTally(result: DayStops, day: string, plannedCents: number | n
   };
 }
 
-/** "$14.25 spent · $25 planned · 2 without an amount" · "spent — · records not read · $25 planned" (the records unread) · "— planned" while the report was not read. */
+/**
+ * "$14.25 spent · $25 planned · 2 without an amount" · "spent — · records not read
+ * · $25 planned" (the records unread) · "— planned" while the report was not read.
+ * PLAN-01: nothing recorded — "spent — · 6 without an amount · $75 planned", never $0.
+ */
 export function tallySpentWords(t: DayTally): string {
   if (t.spentCents === null) return `${SPENT_WORD} — · ${RECORDS_NOT_READ_WORDS} · ${planDollars(t.plannedCents)} ${PLANNED_WORD}`;
+  if (t.withActual === 0) return t.withoutAmount > 0 ? `${SPENT_WORD} — · ${withoutAmountWords(t.withoutAmount)} · ${planDollars(t.plannedCents)} ${PLANNED_WORD}` : `${SPENT_WORD} — · ${planDollars(t.plannedCents)} ${PLANNED_WORD}`;
   const head = `${planDollars(t.spentCents)} ${SPENT_WORD} · ${planDollars(t.plannedCents)} ${PLANNED_WORD}`;
   return t.withoutAmount > 0 ? `${head} · ${withoutAmountWords(t.withoutAmount)}` : head;
 }
@@ -845,6 +880,17 @@ export function typedAtWords(typedAt: string, day: string, zone: string): string
 }
 
 // ── TABLE-01 (2026-10-13): THE STOPS AS A TABLE — TIME · VENDOR · LOCATION · DESCRIPTION · BUDGET ──
+// PLAN-01 (2026-10-13): the full card's table is TIME · VENDOR · DESCRIPTION · BUDGET — LOCATION_HEAD_WORD now heads the step view's line only.
+
+// ── PLAN-01 (2026-10-13): THE PLATE'S WIDTH — ONE CONSTANT ────────────────
+
+/** The plate's width in CSS px — Alex's ruling: 640, so the card is shorter on the video. Every width on and under the plate derives from it. */
+export const PLATE_WIDTH = 640;
+/** The plate's side padding and its hairline border. */
+export const PLATE_PADDING_X = 29;
+export const PLATE_BORDER = 1;
+/** What the plate's content may use: 640 − 2 × 29 − 2 × 1 = 580. */
+export const PLATE_INNER_WIDTH = PLATE_WIDTH - 2 * PLATE_PADDING_X - 2 * PLATE_BORDER;
 
 export const TIME_HEAD_WORD = 'TIME';
 export const VENDOR_HEAD_WORD = 'VENDOR';
