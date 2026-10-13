@@ -280,6 +280,8 @@ test('T2 a task’s actual is the task’s own; the records not read → every r
   assert.deepEqual([unread.spentCents, unread.withoutActual, unread.notRecorded, unread.recordsWithoutStop], [null, 0, 0, []], 'not read is unknown — no sum, no counts');
   assert.deepEqual(unread.stops.map((s) => [s.statusSource, s.record]), [['routine', null], ['routine', null], ['routine', null]]);
   assert.equal(focusStop(unread, 1)!.spentSoFarCents, null);
+  assert.equal(unread.withActual, 0, 'PLAN-01: not read — no count');
+  assert.equal(focusStop(unread, 1)!.withActualSoFar, 0);
   assert.throws(() => dayStops(input({ entries: [entry(morning)], records: [coffeeDone, { ...coffeeDone, id: 'dup' }] })), /two records at line:/);
 });
 
@@ -305,10 +307,16 @@ test('T2 the day’s spent is the sum of the actuals that exist, the stops witho
   assert.equal(f.withoutActualSoFar, 2);
   assert.equal(focusStop(r, 5)!.spentSoFarCents, 4700);
   assert.equal(focusStop(r, 5)!.withoutActualSoFar, 2);
+  // PLAN-01 (2026-10-13): the stops that carry an actual are counted too — none is "spent —", unknown, never $0.
+  assert.equal(r.withActual, 3, 'the coffee, the gym, the task');
+  assert.equal(f.withActualSoFar, 1, 'Coffee, of Stretch, Journal and Coffee');
+  assert.equal(focusStop(r, 5)!.withActualSoFar, 3);
   // Skipped counts.
   const skipped = record({ kind: 'routine', target_id: GYM_ID, occurrence_at: GYM_AT, outcome: 'skipped', note: 'closed' });
   const sk = dayStops(input({ entries: [entry(gym, 'pending', GYM_AT)], records: [skipped] }));
   assert.deepEqual([sk.done, sk.skipped, sk.notRecorded, sk.withoutActual, sk.spentCents], [0, 1, 0, 1, 0]);
+  assert.equal(sk.withActual, 0, 'PLAN-01: records read, no actual');
+  assert.equal(spentWords(sk.spentCents, sk.withoutActual, sk.withActual), 'spent — · 1 without an amount', 'PLAN-01: the sum of no actuals is not $0 — it is unknown');
   assert.equal(completenessWords(sk, 0, { day: true, report: true, records: true }), '1 not priced · 1 skipped');
   // The done count is the marks' — a line done by its routine's completion counts (its row wears ✓); a task without an actual counts as without.
   const byRoutine = dayStops(input({ entries: [entry(morning, 'completed')], items: [item({ id: 'i1', task_id: 't1', task: task('t1', 'Ship it') })], records: [] }));
@@ -366,17 +374,24 @@ test('T3 the record’s words: the rubric, the stars, the status with its source
   assert.equal(rowActualWords(1000, 1000), '$10 on plan');
   assert.equal(rowActualWords(1200, null), '$12');
   assert.equal(withoutAmountWords(2), '2 without an amount');
-  assert.equal(spentWords(5425, 0), 'spent $54.25');
-  assert.equal(spentWords(5425, 2), 'spent $54.25 · 2 without an amount');
-  assert.equal(spentWords(0, 7), 'spent $0 · 7 without an amount', 'nothing typed yet is $0 WITH the count — never a bare $0');
-  assert.equal(spentWords(null, 0), 'spent — · records not read');
-  assert.equal(spentSoFarWords(1200, 2), 'spent so far $12 · 2 without an amount');
-  assert.equal(spentSoFarWords(null, 0), 'spent so far — · records not read');
+  // PLAN-01 (2026-10-13) — Alex's ruling: when the records were read but NO stop carries an actual, every spent line says "spent —"
+  // with its count, never $0 — nothing recorded is unknown, not zero; "spent $X" once one actual exists (a recorded $0 is an actual).
+  // The words take the count of stops that carry an actual; the STOP-01 pin "spent $0 · 7 without an amount" moved to "spent — · 7 …".
+  assert.equal(spentWords(5425, 0, 3), 'spent $54.25');
+  assert.equal(spentWords(5425, 2, 3), 'spent $54.25 · 2 without an amount');
+  assert.equal(spentWords(0, 7, 0), 'spent — · 7 without an amount', 'nothing recorded is unknown, not zero — "spent —" WITH the count, never $0');
+  assert.equal(spentWords(0, 6, 1), 'spent $0 · 6 without an amount', 'a recorded $0 is an actual');
+  assert.equal(spentWords(null, 0, 0), 'spent — · records not read');
+  assert.equal(spentSoFarWords(1200, 2, 1, 7500), 'spent so far $12 of $75 · 2 without an amount', 'PLAN-01: the SPENT bar’s words, of the day’s planned total');
+  assert.equal(spentSoFarWords(0, 3, 0, 7500), 'spent so far — of $75 · 3 without an amount');
+  assert.equal(spentSoFarWords(225, 0, 1, null), 'spent so far $2.25 of —');
+  assert.equal(spentSoFarWords(null, 0, 0, 7500), 'spent so far — · records not read');
   assert.equal(doneOfWords(6, 7), '6 of 7 done');
   assert.equal(skippedCountWords(1), '1 skipped');
   assert.equal(notRecordedWords(3), '3 not recorded');
-  assert.equal(spentLineWords(5425, 2, 6, 7), 'spent $54.25 · 2 without an amount · 6 of 7 done');
-  assert.equal(spentLineWords(5425, 0, 6, null), 'spent $54.25', 'the stops unknown (the day read failed) — no done count');
+  assert.equal(spentLineWords(5425, 2, 5, 6, 7), 'spent $54.25 · 2 without an amount · 6 of 7 done');
+  assert.equal(spentLineWords(5425, 0, 7, 6, null), 'spent $54.25', 'the stops unknown (the day read failed) — no done count');
+  assert.equal(spentLineWords(0, 9, 0, 0, 9), 'spent — · 9 without an amount · 0 of 9 done', 'PLAN-01: the hero’s line, nothing recorded');
   assert.equal(minutesLine(30, 42), '30 min planned · 42 min');
   assert.equal(minutesLine(30, null), '30 min planned');
   assert.equal(minutesLine(null, 42), '42 min');
@@ -589,16 +604,17 @@ test('T6 the form: under the plate on the step view, for a line or a routine onl
   assert.match(c, /const loaded = dayRead !== null && report !== null && items !== null && recordsRead !== null;/, 'the plate waits for the records too');
   assert.doesNotMatch(c, /setRecords\(null\)/, 'a re-read never blanks the plate first');
   assert.match(c, /dayStops\(\{ day, entries, lines, notPlaced, items: dayItems, viewerZone: zone, records: recordRows \}\)/);
-  assert.match(c, /<StopForm key=\{`\$\{focus\.stop\.key\}:\$\{focus\.stop\.record === null \? 'none' : focus\.stop\.record\.id\}`\} stop=\{focus\.stop\} day=\{day\} bookName=\{focus\.stop\.planLine === null \? ACCOUNT_CELL_WORDS\.bookNotLoaded : bookNameOf\(focus\.stop\.planLine\.entityId\)\} reportRead=\{reportRead\} onChanged=\{\(\) => setRecordReads\(\(n\) => n \+ 1\)\} onPlanChanged=\{\(\) => setReportReads\(\(n\) => n \+ 1\)\} \/>/, 'keyed by the stop and its record; the book by name from the report, whether the report was read, and the report re-read for the vendor box (ROLE-01)');
+  assert.match(c, /<StopForm key=\{`\$\{focus\.stop\.key\}:\$\{focus\.stop\.record === null \? 'none' : focus\.stop\.record\.id\}`\} stop=\{focus\.stop\} day=\{day\} bookName=\{focus\.stop\.planLine === null \? ACCOUNT_CELL_WORDS\.bookNotLoaded : bookNameOf\(focus\.stop\.planLine\.entityId\)\} viewerZone=\{zone\} reportRead=\{reportRead\} onChanged=\{\(\) => setRecordReads\(\(n\) => n \+ 1\)\} onPlanChanged=\{\(\) => setReportReads\(\(n\) => n \+ 1\)\} \/>/, 'keyed by the stop and its record; the book by name from the report, whether the report was read, and the report re-read for the vendor box (ROLE-01)');
   assert.ok(c.indexOf('data-day-card') < c.indexOf('<StopForm'), 'the form sits under the plate');
   assert.ok(c.indexOf('<StopForm') < c.indexOf('data-day-foot'), '— above the sentences');
   assert.match(c, /\{loaded && recordsOk && focus !== null && focus\.stop\.address !== null && \(/, 'on the step view, for a stop that has an address — never while the records could not be read');
-  assert.match(c, /data-day-spent>\{spentLineWords\(result\.spentCents, result\.withoutActual, result\.done, dayFailed \? null : N\)\}/, 'the spent line under the hook');
+  assert.match(c, /data-day-spent>\{spentLineWords\(result\.spentCents, result\.withoutActual, result\.withActual, result\.done, dayFailed \? null : N\)\}/, 'the spent line under the hook — PLAN-01: with the count that carries an actual');
   assert.match(c, /data-day-status>\{statusWords\(focus\.stop, day\)\}/);
   assert.match(c, /data-day-actual>\{planDollars\(focus\.stop\.actualCents\)\}/);
   assert.match(c, /\{delta !== null && delta\.over !== null && <div className=\{`font-semibold tabular-nums \$\{actualTone\(delta\.over\)\}`\} style=\{\{ fontSize: 23, lineHeight: 1\.1 \}\} data-day-delta>\{delta\.text\}<\/div>\}/, 'the delta only when both figures are known');
   assert.match(c, /data-day-rating>\{ratingWords\(focus\.stop\.record\.rating\)\}/);
-  assert.match(c, /data-day-spent-so-far>\{spentSoFarWords\(focus\.spentSoFarCents, focus\.withoutActualSoFar\)\}/);
+  // PLAN-01 (2026-10-13): the spent line is the SPENT bar's words — of the day's planned total; "over by $X" in the over tone past it.
+  assert.match(c, /data-day-spent-so-far>\{spentSoFarWords\(focus\.spentSoFarCents, focus\.withoutActualSoFar, focus\.withActualSoFar, plannedCents\)\}\{overCents !== null && <span className=\{actualTone\(true\)\} data-day-over-by> · \{overByWords\(overCents\)\}<\/span>\}/);
   assert.match(c, /if \(status === 'skipped'\) return <span className="text-text-muted" aria-label="skipped">–<\/span>;/);
   assert.match(c, /const actualTone = \(over: boolean \| null\): string => \(over === null \? 'text-text-muted' : over \? 'text-brand-red' : 'text-brand-green'\);/);
   assert.match(c, /data-day-records-without-stop>\{recordsWithoutStopWords\(result\.recordsWithoutStop\)\}/);

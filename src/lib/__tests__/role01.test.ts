@@ -281,10 +281,12 @@ test('T4 the form asks what the role asks; a place stop plans its vendor on its 
   assert.match(c, /\{bandNameOf\(s\)\}<\/span>/, 'the routine and its line');
   assert.match(c, /data-day-all-day-words>\{allDayBandWords\(result\.allDay\.filter\(\(s\) => s\.cents === null\)\.length\)\}/, 'the band’s words count its lines with no amount');
   assert.match(c, /const N = result\.stops\.length;/, 'the stops, never the band');
-  assert.match(c, /data-day-so-far>\{soFarWords\(plannedCents === null \? null : focus\.soFarCents, plannedCents\)\}\{plannedCents !== null && result\.allDayCents > 0 && <span className="font-medium text-text-muted" data-day-so-far-all-day> · \{allDayCentsWords\(planDollars\(result\.allDayCents\)\)\}<\/span>\}/, 'the step card says how much of its denominator is the band');
+  // PLAN-01 (2026-10-13): the line is the PLAN bar's words — soFarWords became planSoFarWords; the band's share stays on it.
+  assert.match(c, /data-day-plan-so-far>\{planSoFarWords\(plannedCents === null \? null : focus\.soFarCents, plannedCents\)\}\{plannedCents !== null && result\.allDayCents > 0 && <span className="font-medium text-text-muted" data-day-so-far-all-day> · \{allDayCentsWords\(planDollars\(result\.allDayCents\)\)\}<\/span>\}/, 'the step card says how much of its denominator is the band');
   assert.match(c, /setItems\(null\);\n[\s\S]*?setReportReads\(0\);/, 'a new day resets the re-read counter — one report read per day change');
   assert.ok(c.indexOf('data-day-stops') < c.indexOf('data-day-all-day') && c.indexOf('data-day-all-day') < c.indexOf('data-day-plate-foot'), 'between the rows and the plate’s foot');
-  assert.match(c, /\{loaded && focus === null && N > 0 && <p className="mx-auto text-xs text-text-muted" style=\{\{ width: 540 \}\} data-day-hint>\{TAP_A_STOP_WORDS\}<\/p>\}/, 'the hint, under the full plate, outside it');
+  // PLAN-01 (2026-10-13): the hint's width is the plate's — PLATE_WIDTH, the one constant.
+  assert.match(c, /\{loaded && focus === null && N > 0 && <p className="mx-auto text-xs text-text-muted" style=\{\{ width: PLATE_WIDTH \}\} data-day-hint>\{TAP_A_STOP_WORDS\}<\/p>\}/, 'the hint, under the full plate, outside it');
   assert.ok(c.indexOf('data-day-card') < c.indexOf('data-day-hint'), 'outside the recorded box');
   assert.match(c, /const bookNameOf = \(entityId: string\): string => \{\n\s*const book = report !== null && report\.ok \? report\.value\.report\.books\.find\(\(b\) => b\.entityId === entityId\) : undefined;\n\s*return book === undefined \? ACCOUNT_CELL_WORDS\.bookNotLoaded : book\.entityName;\n\s*\};/, 'the book by name from the report’s own books, else said as not loaded');
   assert.match(c, /if \(day === null \|\| today === null \|\| reportReads === 0\) return;\n[\s\S]*?const r = await readDayReport\(day, today\);\n\s*if \(live\) setReport\(r\);/, 'the report read again in place after a vendor write — never blanked first');

@@ -22,7 +22,7 @@ import {
   BADGE_WORDS, BRAND_WORDS, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, HOOK_WORDS, LOCATION_HEAD_WORD, PLAN_WORD, PLANNED_WORD, STOPS_NOT_READ_WORDS, TASK_WORD, TIME_HEAD_WORD, TODAY_WORD, UNTITLED_WORDS, VENDOR_HEAD_WORD,
   badDateWords, badStepWords, completenessWords, dayCarryWords, dayShortWords, dayStops, focusStop,
   headerWords, heroWord, hookWords, intervalWords, linesUnreadWords, linesWithoutStopWords, notPlacedWords, notPricedWords, openStepWords, planDollars, progressPercent, provenanceWords,
-  routineFigureWords, soFarWords, stepHeaderWords, stopsWords, strandedWords, unmatchedWords, whereWords,
+  routineFigureWords, planSoFarWords, stepHeaderWords, PLATE_BORDER, PLATE_INNER_WIDTH, PLATE_PADDING_X, PLATE_WIDTH, stopsWords, strandedWords, unmatchedWords, whereWords,
   type DayCardInput,
 } from '@/components/workbench/operations/day/dayCard';
 import { dayReportFailedWords, readDayReport } from '@/components/workbench/operations/day/dayReads';
@@ -332,9 +332,9 @@ test('T3 focusStop: 1..N with soFarCents over the priced stops only; 0, N+1, a f
   const r = dayStops(input({ entries: [entry(morning), entry(gym, 'pending', GYM_AT)], lines }));
   assert.equal(r.stops.length, 4);
   // spentSoFarCents null and withoutActualSoFar 0 while the records were not read (STOP-01).
-  assert.deepEqual(focusStop(r, 1), { index: 1, of: 4, stop: r.stops[0], soFarCents: 0, spentSoFarCents: null, withoutActualSoFar: 0 });
-  assert.deepEqual(focusStop(r, 3), { index: 3, of: 4, stop: r.stops[2], soFarCents: 500, spentSoFarCents: null, withoutActualSoFar: 0 });
-  assert.deepEqual(focusStop(r, 4), { index: 4, of: 4, stop: r.stops[3], soFarCents: 2000, spentSoFarCents: null, withoutActualSoFar: 0 });
+  assert.deepEqual(focusStop(r, 1), { index: 1, of: 4, stop: r.stops[0], soFarCents: 0, spentSoFarCents: null, withoutActualSoFar: 0, withActualSoFar: 0 });
+  assert.deepEqual(focusStop(r, 3), { index: 3, of: 4, stop: r.stops[2], soFarCents: 500, spentSoFarCents: null, withoutActualSoFar: 0, withActualSoFar: 0 });
+  assert.deepEqual(focusStop(r, 4), { index: 4, of: 4, stop: r.stops[3], soFarCents: 2000, spentSoFarCents: null, withoutActualSoFar: 0, withActualSoFar: 0 });
   for (const n of [0, 5, 2.5, Number.NaN, -1]) assert.equal(focusStop(r, n), null, `step ${n}`);
   assert.equal(focusStop(dayStops(input()), 1), null, 'no stops, no step');
 });
@@ -351,9 +351,10 @@ test('T3 the words, exact', () => {
   assert.equal(stopsWords(1), '1 stop');
   assert.equal(stopsWords(7), '7 stops');
   assert.equal(notPricedWords(3), '3 not priced');
-  assert.equal(soFarWords(1400, 5000), 'so far $14 of $50');
-  assert.equal(soFarWords(1461, 5000), 'so far $14.61 of $50');
-  assert.equal(soFarWords(null, null), 'so far — of —');
+  // PLAN-01 (2026-10-13): the step view's PLAN bar says "plan so far" — soFarWords became planSoFarWords; the figures are the same.
+  assert.equal(planSoFarWords(1400, 5000), 'plan so far $14 of $50');
+  assert.equal(planSoFarWords(1461, 5000), 'plan so far $14.61 of $50');
+  assert.equal(planSoFarWords(null, null), 'plan so far — of —');
   // STOP-01: the records are a source too — each named NOT READ when it was not.
   assert.equal(provenanceWords('2026-10-11', true, true), 'Budget plan lines · stop records · as of 2026-10-11');
   assert.equal(provenanceWords('2026-10-11', false, true), 'Budget plan lines NOT READ · stop records · as of 2026-10-11');
@@ -528,8 +529,10 @@ test('T5 the day folder prices nothing, writes nothing and paints no dark surfac
     assert.doesNotMatch(body, /method:\s*'(POST|PATCH|PUT|DELETE)'/, `${f} sends no write`);
     assert.doesNotMatch(body, /localStorage|sessionStorage|document\.cookie/, `${f} stores nothing`);
     assert.doesNotMatch(body, /\b(bg-black|bg-brand-purple|bg-panel|bg-brand-red)\b(?!\/)/, `${f} paints no dark surface (the repaint law)`);
-    // DAYCARD-01b: the reel plate's two solid fills, and only those — the gold TS badge (dark ink on it) and the green progress bar (no ink on it).
-    assert.deepEqual([...body.matchAll(/\b(bg-brand-gold|bg-brand-green)\b/g)].map((m) => m[1]), f === CARD ? ['bg-brand-gold', 'bg-brand-green'] : [], `${f}: the badge and the bar are the only solid fills`);
+    // DAYCARD-01b: the reel plate's solid fills, and only those — the gold TS badge (dark ink on it) and the progress bar (no ink on it).
+    // PLAN-01 (2026-10-13) — Alex's ruling: two bars on the step view, the PLAN bar gold and the SPENT (actual) bar green. The list
+    // moved from [badge gold, bar green] to [badge gold, plan bar gold, spent bar green]; nothing else is a fill.
+    assert.deepEqual([...body.matchAll(/\b(bg-brand-gold|bg-brand-green)\b/g)].map((m) => m[1]), f === CARD ? ['bg-brand-gold', 'bg-brand-gold', 'bg-brand-green'] : [], `${f}: the badge and the two bars are the only solid fills`);
     assert.doesNotMatch(body, /consecutive_(completion|miss)_streak/, `${f} reads no streak (the two-lists law)`);
   }
   assert.doesNotMatch(code(RULES), /\bfetch\b|new Date\(\)|Date\.now\(|from 'react'|@prisma\/client/, 'the rules are pure: no fetch, no clock, no React, no Prisma');
@@ -542,9 +545,15 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   const c = code(CARD);
   assert.match(c, /^'use client';/m);
   // THE PLATE (DAYCARD-01b): the reel's card at two thirds — 540 wide, white, the app's hairline, rounded, centered; its height is its content's.
-  assert.match(c, /className="bg-ts-white border border-border flex flex-col mx-auto" style=\{\{ width: 540, borderRadius: 23, padding: '25px 29px 24px', gap: 11 \}\} data-day-card/, 'the plate: card cream, the app’s hairline, no shadow (the demo has none)');
+  // PLAN-01 (2026-10-13): the plate's width is dayCard.ts PLATE_WIDTH (640, Alex's ruling) and its side padding PLATE_PADDING_X — one constant each, no number typed here.
+  assert.match(c, /className="bg-ts-white border border-border flex flex-col mx-auto" style=\{\{ width: PLATE_WIDTH, borderRadius: 23, padding: `25px \$\{PLATE_PADDING_X\}px 24px`, gap: 11 \}\} data-day-card/, 'the plate: card cream, the app’s hairline, no shadow (the demo has none)');
+  assert.match(code(RULES), /export const PLATE_WIDTH = 640;\n/);
+  assert.match(code(RULES), /export const PLATE_INNER_WIDTH = PLATE_WIDTH - 2 \* PLATE_PADDING_X - 2 \* PLATE_BORDER;/);
+  assert.deepEqual([PLATE_WIDTH, PLATE_PADDING_X, PLATE_BORDER, PLATE_INNER_WIDTH], [640, 29, 1, 580]);
+  assert.doesNotMatch(c, /\b540\b/, 'no width typed in the screen — every one is the constant');
   assert.doesNotMatch(c, /height: 960/, 'no fixed 9:16 box — the plate grows with its stops');
-  assert.equal((c.match(/overflow-hidden/g) ?? []).length, 1, 'nothing clipped but the bar’s own track');
+  // PLAN-01 (2026-10-13): two bars, each its own track — two clipped tracks, nothing else.
+  assert.equal((c.match(/overflow-hidden/g) ?? []).length, 2, 'nothing clipped but the two bars’ own tracks');
   // The header: the badge, the wordmark, DAY n OF m on the full card, "n OF N · time" on the step card.
   assert.match(c, /className="bg-brand-gold text-text-primary rounded-lg flex items-center justify-center font-extrabold" style=\{\{ width: 32, height: 32, fontSize: 16 \}\} aria-hidden="true">\{BADGE_WORDS\}/, 'the gold TS badge, dark ink');
   assert.match(c, /\{BRAND_WORDS\}<\/span>/);
@@ -568,26 +577,26 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.match(c, /\{N > 0 && \(\n\s*<div className="flex flex-col">\n\s*<table className="w-full" style=\{\{ tableLayout: 'fixed', borderCollapse: 'collapse' \}\} data-day-stops>/, 'a real table, fixed widths, no horizontal scroll — and no lone header on a day with no stops');
   assert.match(c, /<\/table>\n\s*<div className="border-t border-border" aria-hidden="true" \/>\n\s*<\/div>\n\s*\)\}/, 'the closing rule sits flush under the last row, in the table’s gap-less column — not a plate item 11 px below it');
   assert.doesNotMatch(c, /\{N > 0 && <div className="border-t border-border"/, 'no closing rule loose on the plate');
-  assert.match(c, /<colgroup>\n\s*<col style=\{\{ width: COLUMN_WIDTHS\.time \}\} \/>\n\s*<col style=\{\{ width: COLUMN_WIDTHS\.vendor \}\} \/>\n\s*<col style=\{\{ width: COLUMN_WIDTHS\.location \}\} \/>\n\s*<col \/>\n\s*<col style=\{\{ width: COLUMN_WIDTHS\.budget \}\} \/>\n\s*<\/colgroup>/, 'the four fixed columns are the colgroup’s, the description’s the rest');
-  assert.match(c, /const COLUMN_WIDTHS = \{ time: 110, vendor: 80, location: 84, budget: 98 \} as const;/, 'each fixed column holds its widest fact; DESCRIPTION takes the rest of the plate’s 480');
-  const widths = c.match(/const COLUMN_WIDTHS = \{ time: (\d+), vendor: (\d+), location: (\d+), budget: (\d+) \} as const;/)!.slice(1, 5).map(Number);
-  const plate = c.match(/<div className="bg-ts-white border border-border flex flex-col mx-auto" style=\{\{ width: (\d+), borderRadius: \d+, padding: '\d+px (\d+)px \d+px', gap: \d+ \}\} data-day-card/)!.slice(1, 3).map(Number);
-  const inner = plate[0] - 2 * plate[1] - 2 * 1; // the plate's `border` is 1 px a side
-  assert.equal(inner, 480, 'the plate’s inner width: 540 − 2 × 29 padding − 2 × 1 border');
+  // PLAN-01 (2026-10-13) — Alex's ruling: LOCATION is off the full card's table (the step view's LOCATION line stays): four columns, re-balanced for 640.
+  assert.match(c, /<colgroup>\n\s*<col style=\{\{ width: COLUMN_WIDTHS\.time \}\} \/>\n\s*<col style=\{\{ width: COLUMN_WIDTHS\.vendor \}\} \/>\n\s*<col \/>\n\s*<col style=\{\{ width: COLUMN_WIDTHS\.budget \}\} \/>\n\s*<\/colgroup>/, 'the three fixed columns are the colgroup’s, the description’s the rest');
+  assert.match(c, /const COLUMN_WIDTHS = \{ time: 110, vendor: 140, budget: 98 \} as const;/, 'each fixed column holds its widest fact; DESCRIPTION takes the rest of the plate’s 580');
+  const widths = c.match(/const COLUMN_WIDTHS = \{ time: (\d+), vendor: (\d+), budget: (\d+) \} as const;/)!.slice(1, 4).map(Number);
+  const inner = PLATE_INNER_WIDTH;
+  assert.equal(inner, 580, 'the plate’s inner width: 640 − 2 × 29 padding − 2 × 1 border');
   // Measured in the card's own fonts (TABLE-01 review): '$9,999.99' at 19 px extrabold is 96.4 px; 'DESCRIPTION' at 12 px tracked 0.14em is 100 px.
-  assert.ok(widths[3] >= 97, `BUDGET (${widths[3]}) holds '$9,999.99' whole — a figure is never split`);
+  assert.ok(widths[2] >= 97, `BUDGET (${widths[2]}) holds '$9,999.99' whole — a figure is never split`);
   assert.ok(inner - widths.reduce((a, b) => a + b, 0) >= 104, `the description keeps ${inner - widths.reduce((a, b) => a + b, 0)} px — its head word (100) and the cell’s 4 px of padding`);
   assert.match(c, /const MARK_SLOT = 17;/, 'the mark’s slot: ✓ is 13.3 px at 15 px');
-  inOrderOf(c, ['<thead>', '{TIME_HEAD_WORD}</th>', '{VENDOR_HEAD_WORD}</th>', '{LOCATION_HEAD_WORD}</th>', '{DESCRIPTION_HEAD_WORD}</th>', '{BUDGET_HEAD_WORD}</th>', '</thead>'], 'the header row, in the table’s order');
+  inOrderOf(c, ['<thead>', '{TIME_HEAD_WORD}</th>', '{VENDOR_HEAD_WORD}</th>', '{DESCRIPTION_HEAD_WORD}</th>', '{BUDGET_HEAD_WORD}</th>', '</thead>'], 'the header row, in the table’s order');
+  assert.doesNotMatch(c, /\{LOCATION_HEAD_WORD\}<\/th>|data-day-col="location"|COLUMN_WIDTHS\.location/, 'no LOCATION column on the full card');
   const row = /<tr\n\s*key=\{s\.key\}([\s\S]*?)<\/tr>/.exec(c);
   assert.ok(row !== null, 'a row per stop');
   const cols = [...row![1].matchAll(/data-day-col="(\w+)"/g)].map((m) => m[1]);
-  assert.deepEqual(cols, ['time', 'vendor', 'location', 'description', 'budget'], 'the five cells, once each, in the header’s order');
+  assert.deepEqual(cols, ['time', 'vendor', 'description', 'budget'], 'the four cells, once each, in the header’s order');
   assert.match(row![1], /<span className="inline-block font-extrabold" style=\{\{ width: MARK_SLOT, fontSize: 15, lineHeight: 1 \}\}><Mark status=\{s\.status\} \/><\/span>/, 'the ✓/✕/– mark in its own slot on every row — an open row’s slot is empty, so every clock starts at one x');
   assert.match(row![1], /style=\{\{ fontSize: 13, lineHeight: 1\.2 \}\} data-day-interval>\{factOf\(intervalWords\(s\.time, s\.minutes\)\)\}/, 'the interval — the start and its end, or the start, or — at 13 px mono');
   assert.doesNotMatch(row![1], /marginLeft/, 'no offset that depends on the status — the slot holds the mark');
   assert.match(row![1], /data-day-col="vendor">\{factOf\(s\.vendor\)\}/, 'the vendor, or —');
-  assert.match(row![1], /data-day-col="location">\{factOf\(s\.location\)\}/, 'the location, or —');
   assert.match(row![1], /<button type="button" className="block w-full text-left font-bold text-text-primary break-words" style=\{\{ fontSize: 19, lineHeight: 1\.1 \}\} aria-label=\{openStepWords\(i \+ 1, boldOf\(s\)\)\} data-day-bold>\{boldOf\(s\)\}<\/button>/, 'the description — the line or the name, the same words function — is the row’s door: a real button, named for the step it opens; Enter and Space are the browser’s own');
   assert.equal((row![1].match(/<button\b/g) ?? []).length, 1, 'one door per row');
   assert.doesNotMatch(row![1], /<button[^>]*onClick/, 'the button has no handler of its own — its click reaches the row’s one onClick, so a step opens once');
@@ -596,8 +605,8 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.match(c, /function smallOf\(s: Stop\): string \| null \{\n\s*if \(s\.kind === 'task'\) return TASK_WORD;\n\s*if \(s\.kind === 'routine'\) return null;\n\s*return s\.label;\n\}/, 'the small text names no place — the vendor and the location have their columns');
   assert.doesNotMatch(c, /\.place\b|placeOf/, 'no place in the screen');
   const cellClasses = [...row![1].matchAll(/<td className=(?:"([^"]*)"|\{`([^`]*)`\})/g)].map((m) => m[1] ?? m[2]);
-  assert.equal(cellClasses.length, 5, 'five cells in the row');
-  assert.deepEqual(cellClasses.map((k) => /\bbreak-words\b/.test(k)), [true, true, true, true, false], 'the four text cells wrap; the BUDGET cell does not');
+  assert.equal(cellClasses.length, 4, 'four cells in the row');
+  assert.deepEqual(cellClasses.map((k) => /\bbreak-words\b/.test(k)), [true, true, true, false], 'the three text cells wrap; the BUDGET cell does not');
   const budgetCell = /data-day-col="budget">([\s\S]*?)<\/td>/.exec(row![1]);
   assert.ok(budgetCell !== null);
   assert.doesNotMatch(budgetCell![1], /break-words|break-all/, 'a figure is never split mid-digit ("$12.5" over "0"); the actual line still wraps at its spaces');
@@ -622,7 +631,7 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.match(c, /data-day-count>\{completeness\}/);
   assert.equal((c.match(/data-day-provenance>\{provenanceWords\(today, reportRead, recordsOk\)\}/g) ?? []).length, 2, 'the source line on the full card AND on the step card — the records a source too (STOP-01)');
   assert.ok(c.indexOf('data-day-provenance') < c.indexOf('data-day-foot'), 'the provenance is on the plate; the sentences are under it');
-  assert.match(c, /\{foot && \(\n\s*<div className="mx-auto space-y-1 text-xs" style=\{\{ width: 540 \}\} data-day-foot>/, 'the sentences under the plate render whenever there is one');
+  assert.match(c, /\{foot && \(\n\s*<div className="mx-auto space-y-1 text-xs" style=\{\{ width: PLATE_WIDTH \}\} data-day-foot>/, 'the sentences under the plate render whenever there is one');
   assert.match(c, /const foot = loaded && \(result\.unmatched\.length > 0 \|\| result\.routineFigures\.length > 0 \|\| result\.linesWithoutStop\.length > 0 \|\| result\.notPlacedToday\.length > 0 \|\| stranded\.length > 0 \|\| refused\.length > 0 \|\| \(report !== null && !report\.ok\) \|\| \(plans !== null && !plans\.listed\) \|\| result\.recordsWithoutStop\.length > 0 \|\| unplacedRecords\.length > 0 \|\| \(recordsRead !== null && !recordsRead\.ok\)\);/);
   assert.match(c, /data-day-lines-without-stop>\{dayFailed \? linesUnreadWords\(result\.linesWithoutStop\) : linesWithoutStopWords\(result\.linesWithoutStop\)\}/);
   assert.match(c, /data-day-routine-figures>\{routineFigureWords\(result\.routineFigures\)\}/);
@@ -630,10 +639,14 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.match(c, /<RefusedRoutines refused=\{refused\} \/>/);
   // The step card: PLAN and its amount, "so far" and the bar — both null-safe while the report cannot be read.
   assert.match(c, /\{PLAN_WORD\}<\/div>/);
-  assert.match(c, /data-day-so-far>\{soFarWords\(plannedCents === null \? null : focus\.soFarCents, plannedCents\)\}/);
-  assert.match(c, /const bar = progressPercent\(plannedCents === null \|\| focus === null \? null : focus\.soFarCents, plannedCents\);/, 'the bar is the rules’ percent, once');
-  assert.match(c, /\{bar !== null && \(/, 'no bar without a known plan');
-  assert.match(c, /className="bg-brand-green rounded-full" style=\{\{ height: 9, width: `\$\{bar\}%` \}\}/);
+  // PLAN-01 (2026-10-13) — two bars, each with its own words: PLAN (gold) the planned money so far, SPENT (green) the actuals so far, both of the day's planned total.
+  assert.match(c, /data-day-plan-so-far>\{planSoFarWords\(plannedCents === null \? null : focus\.soFarCents, plannedCents\)\}/);
+  assert.match(c, /const planBar = progressPercent\(plannedCents === null \|\| focus === null \? null : focus\.soFarCents, plannedCents\);/, 'the plan bar is the rules’ percent, once');
+  assert.match(c, /const spentBar = focus === null \|\| focus\.spentSoFarCents === null \|\| focus\.withActualSoFar === 0 \? null : progressPercent\(focus\.spentSoFarCents, plannedCents\);/, 'no spent bar while the records are unread or nothing so far carries an actual — unknown, not zero');
+  assert.match(c, /\{planBar !== null && \(/, 'no bar without a known plan');
+  assert.match(c, /\{planBar !== null && spentBar !== null && \(/, 'the spent bar only beside a plan bar — its denominator is the plan');
+  assert.match(c, /className="bg-brand-gold rounded-full" style=\{\{ height: 9, width: `\$\{planBar\}%` \}\}/, 'the PLAN bar gold');
+  assert.match(c, /className="bg-brand-green rounded-full" style=\{\{ height: 9, width: `\$\{spentBar\}%` \}\}/, 'the SPENT bar green');
   for (const attr of ['data-day-card', 'data-day-header', 'data-day-hero', 'data-day-hook', 'data-day-stop=', 'data-day-status=', 'data-day-focus', 'data-day-plate-foot', 'data-day-count', 'data-day-provenance', 'data-day-foot', 'data-day-unmatched', 'data-day-routine-figures', 'data-day-lines-without-stop', 'data-day-not-placed', 'data-day-stranded', 'data-day-report-failed', 'data-day-bad-date', 'data-day-bad-step', 'data-day-failed', 'data-day-so-far', 'data-day-controls', 'data-day-spent', 'data-day-record', 'data-day-status>', 'data-day-actual', 'data-day-delta', 'data-day-rating', 'data-day-note', 'data-day-minutes', 'data-day-spent-so-far', 'data-day-records-without-stop', 'data-day-records-unplaced', 'data-day-records-failed']) {
     assert.ok(c.includes(attr), `the screen carries ${attr}`);
   }

@@ -16,8 +16,8 @@ import { code, comments } from '../sourceText';
 import {
   ADD_OPEN_STEPS_WORDS, ANSWER_FIELDS, BIDI_WORDS, BLOCKERS_BLOCK_WORD, BLOCKERS_QUESTION, CONTROLS_WORDS, DONE_NOT_LIST_WORDS, END_OF_DAY_BLOCK_WORD, END_OF_DAY_QUESTION,
   GOALS_EXAMPLE, JOURNAL_RECORD_WORDS, LIST_MAX, NOTHING_TYPED_WORDS, PLAN_BLOCK_WORD, PLAN_EXAMPLE, PLAN_QUESTION, RETIRED_FIELDS, TODAY_BLOCK_WORD, TODAY_GOALS_QUESTION,
-  YESTERDAY_WORD, answersOf, blankLineWords, carryTicks, doneLengthWords, doneNotBooleanWords, goalWords, journalInput, journalUnchanged, leftOpenWords, lineNotStringWords,
-  lineTooLongWords, lineWords, linesOf, notListWords, openSteps, planDoneWords, planStepWords, tooManyWords,
+  YESTERDAY_WORD, answersOf, blankLineWords, carryTicks, doneLengthWords, doneNotBooleanWords, goalWords, journalInput, journalUnchanged, lineNotStringWords,
+  lineTooLongWords, lineWords, linesOf, notListWords, openSteps, planDoneWords, planStepWords, tooManyWords, notFinishedWords,
   type Answers,
 } from '../operations/journal';
 
@@ -145,12 +145,13 @@ test('T2 linesOf and openSteps: the lines as the form sends them; the steps a da
 });
 
 test('T2 the words — each a constant or a function, exact', () => {
-  assert.equal(TODAY_GOALS_QUESTION, 'What are you getting done today? One per line.');
+  // PLAN-01 (2026-10-13): Alex's words for two questions and for yesterday's unticked steps — the pins moved with them.
+  assert.equal(TODAY_GOALS_QUESTION, 'What do you need to get done today? One per line.');
   assert.equal(BLOCKERS_QUESTION, 'What could stop it?');
   assert.equal(PLAN_QUESTION, 'The plan — paste the steps from chat, one per line.');
-  assert.equal(END_OF_DAY_QUESTION, 'End of day — what got done? (type tonight)');
+  assert.equal(END_OF_DAY_QUESTION, 'What did you accomplish today? (type tonight)');
   assert.deepEqual([YESTERDAY_WORD, TODAY_BLOCK_WORD, BLOCKERS_BLOCK_WORD, PLAN_BLOCK_WORD, END_OF_DAY_BLOCK_WORD], ['YESTERDAY', 'TODAY', 'BLOCKERS', 'PLAN', 'END OF DAY']);
-  assert.equal(leftOpenWords(['a', 'b']), 'left open: a · b');
+  assert.equal(notFinishedWords(['a', 'b']), 'not finished: a · b');
   assert.equal(ADD_OPEN_STEPS_WORDS(2), "+ yesterday's open steps (2)");
   assert.equal(planDoneWords(2, 5), '2 of 5 done');
   assert.equal(planStepWords(1, 'merge TABLE-01', false), '☐ 1. merge TABLE-01');
@@ -230,13 +231,16 @@ test('T5 the form: four boxes, each labelled with its question, in the plate’s
   assert.match(f, /<textarea id="journal-plan" /);
   assert.match(f, /placeholder=\{GOALS_EXAMPLE\}/);
   assert.match(f, /placeholder=\{PLAN_EXAMPLE\}/);
-  inOrder(f, ['const steps = linesOf(draft.plan);', 'const ticks = carryTicks(journal === null ? [] : journal.plan_steps, journal === null ? [] : journal.plan_done, steps);', 'const read = journalInput({ day, goals: linesOf(draft.goals),', 'if (!read.ok) { setWords(read.message); return; }', 'const answer = await setJournal(day, read.value.answers);', 'onChanged();'], 'lines, then ticks, then the rule, then the writer, then the re-read');
+  // PLAN-01 (2026-10-13): the plan and goal lines lose a pasted list's marker between linesOf and carryTicks — the pin moved with it.
+  inOrder(f, ['const steps = linesOf(draft.plan).map(stripListMarker);', 'const ticks = carryTicks(journal === null ? [] : journal.plan_steps, journal === null ? [] : journal.plan_done, steps);', 'const read = journalInput({ day, goals: linesOf(draft.goals).map(stripListMarker),', 'if (!read.ok) { setWords(read.message); return; }', 'const answer = await setJournal(day, read.value.answers);', 'onChanged();'], 'lines, then ticks, then the rule, then the writer, then the re-read');
   assert.match(f, /\{yesterdayOpen\.length > 0 && <button type="button" className=\{chip\} disabled=\{busy\} onClick=\{addOpen\} data-journal-add-open>\{ADD_OPEN_STEPS_WORDS\(yesterdayOpen\.length\)\}<\/button>\}/, 'only when yesterday left steps open');
   assert.match(f, /const addOpen = \(\) => setDraft\(\{ \.\.\.draft, plan: \[\.\.\.linesOf\(draft\.plan\), \.\.\.yesterdayOpen\]\.join\('\\n'\) \}\);/, 'appended to the plan box — the draft only');
   assert.doesNotMatch(f, /maxLength/);
   assert.doesNotMatch(f, /\b(adjustment|one_thing|witness|plan_\d_(if|then)|obstacle_(if|then)|retired)\b/, 'no retired answer is asked');
   const c = code(CARD);
-  assert.match(c, /const yesterdayOpen = yesterdayReads !== null && yesterdayReads\.journal\.ok && yesterdayReads\.journal\.value\.journal !== null \? openSteps\(yesterdayReads\.journal\.value\.journal\) : \[\];/, 'the card hands the form yesterday’s open steps — none while unread');
+  // PLAN-01 (2026-10-13): the form takes yesterday whole — its open steps and its END OF DAY — or why it is not known; the pin moved with it.
+  assert.match(c, /const yesterdayForPrompt: YesterdayForPrompt = yesterdayReads === null\n\s*\? \{ ok: false, words: YESTERDAY_LOADING_WORDS \}\n\s*: !yesterdayReads\.journal\.ok\n\s*\? \{ ok: false, words: yesterdayReads\.journal\.words \}\n\s*: yesterdayReads\.journal\.value\.journal === null\n\s*\? \{ ok: true, accomplished: null, notFinished: \[\] \}\n\s*: \{ ok: true, accomplished: yesterdayReads\.journal\.value\.journal\.shipped, notFinished: openSteps\(yesterdayReads\.journal\.value\.journal\) \};/, 'yesterday read, or why not — never an unknown written as none');
+  assert.match(code(FORM), /const yesterdayOpen = yesterday\.ok \? yesterday\.notFinished : \[\];/, 'the open steps only from a read yesterday');
 });
 
 // ── T6 · THE PLATE ───────────────────────────────────────────────────────────
@@ -245,8 +249,9 @@ test('T6 the plate: the five blocks in order; each step a tick button through th
   const c = code(CARD);
   const plate = c.slice(c.indexOf('function JournalPlate('), c.indexOf('function PlateHeader('));
   inOrder(plate, ['{YESTERDAY_WORD}', '{TODAY_BLOCK_WORD}', '{BLOCKERS_BLOCK_WORD}', '{PLAN_BLOCK_WORD}', '{END_OF_DAY_BLOCK_WORD}'], 'the five blocks, in the table’s order');
-  inOrder(plate, ['data-day-yesterday-end-of-day>', 'data-day-yesterday-spent>', 'data-day-yesterday-largest>', 'data-day-yesterday-done>', 'data-day-yesterday-left-open>'], 'YESTERDAY: the END OF DAY as typed, the numbers, then what was left open');
-  assert.match(plate, /\{yOpen\.length > 0 && <div [^>]*data-day-yesterday-left-open>\{leftOpenWords\(yOpen\)\}<\/div>\}/);
+  // PLAN-01 (2026-10-13): "accomplished:" on yesterday's END OF DAY and "not finished:" on its unticked steps — the attribute renamed with the words.
+  inOrder(plate, ['data-day-yesterday-end-of-day>', 'data-day-yesterday-spent>', 'data-day-yesterday-largest>', 'data-day-yesterday-done>', 'data-day-yesterday-not-finished>'], 'YESTERDAY: the END OF DAY as typed, the numbers, then what was left open');
+  assert.match(plate, /\{yOpen\.length > 0 && <div [^>]*data-day-yesterday-not-finished>\{notFinishedWords\(yOpen\)\}<\/div>\}/);
   assert.match(plate, /const yOpen = yRow === null \? \[\] : openSteps\(yRow\);/);
   assert.match(plate, /\{a\.goals\.map\(\(goal, i\) => \(\n\s*<div [^>]*data-day-journal-goal>\{goalWords\(goal\)\}<\/div>/, 'TODAY: the goals as a list');
   assert.match(plate, /data-day-journal-blocker>\{a\.blocker === null \? UNANSWERED_WORD : a\.blocker\}/);

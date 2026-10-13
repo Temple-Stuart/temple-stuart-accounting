@@ -251,6 +251,16 @@ export const journalUnchanged = (row: Answers, answers: Answers): boolean =>
 export const linesOf = (text: string): string[] => text.split(/\r\n|\r|\n/).map((line) => line.trim().replace(/\s+/g, ' ')).filter((line) => line !== '');
 
 /**
+ * PLAN-01 (2026-10-13): a pasted list's leading marker — "1." "1)" "-" "•" "*"
+ * followed by a space — is the list's, not the step's: the plate numbers the
+ * steps itself (and bullets the goals), so the form removes it from each plan
+ * and goal line after linesOf and before carryTicks. Nothing else in a line
+ * changes: "1.5 kg rice", "-5 degrees" and "a - b" stay as typed. A line from
+ * linesOf ends in no space, so a stripped line is never empty.
+ */
+export const stripListMarker = (line: string): string => line.replace(/^(?:\d+[.)]|[-•*]) /, '');
+
+/**
  * The ticks a re-pasted plan keeps: a new step whose exact text was a saved
  * step keeps that saved step's tick (the first saved match not yet used, so
  * two steps of the same text keep their own ticks in order); any other step
@@ -277,10 +287,10 @@ export function openSteps(answers: Answers): string[] {
 // ── WORDS ───────────────────────────────────────────────────────────────────
 
 /** The form's four questions — each box is labelled with its question. */
-export const TODAY_GOALS_QUESTION = 'What are you getting done today? One per line.';
+export const TODAY_GOALS_QUESTION = 'What do you need to get done today? One per line.';
 export const BLOCKERS_QUESTION = 'What could stop it?';
 export const PLAN_QUESTION = 'The plan — paste the steps from chat, one per line.';
-export const END_OF_DAY_QUESTION = 'End of day — what got done? (type tonight)';
+export const END_OF_DAY_QUESTION = 'What did you accomplish today? (type tonight)';
 /** The examples the goals and plan boxes show until something is typed. */
 export const GOALS_EXAMPLE = 'perfect the day cards\nbook travel for the rest of the trip';
 export const PLAN_EXAMPLE = 'merge TABLE-01\nbook travel while CC runs\nrecord brunch and dinner\nscreenshot the card, edit, post';
@@ -299,10 +309,64 @@ export const goalWords = (goal: string): string => `• ${goal}`;
 export const planStepWords = (index: number, step: string, done: boolean): string => `${done ? '✓' : '☐'} ${index}. ${step}`;
 /** "2 of 5 done" — under the plan. */
 export const planDoneWords = (done: number, of: number): string => `${done} of ${of} done`;
-/** "left open: book travel · record brunch" — yesterday's steps not ticked. */
-export const leftOpenWords = (steps: readonly string[]): string => `left open: ${steps.join(' · ')}`;
+/** PLAN-01: "accomplished:" — the label on yesterday's END OF DAY text on the plate. */
+export const ACCOMPLISHED_WORD = 'accomplished:';
+/** "accomplished: merged TABLE-01" · "accomplished: —" when the day's journal has no END OF DAY. */
+export const accomplishedWords = (shipped: string | null): string => `${ACCOMPLISHED_WORD} ${shipped === null ? UNANSWERED_WORD : shipped}`;
+/** "not finished: book travel · record brunch" — yesterday's steps not ticked (PLAN-01: the words renamed from "left open", the same rule — openSteps). */
+export const notFinishedWords = (steps: readonly string[]): string => `not finished: ${steps.join(' · ')}`;
 /** "+ yesterday's open steps (2)" — the form's button that appends them to the plan box. */
 export const ADD_OPEN_STEPS_WORDS = (n: number): string => `+ yesterday's open steps (${n})`;
+// ── PLAN-01 (2026-10-13): THE PLAN PROMPT — YESTERDAY AND TODAY, HANDED TO CLAUDE ──
+
+/** Yesterday as the plan prompt needs it: read (its END OF DAY, or null when none was typed; its steps not ticked), or why it is not. */
+export type YesterdayForPrompt =
+  | { readonly ok: true; readonly accomplished: string | null; readonly notFinished: readonly string[] }
+  | { readonly ok: false; readonly words: string };
+
+export interface PlanPromptInput {
+  readonly dayWords: string;
+  readonly yesterdayAccomplished: string | null;
+  readonly yesterdayNotFinished: readonly string[];
+  /** The goals as the form's DRAFT holds them, not only what is saved. */
+  readonly goals: readonly string[];
+  readonly blocker: string | null;
+}
+
+export const COPY_PLAN_PROMPT_WORDS = 'copy plan prompt';
+export const PLAN_PROMPT_COPIED_WORDS = 'copied — paste it into Claude';
+/** The clipboard refused the write — its reason, in words; nothing else is tried. */
+export const planPromptFailedWords = (reason: string): string => `could not copy the plan prompt — ${reason}`;
+/** Yesterday's journal is not read (in flight, or failed) — the prompt is not offered, never written with yesterday filled in. */
+export const planPromptWaitsWords = (words: string): string => `the plan prompt needs yesterday's journal — ${words}`;
+export const PLAN_PROMPT_DAY = 'Day:';
+export const PLAN_PROMPT_ACCOMPLISHED = 'Yesterday — accomplished:';
+export const PLAN_PROMPT_NOT_FINISHED = 'Yesterday — not finished:';
+export const PLAN_PROMPT_TODAY = 'Today — what I need to get done:';
+export const PLAN_PROMPT_BLOCKERS = 'Blockers:';
+export const PLAN_PROMPT_NOTHING_TYPED = 'nothing typed';
+export const PLAN_PROMPT_NONE = 'none';
+export const PLAN_PROMPT_NONE_TYPED = 'none typed';
+/** The ask — its limits are the plan's own (LIST_MAX), so the steps that come back fit the box. */
+export const PLAN_PROMPT_ASK = `Audit the temple-stuart-accounting repo where you need to, then give me today's plan as numbered steps, one per line, plain text, at most ${LIST_MAX.plan_steps.lines} steps, each under ${LIST_MAX.plan_steps.characters} characters — each a step I can tick off (a Claude Code prompt to send is a step). After the steps, give me any Claude Code prompts the steps need.`;
+
+const promptItems = (items: readonly string[], none: string): string[] => (items.length === 0 ? [`- ${none}`] : items.map((item) => `- ${item}`));
+
+/** The plan prompt, exactly: every line a constant or built from one — nothing invented, nothing filled in. */
+export function planPromptText(input: PlanPromptInput): string {
+  return [
+    `${PLAN_PROMPT_DAY} ${input.dayWords}`,
+    `${PLAN_PROMPT_ACCOMPLISHED} ${input.yesterdayAccomplished === null ? PLAN_PROMPT_NOTHING_TYPED : input.yesterdayAccomplished}`,
+    PLAN_PROMPT_NOT_FINISHED,
+    ...promptItems(input.yesterdayNotFinished, PLAN_PROMPT_NONE),
+    PLAN_PROMPT_TODAY,
+    ...promptItems(input.goals, PLAN_PROMPT_NONE_TYPED),
+    `${PLAN_PROMPT_BLOCKERS} ${input.blocker === null ? PLAN_PROMPT_NONE_TYPED : input.blocker}`,
+    '',
+    PLAN_PROMPT_ASK,
+  ].join('\n');
+}
+
 /** The journal stop's RECORD row says what the record is (StopForm.tsx). */
 export const JOURNAL_RECORD_WORDS = 'RECORD — when you did the journal';
 /** The journal read is in flight. */
