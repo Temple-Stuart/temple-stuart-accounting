@@ -97,8 +97,9 @@ export default function StopForm({ stop, day, bookName, reportRead, onChanged, o
   if (stop.role === 'all_day') throw new Error(`StopForm: ${stop.key} is an all-day line — it takes no record`);
   const role: Exclude<StopRole, 'all_day'> = stop.role;
   // What this stop's role asks for. A place: the amount, the stars, and "why" once the typed amount differs from the plan —
-  // or whenever the plan is unknown (nothing to differ from). A work stop (journal · plan · execute): the minutes and one
-  // line. No role set: everything, as before.
+  // or whenever the plan is unknown (nothing to differ from). A journal stop (JOURNAL-01): the minutes only — its words are
+  // the journal's own questions (JournalForm.tsx), so the note is asked only for a skip's reason. A work stop (plan ·
+  // execute): the minutes and one line. No role set: everything, as before.
   const typedCents = ((): number | null => {
     if (draft.amount.trim() === '') return null;
     try { const r = centsFromDecimalString(draft.amount); return r.ok ? r.cents : null; } catch { return null; }
@@ -108,7 +109,9 @@ export default function StopForm({ stop, day, bookName, reportRead, onChanged, o
     ? { amount: true, rating: true, minutes: false, note: draft.outcome === 'skipped' || differs }
     : role === 'none'
       ? { amount: true, rating: true, minutes: true, note: true }
-      : { amount: false, rating: false, minutes: true, note: true };
+      : role === 'journal'
+        ? { amount: false, rating: false, minutes: true, note: draft.outcome === 'skipped' }
+        : { amount: false, rating: false, minutes: true, note: true };
   // A field the role does not ask is shown anyway while it holds a value — read, corrected, or cleared in the open.
   const shown = {
     amount: asks.amount || draft.amount !== '',

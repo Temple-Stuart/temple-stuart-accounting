@@ -1,0 +1,524 @@
+/**
+ * JOURNAL-01 (2026-10-13) — THE JOURNAL STOP ASKS THE MORNING'S QUESTIONS; YESTERDAY'S NUMBERS ABOVE THEM.
+ *
+ * The rule (src/lib/operations/journal.ts) and yesterday's tally (day/dayCard.ts
+ * dayTally) are pure and DRIVEN over fixtures; the writer and the read are driven
+ * over a stubbed fetch; the migration, the schema, the routes, the form and the
+ * plate are anchored to their source with comments stripped (TEST-TRUTH-01).
+ */
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readdirSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { AuditActionType } from '@prisma/client';
+import { code, comments } from '../sourceText';
+import {
+  ANSWER_FIELDS, ANSWER_MAX, BIDI_WORDS, BODY_WORDS, CONTROLS_WORDS, INDEPENDENT_FIELDS, JOURNAL_LOADING_WORDS, JOURNAL_NOT_READ_WORDS, NO_ANSWERS, NONE_TYPED_WORDS, NO_YESTERDAY_WORDS,
+  NOTHING_TYPED_WORDS, PAIRS, PLAN_BLOCK_WORD, QUESTION_WORDS, RACE_WORDS, SHIPPED_HINT_WORDS, TODAY_BLOCK_WORD, UNANSWERED_WORD, YESTERDAY_LOADING_WORDS, YESTERDAY_WORD,
+  answerLine, answersOf, asJournalDate, clearJournalQuestion, dayWords, journalInput, journalProvenanceWords, journalRowOf, journalUnchanged, noJournalWords, notStringWords,
+  pairLine, pairWords, tooLongWords, typedOnWords, typedWords, yesterdayFailedWords,
+  type Answers,
+} from '../operations/journal';
+import { ON_PLAN_WORDS, asksAmount, dayStops, dayTally, stopNameOf, tallyDoneWords, tallyLargestWords, tallyShippedWords, tallySpentWords, todayPlanWords, typedAtWords, type DayCardInput } from '@/components/workbench/operations/day/dayCard';
+import { journalFailedWords, readJournal } from '@/components/workbench/operations/day/dayReads';
+import { CLEAR_FAILED_WORDS, SET_FAILED_WORDS, clearJournal, setJournal } from '@/components/workbench/operations/stops/journalWrites';
+import { SIGNED_OUT_WORDS } from '@/components/workbench/operations/week/weekReads';
+import type { DailyPlanItem } from '@/components/workbench/operations/dailyplan/types';
+import type { Routine, RoutineStep, TodayRoutineEntry, TodayStatus } from '@/components/workbench/operations/routines/types';
+import type { PlanLine } from '../budget/planLines';
+import type { StopRecordRow } from '../operations/stopRecord';
+
+const RULE = 'src/lib/operations/journal.ts';
+const CARD_RULES = 'src/components/workbench/operations/day/dayCard.ts';
+const CARD = 'src/components/workbench/operations/day/DayCard.tsx';
+const READS = 'src/components/workbench/operations/day/dayReads.ts';
+const WRITES = 'src/components/workbench/operations/stops/journalWrites.ts';
+const FORM = 'src/components/workbench/operations/stops/JournalForm.tsx';
+const STOP_FORM = 'src/components/workbench/operations/stops/StopForm.tsx';
+const ROUTE = 'src/app/api/operations/journal/route.ts';
+const ROUTE_ID = 'src/app/api/operations/journal/[id]/route.ts';
+const SCHEMA = 'prisma/schema.prisma';
+const MIGRATIONS = 'prisma/migrations';
+const MIGRATION_DIR = '20261013120000_journal_01_day_journals';
+const MIGRATION = `${MIGRATIONS}/${MIGRATION_DIR}/migration.sql`;
+const AUDIT_LOG = 'src/app/api/audit-log/route.ts';
+const MIDDLEWARE = 'src/middleware.ts';
+
+// ── FIXTURES (the day card's, daycard01.test.ts / stop01.test.ts) ────────────
+
+const DAY = '2026-10-11';
+const BKK = 'Asia/Bangkok';
+/** 07:00 Bangkok on the day. */
+const AT = '2026-10-11T00:00:00.000Z';
+const GYM_AT = '2026-10-11T13:00:00.000Z';
+/** 06:00 Bangkok on the day. */
+const VISION_AT = '2026-10-10T23:00:00.000Z';
+const STEP_ID = '0f2a7c1e-1111-4a2b-8c3d-000000000001';
+const STRETCH_ID = '0f2a7c1e-3333-4a2b-8c3d-000000000003';
+const GYM_ID = '0f2a7c1e-2222-4a2b-8c3d-000000000002';
+const VISION_ID = '0f2a7c1e-4444-4a2b-8c3d-000000000004';
+
+const step = (over: Partial<RoutineStep> & { id: string; step_order: number; activity: string }): RoutineStep => ({
+  routine_id: 'morning', user_id: 'u', entity_id: 'P', time_of_day: null, sub_activity: null, location: null, duration_minutes: null,
+  notes: null, created_at: '2026-09-01T00:00:00.000Z', updated_at: '2026-09-01T00:00:00.000Z', created_by: null, ...over,
+});
+const routine = (over: Partial<Routine> & { id: string; name: string }): Routine => ({
+  user_id: 'u', entity_id: 'P', description: null, schedule_rrule: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0', timezone: BKK,
+  next_due_at: null, last_evaluated_at: null, last_completed_at: null, consecutive_completion_streak: 0, consecutive_miss_streak: 0,
+  ideal_time_label: null, fail_threshold_minutes: 30, start_date: null, end_date: null, start_time: null, end_time: null, is_active: true,
+  created_at: '2026-09-01T00:00:00.000Z', updated_at: '2026-09-01T00:00:00.000Z', created_by: null, budget_amount: null, coa_code: null,
+  location: null, steps: [], role: 'none', ...over,
+});
+const entry = (r: Routine, status: TodayStatus = 'pending', expected_at: string = AT): TodayRoutineEntry => ({ routine: r, expected_at, status, completion: null });
+const line = (over: Partial<PlanLine> & { address: PlanLine['address']; cents: number; label: string }): PlanLine => ({
+  entityId: 'P', code: '5100', day: DAY, source: 'routine', line: null, time: null, vendor: null, ...over,
+});
+const item = (over: Partial<DailyPlanItem> & { id: string }): DailyPlanItem => ({
+  user_id: 'u', entity_id: 'P', plan_date: `${DAY}T00:00:00.000Z`, task_id: null, ad_hoc_title: null, ad_hoc_description: null, display_order: 0,
+  notes: null, created_at: '2026-10-01T00:00:00.000Z', updated_at: '2026-10-01T00:00:00.000Z', created_by: null, task: null, calendar_blocks: [], ...over,
+});
+const task = (id: string, title: string, status: NonNullable<DailyPlanItem['task']>['status'], actual_cost_usd: string | null, completed_at: string | null) => ({
+  id, title, status, project_id: 'proj', coa_code: null, estimated_cost_usd: null, actual_cost_usd, actual_minutes: null, completed_at,
+});
+const record = (over: Partial<StopRecordRow> & { kind: StopRecordRow['kind']; target_id: string; occurrence_at: string }): StopRecordRow => ({
+  id: `rec-${over.target_id}`, outcome: 'done', done_at: null, actual_cents: null, rating: null, note: null, actual_minutes: null, ...over,
+});
+
+const morning = routine({
+  id: 'morning', name: 'Morning', steps: [
+    step({ id: STRETCH_ID, step_order: 1, activity: 'Stretch', time_of_day: '1970-01-01T06:30:00.000Z' }),
+    step({ id: STEP_ID, step_order: 2, activity: 'Coffee', time_of_day: '1970-01-01T07:30:00.000Z' }),
+    step({ id: 'journal-step', step_order: 3, activity: 'Journal' }),
+  ],
+});
+const gym = routine({ id: GYM_ID, name: 'Gym', role: 'place', schedule_rrule: 'FREQ=DAILY;BYHOUR=20;BYMINUTE=0' });
+const vision = routine({ id: VISION_ID, name: 'Vision', role: 'journal', schedule_rrule: 'FREQ=DAILY;BYHOUR=6;BYMINUTE=0' });
+const lines = [
+  line({ address: { kind: 'routine_line', id: STEP_ID, instant: AT }, cents: 1000, label: 'Morning', line: 'Coffee', time: '07:30' }),
+  line({ address: { kind: 'routine_line', id: STRETCH_ID, instant: AT }, cents: 800, label: 'Morning', line: 'Stretch', time: '06:30' }),
+  line({ address: { kind: 'routine', id: GYM_ID, instant: GYM_AT }, cents: 2000, label: 'Gym', time: '20:00' }),
+];
+const items = [
+  // Done on the day (12:00 Bangkok): shipped. Done the day before: done, not shipped. Open, with no actual.
+  item({ id: 'i-ship', task_id: 't-ship', task: task('t-ship', 'Ship it', 'completed', '7.50', '2026-10-11T05:00:00.000Z') }),
+  item({ id: 'i-old', task_id: 't-old', task: task('t-old', 'Old one', 'completed', null, '2026-10-10T05:00:00.000Z') }),
+  item({ id: 'i-open', task_id: 't-open', task: task('t-open', 'Open one', 'open', null, null) }),
+];
+const coffee = (cents: number | null) => record({ kind: 'routine_line', target_id: STEP_ID, occurrence_at: AT, done_at: '2026-10-11T00:41:00.000Z', actual_cents: cents });
+const stretch = (cents: number | null) => record({ kind: 'routine_line', target_id: STRETCH_ID, occurrence_at: AT, done_at: '2026-10-10T23:31:00.000Z', actual_cents: cents });
+const gymSkipped = record({ kind: 'routine', target_id: GYM_ID, occurrence_at: GYM_AT, outcome: 'skipped', note: 'closed' });
+const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({
+  day: DAY, entries: [entry(morning), entry(gym, 'pending', GYM_AT), entry(vision, 'pending', VISION_AT)], lines, notPlaced: [], items, viewerZone: BKK, records: null, ...over,
+});
+const tallyOf = (records: readonly StopRecordRow[] | null, plannedCents: number | null = 3800) => dayTally(dayStops(input({ records })), DAY, plannedCents);
+
+const refused = (body: unknown) => {
+  const r = journalInput(body);
+  assert.ok(!r.ok, `refused: ${JSON.stringify(body)}`);
+  return r.ok ? null : { field: r.field, message: r.message };
+};
+const accepted = (body: unknown): Answers => {
+  const r = journalInput(body);
+  assert.ok(r.ok, `accepted: ${JSON.stringify(body)} — ${r.ok ? '' : r.message}`);
+  return r.ok ? r.value.answers : NO_ANSWERS;
+};
+
+// ── T1 · THE RULE ────────────────────────────────────────────────────────────
+
+test('T1 journalInput: the body, the day, each answer trimmed and collapsed; nothing filled in; the answers built from ANSWER_FIELDS alone', () => {
+  for (const body of [null, 'x', 7, [DAY]]) assert.deepEqual(refused(body), { field: 'day', message: BODY_WORDS });
+  for (const bad of ['2026-13-01', '2026-02-30', 'today', '2026-9-3', '', undefined]) assert.deepEqual(refused({ day: bad, one_thing: 'x' }), { field: 'day', message: dayWords(bad) });
+  const a = accepted({ day: DAY, one_thing: '  ship   the\tPR ' });
+  assert.equal(a.one_thing, 'ship the PR', 'trimmed, runs of whitespace one space');
+  assert.deepEqual(Object.keys(a), [...ANSWER_FIELDS], 'the thirteen answers, in the plate’s order — and nothing else');
+  for (const f of ANSWER_FIELDS) if (f !== 'one_thing') assert.equal(a[f], null, `${f} absent is null — never ""`);
+  assert.equal(accepted({ day: DAY, one_thing: 'x', witness: null }).witness, null, 'null is absent too');
+  // No key of the body passes through — not a prototype, not an id, not an owner, not a stamp.
+  const smuggled = journalInput(JSON.parse(`{"day":"${DAY}","one_thing":"x","__proto__":{"evil":true},"id":"mine","user_id":"someone","created_at":"1970","constructor":"c"}`));
+  assert.ok(smuggled.ok);
+  if (smuggled.ok) {
+    const keys = Object.keys(smuggled.value.answers);
+    assert.deepEqual(keys, [...ANSWER_FIELDS]);
+    assert.equal(Object.getPrototypeOf(smuggled.value.answers), Object.prototype);
+    for (const k of ['evil', 'id', 'user_id', 'created_at']) assert.equal(Object.hasOwn(smuggled.value.answers, k), false, `${k} does not pass through`);
+    assert.equal((smuggled.value.answers as unknown as Record<string, unknown>).evil, undefined);
+    assert.equal(smuggled.value.day, DAY);
+  }
+});
+
+test('T1 journalInput refuses by name: a non-string, C0 and C1 controls, a lone surrogate, the bidi controls — and keeps a ZWJ emoji', () => {
+  assert.deepEqual(refused({ day: DAY, one_thing: 5 }), { field: 'one_thing', message: notStringWords('one_thing') });
+  assert.deepEqual(refused({ day: DAY, blocker: ['x'] }), { field: 'blocker', message: notStringWords('blocker') });
+  assert.deepEqual(refused({ day: DAY, witness: 'a\u0007b' }), { field: 'witness', message: CONTROLS_WORDS }, 'a C0 control');
+  assert.deepEqual(refused({ day: DAY, witness: 'a\u0085b' }), { field: 'witness', message: CONTROLS_WORDS }, 'a C1 control');
+  assert.deepEqual(refused({ day: DAY, witness: 'a\ud83db' }), { field: 'witness', message: CONTROLS_WORDS }, 'a high surrogate with no partner');
+  assert.deepEqual(refused({ day: DAY, witness: 'a\udc00b' }), { field: 'witness', message: CONTROLS_WORDS }, 'a low surrogate with no partner');
+  assert.deepEqual(refused({ day: DAY, shipped: 'x‮y' }), { field: 'shipped', message: BIDI_WORDS }, 'RLO reverses the plate');
+  assert.deepEqual(refused({ day: DAY, shipped: '⁦x⁩' }), { field: 'shipped', message: BIDI_WORDS }, 'the isolates too');
+  assert.equal(accepted({ day: DAY, one_thing: '👨‍👩‍👧 family' }).one_thing, '👨‍👩‍👧 family', 'a ZWJ sequence is visible — \\p{Cf} is not refused outright');
+  assert.equal(accepted({ day: DAY, one_thing: 'café' }).one_thing, 'café');
+  assert.equal(accepted({ day: DAY, one_thing: 'café' }).one_thing, 'café', 'a combining mark on a letter stays');
+});
+
+test('T1 journalInput: an answer that is nothing visible is unanswered; the length is in code points and the refusal says "characters"', () => {
+  assert.equal(accepted({ day: DAY, one_thing: 'x', witness: '​‍‌' }).witness, null, 'format characters alone are no answer');
+  assert.equal(accepted({ day: DAY, one_thing: 'x', witness: '́̈' }).witness, null, 'nonspacing marks alone are no answer');
+  assert.equal(accepted({ day: DAY, one_thing: 'x', witness: '   ' }).witness, null, 'a blank is no answer');
+  const atColumn = accepted({ day: DAY, one_thing: 'a'.repeat(120) }).one_thing;
+  assert.ok(atColumn !== null && [...atColumn].length === 120, 'at the column');
+  assert.deepEqual(refused({ day: DAY, one_thing: 'a'.repeat(121) }), { field: 'one_thing', message: tooLongWords('one_thing', 121) });
+  assert.match(tooLongWords('one_thing', 121), /characters/);
+  assert.equal(accepted({ day: DAY, one_thing: '😀'.repeat(120) }).one_thing, '😀'.repeat(120), '120 code points (240 UTF-16 units) fit the column, which counts characters');
+  assert.deepEqual(refused({ day: DAY, one_thing: '😀'.repeat(121) }), { field: 'one_thing', message: tooLongWords('one_thing', 121) }, 'counted in code points');
+  assert.deepEqual(refused({ day: DAY, shipped: 'x'.repeat(501) }), { field: 'shipped', message: tooLongWords('shipped', 501) });
+  assert.deepEqual(refused({ day: DAY, adjustment: 'x'.repeat(281) }), { field: 'adjustment', message: tooLongWords('adjustment', 281) });
+  assert.deepEqual(refused({ day: DAY, plan_2_if: 'x'.repeat(161), plan_2_then: 'y' }), { field: 'plan_2_if', message: tooLongWords('plan_2_if', 161) });
+  assert.deepEqual(ANSWER_MAX, { adjustment: 280, one_thing: 120, witness: 120, blocker: 280, shipped: 500, plan_1_if: 160, plan_1_then: 160, plan_2_if: 160, plan_2_then: 160, plan_3_if: 160, plan_3_then: 160, obstacle_if: 160, obstacle_then: 160 });
+});
+
+test('T1 journalInput: a pair both or neither, the null side named; all thirteen null is refused; unchanged; the row and the date', () => {
+  assert.deepEqual(refused({ day: DAY, plan_1_if: 'rain' }), { field: 'plan_1_then', message: pairWords('plan_1_then', 'plan_1_if') });
+  assert.deepEqual(refused({ day: DAY, plan_1_then: 'gym' }), { field: 'plan_1_if', message: pairWords('plan_1_if', 'plan_1_then') });
+  assert.deepEqual(refused({ day: DAY, obstacle_then: 'wait' }), { field: 'obstacle_if', message: pairWords('obstacle_if', 'obstacle_then') });
+  assert.deepEqual(refused({ day: DAY, plan_3_if: 'x', plan_3_then: '​' }), { field: 'plan_3_then', message: pairWords('plan_3_then', 'plan_3_if') }, 'an invisible "then" is a missing "then"');
+  const pair = accepted({ day: DAY, plan_1_if: 'rain', plan_1_then: 'gym at 7' });
+  assert.deepEqual([pair.plan_1_if, pair.plan_1_then], ['rain', 'gym at 7']);
+  assert.deepEqual(PAIRS, [['plan_1_if', 'plan_1_then'], ['plan_2_if', 'plan_2_then'], ['plan_3_if', 'plan_3_then'], ['obstacle_if', 'obstacle_then']]);
+  assert.deepEqual(INDEPENDENT_FIELDS, ['adjustment', 'one_thing', 'plan_1_if', 'plan_2_if', 'plan_3_if', 'obstacle_if', 'blocker', 'witness', 'shipped']);
+  for (const body of [{ day: DAY }, { day: DAY, one_thing: '   ' }, { day: DAY, one_thing: null, witness: '​' }]) assert.deepEqual(refused(body), { field: 'adjustment', message: NOTHING_TYPED_WORDS });
+  assert.equal(NOTHING_TYPED_WORDS, 'nothing typed — a journal is at least one answer');
+  const row = journalRowOf({ ...NO_ANSWERS, one_thing: 'x', id: 'j1', day: new Date('2026-10-11T00:00:00.000Z'), updated_at: new Date('2026-10-10T23:40:00.000Z') });
+  assert.deepEqual(row, { ...NO_ANSWERS, one_thing: 'x', id: 'j1', day: DAY, typed_at: '2026-10-10T23:40:00.000Z' });
+  assert.equal(journalUnchanged(row, answersOf({ one_thing: 'x' })), true);
+  assert.equal(journalUnchanged(row, answersOf({ one_thing: 'y' })), false);
+  assert.equal(journalUnchanged(row, answersOf({ one_thing: 'x', witness: 'me' })), false);
+  assert.deepEqual(asJournalDate(DAY), new Date('2026-10-11T00:00:00.000Z'), 'UTC midnight — the @db.Date convention (stay.ts asDate)');
+  assert.equal(code('src/lib/operations/stay.ts').includes("export const asDate = (day: string): Date => new Date(`${day}T00:00:00.000Z`);"), true);
+  assert.equal(code(RULE).includes("export const asJournalDate = (day: string): Date => new Date(`${day}T00:00:00.000Z`);"), true, 'the same convention, word for word');
+});
+
+test('T1 the words — each a constant or a function, exact', () => {
+  assert.deepEqual(QUESTION_WORDS, { adjustment: '→ so today', one_thing: 'one thing', witness: 'witness', blocker: 'blocker', shipped: 'shipped', plan_if: 'if', plan_then: 'then', obstacle_if: 'obstacle', obstacle_then: '→ then' });
+  assert.equal(YESTERDAY_WORD, 'YESTERDAY');
+  assert.equal(TODAY_BLOCK_WORD, 'TODAY');
+  assert.equal(PLAN_BLOCK_WORD, 'PLAN');
+  assert.equal(UNANSWERED_WORD, '—');
+  assert.equal(SHIPPED_HINT_WORDS, 'shipped is typed at the end of the day');
+  assert.equal(JOURNAL_LOADING_WORDS, 'reading the journal…');
+  assert.equal(JOURNAL_NOT_READ_WORDS, 'journal not read');
+  assert.notEqual(JOURNAL_LOADING_WORDS, JOURNAL_NOT_READ_WORDS, 'in flight and failed are different words');
+  assert.equal(noJournalWords('Sat Oct 11'), 'nothing typed for Sat Oct 11');
+  assert.equal(NO_YESTERDAY_WORDS, 'no journal yesterday');
+  assert.equal(YESTERDAY_LOADING_WORDS, 'reading yesterday…');
+  assert.equal(yesterdayFailedWords('two records at x'), 'yesterday could not be tallied — two records at x');
+  assert.equal(typedWords('06:40'), 'typed 06:40');
+  assert.equal(typedOnWords('Oct 12', '06:40'), 'typed Oct 12 06:40');
+  assert.equal(journalProvenanceWords('typed 06:40'), 'numbers: the Budget · stop records · words: typed 06:40');
+  assert.equal(journalProvenanceWords(NONE_TYPED_WORDS), 'numbers: the Budget · stop records · words: none typed');
+  assert.equal(journalProvenanceWords(JOURNAL_LOADING_WORDS), 'numbers: the Budget · stop records · words: reading the journal…', 'in flight is not "none typed"');
+  assert.equal(journalProvenanceWords(JOURNAL_NOT_READ_WORDS), 'numbers: the Budget · stop records · words: journal not read', 'failed is not "none typed"');
+  assert.equal(clearJournalQuestion('Sat Oct 11'), 'Clear the journal for Sat Oct 11? The audit log keeps it; the card forgets it.');
+  assert.equal(RACE_WORDS(DAY), `the journal for ${DAY} was written moments ago — read the day again`);
+  assert.equal(answerLine(QUESTION_WORDS.one_thing, null), 'one thing —');
+  assert.equal(answerLine(QUESTION_WORDS.one_thing, 'ship the PR'), 'one thing ship the PR');
+  assert.equal(pairLine(QUESTION_WORDS.plan_if, null, QUESTION_WORDS.plan_then, null), 'if — then —');
+  assert.equal(pairLine(QUESTION_WORDS.obstacle_if, 'rain', QUESTION_WORDS.obstacle_then, 'the gym'), 'obstacle rain → then the gym');
+  assert.equal(BODY_WORDS, 'the body must be an object with day and the answers');
+  assert.equal(CONTROLS_WORDS, 'control characters are not an answer');
+  assert.equal(BIDI_WORDS, 'direction-reversing characters (U+202A–U+202E, U+2066–U+2069) are not an answer');
+  // The sentences themselves — the refusals above prove the field and the function; these prove the words.
+  assert.equal(dayWords('2026-13-01'), 'day "2026-13-01" is not a \'YYYY-MM-DD\' day');
+  assert.equal(dayWords(undefined), 'day undefined is not a \'YYYY-MM-DD\' day');
+  assert.equal(notStringWords('one_thing'), 'one_thing must be a string');
+  assert.equal(tooLongWords('one_thing', 121), 'one_thing is at most 120 characters (121 given)');
+  assert.equal(tooLongWords('shipped', 501), 'shipped is at most 500 characters (501 given)');
+  assert.equal(pairWords('plan_1_then', 'plan_1_if'), 'plan_1_then goes with plan_1_if — give both or neither');
+  assert.equal(pairWords('obstacle_if', 'obstacle_then'), 'obstacle_if goes with obstacle_then — give both or neither');
+  assert.doesNotMatch(code(RULE), /\bfetch\b|new Date\(\)|Date\.now\(|@prisma\/client|from 'react'/, 'pure: no fetch, no clock, no Prisma, no React');
+});
+
+// ── T2 · YESTERDAY'S TALLY ───────────────────────────────────────────────────
+
+test('T2 dayTally: records unread → spent null and never "0 without an amount"; read → spent, the stops without an amount (only where the form asks one), the largest delta both ways, done of N with the skipped named, shipped', () => {
+  const unread = tallyOf(null);
+  assert.equal(unread.spentCents, null);
+  assert.equal(unread.withoutAmount, 0);
+  assert.equal(tallySpentWords(unread), 'spent — · records not read · $38 planned');
+  assert.doesNotMatch(tallySpentWords(unread), /0 without an amount/);
+  assert.equal(tallyLargestWords(unread), '—');
+  assert.equal(tallySpentWords(tallyOf(null, null)), 'spent — · records not read · — planned', 'the plan unknown too — never $0');
+
+  const t = tallyOf([coffee(1200), stretch(500), gymSkipped]);
+  assert.equal(t.of, 8, 'five routine stops and three tasks');
+  assert.equal(t.spentCents, 1200 + 500 + 750, 'the typed actuals and the task’s own');
+  // Without an amount, where the form asks one: the journal step (role none), Gym (place), Old one and Open one (tasks) — never Vision (journal) or a stop that typed one.
+  assert.equal(t.withoutAmount, 4);
+  assert.equal(tallySpentWords(t), '$24.50 spent · $38 planned · 4 without an amount');
+  assert.deepEqual([asksAmount('place'), asksAmount('none'), asksAmount('journal'), asksAmount('plan'), asksAmount('execute'), asksAmount('all_day')], [true, true, false, false, false, false], 'StopForm’s asks: a place and no role ask the amount');
+  assert.equal(t.compared, 2);
+  assert.equal(t.largest?.deltaCents, -300);
+  assert.equal(tallyLargestWords(t), '▼ $3 under — Stretch');
+  assert.equal(tallyLargestWords(tallyOf([coffee(1600), stretch(500), gymSkipped])), '▲ $6 over — Coffee', 'the largest |actual − planned|, whichever way');
+  assert.equal(tallyLargestWords(tallyOf([coffee(1000), stretch(800)])), ON_PLAN_WORDS, 'every compared stop on plan');
+  assert.equal(tallyLargestWords(tallyOf([gymSkipped])), '—', 'records read, nothing to compare — the task’s $7.50 has no plan line');
+  assert.equal(t.done, 4, 'Coffee, Stretch, Ship it, Old one');
+  assert.equal(t.skipped, 1);
+  assert.equal(tallyDoneWords(t), '4 of 8 done · 1 skipped — Gym');
+  assert.equal(tallyDoneWords(tallyOf([coffee(1200)])), '3 of 8 done');
+  assert.deepEqual(t.shipped.map(stopNameOf), ['Ship it'], 'done on the day in the viewer’s zone — Old one was done the day before: done, not shipped');
+  assert.equal(tallyShippedWords(t, null), 'shipped: Ship it');
+  assert.equal(tallyShippedWords(t, 'STAY-01 merged'), 'shipped: Ship it · STAY-01 merged');
+  assert.equal(tallyShippedWords(tallyOf([], 3800), null), 'shipped: Ship it', 'the task’s done-at is the task’s, records or not');
+  const none = dayTally(dayStops(input({ items: [], records: [] })), DAY, 3800);
+  assert.equal(tallyShippedWords(none, null), 'shipped: —');
+  assert.equal(tallyShippedWords(none, 'the PR'), 'shipped: the PR');
+  assert.equal(todayPlanWords(3100, 7), '$31 planned · 7 stops');
+  assert.equal(todayPlanWords(null, null), '— planned · stops not read');
+  assert.equal(todayPlanWords(0, 1), '$0 planned · 1 stop');
+  assert.equal(typedAtWords('2026-10-10T23:40:00.000Z', DAY, BKK), 'typed 06:40', 'on the card’s day');
+  assert.equal(typedAtWords('2026-10-11T23:40:00.000Z', DAY, BKK), 'typed Oct 12 06:40', 'typed on another day than the card’s — the day qualified (statusWords’ rule)');
+  assert.match(code(CARD_RULES), /export const asksAmount = \(role: StopRole\): boolean => role === 'place' \|\| role === 'none';/);
+  assert.match(code(CARD_RULES), /shipped: result\.stops\.filter\(\(s\) => s\.kind === 'task' && s\.status === 'done' && s\.doneAt !== null && s\.doneAt\.day === day\),/);
+  assert.match(code(CARD_RULES), /withoutAmount: read \? result\.stops\.filter\(\(s\) => asksAmount\(s\.role\) && s\.actualCents === null\)\.length : 0,/);
+  assert.doesNotMatch(code(CARD_RULES), /\bfetch\b|new Date\(\)|Date\.now\(|from 'react'|@prisma\/client/, 'still pure');
+});
+
+// ── T3 · THE MIGRATION AND THE SCHEMA ────────────────────────────────────────
+
+test('T3 the migration: the table column for column, the UNIQUE named, four pair CHECKs, not-blank, at-least-one, the cascade, the two ADD VALUEs — nothing written, nothing dropped, the newest', () => {
+  const sql = code(MIGRATION);
+  assert.match(sql, /CREATE TABLE "operations_day_journals" \(/);
+  assert.match(sql, /"id"\s+UUID\s+NOT NULL DEFAULT gen_random_uuid\(\),/);
+  assert.match(sql, /"user_id"\s+TEXT\s+NOT NULL,/);
+  assert.match(sql, /"day"\s+DATE\s+NOT NULL,/);
+  for (const f of ANSWER_FIELDS) assert.match(sql, new RegExp(`"${f}"\\s+VARCHAR\\(${ANSWER_MAX[f]}\\),`), `${f} VARCHAR(${ANSWER_MAX[f]}), nullable`);
+  assert.match(sql, /"created_at"\s+TIMESTAMPTZ\(6\) NOT NULL DEFAULT CURRENT_TIMESTAMP,/);
+  assert.match(sql, /"updated_at"\s+TIMESTAMPTZ\(6\) NOT NULL,\n/, 'no DB default — @updatedAt writes it');
+  assert.match(sql, /CONSTRAINT "operations_day_journals_pkey" PRIMARY KEY \("id"\),/);
+  assert.match(sql, /CONSTRAINT "operations_day_journals_one_per_day" UNIQUE \("user_id", "day"\),/);
+  for (const [ifField, thenField] of PAIRS) {
+    const name = ifField === 'obstacle_if' ? 'obstacle_pair' : `${ifField.replace(/_if$/, '')}_pair`;
+    assert.match(sql, new RegExp(`CONSTRAINT "operations_day_journals_${name}" CHECK \\(\\("${ifField}" IS NULL\\) = \\("${thenField}" IS NULL\\)\\),`), `${ifField} with ${thenField}, both or neither`);
+  }
+  const notBlank = /CONSTRAINT "operations_day_journals_answers_not_blank" CHECK \(([\s\S]*?)\n  \),/.exec(sql);
+  assert.ok(notBlank !== null, 'the not-blank CHECK');
+  for (const f of ANSWER_FIELDS) assert.ok(notBlank![1].includes(`("${f}" IS NULL OR length(btrim("${f}")) > 0)`), `${f} not blank`);
+  assert.match(sql, /CONSTRAINT "operations_day_journals_at_least_one" CHECK \(\n\s*num_nonnulls\("adjustment", "one_thing", "plan_1_if", "plan_2_if", "plan_3_if", "obstacle_if", "blocker", "witness", "shipped"\) >= 1\n\s*\)/, 'the nine independent answers — each _if standing for its pair');
+  assert.match(sql, /ADD CONSTRAINT "operations_day_journals_user_id_fkey"\s+FOREIGN KEY \("user_id"\) REFERENCES "users"\("id"\) ON DELETE CASCADE ON UPDATE CASCADE;/);
+  assert.match(sql, /ALTER TYPE "AuditActionType" ADD VALUE IF NOT EXISTS 'operations_journal_set';\s*ALTER TYPE "AuditActionType" ADD VALUE IF NOT EXISTS 'operations_journal_cleared';/);
+  assert.doesNotMatch(sql, /(^|\n)\s*(UPDATE|DELETE FROM|INSERT INTO)\s+"/, 'no row is written or moved');
+  assert.doesNotMatch(sql, /DROP /);
+  assert.doesNotMatch(sql, /spent|planned_cents|largest|done_count/, 'the numbers are not columns');
+  assert.match(comments(MIGRATION), /AUTHORED here, applied at deploy/);
+  assert.match(comments(MIGRATION), /never stored/, 'why the numbers are not columns');
+  const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
+  assert.equal(dirs[dirs.length - 1], MIGRATION_DIR, 'the newest migration');
+  assert.ok(MIGRATION_DIR.slice(0, 14) > '20261013030000', 'after ROLE-01’s');
+});
+
+test('T3 the schema: the model column for column with the SQL, the map: name equal to the SQL constraint’s, the user’s relation; the two enum values, last, known to the client, listed by the audit-log route', () => {
+  const schema = code(SCHEMA);
+  const sql = code(MIGRATION);
+  const model = /model operations_day_journals \{([\s\S]*?)\n\}/.exec(schema);
+  assert.ok(model !== null);
+  const m = model![1];
+  assert.match(m, /id\s+String\s+@id @default\(dbgenerated\("gen_random_uuid\(\)"\)\) @db\.Uuid/);
+  assert.match(m, /user_id\s+String\n/);
+  assert.match(m, /day\s+DateTime @db\.Date/);
+  for (const f of ANSWER_FIELDS) assert.match(m, new RegExp(`\\n\\s+${f}\\s+String\\?\\s+@db\\.VarChar\\(${ANSWER_MAX[f]}\\)`), `${f} String? VarChar(${ANSWER_MAX[f]})`);
+  assert.match(m, /created_at\s+DateTime @default\(now\(\)\) @db\.Timestamptz\(6\)/);
+  assert.match(m, /updated_at\s+DateTime @updatedAt @db\.Timestamptz\(6\)/);
+  assert.match(m, /user users @relation\(fields: \[user_id\], references: \[id\], onDelete: Cascade\)/);
+  const mapped = /@@unique\(\[user_id, day\], map: "([^"]+)"\)/.exec(m);
+  assert.ok(mapped !== null, 'the unique is mapped by name');
+  const named = /CONSTRAINT "([^"]+)" UNIQUE \("user_id", "day"\)/.exec(sql);
+  assert.ok(named !== null);
+  assert.equal(mapped![1], named![1], 'the map: name IS the SQL constraint name — Prisma’s default would differ and migrate diff would report drift');
+  assert.match(m, /@@map\("operations_day_journals"\)/);
+  assert.doesNotMatch(m, /spent|planned|largest/, 'the numbers are not columns');
+  assert.match(schema, /operations_day_journals\s+operations_day_journals\[\]/, 'the user’s relation');
+  const auditEnum = /enum AuditActionType \{([\s\S]*?)\}/.exec(schema);
+  assert.ok(auditEnum !== null);
+  const values = auditEnum![1].split(/\s+/).filter(Boolean);
+  assert.deepEqual(values.slice(-2), ['operations_journal_set', 'operations_journal_cleared']);
+  assert.equal(AuditActionType.operations_journal_set, 'operations_journal_set', 'prisma generate ran');
+  assert.equal(AuditActionType.operations_journal_cleared, 'operations_journal_cleared');
+  assert.match(code(AUDIT_LOG), /'operations_stop_set',\s*'operations_stop_cleared',\s*'operations_journal_set',\s*'operations_journal_cleared',\s*\],/);
+});
+
+// ── T4 · THE ROUTES ──────────────────────────────────────────────────────────
+
+/** Each step found AFTER the one before it — a step that is missing, or out of order, fails by name. */
+function inOrder(body: string, steps: readonly string[], what: string): void {
+  let at = 0;
+  for (const stepText of steps) {
+    const i = body.indexOf(stepText, at);
+    assert.notEqual(i, -1, `${what}: ${JSON.stringify(stepText)} comes after the step before it`);
+    at = i + stepText.length;
+  }
+}
+
+test('T4 the routes: GET by the caller and the day; PUT — the caller, the body, the rule, the same answers written once, the guard on updated_at, the race 409 both ways, the audit after; DELETE by the owned row', () => {
+  const r = code(ROUTE);
+  for (const method of ['GET', 'PUT']) assert.match(r, new RegExp(`export async function ${method}\\(`));
+  assert.doesNotMatch(r, /export (?:const|(?:async )?function) (?!GET|PUT)/, 'a route file exports its handlers only — an async function too');
+  const get = r.slice(r.indexOf('export async function GET('), r.indexOf('export async function PUT('));
+  inOrder(get, ['getVerifiedEmail()', 'prisma.users.findFirst(', "request.nextUrl.searchParams.get('day')", 'if (!isIsoDay(day)) {', "field: 'day'", 'status: 400', 'prisma.operations_day_journals.findFirst({ where: { user_id: user.id, day: asJournalDate(day) } })', 'return NextResponse.json({ day, journal: row === null ? null : journalRowOf(row) });'], 'GET');
+  const put = r.slice(r.indexOf('export async function PUT('));
+  inOrder(put, [
+    'getVerifiedEmail()', 'prisma.users.findFirst(', 'raw = await request.json();', 'BODY_NOT_JSON_WORDS', 'status: 400', 'journalInput(raw)', 'if (!read.ok) return NextResponse.json({ error: \'Validation\', field: read.field, message: read.message }, { status: 400 });',
+    'const { day, answers } = read.value;',
+    'prisma.operations_day_journals.findFirst({ where: { user_id: user.id, day: asJournalDate(day) } })',
+    'if (before !== null && journalUnchanged(before, answers)) return NextResponse.json({ journal: before, changed: false });',
+    'if (existing !== null) {', 'prisma.operations_day_journals.update(', "error.code === 'P2025'", 'RACE_WORDS(day)', 'status: 409',
+    'prisma.operations_day_journals.create(', "error.code === 'P2002'", 'RACE_WORDS(day)', 'status: 409',
+    "type: 'operations_journal_set'", 'payload: { before, after }', 'status: before === null ? 201 : 200',
+  ], 'PUT');
+  // ONE statement, guarded on the row as it was read and the caller's own, answering the row it wrote — no second read for `after`.
+  assert.match(put, /after = journalRowOf\(await prisma\.operations_day_journals\.update\(\{ where: \{ id: existing\.id, user_id: user\.id, updated_at: existing\.updated_at \}, data: answers \}\)\);/, 'the guard: the row as it was read, the caller’s own, in the one write');
+  assert.match(put, /if \(error instanceof Prisma\.PrismaClientKnownRequestError && error\.code === 'P2025'\) \{\n\s*return NextResponse\.json\(\{ error: 'Conflict', message: RACE_WORDS\(day\) \}, \{ status: 409 \}\);/, 'a row that moved or was cleared under the writer matches nothing — 409');
+  assert.match(put, /after = journalRowOf\(await prisma\.operations_day_journals\.create\(\{ data: \{ user_id: user\.id, day: asJournalDate\(day\), \.\.\.answers \} \}\)\);/);
+  assert.match(put, /if \(error instanceof Prisma\.PrismaClientKnownRequestError && error\.code === 'P2002'\) \{\n\s*return NextResponse\.json\(\{ error: 'Conflict', message: RACE_WORDS\(day\) \}, \{ status: 409 \}\);/);
+  assert.ok(put.indexOf("type: 'operations_journal_set'") > put.lastIndexOf('prisma.operations_day_journals.create('), 'the audit after the write');
+  assert.equal((put.match(/prisma\.operations_day_journals\.(?:update|updateMany|upsert|findFirst)\(/g) ?? []).length, 2, 'one read before the write, one guarded write — no re-read after it, no updateMany, no upsert');
+  assert.doesNotMatch(put, /updateMany\(|upsert\(/);
+  assert.doesNotMatch(put, /answers = raw|raw as /, 'the answers written are the rule’s, never the body’s');
+  const i = code(ROUTE_ID);
+  assert.match(i, /export async function DELETE\(/);
+  assert.doesNotMatch(i, /export (?:const|(?:async )?function) (?!DELETE)/, 'a route file exports its handlers only — an async function too');
+  inOrder(i, ['getVerifiedEmail()', 'prisma.users.findFirst(', 'const { id } = await params;', "if (!isValidUuid(id)) return NextResponse.json({ error: 'Not found' }, { status: 404 });", 'prisma.operations_day_journals.findFirst({ where: { id, user_id: user.id } })', "if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 });", 'const before = journalRowOf(row);', 'prisma.operations_day_journals.delete({ where: { id: row.id, user_id: user.id, updated_at: row.updated_at } })', "error.code === 'P2025'", 'RACE_WORDS(before.day)', 'status: 409', "type: 'operations_journal_cleared'", 'payload: { before, after: null }', 'return NextResponse.json({ cleared: true });'], 'DELETE');
+  assert.match(i, /await prisma\.operations_day_journals\.delete\(\{ where: \{ id: row\.id, user_id: user\.id, updated_at: row\.updated_at \} \}\);/, 'the clear guarded on the row as it was read — the PUT’s own bar');
+  assert.doesNotMatch(i, /deleteMany\(/);
+  for (const f of [ROUTE, ROUTE_ID]) {
+    const body = code(f);
+    assert.equal((body.match(/getVerifiedEmail\(\)/g) ?? []).length, (body.match(/export async function/g) ?? []).length, `${f}: every handler proves the caller`);
+    assert.doesNotMatch(body, /\$queryRaw|\$executeRaw/, `${f}: no raw SQL`);
+    assert.equal((body.match(/failClosedResponse\(/g) ?? []).length, (body.match(/export async function/g) ?? []).length, `${f}: every handler fails closed`);
+  }
+  assert.doesNotMatch(/const PUBLIC_PATHS = \[([\s\S]*?)\];/.exec(code(MIDDLEWARE))![1], /journal/, 'nothing added to PUBLIC_PATHS');
+});
+
+// ── T5 · THE WRITER AND THE READ ─────────────────────────────────────────────
+
+test('T5 the one writer: PUT / DELETE to the journal routes, every answer in words — signed out by name, no JSON by name; the read through the one reader', async () => {
+  const sent: { url: string; init?: RequestInit }[] = [];
+  const realFetch = globalThis.fetch;
+  const json = (body: unknown, status: number) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+  let answer: () => Response | Promise<Response> = () => json({ journal: { id: 'j1' }, changed: true }, 201);
+  globalThis.fetch = (async (url: string, init?: RequestInit) => { sent.push({ url, init }); return answer(); }) as typeof fetch;
+  const answers = answersOf({ one_thing: 'ship the PR' });
+  try {
+    assert.deepEqual(await setJournal(DAY, answers), { ok: true });
+    answer = () => json({ error: 'Validation', field: 'plan_1_then', message: pairWords('plan_1_then', 'plan_1_if') }, 400);
+    assert.deepEqual(await setJournal(DAY, answers), { ok: false, message: pairWords('plan_1_then', 'plan_1_if') });
+    answer = () => json({ error: 'Conflict', message: RACE_WORDS(DAY) }, 409);
+    assert.deepEqual(await setJournal(DAY, answers), { ok: false, message: RACE_WORDS(DAY) });
+    answer = () => new Response('', { status: 401 });
+    assert.deepEqual(await setJournal(DAY, answers), { ok: false, message: SIGNED_OUT_WORDS }, 'a 401 is signed out, by name');
+    answer = () => ({ type: 'opaqueredirect', status: 0, headers: new Headers(), json: async () => ({}) } as unknown as Response);
+    assert.deepEqual(await setJournal(DAY, answers), { ok: false, message: SIGNED_OUT_WORDS }, 'the redirect to sign-in is signed out, by name');
+    answer = () => new Response('<html>Sign in</html>', { status: 500, headers: { 'content-type': 'text/html' } });
+    assert.deepEqual(await setJournal(DAY, answers), { ok: false, message: 'the route answered 500 with no JSON' }, 'never a raw SyntaxError');
+    answer = () => new Response('{', { status: 200, headers: { 'content-type': 'application/json' } });
+    const broken = await setJournal(DAY, answers);
+    assert.ok(!broken.ok && broken.message.startsWith('the answer could not be read: '), 'a JSON header over a broken body, in words');
+    answer = () => { throw new Error('boom'); };
+    assert.deepEqual(await setJournal(DAY, answers), { ok: false, message: 'the request did not reach the server: boom' });
+    answer = () => json({}, 500);
+    assert.deepEqual(await setJournal(DAY, answers), { ok: false, message: SET_FAILED_WORDS });
+    assert.equal(SET_FAILED_WORDS, 'failed to save the journal');
+    assert.equal(CLEAR_FAILED_WORDS, 'failed to clear the journal');
+    assert.equal(journalFailedWords('x'), 'The journal could not be read — x');
+    answer = () => json({ cleared: true }, 200);
+    assert.deepEqual(await clearJournal('j1'), { ok: true });
+    answer = () => json({ error: 'Not found' }, 404);
+    assert.deepEqual(await clearJournal('gone'), { ok: false, message: 'Not found' });
+    answer = () => json({}, 500);
+    assert.deepEqual(await clearJournal('j1'), { ok: false, message: CLEAR_FAILED_WORDS });
+    const row = { ...answers, id: 'j1', day: DAY, typed_at: '2026-10-10T23:40:00.000Z' };
+    answer = () => json({ day: DAY, journal: row }, 200);
+    assert.deepEqual(await readJournal(DAY), { ok: true, value: { journal: row } });
+    answer = () => json({ day: DAY, journal: null }, 200);
+    assert.deepEqual(await readJournal(DAY), { ok: true, value: { journal: null } }, 'none typed is an answer');
+    answer = () => json({ day: DAY }, 200);
+    assert.deepEqual(await readJournal(DAY), { ok: false, words: journalFailedWords('the journal came back without its row') }, 'a body without `journal` is a failure, never "none typed"');
+    answer = () => new Response('', { status: 401 });
+    assert.deepEqual(await readJournal(DAY), { ok: false, words: journalFailedWords(SIGNED_OUT_WORDS) });
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  assert.deepEqual(sent.slice(0, 2).map((s) => [s.url, s.init?.method, s.init?.redirect]), [['/api/operations/journal', 'PUT', 'manual'], ['/api/operations/journal', 'PUT', 'manual']]);
+  assert.equal(sent[0].init?.body, JSON.stringify({ day: DAY, ...answers }));
+  assert.deepEqual(sent[0].init?.headers, { 'Content-Type': 'application/json' });
+  assert.deepEqual(sent.filter((s) => s.init?.method === 'DELETE').map((s) => [s.url, s.init?.redirect]), [['/api/operations/journal/j1', 'manual'], ['/api/operations/journal/gone', 'manual'], ['/api/operations/journal/j1', 'manual']]);
+  assert.deepEqual(sent.filter((s) => s.init?.method === undefined).map((s) => s.url), Array(4).fill(`/api/operations/journal?day=${DAY}`), 'the read, through readJson');
+  const w = code(WRITES);
+  assert.equal((w.match(/\bfetch\s*\(/g) ?? []).length, 2, 'two requests, in the one writer');
+  assert.match(w, /if \(res\.type === 'opaqueredirect' \|\| res\.status === 401\) return \{ ok: false, message: SIGNED_OUT_WORDS \};/);
+  assert.match(w, /if \(type === null \|\| !type\.includes\('application\/json'\)\) return \{ ok: false, message: `the route answered \$\{res\.status\} with no JSON` \};/);
+  assert.match(w, /import \{ SIGNED_OUT_WORDS \} from '\.\.\/week\/weekReads';/);
+  const reads = code(READS);
+  assert.match(reads, /export async function readJournal\(day: string\): Promise<Read<JournalAnswer>>/);
+  assert.match(reads, /await readJson\(`\/api\/operations\/journal\?\$\{new URLSearchParams\(\{ day \}\)\.toString\(\)\}`\)/);
+  assert.match(reads, /if \(!\('journal' in read\.value\)\) return \{ ok: false, words: journalFailedWords\('the journal came back without its row'\) \};/);
+  assert.equal((reads.match(/\bfetch\s*\(/g) ?? []).length, 0, 'the read goes through readJson');
+});
+
+// ── T6 · THE FORM AND THE PLATE ──────────────────────────────────────────────
+
+test('T6 the form: one box per answer in the plate’s order, the pairs on one line, no maxLength, the route’s rule first, the one writer, clear asks and only when a journal exists, busy guard, nothing stored', () => {
+  const f = code(FORM);
+  assert.match(f, /^'use client';/m);
+  assert.match(f, /import \{ clearJournal, setJournal \} from '\.\/journalWrites';/);
+  assert.match(f, /journalInput,\n/, 'the route’s own rule, imported');
+  assert.match(f, /const read = journalInput\(\{ day, \.\.\.Object\.fromEntries\(ANSWER_FIELDS\.map\(\(f\) => \[f, draft\[f\] === '' \? null : draft\[f\]\]\)\) \}\);\n\s*if \(!read\.ok\) \{ setWords\(read\.message\); return; \}/, 'a blank box is null; a refusal is the route’s words');
+  assert.match(f, /const answer = await setJournal\(day, read\.value\.answers\);\n\s*if \(!answer\.ok\) \{ setWords\(answer\.message\); return; \}\n\s*onChanged\(\);/, 'the one writer, then the caller re-reads');
+  inOrder(f, ["input('adjustment'", "input('one_thing'", "input('witness'", "input('blocker'", "input('shipped', SHIPPED_HINT_WORDS", 'PAIRS.map(([ifField, thenField], i) =>', 'input(ifField,', 'input(thenField,'], 'the plate’s order');
+  assert.match(f, /data-journal-pair=\{ifField\}>/, 'a pair on one line');
+  assert.doesNotMatch(f, /maxLength/, 'no maxLength — it counts UTF-16 units; the rule’s refusal is the limit');
+  assert.doesNotMatch(f, /\bfetch\s*\(|\/api\//, 'the form names no route of its own');
+  assert.doesNotMatch(f, /localStorage|sessionStorage|document\.cookie/, 'nothing stored');
+  assert.match(f, /if \(journal === null \|\| busy \|\| !window\.confirm\(clearJournalQuestion\(dayShortWords\(day\)\)\)\) return;/, 'clear asks first');
+  assert.match(f, /\{journal !== null && <button type="button" className=\{chip\} disabled=\{busy\} onClick=\{clear\} data-journal-clear>clear<\/button>\}/, 'offered only while a journal exists');
+  assert.match(f, /const save = async \(\) => \{\n\s*if \(busy\) return;/, 'no double submit');
+  for (const attr of ['data-journal-form', 'data-journal-field={field}', 'data-journal-words', 'data-journal-clear']) assert.ok(f.includes(attr), `the form carries ${attr}`);
+  assert.doesNotMatch(f, /\b(bg-black|bg-brand-purple|bg-panel|bg-brand-red|bg-brand-gold|bg-brand-green)\b/, 'no dark fill (the repaint law)');
+  // The stop form: a journal stop asks the minutes only; the note only for a skip's reason; the shown/null invariants stand (role01 pins them).
+  const s = code(STOP_FORM);
+  assert.match(s, /: role === 'journal'\n\s*\? \{ amount: false, rating: false, minutes: true, note: draft\.outcome === 'skipped' \}/);
+});
+
+test('T6 the plate: the three blocks in order, "—" for the unanswered, the stop’s own record inside it, reads only when a journal stop exists, in flight and failed as different words, the try/catch around yesterday, the form keyed by the day and the journal', () => {
+  const c = code(CARD);
+  assert.match(c, /import JournalForm from '\.\.\/stops\/JournalForm';/);
+  assert.match(c, /const hasJournalStop = readsDay === day && dayRead !== null && dayRead\.ok && dayRead\.value\.entries\.some\(\(e\) => e\.routine\.role === 'journal'\);/, 'the day has a journal stop — judged on the reads that landed for THIS day, so a day change fires nothing on the old day’s answer');
+  assert.match(c, /setItems\(null\);\n\s*setReadsDay\(null\);/, 'a day change blanks the reads’ day with the reads');
+  assert.match(c, /setItems\(i\);\n\s*setReadsDay\(day\);/, 'the reads land with their day');
+  assert.match(c, /if \(day === null \|\| !hasJournalStop\) return;\n\s*let live = true;\n\s*\(async \(\) => \{\n\s*const j = await readJournal\(day\);\n\s*if \(live\) setJournal\(\{ day, read: j \}\);/, 'the journal read, only then, landing with its day under the live guard');
+  assert.match(c, /\}, \[day, hasJournalStop, journalReads\]\);/, 'again after a write');
+  assert.match(c, /if \(day === null \|\| today === null \|\| !hasJournalStop\) return;\n\s*const yday = shiftDay\(day, -1\);\n\s*let live = true;\n\s*\(async \(\) => \{\n\s*const \[d, r, i, s, j\] = await Promise\.all\(\[readDay\(yday\), readDayReport\(yday, today\), readItems\(yday, yday\), readStopRecords\(yday\), readJournal\(yday\)\]\);\n\s*if \(live\) setYesterday\(\{ day, reads: \{ day: d, report: r, items: i, records: s, journal: j \} \}\);/, 'the five yesterday reads, only then, landing with the card’s day');
+  assert.match(c, /const journalRead = journal !== null && journal\.day === day \? journal\.read : null;/);
+  assert.match(c, /const yesterdayReads = yesterday !== null && yesterday\.day === day \? yesterday\.reads : null;/);
+  assert.doesNotMatch(c, /setJournal\(null\)|setYesterday\(null\)/, 'a re-read never blanks the plate first');
+  assert.match(c, /function yesterdayTally\(yday: string, reads: YesterdayReads, zone: string\)[\s\S]*?if \(!reads\.day\.ok\) return \{ tally: null, words: null \};\n\s*try \{\n[\s\S]*?const result = dayStops\(\{[\s\S]*?return \{ tally: dayTally\(result, yday, reads\.report\.ok \? result\.plannedCents : null\), words: null \};\n\s*\} catch \(error\) \{\n\s*return \{ tally: null, words: yesterdayFailedWords\(error instanceof Error \? error\.message : String\(error\)\) \};/, 'the build wrapped — a thrown invariant is said on the plate');
+  assert.match(c, /\{focus\.stop\.role === 'journal' \? \(\n\s*<JournalPlate day=\{day\} zone=\{zone\} stop=\{focus\.stop\} plannedCents=\{plannedCents\} stops=\{dayFailed \? null : N\} journal=\{journalRead\} yesterday=\{yesterdayReads\} \/>\n\s*\) : \(/, 'the plate for the journal stop; the plain record block for every other role');
+  assert.match(c, /data-day-record>/, 'the plain record block stands');
+  inOrder(c, ['data-day-journal-yesterday', 'data-day-yesterday-spent', 'data-day-yesterday-largest', 'data-day-yesterday-done', 'data-day-yesterday-shipped', 'data-day-yesterday-records-failed', 'data-day-journal-answer="adjustment"', 'data-day-journal-today', 'data-day-journal-plan>', 'data-day-journal-answer={field}', 'data-day-journal-plan-block', 'data-day-journal-pair={ifField}', 'data-day-journal-loading', 'data-day-journal-failed', 'data-day-journal-none', 'data-day-journal-record', 'data-day-journal-status', 'data-day-journal-provenance'], 'YESTERDAY, TODAY, PLAN, the record, the source');
+  assert.match(c, /data-day-journal-status>\{statusWords\(stop, day\)\}/, 'the journal stop’s own record status, inside the plate');
+  assert.match(c, /data-day-journal-minutes>\{minutesLine\(stop\.minutes, stop\.actualMinutes\)\}/);
+  assert.match(c, /data-day-yesterday-loading>\{YESTERDAY_LOADING_WORDS\}/);
+  assert.match(c, /data-day-journal-loading>\{JOURNAL_LOADING_WORDS\}/);
+  assert.match(c, /data-day-journal-failed>\{journal\.words\}/, 'the read’s own sentence, once');
+  assert.match(c, /const typedState = journal === null \? JOURNAL_LOADING_WORDS : !journal\.ok \? JOURNAL_NOT_READ_WORDS : row === null \? NONE_TYPED_WORDS : typedAtWords\(row\.typed_at, day, zone\);/, 'the source line’s words: in flight, failed, none typed, or typed — never "none typed" for an unknown');
+  assert.match(c, /data-day-journal-none>\{noJournalWords\(dayShortWords\(day\)\)\}/);
+  assert.match(c, /data-day-yesterday-journal-none>\{NO_YESTERDAY_WORDS\}/);
+  assert.match(c, /data-day-yesterday-records-failed>\{yesterday\.records\.words\}/, 'a records read that failed on its own prints its words under the stats');
+  assert.match(c, /data-day-yesterday-shipped>\{tallyShippedWords\(built\.tally, yRow === null \? null : yRow\.shipped\)\}/, 'yesterday’s own "shipped" answer rides the shipped line');
+  assert.match(c, /\{answerLine\(QUESTION_WORDS\[field\], a\[field\]\)\}/, 'every answer through the one line — "—" when unanswered');
+  assert.match(c, /const a: Answers = row === null \? NO_ANSWERS : answersOf\(row\);/);
+  assert.match(c, /data-day-journal-provenance>\{journalProvenanceWords\(typedState\)\}/);
+  assert.match(c, /<JournalForm key=\{`\$\{day\}:\$\{journalRead\.value\.journal === null \? 'none' : journalRead\.value\.journal\.id\}`\} day=\{day\} journal=\{journalRead\.value\.journal\} onChanged=\{\(\) => setJournalReads\(\(n\) => n \+ 1\)\} \/>/, 'keyed by the day and the journal; a write bumps the read counter');
+  assert.match(c, /\{loaded && focus !== null && focus\.stop\.role === 'journal' && journalRead !== null && journalRead\.ok && \(/, 'never offered while the journal could not be read');
+  inOrder(c, ['data-day-card', '<StopForm', '<JournalForm', 'data-day-foot'], 'under the plate, after the record form, above the sentences');
+  assert.doesNotMatch(c, /\bfetch\s*\(|journalWrites|method:/, 'the card fetches and writes nothing of its own');
+});

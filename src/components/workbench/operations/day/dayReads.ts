@@ -10,12 +10,14 @@
  *   · GET /api/budget/report?view=day&day=&asOf=          readDayReport, here
  *   · GET /api/operations/stays?day=<day>                 readStays, here (STAY-01)
  *   · GET /api/operations/stops?day=<day>                 readStopRecords, here (STOP-01)
+ *   · GET /api/operations/journal?day=<day>               readJournal, here (JOURNAL-01)
  *
  * The report's answer is read exactly as the week reads its own (readReport):
  * the body as BudgetReportResponse, a failure in the card's words. Every fetch
  * the card makes is here or in weekReads.ts; DayCard.tsx fetches nothing.
  */
 import type { BudgetReportResponse } from '@/lib/budget/reportInputs';
+import type { JournalRow } from '@/lib/operations/journal';
 import type { StayRow } from '@/lib/operations/stay';
 import type { StopRecordRow } from '@/lib/operations/stopRecord';
 import { readJson, type Read } from '../week/weekReads';
@@ -59,4 +61,19 @@ export async function readStopRecords(day: string): Promise<Read<StopRecordsAnsw
   if (!read.ok) return { ok: false, words: stopRecordsFailedWords(read.words) };
   if (!Array.isArray(read.value.records) || !Array.isArray(read.value.unplaced)) return { ok: false, words: stopRecordsFailedWords('the records came back without their list') };
   return { ok: true, value: { records: read.value.records as StopRecordRow[], unplaced: read.value.unplaced as StopRecordsAnswer['unplaced'] } };
+}
+
+export interface JournalAnswer {
+  /** The day's journal, or null when nothing was typed for the day. */
+  readonly journal: JournalRow | null;
+}
+
+export const journalFailedWords = (words: string): string => `The journal could not be read — ${words}`;
+
+/** JOURNAL-01: the day's journal — the morning's answers; a body without `journal` is a failure in words, never read as "none typed". */
+export async function readJournal(day: string): Promise<Read<JournalAnswer>> {
+  const read = await readJson(`/api/operations/journal?${new URLSearchParams({ day }).toString()}`);
+  if (!read.ok) return { ok: false, words: journalFailedWords(read.words) };
+  if (!('journal' in read.value)) return { ok: false, words: journalFailedWords('the journal came back without its row') };
+  return { ok: true, value: { journal: read.value.journal as JournalRow | null } };
 }
