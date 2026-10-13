@@ -474,7 +474,8 @@ export default function DayCard() {
             <div className="font-semibold text-text-secondary" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-where>{whereWords(day, stayState)}</div>
             <div className="font-semibold text-text-secondary" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-hook>{hookWords(dayFailed ? null : N)}</div>
             <div className="font-semibold text-text-secondary tabular-nums" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-spent>{spentLineWords(result.spentCents, result.withoutActual, result.done, dayFailed ? null : N)}</div>
-            {/* TABLE-01: the stops as a table — five fixed columns at the plate's width, every cell wrapping, nothing cut; a row pushes ?step=. */}
+            {/* TABLE-01: the stops as a table — five fixed columns at the plate's width, every cell wrapping, nothing cut; a row is the door to its step (click, Enter or Space). A day with no stops shows no lone header — the hook line already says 0 stops. */}
+            {N > 0 && (
             <table className="w-full" style={{ tableLayout: 'fixed', borderCollapse: 'collapse' }} data-day-stops>
               <colgroup>
                 <col style={{ width: COLUMN_WIDTHS.time }} />
@@ -496,12 +497,12 @@ export default function DayCard() {
                 {result.stops.map((s, i) => (
                   <tr
                     key={s.key}
-                    className="border-t border-border hover:bg-bg-row cursor-pointer align-top"
+                    className="border-t border-border hover:bg-bg-row focus-visible:bg-bg-row cursor-pointer align-top"
                     tabIndex={0}
                     data-day-stop={s.key}
                     data-day-status={s.status}
                     onClick={() => go(hrefFor(day, i + 1))}
-                    onKeyDown={(e) => { if (e.key === 'Enter') go(hrefFor(day, i + 1)); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(hrefFor(day, i + 1)); } }}
                   >
                     <td className="break-words" style={{ padding: '7px 4px 7px 0' }} data-day-col="time">
                       <span className="font-extrabold" style={{ fontSize: 15, lineHeight: 1 }}><Mark status={s.status} /></span>
@@ -521,6 +522,7 @@ export default function DayCard() {
                 ))}
               </tbody>
             </table>
+            )}
             {N > 0 && <div className="border-t border-border" aria-hidden="true" />}
             {result.allDay.length > 0 && (
               <div className="flex flex-col" style={{ gap: 4 }} data-day-all-day>
@@ -550,11 +552,11 @@ export default function DayCard() {
                 {/* TABLE-01: the same five facts as the table — the vendor and the location as two labeled lines; the time and the budget are the header's and PLAN's. */}
                 <div className="flex items-baseline gap-2" data-day-vendor>
                   <span className="font-bold text-text-faint" style={{ fontSize: 13, letterSpacing: '0.14em' }}>{VENDOR_HEAD_WORD}</span>
-                  <span className={`font-medium break-words ${focus.stop.vendor === null ? 'text-text-faint' : 'text-text-primary'}`} style={{ fontSize: 21, lineHeight: 1.1 }}>{factOf(focus.stop.vendor)}</span>
+                  <span className={`font-medium break-words min-w-0 ${focus.stop.vendor === null ? 'text-text-faint' : 'text-text-primary'}`} style={{ fontSize: 21, lineHeight: 1.1 }}>{factOf(focus.stop.vendor)}</span>
                 </div>
                 <div className="flex items-baseline gap-2" data-day-location>
                   <span className="font-bold text-text-faint" style={{ fontSize: 13, letterSpacing: '0.14em' }}>{LOCATION_HEAD_WORD}</span>
-                  <span className={`font-medium break-words ${focus.stop.location === null ? 'text-text-faint' : 'text-text-secondary'}`} style={{ fontSize: 21, lineHeight: 1.1 }}>{factOf(focus.stop.location)}</span>
+                  <span className={`font-medium break-words min-w-0 ${focus.stop.location === null ? 'text-text-faint' : 'text-text-secondary'}`} style={{ fontSize: 21, lineHeight: 1.1 }}>{factOf(focus.stop.location)}</span>
                 </div>
               </div>
               <div className="shrink-0 flex flex-col items-end" style={{ gap: 3 }}>

@@ -872,6 +872,7 @@ export function intervalWords(time: string | null, minutes: number | null): stri
   if (time === null) return null;
   if (minutes === null) return time;
   if (!Number.isInteger(minutes) || minutes < 0) throw new Error(`dayCard: a duration is a whole number of minutes, 0 or more, not ${minutes}`);
+  if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time)) throw new Error(`dayCard: a time is HH:MM, not ${time}`);
   const [h, m] = time.split(':').map(Number);
   const total = h * 60 + m + minutes;
   const end = total % MINUTES_IN_A_DAY;
