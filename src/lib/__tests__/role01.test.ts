@@ -203,8 +203,10 @@ test('T3 the migration: one column, NOT NULL default none, the six-value CHECK, 
   assert.match(comments(MIGRATION), /AUTHORED here, applied at deploy/);
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
   // JOURNAL-01 (2026-10-13): the journal migration is newer — this one is the one before it. The pin moved; the order holds.
-  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the migration before the newest (JOURNAL-01 followed)');
-  assert.equal(dirs[dirs.length - 1], '20261013120000_journal_01_day_journals', 'the newest migration');
+  // JOURNAL-02 (2026-10-13): the simple journal's migration is newer still — every index moved one; the order holds.
+  assert.equal(dirs[dirs.length - 3], MIGRATION_DIR, 'the migration two before the newest (JOURNAL-01, then JOURNAL-02 followed)');
+  assert.equal(dirs[dirs.length - 2], '20261013120000_journal_01_day_journals');
+  assert.equal(dirs[dirs.length - 1], '20261013200000_journal_02_the_simple_journal', 'the newest migration');
   assert.ok(MIGRATION_DIR.slice(0, 14) > '20261012140000', 'after STOP-01’s');
   const model = /model operations_routines \{([\s\S]*?)\n\}/.exec(code(SCHEMA));
   assert.ok(model !== null);

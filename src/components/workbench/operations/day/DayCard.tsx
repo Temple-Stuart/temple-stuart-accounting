@@ -62,15 +62,17 @@
  * under the full plate, outside the recorded box.
  *
  * JOURNAL-01 (2026-10-13) — THE JOURNAL STOP'S PLATE. On the step view of a
- * routine whose role is journal, the plain record block gives way to a plate of
- * three blocks: YESTERDAY (its numbers DERIVED here from yesterday's five reads —
- * the day, the report, the items, the records, its journal — through the day's
- * own rules, dayStops → dayTally, never stored; then "→ so today"), TODAY (the
- * day's plan and stops; one thing · witness · blocker · shipped) and PLAN (three
- * "if … then …" and the obstacle). Unanswered prints '—'. The journal stop's
- * OWN record (its status, its minutes) stays on the plate. The questions are
- * answered in the form under the plate (stops/JournalForm.tsx, through the one
- * writer stops/journalWrites.ts) and this file reads the journal again. The
+ * routine whose role is journal, the plain record block gives way to a plate.
+ * JOURNAL-02 (2026-10-13) — five blocks: YESTERDAY (its END OF DAY as typed, its
+ * numbers DERIVED here from yesterday's five reads — the day, the report, the
+ * items, the records, its journal — through the day's own rules, dayStops →
+ * dayTally, never stored; and the steps it left open), TODAY (the day's plan
+ * and stops; the goals), BLOCKERS, PLAN (each step a tick button through the
+ * one writer, stops/journalWrites.ts setJournal — the plate's only write) and
+ * END OF DAY. Unanswered prints '—'. The journal stop's OWN record (its status,
+ * its minutes) stays on the plate. The questions are answered in the form
+ * under the plate (stops/JournalForm.tsx, through the same writer) and this
+ * file reads the journal again after every write. The
  * journal read and the five yesterday reads run ONLY when the day has a journal
  * stop; each lands with its day under the live guard; a failed read prints its
  * own words; a thrown invariant in yesterday's build is said on the plate.
@@ -103,11 +105,12 @@ import RefusedRoutines from '../routines/RefusedRoutines';
 import { readDay, readItems, type DayAnswer, type Read } from '../week/weekReads';
 import StayBar from '../stays/StayBar';
 import JournalForm from '../stops/JournalForm';
+import { setJournal as writeJournal } from '../stops/journalWrites';
 import StopForm from '../stops/StopForm';
 import { ACCOUNT_CELL_WORDS } from '@/lib/coa/accountCell';
 import {
-  JOURNAL_LOADING_WORDS, JOURNAL_NOT_READ_WORDS, NO_ANSWERS, NONE_TYPED_WORDS, NO_YESTERDAY_WORDS, PAIRS, PLAN_BLOCK_WORD, QUESTION_WORDS, TODAY_BLOCK_WORD, YESTERDAY_LOADING_WORDS, YESTERDAY_WORD,
-  answerLine, answersOf, journalProvenanceWords, noJournalWords, pairLine, yesterdayFailedWords,
+  BLOCKERS_BLOCK_WORD, END_OF_DAY_BLOCK_WORD, JOURNAL_LOADING_WORDS, JOURNAL_NOT_READ_WORDS, NONE_TYPED_WORDS, PLAN_BLOCK_WORD, TODAY_BLOCK_WORD, UNANSWERED_WORD, YESTERDAY_LOADING_WORDS, YESTERDAY_WORD,
+  answersOf, goalWords, journalInput, journalProvenanceWords, leftOpenWords, noJournalWords, openSteps, planDoneWords, planStepWords, yesterdayFailedWords,
   type Answers,
 } from '@/lib/operations/journal';
 import { ratingWords } from '@/lib/operations/stopRecord';
@@ -118,7 +121,7 @@ import {
   bandNameOf, headerWords, heroWord, hookWords, linesUnreadWords, linesWithoutStopWords, minutesLine, notPlacedWords, planDollars, progressPercent, provenanceWords,
   recordsUnplacedWords, recordsWithoutStopWords, routineFigureWords, rowActualWords, soFarWords, spentLineWords, spentSoFarWords, statusWords, stepHeaderWords,
   strandedWords, unmatchedWords, whereWords,
-  dayShortWords, dayTally, tallyDoneWords, tallyLargestWords, tallyShippedWords, tallySpentWords, todayPlanWords, typedAtWords,
+  dayShortWords, dayTally, tallyDoneWords, tallyLargestWords, tallySpentWords, todayPlanWords, typedAtWords,
   BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, LOCATION_HEAD_WORD, TIME_HEAD_WORD, VENDOR_HEAD_WORD, intervalWords, openStepWords,
   type DayTally, type StayState, type Stop,
 } from './dayCard';
@@ -205,26 +208,56 @@ const plateLine = { fontSize: 23, lineHeight: 1.15 } as const;
 const plateSmall = { fontSize: 20, lineHeight: 1.2 } as const;
 
 /**
- * JOURNAL-01: the journal stop's plate — YESTERDAY (derived), TODAY, PLAN, the
- * stop's own record, the source line. `journal` null is in flight; `yesterday`
- * null is in flight. Every answer prints '—' when unanswered.
+ * JOURNAL-01: the journal stop's plate — the stop's own record and the source
+ * line under the blocks. `journal` null is in flight; `yesterday` null is in
+ * flight. JOURNAL-02 (2026-10-13): five blocks in order, large for video —
+ * YESTERDAY (its END OF DAY as typed, or that nothing was typed; the spent,
+ * largest and done lines as before; the steps it left open), TODAY (the plan's
+ * line and the goals), BLOCKERS, PLAN (each step a button that flips its tick
+ * through the one writer — the whole journal with that one flag flipped, busy
+ * while it writes, the route's words on a refusal, the journal read again after,
+ * never an optimistic copy — and "n of N done") and END OF DAY. Every
+ * unanswered block prints '—'. No retired answer is read.
  */
-function JournalPlate({ day, zone, stop, plannedCents, stops, journal, yesterday }: {
-  day: string; zone: string; stop: Stop; plannedCents: number | null; stops: number | null; journal: Read<JournalAnswer> | null; yesterday: YesterdayReads | null;
+function JournalPlate({ day, zone, stop, plannedCents, stops, journal, yesterday, onChanged }: {
+  day: string; zone: string; stop: Stop; plannedCents: number | null; stops: number | null; journal: Read<JournalAnswer> | null; yesterday: YesterdayReads | null; onChanged: () => void;
 }) {
+  const [busyStep, setBusyStep] = useState<number | null>(null);
+  const [tickWords, setTickWords] = useState<string | null>(null);
   const yday = shiftDay(day, -1);
   const row = journal !== null && journal.ok ? journal.value.journal : null;
-  const a: Answers = row === null ? NO_ANSWERS : answersOf(row);
+  const a: Answers = answersOf(row === null ? {} : row);
   const yJournal = yesterday === null ? null : yesterday.journal;
   const yRow = yJournal !== null && yJournal.ok ? yJournal.value.journal : null;
+  const yOpen = yRow === null ? [] : openSteps(yRow);
   const built = yesterday === null ? null : yesterdayTally(yday, yesterday, zone);
   // The words' state on the source line: in flight, failed, none typed, or when they were typed — an unknown is never "none typed".
   const typedState = journal === null ? JOURNAL_LOADING_WORDS : !journal.ok ? JOURNAL_NOT_READ_WORDS : row === null ? NONE_TYPED_WORDS : typedAtWords(row.typed_at, day, zone);
+
+  // A tick: the whole journal as held with that one flag flipped, through the route's own rule and the one writer; then the journal read again.
+  const tick = async (i: number) => {
+    if (row === null || busyStep !== null) return;
+    const read = journalInput({ day, goals: row.goals, blocker: row.blocker, plan_steps: row.plan_steps, plan_done: row.plan_done.map((d, j) => (j === i ? !d : d)), shipped: row.shipped });
+    if (!read.ok) { setTickWords(read.message); return; }
+    setBusyStep(i);
+    setTickWords(null);
+    try {
+      const answer = await writeJournal(day, read.value.answers);
+      if (!answer.ok) { setTickWords(answer.message); return; }
+      onChanged();
+    } finally {
+      setBusyStep(null);
+    }
+  };
+
   return (
-    <div className="flex flex-col border-t border-border" style={{ gap: 11, paddingTop: 13 }} data-day-journal>
+    <div className="flex flex-col border-t border-border" style={{ gap: 13, paddingTop: 13 }} data-day-journal>
       <div className="flex flex-col" style={{ gap: 3 }} data-day-journal-yesterday>
         <div className="font-bold text-text-faint" style={plateLabel}>{YESTERDAY_WORD}</div>
         {yesterday === null && <div className="font-medium text-text-muted" style={plateSmall} data-day-yesterday-loading>{YESTERDAY_LOADING_WORDS}</div>}
+        {yJournal !== null && !yJournal.ok && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-yesterday-journal-failed>{yJournal.words}</div>}
+        {yJournal !== null && yJournal.ok && yRow === null && <div className="font-medium text-text-muted" style={plateSmall} data-day-yesterday-journal-none>{noJournalWords(dayShortWords(yday))}</div>}
+        {yRow !== null && <div className="font-semibold text-text-primary break-words" style={plateLine} data-day-yesterday-end-of-day>{yRow.shipped === null ? UNANSWERED_WORD : yRow.shipped}</div>}
         {yesterday !== null && !yesterday.day.ok && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-yesterday-failed>{yday} could not be read — {yesterday.day.words}</div>}
         {built !== null && built.words !== null && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-yesterday-build-failed>{built.words}</div>}
         {built !== null && built.tally !== null && (
@@ -232,33 +265,49 @@ function JournalPlate({ day, zone, stop, plannedCents, stops, journal, yesterday
             <div className="font-semibold text-text-secondary tabular-nums" style={plateLine} data-day-yesterday-spent>{tallySpentWords(built.tally)}</div>
             <div className="font-semibold text-text-secondary tabular-nums break-words" style={plateLine} data-day-yesterday-largest>{tallyLargestWords(built.tally)}</div>
             <div className="font-semibold text-text-secondary tabular-nums break-words" style={plateLine} data-day-yesterday-done>{tallyDoneWords(built.tally)}</div>
-            <div className="font-semibold text-text-secondary break-words" style={plateLine} data-day-yesterday-shipped>{tallyShippedWords(built.tally, yRow === null ? null : yRow.shipped)}</div>
           </>
         )}
         {/* A read that failed on its own prints its own words under the stats — never dropped. */}
         {yesterday !== null && yesterday.day.ok && !yesterday.report.ok && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-yesterday-report-failed>{yesterday.report.words}</div>}
         {yesterday !== null && yesterday.day.ok && !yesterday.records.ok && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-yesterday-records-failed>{yesterday.records.words}</div>}
         {yesterday !== null && yesterday.day.ok && !yesterday.items.ok && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-yesterday-items-failed>The day&apos;s tasks could not be read — {yesterday.items.words}</div>}
-        {yJournal !== null && !yJournal.ok && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-yesterday-journal-failed>{yJournal.words}</div>}
-        {yJournal !== null && yJournal.ok && yRow === null && <div className="font-medium text-text-muted" style={plateSmall} data-day-yesterday-journal-none>{NO_YESTERDAY_WORDS}</div>}
-        <div className="font-semibold text-text-primary break-words" style={plateLine} data-day-journal-answer="adjustment">{answerLine(QUESTION_WORDS.adjustment, a.adjustment)}</div>
+        {yOpen.length > 0 && <div className="font-semibold text-text-secondary break-words" style={plateLine} data-day-yesterday-left-open>{leftOpenWords(yOpen)}</div>}
       </div>
       <div className="flex flex-col" style={{ gap: 3 }} data-day-journal-today>
         <div className="font-bold text-text-faint" style={plateLabel}>{TODAY_BLOCK_WORD}</div>
         <div className="font-semibold text-text-secondary tabular-nums" style={plateLine} data-day-journal-plan>{todayPlanWords(plannedCents, stops)}</div>
-        {(['one_thing', 'witness', 'blocker', 'shipped'] as const).map((field) => (
-          <div key={field} className="font-semibold text-text-primary break-words" style={plateLine} data-day-journal-answer={field}>{answerLine(QUESTION_WORDS[field], a[field])}</div>
+        {a.goals.length === 0 && <div className="font-semibold text-text-faint" style={plateLine} data-day-journal-goals-none>{UNANSWERED_WORD}</div>}
+        {a.goals.map((goal, i) => (
+          <div key={`${i}:${goal}`} className="font-semibold text-text-primary break-words" style={plateLine} data-day-journal-goal>{goalWords(goal)}</div>
         ))}
+      </div>
+      <div className="flex flex-col" style={{ gap: 3 }} data-day-journal-blockers>
+        <div className="font-bold text-text-faint" style={plateLabel}>{BLOCKERS_BLOCK_WORD}</div>
+        <div className={`font-semibold break-words ${a.blocker === null ? 'text-text-faint' : 'text-text-primary'}`} style={plateLine} data-day-journal-blocker>{a.blocker === null ? UNANSWERED_WORD : a.blocker}</div>
       </div>
       <div className="flex flex-col" style={{ gap: 3 }} data-day-journal-plan-block>
         <div className="font-bold text-text-faint" style={plateLabel}>{PLAN_BLOCK_WORD}</div>
-        {PAIRS.map(([ifField, thenField]) => (
-          <div key={ifField} className="font-semibold text-text-primary break-words" style={plateLine} data-day-journal-pair={ifField}>
-            {ifField === 'obstacle_if'
-              ? pairLine(QUESTION_WORDS.obstacle_if, a[ifField], QUESTION_WORDS.obstacle_then, a[thenField])
-              : pairLine(QUESTION_WORDS.plan_if, a[ifField], QUESTION_WORDS.plan_then, a[thenField])}
-          </div>
+        {a.plan_steps.length === 0 && <div className="font-semibold text-text-faint" style={plateLine} data-day-journal-steps-none>{UNANSWERED_WORD}</div>}
+        {a.plan_steps.map((step, i) => (
+          <button
+            type="button"
+            key={`${i}:${step}`}
+            className={`block w-full text-left font-semibold break-words disabled:opacity-50 ${a.plan_done[i] ? 'text-text-secondary' : 'text-text-primary'}`}
+            style={plateLine}
+            disabled={busyStep !== null}
+            aria-pressed={a.plan_done[i]}
+            aria-busy={busyStep === i}
+            onClick={() => tick(i)}
+            data-day-journal-step={i + 1}
+            data-day-journal-step-done={a.plan_done[i] ? 'true' : 'false'}
+          >{planStepWords(i + 1, step, a.plan_done[i])}</button>
         ))}
+        {a.plan_steps.length > 0 && <div className="font-medium text-text-muted tabular-nums" style={plateSmall} data-day-journal-plan-done>{planDoneWords(a.plan_done.filter((d) => d).length, a.plan_steps.length)}</div>}
+        {tickWords !== null && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-journal-tick-words>{tickWords}</div>}
+      </div>
+      <div className="flex flex-col" style={{ gap: 3 }} data-day-journal-end-of-day>
+        <div className="font-bold text-text-faint" style={plateLabel}>{END_OF_DAY_BLOCK_WORD}</div>
+        <div className={`font-semibold break-words ${a.shipped === null ? 'text-text-faint' : 'text-text-primary'}`} style={plateLine} data-day-journal-shipped>{a.shipped === null ? UNANSWERED_WORD : a.shipped}</div>
       </div>
       {journal === null && <div className="font-medium text-text-muted" style={plateSmall} data-day-journal-loading>{JOURNAL_LOADING_WORDS}</div>}
       {journal !== null && !journal.ok && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-journal-failed>{journal.words}</div>}
@@ -445,6 +494,8 @@ export default function DayCard() {
   // JOURNAL-01: the journal and yesterday's reads covering THIS day — null while in flight or read for another day.
   const journalRead = journal !== null && journal.day === day ? journal.read : null;
   const yesterdayReads = yesterday !== null && yesterday.day === day ? yesterday.reads : null;
+  // JOURNAL-02: the steps yesterday left open, for the form's "+ yesterday's open steps" — none while yesterday's journal is unread or failed (the button is offered only when there are some).
+  const yesterdayOpen = yesterdayReads !== null && yesterdayReads.journal.ok && yesterdayReads.journal.value.journal !== null ? openSteps(yesterdayReads.journal.value.journal) : [];
 
   return (
     <section className="space-y-2" data-day-section>
@@ -578,7 +629,7 @@ export default function DayCard() {
             </div>
             {/* JOURNAL-01: the journal stop's plate in place of the record block; every other role keeps the plain record. */}
             {focus.stop.role === 'journal' ? (
-              <JournalPlate day={day} zone={zone} stop={focus.stop} plannedCents={plannedCents} stops={dayFailed ? null : N} journal={journalRead} yesterday={yesterdayReads} />
+              <JournalPlate key={day} day={day} zone={zone} stop={focus.stop} plannedCents={plannedCents} stops={dayFailed ? null : N} journal={journalRead} yesterday={yesterdayReads} onChanged={() => setJournalReads((n) => n + 1)} />
             ) : (
               /* STOP-01: what happened — the status with its source, ACTUAL against PLAN, the rating against its rubric, the note, the minutes. */
               <div className="flex items-end justify-between gap-4 border-t border-border" style={{ paddingTop: 13 }} data-day-record>
@@ -619,7 +670,7 @@ export default function DayCard() {
 
       {/* JOURNAL-01: the questions, under the plate on the journal stop's step view — keyed by the day and the journal held; never offered while the journal could not be read (a save would write over answers the screen cannot see). */}
       {loaded && focus !== null && focus.stop.role === 'journal' && journalRead !== null && journalRead.ok && (
-        <JournalForm key={`${day}:${journalRead.value.journal === null ? 'none' : journalRead.value.journal.id}`} day={day} journal={journalRead.value.journal} onChanged={() => setJournalReads((n) => n + 1)} />
+        <JournalForm key={`${day}:${journalRead.value.journal === null ? 'none' : journalRead.value.journal.id}`} day={day} journal={journalRead.value.journal} yesterdayOpen={yesterdayOpen} onChanged={() => setJournalReads((n) => n + 1)} />
       )}
 
       {/* Under the plate — the sentences that name what the plate counted; only when there is something to say. */}

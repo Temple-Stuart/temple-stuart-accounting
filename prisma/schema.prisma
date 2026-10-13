@@ -492,8 +492,14 @@ model operations_day_journals {
   obstacle_then String?  @db.VarChar(160)
   blocker       String?  @db.VarChar(280)
   witness       String?  @db.VarChar(120)
-  /// Typed at the end of the day.
+  /// Typed at the end of the day — JOURNAL-02: END OF DAY, the same column relabelled.
   shipped       String?  @db.VarChar(500)
+  /// JOURNAL-02 (2026-10-13): TODAY — the day's goals, one per line (at most 8, no NULL element — CHECKs).
+  goals         String[] @default([])
+  /// JOURNAL-02: PLAN — the steps in their order (at most 12) …
+  plan_steps    String[] @default([])
+  /// … and one tick per step (the same length — CHECK). RETIRED 2026-10-13: adjustment, one_thing, witness, plan_1_if … obstacle_then — kept, never written.
+  plan_done     Boolean[] @default([])
   created_at    DateTime @default(now()) @db.Timestamptz(6)
   /// Written by @updatedAt (no DB default) — read back as the "typed" instant; the PUT guards its write on it.
   updated_at    DateTime @updatedAt @db.Timestamptz(6)

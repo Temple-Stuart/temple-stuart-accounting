@@ -57,6 +57,9 @@
  * shipped (the task stops done that day) — DERIVED here from yesterday's own
  * reads through dayStops (dayTally), never stored: a stored copy would drift
  * from the records and the plan lines. The words are each a function here.
+ * JOURNAL-02 (2026-10-13): the plate prints the spent, largest and done lines;
+ * yesterday's END OF DAY is its own typed text, so the "shipped:" line that
+ * joined the two is gone (tallyShippedWords deleted).
  *
  * Pure: no fetch, no clock, no React, no Prisma (as week/weekPlan.ts) — the
  * tests drive every rule with fixtures. Every sentence the card prints from
@@ -66,7 +69,7 @@
 import { centsFromDecimalString, type NotPlaced } from '@/lib/budget/days';
 import { formatCents } from '@/lib/budget/format';
 import type { PlanLine, StrandedVendor } from '@/lib/budget/planLines';
-import { QUESTION_WORDS, UNANSWERED_WORD, typedOnWords, typedWords } from '@/lib/operations/journal';
+import { UNANSWERED_WORD, typedOnWords, typedWords } from '@/lib/operations/journal';
 import { NO_STAY_WORDS, STAY_NOT_READ_WORDS, stayDay, stayDayWords, type StayRow } from '@/lib/operations/stay';
 import {
   DONE_WORD, LATER_WORD, NOT_RECORDED_WORDS, OPEN_WORD, ROUTINE_DONE_WORDS, ROUTINE_MISSED_WORDS, SKIPPED_WORD, TASK_DONE_WORDS, TASK_OPEN_WORDS, doneWords, lateWords, recordKey, skippedWords,
@@ -830,12 +833,6 @@ export function tallyLargestWords(t: DayTally): string {
 /** "4 of 6 done · 1 skipped — Gym" */
 export const tallyDoneWords = (t: DayTally): string =>
   `${doneOfWords(t.done, t.of)}${t.skipped > 0 ? ` · ${skippedCountWords(t.skipped)} — ${t.skippedStops.map(stopNameOf).join(', ')}` : ''}`;
-
-/** "shipped: STAY-01 merged · the PR" — the tasks done that day, then what yesterday's journal typed as shipped; '—' when neither. */
-export function tallyShippedWords(t: DayTally, typedShipped: string | null): string {
-  const parts = [...t.shipped.map(stopNameOf), ...(typedShipped === null ? [] : [typedShipped])];
-  return `${QUESTION_WORDS.shipped}: ${parts.length === 0 ? UNANSWERED_WORD : parts.join(' · ')}`;
-}
 
 /** "$31 planned · 7 stops" — TODAY's line; the stops unknown while the day read failed, the plan '—' while the report was not read. */
 export const todayPlanWords = (plannedCents: number | null, stops: number | null): string =>

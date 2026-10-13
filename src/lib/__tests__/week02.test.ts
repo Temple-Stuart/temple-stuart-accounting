@@ -377,11 +377,13 @@ test('T7 the migration: the one ADD VALUE line and nothing else, after the last 
   // STAY-01 (2026-10-12): the stays migration is newer — this one is the one before it. STOP-01 (2026-10-12): the stop records
   // migration is newer still. The pin moved twice; the order holds.
   // ROLE-01 (2026-10-13) followed too; JOURNAL-01 (2026-10-13) after it.
-  assert.equal(dirs[dirs.length - 5], MIGRATION_DIR, 'the migration four before the newest (STAY-01, STOP-01, ROLE-01, then JOURNAL-01 followed)');
-  assert.equal(dirs[dirs.length - 4], '20261012090000_stay_01_operations_stays');
-  assert.equal(dirs[dirs.length - 3], '20261012140000_stop_01_operations_stop_records');
-  assert.equal(dirs[dirs.length - 2], '20261013030000_role_01_routine_role');
-  assert.equal(dirs[dirs.length - 1], '20261013120000_journal_01_day_journals', 'the newest migration');
+  // JOURNAL-02 (2026-10-13): the simple journal's migration is newer still — every index moved one; the order holds.
+  assert.equal(dirs[dirs.length - 6], MIGRATION_DIR, 'the migration five before the newest (STAY-01, STOP-01, ROLE-01, JOURNAL-01, then JOURNAL-02 followed)');
+  assert.equal(dirs[dirs.length - 5], '20261012090000_stay_01_operations_stays');
+  assert.equal(dirs[dirs.length - 4], '20261012140000_stop_01_operations_stop_records');
+  assert.equal(dirs[dirs.length - 3], '20261013030000_role_01_routine_role');
+  assert.equal(dirs[dirs.length - 2], '20261013120000_journal_01_day_journals');
+  assert.equal(dirs[dirs.length - 1], '20261013200000_journal_02_the_simple_journal', 'the newest migration');
 });
 
 test('T7 the schema’s enum holds the value, last; the client knows it; the audit log lists it under operations_', () => {

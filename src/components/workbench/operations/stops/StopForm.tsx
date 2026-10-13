@@ -34,6 +34,7 @@ import { useState } from 'react';
 import { centsFromDecimalString } from '@/lib/budget/days';
 import { NEGATIVE_AMOUNT_WORDS, RATING_WORDS, SKIP_REASON_WORDS, WHEN_WORDS, amountWords, clearStopQuestion, minutesTypedWords, type StopOutcome } from '@/lib/operations/stopRecord';
 import { NOTE_PROMPT_WORDS, NO_AMOUNT_NO_VENDOR_WORDS, REPORT_NOT_READ_NO_VENDOR_WORDS, UNMATCHED_NO_VENDOR_WORDS, VENDOR_LABEL_WORDS, type StopRole } from '@/lib/operations/stopRole';
+import { JOURNAL_RECORD_WORDS } from '@/lib/operations/journal';
 import { instantToZoned, zonedToInstant } from '@/lib/time';
 import { VendorBox, useDirectory } from '@/components/budget/DayPlanDrill';
 import { statusWords, type Stop } from '../day/dayCard';
@@ -197,7 +198,10 @@ export default function StopForm({ stop, day, bookName, reportRead, onChanged, o
   return (
     <div className="mx-auto space-y-1" style={{ width: 540 }} data-stop-form>
       <form className="flex flex-wrap items-center gap-1.5 text-xs" onSubmit={(e) => { e.preventDefault(); save(draft); }}>
-        <span className="text-text-faint uppercase tracking-wide">Record</span>
+        {/* JOURNAL-02 (2026-10-13): on a journal stop the label says what the record is — when the journal was done. */}
+        {role === 'journal'
+          ? <span className="text-text-faint tracking-wide" data-stop-record-label>{JOURNAL_RECORD_WORDS}</span>
+          : <span className="text-text-faint uppercase tracking-wide" data-stop-record-label>Record</span>}
         <button type="button" className={chip} disabled={busy} onClick={doneNow} data-stop-done-now>✓ done now</button>
         <button type="button" className={`${chip} ${draft.outcome === 'done' ? 'font-bold' : ''}`} disabled={busy} onClick={() => setDraft({ ...draft, outcome: 'done' })} data-stop-outcome="done">done</button>
         <button type="button" className={`${chip} ${draft.outcome === 'skipped' ? 'font-bold' : ''}`} disabled={busy} onClick={() => setDraft({ ...draft, outcome: 'skipped' })} data-stop-outcome="skipped">skipped</button>
