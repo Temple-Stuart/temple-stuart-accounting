@@ -605,7 +605,7 @@ test('T6 the form: under the plate on the step view, for a line or a routine onl
   assert.doesNotMatch(code(CARD_RULES), /sum \+ \(s\.actualCents === null \? 0/, 'an unknown is never summed as zero');
   assert.match(code(CARD_RULES), /stops\.map\(\(s\) => s\.actualCents\)\.filter\(\(c\): c is number => c !== null\)\.reduce/, 'the sum is over the actuals that exist');
   // A Stop carries what the form and the plate need, nothing the lines law forbids the day folder.
-  const keys: (keyof Stop)[] = ['kind', 'key', 'time', 'label', 'line', 'place', 'minutes', 'cents', 'status', 'statusSource', 'role', 'planLine', 'planLineState', 'address', 'zone', 'record', 'actualCents', 'actualSource', 'doneAt', 'lateMinutes', 'actualMinutes'];
+  const keys: (keyof Stop)[] = ['kind', 'key', 'time', 'label', 'line', 'vendor', 'location', 'minutes', 'cents', 'status', 'statusSource', 'role', 'planLine', 'planLineState', 'address', 'zone', 'record', 'actualCents', 'actualSource', 'doneAt', 'lateMinutes', 'actualMinutes'];
   const sample = dayStops(input({ entries: [entry(morning)], records: [coffeeDone] })).stops[0];
   assert.deepEqual(Object.keys(sample).sort(), [...keys].sort());
 });

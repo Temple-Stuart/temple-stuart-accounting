@@ -19,8 +19,9 @@ import { TOOL_REGISTRY } from '../toolRegistry';
 import type { DailyPlanItem } from '@/components/workbench/operations/dailyplan/types';
 import type { Routine, RoutineStep, TodayRoutineEntry, TodayStatus } from '@/components/workbench/operations/routines/types';
 import {
-  BADGE_WORDS, BRAND_WORDS, HOOK_WORDS, PLAN_WORD, PLANNED_WORD, STOPS_NOT_READ_WORDS, TASK_WORD, TODAY_WORD, UNTITLED_WORDS, badDateWords, badStepWords, completenessWords, dayShortWords, dayStops, focusStop,
-  headerWords, heroWord, hookWords, linesUnreadWords, linesWithoutStopWords, notPlacedWords, notPricedWords, planDollars, progressPercent, provenanceWords,
+  BADGE_WORDS, BRAND_WORDS, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, HOOK_WORDS, LOCATION_HEAD_WORD, PLAN_WORD, PLANNED_WORD, STOPS_NOT_READ_WORDS, TASK_WORD, TIME_HEAD_WORD, TODAY_WORD, UNTITLED_WORDS, VENDOR_HEAD_WORD,
+  badDateWords, badStepWords, completenessWords, dayShortWords, dayStops, focusStop,
+  headerWords, heroWord, hookWords, intervalWords, linesUnreadWords, linesWithoutStopWords, notPlacedWords, notPricedWords, planDollars, progressPercent, provenanceWords,
   routineFigureWords, soFarWords, stepHeaderWords, stopsWords, strandedWords, unmatchedWords, whereWords,
   type DayCardInput,
 } from '@/components/workbench/operations/day/dayCard';
@@ -92,14 +93,25 @@ const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, e
 /** STOP-01: what every stop carries when the records were not read — the status its routine's (or the task's), nothing recorded. */
 const unrecorded = (statusSource: 'routine' | 'task' = 'routine') => ({ statusSource, record: null, actualCents: null, actualSource: null, doneAt: null, lateMinutes: null, actualMinutes: null, role: 'none' as const, planLine: null, planLineState: 'none' as const });
 
+/** Each step found AFTER the one before it — a missing or out-of-order step fails by name (TABLE-01). */
+function inOrderOf(body: string, steps: readonly string[], what: string): void {
+  let at = 0;
+  for (const stepText of steps) {
+    const i = body.indexOf(stepText, at);
+    assert.notEqual(i, -1, `${what}: ${JSON.stringify(stepText)} comes after the step before it`);
+    at = i + stepText.length;
+  }
+}
+
 // ── T1 · THE RULES ───────────────────────────────────────────────────────────
 
 test('T1 a routine with three lines gives three stops in step order by time; the untimed one takes the occurrence’s time in the routine’s zone', () => {
   const r = dayStops(input({ entries: [entry(morning)] }));
-  assert.deepEqual(r.stops.map((s) => [s.kind, s.key, s.time, s.label, s.line, s.place, s.minutes, s.cents, s.status]), [
-    ['line', `line:stretch:${AT}`, '06:30', 'Morning', 'Stretch', 'Home', null, null, 'open'],
-    ['line', `line:journal:${AT}`, '07:00', 'Morning', 'Journal', 'Home', null, null, 'open'],
-    ['line', `line:coffee:${AT}`, '07:30', 'Morning', 'Coffee', 'Roots Thonglor', 30, null, 'open'],
+  // TABLE-01: the one place became the vendor (null — no plan line) and the location (the line's, else the routine's).
+  assert.deepEqual(r.stops.map((s) => [s.kind, s.key, s.time, s.label, s.line, s.vendor, s.location, s.minutes, s.cents, s.status]), [
+    ['line', `line:stretch:${AT}`, '06:30', 'Morning', 'Stretch', null, 'Home', null, null, 'open'],
+    ['line', `line:journal:${AT}`, '07:00', 'Morning', 'Journal', null, 'Home', null, null, 'open'],
+    ['line', `line:coffee:${AT}`, '07:30', 'Morning', 'Coffee', null, 'Roots Thonglor', 30, null, 'open'],
   ]);
   assert.equal(r.plannedCents, 0);
   assert.equal(r.notPriced, 3);
@@ -113,7 +125,7 @@ test('T1 a stepless routine is one stop at its occurrence’s time; the statuses
     [`line:coffee:${AT}`, '07:30', 'missed'],
     [`routine:gym:${GYM_AT}`, '20:00', 'done'],
   ]);
-  assert.deepEqual(r.stops[3], { kind: 'routine', key: `routine:gym:${GYM_AT}`, time: '20:00', label: 'Gym', line: null, place: 'Fitness First', minutes: null, cents: null, status: 'done', address: { kind: 'routine', id: 'gym', instant: GYM_AT }, zone: BKK, ...unrecorded() });
+  assert.deepEqual(r.stops[3], { kind: 'routine', key: `routine:gym:${GYM_AT}`, time: '20:00', label: 'Gym', line: null, vendor: null, location: 'Fitness First', minutes: null, cents: null, status: 'done', address: { kind: 'routine', id: 'gym', instant: GYM_AT }, zone: BKK, ...unrecorded() });
   for (const [status, expected] of [['pending', 'open'], ['upcoming', 'later'], ['completed', 'done'], ['missed', 'missed']] as const) {
     assert.equal(dayStops(input({ entries: [entry(gym, status, GYM_AT)] })).stops[0].status, expected);
   }
@@ -140,7 +152,7 @@ test('T1 a task: its first block that is not cancelled, in the viewer’s zone; 
     viewerZone: 'Asia/Bangkok',
     items: [item({ id: 'i1', task_id: 't1', task: task('t1', 'Ship DAYCARD-01'), calendar_blocks: [block('2026-10-11T02:00:00.000Z', 'cancelled'), block('2026-10-11T03:00:00.000Z'), block('2026-10-11T05:00:00.000Z')] })],
   }));
-  assert.deepEqual(viewer.stops[0], { kind: 'task', key: 'task:i1', time: '10:00', label: 'Ship DAYCARD-01', line: null, place: null, minutes: null, cents: null, status: 'open', address: null, zone: null, ...unrecorded('task') });
+  assert.deepEqual(viewer.stops[0], { kind: 'task', key: 'task:i1', time: '10:00', label: 'Ship DAYCARD-01', line: null, vendor: null, location: null, minutes: null, cents: null, status: 'open', address: null, zone: null, ...unrecorded('task') });
   const la = dayStops(input({ viewerZone: 'America/Los_Angeles', items: [item({ id: 'i1', task_id: 't1', task: task('t1', 'Ship DAYCARD-01'), calendar_blocks: [block('2026-10-11T03:00:00.000Z')] })] }));
   assert.equal(la.stops[0].time, '20:00', 'the day before in Los Angeles, at 20:00 — the block’s clock in the viewer’s zone, as Tab 1 draws it');
   const none = dayStops(input({ items: [item({ id: 'i2', task_id: 't2', task: task('t2', 'Audit the week', 'completed'), calendar_blocks: [block('2026-10-11T03:00:00.000Z', 'cancelled')] }), item({ id: 'i3', ad_hoc_title: 'Walk', calendar_blocks: [block('2026-10-11T04:00:00.000Z')] })] }));
@@ -148,17 +160,50 @@ test('T1 a task: its first block that is not cancelled, in the viewer’s zone; 
   assert.equal(dayStops(input({ items: [item({ id: 'i4' })] })).stops[0].label, UNTITLED_WORDS, 'an item with no task and no title is named as such, never a blank row');
 });
 
-test('T1 the place: the vendor beats the line’s location, which beats the routine’s, which beats null; a blank location is no place', () => {
+test('T1 TABLE-01: the vendor and the location are two facts — the vendor is the matched line’s and nothing else; the location is the line’s, else the routine’s; a blank location is no location; neither is ever the other', () => {
   const vendor = { id: 'v1', name: 'Luka Sathorn', entityId: 'P', grain: 'occurrence' as const };
   const priced = line({ address: { kind: 'routine_line', id: 'coffee', instant: AT }, cents: 500, label: 'Morning', line: 'Coffee', vendor });
+  // A line stop with a vendor AND a step location: both, each its own.
   const withVendor = dayStops(input({ entries: [entry(morning)], lines: [priced] }));
-  assert.equal(withVendor.stops.find((s) => s.line === 'Coffee')?.place, 'Luka Sathorn');
+  const coffee = withVendor.stops.find((s) => s.line === 'Coffee')!;
+  assert.equal(coffee.vendor, 'Luka Sathorn');
+  assert.equal(coffee.location, 'Roots Thonglor', 'the vendor does not displace the location');
+  // No vendor on the line: the vendor is null — the location never stands in for it.
   const noVendor = dayStops(input({ entries: [entry(morning)], lines: [{ ...priced, vendor: null }] }));
-  assert.equal(noVendor.stops.find((s) => s.line === 'Coffee')?.place, 'Roots Thonglor');
-  assert.equal(noVendor.stops.find((s) => s.line === 'Stretch')?.place, 'Home');
+  assert.equal(noVendor.stops.find((s) => s.line === 'Coffee')?.vendor, null);
+  assert.equal(noVendor.stops.find((s) => s.line === 'Coffee')?.location, 'Roots Thonglor', 'the line’s own location');
+  assert.equal(noVendor.stops.find((s) => s.line === 'Stretch')?.location, 'Home', 'a line with no location takes the routine’s');
+  assert.equal(noVendor.stops.find((s) => s.line === 'Stretch')?.vendor, null);
+  // A stepless routine with a routine location and no vendor: — · the location.
+  const gymStop = dayStops(input({ entries: [entry(gym, 'pending', GYM_AT)] })).stops[0];
+  assert.deepEqual([gymStop.vendor, gymStop.location], [null, 'Fitness First']);
+  // A stepless routine with a vendor on its line: the vendor, and still the routine's location.
+  const gymLine = line({ address: { kind: 'routine', id: 'gym', instant: GYM_AT }, cents: 2000, label: 'Gym', vendor: { ...vendor, name: 'Fitness First Thonglor' } });
+  const gymVendored = dayStops(input({ entries: [entry(gym, 'pending', GYM_AT)], lines: [gymLine] })).stops[0];
+  assert.deepEqual([gymVendored.vendor, gymVendored.location], ['Fitness First Thonglor', 'Fitness First']);
+  // Neither: — · —. A blank location is no location.
   const nowhere = routine({ id: 'n', name: 'Nowhere', steps: [step({ id: 'n1', step_order: 1, activity: 'Sit', location: '   ' })] });
-  assert.equal(dayStops(input({ entries: [entry(nowhere)] })).stops[0].place, null);
-  assert.equal(dayStops(input({ entries: [entry(routine({ id: 'g', name: 'G', location: '' }), 'pending', GYM_AT)] })).stops[0].place, null);
+  assert.deepEqual([dayStops(input({ entries: [entry(nowhere)] })).stops[0].vendor, dayStops(input({ entries: [entry(nowhere)] })).stops[0].location], [null, null]);
+  const blank = dayStops(input({ entries: [entry(routine({ id: 'g', name: 'G', location: '' }), 'pending', GYM_AT)] })).stops[0];
+  assert.deepEqual([blank.vendor, blank.location], [null, null]);
+  // A task states neither.
+  const taskStop = dayStops(input({ items: [item({ id: 'i1', ad_hoc_title: 'Ship it' })] })).stops[0];
+  assert.deepEqual([taskStop.kind, taskStop.vendor, taskStop.location], ['task', null, null]);
+  // The rules name no `place` any more — the two facts are the two fields.
+  assert.doesNotMatch(code(RULES), /\bplaceOf\b|readonly place\b|\bplace: /, 'no one field for two facts');
+});
+
+test('T1 TABLE-01: intervalWords — the start and its end from the minutes, the start alone, nothing', () => {
+  assert.equal(intervalWords('07:00', 30), '07:00–07:30');
+  assert.equal(intervalWords('07:00', 90), '07:00–08:30');
+  assert.equal(intervalWords('07:00', 0), '07:00–07:00', 'a stated duration of 0 is a stated duration');
+  assert.equal(intervalWords('23:45', 30), '23:45–00:15', 'past midnight the clock wraps');
+  assert.equal(intervalWords('07:00', null), '07:00', 'a start alone — no default duration');
+  assert.equal(intervalWords(null, 30), null, 'no time, no interval — the minutes alone place nothing');
+  assert.equal(intervalWords(null, null), null);
+  assert.throws(() => intervalWords('07:00', -1), /a duration is a whole number of minutes/);
+  assert.throws(() => intervalWords('07:00', 1.5), /a duration is a whole number of minutes/);
+  assert.deepEqual([TIME_HEAD_WORD, VENDOR_HEAD_WORD, LOCATION_HEAD_WORD, DESCRIPTION_HEAD_WORD, BUDGET_HEAD_WORD], ['TIME', 'VENDOR', 'LOCATION', 'DESCRIPTION', 'BUDGET']);
 });
 
 // ── T2 · MATCHING, EXACT ─────────────────────────────────────────────────────
@@ -168,7 +213,8 @@ test('T2 a line whose kind, id and instant match gives the stop its cents and it
   const r = dayStops(input({ entries: [entry(morning)], lines: [exact] }));
   const coffee = r.stops.find((s) => s.line === 'Coffee')!;
   assert.equal(coffee.cents, 500);
-  assert.equal(coffee.place, 'Roots');
+  assert.equal(coffee.vendor, 'Roots');
+  assert.equal(coffee.location, 'Roots Thonglor', 'the step’s own location, beside the vendor — not displaced by it');
   assert.deepEqual(r.unmatched, []);
   assert.deepEqual(r.linesWithoutStop, []);
 
@@ -501,19 +547,40 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.match(c, /const plannedCents = report !== null && report\.ok \? result\.plannedCents : null;/);
   assert.match(c, /data-day-hook>\{hookWords\(dayFailed \? null : N\)\}/, 'the hook line under the place — the stops unknown while the day read failed');
   assert.match(c, /data-day-hero-word>\{heroWord\(day, today\)\}/, '"today" only on today; "planned" on another day');
-  // The rows: the mark, the time or '—', the bold and the place at the reel's sizes (two thirds of the demo's 46/42/34), wrapping, never clipped.
-  assert.match(c, /style=\{\{ width: 22, fontSize: 26, lineHeight: 1 \}\}><Mark status=\{s\.status\} \/><\/span>/, 'the ✓/✕ mark');
-  assert.match(c, /style=\{\{ width: 87, fontSize: 28 \}\}>\{s\.time === null \? '—' : s\.time\}<\/span>/, 'the time, or — when nothing states one');
-  assert.match(c, /className="font-bold text-text-primary break-words" style=\{\{ fontSize: 31, lineHeight: 1\.05 \}\} data-day-bold>\{boldOf\(s\)\}/, 'the line or the name, 31 px, wrapping');
-  assert.match(c, /\{smallOf\(s\) !== null && <span className="font-medium text-text-muted break-words" style=\{\{ fontSize: 23, lineHeight: 1\.1 \}\} data-day-small>\{smallOf\(s\)\}<\/span>\}/, 'the place under it, 23 px');
+  // TABLE-01 (2026-10-13): the rows are a table — the pins on the flex row (the 22/87 widths, the 31/23 px texts) moved to the table's cells below.
+  assert.match(c, /<table className="w-full" style=\{\{ tableLayout: 'fixed', borderCollapse: 'collapse' \}\} data-day-stops>/, 'a real table, fixed widths, no horizontal scroll');
+  assert.match(c, /const COLUMN_WIDTHS = \{ time: 120, vendor: 90, location: 90, budget: 62 \} as const;/, 'TIME and BUDGET narrow, DESCRIPTION takes the rest of the plate’s 482');
+  assert.equal(120 + 90 + 90 + 62 < 540 - 2 * 29, true, 'the four fixed columns leave the description its width at the plate’s inner 482');
+  inOrderOf(c, ['<thead>', '{TIME_HEAD_WORD}</th>', '{VENDOR_HEAD_WORD}</th>', '{LOCATION_HEAD_WORD}</th>', '{DESCRIPTION_HEAD_WORD}</th>', '{BUDGET_HEAD_WORD}</th>', '</thead>'], 'the header row, in the table’s order');
+  const row = /<tr\n\s*key=\{s\.key\}([\s\S]*?)<\/tr>/.exec(c);
+  assert.ok(row !== null, 'a row per stop');
+  const cols = [...row![1].matchAll(/data-day-col="(\w+)"/g)].map((m) => m[1]);
+  assert.deepEqual(cols, ['time', 'vendor', 'location', 'description', 'budget'], 'the five cells, once each, in the header’s order');
+  assert.match(row![1], /<Mark status=\{s\.status\} \/>/, 'the ✓/✕ mark in the TIME cell');
+  assert.match(row![1], /data-day-interval>\{factOf\(intervalWords\(s\.time, s\.minutes\)\)\}/, 'the interval — the start and its end, or the start, or —');
+  assert.match(row![1], /data-day-col="vendor">\{factOf\(s\.vendor\)\}/, 'the vendor, or —');
+  assert.match(row![1], /data-day-col="location">\{factOf\(s\.location\)\}/, 'the location, or —');
+  assert.match(row![1], /data-day-bold>\{boldOf\(s\)\}/, 'the description: the line or the name — the same words function');
+  assert.match(row![1], /\{smallOf\(s\) !== null && <span className="block font-medium text-text-muted break-words" style=\{\{ fontSize: 14, lineHeight: 1\.15 \}\} data-day-small>\{smallOf\(s\)\}<\/span>\}/, 'the routine under its line');
+  assert.match(c, /const factOf = \(fact: string \| null\): string => \(fact === null \? '—' : fact\);/);
+  assert.match(c, /function smallOf\(s: Stop\): string \| null \{\n\s*if \(s\.kind === 'task'\) return TASK_WORD;\n\s*if \(s\.kind === 'routine'\) return null;\n\s*return s\.label;\n\}/, 'the small text names no place — the vendor and the location have their columns');
+  assert.doesNotMatch(c, /\.place\b|placeOf/, 'no place in the screen');
+  assert.equal((c.match(/break-words/g) ?? []).length >= 6, true, 'every text cell wraps');
+  assert.doesNotMatch(c, /overflow-x|whitespace-nowrap/, 'no horizontal scroll, nothing kept on one line');
+  // The step view shows the same two facts as two labeled lines.
+  assert.match(c, /data-day-vendor>\n\s*<span className="font-bold text-text-faint" style=\{\{ fontSize: 13, letterSpacing: '0\.14em' \}\}>\{VENDOR_HEAD_WORD\}<\/span>\n\s*<span className=\{`font-medium break-words \$\{focus\.stop\.vendor === null \? 'text-text-faint' : 'text-text-primary'\}`\} style=\{\{ fontSize: 21, lineHeight: 1\.1 \}\}>\{factOf\(focus\.stop\.vendor\)\}<\/span>/, 'VENDOR on the step card');
+  assert.match(c, /data-day-location>\n\s*<span className="font-bold text-text-faint" style=\{\{ fontSize: 13, letterSpacing: '0\.14em' \}\}>\{LOCATION_HEAD_WORD\}<\/span>\n\s*<span className=\{`font-medium break-words \$\{focus\.stop\.location === null \? 'text-text-faint' : 'text-text-secondary'\}`\} style=\{\{ fontSize: 21, lineHeight: 1\.1 \}\}>\{factOf\(focus\.stop\.location\)\}<\/span>/, 'LOCATION on the step card');
+  assert.ok(c.indexOf('data-day-focus>') < c.indexOf('data-day-vendor>') && c.indexOf('data-day-vendor>') < c.indexOf('data-day-location>') && c.indexOf('data-day-location>') < c.indexOf('{PLAN_WORD}'), 'in the step card’s header area, before the record');
   assert.match(c, /style=\{\{ fontSize: 69, lineHeight: 1, letterSpacing: '-0\.02em' \}\} data-day-planned/, 'the hero at 69 px');
   assert.match(c, /style=\{\{ fontSize: 27, lineHeight: 1\.15 \}\} data-day-hook/, 'the hook at 27 px');
   assert.doesNotMatch(c, /truncate/, 'nothing is cut on the recorded plate');
   // The rows: every amount through planDollars — '—' for null, never $0.00 for a blank; the row is a real button that pushes ?step=.
   assert.match(c, /data-day-amount>\{planDollars\(s\.cents\)\}/);
-  assert.match(c, /\{s\.actualCents !== null && <span className=\{`font-semibold tabular-nums text-right \$\{actualTone\(deltaWords\(s\.actualCents, s\.cents\)\.over\)\}`\} style=\{\{ fontSize: 21, lineHeight: 1\.05 \}\} data-day-actual>\{rowActualWords\(s\.actualCents, s\.cents\)\}<\/span>\}/, 'STOP-01: the actual under the plan, red over, green under or on');
+  // TABLE-01: the actual under the plan sits in the BUDGET cell (block, 13 px) — the pin moved with it.
+  assert.match(c, /\{s\.actualCents !== null && <span className=\{`block font-semibold tabular-nums \$\{actualTone\(deltaWords\(s\.actualCents, s\.cents\)\.over\)\}`\} style=\{\{ fontSize: 13, lineHeight: 1\.15 \}\} data-day-actual>\{rowActualWords\(s\.actualCents, s\.cents\)\}<\/span>\}/, 'STOP-01: the actual under the plan, red over, green under or on');
   assert.match(c, /data-day-amount>\{planDollars\(focus\.stop\.cents\)\}/);
-  assert.match(c, /<button\n\s*type="button"\n\s*key=\{s\.key\}\n\s*className="[^"]*"\n\s*style=\{\{ padding: '8px 0' \}\}\n\s*data-day-stop=\{s\.key\}\n\s*data-day-status=\{s\.status\}\n\s*onClick=\{\(\) => go\(hrefFor\(day, i \+ 1\)\)\}/, 'a row is a real button that pushes ?step=');
+  // TABLE-01: a row is a <tr> that pushes ?step= on click and on Enter — the pin moved from the button to the row.
+  assert.match(c, /<tr\n\s*key=\{s\.key\}\n\s*className="[^"]*"\n\s*tabIndex=\{0\}\n\s*data-day-stop=\{s\.key\}\n\s*data-day-status=\{s\.status\}\n\s*onClick=\{\(\) => go\(hrefFor\(day, i \+ 1\)\)\}\n\s*onKeyDown=\{\(e\) => \{ if \(e\.key === 'Enter'\) go\(hrefFor\(day, i \+ 1\)\); \}\}/, 'a row pushes ?step=');
   // The plate's foot: the completeness line counts, the provenance names the source; the sentences sit under the plate.
   assert.match(c, /const reportRead = report !== null && report\.ok;\n\s*const recordsOk = recordsRead !== null && recordsRead\.ok;\n\s*const completeness = completenessWords\(result, stranded\.length, \{ day: !dayFailed, report: reportRead, records: recordsOk \}\);/, 'the plate’s count knows what was not read');
   assert.match(c, /data-day-count>\{completeness\}/);
