@@ -177,10 +177,12 @@ test('T5 the migration: the table with its two CHECKs, the trigger that locks th
   assert.match(comments(MIGRATION), /AUTHORED here, applied at deploy/);
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
   // STOP-01 (2026-10-12): the stop records migration is newer; ROLE-01 (2026-10-13): the role migration newer still; JOURNAL-01 (2026-10-13) followed. The pin moved three times; the order holds.
-  assert.equal(dirs[dirs.length - 4], MIGRATION_DIR, 'the migration three before the newest (STOP-01, ROLE-01, then JOURNAL-01 followed)');
-  assert.equal(dirs[dirs.length - 3], '20261012140000_stop_01_operations_stop_records');
-  assert.equal(dirs[dirs.length - 2], '20261013030000_role_01_routine_role');
-  assert.equal(dirs[dirs.length - 1], '20261013120000_journal_01_day_journals', 'the newest migration');
+  // JOURNAL-02 (2026-10-13): the simple journal's migration is newer still — every index moved one; the order holds.
+  assert.equal(dirs[dirs.length - 5], MIGRATION_DIR, 'the migration four before the newest (STOP-01, ROLE-01, JOURNAL-01, then JOURNAL-02 followed)');
+  assert.equal(dirs[dirs.length - 4], '20261012140000_stop_01_operations_stop_records');
+  assert.equal(dirs[dirs.length - 3], '20261013030000_role_01_routine_role');
+  assert.equal(dirs[dirs.length - 2], '20261013120000_journal_01_day_journals');
+  assert.equal(dirs[dirs.length - 1], '20261013200000_journal_02_the_simple_journal', 'the newest migration');
   assert.ok(MIGRATION_DIR.slice(0, 14) > '20260930210000');
 });
 
