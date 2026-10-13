@@ -83,7 +83,8 @@
  * location (the line's, else the routine's), the description (the line or the
  * name, and the routine under its line — exactly the row's words before), the
  * budget. '—' where a fact is not stated. Fixed widths at the plate's width,
- * every cell wrapping, nothing cut — an address reads whole on video. The step
+ * every text cell wrapping, a figure never split, nothing cut — an address
+ * reads whole on video; a row's description is its door, a real button. The step
  * view shows the same five facts: VENDOR and LOCATION are two labeled lines in
  * its header area (a place stop's vendor box under the plate stays the editing
  * control; the header line is the fact).
@@ -118,7 +119,7 @@ import {
   recordsUnplacedWords, recordsWithoutStopWords, routineFigureWords, rowActualWords, soFarWords, spentLineWords, spentSoFarWords, statusWords, stepHeaderWords,
   strandedWords, unmatchedWords, whereWords,
   dayShortWords, dayTally, tallyDoneWords, tallyLargestWords, tallyShippedWords, tallySpentWords, todayPlanWords, typedAtWords,
-  BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, LOCATION_HEAD_WORD, TIME_HEAD_WORD, VENDOR_HEAD_WORD, intervalWords,
+  BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, LOCATION_HEAD_WORD, TIME_HEAD_WORD, VENDOR_HEAD_WORD, intervalWords, openStepWords,
   type DayTally, type StayState, type Stop,
 } from './dayCard';
 
@@ -140,8 +141,18 @@ function smallOf(s: Stop): string | null {
 /** A fact a stop does not state prints '—', never a blank. */
 const factOf = (fact: string | null): string => (fact === null ? '—' : fact);
 
-/** TABLE-01: the five columns at the plate's inner width (540 − 2 × 29 = 482): TIME and BUDGET narrow, DESCRIPTION takes the rest. */
-const COLUMN_WIDTHS = { time: 120, vendor: 90, location: 90, budget: 62 } as const;
+/**
+ * TABLE-01: the five columns at the plate's inner width — 540 − 2 × 29 padding −
+ * 2 × 1 border = 480 px. Each fixed width holds its widest fact, measured in
+ * the card's own fonts: TIME the mark's slot and "06:30–06:45" at 13 px mono
+ * (17 + 86 px); BUDGET "$9,999.99" at 19 px extrabold (96.4 px) — a figure is
+ * never split, and a larger one runs whole into the plate's padding; VENDOR
+ * and LOCATION their head words with room for a name; DESCRIPTION takes the
+ * rest (108 px; its head word is 100).
+ */
+const COLUMN_WIDTHS = { time: 110, vendor: 80, location: 84, budget: 98 } as const;
+/** The status mark's own slot in the TIME cell, on every row, so every clock starts at one x (✓ is 13.3 px at 15 px). */
+const MARK_SLOT = 17;
 const headCell = 'font-bold text-text-faint text-left align-bottom';
 const headStyle = { fontSize: 12, letterSpacing: '0.14em', paddingBottom: 6 } as const;
 
@@ -475,56 +486,56 @@ export default function DayCard() {
             <div className="font-semibold text-text-secondary" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-where>{whereWords(day, stayState)}</div>
             <div className="font-semibold text-text-secondary" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-hook>{hookWords(dayFailed ? null : N)}</div>
             <div className="font-semibold text-text-secondary tabular-nums" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-spent>{spentLineWords(result.spentCents, result.withoutActual, result.done, dayFailed ? null : N)}</div>
-            {/* TABLE-01: the stops as a table — five fixed columns at the plate's width, every cell wrapping, nothing cut; a row is the door to its step (click, Enter or Space). A day with no stops shows no lone header — the hook line already says 0 stops. */}
+            {/* TABLE-01: the stops as a table — five fixed columns at the plate's width; every text cell wraps, a figure is never split, nothing is cut. A row's description is its door, a real button (click, Enter or Space opens the step); a click anywhere on the row opens it too. A day with no stops shows no lone header (the hook line already says 0 stops), and the closing rule sits flush under the last row. */}
             {N > 0 && (
-            <table className="w-full" style={{ tableLayout: 'fixed', borderCollapse: 'collapse' }} data-day-stops>
-              <colgroup>
-                <col style={{ width: COLUMN_WIDTHS.time }} />
-                <col style={{ width: COLUMN_WIDTHS.vendor }} />
-                <col style={{ width: COLUMN_WIDTHS.location }} />
-                <col />
-                <col style={{ width: COLUMN_WIDTHS.budget }} />
-              </colgroup>
-              <thead>
-                <tr data-day-stops-head>
-                  <th scope="col" className={headCell} style={headStyle}>{TIME_HEAD_WORD}</th>
-                  <th scope="col" className={headCell} style={headStyle}>{VENDOR_HEAD_WORD}</th>
-                  <th scope="col" className={headCell} style={headStyle}>{LOCATION_HEAD_WORD}</th>
-                  <th scope="col" className={headCell} style={headStyle}>{DESCRIPTION_HEAD_WORD}</th>
-                  <th scope="col" className={`${headCell} text-right`} style={headStyle}>{BUDGET_HEAD_WORD}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.stops.map((s, i) => (
-                  <tr
-                    key={s.key}
-                    className="border-t border-border hover:bg-bg-row focus-visible:bg-bg-row cursor-pointer align-top"
-                    tabIndex={0}
-                    data-day-stop={s.key}
-                    data-day-status={s.status}
-                    onClick={() => go(hrefFor(day, i + 1))}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(hrefFor(day, i + 1)); } }}
-                  >
-                    <td className="break-words" style={{ padding: '7px 4px 7px 0' }} data-day-col="time">
-                      <span className="font-extrabold" style={{ fontSize: 15, lineHeight: 1 }}><Mark status={s.status} /></span>
-                      <span className={`font-mono font-semibold tabular-nums ${s.time === null ? 'text-text-faint' : 'text-text-muted'}`} style={{ fontSize: 14, lineHeight: 1.2, marginLeft: s.status === 'open' || s.status === 'later' ? 0 : 4 }} data-day-interval>{factOf(intervalWords(s.time, s.minutes))}</span>
-                    </td>
-                    <td className={`font-medium break-words ${s.vendor === null ? 'text-text-faint' : 'text-text-primary'}`} style={{ fontSize: 15, lineHeight: 1.2, padding: '7px 4px 7px 0' }} data-day-col="vendor">{factOf(s.vendor)}</td>
-                    <td className={`font-medium break-words ${s.location === null ? 'text-text-faint' : 'text-text-secondary'}`} style={{ fontSize: 15, lineHeight: 1.2, padding: '7px 4px 7px 0' }} data-day-col="location">{factOf(s.location)}</td>
-                    <td className="break-words" style={{ padding: '7px 4px 7px 0' }} data-day-col="description">
-                      <span className="block font-bold text-text-primary break-words" style={{ fontSize: 19, lineHeight: 1.1 }} data-day-bold>{boldOf(s)}</span>
-                      {smallOf(s) !== null && <span className="block font-medium text-text-muted break-words" style={{ fontSize: 14, lineHeight: 1.15 }} data-day-small>{smallOf(s)}</span>}
-                    </td>
-                    <td className="text-right break-words" style={{ padding: '7px 0' }} data-day-col="budget">
-                      <span className={`block font-extrabold tabular-nums ${s.cents === null ? 'text-text-faint' : 'text-text-primary'}`} style={{ fontSize: 19, lineHeight: 1.1 }} data-day-amount>{planDollars(s.cents)}</span>
-                      {s.actualCents !== null && <span className={`block font-semibold tabular-nums ${actualTone(deltaWords(s.actualCents, s.cents).over)}`} style={{ fontSize: 13, lineHeight: 1.15 }} data-day-actual>{rowActualWords(s.actualCents, s.cents)}</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              <div className="flex flex-col">
+                <table className="w-full" style={{ tableLayout: 'fixed', borderCollapse: 'collapse' }} data-day-stops>
+                  <colgroup>
+                    <col style={{ width: COLUMN_WIDTHS.time }} />
+                    <col style={{ width: COLUMN_WIDTHS.vendor }} />
+                    <col style={{ width: COLUMN_WIDTHS.location }} />
+                    <col />
+                    <col style={{ width: COLUMN_WIDTHS.budget }} />
+                  </colgroup>
+                  <thead>
+                    <tr data-day-stops-head>
+                      <th scope="col" className={headCell} style={headStyle}>{TIME_HEAD_WORD}</th>
+                      <th scope="col" className={headCell} style={headStyle}>{VENDOR_HEAD_WORD}</th>
+                      <th scope="col" className={headCell} style={headStyle}>{LOCATION_HEAD_WORD}</th>
+                      <th scope="col" className={headCell} style={headStyle}>{DESCRIPTION_HEAD_WORD}</th>
+                      <th scope="col" className={`${headCell} text-right`} style={headStyle}>{BUDGET_HEAD_WORD}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.stops.map((s, i) => (
+                      <tr
+                        key={s.key}
+                        className="border-t border-border hover:bg-bg-row focus-within:bg-bg-row cursor-pointer align-top"
+                        data-day-stop={s.key}
+                        data-day-status={s.status}
+                        onClick={() => go(hrefFor(day, i + 1))}
+                      >
+                        <td className="break-words" style={{ padding: '7px 4px 7px 0' }} data-day-col="time">
+                          <span className="inline-block font-extrabold" style={{ width: MARK_SLOT, fontSize: 15, lineHeight: 1 }}><Mark status={s.status} /></span>
+                          <span className={`font-mono font-semibold tabular-nums ${s.time === null ? 'text-text-faint' : 'text-text-muted'}`} style={{ fontSize: 13, lineHeight: 1.2 }} data-day-interval>{factOf(intervalWords(s.time, s.minutes))}</span>
+                        </td>
+                        <td className={`font-medium break-words ${s.vendor === null ? 'text-text-faint' : 'text-text-primary'}`} style={{ fontSize: 15, lineHeight: 1.2, padding: '7px 4px 7px 0' }} data-day-col="vendor">{factOf(s.vendor)}</td>
+                        <td className={`font-medium break-words ${s.location === null ? 'text-text-faint' : 'text-text-secondary'}`} style={{ fontSize: 15, lineHeight: 1.2, padding: '7px 4px 7px 0' }} data-day-col="location">{factOf(s.location)}</td>
+                        <td className="break-words" style={{ padding: '7px 4px 7px 0' }} data-day-col="description">
+                          <button type="button" className="block w-full text-left font-bold text-text-primary break-words" style={{ fontSize: 19, lineHeight: 1.1 }} aria-label={openStepWords(i + 1, boldOf(s))} data-day-bold>{boldOf(s)}</button>
+                          {smallOf(s) !== null && <span className="block font-medium text-text-muted break-words" style={{ fontSize: 14, lineHeight: 1.15 }} data-day-small>{smallOf(s)}</span>}
+                        </td>
+                        <td className="text-right" style={{ padding: '7px 0' }} data-day-col="budget">
+                          <span className={`block font-extrabold tabular-nums ${s.cents === null ? 'text-text-faint' : 'text-text-primary'}`} style={{ fontSize: 19, lineHeight: 1.1 }} data-day-amount>{planDollars(s.cents)}</span>
+                          {s.actualCents !== null && <span className={`block font-semibold tabular-nums ${actualTone(deltaWords(s.actualCents, s.cents).over)}`} style={{ fontSize: 13, lineHeight: 1.15 }} data-day-actual>{rowActualWords(s.actualCents, s.cents)}</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="border-t border-border" aria-hidden="true" />
+              </div>
             )}
-            {N > 0 && <div className="border-t border-border" aria-hidden="true" />}
             {result.allDay.length > 0 && (
               <div className="flex flex-col" style={{ gap: 4 }} data-day-all-day>
                 <div className="font-bold text-text-faint" style={{ fontSize: 17, letterSpacing: '0.14em' }}>{ALSO_TODAY_WORDS.toUpperCase()}</div>

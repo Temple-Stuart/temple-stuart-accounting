@@ -854,6 +854,8 @@ export const VENDOR_HEAD_WORD = 'VENDOR';
 export const LOCATION_HEAD_WORD = 'LOCATION';
 export const DESCRIPTION_HEAD_WORD = 'DESCRIPTION';
 export const BUDGET_HEAD_WORD = 'BUDGET';
+/** TABLE-01: a row's door, named for a screen reader — the step it opens and the row's own words (the visible words stay inside the name). */
+export const openStepWords = (index: number, what: string): string => `Open step ${index}: ${what}`;
 
 const MINUTES_IN_A_DAY = 24 * 60;
 

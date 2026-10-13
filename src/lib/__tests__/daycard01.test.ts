@@ -21,7 +21,7 @@ import type { Routine, RoutineStep, TodayRoutineEntry, TodayStatus } from '@/com
 import {
   BADGE_WORDS, BRAND_WORDS, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, HOOK_WORDS, LOCATION_HEAD_WORD, PLAN_WORD, PLANNED_WORD, STOPS_NOT_READ_WORDS, TASK_WORD, TIME_HEAD_WORD, TODAY_WORD, UNTITLED_WORDS, VENDOR_HEAD_WORD,
   badDateWords, badStepWords, completenessWords, dayCarryWords, dayShortWords, dayStops, focusStop,
-  headerWords, heroWord, hookWords, intervalWords, linesUnreadWords, linesWithoutStopWords, notPlacedWords, notPricedWords, planDollars, progressPercent, provenanceWords,
+  headerWords, heroWord, hookWords, intervalWords, linesUnreadWords, linesWithoutStopWords, notPlacedWords, notPricedWords, openStepWords, planDollars, progressPercent, provenanceWords,
   routineFigureWords, soFarWords, stepHeaderWords, stopsWords, strandedWords, unmatchedWords, whereWords,
   type DayCardInput,
 } from '@/components/workbench/operations/day/dayCard';
@@ -186,6 +186,12 @@ test('T1 TABLE-01: the vendor and the location are two facts — the vendor is t
   assert.deepEqual([dayStops(input({ entries: [entry(nowhere)] })).stops[0].vendor, dayStops(input({ entries: [entry(nowhere)] })).stops[0].location], [null, null]);
   const blank = dayStops(input({ entries: [entry(routine({ id: 'g', name: 'G', location: '' }), 'pending', GYM_AT)] })).stops[0];
   assert.deepEqual([blank.vendor, blank.location], [null, null]);
+  // A vendor and no stated location: the location is null — the vendor never stands in for it (the old place's last resort), on a routine and on a line.
+  const gymNowhere = dayStops(input({ entries: [entry(routine({ ...gym, location: null }), 'pending', GYM_AT)], lines: [gymLine] })).stops[0];
+  assert.deepEqual([gymNowhere.vendor, gymNowhere.location], ['Fitness First Thonglor', null], 'a stepless routine with a vendor and no location');
+  const sitLine = line({ address: { kind: 'routine_line', id: 'n1', instant: AT }, cents: 300, label: 'Nowhere', line: 'Sit', vendor });
+  const sitVendored = dayStops(input({ entries: [entry(nowhere)], lines: [sitLine] })).stops[0];
+  assert.deepEqual([sitVendored.planLineState, sitVendored.vendor, sitVendored.location], ['matched', 'Luka Sathorn', null], 'a line with a vendor, a blank step location and no routine location');
   // A task with no line states neither; a task whose matched project_task line carries a vendor states that vendor (never dropped) and still no location — a task has no step and no routine.
   const taskStop = dayStops(input({ items: [item({ id: 'i1', ad_hoc_title: 'Ship it' })] })).stops[0];
   assert.deepEqual([taskStop.kind, taskStop.vendor, taskStop.location], ['task', null, null]);
@@ -214,6 +220,7 @@ test('T1 TABLE-01: intervalWords — the start and its end from the minutes, the
   assert.throws(() => intervalWords('07:00', 1.5), /a duration is a whole number of minutes/);
   for (const bad of ['7:00', '25:00', '07:60', '0700', '']) assert.throws(() => intervalWords(bad, 30), /a time is HH:MM/, `${JSON.stringify(bad)} is not a clock — never NaN`);
   assert.deepEqual([TIME_HEAD_WORD, VENDOR_HEAD_WORD, LOCATION_HEAD_WORD, DESCRIPTION_HEAD_WORD, BUDGET_HEAD_WORD], ['TIME', 'VENDOR', 'LOCATION', 'DESCRIPTION', 'BUDGET']);
+  assert.equal(openStepWords(6, 'Brunch'), 'Open step 6: Brunch', 'a row’s door is named for the step it opens, its visible words inside the name');
 });
 
 // ── T2 · MATCHING, EXACT ─────────────────────────────────────────────────────
@@ -557,30 +564,43 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.match(c, /const plannedCents = report !== null && report\.ok \? result\.plannedCents : null;/);
   assert.match(c, /data-day-hook>\{hookWords\(dayFailed \? null : N\)\}/, 'the hook line under the place — the stops unknown while the day read failed');
   assert.match(c, /data-day-hero-word>\{heroWord\(day, today\)\}/, '"today" only on today; "planned" on another day');
-  // TABLE-01 (2026-10-13): the rows are a table — the pins on the flex row (the 22/87 widths, the 31/23 px texts) moved to the table's cells below.
-  assert.match(c, /\{N > 0 && \(\n\s*<table className="w-full" style=\{\{ tableLayout: 'fixed', borderCollapse: 'collapse' \}\} data-day-stops>/, 'a real table, fixed widths, no horizontal scroll — and no lone header on a day with no stops');
+  // TABLE-01 (2026-10-13): the rows are a table — the flex row's size pins (the 22/87 widths, the 31/23 px texts) are replaced by the table's column widths and the cells' sizes below.
+  assert.match(c, /\{N > 0 && \(\n\s*<div className="flex flex-col">\n\s*<table className="w-full" style=\{\{ tableLayout: 'fixed', borderCollapse: 'collapse' \}\} data-day-stops>/, 'a real table, fixed widths, no horizontal scroll — and no lone header on a day with no stops');
+  assert.match(c, /<\/table>\n\s*<div className="border-t border-border" aria-hidden="true" \/>\n\s*<\/div>\n\s*\)\}/, 'the closing rule sits flush under the last row, in the table’s gap-less column — not a plate item 11 px below it');
+  assert.doesNotMatch(c, /\{N > 0 && <div className="border-t border-border"/, 'no closing rule loose on the plate');
   assert.match(c, /<colgroup>\n\s*<col style=\{\{ width: COLUMN_WIDTHS\.time \}\} \/>\n\s*<col style=\{\{ width: COLUMN_WIDTHS\.vendor \}\} \/>\n\s*<col style=\{\{ width: COLUMN_WIDTHS\.location \}\} \/>\n\s*<col \/>\n\s*<col style=\{\{ width: COLUMN_WIDTHS\.budget \}\} \/>\n\s*<\/colgroup>/, 'the four fixed columns are the colgroup’s, the description’s the rest');
-  assert.match(c, /const COLUMN_WIDTHS = \{ time: 120, vendor: 90, location: 90, budget: 62 \} as const;/, 'TIME and BUDGET narrow, DESCRIPTION takes the rest of the plate’s 482');
+  assert.match(c, /const COLUMN_WIDTHS = \{ time: 110, vendor: 80, location: 84, budget: 98 \} as const;/, 'each fixed column holds its widest fact; DESCRIPTION takes the rest of the plate’s 480');
   const widths = c.match(/const COLUMN_WIDTHS = \{ time: (\d+), vendor: (\d+), location: (\d+), budget: (\d+) \} as const;/)!.slice(1, 5).map(Number);
-  const plate = c.match(/style=\{\{ width: (\d+), borderRadius: \d+, padding: '\d+px (\d+)px \d+px', gap: \d+ \}\} data-day-card/)!.slice(1, 3).map(Number);
-  assert.ok(widths.reduce((a, b) => a + b, 0) < plate[0] - 2 * plate[1], `the four fixed columns (${widths.join(' + ')}) leave the description its width at the plate’s inner ${plate[0] - 2 * plate[1]}`);
+  const plate = c.match(/<div className="bg-ts-white border border-border flex flex-col mx-auto" style=\{\{ width: (\d+), borderRadius: \d+, padding: '\d+px (\d+)px \d+px', gap: \d+ \}\} data-day-card/)!.slice(1, 3).map(Number);
+  const inner = plate[0] - 2 * plate[1] - 2 * 1; // the plate's `border` is 1 px a side
+  assert.equal(inner, 480, 'the plate’s inner width: 540 − 2 × 29 padding − 2 × 1 border');
+  // Measured in the card's own fonts (TABLE-01 review): '$9,999.99' at 19 px extrabold is 96.4 px; 'DESCRIPTION' at 12 px tracked 0.14em is 100 px.
+  assert.ok(widths[3] >= 97, `BUDGET (${widths[3]}) holds '$9,999.99' whole — a figure is never split`);
+  assert.ok(inner - widths.reduce((a, b) => a + b, 0) >= 104, `the description keeps ${inner - widths.reduce((a, b) => a + b, 0)} px — its head word (100) and the cell’s 4 px of padding`);
+  assert.match(c, /const MARK_SLOT = 17;/, 'the mark’s slot: ✓ is 13.3 px at 15 px');
   inOrderOf(c, ['<thead>', '{TIME_HEAD_WORD}</th>', '{VENDOR_HEAD_WORD}</th>', '{LOCATION_HEAD_WORD}</th>', '{DESCRIPTION_HEAD_WORD}</th>', '{BUDGET_HEAD_WORD}</th>', '</thead>'], 'the header row, in the table’s order');
   const row = /<tr\n\s*key=\{s\.key\}([\s\S]*?)<\/tr>/.exec(c);
   assert.ok(row !== null, 'a row per stop');
   const cols = [...row![1].matchAll(/data-day-col="(\w+)"/g)].map((m) => m[1]);
   assert.deepEqual(cols, ['time', 'vendor', 'location', 'description', 'budget'], 'the five cells, once each, in the header’s order');
-  assert.match(row![1], /<Mark status=\{s\.status\} \/>/, 'the ✓/✕ mark in the TIME cell');
-  assert.match(row![1], /data-day-interval>\{factOf\(intervalWords\(s\.time, s\.minutes\)\)\}/, 'the interval — the start and its end, or the start, or —');
+  assert.match(row![1], /<span className="inline-block font-extrabold" style=\{\{ width: MARK_SLOT, fontSize: 15, lineHeight: 1 \}\}><Mark status=\{s\.status\} \/><\/span>/, 'the ✓/✕/– mark in its own slot on every row — an open row’s slot is empty, so every clock starts at one x');
+  assert.match(row![1], /style=\{\{ fontSize: 13, lineHeight: 1\.2 \}\} data-day-interval>\{factOf\(intervalWords\(s\.time, s\.minutes\)\)\}/, 'the interval — the start and its end, or the start, or — at 13 px mono');
+  assert.doesNotMatch(row![1], /marginLeft/, 'no offset that depends on the status — the slot holds the mark');
   assert.match(row![1], /data-day-col="vendor">\{factOf\(s\.vendor\)\}/, 'the vendor, or —');
   assert.match(row![1], /data-day-col="location">\{factOf\(s\.location\)\}/, 'the location, or —');
-  assert.match(row![1], /data-day-bold>\{boldOf\(s\)\}/, 'the description: the line or the name — the same words function');
+  assert.match(row![1], /<button type="button" className="block w-full text-left font-bold text-text-primary break-words" style=\{\{ fontSize: 19, lineHeight: 1\.1 \}\} aria-label=\{openStepWords\(i \+ 1, boldOf\(s\)\)\} data-day-bold>\{boldOf\(s\)\}<\/button>/, 'the description — the line or the name, the same words function — is the row’s door: a real button, named for the step it opens; Enter and Space are the browser’s own');
+  assert.equal((row![1].match(/<button\b/g) ?? []).length, 1, 'one door per row');
+  assert.doesNotMatch(row![1], /<button[^>]*onClick/, 'the button has no handler of its own — its click reaches the row’s one onClick, so a step opens once');
   assert.match(row![1], /\{smallOf\(s\) !== null && <span className="block font-medium text-text-muted break-words" style=\{\{ fontSize: 14, lineHeight: 1\.15 \}\} data-day-small>\{smallOf\(s\)\}<\/span>\}/, 'the routine under its line');
   assert.match(c, /const factOf = \(fact: string \| null\): string => \(fact === null \? '—' : fact\);/);
   assert.match(c, /function smallOf\(s: Stop\): string \| null \{\n\s*if \(s\.kind === 'task'\) return TASK_WORD;\n\s*if \(s\.kind === 'routine'\) return null;\n\s*return s\.label;\n\}/, 'the small text names no place — the vendor and the location have their columns');
   assert.doesNotMatch(c, /\.place\b|placeOf/, 'no place in the screen');
   const cellClasses = [...row![1].matchAll(/<td className=(?:"([^"]*)"|\{`([^`]*)`\})/g)].map((m) => m[1] ?? m[2]);
   assert.equal(cellClasses.length, 5, 'five cells in the row');
-  for (const k of cellClasses) assert.match(k, /\bbreak-words\b/, `every cell wraps: ${k}`);
+  assert.deepEqual(cellClasses.map((k) => /\bbreak-words\b/.test(k)), [true, true, true, true, false], 'the four text cells wrap; the BUDGET cell does not');
+  const budgetCell = /data-day-col="budget">([\s\S]*?)<\/td>/.exec(row![1]);
+  assert.ok(budgetCell !== null);
+  assert.doesNotMatch(budgetCell![1], /break-words|break-all/, 'a figure is never split mid-digit ("$12.5" over "0"); the actual line still wraps at its spaces');
   assert.doesNotMatch(c, /overflow-x|whitespace-nowrap/, 'no horizontal scroll, nothing kept on one line');
   // The step view shows the same two facts as two labeled lines.
   assert.match(c, /data-day-vendor>\n\s*<span className="font-bold text-text-faint" style=\{\{ fontSize: 13, letterSpacing: '0\.14em' \}\}>\{VENDOR_HEAD_WORD\}<\/span>\n\s*<span className=\{`font-medium break-words min-w-0 \$\{focus\.stop\.vendor === null \? 'text-text-faint' : 'text-text-primary'\}`\} style=\{\{ fontSize: 21, lineHeight: 1\.1 \}\}>\{factOf\(focus\.stop\.vendor\)\}<\/span>/, 'VENDOR on the step card');
@@ -589,13 +609,14 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.match(c, /style=\{\{ fontSize: 69, lineHeight: 1, letterSpacing: '-0\.02em' \}\} data-day-planned/, 'the hero at 69 px');
   assert.match(c, /style=\{\{ fontSize: 27, lineHeight: 1\.15 \}\} data-day-hook/, 'the hook at 27 px');
   assert.doesNotMatch(c, /truncate/, 'nothing is cut on the recorded plate');
-  // The rows: every amount through planDollars — '—' for null, never $0.00 for a blank; the row is a real button that pushes ?step=.
+  // The rows: every amount through planDollars — '—' for null, never $0.00 for a blank; a row's door is its description's button, and a click anywhere on the row pushes ?step=.
   assert.match(c, /data-day-amount>\{planDollars\(s\.cents\)\}/);
   // TABLE-01: the actual under the plan sits in the BUDGET cell (block, 13 px) — the pin moved with it.
   assert.match(c, /\{s\.actualCents !== null && <span className=\{`block font-semibold tabular-nums \$\{actualTone\(deltaWords\(s\.actualCents, s\.cents\)\.over\)\}`\} style=\{\{ fontSize: 13, lineHeight: 1\.15 \}\} data-day-actual>\{rowActualWords\(s\.actualCents, s\.cents\)\}<\/span>\}/, 'STOP-01: the actual under the plan, red over, green under or on');
   assert.match(c, /data-day-amount>\{planDollars\(focus\.stop\.cents\)\}/);
-  // TABLE-01: a row is a <tr> that pushes ?step= on click and on Enter — the pin moved from the button to the row.
-  assert.match(c, /<tr\n\s*key=\{s\.key\}\n\s*className="border-t border-border hover:bg-bg-row focus-visible:bg-bg-row cursor-pointer align-top"\n\s*tabIndex=\{0\}\n\s*data-day-stop=\{s\.key\}\n\s*data-day-status=\{s\.status\}\n\s*onClick=\{\(\) => go\(hrefFor\(day, i \+ 1\)\)\}\n\s*onKeyDown=\{\(e\) => \{ if \(e\.key === 'Enter' \|\| e\.key === ' '\) \{ e\.preventDefault\(\); go\(hrefFor\(day, i \+ 1\)\); \} \}\}/, 'a row pushes ?step= on click, Enter or Space (the button it replaced took both), and focus paints what hover paints');
+  // TABLE-01: a click anywhere on the <tr> pushes ?step=; the row is not a tab stop of its own — its button is (a focusable row is announced as a nameless row).
+  assert.match(c, /<tr\n\s*key=\{s\.key\}\n\s*className="border-t border-border hover:bg-bg-row focus-within:bg-bg-row cursor-pointer align-top"\n\s*data-day-stop=\{s\.key\}\n\s*data-day-status=\{s\.status\}\n\s*onClick=\{\(\) => go\(hrefFor\(day, i \+ 1\)\)\}\n\s*>/, 'a row pushes ?step= on a click, and its button’s focus paints what hover paints');
+  assert.doesNotMatch(row![1], /tabIndex|onKeyDown/, 'the keyboard reaches the row through its button — no hand-made key handling');
   // The plate's foot: the completeness line counts, the provenance names the source; the sentences sit under the plate.
   assert.match(c, /const reportRead = report !== null && report\.ok;\n\s*const recordsOk = recordsRead !== null && recordsRead\.ok;\n\s*const completeness = completenessWords\(result, stranded\.length, \{ day: !dayFailed, report: reportRead, records: recordsOk \}\);/, 'the plate’s count knows what was not read');
   assert.match(c, /data-day-count>\{completeness\}/);
@@ -645,8 +666,8 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   const headCell = c.match(/const headCell = '([^']*)';/);
   assert.ok(headCell !== null, 'the head cells’ classes are one named const');
   const classes = [...c.matchAll(/className="([^"]*)"/g)].flatMap((m) => m[1].split(/\s+/)).concat([...c.matchAll(/className=\{`([^`]*)`\}/g)].flatMap((m) => m[1].replace(/\$\{[^}]*\}/g, '').split(/\s+/))).concat(headCell![1].split(/\s+/));
-  const colour = classes.filter((k) => /^(text|bg|border)-/.test(k));
-  const allowed = /^(text-text-(primary|secondary|muted|faint)|text-brand-(purple|green|amber|red)|text-left|text-right|text-center|text-xs|text-lg|border-border(-light)?|border-t|border|bg-ts-white|bg-bg-row|bg-brand-gold|bg-brand-green|hover:bg-bg-row|focus-visible:bg-bg-row)$/;
+  const colour = classes.filter((k) => /^(?:[a-z-]+:)?(text|bg|border)-/.test(k));
+  const allowed = /^(text-text-(primary|secondary|muted|faint)|text-brand-(purple|green|amber|red)|text-left|text-right|text-center|text-xs|text-lg|border-border(-light)?|border-t|border|bg-ts-white|bg-bg-row|bg-brand-gold|bg-brand-green|hover:bg-bg-row|focus-within:bg-bg-row)$/;
   assert.deepEqual(colour.filter((k) => !allowed.test(k)), [], 'every colour class is a token');
 });
 
