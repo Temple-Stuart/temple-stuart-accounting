@@ -11,8 +11,9 @@
  * heavy type ("$75" — whole dollars read without ".00"), "Tue Oct 13 · Chiang
  * Mai" then "7 stops · under or over?", then every stop
  * in clock order — the time, the line (the step's activity) or the routine's
- * name or the task's title, the place under it (the day's vendor, else the
- * location), the planned amount ('—' where the Budget lists none, never $0.00);
+ * name or the task's title, the vendor and the location beside it (TABLE-01:
+ * two columns, two facts — once one "place" line under the name), the planned
+ * amount ('—' where the Budget lists none, never $0.00);
  * ✓ on a done routine's stops, ✕ on a missed one's — and a foot that counts what
  * the hero does not price or place, with the sentences that name each item.
  * ?step=n is the demo's STEP card: "n OF N · time", the stop large, PLAN and
@@ -57,7 +58,7 @@
  * plate's "also today" band under the rows, unnumbered, with no record. The
  * form under the plate asks what the stop's role asks (stops/StopForm.tsx); a
  * place stop plans its vendor there on its matched plan line, and the plate
- * reads the report again so the place shows. "tap a stop to record it" sits
+ * reads the report again so the VENDOR cell shows it. "tap a stop to record it" sits
  * under the full plate, outside the recorded box.
  *
  * JOURNAL-01 (2026-10-13) — THE JOURNAL STOP'S PLATE. On the step view of a
