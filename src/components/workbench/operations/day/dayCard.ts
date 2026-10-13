@@ -48,6 +48,13 @@
  * the stops' spent or done, and it takes no record. A line of a routine takes
  * its routine's role.
  *
+ * JOURNAL-01 (2026-10-13) — YESTERDAY'S TALLY. The journal stop's plate opens
+ * with yesterday's numbers — spent against the plan, the stops without an
+ * amount, the largest delta named, done of N with the skipped named, what
+ * shipped (the task stops done that day) — DERIVED here from yesterday's own
+ * reads through dayStops (dayTally), never stored: a stored copy would drift
+ * from the records and the plan lines. The words are each a function here.
+ *
  * Pure: no fetch, no clock, no React, no Prisma (as week/weekPlan.ts) — the
  * tests drive every rule with fixtures. Every sentence the card prints from
  * here is an exported constant or a function returning one, so the tests pin
@@ -56,6 +63,7 @@
 import { centsFromDecimalString, type NotPlaced } from '@/lib/budget/days';
 import { formatCents } from '@/lib/budget/format';
 import type { PlanLine, StrandedVendor } from '@/lib/budget/planLines';
+import { QUESTION_WORDS, UNANSWERED_WORD, typedOnWords, typedWords } from '@/lib/operations/journal';
 import { NO_STAY_WORDS, STAY_NOT_READ_WORDS, stayDay, stayDayWords, type StayRow } from '@/lib/operations/stay';
 import {
   DONE_WORD, LATER_WORD, NOT_RECORDED_WORDS, OPEN_WORD, ROUTINE_DONE_WORDS, ROUTINE_MISSED_WORDS, SKIPPED_WORD, TASK_DONE_WORDS, TASK_OPEN_WORDS, doneWords, lateWords, recordKey, skippedWords,
@@ -735,3 +743,95 @@ export const notPlacedWords = (list: readonly NotPlaced[]): string => {
   const head = list.length === 1 ? '1 plan not placed' : `${list.length} plans not placed`;
   return `${head} — ${list.map((n) => `${n.label}: ${n.reason}${n.detail !== null ? ` (${n.detail})` : ''}${n.day === null ? ', undated' : ''}`).join(' · ')}`;
 };
+
+// ── JOURNAL-01 (2026-10-13): YESTERDAY'S TALLY — DERIVED FROM ITS READS, NEVER STORED ──
+
+/**
+ * Which stops' forms ask an amount (stops/StopForm.tsx `asks`): a place stop and
+ * a stop with no role set — a task is a 'none' stop, so a task without its own
+ * actual counts. A work stop (journal · plan · execute) is never "without an
+ * amount": nothing asked for one.
+ */
+export const asksAmount = (role: StopRole): boolean => role === 'place' || role === 'none';
+
+/** The row's name: the line (the step's activity) when it has one, else the label — the plate's bold text. */
+export const stopNameOf = (s: Stop): string => (s.line !== null ? s.line : s.label);
+
+export interface DayTally {
+  readonly day: string;
+  /** The day's stops. */
+  readonly of: number;
+  /** The sum of the stops' actuals; null while the records were not read — unknown, never 0. */
+  readonly spentCents: number | null;
+  /** Stops whose form asks an amount and that have none (records read); 0 while unread — the words say "records not read" then, never "0 without an amount". */
+  readonly withoutAmount: number;
+  /** The Budget's figure for the day; null while the report was not read. */
+  readonly plannedCents: number | null;
+  /** How many stops carry both an actual and a plan. */
+  readonly compared: number;
+  /** Of those, the one farthest from its plan; null when none is compared, or every one is on plan. */
+  readonly largest: { readonly stop: Stop; readonly deltaCents: number } | null;
+  readonly done: number;
+  readonly skipped: number;
+  readonly skippedStops: readonly Stop[];
+  /** The task stops whose completed-at fell on the day in the viewer's zone — a task done on another day is done, not shipped. */
+  readonly shipped: readonly Stop[];
+}
+
+/** Yesterday's numbers from yesterday's own stops — the day card's rules over the day's reads; nothing unknown is summed or shown as zero. */
+export function dayTally(result: DayStops, day: string, plannedCents: number | null): DayTally {
+  const read = result.spentCents !== null;
+  const compared = result.stops.filter((s) => s.actualCents !== null && s.cents !== null);
+  let largest: DayTally['largest'] = null;
+  for (const s of compared) {
+    const d = (s.actualCents as number) - (s.cents as number);
+    if (d !== 0 && (largest === null || Math.abs(d) > Math.abs(largest.deltaCents))) largest = { stop: s, deltaCents: d };
+  }
+  return {
+    day,
+    of: result.stops.length,
+    spentCents: result.spentCents,
+    withoutAmount: read ? result.stops.filter((s) => asksAmount(s.role) && s.actualCents === null).length : 0,
+    plannedCents,
+    compared: compared.length,
+    largest,
+    done: result.done,
+    skipped: result.skipped,
+    skippedStops: result.stops.filter((s) => s.status === 'skipped'),
+    shipped: result.stops.filter((s) => s.kind === 'task' && s.status === 'done' && s.doneAt !== null && s.doneAt.day === day),
+  };
+}
+
+/** "$14.25 spent · $25 planned · 2 without an amount" · "spent — · records not read · $25 planned" (the records unread) · "— planned" while the report was not read. */
+export function tallySpentWords(t: DayTally): string {
+  if (t.spentCents === null) return `${SPENT_WORD} — · ${RECORDS_NOT_READ_WORDS} · ${planDollars(t.plannedCents)} ${PLANNED_WORD}`;
+  const head = `${planDollars(t.spentCents)} ${SPENT_WORD} · ${planDollars(t.plannedCents)} ${PLANNED_WORD}`;
+  return t.withoutAmount > 0 ? `${head} · ${withoutAmountWords(t.withoutAmount)}` : head;
+}
+
+/** "▲ $4.25 over — Brunch" · "▼ $3 under — Coffee" · "on plan" when every compared stop is · '—' while nothing can be compared. */
+export function tallyLargestWords(t: DayTally): string {
+  if (t.spentCents === null || t.compared === 0) return UNANSWERED_WORD;
+  if (t.largest === null) return ON_PLAN_WORDS;
+  return `${deltaWords(t.largest.stop.actualCents, t.largest.stop.cents).text} — ${stopNameOf(t.largest.stop)}`;
+}
+
+/** "4 of 6 done · 1 skipped — Gym" */
+export const tallyDoneWords = (t: DayTally): string =>
+  `${doneOfWords(t.done, t.of)}${t.skipped > 0 ? ` · ${skippedCountWords(t.skipped)} — ${t.skippedStops.map(stopNameOf).join(', ')}` : ''}`;
+
+/** "shipped: STAY-01 merged · the PR" — the tasks done that day, then what yesterday's journal typed as shipped; '—' when neither. */
+export function tallyShippedWords(t: DayTally, typedShipped: string | null): string {
+  const parts = [...t.shipped.map(stopNameOf), ...(typedShipped === null ? [] : [typedShipped])];
+  return `${QUESTION_WORDS.shipped}: ${parts.length === 0 ? UNANSWERED_WORD : parts.join(' · ')}`;
+}
+
+/** "$31 planned · 7 stops" — TODAY's line; the stops unknown while the day read failed, the plan '—' while the report was not read. */
+export const todayPlanWords = (plannedCents: number | null, stops: number | null): string =>
+  `${planDollars(plannedCents)} ${PLANNED_WORD} · ${stops === null ? STOPS_NOT_READ_WORDS : stopsWords(stops)}`;
+
+/** "typed 06:40" on the card's day, "typed Oct 12 06:40" on another — the typed instant in the viewer's zone (the rule statusWords uses for a done-at). */
+export function typedAtWords(typedAt: string, day: string, zone: string): string {
+  const at = instantToZoned(new Date(typedAt), zone);
+  return at.date === day ? typedWords(at.time) : typedOnWords(monthDayWords(at.date), at.time);
+}

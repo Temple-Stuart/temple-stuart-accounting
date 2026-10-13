@@ -469,6 +469,41 @@ model operations_stop_records {
   @@map("operations_stop_records")
 }
 
+/// JOURNAL-01 (2026-10-13): the morning's answers for one day — the words a person typed, one row per
+/// (user, day). The plate's numbers are derived at read time from the day's own reads and never stored.
+/// The CHECKs (an if with its then, no blank answer, at least one answer) live in the migration.
+model operations_day_journals {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String
+  /// The day the answers are for — a calendar day (@db.Date, UTC midnight), the card's day.
+  day           DateTime @db.Date
+  /// "→ so today" — yesterday's lesson applied.
+  adjustment    String?  @db.VarChar(280)
+  one_thing     String?  @db.VarChar(120)
+  /// Up to three "if … then …" pairs — both or neither (CHECK).
+  plan_1_if     String?  @db.VarChar(160)
+  plan_1_then   String?  @db.VarChar(160)
+  plan_2_if     String?  @db.VarChar(160)
+  plan_2_then   String?  @db.VarChar(160)
+  plan_3_if     String?  @db.VarChar(160)
+  plan_3_then   String?  @db.VarChar(160)
+  /// "obstacle … → then …" — both or neither (CHECK).
+  obstacle_if   String?  @db.VarChar(160)
+  obstacle_then String?  @db.VarChar(160)
+  blocker       String?  @db.VarChar(280)
+  witness       String?  @db.VarChar(120)
+  /// Typed at the end of the day.
+  shipped       String?  @db.VarChar(500)
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  /// Written by @updatedAt (no DB default) — read back as the "typed" instant; the PUT guards its write on it.
+  updated_at    DateTime @updatedAt @db.Timestamptz(6)
+
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, day], map: "operations_day_journals_one_per_day")
+  @@map("operations_day_journals")
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // MERCHANT COA MAPPINGS — Now with entity_id
 // ═══════════════════════════════════════════════════════════════════
@@ -800,6 +835,8 @@ model users {
   // STAY-01: where this user is, day by day — their stays.
   operations_stays              operations_stays[]
   operations_stop_records       operations_stop_records[]
+  // JOURNAL-01: this user's day journals — the morning's answers, one row per day.
+  operations_day_journals       operations_day_journals[]
   provider_responses      provider_responses[]
   arrivals                arrivals[]
   verification_tokens     verification_tokens[]
@@ -3001,6 +3038,12 @@ enum AuditActionType {
   // route's operations_ list.
   operations_stop_set
   operations_stop_cleared
+  // JOURNAL-01 (2026-10-13): a day's journal set (created or changed) / cleared by
+  // its owner, appended in ALTER TYPE order — migration
+  // 20261013120000_journal_01_day_journals. Both are in the audit-log route's
+  // operations_ list.
+  operations_journal_set
+  operations_journal_cleared
 }
 
 model audit_log {

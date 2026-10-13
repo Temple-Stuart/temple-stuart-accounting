@@ -176,10 +176,11 @@ test('T5 the migration: the table with its two CHECKs, the trigger that locks th
   assert.doesNotMatch(sql, /DROP /);
   assert.match(comments(MIGRATION), /AUTHORED here, applied at deploy/);
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
-  // STOP-01 (2026-10-12): the stop records migration is newer; ROLE-01 (2026-10-13): the role migration newer still. The pin moved twice; the order holds.
-  assert.equal(dirs[dirs.length - 3], MIGRATION_DIR, 'the migration two before the newest (STOP-01, then ROLE-01 followed)');
-  assert.equal(dirs[dirs.length - 2], '20261012140000_stop_01_operations_stop_records');
-  assert.equal(dirs[dirs.length - 1], '20261013030000_role_01_routine_role', 'the newest migration');
+  // STOP-01 (2026-10-12): the stop records migration is newer; ROLE-01 (2026-10-13): the role migration newer still; JOURNAL-01 (2026-10-13) followed. The pin moved three times; the order holds.
+  assert.equal(dirs[dirs.length - 4], MIGRATION_DIR, 'the migration three before the newest (STOP-01, ROLE-01, then JOURNAL-01 followed)');
+  assert.equal(dirs[dirs.length - 3], '20261012140000_stop_01_operations_stop_records');
+  assert.equal(dirs[dirs.length - 2], '20261013030000_role_01_routine_role');
+  assert.equal(dirs[dirs.length - 1], '20261013120000_journal_01_day_journals', 'the newest migration');
   assert.ok(MIGRATION_DIR.slice(0, 14) > '20260930210000');
 });
 
@@ -200,11 +201,11 @@ test('T5 the schema: the model column for column with the SQL; the user’s rela
   const auditEnum = /enum AuditActionType \{([\s\S]*?)\}/.exec(schema);
   assert.ok(auditEnum !== null);
   const values = auditEnum[1].split(/\s+/).filter(Boolean);
-  // STOP-01 (2026-10-12): two values follow them in ALTER TYPE order — the pin moved from "last two" to "the two before the last two".
-  assert.deepEqual(values.slice(-4, -2), ['operations_stay_set', 'operations_stay_deleted']);
+  // STOP-01 (2026-10-12): two values follow them in ALTER TYPE order; JOURNAL-01 (2026-10-13): two more — the pin moved from "last two" to "the two before the last four".
+  assert.deepEqual(values.slice(-6, -4), ['operations_stay_set', 'operations_stay_deleted']);
   assert.equal(AuditActionType.operations_stay_set, 'operations_stay_set', 'prisma generate ran');
   assert.equal(AuditActionType.operations_stay_deleted, 'operations_stay_deleted');
-  assert.match(code(AUDIT_LOG), /'operations_routine_completion_note_edited',\s*'operations_stay_set',\s*'operations_stay_deleted',\s*'operations_stop_set',\s*'operations_stop_cleared',\s*\],/);
+  assert.match(code(AUDIT_LOG), /'operations_routine_completion_note_edited',\s*'operations_stay_set',\s*'operations_stay_deleted',\s*'operations_stop_set',\s*'operations_stop_cleared',\s*'operations_journal_set',\s*'operations_journal_cleared',\s*\],/);
 });
 
 // ── T6 · THE ROUTES ──────────────────────────────────────────────────────────

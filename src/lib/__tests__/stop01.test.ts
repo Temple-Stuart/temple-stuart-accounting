@@ -425,9 +425,10 @@ test('T4 the migration: the table with its CHECKs, three cascades, two partial u
   assert.doesNotMatch(sql, /DROP |task_id/, 'no task column — a task’s record is the task');
   assert.match(comments(MIGRATION), /AUTHORED here, applied at deploy/);
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
-  // ROLE-01 (2026-10-13): the role migration is newer — this one is the one before it. The pin moved; the order holds.
-  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the migration before the newest (ROLE-01 followed)');
-  assert.equal(dirs[dirs.length - 1], '20261013030000_role_01_routine_role', 'the newest migration');
+  // ROLE-01 (2026-10-13): the role migration is newer; JOURNAL-01 (2026-10-13): the journal's newer still. The pin moved twice; the order holds.
+  assert.equal(dirs[dirs.length - 3], MIGRATION_DIR, 'the migration two before the newest (ROLE-01, then JOURNAL-01 followed)');
+  assert.equal(dirs[dirs.length - 2], '20261013030000_role_01_routine_role');
+  assert.equal(dirs[dirs.length - 1], '20261013120000_journal_01_day_journals', 'the newest migration');
   assert.ok(MIGRATION_DIR.slice(0, 14) > '20261012090000', 'after STAY-01’s');
 });
 
@@ -458,10 +459,11 @@ test('T4 the schema: the model column for column with the SQL; three relations; 
   const auditEnum = /enum AuditActionType \{([\s\S]*?)\}/.exec(schema);
   assert.ok(auditEnum !== null);
   const values = auditEnum[1].split(/\s+/).filter(Boolean);
-  assert.deepEqual(values.slice(-2), ['operations_stop_set', 'operations_stop_cleared']);
+  // JOURNAL-01 (2026-10-13): two values follow them in ALTER TYPE order — the pin moved from "last two" to "the two before the last two".
+  assert.deepEqual(values.slice(-4, -2), ['operations_stop_set', 'operations_stop_cleared']);
   assert.equal(AuditActionType.operations_stop_set, 'operations_stop_set', 'prisma generate ran');
   assert.equal(AuditActionType.operations_stop_cleared, 'operations_stop_cleared');
-  assert.match(code(AUDIT_LOG), /'operations_stay_set',\s*'operations_stay_deleted',\s*'operations_stop_set',\s*'operations_stop_cleared',\s*\],/);
+  assert.match(code(AUDIT_LOG), /'operations_stay_set',\s*'operations_stay_deleted',\s*'operations_stop_set',\s*'operations_stop_cleared',\s*'operations_journal_set',\s*'operations_journal_cleared',\s*\],/);
   // The items route hands the card the task's own done-at; the summary type names it.
   assert.match(code(ITEMS_ROUTE), /actual_cost_usd: true,\s*actual_minutes: true,\s*completed_at: true,/);
   assert.match(code(ITEM_TYPES), /actual_minutes: number \| null;\s*completed_at: string \| null;/);

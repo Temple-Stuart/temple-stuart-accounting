@@ -376,11 +376,12 @@ test('T7 the migration: the one ADD VALUE line and nothing else, after the last 
   assert.ok(MIGRATION_DIR.slice(0, 14) > '20260929190000');
   // STAY-01 (2026-10-12): the stays migration is newer — this one is the one before it. STOP-01 (2026-10-12): the stop records
   // migration is newer still. The pin moved twice; the order holds.
-  // ROLE-01 (2026-10-13) followed too.
-  assert.equal(dirs[dirs.length - 4], MIGRATION_DIR, 'the migration three before the newest (STAY-01, STOP-01, then ROLE-01 followed)');
-  assert.equal(dirs[dirs.length - 3], '20261012090000_stay_01_operations_stays');
-  assert.equal(dirs[dirs.length - 2], '20261012140000_stop_01_operations_stop_records');
-  assert.equal(dirs[dirs.length - 1], '20261013030000_role_01_routine_role', 'the newest migration');
+  // ROLE-01 (2026-10-13) followed too; JOURNAL-01 (2026-10-13) after it.
+  assert.equal(dirs[dirs.length - 5], MIGRATION_DIR, 'the migration four before the newest (STAY-01, STOP-01, ROLE-01, then JOURNAL-01 followed)');
+  assert.equal(dirs[dirs.length - 4], '20261012090000_stay_01_operations_stays');
+  assert.equal(dirs[dirs.length - 3], '20261012140000_stop_01_operations_stop_records');
+  assert.equal(dirs[dirs.length - 2], '20261013030000_role_01_routine_role');
+  assert.equal(dirs[dirs.length - 1], '20261013120000_journal_01_day_journals', 'the newest migration');
 });
 
 test('T7 the schema’s enum holds the value, last; the client knows it; the audit log lists it under operations_', () => {
@@ -388,9 +389,9 @@ test('T7 the schema’s enum holds the value, last; the client knows it; the aud
   const auditEnum = /enum AuditActionType \{([\s\S]*?)\}/.exec(schema);
   assert.ok(auditEnum !== null);
   const values = auditEnum[1].split(/\s+/).filter(Boolean);
-  // STAY-01 (2026-10-12): two values follow it in ALTER TYPE order; STOP-01 (2026-10-12): two more — the pin moved from "last" to "fifth from last".
-  assert.deepEqual(values.slice(-5), ['operations_routine_completion_note_edited', 'operations_stay_set', 'operations_stay_deleted', 'operations_stop_set', 'operations_stop_cleared']);
+  // STAY-01 (2026-10-12): two values follow it in ALTER TYPE order; STOP-01 (2026-10-12): two more; JOURNAL-01 (2026-10-13): two more — the pin moved from "last" to "seventh from last".
+  assert.deepEqual(values.slice(-7), ['operations_routine_completion_note_edited', 'operations_stay_set', 'operations_stay_deleted', 'operations_stop_set', 'operations_stop_cleared', 'operations_journal_set', 'operations_journal_cleared']);
   assert.equal(values.filter((v) => v === 'operations_routine_completion_note_edited').length, 1);
   assert.equal(AuditActionType.operations_routine_completion_note_edited, 'operations_routine_completion_note_edited', 'prisma generate ran');
-  assert.match(code(AUDIT_LOG), /'operations_plan_vendor_cleared',\s*'operations_routine_completion_note_edited',\s*'operations_stay_set',\s*'operations_stay_deleted',\s*'operations_stop_set',\s*'operations_stop_cleared',\s*\],/);
+  assert.match(code(AUDIT_LOG), /'operations_plan_vendor_cleared',\s*'operations_routine_completion_note_edited',\s*'operations_stay_set',\s*'operations_stay_deleted',\s*'operations_stop_set',\s*'operations_stop_cleared',\s*'operations_journal_set',\s*'operations_journal_cleared',\s*\],/);
 });
