@@ -26,6 +26,14 @@
  * cleared record or a first save starts a fresh draft from what is held. The
  * amount is read by the Budget's own rule (centsFromDecimalString — string
  * arithmetic, never a float). Nothing is stored in the browser.
+ *
+ * VENDOR-02 (2026-10-14) — Alex's ruling: the vendor box shows for EVERY priced
+ * stop, whatever its role, directly above this record row. PlaceVendor (the box
+ * for a place stop only, mounted at the end of this form) is gone from here,
+ * with the three props that fed it (bookName, reportRead, onPlanChanged): the
+ * card mounts stops/StopVendor.tsx above this form, by day/dayCard.ts
+ * vendorSlot. "A PLACE stop asks for its vendor" above now reads: every priced
+ * stop shows its vendor box; a place stop with no line keeps its one reason.
  */
 
 'use client';
@@ -33,10 +41,9 @@
 import { useState } from 'react';
 import { centsFromDecimalString } from '@/lib/budget/days';
 import { NEGATIVE_AMOUNT_WORDS, RATING_WORDS, SKIP_REASON_WORDS, WHEN_WORDS, amountWords, clearStopQuestion, minutesTypedWords, timeBoxWords, type StopOutcome } from '@/lib/operations/stopRecord';
-import { NOTE_PROMPT_WORDS, NO_AMOUNT_NO_VENDOR_WORDS, REPORT_NOT_READ_NO_VENDOR_WORDS, UNMATCHED_NO_VENDOR_WORDS, VENDOR_LABEL_WORDS, type StopRole } from '@/lib/operations/stopRole';
+import { NOTE_PROMPT_WORDS, type StopRole } from '@/lib/operations/stopRole';
 import { JOURNAL_RECORD_WORDS } from '@/lib/operations/journal';
 import { instantToZoned, zonedToInstant } from '@/lib/time';
-import { VendorBox, useDirectory } from '@/components/budget/DayPlanDrill';
 import { PLATE_WIDTH, statusWords, type Stop } from '../day/dayCard';
 import { clearStopRecord, setStopRecord, type StopBody } from './stopWrites';
 
@@ -71,21 +78,7 @@ function draftOf(stop: Stop, day: string): Draft {
   };
 }
 
-/** A place stop's vendor: Budget's own box on the matched plan line, or the one reason there is no line to plan on. Mounted for a place stop only. */
-function PlaceVendor({ stop, bookName, reportRead, reload }: { stop: Stop; bookName: string; reportRead: boolean; reload: () => void }) {
-  const directory = useDirectory();
-  const reason = !reportRead ? REPORT_NOT_READ_NO_VENDOR_WORDS : stop.planLineState === 'unmatched' ? UNMATCHED_NO_VENDOR_WORDS : NO_AMOUNT_NO_VENDOR_WORDS;
-  return (
-    <div className="flex flex-wrap items-center gap-1.5 text-xs" data-stop-vendor>
-      <span className="text-text-faint uppercase tracking-wide">{VENDOR_LABEL_WORDS}</span>
-      {stop.planLine !== null && reportRead
-        ? <VendorBox line={stop.planLine} bookName={bookName} directory={directory} reload={reload} />
-        : <span className="text-text-muted" data-stop-no-vendor>{reason}</span>}
-    </div>
-  );
-}
-
-export default function StopForm({ stop, day, bookName, reportRead, viewerZone, onChanged, onPlanChanged }: { stop: Stop; day: string; bookName: string; reportRead: boolean; viewerZone: string; onChanged: () => void; onPlanChanged: () => void }) {
+export default function StopForm({ stop, day, viewerZone, onChanged }: { stop: Stop; day: string; viewerZone: string; onChanged: () => void }) {
   const [draft, setDraft] = useState<Draft>(() => draftOf(stop, day));
   const [words, setWords] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -239,8 +232,6 @@ export default function StopForm({ stop, day, bookName, reportRead, viewerZone, 
         {stop.record !== null && <button type="button" className={chip} disabled={busy} onClick={clear} data-stop-clear>clear</button>}
       </form>
       {words !== null && <p className="text-xs text-brand-red" data-stop-words>{words}</p>}
-      {/* ROLE-01: a place stop plans its vendor here — Budget's own box on the matched plan line; a write reads the report again so the plate's VENDOR shows it. */}
-      {role === 'place' && <PlaceVendor stop={stop} bookName={bookName} reportRead={reportRead} reload={onPlanChanged} />}
     </div>
   );
 }

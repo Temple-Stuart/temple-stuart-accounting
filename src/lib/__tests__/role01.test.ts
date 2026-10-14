@@ -4,6 +4,9 @@
  * is in the day's plan but not a stop (the plate's "also today" band); the form
  * under the plate asks what the stop's role asks; a place stop plans its vendor
  * there.
+ * VENDOR-02 (2026-10-14): every priced stop plans its vendor now, whatever its
+ * role, in the VENDOR row above the record row (stops/StopVendor.tsx); T4's
+ * vendor pins moved there, and vendor02.test.ts drives the rule.
  *
  * The rules (src/lib/operations/stopRole.ts, day/dayCard.ts) are pure and
  * DRIVEN over cases; the migration, the schema, the routes, the Tasks tab's
@@ -30,6 +33,8 @@ const RULES = 'src/lib/operations/stopRole.ts';
 const CARD_RULES = 'src/components/workbench/operations/day/dayCard.ts';
 const CARD = 'src/components/workbench/operations/day/DayCard.tsx';
 const FORM = 'src/components/workbench/operations/stops/StopForm.tsx';
+// VENDOR-02 (2026-10-14): the vendor box left the form for its own child, mounted by the card above the record row.
+const VENDOR = 'src/components/workbench/operations/stops/StopVendor.tsx';
 const ROUTE_CREATE = 'src/app/api/operations/routines/route.ts';
 const ROUTE_PATCH = 'src/app/api/operations/routines/[id]/route.ts';
 const CREATE_FORM = 'src/components/workbench/operations/routines/RoutineCreateForm.tsx';
@@ -152,7 +157,8 @@ test('T2 every stop carries its routine’s role; an all-day routine is in the p
   assert.equal(focusStop(r, 5), null, 'HBO has no step');
   assert.equal(r.stops.find((s) => s.label === 'Brunch')!.planLine, brunchLine, 'the matched line rides on the stop — the vendor box plans on it');
   assert.equal(r.stops.find((s) => s.label === 'Gym')!.planLine, null);
-  assert.equal(completenessWords(r, 0, { day: true, report: true, records: true }), '3 not priced · 4 not recorded');
+  // VENDOR-02 (2026-10-14): completenessWords lost its stranded count (Alex's ruling — stranded vendors are Budget's to show); the words stand.
+  assert.equal(completenessWords(r, { day: true, report: true, records: true }), '3 not priced · 4 not recorded');
   // A record written at an all-day routine (by the API — the card offers no form) is named as matching no stop, never applied.
   const hboRecord = record({ kind: 'routine', target_id: HBO_ID, occurrence_at: HBO_AT, done_at: HBO_AT, actual_cents: 1100 });
   const withRecord = dayStops(input({ entries: [entry(hbo, 'pending', HBO_AT)], lines: [hboLine], records: [hboRecord] }));
@@ -179,7 +185,7 @@ test('T2 every stop carries its routine’s role; an all-day routine is in the p
   const doneHbo = dayStops(input({ entries: [entry(hbo, 'completed', HBO_AT), entry(gym, 'pending', GYM_AT)], records: [] }));
   assert.deepEqual([doneHbo.done, doneHbo.skipped, doneHbo.notRecorded, doneHbo.withoutActual, doneHbo.notPriced, doneHbo.stops.length, doneHbo.allDay.length], [0, 0, 1, 1, 1, 1, 1]);
   const unpriced = dayStops(input({ entries: [entry(hbo, 'missed', HBO_AT)], records: [] }));
-  assert.deepEqual([unpriced.notPriced, unpriced.plannedCents, unpriced.allDayCents, unpriced.allDay[0].cents, completenessWords(unpriced, 0, { day: true, report: true, records: true })], [0, 0, 0, null, null], 'an unpriced all-day line is not a count on the plate — the band says it has no amount');
+  assert.deepEqual([unpriced.notPriced, unpriced.plannedCents, unpriced.allDayCents, unpriced.allDay[0].cents, completenessWords(unpriced, { day: true, report: true, records: true })], [0, 0, 0, null, null], 'an unpriced all-day line is not a count on the plate — the band says it has no amount');
   assert.equal(dayStops(input({ entries: [entry(hbo, 'pending', HBO_AT)], lines: [hboLine] })).allDayCents, 1100, 'the band’s money, for the step card’s denominator');
   assert.equal(bandNameOf(l.allDay[0]), 'Memberships — Gym membership', 'the band names the routine and its line');
   assert.equal(bandNameOf(r.allDay[0]), 'HBO Subscription');
@@ -252,7 +258,8 @@ test('T3 the routes read the role by the one rule: the create route writes it (a
 
 // ── T4 · THE FORM AND THE PLATE ──────────────────────────────────────────────
 
-test('T4 the form asks what the role asks; a place stop plans its vendor on its matched line; the plate’s band and hint', () => {
+// VENDOR-02 (2026-10-14): the title said "a place stop plans its vendor on its matched line" — every priced stop does now, in its own child.
+test('T4 the form asks what the role asks; the vendor box is the card’s child, not the form’s; the plate’s band and hint', () => {
   const f = code(FORM);
   assert.match(f, /if \(stop\.role === 'all_day'\) throw new Error\(`StopForm: \$\{stop\.key\} is an all-day line — it takes no record`\);\n\s*const role: Exclude<StopRole, 'all_day'> = stop\.role;/, 'an all-day line is never this form’s — the rule, not a case');
   assert.match(f, /const differs = typedCents !== null && \(stop\.cents === null \|\| typedCents !== stop\.cents\);/, '"why" once the amount differs from the plan — or whenever the plan is unknown');
@@ -268,16 +275,24 @@ test('T4 the form asks what the role asks; a place stop plans its vendor on its 
   for (const ask of ['shown.amount', 'shown.rating', 'shown.minutes', 'shown.note']) assert.ok(f.includes(`{${ask} && (`), `${ask} gates its field`);
   assert.doesNotMatch(f, /\{asks\.\w+ && \(/, 'the screen gates on shown, never on asks alone');
   assert.match(f, /placeholder=\{draft\.outcome === 'skipped' \? 'why — required' : NOTE_PROMPT_WORDS\[role\]\}/, 'the note is prompted by the role');
-  assert.match(f, /\{role === 'place' && <PlaceVendor stop=\{stop\} bookName=\{bookName\} reportRead=\{reportRead\} reload=\{onPlanChanged\} \/>\}/, 'the vendor child for a place stop only');
-  assert.match(f, /function PlaceVendor\(\{ stop, bookName, reportRead, reload \}[\s\S]*?const directory = useDirectory\(\);/, 'the directory is read inside the place child only');
-  assert.equal((f.match(/useDirectory\(\)/g) ?? []).length, 1);
-  assert.match(f, /const reason = !reportRead \? REPORT_NOT_READ_NO_VENDOR_WORDS : stop\.planLineState === 'unmatched' \? UNMATCHED_NO_VENDOR_WORDS : NO_AMOUNT_NO_VENDOR_WORDS;/, 'one reason per cause — the report unread, the line at another instant, no amount');
-  assert.match(f, /\{stop\.planLine !== null && reportRead\n\s*\? <VendorBox line=\{stop\.planLine\} bookName=\{bookName\} directory=\{directory\} reload=\{reload\} \/>\n\s*: <span className="text-text-muted" data-stop-no-vendor>\{reason\}<\/span>\}/, 'Budget’s own vendor box on the matched plan line, else the reason');
-  assert.match(f, /import \{ VendorBox, useDirectory \} from '@\/components\/budget\/DayPlanDrill';/);
-  assert.match(f, /\{VENDOR_LABEL_WORDS\}/);
+  // VENDOR-02 (2026-10-14) — Alex's ruling: the vendor box shows for EVERY priced stop, whatever its role, directly above the
+  // record row. Moved, never loosened: PlaceVendor left the form (its place-only mount with it); the child is
+  // stops/StopVendor.tsx, its choice the rule day/dayCard.ts vendorSlot (driven in vendor02.test.ts). The directory is still
+  // read once, inside the box's own child — now only while the box is shown, not while a reason is.
+  assert.doesNotMatch(f, /PlaceVendor|VendorBox|useDirectory|VENDOR_LABEL_WORDS|data-stop-vendor/, 'the form holds no vendor box now');
+  const v = code(VENDOR);
+  assert.match(v, /function Box\(\{ line, bookName, reload \}: \{ line: PlanLine; bookName: string; reload: \(\) => void \}\) \{\n\s*const directory = useDirectory\(\);/, 'the directory is read inside the box child only');
+  assert.equal((v.match(/useDirectory\(\)/g) ?? []).length, 1);
+  const rules = code(CARD_RULES);
+  assert.match(rules, /return \{ kind: 'reason', words: !reportRead \? REPORT_NOT_READ_NO_VENDOR_WORDS : stop\.planLineState === 'unmatched' \? UNMATCHED_NO_VENDOR_WORDS : NO_AMOUNT_NO_VENDOR_WORDS \};/, 'one reason per cause — the report unread, the line at another instant, no amount');
+  assert.match(v, /\{slot\.kind === 'box'\n\s*\? <Box line=\{slot\.line\} bookName=\{bookName\} reload=\{reload\} \/>\n\s*: <span className="text-text-muted" data-stop-no-vendor>\{slot\.words\}<\/span>\}/, 'Budget’s own vendor box on the matched plan line, else the reason');
+  assert.match(v, /import \{ VendorBox, useDirectory \} from '@\/components\/budget\/DayPlanDrill';/);
+  assert.match(v, /\{VENDOR_LABEL_WORDS\}/);
   assert.doesNotMatch(f, /\bfetch\s*\(|\/api\//, 'the form still names no route of its own');
   const c = code(CARD);
   assert.doesNotMatch(c, /VendorBox|useDirectory|vendor-directory|plan-vendors/, 'the day folder names no vendor box — the stops folder does');
+  // VENDOR-02 (2026-10-14): the card mounts the stops folder's child — it still names no box, no directory and no route.
+  assert.match(c, /import StopVendor from '\.\.\/stops\/StopVendor';/);
   assert.match(c, /\{result\.allDay\.length > 0 && \(\n\s*<div className="flex flex-col" style=\{\{ gap: 4 \}\} data-day-all-day>/, 'the band, on the plate, after the rows');
   assert.match(c, /\{ALSO_TODAY_WORDS\.toUpperCase\(\)\}/);
   assert.match(c, /data-day-all-day-amount>\{planDollars\(s\.cents\)\}/);
