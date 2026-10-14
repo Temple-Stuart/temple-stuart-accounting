@@ -15,14 +15,17 @@ import { code, comments } from '../sourceText';
 // JOURNAL-02 (2026-10-13): the rule became five answers — the retired words (QUESTION_WORDS, PAIRS, INDEPENDENT_FIELDS, pairWords,
 // answerLine, pairLine, SHIPPED_HINT_WORDS, NO_YESTERDAY_WORDS) and dayCard's tallyShippedWords are deleted; their pins moved below,
 // dated, and journal02.test.ts pins the new rule, the lists and the ticks.
+// CLEAN-02 (2026-10-14): the journal card shows no money and no source line — yesterday's tally (dayTally and its words), todayPlanWords,
+// typedAtWords, stopNameOf, journalProvenanceWords, typedWords, typedOnWords, NONE_TYPED_WORDS, JOURNAL_NOT_READ_WORDS and
+// yesterdayFailedWords are deleted; their pins moved below, dated (T1, T2, T6).
 import {
-  ANSWER_FIELDS, ANSWER_MAX, BIDI_WORDS, BODY_WORDS, CONTROLS_WORDS, JOURNAL_LOADING_WORDS, JOURNAL_NOT_READ_WORDS, NO_ANSWERS, NONE_TYPED_WORDS,
+  ANSWER_FIELDS, ANSWER_MAX, BIDI_WORDS, BODY_WORDS, CONTROLS_WORDS, JOURNAL_LOADING_WORDS, NO_ANSWERS,
   NOTHING_TYPED_WORDS, PLAN_BLOCK_WORD, RACE_WORDS, RETIRED_FIELDS, TODAY_BLOCK_WORD, UNANSWERED_WORD, YESTERDAY_LOADING_WORDS, YESTERDAY_WORD,
-  answersOf, asJournalDate, clearJournalQuestion, dayWords, journalInput, journalProvenanceWords, journalRowOf, journalUnchanged, noJournalWords, notStringWords,
-  tooLongWords, tooManyWords, typedOnWords, typedWords, yesterdayFailedWords,
+  answersOf, asJournalDate, clearJournalQuestion, dayWords, journalInput, journalRowOf, journalUnchanged, noJournalWords, notStringWords,
+  tooLongWords, tooManyWords,
   type Answers,
 } from '../operations/journal';
-import { ON_PLAN_WORDS, asksAmount, dayStops, dayTally, stopNameOf, tallyDoneWords, tallyLargestWords, tallySpentWords, todayPlanWords, typedAtWords, type DayCardInput } from '@/components/workbench/operations/day/dayCard';
+import { asksAmount, dayStops, type DayCardInput } from '@/components/workbench/operations/day/dayCard';
 import { journalFailedWords, readJournal } from '@/components/workbench/operations/day/dayReads';
 import { CLEAR_FAILED_WORDS, SET_FAILED_WORDS, clearJournal, setJournal } from '@/components/workbench/operations/stops/journalWrites';
 import { SIGNED_OUT_WORDS } from '@/components/workbench/operations/week/weekReads';
@@ -119,7 +122,6 @@ const gymSkipped = record({ kind: 'routine', target_id: GYM_ID, occurrence_at: G
 const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({
   day: DAY, entries: [entry(morning), entry(gym, 'pending', GYM_AT), entry(vision, 'pending', VISION_AT)], lines, notPlaced: [], items, viewerZone: BKK, records: null, ...over,
 });
-const tallyOf = (records: readonly StopRecordRow[] | null, plannedCents: number | null = 3800) => dayTally(dayStops(input({ records })), DAY, plannedCents);
 
 const refused = (body: unknown) => {
   const r = journalInput(body);
@@ -212,17 +214,11 @@ test('T1 the words — each a constant or a function, exact', () => {
   assert.equal(PLAN_BLOCK_WORD, 'PLAN');
   assert.equal(UNANSWERED_WORD, '—');
   assert.equal(JOURNAL_LOADING_WORDS, 'reading the journal…');
-  assert.equal(JOURNAL_NOT_READ_WORDS, 'journal not read');
-  assert.notEqual(JOURNAL_LOADING_WORDS, JOURNAL_NOT_READ_WORDS, 'in flight and failed are different words');
+  // CLEAN-02 (2026-10-14): JOURNAL_NOT_READ_WORDS, yesterdayFailedWords, typedWords, typedOnWords, NONE_TYPED_WORDS and journalProvenanceWords
+  // (the source line's and the tally's words) are deleted — a failed read still prints its own words on the plate (T6).
+  for (const gone of ['JOURNAL_NOT_READ_WORDS', 'yesterdayFailedWords', 'typedWords', 'typedOnWords', 'NONE_TYPED_WORDS', 'journalProvenanceWords']) assert.doesNotMatch(code(RULE), new RegExp(`\\b${gone}\\b`), `${gone} is deleted`);
   assert.equal(noJournalWords('Sat Oct 11'), 'nothing typed for Sat Oct 11');
   assert.equal(YESTERDAY_LOADING_WORDS, 'reading yesterday…');
-  assert.equal(yesterdayFailedWords('two records at x'), 'yesterday could not be tallied — two records at x');
-  assert.equal(typedWords('06:40'), 'typed 06:40');
-  assert.equal(typedOnWords('Oct 12', '06:40'), 'typed Oct 12 06:40');
-  assert.equal(journalProvenanceWords('typed 06:40'), 'numbers: the Budget · stop records · words: typed 06:40');
-  assert.equal(journalProvenanceWords(NONE_TYPED_WORDS), 'numbers: the Budget · stop records · words: none typed');
-  assert.equal(journalProvenanceWords(JOURNAL_LOADING_WORDS), 'numbers: the Budget · stop records · words: reading the journal…', 'in flight is not "none typed"');
-  assert.equal(journalProvenanceWords(JOURNAL_NOT_READ_WORDS), 'numbers: the Budget · stop records · words: journal not read', 'failed is not "none typed"');
   assert.equal(clearJournalQuestion('Sat Oct 11'), 'Clear the journal for Sat Oct 11? The audit log keeps it; the card forgets it.');
   assert.equal(RACE_WORDS(DAY), `the journal for ${DAY} was written moments ago — read the day again`);
   assert.equal(BODY_WORDS, 'the body must be an object with day and the answers');
@@ -237,53 +233,26 @@ test('T1 the words — each a constant or a function, exact', () => {
   assert.doesNotMatch(code(RULE), /\bfetch\b|new Date\(\)|Date\.now\(|@prisma\/client|from 'react'/, 'pure: no fetch, no clock, no Prisma, no React');
 });
 
-// ── T2 · YESTERDAY'S TALLY ───────────────────────────────────────────────────
+// ── T2 · YESTERDAY'S TALLY — GONE (CLEAN-02, 2026-10-14) ────────────────────
 
-test('T2 dayTally: records unread → spent null and never "0 without an amount"; read → spent, the stops without an amount (only where the form asks one), the largest delta both ways, done of N with the skipped named, shipped', () => {
-  const unread = tallyOf(null);
-  assert.equal(unread.spentCents, null);
-  assert.equal(unread.withoutAmount, 0);
-  assert.equal(tallySpentWords(unread), 'spent — · records not read · $38 planned');
-  assert.doesNotMatch(tallySpentWords(unread), /0 without an amount/);
-  assert.equal(tallyLargestWords(unread), '—');
-  assert.equal(tallySpentWords(tallyOf(null, null)), 'spent — · records not read · — planned', 'the plan unknown too — never $0');
-
-  const t = tallyOf([coffee(1200), stretch(500), gymSkipped]);
-  assert.equal(t.of, 8, 'five routine stops and three tasks');
-  assert.equal(t.spentCents, 1200 + 500 + 750, 'the typed actuals and the task’s own');
-  // Without an amount, where the form asks one: the journal step (role none), Gym (place), Old one and Open one (tasks) — never Vision (journal) or a stop that typed one.
-  assert.equal(t.withoutAmount, 4);
-  assert.equal(tallySpentWords(t), '$24.50 spent · $38 planned · 4 without an amount');
+test('T2 CLEAN-02: yesterday’s tally is gone — the journal card shows no money; the day’s own rules still count, and asksAmount stays for the verdict', () => {
+  // CLEAN-02 (2026-10-14) — Alex's ruling: no money on the journal card. dayTally (DayTally), tallySpentWords, tallyLargestWords,
+  // tallyDoneWords, todayPlanWords, typedAtWords and stopNameOf had no other reader and are deleted; the JOURNAL-01 / PLAN-01 pins on
+  // their words ("$24.50 spent · $38 planned · 4 without an amount", "▼ $3 under — Stretch", "4 of 8 done · 1 skipped — Gym", "$31
+  // planned · 7 stops", "typed Oct 12 06:40") went with them. Yesterday on the card is its plan's ticks (journal02.test.ts).
+  for (const gone of ['dayTally', 'DayTally', 'tallySpentWords', 'tallyLargestWords', 'tallyDoneWords', 'todayPlanWords', 'typedAtWords', 'stopNameOf', 'withoutAmount']) {
+    assert.doesNotMatch(code(CARD_RULES), new RegExp(`\\b${gone}\\b`), `${gone} is deleted`);
+  }
+  // What the tally read is still the day's own count — unchanged by the deletion: the actuals that exist summed, the task's own among them.
+  const r = dayStops(input({ records: [coffee(1200), stretch(500), gymSkipped] }));
+  assert.equal(r.stops.length, 8, 'five routine stops and three tasks');
+  assert.equal(r.spentCents, 1200 + 500 + 750, 'the typed actuals and the task’s own');
+  assert.equal(r.withActual, 3, 'the coffee, the stretch, the task’s own');
+  assert.deepEqual([r.done, r.skipped], [4, 1], 'Coffee, Stretch, Ship it, Old one done; Gym skipped');
+  // asksAmount stays — the full card's verdict reads it (dayCard.ts dayVerdict, daycard01.test.ts T7).
   assert.deepEqual([asksAmount('place'), asksAmount('none'), asksAmount('journal'), asksAmount('plan'), asksAmount('execute'), asksAmount('all_day')], [true, true, false, false, false, false], 'StopForm’s asks: a place and no role ask the amount');
-  assert.equal(t.compared, 2);
-  assert.equal(t.largest?.deltaCents, -300);
-  assert.equal(tallyLargestWords(t), '▼ $3 under — Stretch');
-  assert.equal(tallyLargestWords(tallyOf([coffee(1600), stretch(500), gymSkipped])), '▲ $6 over — Coffee', 'the largest |actual − planned|, whichever way');
-  assert.equal(tallyLargestWords(tallyOf([coffee(1000), stretch(800)])), ON_PLAN_WORDS, 'every compared stop on plan');
-  assert.equal(tallyLargestWords(tallyOf([gymSkipped])), '—', 'records read, nothing to compare — the task’s $7.50 has no plan line');
-  assert.equal(t.done, 4, 'Coffee, Stretch, Ship it, Old one');
-  assert.equal(t.skipped, 1);
-  assert.equal(tallyDoneWords(t), '4 of 8 done · 1 skipped — Gym');
-  assert.equal(tallyDoneWords(tallyOf([coffee(1200)])), '3 of 8 done');
-  assert.deepEqual(t.shipped.map(stopNameOf), ['Ship it'], 'done on the day in the viewer’s zone — Old one was done the day before: done, not shipped');
-  assert.deepEqual(tallyOf([], 3800).shipped.map(stopNameOf), ['Ship it'], 'the task’s done-at is the task’s, records or not');
-  assert.deepEqual(dayTally(dayStops(input({ items: [], records: [] })), DAY, 3800).shipped, [], 'no task, nothing shipped');
-  // PLAN-01 (2026-10-13) — Alex's ruling: nothing recorded is unknown, not zero. Yesterday with records read but no actual says "spent —".
-  const nothing = dayTally(dayStops(input({ items: [], records: [] })), DAY, 3800);
-  assert.equal(nothing.withActual, 0);
-  assert.equal(tallySpentWords(nothing), 'spent — · 4 without an amount · $38 planned', 'never "$0 spent" — Stretch, Coffee, the journal step (no role) and Gym (place) ask an amount');
-  assert.equal(t.withActual, 3, 'the coffee, the stretch, the task’s own');
-  // JOURNAL-02 (2026-10-13): the plate no longer prints a "shipped:" line — yesterday's END OF DAY is its own typed text — so
-  // tallyShippedWords is deleted; its pins on the words went with it, and the derivation of the shipped tasks stands, pinned above.
-  assert.doesNotMatch(code(CARD_RULES), /tallyShippedWords/);
-  assert.equal(todayPlanWords(3100, 7), '$31 planned · 7 stops');
-  assert.equal(todayPlanWords(null, null), '— planned · stops not read');
-  assert.equal(todayPlanWords(0, 1), '$0 planned · 1 stop');
-  assert.equal(typedAtWords('2026-10-10T23:40:00.000Z', DAY, BKK), 'typed 06:40', 'on the card’s day');
-  assert.equal(typedAtWords('2026-10-11T23:40:00.000Z', DAY, BKK), 'typed Oct 12 06:40', 'typed on another day than the card’s — the day qualified (statusWords’ rule)');
   assert.match(code(CARD_RULES), /export const asksAmount = \(role: StopRole\): boolean => role === 'place' \|\| role === 'none';/);
-  assert.match(code(CARD_RULES), /shipped: result\.stops\.filter\(\(s\) => s\.kind === 'task' && s\.status === 'done' && s\.doneAt !== null && s\.doneAt\.day === day\),/);
-  assert.match(code(CARD_RULES), /withoutAmount: read \? result\.stops\.filter\(\(s\) => asksAmount\(s\.role\) && s\.actualCents === null\)\.length : 0,/);
+  assert.match(code(CARD_RULES), /if \(result\.stops\.some\(\(s\) => asksAmount\(s\.role\) && s\.actualCents === null\)\) return null;/, 'the verdict waits on every stop that asks an amount');
   assert.doesNotMatch(code(CARD_RULES), /\bfetch\b|new Date\(\)|Date\.now\(|from 'react'|@prisma\/client/, 'still pure');
 });
 
@@ -497,7 +466,9 @@ test('T6 the form: no maxLength, the route’s rule first, the one writer, clear
 });
 
 // JOURNAL-02 (2026-10-13): five blocks — the order, the yesterday lines and the one write moved below, dated; journal02.test.ts pins the blocks' contents.
-test('T6 the plate: the five blocks in order, "—" for the unanswered, the stop’s own record inside it, reads only when a journal stop exists, in flight and failed as different words, the try/catch around yesterday, the form keyed by the day and the journal', () => {
+// CLEAN-02 (2026-10-14): the journal card shows only its five blocks — the stop's own record (status, minutes), the source line, the
+// tally and its try/catch are gone; yesterday is its journal alone. The pins below moved with it, dated.
+test('T6 the plate: the five blocks in order, "—" for the unanswered, reads only when a journal stop exists (yesterday: its journal alone), in flight and failed as different words, the form keyed by the day and the journal', () => {
   const c = code(CARD);
   assert.match(c, /import JournalForm from '\.\.\/stops\/JournalForm';/);
   assert.match(c, /const hasJournalStop = readsDay === day && dayRead !== null && dayRead\.ok && dayRead\.value\.entries\.some\(\(e\) => e\.routine\.role === 'journal'\);/, 'the day has a journal stop — judged on the reads that landed for THIS day, so a day change fires nothing on the old day’s answer');
@@ -505,31 +476,31 @@ test('T6 the plate: the five blocks in order, "—" for the unanswered, the stop
   assert.match(c, /setItems\(i\);\n\s*setReadsDay\(day\);/, 'the reads land with their day');
   assert.match(c, /if \(day === null \|\| !hasJournalStop\) return;\n\s*let live = true;\n\s*\(async \(\) => \{\n\s*const j = await readJournal\(day\);\n\s*if \(live\) setJournal\(\{ day, read: j \}\);/, 'the journal read, only then, landing with its day under the live guard');
   assert.match(c, /\}, \[day, hasJournalStop, journalReads\]\);/, 'again after a write');
-  assert.match(c, /if \(day === null \|\| today === null \|\| !hasJournalStop\) return;\n\s*const yday = shiftDay\(day, -1\);\n\s*let live = true;\n\s*\(async \(\) => \{\n\s*const \[d, r, i, s, j\] = await Promise\.all\(\[readDay\(yday\), readDayReport\(yday, today\), readItems\(yday, yday\), readStopRecords\(yday\), readJournal\(yday\)\]\);\n\s*if \(live\) setYesterday\(\{ day, reads: \{ day: d, report: r, items: i, records: s, journal: j \} \}\);/, 'the five yesterday reads, only then, landing with the card’s day');
+  // CLEAN-02 (2026-10-14): yesterday is read as its journal alone — the day, the report, the tasks and the records of the day before fed only the tally.
+  assert.match(c, /if \(day === null \|\| !hasJournalStop\) return;\n\s*const yday = shiftDay\(day, -1\);\n\s*let live = true;\n\s*\(async \(\) => \{\n\s*const j = await readJournal\(yday\);\n\s*if \(live\) setYesterday\(\{ day, read: j \}\);/, 'yesterday’s journal, only then, landing with the card’s day');
+  assert.doesNotMatch(c, /readDay\(yday\)|readDayReport\(yday|readItems\(yday|readStopRecords\(yday\)|YesterdayReads|yesterdayTally/, 'no money read for yesterday');
   assert.match(c, /const journalRead = journal !== null && journal\.day === day \? journal\.read : null;/);
-  assert.match(c, /const yesterdayReads = yesterday !== null && yesterday\.day === day \? yesterday\.reads : null;/);
+  assert.match(c, /const yesterdayRead = yesterday !== null && yesterday\.day === day \? yesterday\.read : null;/);
   assert.doesNotMatch(c, /setJournal\(null\)|setYesterday\(null\)/, 'a re-read never blanks the plate first');
-  assert.match(c, /function yesterdayTally\(yday: string, reads: YesterdayReads, zone: string\)[\s\S]*?if \(!reads\.day\.ok\) return \{ tally: null, words: null \};\n\s*try \{\n[\s\S]*?const result = dayStops\(\{[\s\S]*?return \{ tally: dayTally\(result, yday, reads\.report\.ok \? result\.plannedCents : null\), words: null \};\n\s*\} catch \(error\) \{\n\s*return \{ tally: null, words: yesterdayFailedWords\(error instanceof Error \? error\.message : String\(error\)\) \};/, 'the build wrapped — a thrown invariant is said on the plate');
-  assert.match(c, /\{focus\.stop\.role === 'journal' \? \(\n\s*<JournalPlate key=\{day\} day=\{day\} zone=\{zone\} stop=\{focus\.stop\} plannedCents=\{plannedCents\} stops=\{dayFailed \? null : N\} journal=\{journalRead\} yesterday=\{yesterdayReads\} onChanged=\{\(\) => setJournalReads\(\(n\) => n \+ 1\)\} \/>\n\s*\) : \(/, 'the plate for the journal stop, keyed by the day; a tick re-reads the journal; the plain record block for every other role');
+  assert.match(c, /\{focus\.stop\.role === 'journal' \? \(\n\s*<JournalPlate key=\{day\} day=\{day\} journal=\{journalRead\} yesterday=\{yesterdayRead\} onChanged=\{\(\) => setJournalReads\(\(n\) => n \+ 1\)\} \/>\n\s*\) : \(/, 'the plate for the journal stop, keyed by the day; a tick re-reads the journal; the plain record block for every other role');
   assert.match(c, /data-day-record>/, 'the plain record block stands');
   // PLAN-01 (2026-10-13): yesterday's steps not ticked read "not finished:" — the attribute renamed with the words.
-  inOrder(c, ['data-day-journal-yesterday', 'data-day-yesterday-end-of-day', 'data-day-yesterday-spent', 'data-day-yesterday-largest', 'data-day-yesterday-done', 'data-day-yesterday-records-failed', 'data-day-yesterday-not-finished', 'data-day-journal-today', 'data-day-journal-plan>', 'data-day-journal-goal>', 'data-day-journal-blockers', 'data-day-journal-plan-block', 'data-day-journal-step=', 'data-day-journal-end-of-day', 'data-day-journal-loading', 'data-day-journal-failed', 'data-day-journal-none', 'data-day-journal-record', 'data-day-journal-status', 'data-day-journal-provenance'], 'YESTERDAY, TODAY, BLOCKERS, PLAN, END OF DAY, the record, the source');
-  assert.match(c, /data-day-journal-status>\{statusWords\(stop, day\)\}/, 'the journal stop’s own record status, inside the plate');
-  assert.match(c, /data-day-journal-minutes>\{minutesLine\(stop\.minutes, stop\.actualMinutes\)\}/);
+  // CLEAN-02 (2026-10-14): YESTERDAY is its plan's ticks (data-day-yesterday-steps) and its note when typed (data-day-yesterday-note); the
+  // tally's lines, TODAY's planned/stops line, the record (status, minutes) and the source line are gone from the order.
+  inOrder(c, ['data-day-journal-yesterday', 'data-day-yesterday-loading', 'data-day-yesterday-journal-failed', 'data-day-yesterday-steps', 'data-day-yesterday-note', 'data-day-journal-today', 'data-day-journal-goal>', 'data-day-journal-blockers', 'data-day-journal-plan-block', 'data-day-journal-step=', 'data-day-journal-end-of-day', 'data-day-journal-loading', 'data-day-journal-failed', 'data-day-journal-none'], 'YESTERDAY, TODAY, BLOCKERS, PLAN, END OF DAY, the read’s state');
+  assert.doesNotMatch(c, /data-day-journal-record|data-day-journal-status|data-day-journal-minutes|data-day-journal-provenance|data-day-journal-plan>|data-day-yesterday-(spent|largest|done|end-of-day|not-finished|records-failed|report-failed|items-failed|failed|build-failed)|typedState/, 'none of the removed parts');
   assert.match(c, /data-day-yesterday-loading>\{YESTERDAY_LOADING_WORDS\}/);
+  assert.match(c, /data-day-yesterday-journal-failed>\{yesterday\.words\}/, 'yesterday’s read that failed prints its own words');
   assert.match(c, /data-day-journal-loading>\{JOURNAL_LOADING_WORDS\}/);
   assert.match(c, /data-day-journal-failed>\{journal\.words\}/, 'the read’s own sentence, once');
-  assert.match(c, /const typedState = journal === null \? JOURNAL_LOADING_WORDS : !journal\.ok \? JOURNAL_NOT_READ_WORDS : row === null \? NONE_TYPED_WORDS : typedAtWords\(row\.typed_at, day, zone\);/, 'the source line’s words: in flight, failed, none typed, or typed — never "none typed" for an unknown');
   assert.match(c, /data-day-journal-none>\{noJournalWords\(dayShortWords\(day\)\)\}/);
-  assert.match(c, /data-day-yesterday-journal-none>\{noJournalWords\(dayShortWords\(yday\)\)\}/, 'JOURNAL-02: yesterday with no journal says so in noJournalWords (NO_YESTERDAY_WORDS deleted)');
-  assert.match(c, /data-day-yesterday-records-failed>\{yesterday\.records\.words\}/, 'a records read that failed on its own prints its words under the stats');
-  // JOURNAL-02 (2026-10-13): yesterday's END OF DAY is its own line (the "shipped:" tally line is gone); every unanswered block prints "—".
-  // PLAN-01 (2026-10-13): yesterday's END OF DAY is labelled "accomplished:" (accomplishedWords) — the pin moved with it.
-  assert.match(c, /data-day-yesterday-end-of-day>\{accomplishedWords\(yRow\.shipped\)\}/, 'yesterday’s END OF DAY as typed, labelled');
-  assert.doesNotMatch(c, /data-day-yesterday-shipped|tallyShippedWords|answerLine|pairLine|QUESTION_WORDS/);
+  // JOURNAL-02 (2026-10-13): yesterday with no journal said noJournalWords; CLEAN-02 (2026-10-14): yesterdayStepsWords says it — NO_JOURNAL_YESTERDAY_WORDS.
+  assert.match(c, /\{yesterday !== null && yesterday\.ok && <div [^>]*data-day-yesterday-steps>\{yesterdayStepsWords\(yRow\)\}<\/div>\}/, 'yesterday’s ticks, once its read answered');
+  // PLAN-01 (2026-10-13): yesterday's END OF DAY was labelled "accomplished:"; CLEAN-02 (2026-10-14): "note:", and only when one was typed.
+  assert.match(c, /\{yRow !== null && yRow\.shipped !== null && <div [^>]*data-day-yesterday-note>\{noteWords\(yRow\.shipped\)\}<\/div>\}/, 'yesterday’s END OF DAY as typed, labelled note:');
+  assert.doesNotMatch(c, /data-day-yesterday-shipped|tallyShippedWords|answerLine|pairLine|QUESTION_WORDS|accomplishedWords/);
   assert.match(c, /const a: Answers = answersOf\(row === null \? \{\} : row\);/);
-  assert.match(c, /data-day-journal-provenance>\{journalProvenanceWords\(typedState\)\}/);
-  assert.match(c, /<JournalForm key=\{`\$\{day\}:\$\{journalRead\.value\.journal === null \? 'none' : journalRead\.value\.journal\.id\}`\} day=\{day\} journal=\{journalRead\.value\.journal\} yesterday=\{yesterdayForPrompt\} onChanged=\{\(\) => setJournalReads\(\(n\) => n \+ 1\)\} \/>/, 'keyed by the day and the journal; a write bumps the read counter; JOURNAL-02 / PLAN-01: yesterday — its open steps and its END OF DAY — for the add button and the plan prompt');
+  assert.match(c, /<JournalForm key=\{`\$\{day\}:\$\{journalRead\.value\.journal === null \? 'none' : journalRead\.value\.journal\.id\}`\} day=\{day\} journal=\{journalRead\.value\.journal\} yesterday=\{yesterdayForPrompt\} onChanged=\{\(\) => setJournalReads\(\(n\) => n \+ 1\)\} \/>/, 'keyed by the day and the journal; a write bumps the read counter; JOURNAL-02 / PLAN-01: yesterday — its open steps and its END OF DAY (CLEAN-02: its row) — for the add button and the plan prompt');
   assert.match(c, /\{loaded && focus !== null && focus\.stop\.role === 'journal' && journalRead !== null && journalRead\.ok && \(/, 'never offered while the journal could not be read');
   inOrder(c, ['data-day-card', '<StopForm', '<JournalForm', 'data-day-foot'], 'under the plate, after the record form, above the sentences');
   // JOURNAL-02 (2026-10-13): the plate's tick buttons write through the ONE writer — the card imports its set (as writeJournal) and

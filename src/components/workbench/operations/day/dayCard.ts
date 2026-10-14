@@ -69,10 +69,9 @@
 import { centsFromDecimalString, type NotPlaced } from '@/lib/budget/days';
 import { formatCents } from '@/lib/budget/format';
 import type { PlanLine, StrandedVendor } from '@/lib/budget/planLines';
-import { UNANSWERED_WORD, typedOnWords, typedWords } from '@/lib/operations/journal';
 import { NO_STAY_WORDS, STAY_NOT_READ_WORDS, stayDay, stayDayWords, type StayRow } from '@/lib/operations/stay';
 import {
-  DONE_WORD, LATER_WORD, NOT_RECORDED_WORDS, OPEN_WORD, ROUTINE_DONE_WORDS, ROUTINE_MISSED_WORDS, SKIPPED_WORD, TASK_DONE_WORDS, TASK_OPEN_WORDS, doneWords, lateWords, recordKey, skippedWords,
+  LATER_WORD, NOT_RECORDED_WORDS, OPEN_WORD, ROUTINE_DONE_WORDS, ROUTINE_MISSED_WORDS, SKIPPED_WORD, TASK_DONE_WORDS, TASK_OPEN_WORDS, doneWords, lateWords, recordKey, skippedWords,
   type StopRecordKind, type StopRecordRow,
 } from '@/lib/operations/stopRecord';
 import { isStop, isStopRole, type StopRole } from '@/lib/operations/stopRole';
@@ -506,7 +505,6 @@ export const TASK_WORD = 'task';
 export const BRAND_WORDS = 'TEMPLE STUART';
 export const UNTITLED_WORDS = 'untitled item';
 
-export const stopsWords = (n: number): string => (n === 1 ? '1 stop' : `${n} stops`);
 export const notPricedWords = (k: number): string => `${k} not priced`;
 /** PLAN-01: "plan so far $10 of $75" — the PLAN bar's words (the planned money of stops 1..n against the day's planned total); both '—' while the report cannot be read (null), never $0.00 for an unknown figure. */
 export const planSoFarWords = (soFarCents: number | null, plannedCents: number | null): string => `plan so far ${planDollars(soFarCents)} of ${planDollars(plannedCents)}`;
@@ -521,20 +519,15 @@ export const SPENT_WORD = 'spent';
 export const RECORDS_NOT_READ_WORDS = 'records not read';
 export const ON_PLAN_WORDS = 'on plan';
 
-/** "2 without an amount" — the stops a sum of actuals does not cover; printed beside every such sum. */
-export const withoutAmountWords = (n: number): string => `${n} without an amount`;
-
 /**
- * PLAN-01: the SPENT bar's words — "spent so far $2.25 of $75 · 1 without an
- * amount": the actuals of stops 1..n against the day's planned total; "spent so
- * far — of $75 · 3 without an amount" while none carries an actual; "spent so far
- * — · records not read" when the records were not read.
+ * PLAN-01: the SPENT bar's words, the actuals of stops 1..n against the day's
+ * planned total. CLEAN-02 (2026-10-14, Alex's ruling): "spent so far $9.69 of
+ * $75" — no count beside it; "spent so far — of $75" while nothing so far is
+ * recorded or the records were not read (the caller passes null — unknown,
+ * never $0; the fine print under the plate says what was not read).
  */
-export function spentSoFarWords(spentCents: number | null, withoutActual: number, withActual: number, plannedCents: number | null): string {
-  if (spentCents === null) return `${SPENT_SO_FAR_WORDS} — · ${RECORDS_NOT_READ_WORDS}`;
-  const head = `${SPENT_SO_FAR_WORDS} ${withActual === 0 ? '—' : planDollars(spentCents)} of ${planDollars(plannedCents)}`;
-  return withoutActual > 0 ? `${head} · ${withoutAmountWords(withoutActual)}` : head;
-}
+export const spentSoFarWords = (spentCents: number | null, plannedCents: number | null): string =>
+  `${SPENT_SO_FAR_WORDS} ${planDollars(spentCents)} of ${planDollars(plannedCents)}`;
 export const SPENT_SO_FAR_WORDS = 'spent so far';
 /** "over by $5" — the actuals past the day's planned total, in the card's over tone. */
 export const overByWords = (cents: number): string => `over by ${planDollars(cents)}`;
@@ -576,8 +569,6 @@ export function deltaWords(actualCents: number | null, planCents: number | null)
   return d > 0 ? { text: `▲ ${planDollars(d)} over`, over: true } : { text: `▼ ${planDollars(-d)} under`, over: false };
 }
 
-/** "3 of 7 done" */
-export const doneOfWords = (done: number, of: number): string => `${done} of ${of} ${DONE_WORD}`;
 /** "1 skipped" */
 export const skippedCountWords = (n: number): string => `${n} ${SKIPPED_WORD}`;
 
@@ -781,7 +772,7 @@ export const notPlacedWords = (list: readonly NotPlaced[]): string => {
   return `${head} — ${list.map((n) => `${n.label}: ${n.reason}${n.detail !== null ? ` (${n.detail})` : ''}${n.day === null ? ', undated' : ''}`).join(' · ')}`;
 };
 
-// ── JOURNAL-01 (2026-10-13): YESTERDAY'S TALLY — DERIVED FROM ITS READS, NEVER STORED ──
+// ── JOURNAL-01 (2026-10-13): WHICH STOPS ASK AN AMOUNT (CLEAN-02, 2026-10-14: yesterday's tally is gone — the journal card shows no money; asksAmount stays for the verdict) ──
 
 /**
  * Which stops' forms ask an amount (stops/StopForm.tsx `asks`): a place stop and
@@ -791,92 +782,9 @@ export const notPlacedWords = (list: readonly NotPlaced[]): string => {
  */
 export const asksAmount = (role: StopRole): boolean => role === 'place' || role === 'none';
 
-/** The row's name: the line (the step's activity) when it has one, else the label — the plate's bold text. */
-export const stopNameOf = (s: Stop): string => (s.line !== null ? s.line : s.label);
-
-export interface DayTally {
-  readonly day: string;
-  /** The day's stops. */
-  readonly of: number;
-  /** The sum of the stops' actuals; null while the records were not read — unknown, never 0. */
-  readonly spentCents: number | null;
-  /** Stops whose form asks an amount and that have none (records read); 0 while unread — the words say "records not read" then, never "0 without an amount". */
-  readonly withoutAmount: number;
-  /** PLAN-01: stops that carry an actual (records read) — none: "spent —", never $0. */
-  readonly withActual: number;
-  /** The Budget's figure for the day; null while the report was not read. */
-  readonly plannedCents: number | null;
-  /** How many stops carry both an actual and a plan. */
-  readonly compared: number;
-  /** Of those, the one farthest from its plan; null when none is compared, or every one is on plan. */
-  readonly largest: { readonly stop: Stop; readonly deltaCents: number } | null;
-  readonly done: number;
-  readonly skipped: number;
-  readonly skippedStops: readonly Stop[];
-  /** The task stops whose completed-at fell on the day in the viewer's zone — a task done on another day is done, not shipped. */
-  readonly shipped: readonly Stop[];
-}
-
-/** Yesterday's numbers from yesterday's own stops — the day card's rules over the day's reads; nothing unknown is summed or shown as zero. */
-export function dayTally(result: DayStops, day: string, plannedCents: number | null): DayTally {
-  const read = result.spentCents !== null;
-  const compared = result.stops.filter((s) => s.actualCents !== null && s.cents !== null);
-  let largest: DayTally['largest'] = null;
-  for (const s of compared) {
-    const d = (s.actualCents as number) - (s.cents as number);
-    if (d !== 0 && (largest === null || Math.abs(d) > Math.abs(largest.deltaCents))) largest = { stop: s, deltaCents: d };
-  }
-  return {
-    day,
-    of: result.stops.length,
-    spentCents: result.spentCents,
-    withoutAmount: read ? result.stops.filter((s) => asksAmount(s.role) && s.actualCents === null).length : 0,
-    withActual: read ? result.withActual : 0,
-    plannedCents,
-    compared: compared.length,
-    largest,
-    done: result.done,
-    skipped: result.skipped,
-    skippedStops: result.stops.filter((s) => s.status === 'skipped'),
-    shipped: result.stops.filter((s) => s.kind === 'task' && s.status === 'done' && s.doneAt !== null && s.doneAt.day === day),
-  };
-}
-
-/**
- * "$14.25 spent · $25 planned · 2 without an amount" · "spent — · records not read
- * · $25 planned" (the records unread) · "— planned" while the report was not read.
- * PLAN-01: nothing recorded — "spent — · 6 without an amount · $75 planned", never $0.
- */
-export function tallySpentWords(t: DayTally): string {
-  if (t.spentCents === null) return `${SPENT_WORD} — · ${RECORDS_NOT_READ_WORDS} · ${planDollars(t.plannedCents)} ${PLANNED_WORD}`;
-  if (t.withActual === 0) return t.withoutAmount > 0 ? `${SPENT_WORD} — · ${withoutAmountWords(t.withoutAmount)} · ${planDollars(t.plannedCents)} ${PLANNED_WORD}` : `${SPENT_WORD} — · ${planDollars(t.plannedCents)} ${PLANNED_WORD}`;
-  const head = `${planDollars(t.spentCents)} ${SPENT_WORD} · ${planDollars(t.plannedCents)} ${PLANNED_WORD}`;
-  return t.withoutAmount > 0 ? `${head} · ${withoutAmountWords(t.withoutAmount)}` : head;
-}
-
-/** "▲ $4.25 over — Brunch" · "▼ $3 under — Coffee" · "on plan" when every compared stop is · '—' while nothing can be compared. */
-export function tallyLargestWords(t: DayTally): string {
-  if (t.spentCents === null || t.compared === 0) return UNANSWERED_WORD;
-  if (t.largest === null) return ON_PLAN_WORDS;
-  return `${deltaWords(t.largest.stop.actualCents, t.largest.stop.cents).text} — ${stopNameOf(t.largest.stop)}`;
-}
-
-/** "4 of 6 done · 1 skipped — Gym" */
-export const tallyDoneWords = (t: DayTally): string =>
-  `${doneOfWords(t.done, t.of)}${t.skipped > 0 ? ` · ${skippedCountWords(t.skipped)} — ${t.skippedStops.map(stopNameOf).join(', ')}` : ''}`;
-
-/** "$31 planned · 7 stops" — TODAY's line; the stops unknown while the day read failed, the plan '—' while the report was not read. */
-export const todayPlanWords = (plannedCents: number | null, stops: number | null): string =>
-  `${planDollars(plannedCents)} ${PLANNED_WORD} · ${stops === null ? STOPS_NOT_READ_WORDS : stopsWords(stops)}`;
-
-/** "typed 06:40" on the card's day, "typed Oct 12 06:40" on another — the typed instant in the viewer's zone (the rule statusWords uses for a done-at). */
-export function typedAtWords(typedAt: string, day: string, zone: string): string {
-  const at = instantToZoned(new Date(typedAt), zone);
-  return at.date === day ? typedWords(at.time) : typedOnWords(monthDayWords(at.date), at.time);
-}
-
 // ── TABLE-01 (2026-10-13): THE STOPS AS A TABLE — TIME · VENDOR · LOCATION · DESCRIPTION · BUDGET ──
 // PLAN-01 (2026-10-13): the full card's table is TIME · VENDOR · DESCRIPTION · BUDGET — LOCATION_HEAD_WORD now heads the step view's line only.
+// CLEAN-02 (2026-10-14): LOCATION is off the step view too — LOCATION_HEAD_WORD is gone (the stop still carries its location; nothing prints it).
 // CLEAN-01 (2026-10-14): a fifth column, ACTUAL, after BUDGET — the BUDGET cell carries the budget only.
 
 // ── PLAN-01 (2026-10-13): THE PLATE'S WIDTH — ONE CONSTANT ────────────────
@@ -891,7 +799,6 @@ export const PLATE_INNER_WIDTH = PLATE_WIDTH - 2 * PLATE_PADDING_X - 2 * PLATE_B
 
 export const TIME_HEAD_WORD = 'TIME';
 export const VENDOR_HEAD_WORD = 'VENDOR';
-export const LOCATION_HEAD_WORD = 'LOCATION';
 export const DESCRIPTION_HEAD_WORD = 'DESCRIPTION';
 export const BUDGET_HEAD_WORD = 'BUDGET';
 /** CLEAN-01 (2026-10-14): the full card's fifth column — what was paid, after BUDGET. */

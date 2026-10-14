@@ -14,6 +14,10 @@
  * optimistic copy. Next to the PLAN, when yesterday left steps open, a button
  * appends them to the plan box (the draft only — saved on save).
  *
+ * CLEAN-02 (2026-10-14): the prompt's yesterday is its row — "steps: 4 of 6
+ * done", what was left over, and its note; END OF DAY now asks what was left
+ * unfinished and why (journal.ts END_OF_DAY_QUESTION).
+ *
  * PLAN-01 (2026-10-13): each plan and goal line loses a pasted list's leading
  * marker ("1." "1)" "-" "•" "*" and a space — stripListMarker) after linesOf
  * and before carryTicks; the plate numbers and bullets them itself. "copy plan
@@ -34,7 +38,7 @@
 import { useState } from 'react';
 import {
   ADD_OPEN_STEPS_WORDS, BLOCKERS_QUESTION, COPY_PLAN_PROMPT_WORDS, END_OF_DAY_QUESTION, GOALS_EXAMPLE, PLAN_EXAMPLE, PLAN_PROMPT_COPIED_WORDS, PLAN_QUESTION, TODAY_GOALS_QUESTION,
-  carryTicks, clearJournalQuestion, journalInput, linesOf, planPromptFailedWords, planPromptText, planPromptWaitsWords, stripListMarker,
+  carryTicks, clearJournalQuestion, journalInput, linesOf, openSteps, planPromptFailedWords, planPromptText, planPromptWaitsWords, stripListMarker,
   type JournalRow, type YesterdayForPrompt,
 } from '@/lib/operations/journal';
 import { PLATE_WIDTH, dayShortWords } from '../day/dayCard';
@@ -66,7 +70,8 @@ export default function JournalForm({ day, journal, yesterday, onChanged }: {
   const [words, setWords] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copyWords, setCopyWords] = useState<{ readonly ok: boolean; readonly words: string } | null>(null);
-  const yesterdayOpen = yesterday.ok ? yesterday.notFinished : [];
+  // CLEAN-02 (2026-10-14): yesterday's open steps from its row — openSteps, the card's own rule; none when there is no journal.
+  const yesterdayOpen = yesterday.ok && yesterday.row !== null ? openSteps(yesterday.row) : [];
 
   const save = async () => {
     if (busy) return;
@@ -103,7 +108,7 @@ export default function JournalForm({ day, journal, yesterday, onChanged }: {
   const copyPrompt = async () => {
     if (!yesterday.ok) return;
     const blocker = linesOf(draft.blocker).join(' ');
-    const text = planPromptText({ dayWords: dayShortWords(day), yesterdayAccomplished: yesterday.accomplished, yesterdayNotFinished: yesterday.notFinished, goals: linesOf(draft.goals).map(stripListMarker), blocker: blocker === '' ? null : blocker });
+    const text = planPromptText({ dayWords: dayShortWords(day), yesterday: yesterday.row, goals: linesOf(draft.goals).map(stripListMarker), blocker: blocker === '' ? null : blocker });
     setCopyWords(null);
     try {
       await navigator.clipboard.writeText(text);

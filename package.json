@@ -32,6 +32,7 @@
     "canonicalize": "^2.1.0",
     "cheerio": "^1.2.0",
     "fast-xml-parser": "^5.7.2",
+    "html-to-image": "1.11.13",
     "inngest": "^4.2.6",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.544.0",
