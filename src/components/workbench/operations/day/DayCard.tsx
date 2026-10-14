@@ -10,7 +10,8 @@
  * "Chiang Mai, Oct 20 → Nov 2"; NO STAY when none; STAY NOT READ when the
  * stays could not be read; blank while in flight), the day's planned total in
  * heavy type ("$75" — whole dollars read without ".00"), "Tue Oct 13 · Chiang
- * Mai" then "7 stops · under or over?", then every stop
+ * Mai" then "7 stops · under or over?" (CLEAN-01, 2026-10-14: "Under or Over?"
+ * alone, under the hero — see below), then every stop
  * in clock order — the time, the line (the step's activity) or the routine's
  * name or the task's title, the vendor and the location beside it (TABLE-01:
  * two columns, two facts — once one "place" line under the name), the planned
@@ -102,6 +103,19 @@
  * 1..n, SPENT (green) their actuals ("over by $X" past the total); no spent bar
  * while the records are unread or nothing so far is recorded, and no bars — said
  * why — while the total is unknown or nothing is planned.
+ *
+ * CLEAN-01 (2026-10-14) — the full card, cleaned (Alex's ruling). Top to
+ * bottom: the header; "Wed Oct 14 · Chiang Mai" (where, moved up); the hero;
+ * "Under or Over?" (no stop count); "spent $9.69 out of $75" (no counts — "—"
+ * while nothing is recorded); ONE budget meter at the plate's content width —
+ * the track the planned total, the fill spent ÷ planned, green while spent ≤
+ * planned, red and full past it, an empty track while spent is unknown, none
+ * while the total is unknown; the verdict ("▼ $4.31 under" · "▲ $2 over" · "on
+ * budget") ONLY once every stop that asks an amount carries one; then the table
+ * with a fifth column, ACTUAL (the row's actual against its plan, or '—'), the
+ * BUDGET cell the budget only. The completeness and source lines moved off the
+ * plate to directly under it, small and muted — the same words. The step view
+ * is unchanged.
  */
 
 'use client';
@@ -130,12 +144,13 @@ import { ALSO_TODAY_WORDS, TAP_A_STOP_WORDS, allDayBandWords, allDayCentsWords }
 import { readDayReport, readJournal, readStays, readStopRecords, type JournalAnswer, type StaysAnswer, type StopRecordsAnswer } from './dayReads';
 import {
   ACTUAL_WORD, BADGE_WORDS, BRAND_WORDS, PLAN_WORD, TASK_WORD, TODAY_WORD, badDateWords, badStepWords, completenessWords, dayStops, deltaWords, focusStop,
-  bandNameOf, headerWords, heroWord, hookWords, linesUnreadWords, linesWithoutStopWords, minutesLine, notPlacedWords, planDollars, progressPercent, provenanceWords,
-  recordsUnplacedWords, recordsWithoutStopWords, routineFigureWords, rowActualWords, planSoFarWords, spentLineWords, spentSoFarWords, statusWords, stepHeaderWords,
+  bandNameOf, headerWords, heroWord, HOOK_WORDS, linesUnreadWords, linesWithoutStopWords, minutesLine, notPlacedWords, planDollars, progressPercent, provenanceWords,
+  recordsUnplacedWords, recordsWithoutStopWords, routineFigureWords, rowActualWords, planSoFarWords, spentOutOfWords, spentSoFarWords, statusWords, stepHeaderWords,
   BARS_NOTHING_PLANNED_WORDS, BARS_PLAN_NOT_READ_WORDS, PLATE_PADDING_X, PLATE_WIDTH, overByWords,
   strandedWords, unmatchedWords, whereWords,
   dayShortWords, dayTally, tallyDoneWords, tallyLargestWords, tallySpentWords, todayPlanWords, typedAtWords,
-  BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, LOCATION_HEAD_WORD, TIME_HEAD_WORD, VENDOR_HEAD_WORD, intervalWords, openStepWords,
+  ACTUAL_HEAD_WORD, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, LOCATION_HEAD_WORD, TIME_HEAD_WORD, VENDOR_HEAD_WORD, intervalWords, openStepWords,
+  CELL_GAP, COLUMN_WIDTHS, dayMeter, dayVerdict,
   type DayTally, type StayState, type Stop,
 } from './dayCard';
 
@@ -167,8 +182,12 @@ const factOf = (fact: string | null): string => (fact === null ? '—' : fact);
  * DESCRIPTION · BUDGET — at the plate's 640 (inner 580); LOCATION is off the
  * table (the step view's LOCATION line stays), VENDOR takes 140 px (a name of
  * two words on one line) and DESCRIPTION the 232 px left.
+ * CLEAN-01 (2026-10-14, Alex's ruling): five columns — TIME · VENDOR ·
+ * DESCRIPTION · BUDGET · ACTUAL — their widths are dayCard.ts COLUMN_WIDTHS,
+ * derived there from the plate's inner width; every cell but the last keeps
+ * CELL_GAP on its right.
  */
-const COLUMN_WIDTHS = { time: 110, vendor: 140, budget: 98 } as const;
+const CELL_PADDING = `7px ${CELL_GAP}px 7px 0`;
 /** The status mark's own slot in the TIME cell, on every row, so every clock starts at one x (✓ is 13.3 px at 15 px). */
 const MARK_SLOT = 17;
 const headCell = 'font-bold text-text-faint text-left align-bottom';
@@ -500,6 +519,11 @@ export default function DayCard() {
   const overCents = focus === null || focus.spentSoFarCents === null || focus.withActualSoFar === 0 || plannedCents === null || focus.spentSoFarCents <= plannedCents ? null : focus.spentSoFarCents - plannedCents;
   const foot = loaded && (result.unmatched.length > 0 || result.routineFigures.length > 0 || result.linesWithoutStop.length > 0 || result.notPlacedToday.length > 0 || stranded.length > 0 || refused.length > 0 || (report !== null && !report.ok) || (plans !== null && !plans.listed) || result.recordsWithoutStop.length > 0 || unplacedRecords.length > 0 || (recordsRead !== null && !recordsRead.ok));
   const delta = focus === null ? null : deltaWords(focus.stop.actualCents, focus.stop.cents);
+  // CLEAN-01 (2026-10-14): the full card's spent — unknown ('—', null) while the records are unread or no stop carries an actual (PLAN-01: never $0);
+  // the meter against the planned total, and the verdict only once every stop that asks an amount carries one.
+  const spent = result.spentCents === null || result.withActual === 0 ? null : result.spentCents;
+  const meter = dayMeter(spent, plannedCents);
+  const verdict = dayVerdict(result, plannedCents);
   // The matched line's book, by name, from the report's own books — named as not loaded when the report lists none.
   const bookNameOf = (entityId: string): string => {
     const book = report !== null && report.ok ? report.value.report.books.find((b) => b.entityId === entityId) : undefined;
@@ -557,29 +581,38 @@ export default function DayCard() {
 
         {loaded && focus === null && (
           <>
+            {/* CLEAN-01 (2026-10-14): the order, top to bottom — where, the hero, the hook, the spent line, the meter, the verdict, the table. */}
+            <div className="font-semibold text-text-secondary" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-where>{whereWords(day, stayState)}</div>
             <div className="flex items-baseline gap-3 pt-1" data-day-hero>
               <span className="font-extrabold text-text-primary tabular-nums" style={{ fontSize: 69, lineHeight: 1, letterSpacing: '-0.02em' }} data-day-planned>{planDollars(plannedCents)}</span>
               <span className="font-bold text-text-secondary" style={{ fontSize: 29, lineHeight: 1 }} data-day-hero-word>{heroWord(day, today)}</span>
             </div>
-            <div className="font-semibold text-text-secondary" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-where>{whereWords(day, stayState)}</div>
-            <div className="font-semibold text-text-secondary" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-hook>{hookWords(dayFailed ? null : N)}</div>
-            <div className="font-semibold text-text-secondary tabular-nums" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-spent>{spentLineWords(result.spentCents, result.withoutActual, result.withActual, result.done, dayFailed ? null : N)}</div>
-            {/* TABLE-01: the stops as a table — five fixed columns at the plate's width; every text cell wraps, a figure is never split, nothing is cut. A row's description is its door, a real button (click, Enter or Space opens the step); a click anywhere on the row opens it too. A day with no stops shows no lone header (the hook line already says 0 stops), and the closing rule sits flush under the last row. */}
+            <div className="font-semibold text-text-secondary" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-hook>{HOOK_WORDS}</div>
+            <div className="font-semibold text-text-secondary tabular-nums" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-spent>{spentOutOfWords(spent, plannedCents)}</div>
+            {meter !== null && (
+              <div className="bg-bg-row rounded-full overflow-hidden" style={{ height: 13 }} aria-hidden="true" data-day-meter={meter.percent === null ? 'empty' : meter.percent}>
+                {meter.percent !== null && <div className={`${meter.over ? 'bg-brand-red' : 'bg-brand-green'} rounded-full`} style={{ height: 13, width: `${meter.percent}%` }} />}
+              </div>
+            )}
+            {verdict !== null && <div className={`font-bold tabular-nums ${actualTone(verdict.over)}`} style={{ fontSize: 27, lineHeight: 1.15 }} data-day-verdict>{verdict.text}</div>}
+            {/* TABLE-01: the stops as a table — fixed columns at the plate's width (CLEAN-01: five); every text cell wraps, a figure is never split, nothing is cut. A row's description is its door, a real button (click, Enter or Space opens the step); a click anywhere on the row opens it too. A day with no stops shows no lone header, and the closing rule sits flush under the last row. */}
             {N > 0 && (
               <div className="flex flex-col">
                 <table className="w-full" style={{ tableLayout: 'fixed', borderCollapse: 'collapse' }} data-day-stops>
                   <colgroup>
                     <col style={{ width: COLUMN_WIDTHS.time }} />
                     <col style={{ width: COLUMN_WIDTHS.vendor }} />
-                    <col />
+                    <col style={{ width: COLUMN_WIDTHS.description }} />
                     <col style={{ width: COLUMN_WIDTHS.budget }} />
+                    <col style={{ width: COLUMN_WIDTHS.actual }} />
                   </colgroup>
                   <thead>
                     <tr data-day-stops-head>
                       <th scope="col" className={headCell} style={headStyle}>{TIME_HEAD_WORD}</th>
                       <th scope="col" className={headCell} style={headStyle}>{VENDOR_HEAD_WORD}</th>
                       <th scope="col" className={headCell} style={headStyle}>{DESCRIPTION_HEAD_WORD}</th>
-                      <th scope="col" className={`${headCell} text-right`} style={headStyle}>{BUDGET_HEAD_WORD}</th>
+                      <th scope="col" className={`${headCell} text-right`} style={{ ...headStyle, paddingRight: CELL_GAP }}>{BUDGET_HEAD_WORD}</th>
+                      <th scope="col" className={`${headCell} text-right`} style={headStyle}>{ACTUAL_HEAD_WORD}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -591,18 +624,20 @@ export default function DayCard() {
                         data-day-status={s.status}
                         onClick={() => go(hrefFor(day, i + 1))}
                       >
-                        <td className="break-words" style={{ padding: '7px 4px 7px 0' }} data-day-col="time">
+                        <td className="break-words" style={{ padding: CELL_PADDING }} data-day-col="time">
                           <span className="inline-block font-extrabold" style={{ width: MARK_SLOT, fontSize: 15, lineHeight: 1 }}><Mark status={s.status} /></span>
                           <span className={`font-mono font-semibold tabular-nums ${s.time === null ? 'text-text-faint' : 'text-text-muted'}`} style={{ fontSize: 13, lineHeight: 1.2 }} data-day-interval>{factOf(intervalWords(s.time, s.minutes))}</span>
                         </td>
-                        <td className={`font-medium break-words ${s.vendor === null ? 'text-text-faint' : 'text-text-primary'}`} style={{ fontSize: 15, lineHeight: 1.2, padding: '7px 4px 7px 0' }} data-day-col="vendor">{factOf(s.vendor)}</td>
-                        <td className="break-words" style={{ padding: '7px 4px 7px 0' }} data-day-col="description">
+                        <td className={`font-medium break-words ${s.vendor === null ? 'text-text-faint' : 'text-text-primary'}`} style={{ fontSize: 15, lineHeight: 1.2, padding: CELL_PADDING }} data-day-col="vendor">{factOf(s.vendor)}</td>
+                        <td className="break-words" style={{ padding: CELL_PADDING }} data-day-col="description">
                           <button type="button" className="block w-full text-left font-bold text-text-primary break-words" style={{ fontSize: 19, lineHeight: 1.1 }} aria-label={openStepWords(i + 1, boldOf(s))} data-day-bold>{boldOf(s)}</button>
                           {smallOf(s) !== null && <span className="block font-medium text-text-muted break-words" style={{ fontSize: 14, lineHeight: 1.15 }} data-day-small>{smallOf(s)}</span>}
                         </td>
-                        <td className="text-right" style={{ padding: '7px 0' }} data-day-col="budget">
+                        <td className="text-right" style={{ padding: CELL_PADDING }} data-day-col="budget">
                           <span className={`block font-extrabold tabular-nums ${s.cents === null ? 'text-text-faint' : 'text-text-primary'}`} style={{ fontSize: 19, lineHeight: 1.1 }} data-day-amount>{planDollars(s.cents)}</span>
-                          {s.actualCents !== null && <span className={`block font-semibold tabular-nums ${actualTone(deltaWords(s.actualCents, s.cents).over)}`} style={{ fontSize: 13, lineHeight: 1.15 }} data-day-actual>{rowActualWords(s.actualCents, s.cents)}</span>}
+                        </td>
+                        <td className="text-right" style={{ padding: '7px 0' }} data-day-col="actual">
+                          <span className={`block font-extrabold tabular-nums ${s.actualCents === null ? 'text-text-faint' : actualTone(deltaWords(s.actualCents, s.cents).over)}`} style={{ fontSize: 19, lineHeight: 1.1 }} data-day-actual>{s.actualCents === null ? factOf(null) : rowActualWords(s.actualCents, s.cents)}</span>
                         </td>
                       </tr>
                     ))}
@@ -623,10 +658,6 @@ export default function DayCard() {
                 <div className="font-medium text-text-muted" style={{ fontSize: 20, lineHeight: 1.2 }} data-day-all-day-words>{allDayBandWords(result.allDay.filter((s) => s.cents === null).length)}</div>
               </div>
             )}
-            <div className="flex flex-col" style={{ gap: 4 }} data-day-plate-foot>
-              {completeness !== null && <div className="font-semibold text-text-secondary" style={{ fontSize: 23, lineHeight: 1.2 }} data-day-count>{completeness}</div>}
-              <div className="font-mono font-medium text-text-muted" style={{ fontSize: 20, lineHeight: 1.2 }} data-day-provenance>{provenanceWords(today, reportRead, recordsOk)}</div>
-            </div>
           </>
         )}
 
@@ -689,6 +720,14 @@ export default function DayCard() {
           </div>
         )}
       </div>
+
+      {/* CLEAN-01 (2026-10-14): the fine print — the completeness line and the source line, moved off the full plate to directly under it, small and muted (the same words). */}
+      {loaded && focus === null && (
+        <div className="mx-auto space-y-1 text-xs text-text-muted" style={{ width: PLATE_WIDTH }} data-day-fine-print>
+          {completeness !== null && <p data-day-count>{completeness}</p>}
+          <p className="font-mono" data-day-provenance>{provenanceWords(today, reportRead, recordsOk)}</p>
+        </div>
+      )}
 
       {/* ROLE-01: the record lives on the step view — said under the full plate, outside the recorded box. */}
       {loaded && focus === null && N > 0 && <p className="mx-auto text-xs text-text-muted" style={{ width: PLATE_WIDTH }} data-day-hint>{TAP_A_STOP_WORDS}</p>}
