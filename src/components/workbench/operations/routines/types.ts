@@ -151,7 +151,7 @@ export interface TodayRoutineEntry {
   completion: RoutineCompletion | null;  // populated if status === 'completed'
 }
 
-/** WEEK-01: the words each status shows in — moved from TodaysStrip.tsx (its STATUS_LABEL), the one copy. */
+/** WEEK-01: the words each status shows in — moved from TodaysStrip.tsx (its STATUS_LABEL), the one copy. TASKS-ONE-02 (2026-10-14): TodaysStrip.tsx and the week's WeekCell.tsx, its two readers, are deleted; no screen reads it now (week01.test.ts still pins its words), and it is left unchanged. */
 export const TODAY_STATUS_LABEL: Record<TodayStatus, string> = {
   pending: 'pending',
   completed: 'completed',
@@ -305,6 +305,8 @@ export const CADENCE_GROUP_ORDER: CadenceGroup[] = [
 // formatting, no derived figures. Callers render NOTHING for null (absence is
 // honest — no dashes, no placeholders). One formatter, three render sites
 // (RoutineRow collapsed + expanded, TodaysStrip), so the string can't drift.
+// TASKS-ONE-02 (2026-10-14): TodaysStrip is deleted. (RoutineRow no longer calls this
+// either — its one caller today is RoutineStepList.tsx, :381 and :420.)
 export function formatBudgetPerOccurrence(amount: string): string {
   const n = Number(amount);
   if (!Number.isFinite(n)) return `$${amount}`;

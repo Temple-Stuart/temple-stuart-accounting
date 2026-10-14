@@ -447,10 +447,12 @@ test('T4 the migration: the table with its CHECKs, three cascades, two partial u
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
   // ROLE-01 (2026-10-13): the role migration is newer; JOURNAL-01 (2026-10-13): the journal's newer still. The pin moved twice; the order holds.
   // JOURNAL-02 (2026-10-13): the simple journal's migration is newer still — every index moved one; the order holds.
-  assert.equal(dirs[dirs.length - 4], MIGRATION_DIR, 'the migration three before the newest (ROLE-01, JOURNAL-01, then JOURNAL-02 followed)');
-  assert.equal(dirs[dirs.length - 3], '20261013030000_role_01_routine_role');
-  assert.equal(dirs[dirs.length - 2], '20261013120000_journal_01_day_journals');
-  assert.equal(dirs[dirs.length - 1], '20261013200000_journal_02_the_simple_journal', 'the newest migration');
+  // TASKS-ONE-02 (2026-10-14): the completion audit types' migration is newer still — every index moved one; the order holds.
+  assert.equal(dirs[dirs.length - 5], MIGRATION_DIR, 'the migration four before the newest (ROLE-01, JOURNAL-01, JOURNAL-02, then TASKS-ONE-02 followed)');
+  assert.equal(dirs[dirs.length - 4], '20261013030000_role_01_routine_role');
+  assert.equal(dirs[dirs.length - 3], '20261013120000_journal_01_day_journals');
+  assert.equal(dirs[dirs.length - 2], '20261013200000_journal_02_the_simple_journal');
+  assert.equal(dirs[dirs.length - 1], '20261014090000_tasks_one_02_completion_audit_types', 'the newest migration');
   assert.ok(MIGRATION_DIR.slice(0, 14) > '20261012090000', 'after STAY-01’s');
 });
 
@@ -482,10 +484,11 @@ test('T4 the schema: the model column for column with the SQL; three relations; 
   assert.ok(auditEnum !== null);
   const values = auditEnum[1].split(/\s+/).filter(Boolean);
   // JOURNAL-01 (2026-10-13): two values follow them in ALTER TYPE order — the pin moved from "last two" to "the two before the last two".
-  assert.deepEqual(values.slice(-4, -2), ['operations_stop_set', 'operations_stop_cleared']);
+  // TASKS-ONE-02 (2026-10-14): two more follow — "the two before the last four".
+  assert.deepEqual(values.slice(-6, -4), ['operations_stop_set', 'operations_stop_cleared']);
   assert.equal(AuditActionType.operations_stop_set, 'operations_stop_set', 'prisma generate ran');
   assert.equal(AuditActionType.operations_stop_cleared, 'operations_stop_cleared');
-  assert.match(code(AUDIT_LOG), /'operations_stay_set',\s*'operations_stay_deleted',\s*'operations_stop_set',\s*'operations_stop_cleared',\s*'operations_journal_set',\s*'operations_journal_cleared',\s*\],/);
+  assert.match(code(AUDIT_LOG), /'operations_stay_set',\s*'operations_stay_deleted',\s*'operations_stop_set',\s*'operations_stop_cleared',\s*'operations_journal_set',\s*'operations_journal_cleared',\s*'operations_routine_uncompleted',\s*'operations_routine_completion_updated',\s*\],/);
   // The items route hands the card the task's own done-at; the summary type names it.
   assert.match(code(ITEMS_ROUTE), /actual_cost_usd: true,\s*actual_minutes: true,\s*completed_at: true,/);
   assert.match(code(ITEM_TYPES), /actual_minutes: number \| null;\s*completed_at: string \| null;/);
@@ -514,10 +517,18 @@ test('T5 the routes: the caller proven, the day placed by each routine’s zone;
     'if (!routine.is_active) return', 'INACTIVE_ROUTINE_WORDS', 'if (!isStopRole(routine.role)) throw', 'if (!isStop(routine.role)) return', 'NOT_A_STOP_RECORD_WORDS',
     'instantToZoned(v.instant, routine.timezone).date', 'routineDay(routine, localDay, now)', "if (that.kind === 'refused')", "if (that.kind === 'none')", 'noStopWords(instant, localDay, null)',
     'if (that.expectedAt.getTime() !== v.instant.getTime())', 'noStopWords(instant, localDay, that.expectedAt.toISOString())',
-    'prisma.operations_stop_records.findFirst({ where: { user_id: user.id, routine_id: plan.routine_id, step_id: plan.step_id, occurrence_at: v.instant } })',
-    'if (before !== null && unchanged(before, v)) return NextResponse.json({ record: before, changed: false });',
-    'prisma.operations_stop_records.update({ where: { id: existing.id }, data })', 'prisma.operations_stop_records.create(', "error.code === 'P2002'", 'RACE_WORDS(instant)', 'status: 409',
-    "type: 'operations_stop_set'", 'payload: { before, after }', 'status: before === null ? 201 : 200',
+    // TASKS-ONE-02 (2026-10-14): moved, never loosened — the read, the same-values answer and the write run in ONE
+    // transaction (prisma. → tx.), the routine's row held first, and the completion kept in step before it commits;
+    // the same-values answer leaves the transaction as { unchanged } and is answered after it; the completion's audit
+    // follows the record's.
+    'prisma.$transaction(async (tx) => {', 'await lockRoutine(tx, routine.id, user.id);',
+    'tx.operations_stop_records.findFirst({ where: { user_id: user.id, routine_id: plan.routine_id, step_id: plan.step_id, occurrence_at: v.instant } })',
+    'if (before !== null && unchanged(before, v)) return { unchanged: before };',
+    'tx.operations_stop_records.update({ where: { id: existing.id }, data })', 'tx.operations_stop_records.create(',
+    'syncCompletion(tx, { userId: user.id, routineId: routine.id, expectedAt: v.instant, now })',
+    "error.code === 'P2002'", 'RACE_WORDS(instant)', 'status: 409',
+    "if ('unchanged' in written) return NextResponse.json({ record: written.unchanged, changed: false });",
+    "type: 'operations_stop_set'", 'payload: { before, after }', 'if (change !== null) await auditCompletionChange(change, { user_id: user.id, email: userEmail });', 'status: before === null ? 201 : 200',
   ];
   let at = -1;
   for (const stepText of order) { const i = post.indexOf(stepText); assert.ok(i > at, `POST: ${stepText} comes after the step before it (at ${i}, previous ${at})`); at = i; }
@@ -532,8 +543,15 @@ test('T5 the routes: the caller proven, the day placed by each routine’s zone;
   assert.match(i, /export async function DELETE\(/);
   assert.doesNotMatch(i, /export (const|function) (?!DELETE)/);
   assert.match(i, /if \(!isValidUuid\(id\)\) return NextResponse\.json\(\{ error: 'Not found' \}, \{ status: 404 \}\);/);
-  assert.match(i, /prisma\.operations_stop_records\.findFirst\(\{ where: \{ id, user_id: user\.id \} \}\)/, 'the caller’s own row, proven in the handler');
-  assert.ok(i.indexOf('prisma.operations_stop_records.delete({ where: { id: row.id } })') < i.indexOf("type: 'operations_stop_cleared'"), 'delete, then audit');
+  // TASKS-ONE-02 (2026-10-14): moved, never loosened — the owned row is read with its line's routine (the occurrence's
+  // routine), and the delete runs in ONE transaction with the routine's row held first and the completion kept in step;
+  // the record's audit, then the completion's, follow it.
+  assert.match(i, /prisma\.operations_stop_records\.findFirst\(\{ where: \{ id, user_id: user\.id \}, include: \{ step: \{ select: \{ routine_id: true \} \} \} \}\)/, 'the caller’s own row, proven in the handler');
+  {
+    const steps = ['prisma.$transaction(async (tx) => {', 'await lockRoutine(tx, routineId, user.id);', 'tx.operations_stop_records.delete({ where: { id: row.id } })', 'syncCompletion(tx, { userId: user.id, routineId, expectedAt: row.occurrence_at, now: new Date() })', "type: 'operations_stop_cleared'", 'if (change !== null) await auditCompletionChange(change, { user_id: user.id, email: userEmail });'];
+    let was = -1;
+    for (const step of steps) { const at = i.indexOf(step); assert.ok(at > was, `DELETE: ${step} comes after the step before it (at ${at}, previous ${was})`); was = at; }
+  }
   assert.match(i, /payload: \{ before, after: null \}/);
   for (const f of [ROUTE, ROUTE_ID]) {
     const body = code(f);

@@ -10,6 +10,8 @@
  *     - startTime / endTime are extracted DIRECTLY from routine.start_time /
  *       routine.end_time via .slice(11, 16), mirroring the routines-page
  *       convention (DailyPlanRoutineRow.tsx:65-79 / RoutineRow.tsx:211-222).
+ *       TASKS-ONE-02 (2026-10-14): DailyPlanRoutineRow.tsx is deleted with the
+ *       Daily plan; RoutineRow.tsx (:236-237 today) still reads it this way.
  *       These are the user's intent-window — the literal HH:MM they typed —
  *       so the Hub and the routines page now agree on what time a routine is.
  *     - The rrule's BYHOUR/BYMINUTE is cron metadata for miss-evaluation, NOT
@@ -110,7 +112,7 @@ export function mapOperationsRoutines(response: RoutinesWindowResponse): Calenda
 
   for (const routine of response.routines) {
     // Intent-window times — literal HH:MM the user typed, no tz math.
-    // Matches DailyPlanRoutineRow.tsx:65-79 exactly.
+    // Matches DailyPlanRoutineRow.tsx:65-79 exactly (deleted TASKS-ONE-02, 2026-10-14 — the rule is unchanged).
     const startTime = routine.start_time ? routine.start_time.slice(11, 16) : null;
     const endTime = routine.end_time ? routine.end_time.slice(11, 16) : null;
     // Carry the routine's COA + budget onto every occurrence tile so the detail panel can show

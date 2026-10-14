@@ -12,6 +12,13 @@
  * An answer is ok, or the route's own words: a redirect or a 401 is signed out;
  * a refusal is `<error>: <message>`; a request that never reached the server,
  * or an answer that is not JSON, says so. Nothing is filled in.
+ *
+ * TASKS-ONE-02 (2026-10-14): the week (WeekSection.tsx) and the shared writer
+ * (routines/completeRoutine.ts) are deleted — Alex's ruling, the day card
+ * replaces the week grid. This file STAYS (the ruling names it): the day card
+ * reads through readJson, readDay and readItems, and its Read type and
+ * SIGNED_OUT_WORDS are shared. readRoutines and readReport have no caller now;
+ * they are left as they are, unchanged.
  */
 import type { BudgetReportResponse } from '@/lib/budget/reportInputs';
 import type { DailyPlanItem } from '../dailyplan/types';

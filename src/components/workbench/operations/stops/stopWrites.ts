@@ -8,6 +8,8 @@
  * (routines/completeRoutine.ts): ok, or the route's own words — message, else
  * error, else this writer's words. A request that never reaches the route, or
  * an answer that is not JSON, throws; the caller shows it where the form is.
+ * TASKS-ONE-02 (2026-10-14): completeRoutine.ts is deleted with the week grid
+ * and the Today strip; this reading of an answer is unchanged and stands alone.
  * This file is the only screen file that names a stops route with a method.
  */
 import type { StopOutcome, StopRecordKind } from '@/lib/operations/stopRecord';

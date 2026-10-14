@@ -3050,6 +3050,13 @@ enum AuditActionType {
   // operations_ list.
   operations_journal_set
   operations_journal_cleared
+  // TASKS-ONE-02 (2026-10-14): a routine's completion deleted / moved because its
+  // stop records no longer say done / their done time changed (the stops routes,
+  // src/lib/operations/routineCompletion.ts), appended in ALTER TYPE order —
+  // migration 20261014090000_tasks_one_02_completion_audit_types. Both are in the
+  // audit-log route's operations_ list.
+  operations_routine_uncompleted
+  operations_routine_completion_updated
 }
 
 model audit_log {

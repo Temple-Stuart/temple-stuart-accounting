@@ -15,17 +15,25 @@
  *   - On miss detection: consecutive_miss_streak += 1;
  *     consecutive_completion_streak = 0
  *   - On completion (handled by /api/operations/routines/[id]/completions
- *     POST): consecutive_completion_streak += 1;
+ *     POST — deleted TASKS-ONE-02, below): consecutive_completion_streak += 1;
  *     consecutive_miss_streak = 0
  *
  * Cron does NOT increment completion streaks — only miss streaks. The
  * completion endpoint owns its side of the symmetry.
+ *
+ * TASKS-ONE-02 (2026-10-14): the completions POST is deleted; the completion's
+ * one writer is src/lib/operations/routineCompletion.ts, called by the stops
+ * routes — a routine's occurrence is complete when its stop records say done.
+ * An all-day routine (role all_day — a subscription, a membership) is a CHARGE,
+ * not a commitment to do (Alex's ruling): no miss check, so no miss row and no
+ * streak change; its last_evaluated_at and next_due_at still update.
  */
 
 import { inngest } from '../client';
 import { prisma } from '@/lib/prisma';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { expandBetween, expandForward, scheduleAnchor } from '@/lib/operations/rruleHelpers';
+import { isStop, isStopRole } from '@/lib/operations/stopRole';
 
 export const routineEvaluator = inngest.createFunction(
   {
@@ -53,6 +61,8 @@ export const routineEvaluator = inngest.createFunction(
           created_at: true,
           consecutive_completion_streak: true,
           consecutive_miss_streak: true,
+          // TASKS-ONE-02: the role decides whether the routine is a commitment to do at all.
+          role: true,
         },
       });
     });
@@ -81,9 +91,12 @@ export const routineEvaluator = inngest.createFunction(
           continue;
         }
 
+        // TASKS-ONE-02: an all-day routine is a charge, not a commitment to do — no occurrence of it is a miss.
+        // A role outside the six is the database's error, thrown into this routine's own catch below.
+        if (!isStopRole(r.role)) throw new Error(`routine ${r.id} carries role ${JSON.stringify(r.role)} — not one of the six`);
         // Filter to occurrences past their fail threshold.
         const failThresholdMs = r.fail_threshold_minutes * 60 * 1000;
-        const eligibleMisses = expectedOccurrences.filter(
+        const eligibleMisses = !isStop(r.role) ? [] : expectedOccurrences.filter(
           (e) => now.getTime() > e.getTime() + failThresholdMs
         );
 

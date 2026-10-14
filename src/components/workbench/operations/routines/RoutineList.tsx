@@ -37,6 +37,11 @@ interface Props {
   /** TASKS-01: a change of this value opens the create form — Today's
    *  zero-state "+ create a routine" lands on the list's own form. */
   createRequest?: number;
+  // TASKS-ONE-02 (2026-10-14): Today (TodaysStrip.tsx) is deleted — Alex's ruling,
+  // the day card replaces it — and SectionE_Routines, the one mount, passes only
+  // entities now. refreshKey and createRequest keep their defaults (0): the list
+  // refetches on mount and on "show inactive" only, the create-request effect never
+  // opens the form, and onCommitted is called on nothing. Left unchanged.
 }
 
 export default function RoutineList({ entities, onCommitted, refreshKey = 0, createRequest = 0 }: Props & { }) {

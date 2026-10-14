@@ -10,7 +10,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { code } from '../sourceText';
 import type { NotPlaced } from '../budget/days';
@@ -721,9 +721,16 @@ test('T6 the doors: the card is on /tasks itself — no registry link and no wee
   const tasks = TOOL_REGISTRY.find((t) => t.name === 'Tasks')!;
   assert.equal((tasks.links ?? []).some((l) => l.label === 'Day card' || l.href?.startsWith('/tasks/day') === true), false);
   assert.doesNotMatch(code(REGISTRY), /\/tasks\/day/);
-  const w = code(WEEK);
-  assert.doesNotMatch(w, /data-week-day-card|\/tasks\/day|import Link from 'next\/link';/);
-  assert.match(w, /disabled=\{weekOf === shiftWeek\(today, 0\)\} onClick=\{\(\) => setWeekOf\(shiftWeek\(today, 0\)\)\}>this week<\/button>\n\s*<\/div>/, 'the week bar ends at "this week"');
+  // TASKS-ONE-02 (2026-10-14): the week (WeekSection.tsx) is DELETED — Alex's ruling, the day card replaces the week
+  // grid — so its chip cannot come back: the pin moved from "the week bar has no chip" to "the week is gone, and no
+  // file under src links /tasks/day".
+  assert.ok(!existsSync(resolve(process.cwd(), WEEK)), `${WEEK} is deleted`);
+  const srcFiles = (dir: string): string[] => readdirSync(resolve(process.cwd(), dir)).flatMap((name) => {
+    const rel = `${dir}/${name}`;
+    if (statSync(resolve(process.cwd(), rel)).isDirectory()) return name === '__tests__' ? [] : srcFiles(rel);
+    return /\.tsx?$/.test(name) ? [rel] : [];
+  });
+  for (const f of srcFiles('src')) assert.doesNotMatch(code(f), /href=\{?[`'"]\/tasks\/day/, `${f} links /tasks/day`);
 });
 
 // ── T7 · CLEAN-01 (2026-10-14): THE FULL CARD, CLEANED ───────────────────────

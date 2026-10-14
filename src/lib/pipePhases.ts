@@ -146,6 +146,9 @@ export const PIPE_PHASES = {
   // TASKS-01 (2026-09-18): NOT DRAWN. /tasks renders no strip — both of Tasks'
   // pipes below are defined for the logged-out showcases and THE SORT only,
   // until PIPES-01 retires them. The streak render this comment cited is gone.
+  // TASKS-ONE-02 (2026-10-14): TodaysStrip, cited above for "+ create a routine" and
+  // the summary row, is deleted (Alex's ruling: the day card replaces the Today
+  // strip); these subLabels are unchanged and still feed the showcases.
   routines: [
     { num: '01', name: 'Define', subLabel: 'CREATE + EDIT' },
     { num: '02', name: 'Scheduled', subLabel: 'CADENCE GROUPS' },
