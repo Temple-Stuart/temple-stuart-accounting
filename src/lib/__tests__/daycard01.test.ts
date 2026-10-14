@@ -675,7 +675,11 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.match(c, /const focus = loaded && n !== null \? focusStop\(result, n\) : null;/);
   assert.match(c, /const badStep = loaded && n !== null && focus === null \? stepParam : null;/);
   assert.match(c, /const go = \(href: string\) => router\.push\(href\);/);
-  assert.match(c, /const hrefFor = \(day: string, step: number \| null\): string => `\/tasks\/day\?date=\$\{day\}\$\{step === null \? '' : `&step=\$\{step\}`\}`;/);
+  // TASKS-ONE-01 (2026-10-14): the card is the first section of /tasks — every URL it pushes is DAY_CARD_PATH's
+  // (dayCard.ts, '/tasks'), same parameters, same rules; the pin moved from the '/tasks/day' literal.
+  assert.match(c, /const hrefFor = \(day: string, step: number \| null\): string => `\$\{DAY_CARD_PATH\}\?date=\$\{day\}\$\{step === null \? '' : `&step=\$\{step\}`\}`;/);
+  assert.match(c, /\bDAY_CARD_PATH,\n[\s\S]*?\} from '\.\/dayCard';/);
+  assert.doesNotMatch(c, /\/tasks\/day/, 'the card names no /tasks/day URL');
   assert.match(c, /import \{ localToday \} from '@\/lib\/localToday';/);
   assert.match(c, /setToday\(localToday\(\)\);\n\s*setZone\(Intl\.DateTimeFormat\(\)\.resolvedOptions\(\)\.timeZone\);/);
   assert.match(c, /import \{ isIsoDay \} from '@\/lib\/budget\/days';/);
@@ -700,24 +704,26 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.deepEqual(colour.filter((k) => !allowed.test(k)), [], 'every colour class is a token');
 });
 
-test('T6 the page: dynamic, AppLayout and the card — nothing else', () => {
+// TASKS-ONE-01 (2026-10-14): the page was "dynamic, AppLayout and the card — nothing else". The card moved to the top
+// of /tasks (Alex's ruling: one Tasks page, no sub-tabs), so /tasks/day is a server redirect and nothing else — the
+// pin moved with it; tasksOne01.test.ts drives the hop's rule.
+test('T6 the page: /tasks/day is one server hop to /tasks — date and step kept, nothing else', () => {
   const p = code(PAGE);
-  assert.match(p, /export const dynamic = 'force-dynamic';/);
-  assert.match(p, /<AppLayout page>\n\s*<DayCard \/>\n\s*<\/AppLayout>/);
-  assert.doesNotMatch(p, /OperationsEntityProvider|ToolOpener|'use client'/);
-  assert.deepEqual([...p.matchAll(/^import .* from '([^']+)';/gm)].map((m) => m[1]), ['@/components/ui/AppLayout', '@/components/workbench/operations/day/DayCard']);
+  assert.match(p, /export default async function TasksDayRedirect\(\{ searchParams \}: \{ searchParams: Promise<Record<string, string \| string\[\] \| undefined>> \}\) \{\n\s*redirect\(dayCardRedirectHref\(await searchParams\)\);\n\}/);
+  assert.doesNotMatch(p, /'use client'|AppLayout|<DayCard|force-dynamic|OperationsEntityProvider|ToolOpener/);
+  assert.deepEqual([...p.matchAll(/^import .* from '([^']+)';/gm)].map((m) => m[1]), ['next/navigation', '@/components/workbench/operations/day/dayCard']);
 });
 
-test('T6 the doors: the registry link on the Tasks row, and the week bar’s chip', () => {
+// TASKS-ONE-01 (2026-10-14): the doors were the registry link on the Tasks row and the week bar's chip. The card is
+// the first section of /tasks now — on the same page as the week — so both doors are gone, and the pin moved to
+// their absence: no link and no chip leads to /tasks/day (old URLs still land, through the redirect above).
+test('T6 the doors: the card is on /tasks itself — no registry link and no week chip lead to /tasks/day', () => {
   const tasks = TOOL_REGISTRY.find((t) => t.name === 'Tasks')!;
-  assert.deepEqual(tasks.links?.[3], { label: 'Day card', href: '/tasks/day' });
-  assert.match(code(REGISTRY), /\{ label: 'Audit trail', href: '\/operations\/audit-log' \},\n\s*\{ label: 'Day card', href: '\/tasks\/day' \},/);
+  assert.equal((tasks.links ?? []).some((l) => l.label === 'Day card' || l.href?.startsWith('/tasks/day') === true), false);
+  assert.doesNotMatch(code(REGISTRY), /\/tasks\/day/);
   const w = code(WEEK);
-  assert.match(w, /import Link from 'next\/link';/);
-  assert.match(w, /<Link href=\{`\/tasks\/day\?date=\$\{today\}`\} className=\{chip\} data-week-day-card>day card<\/Link>/);
-  assert.ok(w.indexOf('>this week</button>') < w.indexOf('data-week-day-card'), 'beside "this week"');
-  assert.ok(w.indexOf('data-week-day-card') < w.indexOf('data-week-time-filter'), 'in the week bar, above the time filter');
-  assert.doesNotMatch(w, /\/tasks\/day[^?]/, 'the chip is the one door the week opens');
+  assert.doesNotMatch(w, /data-week-day-card|\/tasks\/day|import Link from 'next\/link';/);
+  assert.match(w, /disabled=\{weekOf === shiftWeek\(today, 0\)\} onClick=\{\(\) => setWeekOf\(shiftWeek\(today, 0\)\)\}>this week<\/button>\n\s*<\/div>/, 'the week bar ends at "this week"');
 });
 
 // ── T7 · CLEAN-01 (2026-10-14): THE FULL CARD, CLEANED ───────────────────────

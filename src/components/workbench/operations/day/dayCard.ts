@@ -893,3 +893,29 @@ export function dayVerdict(result: DayStops, plannedCents: number | null): Delta
   if (result.spentCents === plannedCents) return { text: ON_BUDGET_WORDS, over: false };
   return deltaWords(result.spentCents, plannedCents);
 }
+
+// ── TASKS-ONE-01 (2026-10-14): WHERE THE CARD LIVES — THE FIRST SECTION OF /tasks ──
+
+/** The card's page — the first section of Tasks' one page (Alex, 2026-10-14: one Tasks page, no sub-tabs). Every URL the card pushes, and /tasks/day's one hop, start here. */
+export const DAY_CARD_PATH = '/tasks';
+
+/** The card's two query parameters (DayCard.tsx reads `date` and `step`, and nothing else on /tasks reads one) — the only ones /tasks/day carries over. */
+export const DAY_CARD_PARAMS = ['date', 'step'] as const;
+
+/**
+ * /tasks/day's one hop: DAY_CARD_PATH with `date` and `step` exactly as given —
+ * every value of each, in the order given, date's first as the card's own links
+ * write them — and nothing else: no other parameter carried, none invented, none
+ * checked. A value that is not a day or not a step arrives as it was sent, and
+ * the card names it (badDateWords, badStepWords) as it did at /tasks/day. Neither
+ * given → the bare path.
+ */
+export function dayCardRedirectHref(given: Readonly<Record<string, string | readonly string[] | undefined>>): string {
+  const kept = new URLSearchParams();
+  for (const key of DAY_CARD_PARAMS) {
+    const value = given[key];
+    for (const v of value === undefined ? [] : typeof value === 'string' ? [value] : value) kept.append(key, v);
+  }
+  const query = kept.toString();
+  return query === '' ? DAY_CARD_PATH : `${DAY_CARD_PATH}?${query}`;
+}

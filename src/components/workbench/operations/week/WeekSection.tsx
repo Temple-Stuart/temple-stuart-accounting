@@ -27,12 +27,15 @@
  * hid; it never narrows what is named above the grid (the refused, the report,
  * stranded vendors, lines with no row read every routine). The Tasks row always
  * shows. The filter lasts while the page is open — nothing is stored.
+ *
+ * TASKS-ONE-01 (2026-10-14): the day card sits above this section now — it is
+ * the first section of /tasks — so the "day card" chip that linked to
+ * /tasks/day is gone: the card is on the same page.
  */
 
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { ACCOUNT_CELL_WORDS } from '@/lib/coa/accountCell';
 import { localToday } from '@/lib/localToday';
 import { plannedLine, routinePlanned } from '@/lib/operations/routineLines';
@@ -156,8 +159,6 @@ export default function WeekSection() {
           <span className="font-mono text-text-primary" data-week-range>{days[0]} – {days[6]}</span>
           <button type="button" className={chip} aria-label="Forward one week" onClick={() => setWeekOf(shiftWeek(weekOf, 1))}>›</button>
           <button type="button" className={chip} disabled={weekOf === shiftWeek(today, 0)} onClick={() => setWeekOf(shiftWeek(today, 0))}>this week</button>
-          {/* DAYCARD-01 (2026-10-11): the day card — today as its stops with their planned cost (/tasks/day). A link, not a read. */}
-          <Link href={`/tasks/day?date=${today}`} className={chip} data-week-day-card>day card</Link>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-1.5 text-xs" data-week-time-filter>

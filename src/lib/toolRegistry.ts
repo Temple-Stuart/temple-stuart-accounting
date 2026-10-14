@@ -176,13 +176,14 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     // label said tail, the page is the trail.
     slug: 'tasks', status: 'PARTIAL', beats: ALL, home: '/tasks',
     why: "the work, planned: projects with costed tasks and routines with costed lines, both landing on the calendar and linkable to a posting — a task's actual cost is still typed by hand; nothing posts it from the books",
+    // TASKS-ONE-01 (Alex, 2026-10-14): one Tasks page, no sub-tabs. The Issue
+    // log link went with its page (an unbuilt placeholder, deleted), and the
+    // Day card link went because the card is the first section of /tasks now —
+    // /tasks/day is one hop to it. North Star and Audit trail stay until the
+    // next ruling.
     links: [
       { label: 'North Star', href: '/operations/north-star' },
-      { label: 'Issue log', href: '/operations/issues' },
       { label: 'Audit trail', href: '/operations/audit-log' },
-      // DAYCARD-01 (2026-10-11): the day card — one day as its stops with their
-      // planned cost, phone-shaped, for the reel. Reached as North Star is.
-      { label: 'Day card', href: '/tasks/day' },
     ],
     citation: 'src/app/api/operations/projects/[id]/tasks/route.ts:43 · generate-tasks/route.ts:42 · tasks/bulk-create/route.ts:117 · tasks/[taskId]/route.ts:82 → :339, :370; accepting a pending_review task fires the paid build at tasks/[taskId]/route.ts:392-402',
     customer: 'You can plan projects and routines with what each one should cost, and see them on your calendar; what a task actually cost is still typed in by hand.',

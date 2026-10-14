@@ -1,6 +1,8 @@
 /**
- * DayCard — THE DAY CARD at /tasks/day (DAYCARD-01, 2026-10-11; the reel plate,
- * DAYCARD-01b, 2026-10-12).
+ * DayCard — THE DAY CARD, the first section of /tasks (DAYCARD-01, 2026-10-11, at
+ * /tasks/day; the reel plate, DAYCARD-01b, 2026-10-12; TASKS-ONE-01, 2026-10-14:
+ * Alex's ruling — one Tasks page, no sub-tabs — so the card is mounted first on
+ * /tasks and /tasks/day is one hop to it, keeping ?date= and ?step=).
  *
  * THE STAGE IS THE REEL PLATE — the card Alex approved on the demo's reel frames,
  * at two thirds of its 1080-wide size (the plate 540 CSS px wide — PLAN-01,
@@ -163,13 +165,14 @@ import {
   dayShortWords,
   ACTUAL_HEAD_WORD, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, TIME_HEAD_WORD, VENDOR_HEAD_WORD, intervalWords, openStepWords,
   CELL_GAP, COLUMN_WIDTHS, dayMeter, dayVerdict,
+  DAY_CARD_PATH,
   type StayState, type Stop,
 } from './dayCard';
 
 const chip = 'px-2 py-0.5 border border-border rounded hover:bg-bg-row text-xs disabled:opacity-50';
 
-/** The URL of a day, and of one of its stops. */
-const hrefFor = (day: string, step: number | null): string => `/tasks/day?date=${day}${step === null ? '' : `&step=${step}`}`;
+/** The URL of a day, and of one of its stops — on /tasks, where the card is the first section (TASKS-ONE-01). */
+const hrefFor = (day: string, step: number | null): string => `${DAY_CARD_PATH}?date=${day}${step === null ? '' : `&step=${step}`}`;
 
 /** The row's bold text: the line (the step's activity) when it has one, else the label. */
 const boldOf = (s: Stop): string => (s.line !== null ? s.line : s.label);

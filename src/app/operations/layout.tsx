@@ -13,6 +13,11 @@ import { OperationsEntityProvider } from '@/components/workbench/operations/Enti
  * the identity bar. /operations/issues and /operations/audit-log render under
  * this layout too and lose the sub-nav with it; both keep their door through
  * /operations (the rail's step 12), and the audit tail is phase 06's source.
+ *
+ * TASKS-ONE-01 (2026-10-14): /operations/issues is deleted (an unbuilt
+ * placeholder). Two pages render under this layout now — north-star and
+ * audit-log, each doored by a link on Tasks' registry row; projects, routines
+ * and content are one-hop redirects.
  */
 
 export default function OperationsLayout({ children }: { children: React.ReactNode }) {

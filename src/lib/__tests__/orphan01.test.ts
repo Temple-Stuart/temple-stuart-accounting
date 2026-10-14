@@ -90,15 +90,20 @@ test('the law names every page: a home, a registry link, a redirect, a guest rou
   assert.match(law, /const ORPHAN_EXCEPTIONS: readonly OrphanException\[\]/);
   assert.match(law, /const SHELL_PAGES: ReadonlyArray/);
   // The exception list is CLOSED and shrink-only, like the grandfather list.
-  assert.match(law, /ORPHAN_EXCEPTIONS_MAX = 2/);
+  // TASKS-ONE-01 (2026-10-14): it shrank — the issue log's page is deleted — and the maximum came down to the one
+  // survivor with it (2 → 1, set that day), as TRIPS_PATH_TESTS_MAX came down when that list emptied.
+  assert.match(law, /ORPHAN_EXCEPTIONS_MAX = 1;/);
+  assert.match(law, /ORPHAN_EXCEPTIONS_SET_ON = '2026-10-14';/);
   assert.match(law, /it may only shrink, like the tool law's grandfather list/);
   // Every exception carries a reason AND the ruling that ends it.
   assert.match(law, /an exception without an end is a permanent one/);
   // A SHELL_PAGES entry cannot invent a door the shell does not give.
   assert.match(law, /the list may not invent a door/);
   // The two survivors are named with their TODO.
+  // TASKS-ONE-01 (2026-10-14): one survivor — ORPHAN-02's answer for the issue log was deletion, so its entry left
+  // the list; the pin holds that it stays gone.
   assert.match(law, /route: '\/operations\/audit-log'/);
-  assert.match(law, /route: '\/operations\/issues'/);
+  assert.doesNotMatch(law, /route: '\/operations\/issues'/);
   assert.match(law, /ORPHAN-02/);
   // The repointed hops are held in place.
   assert.match(law, /const ORPHAN_REPOINTED/);
@@ -112,7 +117,8 @@ test('the survivors are the registry\'s, and the registry still says so', () => 
   const tasks = TOOL_REGISTRY.find((t) => t.name === 'Tasks');
   // NORTH-01: the North Star is the third, reached the same way.
   // DAYCARD-01 (2026-10-11): the day card is the fourth, reached the same way.
-  assert.deepEqual((tasks?.links ?? []).map((l) => l.href), ['/operations/north-star', '/operations/issues', '/operations/audit-log', '/tasks/day']);
+  // TASKS-ONE-01 (2026-10-14): two — the Issue log's page is deleted; the day card is the first section of /tasks.
+  assert.deepEqual((tasks?.links ?? []).map((l) => l.href), ['/operations/north-star', '/operations/audit-log']);
   // /operations itself is gone — no page, and no tool claims it.
   assert.equal(existsSync(`${process.cwd()}/src/app/operations/page.tsx`), false);
   assert.equal(TOOL_REGISTRY.some((t) => t.home === '/operations'), false);

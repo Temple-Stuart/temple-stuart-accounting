@@ -300,9 +300,11 @@ test('T3 the browser\'s date, once: moved out of BudgetReport, outside the Budge
   assert.equal((d.match(/\bfetch\s*\(/g) ?? []).length, 4);
 });
 
-test('T3 the page mounts this week first', () => {
+// TASKS-ONE-01 (2026-10-14): this week was the first mount; the day card is first now (Alex's ruling — one Tasks
+// page, no sub-tabs), in its Suspense boundary, and this week comes directly under it — the pin moved by one mount.
+test('T3 the page mounts this week directly under the day card', () => {
   const page = code(PAGE);
-  assert.match(page, /<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Tasks">\n\s*<WeekSection \/>\n\s*<SectionD_ProjectBacklog \/>/);
+  assert.match(page, /<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Tasks">\n\s*<Suspense>\n\s*<DayCard \/>\n\s*<\/Suspense>\n\s*<WeekSection \/>\n\s*<SectionD_ProjectBacklog \/>/);
 });
 
 // ── T4 · ONE WRITER; TODAY AND THE DAILY PLAN NAME WHAT THEY CANNOT PLACE ────
