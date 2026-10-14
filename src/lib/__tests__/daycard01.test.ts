@@ -19,14 +19,15 @@ import { TOOL_REGISTRY } from '../toolRegistry';
 import type { DailyPlanItem } from '@/components/workbench/operations/dailyplan/types';
 import type { Routine, RoutineStep, TodayRoutineEntry, TodayStatus } from '@/components/workbench/operations/routines/types';
 import {
-  ACTUAL_HEAD_WORD, BADGE_WORDS, BRAND_WORDS, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, HOOK_WORDS, LOCATION_HEAD_WORD, ON_BUDGET_WORDS, PLAN_WORD, PLANNED_NOT_READ_WORDS, PLANNED_WORD, STOPS_NOT_READ_WORDS, TASK_WORD, TIME_HEAD_WORD, TODAY_WORD, UNTITLED_WORDS, VENDOR_HEAD_WORD,
+  ACTUAL_HEAD_WORD, BADGE_WORDS, BRAND_WORDS, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, HOOK_WORDS, ON_BUDGET_WORDS, PLAN_WORD, PLANNED_NOT_READ_WORDS, PLANNED_WORD, STOPS_NOT_READ_WORDS, TASK_WORD, TIME_HEAD_WORD, TODAY_WORD, UNTITLED_WORDS, VENDOR_HEAD_WORD,
   CELL_GAP, COLUMN_WIDTHS, FIGURE_WIDTH, badDateWords, badStepWords, completenessWords, dayCarryWords, dayMeter, dayShortWords, dayStops, dayVerdict, focusStop,
   headerWords, heroWord, intervalWords, linesUnreadWords, linesWithoutStopWords, notPlacedWords, notPricedWords, openStepWords, planDollars, progressPercent, provenanceWords,
-  routineFigureWords, planSoFarWords, spentOutOfWords, stepHeaderWords, PLATE_BORDER, PLATE_INNER_WIDTH, PLATE_PADDING_X, PLATE_WIDTH, stopsWords, strandedWords, unmatchedWords, whereWords,
+  routineFigureWords, planSoFarWords, spentOutOfWords, stepHeaderWords, PLATE_BORDER, PLATE_INNER_WIDTH, PLATE_PADDING_X, PLATE_WIDTH, spentSoFarWords, strandedWords, unmatchedWords, whereWords,
   type DayCardInput,
 } from '@/components/workbench/operations/day/dayCard';
 import { dayReportFailedWords, readDayReport } from '@/components/workbench/operations/day/dayReads';
 import type { StopRecordRow } from '@/lib/operations/stopRecord';
+import { CARD_IMAGE_PIXEL_RATIO, DOWNLOAD_IMAGE_WORDS, cardImageFailedWords, cardImageName, slugWords } from '@/components/workbench/operations/cardImage';
 import { readJson } from '@/components/workbench/operations/week/weekReads';
 
 const DAY_DIR = 'src/components/workbench/operations/day';
@@ -220,7 +221,9 @@ test('T1 TABLE-01: intervalWords — the start and its end from the minutes, the
   assert.throws(() => intervalWords('07:00', -1), /a duration is a whole number of minutes/);
   assert.throws(() => intervalWords('07:00', 1.5), /a duration is a whole number of minutes/);
   for (const bad of ['7:00', '25:00', '07:60', '0700', '']) assert.throws(() => intervalWords(bad, 30), /a time is HH:MM/, `${JSON.stringify(bad)} is not a clock — never NaN`);
-  assert.deepEqual([TIME_HEAD_WORD, VENDOR_HEAD_WORD, LOCATION_HEAD_WORD, DESCRIPTION_HEAD_WORD, BUDGET_HEAD_WORD], ['TIME', 'VENDOR', 'LOCATION', 'DESCRIPTION', 'BUDGET']);
+  // CLEAN-02 (2026-10-14): LOCATION is off the step card too — LOCATION_HEAD_WORD had no other reader and is deleted (the stop still carries its location, T1).
+  assert.deepEqual([TIME_HEAD_WORD, VENDOR_HEAD_WORD, DESCRIPTION_HEAD_WORD, BUDGET_HEAD_WORD], ['TIME', 'VENDOR', 'DESCRIPTION', 'BUDGET']);
+  assert.doesNotMatch(code(RULES), /LOCATION_HEAD_WORD/);
   assert.equal(openStepWords(6, 'Brunch'), 'Open step 6: Brunch', 'a row’s door is named for the step it opens, its visible words inside the name');
 });
 
@@ -349,8 +352,8 @@ test('T3 the words, exact', () => {
   assert.equal(dayShortWords('2026-10-11'), 'Sun Oct 11');
   assert.equal(dayShortWords('2026-01-01'), 'Thu Jan 1');
   assert.equal(dayShortWords('2026-10-10'), 'Sat Oct 10');
-  assert.equal(stopsWords(1), '1 stop');
-  assert.equal(stopsWords(7), '7 stops');
+  // CLEAN-02 (2026-10-14): stopsWords ("7 stops") is gone with TODAY's planned/stops line, its last reader (CLEAN-01 took it off the hook).
+  assert.doesNotMatch(code(RULES), /\bstopsWords\b/);
   assert.equal(notPricedWords(3), '3 not priced');
   // PLAN-01 (2026-10-13): the step view's PLAN bar says "plan so far" — soFarWords became planSoFarWords; the figures are the same.
   assert.equal(planSoFarWords(1400, 5000), 'plan so far $14 of $50');
@@ -618,10 +621,11 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.ok(actualCell !== null);
   assert.doesNotMatch(actualCell![1], /break-words|break-all/, 'the actual’s figures are never split mid-digit; its words still wrap at their spaces');
   assert.doesNotMatch(c, /overflow-x|whitespace-nowrap/, 'no horizontal scroll, nothing kept on one line');
-  // The step view shows the same two facts as two labeled lines.
-  assert.match(c, /data-day-vendor>\n\s*<span className="font-bold text-text-faint" style=\{\{ fontSize: 13, letterSpacing: '0\.14em' \}\}>\{VENDOR_HEAD_WORD\}<\/span>\n\s*<span className=\{`font-medium break-words min-w-0 \$\{focus\.stop\.vendor === null \? 'text-text-faint' : 'text-text-primary'\}`\} style=\{\{ fontSize: 21, lineHeight: 1\.1 \}\}>\{factOf\(focus\.stop\.vendor\)\}<\/span>/, 'VENDOR on the step card');
-  assert.match(c, /data-day-location>\n\s*<span className="font-bold text-text-faint" style=\{\{ fontSize: 13, letterSpacing: '0\.14em' \}\}>\{LOCATION_HEAD_WORD\}<\/span>\n\s*<span className=\{`font-medium break-words min-w-0 \$\{focus\.stop\.location === null \? 'text-text-faint' : 'text-text-secondary'\}`\} style=\{\{ fontSize: 21, lineHeight: 1\.1 \}\}>\{factOf\(focus\.stop\.location\)\}<\/span>/, 'LOCATION on the step card');
-  assert.ok(c.indexOf('data-day-focus>') < c.indexOf('data-day-vendor>') && c.indexOf('data-day-vendor>') < c.indexOf('data-day-location>') && c.indexOf('data-day-location>') < c.indexOf('{PLAN_WORD}'), 'in the step card’s header area, before the record');
+  // The step view shows the vendor as a labeled line. CLEAN-02 (2026-10-14) — Alex's ruling: LOCATION is off the stop card (the
+  // TABLE-01 pin on its line moved to the absence below), and the journal card shows no vendor — the line is the stop card's alone.
+  assert.match(c, /\{focus\.stop\.role !== 'journal' && \(\n\s*<div className="flex items-baseline gap-2" data-day-vendor>\n\s*<span className="font-bold text-text-faint" style=\{\{ fontSize: 13, letterSpacing: '0\.14em' \}\}>\{VENDOR_HEAD_WORD\}<\/span>\n\s*<span className=\{`font-medium break-words min-w-0 \$\{focus\.stop\.vendor === null \? 'text-text-faint' : 'text-text-primary'\}`\} style=\{\{ fontSize: 21, lineHeight: 1\.1 \}\}>\{factOf\(focus\.stop\.vendor\)\}<\/span>/, 'VENDOR on the stop card');
+  assert.doesNotMatch(c, /data-day-location|LOCATION_HEAD_WORD|\.location\b/, 'no LOCATION on any card');
+  assert.ok(c.indexOf('data-day-focus>') < c.indexOf('data-day-vendor>') && c.indexOf('data-day-vendor>') < c.indexOf('{PLAN_WORD}'), 'in the step card’s header area, before the record');
   assert.match(c, /style=\{\{ fontSize: 69, lineHeight: 1, letterSpacing: '-0\.02em' \}\} data-day-planned/, 'the hero at 69 px');
   assert.match(c, /style=\{\{ fontSize: 27, lineHeight: 1\.15 \}\} data-day-hook/, 'the hook at 27 px');
   assert.doesNotMatch(c, /truncate/, 'nothing is cut on the recorded plate');
@@ -635,10 +639,11 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.doesNotMatch(row![1], /tabIndex|onKeyDown/, 'the keyboard reaches the row through its button — no hand-made key handling');
   // The completeness line counts, the provenance names the source; the sentences sit under the plate.
   // CLEAN-01 (2026-10-14): on the full card both lines moved from the plate's foot to the fine print directly under it (pinned in T7);
-  // the step card keeps its own source line on its plate.
+  // the step card kept its own source line on its plate. CLEAN-02 (2026-10-14): the stop card's moved to the same fine print — one
+  // source line in the screen, under the plate, for both views (the journal card has none).
   assert.match(c, /const reportRead = report !== null && report\.ok;\n\s*const recordsOk = recordsRead !== null && recordsRead\.ok;\n\s*const completeness = completenessWords\(result, stranded\.length, \{ day: !dayFailed, report: reportRead, records: recordsOk \}\);/, 'the count knows what was not read');
   assert.match(c, /data-day-count>\{completeness\}/);
-  assert.equal((c.match(/data-day-provenance>\{provenanceWords\(today, reportRead, recordsOk\)\}/g) ?? []).length, 2, 'the source line under the full card AND on the step card — the records a source too (STOP-01)');
+  assert.equal((c.match(/data-day-provenance>\{provenanceWords\(today, reportRead, recordsOk\)\}/g) ?? []).length, 1, 'one source line, in the fine print under the full card and the stop card — the records a source too (STOP-01)');
   assert.ok(c.indexOf('data-day-fine-print') < c.indexOf('data-day-foot'), 'the fine print first under the plate; the sentences after it');
   assert.match(c, /\{foot && \(\n\s*<div className="mx-auto space-y-1 text-xs" style=\{\{ width: PLATE_WIDTH \}\} data-day-foot>/, 'the sentences under the plate render whenever there is one');
   assert.match(c, /const foot = loaded && \(result\.unmatched\.length > 0 \|\| result\.routineFigures\.length > 0 \|\| result\.linesWithoutStop\.length > 0 \|\| result\.notPlacedToday\.length > 0 \|\| stranded\.length > 0 \|\| refused\.length > 0 \|\| \(report !== null && !report\.ok\) \|\| \(plans !== null && !plans\.listed\) \|\| result\.recordsWithoutStop\.length > 0 \|\| unplacedRecords\.length > 0 \|\| \(recordsRead !== null && !recordsRead\.ok\)\);/);
@@ -657,7 +662,8 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.match(c, /className="bg-brand-gold rounded-full" style=\{\{ height: 9, width: `\$\{planBar\}%` \}\}/, 'the PLAN bar gold');
   assert.match(c, /className="bg-brand-green rounded-full" style=\{\{ height: 9, width: `\$\{spentBar\}%` \}\}/, 'the SPENT bar green');
   // CLEAN-01 (2026-10-14): data-day-plate-foot left the screen with the plate's foot; the fine print, the meter and the verdict joined.
-  for (const attr of ['data-day-card', 'data-day-header', 'data-day-hero', 'data-day-hook', 'data-day-stop=', 'data-day-status=', 'data-day-focus', 'data-day-fine-print', 'data-day-meter=', 'data-day-verdict', 'data-day-count', 'data-day-provenance', 'data-day-foot', 'data-day-unmatched', 'data-day-routine-figures', 'data-day-lines-without-stop', 'data-day-not-placed', 'data-day-stranded', 'data-day-report-failed', 'data-day-bad-date', 'data-day-bad-step', 'data-day-failed', 'data-day-so-far', 'data-day-controls', 'data-day-spent', 'data-day-record', 'data-day-status>', 'data-day-actual', 'data-day-delta', 'data-day-rating', 'data-day-note', 'data-day-minutes', 'data-day-spent-so-far', 'data-day-records-without-stop', 'data-day-records-unplaced', 'data-day-records-failed']) {
+  // CLEAN-02 (2026-10-14): data-day-status> (the stop card's status line) left; the download button and its failure words joined.
+  for (const attr of ['data-day-card', 'data-day-header', 'data-day-hero', 'data-day-hook', 'data-day-stop=', 'data-day-status=', 'data-day-focus', 'data-day-fine-print', 'data-day-meter=', 'data-day-verdict', 'data-day-count', 'data-day-provenance', 'data-day-foot', 'data-day-unmatched', 'data-day-routine-figures', 'data-day-lines-without-stop', 'data-day-not-placed', 'data-day-stranded', 'data-day-report-failed', 'data-day-bad-date', 'data-day-bad-step', 'data-day-failed', 'data-day-so-far', 'data-day-controls', 'data-day-spent', 'data-day-record', 'data-day-download-image', 'data-day-image-failed', 'data-day-actual', 'data-day-delta', 'data-day-rating', 'data-day-note', 'data-day-minutes', 'data-day-spent-so-far', 'data-day-records-without-stop', 'data-day-records-unplaced', 'data-day-records-failed']) {
     assert.ok(c.includes(attr), `the screen carries ${attr}`);
   }
   // The URL: ?date= and ?step= read with useSearchParams, pushed with router.push; the step judged once the reads are in, never clamped.
@@ -869,9 +875,82 @@ test('T7 CLEAN-01 the fine print — the completeness and source lines render af
   assert.match(plate.slice(-40), /<\/div>$/, 'the slice ends on the plate’s own closing tag');
   assert.ok(plate.includes('data-day-focus>') && plate.includes('data-day-stops>'), 'both views are inside the plate');
   assert.doesNotMatch(plate, /data-day-count|data-day-plate-foot|data-day-fine-print/, 'the completeness line is off the plate');
-  assert.equal((plate.match(/data-day-provenance>/g) ?? []).length, 1, 'the step view keeps its own source line on its plate');
-  assert.ok(plate.indexOf('data-day-provenance>') > plate.indexOf('{loaded && focus !== null && ('), '— and it is the step view’s');
+  // CLEAN-01 kept the step view's source line on its plate (1 here); CLEAN-02 (2026-10-14) moved it to the fine print — none on the plate.
+  assert.doesNotMatch(plate, /data-day-provenance|data-day-bars-why/, 'no source line and no why-line on any plate');
   const after = c.slice(plateEnd);
-  assert.match(after, /^\s*\n\s*\{\s*\}\n\s*\{loaded && focus === null && \(\n\s*<div className="mx-auto space-y-1 text-xs text-text-muted" style=\{\{ width: PLATE_WIDTH \}\} data-day-fine-print>\n\s*\{completeness !== null && <p data-day-count>\{completeness\}<\/p>\}\n\s*<p className="font-mono" data-day-provenance>\{provenanceWords\(today, reportRead, recordsOk\)\}<\/p>\n\s*<\/div>\n\s*\)\}/, 'directly under the plate: the completeness line, then the source line — small, muted, at the plate’s width');
-  inOrderOf(after, ['data-day-fine-print', 'data-day-hint', 'data-day-foot', 'data-day-stranded>'], 'the fine print, then the hint, then the sentences beside the stranded-vendor line');
+  // CLEAN-02 (2026-10-14): "download image" is directly under the plate (T8); the fine print follows it — the CLEAN-01 block, now shown
+  // on a stop card too, carrying that card's why-line. The full card's lines and words are unchanged.
+  assert.match(after, /\{loaded && \(focus === null \|\| focus\.stop\.role !== 'journal'\) && \(\n\s*<div className="mx-auto space-y-1 text-xs text-text-muted" style=\{\{ width: PLATE_WIDTH \}\} data-day-fine-print>\n\s*\{focus === null && completeness !== null && <p data-day-count>\{completeness\}<\/p>\}\n\s*\{focus !== null && planBar === null && <p data-day-bars-why>\{plannedCents === null \? BARS_PLAN_NOT_READ_WORDS : BARS_NOTHING_PLANNED_WORDS\}<\/p>\}\n\s*<p className="font-mono" data-day-provenance>\{provenanceWords\(today, reportRead, recordsOk\)\}<\/p>\n\s*<\/div>\n\s*\)\}/, 'under the plate: the completeness line (full card) or the why-line (stop card), then the source line — small, muted, at the plate’s width');
+  inOrderOf(after, ['data-day-download-image', 'data-day-fine-print', 'data-day-hint', 'data-day-foot', 'data-day-stranded>'], 'the download button, the fine print, then the hint, then the sentences beside the stranded-vendor line');
+});
+
+// ── T8 · CLEAN-02 (2026-10-14): THE JOURNAL AND STOP CARDS, CLEANED; THE CARD AS AN IMAGE ──
+
+const CARD_IMAGE = 'src/components/workbench/operations/cardImage.ts';
+
+test('T8 CLEAN-02 the journal card renders only its five blocks — none of the removed parts, no money', () => {
+  const c = code(CARD);
+  const plate = c.slice(c.indexOf('function JournalPlate('), c.indexOf('function PlateHeader('));
+  const attrs = [...new Set([...plate.matchAll(/\b(data-day-[a-z-]+)/g)].map((m) => m[1]))];
+  assert.deepEqual(attrs, [
+    'data-day-journal', 'data-day-journal-yesterday', 'data-day-yesterday-loading', 'data-day-yesterday-journal-failed', 'data-day-yesterday-steps', 'data-day-yesterday-note',
+    'data-day-journal-today', 'data-day-journal-goals-none', 'data-day-journal-goal', 'data-day-journal-blockers', 'data-day-journal-blocker',
+    'data-day-journal-plan-block', 'data-day-journal-steps-none', 'data-day-journal-step', 'data-day-journal-step-done', 'data-day-journal-plan-done', 'data-day-journal-tick-words',
+    'data-day-journal-end-of-day', 'data-day-journal-shipped', 'data-day-journal-loading', 'data-day-journal-failed', 'data-day-journal-none',
+  ], 'YESTERDAY, TODAY, BLOCKERS, PLAN, END OF DAY and the read’s own state — nothing else');
+  assert.doesNotMatch(plate, /planDollars|Cents|spent|tally|statusWords|minutesLine|provenance|todayPlanWords|vendor|location/i, 'no money, no status, no source on the journal card');
+  // The step view draws the stop card's parts only for a stop that is not the journal.
+  assert.match(c, /\{focus\.stop\.role !== 'journal' && \(\n\s*<div className="flex items-baseline gap-2" data-day-vendor>/, 'no VENDOR on the journal card');
+  assert.match(c, /\{focus\.stop\.role !== 'journal' && \(\n\s*<div className="shrink-0 flex flex-col items-end" style=\{\{ gap: 3 \}\}>\n\s*<div [^>]*>\{PLAN_WORD\}<\/div>/, 'no PLAN amount on the journal card');
+  const branch = /\{focus\.stop\.role === 'journal' \? \(\n\s*<JournalPlate [^\n]*\/>\n\s*\) : \(\n\s*<>([\s\S]*?)\n\s*<\/>\n\s*\)\}/.exec(c);
+  assert.ok(branch !== null, 'the journal plate, or the stop card’s record and bars');
+  inOrderOf(branch![1], ['data-day-record>', 'data-day-plan-so-far>', 'data-day-plan-bar=', 'data-day-spent-so-far>', 'data-day-spent-bar='], 'the record and both bars — the stop card’s alone');
+  assert.match(c, /\{loaded && \(focus === null \|\| focus\.stop\.role !== 'journal'\) && \(/, 'no fine print under the journal card — no source line');
+});
+
+test('T8 CLEAN-02 the stop card: no LOCATION, no status line, the stars alone, "spent so far $x of $y", the why-line and the source line after the plate’s closing element', () => {
+  const c = code(CARD);
+  assert.doesNotMatch(c, /data-day-location|LOCATION_HEAD_WORD/, 'no LOCATION');
+  assert.doesNotMatch(c, /data-day-status>|statusWords/, 'no status line — the full card’s ✓ says done');
+  assert.match(c, /data-day-rating>\{starsWords\(focus\.stop\.record\.rating\)\}<\/div>/, 'the stars alone');
+  assert.doesNotMatch(c, /ratingWords|RATING_WORDS/, 'no rubric words on the plate');
+  assert.equal(spentSoFarWords(969, 7500), 'spent so far $9.69 of $75');
+  assert.equal(spentSoFarWords(null, 7500), 'spent so far — of $75', 'nothing recorded — unknown, never $0');
+  assert.doesNotMatch(spentSoFarWords(969, 7500), /without an amount/);
+  assert.match(c, /data-day-spent-so-far>\{spentSoFarWords\(focus\.spentSoFarCents === null \|\| focus\.withActualSoFar === 0 \? null : focus\.spentSoFarCents, plannedCents\)\}/);
+  for (const kept of ['data-day-note>', 'data-day-amount>{planDollars(focus.stop.cents)}', 'data-day-actual>{planDollars(focus.stop.actualCents)}', 'data-day-delta>', 'data-day-plan-bar={planBar}', 'data-day-spent-bar={spentBar}']) assert.ok(c.includes(kept), `the stop card keeps ${kept}`);
+  const plateOpen = c.lastIndexOf('<div', c.indexOf('data-day-card'));
+  const plateEnd = divEnd(c, plateOpen);
+  assert.ok(c.indexOf('data-day-bars-why>') > plateEnd && c.indexOf('data-day-provenance>') > plateEnd, 'the why-line and the source line render after the plate’s closing element');
+  assert.equal((c.match(/data-day-bars-why>/g) ?? []).length, 1);
+});
+
+test('T8 CLEAN-02 "download image": under both views outside the plate, the library imported in the click’s own work, the name, the failure words', () => {
+  const c = code(CARD);
+  const plateOpen = c.lastIndexOf('<div', c.indexOf('data-day-card'));
+  const plateEnd = divEnd(c, plateOpen);
+  assert.match(c.slice(plateOpen, plateOpen + 40), /^<div ref=\{plateRef\} /, 'the plate element is the one rendered');
+  const after = c.slice(plateEnd);
+  assert.match(after, /^\s*\n\s*\{\s*\}\n\s*\{loaded && \(\n\s*<div className="mx-auto flex flex-col items-start gap-1 text-xs" style=\{\{ width: PLATE_WIDTH \}\} data-day-image>\n\s*<button type="button" className=\{chip\} disabled=\{imageBusy\} aria-busy=\{imageBusy\} onClick=\{downloadImage\} data-day-download-image>\{DOWNLOAD_IMAGE_WORDS\}<\/button>\n\s*\{imageFailed !== null && imageFailed\.view === view && <p className="text-brand-red" data-day-image-failed>\{imageFailed\.words\}<\/p>\}\n\s*<\/div>\n\s*\)\}/, 'directly under the plate, on every loaded view — the full card and every step card, the journal’s included; busy while it renders; the failure in words under it');
+  assert.doesNotMatch(c.slice(plateOpen, plateEnd), /data-day-download-image|data-day-image/, 'outside the plate — never in the recording');
+  inOrderOf(c, ['const downloadImage = async () => {', 'if (imageBusy) return;', 'setImageBusy(true);', 'setImageFailed(null);', 'try {', "if (plateRef.current === null) throw new Error('the card is not on the page');", 'await downloadCardImage(plateRef.current, cardImageName(day, focus === null ? null : { index: focus.index, label: boldOf(focus.stop) }));', '} catch (error) {', 'setImageFailed({ view, words: cardImageFailedWords(error instanceof Error ? error.message : String(error)) });', '} finally {', 'setImageBusy(false);'], 'busy, render, say the failure, done');
+  assert.equal((c.match(/downloadCardImage\(/g) ?? []).length, 1, 'one path — no second try');
+  assert.match(c, /import \{ DOWNLOAD_IMAGE_WORDS, cardImageFailedWords, cardImageName, downloadCardImage \} from '\.\.\/cardImage';/, 'the helper lives outside the day folder');
+  assert.doesNotMatch(c, /html-to-image|\bfetch\s*\(|method:/, 'the card names no library and fetches nothing of its own');
+  // The helper: the library imported inside the function the click runs — loaded only when pressed; pixel ratio 3; no background of its own
+  // (transparent outside the rounded corners); the copy's margin zero, so the image is the plate's box exactly.
+  const h = code(CARD_IMAGE);
+  assert.match(h, /export async function downloadCardImage\(plate: HTMLElement, name: string\): Promise<void> \{\n\s*const \{ toPng \} = await import\('html-to-image'\);\n\s*const url = await toPng\(plate, \{ pixelRatio: CARD_IMAGE_PIXEL_RATIO, style: \{ margin: '0' \} \}\);\n\s*const link = document\.createElement\('a'\);\n\s*link\.href = url;\n\s*link\.download = name;\n\s*link\.click\(\);\n\}/);
+  assert.equal(CARD_IMAGE_PIXEL_RATIO, 3);
+  assert.doesNotMatch(h, /backgroundColor|toJpeg|toBlob|toSvg|html2canvas|catch/, 'transparent; one renderer, one format; the caller says a failure');
+  assert.match(code('package.json'), /"html-to-image": "1\.11\.13",/, 'pinned exactly');
+  // The name: the day, then "all" or the step and its label slugged.
+  assert.equal(cardImageName('2026-10-14', null), 'temple-stuart-2026-10-14-all.png');
+  assert.equal(cardImageName('2026-10-14', { index: 2, label: 'Brunch' }), 'temple-stuart-2026-10-14-step-2-brunch.png');
+  assert.equal(cardImageName('2026-10-14', { index: 1, label: 'Daily Vision - Journal' }), 'temple-stuart-2026-10-14-step-1-daily-vision-journal.png');
+  assert.equal(cardImageName('2026-10-13', { index: 10, label: '  Brunch @ Luka Café!! ' }), 'temple-stuart-2026-10-13-step-10-brunch-luka-caf.png', 'lowercase, every run of non-alphanumerics one hyphen, none at either end');
+  assert.equal(slugWords('--a--b--'), 'a-b');
+  assert.throws(() => cardImageName('2026-10-14', { index: 3, label: '☕ — ☕' }), /has no letter or digit to name the file/, 'a label that slugs to nothing is refused by name — never a name made up');
+  assert.equal(DOWNLOAD_IMAGE_WORDS, 'download image');
+  assert.equal(cardImageFailedWords('the card is not on the page'), 'could not make the image — the card is not on the page');
 });

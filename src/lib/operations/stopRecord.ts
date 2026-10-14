@@ -246,8 +246,8 @@ export function starsWords(rating: number): string {
   return '★'.repeat(rating) + '☆'.repeat(5 - rating);
 }
 
-/** "★★★★☆ · again, but cheaper exists" */
-export const ratingWords = (rating: number): string => `${starsWords(rating)} · ${RATING_WORDS[rating as 1 | 2 | 3 | 4 | 5]}`;
+// CLEAN-02 (2026-10-14): the plate prints the stars alone (starsWords); ratingWords (the stars and the rubric's
+// words) had no other reader and is gone — the rubric stays the picker's (StopForm.tsx RATING_WORDS).
 
 export const DONE_WORD = 'done';
 export const SKIPPED_WORD = 'skipped';

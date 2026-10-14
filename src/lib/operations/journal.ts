@@ -284,13 +284,32 @@ export function openSteps(answers: Answers): string[] {
   return answers.plan_steps.filter((_, i) => !answers.plan_done[i]);
 }
 
+/**
+ * CLEAN-02 (2026-10-14): yesterday from its plan's ticks — no journal (the read
+ * answered no row), no plan (a journal with no steps), or the steps done of all
+ * and the ones left over (openSteps, in their order). The card's YESTERDAY line
+ * and the plan prompt's both read it; nothing here is money.
+ */
+export type YesterdaySteps =
+  | { readonly kind: 'no journal' }
+  | { readonly kind: 'no plan' }
+  | { readonly kind: 'steps'; readonly done: number; readonly of: number; readonly leftOver: readonly string[] };
+
+export function yesterdaySteps(row: Answers | null): YesterdaySteps {
+  if (row === null) return { kind: 'no journal' };
+  if (row.plan_steps.length === 0) return { kind: 'no plan' };
+  const leftOver = openSteps(row);
+  return { kind: 'steps', done: row.plan_steps.length - leftOver.length, of: row.plan_steps.length, leftOver };
+}
+
 // ── WORDS ───────────────────────────────────────────────────────────────────
 
 /** The form's four questions — each box is labelled with its question. */
 export const TODAY_GOALS_QUESTION = 'What do you need to get done today? One per line.';
 export const BLOCKERS_QUESTION = 'What could stop it?';
 export const PLAN_QUESTION = 'The plan — paste the steps from chat, one per line.';
-export const END_OF_DAY_QUESTION = 'What did you accomplish today? (type tonight)';
+/** CLEAN-02 (2026-10-14): END OF DAY asks what was left and why — the plan's ticks say what was done. */
+export const END_OF_DAY_QUESTION = 'Anything left unfinished, and why? (tonight — tick the plan above)';
 /** The examples the goals and plan boxes show until something is typed. */
 export const GOALS_EXAMPLE = 'perfect the day cards\nbook travel for the rest of the trip';
 export const PLAN_EXAMPLE = 'merge TABLE-01\nbook travel while CC runs\nrecord brunch and dinner\nscreenshot the card, edit, post';
@@ -309,25 +328,39 @@ export const goalWords = (goal: string): string => `• ${goal}`;
 export const planStepWords = (index: number, step: string, done: boolean): string => `${done ? '✓' : '☐'} ${index}. ${step}`;
 /** "2 of 5 done" — under the plan. */
 export const planDoneWords = (done: number, of: number): string => `${done} of ${of} done`;
-/** PLAN-01: "accomplished:" — the label on yesterday's END OF DAY text on the plate. */
-export const ACCOMPLISHED_WORD = 'accomplished:';
-/** "accomplished: merged TABLE-01" · "accomplished: —" when the day's journal has no END OF DAY. */
-export const accomplishedWords = (shipped: string | null): string => `${ACCOMPLISHED_WORD} ${shipped === null ? UNANSWERED_WORD : shipped}`;
-/** "not finished: book travel · record brunch" — yesterday's steps not ticked (PLAN-01: the words renamed from "left open", the same rule — openSteps). */
-export const notFinishedWords = (steps: readonly string[]): string => `not finished: ${steps.join(' · ')}`;
+/** CLEAN-02 (2026-10-14): "note:" — the label on yesterday's END OF DAY text on the plate (was "accomplished:"); printed only when it was typed. */
+export const NOTE_WORD = 'note:';
+/** "note: the hotel never answered" */
+export const noteWords = (text: string): string => `${NOTE_WORD} ${text}`;
+/** CLEAN-02 (2026-10-14): yesterday's journal does not exist — the read answered no row. */
+export const NO_JOURNAL_YESTERDAY_WORDS = 'no journal yesterday';
+/** Yesterday's journal has no plan — nothing to tick. */
+export const NO_PLAN_YESTERDAY_WORDS = 'no plan yesterday';
+export const LEFT_OVER_WORD = 'left over:';
+/**
+ * CLEAN-02 (2026-10-14): the card's YESTERDAY line from yesterday's plan ticks —
+ * "all 6 steps done" · "4 of 6 steps done · left over: a · b" · "no plan
+ * yesterday" · "no journal yesterday" (was the money tally and "not finished: …").
+ */
+export function yesterdayStepsWords(row: Answers | null): string {
+  const y = yesterdaySteps(row);
+  if (y.kind === 'no journal') return NO_JOURNAL_YESTERDAY_WORDS;
+  if (y.kind === 'no plan') return NO_PLAN_YESTERDAY_WORDS;
+  return y.leftOver.length === 0 ? `all ${y.of} steps done` : `${y.done} of ${y.of} steps done · ${LEFT_OVER_WORD} ${y.leftOver.join(' · ')}`;
+}
 /** "+ yesterday's open steps (2)" — the form's button that appends them to the plan box. */
 export const ADD_OPEN_STEPS_WORDS = (n: number): string => `+ yesterday's open steps (${n})`;
 // ── PLAN-01 (2026-10-13): THE PLAN PROMPT — YESTERDAY AND TODAY, HANDED TO CLAUDE ──
 
-/** Yesterday as the plan prompt needs it: read (its END OF DAY, or null when none was typed; its steps not ticked), or why it is not. */
+/** Yesterday as the plan prompt needs it: read (its journal, or null when the read answered no row), or why it is not. CLEAN-02: the row itself — its ticks and its note. */
 export type YesterdayForPrompt =
-  | { readonly ok: true; readonly accomplished: string | null; readonly notFinished: readonly string[] }
+  | { readonly ok: true; readonly row: Answers | null }
   | { readonly ok: false; readonly words: string };
 
 export interface PlanPromptInput {
   readonly dayWords: string;
-  readonly yesterdayAccomplished: string | null;
-  readonly yesterdayNotFinished: readonly string[];
+  /** Yesterday's journal as read — null when there is none. */
+  readonly yesterday: Answers | null;
   /** The goals as the form's DRAFT holds them, not only what is saved. */
   readonly goals: readonly string[];
   readonly blocker: string | null;
@@ -340,11 +373,13 @@ export const planPromptFailedWords = (reason: string): string => `could not copy
 /** Yesterday's journal is not read (in flight, or failed) — the prompt is not offered, never written with yesterday filled in. */
 export const planPromptWaitsWords = (words: string): string => `the plan prompt needs yesterday's journal — ${words}`;
 export const PLAN_PROMPT_DAY = 'Day:';
-export const PLAN_PROMPT_ACCOMPLISHED = 'Yesterday — accomplished:';
-export const PLAN_PROMPT_NOT_FINISHED = 'Yesterday — not finished:';
+export const PLAN_PROMPT_STEPS = 'Yesterday — steps:';
+export const PLAN_PROMPT_LEFT_OVER = 'Yesterday — left over:';
+export const PLAN_PROMPT_NOTE = 'Yesterday — note:';
+export const PLAN_PROMPT_NO_JOURNAL = 'no journal';
+export const PLAN_PROMPT_NO_PLAN = 'no plan';
 export const PLAN_PROMPT_TODAY = 'Today — what I need to get done:';
 export const PLAN_PROMPT_BLOCKERS = 'Blockers:';
-export const PLAN_PROMPT_NOTHING_TYPED = 'nothing typed';
 export const PLAN_PROMPT_NONE = 'none';
 export const PLAN_PROMPT_NONE_TYPED = 'none typed';
 /** The ask — its limits are the plan's own (LIST_MAX), so the steps that come back fit the box. */
@@ -352,13 +387,28 @@ export const PLAN_PROMPT_ASK = `Audit the temple-stuart-accounting repo where yo
 
 const promptItems = (items: readonly string[], none: string): string[] => (items.length === 0 ? [`- ${none}`] : items.map((item) => `- ${item}`));
 
-/** The plan prompt, exactly: every line a constant or built from one — nothing invented, nothing filled in. */
+/** CLEAN-02 (2026-10-14): "4 of 6 done" · "all 6 done" · "no plan" · "no journal" — the prompt's steps line, from the card's own rule (yesterdaySteps). */
+function promptStepsWords(y: YesterdaySteps): string {
+  if (y.kind === 'no journal') return PLAN_PROMPT_NO_JOURNAL;
+  if (y.kind === 'no plan') return PLAN_PROMPT_NO_PLAN;
+  return y.leftOver.length === 0 ? `all ${y.of} done` : `${y.done} of ${y.of} done`;
+}
+/** The steps yesterday left over — none when there was no journal or no plan. */
+const leftOverOf = (y: YesterdaySteps): readonly string[] => (y.kind === 'steps' ? y.leftOver : []);
+
+/**
+ * The plan prompt, exactly: every line a constant or built from one — nothing invented, nothing filled in.
+ * CLEAN-02 (2026-10-14): yesterday is its steps (done of all), what was left over, and its note — the
+ * "accomplished:" and "not finished:" lines are gone; everything else is unchanged.
+ */
 export function planPromptText(input: PlanPromptInput): string {
+  const y = yesterdaySteps(input.yesterday);
   return [
     `${PLAN_PROMPT_DAY} ${input.dayWords}`,
-    `${PLAN_PROMPT_ACCOMPLISHED} ${input.yesterdayAccomplished === null ? PLAN_PROMPT_NOTHING_TYPED : input.yesterdayAccomplished}`,
-    PLAN_PROMPT_NOT_FINISHED,
-    ...promptItems(input.yesterdayNotFinished, PLAN_PROMPT_NONE),
+    `${PLAN_PROMPT_STEPS} ${promptStepsWords(y)}`,
+    PLAN_PROMPT_LEFT_OVER,
+    ...promptItems(leftOverOf(y), PLAN_PROMPT_NONE),
+    `${PLAN_PROMPT_NOTE} ${input.yesterday === null || input.yesterday.shipped === null ? PLAN_PROMPT_NONE : input.yesterday.shipped}`,
     PLAN_PROMPT_TODAY,
     ...promptItems(input.goals, PLAN_PROMPT_NONE_TYPED),
     `${PLAN_PROMPT_BLOCKERS} ${input.blocker === null ? PLAN_PROMPT_NONE_TYPED : input.blocker}`,
@@ -371,26 +421,12 @@ export function planPromptText(input: PlanPromptInput): string {
 export const JOURNAL_RECORD_WORDS = 'RECORD — when you did the journal';
 /** The journal read is in flight. */
 export const JOURNAL_LOADING_WORDS = 'reading the journal…';
-/** The journal read failed — distinct from in flight. */
-export const JOURNAL_NOT_READ_WORDS = 'journal not read';
 /** "nothing typed for Tue Oct 13" — the read answered, and there is no row. */
 export const noJournalWords = (dayWords: string): string => `nothing typed for ${dayWords}`;
-/** Yesterday's five reads are in flight. */
+/** Yesterday's journal read is in flight. */
 export const YESTERDAY_LOADING_WORDS = 'reading yesterday…';
-/** The build of yesterday's tally threw — said on the plate, never a plate stuck on "reading yesterday…". */
-export const yesterdayFailedWords = (message: string): string => `yesterday could not be tallied — ${message}`;
-/** "typed 06:40" — the typed instant's clock on the card's day. */
-export const typedWords = (time: string): string => `typed ${time}`;
-/** "typed Oct 12 06:40" — the typed instant fell on another day than the card's (the day words: dayCard.ts monthDayWords). */
-export const typedOnWords = (dayWords: string, time: string): string => `typed ${dayWords} ${time}`;
-export const NONE_TYPED_WORDS = 'none typed';
-/**
- * The plate's source line: the numbers' sources, and the words' state — when
- * they were typed (typedWords / typedOnWords), NONE_TYPED_WORDS when the read
- * answered no row, JOURNAL_LOADING_WORDS while it is in flight, and
- * JOURNAL_NOT_READ_WORDS when it failed — never "none typed" for an unknown.
- */
-export const journalProvenanceWords = (words: string): string => `numbers: the Budget · stop records · words: ${words}`;
+// CLEAN-02 (2026-10-14): the journal card shows no money and no source line — JOURNAL_NOT_READ_WORDS, yesterdayFailedWords,
+// typedWords, typedOnWords, NONE_TYPED_WORDS and journalProvenanceWords (the tally's failure and the source line's words) are gone.
 /** The question before a clear — the audit log keeps the answers. */
 export const clearJournalQuestion = (dayWords: string): string => `Clear the journal for ${dayWords}? The audit log keeps it; the card forgets it.`;
 /** The route's 409: the row moved or was cleared under the writer. */

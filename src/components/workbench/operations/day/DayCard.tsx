@@ -116,11 +116,22 @@
  * BUDGET cell the budget only. The completeness and source lines moved off the
  * plate to directly under it, small and muted — the same words. The step view
  * is unchanged.
+ *
+ * CLEAN-02 (2026-10-14) — the step cards, cleaned (Alex's ruling). The JOURNAL
+ * card shows only its five blocks: YESTERDAY as its plan's ticks ("4 of 6 steps
+ * done · left over: …") and its note when typed, TODAY's goals, BLOCKERS, PLAN,
+ * END OF DAY — no money: no vendor, location, plan amount, yesterday's tally,
+ * planned/stops line, status, source line or bars; yesterday is read as its
+ * journal alone. A STOP card keeps VENDOR, PLAN, the rating as stars alone, the
+ * note, ACTUAL with ▼/▲ and both bars ("spent so far $9.69 of $75"); its
+ * LOCATION and status lines are gone, and its bars' why-line and source line
+ * print in the fine print under the plate. "download image" sits directly under
+ * every card view — the plate alone as a PNG (../cardImage.ts).
  */
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { isIsoDay } from '@/lib/budget/days';
 import type { BudgetReportResponse } from '@/lib/budget/reportInputs';
@@ -129,29 +140,30 @@ import { localToday } from '@/lib/localToday';
 import type { DailyPlanItem } from '../dailyplan/types';
 import RefusedRoutines from '../routines/RefusedRoutines';
 import { readDay, readItems, type DayAnswer, type Read } from '../week/weekReads';
+import { DOWNLOAD_IMAGE_WORDS, cardImageFailedWords, cardImageName, downloadCardImage } from '../cardImage';
 import StayBar from '../stays/StayBar';
 import JournalForm from '../stops/JournalForm';
 import { setJournal as writeJournal } from '../stops/journalWrites';
 import StopForm from '../stops/StopForm';
 import { ACCOUNT_CELL_WORDS } from '@/lib/coa/accountCell';
 import {
-  BLOCKERS_BLOCK_WORD, END_OF_DAY_BLOCK_WORD, JOURNAL_LOADING_WORDS, JOURNAL_NOT_READ_WORDS, NONE_TYPED_WORDS, PLAN_BLOCK_WORD, TODAY_BLOCK_WORD, UNANSWERED_WORD, YESTERDAY_LOADING_WORDS, YESTERDAY_WORD,
-  accomplishedWords, answersOf, goalWords, journalInput, journalProvenanceWords, noJournalWords, notFinishedWords, openSteps, planDoneWords, planStepWords, yesterdayFailedWords,
+  BLOCKERS_BLOCK_WORD, END_OF_DAY_BLOCK_WORD, JOURNAL_LOADING_WORDS, PLAN_BLOCK_WORD, TODAY_BLOCK_WORD, UNANSWERED_WORD, YESTERDAY_LOADING_WORDS, YESTERDAY_WORD,
+  answersOf, goalWords, journalInput, noJournalWords, noteWords, planDoneWords, planStepWords, yesterdayStepsWords,
   type Answers, type YesterdayForPrompt,
 } from '@/lib/operations/journal';
-import { ratingWords } from '@/lib/operations/stopRecord';
+import { starsWords } from '@/lib/operations/stopRecord';
 import { ALSO_TODAY_WORDS, TAP_A_STOP_WORDS, allDayBandWords, allDayCentsWords } from '@/lib/operations/stopRole';
 import { readDayReport, readJournal, readStays, readStopRecords, type JournalAnswer, type StaysAnswer, type StopRecordsAnswer } from './dayReads';
 import {
   ACTUAL_WORD, BADGE_WORDS, BRAND_WORDS, PLAN_WORD, TASK_WORD, TODAY_WORD, badDateWords, badStepWords, completenessWords, dayStops, deltaWords, focusStop,
   bandNameOf, headerWords, heroWord, HOOK_WORDS, linesUnreadWords, linesWithoutStopWords, minutesLine, notPlacedWords, planDollars, progressPercent, provenanceWords,
-  recordsUnplacedWords, recordsWithoutStopWords, routineFigureWords, rowActualWords, planSoFarWords, spentOutOfWords, spentSoFarWords, statusWords, stepHeaderWords,
+  recordsUnplacedWords, recordsWithoutStopWords, routineFigureWords, rowActualWords, planSoFarWords, spentOutOfWords, spentSoFarWords, stepHeaderWords,
   BARS_NOTHING_PLANNED_WORDS, BARS_PLAN_NOT_READ_WORDS, PLATE_PADDING_X, PLATE_WIDTH, overByWords,
   strandedWords, unmatchedWords, whereWords,
-  dayShortWords, dayTally, tallyDoneWords, tallyLargestWords, tallySpentWords, todayPlanWords, typedAtWords,
-  ACTUAL_HEAD_WORD, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, LOCATION_HEAD_WORD, TIME_HEAD_WORD, VENDOR_HEAD_WORD, intervalWords, openStepWords,
+  dayShortWords,
+  ACTUAL_HEAD_WORD, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, TIME_HEAD_WORD, VENDOR_HEAD_WORD, intervalWords, openStepWords,
   CELL_GAP, COLUMN_WIDTHS, dayMeter, dayVerdict,
-  type DayTally, type StayState, type Stop,
+  type StayState, type Stop,
 } from './dayCard';
 
 const chip = 'px-2 py-0.5 border border-border rounded hover:bg-bg-row text-xs disabled:opacity-50';
@@ -203,70 +215,36 @@ function Mark({ status }: { status: Stop['status'] }) {
 /** The colour of an actual against its plan: over paints red, under or on it green, no plan to compare muted. */
 const actualTone = (over: boolean | null): string => (over === null ? 'text-text-muted' : over ? 'text-brand-red' : 'text-brand-green');
 
-/** JOURNAL-01: yesterday's five reads, kept together — each a Read, so each failure prints its own words. */
-interface YesterdayReads {
-  readonly day: Read<DayAnswer>;
-  readonly report: Read<BudgetReportResponse>;
-  readonly items: Read<DailyPlanItem[]>;
-  readonly records: Read<StopRecordsAnswer>;
-  readonly journal: Read<JournalAnswer>;
-}
-
-/**
- * JOURNAL-01: yesterday's tally from its reads, through the day's own rules
- * (dayStops → dayTally). Wrapped: a thrown invariant is said in words on the
- * plate, never a plate stuck on "reading yesterday…". A day read that failed
- * builds nothing — its own words are printed instead (tally and words both null).
- */
-function yesterdayTally(yday: string, reads: YesterdayReads, zone: string): { readonly tally: DayTally | null; readonly words: string | null } {
-  if (!reads.day.ok) return { tally: null, words: null };
-  try {
-    const plans = reads.report.ok ? reads.report.value.plans : null;
-    const result = dayStops({
-      day: yday,
-      entries: reads.day.value.entries,
-      lines: plans !== null && plans.listed ? plans.lines : [],
-      notPlaced: reads.report.ok ? reads.report.value.notPlaced : [],
-      items: reads.items.ok ? reads.items.value : [],
-      viewerZone: zone,
-      records: reads.records.ok ? reads.records.value.records : null,
-    });
-    return { tally: dayTally(result, yday, reads.report.ok ? result.plannedCents : null), words: null };
-  } catch (error) {
-    return { tally: null, words: yesterdayFailedWords(error instanceof Error ? error.message : String(error)) };
-  }
-}
-
 const plateLabel = { fontSize: 17, letterSpacing: '0.14em' } as const;
 const plateLine = { fontSize: 23, lineHeight: 1.15 } as const;
 const plateSmall = { fontSize: 20, lineHeight: 1.2 } as const;
 
 /**
- * JOURNAL-01: the journal stop's plate — the stop's own record and the source
- * line under the blocks. `journal` null is in flight; `yesterday` null is in
- * flight. JOURNAL-02 (2026-10-13): five blocks in order, large for video —
- * YESTERDAY (its END OF DAY as typed, or that nothing was typed; the spent,
- * largest and done lines as before; the steps it left open), TODAY (the plan's
- * line and the goals), BLOCKERS, PLAN (each step a button that flips its tick
+ * JOURNAL-01: the journal stop's plate. `journal` null is in flight; `yesterday`
+ * (yesterday's journal read) null is in flight. JOURNAL-02 (2026-10-13): five
+ * blocks in order, large for video; PLAN's steps are buttons that flip their tick
  * through the one writer — the whole journal with that one flag flipped, busy
  * while it writes, the route's words on a refusal, the journal read again after,
- * never an optimistic copy — and "n of N done") and END OF DAY. Every
- * unanswered block prints '—'. No retired answer is read.
+ * never an optimistic copy — with "n of N done". Every unanswered block prints
+ * '—'. No retired answer is read.
+ * CLEAN-02 (2026-10-14, Alex's ruling): the journal card shows ONLY its five
+ * blocks — YESTERDAY is its plan's ticks ("4 of 6 steps done · left over: a ·
+ * b", "all 6 steps done", "no plan yesterday", "no journal yesterday", or the
+ * read's failure words) and its note when one was typed; TODAY the goals;
+ * BLOCKERS; PLAN; END OF DAY. No money: yesterday's spent, largest difference
+ * and done-of-stops, TODAY's planned/stops line, the status line and the source
+ * line are gone, and the step view draws no vendor, location, plan amount or
+ * bars for a journal stop. The journal's own read state (in flight, failed,
+ * nothing typed) is still said — an unknown is never an empty block.
  */
-function JournalPlate({ day, zone, stop, plannedCents, stops, journal, yesterday, onChanged }: {
-  day: string; zone: string; stop: Stop; plannedCents: number | null; stops: number | null; journal: Read<JournalAnswer> | null; yesterday: YesterdayReads | null; onChanged: () => void;
+function JournalPlate({ day, journal, yesterday, onChanged }: {
+  day: string; journal: Read<JournalAnswer> | null; yesterday: Read<JournalAnswer> | null; onChanged: () => void;
 }) {
   const [busyStep, setBusyStep] = useState<number | null>(null);
   const [tickWords, setTickWords] = useState<string | null>(null);
-  const yday = shiftDay(day, -1);
   const row = journal !== null && journal.ok ? journal.value.journal : null;
   const a: Answers = answersOf(row === null ? {} : row);
-  const yJournal = yesterday === null ? null : yesterday.journal;
-  const yRow = yJournal !== null && yJournal.ok ? yJournal.value.journal : null;
-  const yOpen = yRow === null ? [] : openSteps(yRow);
-  const built = yesterday === null ? null : yesterdayTally(yday, yesterday, zone);
-  // The words' state on the source line: in flight, failed, none typed, or when they were typed — an unknown is never "none typed".
-  const typedState = journal === null ? JOURNAL_LOADING_WORDS : !journal.ok ? JOURNAL_NOT_READ_WORDS : row === null ? NONE_TYPED_WORDS : typedAtWords(row.typed_at, day, zone);
+  const yRow = yesterday !== null && yesterday.ok ? yesterday.value.journal : null;
 
   // A tick: the whole journal as held with that one flag flipped, through the route's own rule and the one writer; then the journal read again.
   const tick = async (i: number) => {
@@ -289,27 +267,12 @@ function JournalPlate({ day, zone, stop, plannedCents, stops, journal, yesterday
       <div className="flex flex-col" style={{ gap: 3 }} data-day-journal-yesterday>
         <div className="font-bold text-text-faint" style={plateLabel}>{YESTERDAY_WORD}</div>
         {yesterday === null && <div className="font-medium text-text-muted" style={plateSmall} data-day-yesterday-loading>{YESTERDAY_LOADING_WORDS}</div>}
-        {yJournal !== null && !yJournal.ok && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-yesterday-journal-failed>{yJournal.words}</div>}
-        {yJournal !== null && yJournal.ok && yRow === null && <div className="font-medium text-text-muted" style={plateSmall} data-day-yesterday-journal-none>{noJournalWords(dayShortWords(yday))}</div>}
-        {yRow !== null && <div className="font-semibold text-text-primary break-words" style={plateLine} data-day-yesterday-end-of-day>{accomplishedWords(yRow.shipped)}</div>}
-        {yesterday !== null && !yesterday.day.ok && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-yesterday-failed>{yday} could not be read — {yesterday.day.words}</div>}
-        {built !== null && built.words !== null && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-yesterday-build-failed>{built.words}</div>}
-        {built !== null && built.tally !== null && (
-          <>
-            <div className="font-semibold text-text-secondary tabular-nums" style={plateLine} data-day-yesterday-spent>{tallySpentWords(built.tally)}</div>
-            <div className="font-semibold text-text-secondary tabular-nums break-words" style={plateLine} data-day-yesterday-largest>{tallyLargestWords(built.tally)}</div>
-            <div className="font-semibold text-text-secondary tabular-nums break-words" style={plateLine} data-day-yesterday-done>{tallyDoneWords(built.tally)}</div>
-          </>
-        )}
-        {/* A read that failed on its own prints its own words under the stats — never dropped. */}
-        {yesterday !== null && yesterday.day.ok && !yesterday.report.ok && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-yesterday-report-failed>{yesterday.report.words}</div>}
-        {yesterday !== null && yesterday.day.ok && !yesterday.records.ok && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-yesterday-records-failed>{yesterday.records.words}</div>}
-        {yesterday !== null && yesterday.day.ok && !yesterday.items.ok && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-yesterday-items-failed>The day&apos;s tasks could not be read — {yesterday.items.words}</div>}
-        {yOpen.length > 0 && <div className="font-semibold text-text-secondary break-words" style={plateLine} data-day-yesterday-not-finished>{notFinishedWords(yOpen)}</div>}
+        {yesterday !== null && !yesterday.ok && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-yesterday-journal-failed>{yesterday.words}</div>}
+        {yesterday !== null && yesterday.ok && <div className="font-semibold text-text-primary break-words" style={plateLine} data-day-yesterday-steps>{yesterdayStepsWords(yRow)}</div>}
+        {yRow !== null && yRow.shipped !== null && <div className="font-semibold text-text-secondary break-words" style={plateLine} data-day-yesterday-note>{noteWords(yRow.shipped)}</div>}
       </div>
       <div className="flex flex-col" style={{ gap: 3 }} data-day-journal-today>
         <div className="font-bold text-text-faint" style={plateLabel}>{TODAY_BLOCK_WORD}</div>
-        <div className="font-semibold text-text-secondary tabular-nums" style={plateLine} data-day-journal-plan>{todayPlanWords(plannedCents, stops)}</div>
         {a.goals.length === 0 && <div className="font-semibold text-text-faint" style={plateLine} data-day-journal-goals-none>{UNANSWERED_WORD}</div>}
         {a.goals.map((goal, i) => (
           <div key={`${i}:${goal}`} className="font-semibold text-text-primary break-words" style={plateLine} data-day-journal-goal>{goalWords(goal)}</div>
@@ -346,12 +309,6 @@ function JournalPlate({ day, zone, stop, plannedCents, stops, journal, yesterday
       {journal === null && <div className="font-medium text-text-muted" style={plateSmall} data-day-journal-loading>{JOURNAL_LOADING_WORDS}</div>}
       {journal !== null && !journal.ok && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-journal-failed>{journal.words}</div>}
       {journal !== null && journal.ok && row === null && <div className="font-medium text-text-muted" style={plateSmall} data-day-journal-none>{noJournalWords(dayShortWords(day))}</div>}
-      {/* The journal stop's OWN record — its status with its source, its minutes — stays on the plate the record block gave way to. */}
-      <div className="flex flex-col border-t border-border" style={{ gap: 3, paddingTop: 10 }} data-day-journal-record>
-        <div className="font-semibold text-text-secondary break-words" style={plateLine} data-day-journal-status>{statusWords(stop, day)}</div>
-        {minutesLine(stop.minutes, stop.actualMinutes) !== null && <div className="font-medium text-text-muted" style={plateSmall} data-day-journal-minutes>{minutesLine(stop.minutes, stop.actualMinutes)}</div>}
-      </div>
-      <div className="font-mono font-medium text-text-muted" style={plateSmall} data-day-journal-provenance>{journalProvenanceWords(typedState)}</div>
     </div>
   );
 }
@@ -387,11 +344,17 @@ export default function DayCard() {
   const [recordReads, setRecordReads] = useState(0);
   // ROLE-01: the report read again after a vendor is planned from the step card — in place, never blanking the plate first.
   const [reportReads, setReportReads] = useState(0);
-  // JOURNAL-01: the day's journal and yesterday's five reads — each kept WITH the card's day it was read for; the journal
+  // JOURNAL-01: the day's journal and yesterday's — each kept WITH the card's day it was read for; the journal
   // read again after a write from the form under the plate. Read ONLY when the day has a journal stop.
+  // CLEAN-02 (2026-10-14): yesterday is its journal alone — the card shows no money from yesterday, so its day,
+  // report, tasks and records are no longer read.
   const [journal, setJournal] = useState<{ readonly day: string; readonly read: Read<JournalAnswer> } | null>(null);
   const [journalReads, setJournalReads] = useState(0);
-  const [yesterday, setYesterday] = useState<{ readonly day: string; readonly reads: YesterdayReads } | null>(null);
+  const [yesterday, setYesterday] = useState<{ readonly day: string; readonly read: Read<JournalAnswer> } | null>(null);
+  // CLEAN-02 (2026-10-14): "download image" — the plate element, busy while it renders, and a failure kept with the view it was pressed on.
+  const plateRef = useRef<HTMLDivElement>(null);
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageFailed, setImageFailed] = useState<{ readonly view: string; readonly words: string } | null>(null);
   // The day the three reads above landed for: a day change renders once with the old day's reads before they are blanked, and
   // the journal and yesterday effects must not fire on that render.
   const [readsDay, setReadsDay] = useState<string | null>(null);
@@ -470,17 +433,17 @@ export default function DayCard() {
     return () => { live = false; };
   }, [day, hasJournalStop, journalReads]);
 
-  // JOURNAL-01: yesterday's five reads — the day, its report (asOf today, as the card's own), its tasks, its records, its journal.
+  // JOURNAL-01: yesterday's journal — CLEAN-02 (2026-10-14): the one read of yesterday (its ticks, its note).
   useEffect(() => {
-    if (day === null || today === null || !hasJournalStop) return;
+    if (day === null || !hasJournalStop) return;
     const yday = shiftDay(day, -1);
     let live = true;
     (async () => {
-      const [d, r, i, s, j] = await Promise.all([readDay(yday), readDayReport(yday, today), readItems(yday, yday), readStopRecords(yday), readJournal(yday)]);
-      if (live) setYesterday({ day, reads: { day: d, report: r, items: i, records: s, journal: j } });
+      const j = await readJournal(yday);
+      if (live) setYesterday({ day, read: j });
     })();
     return () => { live = false; };
-  }, [day, today, hasJournalStop]);
+  }, [day, hasJournalStop]);
 
   if (today === null || zone === null || day === null) {
     return <section className="text-xs text-text-muted" data-day-section>loading the day…</section>;
@@ -536,16 +499,29 @@ export default function DayCard() {
   const stayState: StayState = staysRead === null ? { kind: 'unread' } : !staysRead.ok ? { kind: 'failed' } : { kind: 'read', stay: staysRead.value.covering };
   // JOURNAL-01: the journal and yesterday's reads covering THIS day — null while in flight or read for another day.
   const journalRead = journal !== null && journal.day === day ? journal.read : null;
-  const yesterdayReads = yesterday !== null && yesterday.day === day ? yesterday.reads : null;
-  // JOURNAL-02: the steps yesterday left open, for the form's "+ yesterday's open steps"; PLAN-01: with its END OF DAY, for the plan prompt —
-  // or why yesterday is not known (in flight, or its journal read failed): the form offers neither then, and never writes "nothing typed" for an unknown.
-  const yesterdayForPrompt: YesterdayForPrompt = yesterdayReads === null
+  const yesterdayRead = yesterday !== null && yesterday.day === day ? yesterday.read : null;
+  // JOURNAL-02: yesterday for the form's "+ yesterday's open steps"; PLAN-01: for the plan prompt (CLEAN-02: its row — the ticks and the note) —
+  // or why yesterday is not known (in flight, or its journal read failed): the form offers neither then, and never writes "no journal" for an unknown.
+  const yesterdayForPrompt: YesterdayForPrompt = yesterdayRead === null
     ? { ok: false, words: YESTERDAY_LOADING_WORDS }
-    : !yesterdayReads.journal.ok
-      ? { ok: false, words: yesterdayReads.journal.words }
-      : yesterdayReads.journal.value.journal === null
-        ? { ok: true, accomplished: null, notFinished: [] }
-        : { ok: true, accomplished: yesterdayReads.journal.value.journal.shipped, notFinished: openSteps(yesterdayReads.journal.value.journal) };
+    : !yesterdayRead.ok
+      ? { ok: false, words: yesterdayRead.words }
+      : { ok: true, row: yesterdayRead.value.journal };
+  // CLEAN-02 (2026-10-14): the plate alone as a PNG, named for the day and the view; busy while it renders; a failure is said under the button, in words — nothing else is tried.
+  const view = hrefFor(day, focus === null ? null : focus.index);
+  const downloadImage = async () => {
+    if (imageBusy) return;
+    setImageBusy(true);
+    setImageFailed(null);
+    try {
+      if (plateRef.current === null) throw new Error('the card is not on the page');
+      await downloadCardImage(plateRef.current, cardImageName(day, focus === null ? null : { index: focus.index, label: boldOf(focus.stop) }));
+    } catch (error) {
+      setImageFailed({ view, words: cardImageFailedWords(error instanceof Error ? error.message : String(error)) });
+    } finally {
+      setImageBusy(false);
+    }
+  };
 
 
   return (
@@ -574,7 +550,7 @@ export default function DayCard() {
       <StayBar day={day} stays={staysRead} onChanged={() => setStayReads((n) => n + 1)} />
 
       {/* THE PLATE — the reel's card at two thirds of its size (PLATE_WIDTH wide — PLAN-01: 640); the page shows it on its own, the editor places it over the footage. Record this box alone. */}
-      <div className="bg-ts-white border border-border flex flex-col mx-auto" style={{ width: PLATE_WIDTH, borderRadius: 23, padding: `25px ${PLATE_PADDING_X}px 24px`, gap: 11 }} data-day-card data-day-step={focus === null ? undefined : focus.index}>
+      <div ref={plateRef} className="bg-ts-white border border-border flex flex-col mx-auto" style={{ width: PLATE_WIDTH, borderRadius: 23, padding: `25px ${PLATE_PADDING_X}px 24px`, gap: 11 }} data-day-card data-day-step={focus === null ? undefined : focus.index}>
         <PlateHeader right={focus === null ? headerWords(stayState, day) : stepHeaderWords(focus.index, focus.of, focus.stop.time)} />
 
         {!loaded && <p className="pt-4 text-text-muted" style={{ fontSize: 23 }} data-day-loading>loading the day…</p>}
@@ -667,64 +643,74 @@ export default function DayCard() {
               <div className="min-w-0 flex flex-col" style={{ gap: 4 }}>
                 <div className="font-extrabold text-text-primary break-words" style={{ fontSize: 43, lineHeight: 1, letterSpacing: '-0.01em' }} data-day-bold>{boldOf(focus.stop)}</div>
                 {smallOf(focus.stop) !== null && <div className="font-medium text-text-muted break-words" style={{ fontSize: 27, lineHeight: 1.1 }} data-day-small>{smallOf(focus.stop)}</div>}
-                {/* TABLE-01: the same five facts as the table — the vendor and the location as two labeled lines; the time and the budget are the header's and PLAN's. */}
-                <div className="flex items-baseline gap-2" data-day-vendor>
-                  <span className="font-bold text-text-faint" style={{ fontSize: 13, letterSpacing: '0.14em' }}>{VENDOR_HEAD_WORD}</span>
-                  <span className={`font-medium break-words min-w-0 ${focus.stop.vendor === null ? 'text-text-faint' : 'text-text-primary'}`} style={{ fontSize: 21, lineHeight: 1.1 }}>{factOf(focus.stop.vendor)}</span>
-                </div>
-                <div className="flex items-baseline gap-2" data-day-location>
-                  <span className="font-bold text-text-faint" style={{ fontSize: 13, letterSpacing: '0.14em' }}>{LOCATION_HEAD_WORD}</span>
-                  <span className={`font-medium break-words min-w-0 ${focus.stop.location === null ? 'text-text-faint' : 'text-text-secondary'}`} style={{ fontSize: 21, lineHeight: 1.1 }}>{factOf(focus.stop.location)}</span>
-                </div>
+                {/* TABLE-01: the vendor as a labeled line; the time and the budget are the header's and PLAN's. CLEAN-02 (2026-10-14): LOCATION is off the stop card; the journal card has no vendor either. */}
+                {focus.stop.role !== 'journal' && (
+                  <div className="flex items-baseline gap-2" data-day-vendor>
+                    <span className="font-bold text-text-faint" style={{ fontSize: 13, letterSpacing: '0.14em' }}>{VENDOR_HEAD_WORD}</span>
+                    <span className={`font-medium break-words min-w-0 ${focus.stop.vendor === null ? 'text-text-faint' : 'text-text-primary'}`} style={{ fontSize: 21, lineHeight: 1.1 }}>{factOf(focus.stop.vendor)}</span>
+                  </div>
+                )}
               </div>
-              <div className="shrink-0 flex flex-col items-end" style={{ gap: 3 }}>
-                <div className="font-semibold text-text-muted" style={{ fontSize: 24, lineHeight: 1.1, letterSpacing: '0.04em' }}>{PLAN_WORD}</div>
-                <div className={`font-extrabold tabular-nums ${focus.stop.cents === null ? 'text-text-faint' : 'text-text-primary'}`} style={{ fontSize: 37, lineHeight: 1 }} data-day-amount>{planDollars(focus.stop.cents)}</div>
-              </div>
-            </div>
-            {/* JOURNAL-01: the journal stop's plate in place of the record block; every other role keeps the plain record. */}
-            {focus.stop.role === 'journal' ? (
-              <JournalPlate key={day} day={day} zone={zone} stop={focus.stop} plannedCents={plannedCents} stops={dayFailed ? null : N} journal={journalRead} yesterday={yesterdayReads} onChanged={() => setJournalReads((n) => n + 1)} />
-            ) : (
-              /* STOP-01: what happened — the status with its source, ACTUAL against PLAN, the rating against its rubric, the note, the minutes. */
-              <div className="flex items-end justify-between gap-4 border-t border-border" style={{ paddingTop: 13 }} data-day-record>
-                <div className="min-w-0 flex flex-col" style={{ gap: 4 }}>
-                  <div className="font-semibold text-text-secondary break-words" style={{ fontSize: 27, lineHeight: 1.1 }} data-day-status>{statusWords(focus.stop, day)}</div>
-                  {focus.stop.record !== null && focus.stop.record.rating !== null && <div className="font-medium text-text-secondary" style={{ fontSize: 23, lineHeight: 1.1 }} data-day-rating>{ratingWords(focus.stop.record.rating)}</div>}
-                  {focus.stop.record !== null && focus.stop.record.outcome === 'done' && focus.stop.record.note !== null && <div className="font-medium text-text-muted break-words" style={{ fontSize: 23, lineHeight: 1.1 }} data-day-note>{focus.stop.record.note}</div>}
-                  {minutesLine(focus.stop.minutes, focus.stop.actualMinutes) !== null && <div className="font-medium text-text-muted" style={{ fontSize: 23, lineHeight: 1.1 }} data-day-minutes>{minutesLine(focus.stop.minutes, focus.stop.actualMinutes)}</div>}
-                </div>
+              {focus.stop.role !== 'journal' && (
                 <div className="shrink-0 flex flex-col items-end" style={{ gap: 3 }}>
-                  <div className="font-semibold text-text-muted" style={{ fontSize: 24, lineHeight: 1.1, letterSpacing: '0.04em' }}>{ACTUAL_WORD}</div>
-                  <div className={`font-extrabold tabular-nums ${focus.stop.actualCents === null ? 'text-text-faint' : 'text-text-primary'}`} style={{ fontSize: 37, lineHeight: 1 }} data-day-actual>{planDollars(focus.stop.actualCents)}</div>
-                  {delta !== null && delta.over !== null && <div className={`font-semibold tabular-nums ${actualTone(delta.over)}`} style={{ fontSize: 23, lineHeight: 1.1 }} data-day-delta>{delta.text}</div>}
-                </div>
-              </div>
-            )}
-            <div className="flex flex-col border-t border-border" style={{ gap: 8, paddingTop: 13 }}>
-              <div className="font-bold text-text-secondary tabular-nums" style={{ fontSize: 27 }} data-day-plan-so-far>{planSoFarWords(plannedCents === null ? null : focus.soFarCents, plannedCents)}{plannedCents !== null && result.allDayCents > 0 && <span className="font-medium text-text-muted" data-day-so-far-all-day> · {allDayCentsWords(planDollars(result.allDayCents))}</span>}</div>
-              {planBar !== null && (
-                <div className="bg-bg-row rounded-full overflow-hidden" style={{ height: 9 }} aria-hidden="true" data-day-plan-bar={planBar}>
-                  <div className="bg-brand-gold rounded-full" style={{ height: 9, width: `${planBar}%` }} />
+                  <div className="font-semibold text-text-muted" style={{ fontSize: 24, lineHeight: 1.1, letterSpacing: '0.04em' }}>{PLAN_WORD}</div>
+                  <div className={`font-extrabold tabular-nums ${focus.stop.cents === null ? 'text-text-faint' : 'text-text-primary'}`} style={{ fontSize: 37, lineHeight: 1 }} data-day-amount>{planDollars(focus.stop.cents)}</div>
                 </div>
               )}
-              <div className="font-semibold text-text-secondary tabular-nums" style={{ fontSize: 23 }} data-day-spent-so-far>{spentSoFarWords(focus.spentSoFarCents, focus.withoutActualSoFar, focus.withActualSoFar, plannedCents)}{overCents !== null && <span className={actualTone(true)} data-day-over-by> · {overByWords(overCents)}</span>}</div>
-              {planBar !== null && spentBar !== null && (
-                <div className="bg-bg-row rounded-full overflow-hidden" style={{ height: 9 }} aria-hidden="true" data-day-spent-bar={spentBar}>
-                  <div className="bg-brand-green rounded-full" style={{ height: 9, width: `${spentBar}%` }} />
-                </div>
-              )}
-              {planBar === null && <div className="font-medium text-text-muted" style={{ fontSize: 20, lineHeight: 1.2 }} data-day-bars-why>{plannedCents === null ? BARS_PLAN_NOT_READ_WORDS : BARS_NOTHING_PLANNED_WORDS}</div>}
-              <div className="font-mono font-medium text-text-muted" style={{ fontSize: 20, lineHeight: 1.2 }} data-day-provenance>{provenanceWords(today, reportRead, recordsOk)}</div>
             </div>
+            {/* JOURNAL-01: the journal stop's plate in place of the record block; CLEAN-02 (2026-10-14): and in place of the bars — no money on the journal card. */}
+            {focus.stop.role === 'journal' ? (
+              <JournalPlate key={day} day={day} journal={journalRead} yesterday={yesterdayRead} onChanged={() => setJournalReads((n) => n + 1)} />
+            ) : (
+              <>
+                {/* STOP-01: what happened — ACTUAL against PLAN, the note, the minutes. CLEAN-02 (2026-10-14): the rating as stars alone; no status line (the full card's ✓ says done). */}
+                <div className="flex items-end justify-between gap-4 border-t border-border" style={{ paddingTop: 13 }} data-day-record>
+                  <div className="min-w-0 flex flex-col" style={{ gap: 4 }}>
+                    {focus.stop.record !== null && focus.stop.record.rating !== null && <div className="font-medium text-text-secondary" style={{ fontSize: 23, lineHeight: 1.1 }} data-day-rating>{starsWords(focus.stop.record.rating)}</div>}
+                    {focus.stop.record !== null && focus.stop.record.outcome === 'done' && focus.stop.record.note !== null && <div className="font-medium text-text-muted break-words" style={{ fontSize: 23, lineHeight: 1.1 }} data-day-note>{focus.stop.record.note}</div>}
+                    {minutesLine(focus.stop.minutes, focus.stop.actualMinutes) !== null && <div className="font-medium text-text-muted" style={{ fontSize: 23, lineHeight: 1.1 }} data-day-minutes>{minutesLine(focus.stop.minutes, focus.stop.actualMinutes)}</div>}
+                  </div>
+                  <div className="shrink-0 flex flex-col items-end" style={{ gap: 3 }}>
+                    <div className="font-semibold text-text-muted" style={{ fontSize: 24, lineHeight: 1.1, letterSpacing: '0.04em' }}>{ACTUAL_WORD}</div>
+                    <div className={`font-extrabold tabular-nums ${focus.stop.actualCents === null ? 'text-text-faint' : 'text-text-primary'}`} style={{ fontSize: 37, lineHeight: 1 }} data-day-actual>{planDollars(focus.stop.actualCents)}</div>
+                    {delta !== null && delta.over !== null && <div className={`font-semibold tabular-nums ${actualTone(delta.over)}`} style={{ fontSize: 23, lineHeight: 1.1 }} data-day-delta>{delta.text}</div>}
+                  </div>
+                </div>
+                {/* PLAN-01: the two bars. CLEAN-02 (2026-10-14): their why-line and the source line print under the plate, in the fine print. */}
+                <div className="flex flex-col border-t border-border" style={{ gap: 8, paddingTop: 13 }}>
+                  <div className="font-bold text-text-secondary tabular-nums" style={{ fontSize: 27 }} data-day-plan-so-far>{planSoFarWords(plannedCents === null ? null : focus.soFarCents, plannedCents)}{plannedCents !== null && result.allDayCents > 0 && <span className="font-medium text-text-muted" data-day-so-far-all-day> · {allDayCentsWords(planDollars(result.allDayCents))}</span>}</div>
+                  {planBar !== null && (
+                    <div className="bg-bg-row rounded-full overflow-hidden" style={{ height: 9 }} aria-hidden="true" data-day-plan-bar={planBar}>
+                      <div className="bg-brand-gold rounded-full" style={{ height: 9, width: `${planBar}%` }} />
+                    </div>
+                  )}
+                  <div className="font-semibold text-text-secondary tabular-nums" style={{ fontSize: 23 }} data-day-spent-so-far>{spentSoFarWords(focus.spentSoFarCents === null || focus.withActualSoFar === 0 ? null : focus.spentSoFarCents, plannedCents)}{overCents !== null && <span className={actualTone(true)} data-day-over-by> · {overByWords(overCents)}</span>}</div>
+                  {planBar !== null && spentBar !== null && (
+                    <div className="bg-bg-row rounded-full overflow-hidden" style={{ height: 9 }} aria-hidden="true" data-day-spent-bar={spentBar}>
+                      <div className="bg-brand-green rounded-full" style={{ height: 9, width: `${spentBar}%` }} />
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
 
-      {/* CLEAN-01 (2026-10-14): the fine print — the completeness line and the source line, moved off the full plate to directly under it, small and muted (the same words). */}
-      {loaded && focus === null && (
+      {/* CLEAN-02 (2026-10-14): "download image" — directly under every card view, outside the recorded box: the plate alone as a PNG (cardImage.ts). Busy while it renders; a failure in words under it, nothing else. */}
+      {loaded && (
+        <div className="mx-auto flex flex-col items-start gap-1 text-xs" style={{ width: PLATE_WIDTH }} data-day-image>
+          <button type="button" className={chip} disabled={imageBusy} aria-busy={imageBusy} onClick={downloadImage} data-day-download-image>{DOWNLOAD_IMAGE_WORDS}</button>
+          {imageFailed !== null && imageFailed.view === view && <p className="text-brand-red" data-day-image-failed>{imageFailed.words}</p>}
+        </div>
+      )}
+
+      {/* CLEAN-01 (2026-10-14): the fine print — the completeness line and the source line, moved off the full plate to under it, small and muted (the same words).
+          CLEAN-02 (2026-10-14): on a stop card too — its bars' why-line and its source line, moved off the plate (the same words, the same rules); the journal card has none. */}
+      {loaded && (focus === null || focus.stop.role !== 'journal') && (
         <div className="mx-auto space-y-1 text-xs text-text-muted" style={{ width: PLATE_WIDTH }} data-day-fine-print>
-          {completeness !== null && <p data-day-count>{completeness}</p>}
+          {focus === null && completeness !== null && <p data-day-count>{completeness}</p>}
+          {focus !== null && planBar === null && <p data-day-bars-why>{plannedCents === null ? BARS_PLAN_NOT_READ_WORDS : BARS_NOTHING_PLANNED_WORDS}</p>}
           <p className="font-mono" data-day-provenance>{provenanceWords(today, reportRead, recordsOk)}</p>
         </div>
       )}

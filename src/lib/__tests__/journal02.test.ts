@@ -15,9 +15,9 @@ import { Prisma } from '@prisma/client';
 import { code, comments } from '../sourceText';
 import {
   ADD_OPEN_STEPS_WORDS, ANSWER_FIELDS, BIDI_WORDS, BLOCKERS_BLOCK_WORD, BLOCKERS_QUESTION, CONTROLS_WORDS, DONE_NOT_LIST_WORDS, END_OF_DAY_BLOCK_WORD, END_OF_DAY_QUESTION,
-  GOALS_EXAMPLE, JOURNAL_RECORD_WORDS, LIST_MAX, NOTHING_TYPED_WORDS, PLAN_BLOCK_WORD, PLAN_EXAMPLE, PLAN_QUESTION, RETIRED_FIELDS, TODAY_BLOCK_WORD, TODAY_GOALS_QUESTION,
+  GOALS_EXAMPLE, JOURNAL_RECORD_WORDS, LEFT_OVER_WORD, LIST_MAX, NO_JOURNAL_YESTERDAY_WORDS, NO_PLAN_YESTERDAY_WORDS, NOTE_WORD, NOTHING_TYPED_WORDS, PLAN_BLOCK_WORD, PLAN_EXAMPLE, PLAN_QUESTION, RETIRED_FIELDS, TODAY_BLOCK_WORD, TODAY_GOALS_QUESTION,
   YESTERDAY_WORD, answersOf, blankLineWords, carryTicks, doneLengthWords, doneNotBooleanWords, goalWords, journalInput, journalUnchanged, lineNotStringWords,
-  lineTooLongWords, lineWords, linesOf, notListWords, openSteps, planDoneWords, planStepWords, tooManyWords, notFinishedWords,
+  lineTooLongWords, lineWords, linesOf, notListWords, noteWords, openSteps, planDoneWords, planStepWords, tooManyWords, yesterdaySteps, yesterdayStepsWords,
   type Answers,
 } from '../operations/journal';
 
@@ -149,9 +149,11 @@ test('T2 the words — each a constant or a function, exact', () => {
   assert.equal(TODAY_GOALS_QUESTION, 'What do you need to get done today? One per line.');
   assert.equal(BLOCKERS_QUESTION, 'What could stop it?');
   assert.equal(PLAN_QUESTION, 'The plan — paste the steps from chat, one per line.');
-  assert.equal(END_OF_DAY_QUESTION, 'What did you accomplish today? (type tonight)');
+  // CLEAN-02 (2026-10-14) — Alex's ruling: END OF DAY asks what was left and why; the plan's ticks say what was done (was "What did you accomplish today? (type tonight)").
+  assert.equal(END_OF_DAY_QUESTION, 'Anything left unfinished, and why? (tonight — tick the plan above)');
   assert.deepEqual([YESTERDAY_WORD, TODAY_BLOCK_WORD, BLOCKERS_BLOCK_WORD, PLAN_BLOCK_WORD, END_OF_DAY_BLOCK_WORD], ['YESTERDAY', 'TODAY', 'BLOCKERS', 'PLAN', 'END OF DAY']);
-  assert.equal(notFinishedWords(['a', 'b']), 'not finished: a · b');
+  // CLEAN-02 (2026-10-14): notFinishedWords ("not finished: a · b") is gone — yesterdayStepsWords says what was left over (T2b); its last reader was the plate.
+  assert.doesNotMatch(code(RULE), /\bnotFinishedWords\b|\bACCOMPLISHED_WORD\b|\baccomplishedWords\b/, 'the old yesterday words are deleted');
   assert.equal(ADD_OPEN_STEPS_WORDS(2), "+ yesterday's open steps (2)");
   assert.equal(planDoneWords(2, 5), '2 of 5 done');
   assert.equal(planStepWords(1, 'merge TABLE-01', false), '☐ 1. merge TABLE-01');
@@ -172,6 +174,23 @@ test('T2 the words — each a constant or a function, exact', () => {
   const rule = code(RULE);
   for (const gone of ['QUESTION_WORDS', 'PAIRS', 'INDEPENDENT_FIELDS', 'pairWords', 'answerLine', 'pairLine', 'SHIPPED_HINT_WORDS', 'NO_YESTERDAY_WORDS']) assert.doesNotMatch(rule, new RegExp(`\\b${gone}\\b`), `${gone} — only the retired answers used it — is deleted`);
   assert.doesNotMatch(rule, /\bfetch\b|new Date\(\)|Date\.now\(|@prisma\/client|from 'react'/, 'pure: no fetch, no clock, no Prisma, no React');
+});
+
+test('T2b CLEAN-02 yesterdayStepsWords — all done, some left over, no plan, no journal; the note only when typed', () => {
+  // CLEAN-02 (2026-10-14) — Alex's ruling: YESTERDAY on the journal card is its plan's ticks, from the one rule (openSteps).
+  const six = ['merge TABLE-01', 'book travel', 'record brunch', 'screenshot the card', 'post the reel', 'reply to comments'];
+  assert.equal(yesterdayStepsWords(answersOf({ plan_steps: six, plan_done: [true, true, true, true, true, true] })), 'all 6 steps done');
+  assert.equal(yesterdayStepsWords(answersOf({ plan_steps: six, plan_done: [true, true, false, true, true, false] })), '4 of 6 steps done · left over: record brunch · reply to comments', 'the steps left over in their order');
+  assert.equal(yesterdayStepsWords(answersOf({ plan_steps: ['a'], plan_done: [false] })), '0 of 1 steps done · left over: a');
+  assert.equal(yesterdayStepsWords(answersOf({ goals: ['g'], shipped: 'typed' })), 'no plan yesterday', 'a journal with no plan');
+  assert.equal(yesterdayStepsWords(null), 'no journal yesterday', 'the read answered no row');
+  assert.deepEqual([NO_JOURNAL_YESTERDAY_WORDS, NO_PLAN_YESTERDAY_WORDS, LEFT_OVER_WORD, NOTE_WORD], ['no journal yesterday', 'no plan yesterday', 'left over:', 'note:']);
+  assert.throws(() => yesterdayStepsWords(answersOf({ plan_steps: ['a'], plan_done: [] })), /0 ticks for 1 steps/, 'ticks that do not match the steps are the database’s error — never counted');
+  assert.deepEqual(yesterdaySteps(answersOf({ plan_steps: ['a', 'b'], plan_done: [false, true] })), { kind: 'steps', done: 1, of: 2, leftOver: ['a'] });
+  assert.deepEqual(yesterdaySteps(null), { kind: 'no journal' });
+  assert.equal(noteWords('the hotel never answered'), 'note: the hotel never answered');
+  // Nothing here is money.
+  assert.doesNotMatch(/export function yesterdayStepsWords[\s\S]*?\n\}/.exec(code(RULE))![0], /cents|planDollars|formatCents/);
 });
 
 // ── T3 · THE MIGRATION AND THE SCHEMA ────────────────────────────────────────
@@ -239,8 +258,9 @@ test('T5 the form: four boxes, each labelled with its question, in the plate’s
   assert.doesNotMatch(f, /\b(adjustment|one_thing|witness|plan_\d_(if|then)|obstacle_(if|then)|retired)\b/, 'no retired answer is asked');
   const c = code(CARD);
   // PLAN-01 (2026-10-13): the form takes yesterday whole — its open steps and its END OF DAY — or why it is not known; the pin moved with it.
-  assert.match(c, /const yesterdayForPrompt: YesterdayForPrompt = yesterdayReads === null\n\s*\? \{ ok: false, words: YESTERDAY_LOADING_WORDS \}\n\s*: !yesterdayReads\.journal\.ok\n\s*\? \{ ok: false, words: yesterdayReads\.journal\.words \}\n\s*: yesterdayReads\.journal\.value\.journal === null\n\s*\? \{ ok: true, accomplished: null, notFinished: \[\] \}\n\s*: \{ ok: true, accomplished: yesterdayReads\.journal\.value\.journal\.shipped, notFinished: openSteps\(yesterdayReads\.journal\.value\.journal\) \};/, 'yesterday read, or why not — never an unknown written as none');
-  assert.match(code(FORM), /const yesterdayOpen = yesterday\.ok \? yesterday\.notFinished : \[\];/, 'the open steps only from a read yesterday');
+  // CLEAN-02 (2026-10-14): "whole" is yesterday's row itself (its ticks and its note) — the open steps are derived in the form by openSteps.
+  assert.match(c, /const yesterdayForPrompt: YesterdayForPrompt = yesterdayRead === null\n\s*\? \{ ok: false, words: YESTERDAY_LOADING_WORDS \}\n\s*: !yesterdayRead\.ok\n\s*\? \{ ok: false, words: yesterdayRead\.words \}\n\s*: \{ ok: true, row: yesterdayRead\.value\.journal \};/, 'yesterday read, or why not — never an unknown written as none');
+  assert.match(code(FORM), /const yesterdayOpen = yesterday\.ok && yesterday\.row !== null \? openSteps\(yesterday\.row\) : \[\];/, 'the open steps only from a read yesterday that has a journal');
 });
 
 // ── T6 · THE PLATE ───────────────────────────────────────────────────────────
@@ -250,9 +270,11 @@ test('T6 the plate: the five blocks in order; each step a tick button through th
   const plate = c.slice(c.indexOf('function JournalPlate('), c.indexOf('function PlateHeader('));
   inOrder(plate, ['{YESTERDAY_WORD}', '{TODAY_BLOCK_WORD}', '{BLOCKERS_BLOCK_WORD}', '{PLAN_BLOCK_WORD}', '{END_OF_DAY_BLOCK_WORD}'], 'the five blocks, in the table’s order');
   // PLAN-01 (2026-10-13): "accomplished:" on yesterday's END OF DAY and "not finished:" on its unticked steps — the attribute renamed with the words.
-  inOrder(plate, ['data-day-yesterday-end-of-day>', 'data-day-yesterday-spent>', 'data-day-yesterday-largest>', 'data-day-yesterday-done>', 'data-day-yesterday-not-finished>'], 'YESTERDAY: the END OF DAY as typed, the numbers, then what was left open');
-  assert.match(plate, /\{yOpen\.length > 0 && <div [^>]*data-day-yesterday-not-finished>\{notFinishedWords\(yOpen\)\}<\/div>\}/);
-  assert.match(plate, /const yOpen = yRow === null \? \[\] : openSteps\(yRow\);/);
+  // CLEAN-02 (2026-10-14) — Alex's ruling: no money on the journal card. YESTERDAY is its plan's ticks with what was left over, then its note
+  // when typed; the END OF DAY line, the spent / largest / done numbers and the not-finished line are gone.
+  inOrder(plate, ['data-day-yesterday-steps>', 'data-day-yesterday-note>'], 'YESTERDAY: the ticks and what was left over, then the note');
+  assert.match(plate, /data-day-yesterday-steps>\{yesterdayStepsWords\(yRow\)\}/);
+  assert.doesNotMatch(plate, /data-day-yesterday-(end-of-day|spent|largest|done|not-finished)|tally|plannedCents|planDollars|statusWords|provenance/i, 'no money, no status, no source on the journal card');
   assert.match(plate, /\{a\.goals\.map\(\(goal, i\) => \(\n\s*<div [^>]*data-day-journal-goal>\{goalWords\(goal\)\}<\/div>/, 'TODAY: the goals as a list');
   assert.match(plate, /data-day-journal-blocker>\{a\.blocker === null \? UNANSWERED_WORD : a\.blocker\}/);
   assert.match(plate, /data-day-journal-shipped>\{a\.shipped === null \? UNANSWERED_WORD : a\.shipped\}/, 'END OF DAY — until typed');
