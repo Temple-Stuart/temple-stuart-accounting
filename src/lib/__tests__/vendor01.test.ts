@@ -353,8 +353,9 @@ test('T7 the schema model\'s columns match the migration\'s, and no column of th
   // WEEK-02 (2026-09-30): the next value is appended after them, in ALTER TYPE order — the pair stays in place, then it.
   // WEEK-02 and STAY-01 appended after these, in ALTER TYPE order — the pin follows the enum's tail.
   // JOURNAL-01 (2026-10-13) appended two more after STOP-01's — the pin follows the enum's tail.
-  assert.match(schema, /operations_plan_vendor_set\s+operations_plan_vendor_cleared\s+operations_routine_completion_note_edited\s+operations_stay_set\s+operations_stay_deleted\s+operations_stop_set\s+operations_stop_cleared\s+operations_journal_set\s+operations_journal_cleared\s+\}/, 'appended to AuditActionType in ALTER TYPE order (STAY-01, STOP-01, then JOURNAL-01 followed)');
-  assert.match(code('src/app/api/audit-log/route.ts'), /'operations_plan_vendor_set',\s*'operations_plan_vendor_cleared',\s*'operations_routine_completion_note_edited',\s*'operations_stay_set',\s*'operations_stay_deleted',\s*'operations_stop_set',\s*'operations_stop_cleared',\s*'operations_journal_set',\s*'operations_journal_cleared',\s*\],/);
+  // TASKS-ONE-02 (2026-10-14) appended two more after JOURNAL-01's — the pin follows the enum's tail.
+  assert.match(schema, /operations_plan_vendor_set\s+operations_plan_vendor_cleared\s+operations_routine_completion_note_edited\s+operations_stay_set\s+operations_stay_deleted\s+operations_stop_set\s+operations_stop_cleared\s+operations_journal_set\s+operations_journal_cleared\s+operations_routine_uncompleted\s+operations_routine_completion_updated\s+\}/, 'appended to AuditActionType in ALTER TYPE order (STAY-01, STOP-01, JOURNAL-01, then TASKS-ONE-02 followed)');
+  assert.match(code('src/app/api/audit-log/route.ts'), /'operations_plan_vendor_set',\s*'operations_plan_vendor_cleared',\s*'operations_routine_completion_note_edited',\s*'operations_stay_set',\s*'operations_stay_deleted',\s*'operations_stop_set',\s*'operations_stop_cleared',\s*'operations_journal_set',\s*'operations_journal_cleared',\s*'operations_routine_uncompleted',\s*'operations_routine_completion_updated',\s*\],/);
 });
 
 // ── TAB13-04 T7 · VENDOR-01'S AUDIT ITEMS ────────────────────────────────────

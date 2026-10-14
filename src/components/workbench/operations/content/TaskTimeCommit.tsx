@@ -7,6 +7,9 @@
  * (DailyPlanItemRow.tsx:135-141): POST /api/operations/daily-plan/items/[itemId]/blocks
  * with { scheduled_start, scheduled_end } as ISO datetimes (+ allow_conflicts on the
  * 409 overlap retry). Zero new write paths; auth unchanged.
+ * TASKS-ONE-02 (2026-10-14): DailyPlanItemRow.tsx and the Daily Plan tab are deleted
+ * (Alex's ruling: the day card replaces the Daily plan); this commit is now the only
+ * screen caller of that blocks route, unchanged.
  *
  * The day's date is fixed (the row's day), so this uses two compact <input type=time>
  * and composes ISO from `${date}T${HH:MM}` (local) — same instants the Daily Plan form

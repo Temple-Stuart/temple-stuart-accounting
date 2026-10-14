@@ -52,6 +52,8 @@ const SUBSYSTEM_ACTION_TYPES: Record<string, AuditActionType[]> = {
     'operations_plan_vendor_set',
     'operations_plan_vendor_cleared',
     // WEEK-02 (2026-09-30): a done's note edited (completions/[completionId] PATCH).
+    // TASKS-ONE-02 (2026-10-14): that PATCH is deleted — no new row carries this
+    // type; it stays listed so the rows written before still read.
     'operations_routine_completion_note_edited',
     // STAY-01 (2026-10-12): a stay set / deleted (stays routes).
     'operations_stay_set',
@@ -62,6 +64,11 @@ const SUBSYSTEM_ACTION_TYPES: Record<string, AuditActionType[]> = {
     // JOURNAL-01 (2026-10-13): a day's journal set / cleared (journal routes).
     'operations_journal_set',
     'operations_journal_cleared',
+    // TASKS-ONE-02 (2026-10-14): a completion deleted / moved by the stops routes
+    // (src/lib/operations/routineCompletion.ts) — its creation stays
+    // 'operations_routine_completed', above.
+    'operations_routine_uncompleted',
+    'operations_routine_completion_updated',
   ],
   // AUDIT-01 (2026-09-26): the booking audit trail's families. AUDIT-01b (2026-09-27):
   // 'commission_' is gone — commission_locked is never returned by this route (below),

@@ -131,7 +131,9 @@ test('the anchor changes nothing for a rule that names its own components — an
 });
 
 test('every expansion is anchored on the routine\'s start_date — one mechanism, no second path', () => {
-  const callers = [CREATE_ROUTE, PATCH_ROUTE, 'src/app/api/operations/routines/[id]/completions/route.ts',
+  // TASKS-ONE-02 (2026-10-14): the completions route is deleted; its next-due expansion moved, anchored, into the one
+  // completion writer the stops routes call (src/lib/operations/routineCompletion.ts nextDueAfter). Moved, never loosened.
+  const callers = [CREATE_ROUTE, PATCH_ROUTE, 'src/lib/operations/routineCompletion.ts',
     'src/app/api/operations/routines/[id]/upcoming/route.ts',
     // WEEK-01 (2026-09-30): the today route's day logic — its anchored expansion with it — moved into the pure day module.
     'src/lib/operations/routineDay.ts',

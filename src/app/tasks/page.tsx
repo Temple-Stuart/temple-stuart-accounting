@@ -48,6 +48,15 @@
  * browser from the URL, as it did at /tasks/day. It reads no entity: it is in
  * the provider only because the sections share one container. The Issue log
  * link is gone with its page; North Star and Audit trail stay.
+ *
+ * TASKS-ONE-02 (2026-10-14) — Alex's ruling: the day card replaces the week
+ * grid, the Daily plan and the Today strip. THREE sections now: the day card,
+ * Projects, Routines. week/WeekSection.tsx (WEEK-01 above) and
+ * SectionC_DailyPlan.tsx (the Daily Plan above) are deleted with WeekCell,
+ * weekPlan, DailyPlanItemRow, DailyPlanRoutineRow and TodaysStrip; a stop
+ * recorded done on the day card is the routine's done
+ * (src/lib/operations/routineCompletion.ts). Projects' "↗ schedule" still puts
+ * a task on a day; week/weekReads.ts stays — the day card reads through it.
  */
 import { Suspense } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
@@ -55,10 +64,8 @@ import ToolOpener from '@/components/shell/ToolOpener';
 import { navToolByName } from '@/lib/nav';
 import { TOOL_GATE } from '@/lib/offer';
 import { OperationsEntityProvider } from '@/components/workbench/operations/EntitySelector';
-import SectionC_DailyPlan from '@/components/workbench/operations/SectionC_DailyPlan';
 import SectionD_ProjectBacklog from '@/components/workbench/operations/SectionD_ProjectBacklog';
 import SectionE_Routines from '@/components/workbench/operations/SectionE_Routines';
-import WeekSection from '@/components/workbench/operations/week/WeekSection';
 import DayCard from '@/components/workbench/operations/day/DayCard';
 
 export default function TasksPage() {
@@ -70,10 +77,8 @@ export default function TasksPage() {
           <Suspense>
             <DayCard />
           </Suspense>
-          <WeekSection />
           <SectionD_ProjectBacklog />
           <SectionE_Routines />
-          <SectionC_DailyPlan />
         </div>
       </OperationsEntityProvider>
     </AppLayout>

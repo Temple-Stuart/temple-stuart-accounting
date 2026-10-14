@@ -2730,10 +2730,11 @@ const LINES_READERS = [
   'src/lib/operations/routineBudget.ts',
   'src/lib/hub/mapOperationsRoutines.ts',
   'src/components/workbench/operations/routines/RoutineRow.tsx',
-  'src/components/workbench/operations/routines/TodaysStrip.tsx',
   'src/components/hub/HubCalendar.tsx',
-  // WEEK-01 (2026-09-30): the week reads each row’s figure through the leaf too.
-  'src/components/workbench/operations/week/WeekSection.tsx',
+  // TASKS-ONE-02 (2026-10-14): TodaysStrip.tsx and week/WeekSection.tsx (WEEK-01's
+  // reader) are deleted — Alex's ruling, the day card replaces the week grid and the
+  // Today strip — so they leave this list with their code. Every reader that remains
+  // is still held to the leaf.
 ];
 let linesViolations = 0;
 const linesFail = (m: string) => { linesViolations += 1; violations.push(`lines law: ${m} (LINES-01)`); };
@@ -3178,7 +3179,9 @@ const ONEOFF_DAY_MODULE = 'src/lib/operations/routineDay.ts';
 const ONEOFF_CALLERS = [
   'src/app/api/operations/routines/route.ts',
   'src/app/api/operations/routines/[id]/route.ts',
-  'src/app/api/operations/routines/[id]/completions/route.ts',
+  // TASKS-ONE-02 (2026-10-14): the completions route is deleted; its next-due
+  // expansion moved, anchored, into the one completion writer the stops routes call.
+  'src/lib/operations/routineCompletion.ts',
   'src/app/api/operations/routines/[id]/upcoming/route.ts',
   // WEEK-01 (2026-09-30): the today route’s day logic moved into one pure module —
   // the anchored expansion moved with it, and the route reads a day only through
@@ -3305,6 +3308,8 @@ lawGuard('The two-lists law', () => {
 //      consecutive_completion_streak / consecutive_miss_streak, and none draws
 //      the 🔥 counter — while the columns stay and the two writers (the
 //      completions route and the nightly evaluator) are untouched.
+//      TASKS-ONE-02 (2026-10-14): the completions route is deleted; its write is
+//      src/lib/operations/routineCompletion.ts now, called by the stops routes.
 //   3. A PROJECT DELETE REFUSES ON ANY LIVE LINK. The route re-runs the one
 //      deletion leaf INSIDE its transaction, the leaf names the four link kinds
 //      the ruling lists, the refusal is 409 naming the task, and the row asks
@@ -3318,7 +3323,9 @@ const TWO_LISTS_ROUTE = 'src/app/api/operations/projects/[id]/route.ts';
 const TWO_LISTS_PREVIEW = 'src/app/api/operations/projects/[id]/deletion/route.ts';
 const TWO_LISTS_ROW = 'src/components/workbench/operations/projects/ProjectRow.tsx';
 const STREAK_WRITERS = [
-  'src/app/api/operations/routines/[id]/completions/route.ts',
+  // TASKS-ONE-02 (2026-10-14): the completions route is deleted; the completion's
+  // streak write moved with its code into the one writer the stops routes call.
+  'src/lib/operations/routineCompletion.ts',
   'src/inngest/functions/routine-evaluator.ts',
 ];
 let twoListsViolations = 0;
@@ -3342,15 +3349,24 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
   // WEEK-01 (2026-09-30): the page gains a fourth mount, FIRST — this week, then the two lists and the daily plan.
   // TASKS-ONE-01 — the ruling (Alex, 2026-10-14): the day card is the first section of Tasks — one Tasks page, no
   // sub-tabs. A fifth mount, FIRST: the day card, then this week, the two lists and the daily plan.
-  const TWO_LISTS_MOUNTS = ['<DayCard />', '<WeekSection />', '<SectionD_ProjectBacklog />', '<SectionE_Routines />', '<SectionC_DailyPlan />'];
+  // TASKS-ONE-02 — the ruling (Alex, 2026-10-14): the day card replaces the week grid, the Daily plan and the
+  // Today strip. Three mounts: the day card, the projects list, the routines list — and the three that went may
+  // not come back unnoticed.
+  const TWO_LISTS_MOUNTS = ['<DayCard />', '<SectionD_ProjectBacklog />', '<SectionE_Routines />'];
   for (const section of TWO_LISTS_MOUNTS) {
-    if (!page.includes(section)) twoListsFail(`${TWO_LISTS_PAGE} no longer mounts ${section} — the page is the day card, this week, the projects list, the routines list and the daily plan`);
+    if (!page.includes(section)) twoListsFail(`${TWO_LISTS_PAGE} no longer mounts ${section} — the page is the day card, the projects list and the routines list`);
   }
   const mountAt = TWO_LISTS_MOUNTS.map((section) => page.indexOf(section));
-  if (mountAt.some((at, i) => i > 0 && at < mountAt[i - 1])) twoListsFail(`${TWO_LISTS_PAGE} mounts its sections out of order — the day card first, then this week, projects, routines and the daily plan`);
+  if (mountAt.some((at, i) => i > 0 && at < mountAt[i - 1])) twoListsFail(`${TWO_LISTS_PAGE} mounts its sections out of order — the day card first, then projects, then routines`);
+  const toolPage = page.slice(page.indexOf('data-tool-page="Tasks"'), page.indexOf('</OperationsEntityProvider>'));
+  const pageMounts = [...toolPage.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]).filter((tag) => tag !== 'Suspense');
+  if (pageMounts.join(' ') !== 'DayCard SectionD_ProjectBacklog SectionE_Routines') twoListsFail(`${TWO_LISTS_PAGE} mounts [${pageMounts.join(' ')}] in the Tasks container — exactly the day card, the projects list and the routines list (TASKS-ONE-02)`);
   if ((PHASES_RENDERED_AT['/tasks'] ?? ['?']).length !== 0) twoListsFail(`nav.ts declares /tasks draws [${(PHASES_RENDERED_AT['/tasks'] ?? []).join(' ')}] — it draws nothing`);
   // Every control the strips held is still a control: the list headers' create
   // buttons, the row's edit/archive/delete and its pipeline door, Today's mark-done.
+  // TASKS-ONE-02 (2026-10-14): Today's mark-done moved, not loosened — TodaysStrip is
+  // deleted (Alex's ruling: the day card replaces it), and a routine is marked done
+  // on the day card's stop form ("✓ done now"), whose record is the routine's done.
   const controls: Array<[string, RegExp, string]> = [
     ['src/components/workbench/operations/SectionD_ProjectBacklog.tsx', /\+ new project/, 'the projects list has no "+ new project"'],
     ['src/components/workbench/operations/SectionD_ProjectBacklog.tsx', /show archived/, 'the projects list has no "show archived"'],
@@ -3363,12 +3379,11 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
     ['src/components/workbench/operations/projects/TruthMachineView.tsx', /onClick=\{onEvolveStart\}/, 'the pipeline lost "evolve"'],
     ['src/components/workbench/operations/routines/RoutineList.tsx', /\+ new routine/, 'the routines list has no "+ new routine"'],
     ['src/components/workbench/operations/routines/RoutineList.tsx', /show inactive/, 'the routines list has no "show inactive"'],
-    ['src/components/workbench/operations/routines/TodaysStrip.tsx', /✓ mark done/, 'Today lost "mark done"'],
-    ['src/components/workbench/operations/routines/TodaysStrip.tsx', /\{totalDone\} done · \{totalDue\} due · \{totalMissed\} missed/, 'Today lost its done · due · missed line'],
-    ['src/components/workbench/operations/SectionE_Routines.tsx', /<TodaysStrip/, 'the routines section no longer mounts Today'],
+    ['src/components/workbench/operations/stops/StopForm.tsx', /data-stop-done-now[\s\S]*✓ done now/, 'the stop form on the day card lost "✓ done now" — the one way a routine is marked done'],
     ['src/components/workbench/operations/SectionE_Routines.tsx', /<RoutineList/, 'the routines section no longer mounts the list'],
   ];
   for (const [f, re, why] of controls) if (!re.test(codeOf(f))) twoListsFail(`${f}: ${why}`);
+  if (/TodaysStrip/.test(codeOf('src/components/workbench/operations/SectionE_Routines.tsx'))) twoListsFail('src/components/workbench/operations/SectionE_Routines.tsx mounts Today again — the day card replaced it (TASKS-ONE-02)');
 }
 
 // 2. no streak on a customer surface; the writers stay.

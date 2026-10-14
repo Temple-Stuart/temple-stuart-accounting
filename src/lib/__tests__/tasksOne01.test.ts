@@ -31,21 +31,26 @@ const PLACEHOLDER = 'src/components/workbench/operations/PlaceholderCard.tsx';
 
 // ── T1 · /tasks MOUNTS THE DAY CARD FIRST ───────────────────────────────────
 
-test('T1 /tasks mounts DayCard first — in its Suspense boundary, above the week, the lists and the daily plan', () => {
+// TASKS-ONE-02 (2026-10-14): the title said "above the week, the lists and the daily plan" — the week and the daily
+// plan are deleted (Alex's ruling: the day card replaces the week grid, the Daily plan and the Today strip). Moved.
+test('T1 /tasks mounts DayCard first — in its Suspense boundary, above the two lists', () => {
   const page = code(PAGE);
   assert.match(page, /^'use client';/, 'a client page — which is why the card needs its boundary');
   assert.match(page, /import \{ Suspense \} from 'react';/);
   assert.match(page, /import DayCard from '@\/components\/workbench\/operations\/day\/DayCard';/);
   assert.equal((page.match(/<DayCard \/>/g) ?? []).length, 1, 'mounted once');
-  assert.match(page, /<div className="space-y-3" data-tool-page="Tasks">\n\s*<Suspense>\n\s*<DayCard \/>\n\s*<\/Suspense>\n\s*<WeekSection \/>\n\s*<SectionD_ProjectBacklog \/>\n\s*<SectionE_Routines \/>\n\s*<SectionC_DailyPlan \/>\n\s*<\/div>/);
+  // TASKS-ONE-02 (2026-10-14): <WeekSection /> and <SectionC_DailyPlan /> came off — the container holds exactly three.
+  assert.match(page, /<div className="space-y-3" data-tool-page="Tasks">\n\s*<Suspense>\n\s*<DayCard \/>\n\s*<\/Suspense>\n\s*<SectionD_ProjectBacklog \/>\n\s*<SectionE_Routines \/>\n\s*<\/div>/);
   assert.ok(page.indexOf('<ToolOpener') < page.indexOf('<DayCard />'), 'the opener first — family, name, registry line — then the card');
   assert.match(comments(PAGE), /TASKS-ONE-01 \(2026-10-14\) — Alex's ruling: the day card is the first section\s*\n\s*\* of Tasks — one Tasks page, no sub-tabs\./);
 });
 
 test('T1 the two-lists law mounts the day card first, with the dated ruling', () => {
   const law = code(LAW);
-  assert.match(law, /const TWO_LISTS_MOUNTS = \['<DayCard \/>', '<WeekSection \/>', '<SectionD_ProjectBacklog \/>', '<SectionE_Routines \/>', '<SectionC_DailyPlan \/>'\];/);
-  assert.match(law, /mounts its sections out of order — the day card first, then this week, projects, routines and the daily plan/);
+  // TASKS-ONE-02 (2026-10-14): the mount list is three — the day card, projects, routines (tasksOne02.test.ts pins the
+  // ruling that says so); the order message moved with it.
+  assert.match(law, /const TWO_LISTS_MOUNTS = \['<DayCard \/>', '<SectionD_ProjectBacklog \/>', '<SectionE_Routines \/>'\];/);
+  assert.match(law, /mounts its sections out of order — the day card first, then projects, then routines/);
   assert.match(comments(LAW), /TASKS-ONE-01 — the ruling \(Alex, 2026-10-14\): the day card is the first section of Tasks — one Tasks page, no\s*\n\s*\/\/ sub-tabs\./);
 });
 

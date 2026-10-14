@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { ignoredLine, plannedLine, routinePlanned } from '../operations/routineLines';
 import { routineMonthlyByCoa, routinesMonthlyByCoa } from '../operations/routineBudget';
 import { mapOperationsRoutines } from '../hub/mapOperationsRoutines';
@@ -188,11 +190,15 @@ test('every HB-4a reader reads the leaf — none restates the rule', () => {
     'src/lib/operations/routineBudget.ts',
     'src/lib/hub/mapOperationsRoutines.ts',
     'src/components/workbench/operations/routines/RoutineRow.tsx',
-    'src/components/workbench/operations/routines/TodaysStrip.tsx',
     'src/components/hub/HubCalendar.tsx',
     // WEEK-01 (2026-09-30): the week's row heads read the leaf too.
-    'src/components/workbench/operations/week/WeekSection.tsx',
+    // TASKS-ONE-02 (2026-10-14): TodaysStrip.tsx and week/WeekSection.tsx are deleted (Alex's ruling: the day card
+    // replaces the Today strip and the week grid) — they leave this list with their code, as they leave the law's
+    // LINES_READERS; every reader that remains is still held to the leaf.
   ]) assert.match(code(f), /routinePlanned\(/, `${f} reads the leaf`);
+  for (const gone of ['src/components/workbench/operations/routines/TodaysStrip.tsx', 'src/components/workbench/operations/week/WeekSection.tsx']) {
+    assert.ok(!existsSync(resolve(process.cwd(), gone)), `${gone} is deleted, not left unread`);
+  }
   // The HB-4d bridge reads it THROUGH routinesMonthlyByCoa, and no longer hides a
   // lined routine with blank routine-level fields.
   // LINES-02: both budget routes are the bridge now, and the routine read (the

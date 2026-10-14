@@ -65,6 +65,10 @@
  * tests drive every rule with fixtures. Every sentence the card prints from
  * here is an exported constant or a function returning one, so the tests pin
  * the exact words.
+ *
+ * TASKS-ONE-02 (2026-10-14): week/weekPlan.ts and week/WeekSection.tsx, cited
+ * here as this file's models, are deleted (Alex's ruling: the day card replaces
+ * the week grid); the words and rules this file took from them are its own.
  */
 import { centsFromDecimalString, type NotPlaced } from '@/lib/budget/days';
 import { formatCents } from '@/lib/budget/format';
@@ -761,7 +765,7 @@ export const routineFigureWords = (list: readonly PlanLine[]): string => {
   return `${head} — ${lineList(list)}`;
 };
 
-/** The report's stranded vendors on the day, in the week's own words (WeekSection.tsx). */
+/** The report's stranded vendors on the day, in the week's own words (WeekSection.tsx — deleted TASKS-ONE-02, 2026-10-14; the words live here now). */
 export const strandedWords = (list: readonly StrandedVendor[]): string => {
   const head = list.length === 1 ? '1 vendor stranded' : `${list.length} vendors stranded`;
   return `${head} — ${list.map((s) => `${s.vendor.name} (${s.label}${s.line !== null ? ` — ${s.line}` : ''}${s.day !== null ? `, ${s.day}` : ''}): ${s.reason}`).join(' · ')}`;
@@ -840,7 +844,8 @@ export const dayCarryWords = (days: number): string => (days === 0 ? '' : ` +${d
  * start alone; null when nothing states a time. An end past the start's day
  * says so: the clock it lands on and the days it carried ("23:45–00:15 +1d";
  * a day-long step "07:00–07:00 +1d") — the modulo never hides a day (TABLE-01
- * review). The dash is the week's (weekPlan.ts timeWindow).
+ * review). The dash is the week's (weekPlan.ts timeWindow — deleted TASKS-ONE-02,
+ * 2026-10-14; the dash lives here now).
  */
 export function intervalWords(time: string | null, minutes: number | null): string | null {
   if (time === null) return null;

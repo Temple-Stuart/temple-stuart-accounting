@@ -22,6 +22,16 @@
  *      index is the backstop for a race between two creates, answered 409.
  *      Audited operations_stop_set (before → after) after the write.
  *
+ * TASKS-ONE-02 (2026-10-14) — ONE DONE. The day card's done is the routine's
+ * done: the record's write and the routine's completion move in ONE
+ * transaction, the routine's row held first (routineCompletion.ts lockRoutine)
+ * so two of its lines saved at once take turns. syncCompletion makes the
+ * completion the mirror of the occurrence's records (routineDone.ts): created
+ * when the occurrence is now done, moved when its done time moved, deleted when
+ * it is no longer done — and audits that change after the commit. A completion
+ * the occurrence's records no longer support goes, whoever wrote it. Records
+ * saved before TASKS-ONE-02 were not backfilled.
+ *
  * The caller's own rows only: the verified cookie, then the user, then every
  * query by user_id. Not public.
  */
@@ -40,6 +50,7 @@ import {
   type StopRecordRow,
 } from '@/lib/operations/stopRecord';
 import { NOT_A_STOP_RECORD_WORDS, isStop, isStopRole } from '@/lib/operations/stopRole';
+import { auditCompletionChange, lockRoutine, syncCompletion, type CompletionChange } from '@/lib/operations/routineCompletion';
 import { instantToZoned } from '@/lib/time';
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
@@ -143,24 +154,29 @@ export async function POST(request: NextRequest) {
     }
 
     const plan = planOf(v.kind, v.id);
-    const existing = await prisma.operations_stop_records.findFirst({ where: { user_id: user.id, routine_id: plan.routine_id, step_id: plan.step_id, occurrence_at: v.instant } });
-    const before = existing === null ? null : stopRecordRowOf(existing);
-    if (before !== null && unchanged(before, v)) return NextResponse.json({ record: before, changed: false });
-
     const data = { outcome: v.outcome, done_at: v.doneAt, actual_cents: v.actualCents, rating: v.rating, note: v.note, actual_minutes: v.actualMinutes };
-    let after: StopRecordRow;
-    if (existing !== null) {
-      after = stopRecordRowOf(await prisma.operations_stop_records.update({ where: { id: existing.id }, data }));
-    } else {
-      try {
-        after = stopRecordRowOf(await prisma.operations_stop_records.create({ data: { user_id: user.id, routine_id: plan.routine_id, step_id: plan.step_id, occurrence_at: v.instant, ...data } }));
-      } catch (error) {
-        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-          return NextResponse.json({ error: 'Conflict', message: RACE_WORDS(instant) }, { status: 409 });
-        }
-        throw error;
+    // TASKS-ONE-02: the record and the routine's completion in ONE transaction, the routine's row held first.
+    let written: { readonly unchanged: StopRecordRow } | { readonly before: StopRecordRow | null; readonly after: StopRecordRow; readonly change: CompletionChange | null };
+    try {
+      written = await prisma.$transaction(async (tx) => {
+        await lockRoutine(tx, routine.id, user.id);
+        const existing = await tx.operations_stop_records.findFirst({ where: { user_id: user.id, routine_id: plan.routine_id, step_id: plan.step_id, occurrence_at: v.instant } });
+        const before = existing === null ? null : stopRecordRowOf(existing);
+        if (before !== null && unchanged(before, v)) return { unchanged: before };
+        const after = stopRecordRowOf(existing !== null
+          ? await tx.operations_stop_records.update({ where: { id: existing.id }, data })
+          : await tx.operations_stop_records.create({ data: { user_id: user.id, routine_id: plan.routine_id, step_id: plan.step_id, occurrence_at: v.instant, ...data } }));
+        const change = await syncCompletion(tx, { userId: user.id, routineId: routine.id, expectedAt: v.instant, now });
+        return { before, after, change };
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        return NextResponse.json({ error: 'Conflict', message: RACE_WORDS(instant) }, { status: 409 });
       }
+      throw error;
     }
+    if ('unchanged' in written) return NextResponse.json({ record: written.unchanged, changed: false });
+    const { before, after, change } = written;
 
     await writeAuditLog({
       actor: { user_id: user.id, email: userEmail, type: 'human_user' },
@@ -168,6 +184,7 @@ export async function POST(request: NextRequest) {
       target: { table: 'operations_stop_records', id: after.id },
       payload: { before, after },
     });
+    if (change !== null) await auditCompletionChange(change, { user_id: user.id, email: userEmail });
 
     return NextResponse.json({ record: after, changed: true }, { status: before === null ? 201 : 200 });
   } catch (error) {

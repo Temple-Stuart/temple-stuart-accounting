@@ -60,7 +60,10 @@ test('every export form is read — the destructured PUT a `function|const` coun
   // WEEK-02 (2026-09-30): + src/app/api/operations/routines/[id]/completions/[completionId]/route.ts PATCH — a
   // done's note edited; an owned writer the ownership law reads (the cart-plan gate first, the completion read by
   // { id, routine_id, user_id } and refused on a miss, the update keyed on that owned row); the only change.
-  assert.ok(narrow.includes('src/app/api/operations/routines/[id]/completions/[completionId]/route.ts'));
+  // TASKS-ONE-02 (2026-10-14): that PATCH is DELETED with its route — the note's one caller (the week grid) went with
+  // the grid (Alex's ruling), and a write route with no caller is attack surface. Moved, not loosened: it is gone.
+  assert.ok(!narrow.includes('src/app/api/operations/routines/[id]/completions/[completionId]/route.ts'));
+  assert.ok(!all.includes('src/app/api/operations/routines/[id]/completions/route.ts'), 'the completions POST went with it');
   // STAY-01 (2026-10-12): the stay's PATCH and DELETE, one route file — named, so the count moves by exactly one.
   assert.ok(narrow.includes('src/app/api/operations/stays/[id]/route.ts'));
   // STOP-01 (2026-10-12): the stop record's DELETE, one route file — named, so the count moves by exactly one.
@@ -68,8 +71,8 @@ test('every export form is read — the destructured PUT a `function|const` coun
   // JOURNAL-01 (2026-10-13): the journal's PUT and its DELETE, two route files — named, so the count moves by exactly two.
   assert.ok(narrow.includes('src/app/api/operations/journal/route.ts'));
   assert.ok(narrow.includes('src/app/api/operations/journal/[id]/route.ts'));
-  assert.equal(narrow.length, 45, 'the count the ruling verified on main 11445ca1 (47), + the plan-vendors DELETE (VENDOR-01), − the four legacy-planner routes (LEGACY-DEL-01), − the four option routes (LEGACY-DEL-02), + the completion note PATCH (WEEK-02), + the stay PATCH/DELETE (STAY-01), + the stop record DELETE (STOP-01), + the journal PUT and DELETE (JOURNAL-01)');
-  assert.equal(wide.length, 46, 'the census: 45 + the inngest route (49 before the four legacy-planner routes left — LEGACY-DEL-01; 45 before the four option routes left — LEGACY-DEL-02; 41 before the completion note PATCH — WEEK-02; 42 before the stay routes — STAY-01; 43 before the stop record DELETE — STOP-01; 44 before the journal routes — JOURNAL-01)');
+  assert.equal(narrow.length, 44, 'the count the ruling verified on main 11445ca1 (47), + the plan-vendors DELETE (VENDOR-01), − the four legacy-planner routes (LEGACY-DEL-01), − the four option routes (LEGACY-DEL-02), + the completion note PATCH (WEEK-02), + the stay PATCH/DELETE (STAY-01), + the stop record DELETE (STOP-01), + the journal PUT and DELETE (JOURNAL-01), − the completion note PATCH (TASKS-ONE-02)');
+  assert.equal(wide.length, 45, 'the census: 44 + the inngest route (49 before the four legacy-planner routes left — LEGACY-DEL-01; 45 before the four option routes left — LEGACY-DEL-02; 41 before the completion note PATCH — WEEK-02; 42 before the stay routes — STAY-01; 43 before the stop record DELETE — STOP-01; 44 before the journal routes — JOURNAL-01; 46 before the completion note PATCH left — TASKS-ONE-02)');
   assert.deepEqual(wide.filter((f) => !narrow.includes(f)), ['src/app/api/inngest/route.ts']);
 });
 

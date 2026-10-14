@@ -5,6 +5,8 @@ import { TOOL_GATE } from '../offer';
 import { TOOL_REGISTRY } from '../toolRegistry';
 import { assessDeletion, describeBlockers, removalSummary, type DeletionFacts } from '../operations/projectDeletion';
 import { code, comments } from '../sourceText';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 /**
  * TASKS-01 — TASKS IS TWO LISTS — PROJECTS AND ROUTINES — AND EVERYTHING ELSE
@@ -20,32 +22,45 @@ const ROW_VIEW = 'src/components/workbench/operations/projects/ProjectRowView.ts
 const PIPE_VIEW = 'src/components/workbench/operations/projects/TruthMachineView.tsx';
 const ROUTINE_LIST = 'src/components/workbench/operations/routines/RoutineList.tsx';
 const ROUTINE_ROW = 'src/components/workbench/operations/routines/RoutineRow.tsx';
+// TASKS-ONE-02 (2026-10-14): TodaysStrip.tsx is deleted (Alex's ruling: the day card replaces the Today strip). The
+// path stays named so the tests below can say it is gone; Today's mark-done is the stop form's "✓ done now".
 const TODAY = 'src/components/workbench/operations/routines/TodaysStrip.tsx';
+const STOP_FORM = 'src/components/workbench/operations/stops/StopForm.tsx';
+const DAY_CARD = 'src/components/workbench/operations/day/DayCard.tsx';
 const DELETE_ROUTE = 'src/app/api/operations/projects/[id]/route.ts';
 const PREVIEW_ROUTE = 'src/app/api/operations/projects/[id]/deletion/route.ts';
 
-const TASKS_TREE = [PAGE, SECTION_D, SECTION_E, ROW, ROW_VIEW, PIPE_VIEW, ROUTINE_LIST, ROUTINE_ROW, TODAY,
-  'src/components/workbench/operations/SectionC_DailyPlan.tsx',
+// TASKS-ONE-02 (2026-10-14): TodaysStrip, SectionC_DailyPlan, DailyPlanRoutineRow, WeekSection and WeekCell are
+// DELETED (Alex's ruling: the day card replaces the week grid, the Daily plan and the Today strip) — they leave the
+// tree with their code (TASKS_GONE, checked absent below); the day card and its stop form, now on the page, join it.
+const TASKS_TREE = [PAGE, SECTION_D, SECTION_E, ROW, ROW_VIEW, PIPE_VIEW, ROUTINE_LIST, ROUTINE_ROW,
   'src/components/workbench/operations/projects/TaskList.tsx',
-  'src/components/workbench/operations/dailyplan/DailyPlanRoutineRow.tsx',
   // PROJECTS-01 (2026-09-30): the projects list's markup moved into the one
   // table — its files are in the tree, and draw no strip either.
   'src/components/workbench/operations/projects/ProjectsTable.tsx',
   'src/components/workbench/operations/projects/ProjectTableRows.tsx',
   'src/components/workbench/operations/projects/TaskTableRow.tsx',
   // WEEK-01 (2026-09-30): this week, first on the page — its files are in the tree too.
+  'src/components/workbench/operations/routines/RefusedRoutines.tsx',
+  DAY_CARD, STOP_FORM];
+const TASKS_GONE = [TODAY,
+  'src/components/workbench/operations/SectionC_DailyPlan.tsx',
+  'src/components/workbench/operations/dailyplan/DailyPlanRoutineRow.tsx',
   'src/components/workbench/operations/week/WeekSection.tsx',
-  'src/components/workbench/operations/week/WeekCell.tsx',
-  'src/components/workbench/operations/routines/RefusedRoutines.tsx'];
+  'src/components/workbench/operations/week/WeekCell.tsx'];
 
 // ───────────────────────────────────────────────────────────────────────────
-test('the page is two lists and the daily plan — no strip, no pipe label, no receipts', () => {
+// TASKS-ONE-02 (2026-10-14): the title said "and the daily plan" — the Daily plan is deleted (Alex's ruling), so the
+// pin moved with the page: the day card, then the two lists.
+test('the page is the day card and two lists — no strip, no pipe label, no receipts', () => {
   const page = code(PAGE);
   assert.match(page, /<SectionD_ProjectBacklog \/>/);
   assert.match(page, /<SectionE_Routines \/>/);
-  assert.match(page, /<SectionC_DailyPlan \/>/);
   // WEEK-01 (2026-09-30): a fourth mount, FIRST — this week, then the two lists and the daily plan.
-  assert.match(page, /<WeekSection \/>\s*<SectionD_ProjectBacklog \/>\s*<SectionE_Routines \/>\s*<SectionC_DailyPlan \/>/);
+  // TASKS-ONE-02 (2026-10-14): the week and the daily plan are deleted — the day card replaces them. Three mounts, in order.
+  assert.match(page, /<DayCard \/>\s*<\/Suspense>\s*<SectionD_ProjectBacklog \/>\s*<SectionE_Routines \/>\s*<\/div>/);
+  assert.doesNotMatch(page, /WeekSection|SectionC_DailyPlan|TodaysStrip/);
+  for (const f of TASKS_GONE) assert.ok(!existsSync(resolve(process.cwd(), f)), `${f} is deleted`);
   assert.doesNotMatch(page, /data-pipe-section|data-pipe-label|PIPE_LABEL|PIPE_PHASES|<StageStrip|<ProofStrip/);
   // The tool header stays: family, name, registry line — nothing else.
   assert.equal((page.match(/<ToolOpener/g) ?? []).length, 1);
@@ -89,17 +104,17 @@ test('the projects list keeps its controls: + new, edit, delete, archive, show a
   assert.match(comments(PIPE_VIEW), /TASKS-01 \(2026-09-18\): the per-project StageStrip and the ProofStrip receipts are GONE/);
 });
 
-test('the routines list keeps its controls: grouped by cadence, + new, edit, delete, show inactive — with Today above it', () => {
+// TASKS-ONE-02 (2026-10-14): the title said "with Today above it" — Today is deleted (Alex's ruling: the day card
+// replaces the Today strip). The pin moved: the list alone, and Today's mark-done is the day card's stop form.
+test('the routines list keeps its controls: grouped by cadence, + new, edit, delete, show inactive — and mark-done is the day card\'s', () => {
   const e = code(SECTION_E);
-  assert.match(e, /<TodaysStrip/);
-  assert.match(e, /<RoutineList/);
+  assert.doesNotMatch(e, /TodaysStrip/, 'Today is gone from the section — here and in the cockpit that mounts it');
+  assert.match(e, /<RoutineList entities=\{entities\} \/>/);
   assert.match(e, />Routines</);
   assert.doesNotMatch(e, /StageStrip|ProofStrip|PIPE_PHASES|SectionHeader|onTotals|hasStreak/);
-  // Two counters, so a commit on one surface refetches only the OTHER.
-  assert.match(e, /refreshKey=\{listVersion\}/);
-  assert.match(e, /refreshKey=\{todayVersion\}/);
-  assert.match(e, /onCommitted=\{\(\) => setTodayVersion\(\(n\) => n \+ 1\)\}/);
-  assert.match(e, /onCommitted=\{\(\) => setListVersion\(\(n\) => n \+ 1\)\}/);
+  // The two counters let Today and the list refetch each other — with Today gone, they went (moved, not loosened:
+  // there is no other surface on the section to refetch).
+  assert.doesNotMatch(e, /refreshKey|onCommitted|listVersion|todayVersion|createRequest/);
   const l = code(ROUTINE_LIST);
   assert.match(l, /\+ new routine/);
   assert.match(l, /show inactive/);
@@ -109,10 +124,11 @@ test('the routines list keeps its controls: grouped by cadence, + new, edit, del
   assert.match(r, /setEditing\(true\)/, 'edit is a control on the row');
   assert.match(r, /handleDelete/, 'delete is a control on the row');
   assert.match(r, /data-routine-next-due/);
-  const t = code(TODAY);
-  assert.match(t, /✓ mark done/);
-  assert.match(t, /\{totalDone\} done · \{totalDue\} due · \{totalMissed\} missed/);
-  assert.match(t, /\}, \[refreshKey\]\);/);
+  // Today's "✓ mark done" moved to the day card's stop form — its done record is the routine's done
+  // (src/lib/operations/routineCompletion.ts); the done · due · missed line went with the strip.
+  assert.ok(!existsSync(resolve(process.cwd(), TODAY)), 'TodaysStrip is deleted');
+  assert.match(code(STOP_FORM), /onClick=\{doneNow\} data-stop-done-now>✓ done now</);
+  assert.match(code(DAY_CARD), /<StopForm/);
 });
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -210,8 +226,10 @@ test('the route: user-scoped 404, the check inside the transaction, 409 naming t
 
 // ───────────────────────────────────────────────────────────────────────────
 test('no 🔥 — no streak renders on any customer surface; the writers and the columns stay', () => {
-  for (const f of [ROUTINE_ROW, TODAY, ROUTINE_LIST, SECTION_E,
-    'src/components/workbench/operations/dailyplan/DailyPlanRoutineRow.tsx',
+  // TASKS-ONE-02 (2026-10-14): TodaysStrip and DailyPlanRoutineRow are deleted — they leave the list with their code;
+  // the day card and its stop form, where a routine is marked done now, join it.
+  for (const f of [ROUTINE_ROW, ROUTINE_LIST, SECTION_E, DAY_CARD, STOP_FORM,
+    'src/components/workbench/operations/day/dayCard.ts',
     'src/components/home/RoutinesShowcaseSections.tsx',
     'src/app/agenda/[id]/page.tsx']) {
     const body = code(f);
@@ -222,13 +240,13 @@ test('no 🔥 — no streak renders on any customer surface; the writers and the
   const r = code(ROUTINE_ROW);
   assert.match(r, /routinePlanned\(/);
   assert.match(r, /next: \{formatDateTime\(routine\.next_due_at, routine\.timezone\)\}/);
-  // Today's DONE / DUE / MISSED come from the today feed's statuses, not from a streak.
-  const t = code(TODAY);
-  assert.match(t, /e\.status === 'completed'/);
-  assert.match(t, /e\.status === 'missed'/);
-  assert.doesNotMatch(t, /consecutive_/);
+  // Today's DONE / DUE / MISSED came from the today feed's statuses, not from a streak — TASKS-ONE-02 (2026-10-14):
+  // Today is deleted, and the feed's statuses are still the today route's (the day card reads it, no streak).
+  assert.doesNotMatch(code('src/app/api/operations/routines/today/route.ts'), /consecutive_/);
   // The writers are untouched, and the columns are still in the schema.
-  assert.match(code('src/app/api/operations/routines/[id]/completions/route.ts'), /consecutive_completion_streak: routine\.consecutive_completion_streak \+ 1/);
+  // TASKS-ONE-02 (2026-10-14): the completions route is deleted; its streak write moved, as it was, into the one
+  // completion writer the stops routes call — moved, never loosened.
+  assert.match(code('src/lib/operations/routineCompletion.ts'), /consecutive_completion_streak: routine\.consecutive_completion_streak \+ 1/);
   assert.match(code('src/inngest/functions/routine-evaluator.ts'), /consecutive_miss_streak: r\.consecutive_miss_streak \+ routineMissCount/);
   assert.match(code('prisma/schema.prisma'), /consecutive_completion_streak/);
   assert.match(code('prisma/schema.prisma'), /consecutive_miss_streak/);
@@ -257,8 +275,10 @@ test('the registry why is a customer\'s line; the founder note is a code comment
 });
 
 test('every lettered header lost its letter', () => {
+  // TASKS-ONE-02 (2026-10-14): SectionC_DailyPlan.tsx ('DAILY PLAN') is deleted with the Daily plan — it leaves
+  // the list with its code; it cannot wear a letter it does not have.
+  assert.ok(!existsSync(resolve(process.cwd(), 'src/components/workbench/operations/SectionC_DailyPlan.tsx')));
   for (const [f, header] of [
-    ['src/components/workbench/operations/SectionC_DailyPlan.tsx', 'DAILY PLAN'],
     ['src/components/workbench/operations/SectionB_NorthStar.tsx', 'NORTH STAR'],
     ['src/components/workbench/operations/SectionK_AuditTail.tsx', 'AUDIT TRAIL'],
     ['src/components/workbench/operations/content/SectionG_Content.tsx', 'CONTENT'],

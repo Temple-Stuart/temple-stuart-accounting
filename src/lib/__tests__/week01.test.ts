@@ -6,31 +6,38 @@
  * The day module and the week's rules are pure and DRIVEN over fixtures; the
  * shared completion writer is driven over a stubbed fetch; the route and the
  * screens are anchored to their source with comments stripped (TEST-TRUTH-01).
+ *
+ * TASKS-ONE-02 (2026-10-14) — Alex's ruling: the day card replaces the week grid,
+ * the Daily plan and the Today strip. The week (WeekSection, WeekCell, weekPlan),
+ * the shared writer (completeRoutine), TodaysStrip and SectionC_DailyPlan are
+ * DELETED, and the completions POST with them; the pins on their code went with
+ * the code — each replaced by a pin that it is gone and nothing imports it (T3/T4
+ * below, and tasksOne02.test.ts). Every pin on code that stays is kept or moved:
+ * the day module and the today route (T1, T2), weekReads' reads, the browser's
+ * date, Budget's vendor box, the status words, and the screen scan for a
+ * completions URL — which now finds none.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { code, comments } from '../sourceText';
+import { code } from '../sourceText';
 import { NOT_PLACED_REASONS } from '../budget/days';
-import { viewRange } from '../budget/report';
-import type { PlanLine } from '../budget/planLines';
 import { parseDayParam, routineDay, routineStatus, type RoutineDayInput } from '../operations/routineDay';
-import { completeRoutine } from '@/components/workbench/operations/routines/completeRoutine';
 import { TODAY_STATUS_LABEL } from '@/components/workbench/operations/routines/types';
-import {
-  COMPLETABLE, cellKey, offersDone, orderRoutines, placeLines, shiftWeek, timeWindow, weekDays, type WeekRoutine,
-} from '@/components/workbench/operations/week/weekPlan';
 
 const ROUTE = 'src/app/api/operations/routines/today/route.ts';
 const MODULE = 'src/lib/operations/routineDay.ts';
+// TASKS-ONE-02 (2026-10-14): the first six are deleted — named so the tests below can say so.
 const STRIP = 'src/components/workbench/operations/routines/TodaysStrip.tsx';
 const PLAN = 'src/components/workbench/operations/SectionC_DailyPlan.tsx';
 const WEEK = 'src/components/workbench/operations/week/WeekSection.tsx';
 const CELL = 'src/components/workbench/operations/week/WeekCell.tsx';
 const RULES = 'src/components/workbench/operations/week/weekPlan.ts';
-const READS = 'src/components/workbench/operations/week/weekReads.ts';
 const WRITER = 'src/components/workbench/operations/routines/completeRoutine.ts';
+const GONE = [STRIP, PLAN, WEEK, CELL, RULES, WRITER];
+const READS = 'src/components/workbench/operations/week/weekReads.ts';
+const CARD = 'src/components/workbench/operations/day/DayCard.tsx';
 const DRILL = 'src/components/budget/DayPlanDrill.tsx';
 const SCREEN = 'src/components/budget/BudgetReport.tsx';
 const TODAY_MODULE = 'src/lib/localToday.ts';
@@ -162,71 +169,27 @@ test('T2 the route drops nothing: refused in the response, no console-and-skip, 
 });
 
 // ── T3 · THE WEEK ────────────────────────────────────────────────────────────
+// TASKS-ONE-02 (2026-10-14): the week is DELETED (Alex's ruling: the day card replaces the week grid). Its rules
+// (weekDays, shiftWeek, orderRoutines, timeWindow, placeLines, offersDone over COMPLETABLE), its section's reads and
+// rows, its cell's done/note/vendor box and its named-above-the-grid lines were pinned here; they went with the code.
+// What stays is pinned below: the reads file (the ruling keeps it — the day card reads through it), the browser's
+// date, Budget's vendor box, and that the week is gone with nothing importing it.
 
-test('T3 the seven days from viewRange — Monday to Sunday, across a month and a year', () => {
-  assert.deepEqual(weekDays('2026-10-01'), ['2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04']);
-  assert.deepEqual(weekDays('2026-12-31').slice(3), ['2026-12-31', '2027-01-01', '2027-01-02', '2027-01-03']);
-  for (const d of ['2026-10-01', '2026-12-31', '2027-03-08']) {
-    const { rangeFrom, rangeTo } = viewRange({ kind: 'week', weekOf: d });
-    assert.equal(weekDays(d)[0], rangeFrom);
-    assert.equal(weekDays(d)[6], rangeTo);
-  }
-  assert.equal(shiftWeek('2026-10-01', 0), '2026-09-28');
-  assert.equal(shiftWeek('2026-10-01', 1), '2026-10-05');
-  assert.equal(shiftWeek('2026-10-01', -1), '2026-09-21');
-  assert.match(code(RULES), /const \{ rangeFrom, rangeTo \} = viewRange\(\{ kind: 'week', weekOf \}\);/, 'the model’s one Monday rule');
+test('T3 the week is gone — its files deleted and nothing imports them; the page mounts no week', () => {
+  for (const f of GONE) assert.ok(!existsSync(resolve(process.cwd(), f)), `${f} is deleted`);
+  // The tests name the deleted paths to say they are gone; a test that IMPORTED one would not load (tsc, npm test).
+  const importers = [...tsFilesUnder('src'), ...tsFilesUnder('scripts')]
+    .filter((f) => !f.includes('__tests__'))
+    .filter((f) => /\/(TodaysStrip|SectionC_DailyPlan|WeekSection|WeekCell|weekPlan|completeRoutine)'/.test(code(f)));
+  assert.deepEqual(importers, [], 'no file imports a deleted one');
+  // TASKS-ONE-01 (2026-10-14): this week came directly under the day card. TASKS-ONE-02: the week is deleted — the
+  // pin moved to its absence: the day card, then the projects list.
+  const page = code(PAGE);
+  assert.doesNotMatch(page, /WeekSection/);
+  assert.match(page, /<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Tasks">\n\s*<Suspense>\n\s*<DayCard \/>\n\s*<\/Suspense>\n\s*<SectionD_ProjectBacklog \/>/);
 });
 
-test('T3 the rows: by start time, then name; no start time last', () => {
-  const r = (id: string, name: string, start: string | null): WeekRoutine => ({ id, name, start_time: start === null ? null : `1970-01-01T${start}:00.000Z`, steps: [] });
-  const rows = orderRoutines([r('e', 'Evening', null), r('d', 'Dinner', '17:30'), r('x', 'Execution Plan', '07:30'), r('v', 'Daily Vision', '07:00'), r('b', 'Brunch', '11:00'), r('a', 'Anchor', null)]);
-  assert.deepEqual(rows.map((x) => x.name), ['Daily Vision', 'Execution Plan', 'Brunch', 'Dinner', 'Anchor', 'Evening']);
-  assert.equal(timeWindow('1970-01-01T07:00:00.000Z', '1970-01-01T07:30:00.000Z'), '07:00–07:30');
-  assert.equal(timeWindow('1970-01-01T17:30:00.000Z', null), 'from 17:30');
-  assert.equal(timeWindow(null, null), null);
-});
-
-test('T3 the report\'s lines, placed by address kind — a line with no row is named, never dropped', () => {
-  const line = (kind: PlanLine['address']['kind'], id: string, day: string, label = 'x'): PlanLine => ({
-    entityId: 'e_me', code: '6110', day, cents: 1500, source: kind === 'project_task' ? 'task' : 'routine', label, line: null, time: null,
-    address: { kind, id, instant: kind === 'project_task' ? null : `${day}T05:00:00.000Z` }, vendor: null,
-  });
-  const routines: WeekRoutine[] = [
-    { id: 'brunch', name: 'Brunch', start_time: null, steps: [] },
-    { id: 'evening', name: 'Evening', start_time: null, steps: [{ id: 'step-bar' }, { id: 'step-taxi' }] },
-  ];
-  const p = placeLines([
-    line('routine', 'brunch', '2026-09-30'),
-    line('routine_line', 'step-bar', '2026-09-30'),
-    line('routine_line', 'step-taxi', '2026-09-30'),
-    line('project_task', 'task-1', '2026-10-01'),
-    line('routine', 'gone', '2026-09-30', 'Gone'),
-    line('routine_line', 'step-gone', '2026-09-30', 'Gone too'),
-  ], routines);
-  assert.equal(p.routineCells.get(cellKey('brunch', '2026-09-30'))?.length, 1);
-  assert.deepEqual(p.routineCells.get(cellKey('evening', '2026-09-30'))?.map((l) => l.address.id), ['step-bar', 'step-taxi'], "a line sits in its routine's row");
-  assert.deepEqual(p.taskCells.get('2026-10-01')?.map((l) => l.address.id), ['task-1']);
-  assert.deepEqual(p.withoutRow.map((l) => l.label), ['Gone', 'Gone too']);
-});
-
-test('T3 a cell\'s done: today or earlier, on the statuses Today completes — never a later day', () => {
-  assert.deepEqual(COMPLETABLE, ['pending', 'upcoming', 'missed']);
-  // Held to Today's own rule, line for line.
-  assert.match(code(STRIP), /const canComplete = e\.status === 'pending' \|\| e\.status === 'upcoming' \|\| e\.status === 'missed';/);
-  assert.equal(offersDone('pending', '2026-09-30', '2026-09-30'), true, 'today');
-  assert.equal(offersDone('missed', '2026-09-28', '2026-09-30'), true, 'an earlier day');
-  assert.equal(offersDone('upcoming', '2026-10-01', '2026-09-30'), false, 'a later day offers no done');
-  assert.equal(offersDone('completed', '2026-09-30', '2026-09-30'), false);
-});
-
-test('T3 the section: seven day reads, one report read, one range read of the daily plan — and no other fetch', () => {
-  const w = code(WEEK);
-  assert.match(w, /Promise\.all\(days\.map\(async \(day\) => \[day, await readDay\(day\)\] as const\)\)/, 'one today?date read per day');
-  assert.match(w, /readItems\(days\[0\], days\[6\]\)/, 'Monday to Sunday, one read');
-  assert.match(w, /const r = await readReport\(weekOf, today\);/, 'asOf is the browser’s date');
-  assert.match(w, /const directory = useDirectory\(\);/);
-  assert.equal((w.match(/useDirectory\(\)/g) ?? []).length, 1, 'one directory for the section');
-  assert.match(w, /const t = localToday\(\);/);
+test('T3 the reads stay: four URLs through one fetch in the one reader; signed out named; the day card reads through it', () => {
   const reads = code(READS);
   const urls = [...reads.matchAll(/await readJson\((.+)\);$/gm)].map((m) => m[1]);
   assert.deepEqual(urls, [
@@ -237,58 +200,20 @@ test('T3 the section: seven day reads, one report read, one range read of the da
   ]);
   assert.match(reads, /new URLSearchParams\(\{ view: 'week', weekOf, asOf \}\)/);
   assert.equal((reads.match(/\bfetch\s*\(/g) ?? []).length, 1, 'one fetch, in the one reader');
-  for (const f of [WEEK, CELL, RULES]) assert.doesNotMatch(code(f), /\bfetch\s*\(/, `${f} fetches nothing of its own`);
-  // The rows: the active routines, ordered; the head reads the lines leaf.
-  assert.match(w, /const rows = routines !== null && routines\.ok \? orderRoutines\(routines\.value\) : \[\];/);
-  assert.match(w, /routinePlanned\(\{ budget_amount: r\.budget_amount \?\? null, coa_code: r\.coa_code \?\? null, steps: r\.steps \}\)/);
-  assert.match(w, /\{plannedLine\(planned\)\}/);
-  assert.match(w, /return book \? book\.name : ACCOUNT_CELL_WORDS\.bookNotLoaded;/);
-});
-
-test('T3 a cell: "—", done with its note in full, or a note box and ✓ done sent through the shared writer', () => {
-  const c = code(CELL);
-  assert.match(c, /if \(entry === undefined\) \{\n\s*return \(\n\s*<>\n\s*<span className="text-text-muted">—<\/span>/);
-  assert.match(c, /✓ done \{instantToZoned\(new Date\(entry\.completion\.completed_at\), timezone\)\.time\}/);
-  assert.match(c, /\{entry\.completion\.notes !== null && \(\n\s*<div className="mt-0\.5 whitespace-pre-wrap[^"]*" data-week-note>\{entry\.completion\.notes\}<\/div>/, 'the note in full');
-  assert.match(c, /\{TODAY_STATUS_LABEL\[entry\.status\]\}/, "Today's words");
-  assert.match(c, /\{offersDone\(entry\.status, day, today\) && \(/);
-  assert.match(c, /const answer = await completeRoutine\(entry\.routine\.id, entry\.expected_at, note\.trim\(\) === '' \? undefined : note\);/);
-  assert.match(c, /if \(!answer\.ok\) \{ setWords\(answer\.message\); return; \}/, "a refusal is the route's own words, in the cell");
-  // WEEK-02 (2026-09-30): a done's note is edited now — through the one writer; the cell still sends nothing of its own.
-  assert.doesNotMatch(c, /method: 'PATCH'|\/completions/, 'the edit goes through the one writer — the cell names no route');
-  assert.match(c, /await editCompletionNote\(entry\.routine\.id, entry\.completion\.id, draft\)/, "the writer's edit, with the row's routine and its completion");
-  // The amount and Budget's own vendor box — imported, never copied.
-  assert.match(c, /import \{ VendorBox, type useDirectory \} from '@\/components\/budget\/DayPlanDrill';/);
-  assert.match(c, /<VendorBox line=\{line\} bookName=\{bookName\(line\.entityId\)\} directory=\{directory\} reload=\{reload\} \/>/);
-  assert.match(c, /\{formatCents\(line\.cents\)\}/);
+  assert.equal((reads.match(/SIGNED_OUT_WORDS/g) ?? []).length, 2, 'a redirect or a 401 reads as signed out');
+  // TASKS-ONE-02: the week's readDay / readItems callers moved — the day card is the reader now.
+  assert.match(code(CARD), /import \{ readDay, readItems, type DayAnswer, type Read \} from '\.\.\/week\/weekReads';/);
   for (const f of tsFilesUnder('src/components/workbench/operations/week')) {
     assert.doesNotMatch(code(f), /plan-vendors|vendor-directory|function VendorBox/, `${f} copies no vendor box`);
   }
-});
-
-test('T3 named above the grid: refused routines, the report\'s own words, stranded vendors, lines with no row; the Tasks row from the range read', () => {
-  const w = code(WEEK);
-  assert.match(w, /<RefusedRoutines refused=\{refused\} \/>/);
-  assert.match(w, /\{report !== null && !report\.ok && <p[^>]*data-week-report-failed>\{report\.words\}<\/p>\}/);
-  assert.match(w, /\{plans !== null && plans\.listed && plans\.stranded\.length > 0 && \(/);
-  assert.match(w, /\{placed\.withoutRow\.length > 0 && \(/);
-  // The report's failure leaves the rest standing: the rows, cells and tasks do not read it.
-  assert.match(w, /const plans = report !== null && report\.ok \? report\.value\.plans : null;/);
-  // The Tasks row: the day's items — the task's title and its status in the labels' words, or an ad hoc title.
-  assert.match(w, /it\.plan_date\.slice\(0, 10\) === day/);
-  assert.match(w, /\{it\.task\.title\}<\/span>\n\s*<span className="text-text-muted"> · \{taskStatusWords\(it\.task\.status\)\}<\/span>/);
-  assert.match(w, /\{it\.ad_hoc_title\}/);
-  assert.match(w, /const lines = placed\.taskCells\.get\(day\) \?\? \[\];/);
-  assert.equal((code(READS).match(/SIGNED_OUT_WORDS/g) ?? []).length, 2, 'a redirect or a 401 reads as signed out');
-  // Today's column is marked.
-  assert.match(w, /data-week-today=\{day === today \? '' : undefined\}/);
 });
 
 test('T3 the browser\'s date, once: moved out of BudgetReport, outside the Budget code', () => {
   assert.match(code(TODAY_MODULE), /export function localToday\(\): string \{/);
   assert.match(code(SCREEN), /import \{ localToday \} from '@\/lib\/localToday';/);
   assert.doesNotMatch(code(SCREEN), /function localToday\(/);
-  assert.match(code(WEEK), /import \{ localToday \} from '@\/lib\/localToday';/);
+  // TASKS-ONE-02 (2026-10-14): the week read it; the week is deleted — the day card reads it (moved).
+  assert.match(code(CARD), /import \{ localToday \} from '@\/lib\/localToday';/);
   const readers = [...tsFilesUnder('src/app'), ...tsFilesUnder('src/components'), ...tsFilesUnder('src/lib')]
     .filter((f) => !f.includes('__tests__') && /getFullYear\(\)/.test(code(f)) && /getMonth\(\)/.test(code(f)) && /getDate\(\)/.test(code(f)) && /padStart/.test(code(f)));
   assert.ok(readers.includes(TODAY_MODULE));
@@ -300,66 +225,18 @@ test('T3 the browser\'s date, once: moved out of BudgetReport, outside the Budge
   assert.equal((d.match(/\bfetch\s*\(/g) ?? []).length, 4);
 });
 
-// TASKS-ONE-01 (2026-10-14): this week was the first mount; the day card is first now (Alex's ruling — one Tasks
-// page, no sub-tabs), in its Suspense boundary, and this week comes directly under it — the pin moved by one mount.
-test('T3 the page mounts this week directly under the day card', () => {
-  const page = code(PAGE);
-  assert.match(page, /<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Tasks">\n\s*<Suspense>\n\s*<DayCard \/>\n\s*<\/Suspense>\n\s*<WeekSection \/>\n\s*<SectionD_ProjectBacklog \/>/);
-});
-
 // ── T4 · ONE WRITER; TODAY AND THE DAILY PLAN NAME WHAT THEY CANNOT PLACE ────
+// TASKS-ONE-02 (2026-10-14): the shared writer (completeRoutine — its body, its note, its refusal words), Today's
+// mark-done through it and the Daily Plan's refused list were pinned here; all three are DELETED. A routine is done
+// now when its stop records say so (routineDone.ts, tasksOne02.test.ts), and the day card names a refused routine.
 
-test('T4 the shared writer: with no note the body is Today\'s, byte for byte; with one, the note rides along', async () => {
-  const sent: { url: string; init: RequestInit }[] = [];
-  const realFetch = globalThis.fetch;
-  globalThis.fetch = (async (url: string, init: RequestInit) => {
-    sent.push({ url, init });
-    return new Response(JSON.stringify({ completion: { id: 'c1' } }), { status: 201, headers: { 'content-type': 'application/json' } });
-  }) as typeof fetch;
-  try {
-    assert.deepEqual(await completeRoutine('r1', '2026-09-30T00:00:00.000Z'), { ok: true });
-    assert.deepEqual(await completeRoutine('r1', '2026-09-30T00:00:00.000Z', 'Clear head. Ship WEEK-01.'), { ok: true });
-  } finally {
-    globalThis.fetch = realFetch;
-  }
-  assert.equal(sent[0].url, '/api/operations/routines/r1/completions');
-  assert.equal(sent[0].init.method, 'POST');
-  assert.deepEqual(sent[0].init.headers, { 'Content-Type': 'application/json' });
-  assert.equal(sent[0].init.body, '{"expected_at":"2026-09-30T00:00:00.000Z"}', 'exactly what Today always sent');
-  assert.equal(sent[1].init.body, '{"expected_at":"2026-09-30T00:00:00.000Z","notes":"Clear head. Ship WEEK-01."}');
-});
-
-test('T4 the writer\'s refusal is the route\'s own words — the order Today read them in', async () => {
-  const realFetch = globalThis.fetch;
-  const answer = (body: object, status: number) => {
-    globalThis.fetch = (async () => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })) as typeof fetch;
-    return completeRoutine('r1', '2026-09-30T00:00:00.000Z');
-  };
-  try {
-    assert.deepEqual(await answer({ error: 'Duplicate', message: 'a completion already exists for this expected occurrence' }, 409), { ok: false, message: 'a completion already exists for this expected occurrence' });
-    assert.deepEqual(await answer({ error: 'Not found' }, 404), { ok: false, message: 'Not found' });
-    assert.deepEqual(await answer({}, 500), { ok: false, message: 'failed to mark complete' });
-  } finally {
-    globalThis.fetch = realFetch;
-  }
-});
-
-test('T4 Today marks done through the one writer; Today and the Daily Plan name every refused routine', () => {
-  const s = code(STRIP);
-  assert.match(s, /const answer = await completeRoutine\(routineId, expectedAt\);/, 'no note from Today');
-  assert.doesNotMatch(s, /\/completions/, 'the POST lives in the writer alone');
-  assert.equal((s.match(/<RefusedRoutines refused=\{refused\} \/>/g) ?? []).length, 2, 'in the list and in the empty state');
-  assert.match(s, /setRefused\(body\.refused\);/);
-  assert.match(s, /\{TODAY_STATUS_LABEL\[e\.status\]\}/);
-  assert.doesNotMatch(s, /const STATUS_LABEL/, 'one copy of the words');
-  assert.deepEqual(TODAY_STATUS_LABEL, { pending: 'pending', completed: 'completed', missed: 'missed', upcoming: 'upcoming' });
-  const p = code(PLAN);
-  assert.match(p, /setRefused\(body\.refused\);/);
-  assert.match(p, /<RefusedRoutines refused=\{refused\} \/>/);
-  assert.match(p, /const showEmpty = !hasRoutines && !hasRefused && !hasItems && !loading && !error;/, 'a refused routine is never hidden behind "nothing scheduled"');
-  // The writer is the only place a completion is posted from a screen.
+test('T4 no screen posts a completion now; the status words stay one copy; the day card names every refused routine', () => {
   // WEEK-02 (2026-09-30): the scan reads every completions URL — the POST's and the PATCH's.
-  const posters = [...tsFilesUnder('src/components'), ...tsFilesUnder('src/app')].filter((f) => !f.startsWith('src/app/api/') && /\/completions(`|\/\$\{)/.test(code(f)));
-  assert.deepEqual(posters, [WRITER]);
-  assert.match(comments(WRITER), /With no note the body\s*\n\s*\*\s*is exactly what Today always sent/);
+  // TASKS-ONE-02 (2026-10-14): the writer was the only one; it is deleted with both routes — the scan finds none.
+  const posters = [...tsFilesUnder('src/components'), ...tsFilesUnder('src/app')].filter((f) => /\/completions(`|\/\$\{|')/.test(code(f)));
+  assert.deepEqual(posters, []);
+  assert.deepEqual(TODAY_STATUS_LABEL, { pending: 'pending', completed: 'completed', missed: 'missed', upcoming: 'upcoming' });
+  const c = code(CARD);
+  assert.match(c, /const refused = dayRead !== null && dayRead\.ok \? dayRead\.value\.refused : \[\];/);
+  assert.match(c, /<RefusedRoutines refused=\{refused\} \/>/);
 });

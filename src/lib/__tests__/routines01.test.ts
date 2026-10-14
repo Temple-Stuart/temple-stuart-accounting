@@ -224,7 +224,9 @@ test('T2 every code on the table is drawn through the one helper — never a bar
   assert.match(code(LINES), /data-account-state=\{cell\.state\}>\{cell\.text\}</);
   // The entity list is the tab's own — with entity_type — and nothing is fetched anew.
   assert.match(code(SECTION_E), /const \{ entities \} = useOperationsEntity\(\);/);
-  assert.match(code(SECTION_E), /<RoutineList\n\s*entities=\{entities\}/);
+  // TASKS-ONE-02 (2026-10-14): the section mounts the list alone now — Today, and the two refresh props it passed with
+  // it, went with TodaysStrip (Alex's ruling) — so the props fit on one line. Moved: the entity list is still the tab's.
+  assert.match(code(SECTION_E), /<RoutineList entities=\{entities\} \/>/);
   for (const f of [LIST, ROW]) assert.match(code(f), /import type \{ Entity \} from '\.\.\/EntitySelector';/, `${f} takes the entity list with its entity_type`);
   const fetches = TABLE.flatMap((f) => [...code(f).matchAll(/fetch\(\s*([`'][^`']*[`'])/g)].map((m) => m[1]));
   for (const url of fetches) assert.match(url, /^[`']\/api\/operations\/routines/, `the table fetches only the routines routes, not ${url}`);
