@@ -17,18 +17,17 @@ const TASKS = 'src/app/tasks/page.tsx';
 const COCKPIT = 'src/components/home/ModuleLauncher.tsx';
 const SECTION = 'src/components/workbench/operations/SectionB_NorthStar.tsx';
 
-test('the registry row names all three, and each is a rail sub-row of Tasks', () => {
+// TASKS-ONE-01 (2026-10-14): the pin moved from four to two — the Issue log's page is deleted and the day card is
+// the first section of /tasks; the North Star keeps its link and its sub-row, beside Audit trail.
+test('the registry row names the North Star beside Audit trail, and each is a rail sub-row of Tasks', () => {
   const tasks = TOOL_REGISTRY.find((t) => t.name === 'Tasks')!;
   assert.deepEqual((tasks.links ?? []).map((l) => [l.label, l.href]), [
     ['North Star', '/operations/north-star'],
-    ['Issue log', '/operations/issues'],
     ['Audit trail', '/operations/audit-log'],
-    // DAYCARD-01 (2026-10-11): the day card, reached the same way — the pin moved from three to four.
-    ['Day card', '/tasks/day'],
   ]);
   const rail = navToolByName('Tasks', TOOL_GATE);
-  assert.deepEqual(rail.subRows.map((r) => r.label), ['North Star', 'Issue log', 'Audit trail', 'Day card']);
-  assert.deepEqual(rail.subRows.map((r) => r.door.href), ['/operations/north-star', '/operations/issues', '/operations/audit-log', '/tasks/day']);
+  assert.deepEqual(rail.subRows.map((r) => r.label), ['North Star', 'Audit trail']);
+  assert.deepEqual(rail.subRows.map((r) => r.door.href), ['/operations/north-star', '/operations/audit-log']);
   // The door is nobody's screen (navLaw rule 7), and the law is clean.
   assert.deepEqual(navLaw({ throwOnFail: false }), []);
   assert.equal(TOOL_REGISTRY.some((t) => t.home === '/operations/north-star'), false);

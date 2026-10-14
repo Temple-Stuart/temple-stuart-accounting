@@ -2465,10 +2465,15 @@ interface OrphanException { route: string; why: string; todo: string }
  * only SHRINK — the build throws if it grows. Each entry names the page, why it
  * still exists, and the ruling that will resolve it.
  *
- * Both entries are the last real pages of the deleted /operations room. They
+ * Both entries were the last real pages of the deleted /operations room. They
  * would pass branch 2 on their own (toolRegistry.ts:120 — Tasks links both), but
  * ORPHAN-01 names them here deliberately: a survivor should be declared, not
  * merely tolerated by a branch that happens to cover it.
+ *
+ * TASKS-ONE-01 (Alex, 2026-10-14): ORPHAN-02's answer for the issue log — the
+ * page is deleted. It was an unbuilt placeholder that rendered no tool and held
+ * no state; its entry left this list and the maximum came down to the one
+ * survivor, exactly as TRIPS_PATH_TESTS_MAX came down when that list emptied.
  */
 const ORPHAN_EXCEPTIONS: readonly OrphanException[] = [
   {
@@ -2476,14 +2481,9 @@ const ORPHAN_EXCEPTIONS: readonly OrphanException[] = [
     why: 'the operations-filtered hash-chained audit tail (SectionK_AuditTail) — real, working content, and the source phase 06 read before the room was deleted. Tasks links it (src/lib/toolRegistry.ts:120) and src/lib/__tests__/nav.test.ts:110 already records that ownership.',
     todo: 'ORPHAN-02 decides whether it earns a home of its own, moves under /tasks, or belongs to Compliance beside /compliance/audit-log.',
   },
-  {
-    route: '/operations/issues',
-    why: 'an UNBUILT PlaceholderCard ("ISSUE LOG", PR-Ops-6) — it renders no tool and holds no state. Tasks links it (src/lib/toolRegistry.ts:120).',
-    todo: 'ORPHAN-02 decides whether the issue log is built under a tool or the page is deleted; a placeholder is not a tool.',
-  },
 ] as const;
-const ORPHAN_EXCEPTIONS_SET_ON = '2026-09-17';
-const ORPHAN_EXCEPTIONS_MAX = 2; // shrink-only, exactly as MULTI_TOOL_ALLOWED is
+const ORPHAN_EXCEPTIONS_SET_ON = '2026-10-14';
+const ORPHAN_EXCEPTIONS_MAX = 1; // shrink-only, exactly as MULTI_TOOL_ALLOWED is
 
 let orphanViolations = 0;
 const orphanFail = (msg: string) => { orphanViolations += 1; violations.push(`orphan law: ${msg} (ORPHAN-01)`); };
@@ -3340,12 +3340,14 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
   const page = codeOf(TWO_LISTS_PAGE);
   if (/data-pipe-label|PIPE_LABEL|PIPE_PHASES/.test(page)) twoListsFail(`${TWO_LISTS_PAGE} labels a pipe — there is no strip to label`);
   // WEEK-01 (2026-09-30): the page gains a fourth mount, FIRST — this week, then the two lists and the daily plan.
-  const TWO_LISTS_MOUNTS = ['<WeekSection />', '<SectionD_ProjectBacklog />', '<SectionE_Routines />', '<SectionC_DailyPlan />'];
+  // TASKS-ONE-01 — the ruling (Alex, 2026-10-14): the day card is the first section of Tasks — one Tasks page, no
+  // sub-tabs. A fifth mount, FIRST: the day card, then this week, the two lists and the daily plan.
+  const TWO_LISTS_MOUNTS = ['<DayCard />', '<WeekSection />', '<SectionD_ProjectBacklog />', '<SectionE_Routines />', '<SectionC_DailyPlan />'];
   for (const section of TWO_LISTS_MOUNTS) {
-    if (!page.includes(section)) twoListsFail(`${TWO_LISTS_PAGE} no longer mounts ${section} — the page is this week, the projects list, the routines list and the daily plan`);
+    if (!page.includes(section)) twoListsFail(`${TWO_LISTS_PAGE} no longer mounts ${section} — the page is the day card, this week, the projects list, the routines list and the daily plan`);
   }
   const mountAt = TWO_LISTS_MOUNTS.map((section) => page.indexOf(section));
-  if (mountAt.some((at, i) => i > 0 && at < mountAt[i - 1])) twoListsFail(`${TWO_LISTS_PAGE} mounts its sections out of order — this week first, then projects, routines and the daily plan`);
+  if (mountAt.some((at, i) => i > 0 && at < mountAt[i - 1])) twoListsFail(`${TWO_LISTS_PAGE} mounts its sections out of order — the day card first, then this week, projects, routines and the daily plan`);
   if ((PHASES_RENDERED_AT['/tasks'] ?? ['?']).length !== 0) twoListsFail(`nav.ts declares /tasks draws [${(PHASES_RENDERED_AT['/tasks'] ?? []).join(' ')}] — it draws nothing`);
   // Every control the strips held is still a control: the list headers' create
   // buttons, the row's edit/archive/delete and its pipeline door, Today's mark-done.

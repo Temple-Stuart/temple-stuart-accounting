@@ -135,7 +135,9 @@ test('every legacy page hangs under the tool that OWNS it — never another tool
     // the /operations prefix that doored them went with the room.
     // NORTH-01: the North Star joins them, by the same door.
     // DAYCARD-01 (2026-10-11): the day card is the fourth, by the same door.
-    Tasks: ['/operations/north-star', '/operations/issues', '/operations/audit-log', '/tasks/day'],
+    // TASKS-ONE-01 (2026-10-14): two left — the Issue log's page is deleted (an unbuilt placeholder), and the day
+    // card is the first section of /tasks itself, so no sub-row leads to it.
+    Tasks: ['/operations/north-star', '/operations/audit-log'],
     // TRIPS-01 (2026-09-29): Travel is gone from this map — it carries no sub-row, ever.
     // The Travel tab is the one Trips tab; the legacy pages are redirects to it.
     Budget: ['/agenda', '/shopping', '/hub/itinerary', '/runway'],

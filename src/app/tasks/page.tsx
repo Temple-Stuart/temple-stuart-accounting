@@ -37,7 +37,19 @@
  * still Tasks' — reached the way Issue log and Audit trail are, as a sub-row
  * of this tool's rail entry (a `links` entry on the registry row) that opens
  * its own page, src/app/operations/north-star/page.tsx.
+ *
+ * TASKS-ONE-01 (2026-10-14) — Alex's ruling: the day card is the first section
+ * of Tasks — one Tasks page, no sub-tabs. DayCard (day/DayCard.tsx) mounts
+ * first, above the week; its ‹ › and step controls push /tasks?date=&step=, so
+ * the URL stays here, and /tasks/day is one hop to it. The card reads the URL
+ * through useSearchParams and this page is a client page that Next prerenders,
+ * so the card sits in its own <Suspense> boundary — the one Next requires
+ * there; the page around it still prerenders, and the card renders in the
+ * browser from the URL, as it did at /tasks/day. It reads no entity: it is in
+ * the provider only because the sections share one container. The Issue log
+ * link is gone with its page; North Star and Audit trail stay.
  */
+import { Suspense } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
 import ToolOpener from '@/components/shell/ToolOpener';
 import { navToolByName } from '@/lib/nav';
@@ -47,6 +59,7 @@ import SectionC_DailyPlan from '@/components/workbench/operations/SectionC_Daily
 import SectionD_ProjectBacklog from '@/components/workbench/operations/SectionD_ProjectBacklog';
 import SectionE_Routines from '@/components/workbench/operations/SectionE_Routines';
 import WeekSection from '@/components/workbench/operations/week/WeekSection';
+import DayCard from '@/components/workbench/operations/day/DayCard';
 
 export default function TasksPage() {
   return (
@@ -54,6 +67,9 @@ export default function TasksPage() {
       <ToolOpener tools={[navToolByName('Tasks', TOOL_GATE)]} />
       <OperationsEntityProvider>
         <div className="space-y-3" data-tool-page="Tasks">
+          <Suspense>
+            <DayCard />
+          </Suspense>
           <WeekSection />
           <SectionD_ProjectBacklog />
           <SectionE_Routines />

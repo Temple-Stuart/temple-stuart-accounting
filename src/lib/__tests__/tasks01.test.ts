@@ -247,12 +247,12 @@ test('the registry why is a customer\'s line; the founder note is a code comment
   // The founder's note moved into the comment beside the row — prose, read as prose.
   assert.match(comments('src/lib/toolRegistry.ts'), /accepting a task fires a paid Claude Code\s*\n?\s*\/\/\s*build; not a customer's task tool/);
   assert.match(comments('src/lib/toolRegistry.ts'), /fireExecutionRoutine — a Claude Code Routine that builds THIS repository/);
+  // DAYCARD-01 (2026-10-11): the day card, by the same door — the pin moved from three to four.
+  // TASKS-ONE-01 (2026-10-14): four became two — the Issue log's page is deleted (an unbuilt placeholder), and the
+  // day card is the first section of /tasks. The link still says trail.
   assert.deepEqual(tasks.links?.map((l) => [l.label, l.href]), [
     ['North Star', '/operations/north-star'],
-    ['Issue log', '/operations/issues'],
     ['Audit trail', '/operations/audit-log'],
-    // DAYCARD-01 (2026-10-11): the day card, by the same door — the pin moved from three to four.
-    ['Day card', '/tasks/day'],
   ]);
 });
 
@@ -269,11 +269,13 @@ test('every lettered header lost its letter', () => {
   }
 });
 
-test('the rail under Tasks shows four links and no phase — the rail never rendered phases, and the opener lists none', () => {
+// TASKS-ONE-01 (2026-10-14): the title said four links; two now — the pin moved with the registry row.
+test('the rail under Tasks shows its two links and no phase — the rail never rendered phases, and the opener lists none', () => {
   assert.deepEqual(navLaw({ throwOnFail: false, gate: TOOL_GATE }), []);
   const tasks = navToolByName('Tasks', TOOL_GATE);
   // DAYCARD-01 (2026-10-11): three became four — the day card, by the same door.
-  assert.deepEqual(tasks.subRows.map((r) => r.label), ['North Star', 'Issue log', 'Audit trail', 'Day card']);
+  // TASKS-ONE-01 (2026-10-14): four became two — the Issue log's page is deleted, the day card is on /tasks itself.
+  assert.deepEqual(tasks.subRows.map((r) => r.label), ['North Star', 'Audit trail']);
   // The rail's sub-rows are the registry links — never tool.phases.
   const rail = code('src/components/shell/Rail.tsx');
   assert.match(rail, /tool\.subRows\.map/);
