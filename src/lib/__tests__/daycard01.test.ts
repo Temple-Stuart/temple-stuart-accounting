@@ -19,13 +19,14 @@ import { TOOL_REGISTRY } from '../toolRegistry';
 import type { DailyPlanItem } from '@/components/workbench/operations/dailyplan/types';
 import type { Routine, RoutineStep, TodayRoutineEntry, TodayStatus } from '@/components/workbench/operations/routines/types';
 import {
-  BADGE_WORDS, BRAND_WORDS, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, HOOK_WORDS, LOCATION_HEAD_WORD, PLAN_WORD, PLANNED_WORD, STOPS_NOT_READ_WORDS, TASK_WORD, TIME_HEAD_WORD, TODAY_WORD, UNTITLED_WORDS, VENDOR_HEAD_WORD,
-  badDateWords, badStepWords, completenessWords, dayCarryWords, dayShortWords, dayStops, focusStop,
-  headerWords, heroWord, hookWords, intervalWords, linesUnreadWords, linesWithoutStopWords, notPlacedWords, notPricedWords, openStepWords, planDollars, progressPercent, provenanceWords,
-  routineFigureWords, planSoFarWords, stepHeaderWords, PLATE_BORDER, PLATE_INNER_WIDTH, PLATE_PADDING_X, PLATE_WIDTH, stopsWords, strandedWords, unmatchedWords, whereWords,
+  ACTUAL_HEAD_WORD, BADGE_WORDS, BRAND_WORDS, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, HOOK_WORDS, LOCATION_HEAD_WORD, ON_BUDGET_WORDS, PLAN_WORD, PLANNED_NOT_READ_WORDS, PLANNED_WORD, STOPS_NOT_READ_WORDS, TASK_WORD, TIME_HEAD_WORD, TODAY_WORD, UNTITLED_WORDS, VENDOR_HEAD_WORD,
+  CELL_GAP, COLUMN_WIDTHS, FIGURE_WIDTH, badDateWords, badStepWords, completenessWords, dayCarryWords, dayMeter, dayShortWords, dayStops, dayVerdict, focusStop,
+  headerWords, heroWord, intervalWords, linesUnreadWords, linesWithoutStopWords, notPlacedWords, notPricedWords, openStepWords, planDollars, progressPercent, provenanceWords,
+  routineFigureWords, planSoFarWords, spentOutOfWords, stepHeaderWords, PLATE_BORDER, PLATE_INNER_WIDTH, PLATE_PADDING_X, PLATE_WIDTH, stopsWords, strandedWords, unmatchedWords, whereWords,
   type DayCardInput,
 } from '@/components/workbench/operations/day/dayCard';
 import { dayReportFailedWords, readDayReport } from '@/components/workbench/operations/day/dayReads';
+import type { StopRecordRow } from '@/lib/operations/stopRecord';
 import { readJson } from '@/components/workbench/operations/week/weekReads';
 
 const DAY_DIR = 'src/components/workbench/operations/day';
@@ -406,7 +407,8 @@ test('T3 the words, exact', () => {
 
 test('T3 the reel plate’s words, exact (DAYCARD-01b): whole dollars, the day of the quarter, the hook line, the step header, the bar, the completeness line', () => {
   assert.equal(BADGE_WORDS, 'TS');
-  assert.equal(HOOK_WORDS, 'under or over?');
+  // CLEAN-01 (2026-10-14) — Alex's ruling: the hook is "Under or Over?" exactly (was 'under or over?' after the stop count).
+  assert.equal(HOOK_WORDS, 'Under or Over?');
   assert.equal(PLAN_WORD, 'PLAN');
   // planDollars: lossless — a trailing ".00" removed, cents kept, null '—', a negative kept.
   assert.equal(planDollars(7500), '$75');
@@ -432,9 +434,8 @@ test('T3 the reel plate’s words, exact (DAYCARD-01b): whole dollars, the day o
   assert.equal(whereWords('2026-10-13', read(null)), 'Tue Oct 13');
   assert.equal(whereWords('2026-10-13', { kind: 'unread' }), 'Tue Oct 13');
   assert.equal(whereWords('2026-10-13', { kind: 'failed' }), 'Tue Oct 13');
-  assert.equal(hookWords(7), '7 stops · under or over?');
-  assert.equal(hookWords(1), '1 stop · under or over?');
-  assert.equal(hookWords(null), 'stops not read · under or over?', 'unknown is not zero');
+  // CLEAN-01 (2026-10-14): hookWords and its stop count are gone — the hook is HOOK_WORDS alone (pinned above); a day that
+  // could not be read is named above the card and counted "stops not read" in the fine print under it (completenessWords).
   assert.equal(STOPS_NOT_READ_WORDS, 'stops not read');
   assert.equal(PLANNED_WORD, 'planned');
   assert.equal(heroWord('2026-10-13', '2026-10-13'), 'today');
@@ -528,11 +529,15 @@ test('T5 the day folder prices nothing, writes nothing and paints no dark surfac
     assert.doesNotMatch(body, /plan-vendors|vendor-directory|VendorBox|completeRoutine|editCompletionNote|completions|stopWrites/, `${f} writes nothing of its own — no vendor box, no mark-done, no note; the stop form (stops/StopForm.tsx) is the one writer's caller`);
     assert.doesNotMatch(body, /method:\s*'(POST|PATCH|PUT|DELETE)'/, `${f} sends no write`);
     assert.doesNotMatch(body, /localStorage|sessionStorage|document\.cookie/, `${f} stores nothing`);
-    assert.doesNotMatch(body, /\b(bg-black|bg-brand-purple|bg-panel|bg-brand-red)\b(?!\/)/, `${f} paints no dark surface (the repaint law)`);
+    // Alex, 2026-10-14: the full card's meter — green under, red over. bg-brand-red is admitted as that ONE bar's fill (no ink on
+    // it), named in the fills list below; every other dark surface stays forbidden here.
+    assert.doesNotMatch(body, /\b(bg-black|bg-brand-purple|bg-panel)\b(?!\/)/, `${f} paints no dark surface (the repaint law)`);
     // DAYCARD-01b: the reel plate's solid fills, and only those — the gold TS badge (dark ink on it) and the progress bar (no ink on it).
     // PLAN-01 (2026-10-13) — Alex's ruling: two bars on the step view, the PLAN bar gold and the SPENT (actual) bar green. The list
     // moved from [badge gold, bar green] to [badge gold, plan bar gold, spent bar green]; nothing else is a fill.
-    assert.deepEqual([...body.matchAll(/\b(bg-brand-gold|bg-brand-green)\b/g)].map((m) => m[1]), f === CARD ? ['bg-brand-gold', 'bg-brand-gold', 'bg-brand-green'] : [], `${f}: the badge and the two bars are the only solid fills`);
+    // CLEAN-01 — Alex, 2026-10-14: the full card's meter — green under, red over. The list moved to [badge gold, meter red | meter
+    // green, plan bar gold, spent bar green], and red is matched now so a second red fill fails here.
+    assert.deepEqual([...body.matchAll(/\b(bg-brand-gold|bg-brand-green|bg-brand-red)\b/g)].map((m) => m[1]), f === CARD ? ['bg-brand-gold', 'bg-brand-red', 'bg-brand-green', 'bg-brand-gold', 'bg-brand-green'] : [], `${f}: the badge, the meter and the two bars are the only solid fills`);
     assert.doesNotMatch(body, /consecutive_(completion|miss)_streak/, `${f} reads no streak (the two-lists law)`);
   }
   assert.doesNotMatch(code(RULES), /\bfetch\b|new Date\(\)|Date\.now\(|from 'react'|@prisma\/client/, 'the rules are pure: no fetch, no clock, no React, no Prisma');
@@ -553,7 +558,8 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.doesNotMatch(c, /\b540\b/, 'no width typed in the screen — every one is the constant');
   assert.doesNotMatch(c, /height: 960/, 'no fixed 9:16 box — the plate grows with its stops');
   // PLAN-01 (2026-10-13): two bars, each its own track — two clipped tracks, nothing else.
-  assert.equal((c.match(/overflow-hidden/g) ?? []).length, 2, 'nothing clipped but the two bars’ own tracks');
+  // CLEAN-01 (2026-10-14): the full card's meter is a third track — three clipped tracks, nothing else.
+  assert.equal((c.match(/overflow-hidden/g) ?? []).length, 3, 'nothing clipped but the meter’s and the two bars’ own tracks');
   // The header: the badge, the wordmark, DAY n OF m on the full card, "n OF N · time" on the step card.
   assert.match(c, /className="bg-brand-gold text-text-primary rounded-lg flex items-center justify-center font-extrabold" style=\{\{ width: 32, height: 32, fontSize: 16 \}\} aria-hidden="true">\{BADGE_WORDS\}/, 'the gold TS badge, dark ink');
   assert.match(c, /\{BRAND_WORDS\}<\/span>/);
@@ -571,28 +577,26 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   // The hero: the Budget's figure in whole dollars; '—' while the report cannot be read — never a sum of the stops.
   assert.match(c, /data-day-planned>\{planDollars\(plannedCents\)\}/);
   assert.match(c, /const plannedCents = report !== null && report\.ok \? result\.plannedCents : null;/);
-  assert.match(c, /data-day-hook>\{hookWords\(dayFailed \? null : N\)\}/, 'the hook line under the place — the stops unknown while the day read failed');
+  // CLEAN-01 (2026-10-14): the hook is HOOK_WORDS alone — no stop count (was hookWords(dayFailed ? null : N)).
+  assert.match(c, /data-day-hook>\{HOOK_WORDS\}<\/div>/, 'the hook line under the hero — the words alone');
   assert.match(c, /data-day-hero-word>\{heroWord\(day, today\)\}/, '"today" only on today; "planned" on another day');
   // TABLE-01 (2026-10-13): the rows are a table — the flex row's size pins (the 22/87 widths, the 31/23 px texts) are replaced by the table's column widths and the cells' sizes below.
   assert.match(c, /\{N > 0 && \(\n\s*<div className="flex flex-col">\n\s*<table className="w-full" style=\{\{ tableLayout: 'fixed', borderCollapse: 'collapse' \}\} data-day-stops>/, 'a real table, fixed widths, no horizontal scroll — and no lone header on a day with no stops');
   assert.match(c, /<\/table>\n\s*<div className="border-t border-border" aria-hidden="true" \/>\n\s*<\/div>\n\s*\)\}/, 'the closing rule sits flush under the last row, in the table’s gap-less column — not a plate item 11 px below it');
   assert.doesNotMatch(c, /\{N > 0 && <div className="border-t border-border"/, 'no closing rule loose on the plate');
   // PLAN-01 (2026-10-13) — Alex's ruling: LOCATION is off the full card's table (the step view's LOCATION line stays): four columns, re-balanced for 640.
-  assert.match(c, /<colgroup>\n\s*<col style=\{\{ width: COLUMN_WIDTHS\.time \}\} \/>\n\s*<col style=\{\{ width: COLUMN_WIDTHS\.vendor \}\} \/>\n\s*<col \/>\n\s*<col style=\{\{ width: COLUMN_WIDTHS\.budget \}\} \/>\n\s*<\/colgroup>/, 'the three fixed columns are the colgroup’s, the description’s the rest');
-  assert.match(c, /const COLUMN_WIDTHS = \{ time: 110, vendor: 140, budget: 98 \} as const;/, 'each fixed column holds its widest fact; DESCRIPTION takes the rest of the plate’s 580');
-  const widths = c.match(/const COLUMN_WIDTHS = \{ time: (\d+), vendor: (\d+), budget: (\d+) \} as const;/)!.slice(1, 4).map(Number);
-  const inner = PLATE_INNER_WIDTH;
-  assert.equal(inner, 580, 'the plate’s inner width: 640 − 2 × 29 padding − 2 × 1 border');
-  // Measured in the card's own fonts (TABLE-01 review): '$9,999.99' at 19 px extrabold is 96.4 px; 'DESCRIPTION' at 12 px tracked 0.14em is 100 px.
-  assert.ok(widths[2] >= 97, `BUDGET (${widths[2]}) holds '$9,999.99' whole — a figure is never split`);
-  assert.ok(inner - widths.reduce((a, b) => a + b, 0) >= 104, `the description keeps ${inner - widths.reduce((a, b) => a + b, 0)} px — its head word (100) and the cell’s 4 px of padding`);
+  // CLEAN-01 (2026-10-14) — Alex's ruling: five columns, ACTUAL after BUDGET; every width is dayCard.ts COLUMN_WIDTHS (derived from the
+  // plate's inner width — its sum is pinned in T7), none typed here. The PLAN-01 pins on the four widths (110/140/auto/98) moved with it.
+  assert.match(c, /<colgroup>\n\s*<col style=\{\{ width: COLUMN_WIDTHS\.time \}\} \/>\n\s*<col style=\{\{ width: COLUMN_WIDTHS\.vendor \}\} \/>\n\s*<col style=\{\{ width: COLUMN_WIDTHS\.description \}\} \/>\n\s*<col style=\{\{ width: COLUMN_WIDTHS\.budget \}\} \/>\n\s*<col style=\{\{ width: COLUMN_WIDTHS\.actual \}\} \/>\n\s*<\/colgroup>/, 'five columns, each its width from the rules');
+  assert.doesNotMatch(c, /const COLUMN_WIDTHS/, 'the widths live with the plate’s constants (dayCard.ts), not in the screen');
+  assert.equal(PLATE_INNER_WIDTH, 580, 'the plate’s inner width: 640 − 2 × 29 padding − 2 × 1 border');
   assert.match(c, /const MARK_SLOT = 17;/, 'the mark’s slot: ✓ is 13.3 px at 15 px');
-  inOrderOf(c, ['<thead>', '{TIME_HEAD_WORD}</th>', '{VENDOR_HEAD_WORD}</th>', '{DESCRIPTION_HEAD_WORD}</th>', '{BUDGET_HEAD_WORD}</th>', '</thead>'], 'the header row, in the table’s order');
+  inOrderOf(c, ['<thead>', '{TIME_HEAD_WORD}</th>', '{VENDOR_HEAD_WORD}</th>', '{DESCRIPTION_HEAD_WORD}</th>', '{BUDGET_HEAD_WORD}</th>', '{ACTUAL_HEAD_WORD}</th>', '</thead>'], 'the header row, in the table’s order');
   assert.doesNotMatch(c, /\{LOCATION_HEAD_WORD\}<\/th>|data-day-col="location"|COLUMN_WIDTHS\.location/, 'no LOCATION column on the full card');
   const row = /<tr\n\s*key=\{s\.key\}([\s\S]*?)<\/tr>/.exec(c);
   assert.ok(row !== null, 'a row per stop');
   const cols = [...row![1].matchAll(/data-day-col="(\w+)"/g)].map((m) => m[1]);
-  assert.deepEqual(cols, ['time', 'vendor', 'description', 'budget'], 'the four cells, once each, in the header’s order');
+  assert.deepEqual(cols, ['time', 'vendor', 'description', 'budget', 'actual'], 'CLEAN-01: the five cells, once each, in the header’s order');
   assert.match(row![1], /<span className="inline-block font-extrabold" style=\{\{ width: MARK_SLOT, fontSize: 15, lineHeight: 1 \}\}><Mark status=\{s\.status\} \/><\/span>/, 'the ✓/✕/– mark in its own slot on every row — an open row’s slot is empty, so every clock starts at one x');
   assert.match(row![1], /style=\{\{ fontSize: 13, lineHeight: 1\.2 \}\} data-day-interval>\{factOf\(intervalWords\(s\.time, s\.minutes\)\)\}/, 'the interval — the start and its end, or the start, or — at 13 px mono');
   assert.doesNotMatch(row![1], /marginLeft/, 'no offset that depends on the status — the slot holds the mark');
@@ -605,11 +609,14 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.match(c, /function smallOf\(s: Stop\): string \| null \{\n\s*if \(s\.kind === 'task'\) return TASK_WORD;\n\s*if \(s\.kind === 'routine'\) return null;\n\s*return s\.label;\n\}/, 'the small text names no place — the vendor and the location have their columns');
   assert.doesNotMatch(c, /\.place\b|placeOf/, 'no place in the screen');
   const cellClasses = [...row![1].matchAll(/<td className=(?:"([^"]*)"|\{`([^`]*)`\})/g)].map((m) => m[1] ?? m[2]);
-  assert.equal(cellClasses.length, 4, 'four cells in the row');
-  assert.deepEqual(cellClasses.map((k) => /\bbreak-words\b/.test(k)), [true, true, true, false], 'the three text cells wrap; the BUDGET cell does not');
+  assert.equal(cellClasses.length, 5, 'CLEAN-01: five cells in the row');
+  assert.deepEqual(cellClasses.map((k) => /\bbreak-words\b/.test(k)), [true, true, true, false, false], 'the three text cells wrap; the two money cells do not');
   const budgetCell = /data-day-col="budget">([\s\S]*?)<\/td>/.exec(row![1]);
   assert.ok(budgetCell !== null);
-  assert.doesNotMatch(budgetCell![1], /break-words|break-all/, 'a figure is never split mid-digit ("$12.5" over "0"); the actual line still wraps at its spaces');
+  assert.doesNotMatch(budgetCell![1], /break-words|break-all/, 'a figure is never split mid-digit ("$12.5" over "0")');
+  const actualCell = /data-day-col="actual">([\s\S]*?)<\/td>/.exec(row![1]);
+  assert.ok(actualCell !== null);
+  assert.doesNotMatch(actualCell![1], /break-words|break-all/, 'the actual’s figures are never split mid-digit; its words still wrap at their spaces');
   assert.doesNotMatch(c, /overflow-x|whitespace-nowrap/, 'no horizontal scroll, nothing kept on one line');
   // The step view shows the same two facts as two labeled lines.
   assert.match(c, /data-day-vendor>\n\s*<span className="font-bold text-text-faint" style=\{\{ fontSize: 13, letterSpacing: '0\.14em' \}\}>\{VENDOR_HEAD_WORD\}<\/span>\n\s*<span className=\{`font-medium break-words min-w-0 \$\{focus\.stop\.vendor === null \? 'text-text-faint' : 'text-text-primary'\}`\} style=\{\{ fontSize: 21, lineHeight: 1\.1 \}\}>\{factOf\(focus\.stop\.vendor\)\}<\/span>/, 'VENDOR on the step card');
@@ -620,17 +627,19 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.doesNotMatch(c, /truncate/, 'nothing is cut on the recorded plate');
   // The rows: every amount through planDollars — '—' for null, never $0.00 for a blank; a row's door is its description's button, and a click anywhere on the row pushes ?step=.
   assert.match(c, /data-day-amount>\{planDollars\(s\.cents\)\}/);
-  // TABLE-01: the actual under the plan sits in the BUDGET cell (block, 13 px) — the pin moved with it.
-  assert.match(c, /\{s\.actualCents !== null && <span className=\{`block font-semibold tabular-nums \$\{actualTone\(deltaWords\(s\.actualCents, s\.cents\)\.over\)\}`\} style=\{\{ fontSize: 13, lineHeight: 1\.15 \}\} data-day-actual>\{rowActualWords\(s\.actualCents, s\.cents\)\}<\/span>\}/, 'STOP-01: the actual under the plan, red over, green under or on');
+  // TABLE-01: the actual under the plan sat in the BUDGET cell (block, 13 px). CLEAN-01 (2026-10-14): it is the ACTUAL column's own cell —
+  // the BUDGET cell carries the budget only; the pins on both cells are in T7.
   assert.match(c, /data-day-amount>\{planDollars\(focus\.stop\.cents\)\}/);
   // TABLE-01: a click anywhere on the <tr> pushes ?step=; the row is not a tab stop of its own — its button is (a focusable row is announced as a nameless row).
   assert.match(c, /<tr\n\s*key=\{s\.key\}\n\s*className="border-t border-border hover:bg-bg-row focus-within:bg-bg-row cursor-pointer align-top"\n\s*data-day-stop=\{s\.key\}\n\s*data-day-status=\{s\.status\}\n\s*onClick=\{\(\) => go\(hrefFor\(day, i \+ 1\)\)\}\n\s*>/, 'a row pushes ?step= on a click, and its button’s focus paints what hover paints');
   assert.doesNotMatch(row![1], /tabIndex|onKeyDown/, 'the keyboard reaches the row through its button — no hand-made key handling');
-  // The plate's foot: the completeness line counts, the provenance names the source; the sentences sit under the plate.
-  assert.match(c, /const reportRead = report !== null && report\.ok;\n\s*const recordsOk = recordsRead !== null && recordsRead\.ok;\n\s*const completeness = completenessWords\(result, stranded\.length, \{ day: !dayFailed, report: reportRead, records: recordsOk \}\);/, 'the plate’s count knows what was not read');
+  // The completeness line counts, the provenance names the source; the sentences sit under the plate.
+  // CLEAN-01 (2026-10-14): on the full card both lines moved from the plate's foot to the fine print directly under it (pinned in T7);
+  // the step card keeps its own source line on its plate.
+  assert.match(c, /const reportRead = report !== null && report\.ok;\n\s*const recordsOk = recordsRead !== null && recordsRead\.ok;\n\s*const completeness = completenessWords\(result, stranded\.length, \{ day: !dayFailed, report: reportRead, records: recordsOk \}\);/, 'the count knows what was not read');
   assert.match(c, /data-day-count>\{completeness\}/);
-  assert.equal((c.match(/data-day-provenance>\{provenanceWords\(today, reportRead, recordsOk\)\}/g) ?? []).length, 2, 'the source line on the full card AND on the step card — the records a source too (STOP-01)');
-  assert.ok(c.indexOf('data-day-provenance') < c.indexOf('data-day-foot'), 'the provenance is on the plate; the sentences are under it');
+  assert.equal((c.match(/data-day-provenance>\{provenanceWords\(today, reportRead, recordsOk\)\}/g) ?? []).length, 2, 'the source line under the full card AND on the step card — the records a source too (STOP-01)');
+  assert.ok(c.indexOf('data-day-fine-print') < c.indexOf('data-day-foot'), 'the fine print first under the plate; the sentences after it');
   assert.match(c, /\{foot && \(\n\s*<div className="mx-auto space-y-1 text-xs" style=\{\{ width: PLATE_WIDTH \}\} data-day-foot>/, 'the sentences under the plate render whenever there is one');
   assert.match(c, /const foot = loaded && \(result\.unmatched\.length > 0 \|\| result\.routineFigures\.length > 0 \|\| result\.linesWithoutStop\.length > 0 \|\| result\.notPlacedToday\.length > 0 \|\| stranded\.length > 0 \|\| refused\.length > 0 \|\| \(report !== null && !report\.ok\) \|\| \(plans !== null && !plans\.listed\) \|\| result\.recordsWithoutStop\.length > 0 \|\| unplacedRecords\.length > 0 \|\| \(recordsRead !== null && !recordsRead\.ok\)\);/);
   assert.match(c, /data-day-lines-without-stop>\{dayFailed \? linesUnreadWords\(result\.linesWithoutStop\) : linesWithoutStopWords\(result\.linesWithoutStop\)\}/);
@@ -647,7 +656,8 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.match(c, /\{planBar !== null && spentBar !== null && \(/, 'the spent bar only beside a plan bar — its denominator is the plan');
   assert.match(c, /className="bg-brand-gold rounded-full" style=\{\{ height: 9, width: `\$\{planBar\}%` \}\}/, 'the PLAN bar gold');
   assert.match(c, /className="bg-brand-green rounded-full" style=\{\{ height: 9, width: `\$\{spentBar\}%` \}\}/, 'the SPENT bar green');
-  for (const attr of ['data-day-card', 'data-day-header', 'data-day-hero', 'data-day-hook', 'data-day-stop=', 'data-day-status=', 'data-day-focus', 'data-day-plate-foot', 'data-day-count', 'data-day-provenance', 'data-day-foot', 'data-day-unmatched', 'data-day-routine-figures', 'data-day-lines-without-stop', 'data-day-not-placed', 'data-day-stranded', 'data-day-report-failed', 'data-day-bad-date', 'data-day-bad-step', 'data-day-failed', 'data-day-so-far', 'data-day-controls', 'data-day-spent', 'data-day-record', 'data-day-status>', 'data-day-actual', 'data-day-delta', 'data-day-rating', 'data-day-note', 'data-day-minutes', 'data-day-spent-so-far', 'data-day-records-without-stop', 'data-day-records-unplaced', 'data-day-records-failed']) {
+  // CLEAN-01 (2026-10-14): data-day-plate-foot left the screen with the plate's foot; the fine print, the meter and the verdict joined.
+  for (const attr of ['data-day-card', 'data-day-header', 'data-day-hero', 'data-day-hook', 'data-day-stop=', 'data-day-status=', 'data-day-focus', 'data-day-fine-print', 'data-day-meter=', 'data-day-verdict', 'data-day-count', 'data-day-provenance', 'data-day-foot', 'data-day-unmatched', 'data-day-routine-figures', 'data-day-lines-without-stop', 'data-day-not-placed', 'data-day-stranded', 'data-day-report-failed', 'data-day-bad-date', 'data-day-bad-step', 'data-day-failed', 'data-day-so-far', 'data-day-controls', 'data-day-spent', 'data-day-record', 'data-day-status>', 'data-day-actual', 'data-day-delta', 'data-day-rating', 'data-day-note', 'data-day-minutes', 'data-day-spent-so-far', 'data-day-records-without-stop', 'data-day-records-unplaced', 'data-day-records-failed']) {
     assert.ok(c.includes(attr), `the screen carries ${attr}`);
   }
   // The URL: ?date= and ?step= read with useSearchParams, pushed with router.push; the step judged once the reads are in, never clamped.
@@ -702,4 +712,166 @@ test('T6 the doors: the registry link on the Tasks row, and the week bar’s chi
   assert.ok(w.indexOf('>this week</button>') < w.indexOf('data-week-day-card'), 'beside "this week"');
   assert.ok(w.indexOf('data-week-day-card') < w.indexOf('data-week-time-filter'), 'in the week bar, above the time filter');
   assert.doesNotMatch(w, /\/tasks\/day[^?]/, 'the chip is the one door the week opens');
+});
+
+// ── T7 · CLEAN-01 (2026-10-14): THE FULL CARD, CLEANED ───────────────────────
+
+/** The browser check's day: four place stops, three priced — $25 + $20 + $30 = $75 planned; the Gym asks an amount and has no plan. */
+const CLEAN_STOPS = [
+  { id: 'brunch', name: 'Brunch', hour: 11, at: '2026-10-11T04:00:00.000Z', cents: 2500 },
+  { id: 'activities', name: 'Activities', hour: 15, at: '2026-10-11T08:00:00.000Z', cents: 2000 },
+  { id: 'dinner', name: 'Dinner', hour: 19, at: '2026-10-11T12:00:00.000Z', cents: 3000 },
+  { id: 'gym-place', name: 'Gym', hour: 20, at: '2026-10-11T13:00:00.000Z', cents: null },
+] as const;
+type CleanId = (typeof CLEAN_STOPS)[number]['id'];
+
+/** The day with these actuals recorded (each a done record with its amount); null — the records were not read. */
+function cleanDay(actuals: Partial<Record<CleanId, number>> | null, more: TodayRoutineEntry[] = []) {
+  const records = actuals === null ? null : CLEAN_STOPS.filter((s) => actuals[s.id] !== undefined).map((s): StopRecordRow => ({
+    id: `rec-${s.id}`, kind: 'routine', target_id: s.id, occurrence_at: s.at, outcome: 'done', done_at: s.at, actual_cents: actuals[s.id] as number, rating: null, note: null, actual_minutes: null,
+  }));
+  return dayStops(input({
+    entries: [...CLEAN_STOPS.map((s) => entry(routine({ id: s.id, name: s.name, role: 'place', schedule_rrule: `FREQ=DAILY;BYHOUR=${s.hour};BYMINUTE=0` }), 'pending', s.at)), ...more],
+    lines: CLEAN_STOPS.flatMap((s) => (s.cents === null ? [] : [line({ address: { kind: 'routine', id: s.id, instant: s.at }, cents: s.cents, label: s.name })])),
+    records,
+  }));
+}
+const ALL_UNDER = { brunch: 969, activities: 1500, dinner: 2200, 'gym-place': 500 } as const;
+const ALL_OVER = { brunch: 969, activities: 3000, dinner: 3500, 'gym-place': 1200 } as const;
+/** The screen's spent (DayCard.tsx, pinned below): unknown while the records are unread or nothing carries an actual. */
+const spentOf = (r: ReturnType<typeof dayStops>): number | null => (r.spentCents === null || r.withActual === 0 ? null : r.spentCents);
+
+/** The index just past the `</div>` closing the `<div` opened at `openAt` — each tag read to its `>` with its attributes' braces balanced; a self-closing `<div … />` opens nothing. */
+function divEnd(body: string, openAt: number): number {
+  let depth = 0;
+  let i = openAt;
+  for (;;) {
+    const open = body.indexOf('<div', i);
+    const close = body.indexOf('</div>', i);
+    assert.notEqual(close, -1, 'the element closes');
+    if (open !== -1 && open < close) {
+      let j = open + 4;
+      let braces = 0;
+      while (!(body[j] === '>' && braces === 0)) {
+        if (body[j] === '{') braces += 1;
+        if (body[j] === '}') braces -= 1;
+        j += 1;
+      }
+      if (body[j - 1] !== '/') depth += 1;
+      i = j + 1;
+    } else {
+      depth -= 1;
+      i = close + '</div>'.length;
+      if (depth === 0) return i;
+    }
+  }
+}
+
+test('T7 CLEAN-01 the full card’s order — where under the header, the hero, "Under or Over?", the spent line, the meter, the verdict, the table', () => {
+  const c = code(CARD);
+  assert.equal(HOOK_WORDS, 'Under or Over?', 'the hook, exactly');
+  assert.match(c, /\{loaded && focus === null && \(\n\s*<>\n\s*\{\s*\}\n\s*<div className="font-semibold text-text-secondary" style=\{\{ fontSize: 27, lineHeight: 1\.15 \}\} data-day-where>\{whereWords\(day, stayState\)\}<\/div>\n\s*<div className="flex items-baseline gap-3 pt-1" data-day-hero>/, 'the where line is the full card’s first line under the header, the hero right under it');
+  inOrderOf(c, [
+    'data-day-card', '<PlateHeader', '{loaded && focus === null && (', 'data-day-where>', 'data-day-hero>', 'data-day-hook>{HOOK_WORDS}</div>',
+    'data-day-spent>{spentOutOfWords(spent, plannedCents)}</div>', 'data-day-meter=', 'data-day-verdict>', 'data-day-stops>', '{loaded && focus !== null && (',
+  ], 'the full card, top to bottom');
+  assert.doesNotMatch(code(RULES), /hookWords/, 'hookWords is gone — nothing reads it');
+  assert.doesNotMatch(c, /hookWords|spentLineWords|stopsWords|doneOfWords|withoutAmountWords/, 'no stop count on the hook; no "without an amount" or "of M done" on the spent line');
+});
+
+test('T7 CLEAN-01 spentOutOfWords — "spent $9.69 out of $75"; "—" while nothing is recorded; "planned not read" while the total is unknown', () => {
+  assert.equal(spentOutOfWords(969, 7500), 'spent $9.69 out of $75');
+  assert.equal(spentOutOfWords(null, 7500), 'spent — out of $75', 'nothing recorded is unknown — never $0');
+  assert.equal(spentOutOfWords(969, null), 'spent $9.69 · planned not read');
+  assert.equal(spentOutOfWords(null, null), 'spent — · planned not read');
+  assert.equal(spentOutOfWords(0, 7500), 'spent $0 out of $75', 'a recorded $0 is an actual');
+  assert.equal(PLANNED_NOT_READ_WORDS, 'planned not read');
+  // Through the day's own rules and the screen's spent: one stop recorded, none recorded, the records not read.
+  const one = cleanDay({ brunch: 969 });
+  assert.equal(one.plannedCents, 7500);
+  assert.equal(spentOutOfWords(spentOf(one), one.plannedCents), 'spent $9.69 out of $75');
+  assert.equal(spentOutOfWords(spentOf(cleanDay({})), 7500), 'spent — out of $75', 'records read, no actual — "—", not $0');
+  assert.equal(spentOutOfWords(spentOf(cleanDay(null)), 7500), 'spent — out of $75', 'records not read — "—" (the fine print says what was not read)');
+  const c = code(CARD);
+  assert.match(c, /const spent = result\.spentCents === null \|\| result\.withActual === 0 \? null : result\.spentCents;/, 'the screen’s spent: unknown while the records are unread or nothing carries an actual');
+  assert.match(c, /data-day-spent>\{spentOutOfWords\(spent, plannedCents\)\}<\/div>/);
+});
+
+test('T7 CLEAN-01 the budget meter — green at its width under, red and full over, an empty track while spent is unknown, none while the plan is', () => {
+  assert.deepEqual(dayMeter(969, 7500), { percent: 13, over: false }, 'under: green, spent ÷ planned');
+  assert.deepEqual(dayMeter(7500, 7500), { percent: 100, over: false }, 'on the total: green and full');
+  assert.deepEqual(dayMeter(8669, 7500), { percent: 100, over: true }, 'over: red and full');
+  assert.deepEqual(dayMeter(7501, 7500), { percent: 100, over: true });
+  assert.deepEqual(dayMeter(null, 7500), { percent: null, over: false }, 'spent unknown: an empty track, never a $0 fill');
+  assert.equal(dayMeter(969, null), null, 'planned unknown: no meter');
+  assert.equal(dayMeter(null, null), null);
+  assert.equal(dayMeter(500, 0), null, 'nothing planned: a track of $0 has no scale (progressPercent’s rule)');
+  const c = code(CARD);
+  assert.match(c, /const meter = dayMeter\(spent, plannedCents\);/);
+  assert.match(c, /\{meter !== null && \(\n\s*<div className="bg-bg-row rounded-full overflow-hidden" style=\{\{ height: 13 \}\} aria-hidden="true" data-day-meter=\{meter\.percent === null \? 'empty' : meter\.percent\}>\n\s*\{meter\.percent !== null && <div className=\{`\$\{meter\.over \? 'bg-brand-red' : 'bg-brand-green'\} rounded-full`\} style=\{\{ height: 13, width: `\$\{meter\.percent\}%` \}\} \/>\}\n\s*<\/div>\n\s*\)\}/, 'one track at the plate’s content width (no width of its own), its fill green or red, none while spent is unknown');
+  assert.equal((c.match(/\bbg-brand-red\b/g) ?? []).length, 1, 'red fills the meter and nothing else');
+});
+
+test('T7 CLEAN-01 the verdict — only once every stop that asks an amount carries one: under, over, on budget; absent while one is missing or none is recorded', () => {
+  assert.equal(ON_BUDGET_WORDS, 'on budget');
+  assert.equal(dayVerdict(cleanDay({ brunch: 969 }), 7500), null, 'one stop recorded — no verdict');
+  assert.equal(dayVerdict(cleanDay({ brunch: 969, activities: 1500, dinner: 2200 }), 7500), null, 'the Gym asks an amount and has none — no verdict');
+  assert.deepEqual(dayVerdict(cleanDay(ALL_UNDER), 7500), { text: '▼ $23.31 under', over: false }, 'every amount in, under');
+  assert.deepEqual(dayVerdict(cleanDay(ALL_OVER), 7500), { text: '▲ $11.69 over', over: true }, 'every amount in, over');
+  assert.deepEqual(dayVerdict(cleanDay({ brunch: 2500, activities: 2000, dinner: 3000, 'gym-place': 0 }), 7500), { text: 'on budget', over: false }, 'equal — a recorded $0 is an amount');
+  assert.equal(dayVerdict(cleanDay({}), 7500), null, 'none recorded');
+  assert.equal(dayVerdict(cleanDay(null), 7500), null, 'the records not read');
+  assert.equal(dayVerdict(cleanDay(ALL_UNDER), null), null, 'the planned total unknown');
+  // A work stop asks no amount (asksAmount — the PLAN-01 count): a journal stop with none does not hold the verdict back.
+  const journal = entry(routine({ id: 'vision', name: 'Vision journal', role: 'journal', schedule_rrule: 'FREQ=DAILY;BYHOUR=6;BYMINUTE=0' }), 'pending', '2026-10-10T23:00:00.000Z');
+  const withJournal = cleanDay(ALL_UNDER, [journal]);
+  assert.equal(withJournal.stops.length, 5);
+  assert.deepEqual(dayVerdict(withJournal, 7500), { text: '▼ $23.31 under', over: false });
+  const c = code(CARD);
+  assert.match(c, /const verdict = dayVerdict\(result, plannedCents\);/);
+  assert.match(c, /\{verdict !== null && <div className=\{`font-bold tabular-nums \$\{actualTone\(verdict\.over\)\}`\} style=\{\{ fontSize: 27, lineHeight: 1\.15 \}\} data-day-verdict>\{verdict\.text\}<\/div>\}/, 'the verdict in the card’s under/over tone, only when there is one');
+});
+
+test('T7 CLEAN-01 the table — five headers in order, the ACTUAL cell, the BUDGET cell the budget only, the widths summing to the plate’s content width', () => {
+  const c = code(CARD);
+  assert.equal(ACTUAL_HEAD_WORD, 'ACTUAL');
+  inOrderOf(c, ['<thead>', '{TIME_HEAD_WORD}</th>', '{VENDOR_HEAD_WORD}</th>', '{DESCRIPTION_HEAD_WORD}</th>', '{BUDGET_HEAD_WORD}</th>', '{ACTUAL_HEAD_WORD}</th>', '</thead>'], 'five headers');
+  assert.match(c, /<th scope="col" className=\{`\$\{headCell\} text-right`\} style=\{\{ \.\.\.headStyle, paddingRight: CELL_GAP \}\}>\{BUDGET_HEAD_WORD\}<\/th>\n\s*<th scope="col" className=\{`\$\{headCell\} text-right`\} style=\{headStyle\}>\{ACTUAL_HEAD_WORD\}<\/th>/, 'ACTUAL right-aligned after BUDGET; BUDGET’s head keeps its cell’s gap, so it sits over its figure');
+  const row = /<tr\n\s*key=\{s\.key\}([\s\S]*?)<\/tr>/.exec(c)![1];
+  assert.match(row, /<td className="text-right" style=\{\{ padding: CELL_PADDING \}\} data-day-col="budget">\n\s*<span className=\{`block font-extrabold tabular-nums \$\{s\.cents === null \? 'text-text-faint' : 'text-text-primary'\}`\} style=\{\{ fontSize: 19, lineHeight: 1\.1 \}\} data-day-amount>\{planDollars\(s\.cents\)\}<\/span>\n\s*<\/td>/, 'the BUDGET cell carries the budget only');
+  assert.match(row, /<td className="text-right" style=\{\{ padding: '7px 0' \}\} data-day-col="actual">\n\s*<span className=\{`block font-extrabold tabular-nums \$\{s\.actualCents === null \? 'text-text-faint' : actualTone\(deltaWords\(s\.actualCents, s\.cents\)\.over\)\}`\} style=\{\{ fontSize: 19, lineHeight: 1\.1 \}\} data-day-actual>\{s\.actualCents === null \? factOf\(null\) : rowActualWords\(s\.actualCents, s\.cents\)\}<\/span>\n\s*<\/td>/, 'the ACTUAL cell: the row’s actual against its plan in the under/over tone, or — ; the last cell, no gap');
+  const budgetCell = /data-day-col="budget">([\s\S]*?)<\/td>/.exec(row)![1];
+  assert.doesNotMatch(budgetCell, /data-day-actual|rowActualWords|actualCents/, 'no actual in the BUDGET cell');
+  assert.match(c, /const CELL_PADDING = `7px \$\{CELL_GAP\}px 7px 0`;/);
+  assert.equal((row.match(/padding: CELL_PADDING/g) ?? []).length, 4, 'every cell but the last keeps the gap');
+  assert.doesNotMatch(c, /'7px 4px 7px 0'/, 'the gap is CELL_GAP, never typed');
+  // The widths: from the plate's inner width — five, in the table's order, summing to it exactly.
+  assert.deepEqual(Object.keys(COLUMN_WIDTHS), ['time', 'vendor', 'description', 'budget', 'actual']);
+  const widths = Object.values(COLUMN_WIDTHS);
+  assert.equal(widths.reduce((a, b) => a + b, 0), PLATE_INNER_WIDTH, `the five sum to the plate’s content width (${PLATE_INNER_WIDTH})`);
+  assert.ok(widths.every((w) => Number.isInteger(w) && w > 0), 'whole pixels');
+  // Measured in the card's own fonts (TABLE-01): '$9,999.99' at 19 px extrabold is 96.4 px; the clock "06:30–06:45" at 13 px mono 86 px; 'DESCRIPTION' at 12 px tracked 100 px.
+  assert.equal(FIGURE_WIDTH, 98);
+  assert.equal(CELL_GAP, 4);
+  assert.ok(COLUMN_WIDTHS.budget - CELL_GAP >= 97, `BUDGET holds '$9,999.99' whole beside its gap (${COLUMN_WIDTHS.budget} − ${CELL_GAP})`);
+  assert.ok(COLUMN_WIDTHS.actual >= 97, `ACTUAL holds '$9,999.99' whole (${COLUMN_WIDTHS.actual})`);
+  const markSlot = Number(/const MARK_SLOT = (\d+);/.exec(c)![1]);
+  assert.ok(COLUMN_WIDTHS.time >= markSlot + 86 + CELL_GAP, 'TIME keeps its mark slot and the clock');
+  assert.ok(Math.abs(COLUMN_WIDTHS.vendor - COLUMN_WIDTHS.description) <= 1, 'VENDOR and DESCRIPTION share the rest');
+  assert.ok(COLUMN_WIDTHS.description >= 100 + CELL_GAP, 'DESCRIPTION holds its head word and its gap');
+});
+
+test('T7 CLEAN-01 the fine print — the completeness and source lines render after the plate’s closing element, small and muted, the same words', () => {
+  const c = code(CARD);
+  const plateOpen = c.lastIndexOf('<div', c.indexOf('data-day-card'));
+  const plateEnd = divEnd(c, plateOpen);
+  const plate = c.slice(plateOpen, plateEnd);
+  assert.match(plate.slice(-40), /<\/div>$/, 'the slice ends on the plate’s own closing tag');
+  assert.ok(plate.includes('data-day-focus>') && plate.includes('data-day-stops>'), 'both views are inside the plate');
+  assert.doesNotMatch(plate, /data-day-count|data-day-plate-foot|data-day-fine-print/, 'the completeness line is off the plate');
+  assert.equal((plate.match(/data-day-provenance>/g) ?? []).length, 1, 'the step view keeps its own source line on its plate');
+  assert.ok(plate.indexOf('data-day-provenance>') > plate.indexOf('{loaded && focus !== null && ('), '— and it is the step view’s');
+  const after = c.slice(plateEnd);
+  assert.match(after, /^\s*\n\s*\{\s*\}\n\s*\{loaded && focus === null && \(\n\s*<div className="mx-auto space-y-1 text-xs text-text-muted" style=\{\{ width: PLATE_WIDTH \}\} data-day-fine-print>\n\s*\{completeness !== null && <p data-day-count>\{completeness\}<\/p>\}\n\s*<p className="font-mono" data-day-provenance>\{provenanceWords\(today, reportRead, recordsOk\)\}<\/p>\n\s*<\/div>\n\s*\)\}/, 'directly under the plate: the completeness line, then the source line — small, muted, at the plate’s width');
+  inOrderOf(after, ['data-day-fine-print', 'data-day-hint', 'data-day-foot', 'data-day-stranded>'], 'the fine print, then the hint, then the sentences beside the stranded-vendor line');
 });

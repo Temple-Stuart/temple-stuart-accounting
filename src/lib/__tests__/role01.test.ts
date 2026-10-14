@@ -24,7 +24,7 @@ import type { StopRecordRow } from '../operations/stopRecord';
 import type { DailyPlanItem } from '@/components/workbench/operations/dailyplan/types';
 import type { Routine, RoutineStep, TodayRoutineEntry, TodayStatus } from '@/components/workbench/operations/routines/types';
 import { DEFAULT_ROUTINE_FORM } from '@/components/workbench/operations/routines/types';
-import { bandNameOf, completenessWords, dayStops, focusStop, hookWords, type DayCardInput } from '@/components/workbench/operations/day/dayCard';
+import { bandNameOf, completenessWords, dayStops, focusStop, type DayCardInput } from '@/components/workbench/operations/day/dayCard';
 
 const RULES = 'src/lib/operations/stopRole.ts';
 const CARD_RULES = 'src/components/workbench/operations/day/dayCard.ts';
@@ -146,7 +146,8 @@ test('T2 every stop carries its routine’s role; an all-day routine is in the p
   assert.equal(r.plannedCents, 2100, 'the hero is the Budget’s day — HBO’s $11 is in it');
   assert.equal(r.notPriced, 3, 'the journal, the plan and the gym — HBO is not counted among the stops');
   assert.deepEqual([r.done, r.withoutActual, r.notRecorded], [1, 4, 4], 'over the stops only');
-  assert.equal(hookWords(r.stops.length), '4 stops · under or over?');
+  // CLEAN-01 (2026-10-14): the hook carries no stop count now (hookWords is gone) — the count it printed is the stops', never the band's.
+  assert.equal(r.stops.length, 4, 'four stops — HBO is not one');
   assert.equal(focusStop(r, 4)!.stop.label, 'Gym');
   assert.equal(focusStop(r, 5), null, 'HBO has no step');
   assert.equal(r.stops.find((s) => s.label === 'Brunch')!.planLine, brunchLine, 'the matched line rides on the stop — the vendor box plans on it');
@@ -284,7 +285,8 @@ test('T4 the form asks what the role asks; a place stop plans its vendor on its 
   // PLAN-01 (2026-10-13): the line is the PLAN bar's words — soFarWords became planSoFarWords; the band's share stays on it.
   assert.match(c, /data-day-plan-so-far>\{planSoFarWords\(plannedCents === null \? null : focus\.soFarCents, plannedCents\)\}\{plannedCents !== null && result\.allDayCents > 0 && <span className="font-medium text-text-muted" data-day-so-far-all-day> · \{allDayCentsWords\(planDollars\(result\.allDayCents\)\)\}<\/span>\}/, 'the step card says how much of its denominator is the band');
   assert.match(c, /setItems\(null\);\n[\s\S]*?setReportReads\(0\);/, 'a new day resets the re-read counter — one report read per day change');
-  assert.ok(c.indexOf('data-day-stops') < c.indexOf('data-day-all-day') && c.indexOf('data-day-all-day') < c.indexOf('data-day-plate-foot'), 'between the rows and the plate’s foot');
+  // CLEAN-01 (2026-10-14): the plate's foot left the plate (its lines are the fine print under it) — the band is the full card's last part.
+  assert.ok(c.indexOf('data-day-stops') < c.indexOf('data-day-all-day') && c.indexOf('data-day-all-day') < c.indexOf('{loaded && focus !== null && (') && c.indexOf('data-day-all-day') < c.indexOf('data-day-fine-print'), 'after the rows, the last of the full card — on the plate, above the fine print');
   // PLAN-01 (2026-10-13): the hint's width is the plate's — PLATE_WIDTH, the one constant.
   assert.match(c, /\{loaded && focus === null && N > 0 && <p className="mx-auto text-xs text-text-muted" style=\{\{ width: PLATE_WIDTH \}\} data-day-hint>\{TAP_A_STOP_WORDS\}<\/p>\}/, 'the hint, under the full plate, outside it');
   assert.ok(c.indexOf('data-day-card') < c.indexOf('data-day-hint'), 'outside the recorded box');
