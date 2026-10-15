@@ -72,13 +72,13 @@
  */
 import { centsFromDecimalString, type NotPlaced } from '@/lib/budget/days';
 import { formatCents } from '@/lib/budget/format';
-import type { PlanLine, StrandedVendor } from '@/lib/budget/planLines';
+import type { PlanLine } from '@/lib/budget/planLines';
 import { NO_STAY_WORDS, STAY_NOT_READ_WORDS, stayDay, stayDayWords, type StayRow } from '@/lib/operations/stay';
 import {
   LATER_WORD, NOT_RECORDED_WORDS, OPEN_WORD, ROUTINE_DONE_WORDS, ROUTINE_MISSED_WORDS, SKIPPED_WORD, TASK_DONE_WORDS, TASK_OPEN_WORDS, doneWords, lateWords, recordKey, skippedWords,
   type StopRecordKind, type StopRecordRow,
 } from '@/lib/operations/stopRecord';
-import { isStop, isStopRole, type StopRole } from '@/lib/operations/stopRole';
+import { NO_AMOUNT_NO_VENDOR_WORDS, REPORT_NOT_READ_NO_VENDOR_WORDS, UNMATCHED_NO_VENDOR_WORDS, isStop, isStopRole, type StopRole } from '@/lib/operations/stopRole';
 import { instantToZoned, zonedToInstant } from '@/lib/time';
 import type { DailyPlanItem } from '../dailyplan/types';
 import type { TodayRoutineEntry, TodayStatus } from '../routines/types';
@@ -499,6 +499,30 @@ export function focusStop(result: DayStops, n: number): Focus | null {
   };
 }
 
+// ── VENDOR-02 (2026-10-14): THE VENDOR UNDER THE CARD ───────────────────────
+
+/** What the step view shows for a stop's vendor: Budget's own box on its matched plan line, a place stop's one reason, or nothing. */
+export type VendorSlot =
+  | { readonly kind: 'box'; readonly line: PlanLine }
+  | { readonly kind: 'reason'; readonly words: string }
+  | { readonly kind: 'none' };
+
+/**
+ * VENDOR-02 (2026-10-14): the vendor box shows for EVERY stop that is a stop
+ * and is priced — a matched plan line, read from the report — whatever its role
+ * (ROLE-01 mounted it on place stops only). A plan line exists only for a line
+ * that carries an amount (budget/days.ts), so "priced" is the matched line
+ * itself, as it was for a place stop. Without one, a place stop keeps its one
+ * reason per cause; any other stop shows nothing — a work stop with no money has
+ * nothing to pay. An all-day line is not a stop: nothing.
+ */
+export function vendorSlot(stop: Pick<Stop, 'role' | 'planLine' | 'planLineState'>, reportRead: boolean): VendorSlot {
+  if (!isStop(stop.role)) return { kind: 'none' };
+  if (reportRead && stop.planLine !== null) return { kind: 'box', line: stop.planLine };
+  if (stop.role !== 'place') return { kind: 'none' };
+  return { kind: 'reason', words: !reportRead ? REPORT_NOT_READ_NO_VENDOR_WORDS : stop.planLineState === 'unmatched' ? UNMATCHED_NO_VENDOR_WORDS : NO_AMOUNT_NO_VENDOR_WORDS };
+}
+
 // ── WORDS ───────────────────────────────────────────────────────────────────
 
 const WEEKDAY_WORDS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
@@ -692,8 +716,13 @@ export function progressPercent(soFarCents: number | null, plannedCents: number 
  * counted, in one line; null when every stop is priced and nothing is set aside.
  * The sentences that name each item follow it in the foot. CLEAN-01
  * (2026-10-14): it sits directly under the full plate, small and muted.
+ * VENDOR-02 (2026-10-14) — Alex's ruling: the day card is the daily and overlay
+ * surface; stranded vendor picks are Budget's to show and clear. "N vendors
+ * stranded" left this line (and its count left the signature); /budget lists
+ * them, each with Clear. strandedWords, the amber sentence that named them under
+ * the plate, is deleted with its one caller.
  */
-export function completenessWords(result: DayStops, stranded: number, read: { readonly day: boolean; readonly report: boolean; readonly records: boolean }): string | null {
+export function completenessWords(result: DayStops, read: { readonly day: boolean; readonly report: boolean; readonly records: boolean }): string | null {
   const parts: string[] = [];
   // What was not read is unknown, not zero — said as such, never counted as "not priced", "no stop" or "not recorded".
   if (!read.day) parts.push(STOPS_NOT_READ_WORDS);
@@ -714,7 +743,6 @@ export function completenessWords(result: DayStops, stranded: number, read: { re
       : (result.linesWithoutStop.length === 1 ? '1 line, its stop not read' : `${result.linesWithoutStop.length} lines, their stops not read`));
   }
   if (result.notPlacedToday.length > 0) parts.push(result.notPlacedToday.length === 1 ? '1 plan not placed' : `${result.notPlacedToday.length} plans not placed`);
-  if (stranded > 0) parts.push(stranded === 1 ? '1 vendor stranded' : `${stranded} vendors stranded`);
   return parts.length === 0 ? null : parts.join(' · ');
 }
 export const badDateWords = (raw: string): string => `?date=${raw} is not a day (YYYY-MM-DD) — showing today`;
@@ -763,12 +791,6 @@ export const linesUnreadWords = (list: readonly PlanLine[]): string => {
 export const routineFigureWords = (list: readonly PlanLine[]): string => {
   const head = list.length === 1 ? "1 routine is priced as a whole — its lines carry no amount, so none of its stops is" : `${list.length} routines are priced as a whole — their lines carry no amount, so none of their stops is`;
   return `${head} — ${lineList(list)}`;
-};
-
-/** The report's stranded vendors on the day, in the week's own words (WeekSection.tsx — deleted TASKS-ONE-02, 2026-10-14; the words live here now). */
-export const strandedWords = (list: readonly StrandedVendor[]): string => {
-  const head = list.length === 1 ? '1 vendor stranded' : `${list.length} vendors stranded`;
-  return `${head} — ${list.map((s) => `${s.vendor.name} (${s.label}${s.line !== null ? ` — ${s.line}` : ''}${s.day !== null ? `, ${s.day}` : ''}): ${s.reason}`).join(' · ')}`;
 };
 
 export const notPlacedWords = (list: readonly NotPlaced[]): string => {

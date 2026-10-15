@@ -22,7 +22,7 @@ import {
   ACTUAL_HEAD_WORD, BADGE_WORDS, BRAND_WORDS, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, HOOK_WORDS, ON_BUDGET_WORDS, PLAN_WORD, PLANNED_NOT_READ_WORDS, PLANNED_WORD, STOPS_NOT_READ_WORDS, TASK_WORD, TIME_HEAD_WORD, TODAY_WORD, UNTITLED_WORDS, VENDOR_HEAD_WORD,
   CELL_GAP, COLUMN_WIDTHS, FIGURE_WIDTH, badDateWords, badStepWords, completenessWords, dayCarryWords, dayMeter, dayShortWords, dayStops, dayVerdict, focusStop,
   headerWords, heroWord, intervalWords, linesUnreadWords, linesWithoutStopWords, notPlacedWords, notPricedWords, openStepWords, planDollars, progressPercent, provenanceWords,
-  routineFigureWords, planSoFarWords, spentOutOfWords, stepHeaderWords, PLATE_BORDER, PLATE_INNER_WIDTH, PLATE_PADDING_X, PLATE_WIDTH, spentSoFarWords, strandedWords, unmatchedWords, whereWords,
+  routineFigureWords, planSoFarWords, spentOutOfWords, stepHeaderWords, PLATE_BORDER, PLATE_INNER_WIDTH, PLATE_PADDING_X, PLATE_WIDTH, spentSoFarWords, unmatchedWords, whereWords,
   type DayCardInput,
 } from '@/components/workbench/operations/day/dayCard';
 import { dayReportFailedWords, readDayReport } from '@/components/workbench/operations/day/dayReads';
@@ -394,13 +394,10 @@ test('T3 the words, exact', () => {
     line({ address: { kind: 'routine', id: 'morning', instant: AT }, cents: 6000, label: 'Morning' }),
     line({ address: { kind: 'routine', id: 'night', instant: AT }, cents: 1000, label: 'Night' }),
   ]), '2 routines are priced as a whole — their lines carry no amount, so none of their stops is — Morning $60.00 · Night $10.00');
-  const v = { id: 'v', name: 'Luka', entityId: 'P' };
-  assert.equal(strandedWords([{ vendor: v, label: 'Morning', line: 'Coffee', day: DAY, time: '07:30', address: { kind: 'routine_line', id: 'coffee', instant: AT }, reason: 'no occurrence' }]),
-    '1 vendor stranded — Luka (Morning — Coffee, 2026-10-11): no occurrence');
-  assert.equal(strandedWords([
-    { vendor: v, label: 'Gym', line: null, day: null, time: null, address: { kind: 'routine', id: 'gym', instant: GYM_AT }, reason: 'zone unreadable' },
-    { vendor: v, label: 'Gym', line: null, day: DAY, time: '20:00', address: { kind: 'routine', id: 'gym', instant: GYM_AT }, reason: 'no occurrence' },
-  ]), '2 vendors stranded — Luka (Gym): zone unreadable · Luka (Gym, 2026-10-11): no occurrence');
+  // VENDOR-02 (2026-10-14) — Alex's ruling: the day card is the daily and overlay surface; stranded vendor picks are
+  // Budget's to show and clear. strandedWords is deleted with its one caller (the card's amber line); /budget lists
+  // each stranded vendor with Clear (budgetReportView.test.ts T5 pins it). Moved: the words are gone from the rules.
+  assert.doesNotMatch(code(RULES), /strandedWords|vendors? stranded/, 'the day rules name no stranded vendor');
   assert.equal(notPlacedWords([
     { source: 'routine', sourceId: 'routine:night', entityId: 'P', label: 'Night', cents: null, day: null, reason: 'timezone not recognised', detail: '"Mars/Olympus"' },
     { source: 'routine', sourceId: 'x', entityId: 'P', label: 'Dinner', cents: 1500, day: DAY, reason: 'no account', detail: null },
@@ -455,16 +452,18 @@ test('T3 the reel plate’s words, exact (DAYCARD-01b): whole dollars, the day o
   assert.equal(progressPercent(null, 5000), null);
   assert.equal(progressPercent(500, null), null);
   // The completeness line counts; the sentences name.
+  // VENDOR-02 (2026-10-14): completenessWords lost its stranded count (the second argument) — every call below moved
+  // with it; the words are the same but for "vendors stranded", which left the line (Alex's ruling: Budget's to show and clear).
   const READ = { day: true, report: true, records: true };
   const empty = dayStops(input({ records: [] }));
-  assert.equal(completenessWords(empty, 0, READ), null);
+  assert.equal(completenessWords(empty, READ), null);
   // What was not read is unknown, not zero: said as such, never counted.
-  assert.equal(completenessWords(empty, 0, { ...READ, day: false }), 'stops not read');
-  assert.equal(completenessWords(dayStops(input({ entries: [entry(morning)], records: [] })), 0, { ...READ, report: false }), 'amounts not read · 3 not recorded', 'three unpriced stops are not "3 not priced" while the amounts were not read');
+  assert.equal(completenessWords(empty, { ...READ, day: false }), 'stops not read');
+  assert.equal(completenessWords(dayStops(input({ entries: [entry(morning)], records: [] })), { ...READ, report: false }), 'amounts not read · 3 not recorded', 'three unpriced stops are not "3 not priced" while the amounts were not read');
   const unread = dayStops(input({ lines: [line({ address: { kind: 'routine_line', id: 'coffee', instant: AT }, cents: 500, label: 'Morning', line: 'Coffee' })], records: [] }));
-  assert.equal(completenessWords(unread, 0, { ...READ, day: false }), 'stops not read · 1 line, its stop not read');
-  assert.equal(completenessWords(empty, 0, { day: false, report: false, records: false }), 'stops not read · amounts not read · records not read');
-  assert.equal(completenessWords(dayStops(input({ entries: [entry(morning)] })), 0, { ...READ, records: false }), 'records not read · 3 not priced', 'three unrecorded stops are not "3 not recorded" while the records were not read (STOP-01) — their prices were read, so "3 not priced" stands');
+  assert.equal(completenessWords(unread, { ...READ, day: false }), 'stops not read · 1 line, its stop not read');
+  assert.equal(completenessWords(empty, { day: false, report: false, records: false }), 'stops not read · amounts not read · records not read');
+  assert.equal(completenessWords(dayStops(input({ entries: [entry(morning)] })), { ...READ, records: false }), 'records not read · 3 not priced', 'three unrecorded stops are not "3 not recorded" while the records were not read (STOP-01) — their prices were read, so "3 not priced" stands');
   const r = dayStops(input({
     entries: [entry(morning)],
     lines: [
@@ -473,14 +472,15 @@ test('T3 the reel plate’s words, exact (DAYCARD-01b): whole dollars, the day o
     ],
     notPlaced: [{ source: 'routine', sourceId: 'routine:night', entityId: 'P', label: 'Night', cents: null, day: null, reason: 'timezone not recognised', detail: null }],
   }));
-  assert.equal(completenessWords(r, 2, { ...READ, records: false }), 'records not read · 3 not priced · 1 line at another instant · 1 line with no stop · 1 plan not placed · 2 vendors stranded');
+  // VENDOR-02 (2026-10-14): the count left the signature and "· 2 vendors stranded" left the line (Alex's ruling — Budget's to show and clear).
+  assert.equal(completenessWords(r, { ...READ, records: false }), 'records not read · 3 not priced · 1 line at another instant · 1 line with no stop · 1 plan not placed');
   const whole = dayStops(input({ entries: [entry(morning)], lines: [line({ address: { kind: 'routine', id: 'morning', instant: AT }, cents: 6000, label: 'Morning' })] }));
-  assert.equal(completenessWords(whole, 0, { ...READ, records: false }), 'records not read · 3 not priced · 1 routine priced as a whole');
+  assert.equal(completenessWords(whole, { ...READ, records: false }), 'records not read · 3 not priced · 1 routine priced as a whole');
   const priced = dayStops(input({ entries: [entry(gym, 'pending', GYM_AT)], lines: [line({ address: { kind: 'routine', id: 'gym', instant: GYM_AT }, cents: 1500, label: 'Gym' })], records: [] }));
-  assert.equal(completenessWords(priced, 0, READ), '1 not recorded');
+  assert.equal(completenessWords(priced, READ), '1 not recorded');
   const l1 = line({ address: { kind: 'routine', id: 'gym', instant: GYM_AT }, cents: 1500, label: 'Gym' });
   const doubled = dayStops(input({ entries: [entry(gym, 'pending', GYM_AT)], lines: [l1, { ...l1, cents: 1600 }], records: [] }));
-  assert.equal(completenessWords(doubled, 0, READ), '1 not priced · 1 not recorded · 2 plan lines for one stop', 'two lines at the stop’s own instant are not "at another instant"');
+  assert.equal(completenessWords(doubled, READ), '1 not priced · 1 not recorded · 2 plan lines for one stop', 'two lines at the stop’s own instant are not "at another instant"');
 });
 
 // ── T4 · THE READS ───────────────────────────────────────────────────────────
@@ -641,15 +641,18 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   // CLEAN-01 (2026-10-14): on the full card both lines moved from the plate's foot to the fine print directly under it (pinned in T7);
   // the step card kept its own source line on its plate. CLEAN-02 (2026-10-14): the stop card's moved to the same fine print — one
   // source line in the screen, under the plate, for both views (the journal card has none).
-  assert.match(c, /const reportRead = report !== null && report\.ok;\n\s*const recordsOk = recordsRead !== null && recordsRead\.ok;\n\s*const completeness = completenessWords\(result, stranded\.length, \{ day: !dayFailed, report: reportRead, records: recordsOk \}\);/, 'the count knows what was not read');
+  // VENDOR-02 (2026-10-14): the stranded count left the call — the card counts no stranded vendor (Budget's to show and clear).
+  assert.match(c, /const reportRead = report !== null && report\.ok;\n\s*const recordsOk = recordsRead !== null && recordsRead\.ok;\n\s*const completeness = completenessWords\(result, \{ day: !dayFailed, report: reportRead, records: recordsOk \}\);/, 'the count knows what was not read');
   assert.match(c, /data-day-count>\{completeness\}/);
   assert.equal((c.match(/data-day-provenance>\{provenanceWords\(today, reportRead, recordsOk\)\}/g) ?? []).length, 1, 'one source line, in the fine print under the full card and the stop card — the records a source too (STOP-01)');
   assert.ok(c.indexOf('data-day-fine-print') < c.indexOf('data-day-foot'), 'the fine print first under the plate; the sentences after it');
   assert.match(c, /\{foot && \(\n\s*<div className="mx-auto space-y-1 text-xs" style=\{\{ width: PLATE_WIDTH \}\} data-day-foot>/, 'the sentences under the plate render whenever there is one');
-  assert.match(c, /const foot = loaded && \(result\.unmatched\.length > 0 \|\| result\.routineFigures\.length > 0 \|\| result\.linesWithoutStop\.length > 0 \|\| result\.notPlacedToday\.length > 0 \|\| stranded\.length > 0 \|\| refused\.length > 0 \|\| \(report !== null && !report\.ok\) \|\| \(plans !== null && !plans\.listed\) \|\| result\.recordsWithoutStop\.length > 0 \|\| unplacedRecords\.length > 0 \|\| \(recordsRead !== null && !recordsRead\.ok\)\);/);
+  // VENDOR-02 (2026-10-14): stranded.length left the condition — the foot names no stranded vendor (Budget's to show and clear).
+  assert.match(c, /const foot = loaded && \(result\.unmatched\.length > 0 \|\| result\.routineFigures\.length > 0 \|\| result\.linesWithoutStop\.length > 0 \|\| result\.notPlacedToday\.length > 0 \|\| refused\.length > 0 \|\| \(report !== null && !report\.ok\) \|\| \(plans !== null && !plans\.listed\) \|\| result\.recordsWithoutStop\.length > 0 \|\| unplacedRecords\.length > 0 \|\| \(recordsRead !== null && !recordsRead\.ok\)\);/);
   assert.match(c, /data-day-lines-without-stop>\{dayFailed \? linesUnreadWords\(result\.linesWithoutStop\) : linesWithoutStopWords\(result\.linesWithoutStop\)\}/);
   assert.match(c, /data-day-routine-figures>\{routineFigureWords\(result\.routineFigures\)\}/);
-  assert.match(c, /data-day-stranded>\{strandedWords\(stranded\)\}/);
+  // VENDOR-02 (2026-10-14): the amber stranded-vendor line left the foot (and stranded left the foot's condition, above).
+  assert.doesNotMatch(c, /data-day-stranded|strandedWords|\bstranded\b/, 'the card names no stranded vendor — /budget lists them with Clear');
   assert.match(c, /<RefusedRoutines refused=\{refused\} \/>/);
   // The step card: PLAN and its amount, "so far" and the bar — both null-safe while the report cannot be read.
   assert.match(c, /\{PLAN_WORD\}<\/div>/);
@@ -663,7 +666,8 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.match(c, /className="bg-brand-green rounded-full" style=\{\{ height: 9, width: `\$\{spentBar\}%` \}\}/, 'the SPENT bar green');
   // CLEAN-01 (2026-10-14): data-day-plate-foot left the screen with the plate's foot; the fine print, the meter and the verdict joined.
   // CLEAN-02 (2026-10-14): data-day-status> (the stop card's status line) left; the download button and its failure words joined.
-  for (const attr of ['data-day-card', 'data-day-header', 'data-day-hero', 'data-day-hook', 'data-day-stop=', 'data-day-status=', 'data-day-focus', 'data-day-fine-print', 'data-day-meter=', 'data-day-verdict', 'data-day-count', 'data-day-provenance', 'data-day-foot', 'data-day-unmatched', 'data-day-routine-figures', 'data-day-lines-without-stop', 'data-day-not-placed', 'data-day-stranded', 'data-day-report-failed', 'data-day-bad-date', 'data-day-bad-step', 'data-day-failed', 'data-day-so-far', 'data-day-controls', 'data-day-spent', 'data-day-record', 'data-day-download-image', 'data-day-image-failed', 'data-day-actual', 'data-day-delta', 'data-day-rating', 'data-day-note', 'data-day-minutes', 'data-day-spent-so-far', 'data-day-records-without-stop', 'data-day-records-unplaced', 'data-day-records-failed']) {
+  // VENDOR-02 (2026-10-14): data-day-stranded left with the amber stranded-vendor line (pinned absent above).
+  for (const attr of ['data-day-card', 'data-day-header', 'data-day-hero', 'data-day-hook', 'data-day-stop=', 'data-day-status=', 'data-day-focus', 'data-day-fine-print', 'data-day-meter=', 'data-day-verdict', 'data-day-count', 'data-day-provenance', 'data-day-foot', 'data-day-unmatched', 'data-day-routine-figures', 'data-day-lines-without-stop', 'data-day-not-placed', 'data-day-report-failed', 'data-day-bad-date', 'data-day-bad-step', 'data-day-failed', 'data-day-so-far', 'data-day-controls', 'data-day-spent', 'data-day-record', 'data-day-download-image', 'data-day-image-failed', 'data-day-actual', 'data-day-delta', 'data-day-rating', 'data-day-note', 'data-day-minutes', 'data-day-spent-so-far', 'data-day-records-without-stop', 'data-day-records-unplaced', 'data-day-records-failed']) {
     assert.ok(c.includes(attr), `the screen carries ${attr}`);
   }
   // The URL: ?date= and ?step= read with useSearchParams, pushed with router.push; the step judged once the reads are in, never clamped.
@@ -894,7 +898,9 @@ test('T7 CLEAN-01 the fine print — the completeness and source lines render af
   // CLEAN-02 (2026-10-14): "download image" is directly under the plate (T8); the fine print follows it — the CLEAN-01 block, now shown
   // on a stop card too, carrying that card's why-line. The full card's lines and words are unchanged.
   assert.match(after, /\{loaded && \(focus === null \|\| focus\.stop\.role !== 'journal'\) && \(\n\s*<div className="mx-auto space-y-1 text-xs text-text-muted" style=\{\{ width: PLATE_WIDTH \}\} data-day-fine-print>\n\s*\{focus === null && completeness !== null && <p data-day-count>\{completeness\}<\/p>\}\n\s*\{focus !== null && planBar === null && <p data-day-bars-why>\{plannedCents === null \? BARS_PLAN_NOT_READ_WORDS : BARS_NOTHING_PLANNED_WORDS\}<\/p>\}\n\s*<p className="font-mono" data-day-provenance>\{provenanceWords\(today, reportRead, recordsOk\)\}<\/p>\n\s*<\/div>\n\s*\)\}/, 'under the plate: the completeness line (full card) or the why-line (stop card), then the source line — small, muted, at the plate’s width');
-  inOrderOf(after, ['data-day-download-image', 'data-day-fine-print', 'data-day-hint', 'data-day-foot', 'data-day-stranded>'], 'the download button, the fine print, then the hint, then the sentences beside the stranded-vendor line');
+  // VENDOR-02 (2026-10-14): the stranded-vendor line left the foot; the order holds through the foot's first sentence instead,
+  // and the stop's VENDOR row joins it — after the hint, directly above the record row (vendor02.test.ts pins it fully).
+  inOrderOf(after, ['data-day-download-image', 'data-day-fine-print', 'data-day-hint', '<StopVendor', '<StopForm', 'data-day-foot', 'data-day-unmatched>'], 'the download button, the fine print, the hint, the VENDOR row, the record row, then the sentences');
 });
 
 // ── T8 · CLEAN-02 (2026-10-14): THE JOURNAL AND STOP CARDS, CLEANED; THE CARD AS AN IMAGE ──

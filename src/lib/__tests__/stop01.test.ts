@@ -319,7 +319,8 @@ test('T2 the day’s spent is the sum of the actuals that exist, the stops witho
   // CLEAN-01 (2026-10-14): spentWords left with the full card's counts; the same rule holds on its line — the screen passes the spent as
   // unknown (null) when no stop carries an actual (DayCard.tsx `spent`, pinned in daycard01 T7), and the words print "—", never $0.
   assert.equal(spentOutOfWords(sk.withActual === 0 ? null : sk.spentCents, 2500), 'spent — out of $25', 'PLAN-01: the sum of no actuals is not $0 — it is unknown');
-  assert.equal(completenessWords(sk, 0, { day: true, report: true, records: true }), '1 not priced · 1 skipped');
+  // VENDOR-02 (2026-10-14): completenessWords lost its stranded count (Alex's ruling — stranded vendors are Budget's to show); the words stand.
+  assert.equal(completenessWords(sk, { day: true, report: true, records: true }), '1 not priced · 1 skipped');
   // The done count is the marks' — a line done by its routine's completion counts (its row wears ✓); a task without an actual counts as without.
   const byRoutine = dayStops(input({ entries: [entry(morning, 'completed')], items: [item({ id: 'i1', task_id: 't1', task: task('t1', 'Ship it') })], records: [] }));
   assert.deepEqual([byRoutine.done, byRoutine.withoutActual, byRoutine.notRecorded], [3, 4, 3]);
@@ -627,7 +628,9 @@ test('T6 the form: under the plate on the step view, for a line or a routine onl
   assert.match(c, /const loaded = dayRead !== null && report !== null && items !== null && recordsRead !== null;/, 'the plate waits for the records too');
   assert.doesNotMatch(c, /setRecords\(null\)/, 'a re-read never blanks the plate first');
   assert.match(c, /dayStops\(\{ day, entries, lines, notPlaced, items: dayItems, viewerZone: zone, records: recordRows \}\)/);
-  assert.match(c, /<StopForm key=\{`\$\{focus\.stop\.key\}:\$\{focus\.stop\.record === null \? 'none' : focus\.stop\.record\.id\}`\} stop=\{focus\.stop\} day=\{day\} bookName=\{focus\.stop\.planLine === null \? ACCOUNT_CELL_WORDS\.bookNotLoaded : bookNameOf\(focus\.stop\.planLine\.entityId\)\} viewerZone=\{zone\} reportRead=\{reportRead\} onChanged=\{\(\) => setRecordReads\(\(n\) => n \+ 1\)\} onPlanChanged=\{\(\) => setReportReads\(\(n\) => n \+ 1\)\} \/>/, 'keyed by the stop and its record; the book by name from the report, whether the report was read, and the report re-read for the vendor box (ROLE-01)');
+  // VENDOR-02 (2026-10-14): the book, whether the report was read and the report re-read moved with the vendor box to the card's
+  // StopVendor mount (above the form; vendor02.test.ts pins it) — the form keeps its key, the stop, the day, the zone and the records' re-read.
+  assert.match(c, /<StopForm key=\{`\$\{focus\.stop\.key\}:\$\{focus\.stop\.record === null \? 'none' : focus\.stop\.record\.id\}`\} stop=\{focus\.stop\} day=\{day\} viewerZone=\{zone\} onChanged=\{\(\) => setRecordReads\(\(n\) => n \+ 1\)\} \/>/, 'keyed by the stop and its record; the records read again after a write (the vendor box’s props moved to StopVendor — VENDOR-02)');
   assert.ok(c.indexOf('data-day-card') < c.indexOf('<StopForm'), 'the form sits under the plate');
   assert.ok(c.indexOf('<StopForm') < c.indexOf('data-day-foot'), '— above the sentences');
   assert.match(c, /\{loaded && recordsOk && focus !== null && focus\.stop\.address !== null && \(/, 'on the step view, for a stop that has an address — never while the records could not be read');

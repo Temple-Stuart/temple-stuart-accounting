@@ -53,6 +53,9 @@
  * unmatched lines, a routine priced as a whole, lines with no stop, the day's
  * not-placed plans and stranded vendors are counted on the plate and named under
  * it; so are records that match no stop, and records the route could not place.
+ * VENDOR-02 (2026-10-14) — Alex's ruling: the day card is the daily and overlay
+ * surface; stranded vendor picks are Budget's to show and clear. Stranded
+ * vendors are no longer counted or named here — /budget lists each with Clear.
  * THE PLATE WRITES NOTHING: it is a view of what Tasks, Budget and the stop
  * records hold; the form under it is the one way a record is written. Nothing
  * is stored in the browser.
@@ -64,6 +67,12 @@
  * place stop plans its vendor there on its matched plan line, and the plate
  * reads the report again so the VENDOR cell shows it. "tap a stop to record it" sits
  * under the full plate, outside the recorded box.
+ * VENDOR-02 (2026-10-14) — Alex's ruling: EVERY priced stop plans its vendor, not
+ * only a place stop — the VENDOR row (stops/StopVendor.tsx, by dayCard.ts
+ * vendorSlot) sits directly above the record row, under the fine print (CLEAN-02
+ * keeps "download image" directly under the plate). It no longer needs the
+ * records read to succeed (a vendor is a plan write, not a record), and a task's
+ * step view has it too.
  *
  * JOURNAL-01 (2026-10-13) — THE JOURNAL STOP'S PLATE. On the step view of a
  * routine whose role is journal, the plain record block gives way to a plate.
@@ -93,7 +102,8 @@
  * reads whole on video; a row's description is its door, a real button. The step
  * view shows the same five facts: VENDOR and LOCATION are two labeled lines in
  * its header area (a place stop's vendor box under the plate stays the editing
- * control; the header line is the fact).
+ * control; the header line is the fact). VENDOR-02 (2026-10-14): every priced
+ * stop's vendor box, not only a place stop's — the header line is still the fact.
  *
  * PLAN-01 (2026-10-13) — Alex's rulings. The plate is 640 wide (dayCard.ts
  * PLATE_WIDTH; every width on and under it derives from it) so the card is
@@ -129,6 +139,10 @@
  * LOCATION and status lines are gone, and its bars' why-line and source line
  * print in the fine print under the plate. "download image" sits directly under
  * every card view — the plate alone as a PNG (../cardImage.ts).
+ * VENDOR-02 (2026-10-14) amends one clause: a PRICED journal stop shows the
+ * VENDOR row under the card (Alex's VENDOR-02 list names journal among the roles
+ * that get the box); the journal card itself — the plate — still draws no vendor
+ * and no money.
  */
 
 'use client';
@@ -147,6 +161,7 @@ import StayBar from '../stays/StayBar';
 import JournalForm from '../stops/JournalForm';
 import { setJournal as writeJournal } from '../stops/journalWrites';
 import StopForm from '../stops/StopForm';
+import StopVendor from '../stops/StopVendor';
 import { ACCOUNT_CELL_WORDS } from '@/lib/coa/accountCell';
 import {
   BLOCKERS_BLOCK_WORD, END_OF_DAY_BLOCK_WORD, JOURNAL_LOADING_WORDS, PLAN_BLOCK_WORD, TODAY_BLOCK_WORD, UNANSWERED_WORD, YESTERDAY_LOADING_WORDS, YESTERDAY_WORD,
@@ -161,7 +176,7 @@ import {
   bandNameOf, headerWords, heroWord, HOOK_WORDS, linesUnreadWords, linesWithoutStopWords, minutesLine, notPlacedWords, planDollars, progressPercent, provenanceWords,
   recordsUnplacedWords, recordsWithoutStopWords, routineFigureWords, rowActualWords, planSoFarWords, spentOutOfWords, spentSoFarWords, stepHeaderWords,
   BARS_NOTHING_PLANNED_WORDS, BARS_PLAN_NOT_READ_WORDS, PLATE_PADDING_X, PLATE_WIDTH, overByWords,
-  strandedWords, unmatchedWords, whereWords,
+  unmatchedWords, vendorSlot, whereWords,
   dayShortWords,
   ACTUAL_HEAD_WORD, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, TIME_HEAD_WORD, VENDOR_HEAD_WORD, intervalWords, openStepWords,
   CELL_GAP, COLUMN_WIDTHS, dayMeter, dayVerdict,
@@ -237,7 +252,8 @@ const plateSmall = { fontSize: 20, lineHeight: 1.2 } as const;
  * BLOCKERS; PLAN; END OF DAY. No money: yesterday's spent, largest difference
  * and done-of-stops, TODAY's planned/stops line, the status line and the source
  * line are gone, and the step view draws no vendor, location, plan amount or
- * bars for a journal stop. The journal's own read state (in flight, failed,
+ * bars for a journal stop (VENDOR-02, 2026-10-14: on its plate — a priced journal
+ * stop's VENDOR row sits under the card, as every priced stop's). The journal's own read state (in flight, failed,
  * nothing typed) is still said — an unknown is never an empty block.
  */
 function JournalPlate({ day, journal, yesterday, onChanged }: {
@@ -462,7 +478,6 @@ export default function DayCard() {
   const refused = dayRead !== null && dayRead.ok ? dayRead.value.refused : [];
   const plans = report !== null && report.ok ? report.value.plans : null;
   const lines = plans !== null && plans.listed ? plans.lines : [];
-  const stranded = plans !== null && plans.listed ? plans.stranded : [];
   const notPlaced = report !== null && report.ok ? report.value.notPlaced : [];
   const dayItems = items !== null && items.ok ? items.value : [];
   const result = dayStops({ day, entries, lines, notPlaced, items: dayItems, viewerZone: zone, records: recordRows });
@@ -477,13 +492,13 @@ export default function DayCard() {
   const N = result.stops.length;
   const reportRead = report !== null && report.ok;
   const recordsOk = recordsRead !== null && recordsRead.ok;
-  const completeness = completenessWords(result, stranded.length, { day: !dayFailed, report: reportRead, records: recordsOk });
+  const completeness = completenessWords(result, { day: !dayFailed, report: reportRead, records: recordsOk });
   // PLAN-01 (2026-10-13): two bars on the step view against the day's planned total — PLAN (gold) the planned money of stops 1..n,
   // SPENT (green) their actuals. No spent bar while the records are unread or nothing so far carries an actual (unknown, not zero).
   const planBar = progressPercent(plannedCents === null || focus === null ? null : focus.soFarCents, plannedCents);
   const spentBar = focus === null || focus.spentSoFarCents === null || focus.withActualSoFar === 0 ? null : progressPercent(focus.spentSoFarCents, plannedCents);
   const overCents = focus === null || focus.spentSoFarCents === null || focus.withActualSoFar === 0 || plannedCents === null || focus.spentSoFarCents <= plannedCents ? null : focus.spentSoFarCents - plannedCents;
-  const foot = loaded && (result.unmatched.length > 0 || result.routineFigures.length > 0 || result.linesWithoutStop.length > 0 || result.notPlacedToday.length > 0 || stranded.length > 0 || refused.length > 0 || (report !== null && !report.ok) || (plans !== null && !plans.listed) || result.recordsWithoutStop.length > 0 || unplacedRecords.length > 0 || (recordsRead !== null && !recordsRead.ok));
+  const foot = loaded && (result.unmatched.length > 0 || result.routineFigures.length > 0 || result.linesWithoutStop.length > 0 || result.notPlacedToday.length > 0 || refused.length > 0 || (report !== null && !report.ok) || (plans !== null && !plans.listed) || result.recordsWithoutStop.length > 0 || unplacedRecords.length > 0 || (recordsRead !== null && !recordsRead.ok));
   const delta = focus === null ? null : deltaWords(focus.stop.actualCents, focus.stop.cents);
   // CLEAN-01 (2026-10-14): the full card's spent — unknown ('—', null) while the records are unread or no stop carries an actual (PLAN-01: never $0);
   // the meter against the planned total, and the verdict only once every stop that asks an amount carries one.
@@ -721,9 +736,14 @@ export default function DayCard() {
       {/* ROLE-01: the record lives on the step view — said under the full plate, outside the recorded box. */}
       {loaded && focus === null && N > 0 && <p className="mx-auto text-xs text-text-muted" style={{ width: PLATE_WIDTH }} data-day-hint>{TAP_A_STOP_WORDS}</p>}
 
+      {/* VENDOR-02 (2026-10-14): the stop's VENDOR, directly above the record row — Budget's own box for every priced stop, a place stop's one reason, else nothing (vendorSlot). A write reads the report again, so the plate's VENDOR shows it; keyed by the stop, so ‹ step › starts a fresh box. */}
+      {loaded && focus !== null && (
+        <StopVendor key={focus.stop.key} slot={vendorSlot(focus.stop, reportRead)} bookName={focus.stop.planLine === null ? ACCOUNT_CELL_WORDS.bookNotLoaded : bookNameOf(focus.stop.planLine.entityId)} reload={() => setReportReads((n) => n + 1)} />
+      )}
+
       {/* STOP-01: the record, typed under the plate on the step view — outside the recorded box; a write reads the records again. Keyed by the stop and its record so each starts from what is held; never offered while the records could not be read (a save would write over a record the screen cannot see). */}
       {loaded && recordsOk && focus !== null && focus.stop.address !== null && (
-        <StopForm key={`${focus.stop.key}:${focus.stop.record === null ? 'none' : focus.stop.record.id}`} stop={focus.stop} day={day} bookName={focus.stop.planLine === null ? ACCOUNT_CELL_WORDS.bookNotLoaded : bookNameOf(focus.stop.planLine.entityId)} viewerZone={zone} reportRead={reportRead} onChanged={() => setRecordReads((n) => n + 1)} onPlanChanged={() => setReportReads((n) => n + 1)} />
+        <StopForm key={`${focus.stop.key}:${focus.stop.record === null ? 'none' : focus.stop.record.id}`} stop={focus.stop} day={day} viewerZone={zone} onChanged={() => setRecordReads((n) => n + 1)} />
       )}
 
       {/* JOURNAL-01: the questions, under the plate on the journal stop's step view — keyed by the day and the journal held; never offered while the journal could not be read (a save would write over answers the screen cannot see). */}
@@ -738,7 +758,6 @@ export default function DayCard() {
           {result.routineFigures.length > 0 && <p className="text-brand-amber" data-day-routine-figures>{routineFigureWords(result.routineFigures)}</p>}
           {result.linesWithoutStop.length > 0 && <p className="text-brand-amber" data-day-lines-without-stop>{dayFailed ? linesUnreadWords(result.linesWithoutStop) : linesWithoutStopWords(result.linesWithoutStop)}</p>}
           {result.notPlacedToday.length > 0 && <p className="text-brand-amber" data-day-not-placed>{notPlacedWords(result.notPlacedToday)}</p>}
-          {stranded.length > 0 && <p className="text-brand-amber" data-day-stranded>{strandedWords(stranded)}</p>}
           {result.recordsWithoutStop.length > 0 && <p className="text-brand-amber" data-day-records-without-stop>{recordsWithoutStopWords(result.recordsWithoutStop)}</p>}
           {unplacedRecords.length > 0 && <p className="text-brand-amber" data-day-records-unplaced>{recordsUnplacedWords(unplacedRecords)}</p>}
           <RefusedRoutines refused={refused} />
