@@ -35,8 +35,16 @@ export function cardImageName(day: string, focus: { readonly index: number; read
   return `temple-stuart-${day}-step-${focus.index}-${slug}.png`;
 }
 
+/** REEL-01 (Alex, 2026-10-15): the step view's second button — one stop's tag, for a phone over video (stops/StopTag.tsx). */
+export const DOWNLOAD_TAG_WORDS = 'download tag';
+
+/** REEL-01: the tag's file — the step's own name (cardImageName) with "-tag": "temple-stuart-2026-10-14-step-2-brunch-tag.png". */
+export const cardTagName = (day: string, focus: { readonly index: number; readonly label: string }): string =>
+  cardImageName(day, focus).replace(/\.png$/, '-tag.png');
+
 /**
  * The plate, rendered to a PNG and handed to the browser as a download named `name`. Throws what the renderer throws.
+ * REEL-01 (2026-10-15): the stop's tag is rendered by this same helper — one renderer, one pixel ratio, transparent outside its corners.
  * The renderer copies the plate's computed style onto its copy — the page's centring margins included (mx-auto, the
  * section's spacing), which would shift the card off the image's own box — so the copy's margin is zero: the image is
  * the plate's box exactly. The page's plate is not touched.

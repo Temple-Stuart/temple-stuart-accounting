@@ -172,7 +172,8 @@ import { localToday } from '@/lib/localToday';
 import type { DailyPlanItem } from '../dailyplan/types';
 import RefusedRoutines from '../routines/RefusedRoutines';
 import { readDay, readItems, type DayAnswer, type Read } from '../week/weekReads';
-import { DOWNLOAD_IMAGE_WORDS, cardImageFailedWords, cardImageName, downloadCardImage } from '../cardImage';
+import { DOWNLOAD_IMAGE_WORDS, DOWNLOAD_TAG_WORDS, cardImageFailedWords, cardImageName, cardTagName, downloadCardImage } from '../cardImage';
+import StopTag from '../stops/StopTag';
 import StayBar from '../stays/StayBar';
 import JournalForm from '../stops/JournalForm';
 import { setJournal as writeJournal } from '../stops/journalWrites';
@@ -190,13 +191,15 @@ import { readDayReport, readJournal, readStays, readStopRecords, type JournalAns
 import {
   ACTUAL_WORD, BADGE_WORDS, BRAND_WORDS, PLAN_WORD, TASK_WORD, TODAY_WORD, badDateWords, badStepWords, completenessWords, dayStops, deltaWords, focusStop,
   bandNameOf, headerWords, heroWord, HOOK_WORDS, linesUnreadWords, linesWithoutStopWords, minutesLine, notPlacedWords, planDollars, progressPercent, provenanceWords,
-  recordsUnplacedWords, recordsWithoutStopWords, routineFigureWords, rowActualWords, planSoFarWords, spentSoFarWords, stepHeaderWords,
+  recordsUnplacedWords, recordsWithoutStopWords, routineFigureWords, rowActualWords, planSoFarWords, stepHeaderWords,
   barsWhyWords, PLATE_PADDING_X, PLATE_WIDTH, overByWords,
   unmatchedWords, vendorSlot, whereWords,
   dayShortWords,
   ACTUAL_HEAD_WORD, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, TIME_HEAD_WORD, VENDOR_HEAD_WORD, intervalWords, openStepWords,
   CELL_GAP, COLUMN_WIDTHS, dayMeter, dayVerdict,
   TOTAL_WORD, dayTotals, planBeyondStopsWords,
+  CAPTION_COPIED_WORDS, COPY_CAPTION_WORDS, COPY_SCRIPT_WORDS, SCRIPT_COPIED_WORDS, captionText, copyFailedWords, reelReadsWords, scriptText, stepSpentSoFarWords, stopName, stopScriptText, stopTagWords,
+  type ReelReads, type ReelText,
   DAY_CARD_PATH,
   type StayState, type Stop,
 } from './dayCard';
@@ -206,8 +209,8 @@ const chip = 'px-2 py-0.5 border border-border rounded hover:bg-bg-row text-xs d
 /** The URL of a day, and of one of its stops — on /tasks, where the card is the first section (TASKS-ONE-01). */
 const hrefFor = (day: string, step: number | null): string => `${DAY_CARD_PATH}?date=${day}${step === null ? '' : `&step=${step}`}`;
 
-/** The row's bold text: the line (the step's activity) when it has one, else the label. */
-const boldOf = (s: Stop): string => (s.line !== null ? s.line : s.label);
+/** The row's bold text: the line (the step's activity) when it has one, else the label. REEL-01 (2026-10-15): the rule moved to dayCard.ts stopName, so the reel's caption and script name a stop as the row does. */
+const boldOf = (s: Stop): string => stopName(s);
 
 /** The description's small text: the routine's name under its line, "task" under a task; null for a stepless routine (its name is the bold text). TABLE-01: the vendor and the location have their own columns. */
 function smallOf(s: Stop): string | null {
@@ -391,6 +394,11 @@ export default function DayCard() {
   const plateRef = useRef<HTMLDivElement>(null);
   const [imageBusy, setImageBusy] = useState(false);
   const [imageFailed, setImageFailed] = useState<{ readonly view: string; readonly words: string } | null>(null);
+  // REEL-01 (2026-10-15): the stop's tag element (rendered off the page, made a PNG by the same helper), busy while it renders;
+  // and the last reel answer — copied, or a failure in words — kept with the view it was pressed on.
+  const tagRef = useRef<HTMLDivElement>(null);
+  const [tagBusy, setTagBusy] = useState(false);
+  const [reelWords, setReelWords] = useState<{ readonly view: string; readonly ok: boolean; readonly words: string } | null>(null);
   // The day the three reads above landed for: a day change renders once with the old day's reads before they are blanked, and
   // the journal and yesterday effects must not fire on that render.
   const [readsDay, setReadsDay] = useState<string | null>(null);
@@ -565,6 +573,48 @@ export default function DayCard() {
     }
   };
 
+  // REEL-01 (Alex, 2026-10-15): the reel kit — the stop's tag, the day's caption, the reel's script — each made by one pure rule
+  // (dayCard.ts) from the card's own reads and figures; nothing leaves the browser but the PNG and the clipboard. A read an output uses
+  // that is still in flight makes it wait, a failed one is named (a refused routine is a stop the card cannot show) — never a partial
+  // text. The journal is the card's own read: on a day with a journal stop it is waited for; on any other day the card reads none.
+  const reelReads: ReelReads = {
+    day: dayRead === null ? 'waiting' : dayRead.ok && refused.length === 0 ? 'ok' : 'failed',
+    tasks: items === null ? 'waiting' : items.ok ? 'ok' : 'failed',
+    report: report === null ? 'waiting' : report.ok && report.value.plans.listed ? 'ok' : 'failed',
+    records: recordsRead === null ? 'waiting' : recordsRead.ok ? 'ok' : 'failed',
+    stay: staysRead === null ? 'waiting' : staysRead.ok ? 'ok' : 'failed',
+    journal: !hasJournalStop ? null : journalRead === null ? 'waiting' : journalRead.ok ? 'ok' : 'failed',
+  };
+  const reelWait = focus === null ? reelReadsWords(reelReads) : reelReadsWords({ ...reelReads, journal: null });
+  const reelStay = stayState.kind === 'read' ? stayState.stay : null;
+  const reelJournal = journalRead !== null && journalRead.ok ? journalRead.value.journal : null;
+  const reelDay = { day, stay: reelStay, stops: result.stops, totals, verdict, journal: reelJournal };
+  const caption: ReelText | null = focus === null && reelWait === null ? captionText(reelDay) : null;
+  const script: ReelText | null = reelWait !== null ? null : focus === null ? scriptText(reelDay) : stopScriptText(day, reelStay, focus.stop);
+  const tag = focus !== null && reelWait === null ? stopTagWords({ day, stay: reelStay, stop: focus.stop, foot: stepSpentSoFarWords(focus, totals.budgetCents) }) : null;
+  const copyReel = async (what: 'caption' | 'script', text: ReelText | null) => {
+    if (text === null || !text.ok) return;
+    setReelWords(null);
+    try {
+      await navigator.clipboard.writeText(text.text);
+      setReelWords({ view, ok: true, words: what === 'caption' ? CAPTION_COPIED_WORDS : SCRIPT_COPIED_WORDS });
+    } catch (error) {
+      setReelWords({ view, ok: false, words: copyFailedWords(what, error instanceof Error ? error.message : String(error)) });
+    }
+  };
+  const downloadTag = async () => {
+    if (tagBusy || focus === null) return;
+    setTagBusy(true);
+    setReelWords(null);
+    try {
+      if (tagRef.current === null) throw new Error('the tag is not on the page');
+      await downloadCardImage(tagRef.current, cardTagName(day, { index: focus.index, label: boldOf(focus.stop) }));
+    } catch (error) {
+      setReelWords({ view, ok: false, words: cardImageFailedWords(error instanceof Error ? error.message : String(error)) });
+    } finally {
+      setTagBusy(false);
+    }
+  };
 
   return (
     <section className="space-y-2" data-day-section>
@@ -741,7 +791,7 @@ export default function DayCard() {
                       <div className="bg-brand-gold rounded-full" style={{ height: 9, width: `${planBar}%` }} />
                     </div>
                   )}
-                  <div className="font-semibold text-text-secondary tabular-nums" style={{ fontSize: 23 }} data-day-spent-so-far>{spentSoFarWords(focus.spentSoFarCents === null || focus.withActualSoFar === 0 ? null : focus.spentSoFarCents, totals.budgetCents)}{overCents !== null && <span className={actualTone(true)} data-day-over-by> · {overByWords(overCents)}</span>}</div>
+                  <div className="font-semibold text-text-secondary tabular-nums" style={{ fontSize: 23 }} data-day-spent-so-far>{stepSpentSoFarWords(focus, totals.budgetCents)}{overCents !== null && <span className={actualTone(true)} data-day-over-by> · {overByWords(overCents)}</span>}</div>
                   {planBar !== null && spentBar !== null && (
                     <div className="bg-bg-row rounded-full overflow-hidden" style={{ height: 9 }} aria-hidden="true" data-day-spent-bar={spentBar}>
                       <div className="bg-brand-green rounded-full" style={{ height: 9, width: `${spentBar}%` }} />
@@ -757,8 +807,23 @@ export default function DayCard() {
       {/* CLEAN-02 (2026-10-14): "download image" — directly under every card view, outside the recorded box: the plate alone as a PNG (cardImage.ts). Busy while it renders; a failure in words under it, nothing else. */}
       {loaded && (
         <div className="mx-auto flex flex-col items-start gap-1 text-xs" style={{ width: PLATE_WIDTH }} data-day-image>
-          <button type="button" className={chip} disabled={imageBusy} aria-busy={imageBusy} onClick={downloadImage} data-day-download-image>{DOWNLOAD_IMAGE_WORDS}</button>
+          {/* REEL-01 (2026-10-15): beside "download image" — the full card's "copy caption", the step view's "download tag", and "copy script" on both. */}
+          <div className="flex flex-wrap items-center gap-1.5" data-day-reel>
+            <button type="button" className={chip} disabled={imageBusy} aria-busy={imageBusy} onClick={downloadImage} data-day-download-image>{DOWNLOAD_IMAGE_WORDS}</button>
+            {focus === null && <button type="button" className={chip} disabled={caption === null || !caption.ok} onClick={() => copyReel('caption', caption)} data-day-copy-caption>{COPY_CAPTION_WORDS}</button>}
+            {focus !== null && <button type="button" className={chip} disabled={tag === null || tagBusy} aria-busy={tagBusy} onClick={downloadTag} data-day-download-tag>{DOWNLOAD_TAG_WORDS}</button>}
+            <button type="button" className={chip} disabled={script === null || !script.ok} onClick={() => copyReel('script', script)} data-day-copy-script>{COPY_SCRIPT_WORDS}</button>
+          </div>
           {imageFailed !== null && imageFailed.view === view && <p className="text-brand-red" data-day-image-failed>{imageFailed.words}</p>}
+          {reelWait !== null && <p className="text-text-muted" data-day-reel-waits>{reelWait}</p>}
+          {script !== null && !script.ok && <p className="text-text-muted" data-day-reel-no-stay>{script.words}</p>}
+          {reelWords !== null && reelWords.view === view && <p className={reelWords.ok ? 'text-text-muted' : 'text-brand-red'} data-day-reel-words>{reelWords.words}</p>}
+          {/* REEL-01: the stop's tag, rendered off the page for "download tag" alone — never seen, never in the card's own image. */}
+          {tag !== null && (
+            <div aria-hidden="true" style={{ position: 'fixed', left: -10000, top: 0, pointerEvents: 'none' }} data-day-tag-stage>
+              <StopTag ref={tagRef} words={tag} moneyTone={actualTone(tag.money === null ? null : tag.money.over)} />
+            </div>
+          )}
         </div>
       )}
 

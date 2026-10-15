@@ -954,7 +954,10 @@ test('T8 CLEAN-02 the stop card: no LOCATION, no status line, the stars alone, "
   assert.equal(spentSoFarWords(null, 7500), 'spent so far — of $75', 'nothing recorded — unknown, never $0');
   assert.doesNotMatch(spentSoFarWords(969, 7500), /without an amount/);
   // TOTALS-01 amendment II (Alex, 2026-10-15): moved, not loosened — the spent so far of the TOTAL row's BUDGET, not plannedCents.
-  assert.match(c, /data-day-spent-so-far>\{spentSoFarWords\(focus\.spentSoFarCents === null \|\| focus\.withActualSoFar === 0 \? null : focus\.spentSoFarCents, totals\.budgetCents\)\}/);
+  // REEL-01 (Alex, 2026-10-15): moved, not loosened — the line is stepSpentSoFarWords, the one rule the stop's tag prints as its foot; its body is
+  // the expression this pin held (pinned below), of the TOTAL row's BUDGET.
+  assert.match(c, /data-day-spent-so-far>\{stepSpentSoFarWords\(focus, totals\.budgetCents\)\}/);
+  assert.match(code(RULES), /export const stepSpentSoFarWords = \(focus: Pick<Focus, 'spentSoFarCents' \| 'withActualSoFar'>, budgetCents: number \| null\): string =>\n\s*spentSoFarWords\(focus\.spentSoFarCents === null \|\| focus\.withActualSoFar === 0 \? null : focus\.spentSoFarCents, budgetCents\);/, 'the same words, the same null — one rule for the line and the tag');
   for (const kept of ['data-day-note>', 'data-day-amount>{planDollars(focus.stop.cents)}', 'data-day-actual>{planDollars(focus.stop.actualCents)}', 'data-day-delta>', 'data-day-plan-bar={planBar}', 'data-day-spent-bar={spentBar}']) assert.ok(c.includes(kept), `the stop card keeps ${kept}`);
   const plateOpen = c.lastIndexOf('<div', c.indexOf('data-day-card'));
   const plateEnd = divEnd(c, plateOpen);
@@ -968,11 +971,16 @@ test('T8 CLEAN-02 "download image": under both views outside the plate, the libr
   const plateEnd = divEnd(c, plateOpen);
   assert.match(c.slice(plateOpen, plateOpen + 40), /^<div ref=\{plateRef\} /, 'the plate element is the one rendered');
   const after = c.slice(plateEnd);
-  assert.match(after, /^\s*\n\s*\{\s*\}\n\s*\{loaded && \(\n\s*<div className="mx-auto flex flex-col items-start gap-1 text-xs" style=\{\{ width: PLATE_WIDTH \}\} data-day-image>\n\s*<button type="button" className=\{chip\} disabled=\{imageBusy\} aria-busy=\{imageBusy\} onClick=\{downloadImage\} data-day-download-image>\{DOWNLOAD_IMAGE_WORDS\}<\/button>\n\s*\{imageFailed !== null && imageFailed\.view === view && <p className="text-brand-red" data-day-image-failed>\{imageFailed\.words\}<\/p>\}\n\s*<\/div>\n\s*\)\}/, 'directly under the plate, on every loaded view — the full card and every step card, the journal’s included; busy while it renders; the failure in words under it');
+  // REEL-01 (Alex, 2026-10-15): moved, not loosened — "download image" now opens a row with the reel's buttons beside it (reel01.test.ts T3 pins
+  // the row whole); the button, its busy state and its failure line are unchanged, still directly under the plate on every loaded view.
+  assert.match(after, /^\s*\n\s*\{\s*\}\n\s*\{loaded && \(\n\s*<div className="mx-auto flex flex-col items-start gap-1 text-xs" style=\{\{ width: PLATE_WIDTH \}\} data-day-image>\n\s*\{\s*\}\n\s*<div className="flex flex-wrap items-center gap-1\.5" data-day-reel>\n\s*<button type="button" className=\{chip\} disabled=\{imageBusy\} aria-busy=\{imageBusy\} onClick=\{downloadImage\} data-day-download-image>\{DOWNLOAD_IMAGE_WORDS\}<\/button>\n[\s\S]*?<\/div>\n\s*\{imageFailed !== null && imageFailed\.view === view && <p className="text-brand-red" data-day-image-failed>\{imageFailed\.words\}<\/p>\}\n/, 'directly under the plate, on every loaded view — the full card and every step card, the journal’s included; busy while it renders; the failure in words under it');
   assert.doesNotMatch(c.slice(plateOpen, plateEnd), /data-day-download-image|data-day-image/, 'outside the plate — never in the recording');
   inOrderOf(c, ['const downloadImage = async () => {', 'if (imageBusy) return;', 'setImageBusy(true);', 'setImageFailed(null);', 'try {', "if (plateRef.current === null) throw new Error('the card is not on the page');", 'await downloadCardImage(plateRef.current, cardImageName(day, focus === null ? null : { index: focus.index, label: boldOf(focus.stop) }));', '} catch (error) {', 'setImageFailed({ view, words: cardImageFailedWords(error instanceof Error ? error.message : String(error)) });', '} finally {', 'setImageBusy(false);'], 'busy, render, say the failure, done');
-  assert.equal((c.match(/downloadCardImage\(/g) ?? []).length, 1, 'one path — no second try');
-  assert.match(c, /import \{ DOWNLOAD_IMAGE_WORDS, cardImageFailedWords, cardImageName, downloadCardImage \} from '\.\.\/cardImage';/, 'the helper lives outside the day folder');
+  // REEL-01 (Alex, 2026-10-15): moved, not loosened — the stop's tag is made by the same helper: two call sites, one renderer, each tried once.
+  assert.equal((c.match(/downloadCardImage\(/g) ?? []).length, 2, 'the plate and the tag — one path each, no second try');
+  assert.equal((c.match(/await downloadCardImage\(plateRef\.current, /g) ?? []).length, 1);
+  assert.equal((c.match(/await downloadCardImage\(tagRef\.current, /g) ?? []).length, 1);
+  assert.match(c, /import \{ DOWNLOAD_IMAGE_WORDS, DOWNLOAD_TAG_WORDS, cardImageFailedWords, cardImageName, cardTagName, downloadCardImage \} from '\.\.\/cardImage';/, 'the helper lives outside the day folder');
   assert.doesNotMatch(c, /html-to-image|\bfetch\s*\(|method:/, 'the card names no library and fetches nothing of its own');
   // The helper: the library imported inside the function the click runs — loaded only when pressed; pixel ratio 3; no background of its own
   // (transparent outside the rounded corners); the copy's margin zero, so the image is the plate's box exactly.
