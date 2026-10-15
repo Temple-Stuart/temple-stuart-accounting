@@ -894,6 +894,9 @@ export interface DayMeter {
  * or the records not read): an empty track, never a $0 fill. No meter while
  * the planned total is unknown — or is nothing (≤ 0): a track of $0 has no scale
  * (progressPercent's own rule, the step view's bars' too).
+ * TOTALS-01 amendment (Alex, 2026-10-15): the card gives it the TOTAL row's
+ * BUDGET (dayTotals budgetCents, the stops' budget) as the plan, not the
+ * hero's plannedCents; null, no meter. This rule is unchanged.
  */
 export function dayMeter(spentCents: number | null, plannedCents: number | null): DayMeter | null {
   if (plannedCents === null || plannedCents <= 0) return null;
@@ -908,6 +911,8 @@ export function dayMeter(spentCents: number | null, plannedCents: number | null)
  * totals are known: "▼ $4.31 under" · "▲ $2 over" (deltaWords, the card's
  * under/over tone) · "on budget" when they are equal. null otherwise — a
  * verdict on part of the day would be a guess.
+ * TOTALS-01 amendment (Alex, 2026-10-15): the card gives it the TOTAL row's
+ * BUDGET as the plan, so the verdict reads the row above it; null, none.
  */
 export function dayVerdict(result: DayStops, plannedCents: number | null): DeltaWords | null {
   if (result.spentCents === null || plannedCents === null || result.withActual === 0) return null;
@@ -922,7 +927,7 @@ export function dayVerdict(result: DayStops, plannedCents: number | null): Delta
 export const TOTAL_WORD = 'TOTAL';
 
 export interface DayTotals {
-  /** The sum of the BUDGET cells the rows show — a row's "—" adds nothing (the fine print counts it, "N not priced"); null when no row shows one. */
+  /** The sum of the BUDGET cells the rows show — a row's "—" adds nothing (the fine print counts it, "N not priced"); null when no row shows one. The meter's and the verdict's plan (amendment, 2026-10-15). */
   readonly budgetCents: number | null;
   /** The day's spent — the recorded actuals summed (spentCents); null while nothing is recorded or the records were not read: "—", never $0. */
   readonly actualCents: number | null;
@@ -948,6 +953,8 @@ export interface DayTotals {
  *     all-day band's lines, the lines no stop carries, lines at another instant,
  *     a routine priced as a whole — is said under the plate, computed, never
  *     invented; equal, nothing is said.
+ *   · Amendment (Alex, 2026-10-15): the meter and the verdict under the row
+ *     measure the row: the spent against the BUDGET total, not the whole plan.
  */
 export function dayTotals(result: DayStops, plannedCents: number | null): DayTotals {
   const shown = result.stops.map((s) => s.cents).filter((c): c is number => c !== null);

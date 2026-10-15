@@ -837,7 +837,10 @@ test('T7 CLEAN-01 the budget meter — green at its width under, red and full ov
   assert.equal(dayMeter(null, null), null);
   assert.equal(dayMeter(500, 0), null, 'nothing planned: a track of $0 has no scale (progressPercent’s rule)');
   const c = code(CARD);
-  assert.match(c, /const meter = dayMeter\(spent, plannedCents\);/);
+  // TOTALS-01 amendment (Alex, 2026-10-15): moved, not loosened — the card gives the meter the TOTAL row's BUDGET
+  // (totals.budgetCents, the stops' budget) as its plan, not the hero's plannedCents; the rule above is unchanged (totals01 T1).
+  assert.match(c, /const meter = dayMeter\(spent, totals\.budgetCents\);/);
+  assert.doesNotMatch(c, /dayMeter\([^)]*plannedCents\)/, 'never the hero’s whole plan');
   assert.match(c, /\{meter !== null && \(\n\s*<div className="bg-bg-row rounded-full overflow-hidden" style=\{\{ height: 13 \}\} aria-hidden="true" data-day-meter=\{meter\.percent === null \? 'empty' : meter\.percent\}>\n\s*\{meter\.percent !== null && <div className=\{`\$\{meter\.over \? 'bg-brand-red' : 'bg-brand-green'\} rounded-full`\} style=\{\{ height: 13, width: `\$\{meter\.percent\}%` \}\} \/>\}\n\s*<\/div>\n\s*\)\}/, 'one track at the plate’s content width (no width of its own), its fill green or red, none while spent is unknown');
   assert.equal((c.match(/\bbg-brand-red\b/g) ?? []).length, 1, 'red fills the meter and nothing else');
 });
@@ -858,7 +861,9 @@ test('T7 CLEAN-01 the verdict — only once every stop that asks an amount carri
   assert.equal(withJournal.stops.length, 5);
   assert.deepEqual(dayVerdict(withJournal, 7500), { text: '▼ $23.31 under', over: false });
   const c = code(CARD);
-  assert.match(c, /const verdict = dayVerdict\(result, plannedCents\);/);
+  // TOTALS-01 amendment (Alex, 2026-10-15): moved, not loosened — the verdict is given the TOTAL row's BUDGET, not plannedCents (totals01 T1).
+  assert.match(c, /const verdict = dayVerdict\(result, totals\.budgetCents\);/);
+  assert.doesNotMatch(c, /dayVerdict\([^)]*plannedCents\)/, 'never the hero’s whole plan');
   assert.match(c, /\{verdict !== null && <div className=\{`font-bold tabular-nums \$\{actualTone\(verdict\.over\)\}`\} style=\{\{ fontSize: 27, lineHeight: 1\.15 \}\} data-day-verdict>\{verdict\.text\}<\/div>\}/, 'the verdict in the card’s under/over tone, only when there is one');
 });
 
