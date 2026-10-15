@@ -59,7 +59,9 @@
  * from the records and the plan lines. The words are each a function here.
  * JOURNAL-02 (2026-10-13): the plate prints the spent, largest and done lines;
  * yesterday's END OF DAY is its own typed text, so the "shipped:" line that
- * joined the two is gone (tallyShippedWords deleted).
+ * joined the two is gone (tallyShippedWords deleted). JOURNAL-03 (Alex,
+ * 2026-10-15): END OF DAY itself is retired — the journal card reads no typed
+ * end of day, yesterday's or today's.
  *
  * Pure: no fetch, no clock, no React, no Prisma (as week/weekPlan.ts) — the
  * tests drive every rule with fixtures. Every sentence the card prints from

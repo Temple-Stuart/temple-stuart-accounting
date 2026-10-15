@@ -6,6 +6,10 @@
  * schema, the route, the form, the plate and the stop form are anchored to
  * their source with comments stripped (TEST-TRUTH-01). journal01.test.ts keeps
  * JOURNAL-01's guarantees, its pins moved and dated where JOURNAL-02 changed them.
+ *
+ * JOURNAL-03 (Alex, 2026-10-15): END OF DAY (shipped) is retired — four answers,
+ * four blocks, three boxes; a body that carries any of the twelve retired keys is
+ * refused by name. The pins below moved with dated notes; none is loosened.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,10 +18,10 @@ import { resolve } from 'node:path';
 import { Prisma } from '@prisma/client';
 import { code, comments } from '../sourceText';
 import {
-  ADD_OPEN_STEPS_WORDS, ANSWER_FIELDS, BIDI_WORDS, BLOCKERS_BLOCK_WORD, BLOCKERS_QUESTION, CONTROLS_WORDS, DONE_NOT_LIST_WORDS, END_OF_DAY_BLOCK_WORD, END_OF_DAY_QUESTION,
-  GOALS_EXAMPLE, JOURNAL_RECORD_WORDS, LEFT_OVER_WORD, LIST_MAX, NO_JOURNAL_YESTERDAY_WORDS, NO_PLAN_YESTERDAY_WORDS, NOTE_WORD, NOTHING_TYPED_WORDS, PLAN_BLOCK_WORD, PLAN_EXAMPLE, PLAN_QUESTION, RETIRED_FIELDS, TODAY_BLOCK_WORD, TODAY_GOALS_QUESTION,
-  YESTERDAY_WORD, answersOf, blankLineWords, carryTicks, doneLengthWords, doneNotBooleanWords, goalWords, journalInput, journalUnchanged, lineNotStringWords,
-  lineTooLongWords, lineWords, linesOf, notListWords, noteWords, openSteps, planDoneWords, planStepWords, tooManyWords, yesterdaySteps, yesterdayStepsWords,
+  ADD_OPEN_STEPS_WORDS, ANSWER_FIELDS, BIDI_WORDS, BLOCKERS_BLOCK_WORD, BLOCKERS_QUESTION, CONTROLS_WORDS, DONE_NOT_LIST_WORDS,
+  GOALS_EXAMPLE, JOURNAL_RECORD_WORDS, LEFT_OVER_WORD, LIST_MAX, NO_JOURNAL_YESTERDAY_WORDS, NO_PLAN_YESTERDAY_WORDS, NOTHING_TYPED_WORDS, PLAN_BLOCK_WORD, PLAN_EXAMPLE, PLAN_QUESTION, RETIRED_FIELDS, TODAY_BLOCK_WORD, TODAY_GOALS_QUESTION,
+  YESTERDAY_WORD, answersOf, blankLineWords, carryTicks, doneLengthWords, doneNotBooleanWords, goalWords, journalInput, journalRowOf, journalUnchanged, lineNotStringWords,
+  lineTooLongWords, lineWords, linesOf, notListWords, openSteps, planDoneWords, retiredFieldWords, planStepWords, tooManyWords, yesterdaySteps, yesterdayStepsWords,
   type Answers,
 } from '../operations/journal';
 
@@ -57,21 +61,43 @@ function inOrder(body: string, steps: readonly string[], what: string): void {
 
 // ── T1 · THE RULE ────────────────────────────────────────────────────────────
 
-test('T1 journalInput: the five answers — absent lists empty, absent texts null; each line trimmed and collapsed; the answers built from the five alone', () => {
+// JOURNAL-03 (Alex, 2026-10-15): the answers are four — shipped left ANSWER_FIELDS for RETIRED_FIELDS; the pins below moved with it.
+test('T1 journalInput: the four answers — absent lists empty, absent texts null; each line trimmed and collapsed; the answers built from the four alone', () => {
   const a = accepted({ day: DAY, goals: ['  perfect   the day cards ', 'book travel'], plan_steps: ['merge\tTABLE-01', ' record  brunch '], plan_done: [true, false] });
-  assert.deepEqual(a, { goals: ['perfect the day cards', 'book travel'], blocker: null, plan_steps: ['merge TABLE-01', 'record brunch'], plan_done: [true, false], shipped: null });
-  assert.deepEqual(Object.keys(a), [...ANSWER_FIELDS], 'the five answers, in the plate’s order — and nothing else');
-  assert.deepEqual(ANSWER_FIELDS, ['goals', 'blocker', 'plan_steps', 'plan_done', 'shipped']);
-  assert.deepEqual(accepted({ day: DAY, goals: null, plan_steps: null, plan_done: null, blocker: 'rain' }), { goals: [], blocker: 'rain', plan_steps: [], plan_done: [], shipped: null }, 'null lists are absent too');
-  // The retired answers are never read from the body — they do not reach the write.
-  const withRetired = journalInput({ day: DAY, goals: ['x'], ...Object.fromEntries(RETIRED_FIELDS.map((f) => [f, 'smuggled'])) });
-  assert.ok(withRetired.ok);
-  if (withRetired.ok) {
-    assert.deepEqual(Object.keys(withRetired.value.answers), [...ANSWER_FIELDS], 'no retired key in the answers the route writes as `data`');
-    for (const f of RETIRED_FIELDS) assert.equal(Object.hasOwn(withRetired.value.answers, f), false, `${f} does not pass through`);
+  assert.deepEqual(a, { goals: ['perfect the day cards', 'book travel'], blocker: null, plan_steps: ['merge TABLE-01', 'record brunch'], plan_done: [true, false] });
+  assert.deepEqual(Object.keys(a), [...ANSWER_FIELDS], 'the four answers, in the plate’s order — and nothing else');
+  assert.deepEqual(ANSWER_FIELDS, ['goals', 'blocker', 'plan_steps', 'plan_done']);
+  assert.deepEqual(accepted({ day: DAY, goals: null, plan_steps: null, plan_done: null, blocker: 'rain' }), { goals: [], blocker: 'rain', plan_steps: [], plan_done: [] }, 'null lists are absent too');
+  // JOURNAL-03 (2026-10-15): "the retired answers are never read from the body" became "a body that carries one is refused by name" —
+  // stricter: a retired key still never reaches the write, and now the writer is told so instead of believing it was saved.
+  assert.deepEqual(RETIRED_FIELDS, ['adjustment', 'one_thing', 'witness', 'plan_1_if', 'plan_1_then', 'plan_2_if', 'plan_2_then', 'plan_3_if', 'plan_3_then', 'obstacle_if', 'obstacle_then', 'shipped']);
+  assert.doesNotMatch(code(RULE), /\bb\.(adjustment|one_thing|witness|plan_\d_(if|then)|obstacle_(if|then)|shipped)\b/, 'the rule reads no retired key’s value from the body');
+});
+
+test('T1b JOURNAL-03 a retired key is refused by name — all twelve, any value, before the day and the answers; any other extra key is still ignored', () => {
+  // JOURNAL-03 (Alex, 2026-10-15) — R1 b: refuse every retired key by name, with words that say what to do. Was: ignored (JOURNAL-02).
+  assert.equal(RETIRED_FIELDS.length, 12, 'the eleven of JOURNAL-02 and shipped');
+  for (const f of RETIRED_FIELDS) {
+    for (const value of ['typed', '', null, 5, ['x'], { a: 1 }, false]) {
+      assert.deepEqual(refused({ day: DAY, goals: ['g'], [f]: value }), { field: f, message: retiredFieldWords(f) }, `${f}: ${JSON.stringify(value)}`);
+    }
+    assert.deepEqual(refused(JSON.parse(`{"day":"${DAY}","goals":["g"],"${f}":null}`)), { field: f, message: retiredFieldWords(f) }, `${f} as JSON null is carried — refused`);
+    assert.equal(retiredFieldWords(f), `${f} is retired — it is no longer asked; reload the page`);
   }
-  assert.deepEqual(RETIRED_FIELDS, ['adjustment', 'one_thing', 'witness', 'plan_1_if', 'plan_1_then', 'plan_2_if', 'plan_2_then', 'plan_3_if', 'plan_3_then', 'obstacle_if', 'obstacle_then']);
-  assert.doesNotMatch(code(RULE), /\bb\.(adjustment|one_thing|witness|plan_\d_(if|then)|obstacle_(if|then))\b/, 'the rule reads no retired key from the body');
+  assert.equal(retiredFieldWords('shipped'), 'shipped is retired — it is no longer asked; reload the page', 'the words, exact');
+  // Before the day and the answers: a page from before reloads first, whatever else it sent.
+  assert.deepEqual(refused({ day: 'today', shipped: 'x' }), { field: 'shipped', message: retiredFieldWords('shipped') }, 'before the day');
+  assert.deepEqual(refused({ day: DAY, goals: 5, shipped: 'x' }), { field: 'shipped', message: retiredFieldWords('shipped') }, 'before the answers');
+  assert.deepEqual(refused({ day: DAY, shipped: 'x', one_thing: 'y' }), { field: 'one_thing', message: retiredFieldWords('one_thing') }, 'several: the first in RETIRED_FIELDS’ order');
+  // An own key only — an inherited name is not a key the body carries.
+  assert.ok(journalInput(Object.assign(Object.create({ shipped: 'inherited' }), { day: DAY, goals: ['g'] })).ok, 'an inherited shipped is not carried');
+  // Keys that are not retired keep JOURNAL-02's behaviour: ignored, never in the answers.
+  const extra = journalInput({ day: DAY, goals: ['g'], mood: 'good', id: 'mine', user_id: 'someone', retired: { shipped: 'x' } });
+  assert.ok(extra.ok, 'a key that is not retired is not refused');
+  if (extra.ok) assert.deepEqual(Object.keys(extra.value.answers), [...ANSWER_FIELDS], 'and never passes through');
+  assert.match(code(RULE), /for \(const f of RETIRED_FIELDS\) if \(Object\.prototype\.hasOwnProperty\.call\(b, f\)\) return refuse\(f, retiredFieldWords\(f\)\);\n\s*if \(!isIsoDay\(b\.day\)\)/, 'the check: every retired field, by own key, right before the day');
+  // The route answers the rule's refusal as a 400 naming the field — unchanged code, so the twelve reach the writer by name.
+  assert.match(code(ROUTE), /if \(!read\.ok\) return NextResponse\.json\(\{ error: 'Validation', field: read\.field, message: read\.message \}, \{ status: 400 \}\);/);
 });
 
 test('T1 journalInput refuses each list by name: not a list, too many lines, a line not a string, a control, a bidi control, a blank line, a line too long (in code points)', () => {
@@ -96,25 +122,30 @@ test('T1 journalInput refuses each list by name: not a list, too many lines, a l
   assert.equal(accepted({ day: DAY, goals: ['👨‍👩‍👧 family'] }).goals[0], '👨‍👩‍👧 family', 'a ZWJ sequence is visible');
 });
 
-test('T1 journalInput: plan_done is one true or false per step, refused by name otherwise; the first bad field in the plate’s order; at least one of the five', () => {
+// JOURNAL-03 (2026-10-15): "at least one of the five" is of the four — shipped no longer counts, it is refused; the pins moved with it.
+test('T1 journalInput: plan_done is one true or false per step, refused by name otherwise; the first bad field in the plate’s order; at least one of the four', () => {
   assert.deepEqual(refused({ day: DAY, plan_steps: ['a'], plan_done: 'true' }), { field: 'plan_done', message: DONE_NOT_LIST_WORDS });
   assert.deepEqual(refused({ day: DAY, plan_steps: ['a', 'b'], plan_done: [true, 'yes'] }), { field: 'plan_done', message: doneNotBooleanWords(2) });
   assert.deepEqual(refused({ day: DAY, plan_steps: ['a', 'b', 'c'], plan_done: [true, false] }), { field: 'plan_done', message: doneLengthWords(2, 3) });
   assert.deepEqual(refused({ day: DAY, plan_steps: ['a', 'b'] }), { field: 'plan_done', message: doneLengthWords(0, 2) }, 'steps with no ticks — absent is empty, and empty is not one per step');
   assert.deepEqual(refused({ day: DAY, plan_steps: ['a'], plan_done: Array(100000).fill('x') }), { field: 'plan_done', message: doneLengthWords(100000, 1) }, 'the count is judged before any element is looked at');
   assert.deepEqual(refused({ day: DAY, goals: ['g'], plan_done: [true] }), { field: 'plan_done', message: doneLengthWords(1, 0) }, 'a tick with no step');
-  assert.deepEqual(refused({ day: DAY, goals: 5, blocker: 5, shipped: 5 }), { field: 'goals', message: notListWords('goals') }, 'the first bad field, in the plate’s order');
-  for (const one of [{ goals: ['g'] }, { blocker: 'rain' }, { plan_steps: ['s'], plan_done: [false] }, { shipped: 'merged' }]) assert.ok(journalInput({ day: DAY, ...one }).ok, `one answer is a journal: ${JSON.stringify(one)}`);
-  for (const none of [{}, { goals: [], plan_steps: [], plan_done: [] }, { blocker: '  ', shipped: '​' }]) assert.deepEqual(refused({ day: DAY, ...none }), { field: 'goals', message: NOTHING_TYPED_WORDS });
+  assert.deepEqual(refused({ day: DAY, goals: 5, blocker: 5, plan_steps: 5 }), { field: 'goals', message: notListWords('goals') }, 'the first bad field, in the plate’s order');
+  for (const one of [{ goals: ['g'] }, { blocker: 'rain' }, { plan_steps: ['s'], plan_done: [false] }]) assert.ok(journalInput({ day: DAY, ...one }).ok, `one answer is a journal: ${JSON.stringify(one)}`);
+  assert.deepEqual(refused({ day: DAY, shipped: 'merged' }), { field: 'shipped', message: retiredFieldWords('shipped') }, 'JOURNAL-03: an end of day alone is no journal — refused by name');
+  for (const none of [{}, { goals: [], plan_steps: [], plan_done: [] }, { blocker: '  ' }]) assert.deepEqual(refused({ day: DAY, ...none }), { field: 'goals', message: NOTHING_TYPED_WORDS });
+  assert.doesNotMatch(/if \(goals\.lines\.length === 0 [^\n]*NOTHING_TYPED_WORDS\);/.exec(code(RULE))![0], /shipped/, 'the nothing-typed check reads no shipped');
 });
 
-test('T1 journalUnchanged compares the five answers, the lists element by element', () => {
-  const held = answersOf({ goals: ['a', 'b'], blocker: 'x', plan_steps: ['s1', 's2'], plan_done: [true, false], shipped: null });
+// JOURNAL-03 (2026-10-15): four answers — shipped is not written, so not compared; its pin moved to the blocker and to the rule's text.
+test('T1 journalUnchanged compares the four answers, the lists element by element', () => {
+  const held = answersOf({ goals: ['a', 'b'], blocker: 'x', plan_steps: ['s1', 's2'], plan_done: [true, false] });
   assert.equal(journalUnchanged(held, answersOf({ goals: ['a', 'b'], blocker: 'x', plan_steps: ['s1', 's2'], plan_done: [true, false] })), true);
   assert.equal(journalUnchanged(held, answersOf({ goals: ['b', 'a'], blocker: 'x', plan_steps: ['s1', 's2'], plan_done: [true, false] })), false, 'the order is the list');
   assert.equal(journalUnchanged(held, answersOf({ goals: ['a', 'b'], blocker: 'x', plan_steps: ['s1', 's2'], plan_done: [true, true] })), false, 'a tick flipped');
   assert.equal(journalUnchanged(held, answersOf({ goals: ['a'], blocker: 'x', plan_steps: ['s1', 's2'], plan_done: [true, false] })), false, 'a goal removed');
-  assert.equal(journalUnchanged(held, answersOf({ goals: ['a', 'b'], blocker: 'x', plan_steps: ['s1', 's2'], plan_done: [true, false], shipped: 'done' })), false);
+  assert.equal(journalUnchanged(held, answersOf({ goals: ['a', 'b'], blocker: 'y', plan_steps: ['s1', 's2'], plan_done: [true, false] })), false, 'the blocker changed');
+  assert.doesNotMatch(/export const journalUnchanged = [\s\S]*?;\n/.exec(code(RULE))![0], /shipped/, 'shipped is not compared');
 });
 
 // ── T2 · THE TICKS ───────────────────────────────────────────────────────────
@@ -150,8 +181,11 @@ test('T2 the words — each a constant or a function, exact', () => {
   assert.equal(BLOCKERS_QUESTION, 'What could stop it?');
   assert.equal(PLAN_QUESTION, 'The plan — paste the steps from chat, one per line.');
   // CLEAN-02 (2026-10-14) — Alex's ruling: END OF DAY asks what was left and why; the plan's ticks say what was done (was "What did you accomplish today? (type tonight)").
-  assert.equal(END_OF_DAY_QUESTION, 'Anything left unfinished, and why? (tonight — tick the plan above)');
-  assert.deepEqual([YESTERDAY_WORD, TODAY_BLOCK_WORD, BLOCKERS_BLOCK_WORD, PLAN_BLOCK_WORD, END_OF_DAY_BLOCK_WORD], ['YESTERDAY', 'TODAY', 'BLOCKERS', 'PLAN', 'END OF DAY']);
+  // JOURNAL-03 (Alex, 2026-10-15): END OF DAY is retired — END_OF_DAY_QUESTION, END_OF_DAY_BLOCK_WORD, NOTE_WORD, noteWords and
+  // PLAN_PROMPT_NOTE are deleted, not left unused; the plate's blocks are four.
+  for (const gone of ['END_OF_DAY_QUESTION', 'END_OF_DAY_BLOCK_WORD', 'NOTE_WORD', 'noteWords', 'PLAN_PROMPT_NOTE']) assert.doesNotMatch(code(RULE), new RegExp(`\\b${gone}\\b`), `${gone} is deleted`);
+  assert.doesNotMatch(code(RULE), /END OF DAY|Anything left unfinished|'note:'|Yesterday — note:/, 'and their words with them');
+  assert.deepEqual([YESTERDAY_WORD, TODAY_BLOCK_WORD, BLOCKERS_BLOCK_WORD, PLAN_BLOCK_WORD], ['YESTERDAY', 'TODAY', 'BLOCKERS', 'PLAN']);
   // CLEAN-02 (2026-10-14): notFinishedWords ("not finished: a · b") is gone — yesterdayStepsWords says what was left over (T2b); its last reader was the plate.
   assert.doesNotMatch(code(RULE), /\bnotFinishedWords\b|\bACCOMPLISHED_WORD\b|\baccomplishedWords\b/, 'the old yesterday words are deleted');
   assert.equal(ADD_OPEN_STEPS_WORDS(2), "+ yesterday's open steps (2)");
@@ -176,19 +210,19 @@ test('T2 the words — each a constant or a function, exact', () => {
   assert.doesNotMatch(rule, /\bfetch\b|new Date\(\)|Date\.now\(|@prisma\/client|from 'react'/, 'pure: no fetch, no clock, no Prisma, no React');
 });
 
-test('T2b CLEAN-02 yesterdayStepsWords — all done, some left over, no plan, no journal; the note only when typed', () => {
+// JOURNAL-03 (2026-10-15): "the note only when typed" is gone with END OF DAY — its pins moved to "deleted" (T2 above).
+test('T2b CLEAN-02 yesterdayStepsWords — all done, some left over, no plan, no journal', () => {
   // CLEAN-02 (2026-10-14) — Alex's ruling: YESTERDAY on the journal card is its plan's ticks, from the one rule (openSteps).
   const six = ['merge TABLE-01', 'book travel', 'record brunch', 'screenshot the card', 'post the reel', 'reply to comments'];
   assert.equal(yesterdayStepsWords(answersOf({ plan_steps: six, plan_done: [true, true, true, true, true, true] })), 'all 6 steps done');
   assert.equal(yesterdayStepsWords(answersOf({ plan_steps: six, plan_done: [true, true, false, true, true, false] })), '4 of 6 steps done · left over: record brunch · reply to comments', 'the steps left over in their order');
   assert.equal(yesterdayStepsWords(answersOf({ plan_steps: ['a'], plan_done: [false] })), '0 of 1 steps done · left over: a');
-  assert.equal(yesterdayStepsWords(answersOf({ goals: ['g'], shipped: 'typed' })), 'no plan yesterday', 'a journal with no plan');
+  assert.equal(yesterdayStepsWords(answersOf({ goals: ['g'] })), 'no plan yesterday', 'a journal with no plan');
   assert.equal(yesterdayStepsWords(null), 'no journal yesterday', 'the read answered no row');
-  assert.deepEqual([NO_JOURNAL_YESTERDAY_WORDS, NO_PLAN_YESTERDAY_WORDS, LEFT_OVER_WORD, NOTE_WORD], ['no journal yesterday', 'no plan yesterday', 'left over:', 'note:']);
+  assert.deepEqual([NO_JOURNAL_YESTERDAY_WORDS, NO_PLAN_YESTERDAY_WORDS, LEFT_OVER_WORD], ['no journal yesterday', 'no plan yesterday', 'left over:']);
   assert.throws(() => yesterdayStepsWords(answersOf({ plan_steps: ['a'], plan_done: [] })), /0 ticks for 1 steps/, 'ticks that do not match the steps are the database’s error — never counted');
   assert.deepEqual(yesterdaySteps(answersOf({ plan_steps: ['a', 'b'], plan_done: [false, true] })), { kind: 'steps', done: 1, of: 2, leftOver: ['a'] });
   assert.deepEqual(yesterdaySteps(null), { kind: 'no journal' });
-  assert.equal(noteWords('the hotel never answered'), 'note: the hotel never answered');
   // Nothing here is money.
   assert.doesNotMatch(/export function yesterdayStepsWords[\s\S]*?\n\}/.exec(code(RULE))![0], /cents|planDollars|formatCents/);
 });
@@ -225,28 +259,56 @@ test('T3 the schema: the three lists with empty defaults, every JOURNAL-01 colum
   assert.match(m, /\n\s+goals\s+String\[\] @default\(\[\]\)\n/);
   assert.match(m, /\n\s+plan_steps\s+String\[\] @default\(\[\]\)\n/);
   assert.match(m, /\n\s+plan_done\s+Boolean\[\] @default\(\[\]\)\n/);
-  for (const f of [...RETIRED_FIELDS, 'blocker', 'shipped']) assert.match(m, new RegExp(`\\n\\s+${f}\\s+String\\?\\s+@db\\.VarChar\\(\\d+\\)`), `${f} kept`);
+  // JOURNAL-03 (2026-10-15): shipped is among RETIRED_FIELDS now — still kept, still checked here.
+  assert.ok(RETIRED_FIELDS.includes('shipped'));
+  for (const f of [...RETIRED_FIELDS, 'blocker']) assert.match(m, new RegExp(`\\n\\s+${f}\\s+String\\?\\s+@db\\.VarChar\\(\\d+\\)`), `${f} kept`);
   const fields = Object.keys(Prisma.Operations_day_journalsScalarFieldEnum);
   for (const f of ['goals', 'plan_steps', 'plan_done']) assert.ok(fields.includes(f), `prisma generate ran — the client knows ${f}`);
 });
 
-// ── T4 · THE ROUTE: THE SAME SHAPE, THE FIVE ANSWERS ─────────────────────────
+// ── T4 · THE ROUTE: THE SAME SHAPE, THE FOUR ANSWERS ─────────────────────────
 
-test('T4 the route: unchanged in shape — the guarded update and the create write the rule’s five answers as `data`; nothing retired is named; the audit keeps the retired answers through the row', () => {
+// JOURNAL-03 (2026-10-15): the route's code is unchanged; the rule's answers are four, so `data` is four — shipped joined the names it never says.
+test('T4 the route: unchanged in shape — the guarded update and the create write the rule’s four answers as `data`; nothing retired is named; the audit keeps the retired answers through the row', () => {
   const r = code(ROUTE);
   assert.match(r, /data: answers \}\)\);/, 'the update writes the rule’s answers');
   assert.match(r, /data: \{ user_id: user\.id, day: asJournalDate\(day\), \.\.\.answers \}/, 'the create too');
-  for (const f of [ROUTE, ROUTE_ID]) assert.doesNotMatch(code(f), /\b(adjustment|one_thing|witness|plan_\d_(if|then)|obstacle_(if|then))\b/, `${f} names no retired answer`);
+  for (const f of [ROUTE, ROUTE_ID]) assert.doesNotMatch(code(f), /\b(adjustment|one_thing|witness|plan_\d_(if|then)|obstacle_(if|then)|shipped)\b/, `${f} names no retired answer`);
   assert.match(code(RULE), /return \{ \.\.\.answersOf\(row\), retired: retiredOf\(row\), id: row\.id,/, 'a row carries its retired answers, so the audit’s before and after keep them');
+});
+
+test('T4b JOURNAL-03 R3 — nothing typed before is lost: a tick or a goal edit on a day that holds END OF DAY words writes the four answers alone, so the words stay in the row and in `retired`', () => {
+  // The row as Prisma reads it: a plan, a goal, and END OF DAY words typed before JOURNAL-03.
+  const retired = Object.fromEntries(RETIRED_FIELDS.map((f) => [f, null])) as Record<(typeof RETIRED_FIELDS)[number], string | null>;
+  const db = { goals: ['film the day card'], blocker: null, plan_steps: ['merge X', 'book travel'], plan_done: [false, false], ...retired, shipped: 'merged TABLE-01; the reel is up', id: 'j1', day: new Date(`${DAY}T00:00:00.000Z`), updated_at: new Date(`${DAY}T01:00:00.000Z`) };
+  const held = journalRowOf(db);
+  assert.equal(held.retired.shipped, 'merged TABLE-01; the reel is up', 'the words ride `retired`');
+  assert.equal(Object.hasOwn(held, 'shipped'), false, 'never the answers');
+  // The plate's tick and the form's goal edit, each as its code builds the body (pinned in T5 and T6) — the four answers, no shipped.
+  const tick = journalInput({ day: DAY, goals: held.goals, blocker: held.blocker, plan_steps: held.plan_steps, plan_done: held.plan_done.map((d, j) => (j === 0 ? !d : d)) });
+  const edit = journalInput({ day: DAY, goals: [...held.goals, 'book travel for the rest of the trip'], blocker: held.blocker, plan_steps: held.plan_steps, plan_done: held.plan_done });
+  for (const [what, read] of [['tick', tick], ['goal edit', edit]] as const) {
+    assert.ok(read.ok, what);
+    if (!read.ok) continue;
+    assert.deepEqual(Object.keys(read.value.answers), ['goals', 'blocker', 'plan_steps', 'plan_done'], `${what}: the route writes these four as \`data\` — no shipped`);
+    assert.equal(journalUnchanged(held, read.value.answers), false, `${what}: a change, so the route writes`);
+    // What the guarded update leaves in the row: Prisma writes only the keys of `data`, so every other column keeps its value.
+    const after = journalRowOf({ ...db, ...read.value.answers });
+    assert.equal(after.retired.shipped, 'merged TABLE-01; the reel is up', `${what}: the END OF DAY words are still in the row, and in the audit’s after`);
+  }
+  // The route writes exactly the rule's answers on update and create — nothing it builds itself names shipped (T4 above).
+  assert.match(code(ROUTE), /where: \{ id: existing\.id, user_id: user\.id, updated_at: existing\.updated_at \}, data: answers \}/);
 });
 
 // ── T5 · THE FORM ────────────────────────────────────────────────────────────
 
-test('T5 the form: four boxes, each labelled with its question, in the plate’s order; blank lines dropped, then carryTicks, then the rule, then the one writer; the open-steps button only when there are some', () => {
+// JOURNAL-03 (Alex, 2026-10-15): three boxes — END OF DAY's box is gone; the count and the order moved with it.
+test('T5 the form: three boxes, each labelled with its question, in the plate’s order; blank lines dropped, then carryTicks, then the rule, then the one writer; the open-steps button only when there are some', () => {
   const f = code(FORM);
-  assert.equal((f.match(/<textarea\b/g) ?? []).length, 4, 'four textareas');
+  assert.equal((f.match(/<textarea\b/g) ?? []).length, 3, 'three textareas');
   assert.doesNotMatch(f, /<input\b/, 'no other box');
-  inOrder(f, ['{TODAY_GOALS_QUESTION}', 'data-journal-field="goals"', '{BLOCKERS_QUESTION}', 'data-journal-field="blocker"', '{PLAN_QUESTION}', 'data-journal-field="plan_steps"', '{END_OF_DAY_QUESTION}', 'data-journal-field="shipped"'], 'each box after its question, in the plate’s order');
+  inOrder(f, ['{TODAY_GOALS_QUESTION}', 'data-journal-field="goals"', '{BLOCKERS_QUESTION}', 'data-journal-field="blocker"', '{PLAN_QUESTION}', 'data-journal-field="plan_steps"'], 'each box after its question, in the plate’s order');
+  assert.doesNotMatch(f, /END_OF_DAY_QUESTION|data-journal-field="shipped"|data-journal-block="shipped"|\bshipped\b/, 'no END OF DAY box, and no shipped in the draft or the body');
   assert.match(f, /<label className="flex flex-col gap-0\.5" data-journal-block="goals">\n\s*<span className=\{question\}>\{TODAY_GOALS_QUESTION\}<\/span>\n\s*<textarea /, 'the question labels its box');
   assert.match(f, /<label htmlFor="journal-plan" className=\{question\}>\{PLAN_QUESTION\}<\/label>/);
   assert.match(f, /<textarea id="journal-plan" /);
@@ -257,37 +319,42 @@ test('T5 the form: four boxes, each labelled with its question, in the plate’s
   assert.match(f, /\{yesterdayOpen\.length > 0 && <button type="button" className=\{chip\} disabled=\{busy\} onClick=\{addOpen\} data-journal-add-open>\{ADD_OPEN_STEPS_WORDS\(yesterdayOpen\.length\)\}<\/button>\}/, 'only when yesterday left steps open');
   assert.match(f, /const addOpen = \(\) => setDraft\(\{ \.\.\.draft, plan: \[\.\.\.linesOf\(draft\.plan\), \.\.\.yesterdayOpen\]\.join\('\\n'\) \}\);/, 'appended to the plan box — the draft only');
   assert.doesNotMatch(f, /maxLength/);
-  assert.doesNotMatch(f, /\b(adjustment|one_thing|witness|plan_\d_(if|then)|obstacle_(if|then)|retired)\b/, 'no retired answer is asked');
+  assert.doesNotMatch(f, /\b(adjustment|one_thing|witness|plan_\d_(if|then)|obstacle_(if|then)|shipped|retired)\b/, 'no retired answer is asked — JOURNAL-03: shipped among them');
   const c = code(CARD);
   // PLAN-01 (2026-10-13): the form takes yesterday whole — its open steps and its END OF DAY — or why it is not known; the pin moved with it.
   // CLEAN-02 (2026-10-14): "whole" is yesterday's row itself (its ticks and its note) — the open steps are derived in the form by openSteps.
+  // JOURNAL-03 (2026-10-15): the row's note is no longer read — its ticks alone; "+ yesterday's open steps" is unchanged.
   assert.match(c, /const yesterdayForPrompt: YesterdayForPrompt = yesterdayRead === null\n\s*\? \{ ok: false, words: YESTERDAY_LOADING_WORDS \}\n\s*: !yesterdayRead\.ok\n\s*\? \{ ok: false, words: yesterdayRead\.words \}\n\s*: \{ ok: true, row: yesterdayRead\.value\.journal \};/, 'yesterday read, or why not — never an unknown written as none');
   assert.match(code(FORM), /const yesterdayOpen = yesterday\.ok && yesterday\.row !== null \? openSteps\(yesterday\.row\) : \[\];/, 'the open steps only from a read yesterday that has a journal');
 });
 
 // ── T6 · THE PLATE ───────────────────────────────────────────────────────────
 
-test('T6 the plate: the five blocks in order; each step a tick button through the one writer, the whole journal with one flag flipped, re-read after; no retired answer read', () => {
+// JOURNAL-03 (Alex, 2026-10-15): four blocks — END OF DAY and YESTERDAY's note are gone; a tick sends no shipped. The pins moved, dated.
+test('T6 the plate: the four blocks in order; each step a tick button through the one writer, the whole journal with one flag flipped, re-read after; no retired answer read', () => {
   const c = code(CARD);
   const plate = c.slice(c.indexOf('function JournalPlate('), c.indexOf('function PlateHeader('));
-  inOrder(plate, ['{YESTERDAY_WORD}', '{TODAY_BLOCK_WORD}', '{BLOCKERS_BLOCK_WORD}', '{PLAN_BLOCK_WORD}', '{END_OF_DAY_BLOCK_WORD}'], 'the five blocks, in the table’s order');
+  inOrder(plate, ['{YESTERDAY_WORD}', '{TODAY_BLOCK_WORD}', '{BLOCKERS_BLOCK_WORD}', '{PLAN_BLOCK_WORD}'], 'the four blocks, in the table’s order');
+  assert.doesNotMatch(plate, /END_OF_DAY_BLOCK_WORD|data-day-journal-end-of-day|data-day-journal-shipped/, 'no END OF DAY block');
   // PLAN-01 (2026-10-13): "accomplished:" on yesterday's END OF DAY and "not finished:" on its unticked steps — the attribute renamed with the words.
   // CLEAN-02 (2026-10-14) — Alex's ruling: no money on the journal card. YESTERDAY is its plan's ticks with what was left over, then its note
   // when typed; the END OF DAY line, the spent / largest / done numbers and the not-finished line are gone.
-  inOrder(plate, ['data-day-yesterday-steps>', 'data-day-yesterday-note>'], 'YESTERDAY: the ticks and what was left over, then the note');
+  // JOURNAL-03 (2026-10-15): the note after the ticks is gone — YESTERDAY is the ticks and what was left over.
+  assert.doesNotMatch(plate, /data-day-yesterday-note|noteWords|yRow\.shipped/, 'YESTERDAY: no typed note');
   assert.match(plate, /data-day-yesterday-steps>\{yesterdayStepsWords\(yRow\)\}/);
   assert.doesNotMatch(plate, /data-day-yesterday-(end-of-day|spent|largest|done|not-finished)|tally|plannedCents|planDollars|statusWords|provenance/i, 'no money, no status, no source on the journal card');
   assert.match(plate, /\{a\.goals\.map\(\(goal, i\) => \(\n\s*<div [^>]*data-day-journal-goal>\{goalWords\(goal\)\}<\/div>/, 'TODAY: the goals as a list');
   assert.match(plate, /data-day-journal-blocker>\{a\.blocker === null \? UNANSWERED_WORD : a\.blocker\}/);
-  assert.match(plate, /data-day-journal-shipped>\{a\.shipped === null \? UNANSWERED_WORD : a\.shipped\}/, 'END OF DAY — until typed');
+  // JOURNAL-03 (2026-10-15): "END OF DAY — until typed" is gone with the block (pinned absent above).
   assert.match(plate, /\{a\.plan_steps\.map\(\(step, i\) => \(\n\s*<button\n\s*type="button"[\s\S]*?onClick=\{\(\) => tick\(i\)\}[\s\S]*?>\{planStepWords\(i \+ 1, step, a\.plan_done\[i\]\)\}<\/button>/, 'a button per step, ☐/✓ n. step');
   assert.match(plate, /data-day-journal-plan-done>\{planDoneWords\(a\.plan_done\.filter\(\(d\) => d\)\.length, a\.plan_steps\.length\)\}/, '"n of N done" under the list');
-  assert.match(plate, /const read = journalInput\(\{ day, goals: row\.goals, blocker: row\.blocker, plan_steps: row\.plan_steps, plan_done: row\.plan_done\.map\(\(d, j\) => \(j === i \? !d : d\)\), shipped: row\.shipped \}\);/, 'the whole journal as held, that one flag flipped, through the route’s rule');
+  // JOURNAL-03 (2026-10-15): the four answers as held — no shipped; the pin moved, as exact.
+  assert.match(plate, /const read = journalInput\(\{ day, goals: row\.goals, blocker: row\.blocker, plan_steps: row\.plan_steps, plan_done: row\.plan_done\.map\(\(d, j\) => \(j === i \? !d : d\)\) \}\);/, 'the whole journal as held, that one flag flipped, through the route’s rule');
   inOrder(plate, ['if (row === null || busyStep !== null) return;', 'if (!read.ok) { setTickWords(read.message); return; }', 'setBusyStep(i);', 'const answer = await writeJournal(day, read.value.answers);', 'if (!answer.ok) { setTickWords(answer.message); return; }', 'onChanged();', 'setBusyStep(null);'], 'busy, the one writer, the route’s words on a refusal, the journal read again');
   assert.match(plate, /disabled=\{busyStep !== null\}\n\s*aria-pressed=\{a\.plan_done\[i\]\}/, 'no second tick while one writes; the tick’s state is announced');
   assert.match(plate, /data-day-journal-tick-words>\{tickWords\}/);
   assert.doesNotMatch(plate, /set(Row|Answers|Draft)\(/, 'no optimistic copy — the plate shows what the journal read answers');
-  assert.doesNotMatch(c, /\.retired\b|\b(adjustment|one_thing|witness|plan_\d_(if|then)|obstacle_(if|then))\b/, 'the card reads no retired answer');
+  assert.doesNotMatch(c, /\.retired\b|\b(adjustment|one_thing|witness|plan_\d_(if|then)|obstacle_(if|then)|shipped)\b/, 'the card reads no retired answer — JOURNAL-03: shipped among them');
 });
 
 test('T7 the stop form: a journal stop’s RECORD row says what the record is; nothing else changes', () => {

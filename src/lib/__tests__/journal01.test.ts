@@ -22,7 +22,7 @@ import {
   ANSWER_FIELDS, ANSWER_MAX, BIDI_WORDS, BODY_WORDS, CONTROLS_WORDS, JOURNAL_LOADING_WORDS, NO_ANSWERS,
   NOTHING_TYPED_WORDS, PLAN_BLOCK_WORD, RACE_WORDS, RETIRED_FIELDS, TODAY_BLOCK_WORD, UNANSWERED_WORD, YESTERDAY_LOADING_WORDS, YESTERDAY_WORD,
   answersOf, asJournalDate, clearJournalQuestion, dayWords, journalInput, journalRowOf, journalUnchanged, noJournalWords, notStringWords,
-  tooLongWords, tooManyWords,
+  retiredFieldWords, tooLongWords, tooManyWords,
   type Answers,
 } from '../operations/journal';
 import { asksAmount, dayStops, type DayCardInput } from '@/components/workbench/operations/day/dayCard';
@@ -138,14 +138,19 @@ const accepted = (body: unknown): Answers => {
 
 // JOURNAL-02 (2026-10-13): the answers are five — goals, blocker, plan_steps, plan_done, shipped. Each JOURNAL-01 guarantee below is
 // pinned on the live text answers (blocker, shipped) where it was pinned on a retired one; journal02.test.ts pins the lists.
+// JOURNAL-03 (Alex, 2026-10-15): the answers are four — shipped (END OF DAY) is retired. Each guarantee pinned on shipped moved to
+// blocker, the one live text answer, and a body that carries shipped is refused by name (retiredFieldWords) — none is dropped.
 test('T1 journalInput: the body, the day, each answer trimmed and collapsed; nothing filled in; the answers built from ANSWER_FIELDS alone', () => {
   for (const body of [null, 'x', 7, [DAY]]) assert.deepEqual(refused(body), { field: 'day', message: BODY_WORDS });
   for (const bad of ['2026-13-01', '2026-02-30', 'today', '2026-9-3', '', undefined]) assert.deepEqual(refused({ day: bad, blocker: 'x' }), { field: 'day', message: dayWords(bad) });
   const a = accepted({ day: DAY, blocker: '  ship   the\tPR ' });
   assert.equal(a.blocker, 'ship the PR', 'trimmed, runs of whitespace one space');
-  assert.deepEqual(Object.keys(a), [...ANSWER_FIELDS], 'the five answers, in the plate’s order — and nothing else');
-  assert.deepEqual([a.goals, a.plan_steps, a.plan_done, a.shipped], [[], [], [], null], 'absent lists are empty, an absent text null — never ""');
-  assert.equal(accepted({ day: DAY, blocker: 'x', shipped: null }).shipped, null, 'null is absent too');
+  assert.deepEqual(Object.keys(a), [...ANSWER_FIELDS], 'the four answers, in the plate’s order — and nothing else');
+  assert.deepEqual([a.goals, a.plan_steps, a.plan_done], [[], [], []], 'absent lists are empty');
+  // JOURNAL-03 (2026-10-15): the absent and null text pins moved from shipped (retired) to blocker; a shipped null is carried, so refused.
+  assert.equal(accepted({ day: DAY, goals: ['g'] }).blocker, null, 'an absent text null — never ""');
+  assert.equal(accepted({ day: DAY, goals: ['g'], blocker: null }).blocker, null, 'null is absent too');
+  assert.deepEqual(refused({ day: DAY, blocker: 'x', shipped: null }), { field: 'shipped', message: retiredFieldWords('shipped') }, 'a retired key carried as null is still carried');
   // No key of the body passes through — not a prototype, not an id, not an owner, not a stamp.
   const smuggled = journalInput(JSON.parse(`{"day":"${DAY}","blocker":"x","__proto__":{"evil":true},"id":"mine","user_id":"someone","created_at":"1970","constructor":"c"}`));
   assert.ok(smuggled.ok);
@@ -160,47 +165,57 @@ test('T1 journalInput: the body, the day, each answer trimmed and collapsed; not
 });
 
 test('T1 journalInput refuses by name: a non-string, C0 and C1 controls, a lone surrogate, the bidi controls — and keeps a ZWJ emoji', () => {
-  assert.deepEqual(refused({ day: DAY, shipped: 5 }), { field: 'shipped', message: notStringWords('shipped') });
+  // JOURNAL-03 (2026-10-15): the non-string pin on shipped moved to blocker; shipped of any value is refused as retired.
+  assert.deepEqual(refused({ day: DAY, blocker: 5 }), { field: 'blocker', message: notStringWords('blocker') });
+  assert.deepEqual(refused({ day: DAY, shipped: 5 }), { field: 'shipped', message: retiredFieldWords('shipped') });
   assert.deepEqual(refused({ day: DAY, blocker: ['x'] }), { field: 'blocker', message: notStringWords('blocker') });
   assert.deepEqual(refused({ day: DAY, blocker: 'a\u0007b' }), { field: 'blocker', message: CONTROLS_WORDS }, 'a C0 control');
   assert.deepEqual(refused({ day: DAY, blocker: 'a\u0085b' }), { field: 'blocker', message: CONTROLS_WORDS }, 'a C1 control');
   assert.deepEqual(refused({ day: DAY, blocker: 'a\ud83db' }), { field: 'blocker', message: CONTROLS_WORDS }, 'a high surrogate with no partner');
   assert.deepEqual(refused({ day: DAY, blocker: 'a\udc00b' }), { field: 'blocker', message: CONTROLS_WORDS }, 'a low surrogate with no partner');
-  assert.deepEqual(refused({ day: DAY, shipped: 'x‮y' }), { field: 'shipped', message: BIDI_WORDS }, 'RLO reverses the plate');
-  assert.deepEqual(refused({ day: DAY, shipped: '⁦x⁩' }), { field: 'shipped', message: BIDI_WORDS }, 'the isolates too');
+  // JOURNAL-03 (2026-10-15): the bidi pins moved from shipped (retired) to blocker.
+  assert.deepEqual(refused({ day: DAY, blocker: 'x‮y' }), { field: 'blocker', message: BIDI_WORDS }, 'RLO reverses the plate');
+  assert.deepEqual(refused({ day: DAY, blocker: '⁦x⁩' }), { field: 'blocker', message: BIDI_WORDS }, 'the isolates too');
   assert.equal(accepted({ day: DAY, blocker: '👨‍👩‍👧 family' }).blocker, '👨‍👩‍👧 family', 'a ZWJ sequence is visible — \\p{Cf} is not refused outright');
   assert.equal(accepted({ day: DAY, blocker: 'café' }).blocker, 'café');
   assert.equal(accepted({ day: DAY, blocker: 'café' }).blocker, 'café', 'a combining mark on a letter stays');
 });
 
 test('T1 journalInput: an answer that is nothing visible is unanswered; the length is in code points and the refusal says "characters"', () => {
-  assert.equal(accepted({ day: DAY, blocker: 'x', shipped: '​‍‌' }).shipped, null, 'format characters alone are no answer');
-  assert.equal(accepted({ day: DAY, blocker: 'x', shipped: '́̈' }).shipped, null, 'nonspacing marks alone are no answer');
-  assert.equal(accepted({ day: DAY, blocker: 'x', shipped: '   ' }).shipped, null, 'a blank is no answer');
+  // JOURNAL-03 (2026-10-15): the nothing-visible pins moved from shipped (retired) to blocker, a goal standing in as the answer.
+  assert.equal(accepted({ day: DAY, goals: ['g'], blocker: '​‍‌' }).blocker, null, 'format characters alone are no answer');
+  assert.equal(accepted({ day: DAY, goals: ['g'], blocker: '́̈' }).blocker, null, 'nonspacing marks alone are no answer');
+  assert.equal(accepted({ day: DAY, goals: ['g'], blocker: '   ' }).blocker, null, 'a blank is no answer');
   const atColumn = accepted({ day: DAY, blocker: 'a'.repeat(280) }).blocker;
   assert.ok(atColumn !== null && [...atColumn].length === 280, 'at the column');
   assert.deepEqual(refused({ day: DAY, blocker: 'a'.repeat(281) }), { field: 'blocker', message: tooLongWords('blocker', 281) });
   assert.match(tooLongWords('blocker', 281), /characters/);
   assert.equal(accepted({ day: DAY, blocker: '😀'.repeat(280) }).blocker, '😀'.repeat(280), '280 code points (560 UTF-16 units) fit the column, which counts characters');
   assert.deepEqual(refused({ day: DAY, blocker: '😀'.repeat(281) }), { field: 'blocker', message: tooLongWords('blocker', 281) }, 'counted in code points');
-  assert.deepEqual(refused({ day: DAY, shipped: 'x'.repeat(501) }), { field: 'shipped', message: tooLongWords('shipped', 501) });
-  assert.deepEqual(ANSWER_MAX, { blocker: 280, shipped: 500 }, 'the two text answers; JOURNAL_01_COLUMNS keeps the retired columns’ lengths for the migration’s pins');
+  // JOURNAL-03 (2026-10-15): shipped's 500 left ANSWER_MAX with END OF DAY — a shipped of any length is refused as retired, before its length.
+  assert.deepEqual(refused({ day: DAY, shipped: 'x'.repeat(501) }), { field: 'shipped', message: retiredFieldWords('shipped') });
+  assert.deepEqual(ANSWER_MAX, { blocker: 280 }, 'the one text answer; JOURNAL_01_COLUMNS keeps the retired columns’ lengths for the migration’s pins');
 });
 
 // JOURNAL-02 (2026-10-13): the "if … then …" pairs and the obstacle are RETIRED — never read from a body, so a pair is no longer refused
 // half-given; the pins on the pair rule moved to "a retired key is ignored" (journal02.test.ts) and the table's pair CHECKs (T3, below).
-test('T1 journalInput: all five unanswered is refused; unchanged; the row and the date', () => {
+// JOURNAL-03 (Alex, 2026-10-15): "a retired key is ignored" moved to "a retired key is refused by name" (journal02.test.ts) — the
+// retired-only body below is refused by its first retired field, no longer as nothing typed; shipped no longer counts as an answer.
+test('T1 journalInput: all four unanswered is refused; unchanged; the row and the date', () => {
   const retiredOnly = Object.fromEntries(RETIRED_FIELDS.map((f) => [f, 'typed']));
-  for (const body of [{ day: DAY }, { day: DAY, blocker: '   ' }, { day: DAY, blocker: null, shipped: '​' }, { day: DAY, goals: [], plan_steps: [], plan_done: [] }, { day: DAY, ...retiredOnly }]) {
+  for (const body of [{ day: DAY }, { day: DAY, blocker: '   ' }, { day: DAY, blocker: null }, { day: DAY, goals: [], plan_steps: [], plan_done: [] }]) {
     assert.deepEqual(refused(body), { field: 'goals', message: NOTHING_TYPED_WORDS }, JSON.stringify(body));
   }
+  assert.deepEqual(refused({ day: DAY, ...retiredOnly }), { field: 'adjustment', message: retiredFieldWords('adjustment') }, 'retired answers alone: refused by the first retired field, in RETIRED_FIELDS’ order');
   assert.equal(NOTHING_TYPED_WORDS, 'nothing typed — a journal is at least one answer');
   const retired = Object.fromEntries(RETIRED_FIELDS.map((f) => [f, null])) as Record<(typeof RETIRED_FIELDS)[number], string | null>;
-  const row = journalRowOf({ ...NO_ANSWERS, ...retired, one_thing: 'kept', blocker: 'x', id: 'j1', day: new Date('2026-10-11T00:00:00.000Z'), updated_at: new Date('2026-10-10T23:40:00.000Z') });
-  assert.deepEqual(row, { ...NO_ANSWERS, blocker: 'x', retired: { ...retired, one_thing: 'kept' }, id: 'j1', day: DAY, typed_at: '2026-10-10T23:40:00.000Z' }, 'the retired answers ride `retired`, for the audit log');
-  assert.equal(journalUnchanged(row, answersOf({ blocker: 'x' })), true);
+  // JOURNAL-03 (2026-10-15): the row also holds END OF DAY words typed before — they ride `retired` too, never the answers.
+  const row = journalRowOf({ ...NO_ANSWERS, ...retired, one_thing: 'kept', shipped: 'typed before', blocker: 'x', id: 'j1', day: new Date('2026-10-11T00:00:00.000Z'), updated_at: new Date('2026-10-10T23:40:00.000Z') });
+  assert.deepEqual(row, { ...NO_ANSWERS, blocker: 'x', retired: { ...retired, one_thing: 'kept', shipped: 'typed before' }, id: 'j1', day: DAY, typed_at: '2026-10-10T23:40:00.000Z' }, 'the retired answers ride `retired`, for the audit log');
+  assert.equal(journalUnchanged(row, answersOf({ blocker: 'x' })), true, 'JOURNAL-03: shipped held in the row is not compared — the four answers the same is nothing to write');
   assert.equal(journalUnchanged(row, answersOf({ blocker: 'y' })), false);
-  assert.equal(journalUnchanged(row, answersOf({ blocker: 'x', shipped: 'me' })), false);
+  // JOURNAL-03 (2026-10-15): "a different shipped changes the row" is gone — no answer carries shipped; a different goal does.
+  assert.equal(journalUnchanged(row, answersOf({ goals: ['g'], blocker: 'x' })), false);
   assert.deepEqual(asJournalDate(DAY), new Date('2026-10-11T00:00:00.000Z'), 'UTC midnight — the @db.Date convention (stay.ts asDate)');
   assert.equal(code('src/lib/operations/stay.ts').includes("export const asDate = (day: string): Date => new Date(`${day}T00:00:00.000Z`);"), true);
   assert.equal(code(RULE).includes("export const asJournalDate = (day: string): Date => new Date(`${day}T00:00:00.000Z`);"), true, 'the same convention, word for word');
@@ -229,7 +244,8 @@ test('T1 the words — each a constant or a function, exact', () => {
   assert.equal(dayWords(undefined), 'day undefined is not a \'YYYY-MM-DD\' day');
   assert.equal(notStringWords('blocker'), 'blocker must be a string');
   assert.equal(tooLongWords('blocker', 281), 'blocker is at most 280 characters (281 given)');
-  assert.equal(tooLongWords('shipped', 501), 'shipped is at most 500 characters (501 given)');
+  // JOURNAL-03 (2026-10-15): tooLongWords('shipped', 501) is gone with shipped's limit — the retired words take its place.
+  assert.equal(retiredFieldWords('shipped'), 'shipped is retired — it is no longer asked; reload the page');
   assert.doesNotMatch(code(RULE), /\bfetch\b|new Date\(\)|Date\.now\(|@prisma\/client|from 'react'/, 'pure: no fetch, no clock, no Prisma, no React');
 });
 
@@ -453,7 +469,8 @@ test('T6 the form: no maxLength, the route’s rule first, the one writer, clear
   assert.match(f, /import \{ clearJournal, setJournal \} from '\.\/journalWrites';/);
   assert.match(f, /carryTicks, clearJournalQuestion, journalInput, linesOf,/, 'the route’s own rule, imported');
   // PLAN-01 (2026-10-13): each goal line loses a pasted list's marker (stripListMarker) — the pin moved with it.
-  assert.match(f, /const read = journalInput\(\{ day, goals: linesOf\(draft\.goals\)\.map\(stripListMarker\), blocker: draft\.blocker === '' \? null : draft\.blocker, plan_steps: steps, plan_done: ticks, shipped: draft\.shipped === '' \? null : draft\.shipped \}\);\n\s*if \(!read\.ok\) \{ setWords\(read\.message\); return; \}/, 'a blank box is null; a refusal is the route’s words');
+  // JOURNAL-03 (2026-10-15): the body carries no shipped — the END OF DAY box is gone; the pin moved with it, as exact.
+  assert.match(f, /const read = journalInput\(\{ day, goals: linesOf\(draft\.goals\)\.map\(stripListMarker\), blocker: draft\.blocker === '' \? null : draft\.blocker, plan_steps: steps, plan_done: ticks \}\);\n\s*if \(!read\.ok\) \{ setWords\(read\.message\); return; \}/, 'a blank box is null; a refusal is the route’s words');
   assert.match(f, /const answer = await setJournal\(day, read\.value\.answers\);\n\s*if \(!answer\.ok\) \{ setWords\(answer\.message\); return; \}\n\s*onChanged\(\);/, 'the one writer, then the caller re-reads');
   assert.doesNotMatch(f, /maxLength/, 'no maxLength — it counts UTF-16 units; the rule’s refusal is the limit');
   assert.doesNotMatch(f, /\bfetch\s*\(|\/api\//, 'the form names no route of its own');
@@ -471,7 +488,8 @@ test('T6 the form: no maxLength, the route’s rule first, the one writer, clear
 // JOURNAL-02 (2026-10-13): five blocks — the order, the yesterday lines and the one write moved below, dated; journal02.test.ts pins the blocks' contents.
 // CLEAN-02 (2026-10-14): the journal card shows only its five blocks — the stop's own record (status, minutes), the source line, the
 // tally and its try/catch are gone; yesterday is its journal alone. The pins below moved with it, dated.
-test('T6 the plate: the five blocks in order, "—" for the unanswered, reads only when a journal stop exists (yesterday: its journal alone), in flight and failed as different words, the form keyed by the day and the journal', () => {
+// JOURNAL-03 (Alex, 2026-10-15): four blocks — END OF DAY and YESTERDAY's note are gone; the order and the note pin moved, dated.
+test('T6 the plate: the four blocks in order, "—" for the unanswered, reads only when a journal stop exists (yesterday: its journal alone), in flight and failed as different words, the form keyed by the day and the journal', () => {
   const c = code(CARD);
   assert.match(c, /import JournalForm from '\.\.\/stops\/JournalForm';/);
   assert.match(c, /const hasJournalStop = readsDay === day && dayRead !== null && dayRead\.ok && dayRead\.value\.entries\.some\(\(e\) => e\.routine\.role === 'journal'\);/, 'the day has a journal stop — judged on the reads that landed for THIS day, so a day change fires nothing on the old day’s answer');
@@ -490,8 +508,9 @@ test('T6 the plate: the five blocks in order, "—" for the unanswered, reads on
   // PLAN-01 (2026-10-13): yesterday's steps not ticked read "not finished:" — the attribute renamed with the words.
   // CLEAN-02 (2026-10-14): YESTERDAY is its plan's ticks (data-day-yesterday-steps) and its note when typed (data-day-yesterday-note); the
   // tally's lines, TODAY's planned/stops line, the record (status, minutes) and the source line are gone from the order.
-  inOrder(c, ['data-day-journal-yesterday', 'data-day-yesterday-loading', 'data-day-yesterday-journal-failed', 'data-day-yesterday-steps', 'data-day-yesterday-note', 'data-day-journal-today', 'data-day-journal-goal>', 'data-day-journal-blockers', 'data-day-journal-plan-block', 'data-day-journal-step=', 'data-day-journal-end-of-day', 'data-day-journal-loading', 'data-day-journal-failed', 'data-day-journal-none'], 'YESTERDAY, TODAY, BLOCKERS, PLAN, END OF DAY, the read’s state');
-  assert.doesNotMatch(c, /data-day-journal-record|data-day-journal-status|data-day-journal-minutes|data-day-journal-provenance|data-day-journal-plan>|data-day-yesterday-(spent|largest|done|end-of-day|not-finished|records-failed|report-failed|items-failed|failed|build-failed)|typedState/, 'none of the removed parts');
+  // JOURNAL-03 (2026-10-15): data-day-yesterday-note and data-day-journal-end-of-day left the order, and joined the parts that are gone.
+  inOrder(c, ['data-day-journal-yesterday', 'data-day-yesterday-loading', 'data-day-yesterday-journal-failed', 'data-day-yesterday-steps', 'data-day-journal-today', 'data-day-journal-goal>', 'data-day-journal-blockers', 'data-day-journal-plan-block', 'data-day-journal-step=', 'data-day-journal-loading', 'data-day-journal-failed', 'data-day-journal-none'], 'YESTERDAY, TODAY, BLOCKERS, PLAN, the read’s state');
+  assert.doesNotMatch(c, /data-day-journal-record|data-day-journal-status|data-day-journal-minutes|data-day-journal-provenance|data-day-journal-plan>|data-day-yesterday-(spent|largest|done|end-of-day|not-finished|records-failed|report-failed|items-failed|failed|build-failed|note)|data-day-journal-(end-of-day|shipped)|typedState/, 'none of the removed parts');
   assert.match(c, /data-day-yesterday-loading>\{YESTERDAY_LOADING_WORDS\}/);
   assert.match(c, /data-day-yesterday-journal-failed>\{yesterday\.words\}/, 'yesterday’s read that failed prints its own words');
   assert.match(c, /data-day-journal-loading>\{JOURNAL_LOADING_WORDS\}/);
@@ -500,10 +519,11 @@ test('T6 the plate: the five blocks in order, "—" for the unanswered, reads on
   // JOURNAL-02 (2026-10-13): yesterday with no journal said noJournalWords; CLEAN-02 (2026-10-14): yesterdayStepsWords says it — NO_JOURNAL_YESTERDAY_WORDS.
   assert.match(c, /\{yesterday !== null && yesterday\.ok && <div [^>]*data-day-yesterday-steps>\{yesterdayStepsWords\(yRow\)\}<\/div>\}/, 'yesterday’s ticks, once its read answered');
   // PLAN-01 (2026-10-13): yesterday's END OF DAY was labelled "accomplished:"; CLEAN-02 (2026-10-14): "note:", and only when one was typed.
-  assert.match(c, /\{yRow !== null && yRow\.shipped !== null && <div [^>]*data-day-yesterday-note>\{noteWords\(yRow\.shipped\)\}<\/div>\}/, 'yesterday’s END OF DAY as typed, labelled note:');
+  // JOURNAL-03 (2026-10-15): the note is gone with END OF DAY — the card reads no shipped, yesterday's or today's, and no noteWords.
+  assert.doesNotMatch(c, /\.shipped\b|\bnoteWords\b|\bEND_OF_DAY_BLOCK_WORD\b/, 'yesterday’s END OF DAY is not read, nor today’s');
   assert.doesNotMatch(c, /data-day-yesterday-shipped|tallyShippedWords|answerLine|pairLine|QUESTION_WORDS|accomplishedWords/);
   assert.match(c, /const a: Answers = answersOf\(row === null \? \{\} : row\);/);
-  assert.match(c, /<JournalForm key=\{`\$\{day\}:\$\{journalRead\.value\.journal === null \? 'none' : journalRead\.value\.journal\.id\}`\} day=\{day\} journal=\{journalRead\.value\.journal\} yesterday=\{yesterdayForPrompt\} onChanged=\{\(\) => setJournalReads\(\(n\) => n \+ 1\)\} \/>/, 'keyed by the day and the journal; a write bumps the read counter; JOURNAL-02 / PLAN-01: yesterday — its open steps and its END OF DAY (CLEAN-02: its row) — for the add button and the plan prompt');
+  assert.match(c, /<JournalForm key=\{`\$\{day\}:\$\{journalRead\.value\.journal === null \? 'none' : journalRead\.value\.journal\.id\}`\} day=\{day\} journal=\{journalRead\.value\.journal\} yesterday=\{yesterdayForPrompt\} onChanged=\{\(\) => setJournalReads\(\(n\) => n \+ 1\)\} \/>/, 'keyed by the day and the journal; a write bumps the read counter; JOURNAL-02 / PLAN-01: yesterday — its open steps and its END OF DAY (CLEAN-02: its row; JOURNAL-03: its ticks alone) — for the add button and the plan prompt');
   assert.match(c, /\{loaded && focus !== null && focus\.stop\.role === 'journal' && journalRead !== null && journalRead\.ok && \(/, 'never offered while the journal could not be read');
   inOrder(c, ['data-day-card', '<StopForm', '<JournalForm', 'data-day-foot'], 'under the plate, after the record form, above the sentences');
   // JOURNAL-02 (2026-10-13): the plate's tick buttons write through the ONE writer — the card imports its set (as writeJournal) and

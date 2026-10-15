@@ -924,16 +924,18 @@ test('T7 CLEAN-01 the fine print — the completeness and source lines render af
 
 const CARD_IMAGE = 'src/components/workbench/operations/cardImage.ts';
 
-test('T8 CLEAN-02 the journal card renders only its five blocks — none of the removed parts, no money', () => {
+// JOURNAL-03 (Alex, 2026-10-15): END OF DAY is retired — data-day-yesterday-note, data-day-journal-end-of-day and data-day-journal-shipped
+// left the list; the list stays exact, so nothing else may join it.
+test('T8 CLEAN-02 the journal card renders only its four blocks — none of the removed parts, no money', () => {
   const c = code(CARD);
   const plate = c.slice(c.indexOf('function JournalPlate('), c.indexOf('function PlateHeader('));
   const attrs = [...new Set([...plate.matchAll(/\b(data-day-[a-z-]+)/g)].map((m) => m[1]))];
   assert.deepEqual(attrs, [
-    'data-day-journal', 'data-day-journal-yesterday', 'data-day-yesterday-loading', 'data-day-yesterday-journal-failed', 'data-day-yesterday-steps', 'data-day-yesterday-note',
+    'data-day-journal', 'data-day-journal-yesterday', 'data-day-yesterday-loading', 'data-day-yesterday-journal-failed', 'data-day-yesterday-steps',
     'data-day-journal-today', 'data-day-journal-goals-none', 'data-day-journal-goal', 'data-day-journal-blockers', 'data-day-journal-blocker',
     'data-day-journal-plan-block', 'data-day-journal-steps-none', 'data-day-journal-step', 'data-day-journal-step-done', 'data-day-journal-plan-done', 'data-day-journal-tick-words',
-    'data-day-journal-end-of-day', 'data-day-journal-shipped', 'data-day-journal-loading', 'data-day-journal-failed', 'data-day-journal-none',
-  ], 'YESTERDAY, TODAY, BLOCKERS, PLAN, END OF DAY and the read’s own state — nothing else');
+    'data-day-journal-loading', 'data-day-journal-failed', 'data-day-journal-none',
+  ], 'YESTERDAY, TODAY, BLOCKERS, PLAN and the read’s own state — nothing else');
   assert.doesNotMatch(plate, /planDollars|Cents|spent|tally|statusWords|minutesLine|provenance|todayPlanWords|vendor|location/i, 'no money, no status, no source on the journal card');
   // The step view draws the stop card's parts only for a stop that is not the journal.
   assert.match(c, /\{focus\.stop\.role !== 'journal' && \(\n\s*<div className="flex items-baseline gap-2" data-day-vendor>/, 'no VENDOR on the journal card');
