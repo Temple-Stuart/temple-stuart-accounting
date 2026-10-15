@@ -300,7 +300,9 @@ test('T4 the form asks what the role asks; the vendor box is the card’s child,
   assert.match(c, /data-day-all-day-words>\{allDayBandWords\(result\.allDay\.filter\(\(s\) => s\.cents === null\)\.length\)\}/, 'the band’s words count its lines with no amount');
   assert.match(c, /const N = result\.stops\.length;/, 'the stops, never the band');
   // PLAN-01 (2026-10-13): the line is the PLAN bar's words — soFarWords became planSoFarWords; the band's share stays on it.
-  assert.match(c, /data-day-plan-so-far>\{planSoFarWords\(plannedCents === null \? null : focus\.soFarCents, plannedCents\)\}\{plannedCents !== null && result\.allDayCents > 0 && <span className="font-medium text-text-muted" data-day-so-far-all-day> · \{allDayCentsWords\(planDollars\(result\.allDayCents\)\)\}<\/span>\}/, 'the step card says how much of its denominator is the band');
+  // TOTALS-01 amendment II (Alex, 2026-10-15): moved, not loosened — the line is of the TOTAL row's BUDGET now, which the band is not in; the
+  // "· $N all day" note beside it is unchanged (its own condition, plannedCents and the band), and still names the band's money.
+  assert.match(c, /data-day-plan-so-far>\{planSoFarWords\(totals\.budgetCents === null \? null : focus\.soFarCents, totals\.budgetCents\)\}\{plannedCents !== null && result\.allDayCents > 0 && <span className="font-medium text-text-muted" data-day-so-far-all-day> · \{allDayCentsWords\(planDollars\(result\.allDayCents\)\)\}<\/span>\}/, 'the step card names the band’s money beside its line');
   assert.match(c, /setItems\(null\);\n[\s\S]*?setReportReads\(0\);/, 'a new day resets the re-read counter — one report read per day change');
   // CLEAN-01 (2026-10-14): the plate's foot left the plate (its lines are the fine print under it) — the band is the full card's last part.
   assert.ok(c.indexOf('data-day-stops') < c.indexOf('data-day-all-day') && c.indexOf('data-day-all-day') < c.indexOf('{loaded && focus !== null && (') && c.indexOf('data-day-all-day') < c.indexOf('data-day-fine-print'), 'after the rows, the last of the full card — on the plate, above the fine print');

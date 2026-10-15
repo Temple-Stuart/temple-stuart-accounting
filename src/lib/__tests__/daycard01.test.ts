@@ -657,9 +657,10 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   // The step card: PLAN and its amount, "so far" and the bar — both null-safe while the report cannot be read.
   assert.match(c, /\{PLAN_WORD\}<\/div>/);
   // PLAN-01 (2026-10-13) — two bars, each with its own words: PLAN (gold) the planned money so far, SPENT (green) the actuals so far, both of the day's planned total.
-  assert.match(c, /data-day-plan-so-far>\{planSoFarWords\(plannedCents === null \? null : focus\.soFarCents, plannedCents\)\}/);
-  assert.match(c, /const planBar = progressPercent\(plannedCents === null \|\| focus === null \? null : focus\.soFarCents, plannedCents\);/, 'the plan bar is the rules’ percent, once');
-  assert.match(c, /const spentBar = focus === null \|\| focus\.spentSoFarCents === null \|\| focus\.withActualSoFar === 0 \? null : progressPercent\(focus\.spentSoFarCents, plannedCents\);/, 'no spent bar while the records are unread or nothing so far carries an actual — unknown, not zero');
+  // TOTALS-01 amendment II (Alex, 2026-10-15): moved, not loosened — both of the TOTAL row's BUDGET (totals.budgetCents), as the meter and the verdict; never the hero's plannedCents (totals01 T3).
+  assert.match(c, /data-day-plan-so-far>\{planSoFarWords\(totals\.budgetCents === null \? null : focus\.soFarCents, totals\.budgetCents\)\}/);
+  assert.match(c, /const planBar = progressPercent\(totals\.budgetCents === null \|\| focus === null \? null : focus\.soFarCents, totals\.budgetCents\);/, 'the plan bar is the rules’ percent, once');
+  assert.match(c, /const spentBar = focus === null \|\| focus\.spentSoFarCents === null \|\| focus\.withActualSoFar === 0 \? null : progressPercent\(focus\.spentSoFarCents, totals\.budgetCents\);/, 'no spent bar while the records are unread or nothing so far carries an actual — unknown, not zero');
   assert.match(c, /\{planBar !== null && \(/, 'no bar without a known plan');
   assert.match(c, /\{planBar !== null && spentBar !== null && \(/, 'the spent bar only beside a plan bar — its denominator is the plan');
   assert.match(c, /className="bg-brand-gold rounded-full" style=\{\{ height: 9, width: `\$\{planBar\}%` \}\}/, 'the PLAN bar gold');
@@ -911,7 +912,9 @@ test('T7 CLEAN-01 the fine print — the completeness and source lines render af
   // on a stop card too, carrying that card's why-line. The full card's lines and words are unchanged.
   // TOTALS-01 (2026-10-14): the full card's fine print gains one line after the count — the hero's day plan beyond the BUDGET total,
   // said only when they differ (planBeyondStopsWords; totals01.test.ts drives it). Moved: every other line, word and class stands.
-  assert.match(after, /\{loaded && \(focus === null \|\| focus\.stop\.role !== 'journal'\) && \(\n\s*<div className="mx-auto space-y-1 text-xs text-text-muted" style=\{\{ width: PLATE_WIDTH \}\} data-day-fine-print>\n\s*\{focus === null && completeness !== null && <p data-day-count>\{completeness\}<\/p>\}\n\s*\{\s*\}\n\s*\{focus === null && totals\.beyondCents !== null && <p data-day-beyond>\{planBeyondStopsWords\(totals\.beyondCents\)\}<\/p>\}\n\s*\{focus !== null && planBar === null && <p data-day-bars-why>\{plannedCents === null \? BARS_PLAN_NOT_READ_WORDS : BARS_NOTHING_PLANNED_WORDS\}<\/p>\}\n\s*<p className="font-mono" data-day-provenance>\{provenanceWords\(today, reportRead, recordsOk\)\}<\/p>\n\s*<\/div>\n\s*\)\}/, 'under the plate: the completeness line (full card) or the why-line (stop card), then the source line — small, muted, at the plate’s width');
+  // TOTALS-01 amendment II (Alex, 2026-10-15): the why-line is barsWhyWords(plannedCents, totals.budgetCents) — its answers stay true when the
+  // bars measure the TOTAL row's BUDGET (totals01 T3 drives every case) — with its dated comment above it ({ } once stripped). Moved, not loosened.
+  assert.match(after, /\{loaded && \(focus === null \|\| focus\.stop\.role !== 'journal'\) && \(\n\s*<div className="mx-auto space-y-1 text-xs text-text-muted" style=\{\{ width: PLATE_WIDTH \}\} data-day-fine-print>\n\s*\{focus === null && completeness !== null && <p data-day-count>\{completeness\}<\/p>\}\n\s*\{\s*\}\n\s*\{focus === null && totals\.beyondCents !== null && <p data-day-beyond>\{planBeyondStopsWords\(totals\.beyondCents\)\}<\/p>\}\n\s*\{\s*\}\n\s*\{focus !== null && planBar === null && <p data-day-bars-why>\{barsWhyWords\(plannedCents, totals\.budgetCents\)\}<\/p>\}\n\s*<p className="font-mono" data-day-provenance>\{provenanceWords\(today, reportRead, recordsOk\)\}<\/p>\n\s*<\/div>\n\s*\)\}/, 'under the plate: the completeness line (full card) or the why-line (stop card), then the source line — small, muted, at the plate’s width');
   // VENDOR-02 (2026-10-14): the stranded-vendor line left the foot; the order holds through the foot's first sentence instead,
   // and the stop's VENDOR row joins it — after the hint, directly above the record row (vendor02.test.ts pins it fully).
   inOrderOf(after, ['data-day-download-image', 'data-day-fine-print', 'data-day-hint', '<StopVendor', '<StopForm', 'data-day-foot', 'data-day-unmatched>'], 'the download button, the fine print, the hint, the VENDOR row, the record row, then the sentences');
@@ -950,7 +953,11 @@ test('T8 CLEAN-02 the stop card: no LOCATION, no status line, the stars alone, "
   assert.equal(spentSoFarWords(969, 7500), 'spent so far $9.69 of $75');
   assert.equal(spentSoFarWords(null, 7500), 'spent so far — of $75', 'nothing recorded — unknown, never $0');
   assert.doesNotMatch(spentSoFarWords(969, 7500), /without an amount/);
-  assert.match(c, /data-day-spent-so-far>\{spentSoFarWords\(focus\.spentSoFarCents === null \|\| focus\.withActualSoFar === 0 \? null : focus\.spentSoFarCents, plannedCents\)\}/);
+  // TOTALS-01 amendment II (Alex, 2026-10-15): moved, not loosened — the spent so far of the TOTAL row's BUDGET, not plannedCents.
+  // REEL-01 (Alex, 2026-10-15): moved, not loosened — the line is stepSpentSoFarWords, the one rule the stop's tag prints as its foot; its body is
+  // the expression this pin held (pinned below), of the TOTAL row's BUDGET.
+  assert.match(c, /data-day-spent-so-far>\{stepSpentSoFarWords\(focus, totals\.budgetCents\)\}/);
+  assert.match(code(RULES), /export const stepSpentSoFarWords = \(focus: Pick<Focus, 'spentSoFarCents' \| 'withActualSoFar'>, budgetCents: number \| null\): string =>\n\s*spentSoFarWords\(focus\.spentSoFarCents === null \|\| focus\.withActualSoFar === 0 \? null : focus\.spentSoFarCents, budgetCents\);/, 'the same words, the same null — one rule for the line and the tag');
   for (const kept of ['data-day-note>', 'data-day-amount>{planDollars(focus.stop.cents)}', 'data-day-actual>{planDollars(focus.stop.actualCents)}', 'data-day-delta>', 'data-day-plan-bar={planBar}', 'data-day-spent-bar={spentBar}']) assert.ok(c.includes(kept), `the stop card keeps ${kept}`);
   const plateOpen = c.lastIndexOf('<div', c.indexOf('data-day-card'));
   const plateEnd = divEnd(c, plateOpen);
@@ -964,11 +971,16 @@ test('T8 CLEAN-02 "download image": under both views outside the plate, the libr
   const plateEnd = divEnd(c, plateOpen);
   assert.match(c.slice(plateOpen, plateOpen + 40), /^<div ref=\{plateRef\} /, 'the plate element is the one rendered');
   const after = c.slice(plateEnd);
-  assert.match(after, /^\s*\n\s*\{\s*\}\n\s*\{loaded && \(\n\s*<div className="mx-auto flex flex-col items-start gap-1 text-xs" style=\{\{ width: PLATE_WIDTH \}\} data-day-image>\n\s*<button type="button" className=\{chip\} disabled=\{imageBusy\} aria-busy=\{imageBusy\} onClick=\{downloadImage\} data-day-download-image>\{DOWNLOAD_IMAGE_WORDS\}<\/button>\n\s*\{imageFailed !== null && imageFailed\.view === view && <p className="text-brand-red" data-day-image-failed>\{imageFailed\.words\}<\/p>\}\n\s*<\/div>\n\s*\)\}/, 'directly under the plate, on every loaded view — the full card and every step card, the journal’s included; busy while it renders; the failure in words under it');
+  // REEL-01 (Alex, 2026-10-15): moved, not loosened — "download image" now opens a row with the reel's buttons beside it (reel01.test.ts T3 pins
+  // the row whole); the button, its busy state and its failure line are unchanged, still directly under the plate on every loaded view.
+  assert.match(after, /^\s*\n\s*\{\s*\}\n\s*\{loaded && \(\n\s*<div className="mx-auto flex flex-col items-start gap-1 text-xs" style=\{\{ width: PLATE_WIDTH \}\} data-day-image>\n\s*\{\s*\}\n\s*<div className="flex flex-wrap items-center gap-1\.5" data-day-reel>\n\s*<button type="button" className=\{chip\} disabled=\{imageBusy\} aria-busy=\{imageBusy\} onClick=\{downloadImage\} data-day-download-image>\{DOWNLOAD_IMAGE_WORDS\}<\/button>\n[\s\S]*?<\/div>\n\s*\{imageFailed !== null && imageFailed\.view === view && <p className="text-brand-red" data-day-image-failed>\{imageFailed\.words\}<\/p>\}\n/, 'directly under the plate, on every loaded view — the full card and every step card, the journal’s included; busy while it renders; the failure in words under it');
   assert.doesNotMatch(c.slice(plateOpen, plateEnd), /data-day-download-image|data-day-image/, 'outside the plate — never in the recording');
   inOrderOf(c, ['const downloadImage = async () => {', 'if (imageBusy) return;', 'setImageBusy(true);', 'setImageFailed(null);', 'try {', "if (plateRef.current === null) throw new Error('the card is not on the page');", 'await downloadCardImage(plateRef.current, cardImageName(day, focus === null ? null : { index: focus.index, label: boldOf(focus.stop) }));', '} catch (error) {', 'setImageFailed({ view, words: cardImageFailedWords(error instanceof Error ? error.message : String(error)) });', '} finally {', 'setImageBusy(false);'], 'busy, render, say the failure, done');
-  assert.equal((c.match(/downloadCardImage\(/g) ?? []).length, 1, 'one path — no second try');
-  assert.match(c, /import \{ DOWNLOAD_IMAGE_WORDS, cardImageFailedWords, cardImageName, downloadCardImage \} from '\.\.\/cardImage';/, 'the helper lives outside the day folder');
+  // REEL-01 (Alex, 2026-10-15): moved, not loosened — the stop's tag is made by the same helper: two call sites, one renderer, each tried once.
+  assert.equal((c.match(/downloadCardImage\(/g) ?? []).length, 2, 'the plate and the tag — one path each, no second try');
+  assert.equal((c.match(/await downloadCardImage\(plateRef\.current, /g) ?? []).length, 1);
+  assert.equal((c.match(/await downloadCardImage\(tagRef\.current, /g) ?? []).length, 1);
+  assert.match(c, /import \{ DOWNLOAD_IMAGE_WORDS, DOWNLOAD_TAG_WORDS, cardImageFailedWords, cardImageName, cardTagName, downloadCardImage \} from '\.\.\/cardImage';/, 'the helper lives outside the day folder');
   assert.doesNotMatch(c, /html-to-image|\bfetch\s*\(|method:/, 'the card names no library and fetches nothing of its own');
   // The helper: the library imported inside the function the click runs — loaded only when pressed; pixel ratio 3; no background of its own
   // (transparent outside the rounded corners); the copy's margin zero, so the image is the plate's box exactly.

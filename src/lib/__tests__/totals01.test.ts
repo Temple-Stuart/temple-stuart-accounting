@@ -29,7 +29,7 @@ import type { PlanLine } from '../budget/planLines';
 import type { StopRecordRow } from '../operations/stopRecord';
 import type { StopRole } from '../operations/stopRole';
 import type { Routine, RoutineStep, TodayRoutineEntry } from '@/components/workbench/operations/routines/types';
-import { TOTAL_WORD, dayMeter, dayStops, dayTotals, dayVerdict, planBeyondStopsWords, type DayCardInput } from '@/components/workbench/operations/day/dayCard';
+import { BARS_NO_STOP_BUDGET_WORDS, BARS_NOTHING_PLANNED_WORDS, BARS_PLAN_NOT_READ_WORDS, TOTAL_WORD, barsStopsBudgetWords, barsWhyWords, dayMeter, dayStops, dayTotals, dayVerdict, focusStop, overByWords, planBeyondStopsWords, planSoFarWords, progressPercent, spentSoFarWords, type DayCardInput } from '@/components/workbench/operations/day/dayCard';
 
 const CARD = 'src/components/workbench/operations/day/DayCard.tsx';
 const RULES = 'src/components/workbench/operations/day/dayCard.ts';
@@ -195,6 +195,79 @@ test('T1 the meter and the verdict measure the TOTAL row — its ACTUAL against 
   // The band alone (no stop): nothing to measure.
   const onlyBand = dayStops(input(band));
   assert.deepEqual(underTheRow(onlyBand), { meter: null, verdict: null });
+});
+
+// ── T3 · TOTALS-01 AMENDMENT II (Alex, 2026-10-15): THE STEP VIEW AGAINST THE TOTAL ROW'S BUDGET ──
+// Every "against the plan" figure of the step view — the plan-so-far line, the plan bar, the spent bar, "over by", the
+// spent-so-far line and the why-line — takes totals.budgetCents, exactly as the meter and the verdict did (T1 above).
+// Rules unchanged; only their plan input moved. The "· $N all day" note beside the plan-so-far line is unchanged.
+
+/** The step view's figures exactly as DayCard.tsx composes them, with the TOTAL row's BUDGET as the plan. */
+function stepView(r: ReturnType<typeof day>, n: number) {
+  const budget = dayTotals(r, r.plannedCents).budgetCents;
+  const f = focusStop(r, n);
+  assert.ok(f !== null, `stop ${n} exists`);
+  const spentSoFar = f.spentSoFarCents === null || f.withActualSoFar === 0 ? null : f.spentSoFarCents;
+  return {
+    planLine: planSoFarWords(budget === null ? null : f.soFarCents, budget),
+    planBar: progressPercent(budget === null ? null : f.soFarCents, budget),
+    spentLine: spentSoFarWords(spentSoFar, budget),
+    spentBar: spentSoFar === null ? null : progressPercent(spentSoFar, budget),
+    overBy: spentSoFar === null || budget === null || spentSoFar <= budget ? null : overByWords(spentSoFar - budget),
+  };
+}
+
+test('T3 the step view measures the TOTAL row’s BUDGET — the plan so far, both bars, the spent so far and "over by"; the hero’s all-day money is not in them', () => {
+  const band = { entries: [entry(hbo, HBO_AT)], lines: [hboLine] };
+  const under = day({ brunch: 969 }, band);
+  assert.deepEqual([under.plannedCents, dayTotals(under, under.plannedCents).budgetCents], [8600, 7500]);
+  assert.deepEqual(stepView(under, 1), { planLine: 'plan so far $25 of $75', planBar: 33, spentLine: 'spent so far $9.69 of $75', spentBar: 13, overBy: null },
+    'Brunch, the first stop: $25 of the stops’ $75 (33%), not of the hero’s $86 (29%)');
+  const over = day({ brunch: 969, activities: 3000, dinner: 3500, gym: 1200 }, band);
+  assert.deepEqual(stepView(over, 4), { planLine: 'plan so far $75 of $75', planBar: 100, spentLine: 'spent so far $86.69 of $75', spentBar: 100, overBy: 'over by $11.69' },
+    'the last stop: over the stops’ budget by $11.69 — against the hero it would have read $0.69');
+  // The plain day — the hero and the column agree — reads as before.
+  assert.deepEqual(stepView(day({ brunch: 969 }), 1), { planLine: 'plan so far $25 of $75', planBar: 33, spentLine: 'spent so far $9.69 of $75', spentBar: 13, overBy: null });
+});
+
+test('T3 no bars, and why — each answer true: not read; nothing planned; a plan the stops do not carry is off the table, never "nothing is planned"', () => {
+  assert.equal(barsWhyWords(null, null), BARS_PLAN_NOT_READ_WORDS, 'the report not read');
+  assert.equal(barsWhyWords(0, null), BARS_NOTHING_PLANNED_WORDS, 'nothing planned at all');
+  assert.equal(barsWhyWords(0, 0), BARS_NOTHING_PLANNED_WORDS);
+  assert.equal(barsWhyWords(1100, null), BARS_NO_STOP_BUDGET_WORDS, 'only all-day money: the hero has $11, no stop is priced');
+  assert.equal(BARS_NO_STOP_BUDGET_WORDS, 'no bars — no stop of the day is priced; the day’s plan is off the table (all day / no stop)');
+  assert.equal(barsWhyWords(1100, 0), barsStopsBudgetWords(0));
+  assert.equal(barsStopsBudgetWords(0), 'no bars — the stops’ budget is $0; the day’s plan is off the table (all day / no stop)');
+  assert.throws(() => barsWhyWords(8600, 7500), /draws the bars/, 'a positive BUDGET total draws the bars — asking why there are none is the caller’s error');
+  // Driven: a day whose one stop (the Gym) is unpriced and whose only money is the all-day HBO line — the step view draws no bars.
+  const GYM_AT = '2026-10-11T13:00:00.000Z';
+  const gymOnly = dayStops(input({
+    entries: [entry(routine({ id: 'gym', name: 'Gym', role: 'place', schedule_rrule: 'FREQ=DAILY;BYHOUR=20;BYMINUTE=0' }), GYM_AT), entry(hbo, HBO_AT)],
+    lines: [hboLine],
+  }));
+  const budget = dayTotals(gymOnly, gymOnly.plannedCents).budgetCents;
+  const f = focusStop(gymOnly, 1);
+  assert.ok(f !== null);
+  assert.equal(progressPercent(budget === null ? null : f.soFarCents, budget), null, 'no plan bar');
+  assert.equal(barsWhyWords(gymOnly.plannedCents, budget), BARS_NO_STOP_BUDGET_WORDS, 'the hero’s $11 is off the table — not "nothing is planned for the day"');
+});
+
+test('T3 the screen: every step-view figure takes totals.budgetCents; none takes the hero’s plannedCents; the all-day note is unchanged', () => {
+  const c = code(CARD);
+  assert.match(c, /const planBar = progressPercent\(totals\.budgetCents === null \|\| focus === null \? null : focus\.soFarCents, totals\.budgetCents\);/);
+  assert.match(c, /const spentBar = focus === null \|\| focus\.spentSoFarCents === null \|\| focus\.withActualSoFar === 0 \? null : progressPercent\(focus\.spentSoFarCents, totals\.budgetCents\);/);
+  assert.match(c, /const overCents = focus === null \|\| focus\.spentSoFarCents === null \|\| focus\.withActualSoFar === 0 \|\| totals\.budgetCents === null \|\| focus\.spentSoFarCents <= totals\.budgetCents \? null : focus\.spentSoFarCents - totals\.budgetCents;/);
+  assert.match(c, /data-day-plan-so-far>\{planSoFarWords\(totals\.budgetCents === null \? null : focus\.soFarCents, totals\.budgetCents\)\}\{plannedCents !== null && result\.allDayCents > 0 && <span className="font-medium text-text-muted" data-day-so-far-all-day> · \{allDayCentsWords\(planDollars\(result\.allDayCents\)\)\}<\/span>\}/, 'the line on the budget; its all-day note as it was');
+  // REEL-01 (Alex, 2026-10-15): moved, not loosened — the line is stepSpentSoFarWords(focus, totals.budgetCents), whose body is this expression.
+  assert.match(c, /data-day-spent-so-far>\{stepSpentSoFarWords\(focus, totals\.budgetCents\)\}/);
+  assert.match(code(RULES), /export const stepSpentSoFarWords = \(focus: Pick<Focus, 'spentSoFarCents' \| 'withActualSoFar'>, budgetCents: number \| null\): string =>\n\s*spentSoFarWords\(focus\.spentSoFarCents === null \|\| focus\.withActualSoFar === 0 \? null : focus\.spentSoFarCents, budgetCents\);/, 'the same words, the same null — one rule for the line and the tag');
+  assert.match(c, /\{focus !== null && planBar === null && <p data-day-bars-why>\{barsWhyWords\(plannedCents, totals\.budgetCents\)\}<\/p>\}/);
+  for (const call of [/progressPercent\([^;]*plannedCents[^;]*\);/, /planSoFarWords\([^)]*plannedCents[^)]*\)/, /spentSoFarWords\([^)]*plannedCents[^)]*\)/, /const overCents = [^;]*plannedCents/]) {
+    assert.doesNotMatch(c, call, `no step-view figure is of the hero’s plannedCents: ${call}`);
+  }
+  // The totals are read before the step view's figures that use them.
+  assert.ok(c.indexOf('const totals = dayTotals(result, plannedCents);') < c.indexOf('const planBar = '), 'the TOTAL row first, then the bars that measure it');
+  assert.match(comments(RULES), /TOTALS-01 amendment II \(Alex, 2026-10-15\): why the step view draws no bars/);
 });
 
 // ── T2 · THE SCREEN ─────────────────────────────────────────────────────────

@@ -74,8 +74,9 @@ import { centsFromDecimalString, type NotPlaced } from '@/lib/budget/days';
 import { formatCents } from '@/lib/budget/format';
 import type { PlanLine } from '@/lib/budget/planLines';
 import { NO_STAY_WORDS, STAY_NOT_READ_WORDS, stayDay, stayDayWords, type StayRow } from '@/lib/operations/stay';
+import type { Answers } from '@/lib/operations/journal';
 import {
-  LATER_WORD, NOT_RECORDED_WORDS, OPEN_WORD, ROUTINE_DONE_WORDS, ROUTINE_MISSED_WORDS, SKIPPED_WORD, TASK_DONE_WORDS, TASK_OPEN_WORDS, doneWords, lateWords, recordKey, skippedWords,
+  LATER_WORD, NOT_RECORDED_WORDS, OPEN_WORD, ROUTINE_DONE_WORDS, ROUTINE_MISSED_WORDS, SKIPPED_WORD, TASK_DONE_WORDS, TASK_OPEN_WORDS, doneWords, lateWords, recordKey, skippedWords, starsWords,
   type StopRecordKind, type StopRecordRow,
 } from '@/lib/operations/stopRecord';
 import { NO_AMOUNT_NO_VENDOR_WORDS, REPORT_NOT_READ_NO_VENDOR_WORDS, UNMATCHED_NO_VENDOR_WORDS, isStop, isStopRole, type StopRole } from '@/lib/operations/stopRole';
@@ -552,6 +553,8 @@ export const ON_PLAN_WORDS = 'on plan';
  * $75" — no count beside it; "spent so far — of $75" while nothing so far is
  * recorded or the records were not read (the caller passes null — unknown,
  * never $0; the fine print under the plate says what was not read).
+ * TOTALS-01 amendment II (2026-10-15): the card passes the TOTAL row's BUDGET
+ * as the second figure, not the hero's plan; this rule is unchanged.
  */
 export const spentSoFarWords = (spentCents: number | null, plannedCents: number | null): string =>
   `${SPENT_SO_FAR_WORDS} ${planDollars(spentCents)} of ${planDollars(plannedCents)}`;
@@ -561,6 +564,27 @@ export const overByWords = (cents: number): string => `over by ${planDollars(cen
 /** The step view draws no bars when the day's planned total is unknown or nothing is planned — and says why. */
 export const BARS_PLAN_NOT_READ_WORDS = 'no bars — the day’s planned total is not known (the Budget’s plan lines were not read)';
 export const BARS_NOTHING_PLANNED_WORDS = 'no bars — nothing is planned for the day';
+/** TOTALS-01 amendment II (2026-10-15): no bars because no stop carries a budget, while the day has a plan off the table (all-day lines, lines no stop carries). */
+export const BARS_NO_STOP_BUDGET_WORDS = 'no bars — no stop of the day is priced; the day’s plan is off the table (all day / no stop)';
+/** TOTALS-01 amendment II: no bars because the stops' budget is $0 or less, while the day's plan is more, off the table. */
+export const barsStopsBudgetWords = (budgetCents: number): string => `no bars — the stops’ budget is ${planDollars(budgetCents)}; the day’s plan is off the table (all day / no stop)`;
+
+/**
+ * TOTALS-01 amendment II (Alex, 2026-10-15): why the step view draws no bars,
+ * now that the bars measure the TOTAL row's BUDGET (the stops' budget) and not
+ * the hero's plan. Called only when there is no plan bar; each answer stays
+ * true. The report not read: the plan is not known. Nothing planned at all
+ * (the hero is $0 or less): nothing is planned. Otherwise the hero has a plan
+ * and the stops carry none of it (no stop priced, or priced at $0 or less): the
+ * plan is off the table, said as such, never "nothing is planned". A positive
+ * BUDGET total draws a bar, so asking why there is none is the caller's error.
+ */
+export function barsWhyWords(plannedCents: number | null, budgetCents: number | null): string {
+  if (plannedCents === null) return BARS_PLAN_NOT_READ_WORDS;
+  if (budgetCents !== null && budgetCents > 0) throw new Error(`dayCard: a BUDGET total of ${budgetCents} cents draws the bars — there is no why-line to say`);
+  if (plannedCents <= 0) return BARS_NOTHING_PLANNED_WORDS;
+  return budgetCents === null ? BARS_NO_STOP_BUDGET_WORDS : barsStopsBudgetWords(budgetCents);
+}
 
 /**
  * TOTALS-01 (2026-10-14): spentOutOfWords — CLEAN-01's full-card line under the
@@ -974,6 +998,257 @@ export function dayTotals(result: DayStops, plannedCents: number | null): DayTot
 /** The fine print under the plate when the hero's day plan is more (or less) than the BUDGET total: "$11 more planned off the table (all day / no stop)". */
 export const planBeyondStopsWords = (cents: number): string =>
   `${planDollars(Math.abs(cents))} ${cents > 0 ? 'more' : 'less'} planned off the table (all day / no stop)`;
+
+// ── REEL-01 (Alex, 2026-10-15): THE REEL KIT — A TAG PER STOP, THE CAPTION, THE SCRIPT ──
+//
+// Alex posts a daily reel built on this card: one bold tag per scene, the full card as the receipt at the end,
+// a caption and a narration he used to type by hand. Each is made here by one pure rule from the card's OWN
+// figures (Stop, Focus, dayTotals, dayVerdict) — nothing recomputed another way, no number the card does not
+// show (R3). Nothing leaves the browser but the PNG and the clipboard (R4): no fetch, no model, no route.
+// A read the output uses that is in flight makes it wait; one that failed is named; never a partial text that
+// hides a missing part (Alex, 2026-10-15). With no covering stay there is no caption and no script, said by name.
+
+/** The stop's own name as the card prints it bold: its line (the step's activity) when it has one, else its label. */
+export const stopName = (s: Pick<Stop, 'line' | 'label'>): string => (s.line !== null ? s.line : s.label);
+
+/** One read an output uses: still in flight, failed, or in. */
+export type ReelRead = 'waiting' | 'failed' | 'ok';
+
+/** The reads behind the reel outputs. The journal is read only on a day with a journal stop; null when the output does not use it. */
+export interface ReelReads {
+  readonly day: ReelRead;
+  readonly tasks: ReelRead;
+  readonly report: ReelRead;
+  readonly records: ReelRead;
+  readonly stay: ReelRead;
+  readonly journal: ReelRead | null;
+}
+
+/** Each read by the name the waiting and failure words give it, in this order. */
+export const REEL_READ_NAMES: Readonly<Record<keyof ReelReads, string>> = {
+  day: 'the day’s routines', tasks: 'the day’s tasks', report: 'the budget report', records: 'the stop records', stay: 'the stay', journal: 'the journal',
+};
+const REEL_READ_ORDER: readonly (keyof ReelReads)[] = ['day', 'tasks', 'report', 'records', 'stay', 'journal'];
+
+export const reelWaitingWords = (names: readonly string[]): string => `not ready — waiting for ${names.join(', ')}`;
+export const reelFailedWords = (names: readonly string[]): string => `not made — ${names.join(', ')} could not be read`;
+
+/** Null when every read the output uses is in; else why not: the failed reads by name (a failure never waits), or the ones still in flight. */
+export function reelReadsWords(reads: ReelReads): string | null {
+  const named = (state: ReelRead) => REEL_READ_ORDER.filter((k) => reads[k] === state).map((k) => REEL_READ_NAMES[k]);
+  const failed = named('failed');
+  if (failed.length > 0) return reelFailedWords(failed);
+  const waiting = named('waiting');
+  return waiting.length > 0 ? reelWaitingWords(waiting) : null;
+}
+
+/** A reel text, or why there is none. */
+export type ReelText = { readonly ok: true; readonly text: string } | { readonly ok: false; readonly words: string };
+
+export const noStayReelWords = (day: string): string => `no caption and no script — no stay covers ${dayShortWords(day)} (the place and the day count come from the stay)`;
+export const COPY_CAPTION_WORDS = 'copy caption';
+export const COPY_SCRIPT_WORDS = 'copy script';
+export const CAPTION_COPIED_WORDS = 'caption copied';
+export const SCRIPT_COPIED_WORDS = 'script copied';
+export const copyFailedWords = (what: 'caption' | 'script', reason: string): string => `could not copy the ${what} — ${reason}`;
+
+/** The covering stay's day count for the day — the header's rule (stayDay); a stay that does not cover the day is the caller's error. */
+function stayAt(stay: StayRow, day: string): { readonly n: number; readonly of: number } {
+  const at = stayDay({ startsOn: stay.starts_on, endsOn: stay.ends_on }, day);
+  if (at === null) throw new Error(`dayCard: the stay ${stay.starts_on}..${stay.ends_on} does not cover ${day} — the reel was handed the wrong stay`);
+  return at;
+}
+
+// R1 · THE TAG — one stop, for a phone over video.
+
+/** The tag's width in CSS pixels; the PNG is CARD_IMAGE_PIXEL_RATIO times it, as the card's. */
+export const TAG_WIDTH = 600;
+/** "budget $15" — a stop not recorded: its budget alone. */
+export const tagBudgetWords = (cents: number): string => `budget ${planDollars(cents)}`;
+
+export interface StopTagWords {
+  /** "DAY 8 OF 15 · Chiang Mai, Thailand 🇹🇭" — the covering stay's count and its place as typed; the day alone with no stay (whereWords' rule). */
+  readonly top: string;
+  /** The vendor; the stop's name when it has none. */
+  readonly big: string;
+  /** The stop's name (when the vendor is the big line) and its time; null when neither is left to say. */
+  readonly what: string | null;
+  /** The actual with the row's delta words and tone; "budget $15" when there is no actual; null when the stop shows neither. */
+  readonly money: { readonly kind: 'actual' | 'budget'; readonly words: string; readonly over: boolean | null } | null;
+  /** The record's rating as the card's stars; null when not rated. */
+  readonly stars: string | null;
+  /** The step view's own spent-so-far words, exactly as it prints them (stepSpentSoFarWords). */
+  readonly foot: string;
+}
+
+/**
+ * R1: the tag's words for one stop — its vendor big (its name when it has none),
+ * its name and time, the money as the row says it (the actual with the row's
+ * delta, under green, over red; "budget $15" when not recorded; nothing when
+ * not priced — never $0 for an unknown), the stars when rated, and the step
+ * view's own spent-so-far line as its foot. Nothing else: no note, no bars.
+ */
+export function stopTagWords(input: { readonly day: string; readonly stay: StayRow | null; readonly stop: Stop; readonly foot: string }): StopTagWords {
+  const { day, stay, stop } = input;
+  const at = stay === null ? null : stayAt(stay, day);
+  const name = stopName(stop);
+  const what = [stop.vendor !== null ? name : null, stop.time].filter((w): w is string => w !== null).join(' · ');
+  const money = stop.actualCents !== null
+    ? { kind: 'actual' as const, words: rowActualWords(stop.actualCents, stop.cents), over: deltaWords(stop.actualCents, stop.cents).over }
+    : stop.cents !== null ? { kind: 'budget' as const, words: tagBudgetWords(stop.cents), over: null } : null;
+  return {
+    top: stay === null || at === null ? dayShortWords(day) : `${stayDayWords(at.n, at.of)} · ${stay.place}`,
+    big: stop.vendor !== null ? stop.vendor : name,
+    what: what === '' ? null : what,
+    money,
+    stars: stop.record !== null && stop.record.rating !== null ? starsWords(stop.record.rating) : null,
+    foot: input.foot,
+  };
+}
+
+/** The step view's spent-so-far line — the actuals of stops 1..n of the TOTAL row's BUDGET; "—" while none so far is recorded (never $0). One rule for the card's line and the tag's foot. */
+export const stepSpentSoFarWords = (focus: Pick<Focus, 'spentSoFarCents' | 'withActualSoFar'>, budgetCents: number | null): string =>
+  spentSoFarWords(focus.spentSoFarCents === null || focus.withActualSoFar === 0 ? null : focus.spentSoFarCents, budgetCents);
+
+// R2 · THE CAPTION and R5 · THE SCRIPT — the same reads, the same figures.
+
+/** What the caption and the script are made from — the card's own reads and figures. */
+export interface ReelDay {
+  readonly day: string;
+  /** The stay covering the day (read); null when none does. */
+  readonly stay: StayRow | null;
+  /** The card's stops, in the table's order. */
+  readonly stops: readonly Stop[];
+  readonly totals: DayTotals;
+  /** The card's verdict (dayVerdict on the TOTAL row's BUDGET); null when the card shows none. */
+  readonly verdict: DeltaWords | null;
+  /** The day's journal answers when the card read them; null when none was typed, or the day has no journal stop (the card reads none). */
+  readonly journal: Pick<Answers, 'goals' | 'blocker'> | null;
+}
+
+export const CAPTION_PLAN_HEAD_WORDS = 'Today’s plan:';
+export const captionBlockerWords = (blocker: string): string => `Blocker: ${blocker}`;
+export const CAPTION_POINT_WORDS = '👇';
+export const CAPTION_STAR_WORDS = '⭐️';
+export const SKIPPED_TAIL_WORDS = ': skipped';
+/** The caption's constant tags, after the place's. */
+export const CAPTION_TAGS = ['#digitalnomad', '#costofliving', '#buildinpublic'] as const;
+
+/** A part of the place as a tag: NFC, lowercased, Unicode letters and digits only — spaces, punctuation and the flag emoji go. */
+const tagWord = (part: string): string => part.normalize('NFC').toLowerCase().replace(new RegExp('[^\\p{L}\\p{N}]+', 'gu'), '');
+
+/**
+ * R2: the place's tags, then the three constants. The place is split at its
+ * FIRST comma: the city before it, the country after ("Chiang Mai, Thailand 🇹🇭"
+ * → #chiangmai #thailand). A place with no comma gives the city tag and the three
+ * constants. A part with no letter or digit left gives no tag — never a guessed one.
+ */
+export function captionTags(stayPlace: string): string[] {
+  const comma = stayPlace.indexOf(',');
+  const parts = comma < 0 ? [stayPlace] : [stayPlace.slice(0, comma), stayPlace.slice(comma + 1)];
+  return [...parts.map(tagWord).filter((w) => w !== '').map((w) => `#${w}`), ...CAPTION_TAGS];
+}
+
+/** "<name> at <vendor>" — the name alone when the stop has no vendor. */
+const atVendor = (s: Stop): string => (s.vendor !== null ? `${stopName(s)} at ${s.vendor}` : stopName(s));
+const skippedRecord = (s: Stop): boolean => s.record !== null && s.record.outcome === 'skipped';
+/** The row's delta words, only when both figures are known (deltaWords says '—' otherwise, which is no words). */
+const knownDelta = (s: Stop): string | null => {
+  const d = deltaWords(s.actualCents, s.cents);
+  return d.over === null ? null : d.text;
+};
+
+/**
+ * R2: the caption — one text, made from the card's own reads. Line 1 the
+ * covering stay's place as typed and its day count; line 2 the TOTAL row's
+ * budget and the hook (none when the TOTAL row has no budget); the journal's
+ * goals and blocker when the card read a journal; one block per stop that has a
+ * record and shows a budget or an actual, in the table's order (tasks and the
+ * journal stop left out — never shown as $0); the totals and the card's verdict;
+ * the tags. Sections are separated by a blank line. No covering stay → no caption.
+ */
+export function captionText(d: ReelDay): ReelText {
+  if (d.stay === null) return { ok: false, words: noStayReelWords(d.day) };
+  const at = stayAt(d.stay, d.day);
+  const sections: string[][] = [];
+  const head = [`${d.stay.place} Day ${at.n} of ${at.of}!`];
+  if (d.totals.budgetCents !== null) head.push(`Budget today: ${planDollars(d.totals.budgetCents)}. ${HOOK_WORDS} ${CAPTION_POINT_WORDS}`);
+  sections.push(head);
+  if (d.journal !== null) {
+    const journal = [...(d.journal.goals.length > 0 ? [CAPTION_PLAN_HEAD_WORDS, ...d.journal.goals] : []), ...(d.journal.blocker !== null ? [captionBlockerWords(d.journal.blocker)] : [])];
+    if (journal.length > 0) sections.push(journal);
+  }
+  for (const s of d.stops) {
+    if (s.kind === 'task' || s.role === 'journal' || s.record === null || (s.cents === null && s.actualCents === null)) continue;
+    const block = [`${atVendor(s)}${skippedRecord(s) ? SKIPPED_TAIL_WORDS : ''}`, `Budget: ${planDollars(s.cents)}`, `Actual: ${planDollars(s.actualCents)}`];
+    const delta = knownDelta(s);
+    if (delta !== null) block.push(delta);
+    if (s.record.rating !== null) block.push(CAPTION_STAR_WORDS.repeat(s.record.rating));
+    if (s.record.note !== null) block.push(s.record.note);
+    sections.push(block);
+  }
+  sections.push([`Total budget: ${planDollars(d.totals.budgetCents)}`, `Spent: ${planDollars(d.totals.actualCents)}`, ...(d.verdict !== null ? [d.verdict.text] : [])]);
+  sections.push([captionTags(d.stay.place).join(' ')]);
+  return { ok: true, text: sections.map((lines) => lines.join('\n')).join('\n\n') };
+}
+
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
+/** The narration's blanks — a missing piece to fill, never $0 and never invented. */
+export const SCRIPT_BLANKS = { budget: '[budget]', actual: '[actual]', stars: '[stars]', what: '[what you got]', verdict: '[verdict]' } as const;
+export const SCRIPT_HOOK_TAIL_WORDS = 'Let’s find out.';
+
+/**
+ * R5: one stop's scene. A skipped stop: "<name>: skipped." and its reason. Else
+ * "<name> at <vendor>." / the note, or [what you got] / "Budget <b>, actual <a>,
+ * <the row's delta>." when the stop shows a budget or an actual (each missing
+ * figure a blank, the delta only when both are known) / "<n> out of 5.", or
+ * [stars]. A stop that shows neither figure has no money sentence.
+ */
+export function stopSceneLines(s: Stop): string[] {
+  if (skippedRecord(s) && s.record !== null) {
+    if (s.record.note === null) throw new Error(`dayCard: ${s.key} is skipped by its record but carries no reason`);
+    return [`${stopName(s)}${SKIPPED_TAIL_WORDS}.`, s.record.note];
+  }
+  const lines = [`${atVendor(s)}.`, s.record !== null && s.record.note !== null ? s.record.note : SCRIPT_BLANKS.what];
+  if (s.cents !== null || s.actualCents !== null) {
+    const delta = knownDelta(s);
+    lines.push(`Budget ${s.cents === null ? SCRIPT_BLANKS.budget : planDollars(s.cents)}, actual ${s.actualCents === null ? SCRIPT_BLANKS.actual : planDollars(s.actualCents)}${delta === null ? '' : `, ${delta}`}.`);
+  }
+  lines.push(`${s.record !== null && s.record.rating !== null ? s.record.rating : SCRIPT_BLANKS.stars} out of 5.`);
+  return lines;
+}
+
+/** R5, the step view: that one stop's scene; no covering stay → no script, said by name. */
+export function stopScriptText(day: string, stay: StayRow | null, stop: Stop): ReelText {
+  if (stay === null) return { ok: false, words: noStayReelWords(day) };
+  return { ok: true, text: stopSceneLines(stop).join('\n') };
+}
+
+/**
+ * R5, the full card: the reel's narration in scene order — the hook on the TOTAL
+ * row's budget; the greeting with the weekday, the stay's count and place, and
+ * every stop by name (and vendor); the journal's list and blocker when read; one
+ * scene per stop that shows a budget or an actual, in the table's order; the
+ * outro on the TOTAL row and the card's verdict. Until the day is fully recorded
+ * (the card shows no verdict) the tally and the verdict are blanks to fill.
+ */
+export function scriptText(d: ReelDay): ReelText {
+  if (d.stay === null) return { ok: false, words: noStayReelWords(d.day) };
+  const at = stayAt(d.stay, d.day);
+  const budget = d.totals.budgetCents === null ? SCRIPT_BLANKS.budget : planDollars(d.totals.budgetCents);
+  const weekday = WEEKDAY_NAMES[new Date(`${d.day}T00:00:00.000Z`).getUTCDay()];
+  const blocks: string[][] = [[`Budget today: ${budget}. ${HOOK_WORDS} ${SCRIPT_HOOK_TAIL_WORDS}`]];
+  const greeting = `Happy ${weekday} everyone, welcome to day ${at.n} of ${at.of}, here in ${d.stay.place}.`;
+  blocks.push([d.stops.length === 0 ? greeting : `${greeting} Today: ${d.stops.map(atVendor).join(', ')}.`]);
+  if (d.journal !== null) {
+    const journal = [...(d.journal.goals.length > 0 ? [`Today’s list: ${d.journal.goals.join(', ')}.`] : []), ...(d.journal.blocker !== null ? [`Blocker: ${d.journal.blocker}.`] : [])];
+    if (journal.length > 0) blocks.push(journal);
+  }
+  for (const s of d.stops) if (s.cents !== null || s.actualCents !== null) blocks.push(stopSceneLines(s));
+  const tally = d.verdict === null ? SCRIPT_BLANKS.actual : planDollars(d.totals.actualCents);
+  blocks.push([`Final tally: ${tally} out of ${budget}. ${d.verdict === null ? SCRIPT_BLANKS.verdict : d.verdict.text}. Day ${at.n} of ${at.of}, done.`]);
+  return { ok: true, text: blocks.map((lines) => lines.join('\n')).join('\n\n') };
+}
 
 // ── TASKS-ONE-01 (2026-10-14): WHERE THE CARD LIVES — THE FIRST SECTION OF /tasks ──
 
