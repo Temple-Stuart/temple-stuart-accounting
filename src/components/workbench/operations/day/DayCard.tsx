@@ -140,6 +140,10 @@
  * unchanged) sit directly under the table. When the hero's day plan is more
  * than the BUDGET total — the all-day band, lines no stop carries — the fine
  * print under the plate says so (planBeyondStopsWords); equal, nothing.
+ * Amendment (Alex, 2026-10-15): the meter and the verdict measure the TOTAL row
+ * they sit under — the spent against the BUDGET total, not the hero's whole
+ * plan (an all-day line no stop can record made every day "under" by it). No
+ * BUDGET total, no meter and no verdict.
  *
  * CLEAN-02 (2026-10-14) — the step cards, cleaned (Alex's ruling). The JOURNAL
  * card shows only its five blocks: YESTERDAY as its plan's ticks ("4 of 6 steps
@@ -516,10 +520,13 @@ export default function DayCard() {
   // CLEAN-01 (2026-10-14): the full card's spent — unknown ('—', null) while the records are unread or no stop carries an actual (PLAN-01: never $0);
   // the meter against the planned total, and the verdict only once every stop that asks an amount carries one.
   // TOTALS-01 (2026-10-14): the TOTAL row's figures (dayTotals) — the spent is its ACTUAL total, one rule for the row and the meter.
+  // TOTALS-01 amendment (Alex, 2026-10-15): the meter and the verdict sit under the TOTAL row and measure ITS two figures — the spent
+  // against the stops' budget (totals.budgetCents), not the hero's whole plan: an all-day line no stop can record read as "under" by
+  // that money every day (the fine print's off-the-table line names it). No BUDGET total, no meter and no verdict. Rules unchanged.
   const totals = dayTotals(result, plannedCents);
   const spent = totals.actualCents;
-  const meter = dayMeter(spent, plannedCents);
-  const verdict = dayVerdict(result, plannedCents);
+  const meter = dayMeter(spent, totals.budgetCents);
+  const verdict = dayVerdict(result, totals.budgetCents);
   // The matched line's book, by name, from the report's own books — named as not loaded when the report lists none.
   const bookNameOf = (entityId: string): string => {
     const book = report !== null && report.ok ? report.value.report.books.find((b) => b.entityId === entityId) : undefined;
@@ -661,7 +668,8 @@ export default function DayCard() {
                 <div className="border-t border-border" aria-hidden="true" />
               </div>
             )}
-            {/* TOTALS-01 (2026-10-14): the meter and the verdict, directly under the table — their rules unchanged (CLEAN-01). */}
+            {/* TOTALS-01 (2026-10-14): the meter and the verdict, directly under the table — their rules unchanged (CLEAN-01).
+                Amendment (Alex, 2026-10-15): they measure the TOTAL row above them — its ACTUAL against its BUDGET. */}
             {meter !== null && (
               <div className="bg-bg-row rounded-full overflow-hidden" style={{ height: 13 }} aria-hidden="true" data-day-meter={meter.percent === null ? 'empty' : meter.percent}>
                 {meter.percent !== null && <div className={`${meter.over ? 'bg-brand-red' : 'bg-brand-green'} rounded-full`} style={{ height: 13, width: `${meter.percent}%` }} />}

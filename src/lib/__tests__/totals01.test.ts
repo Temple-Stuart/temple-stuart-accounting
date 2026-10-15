@@ -11,6 +11,13 @@
  * total — the all-day band, lines no stop carries — the fine print under the
  * plate says by how much, computed.
  *
+ * Amendment (Alex, 2026-10-15): the meter and the verdict sit directly under
+ * the TOTAL row, so they measure ITS two figures — the spent against the BUDGET
+ * total (dayTotals budgetCents, the stops' budget), not the hero's plannedCents.
+ * An all-day line no stop can record made every such day "under" by it; the
+ * off-the-table line names that money. Their rules are unchanged; a null BUDGET
+ * total, no meter and no verdict.
+ *
  * The rule (dayCard.ts dayTotals) is DRIVEN over the card's own days, built by
  * dayStops; the screen is anchored to its source with comments stripped
  * (TEST-TRUTH-01).
@@ -145,14 +152,49 @@ test('T1 the words: "$11 more planned off the table (all day / no stop)" — com
   assert.doesNotMatch(code(RULES).slice(code(RULES).indexOf('export function dayTotals(')), /\bfetch\s*\(|new Date\(\)|from 'react'/, 'the rule stays pure');
 });
 
-test('T1 the meter and the verdict keep their rules — the totals change where they sit, not what they say', () => {
-  const under = day({ brunch: 969, activities: 1500, dinner: 2200, gym: 500 });
-  assert.deepEqual(dayMeter(dayTotals(under, 7500).actualCents, 7500), { percent: 69, over: false });
-  assert.deepEqual(dayVerdict(under, 7500), { text: '▼ $23.31 under', over: false });
-  const over = day({ brunch: 969, activities: 3000, dinner: 3500, gym: 1200 });
-  assert.deepEqual(dayMeter(dayTotals(over, 7500).actualCents, 7500), { percent: 100, over: true });
-  assert.deepEqual(dayVerdict(over, 7500), { text: '▲ $11.69 over', over: true });
-  assert.equal(dayVerdict(day({ brunch: 969 }), 7500), null, 'one stop recorded — no verdict, the TOTAL row still says $9.69');
+// TOTALS-01 amendment (Alex, 2026-10-15): moved, not loosened — the cases below were driven against 7500 (the hero, equal to
+// the column on this day); they are now driven as the card drives them, against the TOTAL row's BUDGET, and the all-day day
+// and the no-BUDGET day are added: there the two inputs part, and the row's own figures win.
+test('T1 the meter and the verdict measure the TOTAL row — its ACTUAL against its BUDGET, not the hero’s plan; their rules unchanged', () => {
+  /** The meter and the verdict exactly as the card computes them (DayCard.tsx: dayMeter(spent, totals.budgetCents), dayVerdict(result, totals.budgetCents)). */
+  const underTheRow = (r: ReturnType<typeof day>) => {
+    const t = dayTotals(r, r.plannedCents);
+    return { meter: dayMeter(t.actualCents, t.budgetCents), verdict: dayVerdict(r, t.budgetCents) };
+  };
+  const ALL_UNDER = { brunch: 969, activities: 1500, dinner: 2200, gym: 500 } as const;
+  const ALL_OVER = { brunch: 969, activities: 3000, dinner: 3500, gym: 1200 } as const;
+  const ON_PLAN = { brunch: 2500, activities: 2000, dinner: 3000, gym: 0 } as const;
+  // The plain day: the hero and the column agree ($75), the figures are the ones before the amendment.
+  assert.deepEqual(underTheRow(day(ALL_UNDER)), { meter: { percent: 69, over: false }, verdict: { text: '▼ $23.31 under', over: false } });
+  assert.deepEqual(underTheRow(day(ALL_OVER)), { meter: { percent: 100, over: true }, verdict: { text: '▲ $11.69 over', over: true } });
+  assert.equal(underTheRow(day({ brunch: 969 })).verdict, null, 'one stop recorded — no verdict, the TOTAL row still says $9.69');
+  assert.deepEqual(underTheRow(day({ brunch: 969 })).meter, { percent: 13, over: false });
+  // The all-day day: the hero is $86 (HBO's $11 in the band), the TOTAL row's BUDGET $75 — the meter and the verdict read the row.
+  const band = { entries: [entry(hbo, HBO_AT)], lines: [hboLine] };
+  const under = day(ALL_UNDER, band);
+  assert.deepEqual([under.plannedCents, dayTotals(under, under.plannedCents).budgetCents], [8600, 7500]);
+  assert.deepEqual(underTheRow(under), { meter: { percent: 69, over: false }, verdict: { text: '▼ $23.31 under', over: false } }, 'under by what the stops left, not by the subscription too');
+  assert.deepEqual(dayVerdict(under, under.plannedCents), { text: '▼ $34.31 under', over: false }, 'the hero’s plan would have said $11 more under — the money no stop can record');
+  const onPlan = day(ON_PLAN, band);
+  assert.deepEqual(underTheRow(onPlan), { meter: { percent: 100, over: false }, verdict: { text: 'on budget', over: false } }, 'every stop on plan — on budget, full and green');
+  assert.deepEqual(dayVerdict(onPlan, onPlan.plannedCents), { text: '▼ $11 under', over: false }, 'against the hero: "under" by the subscription, every day');
+  const over = day(ALL_OVER, band);
+  assert.deepEqual(underTheRow(over), { meter: { percent: 100, over: true }, verdict: { text: '▲ $11.69 over', over: true } });
+  assert.deepEqual(dayVerdict(over, over.plannedCents), { text: '▲ $0.69 over', over: true }, 'the hero’s plan would have hidden $11 of the overspend');
+  // No BUDGET total (no row shows one) — no meter and no verdict, though the hero has a plan and an amount is recorded.
+  const GYM_AT = '2026-10-11T13:00:00.000Z';
+  const gymOnly = dayStops(input({
+    entries: [entry(routine({ id: 'gym', name: 'Gym', role: 'place', schedule_rrule: 'FREQ=DAILY;BYHOUR=20;BYMINUTE=0' }), GYM_AT), entry(hbo, HBO_AT)],
+    lines: [hboLine],
+    records: [{ id: 'rec-gym', kind: 'routine', target_id: 'gym', occurrence_at: GYM_AT, outcome: 'done', done_at: GYM_AT, actual_cents: 500, rating: null, note: null, actual_minutes: null }],
+  }));
+  const t = dayTotals(gymOnly, gymOnly.plannedCents);
+  assert.deepEqual([gymOnly.plannedCents, t.budgetCents, t.actualCents], [1100, null, 500], 'the row reads TOTAL — | $5; the hero $11');
+  assert.deepEqual(underTheRow(gymOnly), { meter: null, verdict: null }, 'no BUDGET total — no meter, no verdict');
+  assert.deepEqual(dayVerdict(gymOnly, gymOnly.plannedCents), { text: '▼ $6 under', over: false }, 'the hero’s plan would have judged $5 of Gym against $11 of HBO');
+  // The band alone (no stop): nothing to measure.
+  const onlyBand = dayStops(input(band));
+  assert.deepEqual(underTheRow(onlyBand), { meter: null, verdict: null });
 });
 
 // ── T2 · THE SCREEN ─────────────────────────────────────────────────────────
@@ -165,7 +207,8 @@ test('T2 the full card, top to bottom: where, the hero, the hook, the table and 
   for (let i = 1; i < order.length; i += 1) assert.ok(at(order[i - 1]) < at(order[i]), `${order[i - 1]} before ${order[i]}`);
   assert.doesNotMatch(c, /data-day-spent>|spentOutOfWords/, 'no spent line');
   for (const f of [CARD, RULES]) assert.doesNotMatch(code(f), /spentOutOfWords|SPENT_WORD|PLANNED_NOT_READ_WORDS/, `${f} keeps none of its words`);
-  assert.match(c, /const totals = dayTotals\(result, plannedCents\);\n\s*const spent = totals\.actualCents;\n\s*const meter = dayMeter\(spent, plannedCents\);\n\s*const verdict = dayVerdict\(result, plannedCents\);/, 'one rule for the row and the meter; the verdict’s rule unchanged');
+  // TOTALS-01 amendment (Alex, 2026-10-15): moved, not loosened — the meter and the verdict are given the TOTAL row's BUDGET, not plannedCents.
+  assert.match(c, /const totals = dayTotals\(result, plannedCents\);\n\s*const spent = totals\.actualCents;\n\s*const meter = dayMeter\(spent, totals\.budgetCents\);\n\s*const verdict = dayVerdict\(result, totals\.budgetCents\);/, 'one rule for the row, the meter and the verdict: the row’s ACTUAL against the row’s BUDGET');
 });
 
 test('T2 the TOTAL row: a <tfoot> in the five columns — TOTAL across TIME to DESCRIPTION, the BUDGET and ACTUAL totals bold, the ACTUAL in a row’s tone, above the closing rule', () => {
