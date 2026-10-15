@@ -171,8 +171,10 @@ test('T6 the step view’s two bars: PLAN (gold) and SPENT (green), each with it
   const c = code(CARD);
   // CLEAN-02 (2026-10-14): the bars' why-line prints under the plate, in the fine print — still after the bars in the screen's order.
   inOrder(c, ['data-day-plan-so-far>', 'data-day-plan-bar={planBar}', 'data-day-spent-so-far>', 'data-day-spent-bar={spentBar}', 'data-day-fine-print>', 'data-day-bars-why>'], 'the plan words and bar, then the spent words and bar, then — under the plate — why there are none');
-  assert.match(c, /const overCents = focus === null \|\| focus\.spentSoFarCents === null \|\| focus\.withActualSoFar === 0 \|\| plannedCents === null \|\| focus\.spentSoFarCents <= plannedCents \? null : focus\.spentSoFarCents - plannedCents;/, 'over: the actuals past the total — the bar full (progressPercent clamps), the amount said');
-  assert.match(c, /\{focus !== null && planBar === null && <p data-day-bars-why>\{plannedCents === null \? BARS_PLAN_NOT_READ_WORDS : BARS_NOTHING_PLANNED_WORDS\}<\/p>\}/, 'no bars without a total — and why, in the fine print (CLEAN-02)');
+  // TOTALS-01 amendment II (Alex, 2026-10-15): moved, not loosened — "over by" is past the TOTAL row's BUDGET (totals.budgetCents), and the
+  // why-line is barsWhyWords, whose answers stay true when the hero has a plan the stops do not carry (totals01 T3 drives every case).
+  assert.match(c, /const overCents = focus === null \|\| focus\.spentSoFarCents === null \|\| focus\.withActualSoFar === 0 \|\| totals\.budgetCents === null \|\| focus\.spentSoFarCents <= totals\.budgetCents \? null : focus\.spentSoFarCents - totals\.budgetCents;/, 'over: the actuals past the total — the bar full (progressPercent clamps), the amount said');
+  assert.match(c, /\{focus !== null && planBar === null && <p data-day-bars-why>\{barsWhyWords\(plannedCents, totals\.budgetCents\)\}<\/p>\}/, 'no bars without a total — and why, in the fine print (CLEAN-02)');
 });
 
 // ── T7 · THE TIME BOX NAMES ITS ZONE ─────────────────────────────────────────

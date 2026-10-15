@@ -652,7 +652,8 @@ test('T6 the form: under the plate on the step view, for a line or a routine onl
   assert.match(c, /data-day-rating>\{starsWords\(focus\.stop\.record\.rating\)\}/);
   // PLAN-01 (2026-10-13): the spent line is the SPENT bar's words — of the day's planned total; "over by $X" in the over tone past it.
   // CLEAN-02 (2026-10-14): the words take the spent so far, or null while nothing so far is recorded or the records are unread — no count.
-  assert.match(c, /data-day-spent-so-far>\{spentSoFarWords\(focus\.spentSoFarCents === null \|\| focus\.withActualSoFar === 0 \? null : focus\.spentSoFarCents, plannedCents\)\}\{overCents !== null && <span className=\{actualTone\(true\)\} data-day-over-by> · \{overByWords\(overCents\)\}<\/span>\}/);
+  // TOTALS-01 amendment II (Alex, 2026-10-15): moved, not loosened — of the TOTAL row's BUDGET (totals.budgetCents), not the day's planned total.
+  assert.match(c, /data-day-spent-so-far>\{spentSoFarWords\(focus\.spentSoFarCents === null \|\| focus\.withActualSoFar === 0 \? null : focus\.spentSoFarCents, totals\.budgetCents\)\}\{overCents !== null && <span className=\{actualTone\(true\)\} data-day-over-by> · \{overByWords\(overCents\)\}<\/span>\}/);
   assert.match(c, /if \(status === 'skipped'\) return <span className="text-text-muted" aria-label="skipped">–<\/span>;/);
   assert.match(c, /const actualTone = \(over: boolean \| null\): string => \(over === null \? 'text-text-muted' : over \? 'text-brand-red' : 'text-brand-green'\);/);
   assert.match(c, /data-day-records-without-stop>\{recordsWithoutStopWords\(result\.recordsWithoutStop\)\}/);

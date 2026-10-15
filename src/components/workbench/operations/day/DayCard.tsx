@@ -191,7 +191,7 @@ import {
   ACTUAL_WORD, BADGE_WORDS, BRAND_WORDS, PLAN_WORD, TASK_WORD, TODAY_WORD, badDateWords, badStepWords, completenessWords, dayStops, deltaWords, focusStop,
   bandNameOf, headerWords, heroWord, HOOK_WORDS, linesUnreadWords, linesWithoutStopWords, minutesLine, notPlacedWords, planDollars, progressPercent, provenanceWords,
   recordsUnplacedWords, recordsWithoutStopWords, routineFigureWords, rowActualWords, planSoFarWords, spentSoFarWords, stepHeaderWords,
-  BARS_NOTHING_PLANNED_WORDS, BARS_PLAN_NOT_READ_WORDS, PLATE_PADDING_X, PLATE_WIDTH, overByWords,
+  barsWhyWords, PLATE_PADDING_X, PLATE_WIDTH, overByWords,
   unmatchedWords, vendorSlot, whereWords,
   dayShortWords,
   ACTUAL_HEAD_WORD, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, TIME_HEAD_WORD, VENDOR_HEAD_WORD, intervalWords, openStepWords,
@@ -510,13 +510,6 @@ export default function DayCard() {
   const reportRead = report !== null && report.ok;
   const recordsOk = recordsRead !== null && recordsRead.ok;
   const completeness = completenessWords(result, { day: !dayFailed, report: reportRead, records: recordsOk });
-  // PLAN-01 (2026-10-13): two bars on the step view against the day's planned total — PLAN (gold) the planned money of stops 1..n,
-  // SPENT (green) their actuals. No spent bar while the records are unread or nothing so far carries an actual (unknown, not zero).
-  const planBar = progressPercent(plannedCents === null || focus === null ? null : focus.soFarCents, plannedCents);
-  const spentBar = focus === null || focus.spentSoFarCents === null || focus.withActualSoFar === 0 ? null : progressPercent(focus.spentSoFarCents, plannedCents);
-  const overCents = focus === null || focus.spentSoFarCents === null || focus.withActualSoFar === 0 || plannedCents === null || focus.spentSoFarCents <= plannedCents ? null : focus.spentSoFarCents - plannedCents;
-  const foot = loaded && (result.unmatched.length > 0 || result.routineFigures.length > 0 || result.linesWithoutStop.length > 0 || result.notPlacedToday.length > 0 || refused.length > 0 || (report !== null && !report.ok) || (plans !== null && !plans.listed) || result.recordsWithoutStop.length > 0 || unplacedRecords.length > 0 || (recordsRead !== null && !recordsRead.ok));
-  const delta = focus === null ? null : deltaWords(focus.stop.actualCents, focus.stop.cents);
   // CLEAN-01 (2026-10-14): the full card's spent — unknown ('—', null) while the records are unread or no stop carries an actual (PLAN-01: never $0);
   // the meter against the planned total, and the verdict only once every stop that asks an amount carries one.
   // TOTALS-01 (2026-10-14): the TOTAL row's figures (dayTotals) — the spent is its ACTUAL total, one rule for the row and the meter.
@@ -527,6 +520,15 @@ export default function DayCard() {
   const spent = totals.actualCents;
   const meter = dayMeter(spent, totals.budgetCents);
   const verdict = dayVerdict(result, totals.budgetCents);
+  // PLAN-01 (2026-10-13): two bars on the step view against the day's planned total — PLAN (gold) the planned money of stops 1..n,
+  // SPENT (green) their actuals. No spent bar while the records are unread or nothing so far carries an actual (unknown, not zero).
+  // TOTALS-01 amendment II (Alex, 2026-10-15): against the TOTAL row's BUDGET (totals.budgetCents), as the meter and the verdict are —
+  // the stops' own budget, not the hero's whole plan, whose all-day money no stop can record. Rules unchanged; moved inputs only.
+  const planBar = progressPercent(totals.budgetCents === null || focus === null ? null : focus.soFarCents, totals.budgetCents);
+  const spentBar = focus === null || focus.spentSoFarCents === null || focus.withActualSoFar === 0 ? null : progressPercent(focus.spentSoFarCents, totals.budgetCents);
+  const overCents = focus === null || focus.spentSoFarCents === null || focus.withActualSoFar === 0 || totals.budgetCents === null || focus.spentSoFarCents <= totals.budgetCents ? null : focus.spentSoFarCents - totals.budgetCents;
+  const foot = loaded && (result.unmatched.length > 0 || result.routineFigures.length > 0 || result.linesWithoutStop.length > 0 || result.notPlacedToday.length > 0 || refused.length > 0 || (report !== null && !report.ok) || (plans !== null && !plans.listed) || result.recordsWithoutStop.length > 0 || unplacedRecords.length > 0 || (recordsRead !== null && !recordsRead.ok));
+  const delta = focus === null ? null : deltaWords(focus.stop.actualCents, focus.stop.cents);
   // The matched line's book, by name, from the report's own books — named as not loaded when the report lists none.
   const bookNameOf = (entityId: string): string => {
     const book = report !== null && report.ok ? report.value.report.books.find((b) => b.entityId === entityId) : undefined;
@@ -730,15 +732,16 @@ export default function DayCard() {
                     {delta !== null && delta.over !== null && <div className={`font-semibold tabular-nums ${actualTone(delta.over)}`} style={{ fontSize: 23, lineHeight: 1.1 }} data-day-delta>{delta.text}</div>}
                   </div>
                 </div>
-                {/* PLAN-01: the two bars. CLEAN-02 (2026-10-14): their why-line and the source line print under the plate, in the fine print. */}
+                {/* PLAN-01: the two bars. CLEAN-02 (2026-10-14): their why-line and the source line print under the plate, in the fine print.
+                    TOTALS-01 amendment II (2026-10-15): both lines and both bars against the TOTAL row's BUDGET; the "· $N all day" note is unchanged. */}
                 <div className="flex flex-col border-t border-border" style={{ gap: 8, paddingTop: 13 }}>
-                  <div className="font-bold text-text-secondary tabular-nums" style={{ fontSize: 27 }} data-day-plan-so-far>{planSoFarWords(plannedCents === null ? null : focus.soFarCents, plannedCents)}{plannedCents !== null && result.allDayCents > 0 && <span className="font-medium text-text-muted" data-day-so-far-all-day> · {allDayCentsWords(planDollars(result.allDayCents))}</span>}</div>
+                  <div className="font-bold text-text-secondary tabular-nums" style={{ fontSize: 27 }} data-day-plan-so-far>{planSoFarWords(totals.budgetCents === null ? null : focus.soFarCents, totals.budgetCents)}{plannedCents !== null && result.allDayCents > 0 && <span className="font-medium text-text-muted" data-day-so-far-all-day> · {allDayCentsWords(planDollars(result.allDayCents))}</span>}</div>
                   {planBar !== null && (
                     <div className="bg-bg-row rounded-full overflow-hidden" style={{ height: 9 }} aria-hidden="true" data-day-plan-bar={planBar}>
                       <div className="bg-brand-gold rounded-full" style={{ height: 9, width: `${planBar}%` }} />
                     </div>
                   )}
-                  <div className="font-semibold text-text-secondary tabular-nums" style={{ fontSize: 23 }} data-day-spent-so-far>{spentSoFarWords(focus.spentSoFarCents === null || focus.withActualSoFar === 0 ? null : focus.spentSoFarCents, plannedCents)}{overCents !== null && <span className={actualTone(true)} data-day-over-by> · {overByWords(overCents)}</span>}</div>
+                  <div className="font-semibold text-text-secondary tabular-nums" style={{ fontSize: 23 }} data-day-spent-so-far>{spentSoFarWords(focus.spentSoFarCents === null || focus.withActualSoFar === 0 ? null : focus.spentSoFarCents, totals.budgetCents)}{overCents !== null && <span className={actualTone(true)} data-day-over-by> · {overByWords(overCents)}</span>}</div>
                   {planBar !== null && spentBar !== null && (
                     <div className="bg-bg-row rounded-full overflow-hidden" style={{ height: 9 }} aria-hidden="true" data-day-spent-bar={spentBar}>
                       <div className="bg-brand-green rounded-full" style={{ height: 9, width: `${spentBar}%` }} />
@@ -766,7 +769,8 @@ export default function DayCard() {
           {focus === null && completeness !== null && <p data-day-count>{completeness}</p>}
           {/* TOTALS-01 (2026-10-14): the hero's day plan beyond the BUDGET total — computed, said only when the two differ. */}
           {focus === null && totals.beyondCents !== null && <p data-day-beyond>{planBeyondStopsWords(totals.beyondCents)}</p>}
-          {focus !== null && planBar === null && <p data-day-bars-why>{plannedCents === null ? BARS_PLAN_NOT_READ_WORDS : BARS_NOTHING_PLANNED_WORDS}</p>}
+          {/* TOTALS-01 amendment II (2026-10-15): why there are no bars, now that they measure the TOTAL row's BUDGET (barsWhyWords) — a day whose plan is all off the table says so, never "nothing is planned". */}
+          {focus !== null && planBar === null && <p data-day-bars-why>{barsWhyWords(plannedCents, totals.budgetCents)}</p>}
           <p className="font-mono" data-day-provenance>{provenanceWords(today, reportRead, recordsOk)}</p>
         </div>
       )}

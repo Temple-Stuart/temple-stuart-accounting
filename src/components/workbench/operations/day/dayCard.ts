@@ -552,6 +552,8 @@ export const ON_PLAN_WORDS = 'on plan';
  * $75" — no count beside it; "spent so far — of $75" while nothing so far is
  * recorded or the records were not read (the caller passes null — unknown,
  * never $0; the fine print under the plate says what was not read).
+ * TOTALS-01 amendment II (2026-10-15): the card passes the TOTAL row's BUDGET
+ * as the second figure, not the hero's plan; this rule is unchanged.
  */
 export const spentSoFarWords = (spentCents: number | null, plannedCents: number | null): string =>
   `${SPENT_SO_FAR_WORDS} ${planDollars(spentCents)} of ${planDollars(plannedCents)}`;
@@ -561,6 +563,27 @@ export const overByWords = (cents: number): string => `over by ${planDollars(cen
 /** The step view draws no bars when the day's planned total is unknown or nothing is planned — and says why. */
 export const BARS_PLAN_NOT_READ_WORDS = 'no bars — the day’s planned total is not known (the Budget’s plan lines were not read)';
 export const BARS_NOTHING_PLANNED_WORDS = 'no bars — nothing is planned for the day';
+/** TOTALS-01 amendment II (2026-10-15): no bars because no stop carries a budget, while the day has a plan off the table (all-day lines, lines no stop carries). */
+export const BARS_NO_STOP_BUDGET_WORDS = 'no bars — no stop of the day is priced; the day’s plan is off the table (all day / no stop)';
+/** TOTALS-01 amendment II: no bars because the stops' budget is $0 or less, while the day's plan is more, off the table. */
+export const barsStopsBudgetWords = (budgetCents: number): string => `no bars — the stops’ budget is ${planDollars(budgetCents)}; the day’s plan is off the table (all day / no stop)`;
+
+/**
+ * TOTALS-01 amendment II (Alex, 2026-10-15): why the step view draws no bars,
+ * now that the bars measure the TOTAL row's BUDGET (the stops' budget) and not
+ * the hero's plan. Called only when there is no plan bar; each answer stays
+ * true. The report not read: the plan is not known. Nothing planned at all
+ * (the hero is $0 or less): nothing is planned. Otherwise the hero has a plan
+ * and the stops carry none of it (no stop priced, or priced at $0 or less): the
+ * plan is off the table, said as such, never "nothing is planned". A positive
+ * BUDGET total draws a bar, so asking why there is none is the caller's error.
+ */
+export function barsWhyWords(plannedCents: number | null, budgetCents: number | null): string {
+  if (plannedCents === null) return BARS_PLAN_NOT_READ_WORDS;
+  if (budgetCents !== null && budgetCents > 0) throw new Error(`dayCard: a BUDGET total of ${budgetCents} cents draws the bars — there is no why-line to say`);
+  if (plannedCents <= 0) return BARS_NOTHING_PLANNED_WORDS;
+  return budgetCents === null ? BARS_NO_STOP_BUDGET_WORDS : barsStopsBudgetWords(budgetCents);
+}
 
 /**
  * TOTALS-01 (2026-10-14): spentOutOfWords — CLEAN-01's full-card line under the
