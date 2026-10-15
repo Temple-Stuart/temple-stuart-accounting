@@ -19,10 +19,10 @@ import { TOOL_REGISTRY } from '../toolRegistry';
 import type { DailyPlanItem } from '@/components/workbench/operations/dailyplan/types';
 import type { Routine, RoutineStep, TodayRoutineEntry, TodayStatus } from '@/components/workbench/operations/routines/types';
 import {
-  ACTUAL_HEAD_WORD, BADGE_WORDS, BRAND_WORDS, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, HOOK_WORDS, ON_BUDGET_WORDS, PLAN_WORD, PLANNED_NOT_READ_WORDS, PLANNED_WORD, STOPS_NOT_READ_WORDS, TASK_WORD, TIME_HEAD_WORD, TODAY_WORD, UNTITLED_WORDS, VENDOR_HEAD_WORD,
-  CELL_GAP, COLUMN_WIDTHS, FIGURE_WIDTH, badDateWords, badStepWords, completenessWords, dayCarryWords, dayMeter, dayShortWords, dayStops, dayVerdict, focusStop,
+  ACTUAL_HEAD_WORD, BADGE_WORDS, BRAND_WORDS, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, HOOK_WORDS, ON_BUDGET_WORDS, PLAN_WORD, PLANNED_WORD, STOPS_NOT_READ_WORDS, TASK_WORD, TIME_HEAD_WORD, TODAY_WORD, UNTITLED_WORDS, VENDOR_HEAD_WORD,
+  CELL_GAP, COLUMN_WIDTHS, FIGURE_WIDTH, badDateWords, badStepWords, completenessWords, dayCarryWords, dayMeter, dayShortWords, dayStops, dayTotals, dayVerdict, focusStop,
   headerWords, heroWord, intervalWords, linesUnreadWords, linesWithoutStopWords, notPlacedWords, notPricedWords, openStepWords, planDollars, progressPercent, provenanceWords,
-  routineFigureWords, planSoFarWords, spentOutOfWords, stepHeaderWords, PLATE_BORDER, PLATE_INNER_WIDTH, PLATE_PADDING_X, PLATE_WIDTH, spentSoFarWords, unmatchedWords, whereWords,
+  routineFigureWords, planSoFarWords, stepHeaderWords, PLATE_BORDER, PLATE_INNER_WIDTH, PLATE_PADDING_X, PLATE_WIDTH, spentSoFarWords, unmatchedWords, whereWords,
   type DayCardInput,
 } from '@/components/workbench/operations/day/dayCard';
 import { dayReportFailedWords, readDayReport } from '@/components/workbench/operations/day/dayReads';
@@ -667,7 +667,9 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   // CLEAN-01 (2026-10-14): data-day-plate-foot left the screen with the plate's foot; the fine print, the meter and the verdict joined.
   // CLEAN-02 (2026-10-14): data-day-status> (the stop card's status line) left; the download button and its failure words joined.
   // VENDOR-02 (2026-10-14): data-day-stranded left with the amber stranded-vendor line (pinned absent above).
-  for (const attr of ['data-day-card', 'data-day-header', 'data-day-hero', 'data-day-hook', 'data-day-stop=', 'data-day-status=', 'data-day-focus', 'data-day-fine-print', 'data-day-meter=', 'data-day-verdict', 'data-day-count', 'data-day-provenance', 'data-day-foot', 'data-day-unmatched', 'data-day-routine-figures', 'data-day-lines-without-stop', 'data-day-not-placed', 'data-day-report-failed', 'data-day-bad-date', 'data-day-bad-step', 'data-day-failed', 'data-day-so-far', 'data-day-controls', 'data-day-spent', 'data-day-record', 'data-day-download-image', 'data-day-image-failed', 'data-day-actual', 'data-day-delta', 'data-day-rating', 'data-day-note', 'data-day-minutes', 'data-day-spent-so-far', 'data-day-records-without-stop', 'data-day-records-unplaced', 'data-day-records-failed']) {
+  // TOTALS-01 (2026-10-14): data-day-spent (the full card's spent line) left — 'data-day-spent-so-far' names the step card's own line now;
+  // the TOTAL row (data-day-total) and the off-the-table line (data-day-beyond) joined.
+  for (const attr of ['data-day-card', 'data-day-header', 'data-day-hero', 'data-day-hook', 'data-day-stop=', 'data-day-status=', 'data-day-focus', 'data-day-fine-print', 'data-day-meter=', 'data-day-verdict', 'data-day-count', 'data-day-provenance', 'data-day-foot', 'data-day-unmatched', 'data-day-routine-figures', 'data-day-lines-without-stop', 'data-day-not-placed', 'data-day-report-failed', 'data-day-bad-date', 'data-day-bad-step', 'data-day-failed', 'data-day-so-far', 'data-day-controls', 'data-day-spent-so-far', 'data-day-total', 'data-day-beyond', 'data-day-record', 'data-day-download-image', 'data-day-image-failed', 'data-day-actual', 'data-day-delta', 'data-day-rating', 'data-day-note', 'data-day-minutes', 'data-day-spent-so-far', 'data-day-records-without-stop', 'data-day-records-unplaced', 'data-day-records-failed']) {
     assert.ok(c.includes(attr), `the screen carries ${attr}`);
   }
   // The URL: ?date= and ?step= read with useSearchParams, pushed with router.push; the step judged once the reads are in, never clamped.
@@ -790,34 +792,39 @@ function divEnd(body: string, openAt: number): number {
   }
 }
 
-test('T7 CLEAN-01 the full card’s order — where under the header, the hero, "Under or Over?", the spent line, the meter, the verdict, the table', () => {
+// TOTALS-01 (2026-10-14) — Alex's ruling: the totals at the bottom. The title said "the spent line, the meter, the verdict, the table" —
+// the spent line is gone (its numbers are the TOTAL row's), and the meter and the verdict sit under the table. Moved, never loosened.
+test('T7 CLEAN-01 the full card’s order — where under the header, the hero, "Under or Over?", the table with its TOTAL row, the meter, the verdict', () => {
   const c = code(CARD);
   assert.equal(HOOK_WORDS, 'Under or Over?', 'the hook, exactly');
   assert.match(c, /\{loaded && focus === null && \(\n\s*<>\n\s*\{\s*\}\n\s*<div className="font-semibold text-text-secondary" style=\{\{ fontSize: 27, lineHeight: 1\.15 \}\} data-day-where>\{whereWords\(day, stayState\)\}<\/div>\n\s*<div className="flex items-baseline gap-3 pt-1" data-day-hero>/, 'the where line is the full card’s first line under the header, the hero right under it');
   inOrderOf(c, [
     'data-day-card', '<PlateHeader', '{loaded && focus === null && (', 'data-day-where>', 'data-day-hero>', 'data-day-hook>{HOOK_WORDS}</div>',
-    'data-day-spent>{spentOutOfWords(spent, plannedCents)}</div>', 'data-day-meter=', 'data-day-verdict>', 'data-day-stops>', '{loaded && focus !== null && (',
+    'data-day-stops>', '<tfoot>', 'data-day-total>', '</table>', 'data-day-meter=', 'data-day-verdict>', '{loaded && focus !== null && (',
   ], 'the full card, top to bottom');
+  assert.doesNotMatch(c, /data-day-spent>|spentOutOfWords/, 'TOTALS-01: no spent line — the TOTAL row carries the spent');
   assert.doesNotMatch(code(RULES), /hookWords/, 'hookWords is gone — nothing reads it');
   assert.doesNotMatch(c, /hookWords|spentLineWords|stopsWords|doneOfWords|withoutAmountWords/, 'no stop count on the hook; no "without an amount" or "of M done" on the spent line');
 });
 
-test('T7 CLEAN-01 spentOutOfWords — "spent $9.69 out of $75"; "—" while nothing is recorded; "planned not read" while the total is unknown', () => {
-  assert.equal(spentOutOfWords(969, 7500), 'spent $9.69 out of $75');
-  assert.equal(spentOutOfWords(null, 7500), 'spent — out of $75', 'nothing recorded is unknown — never $0');
-  assert.equal(spentOutOfWords(969, null), 'spent $9.69 · planned not read');
-  assert.equal(spentOutOfWords(null, null), 'spent — · planned not read');
-  assert.equal(spentOutOfWords(0, 7500), 'spent $0 out of $75', 'a recorded $0 is an actual');
-  assert.equal(PLANNED_NOT_READ_WORDS, 'planned not read');
-  // Through the day's own rules and the screen's spent: one stop recorded, none recorded, the records not read.
+// TOTALS-01 (2026-10-14) — Alex's ruling: spentOutOfWords ("spent $9.69 out of $75") is deleted with its words (PLANNED_NOT_READ_WORDS,
+// SPENT_WORD); its numbers are the TOTAL row's — the hero keeps the planned total, the row's ACTUAL the spent. The rule it carried moved,
+// never loosened: the spent is "—" while nothing is recorded or the records were not read — never $0; a recorded $0 is an actual.
+test('T7 TOTALS-01 the spent is the TOTAL row’s ACTUAL — "—" while nothing is recorded or the records unread, never $0; the spent line is gone', () => {
+  assert.doesNotMatch(code(RULES), /spentOutOfWords|PLANNED_NOT_READ_WORDS|SPENT_WORD/, 'the words went with the line');
+  // Through the day's own rules: one stop recorded, none recorded, the records not read, a recorded $0.
   const one = cleanDay({ brunch: 969 });
   assert.equal(one.plannedCents, 7500);
-  assert.equal(spentOutOfWords(spentOf(one), one.plannedCents), 'spent $9.69 out of $75');
-  assert.equal(spentOutOfWords(spentOf(cleanDay({})), 7500), 'spent — out of $75', 'records read, no actual — "—", not $0');
-  assert.equal(spentOutOfWords(spentOf(cleanDay(null)), 7500), 'spent — out of $75', 'records not read — "—" (the fine print says what was not read)');
+  assert.equal(dayTotals(one, one.plannedCents).actualCents, 969);
+  assert.equal(dayTotals(cleanDay({}), 7500).actualCents, null, 'records read, no actual — "—", not $0');
+  assert.equal(dayTotals(cleanDay(null), 7500).actualCents, null, 'records not read — "—" (the fine print says what was not read)');
+  assert.equal(dayTotals(cleanDay({ 'gym-place': 0 }), 7500).actualCents, 0, 'a recorded $0 is an actual');
+  for (const r of [one, cleanDay({}), cleanDay(null), cleanDay(ALL_UNDER)]) assert.equal(dayTotals(r, 7500).actualCents, spentOf(r), 'the row’s ACTUAL is the screen’s spent, one rule');
   const c = code(CARD);
-  assert.match(c, /const spent = result\.spentCents === null \|\| result\.withActual === 0 \? null : result\.spentCents;/, 'the screen’s spent: unknown while the records are unread or nothing carries an actual');
-  assert.match(c, /data-day-spent>\{spentOutOfWords\(spent, plannedCents\)\}<\/div>/);
+  // The screen's spent (the meter's) is the row's ACTUAL — one rule, in dayTotals.
+  assert.match(c, /const totals = dayTotals\(result, plannedCents\);\n\s*const spent = totals\.actualCents;/, 'the screen’s spent: the TOTAL row’s ACTUAL');
+  assert.match(code(RULES), /const actualCents = result\.spentCents === null \|\| result\.withActual === 0 \? null : result\.spentCents;/, 'unknown while the records are unread or nothing carries an actual');
+  assert.doesNotMatch(c, /data-day-spent>/);
 });
 
 test('T7 CLEAN-01 the budget meter — green at its width under, red and full over, an empty track while spent is unknown, none while the plan is', () => {
@@ -897,7 +904,9 @@ test('T7 CLEAN-01 the fine print — the completeness and source lines render af
   const after = c.slice(plateEnd);
   // CLEAN-02 (2026-10-14): "download image" is directly under the plate (T8); the fine print follows it — the CLEAN-01 block, now shown
   // on a stop card too, carrying that card's why-line. The full card's lines and words are unchanged.
-  assert.match(after, /\{loaded && \(focus === null \|\| focus\.stop\.role !== 'journal'\) && \(\n\s*<div className="mx-auto space-y-1 text-xs text-text-muted" style=\{\{ width: PLATE_WIDTH \}\} data-day-fine-print>\n\s*\{focus === null && completeness !== null && <p data-day-count>\{completeness\}<\/p>\}\n\s*\{focus !== null && planBar === null && <p data-day-bars-why>\{plannedCents === null \? BARS_PLAN_NOT_READ_WORDS : BARS_NOTHING_PLANNED_WORDS\}<\/p>\}\n\s*<p className="font-mono" data-day-provenance>\{provenanceWords\(today, reportRead, recordsOk\)\}<\/p>\n\s*<\/div>\n\s*\)\}/, 'under the plate: the completeness line (full card) or the why-line (stop card), then the source line — small, muted, at the plate’s width');
+  // TOTALS-01 (2026-10-14): the full card's fine print gains one line after the count — the hero's day plan beyond the BUDGET total,
+  // said only when they differ (planBeyondStopsWords; totals01.test.ts drives it). Moved: every other line, word and class stands.
+  assert.match(after, /\{loaded && \(focus === null \|\| focus\.stop\.role !== 'journal'\) && \(\n\s*<div className="mx-auto space-y-1 text-xs text-text-muted" style=\{\{ width: PLATE_WIDTH \}\} data-day-fine-print>\n\s*\{focus === null && completeness !== null && <p data-day-count>\{completeness\}<\/p>\}\n\s*\{\s*\}\n\s*\{focus === null && totals\.beyondCents !== null && <p data-day-beyond>\{planBeyondStopsWords\(totals\.beyondCents\)\}<\/p>\}\n\s*\{focus !== null && planBar === null && <p data-day-bars-why>\{plannedCents === null \? BARS_PLAN_NOT_READ_WORDS : BARS_NOTHING_PLANNED_WORDS\}<\/p>\}\n\s*<p className="font-mono" data-day-provenance>\{provenanceWords\(today, reportRead, recordsOk\)\}<\/p>\n\s*<\/div>\n\s*\)\}/, 'under the plate: the completeness line (full card) or the why-line (stop card), then the source line — small, muted, at the plate’s width');
   // VENDOR-02 (2026-10-14): the stranded-vendor line left the foot; the order holds through the foot's first sentence instead,
   // and the stop's VENDOR row joins it — after the hint, directly above the record row (vendor02.test.ts pins it fully).
   inOrderOf(after, ['data-day-download-image', 'data-day-fine-print', 'data-day-hint', '<StopVendor', '<StopForm', 'data-day-foot', 'data-day-unmatched>'], 'the download button, the fine print, the hint, the VENDOR row, the record row, then the sentences');

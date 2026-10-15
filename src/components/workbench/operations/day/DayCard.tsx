@@ -30,7 +30,8 @@
  * /api/operations/stops?day=) join the stops by their key: a row shows what was
  * paid under its plan ("$12 ▲ $2"), its mark is its record's (✓ done, – skipped)
  * or its routine's; the line under the hook reads "spent $54 · 2 without an
- * amount · 6 of 7 done"; the step card adds ACTUAL with ▲▼ against PLAN, the
+ * amount · 6 of 7 done" (CLEAN-01: "spent $X out of $Y"; TOTALS-01, 2026-10-14:
+ * gone — the spent is the table's TOTAL row); the step card adds ACTUAL with ▲▼ against PLAN, the
  * status with its source ("done 12:41 · 11 min late" / "routine marked done"),
  * the rating against its rubric, the note, the minutes, and "spent so far". The
  * form that writes a record sits UNDER the plate on the step view
@@ -129,6 +130,17 @@
  * plate to directly under it, small and muted — the same words. The step view
  * is unchanged.
  *
+ * TOTALS-01 (2026-10-14) — the totals at the bottom (Alex's ruling). The hero
+ * and "Under or Over?" stay on top; the spent line goes (spentOutOfWords is
+ * deleted) — its numbers live in the table's TOTAL row, a <tfoot> in the same
+ * five columns: TOTAL across TIME to DESCRIPTION, the BUDGET total (the cells
+ * shown above it — a "—" adds nothing) and the ACTUAL total (the day's spent, or
+ * "—" while nothing is recorded — never $0), coloured as a row's actual against
+ * the BUDGET of the recorded rows only. The meter and the verdict (their rules
+ * unchanged) sit directly under the table. When the hero's day plan is more
+ * than the BUDGET total — the all-day band, lines no stop carries — the fine
+ * print under the plate says so (planBeyondStopsWords); equal, nothing.
+ *
  * CLEAN-02 (2026-10-14) — the step cards, cleaned (Alex's ruling). The JOURNAL
  * card shows only its five blocks: YESTERDAY as its plan's ticks ("4 of 6 steps
  * done · left over: …") and its note when typed, TODAY's goals, BLOCKERS, PLAN,
@@ -174,12 +186,13 @@ import { readDayReport, readJournal, readStays, readStopRecords, type JournalAns
 import {
   ACTUAL_WORD, BADGE_WORDS, BRAND_WORDS, PLAN_WORD, TASK_WORD, TODAY_WORD, badDateWords, badStepWords, completenessWords, dayStops, deltaWords, focusStop,
   bandNameOf, headerWords, heroWord, HOOK_WORDS, linesUnreadWords, linesWithoutStopWords, minutesLine, notPlacedWords, planDollars, progressPercent, provenanceWords,
-  recordsUnplacedWords, recordsWithoutStopWords, routineFigureWords, rowActualWords, planSoFarWords, spentOutOfWords, spentSoFarWords, stepHeaderWords,
+  recordsUnplacedWords, recordsWithoutStopWords, routineFigureWords, rowActualWords, planSoFarWords, spentSoFarWords, stepHeaderWords,
   BARS_NOTHING_PLANNED_WORDS, BARS_PLAN_NOT_READ_WORDS, PLATE_PADDING_X, PLATE_WIDTH, overByWords,
   unmatchedWords, vendorSlot, whereWords,
   dayShortWords,
   ACTUAL_HEAD_WORD, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, TIME_HEAD_WORD, VENDOR_HEAD_WORD, intervalWords, openStepWords,
   CELL_GAP, COLUMN_WIDTHS, dayMeter, dayVerdict,
+  TOTAL_WORD, dayTotals, planBeyondStopsWords,
   DAY_CARD_PATH,
   type StayState, type Stop,
 } from './dayCard';
@@ -502,7 +515,9 @@ export default function DayCard() {
   const delta = focus === null ? null : deltaWords(focus.stop.actualCents, focus.stop.cents);
   // CLEAN-01 (2026-10-14): the full card's spent — unknown ('—', null) while the records are unread or no stop carries an actual (PLAN-01: never $0);
   // the meter against the planned total, and the verdict only once every stop that asks an amount carries one.
-  const spent = result.spentCents === null || result.withActual === 0 ? null : result.spentCents;
+  // TOTALS-01 (2026-10-14): the TOTAL row's figures (dayTotals) — the spent is its ACTUAL total, one rule for the row and the meter.
+  const totals = dayTotals(result, plannedCents);
+  const spent = totals.actualCents;
   const meter = dayMeter(spent, plannedCents);
   const verdict = dayVerdict(result, plannedCents);
   // The matched line's book, by name, from the report's own books — named as not loaded when the report lists none.
@@ -575,21 +590,15 @@ export default function DayCard() {
 
         {loaded && focus === null && (
           <>
-            {/* CLEAN-01 (2026-10-14): the order, top to bottom — where, the hero, the hook, the spent line, the meter, the verdict, the table. */}
+            {/* CLEAN-01 (2026-10-14): the order, top to bottom — where, the hero, the hook, the spent line, the meter, the verdict, the table.
+                TOTALS-01 (2026-10-14): where, the hero, the hook, the table with its TOTAL row, then the meter and the verdict — the spent line is gone. */}
             <div className="font-semibold text-text-secondary" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-where>{whereWords(day, stayState)}</div>
             <div className="flex items-baseline gap-3 pt-1" data-day-hero>
               <span className="font-extrabold text-text-primary tabular-nums" style={{ fontSize: 69, lineHeight: 1, letterSpacing: '-0.02em' }} data-day-planned>{planDollars(plannedCents)}</span>
               <span className="font-bold text-text-secondary" style={{ fontSize: 29, lineHeight: 1 }} data-day-hero-word>{heroWord(day, today)}</span>
             </div>
             <div className="font-semibold text-text-secondary" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-hook>{HOOK_WORDS}</div>
-            <div className="font-semibold text-text-secondary tabular-nums" style={{ fontSize: 27, lineHeight: 1.15 }} data-day-spent>{spentOutOfWords(spent, plannedCents)}</div>
-            {meter !== null && (
-              <div className="bg-bg-row rounded-full overflow-hidden" style={{ height: 13 }} aria-hidden="true" data-day-meter={meter.percent === null ? 'empty' : meter.percent}>
-                {meter.percent !== null && <div className={`${meter.over ? 'bg-brand-red' : 'bg-brand-green'} rounded-full`} style={{ height: 13, width: `${meter.percent}%` }} />}
-              </div>
-            )}
-            {verdict !== null && <div className={`font-bold tabular-nums ${actualTone(verdict.over)}`} style={{ fontSize: 27, lineHeight: 1.15 }} data-day-verdict>{verdict.text}</div>}
-            {/* TABLE-01: the stops as a table — fixed columns at the plate's width (CLEAN-01: five); every text cell wraps, a figure is never split, nothing is cut. A row's description is its door, a real button (click, Enter or Space opens the step); a click anywhere on the row opens it too. A day with no stops shows no lone header, and the closing rule sits flush under the last row. */}
+            {/* TABLE-01: the stops as a table — fixed columns at the plate's width (CLEAN-01: five); every text cell wraps, a figure is never split, nothing is cut. A row's description is its door, a real button (click, Enter or Space opens the step); a click anywhere on the row opens it too. A day with no stops shows no lone header, and the closing rule sits flush under the last row. TOTALS-01 (2026-10-14): under the TOTAL row now — the table's last row. */}
             {N > 0 && (
               <div className="flex flex-col">
                 <table className="w-full" style={{ tableLayout: 'fixed', borderCollapse: 'collapse' }} data-day-stops>
@@ -636,10 +645,29 @@ export default function DayCard() {
                       </tr>
                     ))}
                   </tbody>
+                  {/* TOTALS-01 (2026-10-14): the TOTAL row — the BUDGET cells shown above summed (a "—" adds nothing), the day's spent or "—" (never $0), in a row's tone against the BUDGET of the recorded rows; bold, above the closing rule. */}
+                  <tfoot>
+                    <tr className="border-t border-border align-top" data-day-total>
+                      <th scope="row" colSpan={3} className="text-left font-extrabold text-text-primary" style={{ fontSize: 19, lineHeight: 1.1, padding: CELL_PADDING }} data-day-col="total">{TOTAL_WORD}</th>
+                      <td className="text-right" style={{ padding: CELL_PADDING }} data-day-col="budget">
+                        <span className={`block font-extrabold tabular-nums ${totals.budgetCents === null ? 'text-text-faint' : 'text-text-primary'}`} style={{ fontSize: 19, lineHeight: 1.1 }} data-day-total-budget>{planDollars(totals.budgetCents)}</span>
+                      </td>
+                      <td className="text-right" style={{ padding: '7px 0' }} data-day-col="actual">
+                        <span className={`block font-extrabold tabular-nums ${totals.actualCents === null ? 'text-text-faint' : actualTone(totals.over)}`} style={{ fontSize: 19, lineHeight: 1.1 }} data-day-total-actual>{planDollars(totals.actualCents)}</span>
+                      </td>
+                    </tr>
+                  </tfoot>
                 </table>
                 <div className="border-t border-border" aria-hidden="true" />
               </div>
             )}
+            {/* TOTALS-01 (2026-10-14): the meter and the verdict, directly under the table — their rules unchanged (CLEAN-01). */}
+            {meter !== null && (
+              <div className="bg-bg-row rounded-full overflow-hidden" style={{ height: 13 }} aria-hidden="true" data-day-meter={meter.percent === null ? 'empty' : meter.percent}>
+                {meter.percent !== null && <div className={`${meter.over ? 'bg-brand-red' : 'bg-brand-green'} rounded-full`} style={{ height: 13, width: `${meter.percent}%` }} />}
+              </div>
+            )}
+            {verdict !== null && <div className={`font-bold tabular-nums ${actualTone(verdict.over)}`} style={{ fontSize: 27, lineHeight: 1.15 }} data-day-verdict>{verdict.text}</div>}
             {result.allDay.length > 0 && (
               <div className="flex flex-col" style={{ gap: 4 }} data-day-all-day>
                 <div className="font-bold text-text-faint" style={{ fontSize: 17, letterSpacing: '0.14em' }}>{ALSO_TODAY_WORDS.toUpperCase()}</div>
@@ -728,6 +756,8 @@ export default function DayCard() {
       {loaded && (focus === null || focus.stop.role !== 'journal') && (
         <div className="mx-auto space-y-1 text-xs text-text-muted" style={{ width: PLATE_WIDTH }} data-day-fine-print>
           {focus === null && completeness !== null && <p data-day-count>{completeness}</p>}
+          {/* TOTALS-01 (2026-10-14): the hero's day plan beyond the BUDGET total — computed, said only when the two differ. */}
+          {focus === null && totals.beyondCents !== null && <p data-day-beyond>{planBeyondStopsWords(totals.beyondCents)}</p>}
           {focus !== null && planBar === null && <p data-day-bars-why>{plannedCents === null ? BARS_PLAN_NOT_READ_WORDS : BARS_NOTHING_PLANNED_WORDS}</p>}
           <p className="font-mono" data-day-provenance>{provenanceWords(today, reportRead, recordsOk)}</p>
         </div>

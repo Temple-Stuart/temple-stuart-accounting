@@ -543,7 +543,6 @@ export const provenanceWords = (asOf: string, reportRead: boolean, recordsRead: 
 // ── STOP-01: THE RECORD'S WORDS ON THE CARD ──────────────────────────────────
 
 export const ACTUAL_WORD = 'ACTUAL';
-export const SPENT_WORD = 'spent';
 export const RECORDS_NOT_READ_WORDS = 'records not read';
 export const ON_PLAN_WORDS = 'on plan';
 
@@ -563,18 +562,13 @@ export const overByWords = (cents: number): string => `over by ${planDollars(cen
 export const BARS_PLAN_NOT_READ_WORDS = 'no bars — the day’s planned total is not known (the Budget’s plan lines were not read)';
 export const BARS_NOTHING_PLANNED_WORDS = 'no bars — nothing is planned for the day';
 
-export const PLANNED_NOT_READ_WORDS = 'planned not read';
-
 /**
- * CLEAN-01 (2026-10-14, Alex's ruling): the full card's line under the hook —
- * "spent $9.69 out of $75"; "spent — out of $75" while nothing is recorded (the
- * caller passes null — unknown, never $0, PLAN-01); "spent $9.69 · planned not
- * read" when the day's planned total is unknown. The counts ("N without an
- * amount", "N of M done") are off the line; the fine print under the plate
- * counts what is not recorded.
+ * TOTALS-01 (2026-10-14): spentOutOfWords — CLEAN-01's full-card line under the
+ * hook, "spent $9.69 out of $75" — is deleted with its words (SPENT_WORD,
+ * PLANNED_NOT_READ_WORDS), nothing else reading them. Its numbers live in the
+ * table's TOTAL row now (dayTotals): the spent is the ACTUAL total, "—" while
+ * nothing is recorded (never $0); the day's planned total stays the hero.
  */
-export const spentOutOfWords = (spentCents: number | null, plannedCents: number | null): string =>
-  (plannedCents === null ? `${SPENT_WORD} ${planDollars(spentCents)} · ${PLANNED_NOT_READ_WORDS}` : `${SPENT_WORD} ${planDollars(spentCents)} out of ${planDollars(plannedCents)}`);
 
 /** A row's actual under its plan: "$12 ▲ $2" · "$12 ▼ $3" · "$12 on plan" · "$12" when the plan is unknown. */
 export function rowActualWords(actualCents: number, planCents: number | null): string {
@@ -893,7 +887,8 @@ export interface DayMeter {
 }
 
 /**
- * The meter under the spent line: the track is the day's planned total, the
+ * The meter under the spent line (TOTALS-01, 2026-10-14: under the table and its
+ * TOTAL row — the spent line is gone; this rule is unchanged): the track is the day's planned total, the
  * fill spent ÷ planned (progressPercent — rounded, capped at 100), green while
  * spent ≤ planned, red and full past it. Spent unknown (null — nothing recorded,
  * or the records not read): an empty track, never a $0 fill. No meter while
@@ -920,6 +915,58 @@ export function dayVerdict(result: DayStops, plannedCents: number | null): Delta
   if (result.spentCents === plannedCents) return { text: ON_BUDGET_WORDS, over: false };
   return deltaWords(result.spentCents, plannedCents);
 }
+
+// ── TOTALS-01 (2026-10-14): THE FULL CARD'S TOTAL ROW ──────────────────────
+
+/** The first cell of the table's foot row, spanning TIME through DESCRIPTION. */
+export const TOTAL_WORD = 'TOTAL';
+
+export interface DayTotals {
+  /** The sum of the BUDGET cells the rows show — a row's "—" adds nothing (the fine print counts it, "N not priced"); null when no row shows one. */
+  readonly budgetCents: number | null;
+  /** The day's spent — the recorded actuals summed (spentCents); null while nothing is recorded or the records were not read: "—", never $0. */
+  readonly actualCents: number | null;
+  /** The ACTUAL total's tone, as a row's: against the BUDGET cells of the recorded rows only; null (muted) when it is unknown or none of them shows a budget. */
+  readonly over: boolean | null;
+  /** The hero's day plan the table does not show (all-day lines, plan lines with no stop): the planned total less the BUDGET total; null when equal or the plan is unknown. */
+  readonly beyondCents: number | null;
+}
+
+/**
+ * TOTALS-01 (2026-10-14, Alex's ruling): the full card's totals at the bottom —
+ * a TOTAL row under the table, the meter and the verdict below it.
+ *   · BUDGET total: what the eye can add up — the BUDGET cells shown above it;
+ *     a "—" row adds nothing.
+ *   · ACTUAL total: the day's spent (spentCents), or unknown (null) while no
+ *     stop carries an actual or the records were not read — never $0 (PLAN-01).
+ *     Its tone is a row's (deltaWords): the spent against the BUDGET cells of
+ *     the recorded rows only, so a day half recorded is not "under" by the
+ *     half not yet spent.
+ *   · The difference from the hero: the hero is the Budget's figure for the
+ *     WHOLE day (plannedCents — every line of the day, matched or not), the
+ *     column only the stops' matched lines. What the table does not show — the
+ *     all-day band's lines, the lines no stop carries, lines at another instant,
+ *     a routine priced as a whole — is said under the plate, computed, never
+ *     invented; equal, nothing is said.
+ */
+export function dayTotals(result: DayStops, plannedCents: number | null): DayTotals {
+  const shown = result.stops.map((s) => s.cents).filter((c): c is number => c !== null);
+  const budgetCents = shown.length === 0 ? null : shown.reduce((sum, c) => sum + c, 0);
+  const actualCents = result.spentCents === null || result.withActual === 0 ? null : result.spentCents;
+  const recordedBudgets = result.stops.filter((s) => s.actualCents !== null).map((s) => s.cents).filter((c): c is number => c !== null);
+  const recordedBudget = recordedBudgets.length === 0 ? null : recordedBudgets.reduce((sum, c) => sum + c, 0);
+  const beyond = plannedCents === null ? 0 : plannedCents - (budgetCents === null ? 0 : budgetCents);
+  return {
+    budgetCents,
+    actualCents,
+    over: deltaWords(actualCents, recordedBudget).over,
+    beyondCents: beyond === 0 ? null : beyond,
+  };
+}
+
+/** The fine print under the plate when the hero's day plan is more (or less) than the BUDGET total: "$11 more planned off the table (all day / no stop)". */
+export const planBeyondStopsWords = (cents: number): string =>
+  `${planDollars(Math.abs(cents))} ${cents > 0 ? 'more' : 'less'} planned off the table (all day / no stop)`;
 
 // ── TASKS-ONE-01 (2026-10-14): WHERE THE CARD LIVES — THE FIRST SECTION OF /tasks ──
 
