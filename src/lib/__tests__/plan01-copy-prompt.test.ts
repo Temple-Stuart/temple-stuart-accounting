@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { code } from '../sourceText';
 import {
   COPY_PLAN_PROMPT_WORDS, LIST_MAX, PLAN_PROMPT_ASK, PLAN_PROMPT_COPIED_WORDS,
-  answersOf, noteWords, planPromptFailedWords, planPromptText, planPromptWaitsWords, stripListMarker, yesterdayStepsWords,
+  RETIRED_FIELDS, answersOf, journalRowOf, planPromptFailedWords, planPromptText, planPromptWaitsWords, stripListMarker, yesterdayStepsWords,
 } from '../operations/journal';
 import { TIME_BOX_WORDS, timeBoxWords } from '../operations/stopRecord';
 import { BARS_NOTHING_PLANNED_WORDS, BARS_PLAN_NOT_READ_WORDS, PLATE_WIDTH, overByWords, planSoFarWords, spentSoFarWords } from '@/components/workbench/operations/day/dayCard';
@@ -37,13 +37,20 @@ function inOrder(body: string, steps: readonly string[], what: string): void {
 
 // CLEAN-02 (2026-10-14) — Alex's ruling: yesterday in the prompt is its steps (done of all), what was left over, and its note — the
 // "Yesterday — accomplished:" and "Yesterday — not finished:" lines are gone; everything else is unchanged. The texts below moved with it.
+// JOURNAL-03 (Alex, 2026-10-15): END OF DAY is retired — the "Yesterday — note:" line is gone; everything else is unchanged. The
+// fixture's END OF DAY words moved into the row's `retired` (as a row typed before JOURNAL-03 reads), and the texts moved with it.
 test('T1 planPromptText, exactly: everything present', () => {
+  const retired = Object.fromEntries(RETIRED_FIELDS.map((f) => [f, null])) as Record<(typeof RETIRED_FIELDS)[number], string | null>;
   const text = planPromptText({
     dayWords: 'Tue Oct 13',
-    yesterday: answersOf({
-      plan_steps: ['merge TABLE-01', 'book travel while CC runs', 'record brunch and dinner', 'screenshot the card', 'post the reel', 'reply to comments'],
-      plan_done: [true, false, false, true, true, true],
+    yesterday: journalRowOf({
+      ...answersOf({
+        plan_steps: ['merge TABLE-01', 'book travel while CC runs', 'record brunch and dinner', 'screenshot the card', 'post the reel', 'reply to comments'],
+        plan_done: [true, false, false, true, true, true],
+      }),
+      ...retired,
       shipped: 'merged TABLE-01; booked Chiang Mai',
+      id: 'y', day: new Date('2026-10-12T00:00:00.000Z'), updated_at: new Date('2026-10-12T14:00:00.000Z'),
     }),
     goals: ['perfect the day cards', 'book travel for the rest of the trip'],
     blocker: 'CC runs long',
@@ -54,7 +61,6 @@ test('T1 planPromptText, exactly: everything present', () => {
     'Yesterday — left over:',
     '- book travel while CC runs',
     '- record brunch and dinner',
-    'Yesterday — note: merged TABLE-01; booked Chiang Mai',
     'Today — what I need to get done:',
     '- perfect the day cards',
     '- book travel for the rest of the trip',
@@ -73,7 +79,6 @@ test('T1 planPromptText, exactly: no journal yesterday, no goals, no blocker —
     'Yesterday — steps: no journal',
     'Yesterday — left over:',
     '- none',
-    'Yesterday — note: none',
     'Today — what I need to get done:',
     '- none typed',
     'Blockers: none typed',
@@ -81,9 +86,10 @@ test('T1 planPromptText, exactly: no journal yesterday, no goals, no blocker —
     ASK,
   ].join('\n'));
   // CLEAN-02: a journal with no plan, and one with every step ticked and no note.
+  // JOURNAL-03 (2026-10-15): yesterday's head is three lines — "Yesterday — note: none" is gone; the next line is today's.
   const head = (text: string) => text.split('\n').slice(1, 5);
-  assert.deepEqual(head(planPromptText({ dayWords: 'Wed Oct 14', yesterday: answersOf({ goals: ['g'] }), goals: [], blocker: null })), ['Yesterday — steps: no plan', 'Yesterday — left over:', '- none', 'Yesterday — note: none']);
-  assert.deepEqual(head(planPromptText({ dayWords: 'Wed Oct 14', yesterday: answersOf({ plan_steps: ['a', 'b'], plan_done: [true, true] }), goals: [], blocker: null })), ['Yesterday — steps: all 2 done', 'Yesterday — left over:', '- none', 'Yesterday — note: none']);
+  assert.deepEqual(head(planPromptText({ dayWords: 'Wed Oct 14', yesterday: answersOf({ goals: ['g'] }), goals: [], blocker: null })), ['Yesterday — steps: no plan', 'Yesterday — left over:', '- none', 'Today — what I need to get done:']);
+  assert.deepEqual(head(planPromptText({ dayWords: 'Wed Oct 14', yesterday: answersOf({ plan_steps: ['a', 'b'], plan_done: [true, true] }), goals: [], blocker: null })), ['Yesterday — steps: all 2 done', 'Yesterday — left over:', '- none', 'Today — what I need to get done:']);
   // Every line is a constant or built from one — the function names no other text.
   const fn = /export function planPromptText\(input: PlanPromptInput\): string \{([\s\S]*?)\n\}/.exec(code(RULE));
   assert.ok(fn !== null);
@@ -91,7 +97,9 @@ test('T1 planPromptText, exactly: no journal yesterday, no goals, no blocker —
   assert.deepEqual(literals, ["''", "'\\n'"], 'no literal words in the function — only the blank line and the line break');
   const templates = [...fn![1].matchAll(/`([^`]*)`/g)].map((m) => m[1]);
   // CLEAN-02 (2026-10-14): four built lines — the day, yesterday's steps, yesterday's note, the blockers (was three: the day, accomplished, the blockers).
-  assert.equal(templates.length, 4);
+  // JOURNAL-03 (2026-10-15): three built lines — the day, yesterday's steps, the blockers; yesterday's note is gone.
+  assert.equal(templates.length, 3);
+  assert.doesNotMatch(fn![1], /shipped|retired|PLAN_PROMPT_NOTE/, 'the prompt reads no END OF DAY, typed before or not');
   for (const t of templates) assert.match(t, /^\$\{PLAN_PROMPT_[A-Z_]+\} \$\{/, `each built line starts with its constant: ${t}`);
 });
 
@@ -136,11 +144,11 @@ test('T3 "copy plan prompt": beside the PLAN, writes planPromptText to the clipb
 
 // CLEAN-02 (2026-10-14) — Alex's ruling: "accomplished:" became "note:" (only when typed) and "not finished: a · b" became
 // yesterdayStepsWords' "4 of 6 steps done · left over: a · b"; ACCOMPLISHED_WORD, accomplishedWords and notFinishedWords are deleted.
-test('T4 the plate’s YESTERDAY: "note:" on the END OF DAY text, the steps done and "left over:" on the steps not ticked', () => {
-  assert.equal(noteWords('merged TABLE-01'), 'note: merged TABLE-01');
+// JOURNAL-03 (Alex, 2026-10-15): END OF DAY is retired — "note:" on its text is gone, noteWords deleted; the pins moved to "gone".
+test('T4 the plate’s YESTERDAY: the steps done and "left over:" on the steps not ticked; no "note:" (JOURNAL-03)', () => {
   assert.equal(yesterdayStepsWords(answersOf({ plan_steps: ['merge', 'book travel', 'record brunch'], plan_done: [true, false, false] })), '1 of 3 steps done · left over: book travel · record brunch');
   const c = code(CARD);
-  assert.match(c, /data-day-yesterday-note>\{noteWords\(yRow\.shipped\)\}/);
+  assert.doesNotMatch(c + code(RULE), /data-day-yesterday-note|\bnoteWords\b|\bNOTE_WORD\b|'note:'/, 'the note on yesterday’s END OF DAY is gone');
   assert.match(c, /data-day-yesterday-steps>\{yesterdayStepsWords\(yRow\)\}/);
   // PLAN-01 (2026-10-13) pinned leftOpenWords ("left open:") gone; CLEAN-02 (2026-10-14, the pin moved — Alex named leftOpenWords for
   // notFinishedWords): the words that replaced it are gone too, and so is "accomplished:".

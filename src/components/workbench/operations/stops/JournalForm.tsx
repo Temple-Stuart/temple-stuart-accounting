@@ -1,5 +1,5 @@
 /**
- * JournalForm — the journal's questions, answered where the journal stop is shown (JOURNAL-01, 2026-10-13; JOURNAL-02, 2026-10-13).
+ * JournalForm — the journal's questions, answered where the journal stop is shown (JOURNAL-01, 2026-10-13; JOURNAL-02, 2026-10-13; JOURNAL-03, 2026-10-15).
  *
  * Under the day card's plate on the journal stop's step view, outside the
  * recorded box. JOURNAL-02 — four boxes in the plate's order, each LABELLED
@@ -17,6 +17,13 @@
  * CLEAN-02 (2026-10-14): the prompt's yesterday is its row — "steps: 4 of 6
  * done", what was left over, and its note; END OF DAY now asks what was left
  * unfinished and why (journal.ts END_OF_DAY_QUESTION).
+ *
+ * JOURNAL-03 (Alex, 2026-10-15): END OF DAY is retired — its box is gone, and
+ * END_OF_DAY_QUESTION with it. Three boxes now: TODAY's goals, BLOCKERS, the
+ * PLAN; the plan's ticks say what got done. The draft holds no `shipped` and
+ * the body never carries it (the rule refuses one that does, by name), so a
+ * save writes the four answers alone and words typed there before stay in the
+ * row. The prompt's yesterday is its steps and what was left over — no note.
  *
  * PLAN-01 (2026-10-13): each plan and goal line loses a pasted list's leading
  * marker ("1." "1)" "-" "•" "*" and a space — stripListMarker) after linesOf
@@ -37,7 +44,7 @@
 
 import { useState } from 'react';
 import {
-  ADD_OPEN_STEPS_WORDS, BLOCKERS_QUESTION, COPY_PLAN_PROMPT_WORDS, END_OF_DAY_QUESTION, GOALS_EXAMPLE, PLAN_EXAMPLE, PLAN_PROMPT_COPIED_WORDS, PLAN_QUESTION, TODAY_GOALS_QUESTION,
+  ADD_OPEN_STEPS_WORDS, BLOCKERS_QUESTION, COPY_PLAN_PROMPT_WORDS, GOALS_EXAMPLE, PLAN_EXAMPLE, PLAN_PROMPT_COPIED_WORDS, PLAN_QUESTION, TODAY_GOALS_QUESTION,
   carryTicks, clearJournalQuestion, journalInput, linesOf, openSteps, planPromptFailedWords, planPromptText, planPromptWaitsWords, stripListMarker,
   type JournalRow, type YesterdayForPrompt,
 } from '@/lib/operations/journal';
@@ -52,7 +59,6 @@ interface Draft {
   readonly goals: string;
   readonly blocker: string;
   readonly plan: string;
-  readonly shipped: string;
 }
 
 /** The held answers as the boxes show them — a list one line per item, '' for an unanswered question. */
@@ -60,7 +66,6 @@ const draftOf = (journal: JournalRow | null): Draft => ({
   goals: journal === null ? '' : journal.goals.join('\n'),
   blocker: journal === null || journal.blocker === null ? '' : journal.blocker,
   plan: journal === null ? '' : journal.plan_steps.join('\n'),
-  shipped: journal === null || journal.shipped === null ? '' : journal.shipped,
 });
 
 export default function JournalForm({ day, journal, yesterday, onChanged }: {
@@ -78,7 +83,7 @@ export default function JournalForm({ day, journal, yesterday, onChanged }: {
     // The lines as typed (blank lines dropped, a pasted list's marker off — PLAN-01), the saved ticks carried to the same steps, then the route's rule — a refusal is the words the route would answer.
     const steps = linesOf(draft.plan).map(stripListMarker);
     const ticks = carryTicks(journal === null ? [] : journal.plan_steps, journal === null ? [] : journal.plan_done, steps);
-    const read = journalInput({ day, goals: linesOf(draft.goals).map(stripListMarker), blocker: draft.blocker === '' ? null : draft.blocker, plan_steps: steps, plan_done: ticks, shipped: draft.shipped === '' ? null : draft.shipped });
+    const read = journalInput({ day, goals: linesOf(draft.goals).map(stripListMarker), blocker: draft.blocker === '' ? null : draft.blocker, plan_steps: steps, plan_done: ticks });
     if (!read.ok) { setWords(read.message); return; }
     setBusy(true);
     setWords(null);
@@ -144,10 +149,6 @@ export default function JournalForm({ day, journal, yesterday, onChanged }: {
           {copyWords !== null && <p className={copyWords.ok ? 'text-text-muted' : 'text-brand-red'} data-journal-copy-words>{copyWords.words}</p>}
           <textarea id="journal-plan" rows={5} value={draft.plan} onChange={(e) => setDraft({ ...draft, plan: e.target.value })} placeholder={PLAN_EXAMPLE} className={box} disabled={busy} data-journal-field="plan_steps" />
         </div>
-        <label className="flex flex-col gap-0.5" data-journal-block="shipped">
-          <span className={question}>{END_OF_DAY_QUESTION}</span>
-          <textarea rows={3} value={draft.shipped} onChange={(e) => setDraft({ ...draft, shipped: e.target.value })} className={box} disabled={busy} data-journal-field="shipped" />
-        </label>
         <div className="flex items-center gap-1.5">
           <button type="submit" className={chip} disabled={busy}>save</button>
           {journal !== null && <button type="button" className={chip} disabled={busy} onClick={clear} data-journal-clear>clear</button>}

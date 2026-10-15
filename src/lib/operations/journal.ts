@@ -1,5 +1,5 @@
 /**
- * journal — THE DAY'S JOURNAL, PURE (JOURNAL-01, 2026-10-13; JOURNAL-02, 2026-10-13).
+ * journal — THE DAY'S JOURNAL, PURE (JOURNAL-01, 2026-10-13; JOURNAL-02, 2026-10-13; JOURNAL-03, 2026-10-15).
  *
  * The journal routine's stop (a routine whose role is 'journal', stopRole.ts)
  * shows a plate on the day card and asks its questions under it. The ANSWERS a
@@ -14,13 +14,23 @@
  * tick per step) and END OF DAY (what got done, typed tonight — shipped, the
  * same column relabelled).
  *
- * RETIRED 2026-10-13 (JOURNAL-02): adjustment, one_thing, witness, plan_1_if …
- * plan_3_then, obstacle_if, obstacle_then. Not asked, not shown, never read
- * from a body and never written. KEPT in the table with the words typed before
- * (the migration drops no column); a row carries them in `retired` so the audit
- * log's before and after keep them — the screen never reads `retired`.
+ * JOURNAL-03 (Alex, 2026-10-15) — END OF DAY IS RETIRED: the plan's ticks say
+ * what got done, so the box asked nothing the plate did not already show. Four
+ * things now: YESTERDAY, TODAY, BLOCKERS, PLAN. `shipped` joins the retired
+ * answers — retired, not deleted: the column stays (no migration, nothing
+ * dropped), the words typed before stay in the row and in `retired`, and a
+ * write never touches them (the routes write the four answers alone).
  *
- * Here: the five answers and their limits, what the routes accept (journalInput
+ * RETIRED 2026-10-13 (JOURNAL-02): adjustment, one_thing, witness, plan_1_if …
+ * plan_3_then, obstacle_if, obstacle_then; 2026-10-15 (JOURNAL-03): shipped.
+ * Not asked, not shown and never written. KEPT in the table with the words
+ * typed before (no migration drops a column); a row carries them in `retired`
+ * so the audit log's before and after keep them — the screen never reads
+ * `retired`. JOURNAL-03: a body that carries one is refused by name
+ * (retiredFieldWords — was ignored), so a page from before reloads instead of
+ * believing its words were saved.
+ *
+ * Here: the four answers and their limits, what the routes accept (journalInput
  * — the one rule, shared by the form so the screen refuses in the route's own
  * words), a row as the routes answer it (journalRowOf), whether a second write
  * changes anything (journalUnchanged), the plan's ticks carried across a
@@ -29,10 +39,9 @@
  */
 import { isIsoDay } from '@/lib/budget/days';
 
-/** The two text answers' column lengths (VARCHAR(n) — n CHARACTERS, counted in code points, not UTF-16 units). */
+/** The text answer's column length (VARCHAR(n) — n CHARACTERS, counted in code points, not UTF-16 units). JOURNAL-03 (2026-10-15): shipped's 500 left with END OF DAY. */
 export const ANSWER_MAX = {
   blocker: 280,
-  shipped: 500,
 } as const;
 
 export type TextField = keyof typeof ANSWER_MAX;
@@ -45,8 +54,8 @@ export const LIST_MAX = {
 
 export type ListField = keyof typeof LIST_MAX;
 
-/** The five answers in the plate's order: TODAY's goals, BLOCKERS, PLAN's steps and their ticks, END OF DAY. */
-export const ANSWER_FIELDS = ['goals', 'blocker', 'plan_steps', 'plan_done', 'shipped'] as const;
+/** The four answers in the plate's order: TODAY's goals, BLOCKERS, PLAN's steps and their ticks. JOURNAL-03 (2026-10-15): END OF DAY (shipped) is retired. */
+export const ANSWER_FIELDS = ['goals', 'blocker', 'plan_steps', 'plan_done'] as const;
 
 export type AnswerField = (typeof ANSWER_FIELDS)[number];
 
@@ -56,13 +65,13 @@ export interface Answers {
   readonly plan_steps: string[];
   /** One tick per step, in the steps' order. */
   readonly plan_done: boolean[];
-  readonly shipped: string | null;
 }
 
-/** RETIRED 2026-10-13 (JOURNAL-02) — kept in the table, never asked, shown or written. */
+/** RETIRED 2026-10-13 (JOURNAL-02) and 2026-10-15 (JOURNAL-03, shipped) — kept in the table, never asked, shown or written; a body that carries one is refused by name. */
 export const RETIRED_FIELDS = [
   'adjustment', 'one_thing', 'witness',
   'plan_1_if', 'plan_1_then', 'plan_2_if', 'plan_2_then', 'plan_3_if', 'plan_3_then', 'obstacle_if', 'obstacle_then',
+  'shipped',
 ] as const;
 
 export type RetiredField = (typeof RETIRED_FIELDS)[number];
@@ -85,7 +94,7 @@ export type JournalDbRow = Answers & Retired & {
 
 /** Nothing answered — what an unanswered day reads as. */
 export const NO_ANSWERS: Answers = Object.freeze({
-  goals: Object.freeze([]) as unknown as string[], blocker: null, plan_steps: Object.freeze([]) as unknown as string[], plan_done: Object.freeze([]) as unknown as boolean[], shipped: null,
+  goals: Object.freeze([]) as unknown as string[], blocker: null, plan_steps: Object.freeze([]) as unknown as string[], plan_done: Object.freeze([]) as unknown as boolean[],
 });
 
 /** The answers alone, from a row — built fresh from ANSWER_FIELDS, the lists copied, so no other key passes through. */
@@ -94,7 +103,6 @@ export const answersOf = (source: Partial<Answers>): Answers => ({
   blocker: source.blocker ?? null,
   plan_steps: [...(source.plan_steps ?? [])],
   plan_done: [...(source.plan_done ?? [])],
-  shipped: source.shipped ?? null,
 });
 
 const retiredOf = (row: Retired): Retired => Object.fromEntries(RETIRED_FIELDS.map((f) => [f, row[f] ?? null])) as Record<RetiredField, string | null>;
@@ -109,7 +117,8 @@ export const asJournalDate = (day: string): Date => new Date(`${day}T00:00:00.00
 
 // ── THE INPUT RULE ──────────────────────────────────────────────────────────
 
-export type JournalField = 'day' | AnswerField;
+/** JOURNAL-03 (2026-10-15): a retired field is named too — the body that carries one is refused. */
+export type JournalField = 'day' | AnswerField | RetiredField;
 
 export type JournalInputResult =
   | { readonly ok: true; readonly value: { readonly day: string; readonly answers: Answers } }
@@ -130,6 +139,8 @@ export const lineNotStringWords = (field: ListField, line: number): string => `$
 export const blankLineWords = (field: ListField, line: number): string => `${field} line ${line} is blank — type it or leave it out`;
 export const lineTooLongWords = (field: ListField, line: number, given: number): string => `${field} line ${line} is at most ${LIST_MAX[field].characters} characters (${given} given)`;
 export const lineWords = (field: ListField, line: number, words: string): string => `${field} line ${line}: ${words}`;
+/** JOURNAL-03 (Alex, 2026-10-15): "shipped is retired — it is no longer asked; reload the page" — a body from a page that still asks it. */
+export const retiredFieldWords = (field: RetiredField): string => `${field} is retired — it is no longer asked; reload the page`;
 export const DONE_NOT_LIST_WORDS = 'plan_done must be a list of true or false, one per step';
 export const doneNotBooleanWords = (line: number): string => `plan_done line ${line} must be true or false`;
 export const doneLengthWords = (ticks: number, steps: number): string => `plan_done has ${ticks} ticks for ${steps} steps — one tick per step`;
@@ -182,7 +193,10 @@ function textOf(field: TextField, raw: unknown): { readonly ok: true; readonly t
 
 /**
  * The one rule for what a journal is given: { day, goals?, blocker?,
- * plan_steps?, plan_done?, shipped? }. The body an object; `day` a real
+ * plan_steps?, plan_done? }. The body an object; then no retired field —
+ * JOURNAL-03 (Alex, 2026-10-15): a body that carries one of the twelve, any
+ * value, null included, is refused by that field's name (retiredFieldWords;
+ * JOURNAL-02 ignored them), while any other extra key is still ignored. `day` a real
  * 'YYYY-MM-DD' day (isIsoDay — the one rule). Absent lists are empty, absent
  * texts null. Every string through the JOURNAL-01 rules (cleanText): trimmed,
  * runs of whitespace one space; no control character, no lone surrogate, no
@@ -191,13 +205,15 @@ function textOf(field: TextField, raw: unknown): { readonly ok: true; readonly t
  * line is refused by name (the form drops blank lines before sending — the rule
  * never drops one silently). plan_done is one true or false per step, refused
  * by name when it is not. A text answer that is nothing visible is unanswered
- * (null). At least one goal, step, blocker or end of day. Checked in the
- * plate's order, the first bad field named. The answers come back built from
- * the five fields alone — a retired field, or any other key, never passes.
+ * (null). At least one goal, step or blocker (JOURNAL-03: end of day no
+ * longer counts). Checked in the plate's order, the first bad field named. The
+ * answers come back built from the four fields alone — a retired field, or any
+ * other key, never passes.
  */
 export function journalInput(body: unknown): JournalInputResult {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) return refuse('day', BODY_WORDS);
   const b = body as Record<string, unknown>;
+  for (const f of RETIRED_FIELDS) if (Object.prototype.hasOwnProperty.call(b, f)) return refuse(f, retiredFieldWords(f));
   if (!isIsoDay(b.day)) return refuse('day', dayWords(b.day));
   const day = b.day;
 
@@ -222,22 +238,18 @@ export function journalInput(body: unknown): JournalInputResult {
   }
   if (plan_done.length !== steps.lines.length) return refuse('plan_done', doneLengthWords(plan_done.length, steps.lines.length));
 
-  const shipped = textOf('shipped', b.shipped);
-  if (!shipped.ok) return shipped.result;
-
-  if (goals.lines.length === 0 && steps.lines.length === 0 && blocker.text === null && shipped.text === null) return refuse('goals', NOTHING_TYPED_WORDS);
-  return { ok: true, value: { day, answers: { goals: goals.lines, blocker: blocker.text, plan_steps: steps.lines, plan_done, shipped: shipped.text } } };
+  if (goals.lines.length === 0 && steps.lines.length === 0 && blocker.text === null) return refuse('goals', NOTHING_TYPED_WORDS);
+  return { ok: true, value: { day, answers: { goals: goals.lines, blocker: blocker.text, plan_steps: steps.lines, plan_done } } };
 }
 
 const sameList = <T>(a: readonly T[], b: readonly T[]): boolean => a.length === b.length && a.every((x, i) => x === b[i]);
 
-/** Would writing `answers` over `row` change nothing? The five answers, the lists element by element. */
+/** Would writing `answers` over `row` change nothing? The four answers, the lists element by element (JOURNAL-03: shipped is not written, so not compared). */
 export const journalUnchanged = (row: Answers, answers: Answers): boolean =>
   sameList(row.goals, answers.goals)
   && row.blocker === answers.blocker
   && sameList(row.plan_steps, answers.plan_steps)
-  && sameList(row.plan_done, answers.plan_done)
-  && row.shipped === answers.shipped;
+  && sameList(row.plan_done, answers.plan_done);
 
 // ── THE PLAN'S TICKS ────────────────────────────────────────────────────────
 
@@ -304,22 +316,19 @@ export function yesterdaySteps(row: Answers | null): YesterdaySteps {
 
 // ── WORDS ───────────────────────────────────────────────────────────────────
 
-/** The form's four questions — each box is labelled with its question. */
+/** The form's three questions — each box is labelled with its question. JOURNAL-03 (2026-10-15): END_OF_DAY_QUESTION is gone with its box. */
 export const TODAY_GOALS_QUESTION = 'What do you need to get done today? One per line.';
 export const BLOCKERS_QUESTION = 'What could stop it?';
 export const PLAN_QUESTION = 'The plan — paste the steps from chat, one per line.';
-/** CLEAN-02 (2026-10-14): END OF DAY asks what was left and why — the plan's ticks say what was done. */
-export const END_OF_DAY_QUESTION = 'Anything left unfinished, and why? (tonight — tick the plan above)';
 /** The examples the goals and plan boxes show until something is typed. */
 export const GOALS_EXAMPLE = 'perfect the day cards\nbook travel for the rest of the trip';
 export const PLAN_EXAMPLE = 'merge TABLE-01\nbook travel while CC runs\nrecord brunch and dinner\nscreenshot the card, edit, post';
 
-/** The plate's five blocks, in order. */
+/** The plate's four blocks, in order. JOURNAL-03 (2026-10-15): END_OF_DAY_BLOCK_WORD is gone with its block. */
 export const YESTERDAY_WORD = 'YESTERDAY';
 export const TODAY_BLOCK_WORD = 'TODAY';
 export const BLOCKERS_BLOCK_WORD = 'BLOCKERS';
 export const PLAN_BLOCK_WORD = 'PLAN';
-export const END_OF_DAY_BLOCK_WORD = 'END OF DAY';
 /** An unanswered question prints this — never a blank. */
 export const UNANSWERED_WORD = '—';
 /** "• perfect the day cards" — a goal on the plate. */
@@ -328,10 +337,7 @@ export const goalWords = (goal: string): string => `• ${goal}`;
 export const planStepWords = (index: number, step: string, done: boolean): string => `${done ? '✓' : '☐'} ${index}. ${step}`;
 /** "2 of 5 done" — under the plan. */
 export const planDoneWords = (done: number, of: number): string => `${done} of ${of} done`;
-/** CLEAN-02 (2026-10-14): "note:" — the label on yesterday's END OF DAY text on the plate (was "accomplished:"); printed only when it was typed. */
-export const NOTE_WORD = 'note:';
-/** "note: the hotel never answered" */
-export const noteWords = (text: string): string => `${NOTE_WORD} ${text}`;
+// JOURNAL-03 (2026-10-15): NOTE_WORD and noteWords — yesterday's END OF DAY text on the plate, "note: …" — are gone with END OF DAY.
 /** CLEAN-02 (2026-10-14): yesterday's journal does not exist — the read answered no row. */
 export const NO_JOURNAL_YESTERDAY_WORDS = 'no journal yesterday';
 /** Yesterday's journal has no plan — nothing to tick. */
@@ -352,7 +358,7 @@ export function yesterdayStepsWords(row: Answers | null): string {
 export const ADD_OPEN_STEPS_WORDS = (n: number): string => `+ yesterday's open steps (${n})`;
 // ── PLAN-01 (2026-10-13): THE PLAN PROMPT — YESTERDAY AND TODAY, HANDED TO CLAUDE ──
 
-/** Yesterday as the plan prompt needs it: read (its journal, or null when the read answered no row), or why it is not. CLEAN-02: the row itself — its ticks and its note. */
+/** Yesterday as the plan prompt needs it: read (its journal, or null when the read answered no row), or why it is not. CLEAN-02: the row itself — its ticks (JOURNAL-03: its note is gone). */
 export type YesterdayForPrompt =
   | { readonly ok: true; readonly row: Answers | null }
   | { readonly ok: false; readonly words: string };
@@ -375,7 +381,7 @@ export const planPromptWaitsWords = (words: string): string => `the plan prompt 
 export const PLAN_PROMPT_DAY = 'Day:';
 export const PLAN_PROMPT_STEPS = 'Yesterday — steps:';
 export const PLAN_PROMPT_LEFT_OVER = 'Yesterday — left over:';
-export const PLAN_PROMPT_NOTE = 'Yesterday — note:';
+// JOURNAL-03 (2026-10-15): PLAN_PROMPT_NOTE ('Yesterday — note:') is gone with END OF DAY.
 export const PLAN_PROMPT_NO_JOURNAL = 'no journal';
 export const PLAN_PROMPT_NO_PLAN = 'no plan';
 export const PLAN_PROMPT_TODAY = 'Today — what I need to get done:';
@@ -400,6 +406,8 @@ const leftOverOf = (y: YesterdaySteps): readonly string[] => (y.kind === 'steps'
  * The plan prompt, exactly: every line a constant or built from one — nothing invented, nothing filled in.
  * CLEAN-02 (2026-10-14): yesterday is its steps (done of all), what was left over, and its note — the
  * "accomplished:" and "not finished:" lines are gone; everything else is unchanged.
+ * JOURNAL-03 (2026-10-15): the "Yesterday — note:" line is gone with END OF DAY — yesterday is its steps
+ * and what was left over; everything else is unchanged.
  */
 export function planPromptText(input: PlanPromptInput): string {
   const y = yesterdaySteps(input.yesterday);
@@ -408,7 +416,6 @@ export function planPromptText(input: PlanPromptInput): string {
     `${PLAN_PROMPT_STEPS} ${promptStepsWords(y)}`,
     PLAN_PROMPT_LEFT_OVER,
     ...promptItems(leftOverOf(y), PLAN_PROMPT_NONE),
-    `${PLAN_PROMPT_NOTE} ${input.yesterday === null || input.yesterday.shipped === null ? PLAN_PROMPT_NONE : input.yesterday.shipped}`,
     PLAN_PROMPT_TODAY,
     ...promptItems(input.goals, PLAN_PROMPT_NONE_TYPED),
     `${PLAN_PROMPT_BLOCKERS} ${input.blocker === null ? PLAN_PROMPT_NONE_TYPED : input.blocker}`,

@@ -159,6 +159,12 @@
  * VENDOR row under the card (Alex's VENDOR-02 list names journal among the roles
  * that get the box); the journal card itself — the plate — still draws no vendor
  * and no money.
+ *
+ * JOURNAL-03 (Alex, 2026-10-15) — END OF DAY IS RETIRED: the journal card shows
+ * four blocks — YESTERDAY, TODAY, BLOCKERS, PLAN. The END OF DAY block and
+ * YESTERDAY's typed note are gone; YESTERDAY keeps its plan's ticks and what was
+ * left over, and the form's "+ yesterday's open steps" is unchanged. A tick
+ * sends the four answers alone, so the words typed before stay in the row.
  */
 
 'use client';
@@ -181,8 +187,8 @@ import StopForm from '../stops/StopForm';
 import StopVendor from '../stops/StopVendor';
 import { ACCOUNT_CELL_WORDS } from '@/lib/coa/accountCell';
 import {
-  BLOCKERS_BLOCK_WORD, END_OF_DAY_BLOCK_WORD, JOURNAL_LOADING_WORDS, PLAN_BLOCK_WORD, TODAY_BLOCK_WORD, UNANSWERED_WORD, YESTERDAY_LOADING_WORDS, YESTERDAY_WORD,
-  answersOf, goalWords, journalInput, noJournalWords, noteWords, planDoneWords, planStepWords, yesterdayStepsWords,
+  BLOCKERS_BLOCK_WORD, JOURNAL_LOADING_WORDS, PLAN_BLOCK_WORD, TODAY_BLOCK_WORD, UNANSWERED_WORD, YESTERDAY_LOADING_WORDS, YESTERDAY_WORD,
+  answersOf, goalWords, journalInput, noJournalWords, planDoneWords, planStepWords, yesterdayStepsWords,
   type Answers, type YesterdayForPrompt,
 } from '@/lib/operations/journal';
 import { starsWords } from '@/lib/operations/stopRecord';
@@ -275,6 +281,8 @@ const plateSmall = { fontSize: 20, lineHeight: 1.2 } as const;
  * bars for a journal stop (VENDOR-02, 2026-10-14: on its plate — a priced journal
  * stop's VENDOR row sits under the card, as every priced stop's). The journal's own read state (in flight, failed,
  * nothing typed) is still said — an unknown is never an empty block.
+ * JOURNAL-03 (Alex, 2026-10-15): four blocks — END OF DAY and YESTERDAY's note are gone; a tick sends the four
+ * answers alone (no shipped), so the words typed there before stay in the row.
  */
 function JournalPlate({ day, journal, yesterday, onChanged }: {
   day: string; journal: Read<JournalAnswer> | null; yesterday: Read<JournalAnswer> | null; onChanged: () => void;
@@ -288,7 +296,7 @@ function JournalPlate({ day, journal, yesterday, onChanged }: {
   // A tick: the whole journal as held with that one flag flipped, through the route's own rule and the one writer; then the journal read again.
   const tick = async (i: number) => {
     if (row === null || busyStep !== null) return;
-    const read = journalInput({ day, goals: row.goals, blocker: row.blocker, plan_steps: row.plan_steps, plan_done: row.plan_done.map((d, j) => (j === i ? !d : d)), shipped: row.shipped });
+    const read = journalInput({ day, goals: row.goals, blocker: row.blocker, plan_steps: row.plan_steps, plan_done: row.plan_done.map((d, j) => (j === i ? !d : d)) });
     if (!read.ok) { setTickWords(read.message); return; }
     setBusyStep(i);
     setTickWords(null);
@@ -308,7 +316,6 @@ function JournalPlate({ day, journal, yesterday, onChanged }: {
         {yesterday === null && <div className="font-medium text-text-muted" style={plateSmall} data-day-yesterday-loading>{YESTERDAY_LOADING_WORDS}</div>}
         {yesterday !== null && !yesterday.ok && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-yesterday-journal-failed>{yesterday.words}</div>}
         {yesterday !== null && yesterday.ok && <div className="font-semibold text-text-primary break-words" style={plateLine} data-day-yesterday-steps>{yesterdayStepsWords(yRow)}</div>}
-        {yRow !== null && yRow.shipped !== null && <div className="font-semibold text-text-secondary break-words" style={plateLine} data-day-yesterday-note>{noteWords(yRow.shipped)}</div>}
       </div>
       <div className="flex flex-col" style={{ gap: 3 }} data-day-journal-today>
         <div className="font-bold text-text-faint" style={plateLabel}>{TODAY_BLOCK_WORD}</div>
@@ -340,10 +347,6 @@ function JournalPlate({ day, journal, yesterday, onChanged }: {
         ))}
         {a.plan_steps.length > 0 && <div className="font-medium text-text-muted tabular-nums" style={plateSmall} data-day-journal-plan-done>{planDoneWords(a.plan_done.filter((d) => d).length, a.plan_steps.length)}</div>}
         {tickWords !== null && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-journal-tick-words>{tickWords}</div>}
-      </div>
-      <div className="flex flex-col" style={{ gap: 3 }} data-day-journal-end-of-day>
-        <div className="font-bold text-text-faint" style={plateLabel}>{END_OF_DAY_BLOCK_WORD}</div>
-        <div className={`font-semibold break-words ${a.shipped === null ? 'text-text-faint' : 'text-text-primary'}`} style={plateLine} data-day-journal-shipped>{a.shipped === null ? UNANSWERED_WORD : a.shipped}</div>
       </div>
       {journal === null && <div className="font-medium text-text-muted" style={plateSmall} data-day-journal-loading>{JOURNAL_LOADING_WORDS}</div>}
       {journal !== null && !journal.ok && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-journal-failed>{journal.words}</div>}
@@ -477,7 +480,7 @@ export default function DayCard() {
     return () => { live = false; };
   }, [day, hasJournalStop, journalReads]);
 
-  // JOURNAL-01: yesterday's journal — CLEAN-02 (2026-10-14): the one read of yesterday (its ticks, its note).
+  // JOURNAL-01: yesterday's journal — CLEAN-02 (2026-10-14): the one read of yesterday (its ticks; JOURNAL-03, 2026-10-15: no note).
   useEffect(() => {
     if (day === null || !hasJournalStop) return;
     const yday = shiftDay(day, -1);
@@ -550,7 +553,7 @@ export default function DayCard() {
   // JOURNAL-01: the journal and yesterday's reads covering THIS day — null while in flight or read for another day.
   const journalRead = journal !== null && journal.day === day ? journal.read : null;
   const yesterdayRead = yesterday !== null && yesterday.day === day ? yesterday.read : null;
-  // JOURNAL-02: yesterday for the form's "+ yesterday's open steps"; PLAN-01: for the plan prompt (CLEAN-02: its row — the ticks and the note) —
+  // JOURNAL-02: yesterday for the form's "+ yesterday's open steps"; PLAN-01: for the plan prompt (CLEAN-02: its row — the ticks; JOURNAL-03: no note) —
   // or why yesterday is not known (in flight, or its journal read failed): the form offers neither then, and never writes "no journal" for an unknown.
   const yesterdayForPrompt: YesterdayForPrompt = yesterdayRead === null
     ? { ok: false, words: YESTERDAY_LOADING_WORDS }
