@@ -24,8 +24,8 @@ import {
 import type { DailyPlanItem } from '@/components/workbench/operations/dailyplan/types';
 import type { Routine, RoutineStep, TodayRoutineEntry, TodayStatus } from '@/components/workbench/operations/routines/types';
 import {
-  ACTUAL_WORD, ON_PLAN_WORDS, RECORDS_NOT_READ_WORDS, SPENT_WORD, completenessWords, dayStops, deltaWords, focusStop, minutesLine, monthDayWords, notRecordedWords,
-  recordsUnplacedWords, recordsWithoutStopWords, rowActualWords, skippedCountWords, spentOutOfWords, spentSoFarWords, statusWords,
+  ACTUAL_WORD, ON_PLAN_WORDS, RECORDS_NOT_READ_WORDS, completenessWords, dayStops, dayTotals, deltaWords, focusStop, minutesLine, monthDayWords, notRecordedWords,
+  recordsUnplacedWords, recordsWithoutStopWords, rowActualWords, skippedCountWords, spentSoFarWords, statusWords,
   type DayCardInput, type Stop,
 } from '@/components/workbench/operations/day/dayCard';
 import { readStopRecords, stopRecordsFailedWords } from '@/components/workbench/operations/day/dayReads';
@@ -318,7 +318,8 @@ test('T2 the day’s spent is the sum of the actuals that exist, the stops witho
   assert.equal(sk.withActual, 0, 'PLAN-01: records read, no actual');
   // CLEAN-01 (2026-10-14): spentWords left with the full card's counts; the same rule holds on its line — the screen passes the spent as
   // unknown (null) when no stop carries an actual (DayCard.tsx `spent`, pinned in daycard01 T7), and the words print "—", never $0.
-  assert.equal(spentOutOfWords(sk.withActual === 0 ? null : sk.spentCents, 2500), 'spent — out of $25', 'PLAN-01: the sum of no actuals is not $0 — it is unknown');
+  // TOTALS-01 (2026-10-14): the spent line is gone — its number is the TOTAL row's ACTUAL (dayTotals). Moved, never loosened: the same rule.
+  assert.equal(dayTotals(sk, 2500).actualCents, null, 'PLAN-01: the sum of no actuals is not $0 — it is unknown ("—")');
   // VENDOR-02 (2026-10-14): completenessWords lost its stranded count (Alex's ruling — stranded vendors are Budget's to show); the words stand.
   assert.equal(completenessWords(sk, { day: true, report: true, records: true }), '1 not priced · 1 skipped');
   // The done count is the marks' — a line done by its routine's completion counts (its row wears ✓); a task without an actual counts as without.
@@ -366,7 +367,8 @@ test('T3 the record’s words: the rubric, the stars, the status with its source
   assert.equal(minutesTypedWords('a while'), '"a while" is not a number of minutes');
   // The card's.
   assert.equal(ACTUAL_WORD, 'ACTUAL');
-  assert.equal(SPENT_WORD, 'spent');
+  // TOTALS-01 (2026-10-14): SPENT_WORD went with the spent line (spentOutOfWords, its one reader) — the TOTAL row says ACTUAL.
+  assert.doesNotMatch(code('src/components/workbench/operations/day/dayCard.ts'), /SPENT_WORD|spentOutOfWords/);
   assert.equal(RECORDS_NOT_READ_WORDS, 'records not read');
   assert.equal(ON_PLAN_WORDS, 'on plan');
   assert.deepEqual(deltaWords(1200, 1000), { text: '▲ $2 over', over: true });
@@ -384,9 +386,13 @@ test('T3 the record’s words: the rubric, the stars, the status with its source
   // The words take the count of stops that carry an actual; the STOP-01 pin "spent $0 · 7 without an amount" moved to "spent — · 7 …".
   // CLEAN-01 (2026-10-14) — Alex's ruling: the full card's line is "spent $X out of $Y" with no counts; spentWords and spentLineWords
   // had no other reader and are gone. Their pins moved to spentOutOfWords (daycard01 T7); the rule they carried stands: "—", never $0.
-  assert.equal(spentOutOfWords(5425, 7500), 'spent $54.25 out of $75');
-  assert.equal(spentOutOfWords(null, 7500), 'spent — out of $75', 'nothing recorded is unknown, not zero — never $0');
-  assert.equal(spentOutOfWords(0, 7500), 'spent $0 out of $75', 'a recorded $0 is an actual');
+  // TOTALS-01 (2026-10-14) — Alex's ruling: the spent line is gone; its number is the TOTAL row's ACTUAL (dayTotals). The rule moved with it:
+  // the recorded actuals summed; "—" while none is recorded or the records were not read — never $0; a recorded $0 is an actual.
+  const day0 = dayStops(input({ records: [] }));
+  assert.equal(dayTotals({ ...day0, spentCents: 5425, withActual: 2 }, 7500).actualCents, 5425);
+  assert.equal(dayTotals({ ...day0, spentCents: 0, withActual: 0 }, 7500).actualCents, null, 'nothing recorded is unknown, not zero — never $0');
+  assert.equal(dayTotals({ ...day0, spentCents: null, withActual: 0 }, 7500).actualCents, null, 'the records not read — unknown');
+  assert.equal(dayTotals({ ...day0, spentCents: 0, withActual: 1 }, 7500).actualCents, 0, 'a recorded $0 is an actual');
   // CLEAN-02 (2026-10-14) — Alex's ruling: "spent so far $9.69 of $75" — no "N without an amount"; nothing so far recorded, or the records
   // not read, is "—" (the caller passes null — unknown, never $0). The PLAN-01 pins with the count moved to these.
   assert.equal(spentSoFarWords(1200, 7500), 'spent so far $12 of $75', 'PLAN-01: the SPENT bar’s words, of the day’s planned total');
@@ -635,7 +641,9 @@ test('T6 the form: under the plate on the step view, for a line or a routine onl
   assert.ok(c.indexOf('<StopForm') < c.indexOf('data-day-foot'), '— above the sentences');
   assert.match(c, /\{loaded && recordsOk && focus !== null && focus\.stop\.address !== null && \(/, 'on the step view, for a stop that has an address — never while the records could not be read');
   // CLEAN-01 (2026-10-14): the spent line is "spent $X out of $Y" — the PLAN-01 count decides only whether the spent is known.
-  assert.match(c, /data-day-spent>\{spentOutOfWords\(spent, plannedCents\)\}/, 'the spent line under the hook — out of the planned total');
+  // TOTALS-01 (2026-10-14): the spent line left the plate — the TOTAL row's ACTUAL carries the spent (totals01.test.ts pins the row).
+  assert.doesNotMatch(c, /data-day-spent>|spentOutOfWords/, 'no spent line under the hook');
+  assert.match(c, /data-day-total-actual>\{planDollars\(totals\.actualCents\)\}/, 'the spent, in the TOTAL row');
   // CLEAN-02 (2026-10-14) — Alex's ruling: no status line on the stop card (the full card's ✓ says done); statusWords stays the clear question's (StopForm, above).
   assert.doesNotMatch(c, /data-day-status>|statusWords\(/, 'no status line on the plate');
   assert.match(c, /data-day-actual>\{planDollars\(focus\.stop\.actualCents\)\}/);
