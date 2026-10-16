@@ -329,8 +329,8 @@ export const YESTERDAY_WORD = 'YESTERDAY';
 export const TODAY_BLOCK_WORD = 'TODAY';
 export const BLOCKERS_BLOCK_WORD = 'BLOCKERS';
 export const PLAN_BLOCK_WORD = 'PLAN';
-/** An unanswered question prints this — never a blank. */
-export const UNANSWERED_WORD = '—';
+// DECK-01 (Alex, 2026-10-16): UNANSWERED_WORD ('—') is gone — once something is typed, a block with no answer is left off the
+// plate; nothing typed is the one line noJournalWords. Nothing prints a blank.
 /** "• perfect the day cards" — a goal on the plate. */
 export const goalWords = (goal: string): string => `• ${goal}`;
 /** "☐ 1. merge TABLE-01" · "✓ 1. merge TABLE-01" — a step and its tick. */
@@ -342,17 +342,21 @@ export const planDoneWords = (done: number, of: number): string => `${done} of $
 export const NO_JOURNAL_YESTERDAY_WORDS = 'no journal yesterday';
 /** Yesterday's journal has no plan — nothing to tick. */
 export const NO_PLAN_YESTERDAY_WORDS = 'no plan yesterday';
-export const LEFT_OVER_WORD = 'left over:';
+/** DECK-01 (Alex, 2026-10-16): "2 left over" — the count alone on the plate; the steps themselves are the form's "+ yesterday's open steps" and the plan prompt's. */
+export const leftOverWords = (k: number): string => `${k} left over`;
 /**
  * CLEAN-02 (2026-10-14): the card's YESTERDAY line from yesterday's plan ticks —
  * "all 6 steps done" · "4 of 6 steps done · left over: a · b" · "no plan
  * yesterday" · "no journal yesterday" (was the money tally and "not finished: …").
+ * DECK-01 (Alex, 2026-10-16): one line of counts — "4 of 6 steps done · 2 left
+ * over"; the left-over steps are no longer listed on the plate (LEFT_OVER_WORD,
+ * 'left over:', is gone with the list). The form and the plan prompt keep them.
  */
 export function yesterdayStepsWords(row: Answers | null): string {
   const y = yesterdaySteps(row);
   if (y.kind === 'no journal') return NO_JOURNAL_YESTERDAY_WORDS;
   if (y.kind === 'no plan') return NO_PLAN_YESTERDAY_WORDS;
-  return y.leftOver.length === 0 ? `all ${y.of} steps done` : `${y.done} of ${y.of} steps done · ${LEFT_OVER_WORD} ${y.leftOver.join(' · ')}`;
+  return y.leftOver.length === 0 ? `all ${y.of} steps done` : `${y.done} of ${y.of} steps done · ${leftOverWords(y.leftOver.length)}`;
 }
 /** "+ yesterday's open steps (2)" — the form's button that appends them to the plan box. */
 export const ADD_OPEN_STEPS_WORDS = (n: number): string => `+ yesterday's open steps (${n})`;

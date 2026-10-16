@@ -145,8 +145,9 @@ test('T3 "copy plan prompt": beside the PLAN, writes planPromptText to the clipb
 // CLEAN-02 (2026-10-14) — Alex's ruling: "accomplished:" became "note:" (only when typed) and "not finished: a · b" became
 // yesterdayStepsWords' "4 of 6 steps done · left over: a · b"; ACCOMPLISHED_WORD, accomplishedWords and notFinishedWords are deleted.
 // JOURNAL-03 (Alex, 2026-10-15): END OF DAY is retired — "note:" on its text is gone, noteWords deleted; the pins moved to "gone".
-test('T4 the plate’s YESTERDAY: the steps done and "left over:" on the steps not ticked; no "note:" (JOURNAL-03)', () => {
-  assert.equal(yesterdayStepsWords(answersOf({ plan_steps: ['merge', 'book travel', 'record brunch'], plan_done: [true, false, false] })), '1 of 3 steps done · left over: book travel · record brunch');
+// DECK-01 (Alex, 2026-10-16) — DECLUTTERED: "left over: a · b" became the count "2 left over"; the steps themselves are the form's and the prompt's.
+test('T4 the plate’s YESTERDAY: the steps done and the count left over; no "note:" (JOURNAL-03)', () => {
+  assert.equal(yesterdayStepsWords(answersOf({ plan_steps: ['merge', 'book travel', 'record brunch'], plan_done: [true, false, false] })), '1 of 3 steps done · 2 left over');
   const c = code(CARD);
   assert.doesNotMatch(c + code(RULE), /data-day-yesterday-note|\bnoteWords\b|\bNOTE_WORD\b|'note:'/, 'the note on yesterday’s END OF DAY is gone');
   assert.match(c, /data-day-yesterday-steps>\{yesterdayStepsWords\(yRow\)\}/);
@@ -164,7 +165,11 @@ test('T5 one width: the plate, the hint, the foot and both forms under it are PL
   assert.match(code(STOP_FORM), /style=\{\{ width: PLATE_WIDTH \}\} data-stop-form>/);
   const c = code(CARD);
   // CLEAN-02 (2026-10-14): the download button's row and the fine print are at the plate's width too.
-  for (const attr of ['data-day-card', 'data-day-hint', 'data-day-foot', 'data-day-image', 'data-day-fine-print']) assert.match(c, new RegExp(`width: PLATE_WIDTH[\\s\\S]{0,120}?\\}\\} ${attr}`), `${attr} at the plate’s width`);
+  // DECK-01 (Alex, 2026-10-16): the plate stays PLATE_WIDTH (the deck scales it on a phone); everything under the deck is `under` — the
+  // plate's width, or the screen's when that is narrower. One constant still; no width typed.
+  assert.match(c, /width: PLATE_WIDTH[\s\S]{0,120}?\}\} data-day-card/, 'data-day-card at the plate’s width');
+  assert.match(c, /const under = \{ width: '100%', maxWidth: PLATE_WIDTH \} as const;/);
+  for (const attr of ['data-day-hint', 'data-day-foot', 'data-day-image', 'data-day-fine-print']) assert.match(c, new RegExp(`style=\\{under\\} ${attr}`), `${attr} at the plate’s width, or the screen’s`);
 });
 
 // ── T6 · THE TWO BARS ────────────────────────────────────────────────────────
@@ -178,10 +183,11 @@ test('T6 the step view’s two bars: PLAN (gold) and SPENT (green), each with it
   assert.equal(BARS_NOTHING_PLANNED_WORDS, 'no bars — nothing is planned for the day');
   const c = code(CARD);
   // CLEAN-02 (2026-10-14): the bars' why-line prints under the plate, in the fine print — still after the bars in the screen's order.
-  inOrder(c, ['data-day-plan-so-far>', 'data-day-plan-bar={planBar}', 'data-day-spent-so-far>', 'data-day-spent-bar={spentBar}', 'data-day-fine-print>', 'data-day-bars-why>'], 'the plan words and bar, then the spent words and bar, then — under the plate — why there are none');
+  // DECK-01 (Alex, 2026-10-16): each stop card's bars are barsOf(f) — bars.planBar, bars.spentBar, bars.overCents; the why-line under the deck is the card in view's.
+  inOrder(c, ['data-day-plan-so-far>', 'data-day-plan-bar={bars.planBar}', 'data-day-spent-so-far>', 'data-day-spent-bar={bars.spentBar}', 'data-day-fine-print>', 'data-day-bars-why>'], 'the plan words and bar, then the spent words and bar, then — under the deck — why there are none');
   // TOTALS-01 amendment II (Alex, 2026-10-15): moved, not loosened — "over by" is past the TOTAL row's BUDGET (totals.budgetCents), and the
   // why-line is barsWhyWords, whose answers stay true when the hero has a plan the stops do not carry (totals01 T3 drives every case).
-  assert.match(c, /const overCents = focus === null \|\| focus\.spentSoFarCents === null \|\| focus\.withActualSoFar === 0 \|\| totals\.budgetCents === null \|\| focus\.spentSoFarCents <= totals\.budgetCents \? null : focus\.spentSoFarCents - totals\.budgetCents;/, 'over: the actuals past the total — the bar full (progressPercent clamps), the amount said');
+  assert.match(c, /overCents: f\.spentSoFarCents === null \|\| f\.withActualSoFar === 0 \|\| totals\.budgetCents === null \|\| f\.spentSoFarCents <= totals\.budgetCents \? null : f\.spentSoFarCents - totals\.budgetCents,/, 'over: the actuals past the total — the bar full (progressPercent clamps), the amount said');
   assert.match(c, /\{focus !== null && planBar === null && <p data-day-bars-why>\{barsWhyWords\(plannedCents, totals\.budgetCents\)\}<\/p>\}/, 'no bars without a total — and why, in the fine print (CLEAN-02)');
 });
 

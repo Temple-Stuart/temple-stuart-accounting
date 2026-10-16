@@ -169,7 +169,8 @@ test('T1 the tag: the stay’s count and place, the vendor big, the name and tim
   assert.equal(tag('brunch', null).words.top, 'Thu Oct 15');
   // The foot is the step view's own line — the one rule both print.
   assert.equal(under.words.foot, under.foot);
-  assert.match(code(CARD), /data-day-spent-so-far>\{stepSpentSoFarWords\(focus, totals\.budgetCents\)\}/);
+  // DECK-01 (Alex, 2026-10-16): the line is each stop card's (stopPlate(f)); the tag is the card in view's (focus). Moved, not loosened.
+  assert.match(code(CARD), /data-day-spent-so-far>\{stepSpentSoFarWords\(f, totals\.budgetCents\)\}/);
   assert.match(code(CARD), /const tag = focus !== null && reelWait === null \? stopTagWords\(\{ day, stay: reelStay, stop: focus\.stop, foot: stepSpentSoFarWords\(focus, totals\.budgetCents\) \}\) : null;/);
   assert.throws(() => stopTagWords({ day: '2026-11-01', stay: STAY, stop: r.stops[1], foot: '' }), /does not cover 2026-11-01/, 'a stay that does not cover the day is the caller’s error');
 });
@@ -188,7 +189,8 @@ test('T1 the tag’s element and file: outside the day folder, the card’s own 
   const c = code(CARD);
   assert.match(c, /<StopTag ref=\{tagRef\} words=\{tag\} moneyTone=\{actualTone\(tag\.money === null \? null : tag\.money\.over\)\} \/>/, 'the card’s own actualTone — one colour rule');
   assert.match(c, /<div aria-hidden="true" style=\{\{ position: 'fixed', left: -10000, top: 0, pointerEvents: 'none' \}\} data-day-tag-stage>/, 'rendered off the page, never seen');
-  assert.match(c, /await downloadCardImage\(tagRef\.current, cardTagName\(day, \{ index: focus\.index, label: boldOf\(focus\.stop\) \}\)\);/, 'the card’s renderer — its pixel ratio, its transparency');
+  // DECK-01 (Alex, 2026-10-16): the tag's file is named for the deck's card number (deckIndex — the journal not one), as the card's image is.
+  assert.match(c, /await downloadCardImage\(tagRef\.current, cardTagName\(day, \{ index: deckIndex, label: boldOf\(focus\.stop\) \}\)\);/, 'the card’s renderer — its pixel ratio, its transparency');
   assert.match(code(CARD_IMAGE), /export const cardTagName = \(day: string, focus: \{ readonly index: number; readonly label: string \}\): string =>\n\s*cardImageName\(day, focus\)\.replace\(\/\\\.png\$\/, '-tag\.png'\);/);
 });
 
@@ -360,14 +362,16 @@ test('T5 beside "download image": the full card’s "copy caption", the step vie
   assert.ok(row !== null, 'one row of buttons');
   const buttons = [...row[1].matchAll(/data-day-([a-z-]+)>\{([A-Z_]+)\}<\/button>/g)].map((m) => [m[1], m[2]]);
   assert.deepEqual(buttons, [['download-image', 'DOWNLOAD_IMAGE_WORDS'], ['copy-caption', 'COPY_CAPTION_WORDS'], ['download-tag', 'DOWNLOAD_TAG_WORDS'], ['copy-script', 'COPY_SCRIPT_WORDS']]);
-  assert.match(row[1], /\{focus === null && <button type="button" className=\{chip\} disabled=\{caption === null \|\| !caption\.ok\} onClick=\{\(\) => copyReel\('caption', caption\)\} data-day-copy-caption>/, 'the caption on the full card');
+  // DECK-01 (Alex, 2026-10-16): copyReel is told which view it copies for (`at`) — the card in view, or the journal card under the deck.
+  assert.match(row[1], /\{focus === null && <button type="button" className=\{chip\} disabled=\{caption === null \|\| !caption\.ok\} onClick=\{\(\) => copyReel\('caption', caption, view\)\} data-day-copy-caption>/, 'the caption on the full card');
   assert.match(row[1], /\{focus !== null && <button type="button" className=\{chip\} disabled=\{tag === null \|\| tagBusy\} aria-busy=\{tagBusy\} onClick=\{downloadTag\} data-day-download-tag>/, 'the tag in the step view');
-  assert.match(row[1], /<button type="button" className=\{chip\} disabled=\{script === null \|\| !script\.ok\} onClick=\{\(\) => copyReel\('script', script\)\} data-day-copy-script>/, 'the script on both');
+  assert.match(row[1], /<button type="button" className=\{chip\} disabled=\{script === null \|\| !script\.ok\} onClick=\{\(\) => copyReel\('script', script, view\)\} data-day-copy-script>/, 'the script on both');
   // The reasons, in words: waiting or failed reads, no stay; then copied, or the clipboard's refusal — never a silent catch.
   assert.match(c, /\{reelWait !== null && <p className="text-text-muted" data-day-reel-waits>\{reelWait\}<\/p>\}/);
   assert.match(c, /\{script !== null && !script\.ok && <p className="text-text-muted" data-day-reel-no-stay>\{script\.words\}<\/p>\}/);
   assert.match(c, /\{reelWords !== null && reelWords\.view === view && <p className=\{reelWords\.ok \? 'text-text-muted' : 'text-brand-red'\} data-day-reel-words>\{reelWords\.words\}<\/p>\}/);
-  assert.match(c, /try \{\n\s*await navigator\.clipboard\.writeText\(text\.text\);\n\s*setReelWords\(\{ view, ok: true, words: what === 'caption' \? CAPTION_COPIED_WORDS : SCRIPT_COPIED_WORDS \}\);\n\s*\} catch \(error\) \{\n\s*setReelWords\(\{ view, ok: false, words: copyFailedWords\(what, error instanceof Error \? error\.message : String\(error\)\) \}\);\n\s*\}/, 'copied, or the failure said');
+  assert.match(c, /const copyReel = async \(what: 'caption' \| 'script', text: ReelText \| null, at: string\) => \{/);
+  assert.match(c, /try \{\n\s*await navigator\.clipboard\.writeText\(text\.text\);\n\s*setReelWords\(\{ view: at, ok: true, words: what === 'caption' \? CAPTION_COPIED_WORDS : SCRIPT_COPIED_WORDS \}\);\n\s*\} catch \(error\) \{\n\s*setReelWords\(\{ view: at, ok: false, words: copyFailedWords\(what, error instanceof Error \? error\.message : String\(error\)\) \}\);\n\s*\}/, 'copied, or the failure said');
   assert.equal((c.match(/navigator\.clipboard/g) ?? []).length, 1, 'one write — no second path');
   // R4: nothing leaves the browser but the PNG and the clipboard — no fetch, no model, no route, in the card, its rules or the tag.
   for (const f of [CARD, RULES, TAG]) assert.doesNotMatch(code(f), /\bfetch\s*\(|generate-script|anthropic|openai|XMLHttpRequest|sendBeacon/i, `${f} sends nothing`);

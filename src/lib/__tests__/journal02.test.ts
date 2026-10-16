@@ -19,7 +19,7 @@ import { Prisma } from '@prisma/client';
 import { code, comments } from '../sourceText';
 import {
   ADD_OPEN_STEPS_WORDS, ANSWER_FIELDS, BIDI_WORDS, BLOCKERS_BLOCK_WORD, BLOCKERS_QUESTION, CONTROLS_WORDS, DONE_NOT_LIST_WORDS,
-  GOALS_EXAMPLE, JOURNAL_RECORD_WORDS, LEFT_OVER_WORD, LIST_MAX, NO_JOURNAL_YESTERDAY_WORDS, NO_PLAN_YESTERDAY_WORDS, NOTHING_TYPED_WORDS, PLAN_BLOCK_WORD, PLAN_EXAMPLE, PLAN_QUESTION, RETIRED_FIELDS, TODAY_BLOCK_WORD, TODAY_GOALS_QUESTION,
+  GOALS_EXAMPLE, JOURNAL_RECORD_WORDS, LIST_MAX, NO_JOURNAL_YESTERDAY_WORDS, NO_PLAN_YESTERDAY_WORDS, NOTHING_TYPED_WORDS, PLAN_BLOCK_WORD, PLAN_EXAMPLE, PLAN_QUESTION, RETIRED_FIELDS, TODAY_BLOCK_WORD, TODAY_GOALS_QUESTION,
   YESTERDAY_WORD, answersOf, blankLineWords, carryTicks, doneLengthWords, doneNotBooleanWords, goalWords, journalInput, journalRowOf, journalUnchanged, lineNotStringWords,
   lineTooLongWords, lineWords, linesOf, notListWords, openSteps, planDoneWords, retiredFieldWords, planStepWords, tooManyWords, yesterdaySteps, yesterdayStepsWords,
   type Answers,
@@ -215,11 +215,15 @@ test('T2b CLEAN-02 yesterdayStepsWords — all done, some left over, no plan, no
   // CLEAN-02 (2026-10-14) — Alex's ruling: YESTERDAY on the journal card is its plan's ticks, from the one rule (openSteps).
   const six = ['merge TABLE-01', 'book travel', 'record brunch', 'screenshot the card', 'post the reel', 'reply to comments'];
   assert.equal(yesterdayStepsWords(answersOf({ plan_steps: six, plan_done: [true, true, true, true, true, true] })), 'all 6 steps done');
-  assert.equal(yesterdayStepsWords(answersOf({ plan_steps: six, plan_done: [true, true, false, true, true, false] })), '4 of 6 steps done · left over: record brunch · reply to comments', 'the steps left over in their order');
-  assert.equal(yesterdayStepsWords(answersOf({ plan_steps: ['a'], plan_done: [false] })), '0 of 1 steps done · left over: a');
+  // DECK-01 (Alex, 2026-10-16) — DECLUTTERED: the line is counts alone ("· 2 left over"); the steps left over are the form's "+ yesterday's open
+  // steps (k)" and the plan prompt's (openSteps, unchanged). Moved, not loosened.
+  assert.equal(yesterdayStepsWords(answersOf({ plan_steps: six, plan_done: [true, true, false, true, true, false] })), '4 of 6 steps done · 2 left over', 'the count left over');
+  assert.equal(yesterdayStepsWords(answersOf({ plan_steps: ['a'], plan_done: [false] })), '0 of 1 steps done · 1 left over');
   assert.equal(yesterdayStepsWords(answersOf({ goals: ['g'] })), 'no plan yesterday', 'a journal with no plan');
   assert.equal(yesterdayStepsWords(null), 'no journal yesterday', 'the read answered no row');
-  assert.deepEqual([NO_JOURNAL_YESTERDAY_WORDS, NO_PLAN_YESTERDAY_WORDS, LEFT_OVER_WORD], ['no journal yesterday', 'no plan yesterday', 'left over:']);
+  // DECK-01 (Alex, 2026-10-16): LEFT_OVER_WORD ('left over:') is gone with the list of steps — the line is a count (deck01.test.ts).
+  assert.deepEqual([NO_JOURNAL_YESTERDAY_WORDS, NO_PLAN_YESTERDAY_WORDS], ['no journal yesterday', 'no plan yesterday']);
+  assert.doesNotMatch(code(RULE), /\bLEFT_OVER_WORD\b|'left over:'/, 'LEFT_OVER_WORD is deleted');
   assert.throws(() => yesterdayStepsWords(answersOf({ plan_steps: ['a'], plan_done: [] })), /0 ticks for 1 steps/, 'ticks that do not match the steps are the database’s error — never counted');
   assert.deepEqual(yesterdaySteps(answersOf({ plan_steps: ['a', 'b'], plan_done: [false, true] })), { kind: 'steps', done: 1, of: 2, leftOver: ['a'] });
   assert.deepEqual(yesterdaySteps(null), { kind: 'no journal' });
@@ -344,7 +348,8 @@ test('T6 the plate: the four blocks in order; each step a tick button through th
   assert.match(plate, /data-day-yesterday-steps>\{yesterdayStepsWords\(yRow\)\}/);
   assert.doesNotMatch(plate, /data-day-yesterday-(end-of-day|spent|largest|done|not-finished)|tally|plannedCents|planDollars|statusWords|provenance/i, 'no money, no status, no source on the journal card');
   assert.match(plate, /\{a\.goals\.map\(\(goal, i\) => \(\n\s*<div [^>]*data-day-journal-goal>\{goalWords\(goal\)\}<\/div>/, 'TODAY: the goals as a list');
-  assert.match(plate, /data-day-journal-blocker>\{a\.blocker === null \? UNANSWERED_WORD : a\.blocker\}/);
+  // DECK-01 (Alex, 2026-10-16): a block with no answer is left out — the BLOCKERS block renders only with a blocker, and prints it alone.
+  assert.match(plate, /\{row !== null && a\.blocker !== null && \(\n\s*<div [^>]*data-day-journal-blockers>[\s\S]*?data-day-journal-blocker>\{a\.blocker\}<\/div>/);
   // JOURNAL-03 (2026-10-15): "END OF DAY — until typed" is gone with the block (pinned absent above).
   assert.match(plate, /\{a\.plan_steps\.map\(\(step, i\) => \(\n\s*<button\n\s*type="button"[\s\S]*?onClick=\{\(\) => tick\(i\)\}[\s\S]*?>\{planStepWords\(i \+ 1, step, a\.plan_done\[i\]\)\}<\/button>/, 'a button per step, ☐/✓ n. step');
   assert.match(plate, /data-day-journal-plan-done>\{planDoneWords\(a\.plan_done\.filter\(\(d\) => d\)\.length, a\.plan_steps\.length\)\}/, '"n of N done" under the list');

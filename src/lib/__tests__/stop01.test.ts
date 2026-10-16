@@ -646,15 +646,18 @@ test('T6 the form: under the plate on the step view, for a line or a routine onl
   assert.match(c, /data-day-total-actual>\{planDollars\(totals\.actualCents\)\}/, 'the spent, in the TOTAL row');
   // CLEAN-02 (2026-10-14) — Alex's ruling: no status line on the stop card (the full card's ✓ says done); statusWords stays the clear question's (StopForm, above).
   assert.doesNotMatch(c, /data-day-status>|statusWords\(/, 'no status line on the plate');
-  assert.match(c, /data-day-actual>\{planDollars\(focus\.stop\.actualCents\)\}/);
-  assert.match(c, /\{delta !== null && delta\.over !== null && <div className=\{`font-semibold tabular-nums \$\{actualTone\(delta\.over\)\}`\} style=\{\{ fontSize: 23, lineHeight: 1\.1 \}\} data-day-delta>\{delta\.text\}<\/div>\}/, 'the delta only when both figures are known');
+  // DECK-01 (Alex, 2026-10-16): the stop card is stopPlate(f) — its stop is f.stop, its delta d (deltaWords of f.stop, never null inside the card),
+  // its bars `bars` (barsOf(f)). Moved, not loosened.
+  assert.match(c, /data-day-actual>\{planDollars\(f\.stop\.actualCents\)\}/);
+  assert.match(c, /const d = deltaWords\(f\.stop\.actualCents, f\.stop\.cents\);/);
+  assert.match(c, /\{d\.over !== null && <div className=\{`font-semibold tabular-nums \$\{actualTone\(d\.over\)\}`\} style=\{\{ fontSize: 23, lineHeight: 1\.1 \}\} data-day-delta>\{d\.text\}<\/div>\}/, 'the delta only when both figures are known');
   // CLEAN-02 (2026-10-14): the rating as stars alone (was ratingWords — the stars and the rubric's words).
-  assert.match(c, /data-day-rating>\{starsWords\(focus\.stop\.record\.rating\)\}/);
+  assert.match(c, /data-day-rating>\{starsWords\(f\.stop\.record\.rating\)\}/);
   // PLAN-01 (2026-10-13): the spent line is the SPENT bar's words — of the day's planned total; "over by $X" in the over tone past it.
   // CLEAN-02 (2026-10-14): the words take the spent so far, or null while nothing so far is recorded or the records are unread — no count.
   // TOTALS-01 amendment II (Alex, 2026-10-15): moved, not loosened — of the TOTAL row's BUDGET (totals.budgetCents), not the day's planned total.
   // REEL-01 (Alex, 2026-10-15): moved, not loosened — the words are stepSpentSoFarWords (the same expression, one rule for the line and the tag, reel01 T1).
-  assert.match(c, /data-day-spent-so-far>\{stepSpentSoFarWords\(focus, totals\.budgetCents\)\}\{overCents !== null && <span className=\{actualTone\(true\)\} data-day-over-by> · \{overByWords\(overCents\)\}<\/span>\}/);
+  assert.match(c, /data-day-spent-so-far>\{stepSpentSoFarWords\(f, totals\.budgetCents\)\}\{bars\.overCents !== null && <span className=\{actualTone\(true\)\} data-day-over-by> · \{overByWords\(bars\.overCents\)\}<\/span>\}/);
   assert.match(c, /if \(status === 'skipped'\) return <span className="text-text-muted" aria-label="skipped">–<\/span>;/);
   assert.match(c, /const actualTone = \(over: boolean \| null\): string => \(over === null \? 'text-text-muted' : over \? 'text-brand-red' : 'text-brand-green'\);/);
   assert.match(c, /data-day-records-without-stop>\{recordsWithoutStopWords\(result\.recordsWithoutStop\)\}/);

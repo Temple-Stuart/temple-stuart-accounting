@@ -21,7 +21,7 @@ import { code, comments } from '../sourceText';
 import type { PlanLine } from '../budget/planLines';
 import {
   ALSO_TODAY_WORDS, DEFAULT_ROLE, NOTE_PROMPT_WORDS, NOT_A_STOP_RECORD_WORDS, NOT_A_STOP_WORDS, NO_AMOUNT_NO_VENDOR_WORDS, REPORT_NOT_READ_NO_VENDOR_WORDS, ROLE_FIELD_WORDS, ROLE_SHORT_WORDS,
-  ROLE_TITLE_WORDS, ROLE_WORDS, STOP_ROLES, TAP_A_STOP_WORDS, UNMATCHED_NO_VENDOR_WORDS, VENDOR_LABEL_WORDS, allDayBandWords, allDayCentsWords, isStop, isStopRole, roleInput,
+  ROLE_TITLE_WORDS, ROLE_WORDS, STOP_ROLES, UNMATCHED_NO_VENDOR_WORDS, VENDOR_LABEL_WORDS, allDayBandWords, allDayCentsWords, isStop, isStopRole, roleInput,
 } from '../operations/stopRole';
 import type { StopRecordRow } from '../operations/stopRecord';
 import type { DailyPlanItem } from '@/components/workbench/operations/dailyplan/types';
@@ -123,7 +123,8 @@ test('T1 the words, exact', () => {
   assert.deepEqual(ROLE_SHORT_WORDS, { journal: 'journal', plan: 'plan', execute: 'execute', place: 'place', all_day: 'all day', none: '' });
   assert.equal(ALSO_TODAY_WORDS, 'also today');
   assert.equal(NOT_A_STOP_WORDS, "in the day's plan, not a stop");
-  assert.equal(TAP_A_STOP_WORDS, 'tap a stop to record it');
+  // DECK-01 (Alex, 2026-10-16): TAP_A_STOP_WORDS is gone — the hint under the deck is dayCard.ts SWIPE_HINT_WORDS (deck01.test.ts).
+  assert.doesNotMatch(code('src/lib/operations/stopRole.ts'), /\bTAP_A_STOP_WORDS\b|'tap a stop to record it'/, 'TAP_A_STOP_WORDS is deleted');
   assert.equal(NO_AMOUNT_NO_VENDOR_WORDS, 'give this line an amount on the Tasks tab to plan its vendor');
   assert.equal(REPORT_NOT_READ_NO_VENDOR_WORDS, "the day's amounts could not be read — no vendor can be planned until they are");
   assert.equal(UNMATCHED_NO_VENDOR_WORDS, "the Budget's line for this stop is at another instant (named under the plate) — no vendor can be planned on it here");
@@ -298,16 +299,21 @@ test('T4 the form asks what the role asks; the vendor box is the card’s child,
   assert.match(c, /data-day-all-day-amount>\{planDollars\(s\.cents\)\}/);
   assert.match(c, /\{bandNameOf\(s\)\}<\/span>/, 'the routine and its line');
   assert.match(c, /data-day-all-day-words>\{allDayBandWords\(result\.allDay\.filter\(\(s\) => s\.cents === null\)\.length\)\}/, 'the band’s words count its lines with no amount');
-  assert.match(c, /const N = result\.stops\.length;/, 'the stops, never the band');
+  // DECK-01 (Alex, 2026-10-16): N counts the deck's stops — the day's stops with the journal excepted (its card is under the deck); never the band.
+  assert.match(c, /const deckStops = result\.stops\.map\(\(stop, j\) => \(\{ stop, at: j \+ 1 \}\)\)\.filter\(\(x\) => x\.stop\.role !== 'journal'\);/);
+  assert.match(c, /const N = deckStops\.length;/, 'the stops, never the band');
   // PLAN-01 (2026-10-13): the line is the PLAN bar's words — soFarWords became planSoFarWords; the band's share stays on it.
   // TOTALS-01 amendment II (Alex, 2026-10-15): moved, not loosened — the line is of the TOTAL row's BUDGET now, which the band is not in; the
   // "· $N all day" note beside it is unchanged (its own condition, plannedCents and the band), and still names the band's money.
-  assert.match(c, /data-day-plan-so-far>\{planSoFarWords\(totals\.budgetCents === null \? null : focus\.soFarCents, totals\.budgetCents\)\}\{plannedCents !== null && result\.allDayCents > 0 && <span className="font-medium text-text-muted" data-day-so-far-all-day> · \{allDayCentsWords\(planDollars\(result\.allDayCents\)\)\}<\/span>\}/, 'the step card names the band’s money beside its line');
+  // DECK-01 (Alex, 2026-10-16): the line is each stop card's (stopPlate(f)). Moved, not loosened.
+  assert.match(c, /data-day-plan-so-far>\{planSoFarWords\(totals\.budgetCents === null \? null : f\.soFarCents, totals\.budgetCents\)\}\{plannedCents !== null && result\.allDayCents > 0 && <span className="font-medium text-text-muted" data-day-so-far-all-day> · \{allDayCentsWords\(planDollars\(result\.allDayCents\)\)\}<\/span>\}/, 'the step card names the band’s money beside its line');
   assert.match(c, /setItems\(null\);\n[\s\S]*?setReportReads\(0\);/, 'a new day resets the re-read counter — one report read per day change');
   // CLEAN-01 (2026-10-14): the plate's foot left the plate (its lines are the fine print under it) — the band is the full card's last part.
-  assert.ok(c.indexOf('data-day-stops') < c.indexOf('data-day-all-day') && c.indexOf('data-day-all-day') < c.indexOf('{loaded && focus !== null && (') && c.indexOf('data-day-all-day') < c.indexOf('data-day-fine-print'), 'after the rows, the last of the full card — on the plate, above the fine print');
+  // DECK-01 (Alex, 2026-10-16): the full card's body is fullPlate, which ends at `const under` — the band is its last part.
+  assert.ok(c.indexOf('data-day-stops') < c.indexOf('data-day-all-day') && c.indexOf('data-day-all-day') < c.indexOf('const under = ') && c.indexOf('data-day-all-day') < c.indexOf('data-day-fine-print'), 'after the rows, the last of the full card — on the plate, above the fine print');
   // PLAN-01 (2026-10-13): the hint's width is the plate's — PLATE_WIDTH, the one constant.
-  assert.match(c, /\{loaded && focus === null && N > 0 && <p className="mx-auto text-xs text-text-muted" style=\{\{ width: PLATE_WIDTH \}\} data-day-hint>\{TAP_A_STOP_WORDS\}<\/p>\}/, 'the hint, under the full plate, outside it');
+  // DECK-01 (2026-10-16): the hint says the deck's way in (SWIPE_HINT_WORDS), at the plate's width or the screen's (`under`) — still under the full card, outside it.
+  assert.match(c, /\{loaded && focus === null && N > 0 && <p className="mx-auto text-xs text-text-muted" style=\{under\} data-day-hint>\{SWIPE_HINT_WORDS\}<\/p>\}/, 'the hint, under the full plate, outside it');
   assert.ok(c.indexOf('data-day-card') < c.indexOf('data-day-hint'), 'outside the recorded box');
   assert.match(c, /const bookNameOf = \(entityId: string\): string => \{\n\s*const book = report !== null && report\.ok \? report\.value\.report\.books\.find\(\(b\) => b\.entityId === entityId\) : undefined;\n\s*return book === undefined \? ACCOUNT_CELL_WORDS\.bookNotLoaded : book\.entityName;\n\s*\};/, 'the book by name from the report’s own books, else said as not loaded');
   assert.match(c, /if \(day === null \|\| today === null \|\| reportReads === 0\) return;\n[\s\S]*?const r = await readDayReport\(day, today\);\n\s*if \(live\) setReport\(r\);/, 'the report read again in place after a vendor write — never blanked first');

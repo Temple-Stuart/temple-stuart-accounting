@@ -254,19 +254,20 @@ test('T3 no bars, and why — each answer true: not read; nothing planned; a pla
 
 test('T3 the screen: every step-view figure takes totals.budgetCents; none takes the hero’s plannedCents; the all-day note is unchanged', () => {
   const c = code(CARD);
-  assert.match(c, /const planBar = progressPercent\(totals\.budgetCents === null \|\| focus === null \? null : focus\.soFarCents, totals\.budgetCents\);/);
-  assert.match(c, /const spentBar = focus === null \|\| focus\.spentSoFarCents === null \|\| focus\.withActualSoFar === 0 \? null : progressPercent\(focus\.spentSoFarCents, totals\.budgetCents\);/);
-  assert.match(c, /const overCents = focus === null \|\| focus\.spentSoFarCents === null \|\| focus\.withActualSoFar === 0 \|\| totals\.budgetCents === null \|\| focus\.spentSoFarCents <= totals\.budgetCents \? null : focus\.spentSoFarCents - totals\.budgetCents;/);
-  assert.match(c, /data-day-plan-so-far>\{planSoFarWords\(totals\.budgetCents === null \? null : focus\.soFarCents, totals\.budgetCents\)\}\{plannedCents !== null && result\.allDayCents > 0 && <span className="font-medium text-text-muted" data-day-so-far-all-day> · \{allDayCentsWords\(planDollars\(result\.allDayCents\)\)\}<\/span>\}/, 'the line on the budget; its all-day note as it was');
+  // DECK-01 (Alex, 2026-10-16): moved, not loosened — the three figures are barsOf(f), one object per stop card of the deck, the same
+  // expressions with the card's focus handed in (f); every one still takes totals.budgetCents.
+  assert.match(c, /const barsOf = \(f: Focus\) => \(\{\n\s*planBar: progressPercent\(totals\.budgetCents === null \? null : f\.soFarCents, totals\.budgetCents\),\n\s*spentBar: f\.spentSoFarCents === null \|\| f\.withActualSoFar === 0 \? null : progressPercent\(f\.spentSoFarCents, totals\.budgetCents\),\n\s*overCents: f\.spentSoFarCents === null \|\| f\.withActualSoFar === 0 \|\| totals\.budgetCents === null \|\| f\.spentSoFarCents <= totals\.budgetCents \? null : f\.spentSoFarCents - totals\.budgetCents,\n\s*\}\);/);
+  assert.match(c, /const planBar = focus === null \? null : barsOf\(focus\)\.planBar;/);
+  assert.match(c, /data-day-plan-so-far>\{planSoFarWords\(totals\.budgetCents === null \? null : f\.soFarCents, totals\.budgetCents\)\}\{plannedCents !== null && result\.allDayCents > 0 && <span className="font-medium text-text-muted" data-day-so-far-all-day> · \{allDayCentsWords\(planDollars\(result\.allDayCents\)\)\}<\/span>\}/, 'the line on the budget; its all-day note as it was');
   // REEL-01 (Alex, 2026-10-15): moved, not loosened — the line is stepSpentSoFarWords(focus, totals.budgetCents), whose body is this expression.
-  assert.match(c, /data-day-spent-so-far>\{stepSpentSoFarWords\(focus, totals\.budgetCents\)\}/);
+  assert.match(c, /data-day-spent-so-far>\{stepSpentSoFarWords\(f, totals\.budgetCents\)\}/);
   assert.match(code(RULES), /export const stepSpentSoFarWords = \(focus: Pick<Focus, 'spentSoFarCents' \| 'withActualSoFar'>, budgetCents: number \| null\): string =>\n\s*spentSoFarWords\(focus\.spentSoFarCents === null \|\| focus\.withActualSoFar === 0 \? null : focus\.spentSoFarCents, budgetCents\);/, 'the same words, the same null — one rule for the line and the tag');
   assert.match(c, /\{focus !== null && planBar === null && <p data-day-bars-why>\{barsWhyWords\(plannedCents, totals\.budgetCents\)\}<\/p>\}/);
-  for (const call of [/progressPercent\([^;]*plannedCents[^;]*\);/, /planSoFarWords\([^)]*plannedCents[^)]*\)/, /spentSoFarWords\([^)]*plannedCents[^)]*\)/, /const overCents = [^;]*plannedCents/]) {
+  for (const call of [/progressPercent\([^,]*plannedCents[^)]*\)/, /planSoFarWords\([^)]*plannedCents[^)]*\)/, /spentSoFarWords\([^)]*plannedCents[^)]*\)/, /overCents: [^,]*plannedCents/]) {
     assert.doesNotMatch(c, call, `no step-view figure is of the hero’s plannedCents: ${call}`);
   }
   // The totals are read before the step view's figures that use them.
-  assert.ok(c.indexOf('const totals = dayTotals(result, plannedCents);') < c.indexOf('const planBar = '), 'the TOTAL row first, then the bars that measure it');
+  assert.ok(c.indexOf('const totals = dayTotals(result, plannedCents);') < c.indexOf('const barsOf = '), 'the TOTAL row first, then the bars that measure it');
   assert.match(comments(RULES), /TOTALS-01 amendment II \(Alex, 2026-10-15\): why the step view draws no bars/);
 });
 
@@ -274,7 +275,8 @@ test('T3 the screen: every step-view figure takes totals.budgetCents; none takes
 
 test('T2 the full card, top to bottom: where, the hero, the hook, the table and its TOTAL row, the meter, the verdict — the spent line gone', () => {
   const c = code(CARD);
-  const full = c.slice(c.indexOf('{loaded && focus === null && ('), c.indexOf('{loaded && focus !== null && ('));
+  // DECK-01 (Alex, 2026-10-16): the full card's body is fullPlate (to `const under`), handed to the deck's first card.
+  const full = c.slice(c.indexOf('const fullPlate = ('), c.indexOf('const under = '));
   const at = (s: string) => { const i = full.indexOf(s); assert.ok(i >= 0, `${s} is on the full card`); return i; };
   const order = ['data-day-where>', 'data-day-hero>', 'data-day-hook>{HOOK_WORDS}</div>', 'data-day-stops>', '<thead>', '<tbody>', '<tfoot>', 'data-day-total>', '</table>', 'data-day-meter=', 'data-day-verdict>', 'data-day-all-day>'];
   for (let i = 1; i < order.length; i += 1) assert.ok(at(order[i - 1]) < at(order[i]), `${order[i - 1]} before ${order[i]}`);

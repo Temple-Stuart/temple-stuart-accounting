@@ -65,7 +65,8 @@ export const ROLE_SHORT_WORDS: Readonly<Record<StopRole, string>> = {
 export const ALSO_TODAY_WORDS = 'also today';
 export const NOT_A_STOP_WORDS = 'in the day\'s plan, not a stop';
 /** The hint under the full plate — the record lives on the step view. */
-export const TAP_A_STOP_WORDS = 'tap a stop to record it';
+// DECK-01 (Alex, 2026-10-16): TAP_A_STOP_WORDS ('tap a stop to record it') is gone — the full card's hint under the deck is
+// day/dayCard.ts SWIPE_HINT_WORDS, the deck's own way in.
 /** Why a place stop has no plan line to plan its vendor on — one sentence per cause, never one for all. */
 export const NO_AMOUNT_NO_VENDOR_WORDS = 'give this line an amount on the Tasks tab to plan its vendor';
 export const REPORT_NOT_READ_NO_VENDOR_WORDS = "the day's amounts could not be read — no vendor can be planned until they are";

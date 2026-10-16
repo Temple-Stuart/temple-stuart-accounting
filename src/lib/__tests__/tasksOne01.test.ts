@@ -64,8 +64,12 @@ test('T2 hrefFor builds /tasks?date=&step= — DAY_CARD_PATH, the same two param
   const c = code(CARD);
   assert.match(c, /const hrefFor = \(day: string, step: number \| null\): string => `\$\{DAY_CARD_PATH\}\?date=\$\{day\}\$\{step === null \? '' : `&step=\$\{step\}`\}`;/);
   // Every control pushes hrefFor's URL — ‹ › today all, ‹ step, step › and a row's door — and nothing else.
-  assert.equal((c.match(/go\(hrefFor\(/g) ?? []).length, 7);
+  // DECK-01 (Alex, 2026-10-16): the day controls (‹ › today) push; "all", "‹ step" and "step ›" are gone, and the deck's moves (a swipe, a
+  // button, a key, a dot, a row's door) REPLACE hrefFor's URL — one replace, show() — so a swipe never fills the back button.
+  assert.equal((c.match(/go\(hrefFor\(/g) ?? []).length, 3);
   assert.equal((c.match(/router\.push\(/g) ?? []).length, 1, 'the one push is go()');
+  assert.equal((c.match(/router\.replace\(hrefFor\(day, step\), \{ scroll: false \}\)/g) ?? []).length, 1, 'the one replace is show()');
+  assert.equal((c.match(/router\.replace\(/g) ?? []).length, 1);
   assert.doesNotMatch(c, /\/tasks\/day|['"`]\/tasks\?/, 'no URL of the card is typed outside DAY_CARD_PATH');
   // The card still reads only ?date= and ?step= — and nothing else on /tasks reads a query parameter (the §1 grep).
   assert.deepEqual([...c.matchAll(/search\.get\('(\w+)'\)/g)].map((m) => m[1]), ['date', 'step']);
