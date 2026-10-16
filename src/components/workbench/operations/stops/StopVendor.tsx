@@ -23,7 +23,8 @@
 import type { PlanLine } from '@/lib/budget/planLines';
 import { VENDOR_LABEL_WORDS } from '@/lib/operations/stopRole';
 import { VendorBox, useDirectory } from '@/components/budget/DayPlanDrill';
-import { PLATE_WIDTH, type VendorSlot } from '../day/dayCard';
+import type { VendorSlot } from '../day/dayCard';
+import { underStyle, useDeckBleed } from './DayDeck';
 
 /** Budget's box on the matched line — the directory read here, so only while the box is shown. */
 function Box({ line, bookName, reload }: { line: PlanLine; bookName: string; reload: () => void }) {
@@ -32,9 +33,11 @@ function Box({ line, bookName, reload }: { line: PlanLine; bookName: string; rel
 }
 
 export default function StopVendor({ slot, bookName, reload }: { slot: VendorSlot; bookName: string; reload: () => void }) {
+  // WIDTH-01 (2026-10-16): the box takes the card's width on screen (stops/DayDeck.tsx underStyle), as everything under a card does.
+  const bleed = useDeckBleed();
   if (slot.kind === 'none') return null;
   return (
-    <div className="mx-auto flex flex-wrap items-center gap-1.5 text-xs" style={{ width: PLATE_WIDTH }} data-stop-vendor>
+    <div className="mx-auto flex flex-wrap items-center gap-1.5 text-xs" style={underStyle(bleed)} data-stop-vendor>
       <span className="text-text-faint uppercase tracking-wide">{VENDOR_LABEL_WORDS}</span>
       {slot.kind === 'box'
         ? <Box line={slot.line} bookName={bookName} reload={reload} />

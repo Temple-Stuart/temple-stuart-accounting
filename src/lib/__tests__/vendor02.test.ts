@@ -168,7 +168,8 @@ test('T2 the card mounts the VENDOR row on every step view, by the rule — afte
 test('T2 StopVendor: the label VENDOR, Budget\'s own box on the line or the place stop\'s reason, nothing else; the directory read only while the box shows', () => {
   const v = code(VENDOR);
   assert.match(v, /if \(slot\.kind === 'none'\) return null;/, 'nothing at all when there is nothing to pay');
-  assert.match(v, /<div className="mx-auto flex flex-wrap items-center gap-1\.5 text-xs" style=\{\{ width: PLATE_WIDTH \}\} data-stop-vendor>\n\s*<span className="text-text-faint uppercase tracking-wide">\{VENDOR_LABEL_WORDS\}<\/span>/, 'at the plate’s width, labelled VENDOR (the label word, upper-cased)');
+  // WIDTH-01 (Alex, 2026-10-16): the box takes the card's width on screen — the deck's rule (stops/DayDeck.tsx underStyle; deck01 T6).
+  assert.match(v, /<div className="mx-auto flex flex-wrap items-center gap-1\.5 text-xs" style=\{underStyle\(bleed\)\} data-stop-vendor>\n\s*<span className="text-text-faint uppercase tracking-wide">\{VENDOR_LABEL_WORDS\}<\/span>/, 'at the card’s width, labelled VENDOR (the label word, upper-cased)');
   assert.match(v, /\{slot\.kind === 'box'\n\s*\? <Box line=\{slot\.line\} bookName=\{bookName\} reload=\{reload\} \/>\n\s*: <span className="text-text-muted" data-stop-no-vendor>\{slot\.words\}<\/span>\}/);
   assert.match(v, /function Box\(\{ line, bookName, reload \}: \{ line: PlanLine; bookName: string; reload: \(\) => void \}\) \{\n\s*const directory = useDirectory\(\);\n\s*return <VendorBox line=\{line\} bookName=\{bookName\} directory=\{directory\} reload=\{reload\} \/>;\n\}/, 'the directory hook lives in the box child — a reason reads nothing');
   assert.equal((v.match(/useDirectory\(\)/g) ?? []).length, 1);

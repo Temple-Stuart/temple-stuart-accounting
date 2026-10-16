@@ -17,12 +17,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { code, comments } from '../sourceText';
 import {
-  DECK_FULL_CARD_WORDS, DECK_NEXT_WORDS, DECK_PREVIOUS_WORDS, DECK_WORDS, SWIPE_HINT_WORDS,
+  DECK_FULL_CARD_WORDS, DECK_NEXT_WORDS, DECK_PREVIOUS_WORDS, DECK_WORDS, PLATE_SCALE_MAX, PLATE_WIDTH, SWIPE_HINT_WORDS,
   badStepWords, deckCardWords, journalHeaderWords, journalImageName, openJournalWords, openStepWords, stepHeaderWords,
 } from '@/components/workbench/operations/day/dayCard';
-import { DECK_GAP, DECK_PEEK } from '@/components/workbench/operations/stops/DayDeck';
+import { DECK_BLEED_QUERY, DECK_GAP, DECK_PEEK, deckScaleOf, frameScaleOf, underStyle } from '@/components/workbench/operations/stops/DayDeck';
 import { NO_JOURNAL_YESTERDAY_WORDS, NO_PLAN_YESTERDAY_WORDS, answersOf, leftOverWords, noJournalWords, yesterdayStepsWords } from '../operations/journal';
-import { cardImageName } from '@/components/workbench/operations/cardImage';
+import { CARD_IMAGE_PIXEL_RATIO, cardImageName } from '@/components/workbench/operations/cardImage';
 
 const CARD = 'src/components/workbench/operations/day/DayCard.tsx';
 const RULES = 'src/components/workbench/operations/day/dayCard.ts';
@@ -30,6 +30,9 @@ const DECK = 'src/components/workbench/operations/stops/DayDeck.tsx';
 const JOURNAL = 'src/lib/operations/journal.ts';
 const STOP_ROLE = 'src/lib/operations/stopRole.ts';
 const JOURNAL_FORM = 'src/components/workbench/operations/stops/JournalForm.tsx';
+const STOP_FORM = 'src/components/workbench/operations/stops/StopForm.tsx';
+const STOP_VENDOR = 'src/components/workbench/operations/stops/StopVendor.tsx';
+const LAYOUT = 'src/components/ui/AppLayout.tsx';
 
 function inOrder(body: string, steps: readonly string[], what: string): void {
   let at = 0;
@@ -102,7 +105,8 @@ test('T2 the deck: CSS scroll snap, no dependency, controlled by ?step=, ‹ ›
   const d = code(DECK);
   // Outside the day folder (daycard01 T5 holds the folder to three files); two imports — React and the card's words — and nothing else.
   assert.deepEqual([...d.matchAll(/^import .* from '([^']+)';$/gm)].map((m) => m[1]), ['react', '../day/dayCard'], 'no library: the browser’s own scroll snap');
-  assert.match(d, /import \{ DECK_NEXT_WORDS, DECK_PREVIOUS_WORDS, DECK_WORDS, PLATE_WIDTH, deckCardWords \} from '\.\.\/day\/dayCard';/);
+  // WIDTH-01 (Alex, 2026-10-16): PLATE_SCALE_MAX joined the import — the cap on the scale (T6).
+  assert.match(d, /import \{ DECK_NEXT_WORDS, DECK_PREVIOUS_WORDS, DECK_WORDS, PLATE_SCALE_MAX, PLATE_WIDTH, deckCardWords \} from '\.\.\/day\/dayCard';/);
   assert.doesNotMatch(code('package.json'), /swiper|embla|keen-slider|react-slick|framer-motion|react-spring|use-gesture|react-swipeable/, 'no dependency added');
   assert.doesNotMatch(d, /\bfetch\s*\(|method:|localStorage|sessionStorage|document\.cookie|useRouter|useSearchParams|StageStrip|ProofStrip/, 'reads nothing, writes nothing, stores nothing, routes nothing');
   assert.match(d, /^'use client';/m);
@@ -115,7 +119,8 @@ test('T2 the deck: CSS scroll snap, no dependency, controlled by ?step=, ‹ ›
   // The next card peeks: the card is the deck's width less a peek at each edge; the padding centres it. Nothing typed but the two constants.
   assert.equal(DECK_PEEK, 28);
   assert.equal(DECK_GAP, 12);
-  assert.match(d, /const scale = deckWidth === null \? 1 : Math\.min\(1, \(deckWidth - 2 \* DECK_PEEK\) \/ PLATE_WIDTH\);\n\s*const slideWidth = Math\.round\(PLATE_WIDTH \* scale\);\n\s*const stride = slideWidth \+ DECK_GAP;\n\s*const sidePadding = deckWidth === null \? 0 : Math\.max\(0, Math\.floor\(\(deckWidth - slideWidth\) \/ 2\)\);/, 'the scale: never above 1; on a phone the card fits the screen less the peek');
+  // WIDTH-01 (Alex, 2026-10-16): the scale may pass 1 — the deck's width less the peeks over the plate's, capped at PLATE_SCALE_MAX (deckScaleOf, T6).
+  assert.match(d, /const scale = deckWidth === null \? 1 : deckScaleOf\(deckWidth\);\n\s*const slideWidth = Math\.round\(PLATE_WIDTH \* scale\);\n\s*const stride = slideWidth \+ DECK_GAP;\n\s*const sidePadding = deckWidth === null \? 0 : Math\.max\(0, Math\.floor\(\(deckWidth - slideWidth\) \/ 2\)\);/, 'the scale: the card fits the deck less the peek, down or up, never past the cap');
   // The plate itself stays PLATE_WIDTH wide — a transform scales it, so "download image" renders it full size whatever the screen.
   assert.match(d, /<div ref=\{\(el\) => \{ inner\.current\[i\] = el; \}\} style=\{\{ width: PLATE_WIDTH, transform: scale === 1 \? undefined : `scale\(\$\{scale\}\)`, transformOrigin: 'top left' \}\}>\n\s*\{children\[i\]\}/, 'the plate at its width, scaled by a transform');
   assert.equal((d.match(/new ResizeObserver\(/g) ?? []).length, 3, 'measured, never guessed: the deck’s width, each card’s height, the frame');
@@ -133,12 +138,14 @@ test('T2 the deck: CSS scroll snap, no dependency, controlled by ?step=, ‹ ›
   assert.match(d, /const step = \(direction: -1 \| 1\) => \{\n\s*const i = Math\.max\(0, Math\.min\(cards\.length - 1, shown\.current \+ direction\)\);\n\s*if \(i === shown\.current\) return;\n\s*shown\.current = i;\n\s*scrollTo\(i, true\);\n\s*onIndexChange\(i\);\n\s*\};/, 'a button or a key: one card, told once');
   assert.match(d, /aria-label=\{deckCardWords\(i \+ 1, cards\.length, card\.words\)\}\n\s*aria-current=\{i === index \? 'true' : undefined\}\n\s*onClick=\{\(\) => jump\(i\)\}\n\s*data-day-deck-dot=\{i\}/, 'the position marker: a dot per card, the one in view current, each a door');
   assert.match(d, /aria-label=\{deckCardWords\(i \+ 1, cards\.length, card\.words\)\}\n\s*aria-hidden=\{i !== index\}\n\s*data-day-deck-card=\{i\}/, 'a card out of view is hidden from the reader');
-  assert.match(d, /<div className="relative" data-day-deck data-day-deck-index=\{index\} data-day-deck-of=\{cards\.length\} data-day-deck-scale=\{scale\.toFixed\(3\)\}>/);
+  // WIDTH-01 (Alex, 2026-10-16): at lg and up the deck bleeds DECK_PEEK into the gutter on each side (T6); the attribute says which regime.
+  assert.match(d, /<div className="relative" style=\{\{ marginLeft: bleed \? -DECK_PEEK : 0, marginRight: bleed \? -DECK_PEEK : 0 \}\} data-day-deck data-day-deck-index=\{index\} data-day-deck-of=\{cards\.length\} data-day-deck-scale=\{scale\.toFixed\(3\)\} data-day-deck-bleed=\{bleed \? 'true' : 'false'\}>/);
   // The glyphs are the only text the deck prints of its own; every sentence is a constant or a words function.
   assert.deepEqual([...d.matchAll(/>([^<>{}\n]+)</g)].map((m) => m[1]), ['‹', '›']);
   // The frame: a plate on its own (the journal card, the loading plate) scaled the same way, centred.
   assert.match(d, /export function PlateFrame\(\{ children \}: \{ children: ReactNode \}\) \{/);
-  assert.match(d, /const scale = width === null \? 1 : Math\.min\(1, width \/ PLATE_WIDTH\);/);
+  // WIDTH-01 (Alex, 2026-10-16): the frame's card is the deck's card's width in the same regime (frameScaleOf, T6).
+  assert.match(d, /const scale = width === null \? 1 : frameScaleOf\(width, bleed\);/);
   assert.match(d, /<div ref=\{inner\} style=\{\{ width: PLATE_WIDTH, transform: scale === 1 \? undefined : `scale\(\$\{scale\}\)`, transformOrigin: 'top left' \}\}>\{children\}<\/div>/);
   assert.match(d, /className="w-full flex justify-center" data-day-plate-frame data-day-plate-scale=\{scale\.toFixed\(3\)\}/);
   // The paint: the app's tokens; the one solid fill is the current dot (9 px, no ink on it).
@@ -163,7 +170,8 @@ test('T3 the card: the day controls stay and push; the deck holds the full card 
   assert.match(c, /const go = \(href: string\) => router\.push\(href\);/);
   assert.equal((c.match(/go\(hrefFor\(/g) ?? []).length, 3, 'three pushes: ‹, ›, today');
   // R2 THE DECK: one, mounted once the reads are in; the full card first, then one card per stop in the table's order, the journal stop excepted.
-  assert.match(c, /import DayDeck, \{ PlateFrame, type DeckCard \} from '\.\.\/stops\/DayDeck';/, 'the deck lives outside the day folder');
+  // WIDTH-01 (Alex, 2026-10-16): the width of what sits under a card is the deck's rule too (underStyle, useDeckBleed — T6).
+  assert.match(c, /import DayDeck, \{ PlateFrame, underStyle, useDeckBleed, type DeckCard \} from '\.\.\/stops\/DayDeck';/, 'the deck lives outside the day folder');
   assert.match(c, /const deckStops = result\.stops\.map\(\(stop, j\) => \(\{ stop, at: j \+ 1 \}\)\)\.filter\(\(x\) => x\.stop\.role !== 'journal'\);\n\s*const deckNumberOf = new Map\(deckStops\.map\(\(x, i\) => \[x\.stop\.key, i \+ 1\]\)\);\n\s*const journalStop = result\.stops\.find\(\(s\) => s\.role === 'journal'\) \?\? null;/, 'the deck’s stops, their card numbers, the journal stop');
   assert.match(c, /const cards: DeckCard\[\] = \[\{ key: 'all', words: DECK_FULL_CARD_WORDS \}, \.\.\.deckStops\.map\(\(\{ stop \}\) => \(\{ key: stop\.key, words: boldOf\(stop\) \}\)\)\];/, 'the cards, named for the marker');
   assert.match(c, /\{loaded && \(\n\s*<DayDeck cards=\{cards\} index=\{deckIndex\} onIndexChange=\{\(i\) => show\(i === 0 \? null : i\)\}>\n\s*\{\[\n\s*<Plate key="all" plateRef=\{\(el\) => \{ plateRefs\.current\[0\] = el; \}\} right=\{headerWords\(stayState, day\)\}>\{fullPlate\}<\/Plate>,\n\s*\.\.\.deckStops\.map\(\(\{ stop, at \}, i\) => \(\n\s*<Plate key=\{stop\.key\} plateRef=\{\(el\) => \{ plateRefs\.current\[i \+ 1\] = el; \}\} step=\{i \+ 1\} right=\{stepHeaderWords\(i \+ 1, N, stop\.time\)\}>\n\s*\{stopPlate\(focusOf\(at\)\)\}\n\s*<\/Plate>\n\s*\)\),\n\s*\]\}\n\s*<\/DayDeck>\n\s*\)\}/, 'the deck: the full card, then a stop card per deck stop — n OF N of the deck, each the same plate');
@@ -259,4 +267,53 @@ test('T5 the journal plate, decluttered: YESTERDAY one line of counts; nothing t
   // The same four blocks, the same words functions, the ticks unchanged.
   for (const kept of ['{TODAY_BLOCK_WORD}', '{BLOCKERS_BLOCK_WORD}', '{PLAN_BLOCK_WORD}', 'data-day-journal-goal>{goalWords(goal)}', 'data-day-journal-blocker>{a.blocker}', '{planStepWords(i + 1, step, a.plan_done[i])}', 'data-day-journal-plan-done>{planDoneWords(', 'onClick={() => tick(i)}']) assert.ok(p.includes(kept), `the plate keeps ${kept}`);
   assert.match(comments(CARD), /DECK-01 \(Alex, 2026-10-16\) — DECLUTTERED/);
+});
+
+// ── T6 · WIDTH-01: THE CARD FILLS THE SECTION, SCALED; THE IMAGE STAYS THE REEL'S SIZE ──
+
+test('T6 WIDTH-01 (Alex, 2026-10-16): on screen a card is scaled to its frame — up to PLATE_SCALE_MAX — and the deck bleeds into the gutter at lg; what sits under a card takes its width; the plate and its image stay the reel’s size', () => {
+  const d = code(DECK);
+  const c = code(CARD);
+  // R1 the scale may pass 1, capped by the one named constant; the plate's own width never changes.
+  assert.equal(PLATE_SCALE_MAX, 2);
+  assert.equal(PLATE_WIDTH, 640);
+  assert.equal(deckScaleOf(696), 1, 'a deck of the plate plus the two peeks: 1');
+  assert.equal(deckScaleOf(358), 0.471875, 'a 390 px phone less the 16 px gutters: down');
+  assert.equal(deckScaleOf(1272), 1.9, 'a 1216 px section bled by the two peeks: up');
+  assert.equal(deckScaleOf(5000), PLATE_SCALE_MAX, 'never past the cap');
+  assert.equal(frameScaleOf(1216, true), 1.9, 'bled, the frame’s card is the frame’s width — the deck’s card’s width in the same section');
+  assert.equal(frameScaleOf(1272, false), 1.9, 'not bled, the frame less the peeks — the deck’s card’s width in the same section');
+  assert.equal(frameScaleOf(358, false), 0.471875);
+  assert.equal(frameScaleOf(5000, true), PLATE_SCALE_MAX);
+  assert.match(d, /export const deckScaleOf = \(deckWidth: number\): number => Math\.min\(PLATE_SCALE_MAX, \(deckWidth - 2 \* DECK_PEEK\) \/ PLATE_WIDTH\);/);
+  assert.match(d, /export const frameScaleOf = \(frameWidth: number, bleed: boolean\): number => Math\.min\(PLATE_SCALE_MAX, \(bleed \? frameWidth : frameWidth - 2 \* DECK_PEEK\) \/ PLATE_WIDTH\);/);
+  assert.equal((d.match(/Math\.min\(PLATE_SCALE_MAX, /g) ?? []).length, 2, 'the cap in the two scales and nowhere else');
+  assert.doesNotMatch(d, /Math\.min\(1, /, 'no scale is held at 1 any more');
+  assert.match(d, /const bleed = useDeckBleed\(\);\n\n\s*const scale = deckWidth === null \? 1 : deckScaleOf\(deckWidth\);/, 'the deck’s scale');
+  // The plate stays PLATE_WIDTH inside the transform wrappers (T2) — "download image" renders the plate, so the PNG is the reel's size on every screen.
+  assert.equal((d.match(/style=\{\{ width: PLATE_WIDTH, transform: scale === 1 \? undefined : `scale\(\$\{scale\}\)`, transformOrigin: 'top left' \}\}/g) ?? []).length, 2, 'the deck’s plates and the frame’s plate: at their width, the scale a transform');
+  assert.equal(CARD_IMAGE_PIXEL_RATIO * PLATE_WIDTH, 1920, 'the image: 1920 px wide');
+  assert.match(c, /await downloadCardImage\(plate, name\);/, 'the image is the plate — the ref the Plate hands back — never the scaled wrapper');
+  assert.match(c, /onClick=\{\(\) => downloadImage\(plateRefs\.current\[deckIndex\] \?\? null, cardImageName\(day, /);
+  // 2 B — at lg and up (the layout's px-8 gutter) the deck bleeds DECK_PEEK into the gutter on each side, so the card in view is the section's own width; below lg the inset stays.
+  assert.equal(DECK_BLEED_QUERY, '(min-width: 1024px)');
+  assert.match(code(LAYOUT), /'max-w-7xl mx-auto w-full min-w-0 px-4 lg:px-8 py-6 sm:py-8'/, 'the layout’s gutter: 16 px, 32 px from lg — the breakpoint the query names');
+  assert.match(d, /export function useDeckBleed\(\): boolean \{\n\s*const \[bleed, setBleed\] = useState\(false\);\n\s*useEffect\(\(\) => \{\n\s*const query = window\.matchMedia\(DECK_BLEED_QUERY\);\n\s*const read = \(\) => setBleed\(query\.matches\);\n\s*read\(\);\n\s*query\.addEventListener\('change', read\);\n\s*return \(\) => query\.removeEventListener\('change', read\);\n\s*\}, \[\]\);\n\s*return bleed;\n\}/, 'read on mount and on every change, never at render; nothing stored');
+  assert.match(d, /style=\{\{ marginLeft: bleed \? -DECK_PEEK : 0, marginRight: bleed \? -DECK_PEEK : 0 \}\} data-day-deck /, 'the bleed: the deck’s width is measured inside the margins, so the card is the section’s width exactly');
+  // R2 what sits under a card takes the card's width — one left edge and one width with the tables.
+  assert.deepEqual(underStyle(true), { width: '100%', maxWidth: PLATE_WIDTH * PLATE_SCALE_MAX });
+  assert.deepEqual(underStyle(false), { width: `calc(100% - ${2 * DECK_PEEK}px)`, maxWidth: PLATE_WIDTH * PLATE_SCALE_MAX });
+  assert.match(c, /const bleed = useDeckBleed\(\);/);
+  assert.match(c, /const under = underStyle\(bleed\);/);
+  for (const [file, attr] of [[STOP_FORM, 'data-stop-form'], [JOURNAL_FORM, 'data-journal-form'], [STOP_VENDOR, 'data-stop-vendor']] as const) {
+    const f = code(file);
+    assert.match(f, /import \{ underStyle, useDeckBleed \} from '\.\/DayDeck';/, `${attr}: the width is the deck’s rule`);
+    assert.match(f, /const bleed = useDeckBleed\(\);/, `${attr}: the regime read once, by the hook`);
+    assert.match(f, new RegExp(`style=\\{underStyle\\(bleed\\)\\} ${attr}>`), `${attr} at the card’s width`);
+    assert.doesNotMatch(f, /width: PLATE_WIDTH/, `${attr}: no fixed width left`);
+  }
+  // R4 nothing else: no width typed but the one query; the plate's width is the one constant.
+  assert.doesNotMatch(d.replace(DECK_BLEED_QUERY, '') + c, /\b1280\b|\b1024\b|\b1920\b/, 'no width typed');
+  assert.match(comments(DECK), /WIDTH-01 \(Alex, 2026-10-16\)/);
+  assert.match(comments(RULES), /WIDTH-01 \(Alex, 2026-10-16\)/);
 });

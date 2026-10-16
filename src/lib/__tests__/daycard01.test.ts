@@ -665,7 +665,9 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.equal((c.match(/data-day-provenance>\{provenanceWords\(today, reportRead, recordsOk\)\}/g) ?? []).length, 1, 'one source line, in the fine print under the full card and the stop card — the records a source too (STOP-01)');
   assert.ok(c.indexOf('data-day-fine-print') < c.indexOf('data-day-foot'), 'the fine print first under the plate; the sentences after it');
   // DECK-01 (Alex, 2026-10-16): everything under the deck is `under` — the plate's width, or the screen's when that is narrower (a phone).
-  assert.match(c, /const under = \{ width: '100%', maxWidth: PLATE_WIDTH \} as const;/);
+  // WIDTH-01 (Alex, 2026-10-16): `under` is the card's width ON SCREEN, up or down — the deck's own rule (stops/DayDeck.tsx underStyle; deck01 T6).
+  assert.match(c, /const bleed = useDeckBleed\(\);/);
+  assert.match(c, /const under = underStyle\(bleed\);/);
   assert.match(c, /\{foot && \(\n\s*<div className="mx-auto space-y-1 text-xs" style=\{under\} data-day-foot>/, 'the sentences under the plate render whenever there is one');
   // VENDOR-02 (2026-10-14): stranded.length left the condition — the foot names no stranded vendor (Budget's to show and clear).
   assert.match(c, /const foot = loaded && \(result\.unmatched\.length > 0 \|\| result\.routineFigures\.length > 0 \|\| result\.linesWithoutStop\.length > 0 \|\| result\.notPlacedToday\.length > 0 \|\| refused\.length > 0 \|\| \(report !== null && !report\.ok\) \|\| \(plans !== null && !plans\.listed\) \|\| result\.recordsWithoutStop\.length > 0 \|\| unplacedRecords\.length > 0 \|\| \(recordsRead !== null && !recordsRead\.ok\)\);/);
