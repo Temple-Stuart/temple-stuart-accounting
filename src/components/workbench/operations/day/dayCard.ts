@@ -888,6 +888,12 @@ export const asksAmount = (role: StopRole): boolean => role === 'place' || role 
 
 /** The plate's width in CSS px — Alex's ruling: 640, so the card is shorter on the video. Every width on and under the plate derives from it. */
 export const PLATE_WIDTH = 640;
+/**
+ * WIDTH-01 (Alex, 2026-10-16): on screen a card is scaled to its frame's width — down on a phone, UP on a computer, so the
+ * deck and the journal card fill the Tasks section as the tables under them do — and never past this, so a wide monitor does
+ * not blow the card up past readability. The plate itself stays PLATE_WIDTH wide: "download image" renders it, not the scale.
+ */
+export const PLATE_SCALE_MAX = 2;
 /** The plate's side padding and its hairline border. */
 export const PLATE_PADDING_X = 29;
 export const PLATE_BORDER = 1;

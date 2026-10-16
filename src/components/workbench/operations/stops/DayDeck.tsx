@@ -7,10 +7,16 @@
  * at dayCard.ts PLATE_WIDTH) — swiped left and right on a touch screen (CSS
  * scroll snap, the browser's own gesture — no dependency), with ‹ › at the
  * card's edges and the ← → keys while the deck has focus on a computer, the
- * next card peeking at the edge, and a position marker under it. On a narrow
- * screen every card is scaled to the deck's width (a transform — the plate
- * itself stays PLATE_WIDTH wide, so "download image" still renders it full
- * size). The deck is CONTROLLED: the caller says which card is in view
+ * next card peeking at the edge, and a position marker under it. Every card
+ * is scaled to the deck's width (a transform — the plate itself stays
+ * PLATE_WIDTH wide, so "download image" still renders it full size): down on a
+ * narrow screen and, WIDTH-01 (Alex, 2026-10-16), up on a wide one, never past
+ * dayCard.ts PLATE_SCALE_MAX. At the layout's lg gutter and up the deck bleeds
+ * DECK_PEEK into the gutter on each side (DECK_BLEED_QUERY), so the card in
+ * view is the section's own width — one left edge and one width with the
+ * tables under it, the peeks in the gutter; below lg the peeks stay inside the
+ * section, as before. What sits under a card takes the card's width
+ * (underStyle). The deck is CONTROLLED: the caller says which card is in view
  * (index), and is told when a swipe, a button, a key or a dot moves it
  * (onIndexChange) — it keeps ?step= in step, with a replace, so a swipe never
  * fills the back button. Motion follows prefers-reduced-motion. It reads
@@ -21,12 +27,38 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { DECK_NEXT_WORDS, DECK_PREVIOUS_WORDS, DECK_WORDS, PLATE_WIDTH, deckCardWords } from '../day/dayCard';
+import { DECK_NEXT_WORDS, DECK_PREVIOUS_WORDS, DECK_WORDS, PLATE_SCALE_MAX, PLATE_WIDTH, deckCardWords } from '../day/dayCard';
 
 /** How much of the next card shows at each edge, so the swipe is obvious. */
 export const DECK_PEEK = 28;
 /** The space between two cards. */
 export const DECK_GAP = 12;
+/**
+ * WIDTH-01: the viewport at which the deck bleeds into the page gutter — the layout's lg breakpoint, where its gutter is
+ * px-8 (32 px; AppLayout.tsx), room for the peek. Below it the gutter is px-4 (16 px) and the peeks stay inside the section.
+ */
+export const DECK_BLEED_QUERY = '(min-width: 1024px)';
+
+/** Does the deck bleed into the page gutter? The one media query, read on mount and on every change — never at render. */
+export function useDeckBleed(): boolean {
+  const [bleed, setBleed] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia(DECK_BLEED_QUERY);
+    const read = () => setBleed(query.matches);
+    read();
+    query.addEventListener('change', read);
+    return () => query.removeEventListener('change', read);
+  }, []);
+  return bleed;
+}
+
+/** The scale of the deck's cards: the deck's width (bled or not) less the peek on each side, over the plate's width, never past PLATE_SCALE_MAX. */
+export const deckScaleOf = (deckWidth: number): number => Math.min(PLATE_SCALE_MAX, (deckWidth - 2 * DECK_PEEK) / PLATE_WIDTH);
+/** The scale of a plate on its own in a frame of this width — the deck's card's width in the same regime: the frame's when the deck bleeds, else the frame's less the peeks. */
+export const frameScaleOf = (frameWidth: number, bleed: boolean): number => Math.min(PLATE_SCALE_MAX, (bleed ? frameWidth : frameWidth - 2 * DECK_PEEK) / PLATE_WIDTH);
+/** What sits under a card — buttons, fine print, the vendor box, the record row, the journal form — takes the card's width, centred as the card is. */
+export const underStyle = (bleed: boolean): { readonly width: string; readonly maxWidth: number } =>
+  ({ width: bleed ? '100%' : `calc(100% - ${2 * DECK_PEEK}px)`, maxWidth: PLATE_WIDTH * PLATE_SCALE_MAX });
 
 export interface DeckCard {
   readonly key: string;
@@ -37,14 +69,16 @@ export interface DeckCard {
 const reducedMotion = (): boolean => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /**
- * A plate on its own, outside the deck (the journal card; the loading plate): centred, and scaled to the frame's width on a
- * narrow screen exactly as the deck scales its cards — the plate itself stays PLATE_WIDTH wide, so its image is full size.
+ * A plate on its own, outside the deck (the journal card; the loading plate): centred, and scaled to the frame's width exactly
+ * as the deck scales its cards (frameScaleOf — the same width in the same regime) — the plate itself stays PLATE_WIDTH wide,
+ * so its image is full size.
  */
 export function PlateFrame({ children }: { children: ReactNode }) {
   const frame = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState<number | null>(null);
   const [height, setHeight] = useState<number>(0);
+  const bleed = useDeckBleed();
   useEffect(() => {
     const el = frame.current;
     const plate = inner.current;
@@ -56,7 +90,7 @@ export function PlateFrame({ children }: { children: ReactNode }) {
     measure();
     return () => ro.disconnect();
   }, []);
-  const scale = width === null ? 1 : Math.min(1, width / PLATE_WIDTH);
+  const scale = width === null ? 1 : frameScaleOf(width, bleed);
   return (
     <div ref={frame} className="w-full flex justify-center" data-day-plate-frame data-day-plate-scale={scale.toFixed(3)}>
       <div style={{ width: Math.round(PLATE_WIDTH * scale), height: height === 0 ? undefined : Math.ceil(height * scale) }}>
@@ -82,8 +116,9 @@ export default function DayDeck({ cards, index, onIndexChange, children }: {
   const shown = useRef(index);
   const settle = useRef<number | null>(null);
   const firstScroll = useRef(true);
+  const bleed = useDeckBleed();
 
-  const scale = deckWidth === null ? 1 : Math.min(1, (deckWidth - 2 * DECK_PEEK) / PLATE_WIDTH);
+  const scale = deckWidth === null ? 1 : deckScaleOf(deckWidth);
   const slideWidth = Math.round(PLATE_WIDTH * scale);
   const stride = slideWidth + DECK_GAP;
   const sidePadding = deckWidth === null ? 0 : Math.max(0, Math.floor((deckWidth - slideWidth) / 2));
@@ -162,7 +197,7 @@ export default function DayDeck({ cards, index, onIndexChange, children }: {
   const arrow = 'absolute top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full border border-border bg-ts-white text-text-primary text-lg leading-none shadow disabled:opacity-30';
 
   return (
-    <div className="relative" data-day-deck data-day-deck-index={index} data-day-deck-of={cards.length} data-day-deck-scale={scale.toFixed(3)}>
+    <div className="relative" style={{ marginLeft: bleed ? -DECK_PEEK : 0, marginRight: bleed ? -DECK_PEEK : 0 }} data-day-deck data-day-deck-index={index} data-day-deck-of={cards.length} data-day-deck-scale={scale.toFixed(3)} data-day-deck-bleed={bleed ? 'true' : 'false'}>
       <div
         ref={scroller}
         className="flex items-start outline-none focus-visible:ring-2 focus-visible:ring-brand-purple rounded-xl"

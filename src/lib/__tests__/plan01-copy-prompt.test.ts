@@ -158,18 +158,20 @@ test('T4 the plate’s YESTERDAY: the steps done and the count left over; no "no
 
 // ── T5 · THE WIDTH ───────────────────────────────────────────────────────────
 
-test('T5 one width: the plate, the hint, the foot and both forms under it are PLATE_WIDTH (640) — no width typed', () => {
+test('T5 one width: the plate is PLATE_WIDTH (640); the hint, the foot and both forms under it share the card’s width on screen — no width typed', () => {
   assert.equal(PLATE_WIDTH, 640);
   for (const f of [CARD, FORM, STOP_FORM]) assert.doesNotMatch(code(f), /\b540\b/, `${f}: no 540 left`);
-  assert.match(code(FORM), /style=\{\{ width: PLATE_WIDTH \}\} data-journal-form>/);
-  assert.match(code(STOP_FORM), /style=\{\{ width: PLATE_WIDTH \}\} data-stop-form>/);
+  // WIDTH-01 (Alex, 2026-10-16): the forms take the card's width on screen — the deck's rule (stops/DayDeck.tsx underStyle; deck01 T6); the plate alone stays PLATE_WIDTH.
+  assert.match(code(FORM), /style=\{underStyle\(bleed\)\} data-journal-form>/);
+  assert.match(code(STOP_FORM), /style=\{underStyle\(bleed\)\} data-stop-form>/);
   const c = code(CARD);
   // CLEAN-02 (2026-10-14): the download button's row and the fine print are at the plate's width too.
   // DECK-01 (Alex, 2026-10-16): the plate stays PLATE_WIDTH (the deck scales it on a phone); everything under the deck is `under` — the
   // plate's width, or the screen's when that is narrower. One constant still; no width typed.
   assert.match(c, /width: PLATE_WIDTH[\s\S]{0,120}?\}\} data-day-card/, 'data-day-card at the plate’s width');
-  assert.match(c, /const under = \{ width: '100%', maxWidth: PLATE_WIDTH \} as const;/);
-  for (const attr of ['data-day-hint', 'data-day-foot', 'data-day-image', 'data-day-fine-print']) assert.match(c, new RegExp(`style=\\{under\\} ${attr}`), `${attr} at the plate’s width, or the screen’s`);
+  // WIDTH-01 (Alex, 2026-10-16): `under` is the card's width on screen, up or down (deck01 T6).
+  assert.match(c, /const under = underStyle\(bleed\);/);
+  for (const attr of ['data-day-hint', 'data-day-foot', 'data-day-image', 'data-day-fine-print']) assert.match(c, new RegExp(`style=\\{under\\} ${attr}`), `${attr} at the card’s width`);
 });
 
 // ── T6 · THE TWO BARS ────────────────────────────────────────────────────────

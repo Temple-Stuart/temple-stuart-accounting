@@ -44,7 +44,8 @@ import { NEGATIVE_AMOUNT_WORDS, RATING_WORDS, SKIP_REASON_WORDS, WHEN_WORDS, amo
 import { NOTE_PROMPT_WORDS, type StopRole } from '@/lib/operations/stopRole';
 import { JOURNAL_RECORD_WORDS } from '@/lib/operations/journal';
 import { instantToZoned, zonedToInstant } from '@/lib/time';
-import { PLATE_WIDTH, statusWords, type Stop } from '../day/dayCard';
+import { statusWords, type Stop } from '../day/dayCard';
+import { underStyle, useDeckBleed } from './DayDeck';
 import { clearStopRecord, setStopRecord, type StopBody } from './stopWrites';
 
 const chip = 'px-2 py-0.5 border border-border rounded hover:bg-bg-row text-xs disabled:opacity-50';
@@ -82,6 +83,8 @@ export default function StopForm({ stop, day, viewerZone, onChanged }: { stop: S
   const [draft, setDraft] = useState<Draft>(() => draftOf(stop, day));
   const [words, setWords] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // WIDTH-01 (2026-10-16): the row takes the card's width on screen (stops/DayDeck.tsx underStyle), as everything under a card does.
+  const bleed = useDeckBleed();
 
   // A task's record is the task's own row — nothing to type here.
   if (stop.address === null || stop.zone === null) return null;
@@ -189,7 +192,7 @@ export default function StopForm({ stop, day, viewerZone, onChanged }: { stop: S
   };
 
   return (
-    <div className="mx-auto space-y-1" style={{ width: PLATE_WIDTH }} data-stop-form>
+    <div className="mx-auto space-y-1" style={underStyle(bleed)} data-stop-form>
       <form className="flex flex-wrap items-center gap-1.5 text-xs" onSubmit={(e) => { e.preventDefault(); save(draft); }}>
         {/* JOURNAL-02 (2026-10-13): on a journal stop the label says what the record is — when the journal was done. */}
         {role === 'journal'

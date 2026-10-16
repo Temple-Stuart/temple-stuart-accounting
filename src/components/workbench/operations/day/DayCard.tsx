@@ -207,7 +207,7 @@ import RefusedRoutines from '../routines/RefusedRoutines';
 import { readDay, readItems, type DayAnswer, type Read } from '../week/weekReads';
 import { DOWNLOAD_IMAGE_WORDS, DOWNLOAD_TAG_WORDS, cardImageFailedWords, cardImageName, cardTagName, downloadCardImage } from '../cardImage';
 import StopTag from '../stops/StopTag';
-import DayDeck, { PlateFrame, type DeckCard } from '../stops/DayDeck';
+import DayDeck, { PlateFrame, underStyle, useDeckBleed, type DeckCard } from '../stops/DayDeck';
 import StayBar from '../stays/StayBar';
 import JournalForm from '../stops/JournalForm';
 import { setJournal as writeJournal } from '../stops/journalWrites';
@@ -478,6 +478,8 @@ export default function DayCard() {
   // RETRO-01 (2026-10-16): the ledger's "+ expense" writes a one-off stop, its vendor and its record for a day (dayWritten.ts);
   // a card showing that day reads it again — the day, the report, the tasks and the records — through its own reads.
   const [dayWrites, setDayWrites] = useState(0);
+  // WIDTH-01 (Alex, 2026-10-16): whether the deck bleeds into the page gutter — what sits under a card takes the card's width either way.
+  const bleed = useDeckBleed();
 
   useEffect(() => {
     setToday(localToday());
@@ -888,8 +890,8 @@ export default function DayCard() {
     </>
   );
 
-  // Everything under the deck sits at the plate's width, or the screen's when that is narrower.
-  const under = { width: '100%', maxWidth: PLATE_WIDTH } as const;
+  // WIDTH-01: everything under a card takes the card's width on screen (stops/DayDeck.tsx underStyle) — one left edge, one width.
+  const under = underStyle(bleed);
 
   return (
     <section className="space-y-2" data-day-section>

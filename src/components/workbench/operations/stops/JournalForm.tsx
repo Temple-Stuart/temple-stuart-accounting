@@ -48,7 +48,8 @@ import {
   carryTicks, clearJournalQuestion, journalInput, linesOf, openSteps, planPromptFailedWords, planPromptText, planPromptWaitsWords, stripListMarker,
   type JournalRow, type YesterdayForPrompt,
 } from '@/lib/operations/journal';
-import { PLATE_WIDTH, dayShortWords } from '../day/dayCard';
+import { dayShortWords } from '../day/dayCard';
+import { underStyle, useDeckBleed } from './DayDeck';
 import { clearJournal, setJournal } from './journalWrites';
 
 const chip = 'px-2 py-0.5 border border-border rounded hover:bg-bg-row text-xs disabled:opacity-50';
@@ -75,6 +76,8 @@ export default function JournalForm({ day, journal, yesterday, onChanged }: {
   const [words, setWords] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copyWords, setCopyWords] = useState<{ readonly ok: boolean; readonly words: string } | null>(null);
+  // WIDTH-01 (2026-10-16): the form takes the card's width on screen (stops/DayDeck.tsx underStyle), as everything under a card does.
+  const bleed = useDeckBleed();
   // CLEAN-02 (2026-10-14): yesterday's open steps from its row — openSteps, the card's own rule; none when there is no journal.
   const yesterdayOpen = yesterday.ok && yesterday.row !== null ? openSteps(yesterday.row) : [];
 
@@ -127,7 +130,7 @@ export default function JournalForm({ day, journal, yesterday, onChanged }: {
   const addOpen = () => setDraft({ ...draft, plan: [...linesOf(draft.plan), ...yesterdayOpen].join('\n') });
 
   return (
-    <div className="mx-auto space-y-1" style={{ width: PLATE_WIDTH }} data-journal-form>
+    <div className="mx-auto space-y-1" style={underStyle(bleed)} data-journal-form>
       <form className="flex flex-col gap-2 text-xs" onSubmit={(e) => { e.preventDefault(); save(); }}>
         <label className="flex flex-col gap-0.5" data-journal-block="goals">
           <span className={question}>{TODAY_GOALS_QUESTION}</span>
