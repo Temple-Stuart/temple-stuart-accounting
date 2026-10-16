@@ -3352,15 +3352,17 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
   // TASKS-ONE-02 — the ruling (Alex, 2026-10-14): the day card replaces the week grid, the Daily plan and the
   // Today strip. Three mounts: the day card, the projects list, the routines list — and the three that went may
   // not come back unnoticed.
-  const TWO_LISTS_MOUNTS = ['<DayCard />', '<SectionD_ProjectBacklog />', '<SectionE_Routines />'];
+  // LEDGER-01 — the ruling (Alex, 2026-10-16): the city ledger is a fourth section, under Routines — every stop
+  // recorded, by date, city, country, COA and vendor, with its totals. Four mounts, in order; nothing else.
+  const TWO_LISTS_MOUNTS = ['<DayCard />', '<SectionD_ProjectBacklog />', '<SectionE_Routines />', '<LedgerSection />'];
   for (const section of TWO_LISTS_MOUNTS) {
-    if (!page.includes(section)) twoListsFail(`${TWO_LISTS_PAGE} no longer mounts ${section} — the page is the day card, the projects list and the routines list`);
+    if (!page.includes(section)) twoListsFail(`${TWO_LISTS_PAGE} no longer mounts ${section} — the page is the day card, the projects list, the routines list and the city ledger`);
   }
   const mountAt = TWO_LISTS_MOUNTS.map((section) => page.indexOf(section));
-  if (mountAt.some((at, i) => i > 0 && at < mountAt[i - 1])) twoListsFail(`${TWO_LISTS_PAGE} mounts its sections out of order — the day card first, then projects, then routines`);
+  if (mountAt.some((at, i) => i > 0 && at < mountAt[i - 1])) twoListsFail(`${TWO_LISTS_PAGE} mounts its sections out of order — the day card first, then projects, then routines, then the ledger`);
   const toolPage = page.slice(page.indexOf('data-tool-page="Tasks"'), page.indexOf('</OperationsEntityProvider>'));
   const pageMounts = [...toolPage.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]).filter((tag) => tag !== 'Suspense');
-  if (pageMounts.join(' ') !== 'DayCard SectionD_ProjectBacklog SectionE_Routines') twoListsFail(`${TWO_LISTS_PAGE} mounts [${pageMounts.join(' ')}] in the Tasks container — exactly the day card, the projects list and the routines list (TASKS-ONE-02)`);
+  if (pageMounts.join(' ') !== 'DayCard SectionD_ProjectBacklog SectionE_Routines LedgerSection') twoListsFail(`${TWO_LISTS_PAGE} mounts [${pageMounts.join(' ')}] in the Tasks container — exactly the day card, the projects list, the routines list and the city ledger (TASKS-ONE-02; LEDGER-01)`);
   if ((PHASES_RENDERED_AT['/tasks'] ?? ['?']).length !== 0) twoListsFail(`nav.ts declares /tasks draws [${(PHASES_RENDERED_AT['/tasks'] ?? []).join(' ')}] — it draws nothing`);
   // Every control the strips held is still a control: the list headers' create
   // buttons, the row's edit/archive/delete and its pipeline door, Today's mark-done.

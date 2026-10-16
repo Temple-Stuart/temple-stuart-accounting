@@ -40,7 +40,8 @@ test('T1 /tasks mounts DayCard first — in its Suspense boundary, above the two
   assert.match(page, /import DayCard from '@\/components\/workbench\/operations\/day\/DayCard';/);
   assert.equal((page.match(/<DayCard \/>/g) ?? []).length, 1, 'mounted once');
   // TASKS-ONE-02 (2026-10-14): <WeekSection /> and <SectionC_DailyPlan /> came off — the container holds exactly three.
-  assert.match(page, /<div className="space-y-3" data-tool-page="Tasks">\n\s*<Suspense>\n\s*<DayCard \/>\n\s*<\/Suspense>\n\s*<SectionD_ProjectBacklog \/>\n\s*<SectionE_Routines \/>\n\s*<\/div>/);
+  // LEDGER-01 (Alex, 2026-10-16): <LedgerSection /> joins, LAST — the container holds exactly four; the card is still first.
+  assert.match(page, /<div className="space-y-3" data-tool-page="Tasks">\n\s*<Suspense>\n\s*<DayCard \/>\n\s*<\/Suspense>\n\s*<SectionD_ProjectBacklog \/>\n\s*<SectionE_Routines \/>\n\s*<LedgerSection \/>\n\s*<\/div>/);
   assert.ok(page.indexOf('<ToolOpener') < page.indexOf('<DayCard />'), 'the opener first — family, name, registry line — then the card');
   assert.match(comments(PAGE), /TASKS-ONE-01 \(2026-10-14\) — Alex's ruling: the day card is the first section\s*\n\s*\* of Tasks — one Tasks page, no sub-tabs\./);
 });
@@ -49,7 +50,8 @@ test('T1 the two-lists law mounts the day card first, with the dated ruling', ()
   const law = code(LAW);
   // TASKS-ONE-02 (2026-10-14): the mount list is three — the day card, projects, routines (tasksOne02.test.ts pins the
   // ruling that says so); the order message moved with it.
-  assert.match(law, /const TWO_LISTS_MOUNTS = \['<DayCard \/>', '<SectionD_ProjectBacklog \/>', '<SectionE_Routines \/>'\];/);
+  // LEDGER-01 (Alex, 2026-10-16): the mount list is four — the city ledger last (ledger01.test.ts pins the ruling).
+  assert.match(law, /const TWO_LISTS_MOUNTS = \['<DayCard \/>', '<SectionD_ProjectBacklog \/>', '<SectionE_Routines \/>', '<LedgerSection \/>'\];/);
   assert.match(law, /mounts its sections out of order — the day card first, then projects, then routines/);
   assert.match(comments(LAW), /TASKS-ONE-01 — the ruling \(Alex, 2026-10-14\): the day card is the first section of Tasks — one Tasks page, no\s*\n\s*\/\/ sub-tabs\./);
 });

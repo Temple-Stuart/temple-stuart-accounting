@@ -58,7 +58,8 @@ test('the page is the day card and two lists — no strip, no pipe label, no rec
   assert.match(page, /<SectionE_Routines \/>/);
   // WEEK-01 (2026-09-30): a fourth mount, FIRST — this week, then the two lists and the daily plan.
   // TASKS-ONE-02 (2026-10-14): the week and the daily plan are deleted — the day card replaces them. Three mounts, in order.
-  assert.match(page, /<DayCard \/>\s*<\/Suspense>\s*<SectionD_ProjectBacklog \/>\s*<SectionE_Routines \/>\s*<\/div>/);
+  // LEDGER-01 (Alex, 2026-10-16): the city ledger is a fourth mount, LAST — under Routines. Four mounts, in order.
+  assert.match(page, /<DayCard \/>\s*<\/Suspense>\s*<SectionD_ProjectBacklog \/>\s*<SectionE_Routines \/>\s*<LedgerSection \/>\s*<\/div>/);
   assert.doesNotMatch(page, /WeekSection|SectionC_DailyPlan|TodaysStrip/);
   for (const f of TASKS_GONE) assert.ok(!existsSync(resolve(process.cwd(), f)), `${f} is deleted`);
   assert.doesNotMatch(page, /data-pipe-section|data-pipe-label|PIPE_LABEL|PIPE_PHASES|<StageStrip|<ProofStrip/);

@@ -241,7 +241,8 @@ test('T2 the caption of a day fully recorded carries the card’s verdict; no bu
   assert.match(full.text, /Gym at Fitness First\nBudget: \$15\nActual: \$15\non plan\n⭐️⭐️⭐️\nleg day/);
   // No priced stop: no TOTAL row budget, no line 2.
   const unpriced = build({}, { task: false });
-  const bare = captionText(reelDay(unpriced, { totals: { budgetCents: null, actualCents: null, over: null, beyondCents: null }, journal: null }));
+  // LEDGER-01 (2026-10-16): dayTotals also returns the recorded budget it measures `over` against — the fixture carries it.
+  const bare = captionText(reelDay(unpriced, { totals: { budgetCents: null, actualCents: null, over: null, recordedBudgetCents: null, beyondCents: null }, journal: null }));
   assert.ok(bare.ok);
   assert.ok(bare.text.startsWith('Chiang Mai, Thailand 🇹🇭 Day 8 of 15!\n\nTotal budget: —\nSpent: —\n\n#chiangmai'), bare.text);
   // No journal read (the day has no journal stop) or none typed: no plan lines, and nothing claims there is no journal.
