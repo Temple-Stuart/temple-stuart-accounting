@@ -132,6 +132,25 @@ export function endsOnFor(startsOn: string, preset: StayPreset): string {
   return isoOf(sameDate > targetLast ? targetLast : sameDate - DAY_MS);
 }
 
+/**
+ * LEDGER-01 (Alex, 2026-10-16): THE ONE SPLIT OF A PLACE — the city before the
+ * place's FIRST comma, the country after it, each trimmed ("Chiang Mai, Thailand
+ * 🇹🇭" → Chiang Mai · Thailand 🇹🇭). No comma: the whole place is the city and
+ * there is no country (null — never a guessed one). The caption's tags
+ * (day/dayCard.ts captionTags) and the ledger's CITY and COUNTRY read it; a
+ * second split would let the two disagree.
+ */
+export interface PlaceParts {
+  readonly city: string;
+  readonly country: string | null;
+}
+
+export function placeParts(place: string): PlaceParts {
+  const comma = place.indexOf(',');
+  if (comma < 0) return { city: place.trim(), country: null };
+  return { city: place.slice(0, comma).trim(), country: place.slice(comma + 1).trim() };
+}
+
 // ── WORDS ───────────────────────────────────────────────────────────────────
 
 export const NO_STAY_WORDS = 'NO STAY';

@@ -321,15 +321,17 @@ test('T4 the evaluator: all_day takes no miss check — no miss row, no streak c
 
 // ── T5 · /tasks MOUNTS EXACTLY THE THREE; THE REMOVED ARE GONE ──────────────
 
-test('T5 /tasks mounts exactly the day card, Projects, Routines — and the law says so with the dated ruling', () => {
+// LEDGER-01 (Alex, 2026-10-16): the three became four — the city ledger mounts LAST, under Routines. Every pin below moved to
+// four; the three that TASKS-ONE-02 removed are still gone, and the law still holds the container to exactly its list.
+test('T5 /tasks mounts exactly the day card, Projects, Routines, the ledger — and the law says so with the dated rulings', () => {
   const page = code(PAGE);
   const box = page.slice(page.indexOf('data-tool-page="Tasks"'), page.indexOf('</OperationsEntityProvider>'));
-  assert.deepEqual([...box.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['Suspense', 'DayCard', 'SectionD_ProjectBacklog', 'SectionE_Routines']);
+  assert.deepEqual([...box.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['Suspense', 'DayCard', 'SectionD_ProjectBacklog', 'SectionE_Routines', 'LedgerSection']);
   assert.doesNotMatch(page, /WeekSection|SectionC_DailyPlan|TodaysStrip/);
   const law = code(LAW);
-  assert.match(law, /const TWO_LISTS_MOUNTS = \['<DayCard \/>', '<SectionD_ProjectBacklog \/>', '<SectionE_Routines \/>'\];/);
+  assert.match(law, /const TWO_LISTS_MOUNTS = \['<DayCard \/>', '<SectionD_ProjectBacklog \/>', '<SectionE_Routines \/>', '<LedgerSection \/>'\];/);
   assert.match(comments(LAW), /TASKS-ONE-02 — the ruling \(Alex, 2026-10-14\): the day card replaces the week grid, the Daily plan and the\s*\n\s*\/\/ Today strip\./);
-  assert.match(law, /pageMounts\.join\(' '\) !== 'DayCard SectionD_ProjectBacklog SectionE_Routines'/, 'the law holds the container to exactly three');
+  assert.match(law, /pageMounts\.join\(' '\) !== 'DayCard SectionD_ProjectBacklog SectionE_Routines LedgerSection'/, 'the law holds the container to exactly four');
 });
 
 test('T5 the routines section drops Today — on /tasks and in the cockpit that mounts it', () => {

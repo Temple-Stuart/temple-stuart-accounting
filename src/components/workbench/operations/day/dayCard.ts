@@ -75,7 +75,7 @@
 import { centsFromDecimalString, type NotPlaced } from '@/lib/budget/days';
 import { formatCents } from '@/lib/budget/format';
 import type { PlanLine } from '@/lib/budget/planLines';
-import { NO_STAY_WORDS, STAY_NOT_READ_WORDS, stayDay, stayDayWords, type StayRow } from '@/lib/operations/stay';
+import { NO_STAY_WORDS, STAY_NOT_READ_WORDS, placeParts, stayDay, stayDayWords, type StayRow } from '@/lib/operations/stay';
 import type { Answers } from '@/lib/operations/journal';
 import {
   LATER_WORD, NOT_RECORDED_WORDS, OPEN_WORD, ROUTINE_DONE_WORDS, ROUTINE_MISSED_WORDS, SKIPPED_WORD, TASK_DONE_WORDS, TASK_OPEN_WORDS, doneWords, lateWords, recordKey, skippedWords, starsWords,
@@ -959,8 +959,17 @@ export interface DayTotals {
   readonly actualCents: number | null;
   /** The ACTUAL total's tone, as a row's: against the BUDGET cells of the recorded rows only; null (muted) when it is unknown or none of them shows a budget. */
   readonly over: boolean | null;
+  /** LEDGER-01 (2026-10-16): the figure `over` is measured against — the BUDGET cells of the recorded rows summed; null when none of them shows a budget. The ledger prints the under/over in words from it. */
+  readonly recordedBudgetCents: number | null;
   /** The hero's day plan the table does not show (all-day lines, plan lines with no stop): the planned total less the BUDGET total; null when equal or the plan is unknown. */
   readonly beyondCents: number | null;
+}
+
+/** LEDGER-01 (2026-10-16): what dayTotals reads of a day — a DayStops is one; the ledger's rows in a period are another. The rule is unchanged. */
+export interface TotalsInput {
+  readonly stops: readonly Pick<Stop, 'cents' | 'actualCents'>[];
+  readonly spentCents: number | null;
+  readonly withActual: number;
 }
 
 /**
@@ -981,8 +990,12 @@ export interface DayTotals {
  *     invented; equal, nothing is said.
  *   · Amendment (Alex, 2026-10-15): the meter and the verdict under the row
  *     measure the row: the spent against the BUDGET total, not the whole plan.
+ *   · LEDGER-01 (Alex, 2026-10-16): the ledger's TOTAL row and its summary groups
+ *     are this rule over their rows (one rule, reused — never rewritten): the input
+ *     is what the rule reads (TotalsInput), and the recorded budget it measures
+ *     against is returned. The arithmetic is unchanged.
  */
-export function dayTotals(result: DayStops, plannedCents: number | null): DayTotals {
+export function dayTotals(result: TotalsInput, plannedCents: number | null): DayTotals {
   const shown = result.stops.map((s) => s.cents).filter((c): c is number => c !== null);
   const budgetCents = shown.length === 0 ? null : shown.reduce((sum, c) => sum + c, 0);
   const actualCents = result.spentCents === null || result.withActual === 0 ? null : result.spentCents;
@@ -993,6 +1006,7 @@ export function dayTotals(result: DayStops, plannedCents: number | null): DayTot
     budgetCents,
     actualCents,
     over: deltaWords(actualCents, recordedBudget).over,
+    recordedBudgetCents: recordedBudget,
     beyondCents: beyond === 0 ? null : beyond,
   };
 }
@@ -1144,10 +1158,13 @@ const tagWord = (part: string): string => part.normalize('NFC').toLowerCase().re
  * FIRST comma: the city before it, the country after ("Chiang Mai, Thailand 🇹🇭"
  * → #chiangmai #thailand). A place with no comma gives the city tag and the three
  * constants. A part with no letter or digit left gives no tag — never a guessed one.
+ * LEDGER-01 (Alex, 2026-10-16): the split is stay.ts placeParts — the one split,
+ * shared with the ledger's CITY and COUNTRY; the tags are unchanged (tagWord drops
+ * the whitespace the split now trims).
  */
 export function captionTags(stayPlace: string): string[] {
-  const comma = stayPlace.indexOf(',');
-  const parts = comma < 0 ? [stayPlace] : [stayPlace.slice(0, comma), stayPlace.slice(comma + 1)];
+  const place = placeParts(stayPlace);
+  const parts = place.country === null ? [place.city] : [place.city, place.country];
   return [...parts.map(tagWord).filter((w) => w !== '').map((w) => `#${w}`), ...CAPTION_TAGS];
 }
 

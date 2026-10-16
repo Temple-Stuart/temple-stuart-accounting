@@ -57,6 +57,11 @@
  * recorded done on the day card is the routine's done
  * (src/lib/operations/routineCompletion.ts). Projects' "↗ schedule" still puts
  * a task on a day; week/weekReads.ts stays — the day card reads through it.
+ *
+ * LEDGER-01 (Alex, 2026-10-16) — THE CITY LEDGER is the fourth section, under
+ * Routines: every stop recorded, by date, city, country, COA and vendor, with
+ * its totals and a summary over time and by place (ledger/LedgerSection.tsx).
+ * It reads no entity: the ledger is every book, and the COA says which.
  */
 import { Suspense } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
@@ -67,6 +72,7 @@ import { OperationsEntityProvider } from '@/components/workbench/operations/Enti
 import SectionD_ProjectBacklog from '@/components/workbench/operations/SectionD_ProjectBacklog';
 import SectionE_Routines from '@/components/workbench/operations/SectionE_Routines';
 import DayCard from '@/components/workbench/operations/day/DayCard';
+import LedgerSection from '@/components/workbench/operations/ledger/LedgerSection';
 
 export default function TasksPage() {
   return (
@@ -79,6 +85,7 @@ export default function TasksPage() {
           </Suspense>
           <SectionD_ProjectBacklog />
           <SectionE_Routines />
+          <LedgerSection />
         </div>
       </OperationsEntityProvider>
     </AppLayout>
