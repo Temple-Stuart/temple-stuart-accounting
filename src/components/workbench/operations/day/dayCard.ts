@@ -722,8 +722,27 @@ export const STOPS_NOT_READ_WORDS = 'stops not read';
 export const PLAN_WORD = 'PLAN';
 export const BADGE_WORDS = 'TS';
 
-/** "4 OF 7 · 12:30" — the step card's header words ('—' for a stop with no time). */
+/** "4 OF 7 · 12:30" — the step card's header words ('—' for a stop with no time). DECK-01 (2026-10-16): n and of count the deck's stops — the journal is not one of them. */
 export const stepHeaderWords = (n: number, of: number, time: string | null): string => `${n} OF ${of} · ${time === null ? '—' : time}`;
+
+// ── DECK-01 (Alex, 2026-10-16): THE DECK — the full card, then one card per stop, swiped sideways; the journal on its own under it ──
+
+/** The full card's hint, under the deck: the way in to a stop's card (was stopRole.ts TAP_A_STOP_WORDS, "tap a stop to record it"). */
+export const SWIPE_HINT_WORDS = 'swipe or tap a stop to record it';
+/** The deck, named for a screen reader. */
+export const DECK_WORDS = 'the day’s cards';
+export const DECK_PREVIOUS_WORDS = 'previous card';
+export const DECK_NEXT_WORDS = 'next card';
+/** The first card's name on the position marker. */
+export const DECK_FULL_CARD_WORDS = 'the day';
+/** "card 2 of 8 — Brunch" — a dot under the deck, and the card in view, named. */
+export const deckCardWords = (n: number, of: number, what: string): string => `card ${n} of ${of} — ${what}`;
+/** The journal card's header: its stop's time alone — no step number, it is not one of the deck's cards. */
+export const journalHeaderWords = (time: string | null): string => (time === null ? '—' : time);
+/** The journal row's door on the full card — it opens the journal card under the deck, not a step. */
+export const openJournalWords = (what: string): string => `Open the journal card: ${what}`;
+/** "temple-stuart-2026-10-14-journal.png" — the journal card's image; it has no step number (cardImage.ts names the deck's cards). */
+export const journalImageName = (day: string): string => `temple-stuart-${day}-journal.png`;
 
 /** How far along the planned money the day's stops 1..n are, in whole percent, 0–100; null when the plan is unknown or nothing is planned. */
 export function progressPercent(soFarCents: number | null, plannedCents: number | null): number | null {
@@ -766,6 +785,7 @@ export function completenessWords(result: DayStops, read: { readonly day: boolea
   return parts.length === 0 ? null : parts.join(' · ');
 }
 export const badDateWords = (raw: string): string => `?date=${raw} is not a day (YYYY-MM-DD) — showing today`;
+/** DECK-01 (2026-10-16): `of` counts the deck's stops (the journal is not one), so ?step= names a card of the deck. */
 export const badStepWords = (raw: string | number, of: number): string => `?step=${raw} is not one of this day's ${of} stops — showing the whole card`;
 
 const lineName = (label: string, line: string | null): string => (line === null ? label : `${label} — ${line}`);

@@ -20,7 +20,7 @@ import { code, comments } from '../sourceText';
 // yesterdayFailedWords are deleted; their pins moved below, dated (T1, T2, T6).
 import {
   ANSWER_FIELDS, ANSWER_MAX, BIDI_WORDS, BODY_WORDS, CONTROLS_WORDS, JOURNAL_LOADING_WORDS, NO_ANSWERS,
-  NOTHING_TYPED_WORDS, PLAN_BLOCK_WORD, RACE_WORDS, RETIRED_FIELDS, TODAY_BLOCK_WORD, UNANSWERED_WORD, YESTERDAY_LOADING_WORDS, YESTERDAY_WORD,
+  NOTHING_TYPED_WORDS, PLAN_BLOCK_WORD, RACE_WORDS, RETIRED_FIELDS, TODAY_BLOCK_WORD, YESTERDAY_LOADING_WORDS, YESTERDAY_WORD,
   answersOf, asJournalDate, clearJournalQuestion, dayWords, journalInput, journalRowOf, journalUnchanged, noJournalWords, notStringWords,
   retiredFieldWords, tooLongWords, tooManyWords,
   type Answers,
@@ -227,7 +227,8 @@ test('T1 the words — each a constant or a function, exact', () => {
   assert.equal(YESTERDAY_WORD, 'YESTERDAY');
   assert.equal(TODAY_BLOCK_WORD, 'TODAY');
   assert.equal(PLAN_BLOCK_WORD, 'PLAN');
-  assert.equal(UNANSWERED_WORD, '—');
+  // DECK-01 (Alex, 2026-10-16): UNANSWERED_WORD ('—') is gone — a block with no answer is left off the plate (deck01.test.ts).
+  assert.doesNotMatch(code(RULE), /\bUNANSWERED_WORD\b/, 'UNANSWERED_WORD is deleted');
   assert.equal(JOURNAL_LOADING_WORDS, 'reading the journal…');
   // CLEAN-02 (2026-10-14): JOURNAL_NOT_READ_WORDS, yesterdayFailedWords, typedWords, typedOnWords, NONE_TYPED_WORDS and journalProvenanceWords
   // (the source line's and the tally's words) are deleted — a failed read still prints its own words on the plate (T6).
@@ -503,13 +504,17 @@ test('T6 the plate: the four blocks in order, "—" for the unanswered, reads on
   assert.match(c, /const journalRead = journal !== null && journal\.day === day \? journal\.read : null;/);
   assert.match(c, /const yesterdayRead = yesterday !== null && yesterday\.day === day \? yesterday\.read : null;/);
   assert.doesNotMatch(c, /setJournal\(null\)|setYesterday\(null\)/, 'a re-read never blanks the plate first');
-  assert.match(c, /\{focus\.stop\.role === 'journal' \? \(\n\s*<JournalPlate key=\{day\} day=\{day\} journal=\{journalRead\} yesterday=\{yesterdayRead\} onChanged=\{\(\) => setJournalReads\(\(n\) => n \+ 1\)\} \/>\n\s*\) : \(/, 'the plate for the journal stop, keyed by the day; a tick re-reads the journal; the plain record block for every other role');
+  // DECK-01 (Alex, 2026-10-16): the journal card is its own plate UNDER the deck (data-day-journal-section), always shown on a day with a journal
+  // stop — no longer a branch of the step view; the deck's stop cards (stopPlate) are for every other role. Moved, not loosened.
+  assert.match(c, /\{loaded && journalStop !== null && \(\n\s*<div ref=\{journalCardRef\} className="space-y-2 pt-3" style=\{\{ scrollMarginTop: JOURNAL_SCROLL_MARGIN \}\} id="journal" data-day-journal-section>\n\s*<PlateFrame>\n\s*<Plate plateRef=\{\(el\) => \{ journalPlateRef\.current = el; \}\} journal right=\{journalHeaderWords\(journalStop\.time\)\}>[\s\S]*?<JournalPlate key=\{day\} day=\{day\} journal=\{journalRead\} yesterday=\{yesterdayRead\} onChanged=\{\(\) => setJournalReads\(\(n\) => n \+ 1\)\} \/>\n\s*<\/Plate>\n\s*<\/PlateFrame>/, 'the plate for the journal stop, under the deck, keyed by the day; a tick re-reads the journal');
+  assert.match(c, /const journalStop = result\.stops\.find\(\(s\) => s\.role === 'journal'\) \?\? null;/, 'the day’s journal stop');
   assert.match(c, /data-day-record>/, 'the plain record block stands');
   // PLAN-01 (2026-10-13): yesterday's steps not ticked read "not finished:" — the attribute renamed with the words.
   // CLEAN-02 (2026-10-14): YESTERDAY is its plan's ticks (data-day-yesterday-steps) and its note when typed (data-day-yesterday-note); the
   // tally's lines, TODAY's planned/stops line, the record (status, minutes) and the source line are gone from the order.
   // JOURNAL-03 (2026-10-15): data-day-yesterday-note and data-day-journal-end-of-day left the order, and joined the parts that are gone.
-  inOrder(c, ['data-day-journal-yesterday', 'data-day-yesterday-loading', 'data-day-yesterday-journal-failed', 'data-day-yesterday-steps', 'data-day-journal-today', 'data-day-journal-goal>', 'data-day-journal-blockers', 'data-day-journal-plan-block', 'data-day-journal-step=', 'data-day-journal-loading', 'data-day-journal-failed', 'data-day-journal-none'], 'YESTERDAY, TODAY, BLOCKERS, PLAN, the read’s state');
+  // DECK-01 (Alex, 2026-10-16): the read's own state (in flight, failed, nothing typed) prints before the blocks — where TODAY's '—' was; a block with no answer is left out.
+  inOrder(c, ['data-day-journal-yesterday', 'data-day-yesterday-loading', 'data-day-yesterday-journal-failed', 'data-day-yesterday-steps', 'data-day-journal-loading', 'data-day-journal-failed', 'data-day-journal-none', 'data-day-journal-today', 'data-day-journal-goal>', 'data-day-journal-blockers', 'data-day-journal-plan-block', 'data-day-journal-step='], 'YESTERDAY, the read’s state, TODAY, BLOCKERS, PLAN');
   assert.doesNotMatch(c, /data-day-journal-record|data-day-journal-status|data-day-journal-minutes|data-day-journal-provenance|data-day-journal-plan>|data-day-yesterday-(spent|largest|done|end-of-day|not-finished|records-failed|report-failed|items-failed|failed|build-failed|note)|data-day-journal-(end-of-day|shipped)|typedState/, 'none of the removed parts');
   assert.match(c, /data-day-yesterday-loading>\{YESTERDAY_LOADING_WORDS\}/);
   assert.match(c, /data-day-yesterday-journal-failed>\{yesterday\.words\}/, 'yesterday’s read that failed prints its own words');
@@ -524,7 +529,9 @@ test('T6 the plate: the four blocks in order, "—" for the unanswered, reads on
   assert.doesNotMatch(c, /data-day-yesterday-shipped|tallyShippedWords|answerLine|pairLine|QUESTION_WORDS|accomplishedWords/);
   assert.match(c, /const a: Answers = answersOf\(row === null \? \{\} : row\);/);
   assert.match(c, /<JournalForm key=\{`\$\{day\}:\$\{journalRead\.value\.journal === null \? 'none' : journalRead\.value\.journal\.id\}`\} day=\{day\} journal=\{journalRead\.value\.journal\} yesterday=\{yesterdayForPrompt\} onChanged=\{\(\) => setJournalReads\(\(n\) => n \+ 1\)\} \/>/, 'keyed by the day and the journal; a write bumps the read counter; JOURNAL-02 / PLAN-01: yesterday — its open steps and its END OF DAY (CLEAN-02: its row; JOURNAL-03: its ticks alone) — for the add button and the plan prompt');
-  assert.match(c, /\{loaded && focus !== null && focus\.stop\.role === 'journal' && journalRead !== null && journalRead\.ok && \(/, 'never offered while the journal could not be read');
+  // DECK-01 (Alex, 2026-10-16): the form sits in the journal card's section (loaded, a journal stop), under its record row.
+  assert.match(c, /\{journalRead !== null && journalRead\.ok && \(\n\s*<JournalForm /, 'never offered while the journal could not be read');
+  assert.ok(c.indexOf('data-day-journal-section>') < c.indexOf('<JournalForm') && c.indexOf('<JournalForm') < c.indexOf('data-day-foot'), 'in the journal card’s section');
   inOrder(c, ['data-day-card', '<StopForm', '<JournalForm', 'data-day-foot'], 'under the plate, after the record form, above the sentences');
   // JOURNAL-02 (2026-10-13): the plate's tick buttons write through the ONE writer — the card imports its set (as writeJournal) and
   // nothing else from it, and calls it once (the tick); it still fetches nothing and names no method. Narrowed, not loosened.
