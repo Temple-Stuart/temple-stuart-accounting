@@ -205,8 +205,9 @@ test('T2 the cells’ words: the card’s ACTUAL words with the delta, "skipped"
 });
 
 test('T2 said, not hidden: no line (the doubled named), no stay, the zone, the priced stops past with no record (an all-day line is not a stop), the lines not placed', () => {
+  // RETRO-01 (Alex, 2026-10-16): what is said gains the records left out by role (none here — every fixture is a place stop; retro01.test.ts drives it).
   assert.deepEqual(ledger.said, {
-    noLine: 2, doubled: 1, noStay: 3, unplaced: ledger.said.unplaced, notRecorded: 2, notPlaced: 0,
+    noLine: 2, doubled: 1, noStay: 3, unplaced: ledger.said.unplaced, notRecorded: 2, notPlaced: 0, leftOut: { journal: 0, plan: 0, execute: 0, all_day: 0 },
   });
   // Past NOW (Oct 12, 19:00 Bangkok): the morning's Oct 12 stops — coffee recorded, stretch and lunch not; the gym at 20:00 and every
   // Oct 13 stop are not past; Netflix's line is all day — in the plan, not a stop, never counted.

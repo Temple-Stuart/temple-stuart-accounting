@@ -3057,6 +3057,12 @@ enum AuditActionType {
   // audit-log route's operations_ list.
   operations_routine_uncompleted
   operations_routine_completion_updated
+  // RETRO-01 (Alex, 2026-10-16): a stop's record moved to its stop's instant by its
+  // owner (the stops/[id] PATCH — a record typed before the routine's time or start
+  // date changed), appended in ALTER TYPE order — migration
+  // 20261016120000_retro_01_stop_moved_audit_type. In the audit-log route's
+  // operations_ list.
+  operations_stop_moved
 }
 
 model audit_log {

@@ -213,19 +213,21 @@ import JournalForm from '../stops/JournalForm';
 import { setJournal as writeJournal } from '../stops/journalWrites';
 import StopForm from '../stops/StopForm';
 import StopVendor from '../stops/StopVendor';
+import AttachRecord from '../stops/AttachRecord';
+import { onDayWritten } from '../dayWritten';
 import { ACCOUNT_CELL_WORDS } from '@/lib/coa/accountCell';
 import {
   BLOCKERS_BLOCK_WORD, JOURNAL_LOADING_WORDS, PLAN_BLOCK_WORD, TODAY_BLOCK_WORD, YESTERDAY_LOADING_WORDS, YESTERDAY_WORD,
   answersOf, goalWords, journalInput, noJournalWords, planDoneWords, planStepWords, yesterdayStepsWords,
   type Answers, type YesterdayForPrompt,
 } from '@/lib/operations/journal';
-import { starsWords } from '@/lib/operations/stopRecord';
+import { starsWords, type StopRecordPlan, type StopRecordRow } from '@/lib/operations/stopRecord';
 import { ALSO_TODAY_WORDS, allDayBandWords, allDayCentsWords } from '@/lib/operations/stopRole';
 import { readDayReport, readJournal, readStays, readStopRecords, type JournalAnswer, type StaysAnswer, type StopRecordsAnswer } from './dayReads';
 import {
   ACTUAL_WORD, BADGE_WORDS, BRAND_WORDS, PLAN_WORD, TASK_WORD, TODAY_WORD, badDateWords, badStepWords, completenessWords, dayStops, deltaWords, focusStop,
   bandNameOf, headerWords, heroWord, HOOK_WORDS, linesUnreadWords, linesWithoutStopWords, minutesLine, notPlacedWords, planDollars, progressPercent, provenanceWords,
-  recordsUnplacedWords, recordsWithoutStopWords, routineFigureWords, rowActualWords, planSoFarWords, stepHeaderWords,
+  recordsUnplacedWords, recordsWithoutStopHead, routineFigureWords, rowActualWords, planSoFarWords, stepHeaderWords,
   barsWhyWords, PLATE_PADDING_X, PLATE_WIDTH, overByWords,
   unmatchedWords, vendorSlot, whereWords,
   dayShortWords,
@@ -296,6 +298,13 @@ const plateSmall = { fontSize: 20, lineHeight: 1.2 } as const;
 
 /** The browser's motion preference, read when a move is made — never at render. */
 const reducedMotion = (): boolean => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** RETRO-01: the plan words the stops GET handed beside this record; a record it listed without them is the route's error, never a nameless line. */
+const planOfRecord = (plans: StopRecordsAnswer['plans'], r: StopRecordRow): StopRecordPlan => {
+  const plan = plans[r.id];
+  if (plan === undefined) throw new Error(`dayCard: record ${r.id} came without its plan words`);
+  return plan;
+};
 
 /**
  * JOURNAL-01: the journal stop's plate. `journal` null is in flight; `yesterday`
@@ -466,6 +475,9 @@ export default function DayCard() {
   // The day the three reads above landed for: a day change renders once with the old day's reads before they are blanked, and
   // the journal and yesterday effects must not fire on that render.
   const [readsDay, setReadsDay] = useState<string | null>(null);
+  // RETRO-01 (2026-10-16): the ledger's "+ expense" writes a one-off stop, its vendor and its record for a day (dayWritten.ts);
+  // a card showing that day reads it again — the day, the report, the tasks and the records — through its own reads.
+  const [dayWrites, setDayWrites] = useState(0);
 
   useEffect(() => {
     setToday(localToday());
@@ -498,7 +510,13 @@ export default function DayCard() {
       setReadsDay(day);
     })();
     return () => { live = false; };
-  }, [day, today]);
+  }, [day, today, dayWrites]);
+
+  // RETRO-01: told that this day was written to from another section, the card reads it again.
+  useEffect(() => {
+    if (day === null) return;
+    return onDayWritten((written) => { if (written === day) setDayWrites((n) => n + 1); });
+  }, [day]);
 
   useEffect(() => {
     if (day === null) return;
@@ -518,7 +536,7 @@ export default function DayCard() {
       if (live) setRecords({ day, read: r });
     })();
     return () => { live = false; };
-  }, [day, recordReads]);
+  }, [day, recordReads, dayWrites]);
 
   useEffect(() => {
     if (day === null || today === null || reportReads === 0) return;
@@ -1010,7 +1028,15 @@ export default function DayCard() {
           {result.routineFigures.length > 0 && <p className="text-brand-amber" data-day-routine-figures>{routineFigureWords(result.routineFigures)}</p>}
           {result.linesWithoutStop.length > 0 && <p className="text-brand-amber" data-day-lines-without-stop>{dayFailed ? linesUnreadWords(result.linesWithoutStop) : linesWithoutStopWords(result.linesWithoutStop)}</p>}
           {result.notPlacedToday.length > 0 && <p className="text-brand-amber" data-day-not-placed>{notPlacedWords(result.notPlacedToday)}</p>}
-          {result.recordsWithoutStop.length > 0 && <p className="text-brand-amber" data-day-records-without-stop>{recordsWithoutStopWords(result.recordsWithoutStop)}</p>}
+          {/* RETRO-01 (2026-10-16): each record that matches no stop, named with its plan's words, and the stop it can attach to (stops/AttachRecord.tsx). */}
+          {result.recordsWithoutStop.length > 0 && recordsRead !== null && recordsRead.ok && (
+            <div className="text-brand-amber space-y-1" data-day-records-without-stop>
+              <p>{recordsWithoutStopHead(result.recordsWithoutStop.length)}</p>
+              {result.recordsWithoutStop.map((r) => (
+                <AttachRecord key={r.id} record={r} plan={planOfRecord(recordsRead.value.plans, r)} stops={result.stops} onChanged={() => setRecordReads((n) => n + 1)} />
+              ))}
+            </div>
+          )}
           {unplacedRecords.length > 0 && <p className="text-brand-amber" data-day-records-unplaced>{recordsUnplacedWords(unplacedRecords)}</p>}
           <RefusedRoutines refused={refused} />
           {recordsRead !== null && !recordsRead.ok && <p className="text-brand-red" data-day-records-failed>{recordsRead.words}</p>}

@@ -304,9 +304,11 @@ test('T3 the migration: the table column for column, the UNIQUE named, four pair
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
   // JOURNAL-02 (2026-10-13): the simple journal's migration is newer — this one is the one before it. The pin moved; the order holds.
   // TASKS-ONE-02 (2026-10-14): the completion audit types' migration is newer still — every index moved one; the order holds.
-  assert.equal(dirs[dirs.length - 3], MIGRATION_DIR, 'the migration two before the newest (JOURNAL-02, then TASKS-ONE-02 followed)');
-  assert.equal(dirs[dirs.length - 2], '20261013200000_journal_02_the_simple_journal');
-  assert.equal(dirs[dirs.length - 1], '20261014090000_tasks_one_02_completion_audit_types', 'the newest migration');
+  // RETRO-01 (Alex, 2026-10-16): the stop-moved audit type's migration is newer still — every index moved one; the order holds.
+  assert.equal(dirs[dirs.length - 4], MIGRATION_DIR, 'the migration three before the newest (JOURNAL-02, TASKS-ONE-02, then RETRO-01 followed)');
+  assert.equal(dirs[dirs.length - 3], '20261013200000_journal_02_the_simple_journal');
+  assert.equal(dirs[dirs.length - 2], '20261014090000_tasks_one_02_completion_audit_types');
+  assert.equal(dirs[dirs.length - 1], '20261016120000_retro_01_stop_moved_audit_type', 'the newest migration');
   assert.ok(MIGRATION_DIR.slice(0, 14) > '20261013030000', 'after ROLE-01’s');
 });
 
@@ -336,10 +338,11 @@ test('T3 the schema: the model column for column with the SQL, the map: name equ
   assert.ok(auditEnum !== null);
   const values = auditEnum![1].split(/\s+/).filter(Boolean);
   // TASKS-ONE-02 (2026-10-14): two values follow them in ALTER TYPE order — the pin moved from "last two" to "the two before the last two".
-  assert.deepEqual(values.slice(-4, -2), ['operations_journal_set', 'operations_journal_cleared']);
+  // RETRO-01 (2026-10-16): one more follows — "the two before the last three".
+  assert.deepEqual(values.slice(-5, -3), ['operations_journal_set', 'operations_journal_cleared']);
   assert.equal(AuditActionType.operations_journal_set, 'operations_journal_set', 'prisma generate ran');
   assert.equal(AuditActionType.operations_journal_cleared, 'operations_journal_cleared');
-  assert.match(code(AUDIT_LOG), /'operations_stop_set',\s*'operations_stop_cleared',\s*'operations_journal_set',\s*'operations_journal_cleared',\s*'operations_routine_uncompleted',\s*'operations_routine_completion_updated',\s*\],/);
+  assert.match(code(AUDIT_LOG), /'operations_stop_set',\s*'operations_stop_cleared',\s*'operations_journal_set',\s*'operations_journal_cleared',\s*'operations_routine_uncompleted',\s*'operations_routine_completion_updated',\s*'operations_stop_moved',\s*\],/);
 });
 
 // ── T4 · THE ROUTES ──────────────────────────────────────────────────────────

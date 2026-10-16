@@ -15,7 +15,13 @@
  * and every sentence is src/lib/operations/ledger.ts's; the cells print the
  * day card's own words (dayShortWords, rowActualWords, planDollars). The
  * entity selector is not read: the ledger is every book, and the COA says
- * which. Nothing is written; nothing is stored in the browser.
+ * which. Nothing is written here; nothing is stored in the browser.
+ *
+ * RETRO-01 (Alex, 2026-10-16): EXPENSES ONLY — the rows are the records whose
+ * plan takes money; the ones left out are said by role under the table. And
+ * "+ expense" (ExpenseForm.tsx) above the table: an expense typed here lands on
+ * that day's card through the three existing routes; once written, the ledger
+ * reads its period again and the card is told the day (dayWritten.ts).
  */
 
 'use client';
@@ -25,10 +31,12 @@ import { localToday } from '@/lib/localToday';
 import type { Read } from '../week/weekReads';
 import { dayShortWords, deltaWords } from '../day/dayCard';
 import { readLedger, type LedgerAnswer } from './ledgerReads';
+import ExpenseForm from './ExpenseForm';
+import { announceDayWritten } from '../dayWritten';
 import {
   ALL_WORDS, BY_WORDS, CELL_WORDS, EVERY_BOOK_WORDS, FILTER_KEYS, FILTER_WORDS, GROUP_KEYS, GROUP_WORDS, LEDGER_HEAD_WORDS, LEDGER_LOADING_WORDS, LEDGER_TITLE_WORDS,
   NEXT_WORDS, NO_FILTERS, NO_FIRST_RECORD_WORDS, NO_ROWS_SHOWN_WORDS, PERIOD_KINDS, PERIOD_WORDS, PREVIOUS_WORDS, SUMMARY_HEAD_WORDS, SUMMARY_TITLE_WORDS, TODAY_RULE_WORDS, TOTAL_WORDS,
-  actualCellWords, averageStarsWords, budgetCellWords, choicesOf, daysWords, filterRows, firstRecordUnplacedWords, ledgerSummary, ledgerTotals, noLineWords, noRowsWords, noStayWords,
+  actualCellWords, averageStarsWords, budgetCellWords, choicesOf, daysWords, filterRows, firstRecordUnplacedWords, ledgerSummary, ledgerTotals, leftOutWords, noLineWords, noRowsWords, noStayWords,
   notPlacedWords, notRecordedWords, noteCellWords, perDayWords, periodOf, periodWords, starsCellWords, stepAnchor, unplacedWords, vendorCellWords,
   type FilterKey, type Filters, type GroupKey, type LedgerRow, type Period, type PeriodKind,
 } from '@/lib/operations/ledger';
@@ -52,6 +60,8 @@ export default function LedgerSection() {
   // The last answer and the period it was read for; the first record's day rides every answer, so ALL can start from it.
   const [answer, setAnswer] = useState<{ readonly period: Period; readonly read: Read<LedgerAnswer> } | null>(null);
   const [firstRecord, setFirstRecord] = useState<LedgerAnswer['first_record'] | null>(null);
+  // RETRO-01: an expense written from the form — the period is read again.
+  const [writes, setWrites] = useState(0);
 
   useEffect(() => {
     const t = localToday();
@@ -74,7 +84,7 @@ export default function LedgerSection() {
       if (read.ok) setFirstRecord(read.value.first_record);
     })();
     return () => { live = false; };
-  }, [period?.from, period?.to]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [period?.from, period?.to, writes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const rows: readonly LedgerRow[] = answer !== null && answer.read.ok ? answer.read.value.rows : [];
   const shown = filterRows(rows, filters);
@@ -86,6 +96,8 @@ export default function LedgerSection() {
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-lg font-bold text-brand-purple">{LEDGER_TITLE_WORDS}</h2>
       </div>
+      {/* RETRO-01: "+ expense" — a one-off stop, its vendor and its record for a day; the ledger and that day's card read again. */}
+      <ExpenseForm onWritten={(day) => { setWrites((n) => n + 1); announceDayWritten(day); }} />
       <div className="flex flex-wrap items-center gap-2 text-xs" data-ledger-controls>
         {PERIOD_KINDS.map((k) => (
           <button key={k} type="button" className={kind === k ? chipOn : chip} onClick={() => setKind(k)} data-ledger-period={k} aria-pressed={kind === k}>{PERIOD_WORDS[k]}</button>
@@ -155,6 +167,7 @@ export default function LedgerSection() {
             <p data-ledger-said-no-stay>{noStayWords(answer.read.value.said.noStay)}</p>
             <p data-ledger-said-unplaced>{unplacedWords(answer.read.value.said.unplaced)}</p>
             <p data-ledger-said-not-recorded>{notRecordedWords(answer.read.value.said.notRecorded)}</p>
+            <p data-ledger-said-left-out>{leftOutWords(answer.read.value.said.leftOut)}</p>
             {answer.read.value.said.notPlaced > 0 && <p data-ledger-said-not-placed>{notPlacedWords(answer.read.value.said.notPlaced)}</p>}
             <p data-ledger-said-today-rule>{TODAY_RULE_WORDS}</p>
             <p data-ledger-said-every-book>{EVERY_BOOK_WORDS}</p>

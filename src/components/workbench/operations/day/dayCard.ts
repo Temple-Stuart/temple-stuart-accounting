@@ -79,7 +79,7 @@ import { NO_STAY_WORDS, STAY_NOT_READ_WORDS, placeParts, stayDay, stayDayWords, 
 import type { Answers } from '@/lib/operations/journal';
 import {
   LATER_WORD, NOT_RECORDED_WORDS, OPEN_WORD, ROUTINE_DONE_WORDS, ROUTINE_MISSED_WORDS, SKIPPED_WORD, TASK_DONE_WORDS, TASK_OPEN_WORDS, doneWords, lateWords, recordKey, skippedWords, starsWords,
-  type StopRecordKind, type StopRecordRow,
+  type StopRecordKind, type StopRecordPlan, type StopRecordRow,
 } from '@/lib/operations/stopRecord';
 import { NO_AMOUNT_NO_VENDOR_WORDS, REPORT_NOT_READ_NO_VENDOR_WORDS, UNMATCHED_NO_VENDOR_WORDS, isStop, isStopRole, type StopRole } from '@/lib/operations/stopRole';
 import { instantToZoned, zonedToInstant } from '@/lib/time';
@@ -653,11 +653,42 @@ export function minutesLine(planned: number | null, actual: number | null): stri
   return parts.join(' · ');
 }
 
-/** The sentence under the plate for records whose key matches no stop. */
-export const recordsWithoutStopWords = (list: readonly StopRecordRow[]): string => {
-  const head = list.length === 1 ? '1 record of the day matches no stop' : `${list.length} records of the day match no stop`;
-  return `${head} — ${list.map((r) => `${r.kind} ${r.target_id} at ${r.occurrence_at}: ${r.outcome}${r.actual_cents === null ? '' : `, ${formatCents(r.actual_cents)}`}`).join(' · ')}`;
+// ── RETRO-01 (Alex, 2026-10-16): A RECORD THAT MATCHES NO STOP RE-ATTACHES TO ITS STOP ──
+//
+// A record typed before its routine's time or start date changed is keyed to an
+// instant no stop of the day is at. The foot names each one — its plan's words
+// (the stops GET hands them beside the records), its instant in the routine's
+// zone, what it says — and offers "attach to <stop>" for every stop of the day
+// that is the SAME plan and holds no record (a daily routine has one a day);
+// the move is the stops/[id] PATCH, through stops/AttachRecord.tsx (the one
+// writer's caller — the day folder writes nothing). No such stop → the line says
+// what to do. recordsWithoutStopWords (one sentence for all) is gone.
+
+/** "2 records of the day match no stop" — the head over the list. */
+export const recordsWithoutStopHead = (n: number): string => (n === 1 ? '1 record of the day matches no stop' : `${n} records of the day match no stop`);
+
+/** One stranded record: its plan's words, its instant in the routine's own zone, what it says — "Brunch · 11:00 Tue Oct 13: done, $22.00". */
+export const recordWithoutStopWords = (r: StopRecordRow, plan: StopRecordPlan): string => {
+  const at = instantToZoned(new Date(r.occurrence_at), plan.timezone);
+  return `${stopName({ line: plan.activity, label: plan.routine_name })} · ${at.time} ${dayShortWords(at.date)}: ${r.outcome}${r.actual_cents === null ? '' : `, ${formatCents(r.actual_cents)}`}`;
 };
+
+/** The stops of the day that are the record's own plan (kind and id), with or without a record. */
+export const planStops = (r: Pick<StopRecordRow, 'kind' | 'target_id'>, stops: readonly Stop[]): Stop[] =>
+  stops.filter((s) => s.address !== null && s.address.kind === r.kind && s.address.id === r.target_id);
+
+/** The stops of the day that are the record's own plan (kind and id) and hold no record — where it can attach. */
+export const attachableStops = (r: Pick<StopRecordRow, 'kind' | 'target_id'>, stops: readonly Stop[]): Stop[] =>
+  planStops(r, stops).filter((s) => s.record === null);
+
+/** "attach to Brunch 11:00" — the button's words, the stop's bold name and its clock. */
+export const attachWords = (s: Pick<Stop, 'line' | 'label' | 'time'>): string => `attach to ${stopName({ line: s.line, label: s.label })}${s.time === null ? '' : ` ${s.time}`}`;
+
+/** No stop of the record's plan on this day — what to do. */
+export const noStopToAttachWords = (routine: string): string => `no ${routine} stop on this day — extend the routine's start date, then attach`;
+
+/** The plan's stop on this day already holds a record — the move would be refused by name; what to do. */
+export const stopTakenWords = (routine: string): string => `the ${routine} stop on this day already has a record — clear one of the two first`;
 
 /** The sentence under the plate for records the route could not place in a day. */
 export const recordsUnplacedWords = (list: readonly { readonly record: StopRecordRow; readonly detail: string }[]): string => {

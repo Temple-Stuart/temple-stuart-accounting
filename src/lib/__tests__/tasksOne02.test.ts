@@ -298,7 +298,8 @@ test('T3 each change audited by its own type, before → after, with the routine
   assert.match(w, /before: change\.before,\s*after: change\.after,/);
   assert.match(w, /routine_id: change\.routine\.id,\s*routine_name: change\.routine\.name,\s*expected_at: change\.expectedAt\.toISOString\(\),/);
   assert.match(code(STOPS), /import \{ auditCompletionChange, lockRoutine, syncCompletion, type CompletionChange \} from '@\/lib\/operations\/routineCompletion';/);
-  assert.match(code(STOPS_ID), /import \{ auditCompletionChange, lockRoutine, syncCompletion \} from '@\/lib\/operations\/routineCompletion';/);
+  // RETRO-01 (2026-10-16): the [id] route's PATCH collects the two changes of a move (its type imported with them).
+  assert.match(code(STOPS_ID), /import \{ auditCompletionChange, lockRoutine, syncCompletion, type CompletionChange \} from '@\/lib\/operations\/routineCompletion';/);
   // One writer: no other file creates, moves or deletes a completion, or writes the completion streak.
   const writers = walk('src').filter((f) => /operations_routine_completions\.(create|update|delete|upsert)/.test(code(f)));
   assert.deepEqual(writers, [WRITER]);
@@ -372,16 +373,20 @@ test('T6 the migration: two ADD VALUE IF NOT EXISTS lines and nothing else; the 
   assert.match(comments(MIGRATION), /Neither value is used in this migration/);
   assert.match(comments(MIGRATION), /NO BACKFILL, no row written/);
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 1], MIGRATION_DIR, 'the newest migration');
-  assert.equal(dirs[dirs.length - 2], '20261013200000_journal_02_the_simple_journal');
+  // RETRO-01 (Alex, 2026-10-16): the stop-moved audit type's migration is newer still — every index moved one; the order holds.
+  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the migration before the newest (RETRO-01 followed)');
+  assert.equal(dirs[dirs.length - 1], '20261016120000_retro_01_stop_moved_audit_type', 'the newest migration');
+  assert.equal(dirs[dirs.length - 3], '20261013200000_journal_02_the_simple_journal');
 });
 
 test('T6 the schema’s enum ends with the two, the client knows them, the audit log lists them under operations_', () => {
   const values = /enum AuditActionType \{([\s\S]*?)\}/.exec(code(SCHEMA))![1].split(/\s+/).filter(Boolean);
-  assert.deepEqual(values.slice(-2), ['operations_routine_uncompleted', 'operations_routine_completion_updated']);
+  // RETRO-01 (2026-10-16): one more follows — "the two before the last one".
+  assert.deepEqual(values.slice(-3, -1), ['operations_routine_uncompleted', 'operations_routine_completion_updated']);
   assert.equal(values.filter((v) => v === 'operations_routine_completed').length, 1, 'creation keeps the POST’s type');
   assert.equal(AuditActionType.operations_routine_uncompleted, 'operations_routine_uncompleted', 'prisma generate ran');
   assert.equal(AuditActionType.operations_routine_completion_updated, 'operations_routine_completion_updated');
   const ops = code(AUDIT_LOG).slice(code(AUDIT_LOG).indexOf('operations_: ['));
-  assert.match(ops.slice(0, ops.indexOf('],')), /'operations_journal_cleared',\s*'operations_routine_uncompleted',\s*'operations_routine_completion_updated',\s*$/);
+  // RETRO-01 (2026-10-16): the stop-moved type follows them in the list.
+  assert.match(ops.slice(0, ops.indexOf('],')), /'operations_journal_cleared',\s*'operations_routine_uncompleted',\s*'operations_routine_completion_updated',\s*'operations_stop_moved',\s*$/);
 });

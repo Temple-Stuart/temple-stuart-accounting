@@ -25,22 +25,31 @@
  * said in words, because editing a routine changes past rows until budget
  * history exists.
  *
+ * RETRO-01 (Alex, 2026-10-16) — EXPENSES ONLY. The ledger is an expense ledger:
+ * a record stays only when its plan's role takes money (dayCard.ts asksAmount —
+ * place, none); a journal, plan, execute or all-day record leaves the rows and
+ * every total, counted by role under the table (said.leftOut). The priced
+ * stops past with no record are counted by the same rule.
+ *
  * Here: the rule (ledgerOf — the route's pure half), the period (periodOf,
  * stepAnchor, the 400-day cap), the filters, the totals and the summary (the
- * screen's pure half), and the words. No fetch, no Prisma, no React; the clock
- * is handed in (now). The tests drive every rule.
+ * screen's pure half), the "+ expense" form's rule and bodies (RETRO-01, at the
+ * end), and the words. No fetch, no Prisma, no React; the clock is handed in
+ * (now). The tests drive every rule.
  */
-import { isIsoDay, readOccurrenceKey, type NotPlaced } from '@/lib/budget/days';
+import { centsFromDecimalString, isIsoDay, readOccurrenceKey, type NotPlaced } from '@/lib/budget/days';
 import { BLANK } from '@/lib/budget/format';
 import type { BudgetLine } from '@/lib/budget/report';
 import { dayPlanOf, type PlanLine, type PlanVendorRow, type RoutineWords } from '@/lib/budget/planLines';
 import { shiftDay } from '@/lib/budget/reportView';
 import { deriveAccountString } from '@/lib/accountString';
 import { coveringStay, placeParts, type PlaceParts, type StayRow } from '@/lib/operations/stay';
-import { SKIPPED_WORD, recordKey, refusedWords, type StopOutcome, type StopRecordRow } from '@/lib/operations/stopRecord';
-import { isStop, isStopRole } from '@/lib/operations/stopRole';
-import { dayShortWords, dayTotals, deltaWords, planDollars, rowActualWords, stopName } from '@/components/workbench/operations/day/dayCard';
-import { instantToZoned } from '@/lib/time';
+import { NEGATIVE_AMOUNT_WORDS, SKIPPED_WORD, amountWords, recordKey, refusedWords, type StopOutcome, type StopRecordRow } from '@/lib/operations/stopRecord';
+import { ROLE_SHORT_WORDS, isStop, isStopRole, type StopRole } from '@/lib/operations/stopRole';
+import { asksAmount, dayShortWords, dayTotals, deltaWords, planDollars, rowActualWords, stopName } from '@/components/workbench/operations/day/dayCard';
+import { instantToZoned, zonedToInstant } from '@/lib/time';
+import type { RoutineForm } from '@/components/workbench/operations/routines/types';
+import type { StopBody } from '@/components/workbench/operations/stops/stopWrites';
 
 // ── INPUT ───────────────────────────────────────────────────────────────────
 
@@ -136,7 +145,13 @@ export interface LedgerSaid {
   readonly notRecorded: number;
   /** The Budget's routine lines in the period it could not place (days.ts NotPlaced). */
   readonly notPlaced: number;
+  /** RETRO-01: records in the period left out because their plan's role takes no money, by role. */
+  readonly leftOut: Readonly<Record<NoMoneyRole, number>>;
 }
+
+/** RETRO-01: the roles that take no money (dayCard.ts asksAmount is false) — a record of one is not an expense. */
+export type NoMoneyRole = Exclude<StopRole, 'place' | 'none'>;
+export const NO_MONEY_ROLES: readonly NoMoneyRole[] = ['journal', 'plan', 'execute', 'all_day'];
 
 export interface Ledger {
   readonly from: string;
@@ -191,9 +206,19 @@ export function ledgerOf(input: LedgerInput): Ledger {
     seen.add(key);
   }
 
+  // RETRO-01: EXPENSES ONLY — a record stays when its plan's role takes money (asksAmount); the others are counted by role, never summed.
+  const leftOut: Record<NoMoneyRole, number> = { journal: 0, plan: 0, execute: 0, all_day: 0 };
+  const expenses = placed.filter((p) => {
+    const role = p.r.role;
+    if (!isStopRole(role)) throw new Error(`ledger: record ${p.r.record.id} names routine ${p.r.routineId}, whose role ${JSON.stringify(role)} is not one of the six`);
+    if (asksAmount(role)) return true;
+    leftOut[role as NoMoneyRole] += 1;
+    return false;
+  });
+
   // The plan lines of each day that has a record, indexed by the card's key.
   const linesByDay = new Map<string, Map<string, PlanLine[]>>();
-  for (const day of new Set(placed.map((p) => p.day))) {
+  for (const day of new Set(expenses.map((p) => p.day))) {
     const byKey = new Map<string, PlanLine[]>();
     for (const l of dayLines(input, day)) {
       const key = lineKey(l.address);
@@ -202,7 +227,7 @@ export function ledgerOf(input: LedgerInput): Ledger {
     linesByDay.set(day, byKey);
   }
 
-  const rows: LedgerRow[] = placed.map(({ r, day, time }) => {
+  const rows: LedgerRow[] = expenses.map(({ r, day, time }) => {
     const key = recordKey(r.record);
     const exact = linesByDay.get(day)?.get(key) ?? [];
     const line = exact.length === 1 ? exact[0] : null;
@@ -232,7 +257,7 @@ export function ledgerOf(input: LedgerInput): Ledger {
     };
   });
   // Newest day first; within a day the card's clock order: time, then the routine, then the line.
-  const label = new Map(placed.map((p) => [p.r.record.id, { label: p.r.routineName, line: p.r.activity }]));
+  const label = new Map(expenses.map((p) => [p.r.record.id, { label: p.r.routineName, line: p.r.activity }]));
   rows.sort((a, b) => cmp(b.day, a.day) || cmpMaybe(a.time, b.time) || cmp(label.get(a.id)!.label, label.get(b.id)!.label) || cmpMaybe(label.get(a.id)!.line, label.get(b.id)!.line) || cmp(a.id, b.id));
 
   // Priced stops planned in the period, already past, with no record — an all-day line is in the plan, not a stop (it takes no record).
@@ -245,6 +270,8 @@ export function ledgerOf(input: LedgerInput): Ledger {
     if (role === undefined) throw new Error(`ledger: budget line ${l.sourceId} names routine ${read.routineId}, whose role was not read`);
     if (!isStopRole(role)) throw new Error(`ledger: routine ${read.routineId} carries role ${JSON.stringify(role)} — not one of the six`);
     if (!isStop(role)) continue;
+    // RETRO-01: a stop whose role takes no money never records money — not an expense missing.
+    if (!asksAmount(role)) continue;
     if (read.address.instant.getTime() >= input.now.getTime()) continue;
     const key = lineKey({ kind: read.address.kind, id: read.address.id, instant: read.address.instant.toISOString() });
     if (!recorded.has(key)) missing.add(key);
@@ -261,6 +288,7 @@ export function ledgerOf(input: LedgerInput): Ledger {
       unplaced,
       notRecorded: missing.size,
       notPlaced: input.notPlaced.length,
+      leftOut,
     },
   };
 }
@@ -476,5 +504,194 @@ export const unplacedWords = (list: readonly { readonly record: StopRecordRow; r
   `${list.length} record${list.length === 1 ? '' : 's'} whose routine's zone could not be read${list.length === 0 ? '' : ` — ${list.map((u) => `${u.record.id}: ${u.detail}`).join('; ')}`}`;
 export const notRecordedWords = (n: number): string => `${n} priced stop${n === 1 ? '' : 's'} planned in the period, already past, with no record`;
 export const notPlacedWords = (n: number): string => `${n} routine line${n === 1 ? '' : 's'} the Budget could not place in the period (no budget here for its stops)`;
+/** RETRO-01: "2 records left out — not expenses (no money at a journal, plan or execute stop): journal 1 · plan 1". */
+export const leftOutWords = (left: Readonly<Record<NoMoneyRole, number>>): string => {
+  const n = NO_MONEY_ROLES.reduce((sum, role) => sum + left[role], 0);
+  const parts = NO_MONEY_ROLES.filter((role) => left[role] > 0).map((role) => `${ROLE_SHORT_WORDS[role]} ${left[role]}`);
+  return `${n} record${n === 1 ? '' : 's'} left out — not expenses (no money at a journal, plan or execute stop)${parts.length === 0 ? '' : `: ${parts.join(' · ')}`}`;
+};
 export const TODAY_RULE_WORDS = "budgets and COAs are the routines' as they stand today — editing a routine changes past rows until budget history exists";
 export const EVERY_BOOK_WORDS = 'every book — the COA says which; the entity selector does not filter the ledger';
+
+// ── RETRO-01 (Alex, 2026-10-16): "+ EXPENSE" ON THE LEDGER ──────────────────
+//
+// An expense typed on the ledger lands on that day's card: a one-off stop (the
+// routine create route — cadence once, role place, ONE line, the thing itself,
+// carrying the amount and the COA: a one-off is made of lines), its vendor on
+// that line's occurrence when one is given (the directory route for a new
+// name, then the plan-vendors route), then its record (the stops POST) — each
+// through the existing route, in that order, each audited as today. The zone
+// is the viewer's browser zone, shown; the stop is the day and time in it.
+// Here: what the form is given (expenseInput — the first bad field named,
+// nothing filled in), the bodies the routes read, and the words. A failure
+// stops at its step and is said by name; nothing is retried, nothing is rolled
+// back — what was written is said as written.
+
+export const EXPENSE_FIELDS = ['day', 'time', 'name', 'amount', 'coa', 'book', 'vendor', 'actual', 'stars', 'note'] as const;
+export type ExpenseField = (typeof EXPENSE_FIELDS)[number];
+
+/** The form's draft — every box a string; vendorId '' and vendorName '' mean no vendor. */
+export interface ExpenseDraft {
+  readonly day: string;
+  readonly time: string;
+  readonly name: string;
+  readonly amount: string;
+  readonly coa: string;
+  readonly book: string;
+  readonly vendorId: string;
+  readonly vendorName: string;
+  readonly actual: string;
+  readonly stars: string;
+  readonly note: string;
+}
+export const EMPTY_EXPENSE: ExpenseDraft = { day: '', time: '', name: '', amount: '', coa: '', book: '', vendorId: '', vendorName: '', actual: '', stars: '', note: '' };
+
+export type ExpenseVendor = { readonly kind: 'none' } | { readonly kind: 'existing'; readonly id: string } | { readonly kind: 'new'; readonly name: string };
+
+export interface ExpenseValues {
+  readonly day: string;
+  readonly time: string;
+  readonly zone: string;
+  /** The one-off's stop: the day and time in the zone, ISO text. */
+  readonly instant: string;
+  readonly name: string;
+  /** The amount as typed (dollars) — the create route reads it by its own rule (planMoney). */
+  readonly amount: string;
+  readonly coa: string;
+  readonly bookId: string;
+  readonly vendor: ExpenseVendor;
+  readonly actualCents: number | null;
+  readonly rating: number | null;
+  readonly note: string | null;
+}
+
+export type ExpenseInputResult = { readonly ok: true; readonly value: ExpenseValues } | { readonly ok: false; readonly field: ExpenseField; readonly message: string };
+
+const refuseExpense = (field: ExpenseField, message: string): ExpenseInputResult => ({ ok: false, field, message });
+const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+export const EXPENSE_FIELD_WORDS: Readonly<Record<ExpenseField, string>> = { day: 'DAY', time: 'TIME', name: 'NAME', amount: 'AMOUNT', coa: 'COA', book: 'BOOK', vendor: 'VENDOR', actual: 'ACTUAL', stars: 'STARS', note: 'NOTE' };
+export const requiredWords = (field: ExpenseField): string => `${EXPENSE_FIELD_WORDS[field]} is required`;
+export const dayTypedWords = (typed: string): string => `${JSON.stringify(typed)} is not a 'YYYY-MM-DD' day`;
+export const timeTypedWords = (typed: string): string => `${JSON.stringify(typed)} is not a time (HH:MM)`;
+export const starsTypedWords = (typed: string): string => `${JSON.stringify(typed)} is not 1 to 5`;
+export const NAME_LONG_WORDS = 'NAME is at most 200 characters';
+export const AMOUNT_ZERO_WORDS = 'an expense has an amount above 0';
+export const VENDOR_BOTH_WORDS = 'pick a vendor or type a new name — not both';
+
+/** Dollars typed → cents by the Budget's own rule, or the words. */
+function centsOf(typed: string): { readonly ok: true; readonly cents: number } | { readonly ok: false; readonly message: string } {
+  let read: ReturnType<typeof centsFromDecimalString>;
+  try {
+    read = centsFromDecimalString(typed);
+  } catch {
+    return { ok: false, message: amountWords(typed) };
+  }
+  if (!read.ok) return { ok: false, message: amountWords(typed) };
+  if (read.cents < 0) return { ok: false, message: NEGATIVE_AMOUNT_WORDS };
+  return { ok: true, cents: read.cents };
+}
+
+/**
+ * The one rule for what the form is given: the day a real day; the time HH:MM;
+ * the name 1–200 characters; the amount dollars above 0; the COA and the book
+ * required; the vendor one of the two ways or none; the actual dollars 0 or more
+ * or blank; the stars 1–5 or blank; the note trimmed or blank. The stop is the
+ * day and time in the viewer's zone. The first bad field is named.
+ */
+export function expenseInput(draft: ExpenseDraft, zone: string): ExpenseInputResult {
+  if (draft.day === '') return refuseExpense('day', requiredWords('day'));
+  if (!isIsoDay(draft.day)) return refuseExpense('day', dayTypedWords(draft.day));
+  if (draft.time === '') return refuseExpense('time', requiredWords('time'));
+  if (!TIME_RE.test(draft.time)) return refuseExpense('time', timeTypedWords(draft.time));
+  const name = draft.name.trim().replace(/\s+/g, ' ');
+  if (name === '') return refuseExpense('name', requiredWords('name'));
+  if (name.length > 200) return refuseExpense('name', NAME_LONG_WORDS);
+  const amount = draft.amount.trim();
+  if (amount === '') return refuseExpense('amount', requiredWords('amount'));
+  const amountCents = centsOf(amount);
+  if (!amountCents.ok) return refuseExpense('amount', amountCents.message);
+  if (amountCents.cents === 0) return refuseExpense('amount', AMOUNT_ZERO_WORDS);
+  const coa = draft.coa.trim();
+  if (coa === '') return refuseExpense('coa', requiredWords('coa'));
+  if (draft.book === '') return refuseExpense('book', requiredWords('book'));
+  const vendorName = draft.vendorName.trim().replace(/\s+/g, ' ');
+  if (draft.vendorId !== '' && vendorName !== '') return refuseExpense('vendor', VENDOR_BOTH_WORDS);
+  const vendor: ExpenseVendor = draft.vendorId !== '' ? { kind: 'existing', id: draft.vendorId } : vendorName !== '' ? { kind: 'new', name: vendorName } : { kind: 'none' };
+  let actualCents: number | null = null;
+  if (draft.actual.trim() !== '') {
+    const read = centsOf(draft.actual.trim());
+    if (!read.ok) return refuseExpense('actual', read.message);
+    actualCents = read.cents;
+  }
+  let rating: number | null = null;
+  if (draft.stars.trim() !== '') {
+    if (!/^[1-5]$/.test(draft.stars.trim())) return refuseExpense('stars', starsTypedWords(draft.stars));
+    rating = Number(draft.stars.trim());
+  }
+  const note = draft.note.trim().replace(/\s+/g, ' ');
+  return {
+    ok: true,
+    value: {
+      day: draft.day, time: draft.time, zone, instant: zonedToInstant(draft.day, draft.time, zone).toISOString(),
+      name, amount, coa, bookId: draft.book, vendor, actualCents, rating, note: note === '' ? null : note,
+    },
+  };
+}
+
+/** The create route's body: a one-off (cadence once on the day, at the time, in the zone), role place, one line — the thing itself, with the amount and the COA. */
+export const oneOffBody = (v: ExpenseValues): RoutineForm => ({
+  name: v.name, description: '', entity_id: v.bookId,
+  cadence_mode: 'once', weekly_byday: [], monthly_day_of_month: '1', monthly_nth: '1', monthly_weekday: 'MO', custom_rrule: '',
+  byhour: v.time.slice(0, 2), byminute: v.time.slice(3, 5), timezone: v.zone,
+  ideal_time_label: '', fail_threshold_minutes: '0', role: 'place',
+  start_date: v.day, end_date: '', start_time: v.time, end_time: '', is_active: true,
+  budget_amount: '', coa_code: '', location: '', latitude: '', longitude: '',
+  lines: [{ activity: v.name, budget_amount: v.amount, coa_code: v.coa }],
+});
+
+/** The plan-vendors route's body: the vendor on the line's one occurrence. */
+export const vendorBody = (v: ExpenseValues, lineId: string, vendorId: string): { readonly kind: 'routine_line'; readonly id: string; readonly instant: string; readonly vendorId: string } =>
+  ({ kind: 'routine_line', id: lineId, instant: v.instant, vendorId });
+
+/** The stops POST's body: the line's record at its occurrence — done at the stop's own instant, the actual, the stars, the note. */
+export const recordBody = (v: ExpenseValues, lineId: string): StopBody =>
+  ({ kind: 'routine_line', id: lineId, instant: v.instant, outcome: 'done', done_at: v.instant, actual_cents: v.actualCents, rating: v.rating, note: v.note, actual_minutes: null });
+
+// The outcome: one line per step, each said by name.
+export const EXPENSE_STEPS = ['stop', 'line', 'directory', 'vendor', 'record'] as const;
+export type ExpenseStep = (typeof EXPENSE_STEPS)[number];
+export type ExpenseState = 'written' | 'failed' | 'not tried' | 'not asked';
+export interface ExpenseOutcome {
+  readonly step: ExpenseStep;
+  readonly state: ExpenseState;
+  /** The route's words on a failure; '' otherwise. */
+  readonly words: string;
+}
+export const STEP_WORDS: Readonly<Record<ExpenseStep, string>> = {
+  stop: 'the one-off stop', line: "the stop's line, read back", directory: 'the vendor, added to the book', vendor: 'the vendor, on the stop', record: 'the record',
+};
+export const WRITTEN_WORDS = 'written';
+export const NOT_TRIED_WORDS = 'not tried — stopped at the failure before it';
+export const NOT_ASKED_WORDS = 'none given';
+export const outcomeWords = (o: ExpenseOutcome): string =>
+  `${STEP_WORDS[o.step]} — ${o.state === 'written' ? WRITTEN_WORDS : o.state === 'not tried' ? NOT_TRIED_WORDS : o.state === 'not asked' ? NOT_ASKED_WORDS : `not written: ${o.words}`}`;
+/** Every step after a failure, not tried — so the list always names all five. */
+export const withNotTried = (done: readonly ExpenseOutcome[]): ExpenseOutcome[] => {
+  const said = new Set(done.map((o) => o.step));
+  return [...done, ...EXPENSE_STEPS.filter((step) => !said.has(step)).map((step): ExpenseOutcome => ({ step, state: 'not tried', words: '' }))];
+};
+export const expenseLandedWords = (day: string): string => `the expense is on ${dayShortWords(day)}'s card and in the ledger`;
+
+export const EXPENSE_WORDS = '+ expense';
+export const EXPENSE_TITLE_WORDS = 'an expense on a day — a one-off stop, its vendor, its record: three writes, each said';
+export const zoneWords = (zone: string): string => `times in ${zone} — your browser's zone`;
+export const SAVE_EXPENSE_WORDS = 'save the expense';
+export const CANCEL_EXPENSE_WORDS = 'cancel';
+export const NO_VENDOR_WORDS = 'none';
+export const NEW_VENDOR_WORDS = 'or a new vendor by name';
+export const NO_BOOK_WORDS = 'no book — set one up in Books first';
+export const VENDORS_LOADING_WORDS = 'reading the vendors…';
+export const lineCountWords = (n: number): string => `the one-off came back with ${n} lines — one was written`;
+export const ROUTINE_NO_ID_WORDS = 'the routine came back without its id';
+export const VENDOR_NO_ID_WORDS = 'the vendor came back without its id';

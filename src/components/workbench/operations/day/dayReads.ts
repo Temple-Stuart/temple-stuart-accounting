@@ -19,7 +19,7 @@
 import type { BudgetReportResponse } from '@/lib/budget/reportInputs';
 import type { JournalRow } from '@/lib/operations/journal';
 import type { StayRow } from '@/lib/operations/stay';
-import type { StopRecordRow } from '@/lib/operations/stopRecord';
+import type { StopRecordPlan, StopRecordRow } from '@/lib/operations/stopRecord';
 import { readJson, type Read } from '../week/weekReads';
 
 export const dayReportFailedWords = (words: string): string => `The day's amounts and places could not be read — ${words}`;
@@ -51,6 +51,8 @@ export interface StopRecordsAnswer {
   readonly records: readonly StopRecordRow[];
   /** Records whose routine's zone could not be read — named with the reason, never placed in UTC. */
   readonly unplaced: readonly { readonly record: StopRecordRow; readonly detail: string }[];
+  /** RETRO-01: each listed record's plan words, by record id — the routine's name and zone, the line's activity. */
+  readonly plans: Readonly<Record<string, StopRecordPlan>>;
 }
 
 export const stopRecordsFailedWords = (words: string): string => `The stop records could not be read — ${words}`;
@@ -60,7 +62,9 @@ export async function readStopRecords(day: string): Promise<Read<StopRecordsAnsw
   const read = await readJson(`/api/operations/stops?${new URLSearchParams({ day }).toString()}`);
   if (!read.ok) return { ok: false, words: stopRecordsFailedWords(read.words) };
   if (!Array.isArray(read.value.records) || !Array.isArray(read.value.unplaced)) return { ok: false, words: stopRecordsFailedWords('the records came back without their list') };
-  return { ok: true, value: { records: read.value.records as StopRecordRow[], unplaced: read.value.unplaced as StopRecordsAnswer['unplaced'] } };
+  // RETRO-01: the plan words ride every answer; an answer without them is a failure in words, never a record with no name.
+  if (typeof read.value.plans !== 'object' || read.value.plans === null || Array.isArray(read.value.plans)) return { ok: false, words: stopRecordsFailedWords('the records came back without their plans') };
+  return { ok: true, value: { records: read.value.records as StopRecordRow[], unplaced: read.value.unplaced as StopRecordsAnswer['unplaced'], plans: read.value.plans as StopRecordsAnswer['plans'] } };
 }
 
 export interface JournalAnswer {
