@@ -3,6 +3,7 @@
  *
  *   · set:   POST /api/operations/stops            { kind, id, instant, outcome, done_at, actual_cents, rating, note, actual_minutes }
  *   · clear: DELETE /api/operations/stops/[id]
+ *   · move:  PATCH /api/operations/stops/[id]       { instant } — RETRO-01 (2026-10-16): a record that matches no stop re-attaches to its stop
  *
  * Each answer is read the one way the week's writer reads its own
  * (routines/completeRoutine.ts): ok, or the route's own words — message, else
@@ -46,4 +47,14 @@ export async function setStopRecord(values: StopBody): Promise<StopAnswer> {
 export async function clearStopRecord(id: string): Promise<StopAnswer> {
   const res = await fetch(`/api/operations/stops/${id}`, { method: 'DELETE' });
   return answerOf(res, 'failed to clear the stop record');
+}
+
+/** RETRO-01: the record moved to its stop's instant — the route proves the instant is that plan's stop on the day. */
+export async function moveStopRecord(id: string, instant: string): Promise<StopAnswer> {
+  const res = await fetch(`/api/operations/stops/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ instant }),
+  });
+  return answerOf(res, 'failed to move the stop record');
 }

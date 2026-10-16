@@ -179,12 +179,14 @@ test('T5 the migration: the table with its two CHECKs, the trigger that locks th
   // STOP-01 (2026-10-12): the stop records migration is newer; ROLE-01 (2026-10-13): the role migration newer still; JOURNAL-01 (2026-10-13) followed. The pin moved three times; the order holds.
   // JOURNAL-02 (2026-10-13): the simple journal's migration is newer still — every index moved one; the order holds.
   // TASKS-ONE-02 (2026-10-14): the completion audit types' migration is newer still — every index moved one; the order holds.
-  assert.equal(dirs[dirs.length - 6], MIGRATION_DIR, 'the migration five before the newest (STOP-01, ROLE-01, JOURNAL-01, JOURNAL-02, then TASKS-ONE-02 followed)');
-  assert.equal(dirs[dirs.length - 5], '20261012140000_stop_01_operations_stop_records');
-  assert.equal(dirs[dirs.length - 4], '20261013030000_role_01_routine_role');
-  assert.equal(dirs[dirs.length - 3], '20261013120000_journal_01_day_journals');
-  assert.equal(dirs[dirs.length - 2], '20261013200000_journal_02_the_simple_journal');
-  assert.equal(dirs[dirs.length - 1], '20261014090000_tasks_one_02_completion_audit_types', 'the newest migration');
+  // RETRO-01 (Alex, 2026-10-16): the stop-moved audit type's migration is newer still — every index moved one; the order holds.
+  assert.equal(dirs[dirs.length - 7], MIGRATION_DIR, 'the migration six before the newest (STOP-01, ROLE-01, JOURNAL-01, JOURNAL-02, TASKS-ONE-02, then RETRO-01 followed)');
+  assert.equal(dirs[dirs.length - 6], '20261012140000_stop_01_operations_stop_records');
+  assert.equal(dirs[dirs.length - 5], '20261013030000_role_01_routine_role');
+  assert.equal(dirs[dirs.length - 4], '20261013120000_journal_01_day_journals');
+  assert.equal(dirs[dirs.length - 3], '20261013200000_journal_02_the_simple_journal');
+  assert.equal(dirs[dirs.length - 2], '20261014090000_tasks_one_02_completion_audit_types');
+  assert.equal(dirs[dirs.length - 1], '20261016120000_retro_01_stop_moved_audit_type', 'the newest migration');
   assert.ok(MIGRATION_DIR.slice(0, 14) > '20260930210000');
 });
 
@@ -207,10 +209,11 @@ test('T5 the schema: the model column for column with the SQL; the user’s rela
   const values = auditEnum[1].split(/\s+/).filter(Boolean);
   // STOP-01 (2026-10-12): two values follow them in ALTER TYPE order; JOURNAL-01 (2026-10-13): two more — the pin moved from "last two" to "the two before the last four".
   // TASKS-ONE-02 (2026-10-14): two more follow — "the two before the last six".
-  assert.deepEqual(values.slice(-8, -6), ['operations_stay_set', 'operations_stay_deleted']);
+  // RETRO-01 (2026-10-16): one more follows — "the two before the last seven".
+  assert.deepEqual(values.slice(-9, -7), ['operations_stay_set', 'operations_stay_deleted']);
   assert.equal(AuditActionType.operations_stay_set, 'operations_stay_set', 'prisma generate ran');
   assert.equal(AuditActionType.operations_stay_deleted, 'operations_stay_deleted');
-  assert.match(code(AUDIT_LOG), /'operations_routine_completion_note_edited',\s*'operations_stay_set',\s*'operations_stay_deleted',\s*'operations_stop_set',\s*'operations_stop_cleared',\s*'operations_journal_set',\s*'operations_journal_cleared',\s*'operations_routine_uncompleted',\s*'operations_routine_completion_updated',\s*\],/);
+  assert.match(code(AUDIT_LOG), /'operations_routine_completion_note_edited',\s*'operations_stay_set',\s*'operations_stay_deleted',\s*'operations_stop_set',\s*'operations_stop_cleared',\s*'operations_journal_set',\s*'operations_journal_cleared',\s*'operations_routine_uncompleted',\s*'operations_routine_completion_updated',\s*'operations_stop_moved',\s*\],/);
 });
 
 // ── T6 · THE ROUTES ──────────────────────────────────────────────────────────

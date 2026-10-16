@@ -213,10 +213,12 @@ test('T3 the migration: one column, NOT NULL default none, the six-value CHECK, 
   // JOURNAL-01 (2026-10-13): the journal migration is newer — this one is the one before it. The pin moved; the order holds.
   // JOURNAL-02 (2026-10-13): the simple journal's migration is newer still — every index moved one; the order holds.
   // TASKS-ONE-02 (2026-10-14): the completion audit types' migration is newer still — every index moved one; the order holds.
-  assert.equal(dirs[dirs.length - 4], MIGRATION_DIR, 'the migration three before the newest (JOURNAL-01, JOURNAL-02, then TASKS-ONE-02 followed)');
-  assert.equal(dirs[dirs.length - 3], '20261013120000_journal_01_day_journals');
-  assert.equal(dirs[dirs.length - 2], '20261013200000_journal_02_the_simple_journal');
-  assert.equal(dirs[dirs.length - 1], '20261014090000_tasks_one_02_completion_audit_types', 'the newest migration');
+  // RETRO-01 (Alex, 2026-10-16): the stop-moved audit type's migration is newer still — every index moved one; the order holds.
+  assert.equal(dirs[dirs.length - 5], MIGRATION_DIR, 'the migration four before the newest (JOURNAL-01, JOURNAL-02, TASKS-ONE-02, then RETRO-01 followed)');
+  assert.equal(dirs[dirs.length - 4], '20261013120000_journal_01_day_journals');
+  assert.equal(dirs[dirs.length - 3], '20261013200000_journal_02_the_simple_journal');
+  assert.equal(dirs[dirs.length - 2], '20261014090000_tasks_one_02_completion_audit_types');
+  assert.equal(dirs[dirs.length - 1], '20261016120000_retro_01_stop_moved_audit_type', 'the newest migration');
   assert.ok(MIGRATION_DIR.slice(0, 14) > '20261012140000', 'after STOP-01’s');
   const model = /model operations_routines \{([\s\S]*?)\n\}/.exec(code(SCHEMA));
   assert.ok(model !== null);

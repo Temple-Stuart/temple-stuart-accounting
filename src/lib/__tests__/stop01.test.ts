@@ -25,7 +25,7 @@ import type { DailyPlanItem } from '@/components/workbench/operations/dailyplan/
 import type { Routine, RoutineStep, TodayRoutineEntry, TodayStatus } from '@/components/workbench/operations/routines/types';
 import {
   ACTUAL_WORD, ON_PLAN_WORDS, RECORDS_NOT_READ_WORDS, completenessWords, dayStops, dayTotals, deltaWords, focusStop, minutesLine, monthDayWords, notRecordedWords,
-  recordsUnplacedWords, recordsWithoutStopWords, rowActualWords, skippedCountWords, spentSoFarWords, statusWords,
+  recordWithoutStopWords, recordsUnplacedWords, recordsWithoutStopHead, rowActualWords, skippedCountWords, spentSoFarWords, statusWords,
   type DayCardInput, type Stop,
 } from '@/components/workbench/operations/day/dayCard';
 import { readStopRecords, stopRecordsFailedWords } from '@/components/workbench/operations/day/dayReads';
@@ -409,9 +409,14 @@ test('T3 the record’s words: the rubric, the stars, the status with its source
   assert.equal(minutesLine(null, 42), '42 min');
   assert.equal(minutesLine(null, null), null);
   assert.equal(monthDayWords('2026-10-12'), 'Oct 12');
-  assert.equal(recordsWithoutStopWords([record({ kind: 'routine_line', target_id: 'archived-step', occurrence_at: AT, actual_cents: 300 })]),
-    `1 record of the day matches no stop — routine_line archived-step at ${AT}: done, $3.00`, 'the facts; no guessed cause');
-  assert.equal(recordsWithoutStopWords([record({ kind: 'routine', target_id: 'g', occurrence_at: AT, outcome: 'skipped', note: 'x' }), record({ kind: 'routine', target_id: 'h', occurrence_at: AT })]).split(' — ')[0], '2 records of the day match no stop');
+  // RETRO-01 (Alex, 2026-10-16): the one sentence for all (recordsWithoutStopWords) is gone — the head counts, and each record is its own
+  // line with its plan's words (the stops GET hands them beside the records) and its instant in the routine's own zone; the stops it can
+  // attach to follow it (retro01.test.ts drives that rule). The facts, no guessed cause — moved, not loosened.
+  assert.equal(recordsWithoutStopHead(1), '1 record of the day matches no stop');
+  assert.equal(recordsWithoutStopHead(2), '2 records of the day match no stop');
+  assert.equal(recordWithoutStopWords(record({ kind: 'routine_line', target_id: 'archived-step', occurrence_at: AT, actual_cents: 300 }), { routine_name: 'Morning', activity: 'Coffee', timezone: 'Asia/Bangkok' }),
+    'Coffee · 07:00 Sun Oct 11: done, $3.00', 'the facts; no guessed cause');
+  assert.equal(recordWithoutStopWords(record({ kind: 'routine', target_id: 'g', occurrence_at: AT, outcome: 'skipped', note: 'x' }), { routine_name: 'Gym', activity: null, timezone: 'Asia/Bangkok' }), 'Gym · 07:00 Sun Oct 11: skipped');
   assert.equal(recordsUnplacedWords([{ record: record({ kind: 'routine', target_id: 'g', occurrence_at: AT }), detail: 'the routine\'s day cannot be read — timezone not recognised: "Mars/Olympus"' }]),
     `1 record could not be placed in a day — routine g at ${AT}: the routine's day cannot be read — timezone not recognised: "Mars/Olympus"`);
   assert.equal(stopRecordsFailedWords('x'), 'The stop records could not be read — x');
@@ -455,11 +460,13 @@ test('T4 the migration: the table with its CHECKs, three cascades, two partial u
   // ROLE-01 (2026-10-13): the role migration is newer; JOURNAL-01 (2026-10-13): the journal's newer still. The pin moved twice; the order holds.
   // JOURNAL-02 (2026-10-13): the simple journal's migration is newer still — every index moved one; the order holds.
   // TASKS-ONE-02 (2026-10-14): the completion audit types' migration is newer still — every index moved one; the order holds.
-  assert.equal(dirs[dirs.length - 5], MIGRATION_DIR, 'the migration four before the newest (ROLE-01, JOURNAL-01, JOURNAL-02, then TASKS-ONE-02 followed)');
-  assert.equal(dirs[dirs.length - 4], '20261013030000_role_01_routine_role');
-  assert.equal(dirs[dirs.length - 3], '20261013120000_journal_01_day_journals');
-  assert.equal(dirs[dirs.length - 2], '20261013200000_journal_02_the_simple_journal');
-  assert.equal(dirs[dirs.length - 1], '20261014090000_tasks_one_02_completion_audit_types', 'the newest migration');
+  // RETRO-01 (Alex, 2026-10-16): the stop-moved audit type's migration is newer still — every index moved one; the order holds.
+  assert.equal(dirs[dirs.length - 6], MIGRATION_DIR, 'the migration five before the newest (ROLE-01, JOURNAL-01, JOURNAL-02, TASKS-ONE-02, then RETRO-01 followed)');
+  assert.equal(dirs[dirs.length - 5], '20261013030000_role_01_routine_role');
+  assert.equal(dirs[dirs.length - 4], '20261013120000_journal_01_day_journals');
+  assert.equal(dirs[dirs.length - 3], '20261013200000_journal_02_the_simple_journal');
+  assert.equal(dirs[dirs.length - 2], '20261014090000_tasks_one_02_completion_audit_types');
+  assert.equal(dirs[dirs.length - 1], '20261016120000_retro_01_stop_moved_audit_type', 'the newest migration');
   assert.ok(MIGRATION_DIR.slice(0, 14) > '20261012090000', 'after STAY-01’s');
 });
 
@@ -492,10 +499,11 @@ test('T4 the schema: the model column for column with the SQL; three relations; 
   const values = auditEnum[1].split(/\s+/).filter(Boolean);
   // JOURNAL-01 (2026-10-13): two values follow them in ALTER TYPE order — the pin moved from "last two" to "the two before the last two".
   // TASKS-ONE-02 (2026-10-14): two more follow — "the two before the last four".
-  assert.deepEqual(values.slice(-6, -4), ['operations_stop_set', 'operations_stop_cleared']);
+  // RETRO-01 (2026-10-16): one more follows — "the two before the last five".
+  assert.deepEqual(values.slice(-7, -5), ['operations_stop_set', 'operations_stop_cleared']);
   assert.equal(AuditActionType.operations_stop_set, 'operations_stop_set', 'prisma generate ran');
   assert.equal(AuditActionType.operations_stop_cleared, 'operations_stop_cleared');
-  assert.match(code(AUDIT_LOG), /'operations_stay_set',\s*'operations_stay_deleted',\s*'operations_stop_set',\s*'operations_stop_cleared',\s*'operations_journal_set',\s*'operations_journal_cleared',\s*'operations_routine_uncompleted',\s*'operations_routine_completion_updated',\s*\],/);
+  assert.match(code(AUDIT_LOG), /'operations_stay_set',\s*'operations_stay_deleted',\s*'operations_stop_set',\s*'operations_stop_cleared',\s*'operations_journal_set',\s*'operations_journal_cleared',\s*'operations_routine_uncompleted',\s*'operations_routine_completion_updated',\s*'operations_stop_moved',\s*\],/);
   // The items route hands the card the task's own done-at; the summary type names it.
   assert.match(code(ITEMS_ROUTE), /actual_cost_usd: true,\s*actual_minutes: true,\s*completed_at: true,/);
   assert.match(code(ITEM_TYPES), /actual_minutes: number \| null;\s*completed_at: string \| null;/);
@@ -511,11 +519,15 @@ test('T5 the routes: the caller proven, the day placed by each routine’s zone;
   assert.ok(get.indexOf('getVerifiedEmail()') < get.indexOf('prisma.users.findFirst('), 'the cookie first');
   assert.match(get, /if \(!isIsoDay\(day\)\) \{\n\s*return NextResponse\.json\(\{ error: 'Validation', field: 'day', message: `day \$\{JSON\.stringify\(day\)\} is not a 'YYYY-MM-DD' day` \}, \{ status: 400 \}\);/, 'the day is required, named when missing or not a day');
   assert.match(get, /where: \{ user_id: user\.id, occurrence_at: recordWindow\(day\) \}/, 'the caller’s rows in the any-zone window');
-  assert.match(get, /const zone = row\.step !== null \? row\.step\.routine\.timezone : row\.routine !== null \? row\.routine\.timezone : null;/);
+  // RETRO-01 (Alex, 2026-10-16): the plan's words are read with the zone (the name beside the timezone, the line's activity) and handed back
+  // beside the records (plans, by record id); the zone each record is placed by is its plan's. Moved, not loosened.
+  assert.match(get, /include: \{ routine: \{ select: \{ name: true, timezone: true \} \}, step: \{ select: \{ activity: true, routine: \{ select: \{ name: true, timezone: true \} \} \} \} \}/);
+  assert.match(get, /const plan: StopRecordPlan \| null = row\.step !== null\n\s*\? \{ routine_name: row\.step\.routine\.name, activity: row\.step\.activity, timezone: row\.step\.routine\.timezone \}\n\s*: row\.routine !== null \? \{ routine_name: row\.routine\.name, activity: null, timezone: row\.routine\.timezone \} : null;/);
+  assert.match(get, /const zone = plan\.timezone;/);
   assert.match(get, /localDay = instantToZoned\(row\.occurrence_at, zone\)\.date;/, 'placed by the routine’s own zone — the today read’s placing');
   assert.match(get, /unplaced\.push\(\{ record, detail: refusedWords\('timezone not recognised'/, 'an unreadable zone is named, never UTC');
-  assert.match(get, /if \(localDay === day\) records\.push\(record\);/);
-  assert.match(get, /return NextResponse\.json\(\{ day, records, unplaced \}\);/);
+  assert.match(get, /if \(localDay === day\) \{ records\.push\(record\); plans\[record\.id\] = plan; \}/);
+  assert.match(get, /return NextResponse\.json\(\{ day, records, unplaced, plans \}\);/);
   const post = r.slice(r.indexOf('export async function POST('));
   const order = [
     'getVerifiedEmail()', 'prisma.users.findFirst(', 'raw = await request.json();', 'BODY_NOT_JSON_WORDS', 'status: 400', 'const now = new Date();', 'stopInput(raw, now)', 'if (!isValidUuid(v.id)) return NextResponse.json({ error: \'Not found\' }, { status: 404 });',
@@ -548,7 +560,8 @@ test('T5 the routes: the caller proven, the day placed by each routine’s zone;
   // [id]: DELETE by { id, user_id }, the UUID gate before any query, delete then audit before → null.
   const i = code(ROUTE_ID);
   assert.match(i, /export async function DELETE\(/);
-  assert.doesNotMatch(i, /export (const|function) (?!DELETE)/);
+  // RETRO-01 (Alex, 2026-10-16): the PATCH (the move) joins the DELETE — retro01.test.ts pins it whole.
+  assert.doesNotMatch(i, /export (const|function) (?!DELETE|PATCH)/);
   assert.match(i, /if \(!isValidUuid\(id\)\) return NextResponse\.json\(\{ error: 'Not found' \}, \{ status: 404 \}\);/);
   // TASKS-ONE-02 (2026-10-14): moved, never loosened — the owned row is read with its line's routine (the occurrence's
   // routine), and the delete runs in ONE transaction with the routine's row held first and the completion kept in step;
@@ -584,8 +597,12 @@ test('T6 the one writer: POST / DELETE to the stops routes, the answer read as t
     assert.deepEqual(await clearStopRecord('gone'), { ok: false, message: 'Not found' });
     answer = () => new Response(JSON.stringify({}), { status: 500, headers: { 'content-type': 'application/json' } });
     assert.deepEqual(await clearStopRecord('r1'), { ok: false, message: 'failed to clear the stop record' });
+    // RETRO-01 (2026-10-16): the plan words ride every answer, by record id; an answer without them is a failure in words.
+    const plans = { [coffeeDone.id]: { routine_name: 'Morning', activity: 'Coffee', timezone: 'Asia/Bangkok' } };
+    answer = () => new Response(JSON.stringify({ day: DAY, records: [coffeeDone], unplaced: [], plans }), { status: 200, headers: { 'content-type': 'application/json' } });
+    assert.deepEqual(await readStopRecords(DAY), { ok: true, value: { records: [coffeeDone], unplaced: [], plans } });
     answer = () => new Response(JSON.stringify({ day: DAY, records: [coffeeDone], unplaced: [] }), { status: 200, headers: { 'content-type': 'application/json' } });
-    assert.deepEqual(await readStopRecords(DAY), { ok: true, value: { records: [coffeeDone], unplaced: [] } });
+    assert.deepEqual(await readStopRecords(DAY), { ok: false, words: 'The stop records could not be read — the records came back without their plans' });
     answer = () => new Response(JSON.stringify({ records: [] }), { status: 200, headers: { 'content-type': 'application/json' } });
     assert.deepEqual(await readStopRecords(DAY), { ok: false, words: 'The stop records could not be read — the records came back without their list' });
     answer = () => new Response('', { status: 401 });
@@ -595,11 +612,12 @@ test('T6 the one writer: POST / DELETE to the stops routes, the answer read as t
   }
   assert.deepEqual(sent.map((s) => [s.url, s.init?.method]), [
     ['/api/operations/stops', 'POST'], ['/api/operations/stops', 'POST'], ['/api/operations/stops/gone', 'DELETE'], ['/api/operations/stops/r1', 'DELETE'],
-    [`/api/operations/stops?day=${DAY}`, undefined], [`/api/operations/stops?day=${DAY}`, undefined], [`/api/operations/stops?day=${DAY}`, undefined],
+    [`/api/operations/stops?day=${DAY}`, undefined], [`/api/operations/stops?day=${DAY}`, undefined], [`/api/operations/stops?day=${DAY}`, undefined], [`/api/operations/stops?day=${DAY}`, undefined],
   ]);
   assert.equal(sent[0].init?.body, JSON.stringify(body));
   assert.deepEqual(sent[0].init?.headers, { 'Content-Type': 'application/json' });
-  assert.equal((code(WRITES).match(/\bfetch\s*\(/g) ?? []).length, 2, 'two requests, in the one writer');
+  // RETRO-01 (2026-10-16): the move (PATCH) is the writer's third request.
+  assert.equal((code(WRITES).match(/\bfetch\s*\(/g) ?? []).length, 3, 'three requests, in the one writer');
   assert.match(code(READS), /export async function readStopRecords\(day: string\)/);
   assert.equal((code(READS).match(/\bfetch\s*\(/g) ?? []).length, 0, 'the read goes through readJson');
 });
@@ -660,7 +678,8 @@ test('T6 the form: under the plate on the step view, for a line or a routine onl
   assert.match(c, /data-day-spent-so-far>\{stepSpentSoFarWords\(f, totals\.budgetCents\)\}\{bars\.overCents !== null && <span className=\{actualTone\(true\)\} data-day-over-by> · \{overByWords\(bars\.overCents\)\}<\/span>\}/);
   assert.match(c, /if \(status === 'skipped'\) return <span className="text-text-muted" aria-label="skipped">–<\/span>;/);
   assert.match(c, /const actualTone = \(over: boolean \| null\): string => \(over === null \? 'text-text-muted' : over \? 'text-brand-red' : 'text-brand-green'\);/);
-  assert.match(c, /data-day-records-without-stop>\{recordsWithoutStopWords\(result\.recordsWithoutStop\)\}/);
+  // RETRO-01 (Alex, 2026-10-16): the head over a list — one row per record (stops/AttachRecord.tsx), each with the stop it can attach to.
+  assert.match(c, /data-day-records-without-stop>\n\s*<p>\{recordsWithoutStopHead\(result\.recordsWithoutStop\.length\)\}<\/p>/);
   assert.match(c, /data-day-records-unplaced>\{recordsUnplacedWords\(unplacedRecords\)\}/);
   assert.match(c, /data-day-records-failed>\{recordsRead\.words\}/);
   assert.doesNotMatch(code(CARD_RULES), /sum \+ \(s\.actualCents === null \? 0/, 'an unknown is never summed as zero');

@@ -251,9 +251,11 @@ test('T3 the migration: the three lists added NOT NULL default empty, the four C
   assert.match(header, /NO BACKFILL/);
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
   // TASKS-ONE-02 (2026-10-14): the completion audit types' migration is newer still — every index moved one; the order holds.
-  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the migration before the newest (TASKS-ONE-02 followed)');
-  assert.equal(dirs[dirs.length - 1], '20261014090000_tasks_one_02_completion_audit_types', 'the newest migration');
-  assert.equal(dirs[dirs.length - 3], '20261013120000_journal_01_day_journals', 'right after JOURNAL-01’s');
+  // RETRO-01 (Alex, 2026-10-16): the stop-moved audit type's migration is newer still — every index moved one; the order holds.
+  assert.equal(dirs[dirs.length - 3], MIGRATION_DIR, 'the migration two before the newest (TASKS-ONE-02, then RETRO-01 followed)');
+  assert.equal(dirs[dirs.length - 2], '20261014090000_tasks_one_02_completion_audit_types');
+  assert.equal(dirs[dirs.length - 1], '20261016120000_retro_01_stop_moved_audit_type', 'the newest migration');
+  assert.equal(dirs[dirs.length - 4], '20261013120000_journal_01_day_journals', 'right after JOURNAL-01’s');
 });
 
 test('T3 the schema: the three lists with empty defaults, every JOURNAL-01 column kept; the client generated with them', () => {

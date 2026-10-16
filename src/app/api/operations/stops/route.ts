@@ -1,12 +1,16 @@
 /**
  * /api/operations/stops — the caller's stop records (STOP-01, 2026-10-12).
  *
- * GET  ?day=YYYY-MM-DD → { records, unplaced }: every record of the caller
+ * GET  ?day=YYYY-MM-DD → { records, unplaced, plans }: every record of the caller
  *      whose stop falls on `day` in its routine's OWN zone (instantToZoned —
  *      the today read's placing), each as src/lib/operations/stopRecord.ts
  *      StopRecordRow; a record whose routine's zone cannot be read is listed
  *      under `unplaced` with the reason, never dropped and never placed in UTC.
  *      A missing day, or one that is not a day, is a 400 naming the field.
+ *      RETRO-01 (Alex, 2026-10-16): `plans`, by record id — each listed record's
+ *      plan words (StopRecordPlan: the routine's name and zone, the line's
+ *      activity), so the card can name a record that matches no stop and the
+ *      stop it may attach to; the record's own shape is unchanged.
  * POST { kind, id, instant, outcome, done_at?, actual_cents?, rating?, note?,
  *      actual_minutes? } → 201 { record, changed: true } (new) · 200 (changed)
  *      · 200 { record, changed: false } (the same values again — nothing
@@ -47,7 +51,7 @@ import { isValidUuid } from '@/lib/operations/parseUuid';
 import { routineDay } from '@/lib/operations/routineDay';
 import {
   ARCHIVED_LINE_WORDS, BODY_NOT_JSON_WORDS, INACTIVE_ROUTINE_WORDS, LINES_WORDS, RACE_WORDS, noStopWords, planOf, recordWindow, refusedWords, stopInput, stopRecordRowOf, unchanged,
-  type StopRecordRow,
+  type StopRecordPlan, type StopRecordRow,
 } from '@/lib/operations/stopRecord';
 import { NOT_A_STOP_RECORD_WORDS, isStop, isStopRole } from '@/lib/operations/stopRole';
 import { auditCompletionChange, lockRoutine, syncCompletion, type CompletionChange } from '@/lib/operations/routineCompletion';
@@ -70,15 +74,20 @@ export async function GET(request: NextRequest) {
     // Every record that could fall on the day in any zone; then each placed by its own routine's zone.
     const rows = await prisma.operations_stop_records.findMany({
       where: { user_id: user.id, occurrence_at: recordWindow(day) },
-      include: { routine: { select: { timezone: true } }, step: { select: { routine: { select: { timezone: true } } } } },
+      include: { routine: { select: { name: true, timezone: true } }, step: { select: { activity: true, routine: { select: { name: true, timezone: true } } } } },
       orderBy: { occurrence_at: 'asc' },
     });
     const records: StopRecordRow[] = [];
     const unplaced: { record: StopRecordRow; detail: string }[] = [];
+    // RETRO-01: each listed record's plan words, by record id — the zone it is placed by is the plan's.
+    const plans: Record<string, StopRecordPlan> = {};
     for (const row of rows) {
       const record = stopRecordRowOf(row);
-      const zone = row.step !== null ? row.step.routine.timezone : row.routine !== null ? row.routine.timezone : null;
-      if (zone === null) throw new Error(`stops GET: record ${row.id} names no plan — the migration's CHECK holds one`);
+      const plan: StopRecordPlan | null = row.step !== null
+        ? { routine_name: row.step.routine.name, activity: row.step.activity, timezone: row.step.routine.timezone }
+        : row.routine !== null ? { routine_name: row.routine.name, activity: null, timezone: row.routine.timezone } : null;
+      if (plan === null) throw new Error(`stops GET: record ${row.id} names no plan — the migration's CHECK holds one`);
+      const zone = plan.timezone;
       let localDay: string;
       try {
         localDay = instantToZoned(row.occurrence_at, zone).date;
@@ -86,9 +95,9 @@ export async function GET(request: NextRequest) {
         unplaced.push({ record, detail: refusedWords('timezone not recognised', `${JSON.stringify(zone)}: ${messageOf(error)}`) });
         continue;
       }
-      if (localDay === day) records.push(record);
+      if (localDay === day) { records.push(record); plans[record.id] = plan; }
     }
-    return NextResponse.json({ day, records, unplaced });
+    return NextResponse.json({ day, records, unplaced, plans });
   } catch (error) {
     return failClosedResponse('Stops GET', 'Failed to load the stop records', error);
   }

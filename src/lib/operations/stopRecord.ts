@@ -295,3 +295,42 @@ export const timeBoxWords = (routineZone: string, viewerZone: string): string =>
 export const amountWords = (typed: string): string => `${JSON.stringify(typed)} is not an amount (dollars, at most two decimals)`;
 export const NEGATIVE_AMOUNT_WORDS = 'an amount is 0 or more';
 export const minutesTypedWords = (typed: string): string => `${JSON.stringify(typed)} is not a number of minutes`;
+
+// ── RETRO-01 (Alex, 2026-10-16): A STRANDED RECORD RE-ATTACHES TO ITS STOP ──
+//
+// A record is keyed to its occurrence instant. When a routine's time or start
+// date changes, a record typed before matches no stop any more: the day card
+// names it, the ledger shows its row with no COA, vendor or budget. The move
+// (the stops/[id] PATCH): the record's occurrence_at becomes the instant of
+// THAT plan's stop on the instant's own day — proven by routineDay, the stops
+// POST's own check — refused by name when a record of the plan already sits
+// there; the completion mirror moves in the same transaction; nothing else on
+// the record changes. Here: what the PATCH is given, the plan words the stops
+// GET hands beside each record, and the words. No fetch, no clock, no Prisma.
+
+export type MoveInputResult =
+  | { readonly ok: true; readonly instant: Date }
+  | { readonly ok: false; readonly field: 'instant'; readonly message: string };
+
+export const MOVE_BODY_WORDS = 'the body must be an object with instant';
+
+/** The one rule for what a move is given: { instant } — an ISO instant (instantOf), nothing else read. */
+export function moveInput(body: unknown): MoveInputResult {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) return { ok: false, field: 'instant', message: MOVE_BODY_WORDS };
+  const raw = (body as Record<string, unknown>).instant;
+  const instant = instantOf(raw);
+  if (instant === null) return { ok: false, field: 'instant', message: `instant ${JSON.stringify(raw)} is not an ISO instant` };
+  return { ok: true, instant };
+}
+
+/** The plan's words the stops GET hands beside each record it lists: the routine's name and zone, the line's activity (null for a stepless routine). */
+export interface StopRecordPlan {
+  readonly routine_name: string;
+  readonly activity: string | null;
+  readonly timezone: string;
+}
+
+/** The target already holds a record of the same plan — refused by name, nothing written. */
+export const recordThereWords = (instant: string): string => `a record of this stop already sits at ${instant} — clear one of the two first`;
+/** The audit row's description. */
+export const movedWords = (r: Pick<StopRecordRow, 'kind' | 'target_id'>, from: string, to: string): string => `Moved the record of a stop: ${r.kind} ${r.target_id} from ${from} to ${to}`;
