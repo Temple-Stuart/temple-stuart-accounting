@@ -240,7 +240,8 @@ test('no 🔥 — no streak renders on any customer surface; the writers and the
   // The row still shows what is planned and when: the lines' figure and next-due.
   const r = code(ROUTINE_ROW);
   assert.match(r, /routinePlanned\(/);
-  assert.match(r, /next: \{formatDateTime\(routine\.next_due_at, routine\.timezone\)\}/);
+  // ROUTINE-02a (2026-10-18): the next, or "ended <date>" once nothing remains before the end.
+  assert.match(r, /`next: \$\{formatDateTime\(routine\.next_due_at, routine\.timezone\)\}`/);
   // Today's DONE / DUE / MISSED came from the today feed's statuses, not from a streak — TASKS-ONE-02 (2026-10-14):
   // Today is deleted, and the feed's statuses are still the today route's (the day card reads it, no streak).
   assert.doesNotMatch(code('src/app/api/operations/routines/today/route.ts'), /consecutive_/);

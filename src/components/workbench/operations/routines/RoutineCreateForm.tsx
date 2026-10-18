@@ -29,6 +29,10 @@
  * For a one-off the routine-level budget/COA pair is not asked for — its money
  * is its lines. Nothing is defaulted: an empty amount is null, an empty time
  * stays empty, and a one-off without a date is refused by the server.
+ *
+ * ROUTINE-02a (Alex, 2026-10-18): a new routine starts in the VIEWER'S OWN zone —
+ * read after mount, so the server render and the first paint agree — and the
+ * zone is picked from Intl's list in the builder.
  */
 
 'use client';
@@ -71,6 +75,12 @@ export default function RoutineCreateForm({ entities, defaultEntityId, onCreated
   const [picked, setPicked] = useState<PlaceMatch | null>(null);
 
   const once = createForm.cadence_mode === 'once';
+
+  // ROUTINE-02a: the viewer's zone seeds the form once it is on screen.
+  useEffect(() => {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    setCreateForm((f) => ({ ...f, timezone: zone }));
+  }, []);
 
   // While the entity field is untouched, track the parent's default. Once the
   // user picks an entity, never overwrite their choice.

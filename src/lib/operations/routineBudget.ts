@@ -7,6 +7,10 @@ import { routinePlanned, type RoutineLineInput } from './routineLines';
  *
  *   monthly = expandBetween(schedule_rrule, timezone, monthStart, monthEnd).length × budget_amount
  *
+ * ROUTINE-02a (Alex, 2026-10-18): the count stops at the routine's end_date — the
+ * expansion's own end bound (rruleHelpers.ts throughEnd), so a month after the
+ * end counts nothing and the month of the end counts through its day.
+ *
  * Reuses the SAME recurrence helper the calendar feed uses (rruleHelpers.expandBetween,
  * /api/hub/operations-routines/route.ts) — no new recurrence logic, and (ONEOFF-01) the same
  * start_date anchor every other reader passes, so a one-off is one occurrence here too. budget_amount is
@@ -39,6 +43,13 @@ export interface RoutineBudgetInput {
    * restated. Absent or empty ⇒ the routine-level fields stand, as before.
    */
   steps?: readonly RoutineLineInput[] | null;
+  /**
+   * ROUTINE-02a: the routine's end_date — the last local day an occurrence may
+   * fall on (rruleHelpers.ts endDayOf). The loader hands it over
+   * (routineBudgetInputs.ts); the month's count stops at it. Absent or null ⇒
+   * no end, as before.
+   */
+  end_date?: Date | string | null;
 }
 
 /** UTC bounds of a calendar month: [first instant, last instant]. monthIdx is 0-indexed. The
@@ -73,7 +84,8 @@ export function routineMonthlyByCoa(
   let count: number;
   try {
     // ONEOFF-01: anchored on the routine's start_date — the one mechanism.
-    count = expandBetween(routine.schedule_rrule, routine.timezone, from, to, scheduleAnchor(routine.start_date ?? null)).length;
+    // ROUTINE-02a: and bounded by its end_date — nothing after the end counts.
+    count = expandBetween(routine.schedule_rrule, routine.timezone, from, to, scheduleAnchor(routine.start_date ?? null), routine.end_date ?? null).length;
   } catch {
     return {}; // malformed rrule → contributes nothing (mirrors the feed's skip-malformed)
   }

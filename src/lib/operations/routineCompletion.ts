@@ -47,11 +47,13 @@ interface Schedule {
   readonly schedule_rrule: string;
   readonly timezone: string;
   readonly start_date: Date | null;
+  /** ROUTINE-02a (Alex, 2026-10-18): the last day an occurrence may fall on — none after it is next. */
+  readonly end_date: Date | null;
 }
 
-/** The routine's next occurrence at or after `after` (expandForward is inclusive), anchored on its start_date (ONEOFF-01); null when the schedule has none left. Throws what expandForward throws. */
+/** The routine's next occurrence at or after `after` (expandForward is inclusive), anchored on its start_date (ONEOFF-01) and bounded by its end_date (ROUTINE-02a); null when the schedule has none left. Throws what expandForward throws. */
 export function nextDueAfter(routine: Schedule, after: Date): Date | null {
-  const upcoming = expandForward(routine.schedule_rrule, routine.timezone, after, 1, scheduleAnchor(routine.start_date));
+  const upcoming = expandForward(routine.schedule_rrule, routine.timezone, after, 1, scheduleAnchor(routine.start_date), routine.end_date);
   return upcoming.length === 0 ? null : upcoming[0];
 }
 
@@ -95,7 +97,7 @@ export async function syncCompletion(tx: Tx, input: { readonly userId: string; r
   const { userId, expectedAt, now } = input;
   const routine = await tx.operations_routines.findFirst({
     where: { id: input.routineId, user_id: userId },
-    select: { id: true, name: true, role: true, schedule_rrule: true, timezone: true, start_date: true, consecutive_completion_streak: true },
+    select: { id: true, name: true, role: true, schedule_rrule: true, timezone: true, start_date: true, end_date: true, consecutive_completion_streak: true },
   });
   if (routine === null) throw new Error(`routineCompletion: routine ${input.routineId} is not the caller's — the route proves it and holds its lock`);
   if (!isStopRole(routine.role)) throw new Error(`routineCompletion: routine ${routine.id} carries role ${JSON.stringify(routine.role)} — not one of the six`);

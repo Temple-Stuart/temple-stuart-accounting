@@ -10,6 +10,16 @@
  * routine's rows. "deactivate"/"reactivate" toggles is_active via PATCH. Audit
  * trail shows the discrimination (deactivated as its own action_type;
  * reactivated as generic _updated with metadata.activation_toggle='reactivated').
+ *
+ * ROUTINE-02a (Alex, 2026-10-18): an ENDED routine (the list's judgement, handed
+ * in as `end`) is read-only but for "edit" — to extend the end: no deactivate,
+ * no delete, no "+ line", its lines' controls off (RoutineStepList readOnly),
+ * "ended <date>" beside its name. Editing a line's amount would change past
+ * days' budgets. The small print's "next:" reads "ended <date>" whenever the
+ * end is set and nothing remains before it (next_due_at null). The zone is
+ * shown as Intl's list spells it, and the edit form is seeded with that
+ * spelling, so a stored name that differed only by case is saved canonical on
+ * the next edit; a zone Intl cannot read is named in the small print.
  */
 
 'use client';
@@ -23,7 +33,7 @@ import CoaSelect from './CoaSelect';
 import FindThisPlace from './FindThisPlace';
 import { AccountText, ROUTINE_TABLE_COLUMNS, RoutineStepList } from './RoutineStepList';
 import { ignoredLine, plannedLine, routinePlanned } from '@/lib/operations/routineLines';
-import { isOnceRRule } from '@/lib/operations/rruleHelpers';
+import { canonicalZone, isOnceRRule, type RoutineEnd } from '@/lib/operations/rruleHelpers';
 import { ACCOUNT_CELL_WORDS, accountCell } from '@/lib/coa/accountCell';
 import type { PlaceMatch } from '@/lib/calendar/findPlace';
 import type { Entity } from '../EntitySelector';
@@ -31,6 +41,8 @@ import type { Entity } from '../EntitySelector';
 
 interface Props {
   routine: Routine;
+  /** ROUTINE-02a: the list's judgement — ended (read-only but for edit), or current, with a zone Intl could not read named. */
+  end: RoutineEnd;
   /** The tab's entity list (useOperationsEntity) — the book's name and letter. */
   entities: Entity[];
   onUpdate: () => void;
@@ -52,7 +64,8 @@ function routineToForm(r: Routine): RoutineForm {
     name: r.name,
     description: r.description ?? '',
     entity_id: r.entity_id,
-    timezone: r.timezone,
+    // ROUTINE-02a: seeded as the list spells it, so the next save stores the canonical name; a name not in the list stays as stored (the select shows it as unlisted).
+    timezone: canonicalZone(r.timezone) ?? r.timezone,
     ideal_time_label: r.ideal_time_label ?? '',
     fail_threshold_minutes: String(r.fail_threshold_minutes),
     role: r.role,
@@ -106,7 +119,10 @@ function formatTime12h(hhmm: string): string {
   return `${h12}:${String(m || 0).padStart(2, '0')} ${ampm}`;
 }
 
-export default function RoutineRow({ routine, entities, onUpdate, onDelete }: Props & { }) {
+/** ROUTINE-02a: the row's words for an end that has passed, or past which nothing remains. */
+export const endedWords = (dateWords: string): string => `ended ${dateWords}`;
+
+export default function RoutineRow({ routine, end, entities, onUpdate, onDelete }: Props & { }) {
   // LINES-01: ONE leaf decides the routine's figure. Read here, rendered below.
   const planned = routinePlanned({ budget_amount: routine.budget_amount ?? null, coa_code: routine.coa_code ?? null, steps: routine.steps });
   const [editing, setEditing] = useState(false);
@@ -224,6 +240,11 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete }: Pr
             inactive
           </span>
         )}
+        {end.ended && (
+          <span className="px-2 py-0.5 border rounded text-xs bg-gray-100 text-gray-600 border-gray-300" data-routine-ended>
+            {endedWords(formatDate(end.day))}
+          </span>
+        )}
       </div>
       {routine.description && (
         <div className="text-text-secondary whitespace-pre-wrap">{routine.description}</div>
@@ -242,11 +263,17 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete }: Pr
             })()}
           </span>
         )}
-        <span title="time zone">{routine.timezone}</span>
+        <span title="time zone" data-routine-zone>{canonicalZone(routine.timezone) ?? routine.timezone}</span>
+        {!end.ended && end.reason !== null && (
+          <span className="text-amber-800" data-routine-zone-unread>{end.reason}</span>
+        )}
         {/* TASKS-01: no streak counter renders here — the columns and the
             evaluator are untouched; the row shows what is planned and when. */}
+        {/* ROUTINE-02a: nothing remains before the end → "ended <date>" in place of a next. */}
         <span title="next scheduled occurrence" data-routine-next-due>
-          next: {formatDateTime(routine.next_due_at, routine.timezone)}
+          {routine.next_due_at === null && routine.end_date !== null
+            ? endedWords(formatDate(routine.end_date))
+            : `next: ${formatDateTime(routine.next_due_at, routine.timezone)}`}
         </span>
         {(routine.start_date || routine.end_date) && (
           <span title="active date window">
@@ -320,38 +347,43 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete }: Pr
         >
           edit
         </button>
-        <button
-          type="button"
-          onClick={handleToggleActive}
-          disabled={toggling}
-          className="px-2 py-0.5 border border-border rounded hover:bg-bg-row disabled:opacity-50"
-        >
-          {toggling ? '…' : routine.is_active ? 'deactivate' : 'reactivate'}
-        </button>
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={deleting}
-          className="px-2 py-0.5 border border-red-300 text-red-700 rounded hover:bg-red-50 disabled:opacity-50"
-        >
-          {deleting ? 'deleting…' : 'delete'}
-        </button>
-        <button
-          type="button"
-          onClick={() => addLine?.()}
-          disabled={addLine === null}
-          className="px-2 py-0.5 border border-border rounded hover:bg-bg-row disabled:opacity-50"
-          data-routine-add-line
-        >
-          + line
-        </button>
+        {/* ROUTINE-02a: an ended routine keeps "edit" alone — nothing is deactivated, deleted or added to it. */}
+        {!end.ended && (
+          <>
+            <button
+              type="button"
+              onClick={handleToggleActive}
+              disabled={toggling}
+              className="px-2 py-0.5 border border-border rounded hover:bg-bg-row disabled:opacity-50"
+            >
+              {toggling ? '…' : routine.is_active ? 'deactivate' : 'reactivate'}
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="px-2 py-0.5 border border-red-300 text-red-700 rounded hover:bg-red-50 disabled:opacity-50"
+            >
+              {deleting ? 'deleting…' : 'delete'}
+            </button>
+            <button
+              type="button"
+              onClick={() => addLine?.()}
+              disabled={addLine === null}
+              className="px-2 py-0.5 border border-border rounded hover:bg-bg-row disabled:opacity-50"
+              data-routine-add-line
+            >
+              + line
+            </button>
+          </>
+        )}
       </div>
     </td>
   );
 
   return (
-    <tbody className={'text-xs ' + (routine.is_active ? '' : 'opacity-60')} data-routine-rows={routine.id}>
-      <RoutineStepList routine={routine} entities={entities} onUpdate={onUpdate} routineCell={routineCell} />
+    <tbody className={'text-xs ' + (routine.is_active && !end.ended ? '' : 'opacity-60')} data-routine-rows={routine.id} data-routine-is-ended={end.ended ? 'true' : undefined}>
+      <RoutineStepList routine={routine} entities={entities} onUpdate={onUpdate} routineCell={routineCell} readOnly={end.ended} />
 
       {/* ROUTINES-01: the edit form is a full-width row directly under the
           routine's rows — the same fields, prefilled by routineToForm. */}

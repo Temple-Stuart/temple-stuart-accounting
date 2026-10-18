@@ -22,6 +22,12 @@
  *        pair, found through GEO-01's one-press lookup, now on Tasks), all in
  *        one transaction. Nothing is defaulted: a blank amount is null, half a
  *        coordinate pair is refused, and a one-off with no date is refused.
+ *
+ *        ROUTINE-02a (Alex, 2026-10-18): the zone is one of Intl's own names
+ *        (rruleHelpers.ts TIME_ZONES), matched without case and stored in the
+ *        list's spelling — anything else is refused by name. The first
+ *        next_due_at is bounded by the end_date, so a routine created already
+ *        past its end has none.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -31,7 +37,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
-import { compileFormToRRule, expandForward, isOnceRRule, scheduleAnchor } from '@/lib/operations/rruleHelpers';
+import { canonicalZone, compileFormToRRule, expandForward, isOnceRRule, scheduleAnchor, zoneNotListedWords } from '@/lib/operations/rruleHelpers';
 import { parseLinesInput, parsePlaceInput } from '@/lib/operations/routineInput';
 import { carriesPlanMoney, planMoney, type PlanBook, type PlanMoney } from '@/lib/operations/planMoney';
 import { loadPlanBook } from '@/lib/operations/loadPlanBook';
@@ -174,9 +180,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (typeof body.timezone !== 'string' || body.timezone.trim().length === 0) {
+    // ROUTINE-02a: one of Intl's zone names, matched without case, stored as the list spells it; else refused by name.
+    const timezone = canonicalZone(body.timezone);
+    if (timezone === null) {
       return NextResponse.json(
-        { error: 'Validation', field: 'timezone', message: 'required' },
+        { error: 'Validation', field: 'timezone', message: zoneNotListedWords(body.timezone) },
         { status: 400 }
       );
     }
@@ -302,10 +310,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Compute initial next_due_at. ONEOFF-01: anchored on the routine's
-    // start_date, the one mechanism every expansion of it shares.
+    // start_date, the one mechanism every expansion of it shares. ROUTINE-02a:
+    // bounded by its end_date — none when nothing remains before the end.
     let nextDueAt: Date | null = null;
     try {
-      const upcoming = expandForward(schedule_rrule, body.timezone, new Date(), 1, scheduleAnchor(startResult.value));
+      const upcoming = expandForward(schedule_rrule, timezone, new Date(), 1, scheduleAnchor(startResult.value), endDate);
       nextDueAt = upcoming[0] ?? null;
     } catch (e) {
       console.error('[Routines POST] next_due_at compute failed', e);
@@ -331,7 +340,7 @@ export async function POST(request: NextRequest) {
           name,
           description,
           schedule_rrule,
-          timezone: body.timezone,
+          timezone,
           ideal_time_label: idealTimeLabel,
           fail_threshold_minutes: failThreshold,
           role: role.role,
@@ -388,7 +397,7 @@ export async function POST(request: NextRequest) {
         metadata: {
           entity_id: entityId,
           schedule_rrule,
-          timezone: body.timezone,
+          timezone,
           // ONEOFF-01: what was authored with it.
           once,
           lines: lines.value.length,
