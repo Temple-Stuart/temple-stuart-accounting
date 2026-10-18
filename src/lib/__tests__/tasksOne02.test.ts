@@ -237,9 +237,10 @@ test('T2 no fallback: a schedule that cannot be read throws, so the transaction 
   const { tx, calls } = fakeTx({ records: [record({})], rrule: 'NOT A RULE' });
   await assert.rejects(sync(tx), /Unknown RRULE property/);
   assert.deepEqual(writesOf(calls).map((c) => c.op), ['completions.create'], 'the throw comes before the routine update — the route’s transaction undoes the create');
-  assert.throws(() => nextDueAfter({ schedule_rrule: 'FREQ=DAILY', timezone: 'Not/AZone', start_date: null }, NOW), /Invalid time zone/);
+  // ROUTINE-02a (2026-10-18): a Schedule carries its end_date too (none here).
+  assert.throws(() => nextDueAfter({ schedule_rrule: 'FREQ=DAILY', timezone: 'Not/AZone', start_date: null, end_date: null }, NOW), /Invalid time zone/);
   // A schedule with no occurrence left is not a failure: it has none (a one-off after its day).
-  assert.equal(nextDueAfter({ schedule_rrule: 'FREQ=DAILY;COUNT=1;BYHOUR=7;BYMINUTE=0', timezone: 'Asia/Bangkok', start_date: new Date('2026-10-13T00:00:00.000Z') }, new Date('2026-10-14T00:10:00.000Z')), null);
+  assert.equal(nextDueAfter({ schedule_rrule: 'FREQ=DAILY;COUNT=1;BYHOUR=7;BYMINUTE=0', timezone: 'Asia/Bangkok', start_date: new Date('2026-10-13T00:00:00.000Z'), end_date: null }, new Date('2026-10-14T00:10:00.000Z')), null);
   const w = code(WRITER);
   assert.doesNotMatch(w, /\bcatch\b|\?\? null\b/, 'the writer catches nothing and stands nothing in');
   assert.match(comments(WRITER), /No fallback \(Alex, 2026-10-14\)/);
@@ -313,10 +314,11 @@ test('T4 the evaluator: all_day takes no miss check — no miss row, no streak c
   assert.match(e, /import \{ isStop, isStopRole \} from '@\/lib\/operations\/stopRole';/);
   assert.match(e, /consecutive_miss_streak: true,\s*role: true,/, 'the role is read');
   assert.match(e, /if \(!isStopRole\(r\.role\)\) throw new Error\(/, 'a role outside the six is named, into the routine’s own catch');
-  assert.match(e, /const eligibleMisses = !isStop\(r\.role\) \? \[\] : expectedOccurrences\.filter\(/);
+  // ROUTINE-02a (2026-10-18): the window is the pure evaluateWindow — the misses, the expected, the next (routine02a T2).
+  assert.match(e, /const misses = !isStop\(r\.role\) \? \[\] : expected\.filter\(/);
   // The miss row and the streak are written only per eligible miss; the cursor update is unconditional.
-  assert.ok(e.indexOf("type: 'operations_routine_missed'") > e.indexOf('for (const expectedAt of eligibleMisses)'));
-  assert.match(e, /data: \{\n\s*last_evaluated_at: now,\n\s*next_due_at: nextDueAt,\n\s*\.\.\.\(routineMissCount > 0/);
+  assert.ok(e.indexOf("type: 'operations_routine_missed'") > e.indexOf('for (const expectedAt of window.misses)'));
+  assert.match(e, /data: \{\n\s*last_evaluated_at: now,\n\s*next_due_at: window\.nextDueAt,\n\s*\.\.\.\(routineMissCount > 0/);
   assert.match(comments(EVALUATOR), /An all-day routine \(role all_day — a subscription, a membership\) is a CHARGE,/);
 });
 

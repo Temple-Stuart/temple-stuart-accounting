@@ -12,6 +12,14 @@
  *
  * "+ new routine" button opens an inline create form using the same
  * RRULEBuilder as the edit form.
+ *
+ * ROUTINE-02a (Alex, 2026-10-18) — THE ARCHIVE. The list shows CURRENT routines:
+ * end_date null or not before today in the routine's own zone (rruleHelpers.ts
+ * endedBy). The ended ones sit behind "show ended (n)", beside "show inactive",
+ * in their own "ENDED (n)" group at the bottom, newest end first, each read-only
+ * but for "edit" (to extend the end). Nothing is deleted or deactivated; the
+ * fetch is unchanged. A routine whose zone Intl cannot read is current, shown
+ * with the reason — never hidden, never judged by another zone.
  */
 
 'use client';
@@ -24,7 +32,12 @@ import type { CadenceGroup, Routine } from './types';
 import { CADENCE_GROUP_LABELS, CADENCE_GROUP_ORDER } from './types';
 import type { Entity } from '../EntitySelector';
 import { SETUP_DOOR } from '@/lib/entities/kinds';
-import { isOnceRRule } from '@/lib/operations/rruleHelpers';
+import { endedBy, isOnceRRule } from '@/lib/operations/rruleHelpers';
+
+/** ROUTINE-02a: the toggle's words, with the count. */
+export const showEndedWords = (n: number): string => `show ended (${n})`;
+/** ROUTINE-02a: the group's label, with the count (the row's class upper-cases it like the cadence labels). */
+export const endedGroupWords = (n: number): string => `ended (${n})`;
 
 
 interface Props {
@@ -49,6 +62,8 @@ export default function RoutineList({ entities, onCommitted, refreshKey = 0, cre
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showInactive, setShowInactive] = useState(false);
+  // ROUTINE-02a: whether the ended routines are shown — React state only.
+  const [showEnded, setShowEnded] = useState(false);
 
   const [showCreate, setShowCreate] = useState(false);
   // Entity to seed the create form with, captured when the form is opened so it
@@ -123,19 +138,29 @@ export default function RoutineList({ entities, onCommitted, refreshKey = 0, cre
     return 'custom';
   };
 
-  const grouped = new Map<CadenceGroup, Routine[]>();
-  for (const r of routines) {
-    const g = groupOf(r.schedule_rrule);
+  // ROUTINE-02a: current and ended, judged now in each routine's own zone. The cadence
+  // groups hold the current ones; the ended sit in their own group, newest end first.
+  const now = new Date();
+  const judged = routines.map((r) => ({ r, end: endedBy(r.end_date, r.timezone, now) }));
+  const current = judged.filter((x) => !x.end.ended);
+  const ended = judged
+    .flatMap((x) => (x.end.ended ? [{ r: x.r, end: x.end, day: x.end.day }] : []))
+    .sort((a, b) => b.day.localeCompare(a.day) || a.r.name.localeCompare(b.r.name));
+  const shownCount = current.length + (showEnded ? ended.length : 0);
+
+  const grouped = new Map<CadenceGroup, { r: Routine; end: ReturnType<typeof endedBy> }[]>();
+  for (const x of current) {
+    const g = groupOf(x.r.schedule_rrule);
     if (!grouped.has(g)) grouped.set(g, []);
-    grouped.get(g)!.push(r);
+    grouped.get(g)!.push(x);
   }
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 text-xs">
-          <span className="text-text-muted">
-            {routines.length} {routines.length === 1 ? 'routine' : 'routines'}
+          <span className="text-text-muted" data-routines-count>
+            {shownCount} {shownCount === 1 ? 'routine' : 'routines'}
           </span>
           <label className="flex items-center gap-1 cursor-pointer">
             <input
@@ -144,6 +169,16 @@ export default function RoutineList({ entities, onCommitted, refreshKey = 0, cre
               onChange={(e) => setShowInactive(e.target.checked)}
             />
             <span className="text-text-muted">show inactive</span>
+          </label>
+          {/* ROUTINE-02a: the ended routines, counted among those fetched, behind their own toggle. */}
+          <label className="flex items-center gap-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showEnded}
+              onChange={(e) => setShowEnded(e.target.checked)}
+              data-routines-show-ended
+            />
+            <span className="text-text-muted">{showEndedWords(ended.length)}</span>
           </label>
         </div>
         {!showCreate && (
@@ -190,9 +225,9 @@ export default function RoutineList({ entities, onCommitted, refreshKey = 0, cre
 
       {loading ? (
         <div className="text-xs text-text-muted">loading routines…</div>
-      ) : routines.length === 0 ? (
+      ) : shownCount === 0 ? (
         <div className="text-xs text-text-muted italic">
-          no routines yet — click "+ new routine" to create your first one. Bridgewater's Principles operationalize through cadence; this is where you set yours.
+          no routines yet — click &quot;+ new routine&quot; to create your first one. Bridgewater&apos;s Principles operationalize through cadence; this is where you set yours.
         </div>
       ) : (
         <div className="overflow-x-auto border border-border rounded bg-white">
@@ -221,10 +256,11 @@ export default function RoutineList({ entities, onCommitted, refreshKey = 0, cre
                       </td>
                     </tr>
                   </tbody>
-                  {items.map((r) => (
+                  {items.map(({ r, end }) => (
                     <RoutineRow
                       key={r.id}
                       routine={r}
+                      end={end}
                       entities={entities}
                       onUpdate={refresh}
                       onDelete={refresh}
@@ -233,6 +269,28 @@ export default function RoutineList({ entities, onCommitted, refreshKey = 0, cre
                 </Fragment>
               );
             })}
+            {/* ROUTINE-02a: the ended routines, at the bottom, newest end first — only while shown. */}
+            {showEnded && ended.length > 0 && (
+              <Fragment key="ended">
+                <tbody>
+                  <tr data-ended-group>
+                    <td colSpan={ROUTINE_TABLE_COLUMNS} className="px-2 py-1 border-t border-border bg-bg-row text-xs text-text-faint uppercase tracking-wide">
+                      {endedGroupWords(ended.length)}
+                    </td>
+                  </tr>
+                </tbody>
+                {ended.map(({ r, end }) => (
+                  <RoutineRow
+                    key={r.id}
+                    routine={r}
+                    end={end}
+                    entities={entities}
+                    onUpdate={refresh}
+                    onDelete={refresh}
+                  />
+                ))}
+              </Fragment>
+            )}
           </table>
         </div>
       )}

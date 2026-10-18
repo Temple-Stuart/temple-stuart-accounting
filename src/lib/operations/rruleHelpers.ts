@@ -15,6 +15,7 @@
 
 import { RRule, RRuleSet, rrulestr, Frequency } from 'rrule';
 import { ValidationError } from '@/lib/errors/ValidationError';
+import { instantToZoned } from '@/lib/time';
 import type { CadenceGroup, CadenceMode, RoutineForm, WeekDay } from '@/components/workbench/operations/routines/types';
 
 /**
@@ -58,6 +59,98 @@ export function scheduleAnchor(startDate: Date | string | null | undefined): Dat
   if (Number.isNaN(d.getTime())) throw new ValidationError('start_date is not a date', { field: 'start_date' });
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0));
 }
+
+/**
+ * ROUTINE-02a (Alex, 2026-10-18) — END DATES HONOURED EVERYWHERE.
+ *
+ * A routine's end_date (@db.Date — the instant of UTC midnight on the day) is
+ * the LAST LOCAL DAY an occurrence may fall on, in the routine's own zone. Both
+ * expansions below take it as their last argument and drop every shifted
+ * occurrence whose local day in the zone (lib/time.ts instantToZoned — the
+ * Budget's own test, days.ts:351-353) is after it; a caller that passes nothing
+ * gets every occurrence, as before. The evaluator, the create and update routes,
+ * the completion's next-due and the month tables pass it, so a routine whose end
+ * has passed expands to nothing: never a miss, next_due_at null.
+ */
+export function endDayOf(endDate: Date | string | null | undefined): string | null {
+  if (endDate == null || endDate === '') return null;
+  const d = typeof endDate === 'string'
+    ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(endDate) ? `${endDate}T00:00:00.000Z` : endDate)
+    : endDate;
+  if (Number.isNaN(d.getTime())) throw new ValidationError('end_date is not a date', { field: 'end_date' });
+  return d.toISOString().slice(0, 10);
+}
+
+/** The occurrences on or before the end day in the zone — every one of them when there is no end. */
+export function throughEnd(occurrences: Date[], timezone: string, endDate: Date | string | null | undefined): Date[] {
+  const last = endDayOf(endDate);
+  if (last === null) return occurrences;
+  return occurrences.filter((d) => instantToZoned(d, timezone).date <= last);
+}
+
+/** A routine's end as the list shows it: ended when its end day is before today in its own zone. */
+export type RoutineEnd =
+  /** Not ended; `reason` names a zone Intl could not read (the row is shown, with the reason), else null. */
+  | { readonly ended: false; readonly reason: string | null }
+  | { readonly ended: true; readonly day: string };
+
+/**
+ * ROUTINE-02a — THE ARCHIVE'S TEST. A routine has ended when its end_date is
+ * before today in its OWN zone. A zone Intl cannot read is answered by name and
+ * the routine counts as current — shown with the reason, never hidden and never
+ * judged by another zone.
+ */
+export function endedBy(endDate: Date | string | null | undefined, timezone: string, now: Date): RoutineEnd {
+  const day = endDayOf(endDate);
+  if (day === null) return { ended: false, reason: null };
+  let today: string;
+  try {
+    today = instantToZoned(now, timezone).date;
+  } catch (error) {
+    return { ended: false, reason: zoneUnreadWords(timezone, error instanceof Error ? error.message : String(error)) };
+  }
+  return day < today ? { ended: true, day } : { ended: false, reason: null };
+}
+
+/**
+ * ROUTINE-02a — THE ZONE LIST. A routine's zone is one of Intl's own names
+ * (Intl.supportedValuesOf('timeZone'); the server's list is the one of record),
+ * matched without regard to case and stored in the list's spelling. Nothing
+ * else: 'UTC' is not in the list, nor an alias such as 'US/Pacific' — each is
+ * refused by name with "pick one from the list", never remapped in silence. A
+ * stored name that differs from the list's only by case ('asia/bangkok') names
+ * the same zone to Intl, so every instant is unchanged; it is shown as the list
+ * spells it and stored that way on its next edit.
+ */
+export const TIME_ZONES: readonly string[] = Intl.supportedValuesOf('timeZone');
+const ZONE_BY_LOWER: ReadonlyMap<string, string> = new Map(TIME_ZONES.map((z) => [z.toLowerCase(), z]));
+
+/** The list's spelling of a zone name, matched without case; null when the name is not in the list. */
+export function canonicalZone(name: unknown): string | null {
+  if (typeof name !== 'string') return null;
+  return ZONE_BY_LOWER.get(name.trim().toLowerCase()) ?? null;
+}
+
+/** The list by region — the part before the first "/" — in the list's own order. */
+export function zonesByRegion(zones: readonly string[] = TIME_ZONES): readonly { readonly region: string; readonly zones: readonly string[] }[] {
+  const groups: { region: string; zones: string[] }[] = [];
+  for (const z of zones) {
+    const region = z.includes('/') ? z.slice(0, z.indexOf('/')) : z;
+    const g = groups.find((x) => x.region === region);
+    if (g) g.zones.push(z);
+    else groups.push({ region, zones: [z] });
+  }
+  return groups;
+}
+
+/** The route's refusal, by name. */
+export const zoneNotListedWords = (name: unknown): string => `timezone ${JSON.stringify(name)} is not one of Intl's zone names — pick one from the list`;
+/** The list's words for a stored name that is not in it. */
+export const unlistedZoneWords = (name: string): string => `${name} — not in the list, pick one`;
+/** The group the viewer's own zone sits in, first. */
+export const VIEWER_ZONE_WORDS = "your browser's zone";
+/** The list's reason for a zone Intl could not read — the routine stays in view with it. */
+export const zoneUnreadWords = (name: string, detail: string): string => `zone ${JSON.stringify(name)} not recognised: ${detail} — pick one from the list`;
 
 /**
  * Compile a RoutineForm's structured fields into an RFC 5545 RRULE string.
@@ -211,12 +304,14 @@ export function expandForward(
   after: Date,
   count: number,
   /** ONEOFF-01: the routine's start_date anchor (scheduleAnchor), or undefined. */
-  anchor?: Date
+  anchor?: Date,
+  /** ROUTINE-02a: the routine's end_date — nothing after its day in the zone (throughEnd); absent → no end. */
+  endDate?: Date | string | null
 ): Date[] {
   const rule = rruleFromString(rruleString, anchor);
   // Get UTC-anchored occurrences then shift to timezone.
   const rawOccurrences = rule.between(after, addYears(after, 5), true, (_, i) => i < count);
-  return rawOccurrences.map((d) => shiftFloatingToZone(d, timezone));
+  return throughEnd(rawOccurrences.map((d) => shiftFloatingToZone(d, timezone)), timezone, endDate);
 }
 
 /**
@@ -231,11 +326,13 @@ export function expandBetween(
   from: Date,
   to: Date,
   /** ONEOFF-01: the routine's start_date anchor (scheduleAnchor), or undefined. */
-  anchor?: Date
+  anchor?: Date,
+  /** ROUTINE-02a: the routine's end_date — nothing after its day in the zone (throughEnd); absent → no end. */
+  endDate?: Date | string | null
 ): Date[] {
   const rule = rruleFromString(rruleString, anchor);
   const raw = rule.between(from, to, true);
-  return raw.map((d) => shiftFloatingToZone(d, timezone));
+  return throughEnd(raw.map((d) => shiftFloatingToZone(d, timezone)), timezone, endDate);
 }
 
 /**

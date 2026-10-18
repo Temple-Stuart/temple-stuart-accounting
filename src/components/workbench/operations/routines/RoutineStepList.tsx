@@ -16,6 +16,10 @@
  *
  * time_of_day arrives JSON-serialized from Prisma @db.Time as
  * '1970-01-01THH:MM:SS.000Z' — every read extracts HH:MM via .slice(11, 16).
+ *
+ * ROUTINE-02a (Alex, 2026-10-18): `readOnly` (an ended routine) draws the lines
+ * with no controls and hands the routine's cell no "+ line" — editing a line's
+ * amount would change past days' budgets.
  */
 
 'use client';
@@ -108,9 +112,11 @@ interface Props {
    * line's row at the end; null while that row is open.
    */
   routineCell: (rowSpan: number, addLine: (() => void) | null) => ReactNode;
+  /** ROUTINE-02a: an ended routine — the lines are read-only and "+ line" is not offered. */
+  readOnly?: boolean;
 }
 
-export function RoutineStepList({ routine, entities, onUpdate, routineCell }: Props & { }) {
+export function RoutineStepList({ routine, entities, onUpdate, routineCell, readOnly = false }: Props & { }) {
   const steps = [...routine.steps].sort((a, b) => a.step_order - b.step_order);
 
   const [error, setError] = useState<{ row: string; message: string } | null>(null);
@@ -366,7 +372,7 @@ export function RoutineStepList({ routine, entities, onUpdate, routineCell }: Pr
   );
 
   const rowSpan = Math.max(steps.length, 1) + (openAdd ? 1 : 0);
-  const cell = routineCell(rowSpan, openAdd ? null : startAdd);
+  const cell = routineCell(rowSpan, openAdd || readOnly ? null : startAdd);
 
   return (
     <>
@@ -422,6 +428,8 @@ export function RoutineStepList({ routine, entities, onUpdate, routineCell }: Pr
               <td className={cellClass} data-step-coa>
                 <AccountText cell={accountCell(entities, routine.entity_id, step.coa_code)} />
               </td>
+              {/* ROUTINE-02a: an ended routine's lines carry no controls. */}
+              {readOnly ? <td className={cellClass} data-line-read-only /> : (
               <td className={cellClass}>
                 <div className="flex flex-wrap items-center gap-1">
                   <button
@@ -460,6 +468,7 @@ export function RoutineStepList({ routine, entities, onUpdate, routineCell }: Pr
                   </button>
                 </div>
               </td>
+              )}
             </>
           )}
         </tr>

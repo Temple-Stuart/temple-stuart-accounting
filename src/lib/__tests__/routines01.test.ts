@@ -102,8 +102,10 @@ test('T2 one table: Routine · Where · Activity · When · Minutes · Amount ·
   assert.deepEqual(heads, ['Routine', 'Where', 'Activity', 'When', 'Minutes', 'Amount', 'Account', ''], 'Where is second');
   const columns = Number(/export const ROUTINE_TABLE_COLUMNS = (\d+);/.exec(code(LINES))?.[1]);
   assert.equal(columns, heads.length, 'the column count is the header\'s');
-  assert.match(list, /<RoutineRow\n\s*key=\{r\.id\}\n\s*routine=\{r\}\n\s*entities=\{entities\}\n\s*onUpdate=\{refresh\}\n\s*onDelete=\{refresh\}\n\s*\/>/);
-  assert.match(code(ROW), /<tbody className=\{[^}]*\} data-routine-rows=\{routine\.id\}>\n\s*<RoutineStepList routine=\{routine\} entities=\{entities\} onUpdate=\{onUpdate\} routineCell=\{routineCell\} \/>/);
+  // ROUTINE-02a (2026-10-18): each row is handed the list's judgement of its end (routine02a T6).
+  assert.match(list, /<RoutineRow\n\s*key=\{r\.id\}\n\s*routine=\{r\}\n\s*end=\{end\}\n\s*entities=\{entities\}\n\s*onUpdate=\{refresh\}\n\s*onDelete=\{refresh\}\n\s*\/>/);
+  // ROUTINE-02a (2026-10-18): the rows say whether the routine has ended, and its lines are read-only then (routine02a T6).
+  assert.match(code(ROW), /<tbody className=\{[^}]*\} data-routine-rows=\{routine\.id\} data-routine-is-ended=\{end\.ended \? 'true' : undefined\}>\n\s*<RoutineStepList routine=\{routine\} entities=\{entities\} onUpdate=\{onUpdate\} routineCell=\{routineCell\} readOnly=\{end\.ended\} \/>/);
 });
 
 test('T2 the cadence groups are full-width label rows, in CADENCE_GROUP_ORDER', () => {
@@ -113,7 +115,8 @@ test('T2 the cadence groups are full-width label rows, in CADENCE_GROUP_ORDER', 
   assert.match(list, /<tr data-cadence-group=\{g\}>\n\s*<td colSpan=\{ROUTINE_TABLE_COLUMNS\}[^>]*uppercase[^>]*>\n\s*\{CADENCE_GROUP_LABELS\[g\]\} \(\{items\.length\}\)\n\s*<\/td>/);
   // "+ new routine", "show inactive", the count and the create form stay where they are.
   const header = list.indexOf('show inactive');
-  assert.ok(list.indexOf("{routines.length === 1 ? 'routine' : 'routines'}") < header);
+  // ROUTINE-02a (2026-10-18): the count is of the rows shown — the current ones, and the ended while shown.
+  assert.ok(list.indexOf("{shownCount === 1 ? 'routine' : 'routines'}") < header);
   assert.ok(header < list.indexOf('+ new routine'));
   assert.ok(list.indexOf('+ new routine') < list.indexOf('<RoutineCreateForm'));
   assert.ok(list.indexOf('<RoutineCreateForm') < list.indexOf('<table'));
@@ -140,8 +143,9 @@ test('T2 the routine cell holds what R2 names, and the RRULE, last evaluated and
     '{routine.description}',
     '{book ? book.name : ACCOUNT_CELL_WORDS.bookNotLoaded}',
     'formatTime12h(routine.start_time.slice(11, 16))',
-    '{routine.timezone}',
-    'next: {formatDateTime(routine.next_due_at, routine.timezone)}',
+    // ROUTINE-02a (2026-10-18): the zone as Intl's list spells it; "ended <date>" in place of a next once nothing remains before the end.
+    '{canonicalZone(routine.timezone) ?? routine.timezone}',
+    '`next: ${formatDateTime(routine.next_due_at, routine.timezone)}`',
     'formatDate(routine.start_date)',
     'fail threshold {routine.fail_threshold_minutes} min',
     '{plannedLine(planned)}',
@@ -159,7 +163,7 @@ test('T2 the routine cell holds what R2 names, and the RRULE, last evaluated and
     assert.ok(next > at, `the routine cell draws ${piece} (in order)`);
     at = next;
   }
-  assert.match(cell, /data-routine-next-due>\n\s*next: \{formatDateTime/);
+  assert.match(cell, /data-routine-next-due>\n\s*\{routine\.next_due_at === null && routine\.end_date !== null\n\s*\? endedWords\(formatDate\(routine\.end_date\)\)\n\s*: `next: \$\{formatDateTime\(routine\.next_due_at, routine\.timezone\)\}`\}/);
   assert.match(row, /const book = entities\.find\(\(e\) => e\.id === routine\.entity_id\);/);
   assert.match(row, /const planned = routinePlanned\(\{ budget_amount: routine\.budget_amount \?\? null, coa_code: routine\.coa_code \?\? null, steps: routine\.steps \}\);/);
   // What left the screen.
@@ -254,7 +258,8 @@ test('T2 editing is in place: the routine\'s edit form is a full-width row under
   // "+ line" opens the input row at the end of the routine's rows; the routine's cell spans it.
   assert.match(code(ROW), /onClick=\{\(\) => addLine\?\.\(\)\}\n\s*disabled=\{addLine === null\}/);
   assert.match(lines, /const rowSpan = Math\.max\(steps\.length, 1\) \+ \(openAdd \? 1 : 0\);/);
-  assert.match(lines, /const cell = routineCell\(rowSpan, openAdd \? null : startAdd\);/);
+  // ROUTINE-02a (2026-10-18): an ended routine (readOnly) is handed no "+ line" either.
+  assert.match(lines, /const cell = routineCell\(rowSpan, openAdd \|\| readOnly \? null : startAdd\);/);
   assert.ok(lines.indexOf('{steps.map((step, index)') < lines.indexOf('{openAdd && ('), 'the new line\'s row is the last');
   assert.match(lines, /\{openAdd && \(\n\s*<tr[^>]*data-line-new>\n\s*\{inputCells\(addForm, setAddForm, NEW_LINE_ROW, \{/);
   // Today's line inputs, every one.

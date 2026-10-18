@@ -16,6 +16,14 @@
  * it recomputes next_due_at; a one-off (COUNT=1) must keep a date and ends on
  * it; the routine's place (location + coordinate pair) is patchable, the pair
  * all-or-nothing.
+ *
+ * ROUTINE-02a (Alex, 2026-10-18): end_date is the LAST DAY an occurrence may fall
+ * on, so patching it recomputes next_due_at too, bounded by it — null once
+ * nothing remains before the end (the row then says "ended <date>"). The zone
+ * is one of Intl's own names (rruleHelpers.ts TIME_ZONES), matched without case
+ * and stored in the list's spelling — anything else is refused by name; a
+ * stored name that differed only by case is saved canonical on this edit, and
+ * names the same zone to Intl, so no instant moves.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -25,7 +33,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
-import { compileFormToRRule, expandForward, isOnceRRule, scheduleAnchor } from '@/lib/operations/rruleHelpers';
+import { canonicalZone, compileFormToRRule, expandForward, isOnceRRule, scheduleAnchor, zoneNotListedWords } from '@/lib/operations/rruleHelpers';
 import { parsePlaceInput } from '@/lib/operations/routineInput';
 import { carriesPlanMoney, editedPlanMoney, planMoney, type PlanBook } from '@/lib/operations/planMoney';
 import { loadPlanBook } from '@/lib/operations/loadPlanBook';
@@ -204,13 +212,15 @@ export async function PATCH(
     }
 
     if (body.timezone !== undefined) {
-      if (typeof body.timezone !== 'string' || body.timezone.trim().length === 0) {
+      // ROUTINE-02a: one of Intl's zone names, matched without case, stored as the list spells it; else refused by name.
+      const timezone = canonicalZone(body.timezone);
+      if (timezone === null) {
         return NextResponse.json(
-          { error: 'Validation', field: 'timezone', message: 'required' },
+          { error: 'Validation', field: 'timezone', message: zoneNotListedWords(body.timezone) },
           { status: 400 }
         );
       }
-      data.timezone = body.timezone;
+      data.timezone = timezone;
       scheduleChanged = true;
     }
 
@@ -242,6 +252,8 @@ export async function PATCH(
       if (r.error) return r.error;
       effectiveEnd = r.value;
       data.end_date = r.value;
+      // ROUTINE-02a: the end moved, so the next occurrence may have — or may no longer exist. Recompute.
+      scheduleChanged = true;
     }
     if (effectiveStart && effectiveEnd && effectiveStart > effectiveEnd) {
       return NextResponse.json(
@@ -298,6 +310,7 @@ export async function PATCH(
         );
       }
       data.end_date = effectiveStart;
+      effectiveEnd = effectiveStart;
     }
 
     // ONEOFF-01: the place. Any of the three sent → the effective triple is
@@ -336,12 +349,13 @@ export async function PATCH(
       );
     }
 
-    // If cadence/timezone/anchor changed, recompute next_due_at — anchored on
-    // the effective start_date (ONEOFF-01: the one mechanism).
+    // If cadence/timezone/anchor/end changed, recompute next_due_at — anchored on
+    // the effective start_date (ONEOFF-01: the one mechanism) and bounded by the
+    // effective end_date (ROUTINE-02a): null once nothing remains before the end.
     if (scheduleChanged) {
       const nextTz = (data.timezone as string | undefined) ?? existing.timezone;
       try {
-        const upcoming = expandForward(nextRrule, nextTz, new Date(), 1, scheduleAnchor(effectiveStart));
+        const upcoming = expandForward(nextRrule, nextTz, new Date(), 1, scheduleAnchor(effectiveStart), effectiveEnd);
         data.next_due_at = upcoming[0] ?? null;
       } catch (e) {
         console.error('[Routine PATCH] next_due_at recompute failed', e);
