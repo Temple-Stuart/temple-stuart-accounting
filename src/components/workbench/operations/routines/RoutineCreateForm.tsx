@@ -30,6 +30,10 @@
  * is its lines. Nothing is defaulted: an empty amount is null, an empty time
  * stays empty, and a one-off without a date is refused by the server.
  *
+ * ROUTINE-02b (Alex, 2026-10-18): the start and end times are the builder's
+ * (RRULEBuilder) — the start time is the clock, required; nothing here fills
+ * byhour/byminute any more.
+ *
  * ROUTINE-02a (Alex, 2026-10-18): a new routine starts in the VIEWER'S OWN zone —
  * read after mount, so the server render and the first paint agree — and the
  * zone is picked from Intl's list in the builder.
@@ -303,34 +307,6 @@ export default function RoutineCreateForm({ entities, defaultEntityId, onCreated
           </div>
         </div>
       )}
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <div className={labelClass}>start time (optional)</div>
-          <input
-            type="time"
-            value={createForm.start_time}
-            /* ONEOFF-01: on a one-off the start time IS the occurrence's hour and
-               minute, so it fills the builder's cron fields as it is typed. */
-            onChange={(e) => {
-              const v = e.target.value;
-              setCreateForm({ ...createForm, start_time: v, ...(once && v ? { byhour: v.slice(0, 2), byminute: v.slice(3, 5) } : {}) });
-            }}
-            className={inputClass}
-            data-routine-start-time
-          />
-        </div>
-        <div>
-          <div className={labelClass}>end time (optional)</div>
-          <input
-            type="time"
-            value={createForm.end_time}
-            onChange={(e) => setCreateForm({ ...createForm, end_time: e.target.value })}
-            className={inputClass}
-            data-routine-end-time
-          />
-        </div>
-      </div>
 
       {/* ONEOFF-01: THE PLACE. The location saves on its own; the coordinates
           come from ONE lookup on press (FindThisPlace) or a pasted pair. */}

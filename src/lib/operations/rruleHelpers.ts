@@ -153,16 +153,100 @@ export const VIEWER_ZONE_WORDS = "your browser's zone";
 export const zoneUnreadWords = (name: string, detail: string): string => `zone ${JSON.stringify(name)} not recognised: ${detail} — pick one from the list`;
 
 /**
+ * ROUTINE-02b (Alex, 2026-10-18) — ONE TIME PER ROUTINE: THE START TIME IS THE CLOCK.
+ *
+ * "Why not just have it read off the start time… make it not optional, remove
+ * the Hour section… and when I set it up, it updates everything." A routine's
+ * clock — the BYHOUR/BYMINUTE every reader expands (routineDay.ts, the
+ * evaluator, the month tables) — is DERIVED from its start time, here, by the
+ * one compiler. The hour and minute boxes are gone from the builder; a body's
+ * byhour/byminute, when still sent (the ledger's "+ expense" sends agreeing
+ * ones), must agree with the start time, and a custom rule that names a
+ * different BYHOUR/BYMINUTE is refused by name — one fact, a second writer
+ * refused, never remapped in silence. A custom rule naming neither gets them
+ * appended from the start time. The start time is REQUIRED: a routine with no
+ * clock is not a routine.
+ */
+export interface Clock {
+  readonly hour: number;
+  readonly minute: number;
+}
+
+/** 'HH:MM' → the clock it names; null for anything else (blank, absent, not a time). */
+export function clockOfTime(time: unknown): Clock | null {
+  if (typeof time !== 'string') return null;
+  const m = /^(\d{2}):(\d{2})$/.exec(time.trim());
+  if (!m) return null;
+  const hour = Number(m[1]), minute = Number(m[2]);
+  if (hour > 23 || minute > 59) return null;
+  return { hour, minute };
+}
+
+/** The clock a rule names — its BYHOUR and BYMINUTE (a BYHOUR alone is minute 0, rrule's own default); null when it names no BYHOUR. */
+export function clockOfRule(rrule: string): Clock | null {
+  const hour = /(?:^|;)BYHOUR=(\d+)(?:;|$)/.exec(rrule)?.[1];
+  if (hour === undefined) return null;
+  const minute = /(?:^|;)BYMINUTE=(\d+)(?:;|$)/.exec(rrule)?.[1];
+  return { hour: Number(hour), minute: minute === undefined ? 0 : Number(minute) };
+}
+
+/** The clock as 'HH:MM'. */
+export const clockWords = (clock: Clock): string => `${String(clock.hour).padStart(2, '0')}:${String(clock.minute).padStart(2, '0')}`;
+
+/** Two clocks the same? */
+export const sameClock = (a: Clock | null, b: Clock | null): boolean => a !== null && b !== null && a.hour === b.hour && a.minute === b.minute;
+
+/** The rule with this clock: its BYHOUR and BYMINUTE parts replaced, or appended when it names none. The other parts are untouched. */
+export function withClock(rrule: string, clock: Clock): string {
+  const hour = `BYHOUR=${clock.hour}`;
+  const minute = `BYMINUTE=${clock.minute}`;
+  let sawHour = false;
+  let sawMinute = false;
+  const parts = rrule.split(';').filter((p) => p !== '').map((p) => {
+    if (/^BYHOUR=/.test(p)) { sawHour = true; return hour; }
+    if (/^BYMINUTE=/.test(p)) { sawMinute = true; return minute; }
+    return p;
+  });
+  if (!sawHour) parts.push(hour);
+  if (!sawMinute) parts.push(minute);
+  return parts.join(';');
+}
+
+export const START_TIME_REQUIRED_WORDS = "start time is required — it is the routine's time";
+export const END_TIME_REQUIRED_WORDS = 'end time is required when a start time is set — the window';
+/** A second writer of the clock that disagrees with the start time — refused by name. */
+export const clockDisagreeWords = (what: string, theirs: string, startTime: string): string =>
+  `${what} ${theirs} disagree with the start time ${startTime} — the start time is the routine's time; send one or make them agree`;
+
+/** The byhour/byminute a body still sends (strings) read as a clock, or null when neither is sent. Not a time → thrown by name. */
+function sentClock(form: Pick<RoutineForm, 'byhour' | 'byminute'>): Clock | null {
+  const sentHour = typeof form.byhour === 'string' && form.byhour.trim() !== '';
+  const sentMinute = typeof form.byminute === 'string' && form.byminute.trim() !== '';
+  if (!sentHour && !sentMinute) return null;
+  return { hour: sentHour ? parseIntStrict(form.byhour, 0, 23) : 0, minute: sentMinute ? parseIntStrict(form.byminute, 0, 59) : 0 };
+}
+
+/** ROUTINE-02b: the clock the form's start time names — required; a byhour/byminute still sent must agree with it. */
+function requireClock(form: Pick<RoutineForm, 'start_time' | 'byhour' | 'byminute'>): Clock {
+  const clock = clockOfTime(form.start_time);
+  if (clock === null) throw new ValidationError(START_TIME_REQUIRED_WORDS, { field: 'start_time' });
+  const sent = sentClock(form);
+  if (sent !== null && !sameClock(sent, clock)) {
+    throw new ValidationError(clockDisagreeWords('byhour/byminute', clockWords(sent), form.start_time), { field: 'byhour' });
+  }
+  return clock;
+}
+
+/**
  * Compile a RoutineForm's structured fields into an RFC 5545 RRULE string.
  *
  * For 'custom' mode, the raw form.custom_rrule is returned as-is (after
- * basic validation that it parses). For all other modes, the function
- * synthesizes an RRULE from the structured selections plus byhour/byminute.
+ * basic validation that it parses), its clock checked against the start time
+ * (ROUTINE-02b) and appended when it names none. For all other modes, the
+ * function synthesizes an RRULE from the structured selections plus the clock
+ * the start time names.
  */
 export function compileFormToRRule(form: RoutineForm): string {
-  const byhour = parseIntStrict(form.byhour, 0, 23);
-  const byminute = parseIntStrict(form.byminute, 0, 59);
-
   if (form.cadence_mode === 'custom') {
     const trimmed = form.custom_rrule.trim();
     if (trimmed.length === 0) {
@@ -173,7 +257,13 @@ export function compileFormToRRule(form: RoutineForm): string {
     const bare = trimmed.startsWith('RRULE:') ? trimmed.slice('RRULE:'.length) : trimmed;
     // ONEOFF-01: a hand-written COUNT=1 is a one-off too, and a one-off has its date.
     if (isOnceRRule(bare)) requireOnceDate(form);
-    return bare;
+    // ROUTINE-02b: the clock is the start time; the rule's own clock must be it, and a rule naming none gets it.
+    const clock = requireClock(form);
+    const ruleClock = clockOfRule(bare);
+    if (ruleClock !== null && !sameClock(ruleClock, clock)) {
+      throw new ValidationError(clockDisagreeWords("the raw rule's BYHOUR/BYMINUTE", clockWords(ruleClock), form.start_time), { field: 'custom_rrule' });
+    }
+    return ruleClock === null ? withClock(bare, clock) : bare;
   }
 
   const parts: string[] = [];
@@ -182,6 +272,13 @@ export function compileFormToRRule(form: RoutineForm): string {
     // ONEOFF-01: one occurrence, counted from the routine's start_date (the
     // anchor). Without the date the count would run from 1971.
     requireOnceDate(form);
+  }
+  // ROUTINE-02b: the clock is the start time — required; byhour/byminute, when sent, must agree.
+  const clock = requireClock(form);
+  const byhour = clock.hour;
+  const byminute = clock.minute;
+
+  if (form.cadence_mode === 'once') {
     parts.push('FREQ=DAILY');
     parts.push('COUNT=1');
   } else if (form.cadence_mode === 'daily') {

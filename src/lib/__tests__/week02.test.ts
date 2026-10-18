@@ -63,14 +63,16 @@ test('T7 the migration: the one ADD VALUE line and nothing else, after the last 
   // JOURNAL-02 (2026-10-13): the simple journal's migration is newer still — every index moved one; the order holds.
   // TASKS-ONE-02 (2026-10-14): the completion audit types' migration is newer still — every index moved one; the order holds.
   // RETRO-01 (Alex, 2026-10-16): the stop-moved audit type's migration is newer still — every index moved one; the order holds.
-  assert.equal(dirs[dirs.length - 8], MIGRATION_DIR, 'the migration seven before the newest (STAY-01, STOP-01, ROLE-01, JOURNAL-01, JOURNAL-02, TASKS-ONE-02, then RETRO-01 followed)');
-  assert.equal(dirs[dirs.length - 7], '20261012090000_stay_01_operations_stays');
-  assert.equal(dirs[dirs.length - 6], '20261012140000_stop_01_operations_stop_records');
-  assert.equal(dirs[dirs.length - 5], '20261013030000_role_01_routine_role');
-  assert.equal(dirs[dirs.length - 4], '20261013120000_journal_01_day_journals');
-  assert.equal(dirs[dirs.length - 3], '20261013200000_journal_02_the_simple_journal');
-  assert.equal(dirs[dirs.length - 2], '20261014090000_tasks_one_02_completion_audit_types');
-  assert.equal(dirs[dirs.length - 1], '20261016120000_retro_01_stop_moved_audit_type', 'the newest migration');
+  // ROUTINE-02b (2026-10-18): one more audit-type migration followed (the newest); the order below moved by one.
+  assert.equal(dirs[dirs.length - 9], MIGRATION_DIR, 'the migration eight before the newest (STAY-01, STOP-01, ROLE-01, JOURNAL-01, JOURNAL-02, TASKS-ONE-02, then RETRO-01, ROUTINE-02b followed)');
+  assert.equal(dirs[dirs.length - 8], '20261012090000_stay_01_operations_stays');
+  assert.equal(dirs[dirs.length - 7], '20261012140000_stop_01_operations_stop_records');
+  assert.equal(dirs[dirs.length - 6], '20261013030000_role_01_routine_role');
+  assert.equal(dirs[dirs.length - 5], '20261013120000_journal_01_day_journals');
+  assert.equal(dirs[dirs.length - 4], '20261013200000_journal_02_the_simple_journal');
+  assert.equal(dirs[dirs.length - 3], '20261014090000_tasks_one_02_completion_audit_types');
+  assert.equal(dirs[dirs.length - 2], '20261016120000_retro_01_stop_moved_audit_type', 'the migration before the newest (ROUTINE-02b followed)');
+  assert.equal(dirs[dirs.length - 1], '20261018120000_routine_02b_rekeyed_audit_type', 'the newest migration');
 });
 
 test('T7 the schema’s enum holds the value, last; the client knows it; the audit log lists it under operations_', () => {
@@ -80,9 +82,10 @@ test('T7 the schema’s enum holds the value, last; the client knows it; the aud
   const values = auditEnum[1].split(/\s+/).filter(Boolean);
   // STAY-01 (2026-10-12): two values follow it in ALTER TYPE order; STOP-01 (2026-10-12): two more; JOURNAL-01 (2026-10-13): two more — the pin moved from "last" to "seventh from last".
   // TASKS-ONE-02 (2026-10-14): two more — "ninth from last". The value STAYS though its PATCH is deleted: the rows it wrote still read.
-  // RETRO-01 (2026-10-16): one more follows — the nine before the last one.
-  assert.deepEqual(values.slice(-10, -1), ['operations_routine_completion_note_edited', 'operations_stay_set', 'operations_stay_deleted', 'operations_stop_set', 'operations_stop_cleared', 'operations_journal_set', 'operations_journal_cleared', 'operations_routine_uncompleted', 'operations_routine_completion_updated']);
+  // RETRO-01 (2026-10-16): one more follows — the nine before the last one. ROUTINE-02b (2026-10-18): one more — the nine before the last two.
+  assert.deepEqual(values.slice(-11, -2), ['operations_routine_completion_note_edited', 'operations_stay_set', 'operations_stay_deleted', 'operations_stop_set', 'operations_stop_cleared', 'operations_journal_set', 'operations_journal_cleared', 'operations_routine_uncompleted', 'operations_routine_completion_updated']);
   assert.equal(values.filter((v) => v === 'operations_routine_completion_note_edited').length, 1);
   assert.equal(AuditActionType.operations_routine_completion_note_edited, 'operations_routine_completion_note_edited', 'prisma generate ran');
-  assert.match(code(AUDIT_LOG), /'operations_plan_vendor_cleared',\s*'operations_routine_completion_note_edited',\s*'operations_stay_set',\s*'operations_stay_deleted',\s*'operations_stop_set',\s*'operations_stop_cleared',\s*'operations_journal_set',\s*'operations_journal_cleared',\s*'operations_routine_uncompleted',\s*'operations_routine_completion_updated',\s*'operations_stop_moved',\s*\],/);
+  // ROUTINE-02b (2026-10-18): the rekeyed type follows the stop-moved type in the list.
+  assert.match(code(AUDIT_LOG), /'operations_plan_vendor_cleared',\s*'operations_routine_completion_note_edited',\s*'operations_stay_set',\s*'operations_stay_deleted',\s*'operations_stop_set',\s*'operations_stop_cleared',\s*'operations_journal_set',\s*'operations_journal_cleared',\s*'operations_routine_uncompleted',\s*'operations_routine_completion_updated',\s*'operations_stop_moved',\s*'operations_routine_rekeyed',\s*\],/);
 });

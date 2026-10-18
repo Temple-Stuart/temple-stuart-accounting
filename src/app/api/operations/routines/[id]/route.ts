@@ -24,6 +24,23 @@
  * and stored in the list's spelling — anything else is refused by name; a
  * stored name that differed only by case is saved canonical on this edit, and
  * names the same zone to Intl, so no instant moves.
+ *
+ * ROUTINE-02b (Alex, 2026-10-18): ONE TIME; HISTORY FOLLOWS IT. The start time
+ * IS the routine's clock: a body that sends it (blank refused) rewrites the
+ * rule's BYHOUR/BYMINUTE from it even when no cadence field is sent — the edit
+ * that used to change nothing on the day cards; with cadence fields the compile
+ * derives the clock from it and refuses a byhour/byminute or a custom rule that
+ * disagrees. The end time is required with the start time when either is sent
+ * (a one-off excepted — its window is its day). When the clock or the zone
+ * changes, the rows keyed to the old instants — completions, stop records,
+ * single-occurrence plan vendors, plan links — move with it, day by day, old
+ * instant → the new rule's occurrence on the SAME local day, in ONE transaction
+ * with the routine's row (routineRekey.ts, the pure rule): a day the new rule
+ * has no occurrence on, or a target already occupied, refuses the whole edit by
+ * name before any write (400 / 409). Rows not on the old clock stay and are
+ * counted. Audited once as operations_routine_rekeyed (the counts per table,
+ * the rule and zone before → after) plus RETRO-01's operations_stop_moved per
+ * record; the answer says how many rows moved per table (`rekeyed`).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -33,7 +50,10 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
-import { canonicalZone, compileFormToRRule, expandForward, isOnceRRule, scheduleAnchor, zoneNotListedWords } from '@/lib/operations/rruleHelpers';
+import { END_TIME_REQUIRED_WORDS, START_TIME_REQUIRED_WORDS, canonicalZone, clockOfRule, clockOfTime, clockWords, compileFormToRRule, expandForward, isOnceRRule, sameClock, scheduleAnchor, withClock, zoneNotListedWords } from '@/lib/operations/rruleHelpers';
+import { RekeyRefused, rekeyPlan, rekeyedWords, occupiedWords, type RekeyCounts, type RekeySchedule } from '@/lib/operations/routineRekey';
+import { lockRoutine, moveCompletions } from '@/lib/operations/routineCompletion';
+import { movedWords, stopRecordRowOf, type StopRecordRow } from '@/lib/operations/stopRecord';
 import { parsePlaceInput } from '@/lib/operations/routineInput';
 import { carriesPlanMoney, editedPlanMoney, planMoney, type PlanBook } from '@/lib/operations/planMoney';
 import { loadPlanBook } from '@/lib/operations/loadPlanBook';
@@ -137,6 +157,7 @@ export async function PATCH(
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     const body = (await request.json()) as Partial<RoutineForm>;
+    const now = new Date();
 
     const data: Prisma.operations_routinesUpdateInput = {};
     let scheduleChanged = false;
@@ -263,6 +284,32 @@ export async function PATCH(
     }
     const effectiveStartStr = effectiveStart ? effectiveStart.toISOString().slice(0, 10) : '';
 
+    // Time window: validate against effective (post-patch) values. ROUTINE-02b:
+    // read BEFORE the cadence compile — the start time is the clock it derives.
+    let effectiveStartTime = existing.start_time;
+    let effectiveEndTime = existing.end_time;
+    if ('start_time' in body) {
+      const r = parseTimeOrNull(body.start_time, 'start_time');
+      if (r.error) return r.error;
+      if (r.value === null) return NextResponse.json({ error: 'Validation', field: 'start_time', message: START_TIME_REQUIRED_WORDS }, { status: 400 });
+      effectiveStartTime = r.value;
+      data.start_time = r.value;
+    }
+    if ('end_time' in body) {
+      const r = parseTimeOrNull(body.end_time, 'end_time');
+      if (r.error) return r.error;
+      effectiveEndTime = r.value;
+      data.end_time = r.value;
+    }
+    if (effectiveStartTime && effectiveEndTime && effectiveStartTime >= effectiveEndTime) {
+      return NextResponse.json(
+        { error: 'Validation', field: 'end_time', message: 'end_time must be after start_time' },
+        { status: 400 }
+      );
+    }
+    const effectiveStartTimeStr = effectiveStartTime ? effectiveStartTime.toISOString().slice(11, 16) : '';
+    const effectiveClock = clockOfTime(effectiveStartTimeStr);
+
     // Recompile RRULE if any cadence-related field is supplied.
     const cadenceFieldsPresent =
       body.cadence_mode !== undefined ||
@@ -277,8 +324,9 @@ export async function PATCH(
     if (cadenceFieldsPresent) {
       try {
         // ONEOFF-01: the compile sees the EFFECTIVE start_date, so a one-off
-        // patched without re-sending its date still has one.
-        const compiled = compileFormToRRule({ ...body, start_date: effectiveStartStr } as RoutineForm);
+        // patched without re-sending its date still has one. ROUTINE-02b: and
+        // the EFFECTIVE start time — the clock it derives.
+        const compiled = compileFormToRRule({ ...body, start_date: effectiveStartStr, start_time: effectiveStartTimeStr } as RoutineForm);
         data.schedule_rrule = compiled;
         scheduleChanged = true;
       } catch (e) {
@@ -291,6 +339,10 @@ export async function PATCH(
           { status: 400 }
         );
       }
+    } else if (effectiveClock !== null && !sameClock(clockOfRule(existing.schedule_rrule), effectiveClock)) {
+      // ROUTINE-02b: no cadence field sent, but the start time names a clock the rule does not — the rule follows the start time.
+      data.schedule_rrule = withClock(existing.schedule_rrule, effectiveClock);
+      scheduleChanged = true;
     }
 
     // ONEOFF-01: a one-off (COUNT=1) — whether it just became one or already was —
@@ -312,6 +364,10 @@ export async function PATCH(
       data.end_date = effectiveStart;
       effectiveEnd = effectiveStart;
     }
+    // ROUTINE-02b: the end time is the window — required with the start time when either is sent; a one-off's window is its day.
+    if (('start_time' in body || 'end_time' in body) && effectiveStartTime !== null && effectiveEndTime === null && !isOnceRRule(nextRrule)) {
+      return NextResponse.json({ error: 'Validation', field: 'end_time', message: END_TIME_REQUIRED_WORDS }, { status: 400 });
+    }
 
     // ONEOFF-01: the place. Any of the three sent → the effective triple is
     // validated whole (the pair is all-or-nothing) and all three are written.
@@ -327,28 +383,6 @@ export async function PATCH(
       data.longitude = place.value.longitude;
     }
 
-    // Time window: validate against effective (post-patch) values.
-    let effectiveStartTime = existing.start_time;
-    let effectiveEndTime = existing.end_time;
-    if ('start_time' in body) {
-      const r = parseTimeOrNull(body.start_time, 'start_time');
-      if (r.error) return r.error;
-      effectiveStartTime = r.value;
-      data.start_time = r.value;
-    }
-    if ('end_time' in body) {
-      const r = parseTimeOrNull(body.end_time, 'end_time');
-      if (r.error) return r.error;
-      effectiveEndTime = r.value;
-      data.end_time = r.value;
-    }
-    if (effectiveStartTime && effectiveEndTime && effectiveStartTime >= effectiveEndTime) {
-      return NextResponse.json(
-        { error: 'Validation', field: 'end_time', message: 'end_time must be after start_time' },
-        { status: 400 }
-      );
-    }
-
     // If cadence/timezone/anchor/end changed, recompute next_due_at — anchored on
     // the effective start_date (ONEOFF-01: the one mechanism) and bounded by the
     // effective end_date (ROUTINE-02a): null once nothing remains before the end.
@@ -362,10 +396,78 @@ export async function PATCH(
       }
     }
 
-    const routine = await prisma.operations_routines.update({
-      where: { id },
-      data,
-    });
+    // ROUTINE-02b: HISTORY FOLLOWS THE TIME. When the clock or the zone changes, the rows keyed to the old
+    // instants move with it, in ONE transaction with the routine's row — or the whole edit is refused by name.
+    const nextTz = (data.timezone as string | undefined) ?? existing.timezone;
+    const clockMoved = !sameClock(clockOfRule(existing.schedule_rrule), clockOfRule(nextRrule)) && clockOfRule(nextRrule) !== null;
+    // A stored name that differs only by case names the same zone (ROUTINE-02a): no move.
+    const zoneMoved = canonicalZone(existing.timezone) !== canonicalZone(nextTz);
+    let routine: Prisma.operations_routinesGetPayload<Record<string, never>>;
+    let rekeyed: RekeyCounts | null = null;
+    let movedRecords: { readonly before: StopRecordRow; readonly after: StopRecordRow }[] = [];
+    if (clockMoved || zoneMoved) {
+      const before: RekeySchedule = { timezone: existing.timezone, schedule_rrule: existing.schedule_rrule, start_date: existing.start_date, end_date: existing.end_date };
+      const after: RekeySchedule = { timezone: nextTz, schedule_rrule: nextRrule, start_date: effectiveStart, end_date: effectiveEnd };
+      try {
+        const outcome = await prisma.$transaction(async (tx) => {
+          await lockRoutine(tx, id, user.id);
+          // The routine's plans: itself and every line it has had — archived lines' rows are history too.
+          const lineIds = (await tx.operations_routine_steps.findMany({ where: { routine_id: id, user_id: user.id }, select: { id: true } })).map((s) => s.id);
+          const planOr = [{ routine_id: id }, ...(lineIds.length > 0 ? [{ step_id: { in: lineIds } }] : [])];
+          const linkOr = [{ target_kind: 'routine', target_id: id }, ...(lineIds.length > 0 ? [{ target_kind: 'routine_line', target_id: { in: lineIds } }] : [])];
+          const completions = await tx.operations_routine_completions.findMany({ where: { routine_id: id, user_id: user.id }, select: { id: true, expected_at: true } });
+          const records = await tx.operations_stop_records.findMany({ where: { user_id: user.id, OR: planOr } });
+          const vendors = await tx.planned_item_vendors.findMany({ where: { user_id: user.id, occurrence_at: { not: null }, OR: planOr }, select: { id: true, routine_id: true, step_id: true, occurrence_at: true } });
+          const links = await tx.planned_item_links.findMany({ where: { user_id: user.id, target_instant: { not: null }, OR: linkOr }, select: { id: true, target_instant: true } });
+          const instants = [
+            ...completions.map((c) => c.expected_at),
+            ...records.map((r) => r.occurrence_at),
+            ...vendors.map((v) => v.occurrence_at as Date),
+            ...links.map((l) => l.target_instant as Date),
+          ];
+          const plan = rekeyPlan(before, after, instants, now);
+          if (!plan.ok) throw new RekeyRefused(plan.status, plan.message);
+          const toOf = new Map(plan.moves.map((m) => [m.from.getTime(), m.to]));
+          const targets = plan.moves.map((m) => m.to);
+          const planKey = (r: { routine_id: string | null; step_id: string | null }, at: Date) => `${r.routine_id ?? ''}|${r.step_id ?? ''}|${at.getTime()}`;
+          if (targets.length > 0) {
+            // Every target proven empty, per table and per plan, BEFORE any write; the partial unique indexes are the backstop for a race.
+            const takenCompletions = new Set((await tx.operations_routine_completions.findMany({ where: { routine_id: id, expected_at: { in: targets } }, select: { expected_at: true } })).map((c) => c.expected_at.getTime()));
+            for (const c of completions) { const to = toOf.get(c.expected_at.getTime()); if (to && takenCompletions.has(to.getTime())) throw new RekeyRefused(409, occupiedWords('completions', to, nextTz)); }
+            const takenRecords = new Set((await tx.operations_stop_records.findMany({ where: { user_id: user.id, OR: planOr, occurrence_at: { in: targets } }, select: { routine_id: true, step_id: true, occurrence_at: true } })).map((r) => planKey(r, r.occurrence_at)));
+            for (const r of records) { const to = toOf.get(r.occurrence_at.getTime()); if (to && takenRecords.has(planKey(r, to))) throw new RekeyRefused(409, occupiedWords('stop_records', to, nextTz)); }
+            const takenVendors = new Set((await tx.planned_item_vendors.findMany({ where: { user_id: user.id, OR: planOr, occurrence_at: { in: targets } }, select: { routine_id: true, step_id: true, occurrence_at: true } })).map((v) => planKey(v, v.occurrence_at as Date)));
+            for (const v of vendors) { const to = toOf.get((v.occurrence_at as Date).getTime()); if (to && takenVendors.has(planKey(v, to))) throw new RekeyRefused(409, occupiedWords('plan_vendors', to, nextTz)); }
+            // A plan link is keyed by its posting (journal_entry_id unique), never by the instant — many postings may link one occurrence; nothing to prove.
+          }
+          const counts = { completions: 0, stop_records: 0, plan_vendors: 0, plan_links: 0 };
+          const moved: { readonly before: StopRecordRow; readonly after: StopRecordRow }[] = [];
+          // The completions through their one writer (TASKS-ONE-02: routineCompletion.ts).
+          counts.completions = await moveCompletions(tx, { userId: user.id, routineId: id, to: toOf });
+          for (const r of records) { const to = toOf.get(r.occurrence_at.getTime()); if (to) { const afterRow = await tx.operations_stop_records.update({ where: { id: r.id }, data: { occurrence_at: to } }); moved.push({ before: stopRecordRowOf(r), after: stopRecordRowOf(afterRow) }); counts.stop_records += 1; } }
+          for (const v of vendors) { const to = toOf.get((v.occurrence_at as Date).getTime()); if (to) { await tx.planned_item_vendors.update({ where: { id: v.id }, data: { occurrence_at: to } }); counts.plan_vendors += 1; } }
+          for (const l of links) { const to = toOf.get((l.target_instant as Date).getTime()); if (to) { await tx.planned_item_links.update({ where: { id: l.id }, data: { target_instant: to } }); counts.plan_links += 1; } }
+          const row = await tx.operations_routines.update({ where: { id }, data });
+          return { routine: row, counts: { days: plan.moves.length, ...counts, not_on_old_clock: plan.notOnOldClock.length } satisfies RekeyCounts, moved };
+        }, { timeout: 60000 });
+        routine = outcome.routine;
+        rekeyed = outcome.counts;
+        movedRecords = outcome.moved;
+      } catch (error) {
+        if (error instanceof RekeyRefused) {
+          return NextResponse.json({ error: error.status === 409 ? 'Conflict' : 'Validation', field: 'start_time', message: error.message }, { status: error.status });
+        }
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          return NextResponse.json({ error: 'Conflict', field: 'start_time', message: "cannot move the routine's history: a row already sits at a target instant (written while this edit ran) — try again" }, { status: 409 });
+        }
+        throw error;
+      }
+    } else {
+      routine = await prisma.operations_routines.update({
+        where: { id },
+        data,
+      });
+    }
 
     let actionType: 'operations_routine_deactivated' | 'operations_routine_updated';
     let description: string;
@@ -403,7 +505,34 @@ export async function PATCH(
       },
     });
 
-    return NextResponse.json({ routine });
+    // ROUTINE-02b: the move, once — the counts per table, the rule and zone before → after — then each record's own precedent.
+    if (rekeyed !== null) {
+      const fromClock = clockOfRule(existing.schedule_rrule);
+      const toClock = clockOfRule(routine.schedule_rrule);
+      await writeAuditLog({
+        actor: { user_id: user.id, email: userEmail, type: 'human_user' },
+        action: {
+          type: 'operations_routine_rekeyed',
+          description: rekeyedWords(existing.name, fromClock === null ? 'no clock' : clockWords(fromClock), toClock === null ? 'no clock' : clockWords(toClock), existing.timezone, routine.timezone, rekeyed),
+        },
+        target: { table: 'operations_routines', id: routine.id },
+        payload: {
+          before: { schedule_rrule: existing.schedule_rrule, timezone: existing.timezone },
+          after: { schedule_rrule: routine.schedule_rrule, timezone: routine.timezone },
+          metadata: { ...rekeyed },
+        },
+      });
+      for (const m of movedRecords) {
+        await writeAuditLog({
+          actor: { user_id: user.id, email: userEmail, type: 'human_user' },
+          action: { type: 'operations_stop_moved', description: movedWords(m.before, m.before.occurrence_at, m.after.occurrence_at) },
+          target: { table: 'operations_stop_records', id: m.before.id },
+          payload: { before: m.before, after: m.after, metadata: { from: m.before.occurrence_at, to: m.after.occurrence_at, routine_id: routine.id, moved_with: 'operations_routine_rekeyed' } },
+        });
+      }
+    }
+
+    return NextResponse.json({ routine, rekeyed });
   } catch (error) {
     return failClosedResponse('Routine PATCH', 'Failed to update routine', error);
   }

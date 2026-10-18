@@ -26,9 +26,13 @@ interface Props {
   /** Receives the bare code ('' when cleared). */
   onChange: (code: string) => void;
   className?: string;
+  /** ROUTINE-02b: off, with the caller saying why beside it. */
+  disabled?: boolean;
+  /** A test hook the caller names. */
+  'data-routine-coa'?: boolean;
 }
 
-export default function CoaSelect({ entityId, value, onChange, className }: Props) {
+export default function CoaSelect({ entityId, value, onChange, className, disabled = false, ...rest }: Props) {
   const [accounts, setAccounts] = useState<CoaAccount[]>([]);
 
   useEffect(() => {
@@ -45,7 +49,7 @@ export default function CoaSelect({ entityId, value, onChange, className }: Prop
   }, [entityId]);
 
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className={className}>
+    <select value={value} onChange={(e) => onChange(e.target.value)} className={className} disabled={disabled} {...rest}>
       <option value="">— None —</option>
       {/* Surface an out-of-list current code so saving never silently drops it. */}
       {value !== '' && !accounts.some((a) => a.code === value) && (

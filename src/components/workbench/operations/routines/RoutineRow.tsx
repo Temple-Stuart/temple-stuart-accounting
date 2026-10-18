@@ -11,6 +11,17 @@
  * trail shows the discrimination (deactivated as its own action_type;
  * reactivated as generic _updated with metadata.activation_toggle='reactivated').
  *
+ * ROUTINE-02b (Alex, 2026-10-18): the edit form's start time is seeded from the
+ * rule's own clock (the clock in force; the stored start_time was display only)
+ * and byhour/byminute agree with it, so a start-time edit rewrites the rule and
+ * moves the routine's history with it (the PATCH's rekey). The start and end
+ * times are the builder's now. The routine-level COA select is disabled, and
+ * says why, when a line carries the money (LINES-01 — the account goes on each
+ * line); otherwise it works, and says beside it that an account needs its
+ * amount (INTAKE-01's pair rule, the route's own words) before the save. The
+ * book (entity) stays unchangeable: lines, codes and ledger links belong to one
+ * book — "to move a routine to another book, end it and create it there".
+ *
  * ROUTINE-02a (Alex, 2026-10-18): an ENDED routine (the list's judgement, handed
  * in as `end`) is read-only but for "edit" — to extend the end: no deactivate,
  * no delete, no "+ line", its lines' controls off (RoutineStepList readOnly),
@@ -33,7 +44,7 @@ import CoaSelect from './CoaSelect';
 import FindThisPlace from './FindThisPlace';
 import { AccountText, ROUTINE_TABLE_COLUMNS, RoutineStepList } from './RoutineStepList';
 import { ignoredLine, plannedLine, routinePlanned } from '@/lib/operations/routineLines';
-import { canonicalZone, isOnceRRule, type RoutineEnd } from '@/lib/operations/rruleHelpers';
+import { canonicalZone, clockOfRule, clockWords, isOnceRRule, type RoutineEnd } from '@/lib/operations/rruleHelpers';
 import { ACCOUNT_CELL_WORDS, accountCell } from '@/lib/coa/accountCell';
 import type { PlaceMatch } from '@/lib/calendar/findPlace';
 import type { Entity } from '../EntitySelector';
@@ -57,8 +68,8 @@ function routineToForm(r: Routine): RoutineForm {
   // ONEOFF-01: a one-off (COUNT=1) opens as cadence "once" — its date is the
   // one field that matters, and its hour/minute are read back off the rule.
   const once = isOnceRRule(r.schedule_rrule);
-  const hour = /(?:^|;)BYHOUR=(\d+)/.exec(r.schedule_rrule)?.[1];
-  const minute = /(?:^|;)BYMINUTE=(\d+)/.exec(r.schedule_rrule)?.[1];
+  // ROUTINE-02b: the clock in force is the rule's — the start time is seeded from it, and byhour/byminute agree with it.
+  const clock = clockOfRule(r.schedule_rrule);
   return {
     ...DEFAULT_ROUTINE_FORM,
     name: r.name,
@@ -71,13 +82,12 @@ function routineToForm(r: Routine): RoutineForm {
     role: r.role,
     start_date: r.start_date ? r.start_date.slice(0, 10) : '',
     end_date: r.end_date ? r.end_date.slice(0, 10) : '',
-    start_time: r.start_time ? r.start_time.slice(11, 16) : '',
+    start_time: clock !== null ? clockWords(clock) : r.start_time ? r.start_time.slice(11, 16) : '',
     end_time: r.end_time ? r.end_time.slice(11, 16) : '',
     is_active: r.is_active,
     cadence_mode: once ? 'once' : 'custom',
     custom_rrule: r.schedule_rrule,
-    ...(once && hour !== undefined ? { byhour: hour.padStart(2, '0') } : {}),
-    ...(once && minute !== undefined ? { byminute: minute.padStart(2, '0') } : {}),
+    ...(clock !== null ? { byhour: String(clock.hour).padStart(2, '0'), byminute: String(clock.minute).padStart(2, '0') } : {}),
     // HB-4b: pre-fill budget + COA on edit (null → '' empty input/no selection).
     budget_amount: r.budget_amount != null ? String(r.budget_amount) : '',
     coa_code: r.coa_code ?? '',
@@ -121,6 +131,12 @@ function formatTime12h(hhmm: string): string {
 
 /** ROUTINE-02a: the row's words for an end that has passed, or past which nothing remains. */
 export const endedWords = (dateWords: string): string => `ended ${dateWords}`;
+/** ROUTINE-02b: why the routine-level COA is disabled when a line carries the money. */
+export const COA_ON_LINES_WORDS = 'the lines carry the money — set the account on each line';
+/** ROUTINE-02b: the pair rule, said beside the select before the save (planMoney.ts's own words). */
+export const COA_NEEDS_AMOUNT_WORDS = 'an account needs its amount — enter the amount, or clear the account';
+/** ROUTINE-02b: the book is not changeable — lines, codes and ledger links belong to one book. */
+export const BOOK_FIXED_WORDS = 'to move a routine to another book, end it and create it there';
 
 export default function RoutineRow({ routine, end, entities, onUpdate, onDelete }: Props & { }) {
   // LINES-01: ONE leaf decides the routine's figure. Read here, rendered below.
@@ -436,7 +452,8 @@ export default function RoutineRow({ routine, end, entities, onUpdate, onDelete 
                   onChange={(e) => setForm({ ...form, entity_id: e.target.value })}
                   className={inputClass}
                   disabled
-                  title="entity cannot be changed after creation"
+                  title={BOOK_FIXED_WORDS}
+                  data-routine-book-select
                 >
                   {entities.map((e) => (
                     <option key={e.id} value={e.id}>
@@ -444,6 +461,7 @@ export default function RoutineRow({ routine, end, entities, onUpdate, onDelete 
                     </option>
                   ))}
                 </select>
+                <div className="text-text-faint text-[10px] mt-1" data-routine-book-fixed>{BOOK_FIXED_WORDS}</div>
               </div>
             </div>
 
@@ -474,12 +492,18 @@ export default function RoutineRow({ routine, end, entities, onUpdate, onDelete 
               </div>
               <div>
                 <div className="font-semibold text-text-primary uppercase tracking-wide mb-1 text-xs">COA (optional)</div>
+                {/* ROUTINE-02b: disabled, and said why, when a line carries the money; else the pair rule said before the save. */}
                 <CoaSelect
                   entityId={form.entity_id}
                   value={form.coa_code ?? ''}
                   onChange={(code) => setForm({ ...form, coa_code: code })}
                   className={inputClass}
+                  disabled={planned.from === 'lines'}
+                  data-routine-coa
                 />
+                {planned.from === 'lines'
+                  ? <div className="text-text-faint text-[10px] mt-1" data-routine-coa-lines>{COA_ON_LINES_WORDS}</div>
+                  : (form.coa_code ?? '') !== '' && (form.budget_amount ?? '').trim() === '' && <div className="text-amber-800 text-[10px] mt-1" data-routine-coa-needs-amount>{COA_NEEDS_AMOUNT_WORDS}</div>}
               </div>
             </div>
 
@@ -520,31 +544,6 @@ export default function RoutineRow({ routine, end, entities, onUpdate, onDelete 
                 </div>
               </div>
             )}
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <div className={labelClass}>start time (optional)</div>
-                <input
-                  type="time"
-                  value={form.start_time}
-                  /* ONEOFF-01: on a one-off the start time is the occurrence's hour and minute. */
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setForm({ ...form, start_time: v, ...(onceForm && v ? { byhour: v.slice(0, 2), byminute: v.slice(3, 5) } : {}) });
-                  }}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <div className={labelClass}>end time (optional)</div>
-                <input
-                  type="time"
-                  value={form.end_time}
-                  onChange={(e) => setForm({ ...form, end_time: e.target.value })}
-                  className={inputClass}
-                />
-              </div>
-            </div>
 
             {/* ONEOFF-01: THE PLACE — the same three fields and the same one-press
                 lookup the create form has. */}

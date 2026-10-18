@@ -252,10 +252,12 @@ test('T3 the migration: the three lists added NOT NULL default empty, the four C
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
   // TASKS-ONE-02 (2026-10-14): the completion audit types' migration is newer still — every index moved one; the order holds.
   // RETRO-01 (Alex, 2026-10-16): the stop-moved audit type's migration is newer still — every index moved one; the order holds.
-  assert.equal(dirs[dirs.length - 3], MIGRATION_DIR, 'the migration two before the newest (TASKS-ONE-02, then RETRO-01 followed)');
-  assert.equal(dirs[dirs.length - 2], '20261014090000_tasks_one_02_completion_audit_types');
-  assert.equal(dirs[dirs.length - 1], '20261016120000_retro_01_stop_moved_audit_type', 'the newest migration');
-  assert.equal(dirs[dirs.length - 4], '20261013120000_journal_01_day_journals', 'right after JOURNAL-01’s');
+  // ROUTINE-02b (2026-10-18): one more audit-type migration followed (the newest); the order below moved by one.
+  assert.equal(dirs[dirs.length - 4], MIGRATION_DIR, 'the migration three before the newest (TASKS-ONE-02, then RETRO-01, ROUTINE-02b followed)');
+  assert.equal(dirs[dirs.length - 3], '20261014090000_tasks_one_02_completion_audit_types');
+  assert.equal(dirs[dirs.length - 2], '20261016120000_retro_01_stop_moved_audit_type', 'the migration before the newest (ROUTINE-02b followed)');
+  assert.equal(dirs[dirs.length - 1], '20261018120000_routine_02b_rekeyed_audit_type', 'the newest migration');
+  assert.equal(dirs[dirs.length - 5], '20261013120000_journal_01_day_journals', 'right after JOURNAL-01’s');
 });
 
 test('T3 the schema: the three lists with empty defaults, every JOURNAL-01 column kept; the client generated with them', () => {

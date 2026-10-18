@@ -3063,6 +3063,14 @@ enum AuditActionType {
   // 20261016120000_retro_01_stop_moved_audit_type. In the audit-log route's
   // operations_ list.
   operations_stop_moved
+  // ROUTINE-02b (Alex, 2026-10-18): a routine's history moved with its time — every
+  // row keyed to its old instants (completions, stop records, single-occurrence
+  // plan vendors, plan links) rekeyed to the new rule's instant on the same day by
+  // the routines/[id] PATCH, in one transaction; the counts per table in the
+  // metadata. Appended in ALTER TYPE order — migration
+  // 20261018120000_routine_02b_rekeyed_audit_type. In the audit-log route's
+  // operations_ list.
+  operations_routine_rekeyed
 }
 
 model audit_log {
