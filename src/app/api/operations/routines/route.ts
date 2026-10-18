@@ -28,6 +28,13 @@
  *        list's spelling — anything else is refused by name. The first
  *        next_due_at is bounded by the end_date, so a routine created already
  *        past its end has none.
+ *
+ *        ROUTINE-02b (Alex, 2026-10-18): ONE TIME. The start time is required
+ *        and IS the routine's clock — the compile derives BYHOUR/BYMINUTE from
+ *        it and refuses a byhour/byminute or a custom rule that disagrees, by
+ *        name. The end time is the window, required with the start time — but
+ *        for a one-off, whose window is its day (ONEOFF-01) and whose ledger
+ *        "+ expense" names one time.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -37,7 +44,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
-import { canonicalZone, compileFormToRRule, expandForward, isOnceRRule, scheduleAnchor, zoneNotListedWords } from '@/lib/operations/rruleHelpers';
+import { END_TIME_REQUIRED_WORDS, START_TIME_REQUIRED_WORDS, canonicalZone, compileFormToRRule, expandForward, isOnceRRule, scheduleAnchor, zoneNotListedWords } from '@/lib/operations/rruleHelpers';
 import { parseLinesInput, parsePlaceInput } from '@/lib/operations/routineInput';
 import { carriesPlanMoney, planMoney, type PlanBook, type PlanMoney } from '@/lib/operations/planMoney';
 import { loadPlanBook } from '@/lib/operations/loadPlanBook';
@@ -203,6 +210,10 @@ export async function POST(request: NextRequest) {
 
     const startTimeResult = parseTimeOrNull(body.start_time, 'start_time');
     if (startTimeResult.error) return startTimeResult.error;
+    // ROUTINE-02b: the start time is the routine's time — required.
+    if (startTimeResult.value === null) {
+      return NextResponse.json({ error: 'Validation', field: 'start_time', message: START_TIME_REQUIRED_WORDS }, { status: 400 });
+    }
     const endTimeResult = parseTimeOrNull(body.end_time, 'end_time');
     if (endTimeResult.error) return endTimeResult.error;
 
@@ -235,6 +246,10 @@ export async function POST(request: NextRequest) {
     // IS that day. The compile already refused a once without a start_date; the
     // end date, if sent, must be the same day — and is stored as that day.
     const once = isOnceRRule(schedule_rrule);
+    // ROUTINE-02b: the end time is the window, required with the start time — a one-off's window is its day.
+    if (!once && endTimeResult.value === null) {
+      return NextResponse.json({ error: 'Validation', field: 'end_time', message: END_TIME_REQUIRED_WORDS }, { status: 400 });
+    }
     let endDate = endResult.value;
     if (once) {
       if (!startResult.value) {

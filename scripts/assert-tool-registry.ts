@@ -3035,6 +3035,13 @@ lawGuard('The vendor law', () => {
 //      or deleted only in the plan-vendors route; operations_vendor_directory is
 //      created only in the directory route, and never updated or deleted — by
 //      the client, in raw SQL, or through a relation.
+//      ROUTINE-02b (2026-10-18), the ONE exception: a routine's history follows
+//      its time (routines/[id] PATCH, inside the rekey transaction), so a
+//      single-occurrence vendor's occurrence_at moves to the new instant there.
+//      That file may hold exactly one planned_item_vendors write, pinned to its
+//      shape — an .update by id of occurrence_at and nothing else. Which vendor
+//      a plan pays stays the plan-vendors route's decision; nothing is created
+//      or deleted outside it.
 //   2. THE CALLER FIRST. Both routes export exactly their handlers; every handler
 //      opens with the cart-plan gate; every query in them names the caller; no 403
 //      anywhere in either file (a helper a handler answers through included);
@@ -3050,6 +3057,9 @@ lawGuard('The vendor law', () => {
 const PV_ROUTE = 'src/app/api/operations/plan-vendors/route.ts';
 const PV_DIRECTORY = 'src/app/api/operations/vendor-directory/route.ts';
 const PV_MIGRATION = 'prisma/migrations/20260929190000_vendor_01_planned_item_vendors/migration.sql';
+// ROUTINE-02b (2026-10-18): the rekey's one move — the instant alone (clause 1's exception).
+const PV_REKEY_ROUTE = 'src/app/api/operations/routines/[id]/route.ts';
+const PV_REKEY_WRITE = /\.planned_item_vendors\.update\(\{ where: \{ id: v\.id \}, data: \{ occurrence_at: to \} \}\)/;
 const PV_HANDLERS: Record<string, readonly string[]> = { [PV_DIRECTORY]: ['GET', 'POST'], [PV_ROUTE]: ['POST', 'DELETE'] };
 const PV_WRITE = '(create|createMany|createManyAndReturn|update|updateMany|upsert|delete|deleteMany)';
 let pvViolations = 0;
@@ -3057,8 +3067,14 @@ const pvFail = (m: string) => { pvViolations += 1; violations.push(`vendor law: 
 
 // 1. ONE WRITER.
 for (const { file, src } of srcFiles) {
-  for (const m of src.matchAll(new RegExp(`\\.planned_item_vendors\\s*\\.\\s*${PV_WRITE}\\s*\\(`, 'g'))) {
-    if (file !== PV_ROUTE) pvFail(`${file} writes planned_item_vendors (.${m[1]}) — a plan’s vendor is written by ${PV_ROUTE} alone`);
+  const pvWrites = [...src.matchAll(new RegExp(`\\.planned_item_vendors\\s*\\.\\s*${PV_WRITE}\\s*\\(`, 'g'))];
+  if (file === PV_REKEY_ROUTE) {
+    // ROUTINE-02b (2026-10-18): exactly one write, the rekey's move of occurrence_at, in its pinned shape.
+    if (pvWrites.length !== 1 || pvWrites[0][1] !== 'update' || !PV_REKEY_WRITE.test(src)) pvFail(`${file} writes planned_item_vendors (${pvWrites.map((m) => `.${m[1]}`).join(', ') || 'no write'}) in a shape other than the rekey's one move of occurrence_at — the instant alone, by id`);
+  } else {
+    for (const m of pvWrites) {
+      if (file !== PV_ROUTE) pvFail(`${file} writes planned_item_vendors (.${m[1]}) — a plan’s vendor is written by ${PV_ROUTE} alone (its occurrence_at moved by ${PV_REKEY_ROUTE} alone)`);
+    }
   }
   for (const m of src.matchAll(new RegExp(`\\.operations_vendor_directory\\s*\\.\\s*${PV_WRITE}\\s*\\(`, 'g'))) {
     if (m[1] === 'create' && file === PV_DIRECTORY) continue;
@@ -3151,7 +3167,7 @@ else {
   if (VENDOR_NAME_MAX !== 200 || !at200.ok || at201.ok) pvFail('a 201-character vendor name is not refused, or a 200-character one is (planVendor.ts readVendorName) — vendor_name is VarChar(200)');
 }
 
-if (pvViolations === 0) console.log(`✔ The vendor law passed — planned_item_vendors is written only by ${PV_ROUTE} and the vendor directory is created only by ${PV_DIRECTORY}, never updated or deleted; every handler of both opens with the cart-plan gate, every query names the caller, no 403, neither path public; the migration holds one plan per row, no instant on a task, one vendor per address, the grain (a trigger locking the plan’s row FOR NO KEY UPDATE) and RESTRICT on vendor_id; the rule refuses the other grain both ways, reads " pho  24 " as "Pho 24" and refuses a 201-character name.`);
+if (pvViolations === 0) console.log(`✔ The vendor law passed — planned_item_vendors is written only by ${PV_ROUTE} (its occurrence_at moved, by id and nothing else, by ${PV_REKEY_ROUTE}'s rekey alone — ROUTINE-02b) and the vendor directory is created only by ${PV_DIRECTORY}, never updated or deleted; every handler of both opens with the cart-plan gate, every query names the caller, no 403, neither path public; the migration holds one plan per row, no instant on a task, one vendor per address, the grain (a trigger locking the plan’s row FOR NO KEY UPDATE) and RESTRICT on vendor_id; the rule refuses the other grain both ways, reads " pho  24 " as "Pho 24" and refuses a 201-character name.`);
 else console.log(`✖ The vendor law FAILED — ${pvViolations} violation(s).`);
 });
 lawGuard('The one-off law', () => {
@@ -3227,7 +3243,8 @@ for (const rel of walkSrc('src/components/workbench/operations/routines')) {
 // 3. Cadence "once" is one occurrence, on its date, through the one expansion.
 {
   const localDay = (d: Date, tz: string) => new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
-  const onceForm = { ...DEFAULT_ROUTINE_FORM, cadence_mode: 'once' as const, start_date: '2026-09-24', byhour: '14', byminute: '00', timezone: 'Asia/Bangkok' };
+  // ROUTINE-02b (2026-10-18): the start time is the routine's time and is required; byhour/byminute are derived from it and must agree.
+  const onceForm = { ...DEFAULT_ROUTINE_FORM, cadence_mode: 'once' as const, start_date: '2026-09-24', start_time: '14:00', byhour: '14', byminute: '00', timezone: 'Asia/Bangkok' };
   let onceRule = '';
   try { onceRule = compileFormToRRule(onceForm); } catch (e) { oneoffFail(`cadence once does not compile: ${e instanceof Error ? e.message : String(e)}`); }
   if (onceRule && !/(^|;)COUNT=1(;|$)/.test(onceRule)) oneoffFail(`cadence once compiled to "${onceRule}" — a one-off is COUNT=1`);

@@ -240,8 +240,11 @@ test('T7 the zone list: Intl\'s own names, matched without case, stored as spell
   assert.doesNotMatch(post, /timezone: body\.timezone/, 'the typed spelling is never stored');
   assert.match(patch, /const timezone = canonicalZone\(body\.timezone\);\n\s*if \(timezone === null\) \{\n\s*return NextResponse\.json\(\n\s*\{ error: 'Validation', field: 'timezone', message: zoneNotListedWords\(body\.timezone\) \},\n\s*\{ status: 400 \}\n\s*\);\n\s*\}\n\s*data\.timezone = timezone;\n\s*scheduleChanged = true;/);
   assert.equal((patch.match(/prisma\.operations_routines\.update\(/g) ?? []).length, 1, 'the one write');
+  // ROUTINE-02b (2026-10-18): the PATCH moves a routine's history only when its clock or its zone changes, and a name that
+  // differs only by case is the same zone — a canonicalising save enters no move, so no record or completion is touched.
   const patchHandler = patch.slice(patch.indexOf('export async function PATCH('), patch.indexOf('export async function DELETE('));
-  assert.doesNotMatch(patchHandler, /operations_stop_records|operations_routine_completions/, 'no record or completion is touched by the PATCH');
+  assert.match(patchHandler, /const zoneMoved = canonicalZone\(existing\.timezone\) !== canonicalZone\(nextTz\);/);
+  assert.ok(patchHandler.indexOf('operations_stop_records') > patchHandler.indexOf('if (clockMoved || zoneMoved) {'), 'the records are reached only inside the move');
   // The builder: a select over the list — the viewer's zone first (read after mount), the rest by region; an unlisted stored value visible, named.
   const b = code(BUILDER);
   assert.doesNotMatch(b, /type="text"\n\s*value=\{form\.timezone\}/, 'the zone is picked, not typed');

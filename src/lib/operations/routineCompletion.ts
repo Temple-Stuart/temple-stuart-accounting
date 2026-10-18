@@ -58,6 +58,27 @@ export function nextDueAfter(routine: Schedule, after: Date): Date | null {
 }
 
 /**
+ * ROUTINE-02b (Alex, 2026-10-18) — HISTORY FOLLOWS THE TIME. The routine's
+ * completions are keyed to its occurrence instants; when its clock or zone
+ * changes, the routines/[id] PATCH moves them (routineRekey.ts decides where)
+ * — here, because this file is the completions' one writer (TASKS-ONE-02).
+ * Each completion at an old instant takes its new one; the routine's row is
+ * held by the caller (lockRoutine). Answers how many moved. The caller proves
+ * every target empty first; the UNIQUE (routine_id, expected_at) is the backstop.
+ */
+export async function moveCompletions(tx: Tx, input: { readonly userId: string; readonly routineId: string; readonly to: ReadonlyMap<number, Date> }): Promise<number> {
+  const rows = await tx.operations_routine_completions.findMany({ where: { routine_id: input.routineId, user_id: input.userId }, select: { id: true, expected_at: true } });
+  let moved = 0;
+  for (const c of rows) {
+    const to = input.to.get(c.expected_at.getTime());
+    if (to === undefined) continue;
+    await tx.operations_routine_completions.update({ where: { id: c.id }, data: { expected_at: to } });
+    moved += 1;
+  }
+  return moved;
+}
+
+/**
  * Hold the routine's row for the rest of the transaction, so two writes to the
  * same routine's occurrence (two of its lines, say) take turns — each reads the
  * records the other committed, and the mirror holds. Scoped to the caller; a

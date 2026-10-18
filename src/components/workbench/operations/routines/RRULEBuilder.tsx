@@ -12,6 +12,12 @@
  * Server compiles the structured form via compileFormToRRule(). This
  * component is a controlled input — parent owns the form state.
  *
+ * ROUTINE-02b (Alex, 2026-10-18): ONE TIME. The start time IS the routine's
+ * clock: required, it fills byhour/byminute (and a custom rule's BYHOUR/BYMINUTE)
+ * as it is typed (withStartTime), and the hour and minute boxes are gone. The
+ * end time is the window, required with it. "Count as missed after N minutes"
+ * is the fail threshold's label — the same field.
+ *
  * ROUTINE-02a (Alex, 2026-10-18): the zone is PICKED, not typed — a select over
  * Intl's own list (rruleHelpers.ts TIME_ZONES): the viewer's browser zone first
  * (read after mount, so the server render and the first paint agree), then the
@@ -23,7 +29,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { TIME_ZONES, VIEWER_ZONE_WORDS, canonicalZone, unlistedZoneWords, zonesByRegion } from '@/lib/operations/rruleHelpers';
+import { TIME_ZONES, VIEWER_ZONE_WORDS, canonicalZone, clockOfTime, unlistedZoneWords, withClock, zonesByRegion } from '@/lib/operations/rruleHelpers';
 import type { CadenceMode, RoutineForm, WeekDay } from './types';
 import {
   CADENCE_MODE_LABELS,
@@ -35,6 +41,26 @@ import {
 interface Props {
   form: RoutineForm;
   setForm: (next: RoutineForm) => void;
+}
+
+/** ROUTINE-02b: the fail threshold's words. */
+export const MISSED_AFTER_WORDS = 'count as missed after N minutes';
+
+/**
+ * ROUTINE-02b: the form with this start time — the clock it names fills
+ * byhour/byminute, and a custom rule's own BYHOUR/BYMINUTE, so every writer
+ * agrees with the start time. A value that is not yet a time only moves the field.
+ */
+export function withStartTime(form: RoutineForm, startTime: string): RoutineForm {
+  const clock = clockOfTime(startTime);
+  if (clock === null) return { ...form, start_time: startTime };
+  return {
+    ...form,
+    start_time: startTime,
+    byhour: String(clock.hour).padStart(2, '0'),
+    byminute: String(clock.minute).padStart(2, '0'),
+    ...(form.cadence_mode === 'custom' && form.custom_rrule.trim() !== '' ? { custom_rrule: withClock(form.custom_rrule.trim(), clock) } : {}),
+  };
 }
 
 const CADENCE_MODES: CadenceMode[] = [
@@ -160,8 +186,7 @@ export default function RRULEBuilder({ form, setForm }: Props & { }) {
 
       {form.cadence_mode === 'once' && (
         <div className="text-text-faint text-xs italic" data-cadence-once-note>
-          One occurrence, on the date below, at the hour and minute here. The
-          start time fills the hour and minute when you set it.
+          One occurrence, on the date below, at the start time.
         </div>
       )}
 
@@ -184,38 +209,39 @@ export default function RRULEBuilder({ form, setForm }: Props & { }) {
         </div>
       )}
 
+      {/* ROUTINE-02b: the start time is the clock; the end time the window; the threshold by its words. No hour or minute box. */}
       <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border-light">
         <div>
-          <div className={labelClass}>hour (00–23)</div>
+          <div className={labelClass}>start time</div>
           <input
-            type="number"
-            min={0}
-            max={23}
-            value={form.byhour}
-            onChange={(e) => setForm({ ...form, byhour: e.target.value })}
+            type="time"
+            value={form.start_time}
+            onChange={(e) => setForm(withStartTime(form, e.target.value))}
             className={inputClass}
+            required
+            data-routine-start-time
           />
         </div>
         <div>
-          <div className={labelClass}>minute (00–59)</div>
+          <div className={labelClass}>end time</div>
           <input
-            type="number"
-            min={0}
-            max={59}
-            value={form.byminute}
-            onChange={(e) => setForm({ ...form, byminute: e.target.value })}
+            type="time"
+            value={form.end_time}
+            onChange={(e) => setForm({ ...form, end_time: e.target.value })}
             className={inputClass}
+            required
+            data-routine-end-time
           />
         </div>
         <div>
-          <div className={labelClass}>fail threshold (min)</div>
+          <div className={labelClass}>{MISSED_AFTER_WORDS}</div>
           <input
             type="number"
             min={0}
             value={form.fail_threshold_minutes}
             onChange={(e) => setForm({ ...form, fail_threshold_minutes: e.target.value })}
             className={inputClass}
-            title="grace period before a missed occurrence is logged"
+            data-routine-missed-after
           />
         </div>
       </div>

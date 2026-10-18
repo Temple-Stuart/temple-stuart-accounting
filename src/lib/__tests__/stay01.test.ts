@@ -180,13 +180,15 @@ test('T5 the migration: the table with its two CHECKs, the trigger that locks th
   // JOURNAL-02 (2026-10-13): the simple journal's migration is newer still — every index moved one; the order holds.
   // TASKS-ONE-02 (2026-10-14): the completion audit types' migration is newer still — every index moved one; the order holds.
   // RETRO-01 (Alex, 2026-10-16): the stop-moved audit type's migration is newer still — every index moved one; the order holds.
-  assert.equal(dirs[dirs.length - 7], MIGRATION_DIR, 'the migration six before the newest (STOP-01, ROLE-01, JOURNAL-01, JOURNAL-02, TASKS-ONE-02, then RETRO-01 followed)');
-  assert.equal(dirs[dirs.length - 6], '20261012140000_stop_01_operations_stop_records');
-  assert.equal(dirs[dirs.length - 5], '20261013030000_role_01_routine_role');
-  assert.equal(dirs[dirs.length - 4], '20261013120000_journal_01_day_journals');
-  assert.equal(dirs[dirs.length - 3], '20261013200000_journal_02_the_simple_journal');
-  assert.equal(dirs[dirs.length - 2], '20261014090000_tasks_one_02_completion_audit_types');
-  assert.equal(dirs[dirs.length - 1], '20261016120000_retro_01_stop_moved_audit_type', 'the newest migration');
+  // ROUTINE-02b (2026-10-18): one more audit-type migration followed (the newest); the order below moved by one.
+  assert.equal(dirs[dirs.length - 8], MIGRATION_DIR, 'the migration seven before the newest (STOP-01, ROLE-01, JOURNAL-01, JOURNAL-02, TASKS-ONE-02, then RETRO-01, ROUTINE-02b followed)');
+  assert.equal(dirs[dirs.length - 7], '20261012140000_stop_01_operations_stop_records');
+  assert.equal(dirs[dirs.length - 6], '20261013030000_role_01_routine_role');
+  assert.equal(dirs[dirs.length - 5], '20261013120000_journal_01_day_journals');
+  assert.equal(dirs[dirs.length - 4], '20261013200000_journal_02_the_simple_journal');
+  assert.equal(dirs[dirs.length - 3], '20261014090000_tasks_one_02_completion_audit_types');
+  assert.equal(dirs[dirs.length - 2], '20261016120000_retro_01_stop_moved_audit_type', 'the migration before the newest (ROUTINE-02b followed)');
+  assert.equal(dirs[dirs.length - 1], '20261018120000_routine_02b_rekeyed_audit_type', 'the newest migration');
   assert.ok(MIGRATION_DIR.slice(0, 14) > '20260930210000');
 });
 
@@ -210,10 +212,12 @@ test('T5 the schema: the model column for column with the SQL; the user’s rela
   // STOP-01 (2026-10-12): two values follow them in ALTER TYPE order; JOURNAL-01 (2026-10-13): two more — the pin moved from "last two" to "the two before the last four".
   // TASKS-ONE-02 (2026-10-14): two more follow — "the two before the last six".
   // RETRO-01 (2026-10-16): one more follows — "the two before the last seven".
-  assert.deepEqual(values.slice(-9, -7), ['operations_stay_set', 'operations_stay_deleted']);
+  // ROUTINE-02b (2026-10-18): one more value follows in ALTER TYPE order (operations_routine_rekeyed) — the pin moved by one.
+  assert.deepEqual(values.slice(-10, -8), ['operations_stay_set', 'operations_stay_deleted']);
   assert.equal(AuditActionType.operations_stay_set, 'operations_stay_set', 'prisma generate ran');
   assert.equal(AuditActionType.operations_stay_deleted, 'operations_stay_deleted');
-  assert.match(code(AUDIT_LOG), /'operations_routine_completion_note_edited',\s*'operations_stay_set',\s*'operations_stay_deleted',\s*'operations_stop_set',\s*'operations_stop_cleared',\s*'operations_journal_set',\s*'operations_journal_cleared',\s*'operations_routine_uncompleted',\s*'operations_routine_completion_updated',\s*'operations_stop_moved',\s*\],/);
+  // ROUTINE-02b (2026-10-18): the rekeyed type follows the stop-moved type in the list.
+  assert.match(code(AUDIT_LOG), /'operations_routine_completion_note_edited',\s*'operations_stay_set',\s*'operations_stay_deleted',\s*'operations_stop_set',\s*'operations_stop_cleared',\s*'operations_journal_set',\s*'operations_journal_cleared',\s*'operations_routine_uncompleted',\s*'operations_routine_completion_updated',\s*'operations_stop_moved',\s*'operations_routine_rekeyed',\s*\],/);
 });
 
 // ── T6 · THE ROUTES ──────────────────────────────────────────────────────────

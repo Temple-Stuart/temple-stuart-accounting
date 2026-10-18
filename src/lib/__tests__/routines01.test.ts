@@ -245,7 +245,8 @@ test('T2 editing is in place: the routine\'s edit form is a full-width row under
   // Today's edit form: the same fields, routineToForm, FindThisPlace.
   assert.match(row, /setForm\(routineToForm\(routine\)\);\n\s*setEditing\(true\);/);
   const form = row.slice(editAt);
-  for (const piece of ['value={form.name}', 'value={form.description}', 'value={form.entity_id}', 'value={form.budget_amount ?? \'\'}', '<CoaSelect', '<RRULEBuilder form={form} setForm={setForm} />', 'data-routine-once-date', 'value={form.start_time}', 'value={form.end_time}', 'data-routine-location', '<FindThisPlace', 'data-routine-latitude', 'data-routine-longitude', 'onClick={handleSave}', 'onClick={cancelEdit}']) {
+  // ROUTINE-02b (2026-10-18): the start and end times are the builder's fields now (RRULEBuilder.tsx) — the row carries them through it.
+  for (const piece of ['value={form.name}', 'value={form.description}', 'value={form.entity_id}', 'value={form.budget_amount ?? \'\'}', '<CoaSelect', '<RRULEBuilder form={form} setForm={setForm} />', 'data-routine-once-date', 'data-routine-location', '<FindThisPlace', 'data-routine-latitude', 'data-routine-longitude', 'onClick={handleSave}', 'onClick={cancelEdit}']) {
     assert.ok(form.includes(piece), `the edit row carries ${piece}`);
   }
   // Its refusal is the route's own message, shown in that row.

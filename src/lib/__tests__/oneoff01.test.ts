@@ -87,7 +87,10 @@ test('a one-off without its date is refused — by the compiler, by the custom h
   assert.throws(() => compileFormToRRule({ ...HAIRCUT_FORM, start_date: '24/09/2026' }), /needs its date/);
   // A hand-written COUNT=1 is a one-off too, and needs the same date.
   assert.throws(() => compileFormToRRule({ ...DEFAULT_ROUTINE_FORM, cadence_mode: 'custom', custom_rrule: 'FREQ=DAILY;COUNT=1;BYHOUR=9;BYMINUTE=0', start_date: '' }), /needs its date/);
-  assert.equal(compileFormToRRule({ ...DEFAULT_ROUTINE_FORM, cadence_mode: 'custom', custom_rrule: 'FREQ=DAILY;COUNT=1;BYHOUR=9;BYMINUTE=0', start_date: DAY }), 'FREQ=DAILY;COUNT=1;BYHOUR=9;BYMINUTE=0');
+  // ROUTINE-02b (2026-10-18): the start time is the routine's time and is required for a custom rule too —
+  // the date check comes first (above), then the clock; the derived byhour/byminute must agree with it (the default form's
+  // 08:00 would be refused by name); a rule that agrees with the start time is kept as written.
+  assert.equal(compileFormToRRule({ ...DEFAULT_ROUTINE_FORM, cadence_mode: 'custom', custom_rrule: 'FREQ=DAILY;COUNT=1;BYHOUR=9;BYMINUTE=0', start_date: DAY, start_time: '09:00', byhour: '09', byminute: '00' }), 'FREQ=DAILY;COUNT=1;BYHOUR=9;BYMINUTE=0');
   // COUNT=10 is not a one-off.
   assert.equal(isOnceRRule('FREQ=DAILY;COUNT=10;BYHOUR=9'), false);
   assert.equal(classifyCadence('FREQ=DAILY;COUNT=10;BYHOUR=9;BYMINUTE=0'), 'daily');
@@ -260,8 +263,10 @@ test('the create form authors the one-off whole — date, times, lines from the 
   assert.match(creator, /<FindThisPlace/);
   assert.match(creator, /data-routine-location/);
   assert.match(creator, /latitude: createForm\.latitude \|\| null/);
-  // The start time fills the occurrence's hour and minute on a one-off.
-  assert.match(creator, /byhour: v\.slice\(0, 2\), byminute: v\.slice\(3, 5\)/);
+  // The start time fills the occurrence's hour and minute on a one-off. ROUTINE-02b (2026-10-18): on every routine, in the
+  // builder (RRULEBuilder.tsx withStartTime) — the start time is the clock; the create form has no time input of its own.
+  assert.match(code('src/components/workbench/operations/routines/RRULEBuilder.tsx'), /byhour: String\(clock\.hour\)\.padStart\(2, '0'\),\n\s*byminute: String\(clock\.minute\)\.padStart\(2, '0'\),/);
+  assert.doesNotMatch(creator, /byhour: v\.slice|type="time"/);
   // The create route writes the routine and its lines together, or not at all.
   const create = code(CREATE_ROUTE);
   assert.match(create, /prisma\.\$transaction\(async \(tx\) =>/);

@@ -265,17 +265,21 @@ test('T4 the stops GET hands each record’s plan words; the read requires them;
 
 test('T5 the audit type: the enum value last, the one ADD VALUE line applied at deploy (the STOP-01 precedent), the client knows it, the audit log lists it', () => {
   const values = /enum AuditActionType \{([\s\S]*?)\}/.exec(code(SCHEMA))![1].split(/\s+/).filter(Boolean);
-  assert.equal(values[values.length - 1], 'operations_stop_moved');
+  // ROUTINE-02b (2026-10-18): operations_routine_rekeyed follows it in ALTER TYPE order — the pin moved from last to one before last.
+  assert.equal(values[values.length - 2], 'operations_stop_moved');
   assert.equal(values.filter((v) => v === 'operations_stop_moved').length, 1);
   assert.equal(AuditActionType.operations_stop_moved, 'operations_stop_moved', 'prisma generate ran');
   assert.equal(code(MIGRATION).trim(), `ALTER TYPE "AuditActionType" ADD VALUE IF NOT EXISTS 'operations_stop_moved';`, 'the one line and nothing else');
   assert.match(comments(MIGRATION), /AUTHORED here, applied at deploy/);
   assert.match(comments(SCHEMA), /RETRO-01 \(Alex, 2026-10-16\): a stop's record moved/);
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 1], MIGRATION_DIR, 'the newest migration');
-  assert.equal(dirs[dirs.length - 2], '20261014090000_tasks_one_02_completion_audit_types');
+  // ROUTINE-02b (2026-10-18): one more audit-type migration followed (the newest); the order below moved by one.
+  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the migration before the newest (ROUTINE-02b followed)');
+  assert.equal(dirs[dirs.length - 1], '20261018120000_routine_02b_rekeyed_audit_type', 'the newest migration');
+  assert.equal(dirs[dirs.length - 3], '20261014090000_tasks_one_02_completion_audit_types');
   const ops = code(AUDIT_LOG).slice(code(AUDIT_LOG).indexOf('operations_: ['));
-  assert.match(ops.slice(0, ops.indexOf('],')), /'operations_routine_completion_updated',\s*'operations_stop_moved',\s*$/);
+  // ROUTINE-02b (2026-10-18): the rekeyed type follows the stop-moved type in the list.
+  assert.match(ops.slice(0, ops.indexOf('],')), /'operations_routine_completion_updated',\s*'operations_stop_moved',\s*'operations_routine_rekeyed',\s*$/);
 });
 
 // ── T6 · R3 "+ EXPENSE": THE RULE AND THE BODIES ────────────────────────────
