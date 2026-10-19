@@ -20,10 +20,10 @@ import type { StayRow } from '../operations/stay';
 import type { StopRecordRow } from '../operations/stopRecord';
 import { TOOL_REGISTRY } from '../toolRegistry';
 import {
-  BOOK_WORDS, CSV_DOWNLOAD_WORDS, CSV_NO_ROWS_WORDS, EVEN_WORDS, GROUP_KEYS, GROUP_WORDS, LEDGER_HEAD_WORDS, LEDGER_TITLE_WORDS, MATCH_CELL_WORDS, MATCH_NOTE_WORDS, MONEY_HEAD_WORDS,
+  BOOK_WORDS, CSV_DOWNLOAD_WORDS, CSV_NO_ROWS_WORDS, EVEN_WORDS, GROUP_KEYS, GROUP_WORDS, LEDGER_HEAD_WORDS, LEDGER_TITLE_WORDS, MONEY_HEAD_WORDS,
   NO_BOOK_GROUP_WORDS, OVER_WORDS, SUMMARY_HEAD_WORDS, SUMMARY_TITLE_WORDS, UNDER_WORDS,
   accountCellWords, accountNameCellWords, actualCellWords, bookCellWords, bookGroupWords, bookWordOf, dayLongWords, ledgerCsv, ledgerCsvFileName, ledgerOf, ledgerSummary, ledgerTotals,
-  underOverWords, varianceCellWords, varianceCoverageWords, varianceSignWords,
+  matchCellWords, matchCoverageWords, underOverWords, varianceCellWords, varianceCoverageWords, varianceSignWords,
   type LedgerInput, type LedgerRecordInput, type LedgerRow,
 } from '../operations/ledger';
 
@@ -96,7 +96,7 @@ const RECORDS: LedgerRecordInput[] = [
 
 const built = buildRoutineBudgetLines(ROUTINES, FROM, TO);
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
-  from: FROM, to: TO, now: NOW, records: RECORDS, lines: built.lines, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, ...over,
+  from: FROM, to: TO, now: NOW, records: RECORDS, links: [], lines: built.lines, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, ...over,
 });
 const ledger = ledgerOf(input());
 const rowOf = (id: string): LedgerRow => {
@@ -179,7 +179,8 @@ test('R2 the sixteen head words in Alex’s order; the cells each one fact: DAY 
   assert.equal(underOverWords(200), 'over');
   assert.equal(underOverWords(0), 'even');
   assert.equal(underOverWords(null), '—', 'LEDGER-02 amended: "—" with VARIANCE');
-  assert.equal(MATCH_NOTE_WORDS, 'MATCH — the amount the books hold for a row; nothing is linked yet (LEDGER-03)');
+  // LEDGER-03 (Alex, 2026-10-19): the MATCH note is gone — the coverage line (matchCoverageWords) replaced it; ledger03.test.ts pins it.
+  assert.equal(matchCoverageWords(0, 25), 'MATCH totals none of the 25 rows — no row is linked to the books');
   // The section: sixteen cells in the head's order, each printing its one fact; the money heads right-aligned; the MATCH note first under the table.
   const s = code(SECTION);
   const cells = [...s.matchAll(/data-ledger-cell="([a-z-]+)"/g)].map((m) => m[1]);
@@ -194,11 +195,14 @@ test('R2 the sixteen head words in Alex’s order; the cells each one fact: DAY 
   assert.doesNotMatch(s, /CELL_WORDS\.coa\(row\)|data-ledger-cell="coa"/, 'the combined COA cell is gone');
   assert.match(s, /data-ledger-cell="actual">\{actualCellWords\(row\)\}/);
   assert.match(s, /className=\{`\$\{money\} \$\{row\.varianceCents === null \? BLANK_CLASS : `font-semibold \$\{actualTone\(delta\.over\)\}`\}`\} data-ledger-cell="variance">\{varianceCellWords\(row\.varianceCents\)\}/, 'VARIANCE in the row’s tone, the blank class when null (amended)');
-  assert.match(s, /<td className=\{`\$\{money\} \$\{BLANK_CLASS\}`\} data-ledger-cell="match">\{MATCH_CELL_WORDS\}<\/td>/, 'MATCH: every cell "—" (amended)');
+  // LEDGER-03 (Alex, 2026-10-19): the MATCH cell prints the row's match (matchCellWords) — "—" with no link, as every cell was until then; ledger03.test.ts pins the cell.
+  assert.match(s, /data-ledger-cell="match" title=\{matchCellTitle\(row\.match\) \?\? undefined\}>\n\s*<span data-ledger-match>\{matchCellWords\(row\.match\)\}<\/span>/, 'MATCH: the row’s match, "—" with no link (LEDGER-03)');
+  assert.equal(matchCellWords(null), '—');
   assert.match(s, /data-ledger-cell="under-over">\{underOverWords\(row\.varianceCents\)\}/);
   assert.match(s, /\{LEDGER_HEAD_WORDS\.map\(\(h\) => <th key=\{h\} className=\{\(MONEY_HEAD_WORDS as readonly string\[\]\)\.includes\(h\) \? `\$\{head\} text-right` : head\}>\{h\}<\/th>\)\}/, 'the money heads right-aligned, by the one list');
   // LEDGER-02 AMENDMENT (Alex, 2026-10-19): the coverage line comes first; the MATCH line is second (A2 pins the pair).
-  assert.match(s, /data-ledger-said-variance>[^\n]*<\/p>\}\n\s*<p data-ledger-said-match>\{MATCH_NOTE_WORDS\}<\/p>/, 'the one line under the table, after the coverage line');
+  // LEDGER-03 (Alex, 2026-10-19): the MATCH line is its coverage now, in the same place.
+  assert.match(s, /data-ledger-said-variance>[^\n]*<\/p>\}\n\s*\{shown\.length > 0 && <p data-ledger-said-match>\{matchCoverageWords\(totals\.withMatch, shown\.length\)\}<\/p>\}/, 'the MATCH line under the table, after the coverage line');
   assert.match(s, /<h2 className="text-lg font-bold text-brand-purple">\{LEDGER_TITLE_WORDS\}<\/h2>/);
 });
 
@@ -220,7 +224,7 @@ test('R3 the TOTAL row: colSpan the columns before BUDGET; VARIANCE the two tota
   const s = code(SECTION);
   assert.match(s, /<th scope="row" colSpan=\{10\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/);
   assert.equal(LEDGER_HEAD_WORDS.indexOf('BUDGET'), 10, 'the colSpan is the columns before BUDGET');
-  inOrder(s, ['data-ledger-total>', 'data-ledger-total-budget>{budgetCellWords(totals.budgetCents)}', 'data-ledger-total-actual>{budgetCellWords(totals.actualCents)}</td>', "data-ledger-total-variance>{varianceCellWords(totals.varianceCents)}", 'data-ledger-total-match>{MATCH_CELL_WORDS}</td>', 'data-ledger-total-under-over>{underOverWords(totals.varianceCents)}', '<td className={cell} data-ledger-total-notes />'], 'the TOTAL row’s cells, under their columns');
+  inOrder(s, ['data-ledger-total>', 'data-ledger-total-budget>{budgetCellWords(totals.budgetCents)}', 'data-ledger-total-actual>{budgetCellWords(totals.actualCents)}</td>', "data-ledger-total-variance>{varianceCellWords(totals.varianceCents)}", 'data-ledger-total-match>{matchTotalWords(totals.matchCents)}</td>', 'data-ledger-total-under-over>{underOverWords(totals.varianceCents)}', '<td className={cell} data-ledger-total-notes />'], 'the TOTAL row’s cells, under their columns');
   assert.match(s, /const varianceTone = \(cents: number \| null\): string => \(cents === null \? BLANK_CLASS : actualTone\(cents > 0\)\);/, 'the sign’s tone (amended)');
   const tfoot = s.slice(s.indexOf('<tfoot>'), s.indexOf('</tfoot>'));
   assert.equal((tfoot.match(/<td\b/g) ?? []).length, 6, 'BUDGET · ACTUAL · VARIANCE · MATCH · UNDER / OVER · NOTES — six cells after the span of ten');
@@ -351,10 +355,10 @@ test('R7 nothing else: the route still answers ledgerOf’s rows whole; the said
 
 test('A1 one marker: on screen every null cell prints "—" — VARIANCE, MATCH and UNDER / OVER as BOOK, ACCOUNT, ACCOUNT NAME, BUDGET and ACTUAL; the CSV keeps an empty field for each, through its own path', () => {
   const yoga = rowOf('r-yoga-12');
-  assert.deepEqual([bookCellWords(yoga), accountCellWords(yoga), accountNameCellWords(yoga), varianceCellWords(yoga.varianceCents), MATCH_CELL_WORDS, underOverWords(yoga.varianceCents)], ['—', '—', '—', '—', '—', '—'], 'the one marker, six cells of a row with no line');
+  assert.deepEqual([bookCellWords(yoga), accountCellWords(yoga), accountNameCellWords(yoga), varianceCellWords(yoga.varianceCents), matchCellWords(yoga.match), underOverWords(yoga.varianceCents)], ['—', '—', '—', '—', '—', '—'], 'the one marker, six cells of a row with no line (LEDGER-03: the MATCH cell through matchCellWords, no link)');
   assert.equal(varianceCellWords(null), '—');
   assert.equal(underOverWords(null), '—');
-  assert.equal(MATCH_CELL_WORDS, '—');
+  assert.equal(matchCellWords(null), '—'); // LEDGER-03: no link is "—"
   // The CSV of the same row: empty fields where the screen prints "—".
   const line = ledgerCsv([yoga]).split('\r\n')[1];
   assert.equal(line, 'Monday,2026-10-12,,,,,,Yoga,,2,,5.00,,,,', 'BOOK · ACCOUNT · ACCOUNT NAME · BUDGET · VARIANCE · MATCH · UNDER / OVER each an empty field');
@@ -364,7 +368,7 @@ test('A1 one marker: on screen every null cell prints "—" — VARIANCE, MATCH 
   const rules = code(RULES);
   assert.match(rules, /export const underOverWords = \(varianceCents: number \| null\): string => \(varianceCents === null \? BLANK : varianceSignWords\(varianceCents\)\);/);
   assert.match(rules, /export const varianceCellWords = \(cents: number \| null\): string => \(cents === null \? BLANK : /);
-  assert.match(rules, /export const MATCH_CELL_WORDS = BLANK;/);
+  assert.match(rules, /export const matchCellWords = \(match: LedgerMatch \| null\): string => planDollars\(readableMatchCents\(match\)\);/, 'LEDGER-03: the MATCH cell through the one dollars rule — null is "—"');
   const block = rules.slice(rules.indexOf('export function ledgerCsv'), rules.indexOf('export const EXPENSE_FIELDS'));
   assert.match(block, /row\.varianceCents === null \? '' : varianceSignWords\(row\.varianceCents\),/, 'the CSV’s own null path for the sign');
   assert.doesNotMatch(block, /underOverWords|varianceCellWords|bookCellWords|accountCellWords|accountNameCellWords|budgetCellWords|actualCellWords|BLANK/, 'the CSV never calls a screen helper');
@@ -372,7 +376,9 @@ test('A1 one marker: on screen every null cell prints "—" — VARIANCE, MATCH 
   const s = code(SECTION);
   assert.match(s, /row\.varianceCents === null \? BLANK_CLASS : `font-semibold \$\{actualTone\(delta\.over\)\}`\}`\} data-ledger-cell="variance"/);
   assert.match(s, /row\.varianceCents === null \? BLANK_CLASS : actualTone\(delta\.over\)\}`\} data-ledger-cell="under-over"/);
-  assert.equal((s.match(/\{MATCH_CELL_WORDS\}/g) ?? []).length, 2, 'the MATCH cell and the MATCH total');
+  // LEDGER-03 (Alex, 2026-10-19): the MATCH cell and the MATCH total print their match through matchCellWords / matchTotalWords — "—" when nothing is linked.
+  assert.equal((s.match(/\{matchCellWords\(row\.match\)\}/g) ?? []).length, 1, 'the MATCH cell');
+  assert.equal((s.match(/\{matchTotalWords\(totals\.matchCents\)\}/g) ?? []).length, 1, 'the MATCH total');
   assert.doesNotMatch(s, /data-ledger-cell="match" \/>|data-ledger-total-match \/>/, 'no empty MATCH cell');
 });
 
@@ -408,7 +414,7 @@ test('A2 one truth: the VARIANCE total is the column’s sum over the rows that 
   assert.doesNotMatch(tfoot, /totals\.over|totals\.words|delta\b/, 'nothing in the TOTAL row from the recorded-rows comparison');
   assert.match(s, /data-ledger-group-actual>\{budgetCellWords\(g\.totals\.actualCents\)\}/);
   assert.match(s, /actualTone\(g\.totals\.over\)\}`\} data-ledger-group-words>\{g\.totals\.words\}/, 'the summary keeps printing its words, in their tone');
-  assert.match(s, /data-ledger-said>\n\s*\{shown\.length > 0 && <p data-ledger-said-variance>\{varianceCoverageWords\(totals\.withVariance, shown\.length\)\}<\/p>\}\n\s*<p data-ledger-said-match>\{MATCH_NOTE_WORDS\}<\/p>/, 'the coverage line, before the MATCH line');
+  assert.match(s, /data-ledger-said>\n\s*\{shown\.length > 0 && <p data-ledger-said-variance>\{varianceCoverageWords\(totals\.withVariance, shown\.length\)\}<\/p>\}\n\s*\{shown\.length > 0 && <p data-ledger-said-match>/, 'the coverage line, before the MATCH line (LEDGER-03: the MATCH line is its own coverage)');
 });
 
 test('A3 the registry words keep "every stop": the why and the customer line say "the task ledger of every stop … by city, account and book", the rest unchanged', () => {

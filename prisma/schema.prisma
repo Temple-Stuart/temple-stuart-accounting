@@ -3084,6 +3084,12 @@ enum AuditActionType {
   // ALTER TYPE order — migration 20261019090000_move_01_moved_audit_type. In the
   // audit-log route's operations_ list.
   operations_routines_moved
+  // LEDGER-03 (2026-10-19): a posting linked to / unlinked from a planned item by its
+  // owner (calendar/links route POST / DELETE), appended in the order ALTER TYPE ...
+  // ADD VALUE gives them — migration 20261019230000_ledger_03_planned_item_link_audit.
+  // Both are in the audit-log route's planned_item_ list.
+  planned_item_linked
+  planned_item_unlinked
 }
 
 model audit_log {

@@ -96,7 +96,7 @@ const RECORDS: LedgerRecordInput[] = [
 ];
 const built = buildRoutineBudgetLines(ROUTINES, DAY, DAY);
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
-  from: DAY, to: DAY, now: NOW, records: RECORDS, lines: built.lines, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, vendors: [], stays: [],
+  from: DAY, to: DAY, now: NOW, records: RECORDS, links: [], lines: built.lines, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, vendors: [], stays: [],
   accounts: [{ entityId: 'P', code: '6150', name: 'Food & drink' }], books: [{ id: 'P', entityType: 'personal' }], ...over,
 });
 
@@ -268,7 +268,8 @@ test('T5 the audit type: the enum value last, the one ADD VALUE line applied at 
   const values = /enum AuditActionType \{([\s\S]*?)\}/.exec(code(SCHEMA))![1].split(/\s+/).filter(Boolean);
   // ROUTINE-02b (2026-10-18): operations_routine_rekeyed follows it in ALTER TYPE order — the pin moved from last to one before last.
   // MOVE-01 (2026-10-19): one more value follows (operations_routines_moved) — the tail moved by one.
-  assert.equal(values[values.length - 3], 'operations_stop_moved');
+  // LEDGER-03 (Alex, 2026-10-19): planned_item_linked and planned_item_unlinked were appended after MOVE-01's value — every position below moved by two.
+  assert.equal(values[values.length - 5], 'operations_stop_moved');
   assert.equal(values.filter((v) => v === 'operations_stop_moved').length, 1);
   assert.equal(AuditActionType.operations_stop_moved, 'operations_stop_moved', 'prisma generate ran');
   assert.equal(code(MIGRATION).trim(), `ALTER TYPE "AuditActionType" ADD VALUE IF NOT EXISTS 'operations_stop_moved';`, 'the one line and nothing else');
@@ -276,13 +277,15 @@ test('T5 the audit type: the enum value last, the one ADD VALUE line applied at 
   assert.match(comments(SCHEMA), /RETRO-01 \(Alex, 2026-10-16\): a stop's record moved/);
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
   // ROUTINE-02b (2026-10-18): one more audit-type migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 4], MIGRATION_DIR, 'the migration before the newest (ROUTINE-02b followed)');
+  assert.equal(dirs[dirs.length - 5], MIGRATION_DIR, 'the migration before the newest (ROUTINE-02b followed)');
   // MOVE-01 (2026-10-19): one more audit-type migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 3], '20261018120000_routine_02b_rekeyed_audit_type', 'the migration before the newest (MOVE-01 followed)');
+  assert.equal(dirs[dirs.length - 4], '20261018120000_routine_02b_rekeyed_audit_type', 'the migration before the newest (MOVE-01 followed)');
   // JOURNAL-04 (2026-10-19): the evening answers' migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 2], '20261019090000_move_01_moved_audit_type', 'the migration before the newest (JOURNAL-04 followed)');
-  assert.equal(dirs[dirs.length - 1], '20261019210000_journal_04_evening_answers', 'the newest migration');
-  assert.equal(dirs[dirs.length - 5], '20261014090000_tasks_one_02_completion_audit_types');
+  assert.equal(dirs[dirs.length - 3], '20261019090000_move_01_moved_audit_type', 'the migration before the newest (JOURNAL-04 followed)');
+  assert.equal(dirs[dirs.length - 2], '20261019210000_journal_04_evening_answers', 'the migration before the newest (LEDGER-03 followed)');
+  // LEDGER-03 (Alex, 2026-10-19): two audit values for the planned-item link — the newest; every position above moved by one.
+  assert.equal(dirs[dirs.length - 1], '20261019230000_ledger_03_planned_item_link_audit', 'the newest migration');
+  assert.equal(dirs[dirs.length - 6], '20261014090000_tasks_one_02_completion_audit_types');
   const ops = code(AUDIT_LOG).slice(code(AUDIT_LOG).indexOf('operations_: ['));
   // ROUTINE-02b (2026-10-18): the rekeyed type follows the stop-moved type in the list.
   // MOVE-01 (2026-10-19): the moved type follows the rekeyed type in the list.

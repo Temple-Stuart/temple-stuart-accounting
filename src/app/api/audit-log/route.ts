@@ -102,6 +102,13 @@ const SUBSYSTEM_ACTION_TYPES: Record<string, AuditActionType[]> = {
     'money_event_stated',
     'money_event_settled',
   ],
+  // LEDGER-03 (2026-10-19): a posting linked to / unlinked from a planned item by its
+  // owner (calendar/links route POST / DELETE) — its own prefix; the operations_ list
+  // above is untouched. Migration 20261019230000_ledger_03_planned_item_link_audit.
+  planned_item_: [
+    'planned_item_linked',
+    'planned_item_unlinked',
+  ],
 };
 
 /**

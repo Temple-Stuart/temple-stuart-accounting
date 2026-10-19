@@ -24,7 +24,13 @@
  *   · the plan's vendors: every every-occurrence row and the occurrence rows in
  *     the span's window (planLines.ts decides each line's, by the plan's grain);
  *   · the stays; the records in the any-zone window of the span, with their
- *     routine's words (recordWindow's rule, widened to the span).
+ *     routine's words (recordWindow's rule, widened to the span);
+ *   · LEDGER-03 (Alex, 2026-10-19): the caller's planned_item_links of kind
+ *     routine or routine_line whose target_instant lies in the records' window,
+ *     ONE query, each posting's lines for the one amount rule
+ *     (src/lib/calendar/postingAmount.ts amountCentsOf — the links route's) — the
+ *     rule joins each record to its links by (kind, target_id, occurrence_at).
+ *     No per-record query.
  * READ ONLY: this route writes nothing, reads no book data, no travel, no paid
  * service. The clock is read HERE, once (as_of); the pure half takes it.
  *
@@ -45,7 +51,8 @@ import { BudgetDaysError, buildRoutineBudgetLines } from '@/lib/budget/days';
 import { BudgetInputError, toReportAccount, toReportEntity, toRoutinePlanInput } from '@/lib/budget/reportInputs';
 import type { RoutineWords } from '@/lib/budget/planLines';
 import { loadRoutineBudgetInputs } from '@/lib/operations/routineBudgetInputs';
-import { ledgerOf, spanInput, type LedgerRecordInput } from '@/lib/operations/ledger';
+import { POSTING_LINES_SELECT, amountCentsOf, type PostingLines } from '@/lib/calendar/postingAmount';
+import { ledgerOf, spanInput, type LedgerLinkInput, type LedgerRecordInput } from '@/lib/operations/ledger';
 import { refusedWords, stopRecordRowOf } from '@/lib/operations/stopRecord';
 import { stayRowOf } from '@/lib/operations/stay';
 import { instantToZoned } from '@/lib/time';
@@ -75,6 +82,13 @@ function recordInputOf(row: RecordRow): LedgerRecordInput {
   return { record, routineId: row.routine_id, routineName: row.routine.name, zone: row.routine.timezone, role: row.routine.role, activity: null, timeOfDay: null };
 }
 
+/** LEDGER-03: a link as the rule joins it — the three fields a record is addressed by, and the posting's amount by the one rule. A link of a routine kind with no instant is the database's error (the migration's CHECK holds one). */
+function linkInputOf(row: { target_kind: string; target_id: string; target_instant: Date | null; journal_entry_id: string; journal_entry: PostingLines }): LedgerLinkInput {
+  if (row.target_kind !== 'routine' && row.target_kind !== 'routine_line') throw new Error(`ledger GET: link ${row.journal_entry_id} is of kind ${JSON.stringify(row.target_kind)} — the query asked for routine or routine_line`);
+  if (row.target_instant === null) throw new Error(`ledger GET: link ${row.journal_entry_id} of kind ${row.target_kind} has no instant — the migration's CHECK holds one`);
+  return { kind: row.target_kind, targetId: row.target_id, instant: row.target_instant.toISOString(), journalEntryId: row.journal_entry_id, amountCents: amountCentsOf(row.journal_entry) };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const userEmail = await getVerifiedEmail();
@@ -98,7 +112,7 @@ export async function GET(request: NextRequest) {
     const entityIds = entities.map((e) => e.id);
     const books = entities.map(toReportEntity);
 
-    const [chart, routineGroups, roles, planVendors, stayRows, recordRows, firstRow] = await Promise.all([
+    const [chart, routineGroups, roles, planVendors, stayRows, recordRows, firstRow, linkRows] = await Promise.all([
       prisma.chart_of_accounts.findMany({
         where: { entity_id: { in: entityIds }, entity: { userId: user.id } },
         select: { entity_id: true, code: true, name: true, account_type: true, balance_type: true },
@@ -122,6 +136,12 @@ export async function GET(request: NextRequest) {
         orderBy: { occurrence_at: 'asc' },
       }),
       prisma.operations_stop_records.findFirst({ where: { user_id: user.id }, include: RECORD_PLAN, orderBy: { occurrence_at: 'asc' } }),
+      // LEDGER-03: the caller's links of a routine occurrence or a line, in the records' window, with each posting's lines — one query.
+      prisma.planned_item_links.findMany({
+        where: { user_id: user.id, target_kind: { in: ['routine', 'routine_line'] }, target_instant: { gte: recordsFrom, lt: recordsTo }, journal_entry: { userId: user.id } },
+        select: { target_kind: true, target_id: true, target_instant: true, journal_entry_id: true, journal_entry: { select: POSTING_LINES_SELECT } },
+        orderBy: { linked_at: 'asc' },
+      }),
     ]);
 
     const bookOf = (entityId: string, what: string) => {
@@ -154,6 +174,7 @@ export async function GET(request: NextRequest) {
       to,
       now,
       records: recordRows.map(recordInputOf),
+      links: linkRows.map(linkInputOf),
       lines: built.lines,
       notPlaced: built.notPlaced,
       routines: routineWords,

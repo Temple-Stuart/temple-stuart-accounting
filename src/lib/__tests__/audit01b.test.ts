@@ -129,7 +129,8 @@ test('the read route, for the booking OWNER, returns ZERO commission_locked rows
   const mapSrc = /const SUBSYSTEM_ACTION_TYPES[^=]*=\s*\{([\s\S]*?)\n\};/.exec(s)?.[1] ?? '';
   const map: Record<string, string[]> = {};
   for (const m of mapSrc.matchAll(/\n  (\w+): \[([^\]]*)\]/g)) map[m[1]] = [...m[2].matchAll(/'(\w+)'/g)].map((x) => x[1]);
-  assert.deepEqual(Object.keys(map).sort(), ['money_event_', 'operations_', 'reservation_']);
+  // LEDGER-03 (Alex, 2026-10-19): a fourth family, planned_item_ — the planned-item link's two values (calendar/links route).
+  assert.deepEqual(Object.keys(map).sort(), ['money_event_', 'operations_', 'planned_item_', 'reservation_']);
   assert.ok(!Object.values(map).flat().includes('commission_locked'));
 
   // The rows: the lock as the port now writes it; a lock as AUDIT-01 wrote it (the owner's id — audit_log is

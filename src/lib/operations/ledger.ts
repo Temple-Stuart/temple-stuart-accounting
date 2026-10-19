@@ -56,6 +56,24 @@
  * comparison the day card makes) stay as fields for the summary's words. The
  * coverage is said under the table (varianceCoverageWords).
  *
+ * LEDGER-03 (Alex, 2026-10-19) — MATCH READS THE BOOKS' LINK. "Match — amount
+ * from Books … never auto link due to risk for error." A record's Match is the
+ * posting that settled it, linked BY HAND on planned_item_links (LINK-01) — the
+ * link the books already hold for a routine occurrence or a line. The route
+ * reads the caller's links in ONE query (ledger/route.ts); the rule joins each
+ * record to its links by the record's own three fields (kind, target_id,
+ * occurrence_at) = the link's (target_kind, target_id, target_instant) —
+ * linkKeyOf. The row gains `address` (those three — the picker's props) and
+ * `match` (matchOf: null with no link; the readable amounts summed; the
+ * unreadable counted, never summed as zero). The MATCH cell prints the sum, "—"
+ * with any unreadable posting (the cell's title names them) or with no link; its
+ * tone is a cue — equal to ACTUAL to the cent, or not (matchState). The TOTAL
+ * row's MATCH is Σ over the rows with a readable sum, its coverage said under
+ * the table (matchCoverageWords, the same words rule as the variance's); the
+ * CSV writes the readable sum or an empty field. The picker's words are here
+ * too (LinkPicker.tsx prints them): LINK-01's list, date order, nothing
+ * pre-selected, nothing ranked.
+ *
  * Here: the rule (ledgerOf — the route's pure half), the period (periodOf,
  * stepAnchor, the 400-day cap), the filters, the totals and the summary (the
  * screen's pure half), the CSV (ledgerCsv, LEDGER-02), the "+ expense" form's
@@ -114,12 +132,24 @@ export function bookWordOf(entityType: string): BookWord {
   return word;
 }
 
+/** LEDGER-03: a link as the route read it — a record's own three fields, its posting, and the posting's amount by the one rule (postingAmount.ts amountCentsOf); null when unreadable. */
+export interface LedgerLinkInput {
+  readonly kind: 'routine' | 'routine_line';
+  readonly targetId: string;
+  /** The occurrence instant, ISO — the record's occurrence_at, byte for byte. */
+  readonly instant: string;
+  readonly journalEntryId: string;
+  readonly amountCents: number | null;
+}
+
 export interface LedgerInput {
   readonly from: string;
   readonly to: string;
   /** The route's clock, read once — "already past" is against it. */
   readonly now: Date;
   readonly records: readonly LedgerRecordInput[];
+  /** LEDGER-03: the caller's planned_item_links of a routine kind in the records' window. */
+  readonly links: readonly LedgerLinkInput[];
   /** buildRoutineBudgetLines over [from, to] — the routines' lines as they stand today. */
   readonly lines: readonly BudgetLine[];
   readonly notPlaced: readonly NotPlaced[];
@@ -146,11 +176,29 @@ export interface LedgerCoa {
   readonly name: string | null;
 }
 
+/** LEDGER-03: a record's address — what a link is keyed by, and the picker's props. */
+export interface LedgerAddress {
+  readonly kind: 'routine' | 'routine_line';
+  readonly id: string;
+  readonly instant: string;
+}
+
+/** LEDGER-03: the postings linked to a record. cents: the readable amounts summed (null when none could be read); unreadable: how many carry no readable amount — never summed as zero. */
+export interface LedgerMatch {
+  readonly cents: number | null;
+  readonly postings: number;
+  readonly unreadable: number;
+}
+
 export interface LedgerRow {
   /** The record's id. */
   readonly id: string;
   /** The card's key for the record (stopRecord.ts recordKey). */
   readonly key: string;
+  /** LEDGER-03: the record's own (kind, target_id, occurrence_at). */
+  readonly address: LedgerAddress;
+  /** LEDGER-03: the books' link, joined by address; null when no posting is linked. */
+  readonly match: LedgerMatch | null;
   /** The record's local day, 'YYYY-MM-DD'. */
   readonly day: string;
   /** The stop's clock, as the card prints it (the line's own time, else the occurrence's) — the order within a day. */
@@ -218,10 +266,26 @@ function dayLines(input: LedgerInput, day: string): readonly PlanLine[] {
   return plan.plan.lines;
 }
 
+/** LEDGER-03: the join key — a record's (kind, target_id, occurrence_at) and a link's (target_kind, target_id, target_instant) are the same three strings. */
+export const linkKeyOf = (kind: string, id: string, instant: string): string => `${kind}:${id}:${instant}`;
+
+/** LEDGER-03: a record's match from its links — null with none; the readable amounts summed, the unreadable counted, never summed as zero. */
+export function matchOf(links: readonly Pick<LedgerLinkInput, 'amountCents'>[]): LedgerMatch | null {
+  if (links.length === 0) return null;
+  const readable = links.map((l) => l.amountCents).filter((c): c is number => c !== null);
+  return { cents: readable.length === 0 ? null : readable.reduce((sum, c) => sum + c, 0), postings: links.length, unreadable: links.length - readable.length };
+}
+
 export function ledgerOf(input: LedgerInput): Ledger {
   const { from, to } = input;
   if (!isIsoDay(from) || !isIsoDay(to) || from > to) throw new Error(`ledger: ${JSON.stringify(from)}..${JSON.stringify(to)} is not a span of days`);
   const books = new Map(input.books.map((b) => [b.id, b]));
+  // LEDGER-03: the links by the record's own key — no per-record query.
+  const linksByKey = new Map<string, LedgerLinkInput[]>();
+  for (const l of input.links) {
+    const k = linkKeyOf(l.kind, l.targetId, l.instant);
+    linksByKey.set(k, [...(linksByKey.get(k) ?? []), l]);
+  }
   const names = new Map(input.accounts.map((a) => [`${a.entityId}:${a.code}`, a.name]));
 
   // Each record on its routine's own local day (the stops GET's placing); the window the route read is a superset of the span.
@@ -283,9 +347,13 @@ export function ledgerOf(input: LedgerInput): Ledger {
     const stay = coveringStay(input.stays, day);
     const cents = line === null ? null : line.cents;
     const actualCents = r.record.actual_cents;
+    // LEDGER-03: the record's own address, and its links by that address — byte for byte.
+    const address: LedgerAddress = { kind: r.record.kind, id: r.record.target_id, instant: r.record.occurrence_at };
     return {
       id: r.record.id,
       key,
+      address,
+      match: matchOf(linksByKey.get(linkKeyOf(address.kind, address.id, address.instant)) ?? []),
       day,
       time: r.timeOfDay !== null ? r.timeOfDay : time,
       place: stay === null ? null : placeParts(stay.place),
@@ -444,13 +512,21 @@ export interface LedgerTotals {
   readonly varianceCents: number | null;
   /** LEDGER-02 (amended): how many of the rows carry a variance — the n of "the n of m rows" said under the table. */
   readonly withVariance: number;
+  /** LEDGER-03: the MATCH column's sum — Σ over the rows with a readable sum (readableMatchCents); null when none has one. */
+  readonly matchCents: number | null;
+  /** LEDGER-03: how many of the rows have a readable sum — the n of "MATCH totals the n of m rows". */
+  readonly withMatch: number;
 }
+
+/** LEDGER-03: a row's match as a figure that may be summed — the sum when every linked posting was readable; null with no link, or with any unreadable posting. */
+export const readableMatchCents = (match: LedgerMatch | null): number | null => (match === null || match.unreadable > 0 ? null : match.cents);
 
 /** The card's TOTAL-row rule over the rows shown (dayTotals, reused): the records are always read here, so the spent is the actuals summed. */
 export function ledgerTotals(rows: readonly LedgerRow[]): LedgerTotals {
   const actuals = rows.map((r) => r.actualCents).filter((c): c is number => c !== null);
   const totals = dayTotals({ stops: rows, spentCents: actuals.reduce((sum, c) => sum + c, 0), withActual: actuals.length }, null);
   const variances = rows.map((r) => r.varianceCents).filter((c): c is number => c !== null);
+  const matches = rows.map((r) => readableMatchCents(r.match)).filter((c): c is number => c !== null);
   return {
     budgetCents: totals.budgetCents,
     actualCents: totals.actualCents,
@@ -458,6 +534,8 @@ export function ledgerTotals(rows: readonly LedgerRow[]): LedgerTotals {
     words: deltaWords(totals.actualCents, totals.recordedBudgetCents).text,
     varianceCents: variances.length === 0 ? null : variances.reduce((sum, c) => sum + c, 0),
     withVariance: variances.length,
+    matchCents: matches.length === 0 ? null : matches.reduce((sum, c) => sum + c, 0),
+    withMatch: matches.length,
   };
 }
 
@@ -520,8 +598,6 @@ export const LEDGER_TITLE_WORDS = 'Task ledger';
 export const LEDGER_HEAD_WORDS = ['DAY', 'DATE', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'DESCRIPTION', 'VENDOR', 'STARS', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'NOTES'] as const;
 /** The money columns — right-aligned in the table. */
 export const MONEY_HEAD_WORDS = ['BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH'] as const;
-/** Under the table: MATCH is LEDGER-03's. */
-export const MATCH_NOTE_WORDS = 'MATCH — the amount the books hold for a row; nothing is linked yet (LEDGER-03)';
 export const PERIOD_WORDS: Readonly<Record<PeriodKind, string>> = { month: 'Month', week: 'Week', day: 'Day', all: 'All' };
 export const FILTER_WORDS: Readonly<Record<FilterKey, string>> = { city: 'CITY', country: 'COUNTRY', coa: 'COA' };
 export const ALL_WORDS = 'all';
@@ -562,8 +638,19 @@ export const accountCellWords = (row: Pick<LedgerRow, 'coa'>): string => (row.co
 export const accountNameCellWords = (row: Pick<LedgerRow, 'coa'>): string => (row.coa === null || row.coa.name === null ? BLANK : row.coa.name);
 /** LEDGER-02: the VARIANCE cell — dollars with its sign and two decimals ("−$1.02", "+$2.00", "$0.00"); "—" when the variance is unknown (amended: ONE marker on screen), never 0. */
 export const varianceCellWords = (cents: number | null): string => (cents === null ? BLANK : cents > 0 ? `+${formatCents(cents)}` : formatCents(cents));
-/** LEDGER-02 (amended): the MATCH cell — "—" on every row and in the TOTAL row until the books are linked (the MATCH note under the table names the ruling). */
-export const MATCH_CELL_WORDS = BLANK;
+/** LEDGER-03: the MATCH cell — the readable sum in the table's dollars; "—" with no link, or with any unreadable posting (the cell's title names them, matchCellTitle). */
+export const matchCellWords = (match: LedgerMatch | null): string => planDollars(readableMatchCents(match));
+export const unreadableWords = (n: number): string => `${n} posting${n === 1 ? '' : 's'} unreadable`;
+export const matchCellTitle = (match: LedgerMatch | null): string | null => (match === null || match.unreadable === 0 ? null : unreadableWords(match.unreadable));
+/** LEDGER-03: the cue — the readable sum against ACTUAL to the cent; null when either is unknown (no tone). */
+export type MatchState = 'equal' | 'differs';
+export const matchState = (match: LedgerMatch | null, actualCents: number | null): MatchState | null => {
+  const cents = readableMatchCents(match);
+  if (cents === null || actualCents === null) return null;
+  return cents === actualCents ? 'equal' : 'differs';
+};
+/** LEDGER-03: the TOTAL row's MATCH — the column's sum over the rows with a readable sum, or "—". */
+export const matchTotalWords = (cents: number | null): string => planDollars(cents);
 export const UNDER_WORDS = 'under';
 export const OVER_WORDS = 'over';
 export const EVEN_WORDS = 'even';
@@ -572,15 +659,19 @@ export const varianceSignWords = (varianceCents: number): string => (varianceCen
 /** LEDGER-02: the UNDER / OVER cell — the sign of the variance as a word; "—" when the variance is unknown (amended: ONE marker on screen). */
 export const underOverWords = (varianceCents: number | null): string => (varianceCents === null ? BLANK : varianceSignWords(varianceCents));
 /**
- * LEDGER-02 (amended): the coverage of the VARIANCE total, said under the table — n the rows that carry both a budget and an actual (totals.withVariance),
- * m the rows shown. "VARIANCE totals the 3 of 5 rows that carry both a budget and an actual" · "VARIANCE totals all 5 rows" · n = 0: the cell is "—" and the line says so.
+ * The coverage of a column's total, said under the table — n the rows the total sums, m the rows shown. One words rule for the two
+ * columns: "<HEAD> totals the 3 of 5 rows <rows>" · "<HEAD> totals all 5 rows" · n = 0: the cell is "—" and the line says so (<none>).
  */
-export const varianceCoverageWords = (n: number, m: number): string => {
+const coverageWordsOf = (head: string, qualifiers: { readonly rows: string; readonly none: string }, n: number, m: number): string => {
   if (n < 0 || m < 0 || n > m || !Number.isInteger(n) || !Number.isInteger(m)) throw new Error(`ledger: ${n} of ${m} rows is no coverage`);
-  if (n === 0) return `VARIANCE totals none of the ${m} row${m === 1 ? '' : 's'} — no row carries both a budget and an actual`;
-  if (n === m) return `VARIANCE totals all ${m} row${m === 1 ? '' : 's'}`;
-  return `VARIANCE totals the ${n} of ${m} rows that carry both a budget and an actual`;
+  if (n === 0) return `${head} totals none of the ${m} row${m === 1 ? '' : 's'} — ${qualifiers.none}`;
+  if (n === m) return `${head} totals all ${m} row${m === 1 ? '' : 's'}`;
+  return `${head} totals the ${n} of ${m} rows ${qualifiers.rows}`;
 };
+/** LEDGER-02 (amended): the VARIANCE total's coverage — n the rows that carry both a budget and an actual (totals.withVariance). */
+export const varianceCoverageWords = (n: number, m: number): string => coverageWordsOf('VARIANCE', { rows: 'that carry both a budget and an actual', none: 'no row carries both a budget and an actual' }, n, m);
+/** LEDGER-03: the MATCH total's coverage — n the rows with a readable sum (totals.withMatch); the line that replaced the LEDGER-02 note. */
+export const matchCoverageWords = (n: number, m: number): string => coverageWordsOf('MATCH', { rows: 'linked to the books', none: 'no row is linked to the books' }, n, m);
 export const starsCellWords = (rating: number | null): string => (rating === null ? BLANK : ledgerStarsWords(rating));
 export const noteCellWords = (note: string | null): string => (note === null ? BLANK : note);
 export const vendorCellWords = (vendor: string | null): string => (vendor === null ? BLANK : vendor);
@@ -631,8 +722,8 @@ const csvField = (text: string): string => (/[",\r\n]/.test(text) ? `"${text.rep
  * full weekday, DATE 'YYYY-MM-DD', the text cells as the table prints them with
  * '' where the table prints "—" (a null is an EMPTY field, never 0 or "—"),
  * STARS the number, money as dollars with two decimals (csvMoney — BUDGET,
- * ACTUAL as held whether done or skipped, VARIANCE), MATCH empty (LEDGER-03),
- * UNDER / OVER the sign rule's word (varianceSignWords) or empty. The CSV never
+ * ACTUAL as held whether done or skipped, VARIANCE, and MATCH — LEDGER-03: the
+ * readable sum, readableMatchCents, else empty), UNDER / OVER the sign rule's word (varianceSignWords) or empty. The CSV never
  * calls the screen's cell helpers, which print "—" for a null (the amendment:
  * one marker on screen, an empty field here). Every line ends CRLF, the last
  * one too. The text is
@@ -656,7 +747,7 @@ export function ledgerCsv(rows: readonly LedgerRow[]): string {
       csvMoney(row.cents),
       csvMoney(row.actualCents),
       csvMoney(row.varianceCents),
-      '',
+      csvMoney(readableMatchCents(row.match)),
       row.varianceCents === null ? '' : varianceSignWords(row.varianceCents),
       row.note ?? '',
     ].map(csvField).join(','));
@@ -846,3 +937,25 @@ export const VENDORS_LOADING_WORDS = 'reading the vendors…';
 export const lineCountWords = (n: number): string => `the one-off came back with ${n} lines — one was written`;
 export const ROUTINE_NO_ID_WORDS = 'the routine came back without its id';
 export const VENDOR_NO_ID_WORDS = 'the vendor came back without its id';
+
+// ── LEDGER-03 (Alex, 2026-10-19): THE PICKER'S WORDS — LINK-01's list, on the row ──
+//
+// LinkPicker.tsx prints these and nothing of its own: the linked postings with
+// "unlink", the candidates as the links route answers them (date order, nothing
+// pre-selected, nothing ranked, no amount closeness, no vendor match) with "link",
+// and the drill panel's own sentence saying so.
+
+export const LINK_WORDS = 'link';
+export const UNLINK_WORDS = 'unlink';
+export const PICKER_CANCEL_WORDS = 'cancel';
+export const LINKS_LOADING_WORDS = 'reading the links…';
+export const LINKED_POSTINGS_WORDS = 'linked postings';
+export const NO_LINKED_POSTINGS_WORDS = 'no posting linked';
+export const CANDIDATES_WORDS = 'your postings near this date';
+/** The drill panel's sentence (hub/EventDetailPanel.tsx), word for word. */
+export const NO_SUGGESTION_WORDS = 'In date order. Nothing is selected for you and no match is suggested — pick the one that settled this.';
+export const NO_CANDIDATES_WORDS = 'No unlinked postings within the window. A posting already linked to another item is not offered.';
+export const NO_READABLE_AMOUNT_WORDS = 'no readable amount';
+/** A posting's amount as the books hold it, two decimals; an unreadable one is said, never shown as $0. */
+export const postingAmountWords = (cents: number | null): string => (cents === null ? NO_READABLE_AMOUNT_WORDS : formatCents(cents));
+export const postingDateWords = (date: string | null): string => (date === null ? BLANK : date);

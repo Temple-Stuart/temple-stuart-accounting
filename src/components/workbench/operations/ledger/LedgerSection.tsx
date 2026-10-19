@@ -49,25 +49,39 @@
  * (totals.over, totals.words), which the summary's words still print. The
  * coverage is said under the table, before the MATCH line
  * (varianceCoverageWords: the n of m rows that carry both).
+ *
+ * LEDGER-03 (Alex, 2026-10-19): MATCH READS THE BOOKS' LINK. The cell prints the
+ * row's match (ledger.ts matchCellWords — the readable sum, "—" with no link or
+ * any unreadable posting, the title naming them) in a cue tone (matchState:
+ * equal to ACTUAL to the cent green, differing red, none when ACTUAL is null),
+ * with one "link" chip that opens, under the row, LinkPicker.tsx — LINK-01's
+ * list for the record's own (kind, target_id, occurrence_at), `near` the
+ * record's day; a link or unlink makes the ledger read its span again (writes).
+ * The TOTAL row's MATCH is the column's sum over the rows with a readable sum,
+ * its coverage said under the table in place of the LEDGER-02 note. Nothing is
+ * fetched here (the picker's hook fetches through the links route); nothing is
+ * stored in the browser.
  */
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { localToday } from '@/lib/localToday';
 import type { Read } from '../week/weekReads';
 import { deltaWords } from '../day/dayCard';
 import { readLedger, type LedgerAnswer } from './ledgerReads';
 import ExpenseForm from './ExpenseForm';
+import LinkPicker from './LinkPicker';
 import { announceDayWritten } from '../dayWritten';
 import {
   ALL_WORDS, BY_WORDS, CELL_WORDS, CSV_DOWNLOAD_WORDS, CSV_NO_ROWS_WORDS, EVERY_BOOK_WORDS, FILTER_KEYS, FILTER_WORDS, GROUP_KEYS, GROUP_WORDS, LEDGER_HEAD_WORDS, LEDGER_LOADING_WORDS,
-  LEDGER_TITLE_WORDS, MATCH_CELL_WORDS, MATCH_NOTE_WORDS, MONEY_HEAD_WORDS, NEXT_WORDS, NO_FILTERS, NO_FIRST_RECORD_WORDS, NO_ROWS_SHOWN_WORDS, PERIOD_KINDS, PERIOD_WORDS, PREVIOUS_WORDS, SUMMARY_HEAD_WORDS,
+  LEDGER_TITLE_WORDS, LINK_WORDS, MONEY_HEAD_WORDS, NEXT_WORDS, NO_FILTERS, NO_FIRST_RECORD_WORDS, NO_ROWS_SHOWN_WORDS, PERIOD_KINDS, PERIOD_WORDS, PREVIOUS_WORDS, SUMMARY_HEAD_WORDS,
   SUMMARY_TITLE_WORDS, TODAY_RULE_WORDS, TOTAL_WORDS,
   accountCellWords, accountNameCellWords, actualCellWords, averageStarsWords, bookCellWords, budgetCellWords, choicesOf, dayLongWords, daysWords, filterRows, firstRecordUnplacedWords, ledgerCsv,
-  ledgerCsvFileName, ledgerSummary, ledgerTotals, leftOutWords, noLineWords, noRowsWords, noStayWords, notPlacedWords, notRecordedWords, noteCellWords, perDayWords, periodOf, periodWords,
-  starsCellWords, stepAnchor, underOverWords, unplacedWords, varianceCellWords, varianceCoverageWords, vendorCellWords,
-  type FilterKey, type Filters, type GroupKey, type LedgerRow, type Period, type PeriodKind,
+  ledgerCsvFileName, ledgerSummary, ledgerTotals, leftOutWords, matchCellTitle, matchCellWords, matchCoverageWords, matchState, matchTotalWords, noLineWords, noRowsWords, noStayWords, notPlacedWords,
+  notRecordedWords, noteCellWords, perDayWords, periodOf, periodWords, readableMatchCents, starsCellWords, stepAnchor, underOverWords, unplacedWords, varianceCellWords, varianceCoverageWords,
+  vendorCellWords,
+  type FilterKey, type Filters, type GroupKey, type LedgerRow, type MatchState, type Period, type PeriodKind,
 } from '@/lib/operations/ledger';
 
 const chip = 'px-2 py-0.5 border border-border rounded hover:bg-bg-row text-xs disabled:opacity-50';
@@ -81,6 +95,8 @@ const BLANK_CLASS = 'text-text-faint';
 const actualTone = (over: boolean | null): string => (over === null ? 'text-text-muted' : over ? 'text-brand-red' : 'text-brand-green');
 /** LEDGER-02 (amended): the tone of a variance — over red, under or even green; a null variance is a blank cell. */
 const varianceTone = (cents: number | null): string => (cents === null ? BLANK_CLASS : actualTone(cents > 0));
+/** LEDGER-03: the cue on a MATCH — equal to ACTUAL green, differing red, no cue when either is unknown. */
+const matchTone = (state: MatchState | null): string => (state === null ? '' : state === 'equal' ? 'text-brand-green' : 'text-brand-red');
 
 export default function LedgerSection() {
   const [today, setToday] = useState<string | null>(null);
@@ -91,8 +107,10 @@ export default function LedgerSection() {
   // The last answer and the period it was read for; the first record's day rides every answer, so ALL can start from it.
   const [answer, setAnswer] = useState<{ readonly period: Period; readonly read: Read<LedgerAnswer> } | null>(null);
   const [firstRecord, setFirstRecord] = useState<LedgerAnswer['first_record'] | null>(null);
-  // RETRO-01: an expense written from the form — the period is read again.
+  // RETRO-01: an expense written from the form — the period is read again. LEDGER-03: a link or unlink from the picker, the same.
   const [writes, setWrites] = useState(0);
+  // LEDGER-03: the row whose picker is open (its key), or none. React state only — nothing stored.
+  const [picking, setPicking] = useState<string | null>(null);
 
   useEffect(() => {
     const t = localToday();
@@ -181,7 +199,8 @@ export default function LedgerSection() {
                   {shown.map((row) => {
                     const delta = deltaWords(row.actualCents, row.cents);
                     return (
-                      <tr key={row.id} className="border-t border-border" data-ledger-row={row.key} data-ledger-day={row.day}>
+                      <Fragment key={row.id}>
+                      <tr className="border-t border-border" data-ledger-row={row.key} data-ledger-day={row.day}>
                         <td className={`${cell} whitespace-nowrap`} data-ledger-cell="day">{dayLongWords(row.day)}</td>
                         <td className={`${cell} whitespace-nowrap tabular-nums`} data-ledger-cell="date">{row.day}</td>
                         <td className={`${cell} ${row.place === null ? BLANK_CLASS : ''}`} data-ledger-cell="city">{CELL_WORDS.city(row)}</td>
@@ -195,10 +214,21 @@ export default function LedgerSection() {
                         <td className={`${money} ${row.cents === null ? BLANK_CLASS : 'font-semibold text-text-primary'}`} data-ledger-cell="budget">{budgetCellWords(row.cents)}</td>
                         <td className={`${money} ${row.outcome === 'skipped' ? 'text-text-muted' : row.actualCents === null ? BLANK_CLASS : `font-semibold ${actualTone(delta.over)}`}`} data-ledger-cell="actual">{actualCellWords(row)}</td>
                         <td className={`${money} ${row.varianceCents === null ? BLANK_CLASS : `font-semibold ${actualTone(delta.over)}`}`} data-ledger-cell="variance">{varianceCellWords(row.varianceCents)}</td>
-                        <td className={`${money} ${BLANK_CLASS}`} data-ledger-cell="match">{MATCH_CELL_WORDS}</td>
+                        <td className={`${money} ${readableMatchCents(row.match) === null ? BLANK_CLASS : `font-semibold ${matchTone(matchState(row.match, row.actualCents))}`}`} data-ledger-cell="match" title={matchCellTitle(row.match) ?? undefined}>
+                          <span data-ledger-match>{matchCellWords(row.match)}</span>
+                          <button type="button" className={`${chip} ml-1 font-normal`} onClick={() => setPicking(picking === row.key ? null : row.key)} data-ledger-link={row.key} aria-expanded={picking === row.key}>{LINK_WORDS}</button>
+                        </td>
                         <td className={`${cell} whitespace-nowrap ${row.varianceCents === null ? BLANK_CLASS : actualTone(delta.over)}`} data-ledger-cell="under-over">{underOverWords(row.varianceCents)}</td>
                         <td className={`${cell} ${row.note === null ? BLANK_CLASS : 'text-text-muted'}`} data-ledger-cell="notes">{noteCellWords(row.note)}</td>
                       </tr>
+                      {picking === row.key && (
+                        <tr className="border-t border-border" data-ledger-picker={row.key}>
+                          <td colSpan={LEDGER_HEAD_WORDS.length} className={cell}>
+                            <LinkPicker kind={row.address.kind} id={row.address.id} instant={row.address.instant} near={row.day} onChanged={() => setWrites((n) => n + 1)} onClose={() => setPicking(null)} />
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     );
                   })}
                 </tbody>
@@ -209,7 +239,7 @@ export default function LedgerSection() {
                     <td className={`${money} ${totals.budgetCents === null ? BLANK_CLASS : ''}`} data-ledger-total-budget>{budgetCellWords(totals.budgetCents)}</td>
                     <td className={`${money} ${totals.actualCents === null ? BLANK_CLASS : totals.varianceCents === null ? '' : varianceTone(totals.varianceCents)}`} data-ledger-total-actual>{budgetCellWords(totals.actualCents)}</td>
                     <td className={`${money} ${varianceTone(totals.varianceCents)}`} data-ledger-total-variance>{varianceCellWords(totals.varianceCents)}</td>
-                    <td className={`${money} ${BLANK_CLASS}`} data-ledger-total-match>{MATCH_CELL_WORDS}</td>
+                    <td className={`${money} ${totals.matchCents === null ? BLANK_CLASS : ''}`} data-ledger-total-match>{matchTotalWords(totals.matchCents)}</td>
                     <td className={`${cell} whitespace-nowrap ${varianceTone(totals.varianceCents)}`} data-ledger-total-under-over>{underOverWords(totals.varianceCents)}</td>
                     <td className={cell} data-ledger-total-notes />
                   </tr>
@@ -219,7 +249,7 @@ export default function LedgerSection() {
           )}
           <div className="text-xs text-text-muted space-y-0.5" data-ledger-said>
             {shown.length > 0 && <p data-ledger-said-variance>{varianceCoverageWords(totals.withVariance, shown.length)}</p>}
-            <p data-ledger-said-match>{MATCH_NOTE_WORDS}</p>
+            {shown.length > 0 && <p data-ledger-said-match>{matchCoverageWords(totals.withMatch, shown.length)}</p>}
             <p data-ledger-said-no-line>{noLineWords(answer.read.value.said.noLine, answer.read.value.said.doubled)}</p>
             <p data-ledger-said-no-stay>{noStayWords(answer.read.value.said.noStay)}</p>
             <p data-ledger-said-unplaced>{unplacedWords(answer.read.value.said.unplaced)}</p>
