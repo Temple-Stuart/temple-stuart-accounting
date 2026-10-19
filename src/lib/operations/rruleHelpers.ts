@@ -16,7 +16,8 @@
 import { RRule, RRuleSet, rrulestr, Frequency } from 'rrule';
 import { ValidationError } from '@/lib/errors/ValidationError';
 import { instantToZoned } from '@/lib/time';
-import type { CadenceGroup, CadenceMode, RoutineForm, WeekDay } from '@/components/workbench/operations/routines/types';
+import type { CadenceGroup, CadenceMode, DaysChoice, RoutineForm, WeekDay } from '@/components/workbench/operations/routines/types';
+import { CADENCE_GROUP_LABELS, DEFAULT_ROUTINE_FORM, WEEKDAYS, WEEKDAY_LABELS, WEEKDAY_ORDER, WEEKEND } from '@/components/workbench/operations/routines/types';
 
 /**
  * ONEOFF-01 — A ONE-OFF IS A ROUTINE THAT HAPPENS ONCE.
@@ -359,6 +360,173 @@ export function classifyCadence(rruleString: string): CadenceGroup {
     default:
       return 'custom';
   }
+}
+
+// ── FORM-01 (Alex, 2026-10-19): THE DAYS CONTROL AND THE LIST'S WORDS ─────────
+//
+// A routine is which days · what time · how much · which account. The form's
+// DAYS control is one choice (types.ts DaysChoice); the edit form opens in the
+// MATCHING choice (formOfRule): a stored rule opens structured when its PARTS
+// equal the choice's compiled parts as a set — the same keys and values, order
+// ignored (Alex, 2 yes amended) — else as Custom rule with the raw box, so a
+// rule no choice reproduces is never silently rewritten. The list prints the
+// cadence (classifyCadence's word), the days the rule falls on (daysWords),
+// the window (timeWords), and sorts by the rule's clock (clockMinutesOf).
+
+/** The rule's parts, KEY → value ('RRULE:' stripped, keys upper-cased, blanks dropped). */
+export function ruleParts(rrule: string): Map<string, string> {
+  const bare = rrule.trim().replace(/^RRULE:/i, '');
+  const out = new Map<string, string>();
+  for (const part of bare.split(';')) {
+    if (part.trim() === '') continue;
+    const eq = part.indexOf('=');
+    if (eq === -1) { out.set(part.trim().toUpperCase(), ''); continue; }
+    out.set(part.slice(0, eq).trim().toUpperCase(), part.slice(eq + 1).trim());
+  }
+  return out;
+}
+
+/** Two rules with the same parts as a set — the same keys and values, order ignored. */
+export function samePartSet(a: string, b: string): boolean {
+  const pa = ruleParts(a);
+  const pb = ruleParts(b);
+  if (pa.size !== pb.size) return false;
+  for (const [k, v] of pa) if (pb.get(k) !== v) return false;
+  return true;
+}
+
+/** The fields the days control and the rule share. */
+export type RuleForm = Pick<RoutineForm, 'days' | 'cadence_mode' | 'weekly_byday' | 'monthly_day_of_month' | 'monthly_nth' | 'monthly_weekday' | 'custom_rrule'>;
+
+const isWeekDay = (v: string): v is WeekDay => (WEEKDAY_ORDER as readonly string[]).includes(v);
+const byOrder = (days: readonly WeekDay[]): WeekDay[] => [...days].sort((a, b) => WEEKDAY_ORDER.indexOf(a) - WEEKDAY_ORDER.indexOf(b));
+const pad2 = (n: number): string => String(n).padStart(2, '0');
+
+/** The form with this days choice — the wire fields follow it; a switch to Custom rule seeds the box with the rule the form compiles to, when it compiles. */
+export function withDays(form: RoutineForm, days: DaysChoice): RoutineForm {
+  switch (days) {
+    case 'every_day': return { ...form, days, cadence_mode: 'daily' };
+    case 'weekdays': return { ...form, days, cadence_mode: 'weekly', weekly_byday: [...WEEKDAYS] };
+    case 'weekends': return { ...form, days, cadence_mode: 'weekly', weekly_byday: [...WEEKEND] };
+    case 'pick_days': return { ...form, days, cadence_mode: 'weekly' };
+    case 'once': return { ...form, days, cadence_mode: 'once' };
+    case 'monthly': return { ...form, days, cadence_mode: form.cadence_mode === 'monthly_nth_weekday' ? 'monthly_nth_weekday' : 'monthly_day_of_month' };
+    case 'custom': {
+      if (form.custom_rrule.trim() !== '') return { ...form, days, cadence_mode: 'custom' };
+      let seed = '';
+      try { seed = form.cadence_mode === 'custom' ? '' : compileFormToRRule(form); } catch { seed = ''; }
+      return { ...form, days, cadence_mode: 'custom', custom_rrule: seed };
+    }
+  }
+}
+
+/**
+ * The stored rule as the days control: the choice whose compiled parts equal
+ * the rule's as a set, with its fields; else Custom rule with the raw box.
+ * Pure: the rule's own clock is the start time the compile sees.
+ */
+export function formOfRule(rrule: string, startDate: string | Date | null): RuleForm {
+  // The start date as the compiler reads it — a 'YYYY-MM-DD' day, whether handed a Date, a @db.Date's JSON or the day itself.
+  const startDay = startDate instanceof Date ? startDate.toISOString().slice(0, 10) : startDate === null ? null : startDate.slice(0, 10);
+  const custom: RuleForm = {
+    days: 'custom', cadence_mode: 'custom',
+    weekly_byday: [...DEFAULT_ROUTINE_FORM.weekly_byday], monthly_day_of_month: DEFAULT_ROUTINE_FORM.monthly_day_of_month,
+    monthly_nth: DEFAULT_ROUTINE_FORM.monthly_nth, monthly_weekday: DEFAULT_ROUTINE_FORM.monthly_weekday, custom_rrule: rrule,
+  };
+  const clock = clockOfRule(rrule);
+  if (clock === null) return custom;
+  const parts = ruleParts(rrule);
+  const freq = parts.get('FREQ');
+  let candidate: RuleForm | null = null;
+  const structured = (over: Partial<RuleForm>): RuleForm => ({ ...custom, custom_rrule: '', ...over });
+  if (isOnceRRule(rrule)) {
+    candidate = structured({ days: 'once', cadence_mode: 'once' });
+  } else if (freq === 'DAILY') {
+    candidate = structured({ days: 'every_day', cadence_mode: 'daily' });
+  } else if (freq === 'WEEKLY' && parts.has('BYDAY')) {
+    const listed = (parts.get('BYDAY') ?? '').split(',').map((d) => d.trim().toUpperCase());
+    if (listed.length > 0 && listed.every(isWeekDay)) {
+      const days = byOrder(listed as WeekDay[]);
+      const set = days.join(',');
+      const choice: DaysChoice = set === WEEKDAYS.join(',') ? 'weekdays' : set === WEEKEND.join(',') ? 'weekends' : 'pick_days';
+      candidate = structured({ days: choice, cadence_mode: 'weekly', weekly_byday: days });
+    }
+  } else if (freq === 'MONTHLY' && parts.has('BYMONTHDAY')) {
+    candidate = structured({ days: 'monthly', cadence_mode: 'monthly_day_of_month', monthly_day_of_month: parts.get('BYMONTHDAY') ?? '' });
+  } else if (freq === 'MONTHLY' && parts.has('BYDAY')) {
+    const m = /^(-?\d+)(MO|TU|WE|TH|FR|SA|SU)$/i.exec(parts.get('BYDAY') ?? '');
+    if (m) candidate = structured({ days: 'monthly', cadence_mode: 'monthly_nth_weekday', monthly_nth: m[1], monthly_weekday: m[2].toUpperCase() as WeekDay });
+  }
+  if (candidate === null) return custom;
+  let compiled: string;
+  try {
+    compiled = compileFormToRRule({ ...DEFAULT_ROUTINE_FORM, ...candidate, start_date: startDay ?? '', start_time: clockWords(clock), byhour: pad2(clock.hour), byminute: pad2(clock.minute) });
+  } catch {
+    return custom;
+  }
+  return samePartSet(compiled, rrule) ? candidate : custom;
+}
+
+const MONTH_WORDS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "Oct 24, 2026" from a 'YYYY-MM-DD' day (or a @db.Date's JSON) — no locale, no zone. */
+export function dayWords(day: string | Date | null | undefined): string {
+  const iso = day instanceof Date ? day.toISOString() : (day ?? '');
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!m) return '—';
+  return `${MONTH_WORDS[Number(m[2]) - 1]} ${Number(m[3])}, ${m[1]}`;
+}
+
+/** 1st, 2nd, 3rd, 4th … 11th, 12th, 13th … 21st, 22nd, 23rd, 31st. */
+export function ordinalWords(n: number): string {
+  const abs = Math.abs(n);
+  const suffix = abs % 100 >= 11 && abs % 100 <= 13 ? 'th' : abs % 10 === 1 ? 'st' : abs % 10 === 2 ? 'nd' : abs % 10 === 3 ? 'rd' : 'th';
+  return `${n}${suffix}`;
+}
+
+/** The nth of a monthly weekday: "1st", "2nd", "last", "2nd last". */
+export const nthWords = (nth: number): string => (nth === -1 ? 'last' : nth < 0 ? `${ordinalWords(-nth)} last` : ordinalWords(nth));
+
+export const DAYS_NONE_WORDS = '—';
+
+/** THE DAYS COLUMN: the days the rule falls on — "Mon–Sun", "Mon–Fri", "Sat–Sun", "Mon, Wed, Fri", "15th" / "2nd Tue" / "last Fri", the date (once), "—" (custom). */
+export function daysWords(rrule: string, startDate: string | Date | null | undefined): string {
+  const f = formOfRule(rrule, startDate ?? null);
+  switch (f.days) {
+    case 'every_day': return 'Mon–Sun';
+    case 'weekdays': return 'Mon–Fri';
+    case 'weekends': return 'Sat–Sun';
+    case 'pick_days': return f.weekly_byday.map((d) => WEEKDAY_LABELS[d]).join(', ');
+    case 'once': return dayWords(startDate);
+    case 'monthly': return f.cadence_mode === 'monthly_day_of_month' ? ordinalWords(Number(f.monthly_day_of_month)) : `${nthWords(Number(f.monthly_nth))} ${WEEKDAY_LABELS[f.monthly_weekday]}`;
+    case 'custom': return DAYS_NONE_WORDS;
+  }
+}
+
+/** THE CADENCE COLUMN: the classifier's word — daily · weekly · monthly · quarterly · yearly · once · custom. */
+export const cadenceWords = (rrule: string): string => CADENCE_GROUP_LABELS[classifyCadence(rrule)].toLowerCase();
+
+/** THE TIME COLUMN: the rule's clock and the stored end, "HH:MM – HH:MM"; the clock alone; "—" when the rule names none. */
+export function timeWords(r: { readonly schedule_rrule: string; readonly end_time: string | Date | null }): string {
+  const clock = clockOfRule(r.schedule_rrule);
+  if (clock === null) return DAYS_NONE_WORDS;
+  const end = r.end_time === null ? '' : r.end_time instanceof Date ? r.end_time.toISOString().slice(11, 16) : r.end_time.slice(11, 16);
+  return end === '' ? clockWords(clock) : `${clockWords(clock)} – ${end}`;
+}
+
+/** THE SORT KEY: minutes from midnight of the rule's clock; null when it names none (sorted last). */
+export function clockMinutesOf(rrule: string): number | null {
+  const clock = clockOfRule(rrule);
+  return clock === null ? null : clock.hour * 60 + clock.minute;
+}
+
+/** Clock order: by the rule's clock, a routine with none last, then name. */
+export function byClockThenName<T extends { readonly name: string; readonly schedule_rrule: string }>(a: T, b: T): number {
+  const ka = clockMinutesOf(a.schedule_rrule);
+  const kb = clockMinutesOf(b.schedule_rrule);
+  if (ka === null && kb !== null) return 1;
+  if (kb === null && ka !== null) return -1;
+  return (ka ?? 0) - (kb ?? 0) || a.name.localeCompare(b.name);
 }
 
 /**

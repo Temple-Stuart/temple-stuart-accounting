@@ -248,10 +248,12 @@ test('a one-off created in Tasks appears on that day only — with its line and 
 
 test('the create form authors the one-off whole — date, times, lines from the entity-scoped picker, place from the one-press lookup', () => {
   const creator = code(CREATOR);
-  // Cadence once is offered, and once makes the date required.
-  assert.match(code('src/components/workbench/operations/routines/RRULEBuilder.tsx'), /'once',\s*\n\s*'custom',/);
+  // Cadence once is offered, and once makes the date required. FORM-01 (2026-10-19): the days control offers it (types.ts
+  // DAYS_CHOICE_ORDER) and asks the date itself (RRULEBuilder DaysField, data-routine-once-date); the creator mounts the field.
+  assert.match(code('src/components/workbench/operations/routines/types.ts'), /'pick_days', 'once', 'monthly', 'custom'\];/);
+  assert.match(code('src/components/workbench/operations/routines/RRULEBuilder.tsx'), /data-routine-once-date/);
   assert.match(creator, /const once = createForm\.cadence_mode === 'once';/);
-  assert.match(creator, /data-routine-once-date/);
+  assert.match(creator, /<DaysField form=\{createForm\} setForm=\{setForm\} \/>/);
   assert.match(creator, /end_date: once \? \(createForm\.start_date \|\| null\)/);
   // Lines: activity + amount + COA per line, the COA from CoaSelect scoped to the entity.
   assert.match(creator, /data-routine-lines/);
@@ -261,10 +263,9 @@ test('the create form authors the one-off whole — date, times, lines from the 
   assert.match(creator, /budget_amount: l\.budget_amount\.trim\(\) \|\| null, coa_code: l\.coa_code \|\| null/);
   // A one-off's money is its lines; the routine-level pair is not sent for it.
   assert.match(creator, /budget_amount: once \? '' : createForm\.budget_amount/);
-  // The place: the location field, the moved button, the pair — '' → null.
-  assert.match(creator, /<FindThisPlace/);
-  assert.match(creator, /data-routine-location/);
-  assert.match(creator, /latitude: createForm\.latitude \|\| null/);
+  // FORM-01 (2026-10-19): the place left the form — no field, no button, nothing of it sent; the route still accepts a pair (below).
+  assert.doesNotMatch(creator, /<FindThisPlace|data-routine-location/);
+  assert.match(creator, /latitude: undefined,/);
   // The start time fills the occurrence's hour and minute on a one-off. ROUTINE-02b (2026-10-18): on every routine, in the
   // builder (RRULEBuilder.tsx withStartTime) — the start time is the clock; the create form has no time input of its own.
   assert.match(code('src/components/workbench/operations/routines/RRULEBuilder.tsx'), /byhour: String\(clock\.hour\)\.padStart\(2, '0'\),\n\s*byminute: String\(clock\.minute\)\.padStart\(2, '0'\),/);
@@ -276,11 +277,11 @@ test('the create form authors the one-off whole — date, times, lines from the 
   assert.match(create, /parseLinesInput\(body\.lines\)/);
   assert.match(create, /parsePlaceInput\(\{ location: body\.location, latitude: body\.latitude, longitude: body\.longitude \}\)/);
   assert.match(create, /location: place\.value\.location,/);
-  // The row's edit form carries the place too, and opens a one-off as once.
+  // The row's edit form opens a one-off as once. FORM-01 (2026-10-19): through the one rule that opens every rule in its matching
+  // days choice (rruleHelpers formOfRule); the place left the row's form and cell.
   const row = code(ROW);
-  assert.match(row, /cadence_mode: once \? 'once' : 'custom'/);
-  assert.match(row, /<FindThisPlace/);
-  assert.match(row, /data-routine-place-view/);
+  assert.match(row, /\.\.\.formOfRule\(r\.schedule_rrule, r\.start_date \? r\.start_date\.slice\(0, 10\) : null\),/);
+  assert.doesNotMatch(row, /<FindThisPlace|data-routine-place-view/);
 });
 
 test('the routine input leaf: a blank amount is null, half a pair is refused, a line needs its activity, nothing is defaulted', () => {
@@ -420,9 +421,9 @@ test('Find this place makes one call on press and none on type, from its new hom
   // Exactly one file in the app renders the button, and it is this one.
   const renderers = [...tsFilesUnder('src/app'), ...tsFilesUnder('src/components')].filter((f) => /data-find-place(?![\w-])/.test(code(f)));
   assert.deepEqual(renderers, [BUTTON]);
-  // Mounted by Tasks' creator and the row's edit form; by nothing on the calendar.
-  assert.match(code(CREATOR), /<FindThisPlace/);
-  assert.match(code(ROW), /<FindThisPlace/);
+  // FORM-01 (2026-10-19): mounted by NO routine form now (the vendor is picked on the day card); by nothing on the calendar either.
+  assert.doesNotMatch(code(CREATOR), /<FindThisPlace/);
+  assert.doesNotMatch(code(ROW), /<FindThisPlace/);
   for (const f of tsFilesUnder('src/components/hub')) assert.doesNotMatch(code(f), /FindThisPlace|find-place/, `${f} mounts no lookup`);
   // GEO-01's cap and one-press rule are untouched on the route.
   const route = code('src/app/api/calendar/find-place/route.ts');

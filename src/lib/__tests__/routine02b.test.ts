@@ -192,9 +192,12 @@ test('T4 the builder: start time (required) and end time in place of the hour an
   assert.doesNotMatch(b, /hour \(00–23\)|minute \(00–59\)|value=\{form\.byhour\}|value=\{form\.byminute\}|fail threshold \(min\)/, 'the boxes and the old label are gone');
   assert.match(b, /<input\n\s*type="time"\n\s*value=\{form\.start_time\}\n\s*onChange=\{\(e\) => setForm\(withStartTime\(form, e\.target\.value\)\)\}\n\s*className=\{inputClass\}\n\s*required\n\s*data-routine-start-time\n\s*\/>/);
   assert.match(b, /<input\n\s*type="time"\n\s*value=\{form\.end_time\}\n\s*onChange=\{\(e\) => setForm\(\{ \.\.\.form, end_time: e\.target\.value \}\)\}\n\s*className=\{inputClass\}\n\s*required\n\s*data-routine-end-time\n\s*\/>/);
-  assert.match(b, /<div className=\{labelClass\}>\{MISSED_AFTER_WORDS\}<\/div>\n\s*<input\n\s*type="number"\n\s*min=\{0\}\n\s*value=\{form\.fail_threshold_minutes\}/, 'the same field, its words');
+  // FORM-01 (2026-10-19): the field moved from the builder into the forms' "more" block — the same field, its words (the builder is days and time).
+  assert.match(code(ROW), /<div className=\{labelClass\}>\{MISSED_AFTER_WORDS\}<\/div>\n\s*<input\n\s*type="number"\n\s*min=\{0\}\n\s*value=\{form\.fail_threshold_minutes\}/, 'the same field, its words');
+  assert.match(code(CREATE_FORM), /<div className=\{labelClass\}>\{MISSED_AFTER_WORDS\}<\/div>\n\s*<input\n\s*type="number"\n\s*min=\{0\}\n\s*value=\{createForm\.fail_threshold_minutes\}/, 'the same field, its words');
   assert.equal(MISSED_AFTER_WORDS, 'count as missed after N minutes');
-  assert.match(b, /One occurrence, on the date below, at the start time\./);
+  // FORM-01 (2026-10-19): a one-off's date is asked in the days control itself (DaysField, data-routine-once-date) — the note went with the old cadence select.
+  assert.match(b, /data-routine-once-date/);
   // withStartTime: the clock fills byhour/byminute and rewrites a custom rule's clock; a partial value only moves the field.
   const form = { ...DEFAULT_ROUTINE_FORM, cadence_mode: 'custom' as const, custom_rrule: 'FREQ=WEEKLY;BYDAY=MO;BYHOUR=8;BYMINUTE=0' };
   const typed = withStartTime(form, '17:30');

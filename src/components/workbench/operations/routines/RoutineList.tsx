@@ -4,11 +4,15 @@
  * Self-fetches via GET /api/operations/routines on mount. Filters to
  * is_active=true by default with a "show inactive" toggle.
  *
- * ROUTINES-01: one table — Routine · Where · Activity · When · Minutes ·
- * Amount · Account, and a last column for each row's controls. Every line of
- * every routine is on screen at once; nothing collapses. The cadence groups
- * (classifyCadence(schedule_rrule)) are full-width label rows, in order:
- *   Once (ONEOFF-01) / Daily / Weekly / Monthly / Quarterly / Yearly / Custom
+ * ROUTINES-01: one table — every line of every routine is on screen at once;
+ * nothing collapses.
+ *
+ * FORM-01 (Alex, 2026-10-19): the CURRENT routines are ONE FLAT TABLE with no
+ * cadence group headers, in CLOCK ORDER — by the rule's clock, a routine with
+ * no clock last, then name (rruleHelpers.ts byClockThenName) — with the
+ * columns Routine · Cadence · Days · Time · Amount · Account, and the
+ * controls (RoutineStepList ROUTINE_TABLE_COLUMNS = 7). The ENDED group stays
+ * at the bottom behind its toggle, as ROUTINE-02a built it.
  *
  * "+ new routine" button opens an inline create form using the same
  * RRULEBuilder as the edit form.
@@ -28,11 +32,10 @@ import { Fragment, useEffect, useState } from 'react';
 import RoutineRow from './RoutineRow';
 import RoutineCreateForm from './RoutineCreateForm';
 import { ROUTINE_TABLE_COLUMNS } from './RoutineStepList';
-import type { CadenceGroup, Routine } from './types';
-import { CADENCE_GROUP_LABELS, CADENCE_GROUP_ORDER } from './types';
+import type { Routine } from './types';
 import type { Entity } from '../EntitySelector';
 import { SETUP_DOOR } from '@/lib/entities/kinds';
-import { endedBy, isOnceRRule } from '@/lib/operations/rruleHelpers';
+import { byClockThenName, endedBy } from '@/lib/operations/rruleHelpers';
 
 /** ROUTINE-02a: the toggle's words, with the count. */
 export const showEndedWords = (n: number): string => `show ended (${n})`;
@@ -115,45 +118,16 @@ export default function RoutineList({ entities, onCommitted, refreshKey = 0, cre
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createRequest]);
 
-  // Group routines by classifyCadence-equivalent client-side bucketing.
-  // We approximate by inspecting RRULE prefix; server's classifyCadence is
-  // authoritative but not exposed by API in v0. For UI purposes the
-  // approximation is sufficient.
-  const groupOf = (rrule: string): CadenceGroup => {
-    const upper = rrule.toUpperCase();
-    // ONEOFF-01: one occurrence is its own group, whatever its FREQ — the same
-    // test the server's classifyCadence applies.
-    if (isOnceRRule(upper)) return 'once';
-    if (upper.includes('FREQ=DAILY')) return 'daily';
-    if (upper.includes('FREQ=WEEKLY')) return 'weekly';
-    if (upper.includes('FREQ=YEARLY')) {
-      const m = upper.match(/BYMONTH=([\d,]+)/);
-      if (m) {
-        const months = m[1].split(',').map(Number);
-        if (months.length === 4 && months.every((x) => x % 3 === 0)) return 'quarterly';
-      }
-      return 'yearly';
-    }
-    if (upper.includes('FREQ=MONTHLY')) return 'monthly';
-    return 'custom';
-  };
-
   // ROUTINE-02a: current and ended, judged now in each routine's own zone. The cadence
   // groups hold the current ones; the ended sit in their own group, newest end first.
   const now = new Date();
   const judged = routines.map((r) => ({ r, end: endedBy(r.end_date, r.timezone, now) }));
-  const current = judged.filter((x) => !x.end.ended);
+  // FORM-01: the current routines in clock order — one flat table, no cadence groups.
+  const current = judged.filter((x) => !x.end.ended).sort((a, b) => byClockThenName(a.r, b.r));
   const ended = judged
     .flatMap((x) => (x.end.ended ? [{ r: x.r, end: x.end, day: x.end.day }] : []))
     .sort((a, b) => b.day.localeCompare(a.day) || a.r.name.localeCompare(b.r.name));
   const shownCount = current.length + (showEnded ? ended.length : 0);
-
-  const grouped = new Map<CadenceGroup, { r: Routine; end: ReturnType<typeof endedBy> }[]>();
-  for (const x of current) {
-    const g = groupOf(x.r.schedule_rrule);
-    if (!grouped.has(g)) grouped.set(g, []);
-    grouped.get(g)!.push(x);
-  }
 
   return (
     <div className="space-y-3">
@@ -235,40 +209,25 @@ export default function RoutineList({ entities, onCommitted, refreshKey = 0, cre
             <thead>
               <tr className="text-left text-text-faint uppercase tracking-wide">
                 <th className="px-2 py-1.5 font-normal">Routine</th>
-                <th className="px-2 py-1.5 font-normal">Where</th>
-                <th className="px-2 py-1.5 font-normal">Activity</th>
-                <th className="px-2 py-1.5 font-normal">When</th>
-                <th className="px-2 py-1.5 font-normal">Minutes</th>
+                <th className="px-2 py-1.5 font-normal">Cadence</th>
+                <th className="px-2 py-1.5 font-normal">Days</th>
+                <th className="px-2 py-1.5 font-normal">Time</th>
                 <th className="px-2 py-1.5 font-normal">Amount</th>
                 <th className="px-2 py-1.5 font-normal">Account</th>
                 <th className="px-2 py-1.5 font-normal"><span className="sr-only">controls</span></th>
               </tr>
             </thead>
-            {CADENCE_GROUP_ORDER.map((g) => {
-              const items = grouped.get(g);
-              if (!items || items.length === 0) return null;
-              return (
-                <Fragment key={g}>
-                  <tbody>
-                    <tr data-cadence-group={g}>
-                      <td colSpan={ROUTINE_TABLE_COLUMNS} className="px-2 py-1 border-t border-border bg-bg-row text-xs text-text-faint uppercase tracking-wide">
-                        {CADENCE_GROUP_LABELS[g]} ({items.length})
-                      </td>
-                    </tr>
-                  </tbody>
-                  {items.map(({ r, end }) => (
-                    <RoutineRow
-                      key={r.id}
-                      routine={r}
-                      end={end}
-                      entities={entities}
-                      onUpdate={refresh}
-                      onDelete={refresh}
-                    />
-                  ))}
-                </Fragment>
-              );
-            })}
+            {/* FORM-01: the current routines, flat, in clock order. */}
+            {current.map(({ r, end }) => (
+              <RoutineRow
+                key={r.id}
+                routine={r}
+                end={end}
+                entities={entities}
+                onUpdate={refresh}
+                onDelete={refresh}
+              />
+            ))}
             {/* ROUTINE-02a: the ended routines, at the bottom, newest end first — only while shown. */}
             {showEnded && ended.length > 0 && (
               <Fragment key="ended">

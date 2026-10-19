@@ -94,12 +94,12 @@ test('T1 every state\'s words, and the helper takes a book list, a book id and a
 
 // ── T2 · THE TABLE ───────────────────────────────────────────────────────────
 
-test('T2 one table: Routine · Where · Activity · When · Minutes · Amount · Account, and a controls column', () => {
+test('T2 one table: Routine · Cadence · Days · Time · Amount · Account, and a controls column (FORM-01)', () => {
   const list = code(LIST);
   assert.equal((list.match(/<table\b/g) ?? []).length, 1, 'one table');
   for (const f of [ROW, LINES]) assert.doesNotMatch(code(f), /<table\b/, `${f} draws rows of the one table, not a table of its own`);
   const heads = [...list.matchAll(/<th\b[^>]*>([^<]*)</g)].map((m) => m[1]);
-  assert.deepEqual(heads, ['Routine', 'Where', 'Activity', 'When', 'Minutes', 'Amount', 'Account', ''], 'Where is second');
+  assert.deepEqual(heads, ['Routine', 'Cadence', 'Days', 'Time', 'Amount', 'Account', ''], 'FORM-01 (2026-10-19): Routine · Cadence · Days · Time · Amount · Account — Where, Activity and Minutes are gone');
   const columns = Number(/export const ROUTINE_TABLE_COLUMNS = (\d+);/.exec(code(LINES))?.[1]);
   assert.equal(columns, heads.length, 'the column count is the header\'s');
   // ROUTINE-02a (2026-10-18): each row is handed the list's judgement of its end (routine02a T6).
@@ -108,11 +108,14 @@ test('T2 one table: Routine · Where · Activity · When · Minutes · Amount ·
   assert.match(code(ROW), /<tbody className=\{[^}]*\} data-routine-rows=\{routine\.id\} data-routine-is-ended=\{end\.ended \? 'true' : undefined\}>\n\s*<RoutineStepList routine=\{routine\} entities=\{entities\} onUpdate=\{onUpdate\} routineCell=\{routineCell\} readOnly=\{end\.ended\} \/>/);
 });
 
-test('T2 the cadence groups are full-width label rows, in CADENCE_GROUP_ORDER', () => {
+test('T2 the current routines are one flat table in clock order — no cadence group rows (FORM-01)', () => {
   assert.deepEqual(CADENCE_GROUP_ORDER, ['once', 'daily', 'weekly', 'monthly', 'quarterly', 'yearly', 'custom']);
   const list = code(LIST);
-  assert.match(list, /CADENCE_GROUP_ORDER\.map\(\(g\) => \{/);
-  assert.match(list, /<tr data-cadence-group=\{g\}>\n\s*<td colSpan=\{ROUTINE_TABLE_COLUMNS\}[^>]*uppercase[^>]*>\n\s*\{CADENCE_GROUP_LABELS\[g\]\} \(\{items\.length\}\)\n\s*<\/td>/);
+  // FORM-01 (2026-10-19): the current routines are ONE FLAT TABLE in clock order — no cadence group rows; CADENCE_GROUP_ORDER stays
+  // the list's vocabulary elsewhere (the move control) and the ended group keeps its own label row (routine02a T6).
+  assert.doesNotMatch(list, /CADENCE_GROUP_ORDER|data-cadence-group/);
+  assert.match(list, /const current = judged\.filter\(\(x\) => !x\.end\.ended\)\.sort\(\(a, b\) => byClockThenName\(a\.r, b\.r\)\);/);
+  assert.match(list, /\{current\.map\(\(\{ r, end \}\) => \(\n\s*<RoutineRow/);
   // "+ new routine", "show inactive", the count and the create form stay where they are.
   const header = list.indexOf('show inactive');
   // ROUTINE-02a (2026-10-18): the count is of the rows shown — the current ones, and the ended while shown.
@@ -126,7 +129,8 @@ test('T2 nothing collapses: no ▸/▾, no expanded state, no click on a row', (
   for (const f of [...TABLE, SECTION_E]) {
     const body = code(f);
     assert.doesNotMatch(body, /[▸▾]/, `${f} draws no expand arrow`);
-    assert.doesNotMatch(body, /expanded|setExpanded|collapsed/i, `${f} holds no expanded state`);
+    // FORM-01 (2026-10-19): the forms' "more" block (aria-expanded) is the form's own fold, not a row's — rows still never collapse.
+    assert.doesNotMatch(body.replace(/aria-expanded=\{more\}/g, ''), /expanded|setExpanded|collapsed/i, `${f} holds no expanded state`);
   }
   for (const f of TABLE) assert.doesNotMatch(code(f), /<(tr|tbody|td)\b[^>]*onClick/, `${f}: no row toggles on click`);
 });
@@ -142,7 +146,7 @@ test('T2 the routine cell holds what R2 names, and the RRULE, last evaluated and
     'inactive',
     '{routine.description}',
     '{book ? book.name : ACCOUNT_CELL_WORDS.bookNotLoaded}',
-    'formatTime12h(routine.start_time.slice(11, 16))',
+    // FORM-01 (2026-10-19): the time range left the small print — the Time column says the window.
     // ROUTINE-02a (2026-10-18): the zone as Intl's list spells it; "ended <date>" in place of a next once nothing remains before the end.
     '{canonicalZone(routine.timezone) ?? routine.timezone}',
     '`next: ${formatDateTime(routine.next_due_at, routine.timezone)}`',
@@ -150,7 +154,7 @@ test('T2 the routine cell holds what R2 names, and the RRULE, last evaluated and
     'fail threshold {routine.fail_threshold_minutes} min',
     '{plannedLine(planned)}',
     '{ignoredLine(planned)}',
-    'data-routine-place-view',
+    // FORM-01 (2026-10-19): the place block left the cell — the hub map keeps reading what is stored.
     'last done {formatDateTime(routine.last_completed_at, routine.timezone)}',
     'onClick={enterEdit}',
     'onClick={handleToggleActive}',
@@ -170,23 +174,24 @@ test('T2 the routine cell holds what R2 names, and the RRULE, last evaluated and
   assert.doesNotMatch(row, /\{routine\.schedule_rrule\}/, 'the raw RRULE');
   assert.doesNotMatch(row, /last_evaluated_at/, 'last evaluated');
   assert.doesNotMatch(row, /routine\.ideal_time_label/, 'the ideal time label');
-  assert.doesNotMatch(row, /schedule \(rrule\)|last evaluated|ideal time/);
+  // FORM-01 (2026-10-19): the edit form's "more" block asks the ideal time label (moved there from the builder); the CELL still shows none of these.
+  assert.doesNotMatch(cell, /schedule \(rrule\)|last evaluated|ideal time/);
+  assert.doesNotMatch(row, /schedule \(rrule\)|last evaluated/);
 });
 
-test('T2 a line row: Where · Activity (· sub-activity, notes) · When · Minutes · Amount · Account · edit delete ↑ ↓', () => {
+test('T2 a line row: (blank under Cadence) · Activity (· sub-activity, notes) under Days · time of day under Time · Amount · Account · edit delete ↑ ↓ — FORM-01', () => {
+  // FORM-01 (2026-10-19): Where and Minutes are gone; the activity sits under Days, the time of day under Time. Moved, never loosened.
   const lines = code(LINES);
-  const viewAt = lines.indexOf('data-line-where>{step.location}');
-  assert.ok(viewAt > -1, 'Where is the line\'s location as saved');
+  assert.doesNotMatch(lines, /data-line-where|data-line-minutes|step\.location|step\.duration_minutes/, 'Where and Minutes left the rows');
+  const viewAt = lines.indexOf('data-line-activity>');
+  assert.ok(viewAt > -1);
   const view = lines.slice(viewAt, lines.indexOf('{openAdd && (', viewAt));
   const cells = [
-    'data-line-where>{step.location}',
     '{step.activity}',
     '· {step.sub_activity}',
     '{step.notes}',
     'data-line-when>',
     '{step.time_of_day && step.time_of_day.slice(11, 16)}',
-    'data-line-minutes>',
-    '{step.duration_minutes !== null && step.duration_minutes}',
     'data-step-planned>',
     '{step.budget_amount != null && formatBudgetPerOccurrence(step.budget_amount)}',
     'data-step-coa>',
@@ -203,14 +208,15 @@ test('T2 a line row: Where · Activity (· sub-activity, notes) · When · Minut
     at = next;
   }
   assert.ok(view.indexOf('↑') < view.indexOf('↓'));
-  // Every line of every routine: each is a row, and the routine's cell rides the first.
-  assert.match(lines, /\{steps\.map\(\(step, index\) => \(\n\s*<tr key=\{step\.id\} data-routine-line=\{step\.id\}>\n\s*\{index === 0 && cell\}/);
-  // A routine with no lines is one row: its own place, "no lines", its own amount and account.
-  const noLines = lines.slice(lines.indexOf('<tr data-routine-no-lines>'), lines.indexOf('</tr>', lines.indexOf('<tr data-routine-no-lines>')));
-  for (const piece of ['{cell}', 'data-line-where>{routine.location}', 'no lines', 'formatBudgetPerOccurrence(routine.budget_amount)', '<AccountText cell={accountCell(entities, routine.entity_id, routine.coa_code)} />']) {
-    assert.ok(noLines.includes(piece), `the no-lines row draws ${piece}`);
+  // Every line of every routine is a row under the routine's own row; the cell rides the routine's row and spans them all.
+  assert.match(lines, /\{steps\.map\(\(step, index\) => \(\n\s*<tr key=\{step\.id\} data-routine-line=\{step\.id\}>\n\s*\{editingId === step\.id \? \(/);
+  assert.match(lines, /<tr data-routine-main>\n\s*\{cell\}\n\s*<td[^>]*data-routine-cadence>\{cadenceWords\(routine\.schedule_rrule\)\}<\/td>\n\s*<td[^>]*data-routine-days>\{daysWords\(routine\.schedule_rrule, routine\.start_date\)\}<\/td>\n\s*<td[^>]*data-routine-time>\{timeWords\(routine\)\}<\/td>/);
+  // A routine with no lines carries its own amount and account on its row; with lines, the lines carry them below.
+  const main = lines.slice(lines.indexOf('<tr data-routine-main>'), lines.indexOf('</tr>', lines.indexOf('<tr data-routine-main>')));
+  for (const piece of ['{steps.length === 0 ? (', 'data-routine-own-amount', 'formatBudgetPerOccurrence(routine.budget_amount)', 'data-routine-own-account', '<AccountText cell={accountCell(entities, routine.entity_id, routine.coa_code)} />', 'data-routine-lines-carry']) {
+    assert.ok(main.includes(piece), `the routine's row draws ${piece}`);
   }
-  assert.match(lines, /\{steps\.length === 0 && \(\n\s*<tr data-routine-no-lines>/);
+  assert.doesNotMatch(lines, /data-routine-no-lines/, 'the no-lines row is the routine\'s own row now');
 });
 
 test('T2 every code on the table is drawn through the one helper — never a bare code', () => {
@@ -246,7 +252,8 @@ test('T2 editing is in place: the routine\'s edit form is a full-width row under
   assert.match(row, /setForm\(routineToForm\(routine\)\);\n\s*setEditing\(true\);/);
   const form = row.slice(editAt);
   // ROUTINE-02b (2026-10-18): the start and end times are the builder's fields now (RRULEBuilder.tsx) — the row carries them through it.
-  for (const piece of ['value={form.name}', 'value={form.description}', 'value={form.entity_id}', 'value={form.budget_amount ?? \'\'}', '<CoaSelect', '<RRULEBuilder form={form} setForm={setForm} />', 'data-routine-once-date', 'data-routine-location', '<FindThisPlace', 'data-routine-latitude', 'data-routine-longitude', 'onClick={handleSave}', 'onClick={cancelEdit}']) {
+  // FORM-01 (2026-10-19): days and time are the builder's two fields; the once date is the days control's; the place left the form.
+  for (const piece of ['value={form.name}', '<DaysField form={form} setForm={setForm} />', '<TimeField form={form} setForm={setForm} />', 'value={form.budget_amount ?? \'\'}', '<CoaSelect', 'value={form.entity_id}', 'value={form.description}', 'onClick={handleSave}', 'onClick={cancelEdit}']) {
     assert.ok(form.includes(piece), `the edit row carries ${piece}`);
   }
   // Its refusal is the route's own message, shown in that row.
@@ -258,14 +265,15 @@ test('T2 editing is in place: the routine\'s edit form is a full-width row under
   assert.match(lines, /\{editingId === step\.id \? \(\n\s*inputCells\(editForm, setEditForm, step\.id, \{/);
   // "+ line" opens the input row at the end of the routine's rows; the routine's cell spans it.
   assert.match(code(ROW), /onClick=\{\(\) => addLine\?\.\(\)\}\n\s*disabled=\{addLine === null\}/);
-  assert.match(lines, /const rowSpan = Math\.max\(steps\.length, 1\) \+ \(openAdd \? 1 : 0\);/);
+  assert.match(lines, /const rowSpan = 1 \+ steps\.length \+ \(openAdd \? 1 : 0\);/); // FORM-01 (2026-10-19): the routine's own row, then the lines
   // ROUTINE-02a (2026-10-18): an ended routine (readOnly) is handed no "+ line" either.
   assert.match(lines, /const cell = routineCell\(rowSpan, openAdd \|\| readOnly \? null : startAdd\);/);
   assert.ok(lines.indexOf('{steps.map((step, index)') < lines.indexOf('{openAdd && ('), 'the new line\'s row is the last');
   assert.match(lines, /\{openAdd && \(\n\s*<tr[^>]*data-line-new>\n\s*\{inputCells\(addForm, setAddForm, NEW_LINE_ROW, \{/);
   // Today's line inputs, every one.
   const inputs = lines.slice(lines.indexOf('const inputCells = ('), lines.indexOf('const rowSpan ='));
-  for (const piece of ['value={form.location}', 'value={form.activity}', 'value={form.sub_activity}', 'value={form.notes}', 'type="time"\n          value={form.time_of_day}', 'value={form.duration_minutes}', 'value={form.budget_amount}', 'data-step-amount', '<CoaSelect\n          entityId={routine.entity_id}\n          value={form.coa_code}']) {
+  // FORM-01 (2026-10-19): the location and duration inputs left the line editor with their columns.
+  for (const piece of ['value={form.activity}', 'value={form.sub_activity}', 'value={form.notes}', 'type="time"\n          value={form.time_of_day}', 'value={form.budget_amount}', 'data-step-amount', '<CoaSelect\n          entityId={routine.entity_id}\n          value={form.coa_code}']) {
     assert.ok(inputs.includes(piece), `the line inputs carry ${piece}`);
   }
   // Refusals: the route's own message, on the row it refused.

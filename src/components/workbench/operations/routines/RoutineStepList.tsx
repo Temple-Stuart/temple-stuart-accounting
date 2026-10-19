@@ -20,6 +20,17 @@
  * ROUTINE-02a (Alex, 2026-10-18): `readOnly` (an ended routine) draws the lines
  * with no controls and hands the routine's cell no "+ line" — editing a line's
  * amount would change past days' budgets.
+ *
+ * FORM-01 (Alex, 2026-10-19): THE TABLE IS Routine · Cadence · Days · Time ·
+ * Amount · Account, and the controls (ROUTINE_TABLE_COLUMNS = 7). The
+ * routine's own row comes first — its cell (spanning its lines' rows), the
+ * cadence word, the days the rule falls on, the window, and its own amount
+ * and account when no line carries them (rruleHelpers.ts cadenceWords,
+ * daysWords, timeWords). The lines keep their rows under it, unchanged except
+ * the dropped columns: the activity (with sub-activity and notes) sits under
+ * Days, the time of day under Time; Where and Minutes are gone from the rows
+ * and from the line editor (the route still accepts location and duration,
+ * and a line's stored values are sent back as they are).
  */
 
 'use client';
@@ -29,10 +40,11 @@ import type { Routine, RoutineStep } from './types';
 import CoaSelect from './CoaSelect';
 import { formatBudgetPerOccurrence } from './types';
 import { accountCell, type AccountCell, type AccountCellBook } from '@/lib/coa/accountCell';
+import { cadenceWords, daysWords, timeWords } from '@/lib/operations/rruleHelpers';
 
 
-/** The table's columns: Routine · Where · Activity · When · Minutes · Amount · Account, and the controls. */
-export const ROUTINE_TABLE_COLUMNS = 8;
+/** The table's columns: Routine · Cadence · Days · Time · Amount · Account, and the controls (FORM-01). */
+export const ROUTINE_TABLE_COLUMNS = 7;
 
 const inputClass =
   'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
@@ -269,16 +281,8 @@ export function RoutineStepList({ routine, entities, onUpdate, routineCell, read
     activityPlaceholder?: string,
   ) => (
     <>
-      <td className={cellClass}>
-        <div className={labelClass}>location</div>
-        <input
-          type="text"
-          value={form.location}
-          onChange={(e) => setForm({ ...form, location: e.target.value })}
-          className={inputClass}
-          maxLength={200}
-        />
-      </td>
+      {/* FORM-01: the line's inputs sit under Days (activity) and Time (time of day); no location, no duration. */}
+      <td className={cellClass} />
       <td className={cellClass}>
         <div className={labelClass}>activity</div>
         <input
@@ -314,16 +318,6 @@ export function RoutineStepList({ routine, entities, onUpdate, routineCell, read
           onChange={(e) => setForm({ ...form, time_of_day: e.target.value })}
           className={inputClass}
           data-line-time
-        />
-      </td>
-      <td className={cellClass}>
-        <div className={labelClass}>duration (min)</div>
-        <input
-          type="number"
-          min={0}
-          value={form.duration_minutes}
-          onChange={(e) => setForm({ ...form, duration_minutes: e.target.value })}
-          className={inputClass}
         />
       </td>
       <td className={cellClass}>
@@ -371,31 +365,37 @@ export function RoutineStepList({ routine, entities, onUpdate, routineCell, read
     </>
   );
 
-  const rowSpan = Math.max(steps.length, 1) + (openAdd ? 1 : 0);
+  const rowSpan = 1 + steps.length + (openAdd ? 1 : 0);
   const cell = routineCell(rowSpan, openAdd || readOnly ? null : startAdd);
 
   return (
     <>
-      {steps.length === 0 && (
-        <tr data-routine-no-lines>
-          {cell}
-          <td className={cellClass} data-line-where>{routine.location}</td>
-          <td className={`${cellClass} italic text-text-muted`}>no lines</td>
-          <td className={cellClass} />
-          <td className={cellClass} />
-          <td className={`${cellClass} font-mono tabular-nums font-bold text-text-primary`} data-routine-own-amount>
-            {routine.budget_amount != null && formatBudgetPerOccurrence(routine.budget_amount)}
-          </td>
-          <td className={cellClass} data-routine-own-account>
-            <AccountText cell={accountCell(entities, routine.entity_id, routine.coa_code)} />
-          </td>
-          <td className={cellClass} />
-        </tr>
-      )}
+      {/* FORM-01: the routine's own row — cadence · days · time, and its own amount and account when no line carries them. */}
+      <tr data-routine-main>
+        {cell}
+        <td className={`${cellClass} text-text-muted`} data-routine-cadence>{cadenceWords(routine.schedule_rrule)}</td>
+        <td className={cellClass} data-routine-days>{daysWords(routine.schedule_rrule, routine.start_date)}</td>
+        <td className={`${cellClass} font-mono tabular-nums`} data-routine-time>{timeWords(routine)}</td>
+        {steps.length === 0 ? (
+          <>
+            <td className={`${cellClass} font-mono tabular-nums font-bold text-text-primary`} data-routine-own-amount>
+              {routine.budget_amount != null && formatBudgetPerOccurrence(routine.budget_amount)}
+            </td>
+            <td className={cellClass} data-routine-own-account>
+              <AccountText cell={accountCell(entities, routine.entity_id, routine.coa_code)} />
+            </td>
+          </>
+        ) : (
+          <>
+            <td className={`${cellClass} italic text-text-muted`} data-routine-lines-carry>{steps.length === 1 ? '1 line' : `${steps.length} lines`}</td>
+            <td className={cellClass} />
+          </>
+        )}
+        <td className={cellClass} />
+      </tr>
 
       {steps.map((step, index) => (
         <tr key={step.id} data-routine-line={step.id}>
-          {index === 0 && cell}
           {editingId === step.id ? (
             inputCells(editForm, setEditForm, step.id, {
               label: 'save',
@@ -406,7 +406,7 @@ export function RoutineStepList({ routine, entities, onUpdate, routineCell, read
             })
           ) : (
             <>
-              <td className={`${cellClass} text-text-muted`} data-line-where>{step.location}</td>
+              <td className={cellClass} />
               <td className={cellClass} data-line-activity>
                 <span className="text-text-primary">{step.activity}</span>
                 {step.sub_activity && <span className="text-text-muted"> · {step.sub_activity}</span>}
@@ -417,9 +417,6 @@ export function RoutineStepList({ routine, entities, onUpdate, routineCell, read
               </td>
               <td className={`${cellClass} font-mono tabular-nums text-text-muted`} data-line-when>
                 {step.time_of_day && step.time_of_day.slice(11, 16)}
-              </td>
-              <td className={`${cellClass} tabular-nums text-text-muted`} data-line-minutes>
-                {step.duration_minutes !== null && step.duration_minutes}
               </td>
               {/* LINES-01: the line's own money and account. Blank → nothing renders. */}
               <td className={`${cellClass} font-mono tabular-nums font-bold text-text-primary`} data-step-planned>

@@ -22,10 +22,7 @@
  *   · its LINES (LINES-01): each an activity with its own amount and account,
  *     the account from the ENTITY-SCOPED picker (CoaSelect) — never a merged
  *     chart. A one-off is made of lines: at least one, the thing itself.
- *   · its PLACE: a location, and coordinates found with GEO-01's "Find this
- *     place" (FindThisPlace — the component moved here from the calendar,
- *     intact: one lookup per press, never while you type, the same cap) or
- *     pasted as a pair. The pair is all-or-nothing; the name saves on its own.
+ *   · (its PLACE left this form — FORM-01, below.)
  * For a one-off the routine-level budget/COA pair is not asked for — its money
  * is its lines. Nothing is defaulted: an empty amount is null, an empty time
  * stays empty, and a one-off without a date is refused by the server.
@@ -36,19 +33,28 @@
  *
  * ROUTINE-02a (Alex, 2026-10-18): a new routine starts in the VIEWER'S OWN zone —
  * read after mount, so the server render and the first paint agree — and the
- * zone is picked from Intl's list in the builder.
+ * zone is picked from Intl's list (ZoneSelect).
+ *
+ * FORM-01 (Alex, 2026-10-19): THE FORM ASKS days · time · amount · account,
+ * NOTHING ABOUT WHERE — the vendor is picked on the day card, stop by stop.
+ * In this order: name · on the day card · entity · days (one control,
+ * RRULEBuilder DaysField) · time (TimeField) · amount + account (and the
+ * lines) · active from / until (a one-off: its date, in the days control) ·
+ * timezone · "more" (description, ideal time label, count as missed after N
+ * minutes — collapsed, React state). Location, latitude, longitude and "Find
+ * this place" left the form; nothing of them is sent. The route still accepts
+ * them and the hub map keeps reading what is stored.
  */
 
 'use client';
 
 import { ROLE_FIELD_WORDS, ROLE_WORDS, STOP_ROLES, type StopRole } from '@/lib/operations/stopRole';
 import { useEffect, useState } from 'react';
-import RRULEBuilder from './RRULEBuilder';
+import { DaysField, MISSED_AFTER_WORDS, TimeField } from './RRULEBuilder';
+import ZoneSelect from './ZoneSelect';
 import type { RoutineForm } from './types';
 import CoaSelect from './CoaSelect';
-import FindThisPlace from './FindThisPlace';
 import { DEFAULT_ROUTINE_FORM, EMPTY_LINE_FORM } from './types';
-import type { PlaceMatch } from '@/lib/calendar/findPlace';
 
 
 interface Entity {
@@ -74,9 +80,8 @@ export default function RoutineCreateForm({ entities, defaultEntityId, onCreated
   const [entityTouched, setEntityTouched] = useState(false);
   const [createSaving, setCreateSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
-  // ONEOFF-01: the place the person picked from a lookup, so the form can say
-  // what filled the coordinates. Typing past the picked name drops it.
-  const [picked, setPicked] = useState<PlaceMatch | null>(null);
+  // FORM-01: "more" — description, ideal time label, the miss threshold — closed until opened (React state only).
+  const [more, setMore] = useState(false);
 
   const once = createForm.cadence_mode === 'once';
 
@@ -140,10 +145,10 @@ export default function RoutineCreateForm({ entities, defaultEntityId, onCreated
           // ONEOFF-01: a one-off's money is its lines — the routine-level pair is not sent.
           budget_amount: once ? '' : createForm.budget_amount,
           coa_code: once ? '' : createForm.coa_code,
-          // The place: '' → null on the wire, never 0.
-          location: createForm.location || null,
-          latitude: createForm.latitude || null,
-          longitude: createForm.longitude || null,
+          // FORM-01: no place is sent — location, latitude and longitude left the form.
+          location: undefined,
+          latitude: undefined,
+          longitude: undefined,
           // The lines: a blank amount is NO amount; a blank account is none.
           lines: createForm.lines
             .filter((l) => l.activity.trim())
@@ -176,6 +181,7 @@ export default function RoutineCreateForm({ entities, defaultEntityId, onCreated
         </div>
       )}
 
+      {/* FORM-01: name · on the day card · entity. */}
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
           <div className={labelClass}>name</div>
@@ -189,17 +195,7 @@ export default function RoutineCreateForm({ entities, defaultEntityId, onCreated
             data-routine-name
           />
         </div>
-        <div className="col-span-2">
-          <div className={labelClass}>description (optional)</div>
-          <textarea
-            value={createForm.description}
-            onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
-            rows={2}
-            className={inputClass}
-            placeholder="what does this routine accomplish?"
-          />
-        </div>
-        <div className="col-span-2">
+        <div>
           <div className={labelClass}>{ROLE_FIELD_WORDS}</div>
           <select
             value={createForm.role}
@@ -233,14 +229,14 @@ export default function RoutineCreateForm({ entities, defaultEntityId, onCreated
         </div>
       </div>
 
+      {/* FORM-01: days, then time — the builder's two fields, in that order. */}
+      <DaysField form={createForm} setForm={setForm} />
+      <TimeField form={createForm} setForm={setForm} />
+
       {/* HB-4b: per-occurrence budget + COA. Both optional — empty budget → null (never 0), no COA
           → null (no default account). The COA list is scoped to the selected entity. */}
-      {/* ROUTINES-UX-1: the dossier anchor (habits↔money) — this budget+COA pair
-          IS the tab's only money-rendering surface (the linkage is schema-real,
-          budget_amount/coa_code on every routine, but the display row renders no
-          money — so no invented row UI). Strongest-cell treatment at the existing
-          site: primary-weight labels + the mono numeral idiom on the money input
-          (the RUNWAY/TRADE/TAX precedent). Handlers/fields untouched. */}
+      {/* ROUTINES-UX-1: the dossier anchor (habits↔money) — strongest-cell treatment: primary-weight
+          labels + the mono numeral idiom on the money input (the RUNWAY/TRADE/TAX precedent). */}
       {/* ONEOFF-01: not asked for on a one-off — its money is its lines (below). */}
       {!once && (
         <div className="grid grid-cols-2 gap-3">
@@ -267,105 +263,6 @@ export default function RoutineCreateForm({ entities, defaultEntityId, onCreated
           </div>
         </div>
       )}
-
-      <RRULEBuilder form={createForm} setForm={setForm} />
-
-      {/* ONEOFF-01: a one-off has ONE date — the single occurrence is counted
-          from it and the window is that day. Every other cadence keeps its
-          optional start/end window. */}
-      {once ? (
-        <div>
-          <div className={labelClass}>date</div>
-          <input
-            type="date"
-            value={createForm.start_date}
-            onChange={(e) => setCreateForm({ ...createForm, start_date: e.target.value, end_date: e.target.value })}
-            className={inputClass}
-            required
-            data-routine-once-date
-          />
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <div className={labelClass}>start date (optional)</div>
-            <input
-              type="date"
-              value={createForm.start_date}
-              onChange={(e) => setCreateForm({ ...createForm, start_date: e.target.value })}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <div className={labelClass}>end date (optional)</div>
-            <input
-              type="date"
-              value={createForm.end_date}
-              onChange={(e) => setCreateForm({ ...createForm, end_date: e.target.value })}
-              className={inputClass}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* ONEOFF-01: THE PLACE. The location saves on its own; the coordinates
-          come from ONE lookup on press (FindThisPlace) or a pasted pair. */}
-      <div className="space-y-2 pt-2 border-t border-border-light" data-routine-place>
-        <div>
-          <div className={labelClass}>location (optional)</div>
-          <input
-            id="routine-location"
-            type="text"
-            value={createForm.location}
-            /* Typing NEVER calls anything — it only drops a pick the text no longer matches. */
-            onChange={(e) => {
-              const v = e.target.value;
-              setCreateForm({ ...createForm, location: v });
-              if (picked && v.trim() !== picked.name) setPicked(null);
-            }}
-            className={inputClass}
-            maxLength={255}
-            placeholder="Thonglor barber"
-            data-routine-location
-          />
-        </div>
-        <FindThisPlace
-          location={createForm.location}
-          picked={picked}
-          onPick={(m) => {
-            setCreateForm({ ...createForm, location: m.name, latitude: String(m.latitude), longitude: String(m.longitude) });
-            setPicked(m);
-          }}
-          onClear={() => {
-            setCreateForm({ ...createForm, latitude: '', longitude: '' });
-            setPicked(null);
-          }}
-        />
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <div className={labelClass}>latitude</div>
-            <input
-              inputMode="decimal"
-              value={createForm.latitude}
-              onChange={(e) => setCreateForm({ ...createForm, latitude: e.target.value })}
-              className={`${inputClass} font-mono`}
-              placeholder="optional"
-              data-routine-latitude
-            />
-          </div>
-          <div>
-            <div className={labelClass}>longitude</div>
-            <input
-              inputMode="decimal"
-              value={createForm.longitude}
-              onChange={(e) => setCreateForm({ ...createForm, longitude: e.target.value })}
-              className={`${inputClass} font-mono`}
-              placeholder="optional"
-              data-routine-longitude
-            />
-          </div>
-        </div>
-      </div>
 
       {/* ONEOFF-01 · LINES-01: the lines the routine is made of, each with its own
           amount and account from the ENTITY'S chart. A one-off has at least one. */}
@@ -433,6 +330,84 @@ export default function RoutineCreateForm({ entities, defaultEntityId, onCreated
             </button>
           </div>
         ))}
+      </div>
+
+      {/* FORM-01: active from / until — a one-off's day is its date, asked in the days control. */}
+      {!once && (
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <div className={labelClass}>active from (optional)</div>
+            <input
+              type="date"
+              value={createForm.start_date}
+              onChange={(e) => setCreateForm({ ...createForm, start_date: e.target.value })}
+              className={inputClass}
+              data-routine-start-date
+            />
+          </div>
+          <div>
+            <div className={labelClass}>active until (optional)</div>
+            <input
+              type="date"
+              value={createForm.end_date}
+              onChange={(e) => setCreateForm({ ...createForm, end_date: e.target.value })}
+              className={inputClass}
+              data-routine-end-date
+            />
+          </div>
+        </div>
+      )}
+
+      <div>
+        <div className={labelClass}>timezone</div>
+        <ZoneSelect
+          value={createForm.timezone}
+          onChange={(zone) => setCreateForm({ ...createForm, timezone: zone })}
+          className={inputClass}
+          data-routine-timezone
+        />
+      </div>
+
+      {/* FORM-01: "more" — description, ideal time label, the miss threshold — closed until opened. */}
+      <div className="pt-2 border-t border-border-light">
+        <button type="button" onClick={() => setMore((m) => !m)} className="px-2 py-0.5 border border-border rounded hover:bg-bg-row text-xs" aria-expanded={more} data-routine-more>
+          {more ? 'less' : 'more'}
+        </button>
+        {more && (
+          <div className="mt-2 grid grid-cols-2 gap-3" data-routine-more-fields>
+            <div className="col-span-2">
+              <div className={labelClass}>description (optional)</div>
+              <textarea
+                value={createForm.description}
+                onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+                rows={2}
+                className={inputClass}
+                placeholder="what does this routine accomplish?"
+              />
+            </div>
+            <div>
+              <div className={labelClass}>ideal time label (optional)</div>
+              <input
+                type="text"
+                value={createForm.ideal_time_label}
+                onChange={(e) => setCreateForm({ ...createForm, ideal_time_label: e.target.value })}
+                className={inputClass}
+                placeholder="morning, before lunch, EOD"
+              />
+            </div>
+            <div>
+              <div className={labelClass}>{MISSED_AFTER_WORDS}</div>
+              <input
+                type="number"
+                min={0}
+                value={createForm.fail_threshold_minutes}
+                onChange={(e) => setCreateForm({ ...createForm, fail_threshold_minutes: e.target.value })}
+                className={inputClass}
+                data-routine-missed-after
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-2 pt-2 border-t border-border-light">

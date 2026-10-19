@@ -169,14 +169,15 @@ test('T6 the archive: ended = end_date before today in the routine\'s own zone; 
   assert.equal(zoneUnreadWords('X/Y', 'why'), 'zone "X/Y" not recognised: why — pick one from the list');
   // The list: judged now in each routine's zone; the cadence groups hold the current; the ended group at the bottom, newest end first, only while shown.
   const l = code(LIST);
-  assert.match(l, /const now = new Date\(\);\n\s*const judged = routines\.map\(\(r\) => \(\{ r, end: endedBy\(r\.end_date, r\.timezone, now\) \}\)\);\n\s*const current = judged\.filter\(\(x\) => !x\.end\.ended\);/);
+  assert.match(l, /const now = new Date\(\);\n\s*const judged = routines\.map\(\(r\) => \(\{ r, end: endedBy\(r\.end_date, r\.timezone, now\) \}\)\);\n\s*const current = judged\.filter\(\(x\) => !x\.end\.ended\)\.sort\(\(a, b\) => byClockThenName\(a\.r, b\.r\)\);/); // FORM-01 (2026-10-19): sorted by the clock
   assert.match(l, /\.sort\(\(a, b\) => b\.day\.localeCompare\(a\.day\) \|\| a\.r\.name\.localeCompare\(b\.r\.name\)\);/, 'newest end first');
-  assert.match(l, /for \(const x of current\) \{\n\s*const g = groupOf\(x\.r\.schedule_rrule\);/, 'the cadence groups hold current routines only');
+  // FORM-01 (2026-10-19): the current routines are one flat table in clock order — no cadence groups; the ended group alone remains.
+  assert.doesNotMatch(l, /groupOf|CADENCE_GROUP_ORDER|data-cadence-group/, 'no cadence groups (FORM-01)');
   assert.match(l, /const \[showEnded, setShowEnded\] = useState\(false\);/, 'React state only');
   assert.match(l, /checked=\{showEnded\}\n\s*onChange=\{\(e\) => setShowEnded\(e\.target\.checked\)\}\n\s*data-routines-show-ended\n\s*\/>\n\s*<span className="text-text-muted">\{showEndedWords\(ended\.length\)\}<\/span>/);
   assert.ok(l.indexOf('show inactive') < l.indexOf('data-routines-show-ended'), 'beside "show inactive"');
   assert.match(l, /\{showEnded && ended\.length > 0 && \(\n\s*<Fragment key="ended">\n\s*<tbody>\n\s*<tr data-ended-group>/);
-  assert.ok(l.indexOf('<tr data-ended-group>') > l.lastIndexOf('CADENCE_GROUP_ORDER.map('), 'at the bottom');
+  assert.ok(l.indexOf('<tr data-ended-group>') > l.lastIndexOf('{current.map(({ r, end }) => ('), 'at the bottom'); // FORM-01 (2026-10-19): after the flat current rows
   assert.match(l, /const url = showInactive\n\s*\? '\/api\/operations\/routines'\n\s*: '\/api\/operations\/routines\?is_active=true';/, 'the fetch is unchanged');
   assert.doesNotMatch(l, /localStorage|sessionStorage|document\.cookie/);
   assert.match(l, /export const showEndedWords = \(n: number\): string => `show ended \(\$\{n\}\)`;/);
@@ -252,7 +253,10 @@ test('T7 the zone list: Intl\'s own names, matched without case, stored as spell
   const b = code(BUILDER);
   const z = code(ZONE_SELECT);
   assert.doesNotMatch(b, /type="text"\n\s*value=\{form\.timezone\}/, 'the zone is picked, not typed');
-  assert.match(b, /<ZoneSelect\n\s*value=\{form\.timezone\}\n\s*onChange=\{\(zone\) => setForm\(\{ \.\.\.form, timezone: zone \}\)\}\n\s*className=\{inputClass\}\n\s*data-routine-timezone\n\s*\/>/, 'the builder mounts the one picker');
+  // FORM-01 (2026-10-19): the zone left the builder for the forms' own timezone block — each mounts the one picker.
+  assert.doesNotMatch(b, /ZoneSelect/, 'the builder is days and time alone (FORM-01)');
+  assert.match(code(ROW), /<ZoneSelect\n\s*value=\{form\.timezone\}\n\s*onChange=\{\(zone\) => setForm\(\{ \.\.\.form, timezone: zone \}\)\}\n\s*className=\{inputClass\}\n\s*data-routine-timezone\n\s*\/>/, 'the row mounts the one picker');
+  assert.match(code(CREATE_FORM), /<ZoneSelect\n\s*value=\{createForm\.timezone\}\n\s*onChange=\{\(zone\) => setCreateForm\(\{ \.\.\.createForm, timezone: zone \}\)\}\n\s*className=\{inputClass\}\n\s*data-routine-timezone\n\s*\/>/, 'the creator mounts the one picker');
   assert.doesNotMatch(b, /viewerZone|zonesByRegion|data-routine-timezone-viewer|unlistedZoneWords/, 'the zone machinery left the builder with the picker');
   assert.match(z, /const \[viewerZone, setViewerZone\] = useState<string \| null>\(null\);\n\s*useEffect\(\(\) => \{\n\s*setViewerZone\(Intl\.DateTimeFormat\(\)\.resolvedOptions\(\)\.timeZone\);\n\s*\}, \[\]\);/);
   assert.match(z, /<select value=\{value\} onChange=\{\(e\) => onChange\(e\.target\.value\)\} className=\{className\} \{\.\.\.rest\}>/);

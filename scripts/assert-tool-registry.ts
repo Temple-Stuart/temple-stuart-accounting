@@ -2327,7 +2327,13 @@ const GEO_LEAF = 'src/lib/calendar/findPlace.ts';
 // ONEOFF-01: the button MOVED to Tasks, intact — its own component, mounted by
 // the routine creator and the row's edit form. The same one-press rule, the
 // same cap, the same laws; only the home changed.
+// FORM-01 (Alex, 2026-10-19): NO ROUTINE FORM MOUNTS THE LOOKUP — a routine is
+// days · time · amount · account, nothing about where; the vendor is picked on
+// the day card. The component and the route stay as they are (one renderer,
+// one call site, the same laws) with no door in the product until a later
+// ruling deletes or re-homes them.
 const GEO_FORM = 'src/components/workbench/operations/routines/FindThisPlace.tsx';
+const GEO_NO_MOUNT = ['src/components/workbench/operations/routines/RoutineCreateForm.tsx', 'src/components/workbench/operations/routines/RoutineRow.tsx'];
 let geoViolations = 0;
 const geoFail = (msg: string) => { geoViolations += 1; violations.push(`geo law: ${msg} (GEO-01)`); };
 
@@ -2412,11 +2418,12 @@ const geoButtonFiles = walkSrc('src/components').concat(walkSrc('src/app')).filt
 if (geoButtonFiles.length !== 1 || geoButtonFiles[0] !== GEO_FORM) {
   geoFail(`Find this place is rendered by ${geoButtonFiles.join(', ') || 'nothing'} — exactly one component renders it, ${GEO_FORM} (ONEOFF-01)`);
 }
-if (!/<FindThisPlace/.test(dayCode('src/components/workbench/operations/routines/RoutineCreateForm.tsx'))) {
-  geoFail('the routine creator does not mount FindThisPlace — a one-off is planned in Tasks, and its place is found there (ONEOFF-01)');
+// FORM-01 (2026-10-19): the routine forms ask nothing about where — neither mounts the lookup (moved from "the creator mounts it", ONEOFF-01).
+for (const f of GEO_NO_MOUNT) {
+  if (/<FindThisPlace/.test(dayCode(f))) geoFail(`${f} mounts FindThisPlace — FORM-01 took the place out of the routine forms; the vendor is picked on the day card`);
 }
 
-if (geoViolations === 0) console.log(`✔ The geo law passed — the place lookup has ONE call site (${GEO_ROUTE}, one googleFetch), reached only from the onClick of the one component that renders the button (${GEO_FORM}, in Tasks since ONEOFF-01); no effect, submit, debounce or render spends a call; nothing is auto-selected; the cap is read, reported and refused at with its reset date.`);
+if (geoViolations === 0) console.log(`✔ The geo law passed — the place lookup has ONE call site (${GEO_ROUTE}, one googleFetch), reached only from the onClick of the one component that renders the button (${GEO_FORM}, mounted by no routine form since FORM-01 since ONEOFF-01); no effect, submit, debounce or render spends a call; nothing is auto-selected; the cap is read, reported and refused at with its reset date.`);
 });
 lawGuard('The orphan law', () => {
 

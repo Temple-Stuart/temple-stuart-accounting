@@ -107,7 +107,7 @@ test('the projects list keeps its controls: + new, edit, delete, archive, show a
 
 // TASKS-ONE-02 (2026-10-14): the title said "with Today above it" — Today is deleted (Alex's ruling: the day card
 // replaces the Today strip). The pin moved: the list alone, and Today's mark-done is the day card's stop form.
-test('the routines list keeps its controls: grouped by cadence, + new, edit, delete, show inactive — and mark-done is the day card\'s', () => {
+test('the routines list keeps its controls: in clock order (FORM-01), + new, edit, delete, show inactive — and mark-done is the day card\'s', () => {
   const e = code(SECTION_E);
   assert.doesNotMatch(e, /TodaysStrip/, 'Today is gone from the section — here and in the cockpit that mounts it');
   assert.match(e, /<RoutineList entities=\{entities\} \/>/);
@@ -119,7 +119,9 @@ test('the routines list keeps its controls: grouped by cadence, + new, edit, del
   const l = code(ROUTINE_LIST);
   assert.match(l, /\+ new routine/);
   assert.match(l, /show inactive/);
-  assert.match(l, /CADENCE_GROUP_ORDER\.map/);
+  // FORM-01 (2026-10-19): the current routines are one flat table in clock order — no cadence groups.
+  assert.match(l, /byClockThenName/);
+  assert.doesNotMatch(l, /CADENCE_GROUP_ORDER\.map/);
   assert.match(l, /createRequest > 0 && entities\.length > 0\) startCreate\(\)/, "Today's zero-state opens the list's own form");
   const r = code(ROUTINE_ROW);
   assert.match(r, /setEditing\(true\)/, 'edit is a control on the row');
