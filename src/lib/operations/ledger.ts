@@ -40,11 +40,21 @@
  * Business, Trading — from the same map accountString.ts draws the letter
  * from; null when no line matched) and `varianceCents` (actual − budget when
  * both are known, else null — never 0 for a blank). UNDER / OVER is the sign of
- * varianceCents, printed by the section, blank when it is null. MATCH is the
- * amount the books hold — LEDGER-03's; here a column of blank cells, said under
- * the table. The ACTUAL cell is the amount alone now (the delta moved to its own
- * column). The summary gains a BOOK group; ledgerCsv writes the rows shown as a
- * CSV (RFC 4180, CRLF, UTF-8 with no BOM) for a spreadsheet.
+ * varianceCents, printed by the section. MATCH is the amount the books hold —
+ * LEDGER-03's; here a column with nothing in it, said under the table. The
+ * ACTUAL cell is the amount alone now (the delta moved to its own column). The
+ * summary gains a BOOK group; ledgerCsv writes the rows shown as a CSV (RFC
+ * 4180, CRLF, UTF-8 with no BOM) for a spreadsheet.
+ *
+ * LEDGER-02 AMENDMENT (Alex, 2026-10-19) — ONE MARKER, ONE TRUTH. On screen
+ * every null cell prints BLANK ("—"): VARIANCE, MATCH and UNDER / OVER too; the
+ * CSV keeps an EMPTY field for a null, through its own path (csvMoney, the sign
+ * rule called directly), never the screen helpers' words. The VARIANCE total is
+ * the COLUMN'S SUM — Σ varianceCents over the rows that carry both figures, null
+ * when none does (withVariance counts them) — and the TOTAL row's tone and its
+ * UNDER / OVER follow that sign; `over` and `words` (the recorded-rows
+ * comparison the day card makes) stay as fields for the summary's words. The
+ * coverage is said under the table (varianceCoverageWords).
  *
  * Here: the rule (ledgerOf — the route's pure half), the period (periodOf,
  * stepAnchor, the 400-day cap), the filters, the totals and the summary (the
@@ -430,20 +440,24 @@ export interface LedgerTotals {
   readonly over: boolean | null;
   /** "▼ $3 under" · "▲ $4.25 over" · "on plan" · "—" when either figure is unknown — by the same rule. */
   readonly words: string;
-  /** LEDGER-02: the two totals' difference (actualCents − budgetCents) only when both are known; null otherwise — nothing summed from a blank. */
+  /** LEDGER-02 (amended): the VARIANCE column's sum — Σ varianceCents over the rows that carry both a budget and an actual; null when no row does. Nothing summed from a blank. */
   readonly varianceCents: number | null;
+  /** LEDGER-02 (amended): how many of the rows carry a variance — the n of "the n of m rows" said under the table. */
+  readonly withVariance: number;
 }
 
 /** The card's TOTAL-row rule over the rows shown (dayTotals, reused): the records are always read here, so the spent is the actuals summed. */
 export function ledgerTotals(rows: readonly LedgerRow[]): LedgerTotals {
   const actuals = rows.map((r) => r.actualCents).filter((c): c is number => c !== null);
   const totals = dayTotals({ stops: rows, spentCents: actuals.reduce((sum, c) => sum + c, 0), withActual: actuals.length }, null);
+  const variances = rows.map((r) => r.varianceCents).filter((c): c is number => c !== null);
   return {
     budgetCents: totals.budgetCents,
     actualCents: totals.actualCents,
     over: totals.over,
     words: deltaWords(totals.actualCents, totals.recordedBudgetCents).text,
-    varianceCents: totals.budgetCents === null || totals.actualCents === null ? null : totals.actualCents - totals.budgetCents,
+    varianceCents: variances.length === 0 ? null : variances.reduce((sum, c) => sum + c, 0),
+    withVariance: variances.length,
   };
 }
 
@@ -546,14 +560,27 @@ export const bookGroupWords = (row: Pick<LedgerRow, 'book'>): string => (row.boo
 /** LEDGER-02: the ACCOUNT cell — the code with its letter ("P-6150"), or "—"; the ACCOUNT NAME cell — the chart's name, or "—". */
 export const accountCellWords = (row: Pick<LedgerRow, 'coa'>): string => (row.coa === null ? BLANK : row.coa.account);
 export const accountNameCellWords = (row: Pick<LedgerRow, 'coa'>): string => (row.coa === null || row.coa.name === null ? BLANK : row.coa.name);
-/** LEDGER-02: the VARIANCE cell — dollars with its sign and two decimals ("−$1.02", "+$2.00", "$0.00"); EMPTY when the variance is unknown, never 0 or "—". */
-export const varianceCellWords = (cents: number | null): string => (cents === null ? '' : cents > 0 ? `+${formatCents(cents)}` : formatCents(cents));
+/** LEDGER-02: the VARIANCE cell — dollars with its sign and two decimals ("−$1.02", "+$2.00", "$0.00"); "—" when the variance is unknown (amended: ONE marker on screen), never 0. */
+export const varianceCellWords = (cents: number | null): string => (cents === null ? BLANK : cents > 0 ? `+${formatCents(cents)}` : formatCents(cents));
+/** LEDGER-02 (amended): the MATCH cell — "—" on every row and in the TOTAL row until the books are linked (the MATCH note under the table names the ruling). */
+export const MATCH_CELL_WORDS = BLANK;
 export const UNDER_WORDS = 'under';
 export const OVER_WORDS = 'over';
 export const EVEN_WORDS = 'even';
-/** LEDGER-02: the UNDER / OVER cell — the sign of the variance as a word; EMPTY when the variance is unknown. */
-export const underOverWords = (varianceCents: number | null): string =>
-  (varianceCents === null ? '' : varianceCents < 0 ? UNDER_WORDS : varianceCents > 0 ? OVER_WORDS : EVEN_WORDS);
+/** The sign of a KNOWN variance as a word — the one rule the screen and the CSV both call. */
+export const varianceSignWords = (varianceCents: number): string => (varianceCents < 0 ? UNDER_WORDS : varianceCents > 0 ? OVER_WORDS : EVEN_WORDS);
+/** LEDGER-02: the UNDER / OVER cell — the sign of the variance as a word; "—" when the variance is unknown (amended: ONE marker on screen). */
+export const underOverWords = (varianceCents: number | null): string => (varianceCents === null ? BLANK : varianceSignWords(varianceCents));
+/**
+ * LEDGER-02 (amended): the coverage of the VARIANCE total, said under the table — n the rows that carry both a budget and an actual (totals.withVariance),
+ * m the rows shown. "VARIANCE totals the 3 of 5 rows that carry both a budget and an actual" · "VARIANCE totals all 5 rows" · n = 0: the cell is "—" and the line says so.
+ */
+export const varianceCoverageWords = (n: number, m: number): string => {
+  if (n < 0 || m < 0 || n > m || !Number.isInteger(n) || !Number.isInteger(m)) throw new Error(`ledger: ${n} of ${m} rows is no coverage`);
+  if (n === 0) return `VARIANCE totals none of the ${m} row${m === 1 ? '' : 's'} — no row carries both a budget and an actual`;
+  if (n === m) return `VARIANCE totals all ${m} row${m === 1 ? '' : 's'}`;
+  return `VARIANCE totals the ${n} of ${m} rows that carry both a budget and an actual`;
+};
 export const starsCellWords = (rating: number | null): string => (rating === null ? BLANK : ledgerStarsWords(rating));
 export const noteCellWords = (note: string | null): string => (note === null ? BLANK : note);
 export const vendorCellWords = (vendor: string | null): string => (vendor === null ? BLANK : vendor);
@@ -605,7 +632,10 @@ const csvField = (text: string): string => (/[",\r\n]/.test(text) ? `"${text.rep
  * '' where the table prints "—" (a null is an EMPTY field, never 0 or "—"),
  * STARS the number, money as dollars with two decimals (csvMoney — BUDGET,
  * ACTUAL as held whether done or skipped, VARIANCE), MATCH empty (LEDGER-03),
- * UNDER / OVER the word. Every line ends CRLF, the last one too. The text is
+ * UNDER / OVER the sign rule's word (varianceSignWords) or empty. The CSV never
+ * calls the screen's cell helpers, which print "—" for a null (the amendment:
+ * one marker on screen, an empty field here). Every line ends CRLF, the last
+ * one too. The text is
  * UTF-8 with no BOM: the section writes it as a Blob of this string, which the
  * browser encodes as UTF-8 and prefixes with nothing. Pure: no React, no DOM.
  */
@@ -627,7 +657,7 @@ export function ledgerCsv(rows: readonly LedgerRow[]): string {
       csvMoney(row.actualCents),
       csvMoney(row.varianceCents),
       '',
-      underOverWords(row.varianceCents),
+      row.varianceCents === null ? '' : varianceSignWords(row.varianceCents),
       row.note ?? '',
     ].map(csvField).join(','));
   }

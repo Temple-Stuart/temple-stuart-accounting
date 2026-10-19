@@ -140,13 +140,14 @@ test('T5 the registry: the Time row says the day card and the ledger (TIME-02: n
   const tasks = TOOL_REGISTRY.find((t) => t.name === 'Tasks')!;
   assert.equal(time.home, '/time'); assert.equal(time.status, 'PARTIAL');
   // LEDGER-02 (Alex, 2026-10-19): "the task ledger" where the why and the customer line said "the ledger of every stop" — the rest unchanged.
-  assert.equal(time.why, 'the day, narrated: every stop in clock order with its budget, its vendor, what it cost and the verdict, the journal, the caption and script for the reel, and the task ledger by city and account; nothing yet adds up where the hours went');
+  // LEDGER-02 AMENDMENT (Alex, 2026-10-19): "the task ledger of every stop … by city, account and book" — "every stop" kept, the book added.
+  assert.equal(time.why, 'the day, narrated: every stop in clock order with its budget, its vendor, what it cost and the verdict, the journal, the caption and script for the reel, and the task ledger of every stop by city, account and book; nothing yet adds up where the hours went');
   assert.match(time.citation, /discover: src\/components\/workbench\/operations\/day\/dayReads\.ts:8-13/);
   assert.match(time.citation, /decide: src\/app\/api\/operations\/journal\/route\.ts:51 \(PUT/);
   assert.match(time.citation, /commit: src\/app\/api\/operations\/stops\/route\.ts \(POST/);
   assert.match(time.citation, /record: src\/components\/workbench\/operations\/ledger\/LedgerSection\.tsx/);
   assert.equal(time.note, 'TIME-02 (2026-10-19): the content pipeline retired — its components and routes deleted; its five tables kept, untouched, until TABLES-01.');
-  assert.equal(time.customer, 'You can see one day as a card — every stop with what it should cost and what it did, the journal, the caption and script for the day\'s reel — and the task ledger you logged by city and account; nothing yet adds up where your hours went.');
+  assert.equal(time.customer, 'You can see one day as a card — every stop with what it should cost and what it did, the journal, the caption and script for the day\'s reel — and the task ledger of every stop you logged by city, account and book; nothing yet adds up where your hours went.');
   assert.doesNotMatch(time.customer ?? '', /\b(discover|decide|commit|record)\b/, 'no beat word on a public line (the plan law)');
   assert.equal(tasks.home, '/tasks');
   assert.match(tasks.why ?? '', /^the work, planned: projects with costed tasks and routines with costed lines/);

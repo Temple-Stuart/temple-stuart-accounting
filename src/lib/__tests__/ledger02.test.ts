@@ -20,10 +20,10 @@ import type { StayRow } from '../operations/stay';
 import type { StopRecordRow } from '../operations/stopRecord';
 import { TOOL_REGISTRY } from '../toolRegistry';
 import {
-  BOOK_WORDS, CSV_DOWNLOAD_WORDS, CSV_NO_ROWS_WORDS, EVEN_WORDS, GROUP_KEYS, GROUP_WORDS, LEDGER_HEAD_WORDS, LEDGER_TITLE_WORDS, MATCH_NOTE_WORDS, MONEY_HEAD_WORDS,
+  BOOK_WORDS, CSV_DOWNLOAD_WORDS, CSV_NO_ROWS_WORDS, EVEN_WORDS, GROUP_KEYS, GROUP_WORDS, LEDGER_HEAD_WORDS, LEDGER_TITLE_WORDS, MATCH_CELL_WORDS, MATCH_NOTE_WORDS, MONEY_HEAD_WORDS,
   NO_BOOK_GROUP_WORDS, OVER_WORDS, SUMMARY_HEAD_WORDS, SUMMARY_TITLE_WORDS, UNDER_WORDS,
   accountCellWords, accountNameCellWords, actualCellWords, bookCellWords, bookGroupWords, bookWordOf, dayLongWords, ledgerCsv, ledgerCsvFileName, ledgerOf, ledgerSummary, ledgerTotals,
-  underOverWords, varianceCellWords,
+  underOverWords, varianceCellWords, varianceCoverageWords, varianceSignWords,
   type LedgerInput, type LedgerRecordInput, type LedgerRow,
 } from '../operations/ledger';
 
@@ -173,12 +173,12 @@ test('R2 the sixteen head words in Alex’s order; the cells each one fact: DAY 
   assert.equal(varianceCellWords(-102), '−$1.02', 'dollars with its sign, two decimals (formatCents: U+2212 for the minus)');
   assert.equal(varianceCellWords(200), '+$2.00');
   assert.equal(varianceCellWords(0), '$0.00');
-  assert.equal(varianceCellWords(null), '', 'EMPTY when unknown — not 0, not "—"');
+  assert.equal(varianceCellWords(null), '—', 'LEDGER-02 amended: "—" when unknown — one marker on screen, never 0 (the CSV keeps its empty field)');
   assert.deepEqual([UNDER_WORDS, OVER_WORDS, EVEN_WORDS], ['under', 'over', 'even']);
   assert.equal(underOverWords(-102), 'under');
   assert.equal(underOverWords(200), 'over');
   assert.equal(underOverWords(0), 'even');
-  assert.equal(underOverWords(null), '', 'blank when VARIANCE is blank');
+  assert.equal(underOverWords(null), '—', 'LEDGER-02 amended: "—" with VARIANCE');
   assert.equal(MATCH_NOTE_WORDS, 'MATCH — the amount the books hold for a row; nothing is linked yet (LEDGER-03)');
   // The section: sixteen cells in the head's order, each printing its one fact; the money heads right-aligned; the MATCH note first under the table.
   const s = code(SECTION);
@@ -193,11 +193,12 @@ test('R2 the sixteen head words in Alex’s order; the cells each one fact: DAY 
   assert.match(s, /data-ledger-cell="account-name">\{accountNameCellWords\(row\)\}/);
   assert.doesNotMatch(s, /CELL_WORDS\.coa\(row\)|data-ledger-cell="coa"/, 'the combined COA cell is gone');
   assert.match(s, /data-ledger-cell="actual">\{actualCellWords\(row\)\}/);
-  assert.match(s, /className=\{`\$\{money\} \$\{row\.varianceCents === null \? '' : `font-semibold \$\{actualTone\(delta\.over\)\}`\}`\} data-ledger-cell="variance">\{varianceCellWords\(row\.varianceCents\)\}/, 'VARIANCE in the row’s tone, nothing in it when null');
-  assert.match(s, /<td className=\{money\} data-ledger-cell="match" \/>/, 'MATCH: every cell blank');
+  assert.match(s, /className=\{`\$\{money\} \$\{row\.varianceCents === null \? BLANK_CLASS : `font-semibold \$\{actualTone\(delta\.over\)\}`\}`\} data-ledger-cell="variance">\{varianceCellWords\(row\.varianceCents\)\}/, 'VARIANCE in the row’s tone, the blank class when null (amended)');
+  assert.match(s, /<td className=\{`\$\{money\} \$\{BLANK_CLASS\}`\} data-ledger-cell="match">\{MATCH_CELL_WORDS\}<\/td>/, 'MATCH: every cell "—" (amended)');
   assert.match(s, /data-ledger-cell="under-over">\{underOverWords\(row\.varianceCents\)\}/);
   assert.match(s, /\{LEDGER_HEAD_WORDS\.map\(\(h\) => <th key=\{h\} className=\{\(MONEY_HEAD_WORDS as readonly string\[\]\)\.includes\(h\) \? `\$\{head\} text-right` : head\}>\{h\}<\/th>\)\}/, 'the money heads right-aligned, by the one list');
-  assert.match(s, /data-ledger-said>\n\s*<p data-ledger-said-match>\{MATCH_NOTE_WORDS\}<\/p>/, 'the one line under the table, first of what is said');
+  // LEDGER-02 AMENDMENT (Alex, 2026-10-19): the coverage line comes first; the MATCH line is second (A2 pins the pair).
+  assert.match(s, /data-ledger-said-variance>[^\n]*<\/p>\}\n\s*<p data-ledger-said-match>\{MATCH_NOTE_WORDS\}<\/p>/, 'the one line under the table, after the coverage line');
   assert.match(s, /<h2 className="text-lg font-bold text-brand-purple">\{LEDGER_TITLE_WORDS\}<\/h2>/);
 });
 
@@ -205,24 +206,25 @@ test('R2 the sixteen head words in Alex’s order; the cells each one fact: DAY 
 
 test('R3 the TOTAL row: colSpan the columns before BUDGET; VARIANCE the two totals’ difference only when both are known; UNDER / OVER its sign; MATCH blank; nothing summed from a blank', () => {
   const t = ledgerTotals(ledger.rows);
-  assert.deepEqual([t.budgetCents, t.actualCents, t.varianceCents], [7800, 6598, -1202], '$10 + $8 + $15 + $25 + $10 + $10 budgets; $8.98 + $30 + $12 + $5 + $10 actuals; the difference');
-  assert.equal(underOverWords(t.varianceCents), 'under');
-  assert.equal(varianceCellWords(t.varianceCents), '−$12.02');
+  // LEDGER-02 AMENDMENT (Alex, 2026-10-19): the column's sum — not the two totals' difference (which would be 6598 − 7800 = −1202).
+  assert.deepEqual([t.budgetCents, t.actualCents, t.varianceCents, t.withVariance], [7800, 6598, 598, 4], '$10 + $8 + $15 + $25 + $10 + $10 budgets; $8.98 + $30 + $12 + $5 + $10 actuals; −$1.02 + $5 + $2 + $0 over the 4 rows that carry both');
+  assert.equal(underOverWords(t.varianceCents), 'over');
+  assert.equal(varianceCellWords(t.varianceCents), '+$5.98');
   assert.equal(ledgerTotals([rowOf('r-yoga-12')]).varianceCents, null, 'an actual with no budget: null — the $5 is not a variance');
   assert.equal(ledgerTotals([rowOf('r-lunch-13')]).varianceCents, null, 'a budget with no actual: null');
   assert.equal(ledgerTotals([]).varianceCents, null);
   assert.equal(ledgerTotals([rowOf('r-coffee-11')]).varianceCents, 0, 'on plan: 0, "even"');
-  // The two totals' difference is NOT the sum of the rows' variances when a row lacks one — the rule says which it is.
+  // A shown set with one row lacking a budget: the VARIANCE total is the sum of the other rows' variances, NOT ACTUAL total − BUDGET total (amended).
   const mixed = ledgerTotals([rowOf('r-coffee-13'), rowOf('r-yoga-12')]);
-  assert.deepEqual([mixed.budgetCents, mixed.actualCents, mixed.varianceCents], [1000, 1398, 398], 'the yoga’s $5 is in the ACTUAL total and so in the difference, though its own row has no variance');
+  assert.deepEqual([mixed.budgetCents, mixed.actualCents, mixed.varianceCents, mixed.withVariance], [1000, 1398, -102, 1], 'the yoga’s $5 is in the ACTUAL total but not in the VARIANCE total — its row has no variance (1398 − 1000 = 398 is NOT the answer)');
   const s = code(SECTION);
   assert.match(s, /<th scope="row" colSpan=\{10\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/);
   assert.equal(LEDGER_HEAD_WORDS.indexOf('BUDGET'), 10, 'the colSpan is the columns before BUDGET');
-  inOrder(s, ['data-ledger-total>', 'data-ledger-total-budget>{budgetCellWords(totals.budgetCents)}', 'data-ledger-total-actual>{budgetCellWords(totals.actualCents)}</td>', "data-ledger-total-variance>{varianceCellWords(totals.varianceCents)}", '<td className={money} data-ledger-total-match />', 'data-ledger-total-under-over>{underOverWords(totals.varianceCents)}', '<td className={cell} data-ledger-total-notes />'], 'the TOTAL row’s cells, under their columns');
-  assert.match(s, /totals\.varianceCents === null \? '' : actualTone\(totals\.varianceCents > 0\)/, 'the sign’s tone');
+  inOrder(s, ['data-ledger-total>', 'data-ledger-total-budget>{budgetCellWords(totals.budgetCents)}', 'data-ledger-total-actual>{budgetCellWords(totals.actualCents)}</td>', "data-ledger-total-variance>{varianceCellWords(totals.varianceCents)}", 'data-ledger-total-match>{MATCH_CELL_WORDS}</td>', 'data-ledger-total-under-over>{underOverWords(totals.varianceCents)}', '<td className={cell} data-ledger-total-notes />'], 'the TOTAL row’s cells, under their columns');
+  assert.match(s, /const varianceTone = \(cents: number \| null\): string => \(cents === null \? BLANK_CLASS : actualTone\(cents > 0\)\);/, 'the sign’s tone (amended)');
   const tfoot = s.slice(s.indexOf('<tfoot>'), s.indexOf('</tfoot>'));
   assert.equal((tfoot.match(/<td\b/g) ?? []).length, 6, 'BUDGET · ACTUAL · VARIANCE · MATCH · UNDER / OVER · NOTES — six cells after the span of ten');
-  assert.doesNotMatch(tfoot, /totals\.words/, 'no delta words in the TOTAL row');
+  assert.doesNotMatch(tfoot, /totals\.words|totals\.over/, 'no delta words and no recorded-rows tone in the TOTAL row (amended: one truth per row)');
 });
 
 // ── R4 · THE SUMMARY ────────────────────────────────────────────────────────
@@ -237,7 +239,7 @@ test('R4 the summary: a seventh group, BOOK, after COA; rows with no book under 
   const byBook = ledgerSummary(ledger.rows, 'book');
   assert.deepEqual(byBook.map((g) => [g.key, g.label, g.days]), [['Business', 'Business', 1], ['no account', 'no account', 1], ['Personal', 'Personal', 3]], 'the words’ order (localeCompare, as the place and COA groups)');
   const personal = byBook[2];
-  assert.deepEqual([personal.totals.budgetCents, personal.totals.actualCents, personal.totals.varianceCents, personal.perDayCents], [5300, 3098, -2202, 1033], 'the same rule as every group (ledgerTotals)');
+  assert.deepEqual([personal.totals.budgetCents, personal.totals.actualCents, personal.totals.varianceCents, personal.totals.withVariance, personal.perDayCents], [5300, 3098, 98, 3, 1033], 'the same rule as every group (ledgerTotals): −$1.02 + $2 + $0 over the three Personal rows that carry both');
   assert.deepEqual([byBook[0].totals.budgetCents, byBook[0].totals.actualCents, byBook[0].totals.words], [2500, 3000, '▲ $5 over']);
   assert.deepEqual([byBook[1].totals.budgetCents, byBook[1].totals.actualCents, byBook[1].totals.varianceCents], [null, 500, null], 'no book, no budget — nothing summed from a blank');
   assert.deepEqual(SUMMARY_HEAD_WORDS, ['DAYS', 'BUDGET', 'ACTUAL', 'UNDER / OVER', 'ACTUAL PER RECORDED DAY', 'STARS'], 'the summary’s columns unchanged');
@@ -253,9 +255,10 @@ test('R4 the summary: a seventh group, BOOK, after COA; rows with no book under 
 test('R5 the rename: "Task ledger"; the Time row’s why and customer say "the task ledger"; the two-lists law’s messages say so; every comment in the reach carries a dated LEDGER-02 note, the history lines their words', () => {
   assert.equal(LEDGER_TITLE_WORDS, 'Task ledger');
   const time = TOOL_REGISTRY.find((t) => t.name === 'Time')!;
-  assert.equal(time.why, 'the day, narrated: every stop in clock order with its budget, its vendor, what it cost and the verdict, the journal, the caption and script for the reel, and the task ledger by city and account; nothing yet adds up where the hours went');
-  assert.equal(time.customer, 'You can see one day as a card — every stop with what it should cost and what it did, the journal, the caption and script for the day\'s reel — and the task ledger you logged by city and account; nothing yet adds up where your hours went.');
-  assert.doesNotMatch(`${time.why} ${time.customer}`, /ledger of every stop|city ledger/i);
+  // LEDGER-02 AMENDMENT (Alex, 2026-10-19): "the task ledger of every stop … by city, account and book" — "every stop" kept, the book added.
+  assert.equal(time.why, 'the day, narrated: every stop in clock order with its budget, its vendor, what it cost and the verdict, the journal, the caption and script for the reel, and the task ledger of every stop by city, account and book; nothing yet adds up where the hours went');
+  assert.equal(time.customer, 'You can see one day as a card — every stop with what it should cost and what it did, the journal, the caption and script for the day\'s reel — and the task ledger of every stop you logged by city, account and book; nothing yet adds up where your hours went.');
+  assert.doesNotMatch(`${time.why} ${time.customer}`, /the ledger of every stop|city ledger/i);
   assert.match(comments(REGISTRY), /LEDGER-02 \(Alex, 2026-10-19\): THE CITY LEDGER IS THE TASK LEDGER/);
   const law = code(LAW);
   assert.match(law, /the page is the day card and the task ledger \(TIME-01; TIME-02; LEDGER-02 renamed it\)/);
@@ -342,4 +345,75 @@ test('R7 nothing else: the route still answers ledgerOf’s rows whole; the said
   assert.match(s, /const shown = filterRows\(rows, filters\);\n\s*const totals = ledgerTotals\(shown\);\n\s*const groups = ledgerSummary\(shown, by\);/);
   assert.doesNotMatch(s, /\bfetch\s*\(|\/api\/|localStorage|sessionStorage|document\.cookie/, 'no fetch of its own, nothing stored');
   assert.match(s, /<ExpenseForm onWritten=/, 'the "+ expense" form stands');
+});
+
+// ── THE AMENDMENT (Alex, 2026-10-19): one marker, one truth, "every stop" ───
+
+test('A1 one marker: on screen every null cell prints "—" — VARIANCE, MATCH and UNDER / OVER as BOOK, ACCOUNT, ACCOUNT NAME, BUDGET and ACTUAL; the CSV keeps an empty field for each, through its own path', () => {
+  const yoga = rowOf('r-yoga-12');
+  assert.deepEqual([bookCellWords(yoga), accountCellWords(yoga), accountNameCellWords(yoga), varianceCellWords(yoga.varianceCents), MATCH_CELL_WORDS, underOverWords(yoga.varianceCents)], ['—', '—', '—', '—', '—', '—'], 'the one marker, six cells of a row with no line');
+  assert.equal(varianceCellWords(null), '—');
+  assert.equal(underOverWords(null), '—');
+  assert.equal(MATCH_CELL_WORDS, '—');
+  // The CSV of the same row: empty fields where the screen prints "—".
+  const line = ledgerCsv([yoga]).split('\r\n')[1];
+  assert.equal(line, 'Monday,2026-10-12,,,,,,Yoga,,2,,5.00,,,,', 'BOOK · ACCOUNT · ACCOUNT NAME · BUDGET · VARIANCE · MATCH · UNDER / OVER each an empty field');
+  assert.doesNotMatch(ledgerCsv(ledger.rows), /—/, 'no "—" anywhere in the file');
+  // The sign rule is one function the screen and the CSV both call; the CSV calls it directly, never a screen helper.
+  assert.deepEqual([varianceSignWords(-1), varianceSignWords(1), varianceSignWords(0)], ['under', 'over', 'even']);
+  const rules = code(RULES);
+  assert.match(rules, /export const underOverWords = \(varianceCents: number \| null\): string => \(varianceCents === null \? BLANK : varianceSignWords\(varianceCents\)\);/);
+  assert.match(rules, /export const varianceCellWords = \(cents: number \| null\): string => \(cents === null \? BLANK : /);
+  assert.match(rules, /export const MATCH_CELL_WORDS = BLANK;/);
+  const block = rules.slice(rules.indexOf('export function ledgerCsv'), rules.indexOf('export const EXPENSE_FIELDS'));
+  assert.match(block, /row\.varianceCents === null \? '' : varianceSignWords\(row\.varianceCents\),/, 'the CSV’s own null path for the sign');
+  assert.doesNotMatch(block, /underOverWords|varianceCellWords|bookCellWords|accountCellWords|accountNameCellWords|budgetCellWords|actualCellWords|BLANK/, 'the CSV never calls a screen helper');
+  // The section: the blank class on each of the three when null; the MATCH cell prints the one marker in every row and in the TOTAL row.
+  const s = code(SECTION);
+  assert.match(s, /row\.varianceCents === null \? BLANK_CLASS : `font-semibold \$\{actualTone\(delta\.over\)\}`\}`\} data-ledger-cell="variance"/);
+  assert.match(s, /row\.varianceCents === null \? BLANK_CLASS : actualTone\(delta\.over\)\}`\} data-ledger-cell="under-over"/);
+  assert.equal((s.match(/\{MATCH_CELL_WORDS\}/g) ?? []).length, 2, 'the MATCH cell and the MATCH total');
+  assert.doesNotMatch(s, /data-ledger-cell="match" \/>|data-ledger-total-match \/>/, 'no empty MATCH cell');
+});
+
+test('A2 one truth: the VARIANCE total is the column’s sum over the rows that carry both; the TOTAL row’s ACTUAL tone and UNDER / OVER follow its sign; over and words stay for the summary; the coverage is said under the table', () => {
+  const t = ledgerTotals(ledger.rows);
+  assert.deepEqual([t.varianceCents, t.withVariance], [598, 4], 'Σ over the 4 of 7 rows: −102 + 500 + 200 + 0');
+  assert.equal(t.varianceCents, ledger.rows.map((r) => r.varianceCents).filter((v): v is number => v !== null).reduce((sum, v) => sum + v, 0), 'the column’s sum, exactly');
+  assert.notEqual(t.varianceCents, (t.actualCents as number) - (t.budgetCents as number), 'NOT the two totals’ difference (−1202)');
+  assert.deepEqual([t.over, t.words], [true, '▲ $10.98 over'], 'the recorded-rows comparison stays as fields: $65.98 against the $55 budgeted on the rows that carry an actual (the yoga row has none) — a different figure from the column’s sum, which is why the TOTAL row prints only the one');
+  // One row lacking a budget: the sum of the others, not ACTUAL − BUDGET; the recorded-rows words can disagree with the sign and the TOTAL row no longer prints them.
+  const mixed = ledgerTotals([rowOf('r-coffee-13'), rowOf('r-yoga-12')]);
+  assert.deepEqual([mixed.varianceCents, mixed.withVariance, mixed.over, mixed.words], [-102, 1, true, '▲ $3.98 over'], 'the VARIANCE total says under (−$1.02) while the recorded-rows words say over — the row prints the one truth');
+  assert.equal(underOverWords(mixed.varianceCents), 'under');
+  const none = ledgerTotals([rowOf('r-yoga-12'), rowOf('r-lunch-13')]);
+  assert.deepEqual([none.budgetCents, none.actualCents, none.varianceCents, none.withVariance], [1500, 500, null, 0], 'a budget total and an actual total, but no row carries both: the VARIANCE total is null — "—", never 500 − 1500');
+  assert.equal(varianceCellWords(none.varianceCents), '—');
+  assert.equal(underOverWords(none.varianceCents), '—');
+  // The coverage words.
+  assert.equal(varianceCoverageWords(4, 7), 'VARIANCE totals the 4 of 7 rows that carry both a budget and an actual');
+  assert.equal(varianceCoverageWords(7, 7), 'VARIANCE totals all 7 rows');
+  assert.equal(varianceCoverageWords(1, 1), 'VARIANCE totals all 1 row');
+  assert.equal(varianceCoverageWords(0, 2), 'VARIANCE totals none of the 2 rows — no row carries both a budget and an actual');
+  assert.equal(varianceCoverageWords(0, 1), 'VARIANCE totals none of the 1 row — no row carries both a budget and an actual');
+  assert.throws(() => varianceCoverageWords(3, 2), /3 of 2 rows is no coverage/);
+  assert.throws(() => varianceCoverageWords(-1, 2), /is no coverage/);
+  // The section: the ACTUAL total toned by the variance's sign (not totals.over), the VARIANCE and UNDER / OVER totals by the same; the coverage line first under the table, only while rows are shown.
+  const s = code(SECTION);
+  assert.match(s, /data-ledger-total-actual>\{budgetCellWords\(totals\.actualCents\)\}<\/td>/);
+  assert.match(s, /className=\{`\$\{money\} \$\{totals\.actualCents === null \? BLANK_CLASS : totals\.varianceCents === null \? '' : varianceTone\(totals\.varianceCents\)\}`\} data-ledger-total-actual/, 'the ACTUAL total’s tone is the variance’s sign; no tone while the variance is unknown');
+  assert.match(s, /className=\{`\$\{money\} \$\{varianceTone\(totals\.varianceCents\)\}`\} data-ledger-total-variance>\{varianceCellWords\(totals\.varianceCents\)\}/);
+  assert.match(s, /className=\{`\$\{cell\} whitespace-nowrap \$\{varianceTone\(totals\.varianceCents\)\}`\} data-ledger-total-under-over>\{underOverWords\(totals\.varianceCents\)\}/);
+  const tfoot = s.slice(s.indexOf('<tfoot>'), s.indexOf('</tfoot>'));
+  assert.doesNotMatch(tfoot, /totals\.over|totals\.words|delta\b/, 'nothing in the TOTAL row from the recorded-rows comparison');
+  assert.match(s, /data-ledger-group-actual>\{budgetCellWords\(g\.totals\.actualCents\)\}/);
+  assert.match(s, /actualTone\(g\.totals\.over\)\}`\} data-ledger-group-words>\{g\.totals\.words\}/, 'the summary keeps printing its words, in their tone');
+  assert.match(s, /data-ledger-said>\n\s*\{shown\.length > 0 && <p data-ledger-said-variance>\{varianceCoverageWords\(totals\.withVariance, shown\.length\)\}<\/p>\}\n\s*<p data-ledger-said-match>\{MATCH_NOTE_WORDS\}<\/p>/, 'the coverage line, before the MATCH line');
+});
+
+test('A3 the registry words keep "every stop": the why and the customer line say "the task ledger of every stop … by city, account and book", the rest unchanged', () => {
+  const time = TOOL_REGISTRY.find((t) => t.name === 'Time')!;
+  assert.equal(time.why, 'the day, narrated: every stop in clock order with its budget, its vendor, what it cost and the verdict, the journal, the caption and script for the reel, and the task ledger of every stop by city, account and book; nothing yet adds up where the hours went');
+  assert.equal(time.customer, 'You can see one day as a card — every stop with what it should cost and what it did, the journal, the caption and script for the day\'s reel — and the task ledger of every stop you logged by city, account and book; nothing yet adds up where your hours went.');
+  assert.match(comments(REGISTRY), /the amendment\s*\n\s*\/\/ kept "every stop" and added the book/);
 });

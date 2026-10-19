@@ -40,6 +40,15 @@
  * SHOWN as ledger.ts ledgerCsv writes them, a Blob and an object URL (the shape
  * dashboard/GeneralLedger.tsx exports), named ledgerCsvFileName, the URL revoked
  * after the click; disabled, with the reason, when no row is shown.
+ *
+ * LEDGER-02 AMENDMENT (Alex, 2026-10-19): ONE MARKER — every null cell prints
+ * "—" (VARIANCE, MATCH and UNDER / OVER as the others; the CSV keeps its empty
+ * field). ONE TRUTH in the TOTAL row — its VARIANCE is the column's sum
+ * (ledgerTotals), and its ACTUAL tone and its UNDER / OVER follow that sign;
+ * nothing in the TOTAL row is toned from the recorded-rows comparison
+ * (totals.over, totals.words), which the summary's words still print. The
+ * coverage is said under the table, before the MATCH line
+ * (varianceCoverageWords: the n of m rows that carry both).
  */
 
 'use client';
@@ -53,11 +62,11 @@ import ExpenseForm from './ExpenseForm';
 import { announceDayWritten } from '../dayWritten';
 import {
   ALL_WORDS, BY_WORDS, CELL_WORDS, CSV_DOWNLOAD_WORDS, CSV_NO_ROWS_WORDS, EVERY_BOOK_WORDS, FILTER_KEYS, FILTER_WORDS, GROUP_KEYS, GROUP_WORDS, LEDGER_HEAD_WORDS, LEDGER_LOADING_WORDS,
-  LEDGER_TITLE_WORDS, MATCH_NOTE_WORDS, MONEY_HEAD_WORDS, NEXT_WORDS, NO_FILTERS, NO_FIRST_RECORD_WORDS, NO_ROWS_SHOWN_WORDS, PERIOD_KINDS, PERIOD_WORDS, PREVIOUS_WORDS, SUMMARY_HEAD_WORDS,
+  LEDGER_TITLE_WORDS, MATCH_CELL_WORDS, MATCH_NOTE_WORDS, MONEY_HEAD_WORDS, NEXT_WORDS, NO_FILTERS, NO_FIRST_RECORD_WORDS, NO_ROWS_SHOWN_WORDS, PERIOD_KINDS, PERIOD_WORDS, PREVIOUS_WORDS, SUMMARY_HEAD_WORDS,
   SUMMARY_TITLE_WORDS, TODAY_RULE_WORDS, TOTAL_WORDS,
   accountCellWords, accountNameCellWords, actualCellWords, averageStarsWords, bookCellWords, budgetCellWords, choicesOf, dayLongWords, daysWords, filterRows, firstRecordUnplacedWords, ledgerCsv,
   ledgerCsvFileName, ledgerSummary, ledgerTotals, leftOutWords, noLineWords, noRowsWords, noStayWords, notPlacedWords, notRecordedWords, noteCellWords, perDayWords, periodOf, periodWords,
-  starsCellWords, stepAnchor, underOverWords, unplacedWords, varianceCellWords, vendorCellWords,
+  starsCellWords, stepAnchor, underOverWords, unplacedWords, varianceCellWords, varianceCoverageWords, vendorCellWords,
   type FilterKey, type Filters, type GroupKey, type LedgerRow, type Period, type PeriodKind,
 } from '@/lib/operations/ledger';
 
@@ -70,6 +79,8 @@ const BLANK_CLASS = 'text-text-faint';
 
 /** The colour of an actual against its budget, as the card's: over red, under or on it green, no budget to compare muted. */
 const actualTone = (over: boolean | null): string => (over === null ? 'text-text-muted' : over ? 'text-brand-red' : 'text-brand-green');
+/** LEDGER-02 (amended): the tone of a variance — over red, under or even green; a null variance is a blank cell. */
+const varianceTone = (cents: number | null): string => (cents === null ? BLANK_CLASS : actualTone(cents > 0));
 
 export default function LedgerSection() {
   const [today, setToday] = useState<string | null>(null);
@@ -183,23 +194,23 @@ export default function LedgerSection() {
                         <td className={`${cell} whitespace-nowrap ${row.rating === null ? BLANK_CLASS : ''}`} data-ledger-cell="stars">{starsCellWords(row.rating)}</td>
                         <td className={`${money} ${row.cents === null ? BLANK_CLASS : 'font-semibold text-text-primary'}`} data-ledger-cell="budget">{budgetCellWords(row.cents)}</td>
                         <td className={`${money} ${row.outcome === 'skipped' ? 'text-text-muted' : row.actualCents === null ? BLANK_CLASS : `font-semibold ${actualTone(delta.over)}`}`} data-ledger-cell="actual">{actualCellWords(row)}</td>
-                        <td className={`${money} ${row.varianceCents === null ? '' : `font-semibold ${actualTone(delta.over)}`}`} data-ledger-cell="variance">{varianceCellWords(row.varianceCents)}</td>
-                        <td className={money} data-ledger-cell="match" />
-                        <td className={`${cell} whitespace-nowrap ${row.varianceCents === null ? '' : actualTone(delta.over)}`} data-ledger-cell="under-over">{underOverWords(row.varianceCents)}</td>
+                        <td className={`${money} ${row.varianceCents === null ? BLANK_CLASS : `font-semibold ${actualTone(delta.over)}`}`} data-ledger-cell="variance">{varianceCellWords(row.varianceCents)}</td>
+                        <td className={`${money} ${BLANK_CLASS}`} data-ledger-cell="match">{MATCH_CELL_WORDS}</td>
+                        <td className={`${cell} whitespace-nowrap ${row.varianceCents === null ? BLANK_CLASS : actualTone(delta.over)}`} data-ledger-cell="under-over">{underOverWords(row.varianceCents)}</td>
                         <td className={`${cell} ${row.note === null ? BLANK_CLASS : 'text-text-muted'}`} data-ledger-cell="notes">{noteCellWords(row.note)}</td>
                       </tr>
                     );
                   })}
                 </tbody>
                 <tfoot>
-                  {/* LEDGER-02: TOTAL spans the ten columns before BUDGET; VARIANCE and UNDER / OVER are the two totals' difference and its sign — blank, not 0, when either total is unknown. */}
+                  {/* LEDGER-02 (amended): TOTAL spans the ten columns before BUDGET; VARIANCE is the column's sum (ledgerTotals), and the ACTUAL tone and UNDER / OVER follow its sign — one truth per row; "—" when no row carries both. */}
                   <tr className="border-t border-border font-bold text-text-primary" data-ledger-total>
                     <th scope="row" colSpan={10} className={`${cell} text-left`}>{TOTAL_WORDS}</th>
                     <td className={`${money} ${totals.budgetCents === null ? BLANK_CLASS : ''}`} data-ledger-total-budget>{budgetCellWords(totals.budgetCents)}</td>
-                    <td className={`${money} ${totals.actualCents === null ? BLANK_CLASS : actualTone(totals.over)}`} data-ledger-total-actual>{budgetCellWords(totals.actualCents)}</td>
-                    <td className={`${money} ${totals.varianceCents === null ? '' : actualTone(totals.varianceCents > 0)}`} data-ledger-total-variance>{varianceCellWords(totals.varianceCents)}</td>
-                    <td className={money} data-ledger-total-match />
-                    <td className={`${cell} whitespace-nowrap ${totals.varianceCents === null ? '' : actualTone(totals.varianceCents > 0)}`} data-ledger-total-under-over>{underOverWords(totals.varianceCents)}</td>
+                    <td className={`${money} ${totals.actualCents === null ? BLANK_CLASS : totals.varianceCents === null ? '' : varianceTone(totals.varianceCents)}`} data-ledger-total-actual>{budgetCellWords(totals.actualCents)}</td>
+                    <td className={`${money} ${varianceTone(totals.varianceCents)}`} data-ledger-total-variance>{varianceCellWords(totals.varianceCents)}</td>
+                    <td className={`${money} ${BLANK_CLASS}`} data-ledger-total-match>{MATCH_CELL_WORDS}</td>
+                    <td className={`${cell} whitespace-nowrap ${varianceTone(totals.varianceCents)}`} data-ledger-total-under-over>{underOverWords(totals.varianceCents)}</td>
                     <td className={cell} data-ledger-total-notes />
                   </tr>
                 </tfoot>
@@ -207,6 +218,7 @@ export default function LedgerSection() {
             </div>
           )}
           <div className="text-xs text-text-muted space-y-0.5" data-ledger-said>
+            {shown.length > 0 && <p data-ledger-said-variance>{varianceCoverageWords(totals.withVariance, shown.length)}</p>}
             <p data-ledger-said-match>{MATCH_NOTE_WORDS}</p>
             <p data-ledger-said-no-line>{noLineWords(answer.read.value.said.noLine, answer.read.value.said.doubled)}</p>
             <p data-ledger-said-no-stay>{noStayWords(answer.read.value.said.noStay)}</p>
