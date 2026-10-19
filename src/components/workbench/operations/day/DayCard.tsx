@@ -224,7 +224,7 @@ import {
   answersOf, auditPromptText, auditPromptWaitsWords, goalWords, journalInput, lastNightWords, noJournalWords, planDoneWords, planStepWords, todayStepsWords, yesterdayStepsWords,
   type Answers, type AuditPromptState, type YesterdayForPrompt,
 } from '@/lib/operations/journal';
-import { SKIPPED_WORD, starsWords, type StopRecordPlan, type StopRecordRow } from '@/lib/operations/stopRecord';
+import { DONE_WORD, NOT_RECORDED_WORDS, SKIPPED_WORD, starsWords, type StopRecordPlan, type StopRecordRow } from '@/lib/operations/stopRecord';
 import { ALSO_TODAY_WORDS, allDayBandWords, allDayCentsWords } from '@/lib/operations/stopRole';
 import { readDayReport, readJournal, readStays, readStopRecords, type JournalAnswer, type StaysAnswer, type StopRecordsAnswer } from './dayReads';
 import {
@@ -233,7 +233,7 @@ import {
   recordsUnplacedWords, recordsWithoutStopHead, routineFigureWords, rowActualWords, planSoFarWords, stepHeaderWords,
   barsWhyWords, PLATE_PADDING_X, PLATE_WIDTH, overByWords,
   unmatchedWords, vendorSlot, whereWords,
-  dayShortWords,
+  asksAmount, dayShortWords,
   ACTUAL_HEAD_WORD, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, TIME_HEAD_WORD, VENDOR_HEAD_WORD, intervalWords, openStepWords,
   CELL_GAP, COLUMN_WIDTHS, dayMeter, dayVerdict,
   TOTAL_WORD, dayTotals, planBeyondStopsWords,
@@ -763,13 +763,17 @@ export default function DayCard() {
   // in the table's order with the card's BUDGET and ACTUAL words for it (rowActualWords — the row's own delta; a skipped stop "skipped", an
   // unrecorded one "—", as the card names them), the TOTAL row's two figures and the verdict as the card says it. Offered only once every
   // read is in (the gating "copy script" uses: reelReadsWords); nothing paid, nothing leaves the browser but the clipboard (EveningForm.tsx).
+  // REEL-02 (Alex, 2026-10-19): money only for a stop whose form asks it (asksAmount — the card's own rule): the others hand the rule their
+  // name and their outcome in the card's own words (DONE_WORD · SKIPPED_WORD · NOT_RECORDED_WORDS) and no budget or actual words at all.
   const auditWait = reelReadsWords(reelReads);
   const auditPrompt: AuditPromptState = auditWait !== null
     ? { ok: false, words: auditPromptWaitsWords(auditWait) }
     : { ok: true, text: auditPromptText({
       dayWords: dayShortWords(day),
       journal: reelJournal,
-      stops: result.stops.map((s) => ({ name: stopName(s), vendor: s.vendor, budgetWords: factOf(s.cents === null ? null : planDollars(s.cents)), actualWords: s.status === 'skipped' ? SKIPPED_WORD : s.actualCents === null ? factOf(null) : rowActualWords(s.actualCents, s.cents) })),
+      stops: result.stops.map((s) => (asksAmount(s.role)
+        ? { name: stopName(s), vendor: s.vendor, asksAmount: true, budgetWords: factOf(s.cents === null ? null : planDollars(s.cents)), actualWords: s.status === 'skipped' ? SKIPPED_WORD : s.actualCents === null ? factOf(null) : rowActualWords(s.actualCents, s.cents) }
+        : { name: stopName(s), vendor: s.vendor, asksAmount: false, outcomeWords: s.status === 'done' ? DONE_WORD : s.status === 'skipped' ? SKIPPED_WORD : NOT_RECORDED_WORDS })),
       budgetWords: factOf(totals.budgetCents === null ? null : planDollars(totals.budgetCents)),
       actualWords: factOf(totals.actualCents === null ? null : planDollars(totals.actualCents)),
       verdictWords: verdict === null ? null : verdict.text,

@@ -43,6 +43,14 @@
  * row as held (JOURNAL-04b); the morning's clear clears both. The words are
  * all here.
  *
+ * REEL-02 (Alex, 2026-10-19) — THE AUDIT PROMPT PRINTS MONEY ONLY FOR A STOP
+ * THAT ASKS IT. AuditPromptStop carries `asksAmount`, set by the card from its
+ * own rule (day/dayCard.ts asksAmount — this file imports nothing of the card):
+ * a stop that asks an amount prints its budget and actual as before; one that
+ * asks none (plan · execute · journal · all_day) prints its name and its
+ * outcome in the card's own words — done, skipped, not recorded — no budget,
+ * no actual.
+ *
  * RETIRED 2026-10-13 (JOURNAL-02): adjustment, one_thing, witness, plan_1_if …
  * plan_3_then, obstacle_if, obstacle_then; 2026-10-15 (JOURNAL-03): shipped.
  * Not asked, not shown and never written. KEPT in the table with the words
@@ -589,13 +597,15 @@ export const AUDIT_PROMPT_ASK = 'Audit this day. In order: what got done against
 /** "✓ merge TABLE-01" · "✗ post the reel" — a step with its tick. */
 export const auditStepWords = (step: string, done: boolean): string => `${done ? '✓' : '✗'} ${step}`;
 
-/** One stop as the card words it: its name, its vendor when known, its BUDGET cell and its ACTUAL cell (the row's own delta; "skipped" and "—" as the card names a skipped and an unrecorded stop). */
-export interface AuditPromptStop {
-  readonly name: string;
-  readonly vendor: string | null;
-  readonly budgetWords: string;
-  readonly actualWords: string;
-}
+/**
+ * One stop as the card words it: its name, its vendor when known, and — REEL-02 (Alex, 2026-10-19) — by whether its form asks an amount
+ * (the card's own rule, day/dayCard.ts asksAmount, decided by the card): its BUDGET cell and its ACTUAL cell (the row's own delta; "skipped"
+ * and "—" as the card names a skipped and an unrecorded stop), or, when it asks none, its OUTCOME in the card's own words (done · skipped ·
+ * not recorded) and no money words at all.
+ */
+export type AuditPromptStop =
+  | { readonly name: string; readonly vendor: string | null; readonly asksAmount: true; readonly budgetWords: string; readonly actualWords: string }
+  | { readonly name: string; readonly vendor: string | null; readonly asksAmount: false; readonly outcomeWords: string };
 /** What the audit prompt is made from — the card's OWN reads and words, handed in by DayCard.tsx; nothing else. */
 export interface AuditPromptInput {
   readonly dayWords: string;
@@ -612,16 +622,18 @@ export interface AuditPromptInput {
 /** The prompt as the evening form holds it: the text, or why it is not offered yet. */
 export type AuditPromptState = { readonly ok: true; readonly text: string } | { readonly ok: false; readonly words: string };
 
-/** "- Brunch at Luka Café — budget $25, actual $22 ▼ $3" — one stop's line. */
-export const auditStopWords = (s: AuditPromptStop): string => `- ${s.name}${s.vendor === null ? '' : ` at ${s.vendor}`} — budget ${s.budgetWords}, actual ${s.actualWords}`;
+/** "- Brunch at Luka Café — budget $25, actual $22 ▼ $3" — one stop's line; a stop that asks no amount: "- Co-working — done" (REEL-02). */
+export const auditStopWords = (s: AuditPromptStop): string =>
+  `- ${s.name}${s.vendor === null ? '' : ` at ${s.vendor}`} — ${s.asksAmount ? `budget ${s.budgetWords}, actual ${s.actualWords}` : s.outcomeWords}`;
 /** "budget $284, actual $277.38, ▼ $6.62 under" — the totals line; no verdict words when the card shows none. */
 export const auditTotalsWords = (budgetWords: string, actualWords: string, verdictWords: string | null): string =>
   `budget ${budgetWords}, actual ${actualWords}${verdictWords === null ? '' : `, ${verdictWords}`}`;
 
 /**
  * The audit prompt, exactly: every line a constant or built from one — the day, the goals (or none typed), the blocker (or none),
- * the plan's steps with their ticks (or no plan), the stops with their budget and actual in clock order (or no stops), the totals
- * with the verdict, then the ask. Pure; from the card's own reads and words, nothing invented, nothing filled in.
+ * the plan's steps with their ticks (or no plan), the stops in clock order — each with its budget and actual, or (REEL-02) its outcome
+ * alone when its form asks no amount — (or no stops), the totals with the verdict, then the ask. Pure; from the card's own reads and
+ * words, nothing invented, nothing filled in.
  */
 export function auditPromptText(input: AuditPromptInput): string {
   const j = input.journal;

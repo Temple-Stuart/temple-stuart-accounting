@@ -1073,6 +1073,8 @@ export const planBeyondStopsWords = (cents: number): string =>
   `${planDollars(Math.abs(cents))} ${cents > 0 ? 'more' : 'less'} planned off the table (all day / no stop)`;
 
 // ── REEL-01 (Alex, 2026-10-15): THE REEL KIT — A TAG PER STOP, THE CAPTION, THE SCRIPT ──
+// REEL-02 (Alex, 2026-10-19): "Tomorrow:" — the evening's `next` ends the script and closes the caption before the tags (TOMORROW_WORDS).
+// The reel reads goals, blocker and next; learned and audit are never read here.
 //
 // Alex posts a daily reel built on this card: one bold tag per scene, the full card as the receipt at the end,
 // a caption and a narration he used to type by hand. Each is made here by one pure rule from the card's OWN
@@ -1195,12 +1197,23 @@ export interface ReelDay {
   readonly totals: DayTotals;
   /** The card's verdict (dayVerdict on the TOTAL row's BUDGET); null when the card shows none. */
   readonly verdict: DeltaWords | null;
-  /** The day's journal answers when the card read them; null when none was typed, or the day has no journal stop (the card reads none). */
-  readonly journal: Pick<Answers, 'goals' | 'blocker'> | null;
+  /**
+   * The day's journal answers when the card read them; null when none was typed, or the day has no journal stop (the card reads none).
+   * REEL-02 (Alex, 2026-10-19): `next` too — the evening's "where do I want to take it next?", the script's cliffhanger and the
+   * caption's line before the tags. `learned` and `audit` are NOT here: they are Alex's, and the reel never reads them.
+   */
+  readonly journal: Pick<Answers, 'goals' | 'blocker' | 'next'> | null;
 }
 
 export const CAPTION_PLAN_HEAD_WORDS = 'Today’s plan:';
 export const captionBlockerWords = (blocker: string): string => `Blocker: ${blocker}`;
+/**
+ * REEL-02 (Alex, 2026-10-19): the forward guidance. The reel is a daily earnings report — the plan, each stop, the tally, then
+ * where it goes next: the evening's `next`, one line typed at night, is the script's LAST block (the cliffhanger) and the caption's
+ * last section BEFORE the tags. One constant, both texts; nothing when the journal has no `next` — the texts are then as REEL-01 left them.
+ */
+export const TOMORROW_WORDS = 'Tomorrow:';
+export const tomorrowWords = (next: string): string => `${TOMORROW_WORDS} ${next}`;
 export const CAPTION_POINT_WORDS = '👇';
 export const CAPTION_STAR_WORDS = '⭐️';
 export const SKIPPED_TAIL_WORDS = ': skipped';
@@ -1241,7 +1254,8 @@ const knownDelta = (s: Stop): string | null => {
  * goals and blocker when the card read a journal; one block per stop that has a
  * record and shows a budget or an actual, in the table's order (tasks and the
  * journal stop left out — never shown as $0); the totals and the card's verdict;
- * the tags. Sections are separated by a blank line. No covering stay → no caption.
+ * REEL-02 (2026-10-19): "Tomorrow: <next>" when the journal carries a `next`;
+ * the tags, last. Sections are separated by a blank line. No covering stay → no caption.
  */
 export function captionText(d: ReelDay): ReelText {
   if (d.stay === null) return { ok: false, words: noStayReelWords(d.day) };
@@ -1264,6 +1278,7 @@ export function captionText(d: ReelDay): ReelText {
     sections.push(block);
   }
   sections.push([`Total budget: ${planDollars(d.totals.budgetCents)}`, `Spent: ${planDollars(d.totals.actualCents)}`, ...(d.verdict !== null ? [d.verdict.text] : [])]);
+  if (d.journal !== null && d.journal.next !== null) sections.push([tomorrowWords(d.journal.next)]);
   sections.push([captionTags(d.stay.place).join(' ')]);
   return { ok: true, text: sections.map((lines) => lines.join('\n')).join('\n\n') };
 }
@@ -1307,6 +1322,8 @@ export function stopScriptText(day: string, stay: StayRow | null, stop: Stop): R
  * scene per stop that shows a budget or an actual, in the table's order; the
  * outro on the TOTAL row and the card's verdict. Until the day is fully recorded
  * (the card shows no verdict) the tally and the verdict are blanks to fill.
+ * REEL-02 (2026-10-19): then, when the journal carries a `next`, one last block —
+ * "Tomorrow: <next>", the cliffhanger; the outro's own last sentence is unchanged.
  */
 export function scriptText(d: ReelDay): ReelText {
   if (d.stay === null) return { ok: false, words: noStayReelWords(d.day) };
@@ -1323,6 +1340,7 @@ export function scriptText(d: ReelDay): ReelText {
   for (const s of d.stops) if (s.cents !== null || s.actualCents !== null) blocks.push(stopSceneLines(s));
   const tally = d.verdict === null ? SCRIPT_BLANKS.actual : planDollars(d.totals.actualCents);
   blocks.push([`Final tally: ${tally} out of ${budget}. ${d.verdict === null ? SCRIPT_BLANKS.verdict : d.verdict.text}. Day ${at.n} of ${at.of}, done.`]);
+  if (d.journal !== null && d.journal.next !== null) blocks.push([tomorrowWords(d.journal.next)]);
   return { ok: true, text: blocks.map((lines) => lines.join('\n')).join('\n\n') };
 }
 
