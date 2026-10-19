@@ -14,6 +14,16 @@
  *     pre-image and `after` is this write's own answer; a new row that races a
  *     second create meets the UNIQUE (user_id, day) and is answered 409 too.
  *     Audited operations_journal_set (before → after) after the write.
+ *     JOURNAL-04 (Alex, 2026-10-19): the row is SEVEN answers since this
+ *     ruling — the morning's four and the evening's audit, learned and next
+ *     (journal.ts ANSWER_FIELDS). No code here changed: PUT writes Answers
+ *     whole (`data: answers`; the create spreads them) and GET answers
+ *     journalRowOf, so a PUT carrying the three stores them and a PUT WITHOUT
+ *     them stores NULL for them — which is why JOURNAL-05's cards must each
+ *     send the whole row as held (decision 6): a body of the morning's four
+ *     alone clears an evening typed before — and the plate's tick sends the
+ *     four by name today (DayCard.tsx), so JOURNAL-05 must change it too.
+ *     journal04.test.ts drives it.
  *
  * The caller's own rows only: the verified cookie, then the user, then every
  * query by user_id (the auth shape of src/app/api/operations/stops/route.ts).

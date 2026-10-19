@@ -234,8 +234,10 @@ test('T4 the window may cross midnight: the create route and the PATCH refuse on
 
 test('T5 the audit type: the enum value last, the one ADD VALUE line applied at deploy, the client knows it, the audit log lists it; the one-off law names the plan as an anchored caller', () => {
   const dirs = readdirSync(resolve(process.cwd(), 'prisma/migrations')).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 1], MIGRATION_DIR, 'the newest migration');
-  assert.equal(dirs[dirs.length - 2], '20261018120000_routine_02b_rekeyed_audit_type');
+  // JOURNAL-04 (2026-10-19): the evening answers' migration followed (the newest); the order below moved by one.
+  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the migration before the newest (JOURNAL-04 followed)');
+  assert.equal(dirs[dirs.length - 1], '20261019210000_journal_04_evening_answers', 'the newest migration');
+  assert.equal(dirs[dirs.length - 3], '20261018120000_routine_02b_rekeyed_audit_type');
   const sql = code(MIGRATION);
   assert.equal(sql.trim(), `ALTER TYPE "AuditActionType" ADD VALUE IF NOT EXISTS 'operations_routines_moved';`, 'the one line and nothing else');
   assert.match(comments(MIGRATION), /applied at deploy/);

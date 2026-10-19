@@ -275,11 +275,13 @@ test('T5 the audit type: the enum value last, the one ADD VALUE line applied at 
   assert.match(comments(SCHEMA), /RETRO-01 \(Alex, 2026-10-16\): a stop's record moved/);
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
   // ROUTINE-02b (2026-10-18): one more audit-type migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 3], MIGRATION_DIR, 'the migration before the newest (ROUTINE-02b followed)');
+  assert.equal(dirs[dirs.length - 4], MIGRATION_DIR, 'the migration before the newest (ROUTINE-02b followed)');
   // MOVE-01 (2026-10-19): one more audit-type migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 2], '20261018120000_routine_02b_rekeyed_audit_type', 'the migration before the newest (MOVE-01 followed)');
-  assert.equal(dirs[dirs.length - 1], '20261019090000_move_01_moved_audit_type', 'the newest migration');
-  assert.equal(dirs[dirs.length - 4], '20261014090000_tasks_one_02_completion_audit_types');
+  assert.equal(dirs[dirs.length - 3], '20261018120000_routine_02b_rekeyed_audit_type', 'the migration before the newest (MOVE-01 followed)');
+  // JOURNAL-04 (2026-10-19): the evening answers' migration followed (the newest); the order below moved by one.
+  assert.equal(dirs[dirs.length - 2], '20261019090000_move_01_moved_audit_type', 'the migration before the newest (JOURNAL-04 followed)');
+  assert.equal(dirs[dirs.length - 1], '20261019210000_journal_04_evening_answers', 'the newest migration');
+  assert.equal(dirs[dirs.length - 5], '20261014090000_tasks_one_02_completion_audit_types');
   const ops = code(AUDIT_LOG).slice(code(AUDIT_LOG).indexOf('operations_: ['));
   // ROUTINE-02b (2026-10-18): the rekeyed type follows the stop-moved type in the list.
   // MOVE-01 (2026-10-19): the moved type follows the rekeyed type in the list.

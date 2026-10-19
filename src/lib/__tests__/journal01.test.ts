@@ -145,7 +145,8 @@ test('T1 journalInput: the body, the day, each answer trimmed and collapsed; not
   for (const bad of ['2026-13-01', '2026-02-30', 'today', '2026-9-3', '', undefined]) assert.deepEqual(refused({ day: bad, blocker: 'x' }), { field: 'day', message: dayWords(bad) });
   const a = accepted({ day: DAY, blocker: '  ship   the\tPR ' });
   assert.equal(a.blocker, 'ship the PR', 'trimmed, runs of whitespace one space');
-  assert.deepEqual(Object.keys(a), [...ANSWER_FIELDS], 'the four answers, in the plate’s order — and nothing else');
+  // JOURNAL-04 (2026-10-19): seven answers — the evening's three joined, after the four; the keys are still ANSWER_FIELDS and nothing else.
+  assert.deepEqual(Object.keys(a), [...ANSWER_FIELDS], 'the seven answers, in ANSWER_FIELDS’ order — and nothing else');
   assert.deepEqual([a.goals, a.plan_steps, a.plan_done], [[], [], []], 'absent lists are empty');
   // JOURNAL-03 (2026-10-15): the absent and null text pins moved from shipped (retired) to blocker; a shipped null is carried, so refused.
   assert.equal(accepted({ day: DAY, goals: ['g'] }).blocker, null, 'an absent text null — never ""');
@@ -194,7 +195,8 @@ test('T1 journalInput: an answer that is nothing visible is unanswered; the leng
   assert.deepEqual(refused({ day: DAY, blocker: '😀'.repeat(281) }), { field: 'blocker', message: tooLongWords('blocker', 281) }, 'counted in code points');
   // JOURNAL-03 (2026-10-15): shipped's 500 left ANSWER_MAX with END OF DAY — a shipped of any length is refused as retired, before its length.
   assert.deepEqual(refused({ day: DAY, shipped: 'x'.repeat(501) }), { field: 'shipped', message: retiredFieldWords('shipped') });
-  assert.deepEqual(ANSWER_MAX, { blocker: 280 }, 'the one text answer; JOURNAL_01_COLUMNS keeps the retired columns’ lengths for the migration’s pins');
+  // JOURNAL-04 (2026-10-19): the evening's three joined ANSWER_MAX — learned's and next's 500 are column lengths, audit's 4000 the rule's own cap (journal04.test.ts).
+  assert.deepEqual(ANSWER_MAX, { blocker: 280, audit: 4000, learned: 500, next: 500 }, 'the four text answers; JOURNAL_01_COLUMNS keeps the retired columns’ lengths for the migration’s pins');
 });
 
 // JOURNAL-02 (2026-10-13): the "if … then …" pairs and the obstacle are RETIRED — never read from a body, so a pair is no longer refused
@@ -306,13 +308,15 @@ test('T3 the migration: the table column for column, the UNIQUE named, four pair
   // TASKS-ONE-02 (2026-10-14): the completion audit types' migration is newer still — every index moved one; the order holds.
   // RETRO-01 (Alex, 2026-10-16): the stop-moved audit type's migration is newer still — every index moved one; the order holds.
   // ROUTINE-02b (2026-10-18): one more audit-type migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 6], MIGRATION_DIR, 'the migration four before the newest (JOURNAL-02, TASKS-ONE-02, then RETRO-01, ROUTINE-02b followed)');
-  assert.equal(dirs[dirs.length - 5], '20261013200000_journal_02_the_simple_journal');
-  assert.equal(dirs[dirs.length - 4], '20261014090000_tasks_one_02_completion_audit_types');
-  assert.equal(dirs[dirs.length - 3], '20261016120000_retro_01_stop_moved_audit_type', 'the migration before the newest (ROUTINE-02b followed)');
+  assert.equal(dirs[dirs.length - 7], MIGRATION_DIR, 'the migration four before the newest (JOURNAL-02, TASKS-ONE-02, then RETRO-01, ROUTINE-02b followed)');
+  assert.equal(dirs[dirs.length - 6], '20261013200000_journal_02_the_simple_journal');
+  assert.equal(dirs[dirs.length - 5], '20261014090000_tasks_one_02_completion_audit_types');
+  assert.equal(dirs[dirs.length - 4], '20261016120000_retro_01_stop_moved_audit_type', 'the migration before the newest (ROUTINE-02b followed)');
   // MOVE-01 (2026-10-19): one more audit-type migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 2], '20261018120000_routine_02b_rekeyed_audit_type', 'the migration before the newest (MOVE-01 followed)');
-  assert.equal(dirs[dirs.length - 1], '20261019090000_move_01_moved_audit_type', 'the newest migration');
+  assert.equal(dirs[dirs.length - 3], '20261018120000_routine_02b_rekeyed_audit_type', 'the migration before the newest (MOVE-01 followed)');
+  // JOURNAL-04 (2026-10-19): the evening answers' migration followed (the newest); the order below moved by one.
+  assert.equal(dirs[dirs.length - 2], '20261019090000_move_01_moved_audit_type', 'the migration before the newest (JOURNAL-04 followed)');
+  assert.equal(dirs[dirs.length - 1], '20261019210000_journal_04_evening_answers', 'the newest migration');
   assert.ok(MIGRATION_DIR.slice(0, 14) > '20261013030000', 'after ROLE-01’s');
 });
 
