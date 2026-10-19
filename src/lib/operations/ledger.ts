@@ -1,18 +1,19 @@
 /**
- * ledger — THE CITY LEDGER'S RULES, PURE (LEDGER-01, Alex, 2026-10-16).
+ * ledger — THE TASK LEDGER'S RULES, PURE (LEDGER-01, Alex, 2026-10-16: the city ledger; LEDGER-02, Alex, 2026-10-19: renamed — it is a task ledger).
  *
  * Every day Alex records each stop — the vendor, the stars, a note, the budget
  * and the actual — in a city. The ledger is one table that keeps all of it:
  * one row per stop record in a period, filterable by city, country and COA,
- * with the totals and a summary over time and by place, so the most affordable
+ * with the totals and a summary over time, by place and (LEDGER-02) by book, so the most affordable
  * city is read from real data at the end of the trip.
  *
  * NOTHING NEW IS COMPUTED THAT THE DAY CARD DOES NOT ALREADY SHOW. A row's
  * BUDGET is the Budget's line matched to the record by the card's own key
  * (day/dayCard.ts matchLine: the exact instant, one line); its VENDOR the
  * matched line's, by the plan's one grain (budget/planLines.ts dayPlanOf);
- * its DESCRIPTION the card's bold name (stopName); its ACTUAL the row's words
- * (rowActualWords, the delta's tone); its DATE the record's local day by the
+ * its DESCRIPTION the card's bold name (stopName); its ACTUAL the amount alone
+ * since LEDGER-02 (planDollars; until then the row's words, rowActualWords —
+ * the delta is the VARIANCE column's now); its DATE the record's local day by the
  * stops GET's placing (the routine's own zone, instantToZoned); its CITY and
  * COUNTRY the covering stay's place through the one split (stay.ts
  * placeParts). The TOTAL row and every summary group are the card's TOTAL-row
@@ -31,14 +32,38 @@
  * every total, counted by role under the table (said.leftOut). The priced
  * stops past with no record are counted by the same rule.
  *
+ * LEDGER-02 (Alex, 2026-10-19) — A REAL DATA TABLE. "It's really a Task Ledger,
+ * not a City Ledger." Sixteen columns, one fact each, in Alex's order: DAY ·
+ * DATE · CITY · COUNTRY · BOOK · ACCOUNT · ACCOUNT NAME · DESCRIPTION · VENDOR ·
+ * STARS · BUDGET · ACTUAL · VARIANCE · MATCH · UNDER / OVER · NOTES. The row
+ * gains two fields: `book` (the matched line's book as a word — Personal,
+ * Business, Trading — from the same map accountString.ts draws the letter
+ * from; null when no line matched) and `varianceCents` (actual − budget when
+ * both are known, else null — never 0 for a blank). UNDER / OVER is the sign of
+ * varianceCents, printed by the section. MATCH is the amount the books hold —
+ * LEDGER-03's; here a column with nothing in it, said under the table. The
+ * ACTUAL cell is the amount alone now (the delta moved to its own column). The
+ * summary gains a BOOK group; ledgerCsv writes the rows shown as a CSV (RFC
+ * 4180, CRLF, UTF-8 with no BOM) for a spreadsheet.
+ *
+ * LEDGER-02 AMENDMENT (Alex, 2026-10-19) — ONE MARKER, ONE TRUTH. On screen
+ * every null cell prints BLANK ("—"): VARIANCE, MATCH and UNDER / OVER too; the
+ * CSV keeps an EMPTY field for a null, through its own path (csvMoney, the sign
+ * rule called directly), never the screen helpers' words. The VARIANCE total is
+ * the COLUMN'S SUM — Σ varianceCents over the rows that carry both figures, null
+ * when none does (withVariance counts them) — and the TOTAL row's tone and its
+ * UNDER / OVER follow that sign; `over` and `words` (the recorded-rows
+ * comparison the day card makes) stay as fields for the summary's words. The
+ * coverage is said under the table (varianceCoverageWords).
+ *
  * Here: the rule (ledgerOf — the route's pure half), the period (periodOf,
  * stepAnchor, the 400-day cap), the filters, the totals and the summary (the
- * screen's pure half), the "+ expense" form's rule and bodies (RETRO-01, at the
- * end), and the words. No fetch, no Prisma, no React; the clock is handed in
- * (now). The tests drive every rule.
+ * screen's pure half), the CSV (ledgerCsv, LEDGER-02), the "+ expense" form's
+ * rule and bodies (RETRO-01, at the end), and the words. No fetch, no Prisma, no
+ * React; the clock is handed in (now). The tests drive every rule.
  */
 import { centsFromDecimalString, isIsoDay, readOccurrenceKey, type NotPlaced } from '@/lib/budget/days';
-import { BLANK } from '@/lib/budget/format';
+import { BLANK, formatCents } from '@/lib/budget/format';
 import type { BudgetLine } from '@/lib/budget/report';
 import { dayPlanOf, type PlanLine, type PlanVendorRow, type RoutineWords } from '@/lib/budget/planLines';
 import { shiftDay } from '@/lib/budget/reportView';
@@ -46,7 +71,7 @@ import { deriveAccountString } from '@/lib/accountString';
 import { coveringStay, placeParts, type PlaceParts, type StayRow } from '@/lib/operations/stay';
 import { NEGATIVE_AMOUNT_WORDS, SKIPPED_WORD, amountWords, recordKey, refusedWords, type StopOutcome, type StopRecordRow } from '@/lib/operations/stopRecord';
 import { ROLE_SHORT_WORDS, isStop, isStopRole, type StopRole } from '@/lib/operations/stopRole';
-import { asksAmount, dayShortWords, dayTotals, deltaWords, planDollars, rowActualWords, stopName } from '@/components/workbench/operations/day/dayCard';
+import { asksAmount, dayShortWords, dayTotals, deltaWords, planDollars, stopName } from '@/components/workbench/operations/day/dayCard';
 import { instantToZoned, zonedToInstant } from '@/lib/time';
 import type { RoutineForm } from '@/components/workbench/operations/routines/types';
 import type { StopBody } from '@/components/workbench/operations/stops/stopWrites';
@@ -77,6 +102,16 @@ export interface LedgerAccount {
 export interface LedgerBook {
   readonly id: string;
   readonly entityType: string;
+}
+
+/** LEDGER-02: the book as a word, from the entity type — the same map accountString.ts draws the letter from (ENTITY_LETTER: personal P, sole_prop B, trading T). */
+export const BOOK_WORDS = { personal: 'Personal', sole_prop: 'Business', trading: 'Trading' } as const;
+export type BookWord = (typeof BOOK_WORDS)[keyof typeof BOOK_WORDS];
+/** An entity type outside the three is the database's error — thrown by name, never mapped to a guess. */
+export function bookWordOf(entityType: string): BookWord {
+  const word = (BOOK_WORDS as Readonly<Record<string, BookWord | undefined>>)[entityType];
+  if (word === undefined) throw new Error(`ledger: entity type ${JSON.stringify(entityType)} is not one of personal, sole_prop, trading — no book word for it`);
+  return word;
 }
 
 export interface LedgerInput {
@@ -122,6 +157,8 @@ export interface LedgerRow {
   readonly time: string | null;
   /** The covering stay's place, split; null when no stay covers the day. */
   readonly place: PlaceParts | null;
+  /** LEDGER-02: the matched line's book as a word; null when no line matched. */
+  readonly book: BookWord | null;
   readonly coa: LedgerCoa | null;
   readonly vendor: string | null;
   readonly description: string;
@@ -132,6 +169,8 @@ export interface LedgerRow {
   readonly budgetState: BudgetState;
   readonly outcome: StopOutcome;
   readonly actualCents: number | null;
+  /** LEDGER-02: actualCents − cents when both are known; null otherwise — never 0 for a blank. */
+  readonly varianceCents: number | null;
 }
 
 export interface LedgerSaid {
@@ -233,27 +272,35 @@ export function ledgerOf(input: LedgerInput): Ledger {
     const line = exact.length === 1 ? exact[0] : null;
     const budgetState: BudgetState = exact.length === 1 ? 'matched' : exact.length > 1 ? 'doubled' : 'none';
     let coa: LedgerCoa | null = null;
+    let bookWord: BookWord | null = null;
     if (line !== null) {
       const book = books.get(line.entityId);
       if (book === undefined) throw new Error(`ledger: line ${key} is on entity ${line.entityId}, which is not one of the user's books`);
       coa = { account: deriveAccountString({ entityType: book.entityType, code: line.code }), name: names.get(`${line.entityId}:${line.code}`) ?? null };
+      // LEDGER-02: the book as a word, from the same entity type the letter is drawn from.
+      bookWord = bookWordOf(book.entityType);
     }
     const stay = coveringStay(input.stays, day);
+    const cents = line === null ? null : line.cents;
+    const actualCents = r.record.actual_cents;
     return {
       id: r.record.id,
       key,
       day,
       time: r.timeOfDay !== null ? r.timeOfDay : time,
       place: stay === null ? null : placeParts(stay.place),
+      book: bookWord,
       coa,
       vendor: line !== null && line.vendor !== null ? line.vendor.name : null,
       description: line !== null ? stopName({ line: line.line, label: line.label }) : stopName({ line: r.activity, label: r.routineName }),
       rating: r.record.rating,
       note: r.record.note,
-      cents: line === null ? null : line.cents,
+      cents,
       budgetState,
       outcome: r.record.outcome,
-      actualCents: r.record.actual_cents,
+      actualCents,
+      // LEDGER-02: arithmetic on the row's own two figures, only when both are known — never 0 for a blank.
+      varianceCents: cents === null || actualCents === null ? null : actualCents - cents,
     };
   });
   // Newest day first; within a day the card's clock order: time, then the routine, then the line.
@@ -393,16 +440,29 @@ export interface LedgerTotals {
   readonly over: boolean | null;
   /** "▼ $3 under" · "▲ $4.25 over" · "on plan" · "—" when either figure is unknown — by the same rule. */
   readonly words: string;
+  /** LEDGER-02 (amended): the VARIANCE column's sum — Σ varianceCents over the rows that carry both a budget and an actual; null when no row does. Nothing summed from a blank. */
+  readonly varianceCents: number | null;
+  /** LEDGER-02 (amended): how many of the rows carry a variance — the n of "the n of m rows" said under the table. */
+  readonly withVariance: number;
 }
 
 /** The card's TOTAL-row rule over the rows shown (dayTotals, reused): the records are always read here, so the spent is the actuals summed. */
 export function ledgerTotals(rows: readonly LedgerRow[]): LedgerTotals {
   const actuals = rows.map((r) => r.actualCents).filter((c): c is number => c !== null);
   const totals = dayTotals({ stops: rows, spentCents: actuals.reduce((sum, c) => sum + c, 0), withActual: actuals.length }, null);
-  return { budgetCents: totals.budgetCents, actualCents: totals.actualCents, over: totals.over, words: deltaWords(totals.actualCents, totals.recordedBudgetCents).text };
+  const variances = rows.map((r) => r.varianceCents).filter((c): c is number => c !== null);
+  return {
+    budgetCents: totals.budgetCents,
+    actualCents: totals.actualCents,
+    over: totals.over,
+    words: deltaWords(totals.actualCents, totals.recordedBudgetCents).text,
+    varianceCents: variances.length === 0 ? null : variances.reduce((sum, c) => sum + c, 0),
+    withVariance: variances.length,
+  };
 }
 
-export const GROUP_KEYS = ['day', 'week', 'month', 'city', 'country', 'coa'] as const;
+/** LEDGER-02 (2026-10-19): a seventh group, BOOK — the row's book; rows with no book under NO_BOOK_GROUP_WORDS. */
+export const GROUP_KEYS = ['day', 'week', 'month', 'city', 'country', 'coa', 'book'] as const;
 export type GroupKey = (typeof GROUP_KEYS)[number];
 
 export interface LedgerGroup {
@@ -424,10 +484,10 @@ export const monthWords = (month: string): string => MONTH_FORMAT.format(new Dat
 export const weekWords = (monday: string): string => `week of ${dayShortWords(monday)}`;
 
 const groupKeyOf = (row: LedgerRow, by: GroupKey): string =>
-  by === 'day' ? row.day : by === 'week' ? mondayOf(row.day) : by === 'month' ? monthOf(row.day) : CELL_WORDS[by](row);
+  by === 'day' ? row.day : by === 'week' ? mondayOf(row.day) : by === 'month' ? monthOf(row.day) : by === 'book' ? bookGroupWords(row) : CELL_WORDS[by](row);
 const groupLabelOf = (key: string, by: GroupKey): string => (by === 'day' ? dayShortWords(key) : by === 'week' ? weekWords(key) : by === 'month' ? monthWords(key) : key);
 
-/** The rows shown, grouped by one selector: time groups newest first, place and COA groups in their words' order. */
+/** The rows shown, grouped by one selector: time groups newest first, place, COA and book groups in their words' order. */
 export function ledgerSummary(rows: readonly LedgerRow[], by: GroupKey): LedgerGroup[] {
   const groups = new Map<string, LedgerRow[]>();
   for (const row of rows) {
@@ -454,16 +514,22 @@ export function ledgerSummary(rows: readonly LedgerRow[], by: GroupKey): LedgerG
 
 // ── WORDS ───────────────────────────────────────────────────────────────────
 
-export const LEDGER_TITLE_WORDS = 'City ledger';
-export const LEDGER_HEAD_WORDS = ['DATE', 'CITY', 'COUNTRY', 'COA', 'VENDOR', 'DESCRIPTION', 'STARS', 'NOTES', 'BUDGET', 'ACTUAL'] as const;
+/** LEDGER-02 (Alex, 2026-10-19): "It's really a Task Ledger, not a City Ledger." */
+export const LEDGER_TITLE_WORDS = 'Task ledger';
+/** LEDGER-02: the sixteen columns in Alex's order — one fact each, nothing combined. */
+export const LEDGER_HEAD_WORDS = ['DAY', 'DATE', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'DESCRIPTION', 'VENDOR', 'STARS', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'NOTES'] as const;
+/** The money columns — right-aligned in the table. */
+export const MONEY_HEAD_WORDS = ['BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH'] as const;
+/** Under the table: MATCH is LEDGER-03's. */
+export const MATCH_NOTE_WORDS = 'MATCH — the amount the books hold for a row; nothing is linked yet (LEDGER-03)';
 export const PERIOD_WORDS: Readonly<Record<PeriodKind, string>> = { month: 'Month', week: 'Week', day: 'Day', all: 'All' };
 export const FILTER_WORDS: Readonly<Record<FilterKey, string>> = { city: 'CITY', country: 'COUNTRY', coa: 'COA' };
 export const ALL_WORDS = 'all';
 export const PREVIOUS_WORDS = '‹';
 export const NEXT_WORDS = '›';
-export const SUMMARY_TITLE_WORDS = 'over time and by place';
+export const SUMMARY_TITLE_WORDS = 'over time, by place and by book';
 export const BY_WORDS = 'by';
-export const GROUP_WORDS: Readonly<Record<GroupKey, string>> = { day: 'Day', week: 'Week', month: 'Month', city: 'City', country: 'Country', coa: 'COA' };
+export const GROUP_WORDS: Readonly<Record<GroupKey, string>> = { day: 'Day', week: 'Week', month: 'Month', city: 'City', country: 'Country', coa: 'COA', book: 'Book' };
 export const SUMMARY_HEAD_WORDS = ['DAYS', 'BUDGET', 'ACTUAL', 'UNDER / OVER', 'ACTUAL PER RECORDED DAY', 'STARS'] as const;
 export const TOTAL_WORDS = 'TOTAL';
 export const LEDGER_LOADING_WORDS = 'reading the ledger…';
@@ -483,9 +549,38 @@ export function ledgerStarsWords(rating: number): string {
 }
 /** "★ 3.8 (4 rated)" */
 export const averageStarsWords = (stars: { readonly average: number; readonly rated: number }): string => `★ ${stars.average.toFixed(1)} (${stars.rated} rated)`;
-/** The ACTUAL cell: "skipped" adds nothing; done without an amount is "—"; else the actual with the row's delta words (the card's). */
+/** The ACTUAL cell: "skipped" adds nothing; done without an amount is "—"; else the actual ALONE (LEDGER-02: the delta is the VARIANCE column's — one fact per cell). */
 export const actualCellWords = (row: Pick<LedgerRow, 'outcome' | 'actualCents' | 'cents'>): string =>
-  (row.outcome === 'skipped' ? SKIPPED_WORD : row.actualCents === null ? BLANK : rowActualWords(row.actualCents, row.cents));
+  (row.outcome === 'skipped' ? SKIPPED_WORD : row.actualCents === null ? BLANK : planDollars(row.actualCents));
+/** LEDGER-02: the BOOK cell — the word, or "—" when no line matched. */
+export const bookCellWords = (row: Pick<LedgerRow, 'book'>): string => (row.book === null ? BLANK : row.book);
+/** LEDGER-02: the BOOK group's key for a row with no book. */
+export const NO_BOOK_GROUP_WORDS = 'no account';
+export const bookGroupWords = (row: Pick<LedgerRow, 'book'>): string => (row.book === null ? NO_BOOK_GROUP_WORDS : row.book);
+/** LEDGER-02: the ACCOUNT cell — the code with its letter ("P-6150"), or "—"; the ACCOUNT NAME cell — the chart's name, or "—". */
+export const accountCellWords = (row: Pick<LedgerRow, 'coa'>): string => (row.coa === null ? BLANK : row.coa.account);
+export const accountNameCellWords = (row: Pick<LedgerRow, 'coa'>): string => (row.coa === null || row.coa.name === null ? BLANK : row.coa.name);
+/** LEDGER-02: the VARIANCE cell — dollars with its sign and two decimals ("−$1.02", "+$2.00", "$0.00"); "—" when the variance is unknown (amended: ONE marker on screen), never 0. */
+export const varianceCellWords = (cents: number | null): string => (cents === null ? BLANK : cents > 0 ? `+${formatCents(cents)}` : formatCents(cents));
+/** LEDGER-02 (amended): the MATCH cell — "—" on every row and in the TOTAL row until the books are linked (the MATCH note under the table names the ruling). */
+export const MATCH_CELL_WORDS = BLANK;
+export const UNDER_WORDS = 'under';
+export const OVER_WORDS = 'over';
+export const EVEN_WORDS = 'even';
+/** The sign of a KNOWN variance as a word — the one rule the screen and the CSV both call. */
+export const varianceSignWords = (varianceCents: number): string => (varianceCents < 0 ? UNDER_WORDS : varianceCents > 0 ? OVER_WORDS : EVEN_WORDS);
+/** LEDGER-02: the UNDER / OVER cell — the sign of the variance as a word; "—" when the variance is unknown (amended: ONE marker on screen). */
+export const underOverWords = (varianceCents: number | null): string => (varianceCents === null ? BLANK : varianceSignWords(varianceCents));
+/**
+ * LEDGER-02 (amended): the coverage of the VARIANCE total, said under the table — n the rows that carry both a budget and an actual (totals.withVariance),
+ * m the rows shown. "VARIANCE totals the 3 of 5 rows that carry both a budget and an actual" · "VARIANCE totals all 5 rows" · n = 0: the cell is "—" and the line says so.
+ */
+export const varianceCoverageWords = (n: number, m: number): string => {
+  if (n < 0 || m < 0 || n > m || !Number.isInteger(n) || !Number.isInteger(m)) throw new Error(`ledger: ${n} of ${m} rows is no coverage`);
+  if (n === 0) return `VARIANCE totals none of the ${m} row${m === 1 ? '' : 's'} — no row carries both a budget and an actual`;
+  if (n === m) return `VARIANCE totals all ${m} row${m === 1 ? '' : 's'}`;
+  return `VARIANCE totals the ${n} of ${m} rows that carry both a budget and an actual`;
+};
 export const starsCellWords = (rating: number | null): string => (rating === null ? BLANK : ledgerStarsWords(rating));
 export const noteCellWords = (note: string | null): string => (note === null ? BLANK : note);
 export const vendorCellWords = (vendor: string | null): string => (vendor === null ? BLANK : vendor);
@@ -512,6 +607,62 @@ export const leftOutWords = (left: Readonly<Record<NoMoneyRole, number>>): strin
 };
 export const TODAY_RULE_WORDS = "budgets and COAs are the routines' as they stand today — editing a routine changes past rows until budget history exists";
 export const EVERY_BOOK_WORDS = 'every book — the COA says which; the entity selector does not filter the ledger';
+
+// ── LEDGER-02 (Alex, 2026-10-19): THE CSV — the rows shown, for a spreadsheet ──
+
+const WEEKDAY_LONG_WORDS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
+/** "Saturday" — the full weekday of a 'YYYY-MM-DD' day, from its UTC parts (a calendar day, no zone). */
+export const dayLongWords = (day: string): string => WEEKDAY_LONG_WORDS[new Date(utc(day)).getUTCDay()];
+export const CSV_DOWNLOAD_WORDS = 'download CSV';
+export const CSV_NO_ROWS_WORDS = 'no row shown — nothing to download';
+/** "task-ledger_2026-10-01_2026-10-31.csv" */
+export const ledgerCsvFileName = (from: string, to: string): string => `task-ledger_${from}_${to}.csv`;
+/** A money field: dollars with two decimals from the integer cents, an ASCII minus, no symbol, no grouping — "10.00", "8.98", "-1.02"; null is the empty field. */
+const csvMoney = (cents: number | null): string => {
+  if (cents === null) return '';
+  const abs = Math.abs(cents);
+  return `${cents < 0 ? '-' : ''}${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, '0')}`;
+};
+/** RFC 4180, minimal quoting: a field holding a comma, a quote, a CR or an LF is wrapped in quotes with its quotes doubled; any other field is written bare. */
+const csvField = (text: string): string => (/[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text);
+/**
+ * The rows shown, as a CSV: the sixteen head words, then one line per row in
+ * the table's order, each field the table's fact and nothing combined — DAY the
+ * full weekday, DATE 'YYYY-MM-DD', the text cells as the table prints them with
+ * '' where the table prints "—" (a null is an EMPTY field, never 0 or "—"),
+ * STARS the number, money as dollars with two decimals (csvMoney — BUDGET,
+ * ACTUAL as held whether done or skipped, VARIANCE), MATCH empty (LEDGER-03),
+ * UNDER / OVER the sign rule's word (varianceSignWords) or empty. The CSV never
+ * calls the screen's cell helpers, which print "—" for a null (the amendment:
+ * one marker on screen, an empty field here). Every line ends CRLF, the last
+ * one too. The text is
+ * UTF-8 with no BOM: the section writes it as a Blob of this string, which the
+ * browser encodes as UTF-8 and prefixes with nothing. Pure: no React, no DOM.
+ */
+export function ledgerCsv(rows: readonly LedgerRow[]): string {
+  const lines = [LEDGER_HEAD_WORDS.map(csvField).join(',')];
+  for (const row of rows) {
+    lines.push([
+      dayLongWords(row.day),
+      row.day,
+      row.place === null ? '' : row.place.city,
+      row.place === null || row.place.country === null ? '' : row.place.country,
+      row.book ?? '',
+      row.coa === null ? '' : row.coa.account,
+      row.coa === null || row.coa.name === null ? '' : row.coa.name,
+      row.description,
+      row.vendor ?? '',
+      row.rating === null ? '' : String(row.rating),
+      csvMoney(row.cents),
+      csvMoney(row.actualCents),
+      csvMoney(row.varianceCents),
+      '',
+      row.varianceCents === null ? '' : varianceSignWords(row.varianceCents),
+      row.note ?? '',
+    ].map(csvField).join(','));
+  }
+  return `${lines.join('\r\n')}\r\n`;
+}
 
 // ── RETRO-01 (Alex, 2026-10-16): "+ EXPENSE" ON THE LEDGER ──────────────────
 //

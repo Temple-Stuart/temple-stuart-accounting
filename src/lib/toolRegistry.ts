@@ -187,6 +187,8 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     // `why` below already says so and is unchanged. /tasks/day still hops to
     // the card (dayCard.ts DAY_CARD_PATH), and a dated /tasks?date= is sent to
     // /time by next.config.ts.
+    // LEDGER-02 (Alex, 2026-10-19): the city ledger above is the TASK LEDGER —
+    // renamed, still on /time (the Time row below).
     links: [
       { label: 'North Star', href: '/operations/north-star' },
       { label: 'Audit trail', href: '/operations/audit-log' },
@@ -207,12 +209,18 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     // in order: the day card (the deck, the journal card, the reel kit, the stay
     // bar, the move control), then the ledger, and nothing beneath. The beats
     // below are the card's and the ledger's own routes.
+    // LEDGER-02 (Alex, 2026-10-19): THE CITY LEDGER IS THE TASK LEDGER — "it's
+    // really a Task Ledger, not a City Ledger": sixteen columns, one fact each,
+    // the book in its own column, a Book group, a CSV. The why and the customer
+    // line say "the task ledger of every stop … by city, account and book" where
+    // they said "the ledger of every stop by city and account" (the amendment
+    // kept "every stop" and added the book).
     slug: 'time', status: 'PARTIAL', beats: ALL, home: '/time',
-    why: 'the day, narrated: every stop in clock order with its budget, its vendor, what it cost and the verdict, the journal, the caption and script for the reel, and the ledger of every stop by city and account; nothing yet adds up where the hours went',
+    why: 'the day, narrated: every stop in clock order with its budget, its vendor, what it cost and the verdict, the journal, the caption and script for the reel, and the task ledger of every stop by city, account and book; nothing yet adds up where the hours went',
     links: [],
     citation: 'discover: src/components/workbench/operations/day/dayReads.ts:8-13 (the day\'s routines, tasks, budget report, stays, stop records, journal — six GETs) · decide: src/app/api/operations/journal/route.ts:51 (PUT — the day\'s goals, blocker and plan) · src/app/api/operations/stays/route.ts (the stay) · commit: src/app/api/operations/stops/route.ts (POST — the record at a stop, through stops/stopWrites.ts:39) · src/app/api/operations/routines/move/route.ts (the dated move) · record: src/components/workbench/operations/ledger/LedgerSection.tsx (every stop recorded, by date, city, COA and vendor; "+ expense" through src/app/api/operations/routines/route.ts, ledger/ExpenseForm.tsx:87)',
     note: 'TIME-02 (2026-10-19): the content pipeline retired — its components and routes deleted; its five tables kept, untouched, until TABLES-01.',
-    customer: 'You can see one day as a card — every stop with what it should cost and what it did, the journal, the caption and script for the day\'s reel — and the ledger of every stop you logged by city and account; nothing yet adds up where your hours went.',
+    customer: 'You can see one day as a card — every stop with what it should cost and what it did, the journal, the caption and script for the day\'s reel — and the task ledger of every stop you logged by city, account and book; nothing yet adds up where your hours went.',
   },
   // ── MONEY IN ──
   CRM: {

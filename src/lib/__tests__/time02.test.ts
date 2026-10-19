@@ -40,8 +40,10 @@ const GONE = [
   'src/components/home/OperationsShowroom.tsx',
   'src/lib/ai/enrichRoutineScenes.ts',
 ];
-const WHY = 'the day, narrated: every stop in clock order with its budget, its vendor, what it cost and the verdict, the journal, the caption and script for the reel, and the ledger of every stop by city and account; nothing yet adds up where the hours went';
-const CUSTOMER = 'You can see one day as a card — every stop with what it should cost and what it did, the journal, the caption and script for the day\'s reel — and the ledger of every stop you logged by city and account; nothing yet adds up where your hours went.';
+// LEDGER-02 (Alex, 2026-10-19): "the task ledger" where both lines said "the ledger of every stop" — the rest unchanged.
+// LEDGER-02 AMENDMENT (Alex, 2026-10-19): "the task ledger of every stop … by city, account and book" — "every stop" kept, the book added.
+const WHY = 'the day, narrated: every stop in clock order with its budget, its vendor, what it cost and the verdict, the journal, the caption and script for the reel, and the task ledger of every stop by city, account and book; nothing yet adds up where the hours went';
+const CUSTOMER = 'You can see one day as a card — every stop with what it should cost and what it did, the journal, the caption and script for the day\'s reel — and the task ledger of every stop you logged by city, account and book; nothing yet adds up where your hours went.';
 const NOTE = 'TIME-02 (2026-10-19): the content pipeline retired — its components and routes deleted; its five tables kept, untouched, until TABLES-01.';
 const SURFACE_NOTE = 'TIME-02 (2026-10-19): drawn nowhere — /time renders no StageStrip (src/app/time/page.tsx); the day card is not a pipe; PIPES-01 retires the pipe';
 
