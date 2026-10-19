@@ -8,8 +8,9 @@
  * In order, inside the one provider: the DayCard section (the deck, the journal
  * card, the reel buttons, the stay bar, the move control — day/DayCard.tsx,
  * exactly as it stood first on /tasks since TASKS-ONE-01, in the Suspense
- * boundary its useSearchParams needs on a client page), then the city ledger
- * (ledger/LedgerSection.tsx — the record of the day's stops, LEDGER-01). Tasks
+ * boundary its useSearchParams needs on a client page), then the task ledger
+ * (ledger/LedgerSection.tsx — the record of the day's stops, LEDGER-01; the
+ * city ledger until LEDGER-02, Alex, 2026-10-19, renamed it). Tasks
  * keeps the work: projects and routines. Every URL the card pushes starts at
  * dayCard.ts DAY_CARD_PATH ('/time'); /tasks/day hops here, and a dated
  * /tasks?date= is sent here by next.config.ts. The two-lists law holds this

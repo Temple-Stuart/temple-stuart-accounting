@@ -132,7 +132,7 @@ export const THE_SORT: readonly PhaseAssignment[] = [
   ...(['01', '02', '03', '04', '05', '06'] as const).map((num): PhaseAssignment => ({ pipe: 'projects', num, owner: 'Tasks', rendersSurface: false,
     surfaceNote: 'TASKS-01 (2026-09-18): drawn nowhere — /tasks renders no StageStrip (src/app/tasks/page.tsx); the capability is plain controls in src/components/workbench/operations/projects/TruthMachineView.tsx behind the row\'s "pipeline" button' })),
   // TIME-02 (2026-10-19): the content pipeline is retired — its components and routes are deleted; /time is the day card
-  // and the city ledger, and draws no strip. The pipe stays DEFINED and owned (pipePhases.ts, THE SORT) until PIPES-01
+  // and the task ledger (the city ledger until LEDGER-02, 2026-10-19, renamed it), and draws no strip. The pipe stays DEFINED and owned (pipePhases.ts, THE SORT) until PIPES-01
   // retires it, declared undrawn in the TASKS-01 idiom.
   ...(['01', '02', '03', '04'] as const).map((num): PhaseAssignment => ({ pipe: 'content', num, owner: 'Time', rendersSurface: false,
     surfaceNote: 'TIME-02 (2026-10-19): drawn nowhere — /time renders no StageStrip (src/app/time/page.tsx); the day card is not a pipe; PIPES-01 retires the pipe' })),
@@ -295,8 +295,8 @@ export const PHASES_RENDERED_AT: Readonly<Record<string, readonly PipePillarId[]
   // in the page's tree. The pipes stay DEFINED (pipePhases.ts, THE SORT) until
   // PIPES-01 retires them — see that ruling's scope in the TASKS-01 PR body.
   '/tasks': [],
-  // TIME-02 (2026-10-19): the content pipeline is retired — /time is the day card and the city ledger and draws no
-  // strip (the opener law counts its tree); the content pipe is declared undrawn in THE SORT above.
+  // TIME-02 (2026-10-19): the content pipeline is retired — /time is the day card and the task ledger (the city ledger
+  // until LEDGER-02, 2026-10-19, renamed it) and draws no strip (the opener law counts its tree); the content pipe is declared undrawn in THE SORT above.
   '/time': [],
   // TRAVEL-01 (2026-09-19): the travel tab draws NO strip. It is the cockpit's
   // tab (src/app/[tab]/page.tsx → ModuleLauncher), now plain sections top-down:

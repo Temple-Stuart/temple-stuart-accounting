@@ -121,7 +121,8 @@ test('T1 ledgerOf lists a record only when its plan’s role takes money (asksAm
   // The rule in the source: the filter before the lines are read, the count by role, the missing loop's gate.
   const r = code(RULES);
   inOrder(r, ['const leftOut: Record<NoMoneyRole, number> = { journal: 0, plan: 0, execute: 0, all_day: 0 };', 'const expenses = placed.filter((p) => {', 'if (!isStopRole(role)) throw', 'if (asksAmount(role)) return true;', 'leftOut[role as NoMoneyRole] += 1;', 'for (const day of new Set(expenses.map((p) => p.day)))', 'const rows: LedgerRow[] = expenses.map(', 'if (!isStop(role)) continue;', 'if (!asksAmount(role)) continue;', 'leftOut,'], 'expenses only, in the rule');
-  assert.match(r, /import \{ asksAmount, dayShortWords, dayTotals, deltaWords, planDollars, rowActualWords, stopName \} from '@\/components\/workbench\/operations\/day\/dayCard';/, 'the card’s own rule for which stops take money');
+  // LEDGER-02 (Alex, 2026-10-19): rowActualWords left the import — the ACTUAL cell is the amount alone (planDollars).
+  assert.match(r, /import \{ asksAmount, dayShortWords, dayTotals, deltaWords, planDollars, stopName \} from '@\/components\/workbench\/operations\/day\/dayCard';/, 'the card’s own rule for which stops take money');
   // The words.
   assert.equal(leftOutWords({ journal: 1, plan: 1, execute: 0, all_day: 0 }), '2 records left out — not expenses (no money at a journal, plan or execute stop): journal 1 · plan 1');
   assert.equal(leftOutWords({ journal: 0, plan: 0, execute: 0, all_day: 0 }), '0 records left out — not expenses (no money at a journal, plan or execute stop)');

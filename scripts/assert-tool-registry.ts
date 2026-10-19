@@ -3427,16 +3427,18 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
   // TIME-01 — the /time container: the day card first, in its Suspense boundary (useSearchParams on a client page), then the
   // ledger. TIME-02 (2026-10-19): the third mount, the content pipeline, is retired — its components and its routes are
   // deleted — so the container is exactly the two, and nothing beneath.
+  // LEDGER-02 (Alex, 2026-10-19): the city ledger is the TASK LEDGER — renamed; the mount is the same component and the
+  // messages below say the new name.
   const TIME_MOUNTS = ['<DayCard />', '<LedgerSection />'];
   const timePage = codeOf(TIME_PAGE);
   for (const section of TIME_MOUNTS) {
-    if (!timePage.includes(section)) twoListsFail(`${TIME_PAGE} no longer mounts ${section} — the page is the day card and the city ledger (TIME-01; TIME-02)`);
+    if (!timePage.includes(section)) twoListsFail(`${TIME_PAGE} no longer mounts ${section} — the page is the day card and the task ledger (TIME-01; TIME-02; LEDGER-02 renamed it)`);
   }
   const timeAt = TIME_MOUNTS.map((section) => timePage.indexOf(section));
   if (timeAt.some((at, i) => i > 0 && at < timeAt[i - 1])) twoListsFail(`${TIME_PAGE} mounts its sections out of order — the day card first, then the ledger (TIME-01; TIME-02)`);
   const timeBox = timePage.slice(timePage.indexOf('data-tool-page="Time"'), timePage.indexOf('</OperationsEntityProvider>'));
   const timeMounts = [...timeBox.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]).filter((tag) => tag !== 'Suspense');
-  if (timeMounts.join(' ') !== 'DayCard LedgerSection') twoListsFail(`${TIME_PAGE} mounts [${timeMounts.join(' ')}] in the Time container — exactly the day card and the city ledger, nothing beneath (TIME-01; TIME-02 retired the content pipeline)`);
+  if (timeMounts.join(' ') !== 'DayCard LedgerSection') twoListsFail(`${TIME_PAGE} mounts [${timeMounts.join(' ')}] in the Time container — exactly the day card and the task ledger, nothing beneath (TIME-01; TIME-02 retired the content pipeline; LEDGER-02 renamed it)`);
   if (/ContentPipeline|operations\/content\//.test(timePage)) twoListsFail(`${TIME_PAGE} names the content pipeline — retired by TIME-02 (2026-10-19)`);
   if (!/<Suspense>\s*<DayCard \/>\s*<\/Suspense>/.test(timePage)) twoListsFail(`${TIME_PAGE} mounts the day card outside its Suspense boundary — the card reads the URL (useSearchParams) on a client page (TASKS-ONE-01; TIME-01)`);
   // Every control the strips held is still a control: the list headers' create

@@ -1,5 +1,5 @@
 /**
- * ExpenseForm — "+ expense" on the city ledger (RETRO-01, Alex, 2026-10-16).
+ * ExpenseForm — "+ expense" on the task ledger (RETRO-01, Alex, 2026-10-16: the city ledger; LEDGER-02, Alex, 2026-10-19: renamed — it is a task ledger).
  *
  * "He also wants to add an expense straight from the ledger and have it land on
  * that day's card." A form: day, time, name, amount, COA, book, vendor

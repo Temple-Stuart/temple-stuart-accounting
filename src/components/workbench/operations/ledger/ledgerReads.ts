@@ -1,5 +1,5 @@
 /**
- * ledgerReads — the city ledger's one read (LEDGER-01, Alex, 2026-10-16).
+ * ledgerReads — the task ledger's one read (LEDGER-01, Alex, 2026-10-16: the city ledger; LEDGER-02, Alex, 2026-10-19: renamed — it is a task ledger).
  *
  *   · GET /api/operations/ledger?from=&to=     readLedger, here
  *

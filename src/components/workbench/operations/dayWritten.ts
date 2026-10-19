@@ -1,7 +1,8 @@
 /**
  * dayWritten — ONE SIGNAL between the Tasks page's sections (RETRO-01, Alex, 2026-10-16).
  *
- * "+ expense" on the city ledger writes a one-off stop, its vendor and its
+ * "+ expense" on the task ledger (the city ledger until LEDGER-02, Alex,
+ * 2026-10-19, renamed it) writes a one-off stop, its vendor and its
  * record for a day through the three existing routes. The day card reads that
  * day through its own reads (day/dayReads.ts) and knows nothing of the ledger;
  * the ledger knows nothing of the card. When the ledger has written a day, it

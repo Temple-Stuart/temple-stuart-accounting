@@ -9,6 +9,11 @@
  * vendor rows, the stays); the one place split (stay.ts placeParts) is driven
  * with captionTags; the route, the reads, the section, the page and the law are
  * anchored to their source with comments stripped (TEST-TRUTH-01).
+ *
+ * LEDGER-02 (Alex, 2026-10-19): the city ledger is the TASK LEDGER — sixteen
+ * columns, one fact each; the ACTUAL cell the amount alone (the delta is the
+ * VARIANCE column's); a BOOK group; a CSV. The pins below that moved say so,
+ * dated; ledger02.test.ts drives the new rules.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -186,9 +191,10 @@ test('T2 each row: BUDGET the card’s matched line (one, at the exact instant),
   assert.deepEqual(unnamed.rows.find((r) => r.id === 'r-coffee-13')?.coa, { account: 'P-5100', name: null });
 });
 
-test('T2 the cells’ words: the card’s ACTUAL words with the delta, "skipped" adds nothing, "—" for the unknown; ★ × rating; the place cells', () => {
-  assert.equal(actualCellWords(rowOf('r-coffee-13')), '$12 ▲ $2', 'rowActualWords — the card’s own cell');
-  assert.equal(actualCellWords(rowOf('r-coffee-12')), '$9 ▼ $1');
+test('T2 the cells’ words: the ACTUAL amount alone (LEDGER-02; the delta was in it until then), "skipped" adds nothing, "—" for the unknown; ★ × rating; the place cells', () => {
+  // LEDGER-02 (Alex, 2026-10-19): the ACTUAL cell is the amount alone — the delta moved to the VARIANCE column (one fact per cell); until then '$12 ▲ $2' and '$9 ▼ $1' (rowActualWords).
+  assert.equal(actualCellWords(rowOf('r-coffee-13')), '$12', 'the amount alone (planDollars) — the delta is the VARIANCE cell’s since LEDGER-02');
+  assert.equal(actualCellWords(rowOf('r-coffee-12')), '$9');
   assert.equal(actualCellWords(rowOf('r-stretch-13')), 'skipped');
   assert.equal(actualCellWords(rowOf('r-gym-13')), '—', 'done without an amount');
   assert.equal(actualCellWords(rowOf('r-gym-12')), '$20', 'an actual with no budget to compare: the amount alone');
@@ -240,15 +246,17 @@ test('T3 ledgerTotals is the card’s TOTAL-row rule (dayTotals) over the rows s
   assert.equal(t.actualCents, 4600, '$12 + $9 + $20 + $5');
   assert.equal(t.over, true);
   assert.equal(t.words, '▲ $26 over', 'against the budgets of the rows that carry an actual: $10 + $10');
-  assert.deepEqual(ledgerTotals([]), { budgetCents: null, actualCents: null, over: null, words: '—' }, 'unknown is "—", never $0');
-  assert.deepEqual(ledgerTotals([rowOf('r-gym-13')]), { budgetCents: 2000, actualCents: null, over: null, words: '—' }, 'a budget with no actual');
-  assert.deepEqual(ledgerTotals([rowOf('r-yoga-12')]), { budgetCents: null, actualCents: 500, over: null, words: '—' }, 'an actual with no budget');
+  // LEDGER-02 (Alex, 2026-10-19): the totals carry varianceCents — null whenever either total is, never 0 (ledger02.test.ts drives it).
+  assert.deepEqual(ledgerTotals([]), { budgetCents: null, actualCents: null, over: null, words: '—', varianceCents: null }, 'unknown is "—", never $0');
+  assert.deepEqual(ledgerTotals([rowOf('r-gym-13')]), { budgetCents: 2000, actualCents: null, over: null, words: '—', varianceCents: null }, 'a budget with no actual');
+  assert.deepEqual(ledgerTotals([rowOf('r-yoga-12')]), { budgetCents: null, actualCents: 500, over: null, words: '—', varianceCents: null }, 'an actual with no budget');
   assert.deepEqual(ledgerTotals([rowOf('r-coffee-12')]).words, '▼ $1 under');
   // The same numbers the card's own rule gives these rows — one rule, reused.
   const mirror = dayTotals({ stops: ledger.rows, spentCents: 4600, withActual: 4 }, null);
   assert.deepEqual([mirror.budgetCents, mirror.actualCents, mirror.over, mirror.recordedBudgetCents], [4800, 4600, true, 2000]);
   const rules = code(RULES);
-  assert.match(rules, /const totals = dayTotals\(\{ stops: rows, spentCents: actuals\.reduce\(\(sum, c\) => sum \+ c, 0\), withActual: actuals\.length \}, null\);\n\s*return \{ budgetCents: totals\.budgetCents, actualCents: totals\.actualCents, over: totals\.over, words: deltaWords\(totals\.actualCents, totals\.recordedBudgetCents\)\.text \};/, 'reused, not rewritten');
+  // LEDGER-02 (Alex, 2026-10-19): the return gained varianceCents (the two totals' difference) — the four fields the card's, as before.
+  assert.match(rules, /const totals = dayTotals\(\{ stops: rows, spentCents: actuals\.reduce\(\(sum, c\) => sum \+ c, 0\), withActual: actuals\.length \}, null\);\n\s*return \{\n\s*budgetCents: totals\.budgetCents,\n\s*actualCents: totals\.actualCents,\n\s*over: totals\.over,\n\s*words: deltaWords\(totals\.actualCents, totals\.recordedBudgetCents\)\.text,\n\s*varianceCents: totals\.budgetCents === null \|\| totals\.actualCents === null \? null : totals\.actualCents - totals\.budgetCents,\n\s*\};/, 'reused, not rewritten');
   assert.doesNotMatch(rules.slice(rules.indexOf('export function ledgerTotals'), rules.indexOf('export const GROUP_KEYS')), /filter\(\(s\) => s\.actualCents !== null\)/, 'the recorded budget is the card’s, not summed again here');
   // LEDGER-01: the card's rule reads what it reads (TotalsInput) and returns the recorded budget — the arithmetic unchanged (totals01 drives it).
   const card = code(CARD_RULES);
@@ -288,8 +296,9 @@ test('T3 ledgerSummary: one group per selector value — the days it has records
   assert.equal(weekWords('2026-10-12'), 'week of Mon Oct 12');
   assert.equal(monthWords('2026-10'), 'Oct 2026');
   assert.equal(monthOf('2026-10-13'), '2026-10');
-  assert.deepEqual(GROUP_KEYS, ['day', 'week', 'month', 'city', 'country', 'coa']);
-  assert.deepEqual(GROUP_WORDS, { day: 'Day', week: 'Week', month: 'Month', city: 'City', country: 'Country', coa: 'COA' });
+  // LEDGER-02 (Alex, 2026-10-19): a seventh group, BOOK, after COA (ledger02.test.ts drives it).
+  assert.deepEqual(GROUP_KEYS, ['day', 'week', 'month', 'city', 'country', 'coa', 'book']);
+  assert.deepEqual(GROUP_WORDS, { day: 'Day', week: 'Week', month: 'Month', city: 'City', country: 'Country', coa: 'COA', book: 'Book' });
 });
 
 // ── T4 · THE PERIOD AND THE FILTERS ─────────────────────────────────────────
@@ -416,7 +425,7 @@ test('T6 the read: one URL through the one reader; an answer without its rows is
   }
 });
 
-test('T6 the section: the ten columns, the period and the filters, the TOTAL row, what is said, the summary — every sentence the rules file’s; reads through the one read; no entity, nothing written, nothing stored', () => {
+test('T6 the section: the sixteen columns (LEDGER-02; ten until then), the period and the filters, the TOTAL row, what is said, the summary — every sentence the rules file’s; reads through the one read; no entity, nothing written, nothing stored', () => {
   const s = code(SECTION);
   assert.match(s, /^'use client';/m);
   assert.match(s, /import \{ readLedger, type LedgerAnswer \} from '\.\/ledgerReads';/);
@@ -427,13 +436,17 @@ test('T6 the section: the ten columns, the period and the filters, the TOTAL row
   assert.match(s, /const read = await readLedger\(period\.from, period\.to\);/);
   assert.match(s, /const shown = filterRows\(rows, filters\);\n\s*const totals = ledgerTotals\(shown\);\n\s*const groups = ledgerSummary\(shown, by\);/, 'the totals and the summary follow the rows shown');
   assert.match(s, /\{LEDGER_HEAD_WORDS\.map\(\(h\) => <th/);
-  assert.deepEqual(LEDGER_HEAD_WORDS, ['DATE', 'CITY', 'COUNTRY', 'COA', 'VENDOR', 'DESCRIPTION', 'STARS', 'NOTES', 'BUDGET', 'ACTUAL']);
-  for (const attr of ['data-ledger', 'data-ledger-controls', 'data-ledger-period={k}', 'data-ledger-previous', 'data-ledger-anchor', 'data-ledger-next', 'data-ledger-filter={key}', 'data-ledger-table', 'data-ledger-row={row.key}', 'data-ledger-cell="date"', 'data-ledger-cell="city"', 'data-ledger-cell="country"', 'data-ledger-cell="coa"', 'data-ledger-cell="vendor"', 'data-ledger-cell="description"', 'data-ledger-cell="stars"', 'data-ledger-cell="notes"', 'data-ledger-cell="budget"', 'data-ledger-cell="actual"', 'data-ledger-total', 'data-ledger-total-budget', 'data-ledger-total-actual', 'data-ledger-total-words', 'data-ledger-said', 'data-ledger-said-no-line', 'data-ledger-said-no-stay', 'data-ledger-said-unplaced', 'data-ledger-said-not-recorded', 'data-ledger-said-not-placed', 'data-ledger-said-today-rule', 'data-ledger-said-every-book', 'data-ledger-summary', 'data-ledger-by={g}', 'data-ledger-group={g.key}', 'data-ledger-group-per-day', 'data-ledger-group-stars', 'data-ledger-none', 'data-ledger-none-shown', 'data-ledger-loading', 'data-ledger-failed', 'data-ledger-no-first']) {
+  // LEDGER-02 (Alex, 2026-10-19): sixteen columns in Alex's order — one fact each; until then the ten: DATE · CITY · COUNTRY · COA · VENDOR · DESCRIPTION · STARS · NOTES · BUDGET · ACTUAL.
+  assert.deepEqual(LEDGER_HEAD_WORDS, ['DAY', 'DATE', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'DESCRIPTION', 'VENDOR', 'STARS', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'NOTES']);
+  for (const attr of ['data-ledger', 'data-ledger-controls', 'data-ledger-period={k}', 'data-ledger-previous', 'data-ledger-anchor', 'data-ledger-next', 'data-ledger-filter={key}', 'data-ledger-table', 'data-ledger-row={row.key}', 'data-ledger-cell="day"', 'data-ledger-cell="date"', 'data-ledger-cell="city"', 'data-ledger-cell="country"', 'data-ledger-cell="book"', 'data-ledger-cell="account"', 'data-ledger-cell="account-name"', 'data-ledger-cell="vendor"', 'data-ledger-cell="description"', 'data-ledger-cell="stars"', 'data-ledger-cell="notes"', 'data-ledger-cell="budget"', 'data-ledger-cell="actual"', 'data-ledger-cell="variance"', 'data-ledger-cell="match"', 'data-ledger-cell="under-over"', 'data-ledger-total', 'data-ledger-total-budget', 'data-ledger-total-actual', 'data-ledger-total-variance', 'data-ledger-total-match', 'data-ledger-total-under-over', 'data-ledger-csv', 'data-ledger-csv-why', 'data-ledger-said', 'data-ledger-said-match', 'data-ledger-said-no-line', 'data-ledger-said-no-stay', 'data-ledger-said-unplaced', 'data-ledger-said-not-recorded', 'data-ledger-said-not-placed', 'data-ledger-said-today-rule', 'data-ledger-said-every-book', 'data-ledger-summary', 'data-ledger-by={g}', 'data-ledger-group={g.key}', 'data-ledger-group-per-day', 'data-ledger-group-stars', 'data-ledger-none', 'data-ledger-none-shown', 'data-ledger-loading', 'data-ledger-failed', 'data-ledger-no-first']) {
     assert.ok(s.includes(attr), `the section carries ${attr}`);
   }
-  inOrder(s, ['data-ledger-cell="date">{dayShortWords(row.day)}', 'data-ledger-cell="city">{CELL_WORDS.city(row)}', 'data-ledger-cell="country">{CELL_WORDS.country(row)}', 'data-ledger-cell="coa">{CELL_WORDS.coa(row)}', 'data-ledger-cell="vendor">{vendorCellWords(row.vendor)}', 'data-ledger-cell="description">{row.description}', 'data-ledger-cell="stars">{starsCellWords(row.rating)}', 'data-ledger-cell="notes">{noteCellWords(row.note)}', 'data-ledger-cell="budget">{budgetCellWords(row.cents)}', 'data-ledger-cell="actual">{actualCellWords(row)}'], 'the ten cells, each its words');
+  // LEDGER-02 (Alex, 2026-10-19): sixteen cells in the head's order (ledger02.test.ts holds each against LEDGER_HEAD_WORDS); until then ten, DATE printing dayShortWords and COA the combined cell.
+  inOrder(s, ['data-ledger-cell="day">{dayLongWords(row.day)}', 'data-ledger-cell="date">{row.day}', 'data-ledger-cell="city">{CELL_WORDS.city(row)}', 'data-ledger-cell="country">{CELL_WORDS.country(row)}', 'data-ledger-cell="book">{bookCellWords(row)}', 'data-ledger-cell="account">{accountCellWords(row)}', 'data-ledger-cell="account-name">{accountNameCellWords(row)}', 'data-ledger-cell="description">{row.description}', 'data-ledger-cell="vendor">{vendorCellWords(row.vendor)}', 'data-ledger-cell="stars">{starsCellWords(row.rating)}', 'data-ledger-cell="budget">{budgetCellWords(row.cents)}', 'data-ledger-cell="actual">{actualCellWords(row)}', 'data-ledger-cell="variance">{varianceCellWords(row.varianceCents)}', 'data-ledger-cell="match" />', 'data-ledger-cell="under-over">{underOverWords(row.varianceCents)}', 'data-ledger-cell="notes">{noteCellWords(row.note)}'], 'the sixteen cells, each its words');
   assert.match(s, /actualTone\(delta\.over\)/, 'the ACTUAL cell in the row’s tone (deltaWords), as the card');
-  inOrder(s, ['<tfoot>', '{TOTAL_WORDS}', 'budgetCellWords(totals.budgetCents)', 'budgetCellWords(totals.actualCents)', '{totals.words}'], 'the TOTAL row under the table');
+  // LEDGER-02 (Alex, 2026-10-19): the TOTAL row's ACTUAL cell is the amount alone — the words span (totals.words, against the recorded rows' budgets) left it; VARIANCE and UNDER / OVER follow, from the two totals.
+  inOrder(s, ['<tfoot>', '{TOTAL_WORDS}', 'budgetCellWords(totals.budgetCents)', 'budgetCellWords(totals.actualCents)}</td>', 'varianceCellWords(totals.varianceCents)', 'data-ledger-total-match', 'underOverWords(totals.varianceCents)'], 'the TOTAL row under the table');
+  assert.doesNotMatch(s, /data-ledger-total-words|\{totals\.words\}/, 'the TOTAL row prints no delta words since LEDGER-02 (the summary still prints each group’s)');
   inOrder(s, ['data-ledger-said', 'noLineWords(answer.read.value.said.noLine, answer.read.value.said.doubled)', 'noStayWords(answer.read.value.said.noStay)', 'unplacedWords(answer.read.value.said.unplaced)', 'notRecordedWords(answer.read.value.said.notRecorded)', 'answer.read.value.said.notPlaced > 0 && <p', 'notPlacedWords(answer.read.value.said.notPlaced)', '{TODAY_RULE_WORDS}', '{EVERY_BOOK_WORDS}'], 'said, by name and count, under the table');
   inOrder(s, ['{SUMMARY_TITLE_WORDS}', 'GROUP_KEYS.map((g)', '<th className={head}>{GROUP_WORDS[by]}</th>', 'SUMMARY_HEAD_WORDS.map', 'daysWords(g.days)', 'budgetCellWords(g.totals.budgetCents)', 'budgetCellWords(g.totals.actualCents)', '{g.totals.words}', 'perDayWords(g.perDayCents)', 'averageStarsWords(g.stars)'], 'the summary, grouped by one selector');
   assert.match(s, /const \[by, setBy\] = useState<GroupKey>\('city'\);/, 'the summary opens by City — the question the ledger answers');
@@ -448,11 +461,11 @@ test('T6 the section: the ten columns, the period and the filters, the TOTAL row
   for (const p of printed) assert.doesNotMatch(p, /^'[^']*'$|^"[^"]*"$|^`[^`]*`$/, `${p} is not a literal sentence`);
   assert.doesNotMatch(s, />[A-Za-z][^<>{}]*[a-z][^<>{}]*</, 'no bare prose between tags');
   assert.doesNotMatch(s, /<StageStrip|<ProofStrip|HubCalendar/, 'no strip, no grid (the two-lists law walks this tree)');
-  assert.equal(LEDGER_TITLE_WORDS, 'City ledger');
+  assert.equal(LEDGER_TITLE_WORDS, 'Task ledger'); // LEDGER-02 (Alex, 2026-10-19): 'City ledger' until then — "it's really a Task Ledger, not a City Ledger"
   assert.equal(LEDGER_LOADING_WORDS, 'reading the ledger…');
   assert.equal(ledgerFailedWords('x'), 'The ledger could not be read — x');
   assert.equal(NO_ROWS_SHOWN_WORDS, 'no row matches the filters');
-  assert.equal(SUMMARY_TITLE_WORDS, 'over time and by place');
+  assert.equal(SUMMARY_TITLE_WORDS, 'over time, by place and by book'); // LEDGER-02: 'over time and by place' until then
   assert.deepEqual(SUMMARY_HEAD_WORDS, ['DAYS', 'BUDGET', 'ACTUAL', 'UNDER / OVER', 'ACTUAL PER RECORDED DAY', 'STARS']);
   assert.equal(TOTAL_WORDS, 'TOTAL');
   assert.doesNotMatch(s, /\b(bg-black|bg-panel|bg-brand-red|bg-brand-gold|bg-brand-green)\b/, 'no dark fill (the repaint law)');
@@ -483,5 +496,7 @@ test('T6 the ledger mounts on /time under the day card; the two-lists law holds 
   assert.match(rules, /const exact = linesByDay\.get\(day\)\?\.get\(key\) \?\? \[\];\n\s*const line = exact\.length === 1 \? exact\[0\] : null;/, 'the card’s match: one line at the exact instant');
   assert.match(rules, /description: line !== null \? stopName\(\{ line: line\.line, label: line\.label \}\) : stopName\(\{ line: r\.activity, label: r\.routineName \}\),/, 'the card’s bold name, either way');
   assert.match(rules, /place: stay === null \? null : placeParts\(stay\.place\),/);
-  assert.match(rules, /rowActualWords\(row\.actualCents, row\.cents\)/, 'the ACTUAL words are the card’s');
+  // LEDGER-02 (Alex, 2026-10-19): the ACTUAL cell is the amount alone (planDollars) — until then rowActualWords(row.actualCents, row.cents), the card's words with the delta.
+  assert.match(rules, /row\.actualCents === null \? BLANK : planDollars\(row\.actualCents\)/, 'the ACTUAL amount in the card’s dollars');
+  assert.doesNotMatch(rules, /rowActualWords\(/, 'no delta in the ACTUAL cell since LEDGER-02');
 });
