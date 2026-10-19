@@ -1,5 +1,5 @@
 /**
- * JournalForm — the journal's questions, answered where the journal stop is shown (JOURNAL-01, 2026-10-13; JOURNAL-02, 2026-10-13; JOURNAL-03, 2026-10-15).
+ * JournalForm — the journal's questions, answered where the journal stop is shown (JOURNAL-01, 2026-10-13; JOURNAL-02, 2026-10-13; JOURNAL-03, 2026-10-15; JOURNAL-04, 2026-10-19).
  *
  * Under the day card's plate on the journal stop's step view, outside the
  * recorded box. JOURNAL-02 — four boxes in the plate's order, each LABELLED
@@ -24,6 +24,11 @@
  * the body never carries it (the rule refuses one that does, by name), so a
  * save writes the four answers alone and words typed there before stay in the
  * row. The prompt's yesterday is its steps and what was left over — no note.
+ *
+ * JOURNAL-04 (Alex, 2026-10-19): the form asks the morning's four and carries the evening's three —
+ * audit, learned and next ride the save body AS HELD from the journal prop at save time (null when
+ * there is no row), so a morning save never clears an evening typed before; JOURNAL-05's evening
+ * card does the same in reverse. No box for them here, no words. Every writer sends the row as held.
  *
  * PLAN-01 (2026-10-13): each plan and goal line loses a pasted list's leading
  * marker ("1." "1)" "-" "•" "*" and a space — stripListMarker) after linesOf
@@ -86,7 +91,8 @@ export default function JournalForm({ day, journal, yesterday, onChanged }: {
     // The lines as typed (blank lines dropped, a pasted list's marker off — PLAN-01), the saved ticks carried to the same steps, then the route's rule — a refusal is the words the route would answer.
     const steps = linesOf(draft.plan).map(stripListMarker);
     const ticks = carryTicks(journal === null ? [] : journal.plan_steps, journal === null ? [] : journal.plan_done, steps);
-    const read = journalInput({ day, goals: linesOf(draft.goals).map(stripListMarker), blocker: draft.blocker === '' ? null : draft.blocker, plan_steps: steps, plan_done: ticks });
+    // JOURNAL-04 (2026-10-19): the evening's three ride AS HELD from the journal prop at save time (null when there is no row) — a save never clears an evening.
+    const read = journalInput({ day, goals: linesOf(draft.goals).map(stripListMarker), blocker: draft.blocker === '' ? null : draft.blocker, plan_steps: steps, plan_done: ticks, audit: journal === null ? null : journal.audit, learned: journal === null ? null : journal.learned, next: journal === null ? null : journal.next });
     if (!read.ok) { setWords(read.message); return; }
     setBusy(true);
     setWords(null);
