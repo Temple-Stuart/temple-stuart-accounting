@@ -486,7 +486,8 @@ test('T6 the form: no maxLength, the route’s rule first, the one writer, clear
   assert.match(f, /carryTicks, clearJournalQuestion, journalInput, linesOf,/, 'the route’s own rule, imported');
   // PLAN-01 (2026-10-13): each goal line loses a pasted list's marker (stripListMarker) — the pin moved with it.
   // JOURNAL-03 (2026-10-15): the body carries no shipped — the END OF DAY box is gone; the pin moved with it, as exact.
-  assert.match(f, /const read = journalInput\(\{ day, goals: linesOf\(draft\.goals\)\.map\(stripListMarker\), blocker: draft\.blocker === '' \? null : draft\.blocker, plan_steps: steps, plan_done: ticks \}\);\n\s*if \(!read\.ok\) \{ setWords\(read\.message\); return; \}/, 'a blank box is null; a refusal is the route’s words');
+  // JOURNAL-04 (Alex, 2026-10-19): the body carries the evening's three as held from the journal prop — every writer sends the row as held; the pin moved with it, as exact.
+  assert.match(f, /const read = journalInput\(\{ day, goals: linesOf\(draft\.goals\)\.map\(stripListMarker\), blocker: draft\.blocker === '' \? null : draft\.blocker, plan_steps: steps, plan_done: ticks, audit: journal === null \? null : journal\.audit, learned: journal === null \? null : journal\.learned, next: journal === null \? null : journal\.next \}\);\n\s*if \(!read\.ok\) \{ setWords\(read\.message\); return; \}/, 'a blank box is null; a refusal is the route’s words; the three as held');
   assert.match(f, /const answer = await setJournal\(day, read\.value\.answers\);\n\s*if \(!answer\.ok\) \{ setWords\(answer\.message\); return; \}\n\s*onChanged\(\);/, 'the one writer, then the caller re-reads');
   assert.doesNotMatch(f, /maxLength/, 'no maxLength — it counts UTF-16 units; the rule’s refusal is the limit');
   assert.doesNotMatch(f, /\bfetch\s*\(|\/api\//, 'the form names no route of its own');

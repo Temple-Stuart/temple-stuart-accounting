@@ -341,10 +341,11 @@ function JournalPlate({ day, journal, yesterday, onChanged }: {
   const a: Answers = answersOf(row === null ? {} : row);
   const yRow = yesterday !== null && yesterday.ok ? yesterday.value.journal : null;
 
-  // A tick: the whole journal as held with that one flag flipped, through the route's own rule and the one writer; then the journal read again.
+  // A tick: the whole journal as held with that one flag flipped — the seven answers of the row read for the day (JOURNAL-04, 2026-10-19: audit, learned and next ride as held, so a tick never clears an evening; the card
+  // re-reads the journal after every write), through the route's own rule and the one writer; then the journal read again.
   const tick = async (i: number) => {
     if (row === null || busyStep !== null) return;
-    const read = journalInput({ day, goals: row.goals, blocker: row.blocker, plan_steps: row.plan_steps, plan_done: row.plan_done.map((d, j) => (j === i ? !d : d)) });
+    const read = journalInput({ day, ...answersOf(row), plan_done: row.plan_done.map((d, j) => (j === i ? !d : d)) });
     if (!read.ok) { setTickWords(read.message); return; }
     setBusyStep(i);
     setTickWords(null);
