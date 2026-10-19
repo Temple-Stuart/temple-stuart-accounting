@@ -365,7 +365,8 @@ test('T6 the plate: the four blocks in order; each step a tick button through th
   assert.match(plate, /\{a\.plan_steps\.map\(\(step, i\) => \(\n\s*<button\n\s*type="button"[\s\S]*?onClick=\{\(\) => tick\(i\)\}[\s\S]*?>\{planStepWords\(i \+ 1, step, a\.plan_done\[i\]\)\}<\/button>/, 'a button per step, ☐/✓ n. step');
   assert.match(plate, /data-day-journal-plan-done>\{planDoneWords\(a\.plan_done\.filter\(\(d\) => d\)\.length, a\.plan_steps\.length\)\}/, '"n of N done" under the list');
   // JOURNAL-03 (2026-10-15): the four answers as held — no shipped; the pin moved, as exact.
-  assert.match(plate, /const read = journalInput\(\{ day, goals: row\.goals, blocker: row\.blocker, plan_steps: row\.plan_steps, plan_done: row\.plan_done\.map\(\(d, j\) => \(j === i \? !d : d\)\) \}\);/, 'the whole journal as held, that one flag flipped, through the route’s rule');
+  // JOURNAL-04 (Alex, 2026-10-19): the row spread whole (answersOf — the seven), that one flag flipped; the pin moved with it, as exact.
+  assert.match(plate, /const read = journalInput\(\{ day, \.\.\.answersOf\(row\), plan_done: row\.plan_done\.map\(\(d, j\) => \(j === i \? !d : d\)\) \}\);/, 'the whole journal as held, that one flag flipped, through the route’s rule');
   inOrder(plate, ['if (row === null || busyStep !== null) return;', 'if (!read.ok) { setTickWords(read.message); return; }', 'setBusyStep(i);', 'const answer = await writeJournal(day, read.value.answers);', 'if (!answer.ok) { setTickWords(answer.message); return; }', 'onChanged();', 'setBusyStep(null);'], 'busy, the one writer, the route’s words on a refusal, the journal read again');
   assert.match(plate, /disabled=\{busyStep !== null\}\n\s*aria-pressed=\{a\.plan_done\[i\]\}/, 'no second tick while one writes; the tick’s state is announced');
   assert.match(plate, /data-day-journal-tick-words>\{tickWords\}/);

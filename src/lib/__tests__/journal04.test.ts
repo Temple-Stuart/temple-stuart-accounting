@@ -7,8 +7,9 @@
  * lines, the rule carrying seven answers (audit a BLOCK whose line breaks are
  * kept; learned and next texts), and the route unchanged in code: PUT writes
  * Answers whole, so a body carrying the three stores them and a body without
- * them stores NULL for them — JOURNAL-05's cards must each send the whole row
- * (decision 6). No card yet; no words on a page.
+ * them stores NULL for them — so every writer sends the whole row as held: the
+ * cards (decision 6), and, by the amendment the same day, the plate's tick and
+ * the form's save (T7). No card yet; no words on a page.
  *
  * The migration-order pins moved by one in journal01, journal02, move01,
  * retro01, role01, routine02b, stay01, stop01, tasksOne02 and week02, each
@@ -241,14 +242,17 @@ test('T6 the route is unchanged in code and writes Answers whole: a PUT carrying
 
 // ── T7 · WHAT DOES NOT CHANGE ────────────────────────────────────────────────
 
-test('T7 the writers are untouched: the form and the plate’s tick still send the morning’s four BY NAME — the three arrive as null, so either write clears an evening until JOURNAL-05 sends the whole row', () => {
-  // FOUND in the browser (JOURNAL-04, 2026-10-19): the tick's body is built from the four fields by name (DayCard.tsx), NOT
-  // through answersOf — the prompt's fact said the opposite. Proven on the local database: a row seeded with an evening,
-  // one tick on the card, the PUT carried audit/learned/next as null and the row's evening was gone. R5 keeps DayCard.tsx
-  // untouched here; JOURNAL-05 (decision 6) must make the tick, like its cards, send the row as held. Pinned as it is.
-  assert.match(code(FORM), /journalInput\(\{ day, goals: linesOf\(draft\.goals\)\.map\(stripListMarker\), blocker: draft\.blocker === '' \? null : draft\.blocker, plan_steps: steps, plan_done: ticks \}\)/);
-  assert.match(code(CARD), /journalInput\(\{ day, goals: row\.goals, blocker: row\.blocker, plan_steps: row\.plan_steps, plan_done: row\.plan_done\.map\(/);
-  assert.doesNotMatch(code(CARD), /journalInput\(\{ day, \.\.\.answersOf\(row\)/, 'the tick does not spread the row — JOURNAL-05 changes this');
-  for (const f of [FORM, CARD]) assert.doesNotMatch(code(f), /\b(audit|learned)\b/, `${f} asks no evening answer yet (JOURNAL-05)`);
+test('T7 every writer sends the row as held (the JOURNAL-04 amendment): the form carries audit, learned and next from the journal prop at save time; the tick spreads the row with the one flag flipped — neither names only the four', () => {
+  // FOUND in the browser (JOURNAL-04, 2026-10-19): both bodies named the four morning fields, so a tick or a morning save
+  // stored NULL over an evening. Alex's amendment (the same day): the invariant "every writer sends the whole row as held"
+  // belongs to the data layer, here — R5 overridden for exactly these two bodies. Pinned exact.
+  assert.match(code(FORM), /const read = journalInput\(\{ day, goals: linesOf\(draft\.goals\)\.map\(stripListMarker\), blocker: draft\.blocker === '' \? null : draft\.blocker, plan_steps: steps, plan_done: ticks, audit: journal === null \? null : journal\.audit, learned: journal === null \? null : journal\.learned, next: journal === null \? null : journal\.next \}\);/);
+  assert.match(code(CARD), /const read = journalInput\(\{ day, \.\.\.answersOf\(row\), plan_done: row\.plan_done\.map\(\(d, j\) => \(j === i \? !d : d\)\) \}\);/);
+  assert.doesNotMatch(code(FORM), /plan_done: ticks \}\)/, 'the form never sends the four alone');
+  assert.doesNotMatch(code(CARD), /journalInput\(\{ day, goals: row\.goals/, 'the tick never names the four alone');
+  assert.match(comments(FORM), /JOURNAL-04 \(Alex, 2026-10-19\): the form asks the morning's four and carries the evening's three/);
+  assert.match(comments(CARD), /JOURNAL-04, 2026-10-19: audit, learned and next ride as held, so a tick never clears an evening/);
+  assert.match(comments(ROUTE), /every writer sends the\s*\n\s*\*\s*row as held since JOURNAL-04 \(the tick, the form\); JOURNAL-05's cards do\s*\n\s*\*\s*the same/);
+  assert.doesNotMatch(code(FORM), /data-journal-field="(audit|learned|next)"/, 'no box for the three yet (JOURNAL-05)');
   assert.doesNotMatch(code(RULE), /QUESTION = '[^']*(audit|learn|surprise|take it next)/i, 'no question words for the three here — JOURNAL-05’s');
 });

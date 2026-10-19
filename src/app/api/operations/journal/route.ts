@@ -21,9 +21,9 @@
  *     journalRowOf, so a PUT carrying the three stores them and a PUT WITHOUT
  *     them stores NULL for them — which is why JOURNAL-05's cards must each
  *     send the whole row as held (decision 6): a body of the morning's four
- *     alone clears an evening typed before — and the plate's tick sends the
- *     four by name today (DayCard.tsx), so JOURNAL-05 must change it too.
- *     journal04.test.ts drives it.
+ *     alone would clear an evening typed before — so every writer sends the
+ *     row as held since JOURNAL-04 (the tick, the form); JOURNAL-05's cards do
+ *     the same. journal04.test.ts drives it.
  *
  * The caller's own rows only: the verified cookie, then the user, then every
  * query by user_id (the auth shape of src/app/api/operations/stops/route.ts).
