@@ -500,6 +500,12 @@ model operations_day_journals {
   plan_steps    String[] @default([])
   /// … and one tick per step (the same length — CHECK). RETIRED 2026-10-13: adjustment, one_thing, witness, plan_1_if … obstacle_then — kept, never written.
   plan_done     Boolean[] @default([])
+  /// JOURNAL-04 (Alex, 2026-10-19): the evening's three, nullable — NULL is unanswered, never "" (the not-blank CHECK). The pasted audit — paragraphs; the rule caps it at 4000 code points and 200 lines (journal.ts blockOf), the database bounds a TEXT column not at all. An evening alone is a journal (the at-least-one CHECK counts the three).
+  audit         String?  @db.Text
+  /// What I learned, or what surprised me — VARCHAR(500), counted in code points by the rule.
+  learned       String?  @db.VarChar(500)
+  /// Where I want to take it next — the line tomorrow's morning card shows first and the reel's cliffhanger (REEL-02); VARCHAR(500).
+  next          String?  @db.VarChar(500)
   created_at    DateTime @default(now()) @db.Timestamptz(6)
   /// Written by @updatedAt (no DB default) — read back as the "typed" instant; the PUT guards its write on it.
   updated_at    DateTime @updatedAt @db.Timestamptz(6)

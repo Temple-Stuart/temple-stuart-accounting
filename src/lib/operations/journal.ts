@@ -1,5 +1,5 @@
 /**
- * journal — THE DAY'S JOURNAL, PURE (JOURNAL-01, 2026-10-13; JOURNAL-02, 2026-10-13; JOURNAL-03, 2026-10-15).
+ * journal — THE DAY'S JOURNAL, PURE (JOURNAL-01, 2026-10-13; JOURNAL-02, 2026-10-13; JOURNAL-03, 2026-10-15; JOURNAL-04, 2026-10-19).
  *
  * The journal routine's stop (a routine whose role is 'journal', stopRole.ts)
  * shows a plate on the day card and asks its questions under it. The ANSWERS a
@@ -21,6 +21,17 @@
  * dropped), the words typed before stay in the row and in `retired`, and a
  * write never touches them (the routes write the four answers alone).
  *
+ * JOURNAL-04 (Alex, 2026-10-19) — THE EVENING'S THREE ANSWERS. The journal
+ * becomes two cards: MORNING — planning (the four above) and EVENING —
+ * reflection: `audit` (where did we actually get to — the audit Claude writes
+ * from the plan, the ticks and the day's records, pasted back; a BLOCK of
+ * paragraphs, its line breaks kept), `learned` (what did I learn, or what
+ * surprised me) and `next` (where do I want to take it next — the line
+ * tomorrow's morning card shows first and the reel's cliffhanger, REEL-02).
+ * Seven answers now, read in ANSWER_FIELDS' order; an evening alone is a
+ * journal. The three columns are JOURNAL-04's migration; no card asks them
+ * yet — the cards and their words are JOURNAL-05's.
+ *
  * RETIRED 2026-10-13 (JOURNAL-02): adjustment, one_thing, witness, plan_1_if …
  * plan_3_then, obstacle_if, obstacle_then; 2026-10-15 (JOURNAL-03): shipped.
  * Not asked, not shown and never written. KEPT in the table with the words
@@ -30,7 +41,7 @@
  * (retiredFieldWords — was ignored), so a page from before reloads instead of
  * believing its words were saved.
  *
- * Here: the four answers and their limits, what the routes accept (journalInput
+ * Here: the seven answers and their limits, what the routes accept (journalInput
  * — the one rule, shared by the form so the screen refuses in the route's own
  * words), a row as the routes answer it (journalRowOf), whether a second write
  * changes anything (journalUnchanged), the plan's ticks carried across a
@@ -39,12 +50,24 @@
  */
 import { isIsoDay } from '@/lib/budget/days';
 
-/** The text answer's column length (VARCHAR(n) — n CHARACTERS, counted in code points, not UTF-16 units). JOURNAL-03 (2026-10-15): shipped's 500 left with END OF DAY. */
+/**
+ * The text answers' limits in CHARACTERS, counted in code points (not UTF-16 units). blocker's 280 is its column's
+ * length (VARCHAR(280)). JOURNAL-04 (Alex, 2026-10-19): the evening's three — learned's and next's 500 are their
+ * columns' lengths (VARCHAR(500)); audit's 4000 is the rule's OWN cap on a TEXT column, which the database does not
+ * bound. JOURNAL-03 (2026-10-15): shipped's 500 left with END OF DAY.
+ */
 export const ANSWER_MAX = {
   blocker: 280,
+  audit: 4000,
+  learned: 500,
+  next: 500,
 } as const;
 
 export type TextField = keyof typeof ANSWER_MAX;
+
+/** JOURNAL-04: the one BLOCK answer — paragraphs, its line breaks kept (blockOf) — and the lines it may hold. */
+export type BlockField = 'audit';
+export const BLOCK_MAX_LINES = 200;
 
 /** Each list's limits: the lines it holds (the migration's CHECKs) and each line's characters (the rule's). */
 export const LIST_MAX = {
@@ -54,8 +77,12 @@ export const LIST_MAX = {
 
 export type ListField = keyof typeof LIST_MAX;
 
-/** The four answers in the plate's order: TODAY's goals, BLOCKERS, PLAN's steps and their ticks. JOURNAL-03 (2026-10-15): END OF DAY (shipped) is retired. */
-export const ANSWER_FIELDS = ['goals', 'blocker', 'plan_steps', 'plan_done'] as const;
+/**
+ * The seven answers: the morning's four in the plate's order — TODAY's goals, BLOCKERS, PLAN's steps and their
+ * ticks — then the evening's three (JOURNAL-04, 2026-10-19): audit, learned, next. JOURNAL-03 (2026-10-15): END
+ * OF DAY (shipped) is retired.
+ */
+export const ANSWER_FIELDS = ['goals', 'blocker', 'plan_steps', 'plan_done', 'audit', 'learned', 'next'] as const;
 
 export type AnswerField = (typeof ANSWER_FIELDS)[number];
 
@@ -65,6 +92,12 @@ export interface Answers {
   readonly plan_steps: string[];
   /** One tick per step, in the steps' order. */
   readonly plan_done: boolean[];
+  /** JOURNAL-04: the pasted audit — a block, paragraphs joined with '\n'; null until typed. */
+  readonly audit: string | null;
+  /** JOURNAL-04: what I learned, or what surprised me; null until typed. */
+  readonly learned: string | null;
+  /** JOURNAL-04: where I want to take it next; null until typed. */
+  readonly next: string | null;
 }
 
 /** RETIRED 2026-10-13 (JOURNAL-02) and 2026-10-15 (JOURNAL-03, shipped) — kept in the table, never asked, shown or written; a body that carries one is refused by name. */
@@ -95,14 +128,18 @@ export type JournalDbRow = Answers & Retired & {
 /** Nothing answered — what an unanswered day reads as. */
 export const NO_ANSWERS: Answers = Object.freeze({
   goals: Object.freeze([]) as unknown as string[], blocker: null, plan_steps: Object.freeze([]) as unknown as string[], plan_done: Object.freeze([]) as unknown as boolean[],
+  audit: null, learned: null, next: null,
 });
 
-/** The answers alone, from a row — built fresh from ANSWER_FIELDS, the lists copied, so no other key passes through. */
+/** The answers alone, from a row — built fresh from ANSWER_FIELDS (the seven, JOURNAL-04), the lists copied, so no other key passes through. */
 export const answersOf = (source: Partial<Answers>): Answers => ({
   goals: [...(source.goals ?? [])],
   blocker: source.blocker ?? null,
   plan_steps: [...(source.plan_steps ?? [])],
   plan_done: [...(source.plan_done ?? [])],
+  audit: source.audit ?? null,
+  learned: source.learned ?? null,
+  next: source.next ?? null,
 });
 
 const retiredOf = (row: Retired): Retired => Object.fromEntries(RETIRED_FIELDS.map((f) => [f, row[f] ?? null])) as Record<RetiredField, string | null>;
@@ -135,6 +172,8 @@ export const notStringWords = (field: TextField): string => `${field} must be a 
 export const tooLongWords = (field: TextField, given: number): string => `${field} is at most ${ANSWER_MAX[field]} characters (${given} given)`;
 export const notListWords = (field: ListField): string => `${field} must be a list of lines`;
 export const tooManyWords = (field: ListField, given: number): string => `${field} is at most ${LIST_MAX[field].lines} lines (${given} given)`;
+/** JOURNAL-04: a block of more lines than it may hold, counted after its blank-line runs collapse. */
+export const tooManyLinesWords = (field: BlockField, given: number): string => `${field} is at most ${BLOCK_MAX_LINES} lines (${given} given)`;
 export const lineNotStringWords = (field: ListField, line: number): string => `${field} line ${line} must be a string`;
 export const blankLineWords = (field: ListField, line: number): string => `${field} line ${line} is blank — type it or leave it out`;
 export const lineTooLongWords = (field: ListField, line: number, given: number): string => `${field} line ${line} is at most ${LIST_MAX[field].characters} characters (${given} given)`;
@@ -192,8 +231,46 @@ function textOf(field: TextField, raw: unknown): { readonly ok: true; readonly t
 }
 
 /**
+ * JOURNAL-04 (Alex, 2026-10-19): a BLOCK answer — the pasted audit, paragraphs.
+ * Absent or null is unanswered; a string, split on CR, LF or CRLF; each line
+ * trimmed and its runs of whitespace one space (linesOf's own rule, through
+ * cleanText — so a control other than the line break, a lone surrogate or a
+ * bidi control is refused by name with the text answers' own words, and the
+ * check runs PER LINE, so the line break itself never trips CONTROLS); leading
+ * and trailing blank lines dropped; a run of blank lines inside becomes ONE
+ * empty line (a paragraph break is kept, a stack of them is one); joined with
+ * '\n'. Only whitespace is blank here, as in linesOf; a line of invisible
+ * characters is kept as typed, and whether anything is visible is asked over
+ * every line together: nothing visible is unanswered (null). More lines than
+ * BLOCK_MAX_LINES after the collapse are refused by name (tooManyLinesWords);
+ * over ANSWER_MAX code points after the cleaning, by name (tooLongWords). NEVER
+ * flattened to one line — a block keeps its line breaks, which textOf does not.
+ */
+function blockOf(field: BlockField, raw: unknown): { readonly ok: true; readonly text: string | null } | { readonly ok: false; readonly result: JournalInputResult } {
+  if (raw === undefined || raw === null) return { ok: true, text: null };
+  if (typeof raw !== 'string') return { ok: false, result: refuse(field, notStringWords(field)) };
+  const lines: string[] = [];
+  let visible = false;
+  for (const line of raw.split(/\r\n|\r|\n/)) {
+    const clean = cleanText(line);
+    if (!clean.ok) return { ok: false, result: refuse(field, clean.words) };
+    if (clean.visible) visible = true;
+    // A blank line inside is one paragraph break; a run of them is one; none at the start.
+    if (clean.text === '') { if (lines.length > 0 && lines[lines.length - 1] !== '') lines.push(''); }
+    else lines.push(clean.text);
+  }
+  if (!visible) return { ok: true, text: null };
+  while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
+  if (lines.length > BLOCK_MAX_LINES) return { ok: false, result: refuse(field, tooManyLinesWords(field, lines.length)) };
+  const text = lines.join('\n');
+  const length = [...text].length;
+  if (length > ANSWER_MAX[field]) return { ok: false, result: refuse(field, tooLongWords(field, length)) };
+  return { ok: true, text };
+}
+
+/**
  * The one rule for what a journal is given: { day, goals?, blocker?,
- * plan_steps?, plan_done? }. The body an object; then no retired field —
+ * plan_steps?, plan_done?, audit?, learned?, next? }. The body an object; then no retired field —
  * JOURNAL-03 (Alex, 2026-10-15): a body that carries one of the twelve, any
  * value, null included, is refused by that field's name (retiredFieldWords;
  * JOURNAL-02 ignored them), while any other extra key is still ignored. `day` a real
@@ -205,10 +282,13 @@ function textOf(field: TextField, raw: unknown): { readonly ok: true; readonly t
  * line is refused by name (the form drops blank lines before sending — the rule
  * never drops one silently). plan_done is one true or false per step, refused
  * by name when it is not. A text answer that is nothing visible is unanswered
- * (null). At least one goal, step or blocker (JOURNAL-03: end of day no
- * longer counts). Checked in the plate's order, the first bad field named. The
- * answers come back built from the four fields alone — a retired field, or any
- * other key, never passes.
+ * (null). JOURNAL-04 (2026-10-19): then the evening's three — audit a block
+ * (blockOf: its line breaks kept, at most 4000 code points and 200 lines),
+ * learned and next texts (textOf, at most 500). At least one goal, step,
+ * blocker, audit, learned or next (JOURNAL-03: end of day no longer counts).
+ * Checked in ANSWER_FIELDS' order — the plate's four, then the three — the
+ * first bad field named. The answers come back built from the seven fields
+ * alone — a retired field, or any other key, never passes.
  */
 export function journalInput(body: unknown): JournalInputResult {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) return refuse('day', BODY_WORDS);
@@ -238,18 +318,29 @@ export function journalInput(body: unknown): JournalInputResult {
   }
   if (plan_done.length !== steps.lines.length) return refuse('plan_done', doneLengthWords(plan_done.length, steps.lines.length));
 
-  if (goals.lines.length === 0 && steps.lines.length === 0 && blocker.text === null) return refuse('goals', NOTHING_TYPED_WORDS);
-  return { ok: true, value: { day, answers: { goals: goals.lines, blocker: blocker.text, plan_steps: steps.lines, plan_done } } };
+  // JOURNAL-04: the evening's three, after the morning's four.
+  const audit = blockOf('audit', b.audit);
+  if (!audit.ok) return audit.result;
+  const learned = textOf('learned', b.learned);
+  if (!learned.ok) return learned.result;
+  const next = textOf('next', b.next);
+  if (!next.ok) return next.result;
+
+  if (goals.lines.length === 0 && steps.lines.length === 0 && blocker.text === null && audit.text === null && learned.text === null && next.text === null) return refuse('goals', NOTHING_TYPED_WORDS);
+  return { ok: true, value: { day, answers: { goals: goals.lines, blocker: blocker.text, plan_steps: steps.lines, plan_done, audit: audit.text, learned: learned.text, next: next.text } } };
 }
 
 const sameList = <T>(a: readonly T[], b: readonly T[]): boolean => a.length === b.length && a.every((x, i) => x === b[i]);
 
-/** Would writing `answers` over `row` change nothing? The four answers, the lists element by element (JOURNAL-03: shipped is not written, so not compared). */
+/** Would writing `answers` over `row` change nothing? The seven answers (JOURNAL-04), the lists element by element (JOURNAL-03: shipped is not written, so not compared). */
 export const journalUnchanged = (row: Answers, answers: Answers): boolean =>
   sameList(row.goals, answers.goals)
   && row.blocker === answers.blocker
   && sameList(row.plan_steps, answers.plan_steps)
-  && sameList(row.plan_done, answers.plan_done);
+  && sameList(row.plan_done, answers.plan_done)
+  && row.audit === answers.audit
+  && row.learned === answers.learned
+  && row.next === answers.next;
 
 // ── THE PLAN'S TICKS ────────────────────────────────────────────────────────
 

@@ -181,16 +181,18 @@ test('T5 the migration: the table with its two CHECKs, the trigger that locks th
   // TASKS-ONE-02 (2026-10-14): the completion audit types' migration is newer still — every index moved one; the order holds.
   // RETRO-01 (Alex, 2026-10-16): the stop-moved audit type's migration is newer still — every index moved one; the order holds.
   // ROUTINE-02b (2026-10-18): one more audit-type migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 9], MIGRATION_DIR, 'the migration seven before the newest (STOP-01, ROLE-01, JOURNAL-01, JOURNAL-02, TASKS-ONE-02, then RETRO-01, ROUTINE-02b followed)');
-  assert.equal(dirs[dirs.length - 8], '20261012140000_stop_01_operations_stop_records');
-  assert.equal(dirs[dirs.length - 7], '20261013030000_role_01_routine_role');
-  assert.equal(dirs[dirs.length - 6], '20261013120000_journal_01_day_journals');
-  assert.equal(dirs[dirs.length - 5], '20261013200000_journal_02_the_simple_journal');
-  assert.equal(dirs[dirs.length - 4], '20261014090000_tasks_one_02_completion_audit_types');
-  assert.equal(dirs[dirs.length - 3], '20261016120000_retro_01_stop_moved_audit_type', 'the migration before the newest (ROUTINE-02b followed)');
+  assert.equal(dirs[dirs.length - 10], MIGRATION_DIR, 'the migration seven before the newest (STOP-01, ROLE-01, JOURNAL-01, JOURNAL-02, TASKS-ONE-02, then RETRO-01, ROUTINE-02b followed)');
+  assert.equal(dirs[dirs.length - 9], '20261012140000_stop_01_operations_stop_records');
+  assert.equal(dirs[dirs.length - 8], '20261013030000_role_01_routine_role');
+  assert.equal(dirs[dirs.length - 7], '20261013120000_journal_01_day_journals');
+  assert.equal(dirs[dirs.length - 6], '20261013200000_journal_02_the_simple_journal');
+  assert.equal(dirs[dirs.length - 5], '20261014090000_tasks_one_02_completion_audit_types');
+  assert.equal(dirs[dirs.length - 4], '20261016120000_retro_01_stop_moved_audit_type', 'the migration before the newest (ROUTINE-02b followed)');
   // MOVE-01 (2026-10-19): one more audit-type migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 2], '20261018120000_routine_02b_rekeyed_audit_type', 'the migration before the newest (MOVE-01 followed)');
-  assert.equal(dirs[dirs.length - 1], '20261019090000_move_01_moved_audit_type', 'the newest migration');
+  assert.equal(dirs[dirs.length - 3], '20261018120000_routine_02b_rekeyed_audit_type', 'the migration before the newest (MOVE-01 followed)');
+  // JOURNAL-04 (2026-10-19): the evening answers' migration followed (the newest); the order below moved by one.
+  assert.equal(dirs[dirs.length - 2], '20261019090000_move_01_moved_audit_type', 'the migration before the newest (JOURNAL-04 followed)');
+  assert.equal(dirs[dirs.length - 1], '20261019210000_journal_04_evening_answers', 'the newest migration');
   assert.ok(MIGRATION_DIR.slice(0, 14) > '20260930210000');
 });
 
