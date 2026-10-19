@@ -61,11 +61,11 @@ test('the opener lists only the phases its page draws', () => {
   // The tools whose page draws their own pipe still list it, in pipe order.
   // PLAN-01: Calendar is no longer among them — it draws nothing now.
   // TASKS-01: nor is Tasks — /tasks is two lists and draws no strip, so its
-  // opener lists nothing (tasks01.test.ts pins that); Time still draws content.
-  for (const [tool, route, pipe] of [['Time', '/time', 'content']] as const) {
-    const listed = phasesRenderedOn(route, navToolByName(tool, TOOL_GATE)).filter((p) => p.pipe === pipe);
-    assert.deepEqual(listed.map((p) => p.num), PIPE_PHASES[pipe].map((p) => p.num), `${tool} lists ${pipe} in order`);
-  }
+  // opener lists nothing (tasks01.test.ts pins that).
+  // TIME-02 (2026-10-19): nor is Time — the content pipeline is retired; /time is the day card and the ledger and
+  // draws no strip, so its opener lists nothing. The content pipe stays DEFINED (four phases) until PIPES-01.
+  assert.deepEqual(phasesRenderedOn('/time', navToolByName('Time', TOOL_GATE)), []);
+  assert.deepEqual(PIPE_PHASES.content.map((p) => p.num), ['01', '02', '03', '04']);
   assert.deepEqual(phasesRenderedOn('/tasks', navToolByName('Tasks', TOOL_GATE)), []);
 });
 

@@ -1214,11 +1214,11 @@ lawGuard('The citation law', () => {
 //      component may not be mounted outside /calendar. CalendarGrid is a SHARED
 //      PRIMITIVE and is excluded: Trade Log's own P&L rows have fed it since
 //      long before this law (TRADE-SPLIT moved that mount from /trading:887 to
-//      src/app/trade-log/page.tsx, phase 05 RECORD). EXPLICIT NON-VIOLATION: DayCalendarView
-//      (src/components/workbench/operations/content/DayCalendarView.tsx) renders
-//      the day's blocks as "a dense, ONE-LINE stacked list in clock order (NOT
-//      an hour-grid)" — its own words — as the content pipe's phase 03 surface.
-//      It is Time's, it is not the merged grid, and it is not a violation.
+//      src/app/trade-log/page.tsx, phase 05 RECORD). HISTORY: DayCalendarView
+//      (the phase 03 surface of the content pipe — a clock-ordered one-line
+//      list, not an hour-grid) was named here as an explicit non-violation;
+//      TIME-02 (2026-10-19) deleted it with the content pipeline, and nothing
+//      on /time draws a calendar now.
 //
 // THE GRANDFATHER LIST is closed. Each entry is named, dated and reasoned, and
 // THE ALLOWLIST MAY ONLY SHRINK — the build throws if it grows.
@@ -3425,17 +3425,19 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
   if (/DayCard|LedgerSection/.test(page)) twoListsFail(`${TWO_LISTS_PAGE} names the day card or the ledger — both moved to /time (TIME-01)`);
   if ((PHASES_RENDERED_AT['/tasks'] ?? ['?']).length !== 0) twoListsFail(`nav.ts declares /tasks draws [${(PHASES_RENDERED_AT['/tasks'] ?? []).join(' ')}] — it draws nothing`);
   // TIME-01 — the /time container: the day card first, in its Suspense boundary (useSearchParams on a client page), then the
-  // ledger, then the content pipeline as it is — the third mount is for TIME-02 to retire, named here until it does.
-  const TIME_MOUNTS = ['<DayCard />', '<LedgerSection />', '<ContentPipeline />'];
+  // ledger. TIME-02 (2026-10-19): the third mount, the content pipeline, is retired — its components and its routes are
+  // deleted — so the container is exactly the two, and nothing beneath.
+  const TIME_MOUNTS = ['<DayCard />', '<LedgerSection />'];
   const timePage = codeOf(TIME_PAGE);
   for (const section of TIME_MOUNTS) {
-    if (!timePage.includes(section)) twoListsFail(`${TIME_PAGE} no longer mounts ${section} — the page is the day card, the city ledger and, until TIME-02, the content pipeline (TIME-01)`);
+    if (!timePage.includes(section)) twoListsFail(`${TIME_PAGE} no longer mounts ${section} — the page is the day card and the city ledger (TIME-01; TIME-02)`);
   }
   const timeAt = TIME_MOUNTS.map((section) => timePage.indexOf(section));
-  if (timeAt.some((at, i) => i > 0 && at < timeAt[i - 1])) twoListsFail(`${TIME_PAGE} mounts its sections out of order — the day card first, then the ledger, then the pipeline (TIME-01)`);
+  if (timeAt.some((at, i) => i > 0 && at < timeAt[i - 1])) twoListsFail(`${TIME_PAGE} mounts its sections out of order — the day card first, then the ledger (TIME-01; TIME-02)`);
   const timeBox = timePage.slice(timePage.indexOf('data-tool-page="Time"'), timePage.indexOf('</OperationsEntityProvider>'));
   const timeMounts = [...timeBox.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]).filter((tag) => tag !== 'Suspense');
-  if (timeMounts.join(' ') !== 'DayCard LedgerSection ContentPipeline') twoListsFail(`${TIME_PAGE} mounts [${timeMounts.join(' ')}] in the Time container — exactly the day card, the city ledger and the content pipeline (TIME-01; the pipeline until TIME-02)`);
+  if (timeMounts.join(' ') !== 'DayCard LedgerSection') twoListsFail(`${TIME_PAGE} mounts [${timeMounts.join(' ')}] in the Time container — exactly the day card and the city ledger, nothing beneath (TIME-01; TIME-02 retired the content pipeline)`);
+  if (/ContentPipeline|operations\/content\//.test(timePage)) twoListsFail(`${TIME_PAGE} names the content pipeline — retired by TIME-02 (2026-10-19)`);
   if (!/<Suspense>\s*<DayCard \/>\s*<\/Suspense>/.test(timePage)) twoListsFail(`${TIME_PAGE} mounts the day card outside its Suspense boundary — the card reads the URL (useSearchParams) on a client page (TASKS-ONE-01; TIME-01)`);
   // Every control the strips held is still a control: the list headers' create
   // buttons, the row's edit/archive/delete and its pipeline door, Today's mark-done.

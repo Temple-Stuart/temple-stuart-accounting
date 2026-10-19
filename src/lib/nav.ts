@@ -99,10 +99,12 @@ export const THE_SORT: readonly PhaseAssignment[] = [
   // TRIPS-01 (2026-09-29): both citations re-read — the note moved +20 lines with the
   // Travel tab's ?trip reader (was :622-629); the handler was cited :649-651, stale
   // already on main 536c862b (it stood at :654-658), and is cited where it stands.
+  // TIME-02 (2026-10-19): the two citations below moved up twenty lines when the cockpit's hidden Content tab was
+  // deleted above them in ModuleLauncher.tsx (nav.test.ts holds the marker to the cited range); the words are unchanged.
   { pipe: 'runway', num: '01', owner: 'Banking', rendersSurface: false,
-    surfaceNote: 'src/components/home/ModuleLauncher.tsx:642-649 — "STATE-ONLY cells (no surface exists in this tab: accounts link in Books 01 Feed)"; the handler excludes its key at :674-678' },
+    surfaceNote: 'src/components/home/ModuleLauncher.tsx:622-629 — "STATE-ONLY cells (no surface exists in this tab: accounts link in Books 01 Feed)"; the handler excludes its key at :654-658' },
   { pipe: 'runway', num: '02', owner: HOME_OWNER, rendersSurface: false,
-    surfaceNote: 'src/components/home/ModuleLauncher.tsx:642-649 — "ledger history renders only THROUGH the burn/budget figures"; the handler excludes its key at :674-678' },
+    surfaceNote: 'src/components/home/ModuleLauncher.tsx:622-629 — "ledger history renders only THROUGH the burn/budget figures"; the handler excludes its key at :654-658' },
   { pipe: 'runway', num: '03', owner: HOME_OWNER, rendersSurface: true },
   { pipe: 'runway', num: '04', owner: 'Bookkeeping', rendersSurface: true },
   { pipe: 'runway', num: '05', owner: 'Budget', rendersSurface: true },
@@ -129,7 +131,11 @@ export const THE_SORT: readonly PhaseAssignment[] = [
     surfaceNote: 'TASKS-01 (2026-09-18): drawn nowhere — /tasks renders no StageStrip (src/app/tasks/page.tsx); the capability is plain controls in src/components/workbench/operations/SectionE_Routines.tsx' })),
   ...(['01', '02', '03', '04', '05', '06'] as const).map((num): PhaseAssignment => ({ pipe: 'projects', num, owner: 'Tasks', rendersSurface: false,
     surfaceNote: 'TASKS-01 (2026-09-18): drawn nowhere — /tasks renders no StageStrip (src/app/tasks/page.tsx); the capability is plain controls in src/components/workbench/operations/projects/TruthMachineView.tsx behind the row\'s "pipeline" button' })),
-  ...(['01', '02', '03', '04'] as const).map((num): PhaseAssignment => ({ pipe: 'content', num, owner: 'Time', rendersSurface: true })),
+  // TIME-02 (2026-10-19): the content pipeline is retired — its components and routes are deleted; /time is the day card
+  // and the city ledger, and draws no strip. The pipe stays DEFINED and owned (pipePhases.ts, THE SORT) until PIPES-01
+  // retires it, declared undrawn in the TASKS-01 idiom.
+  ...(['01', '02', '03', '04'] as const).map((num): PhaseAssignment => ({ pipe: 'content', num, owner: 'Time', rendersSurface: false,
+    surfaceNote: 'TIME-02 (2026-10-19): drawn nowhere — /time renders no StageStrip (src/app/time/page.tsx); the day card is not a pipe; PIPES-01 retires the pipe' })),
 ];
 
 /** A phase as a screen renders it: the pipe's own row, plus who owns it. */
@@ -289,7 +295,9 @@ export const PHASES_RENDERED_AT: Readonly<Record<string, readonly PipePillarId[]
   // in the page's tree. The pipes stay DEFINED (pipePhases.ts, THE SORT) until
   // PIPES-01 retires them — see that ruling's scope in the TASKS-01 PR body.
   '/tasks': [],
-  '/time': ['content'],          // ContentPipeline.tsx:371
+  // TIME-02 (2026-10-19): the content pipeline is retired — /time is the day card and the city ledger and draws no
+  // strip (the opener law counts its tree); the content pipe is declared undrawn in THE SORT above.
+  '/time': [],
   // TRAVEL-01 (2026-09-19): the travel tab draws NO strip. It is the cockpit's
   // tab (src/app/[tab]/page.tsx → ModuleLauncher), now plain sections top-down:
   // header, trips, itinerary, search, booked, ledger, unattached. The travel

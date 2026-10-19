@@ -71,8 +71,15 @@ test('every export form is read — the destructured PUT a `function|const` coun
   // JOURNAL-01 (2026-10-13): the journal's PUT and its DELETE, two route files — named, so the count moves by exactly two.
   assert.ok(narrow.includes('src/app/api/operations/journal/route.ts'));
   assert.ok(narrow.includes('src/app/api/operations/journal/[id]/route.ts'));
-  assert.equal(narrow.length, 44, 'the count the ruling verified on main 11445ca1 (47), + the plan-vendors DELETE (VENDOR-01), − the four legacy-planner routes (LEGACY-DEL-01), − the four option routes (LEGACY-DEL-02), + the completion note PATCH (WEEK-02), + the stay PATCH/DELETE (STAY-01), + the stop record DELETE (STOP-01), + the journal PUT and DELETE (JOURNAL-01), − the completion note PATCH (TASKS-ONE-02)');
-  assert.equal(wide.length, 45, 'the census: 44 + the inngest route (49 before the four legacy-planner routes left — LEGACY-DEL-01; 45 before the four option routes left — LEGACY-DEL-02; 41 before the completion note PATCH — WEEK-02; 42 before the stay routes — STAY-01; 43 before the stop record DELETE — STOP-01; 44 before the journal routes — JOURNAL-01; 46 before the completion note PATCH left — TASKS-ONE-02)');
+  // TIME-02 (2026-10-19): the content pipeline is retired — four of its thirteen routes exported a writer (grid/piece/[pieceId]
+  // PATCH; questions/[id] DELETE; scenes/[id] PATCH and DELETE; takes/[id] PATCH and DELETE) and are DELETED with it, so the
+  // count moves by exactly four. Moved, not loosened: they are gone.
+  for (const gone of ['grid/piece/[pieceId]', 'questions/[id]', 'scenes/[id]', 'takes/[id]']) {
+    assert.ok(!all.includes(`src/app/api/operations/content/${gone}/route.ts`), `${gone} went with the pipeline (TIME-02)`);
+  }
+  assert.ok(!all.some((f) => f.startsWith('src/app/api/operations/content/')), 'no content route remains (TIME-02)');
+  assert.equal(narrow.length, 40, 'the count the ruling verified on main 11445ca1 (47), + the plan-vendors DELETE (VENDOR-01), − the four legacy-planner routes (LEGACY-DEL-01), − the four option routes (LEGACY-DEL-02), + the completion note PATCH (WEEK-02), + the stay PATCH/DELETE (STAY-01), + the stop record DELETE (STOP-01), + the journal PUT and DELETE (JOURNAL-01), − the completion note PATCH (TASKS-ONE-02), − the four content [id] routes (TIME-02)');
+  assert.equal(wide.length, 41, 'the census: 40 + the inngest route (49 before the four legacy-planner routes left — LEGACY-DEL-01; 45 before the four option routes left — LEGACY-DEL-02; 41 before the completion note PATCH — WEEK-02; 42 before the stay routes — STAY-01; 43 before the stop record DELETE — STOP-01; 44 before the journal routes — JOURNAL-01; 46 before the completion note PATCH left — TASKS-ONE-02; 45 before the four content routes left — TIME-02)');
   assert.deepEqual(wide.filter((f) => !narrow.includes(f)), ['src/app/api/inngest/route.ts']);
 });
 

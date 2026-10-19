@@ -30,14 +30,13 @@ import { code as codeOf } from '../src/lib/sourceText';
 
 const ROOT = resolve(__dirname, '..');
 const BASE = 'src/components/workbench/operations/projects';
-const OPS = 'src/components/workbench/operations';
 
 // The subtree that renders on the public page. EXPLICIT list — every file here
 // must stay fetch-free. (The Layer-2 runtime guard lives in src/lib and is
 // intentionally NOT in this list.)
 const SUBTREE_FILES = [
-  // PR E wrapper — the full 3-panel Operations story root.
-  `${OPS}/showroom/OperationsPipelineShowroom.tsx`,
+  // PR E wrapper (OperationsPipelineShowroom.tsx) — deleted by TIME-02 (2026-10-19) with the content pipeline;
+  // nothing imported it.
   // Projects pipe (PR5–PR9).
   `${BASE}/showroom/ProjectsPipelineShowroom.tsx`,
   `${BASE}/showroom/demoData.ts`,
@@ -54,10 +53,8 @@ const SUBTREE_FILES = [
   `${BASE}/TaskScheduleMenu.tsx`,
   `${BASE}/TaskHistoryList.tsx`,
   `${BASE}/TaskCreateInputs.tsx`,
-  // Day + Script panels (PR B/C views, PR D seed) — now public via PR E.
-  `${OPS}/content/DayCalendarView.tsx`,
-  `${OPS}/content/ScriptGeneratorView.tsx`,
-  `${OPS}/content/showroom/demoData.ts`,
+  // Day + Script panels (DayCalendarView, ScriptGeneratorView, content/showroom/demoData) — deleted by TIME-02
+  // (2026-10-19) with the content pipeline.
 ];
 
 // Forbidden patterns. Each is a real data-access or live-container signal. The

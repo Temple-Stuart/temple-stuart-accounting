@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Script from 'next/script';
 import { usePathname, useSearchParams } from 'next/navigation';
 import {
-  Calendar, Plane, Repeat, FolderKanban, TrendingUp, BookOpen, Receipt, ShieldCheck, Clapperboard, MapPin,
+  Calendar, Plane, Repeat, FolderKanban, TrendingUp, BookOpen, Receipt, ShieldCheck, MapPin,
   type LucideIcon,
 } from 'lucide-react';
 import { SECTION_HEADER, STATE } from '@/lib/ds';
@@ -97,10 +97,12 @@ import SectionE_Routines from '@/components/workbench/operations/SectionE_Routin
 // wrapped in the same self-fetching OperationsEntityProvider as SectionE_Routines; logged-out
 // gets the pointer-card to /modules/projects (MOD-2).
 import SectionD_ProjectBacklog from '@/components/workbench/operations/SectionD_ProjectBacklog';
-// Content-mount: the real content pipeline (sources → scenify → grid → script). Authed users get
-// this verbatim, wrapped in the same self-fetching OperationsEntityProvider; logged-out gets the
-// pointer-card to /modules/content (MOD-2).
-import ContentPipeline from '@/components/workbench/operations/content/ContentPipeline';
+// Content-mount — RETIRED by TIME-02 (Alex, 2026-10-19): the content pipeline (ContentPipeline and
+// src/components/workbench/operations/content/) is deleted; the cockpit's hidden Content tab went with
+// it. It was dead code: no tool carries cockpitKey 'content' (the rail opens cockpit sections only
+// through one), TABS is never drawn as a bar, /content is a page that redirects to /time, and the
+// front door 307s /?tab=content to /content — the section could not be reached, and it carried the
+// pipeline in the homepage bundle. The public deck at /modules/content is untouched (SHOW-01).
 // TAB-SHOW-AND-GATE / MOD-3: the per-tab purchase CTA from its own leaf —
 // the last transitive deck thread (TabShowcases and its slide-section
 // modules) is out of the app graph; locked viewers get pointer-card +
@@ -145,10 +147,8 @@ const MODULES: ModuleDef[] = [
   { key: 'bookkeeping', label: 'Bookkeeping', live: false, blurb: 'GAAP accounting engine, Plaid bank sync, period close.' },
   { key: 'tax',         label: 'Tax',         live: false, blurb: 'Form 1040, Schedule C/D/SE, Form 8949.' },
   { key: 'compliance',  label: 'Compliance',  live: false, blurb: 'Monitoring, attestations, audit trail.' },
-  // Content-mount: appended LAST so the existing modules keep their MODULES index (the MODULES.map
-  // alternating bg is index-driven). Tab-bar order is set by TABS below, not by this position;
-  // content renders in its own flush block (skipped from the band map).
-  { key: 'content',     label: 'Content',     live: false, blurb: 'Turn your day into a reel — sources → scenes → script.' },
+  // Content-mount: appended LAST here until TIME-02 (2026-10-19) retired the content pipeline — the
+  // module, its tab, its flush block and its renderBody branch are gone; every other index is unchanged.
 ];
 
 // PR-Mobile2 + PR-Edge-A: the phone tabs — ONE per module (no grouping). On mobile one
@@ -169,7 +169,7 @@ const TABS: { key: string; label: string; icon: LucideIcon }[] = [
   { key: 'compliance', label: 'Compliance', icon: ShieldCheck },
   { key: 'tax',        label: 'Tax',        icon: Receipt },
   { key: 'calendar',   label: 'Runway',     icon: Calendar },
-  { key: 'content',    label: 'Content',    icon: Clapperboard },
+  // 'content' (Clapperboard) left this list with TIME-02 (2026-10-19) — the content pipeline is retired.
 ];
 // ONE-BAND: the per-tab module band cards RETIRED from the tab sections — the
 // hero above the tab bar is the module band now (HomeClient reads the same
@@ -195,7 +195,6 @@ const MODULE_TO_TAB: Record<string, string> = {
   bookkeeping: 'books',
   projects: 'projects',
   routines: 'routines',
-  content: 'content',
   tax: 'tax',
   compliance: 'compliance',
 };
@@ -297,7 +296,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // ROUTE-1 scope), pending Alex's ruling on the collision.
   const TAB_PATH_BY_KEY: Record<string, string> = {
     calendar: '/runway', travel: '/travel', routines: '/routines',
-    projects: '/projects', content: '/content', trade: '/trade',
+    projects: '/projects', trade: '/trade',
     books: '/books', tax: '/tax',
   };
   const writeTabParam = (key: string) => {
@@ -550,26 +549,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       }
       return null; // authed === null → resolving
     }
-    if (m.key === 'content') {
-      // Content-mount (mirrors Projects-mount, Option B): authed users get the REAL content
-      // pipeline — the workbench ContentPipeline (sources → scenify → grid → script, self-fetching
-      // the existing /api/operations/content/* routes) wrapped in OperationsEntityProvider. Reused
-      // VERBATIM — no rewrite, /operations/content untouched. Logged-out gets the
-      // pointer-card to /modules/content (MOD-2).
-      // Auth resolving → nothing. (Styling aligns in PR-Content-style — terminal for now.)
-      if (authed === true) {
-        return (
-          <OperationsEntityProvider>
-            <ContentPipeline />
-          </OperationsEntityProvider>
-        );
-      }
-      if (authed === false) {
-        // MOD-2: the deck lives at /modules/content — the tab points there.
-        return <ModulePointerCard pillarId="content" />;
-      }
-      return null; // authed === null → resolving
-    }
+    // The Content-mount branch (authed → <ContentPipeline />; logged-out → the pointer-card to
+    // /modules/content) was here until TIME-02 (2026-10-19) retired the content pipeline.
     if (m.key === 'routines') {
       // HB-4e-mount: authed users get the REAL routine builder — the workbench SectionE_Routines
       // (create form w/ HB-4b COA picker + budget input, self-fetching routine list, edit) wrapped
@@ -592,7 +573,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
     // TAB-SHOW-AND-GATE: the old "coming soon" paid stub is GONE — it mislabeled
     // live software as unbuilt (FRONTEND-PAYWALL-AUDIT lie #1). Trade/Books/Tax/
     // Compliance now render showcase-or-real in their own flush blocks below;
-    // renderBody handles only travel/projects/content/routines, so this is
+    // renderBody handles only travel/projects/routines (content left with TIME-02), so this is
     // unreachable and returns nothing rather than a false label.
     return null;
   };
@@ -601,7 +582,6 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // (now that Travel is pulled out of MODULES.map). label/live/blurb are unchanged.
   const routinesModule = MODULES.find((m) => m.key === 'routines')!;
   const projectsModule = MODULES.find((m) => m.key === 'projects')!;
-  const contentModule = MODULES.find((m) => m.key === 'content')!;
   // TAB-SHOW-AND-GATE: Trade/Books/Tax/Compliance render in their own flush blocks
   // below — entitled (or admin) → the real module; locked → the SHOW surface + the
   // per-tab "Subscribe to unlock" CTA (TabShowcases). The old per-module stub consts
@@ -1004,18 +984,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           </div>
         </div>
       </section>
-      {/* Content-mount: Content renders in its own FLUSH block (mirrors Projects/Routines) — out of
-          the MODULES.map purple-band card. renderBody handles the authed-pipeline / logged-out-
-          showroom branch. */}
-      <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'content' ? 'block' : 'hidden'}`}>
-        <div className="max-w-7xl mx-auto">
-          <div className="px-4 py-4 lg:px-8 space-y-6">
-            <div>
-              <div className={MODULE_SHELL_CARD}>{renderBody(contentModule)}</div>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Content-mount: Content rendered in its own FLUSH block here until TIME-02 (2026-10-19) retired
+          the content pipeline — the section, contentModule and the renderBody branch are gone. */}
       {/* TRADE-1: Trade renders in its own FLUSH block (mirrors Travel/Content) — pulled OUT of
           the MODULES.map purple-band card, so the real scanner + reconcile surface read as the
           app, not a demo card. Active-module check uses the TAB key 'trade' (TABS :88; selectTab
@@ -1348,7 +1318,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         // every module renders in its own flush block and the band map below renders NOTHING
         // (no module remains → nothing to flip). The map code is left in place intentionally;
         // removing it is a separate cleanup PR.
-        if (m.key === 'travel' || m.key === 'routines' || m.key === 'projects' || m.key === 'content' || m.key === 'trading' || m.key === 'bookkeeping' || m.key === 'tax' || m.key === 'compliance') return null;
+        if (m.key === 'travel' || m.key === 'routines' || m.key === 'projects' || m.key === 'trading' || m.key === 'bookkeeping' || m.key === 'tax' || m.key === 'compliance') return null;
         return (
         <section key={m.key} className={`w-full py-10 ${i % 2 === 1 ? 'bg-bg-row' : 'bg-white'} border-b border-border ${activeModule === (MODULE_TO_TAB[m.key] ?? m.key) ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto px-4 lg:px-8 space-y-6">
