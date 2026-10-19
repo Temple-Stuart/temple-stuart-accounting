@@ -532,11 +532,33 @@ while (changed) {
     if (targetDoor) { reach.set(p.route, { route: target, kind: 'redirect', via: `→ ${target} (${targetDoor.kind}: ${targetDoor.via})` }); changed = true; }
   }
 }
+// TIME-01 (Alex, 2026-10-19): A DATED QUERY REDIRECT — a door for a URL that is a page AND a redirect. /tasks is the Tasks page
+// (projects, routines), but /tasks?date= or ?step= is an old day-card link — a bookmark, a reel link — and the card lives on
+// /time now (src/components/workbench/operations/day/dayCard.ts DAY_CARD_PATH). next.config.ts sends it to /time with the same
+// query before any page renders. Named here like the /content redirect door, verified against the text of the config and the
+// constant, and listed with the doors below; the door of the target is the rail. Closed: an entry is dated and names its ruling.
+const QUERY_REDIRECTS: ReadonlyArray<{ source: string; keys: readonly string[]; destination: string; constant: { file: string; name: string }; since: string }> = [
+  { source: '/tasks', keys: ['date', 'step'], destination: '/time', constant: { file: 'src/components/workbench/operations/day/dayCard.ts', name: 'DAY_CARD_PATH' }, since: 'TIME-01 (2026-10-19): the day card moved from /tasks to /time' },
+];
+const nextConfigText = codeOf('next.config.ts');
+for (const q of QUERY_REDIRECTS) {
+  for (const key of q.keys) {
+    const rule = `{ source: '${q.source}', has: [{ type: 'query', key: '${key}' }], destination: '${q.destination}', permanent: false }`;
+    if (!nextConfigText.includes(rule)) violations.push(`${q.source}?${key}= is named as a redirect door to ${q.destination} but next.config.ts holds no such rule — ${rule} (${q.since})`);
+  }
+  if (!codeOf(q.constant.file).includes(`export const ${q.constant.name} = '${q.destination}';`)) violations.push(`${q.source}?${q.keys.join('=|')}= redirects to ${q.destination}, but ${q.constant.file} ${q.constant.name} is not '${q.destination}' — the redirect and the URLs of the card must agree (${q.since})`);
+  const targetDoor = findDoor(q.destination);
+  if (!targetDoor) violations.push(`${q.source}?${q.keys.join('=|')}= redirects to ${q.destination}, which has no door (${q.since})`);
+}
 console.log('REACHABILITY — every page under src/app and its door');
 for (const p of pages) {
   const d = reach.get(p.route);
   console.log(`${p.route.padEnd(48)} ${d ? `${d.kind.padEnd(15)} ${d.via}` : 'NO DOOR'}`);
   if (!d) violations.push(`${p.route} (${p.file}) has no door — not on the rail, on the sheet, in the utilities menu, GUEST_ROUTES, or a redirect`);
+}
+for (const q of QUERY_REDIRECTS) {
+  const targetDoor = findDoor(q.destination);
+  console.log(`${`${q.source}?${q.keys.join('=|')}=`.padEnd(48)} ${'redirect'.padEnd(15)} → ${q.destination} (${targetDoor ? `${targetDoor.kind}: ${targetDoor.via}` : 'NO DOOR'}) — next.config.ts, ${q.since}`);
 }
 for (const d of doors) {
   if (d.route.startsWith('/?')) continue;
@@ -3343,7 +3365,16 @@ lawGuard('The two-lists law', () => {
 //   4. NO LETTERED HEADER. The room's letters (B · / C · / K · / G ·) are gone
 //      from every operations section header; the registry link says trail.
 //   5. THE REGISTRY WHY IS A CUSTOMER'S LINE — no founder note, no build note.
+//
+// TIME-01 (Alex, 2026-10-19): THE DAY CARD AND THE LEDGER MOVED TO /time — "the
+// day card is what the Time tab was always meant to be: the narration of the
+// day"; the ledger is the record of the stops of the day. /tasks is the two
+// lists again — Projects, then Routines, nothing else — and the /time container
+// is held here too: the day card (in its Suspense boundary), the ledger, then
+// the content pipeline as it is, until TIME-02 retires it. Law 1 (no strip in
+// the tree) is for /tasks; the /time pipeline draws the content strip by design.
 const TWO_LISTS_PAGE = 'src/app/tasks/page.tsx';
+const TIME_PAGE = 'src/app/time/page.tsx';
 const TWO_LISTS_LEAF = 'src/lib/operations/projectDeletion.ts';
 const TWO_LISTS_ROUTE = 'src/app/api/operations/projects/[id]/route.ts';
 const TWO_LISTS_PREVIEW = 'src/app/api/operations/projects/[id]/deletion/route.ts';
@@ -3380,16 +3411,32 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
   // not come back unnoticed.
   // LEDGER-01 — the ruling (Alex, 2026-10-16): the city ledger is a fourth section, under Routines — every stop
   // recorded, by date, city, country, COA and vendor, with its totals. Four mounts, in order; nothing else.
-  const TWO_LISTS_MOUNTS = ['<DayCard />', '<SectionD_ProjectBacklog />', '<SectionE_Routines />', '<LedgerSection />'];
+  // TIME-01 — the ruling (Alex, 2026-10-19): the day card and the city ledger moved to /time. Two mounts on /tasks, in
+  // order — the projects list, the routines list — and nothing else; the two that went may not come back unnoticed.
+  const TWO_LISTS_MOUNTS = ['<SectionD_ProjectBacklog />', '<SectionE_Routines />'];
   for (const section of TWO_LISTS_MOUNTS) {
-    if (!page.includes(section)) twoListsFail(`${TWO_LISTS_PAGE} no longer mounts ${section} — the page is the day card, the projects list, the routines list and the city ledger`);
+    if (!page.includes(section)) twoListsFail(`${TWO_LISTS_PAGE} no longer mounts ${section} — the page is the projects list and the routines list`);
   }
   const mountAt = TWO_LISTS_MOUNTS.map((section) => page.indexOf(section));
-  if (mountAt.some((at, i) => i > 0 && at < mountAt[i - 1])) twoListsFail(`${TWO_LISTS_PAGE} mounts its sections out of order — the day card first, then projects, then routines, then the ledger`);
+  if (mountAt.some((at, i) => i > 0 && at < mountAt[i - 1])) twoListsFail(`${TWO_LISTS_PAGE} mounts its sections out of order — projects, then routines`);
   const toolPage = page.slice(page.indexOf('data-tool-page="Tasks"'), page.indexOf('</OperationsEntityProvider>'));
   const pageMounts = [...toolPage.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]).filter((tag) => tag !== 'Suspense');
-  if (pageMounts.join(' ') !== 'DayCard SectionD_ProjectBacklog SectionE_Routines LedgerSection') twoListsFail(`${TWO_LISTS_PAGE} mounts [${pageMounts.join(' ')}] in the Tasks container — exactly the day card, the projects list, the routines list and the city ledger (TASKS-ONE-02; LEDGER-01)`);
+  if (pageMounts.join(' ') !== 'SectionD_ProjectBacklog SectionE_Routines') twoListsFail(`${TWO_LISTS_PAGE} mounts [${pageMounts.join(' ')}] in the Tasks container — exactly the projects list and the routines list (TASKS-ONE-02; LEDGER-01; TIME-01)`);
+  if (/DayCard|LedgerSection/.test(page)) twoListsFail(`${TWO_LISTS_PAGE} names the day card or the ledger — both moved to /time (TIME-01)`);
   if ((PHASES_RENDERED_AT['/tasks'] ?? ['?']).length !== 0) twoListsFail(`nav.ts declares /tasks draws [${(PHASES_RENDERED_AT['/tasks'] ?? []).join(' ')}] — it draws nothing`);
+  // TIME-01 — the /time container: the day card first, in its Suspense boundary (useSearchParams on a client page), then the
+  // ledger, then the content pipeline as it is — the third mount is for TIME-02 to retire, named here until it does.
+  const TIME_MOUNTS = ['<DayCard />', '<LedgerSection />', '<ContentPipeline />'];
+  const timePage = codeOf(TIME_PAGE);
+  for (const section of TIME_MOUNTS) {
+    if (!timePage.includes(section)) twoListsFail(`${TIME_PAGE} no longer mounts ${section} — the page is the day card, the city ledger and, until TIME-02, the content pipeline (TIME-01)`);
+  }
+  const timeAt = TIME_MOUNTS.map((section) => timePage.indexOf(section));
+  if (timeAt.some((at, i) => i > 0 && at < timeAt[i - 1])) twoListsFail(`${TIME_PAGE} mounts its sections out of order — the day card first, then the ledger, then the pipeline (TIME-01)`);
+  const timeBox = timePage.slice(timePage.indexOf('data-tool-page="Time"'), timePage.indexOf('</OperationsEntityProvider>'));
+  const timeMounts = [...timeBox.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]).filter((tag) => tag !== 'Suspense');
+  if (timeMounts.join(' ') !== 'DayCard LedgerSection ContentPipeline') twoListsFail(`${TIME_PAGE} mounts [${timeMounts.join(' ')}] in the Time container — exactly the day card, the city ledger and the content pipeline (TIME-01; the pipeline until TIME-02)`);
+  if (!/<Suspense>\s*<DayCard \/>\s*<\/Suspense>/.test(timePage)) twoListsFail(`${TIME_PAGE} mounts the day card outside its Suspense boundary — the card reads the URL (useSearchParams) on a client page (TASKS-ONE-01; TIME-01)`);
   // Every control the strips held is still a control: the list headers' create
   // buttons, the row's edit/archive/delete and its pipeline door, Today's mark-done.
   // TASKS-ONE-02 (2026-10-14): Today's mark-done moved, not loosened — TodaysStrip is

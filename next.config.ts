@@ -37,6 +37,12 @@ const nextConfig: NextConfig = {
     return [
       { source: '/ops', destination: '/compliance', permanent: true },
       { source: '/ops/:path*', destination: '/compliance/:path*', permanent: true },
+      // TIME-01 (Alex, 2026-10-19): the day card moved from /tasks to /time (dayCard.ts DAY_CARD_PATH).
+      // A dated /tasks?date= or ?step= — a bookmark, an old reel link — is sent to /time with the
+      // same query, before any page renders; a plain /tasks stays the Tasks page (projects, routines).
+      // Named in the registry's redirect doors (scripts/assert-tool-registry.ts QUERY_REDIRECTS).
+      { source: '/tasks', has: [{ type: 'query', key: 'date' }], destination: '/time', permanent: false },
+      { source: '/tasks', has: [{ type: 'query', key: 'step' }], destination: '/time', permanent: false },
     ];
   },
 };

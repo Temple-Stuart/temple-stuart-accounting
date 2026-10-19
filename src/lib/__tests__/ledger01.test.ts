@@ -458,15 +458,19 @@ test('T6 the section: the ten columns, the period and the filters, the TOTAL row
   assert.doesNotMatch(s, /\b(bg-black|bg-panel|bg-brand-red|bg-brand-gold|bg-brand-green)\b/, 'no dark fill (the repaint law)');
 });
 
-test('T6 the page mounts the ledger LAST, under Routines; the two-lists law holds the container to the four, with the dated ruling', () => {
-  const page = code(PAGE);
+// TIME-01 (Alex, 2026-10-19): the ledger moved to /time with the day card — under the card, above the pipeline; the Tasks page
+// keeps the LEDGER-01 ruling in its history and mounts it no more (time01.test.ts holds the split).
+test('T6 the ledger mounts on /time under the day card; the two-lists law holds both containers, with the dated rulings', () => {
+  const page = code('src/app/time/page.tsx');
   assert.match(page, /import LedgerSection from '@\/components\/workbench\/operations\/ledger\/LedgerSection';/);
-  assert.match(page, /<SectionE_Routines \/>\n\s*<LedgerSection \/>\n\s*<\/div>/);
+  assert.match(page, /<\/Suspense>\n\s*<LedgerSection \/>\n\s*<ContentPipeline \/>\n\s*<\/div>/);
   assert.equal((page.match(/<LedgerSection \/>/g) ?? []).length, 1, 'mounted once');
   assert.match(comments(PAGE), /LEDGER-01 \(Alex, 2026-10-16\) — THE CITY LEDGER is the fourth section, under\s*\n\s*\* Routines/);
+  assert.doesNotMatch(code(PAGE), /LedgerSection/, 'the Tasks page mounts it no more');
   const law = code(LAW);
-  assert.match(law, /const TWO_LISTS_MOUNTS = \['<DayCard \/>', '<SectionD_ProjectBacklog \/>', '<SectionE_Routines \/>', '<LedgerSection \/>'\];/);
-  assert.match(law, /pageMounts\.join\(' '\) !== 'DayCard SectionD_ProjectBacklog SectionE_Routines LedgerSection'/, 'exactly the four');
+  assert.match(law, /const TWO_LISTS_MOUNTS = \['<SectionD_ProjectBacklog \/>', '<SectionE_Routines \/>'\];/);
+  assert.match(law, /const TIME_MOUNTS = \['<DayCard \/>', '<LedgerSection \/>', '<ContentPipeline \/>'\];/);
+  assert.match(law, /timeMounts\.join\(' '\) !== 'DayCard LedgerSection ContentPipeline'/, 'exactly the three on /time');
   assert.match(comments(LAW), /LEDGER-01 — the ruling \(Alex, 2026-10-16\): the city ledger is a fourth section, under Routines/);
   // The rules file is pure: no fetch, no clock of its own, no Prisma, no React; the clock is handed in.
   const rules = code(RULES);

@@ -206,7 +206,8 @@ test('T3 the control: "moving" beside the day controls, the form, the one zone p
   assert.match(c, /disabled=\{busy \|\| plan === null \|\| !plan\.ok\} data-move-confirm/);
   assert.match(c, /fetch\('\/api\/operations\/routines\/move', \{\n\s*method: 'POST',/);
   assert.match(c, /body: JSON\.stringify\(\{ date: plan\.date, timezone: plan\.timezone, stay, routines: entries \}\),/);
-  assert.match(c, /window\.location\.assign\(`\/tasks\?date=\$\{plan\.date\}`\);/);
+  // TIME-01 (2026-10-19): the reload lands on the card's page through its one constant — no literal (time01.test.ts).
+  assert.match(c, /window\.location\.assign\(`\$\{DAY_CARD_PATH\}\?date=\$\{plan\.date\}`\);/);
   assert.match(c, /setRefusal\(`\$\{MOVE_FAILED_WORDS\}: \$\{body\?\.message \?\? body\?\.error \?\? `\$\{res\.status\}`\}`\);/);
   assert.match(c, /onClick=\{reset\} data-move-cancel>cancel<\/button>/);
   assert.doesNotMatch(c, /localStorage|sessionStorage|document\.cookie/, 'nothing stored');

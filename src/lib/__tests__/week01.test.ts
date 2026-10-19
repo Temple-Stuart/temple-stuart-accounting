@@ -186,7 +186,8 @@ test('T3 the week is gone — its files deleted and nothing imports them; the pa
   // pin moved to its absence: the day card, then the projects list.
   const page = code(PAGE);
   assert.doesNotMatch(page, /WeekSection/);
-  assert.match(page, /<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Tasks">\n\s*<Suspense>\n\s*<DayCard \/>\n\s*<\/Suspense>\n\s*<SectionD_ProjectBacklog \/>/);
+  // TIME-01 (2026-10-19): the day card moved to /time — the projects list is first on /tasks now.
+  assert.match(page, /<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Tasks">\n\s*<SectionD_ProjectBacklog \/>/);
 });
 
 test('T3 the reads stay: four URLs through one fetch in the one reader; signed out named; the day card reads through it', () => {

@@ -326,15 +326,17 @@ test('T4 the evaluator: all_day takes no miss check — no miss row, no streak c
 
 // LEDGER-01 (Alex, 2026-10-16): the three became four — the city ledger mounts LAST, under Routines. Every pin below moved to
 // four; the three that TASKS-ONE-02 removed are still gone, and the law still holds the container to exactly its list.
-test('T5 /tasks mounts exactly the day card, Projects, Routines, the ledger — and the law says so with the dated rulings', () => {
+// TIME-01 (Alex, 2026-10-19): the day card and the ledger moved to /time — /tasks is exactly Projects and Routines; the three
+// that TASKS-ONE-02 removed are still gone, and the law still holds the container to exactly its list (time01.test.ts).
+test('T5 /tasks mounts exactly Projects and Routines — and the law says so with the dated rulings', () => {
   const page = code(PAGE);
   const box = page.slice(page.indexOf('data-tool-page="Tasks"'), page.indexOf('</OperationsEntityProvider>'));
-  assert.deepEqual([...box.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['Suspense', 'DayCard', 'SectionD_ProjectBacklog', 'SectionE_Routines', 'LedgerSection']);
+  assert.deepEqual([...box.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['SectionD_ProjectBacklog', 'SectionE_Routines']);
   assert.doesNotMatch(page, /WeekSection|SectionC_DailyPlan|TodaysStrip/);
   const law = code(LAW);
-  assert.match(law, /const TWO_LISTS_MOUNTS = \['<DayCard \/>', '<SectionD_ProjectBacklog \/>', '<SectionE_Routines \/>', '<LedgerSection \/>'\];/);
+  assert.match(law, /const TWO_LISTS_MOUNTS = \['<SectionD_ProjectBacklog \/>', '<SectionE_Routines \/>'\];/);
   assert.match(comments(LAW), /TASKS-ONE-02 — the ruling \(Alex, 2026-10-14\): the day card replaces the week grid, the Daily plan and the\s*\n\s*\/\/ Today strip\./);
-  assert.match(law, /pageMounts\.join\(' '\) !== 'DayCard SectionD_ProjectBacklog SectionE_Routines LedgerSection'/, 'the law holds the container to exactly four');
+  assert.match(law, /pageMounts\.join\(' '\) !== 'SectionD_ProjectBacklog SectionE_Routines'/, 'the law holds the container to exactly two');
 });
 
 test('T5 the routines section drops Today — on /tasks and in the cockpit that mounts it', () => {

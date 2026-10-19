@@ -62,8 +62,17 @@
  * Routines: every stop recorded, by date, city, country, COA and vendor, with
  * its totals and a summary over time and by place (ledger/LedgerSection.tsx).
  * It reads no entity: the ledger is every book, and the COA says which.
+ *
+ * TIME-01 (Alex, 2026-10-19) — THE DAY CARD AND THE LEDGER MOVED TO /time: "the
+ * day card is what the Time tab was always meant to be: the narration of the
+ * day"; the ledger is the record of the day's stops and goes with it. Tasks
+ * keeps the work: TWO sections now, Projects then Routines, and nothing else —
+ * the two-lists law holds the container to exactly the two. A dated
+ * /tasks?date= (or ?step=) — a bookmark, an old reel link — is sent to /time
+ * with the same query by next.config.ts, before this page renders; a plain
+ * /tasks is this page. /tasks/day still hops to the card (dayCard.ts
+ * DAY_CARD_PATH, '/time' now).
  */
-import { Suspense } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
 import ToolOpener from '@/components/shell/ToolOpener';
 import { navToolByName } from '@/lib/nav';
@@ -71,8 +80,6 @@ import { TOOL_GATE } from '@/lib/offer';
 import { OperationsEntityProvider } from '@/components/workbench/operations/EntitySelector';
 import SectionD_ProjectBacklog from '@/components/workbench/operations/SectionD_ProjectBacklog';
 import SectionE_Routines from '@/components/workbench/operations/SectionE_Routines';
-import DayCard from '@/components/workbench/operations/day/DayCard';
-import LedgerSection from '@/components/workbench/operations/ledger/LedgerSection';
 
 export default function TasksPage() {
   return (
@@ -80,12 +87,8 @@ export default function TasksPage() {
       <ToolOpener tools={[navToolByName('Tasks', TOOL_GATE)]} />
       <OperationsEntityProvider>
         <div className="space-y-3" data-tool-page="Tasks">
-          <Suspense>
-            <DayCard />
-          </Suspense>
           <SectionD_ProjectBacklog />
           <SectionE_Routines />
-          <LedgerSection />
         </div>
       </OperationsEntityProvider>
     </AppLayout>
