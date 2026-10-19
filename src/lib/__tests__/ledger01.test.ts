@@ -24,9 +24,9 @@ import type { PlanVendorRow, RoutineWords } from '../budget/planLines';
 import { placeParts, type StayRow } from '../operations/stay';
 import type { StopRecordRow } from '../operations/stopRecord';
 import {
-  ALL_WORDS, EVERY_BOOK_WORDS, FILTER_KEYS, FILTER_WORDS, GROUP_KEYS, GROUP_WORDS, LEDGER_HEAD_WORDS, LEDGER_LOADING_WORDS, LEDGER_SPAN_MAX_DAYS, LEDGER_TITLE_WORDS,
-  NO_FILTERS, NO_FIRST_RECORD_WORDS, NO_ROWS_SHOWN_WORDS, PERIOD_KINDS, PERIOD_WORDS, SUMMARY_HEAD_WORDS, SUMMARY_TITLE_WORDS, TODAY_RULE_WORDS, TOTAL_WORDS,
-  actualCellWords, averageStarsWords, budgetCellWords, choicesOf, coaWords, daysWords, dayParamWords, filterRows, firstRecordUnplacedWords, ledgerFailedWords, ledgerOf,
+  ALL_WORDS, EVERY_BOOK_WORDS, GROUP_KEYS, GROUP_WORDS, LEDGER_HEAD_WORDS, LEDGER_LOADING_WORDS, LEDGER_SPAN_MAX_DAYS, LEDGER_TITLE_WORDS,
+  NO_FIRST_RECORD_WORDS, NO_ROWS_SHOWN_WORDS, PERIOD_KINDS, PERIOD_WORDS, SUMMARY_HEAD_WORDS, SUMMARY_TITLE_WORDS, TODAY_RULE_WORDS, TOTAL_WORDS,
+  actualCellWords, averageStarsWords, budgetCellWords, coaWords, daysWords, dayParamWords, firstRecordUnplacedWords, ledgerFailedWords, ledgerOf,
   ledgerStarsWords, ledgerSummary, ledgerTotals, mondayOf, monthOf, monthWords, noLineWords, noRowsWords, noStayWords, notPlacedWords, notRecordedWords, orderWords,
   perDayWords, periodOf, periodWords, spanDays, spanInput, spanWords, starsCellWords, stepAnchor, unplacedWords, weekWords,
   type LedgerInput, type LedgerRecordInput, type LedgerRow,
@@ -206,8 +206,9 @@ test('T2 the cells’ words: the ACTUAL amount alone (LEDGER-02; the delta was i
   assert.equal(budgetCellWords(null), '—');
   assert.equal(coaWords(rowOf('r-coffee-13')), 'P-5100 · Meals');
   assert.equal(coaWords(rowOf('r-yoga-12')), '—');
+  // LEDGER-04 (Alex, 2026-10-20): FILTER_KEYS went with the three dropdowns — every column filters now (ledger04.test.ts). The place cells stand.
   const [city, country] = [rowOf('r-coffee-13'), rowOf('r-coffee-12')];
-  assert.deepEqual([FILTER_KEYS.map((k) => k), city.place?.city, country.place], [['city', 'country', 'coa'], 'Chiang Mai', null]);
+  assert.deepEqual([city.place?.city, country.place], ['Chiang Mai', null]);
 });
 
 test('T2 said, not hidden: no line (the doubled named), no stay, the zone, the priced stops past with no record (an all-day line is not a stop), the lines not placed', () => {
@@ -345,20 +346,13 @@ test('T4 periodOf: the calendar month, Monday to Sunday, the day, ALL from the f
   assert.equal(firstRecordUnplacedWords('x'), 'ALL has no first day — x');
 });
 
-test('T4 the filters: chosen among the values present ("—" among them), each one narrowing what is shown; the totals and the summary follow the rows shown', () => {
-  assert.deepEqual(choicesOf(ledger.rows, 'city'), ['—', 'Chiang Mai']);
-  assert.deepEqual(choicesOf(ledger.rows, 'country'), ['—', 'Thailand 🇹🇭']);
-  assert.deepEqual(choicesOf(ledger.rows, 'coa'), ['—', 'P-5100 · Meals', 'P-5300 · Fitness']);
-  assert.deepEqual(filterRows(ledger.rows, NO_FILTERS).map((r) => r.id), ledger.rows.map((r) => r.id), 'all: every row, in order');
-  assert.deepEqual(filterRows(ledger.rows, { ...NO_FILTERS, city: 'Chiang Mai' }).map((r) => r.id), ['r-stretch-13', 'r-coffee-13', 'r-gym-13']);
-  assert.deepEqual(filterRows(ledger.rows, { ...NO_FILTERS, city: '—' }).map((r) => r.id), ['r-coffee-12', 'r-yoga-12', 'r-gym-12'], 'the rows no stay covers');
-  assert.deepEqual(filterRows(ledger.rows, { ...NO_FILTERS, coa: 'P-5100 · Meals' }).map((r) => r.id), ['r-stretch-13', 'r-coffee-13', 'r-coffee-12']);
-  assert.deepEqual(filterRows(ledger.rows, { city: 'Chiang Mai', country: null, coa: 'P-5300 · Fitness' }).map((r) => r.id), ['r-gym-13'], 'every set filter must match');
-  assert.deepEqual(filterRows(ledger.rows, { ...NO_FILTERS, city: 'Bali' }), []);
-  const shown = filterRows(ledger.rows, { ...NO_FILTERS, coa: 'P-5100 · Meals' });
-  assert.deepEqual([ledgerTotals(shown).budgetCents, ledgerTotals(shown).actualCents, ledgerTotals(shown).words], [2800, 2100, '▲ $1 over'], 'the TOTAL row is the rows shown');
-  assert.deepEqual(ledgerSummary(shown, 'city').map((g) => [g.key, g.totals.actualCents]), [['—', 900], ['Chiang Mai', 1200]]);
-  assert.deepEqual(FILTER_WORDS, { city: 'CITY', country: 'COUNTRY', coa: 'COA' });
+test('T4 the filters: LEDGER-04 (Alex, 2026-10-20) retired the three dropdowns and their rule — every column filters and sorts now; ledger04.test.ts drives applyColumnFilters, columnValues and sortRows', () => {
+  // Until LEDGER-04: FILTER_KEYS ['city', 'country', 'coa'], NO_FILTERS, choicesOf (the values present, "—" among them) and filterRows (every set filter must match) — pinned here, now gone.
+  const rules = code(RULES);
+  for (const name of ['FILTER_KEYS', 'NO_FILTERS', 'choicesOf', 'filterRows', 'FILTER_WORDS']) assert.doesNotMatch(rules, new RegExp(`export (const|type|function) ${name}\\b`), `${name} is gone`);
+  assert.doesNotMatch(code(SECTION), /<select|choicesOf|filterRows|FILTER_KEYS|FILTER_WORDS/, 'no dropdown on the section');
+  // The cell words the summary groups by stand — the column filters match the same words (ledger04.test.ts).
+  assert.deepEqual([coaWords(rowOf('r-coffee-13')), coaWords(rowOf('r-yoga-12'))], ['P-5100 · Meals', '—']);
   assert.equal(ALL_WORDS, 'all');
 });
 
@@ -439,26 +433,29 @@ test('T6 the section: the sixteen columns (LEDGER-02; ten until then), the perio
   assert.match(s, /setToday\(t\);\n\s*setAnchor\(t\);/, 'anchored today (localToday, on mount)');
   assert.match(s, /const period = today === null \|\| anchor === null \? null : periodOf\(kind, anchor, today, firstRecordDay\);/);
   assert.match(s, /const read = await readLedger\(period\.from, period\.to\);/);
-  assert.match(s, /const shown = filterRows\(rows, filters\);\n\s*const totals = ledgerTotals\(shown\);\n\s*const groups = ledgerSummary\(shown, by\);/, 'the totals and the summary follow the rows shown');
-  assert.match(s, /\{LEDGER_HEAD_WORDS\.map\(\(h\) => <th/);
+  // LEDGER-04 (Alex, 2026-10-20): the rows filtered by every column (applyColumnFilters) then sorted (sortRows) — the totals and the summary still follow the rows shown.
+  assert.match(s, /const shown = sortRows\(applyColumnFilters\(rows, filters\), sort\);\n\s*const totals = ledgerTotals\(shown\);\n\s*const groups = ledgerSummary\(shown, by\);/, 'the totals and the summary follow the rows shown');
+  assert.match(s, /\{LEDGER_COLUMNS\.map\(\(c\) => \{/, 'LEDGER-04: one header per column, each with its sort and its filter');
   // LEDGER-02 (Alex, 2026-10-19): sixteen columns in Alex's order — one fact each; until then the ten: DATE · CITY · COUNTRY · COA · VENDOR · DESCRIPTION · STARS · NOTES · BUDGET · ACTUAL.
-  assert.deepEqual(LEDGER_HEAD_WORDS, ['DAY', 'DATE', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'DESCRIPTION', 'VENDOR', 'STARS', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'NOTES']);
-  for (const attr of ['data-ledger', 'data-ledger-controls', 'data-ledger-period={k}', 'data-ledger-previous', 'data-ledger-anchor', 'data-ledger-next', 'data-ledger-filter={key}', 'data-ledger-table', 'data-ledger-row={row.key}', 'data-ledger-cell="day"', 'data-ledger-cell="date"', 'data-ledger-cell="city"', 'data-ledger-cell="country"', 'data-ledger-cell="book"', 'data-ledger-cell="account"', 'data-ledger-cell="account-name"', 'data-ledger-cell="vendor"', 'data-ledger-cell="description"', 'data-ledger-cell="stars"', 'data-ledger-cell="notes"', 'data-ledger-cell="budget"', 'data-ledger-cell="actual"', 'data-ledger-cell="variance"', 'data-ledger-cell="match"', 'data-ledger-cell="under-over"', 'data-ledger-total', 'data-ledger-total-budget', 'data-ledger-total-actual', 'data-ledger-total-variance', 'data-ledger-total-match', 'data-ledger-total-under-over', 'data-ledger-csv', 'data-ledger-csv-why', 'data-ledger-said', 'data-ledger-said-variance', 'data-ledger-said-match', 'data-ledger-said-no-line', 'data-ledger-said-no-stay', 'data-ledger-said-unplaced', 'data-ledger-said-not-recorded', 'data-ledger-said-not-placed', 'data-ledger-said-today-rule', 'data-ledger-said-every-book', 'data-ledger-summary', 'data-ledger-by={g}', 'data-ledger-group={g.key}', 'data-ledger-group-per-day', 'data-ledger-group-stars', 'data-ledger-none', 'data-ledger-none-shown', 'data-ledger-loading', 'data-ledger-failed', 'data-ledger-no-first']) {
+  // LEDGER-04 (Alex, 2026-10-20): the stop's name is the SUB ACCOUNT NAME (was DESCRIPTION) and the note is the DESCRIPTION (was NOTES).
+  assert.deepEqual(LEDGER_HEAD_WORDS, ['DAY', 'DATE', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'STARS', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION']);
+  for (const attr of ['data-ledger', 'data-ledger-controls', 'data-ledger-period={k}', 'data-ledger-previous', 'data-ledger-anchor', 'data-ledger-next', 'data-ledger-filter={c}', 'data-ledger-sort={c}', 'data-ledger-clear-filters', 'data-ledger-notes-toggle', 'data-ledger-table', 'data-ledger-row={row.key}', 'data-ledger-cell="day"', 'data-ledger-cell="date"', 'data-ledger-cell="city"', 'data-ledger-cell="country"', 'data-ledger-cell="book"', 'data-ledger-cell="account"', 'data-ledger-cell="account-name"', 'data-ledger-cell="vendor"', 'data-ledger-cell="sub-account-name"', 'data-ledger-cell="stars"', 'data-ledger-cell="description"', 'data-ledger-cell="budget"', 'data-ledger-cell="actual"', 'data-ledger-cell="variance"', 'data-ledger-cell="match"', 'data-ledger-cell="under-over"', 'data-ledger-total', 'data-ledger-total-budget', 'data-ledger-total-actual', 'data-ledger-total-variance', 'data-ledger-total-match', 'data-ledger-total-under-over', 'data-ledger-csv', 'data-ledger-csv-why', 'data-ledger-said', 'data-ledger-said-variance', 'data-ledger-said-match', 'data-ledger-said-no-line', 'data-ledger-said-no-stay', 'data-ledger-said-unplaced', 'data-ledger-said-not-recorded', 'data-ledger-said-not-placed', 'data-ledger-said-today-rule', 'data-ledger-said-every-book', 'data-ledger-summary', 'data-ledger-by={g}', 'data-ledger-group={g.key}', 'data-ledger-group-per-day', 'data-ledger-group-stars', 'data-ledger-none', 'data-ledger-none-shown', 'data-ledger-loading', 'data-ledger-failed', 'data-ledger-no-first']) {
     assert.ok(s.includes(attr), `the section carries ${attr}`);
   }
   // LEDGER-02 (Alex, 2026-10-19): sixteen cells in the head's order (ledger02.test.ts holds each against LEDGER_HEAD_WORDS); until then ten, DATE printing dayShortWords and COA the combined cell.
-  inOrder(s, ['data-ledger-cell="day">{dayLongWords(row.day)}', 'data-ledger-cell="date">{row.day}', 'data-ledger-cell="city">{CELL_WORDS.city(row)}', 'data-ledger-cell="country">{CELL_WORDS.country(row)}', 'data-ledger-cell="book">{bookCellWords(row)}', 'data-ledger-cell="account">{accountCellWords(row)}', 'data-ledger-cell="account-name">{accountNameCellWords(row)}', 'data-ledger-cell="description">{row.description}', 'data-ledger-cell="vendor">{vendorCellWords(row.vendor)}', 'data-ledger-cell="stars">{starsCellWords(row.rating)}', 'data-ledger-cell="budget">{budgetCellWords(row.cents)}', 'data-ledger-cell="actual">{actualCellWords(row)}', 'data-ledger-cell="variance">{varianceCellWords(row.varianceCents)}', 'data-ledger-cell="match" title={matchCellTitle(row.match) ?? undefined}>', '<span data-ledger-match>{matchCellWords(row.match)}</span>', 'data-ledger-link={row.key}', 'data-ledger-cell="under-over">{underOverWords(row.varianceCents)}', 'data-ledger-cell="notes">{noteCellWords(row.note)}'], 'the sixteen cells, each its words');
+  inOrder(s, ['data-ledger-cell="day">{dayLongWords(row.day)}', 'data-ledger-cell="date">{row.day}', 'data-ledger-cell="city">{CELL_WORDS.city(row)}', 'data-ledger-cell="country">{CELL_WORDS.country(row)}', 'data-ledger-cell="book">{bookCellWords(row)}', 'data-ledger-cell="account">{accountCellWords(row)}', 'data-ledger-cell="account-name">{accountNameCellWords(row)}', 'data-ledger-cell="sub-account-name">{row.description}', 'data-ledger-cell="vendor">{vendorCellWords(row.vendor)}', 'data-ledger-cell="stars">{starsCellWords(row.rating)}', 'data-ledger-cell="budget">{budgetCellWords(row.cents)}', 'data-ledger-cell="actual">{actualCellWords(row)}', 'data-ledger-cell="variance">{varianceCellWords(row.varianceCents)}', 'data-ledger-cell="match" title={matchCellTitle(row.match) ?? undefined}>', '<span data-ledger-match>{matchCellWords(row.match)}</span>', 'data-ledger-link={row.key}', 'data-ledger-cell="under-over">{underOverWords(row.varianceCents)}', 'data-ledger-cell="description">{noteCellWords(row.note)}'], 'the sixteen cells, each its words'); // LEDGER-04: row.description under SUB ACCOUNT NAME, row.note under DESCRIPTION
   assert.match(s, /actualTone\(delta\.over\)/, 'the ACTUAL cell in the row’s tone (deltaWords), as the card');
   // LEDGER-02 (Alex, 2026-10-19): the TOTAL row's ACTUAL cell is the amount alone — the words span (totals.words, against the recorded rows' budgets) left it; VARIANCE and UNDER / OVER follow, from the two totals.
   inOrder(s, ['<tfoot>', '{TOTAL_WORDS}', 'budgetCellWords(totals.budgetCents)', 'budgetCellWords(totals.actualCents)}</td>', 'varianceCellWords(totals.varianceCents)', 'data-ledger-total-match', 'underOverWords(totals.varianceCents)'], 'the TOTAL row under the table');
   assert.doesNotMatch(s, /data-ledger-total-words|\{totals\.words\}/, 'the TOTAL row prints no delta words since LEDGER-02 (the summary still prints each group’s)');
-  inOrder(s, ['data-ledger-said', 'noLineWords(answer.read.value.said.noLine, answer.read.value.said.doubled)', 'noStayWords(answer.read.value.said.noStay)', 'unplacedWords(answer.read.value.said.unplaced)', 'notRecordedWords(answer.read.value.said.notRecorded)', 'answer.read.value.said.notPlaced > 0 && <p', 'notPlacedWords(answer.read.value.said.notPlaced)', '{TODAY_RULE_WORDS}', '{EVERY_BOOK_WORDS}'], 'said, by name and count, under the table');
+  // LEDGER-04 (Alex, 2026-10-20): the lines sit inside the notes toggle's open state (data-ledger-notes-toggle, then {notesOpen && (), each shown when its count is above 0 — the same words, in the same order. Moved, not loosened.
+  inOrder(s, ['data-ledger-notes-toggle', '{notesOpen && (', 'data-ledger-said', 'noLineWords(answer.read.value.said.noLine, answer.read.value.said.doubled)', 'noStayWords(answer.read.value.said.noStay)', 'unplacedWords(answer.read.value.said.unplaced)', 'notRecordedWords(answer.read.value.said.notRecorded)', 'answer.read.value.said.notPlaced > 0 && <p', 'notPlacedWords(answer.read.value.said.notPlaced)', '{TODAY_RULE_WORDS}', '{EVERY_BOOK_WORDS}'], 'said, by name and count, under the table');
   inOrder(s, ['{SUMMARY_TITLE_WORDS}', 'GROUP_KEYS.map((g)', '<th className={head}>{GROUP_WORDS[by]}</th>', 'SUMMARY_HEAD_WORDS.map', 'daysWords(g.days)', 'budgetCellWords(g.totals.budgetCents)', 'budgetCellWords(g.totals.actualCents)', '{g.totals.words}', 'perDayWords(g.perDayCents)', 'averageStarsWords(g.stars)'], 'the summary, grouped by one selector');
   assert.match(s, /const \[by, setBy\] = useState<GroupKey>\('city'\);/, 'the summary opens by City — the question the ledger answers');
   assert.match(s, /\{PERIOD_KINDS\.map\(\(k\) => \(/);
-  assert.match(s, /\{FILTER_KEYS\.map\(\(key: FilterKey\) => \(/);
-  assert.match(s, /<option value="">\{ALL_WORDS\}<\/option>\n\s*\{choicesOf\(rows, key\)\.map\(\(choice\) => <option key=\{choice\} value=\{choice\}>\{choice\}<\/option>\)\}/, 'chosen among the values present in the period, plus all');
-  assert.match(s, /setFilters\(NO_FILTERS\);/, 'a new period starts with every filter at all');
+  // LEDGER-04 (Alex, 2026-10-20): the three dropdowns are gone — a ▾ on every header opens the column's popover (ledger04.test.ts); a new period still starts with every filter off.
+  assert.doesNotMatch(s, /<select|<option/, 'no dropdown');
+  assert.match(s, /useEffect\(\(\) => \{\n\s*setFilters\(NO_COLUMN_FILTERS\);\n\s*setOpenFilter\(null\);\n\s*\}, \[period\?\.from, period\?\.to\]\);/, 'a new period starts with every filter off');
   assert.match(s, /disabled=\{kind === 'all' \|\| anchor === null\}/, 'ALL does not step');
   // No sentence of its own: every string the section prints is a constant or a words function of the rules file, or the card's own day words.
   const printed = [...s.matchAll(/>\{([^}]+)\}<\//g)].map((m) => m[1]);

@@ -74,11 +74,33 @@
  * too (LinkPicker.tsx prints them): LINK-01's list, date order, nothing
  * pre-selected, nothing ranked.
  *
+ * LEDGER-04 (Alex, 2026-10-20) — THE TABLE AFTER THE FIRST READ. (1) The stop's
+ * name IS the sub-account name (Brunch and Dinner under 6150 Dining Out), so
+ * its column says so — SUB ACCOUNT NAME — and the record's note is the row's
+ * DESCRIPTION (what was ordered); the fields keep their names (description,
+ * note), the route's payload is unchanged, the CSV header follows the heads.
+ * (2) Filters the sheet's way: every column filterable, several at once, and
+ * sortable — not three dropdowns. ColumnFilters holds one filter per column
+ * (a VALUE column: the cell words unticked, among the values present in the
+ * rows loaded; a MONEY column: a min and a max in cents, inclusive, and
+ * whether blank cells stay; DESCRIPTION: a contains-text, case-insensitive,
+ * trimmed); applyColumnFilters is OR within a column and AND across them;
+ * columnValues lists a column's distinct cell words with their counts, in the
+ * column's sort order; every key is the SAME cell words the table prints, so a
+ * filter matches what is seen. sortRows sorts by one column, ascending or
+ * descending, blanks last in both directions (money by cents, dates by day,
+ * DAY by weekday number Mon…Sun, STARS by number, text by localeCompare with
+ * numeric); null is the ledger's own order. (3) The sentences under the TOTAL
+ * row fold into one closed toggle — notesCount counts the lines that have
+ * something to say. The three-dropdown rule (FILTER_KEYS, filterRows,
+ * choicesOf) is gone with the dropdowns.
+ *
  * Here: the rule (ledgerOf — the route's pure half), the period (periodOf,
- * stepAnchor, the 400-day cap), the filters, the totals and the summary (the
- * screen's pure half), the CSV (ledgerCsv, LEDGER-02), the "+ expense" form's
- * rule and bodies (RETRO-01, at the end), and the words. No fetch, no Prisma, no
- * React; the clock is handed in (now). The tests drive every rule.
+ * stepAnchor, the 400-day cap), the column filters and the sort (LEDGER-04),
+ * the totals and the summary (the screen's pure half), the CSV (ledgerCsv,
+ * LEDGER-02), the "+ expense" form's rule and bodies (RETRO-01, at the end),
+ * and the words. No fetch, no Prisma, no React; the clock is handed in (now).
+ * The tests drive every rule.
  */
 import { centsFromDecimalString, isIsoDay, readOccurrenceKey, type NotPlaced } from '@/lib/budget/days';
 import { BLANK, formatCents } from '@/lib/budget/format';
@@ -209,8 +231,10 @@ export interface LedgerRow {
   readonly book: BookWord | null;
   readonly coa: LedgerCoa | null;
   readonly vendor: string | null;
+  /** The card's bold name (stopName). LEDGER-04 (Alex, 2026-10-20): printed under SUB ACCOUNT NAME — the stop's name IS the sub-account's (numbered later, SUBACCT-01). The field keeps its name; the route's payload is unchanged. */
   readonly description: string;
   readonly rating: number | null;
+  /** The record's note (280). LEDGER-04 (Alex, 2026-10-20): printed under DESCRIPTION — what was ordered. The field keeps its name. */
   readonly note: string | null;
   /** The matched line's cents — the card's BUDGET cell; null when none. */
   readonly cents: number | null;
@@ -476,26 +500,181 @@ export function spanInput(from: unknown, to: unknown): SpanResult {
   return { ok: true, from, to };
 }
 
-// ── THE FILTERS ─────────────────────────────────────────────────────────────
+// ── THE CELL WORDS THE SUMMARY GROUPS BY (LEDGER-04: the three-dropdown filter that lived here is gone — the column filters below) ──
 
-export const FILTER_KEYS = ['city', 'country', 'coa'] as const;
-export type FilterKey = (typeof FILTER_KEYS)[number];
-/** null is "all". */
-export type Filters = Readonly<Record<FilterKey, string | null>>;
-export const NO_FILTERS: Filters = Object.freeze({ city: null, country: null, coa: null });
-
-/** The cell's words — what the filters choose among and what the table prints. */
+/** The cell's words — what the table prints, what the summary's place and COA groups are keyed by, and (LEDGER-04) what a column filter matches. */
 export const cityWords = (row: LedgerRow): string => (row.place === null ? BLANK : row.place.city);
 export const countryWords = (row: LedgerRow): string => (row.place === null || row.place.country === null ? BLANK : row.place.country);
 export const coaWords = (row: LedgerRow): string => (row.coa === null ? BLANK : row.coa.name === null ? row.coa.account : `${row.coa.account} · ${row.coa.name}`);
-export const CELL_WORDS: Readonly<Record<FilterKey, (row: LedgerRow) => string>> = { city: cityWords, country: countryWords, coa: coaWords };
+export type CellWordsKey = 'city' | 'country' | 'coa';
+export const CELL_WORDS: Readonly<Record<CellWordsKey, (row: LedgerRow) => string>> = { city: cityWords, country: countryWords, coa: coaWords };
 
-/** The values present among the rows, each once, in order — "—" among them when a row has none. */
-export const choicesOf = (rows: readonly LedgerRow[], key: FilterKey): string[] => [...new Set(rows.map(CELL_WORDS[key]))].sort((a, b) => a.localeCompare(b));
+// ── LEDGER-04 (Alex, 2026-10-20): THE COLUMNS — FILTERS THE SHEET'S WAY, AND SORT ──
 
-/** The rows shown: every filter that is set must match its cell's words. Nothing else changes — the totals and the summary follow these. */
-export const filterRows = (rows: readonly LedgerRow[], filters: Filters): LedgerRow[] =>
-  rows.filter((row) => FILTER_KEYS.every((key) => filters[key] === null || CELL_WORDS[key](row) === filters[key]));
+/** The sixteen columns by key, in the head's order — LEDGER_HEAD_WORDS[i] is LEDGER_COLUMNS[i]'s word (headWordOf). */
+export const LEDGER_COLUMNS = ['day', 'date', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'stars', 'budget', 'actual', 'variance', 'match', 'underOver', 'description'] as const;
+export type LedgerColumn = (typeof LEDGER_COLUMNS)[number];
+/** A VALUE column filters by a checklist of its cell words; a MONEY column by a min and a max; the TEXT column by a contains-text. */
+export const VALUE_COLUMNS = ['day', 'date', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'stars', 'underOver'] as const;
+export const MONEY_COLUMNS = ['budget', 'actual', 'variance', 'match'] as const;
+export const TEXT_COLUMNS = ['description'] as const;
+export type ValueColumn = (typeof VALUE_COLUMNS)[number];
+export type MoneyColumn = (typeof MONEY_COLUMNS)[number];
+export type TextColumn = (typeof TEXT_COLUMNS)[number];
+export type ColumnKind = 'value' | 'money' | 'text';
+export const columnKind = (column: LedgerColumn): ColumnKind =>
+  ((MONEY_COLUMNS as readonly string[]).includes(column) ? 'money' : (TEXT_COLUMNS as readonly string[]).includes(column) ? 'text' : 'value');
+export const headWordOf = (column: LedgerColumn): string => LEDGER_HEAD_WORDS[LEDGER_COLUMNS.indexOf(column)];
+
+/** A column's cell as the table prints it — the one key a VALUE filter matches and a checklist lists, so a filter matches what is seen; "—" (BLANK) for a blank cell. */
+export function cellWordsOf(row: LedgerRow, column: LedgerColumn): string {
+  switch (column) {
+    case 'day': return dayLongWords(row.day);
+    case 'date': return row.day;
+    case 'city': return cityWords(row);
+    case 'country': return countryWords(row);
+    case 'book': return bookCellWords(row);
+    case 'account': return accountCellWords(row);
+    case 'accountName': return accountNameCellWords(row);
+    case 'subAccountName': return row.description;
+    case 'vendor': return vendorCellWords(row.vendor);
+    case 'stars': return starsCellWords(row.rating);
+    case 'budget': return budgetCellWords(row.cents);
+    case 'actual': return actualCellWords(row);
+    case 'variance': return varianceCellWords(row.varianceCents);
+    case 'match': return matchCellWords(row.match);
+    case 'underOver': return underOverWords(row.varianceCents);
+    case 'description': return noteCellWords(row.note);
+  }
+}
+/** A MONEY column's figure in cents — the CSV's own figure for the cell (ACTUAL as held whether done or skipped; MATCH the readable sum); null is a blank cell. */
+export const cellCentsOf = (row: LedgerRow, column: MoneyColumn): number | null =>
+  (column === 'budget' ? row.cents : column === 'actual' ? row.actualCents : column === 'variance' ? row.varianceCents : readableMatchCents(row.match));
+
+/** A VALUE column's filter: the cell words UNTICKED. Empty is no filter — every value ticked, the state at first; "none" drops every value present. */
+export interface ValueFilter { readonly dropped: readonly string[] }
+/** A MONEY column's filter: a min and a max in cents, each null for no bound, both inclusive; blank — whether blank cells stay (they do at first). */
+export interface MoneyFilter { readonly minCents: number | null; readonly maxCents: number | null; readonly blank: boolean }
+/** The TEXT column's filter: a contains-text, matched case-insensitively after trimming; '' is no filter. */
+export interface TextFilter { readonly contains: string }
+export type ColumnFilters = { readonly [C in ValueColumn]: ValueFilter } & { readonly [C in MoneyColumn]: MoneyFilter } & { readonly [C in TextColumn]: TextFilter };
+export const NO_VALUE_FILTER: ValueFilter = Object.freeze({ dropped: [] });
+export const NO_MONEY_FILTER: MoneyFilter = Object.freeze({ minCents: null, maxCents: null, blank: true });
+export const NO_TEXT_FILTER: TextFilter = Object.freeze({ contains: '' });
+export const NO_COLUMN_FILTERS: ColumnFilters = Object.freeze({
+  day: NO_VALUE_FILTER, date: NO_VALUE_FILTER, city: NO_VALUE_FILTER, country: NO_VALUE_FILTER, book: NO_VALUE_FILTER, account: NO_VALUE_FILTER, accountName: NO_VALUE_FILTER,
+  subAccountName: NO_VALUE_FILTER, vendor: NO_VALUE_FILTER, stars: NO_VALUE_FILTER, underOver: NO_VALUE_FILTER,
+  budget: NO_MONEY_FILTER, actual: NO_MONEY_FILTER, variance: NO_MONEY_FILTER, match: NO_MONEY_FILTER,
+  description: NO_TEXT_FILTER,
+});
+/** The contains-text as matched: trimmed, lower-cased; '' is no filter. */
+export const containsNeedle = (contains: string): string => contains.trim().toLowerCase();
+/** Whether a column's filter narrows anything — the mark on its header. */
+export function columnFilterOn(filters: ColumnFilters, column: LedgerColumn): boolean {
+  switch (columnKind(column)) {
+    case 'value': return filters[column as ValueColumn].dropped.length > 0;
+    case 'money': { const f = filters[column as MoneyColumn]; return f.minCents !== null || f.maxCents !== null || !f.blank; }
+    case 'text': return containsNeedle(filters[column as TextColumn].contains) !== '';
+  }
+}
+export const anyColumnFilterOn = (filters: ColumnFilters): boolean => LEDGER_COLUMNS.some((column) => columnFilterOn(filters, column));
+
+/** One row against every column's filter: within a VALUE column the ticks are OR (the row's cell is not among the dropped); across columns AND. */
+export function rowPassesFilters(row: LedgerRow, filters: ColumnFilters): boolean {
+  for (const column of VALUE_COLUMNS) if (filters[column].dropped.includes(cellWordsOf(row, column))) return false;
+  for (const column of MONEY_COLUMNS) {
+    const f = filters[column];
+    const cents = cellCentsOf(row, column);
+    if (cents === null) { if (!f.blank) return false; continue; }
+    if (f.minCents !== null && cents < f.minCents) return false;
+    if (f.maxCents !== null && cents > f.maxCents) return false;
+  }
+  const needle = containsNeedle(filters.description.contains);
+  if (needle !== '' && (row.note === null || !row.note.toLowerCase().includes(needle))) return false;
+  return true;
+}
+/** The rows shown, in the order given. Nothing else changes — the TOTAL row, the coverage, the summary and the CSV follow these. */
+export const applyColumnFilters = (rows: readonly LedgerRow[], filters: ColumnFilters): LedgerRow[] => rows.filter((row) => rowPassesFilters(row, filters));
+
+/** One entry of a VALUE column's checklist: a cell's words (BLANK for a blank cell) and how many of the rows loaded carry it. */
+export interface ColumnValue { readonly key: string; readonly count: number }
+/** The distinct values of a VALUE column among the rows loaded, each with its count, in the column's own sort order (sortRows ascending) — a blank last. */
+export function columnValues(rows: readonly LedgerRow[], column: ValueColumn): ColumnValue[] {
+  const counts = new Map<string, number>();
+  const first = new Map<string, LedgerRow>();
+  for (const row of rows) {
+    const key = cellWordsOf(row, column);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+    if (!first.has(key)) first.set(key, row);
+  }
+  return sortRows([...first.values()], { column, direction: 'asc' }).map((row) => { const key = cellWordsOf(row, column); return { key, count: counts.get(key) as number }; });
+}
+/** A checklist entry's words — "(blank)" for the blank cell, else the cell words themselves. */
+export const choiceWords = (key: string): string => (key === BLANK ? BLANK_CHOICE_WORDS : key);
+
+/** A money bound as typed (dollars, a sign allowed — a VARIANCE runs negative) → cents, or null for no bound when the box is empty; else the words. */
+export type BoundResult = { readonly ok: true; readonly cents: number | null } | { readonly ok: false; readonly words: string };
+const BOUND_RE = /^(-?)(\d+)(?:\.(\d{1,2}))?$/;
+export function boundCentsOf(typed: string): BoundResult {
+  const text = typed.trim();
+  if (text === '') return { ok: true, cents: null };
+  const m = BOUND_RE.exec(text);
+  if (m === null) return { ok: false, words: boundTypedWords(typed) };
+  const cents = Number(m[2]) * 100 + Number((m[3] ?? '').padEnd(2, '0'));
+  return { ok: true, cents: m[1] === '-' ? -cents : cents };
+}
+/** A bound's cents back as the box shows them — "12.00", "-3.50", '' for no bound (the CSV's own money text). */
+export const boundDollarsOf = (cents: number | null): string => csvMoney(cents);
+
+/** One column, ascending or descending; null is the ledger's own order (newest day first, then the card's clock). */
+export type SortDirection = 'asc' | 'desc';
+export interface LedgerSort { readonly column: LedgerColumn; readonly direction: SortDirection }
+/** A click on a head word: ascending, then descending, then the ledger's own order; a click on another column starts ascending there. */
+export const nextSort = (sort: LedgerSort | null, column: LedgerColumn): LedgerSort | null =>
+  (sort === null || sort.column !== column ? { column, direction: 'asc' } : sort.direction === 'asc' ? { column, direction: 'desc' } : null);
+/** What a column sorts by: a number (cents, stars, the weekday Mon…Sun as 1…7), a text (localeCompare, numeric), or null for a blank cell — last in both directions. */
+export type SortKey = { readonly kind: 'number'; readonly n: number } | { readonly kind: 'text'; readonly t: string } | null;
+const num = (n: number | null): SortKey => (n === null ? null : { kind: 'number', n });
+const text = (t: string | null): SortKey => (t === null ? null : { kind: 'text', t });
+/** Monday 1 … Sunday 7, from the day's UTC parts (a calendar day, no zone). */
+export const weekdayNumber = (day: string): number => ((new Date(utc(day)).getUTCDay() + 6) % 7) + 1;
+export function sortKeyOf(row: LedgerRow, column: LedgerColumn): SortKey {
+  switch (column) {
+    case 'day': return num(weekdayNumber(row.day));
+    case 'date': return text(row.day);
+    case 'city': return text(row.place === null ? null : row.place.city);
+    case 'country': return text(row.place === null ? null : row.place.country);
+    case 'book': return text(row.book);
+    case 'account': return text(row.coa === null ? null : row.coa.account);
+    case 'accountName': return text(row.coa === null ? null : row.coa.name);
+    case 'subAccountName': return text(row.description);
+    case 'vendor': return text(row.vendor);
+    case 'stars': return num(row.rating);
+    case 'budget': case 'actual': case 'variance': case 'match': return num(cellCentsOf(row, column));
+    case 'underOver': return text(row.varianceCents === null ? null : varianceSignWords(row.varianceCents));
+    case 'description': return text(row.note);
+  }
+}
+const compareSortKeys = (a: SortKey, b: SortKey, direction: SortDirection): number => {
+  if (a === null || b === null) return a === b ? 0 : a === null ? 1 : -1;
+  const d = a.kind === 'number' && b.kind === 'number' ? a.n - b.n : (a.kind === 'text' ? a.t : String(a.n)).localeCompare(b.kind === 'text' ? b.t : String(b.n), 'en', { numeric: true });
+  return direction === 'asc' ? d : -d;
+};
+/** The rows by one column; ties keep the order given (a stable sort), blanks last either way; null gives the rows as they came. The TOTAL row is not a row here. */
+export function sortRows(rows: readonly LedgerRow[], sort: LedgerSort | null): LedgerRow[] {
+  if (sort === null) return [...rows];
+  return [...rows].sort((a, b) => compareSortKeys(sortKeyOf(a, sort.column), sortKeyOf(b, sort.column), sort.direction));
+}
+
+/** RETRO-01's left-out count, summed over the roles (leftOutWords prints it). */
+export const leftOutTotal = (left: Readonly<Record<NoMoneyRole, number>>): number => NO_MONEY_ROLES.reduce((sum, role) => sum + left[role], 0);
+/**
+ * The notes under the TOTAL row that have something to say — the n of "n notes": the two coverage lines whenever a row is shown, and each
+ * said line whose count is above 0 (no line, no stay, unplaced, not recorded, left out, not placed). The TODAY rule and the every-book
+ * line are shown only when open and never counted; a line whose count is 0 is neither counted nor shown.
+ */
+export const notesCount = (said: LedgerSaid, shownRows: number): number =>
+  [shownRows, shownRows, said.noLine, said.noStay, said.unplaced.length, said.notRecorded, leftOutTotal(said.leftOut), said.notPlaced].filter((n) => n > 0).length;
 
 // ── THE TOTALS AND THE SUMMARY ──────────────────────────────────────────────
 
@@ -594,13 +773,38 @@ export function ledgerSummary(rows: readonly LedgerRow[], by: GroupKey): LedgerG
 
 /** LEDGER-02 (Alex, 2026-10-19): "It's really a Task Ledger, not a City Ledger." */
 export const LEDGER_TITLE_WORDS = 'Task ledger';
-/** LEDGER-02: the sixteen columns in Alex's order — one fact each, nothing combined. */
-export const LEDGER_HEAD_WORDS = ['DAY', 'DATE', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'DESCRIPTION', 'VENDOR', 'STARS', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'NOTES'] as const;
+/**
+ * LEDGER-02: the sixteen columns in Alex's order — one fact each, nothing combined. LEDGER-04 (Alex, 2026-10-20): the stop's name is
+ * the SUB ACCOUNT NAME (was DESCRIPTION) and the record's note is the DESCRIPTION (was NOTES); the CSV header follows (ledgerCsv).
+ */
+export const LEDGER_HEAD_WORDS = ['DAY', 'DATE', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'STARS', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION'] as const;
 /** The money columns — right-aligned in the table. */
 export const MONEY_HEAD_WORDS = ['BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH'] as const;
 export const PERIOD_WORDS: Readonly<Record<PeriodKind, string>> = { month: 'Month', week: 'Week', day: 'Day', all: 'All' };
-export const FILTER_WORDS: Readonly<Record<FilterKey, string>> = { city: 'CITY', country: 'COUNTRY', coa: 'COA' };
+// LEDGER-04 (Alex, 2026-10-20): the column filters' and the sort's words — the dropdowns' FILTER_WORDS went with them; ALL_WORDS is the checklist's "all" link now.
 export const ALL_WORDS = 'all';
+export const NONE_WORDS = 'none';
+/** The control beside every head word, and the mark a header carries while its filter narrows something. */
+export const FILTER_OPEN_WORDS = '▾';
+export const FILTER_ON_MARK = '●';
+export const SORT_MARKS: Readonly<Record<SortDirection, string>> = { asc: '▲', desc: '▼' };
+export const CLEAR_FILTERS_WORDS = 'clear filters';
+/** A blank cell in a checklist, and the money tick that keeps or drops blank cells. */
+export const BLANK_CHOICE_WORDS = '(blank)';
+/** A checklist with more values than this gets a type-to-narrow box above it (it narrows the list, not the rows). */
+export const NARROW_FROM = 10;
+export const NARROW_WORDS = 'type to narrow';
+export const MIN_WORDS = 'min $';
+export const MAX_WORDS = 'max $';
+export const CONTAINS_WORDS = 'contains';
+export const CLOSE_FILTER_WORDS = 'close';
+export const filterLabelWords = (head: string): string => `filter ${head}`;
+export const sortLabelWords = (head: string): string => `sort by ${head}`;
+export const boundTypedWords = (typed: string): string => `${JSON.stringify(typed)} is not dollars — 12, 8.50 or -3`;
+/** The notes toggle under the TOTAL row: "3 notes ▸" closed, "3 notes ▾" open. */
+export const NOTES_CLOSED_MARK = '▸';
+export const NOTES_OPEN_MARK = '▾';
+export const notesToggleWords = (n: number, open: boolean): string => `${n} note${n === 1 ? '' : 's'} ${open ? NOTES_OPEN_MARK : NOTES_CLOSED_MARK}`;
 export const PREVIOUS_WORDS = '‹';
 export const NEXT_WORDS = '›';
 export const SUMMARY_TITLE_WORDS = 'over time, by place and by book';
@@ -692,7 +896,7 @@ export const notRecordedWords = (n: number): string => `${n} priced stop${n === 
 export const notPlacedWords = (n: number): string => `${n} routine line${n === 1 ? '' : 's'} the Budget could not place in the period (no budget here for its stops)`;
 /** RETRO-01: "2 records left out — not expenses (no money at a journal, plan or execute stop): journal 1 · plan 1". */
 export const leftOutWords = (left: Readonly<Record<NoMoneyRole, number>>): string => {
-  const n = NO_MONEY_ROLES.reduce((sum, role) => sum + left[role], 0);
+  const n = leftOutTotal(left);
   const parts = NO_MONEY_ROLES.filter((role) => left[role] > 0).map((role) => `${ROLE_SHORT_WORDS[role]} ${left[role]}`);
   return `${n} record${n === 1 ? '' : 's'} left out — not expenses (no money at a journal, plan or execute stop)${parts.length === 0 ? '' : `: ${parts.join(' · ')}`}`;
 };
@@ -812,7 +1016,8 @@ export type ExpenseInputResult = { readonly ok: true; readonly value: ExpenseVal
 const refuseExpense = (field: ExpenseField, message: string): ExpenseInputResult => ({ ok: false, field, message });
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
-export const EXPENSE_FIELD_WORDS: Readonly<Record<ExpenseField, string>> = { day: 'DAY', time: 'TIME', name: 'NAME', amount: 'AMOUNT', coa: 'COA', book: 'BOOK', vendor: 'VENDOR', actual: 'ACTUAL', stars: 'STARS', note: 'NOTE' };
+/** LEDGER-04 (Alex, 2026-10-20): the stop's name is the SUB ACCOUNT NAME and the note the DESCRIPTION — the ledger's own heads; the fields keep their names. */
+export const EXPENSE_FIELD_WORDS: Readonly<Record<ExpenseField, string>> = { day: 'DAY', time: 'TIME', name: 'SUB ACCOUNT NAME', amount: 'AMOUNT', coa: 'COA', book: 'BOOK', vendor: 'VENDOR', actual: 'ACTUAL', stars: 'STARS', note: 'DESCRIPTION' };
 export const requiredWords = (field: ExpenseField): string => `${EXPENSE_FIELD_WORDS[field]} is required`;
 export const dayTypedWords = (typed: string): string => `${JSON.stringify(typed)} is not a 'YYYY-MM-DD' day`;
 export const timeTypedWords = (typed: string): string => `${JSON.stringify(typed)} is not a time (HH:MM)`;
