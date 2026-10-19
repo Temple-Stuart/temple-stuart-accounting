@@ -41,16 +41,26 @@
  * counted. Audited once as operations_routine_rekeyed (the counts per table,
  * the rule and zone before → after) plus RETRO-01's operations_stop_moved per
  * record; the answer says how many rows moved per table (`rekeyed`).
+ *
+ * ALLDAY-01 (Alex, 2026-10-19): AN ALL-DAY ROUTINE HAS A DATE, NOT A CLOCK. The
+ * EFFECTIVE role — the body's, else the stored one — decides the time: when it
+ * is all_day, no time is read, a start or end time sent is refused by name
+ * (rruleHelpers.ts allDayTimeInput, the rule the create route shares), the
+ * window is stored null and the clock the rule carries is ALL_DAY_CLOCK (00:00
+ * in the routine's zone) — so a role change TO all_day, or an all-day routine
+ * still carrying a typed clock, re-clocks through the rekey below like any
+ * clock change, moving the rows it has (none, when it has none). A role change
+ * FROM all_day needs its start time (and its end with it): it had none.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { roleInput } from '@/lib/operations/stopRole';
+import { isStop, roleInput } from '@/lib/operations/stopRole';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
-import { EMPTY_WINDOW_WORDS, END_TIME_REQUIRED_WORDS, START_TIME_REQUIRED_WORDS, canonicalZone, clockOfRule, clockOfTime, clockWords, compileFormToRRule, expandForward, isOnceRRule, sameClock, scheduleAnchor, withClock, zoneNotListedWords } from '@/lib/operations/rruleHelpers';
+import { EMPTY_WINDOW_WORDS, END_TIME_REQUIRED_WORDS, START_TIME_REQUIRED_WORDS, allDayTimeInput, canonicalZone, clockOfRule, clockOfTime, clockWords, compileFormToRRule, expandForward, isOnceRRule, sameClock, scheduleAnchor, withClock, zoneNotListedWords } from '@/lib/operations/rruleHelpers';
 import { RekeyRefused, rekeyPlan, rekeyedWords, occupiedWords, type RekeyCounts, type RekeySchedule } from '@/lib/operations/routineRekey';
 import { lockRoutine, moveCompletions } from '@/lib/operations/routineCompletion';
 import { movedWords, stopRecordRowOf, type StopRecordRow } from '@/lib/operations/stopRecord';
@@ -284,22 +294,43 @@ export async function PATCH(
     }
     const effectiveStartStr = effectiveStart ? effectiveStart.toISOString().slice(0, 10) : '';
 
+    // ALLDAY-01 (Alex, 2026-10-19): the EFFECTIVE role — the body's, else the stored one — decides the time.
+    // A stored role outside the six is the database's error (the column is CHECKed), never read as a stop.
+    const effectiveRole = roleInput(body.role !== undefined ? body.role : existing.role);
+    if (!effectiveRole.ok) throw new Error(`routine ${id} carries role ${JSON.stringify(existing.role)} — not one of the six`);
+    const storedRole = roleInput(existing.role);
+    const wasAllDay = storedRole.ok && !isStop(storedRole.role);
+    const allDay = allDayTimeInput(effectiveRole.role, body);
+    if (!allDay.ok) return NextResponse.json({ error: 'Validation', field: allDay.field, message: allDay.message }, { status: 400 });
+
     // Time window: validate against effective (post-patch) values. ROUTINE-02b:
     // read BEFORE the cadence compile — the start time is the clock it derives.
     let effectiveStartTime = existing.start_time;
     let effectiveEndTime = existing.end_time;
-    if ('start_time' in body) {
-      const r = parseTimeOrNull(body.start_time, 'start_time');
-      if (r.error) return r.error;
-      if (r.value === null) return NextResponse.json({ error: 'Validation', field: 'start_time', message: START_TIME_REQUIRED_WORDS }, { status: 400 });
-      effectiveStartTime = r.value;
-      data.start_time = r.value;
-    }
-    if ('end_time' in body) {
-      const r = parseTimeOrNull(body.end_time, 'end_time');
-      if (r.error) return r.error;
-      effectiveEndTime = r.value;
-      data.end_time = r.value;
+    if (allDay.allDay) {
+      // ALLDAY-01: an all-day routine has no window — none is read, and a stored one (a routine that was timed) is cleared with the row.
+      effectiveStartTime = null;
+      effectiveEndTime = null;
+      data.start_time = null;
+      data.end_time = null;
+    } else {
+      if ('start_time' in body) {
+        const r = parseTimeOrNull(body.start_time, 'start_time');
+        if (r.error) return r.error;
+        if (r.value === null) return NextResponse.json({ error: 'Validation', field: 'start_time', message: START_TIME_REQUIRED_WORDS }, { status: 400 });
+        effectiveStartTime = r.value;
+        data.start_time = r.value;
+      }
+      if ('end_time' in body) {
+        const r = parseTimeOrNull(body.end_time, 'end_time');
+        if (r.error) return r.error;
+        effectiveEndTime = r.value;
+        data.end_time = r.value;
+      }
+      // ALLDAY-01: a routine leaving all day had no time — it needs its start time now, by name (its end with it, below).
+      if (wasAllDay && effectiveStartTime === null) {
+        return NextResponse.json({ error: 'Validation', field: 'start_time', message: START_TIME_REQUIRED_WORDS }, { status: 400 });
+      }
     }
     // MOVE-01 (Alex, 2026-10-19): an end before the start ends the next day; only an empty window is refused.
     if (effectiveStartTime && effectiveEndTime && effectiveStartTime.getTime() === effectiveEndTime.getTime()) {
@@ -308,7 +339,8 @@ export async function PATCH(
         { status: 400 }
       );
     }
-    const effectiveStartTimeStr = effectiveStartTime ? effectiveStartTime.toISOString().slice(11, 16) : '';
+    // ALLDAY-01: an all-day routine's clock is ALL_DAY_CLOCK — the compile and the rewrite below see its words as the start time.
+    const effectiveStartTimeStr = allDay.allDay ? allDay.start_time : effectiveStartTime ? effectiveStartTime.toISOString().slice(11, 16) : '';
     const effectiveClock = clockOfTime(effectiveStartTimeStr);
 
     // Recompile RRULE if any cadence-related field is supplied.

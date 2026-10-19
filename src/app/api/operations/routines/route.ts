@@ -35,6 +35,14 @@
  *        name. The end time is the window, required with the start time — but
  *        for a one-off, whose window is its day (ONEOFF-01) and whose ledger
  *        "+ expense" names one time.
+ *
+ *        ALLDAY-01 (Alex, 2026-10-19): AN ALL-DAY ROUTINE HAS A DATE, NOT A
+ *        CLOCK. When the role is all_day (a subscription, a membership, a bill —
+ *        a charge on a date) no time is asked: the role is read first, the rule
+ *        the PATCH shares (rruleHelpers.ts allDayTimeInput) refuses a start or
+ *        end time sent for it by name, the compile derives the rule's clock as
+ *        ALL_DAY_CLOCK (00:00 in the routine's zone) and the window is stored
+ *        null. Every other role keeps ROUTINE-02b's rule.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -44,7 +52,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
-import { EMPTY_WINDOW_WORDS, END_TIME_REQUIRED_WORDS, START_TIME_REQUIRED_WORDS, canonicalZone, compileFormToRRule, expandForward, isOnceRRule, scheduleAnchor, zoneNotListedWords } from '@/lib/operations/rruleHelpers';
+import { EMPTY_WINDOW_WORDS, END_TIME_REQUIRED_WORDS, START_TIME_REQUIRED_WORDS, allDayTimeInput, canonicalZone, compileFormToRRule, expandForward, isOnceRRule, scheduleAnchor, zoneNotListedWords } from '@/lib/operations/rruleHelpers';
 import { parseLinesInput, parsePlaceInput } from '@/lib/operations/routineInput';
 import { carriesPlanMoney, planMoney, type PlanBook, type PlanMoney } from '@/lib/operations/planMoney';
 import { loadPlanBook } from '@/lib/operations/loadPlanBook';
@@ -208,13 +216,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const startTimeResult = parseTimeOrNull(body.start_time, 'start_time');
+    // ROLE-01: what kind of stop this routine is — absent → 'none'; anything else by name.
+    // ALLDAY-01: read before the times — the role decides whether a time is asked at all.
+    const role = roleInput(body.role);
+    if (!role.ok) return NextResponse.json({ error: 'Validation', field: role.field, message: role.message }, { status: 400 });
+
+    // ALLDAY-01 (Alex, 2026-10-19): an all-day routine sends no time — its clock is ALL_DAY_CLOCK and its
+    // window null (rruleHelpers.ts allDayTimeInput, the one rule the PATCH shares); a time sent for it is
+    // refused by name. A timed routine's start time is its clock (ROUTINE-02b), read below as before.
+    const allDay = allDayTimeInput(role.role, body);
+    if (!allDay.ok) return NextResponse.json({ error: 'Validation', field: allDay.field, message: allDay.message }, { status: 400 });
+
+    const startTimeResult = allDay.allDay ? { value: null, error: null } : parseTimeOrNull(body.start_time, 'start_time');
     if (startTimeResult.error) return startTimeResult.error;
-    // ROUTINE-02b: the start time is the routine's time — required.
-    if (startTimeResult.value === null) {
+    // ROUTINE-02b: the start time is the routine's time — required. ALLDAY-01: not of an all-day routine, which has none.
+    if (!allDay.allDay && startTimeResult.value === null) {
       return NextResponse.json({ error: 'Validation', field: 'start_time', message: START_TIME_REQUIRED_WORDS }, { status: 400 });
     }
-    const endTimeResult = parseTimeOrNull(body.end_time, 'end_time');
+    const endTimeResult = allDay.allDay ? { value: null, error: null } : parseTimeOrNull(body.end_time, 'end_time');
     if (endTimeResult.error) return endTimeResult.error;
 
     // MOVE-01 (Alex, 2026-10-19): the window may cross midnight — an end before the
@@ -233,7 +252,8 @@ export async function POST(request: NextRequest) {
 
     let schedule_rrule: string;
     try {
-      schedule_rrule = compileFormToRRule(body as RoutineForm);
+      // ALLDAY-01: the compile sees ALL_DAY_CLOCK's words as an all-day routine's start time — the clock it derives.
+      schedule_rrule = compileFormToRRule(allDay.allDay ? ({ ...body, start_time: allDay.start_time } as RoutineForm) : (body as RoutineForm));
     } catch (e) {
       return NextResponse.json(
         {
@@ -250,7 +270,8 @@ export async function POST(request: NextRequest) {
     // end date, if sent, must be the same day — and is stored as that day.
     const once = isOnceRRule(schedule_rrule);
     // ROUTINE-02b: the end time is the window, required with the start time — a one-off's window is its day.
-    if (!once && endTimeResult.value === null) {
+    // ALLDAY-01: an all-day routine has no window.
+    if (!once && !allDay.allDay && endTimeResult.value === null) {
       return NextResponse.json({ error: 'Validation', field: 'end_time', message: END_TIME_REQUIRED_WORDS }, { status: 400 });
     }
     let endDate = endResult.value;
@@ -304,10 +325,6 @@ export async function POST(request: NextRequest) {
     const idealTimeLabel = typeof body.ideal_time_label === 'string' && body.ideal_time_label.trim().length > 0
       ? body.ideal_time_label.trim()
       : null;
-    // ROLE-01: what kind of stop this routine is — absent → 'none'; anything else by name.
-    const role = roleInput(body.role);
-    if (!role.ok) return NextResponse.json({ error: 'Validation', field: role.field, message: role.message }, { status: 400 });
-
     // INTAKE-01: the routine's money and every line's, by the one rule (planMoney.ts),
     // against the routine's book — read once, and only when any of them carries money.
     // Absent/empty → null (no budget, never 0); a refusal is a 400 naming the field.
@@ -419,6 +436,8 @@ export async function POST(request: NextRequest) {
           // ONEOFF-01: what was authored with it.
           once,
           lines: lines.value.length,
+          // ALLDAY-01: a charge on a date — no time asked, the clock derived.
+          all_day: allDay.allDay,
         },
       },
     });

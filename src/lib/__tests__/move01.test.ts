@@ -49,7 +49,7 @@ const NOW = new Date('2026-10-19T05:00:00.000Z');
 const DATE = '2026-10-22';
 const r = (o: Partial<MoveRoutine> & { id: string; name: string }): MoveRoutine => ({
   schedule_rrule: 'FREQ=DAILY;BYHOUR=21;BYMINUTE=0;BYSECOND=0', timezone: 'Asia/Bangkok', start_date: null, end_date: null,
-  start_time: '1970-01-01T21:00:00.000Z', end_time: '1970-01-01T23:59:00.000Z', is_active: true, ...o,
+  start_time: '1970-01-01T21:00:00.000Z', end_time: '1970-01-01T23:59:00.000Z', is_active: true, role: 'none' /* ALLDAY-01 (2026-10-19): the plan reads the role — a charge is left alone (allday01 T6) */, ...o,
 });
 const ROUTINES: MoveRoutine[] = [
   r({ id: 'a', name: 'Dinner' }),
@@ -92,7 +92,7 @@ test('T1 the plan by value: ends renamed at date−1, copies at the row\'s times
   assert.deepEqual(p.rows.map((row) => [row.name, row.kind, row.carry, row.copy?.first_day ?? null]), [['Dinner', 'ends', true, DATE], ['Gym', 'ends', true, '2026-10-26'], ['Massage', 'rezoned', false, null], ['Later', 'rezoned', false, null], ['Ends later', 'ends', false, null]]);
   // The stay: Chiang Mai ran to Oct 31 — shortened to Oct 21; Makassar from the date to its last day.
   assert.deepEqual(p.stay, { shorten: { id: 's1', place: 'Chiang Mai', ends_on: '2026-10-21' }, create: { place: 'Makassar', starts_on: DATE, ends_on: '2026-11-05' } });
-  assert.equal(p.words, '3 routines end 2026-10-21; 2 copies start 2026-10-22 in Asia/Makassar; 2 re-zoned; stay Makassar 2026-10-22 → 2026-11-05, Chiang Mai ends 2026-10-21');
+  assert.equal(p.words, '3 routines end 2026-10-21; 2 copies start 2026-10-22 in Asia/Makassar; 2 re-zoned; 0 all-day charges stay as they are; stay Makassar 2026-10-22 → 2026-11-05, Chiang Mai ends 2026-10-21'); // ALLDAY-01 (2026-10-19): the charges counted
   assert.equal(arrowWords('2026-10-26', 'Asia/Makassar'), '→ 2026-10-26 in Asia/Makassar');
   // The old end kept when on/after the date; a copy's end before the first occurrence refuses.
   const kept = planMove({ date: DATE, timezone: 'Asia/Makassar', now: NOW, stay: null, routines: ROUTINES, entries: ENTRIES.map((e) => (e.id === 'f' ? { ...e, carry: true } : e)), stays: STAYS });
@@ -119,7 +119,7 @@ test('T1 the plan by value: ends renamed at date−1, copies at the row\'s times
   assert.deepEqual(input({ entries: [...ENTRIES, ENTRIES[0]] }), { ok: false, status: 400, field: 'routines[5].id', message: 'Dinner is listed twice' });
   // An unticked re-zoned row needs no times: the entry's times are ignored for it.
   assert.ok(input({ entries: ENTRIES.map((e) => (e.id === 'c' ? { ...e, start_time: '', end_time: '' } : e)) }).ok);
-  assert.equal(moveWords({ ends: [1], copies: [], rezoned: [], date: DATE, day_before: '2026-10-21', timezone: 'Asia/Makassar', stay: null }), '1 routine ends 2026-10-21; 0 copies start 2026-10-22 in Asia/Makassar; 0 re-zoned; no stay change');
+  assert.equal(moveWords({ ends: [1], copies: [], rezoned: [], all_day: [], date: DATE, day_before: '2026-10-21', timezone: 'Asia/Makassar', stay: null }), '1 routine ends 2026-10-21; 0 copies start 2026-10-22 in Asia/Makassar; 0 re-zoned; 0 all-day charges stay as they are; no stay change'); // ALLDAY-01 (2026-10-19)
   assert.equal(hasHistoryWords('Later'), 'Later starts on or after the move and already holds records — re-zone it from its own row (its history would move)');
   assert.equal(nameTakenWords('Gym'), 'a routine named "Gym" already exists');
   assert.match(comments(PLAN), /MOVE-01, Alex, 2026-10-19/);

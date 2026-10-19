@@ -16,7 +16,10 @@
  *   TIME is start · end — ROUTINE-02b (Alex, 2026-10-18): ONE TIME — the
  *   start time IS the routine's clock (withStartTime fills byhour/byminute and a custom
  *   rule's own BYHOUR/BYMINUTE); the end is the window; both required. No
- *   hour or minute box.
+ *   hour or minute box. ALLDAY-01 (Alex, 2026-10-19): an all-day routine (role
+ *   all_day — a charge on a date) has no time: the forms mount no TimeField
+ *   for it, and rruleHelpers.ts withRole blanks the fields; the route derives
+ *   ALL_DAY_CLOCK.
  *
  * The zone — ROUTINE-02a (Alex, 2026-10-18): picked from Intl's list, never
  * typed (ZoneSelect) — the ideal time label and "count as missed after N

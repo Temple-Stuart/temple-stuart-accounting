@@ -44,11 +44,18 @@
  * minutes — collapsed, React state). Location, latitude, longitude and "Find
  * this place" left the form; nothing of them is sent. The route still accepts
  * them and the hub map keeps reading what is stored.
+ *
+ * ALLDAY-01 (Alex, 2026-10-19): AN ALL-DAY ROUTINE HAS A DATE, NOT A CLOCK.
+ * When the role is all day (a charge on a date — a subscription, a bill) the
+ * TIME row is not mounted and no time is asked: the role select goes through
+ * rruleHelpers.ts withRole, which blanks the times (sent as null — the route
+ * derives ALL_DAY_CLOCK); picking a timed role again shows the row, empty.
  */
 
 'use client';
 
-import { ROLE_FIELD_WORDS, ROLE_WORDS, STOP_ROLES, type StopRole } from '@/lib/operations/stopRole';
+import { ROLE_FIELD_WORDS, ROLE_WORDS, STOP_ROLES, isStop, type StopRole } from '@/lib/operations/stopRole';
+import { withRole } from '@/lib/operations/rruleHelpers';
 import { useEffect, useState } from 'react';
 import { DaysField, MISSED_AFTER_WORDS, TimeField } from './RRULEBuilder';
 import ZoneSelect from './ZoneSelect';
@@ -197,9 +204,10 @@ export default function RoutineCreateForm({ entities, defaultEntityId, onCreated
         </div>
         <div>
           <div className={labelClass}>{ROLE_FIELD_WORDS}</div>
+          {/* ALLDAY-01: the role through withRole — all day blanks the time (no TIME row below). */}
           <select
             value={createForm.role}
-            onChange={(e) => setCreateForm({ ...createForm, role: e.target.value as StopRole })}
+            onChange={(e) => setCreateForm(withRole(createForm, e.target.value as StopRole))}
             className={inputClass}
             data-routine-role
           >
@@ -229,9 +237,9 @@ export default function RoutineCreateForm({ entities, defaultEntityId, onCreated
         </div>
       </div>
 
-      {/* FORM-01: days, then time — the builder's two fields, in that order. */}
+      {/* FORM-01: days, then time — the builder's two fields, in that order. ALLDAY-01: no time row for an all-day routine. */}
       <DaysField form={createForm} setForm={setForm} />
-      <TimeField form={createForm} setForm={setForm} />
+      {isStop(createForm.role) && <TimeField form={createForm} setForm={setForm} />}
 
       {/* HB-4b: per-occurrence budget + COA. Both optional — empty budget → null (never 0), no COA
           → null (no default account). The COA list is scoped to the selected entity. */}

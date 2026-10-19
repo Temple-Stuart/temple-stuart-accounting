@@ -11,8 +11,10 @@
  *   plan     — the execution plan: the vision in, the plan out (PLAN-01)
  *   execute  — a work block: what was finished up to the break
  *   place    — somewhere you go and pay: the vendor, the amount, the stars
- *   all_day  — a subscription or a membership: in the day's plan, NOT a stop —
- *              no time slot, nothing to record; the plate's "also today" band
+ *   all_day  — a subscription, a membership, a bill: a CHARGE ON A DATE, in
+ *              the day's plan, NOT a stop — no time asked (ALLDAY-01: its clock
+ *              is derived, rruleHelpers.ts ALL_DAY_CLOCK), nothing to record;
+ *              the plate's "also today" band
  *   none     — a stop with the plain record (done, when, minutes, a note)
  *
  * Here: the six values, the input rule the routes share, the words. No fetch,
@@ -48,7 +50,8 @@ export const ROLE_WORDS: Readonly<Record<StopRole, string>> = {
   plan: 'plan — the vision in, the plan out',
   execute: 'execute — a work block; what got finished',
   place: 'place — somewhere you go and pay',
-  all_day: 'all day — a subscription or membership, not a stop',
+  // ALLDAY-01 (Alex, 2026-10-19): the one phrasing — a charge on a date, not a stop (was 'a subscription or membership, not a stop').
+  all_day: 'all day — a charge on a date, not a stop',
   none: 'none — the plain record',
 };
 

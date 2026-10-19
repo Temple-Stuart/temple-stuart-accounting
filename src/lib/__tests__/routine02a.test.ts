@@ -169,15 +169,16 @@ test('T6 the archive: ended = end_date before today in the routine\'s own zone; 
   assert.equal(zoneUnreadWords('X/Y', 'why'), 'zone "X/Y" not recognised: why — pick one from the list');
   // The list: judged now in each routine's zone; the cadence groups hold the current; the ended group at the bottom, newest end first, only while shown.
   const l = code(LIST);
-  assert.match(l, /const now = new Date\(\);\n\s*const judged = routines\.map\(\(r\) => \(\{ r, end: endedBy\(r\.end_date, r\.timezone, now\) \}\)\);\n\s*const current = judged\.filter\(\(x\) => !x\.end\.ended\)\.sort\(\(a, b\) => byClockThenName\(a\.r, b\.r\)\);/); // FORM-01 (2026-10-19): sorted by the clock
+  assert.match(l, /const now = new Date\(\);\n\s*const judged = routines\.map\(\(r\) => \(\{ r, end: endedBy\(r\.end_date, r\.timezone, now\) \}\)\);\n\s*const current = judged\.filter\(\(x\) => !x\.end\.ended\);/); // FORM-01 (2026-10-19): sorted by the clock — ALLDAY-01 (2026-10-19): per book, the timed rows (allday01 T5)
   assert.match(l, /\.sort\(\(a, b\) => b\.day\.localeCompare\(a\.day\) \|\| a\.r\.name\.localeCompare\(b\.r\.name\)\);/, 'newest end first');
   // FORM-01 (2026-10-19): the current routines are one flat table in clock order — no cadence groups; the ended group alone remains.
   assert.doesNotMatch(l, /groupOf|CADENCE_GROUP_ORDER|data-cadence-group/, 'no cadence groups (FORM-01)');
   assert.match(l, /const \[showEnded, setShowEnded\] = useState\(false\);/, 'React state only');
   assert.match(l, /checked=\{showEnded\}\n\s*onChange=\{\(e\) => setShowEnded\(e\.target\.checked\)\}\n\s*data-routines-show-ended\n\s*\/>\n\s*<span className="text-text-muted">\{showEndedWords\(ended\.length\)\}<\/span>/);
   assert.ok(l.indexOf('show inactive') < l.indexOf('data-routines-show-ended'), 'beside "show inactive"');
-  assert.match(l, /\{showEnded && ended\.length > 0 && \(\n\s*<Fragment key="ended">\n\s*<tbody>\n\s*<tr data-ended-group>/);
-  assert.ok(l.indexOf('<tr data-ended-group>') > l.lastIndexOf('{current.map(({ r, end }) => ('), 'at the bottom'); // FORM-01 (2026-10-19): after the flat current rows
+  // ALLDAY-01 (2026-10-19): the ended group is its own table at the bottom of the page, under every book's table, behind the same toggle.
+  assert.match(l, /\{showEnded && ended\.length > 0 && \(\n\s*<div className="[^"]*">\n\s*<table className="[^"]*" data-routines-table data-routines-ended>\n\s*\{head\}\n\s*<tbody>\n\s*<tr data-ended-group>/);
+  assert.ok(l.indexOf('<tr data-ended-group>') > l.lastIndexOf('{timed.map(row)}') && l.indexOf('<tr data-ended-group>') > l.lastIndexOf('{allDay.map(row)}'), 'at the bottom');
   assert.match(l, /const url = showInactive\n\s*\? '\/api\/operations\/routines'\n\s*: '\/api\/operations\/routines\?is_active=true';/, 'the fetch is unchanged');
   assert.doesNotMatch(l, /localStorage|sessionStorage|document\.cookie/);
   assert.match(l, /export const showEndedWords = \(n: number\): string => `show ended \(\$\{n\}\)`;/);

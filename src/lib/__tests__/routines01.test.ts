@@ -96,7 +96,9 @@ test('T1 every state\'s words, and the helper takes a book list, a book id and a
 
 test('T2 one table: Routine · Cadence · Days · Time · Amount · Account, and a controls column (FORM-01)', () => {
   const list = code(LIST);
-  assert.equal((list.match(/<table\b/g) ?? []).length, 1, 'one table');
+  // ALLDAY-01 (2026-10-19): one table PER BOOK from one template, and the ended table — two <table> in the source, one header they all carry.
+  assert.equal((list.match(/<table\b/g) ?? []).length, 2, 'the books\' table template and the ended table');
+  assert.equal((list.match(/<thead>/g) ?? []).length, 1, 'one header');
   for (const f of [ROW, LINES]) assert.doesNotMatch(code(f), /<table\b/, `${f} draws rows of the one table, not a table of its own`);
   const heads = [...list.matchAll(/<th\b[^>]*>([^<]*)</g)].map((m) => m[1]);
   assert.deepEqual(heads, ['Routine', 'Cadence', 'Days', 'Time', 'Amount', 'Account', ''], 'FORM-01 (2026-10-19): Routine · Cadence · Days · Time · Amount · Account — Where, Activity and Minutes are gone');
@@ -114,8 +116,10 @@ test('T2 the current routines are one flat table in clock order — no cadence g
   // FORM-01 (2026-10-19): the current routines are ONE FLAT TABLE in clock order — no cadence group rows; CADENCE_GROUP_ORDER stays
   // the list's vocabulary elsewhere (the move control) and the ended group keeps its own label row (routine02a T6).
   assert.doesNotMatch(list, /CADENCE_GROUP_ORDER|data-cadence-group/);
-  assert.match(list, /const current = judged\.filter\(\(x\) => !x\.end\.ended\)\.sort\(\(a, b\) => byClockThenName\(a\.r, b\.r\)\);/);
-  assert.match(list, /\{current\.map\(\(\{ r, end \}\) => \(\n\s*<RoutineRow/);
+  // ALLDAY-01 (2026-10-19): per book — the timed rows in clock order, the all-day charges in the band (allday01 T5).
+  assert.match(list, /const current = judged\.filter\(\(x\) => !x\.end\.ended\);/);
+  assert.match(list, /timed: own\.filter\(\(x\) => isStop\(x\.r\.role\)\)\.sort\(\(a, b\) => byClockThenName\(a\.r, b\.r\)\),/);
+  assert.match(list, /\{timed\.map\(row\)\}/);
   // "+ new routine", "show inactive", the count and the create form stay where they are.
   const header = list.indexOf('show inactive');
   // ROUTINE-02a (2026-10-18): the count is of the rows shown — the current ones, and the ended while shown.
@@ -228,7 +232,8 @@ test('T2 every code on the table is drawn through the one helper — never a bar
   assert.equal((code(LINES).match(/accountCell\(/g) ?? []).length, 2, 'the line\'s code and the routine\'s own');
   assert.equal((code(ROW).match(/accountCell\(/g) ?? []).length, 1, 'the figure\'s account');
   assert.match(code(ROW), /<AccountText cell=\{accountCell\(entities, routine\.entity_id, planned\.coaCode\)\} \/>/);
-  assert.doesNotMatch(code(LIST), /coa_code|coaCode|accountCell/, 'the list draws no code');
+  // ALLDAY-01 (2026-10-19): the list names an unlisted book with the helper's words (ACCOUNT_CELL_WORDS.bookNotLoaded) — still no code, no call.
+  assert.doesNotMatch(code(LIST), /coa_code|coaCode|accountCell\(/, 'the list draws no code');
   // The helper's words are what renders — each state has its own look, blank renders nothing.
   assert.match(code(LINES), /export function AccountText\(\{ cell \}: \{ cell: AccountCell \}\) \{\n\s*if \(cell\.state === 'blank'\) return null;/);
   assert.match(code(LINES), /data-account-state=\{cell\.state\}>\{cell\.text\}</);

@@ -15,13 +15,18 @@
  * card, the list, the stays and the ledger all re-read (Alex 8 yes); a
  * refusal is shown in the route's own words. Cancel writes nothing. Nothing
  * is stored in the browser.
+ *
+ * ALLDAY-01 (Alex, 2026-10-19): the current all-day charges are not rows of
+ * the list — they are listed under a line of their own, "n all-day charges
+ * stay as they are (they hit the account on a date, wherever you are)", and
+ * the plan neither ends, copies nor re-zones them (routineMove.ts leftAlone).
  */
 
 'use client';
 
 import { useState } from 'react';
 import { shiftDay } from '@/lib/budget/reportView';
-import { MOVE_CHIP_WORDS, REZONED_WORDS, TASKS_WORDS, arrowWords, defaultEntry, listRows, planMove, type MoveEntry } from '@/lib/operations/routineMove';
+import { MOVE_CHIP_WORDS, REZONED_WORDS, TASKS_WORDS, allDayStayWords, arrowWords, defaultEntry, leftAlone, listRows, planMove, type MoveEntry } from '@/lib/operations/routineMove';
 import type { StayRow } from '@/lib/operations/stay';
 import { CADENCE_GROUP_LABELS, CADENCE_GROUP_ORDER, type Routine } from '../routines/types';
 import ZoneSelect from '../routines/ZoneSelect';
@@ -67,6 +72,8 @@ export default function MoveControl({ today }: Props) {
 
   const active = routines !== null && routines.ok ? routines.value : [];
   const rows = date === '' ? [] : listRows(active, date);
+  // ALLDAY-01: the charges the move leaves alone — their own line, no boxes.
+  const charges = date === '' ? [] : leftAlone(active, date);
   const entryOf = (id: string): MoveEntry => edited.get(id) ?? defaultEntry(active.find((r) => r.id === id) as Routine);
   const entries = rows.map((row) => entryOf(row.id));
   const setEntry = (e: MoveEntry) => setEdited(new Map(edited).set(e.id, e));
@@ -156,6 +163,14 @@ export default function MoveControl({ today }: Props) {
                 );
               })}
             </table>
+          )}
+          {ready && charges.length > 0 && (
+            <div className="text-text-muted" data-move-all-day>
+              <p data-move-all-day-words>{allDayStayWords(charges.length)}</p>
+              <ul className="pl-4 list-disc">
+                {charges.map((c) => <li key={c.id} data-move-all-day-row={c.id}>{c.name}</li>)}
+              </ul>
+            </div>
           )}
           <p className="text-text-faint" data-move-tasks>{TASKS_WORDS}</p>
           {zone === '' && <p className="text-brand-amber" data-move-zone-needed>{PICK_ZONE_WORDS}</p>}

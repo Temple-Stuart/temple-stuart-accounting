@@ -135,8 +135,9 @@ test('T2 history follows the time: day by day, old instant → the new rule’s 
 
 test('T3 the routes: start time required, end time with it (a one-off excepted); a start-time edit rewrites the rule; the move in ONE transaction, proven empty before any write, 400/409 by name, audited once plus RETRO-01’s precedent per record; the answer counts', () => {
   const post = code(CREATE_ROUTE);
-  assert.match(post, /if \(startTimeResult\.value === null\) \{\n\s*return NextResponse\.json\(\{ error: 'Validation', field: 'start_time', message: START_TIME_REQUIRED_WORDS \}, \{ status: 400 \}\);/);
-  assert.match(post, /if \(!once && endTimeResult\.value === null\) \{\n\s*return NextResponse\.json\(\{ error: 'Validation', field: 'end_time', message: END_TIME_REQUIRED_WORDS \}, \{ status: 400 \}\);/);
+  // ALLDAY-01 (2026-10-19): required of every role but all day, which has no time (allday01 T3).
+  assert.match(post, /if \(!allDay\.allDay && startTimeResult\.value === null\) \{\n\s*return NextResponse\.json\(\{ error: 'Validation', field: 'start_time', message: START_TIME_REQUIRED_WORDS \}, \{ status: 400 \}\);/);
+  assert.match(post, /if \(!once && !allDay\.allDay && endTimeResult\.value === null\) \{\n\s*return NextResponse\.json\(\{ error: 'Validation', field: 'end_time', message: END_TIME_REQUIRED_WORDS \}, \{ status: 400 \}\);/);
   const patch = code(PATCH_ROUTE);
   const handler = patch.slice(patch.indexOf('export async function PATCH('), patch.indexOf('export async function DELETE('));
   assert.match(handler, /if \(r\.value === null\) return NextResponse\.json\(\{ error: 'Validation', field: 'start_time', message: START_TIME_REQUIRED_WORDS \}, \{ status: 400 \}\);/, 'a blank start time is refused');

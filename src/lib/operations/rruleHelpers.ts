@@ -17,6 +17,7 @@ import { RRule, RRuleSet, rrulestr, Frequency } from 'rrule';
 import { ValidationError } from '@/lib/errors/ValidationError';
 import { instantToZoned } from '@/lib/time';
 import type { CadenceGroup, CadenceMode, DaysChoice, RoutineForm, WeekDay } from '@/components/workbench/operations/routines/types';
+import { isStop, type StopRole } from '@/lib/operations/stopRole';
 import { CADENCE_GROUP_LABELS, DEFAULT_ROUTINE_FORM, WEEKDAYS, WEEKDAY_LABELS, WEEKDAY_ORDER, WEEKEND } from '@/components/workbench/operations/routines/types';
 
 /**
@@ -221,6 +222,40 @@ export const EMPTY_WINDOW_WORDS = 'end_time equals start_time — the window is 
 export const clockDisagreeWords = (what: string, theirs: string, startTime: string): string =>
   `${what} ${theirs} disagree with the start time ${startTime} — the start time is the routine's time; send one or make them agree`;
 
+// ── ALLDAY-01 (Alex, 2026-10-19): AN ALL-DAY ROUTINE HAS A DATE, NOT A CLOCK ──
+// A subscription, a membership, a bill (role all_day — stopRole.ts) hits the
+// account on a date and never touches the day's schedule. No time is asked
+// for it: the routes derive its clock as ALL_DAY_CLOCK (midnight in the
+// routine's zone) and store no window; a body that sends a time for it is
+// refused by name. The rule is ONE pure function the create route and the
+// PATCH share (allDayTimeInput); the forms blank the time through withRole.
+
+/** The clock every all-day routine carries — 00:00 in its own zone. Derived, never asked. */
+export const ALL_DAY_CLOCK: Clock = { hour: 0, minute: 0 };
+export const ALL_DAY_NO_TIME_WORDS = 'an all-day routine has no time — it is a charge on a date, not a stop';
+
+/** The forms' and the routes' "no time": absent, null or blank. */
+const noTime = (v: unknown): boolean => v === null || v === undefined || (typeof v === 'string' && v.trim() === '');
+
+export type AllDayTimeInput =
+  /** An all-day routine: no time sent; the compile is given ALL_DAY_CLOCK's words as its start time. */
+  | { readonly ok: true; readonly allDay: true; readonly start_time: string }
+  /** A timed routine: the start time is its clock (ROUTINE-02b), read by the route as before. */
+  | { readonly ok: true; readonly allDay: false }
+  | { readonly ok: false; readonly field: 'start_time' | 'end_time'; readonly message: string };
+
+/**
+ * ALLDAY-01: the one rule for a role's time. An all-day routine sends no start
+ * or end time and takes ALL_DAY_CLOCK; a time sent for it is refused by name.
+ * Any other role is left to the start-time rule (ROUTINE-02b).
+ */
+export function allDayTimeInput(role: StopRole, body: { readonly start_time?: unknown; readonly end_time?: unknown }): AllDayTimeInput {
+  if (isStop(role)) return { ok: true, allDay: false };
+  if (!noTime(body.start_time)) return { ok: false, field: 'start_time', message: ALL_DAY_NO_TIME_WORDS };
+  if (!noTime(body.end_time)) return { ok: false, field: 'end_time', message: ALL_DAY_NO_TIME_WORDS };
+  return { ok: true, allDay: true, start_time: clockWords(ALL_DAY_CLOCK) };
+}
+
 /** The byhour/byminute a body still sends (strings) read as a clock, or null when neither is sent. Not a time → thrown by name. */
 function sentClock(form: Pick<RoutineForm, 'byhour' | 'byminute'>): Clock | null {
   const sentHour = typeof form.byhour === 'string' && form.byhour.trim() !== '';
@@ -421,6 +456,19 @@ export function withDays(form: RoutineForm, days: DaysChoice): RoutineForm {
 }
 
 /**
+ * ALLDAY-01: the form with this role. An all-day routine asks no time: its
+ * start and end are blanked, byhour/byminute carry ALL_DAY_CLOCK (so the
+ * compile's agree-or-refuse rule holds), and a custom rule's own clock is
+ * ALL_DAY_CLOCK too. A timed role leaves the time fields as they are — the
+ * TIME row asks them.
+ */
+export function withRole(form: RoutineForm, role: StopRole): RoutineForm {
+  if (isStop(role)) return { ...form, role };
+  const custom = form.cadence_mode === 'custom' && form.custom_rrule.trim() !== '' ? { custom_rrule: withClock(form.custom_rrule.trim(), ALL_DAY_CLOCK) } : {};
+  return { ...form, role, start_time: '', end_time: '', byhour: pad2(ALL_DAY_CLOCK.hour), byminute: pad2(ALL_DAY_CLOCK.minute), ...custom };
+}
+
+/**
  * The stored rule as the days control: the choice whose compiled parts equal
  * the rule's as a set, with its fields; else Custom rule with the raw box.
  * Pure: the rule's own clock is the start time the compile sees.
@@ -506,8 +554,9 @@ export function daysWords(rrule: string, startDate: string | Date | null | undef
 /** THE CADENCE COLUMN: the classifier's word — daily · weekly · monthly · quarterly · yearly · once · custom. */
 export const cadenceWords = (rrule: string): string => CADENCE_GROUP_LABELS[classifyCadence(rrule)].toLowerCase();
 
-/** THE TIME COLUMN: the rule's clock and the stored end, "HH:MM – HH:MM"; the clock alone; "—" when the rule names none. */
-export function timeWords(r: { readonly schedule_rrule: string; readonly end_time: string | Date | null }): string {
+/** THE TIME COLUMN: the rule's clock and the stored end, "HH:MM – HH:MM"; the clock alone; "—" when the rule names none — or (ALLDAY-01) when the routine is all day: a charge on a date has no time. */
+export function timeWords(r: { readonly schedule_rrule: string; readonly end_time: string | Date | null; readonly role?: StopRole }): string {
+  if (r.role !== undefined && !isStop(r.role)) return DAYS_NONE_WORDS;
   const clock = clockOfRule(r.schedule_rrule);
   if (clock === null) return DAYS_NONE_WORDS;
   const end = r.end_time === null ? '' : r.end_time instanceof Date ? r.end_time.toISOString().slice(11, 16) : r.end_time.slice(11, 16);
@@ -524,6 +573,15 @@ export function clockMinutesOf(rrule: string): number | null {
 export function byClockThenName<T extends { readonly name: string; readonly schedule_rrule: string }>(a: T, b: T): number {
   const ka = clockMinutesOf(a.schedule_rrule);
   const kb = clockMinutesOf(b.schedule_rrule);
+  if (ka === null && kb !== null) return 1;
+  if (kb === null && ka !== null) return -1;
+  return (ka ?? 0) - (kb ?? 0) || a.name.localeCompare(b.name);
+}
+
+/** ALLDAY-01: the ALL DAY band's order — by the next date (next_due_at), a routine with none last, then name. */
+export function byNextDateThenName<T extends { readonly name: string; readonly next_due_at: string | Date | null }>(a: T, b: T): number {
+  const ka = a.next_due_at === null ? null : new Date(a.next_due_at).getTime();
+  const kb = b.next_due_at === null ? null : new Date(b.next_due_at).getTime();
   if (ka === null && kb !== null) return 1;
   if (kb === null && ka !== null) return -1;
   return (ka ?? 0) - (kb ?? 0) || a.name.localeCompare(b.name);

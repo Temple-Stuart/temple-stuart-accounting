@@ -37,7 +37,14 @@
  *     rule); the stay covering date−1 is shortened to date−1 when it runs
  *     later; any other stay meeting [date, last day] refuses the whole move
  *     (STAY-01's meeting()).
- *   · THE WORDS: "n routines end …; k copies start … in …; m re-zoned; …".
+ *   · THE WORDS: "n routines end …; k copies start … in …; m re-zoned; j
+ *     all-day charges stay as they are; …".
+ *   · ALLDAY-01 (Alex, 2026-10-19): THE MOVE LEAVES CHARGES ALONE. An all-day
+ *     routine (role all_day — a subscription, a bill: a charge on a date) is
+ *     neither ended, copied nor re-zoned: it hits the account on a date,
+ *     wherever you are. The control lists the current ones under a line of
+ *     their own (leftAlone, allDayStayWords); an entry naming one is refused
+ *     by name; the plan's words and the audit row say how many were left.
  *
  * Project tasks carry no zone (operations_project_tasks has no such column);
  * the form says so in one line (TASKS_WORDS) and lists none.
@@ -53,6 +60,7 @@ import {
   type Clock,
 } from './rruleHelpers';
 import { coveringStay, meeting, overlapWords, stayInput, type StayRow } from './stay';
+import { isStop, isStopRole } from './stopRole';
 
 /** What the plan reads of a routine — the list's row (JSON) or the route's row (Prisma). */
 export interface MoveRoutine {
@@ -65,6 +73,8 @@ export interface MoveRoutine {
   readonly start_time: Date | string | null;
   readonly end_time: Date | string | null;
   readonly is_active: boolean;
+  /** ALLDAY-01: the routine's role (stopRole.ts) — an all-day routine is a charge the move leaves alone. */
+  readonly role: string;
 }
 
 /** One row of the control, as sent: carry it, and the copy's window. */
@@ -116,6 +126,12 @@ export interface MoveRezone {
   readonly name: string;
 }
 
+/** ALLDAY-01: a current all-day charge the move leaves as it is. */
+export interface MoveLeftAlone {
+  readonly id: string;
+  readonly name: string;
+}
+
 export interface MoveRow {
   readonly id: string;
   readonly name: string;
@@ -141,6 +157,8 @@ export type MovePlan =
       readonly ends: readonly MoveEnd[];
       readonly copies: readonly MoveCopy[];
       readonly rezoned: readonly MoveRezone[];
+      /** ALLDAY-01: the current all-day charges — neither ended, copied nor re-zoned. */
+      readonly all_day: readonly MoveLeftAlone[];
       readonly stay: MoveStayPlan | null;
       readonly words: string;
     }
@@ -172,6 +190,17 @@ export const hasHistoryWords = (name: string): string =>
   `${name} starts on or after the move and already holds records — re-zone it from its own row (its history would move)`;
 export const nameTakenWords = (name: string): string => `a routine named ${JSON.stringify(name)} already exists`;
 export const arrowWords = (firstDay: string, zone: string): string => `→ ${firstDay} in ${zone}`;
+/** ALLDAY-01: the control's line over the charges it leaves alone. */
+export const allDayStayWords = (n: number): string =>
+  (n === 1 ? '1 all-day charge stays as it is' : `${n} all-day charges stay as they are`) + ' (they hit the account on a date, wherever you are)';
+/** ALLDAY-01: an entry naming a charge — the move has nothing to do with it. */
+export const allDayEntryWords = (name: string): string => `${name} is an all-day charge — it stays as it is and takes no entry`;
+
+/** ALLDAY-01: a charge on a date (role all_day) — not the move's. A role outside the six is the database's error, thrown by name. */
+export function isCharge(r: Pick<MoveRoutine, 'id' | 'role'>): boolean {
+  if (!isStopRole(r.role)) throw new Error(`routineMove: routine ${r.id} carries role ${JSON.stringify(r.role)} — not one of the six`);
+  return !isStop(r.role);
+}
 
 /** A @db.Time (a Date at 1970-01-01, or its JSON) as 'HH:MM'; '' when none. */
 export function timeOf(v: Date | string | null | undefined): string {
@@ -202,9 +231,14 @@ export interface MoveListRow {
   readonly kind: 'ends' | 'rezoned';
 }
 
-/** THE LIST: every current routine, in the order given, each judged once — the control renders this, the plan builds on it (no drift). */
+/** ALLDAY-01: the current all-day charges, in the order given — listed under their own line, left as they are. */
+export function leftAlone(routines: readonly MoveRoutine[], date: string): MoveLeftAlone[] {
+  return routines.filter((r) => isCurrent(r, date) && isCharge(r)).map((r) => ({ id: r.id, name: r.name }));
+}
+
+/** THE LIST: every current routine but the charges (ALLDAY-01), in the order given, each judged once — the control renders this, the plan builds on it (no drift). */
 export function listRows(routines: readonly MoveRoutine[], date: string): MoveListRow[] {
-  return routines.filter((r) => isCurrent(r, date)).map((r) => {
+  return routines.filter((r) => isCurrent(r, date) && !isCharge(r)).map((r) => {
     const startDay = endDayOf(r.start_date);
     const rezoned = isOnceRRule(r.schedule_rrule) || (startDay !== null && startDay >= date);
     return { id: r.id, name: r.name, cadence: classifyCadence(r.schedule_rrule), kind: rezoned ? 'rezoned' : 'ends' };
@@ -212,12 +246,13 @@ export function listRows(routines: readonly MoveRoutine[], date: string): MoveLi
 }
 
 /** The plan's one-line summary — shown before the write, kept in the audit. */
-export function moveWords(p: { readonly ends: readonly unknown[]; readonly copies: readonly unknown[]; readonly rezoned: readonly unknown[]; readonly date: string; readonly day_before: string; readonly timezone: string; readonly stay: MoveStayPlan | null }): string {
+export function moveWords(p: { readonly ends: readonly unknown[]; readonly copies: readonly unknown[]; readonly rezoned: readonly unknown[]; readonly all_day: readonly unknown[]; readonly date: string; readonly day_before: string; readonly timezone: string; readonly stay: MoveStayPlan | null }): string {
   const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
   const stay = p.stay === null
     ? 'no stay change'
     : `stay ${p.stay.create.place} ${p.stay.create.starts_on} → ${p.stay.create.ends_on}${p.stay.shorten === null ? '' : `, ${p.stay.shorten.place} ends ${p.stay.shorten.ends_on}`}`;
-  return `${n(p.ends.length, 'routine ends', 'routines end')} ${p.day_before}; ${n(p.copies.length, 'copy starts', 'copies start')} ${p.date} in ${p.timezone}; ${p.rezoned.length} re-zoned; ${stay}`;
+  // ALLDAY-01: how many charges were left alone, said with the rest.
+  return `${n(p.ends.length, 'routine ends', 'routines end')} ${p.day_before}; ${n(p.copies.length, 'copy starts', 'copies start')} ${p.date} in ${p.timezone}; ${p.rezoned.length} re-zoned; ${n(p.all_day.length, 'all-day charge stays', 'all-day charges stay')} as they are; ${stay}`;
 }
 
 const minutesOf = (c: Clock): number => c.hour * 60 + c.minute;
@@ -239,8 +274,9 @@ export function planMove(input: MoveInput): MovePlan {
   if (date < today) return refuse(400, 'date', pastDateWords(date, today, zone));
   const dayBefore = shiftDay(date, -1);
 
-  // The list IS the control: every current routine once, nothing else.
+  // The list IS the control: every current routine once, nothing else. ALLDAY-01: the charges are not in it — an entry naming one is refused by name.
   const list = listRows(input.routines, date);
+  const allDay = leftAlone(input.routines, date);
   const current = list.map((row) => input.routines.find((r) => r.id === row.id) as MoveRoutine);
   const byId = new Map(current.map((r) => [r.id, r]));
   const seen = new Set<string>();
@@ -248,6 +284,8 @@ export function planMove(input: MoveInput): MovePlan {
   for (let i = 0; i < input.entries.length; i += 1) {
     const e = input.entries[i];
     const r = byId.get(e.id);
+    const charge = allDay.find((a) => a.id === e.id);
+    if (charge !== undefined) return refuse(400, `routines[${i}].id`, allDayEntryWords(charge.name));
     if (r === undefined) return refuse(404, `routines[${i}].id`, noSuchRoutineWords(e.id));
     if (seen.has(e.id)) return refuse(400, `routines[${i}].id`, twiceWords(r.name));
     seen.add(e.id);
@@ -302,6 +340,6 @@ export function planMove(input: MoveInput): MovePlan {
     stay = { shorten, create: { place: read.value.place, starts_on: date, ends_on: read.value.endsOn } };
   }
 
-  const words = moveWords({ ends, copies, rezoned, date, day_before: dayBefore, timezone: zone, stay });
-  return { ok: true, date, day_before: dayBefore, timezone: zone, today, rows, ends, copies, rezoned, stay, words };
+  const words = moveWords({ ends, copies, rezoned, all_day: allDay, date, day_before: dayBefore, timezone: zone, stay });
+  return { ok: true, date, day_before: dayBefore, timezone: zone, today, rows, ends, copies, rezoned, all_day: allDay, stay, words };
 }
