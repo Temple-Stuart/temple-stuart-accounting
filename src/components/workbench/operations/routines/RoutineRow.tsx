@@ -43,11 +43,18 @@
  * them. The row's cell lost the time range (the Time column says it) and the
  * place block; it keeps the zone, next, active, the threshold, the role word,
  * "last done".
+ *
+ * ALLDAY-01 (Alex, 2026-10-19): AN ALL-DAY ROUTINE HAS A DATE, NOT A CLOCK.
+ * The edit form of an all-day routine mounts no TIME row and seeds no time
+ * (routineToForm goes through rruleHelpers.ts withRole: the times blank,
+ * byhour/byminute ALL_DAY_CLOCK's, so the save compiles to the derived clock);
+ * the role select goes through withRole too, so a change to all day blanks
+ * the time and a change away shows the row, empty, for the time it now needs.
  */
 
 'use client';
 
-import { ROLE_FIELD_WORDS, ROLE_SHORT_WORDS, ROLE_TITLE_WORDS, ROLE_WORDS, STOP_ROLES, type StopRole } from '@/lib/operations/stopRole';
+import { ROLE_FIELD_WORDS, ROLE_SHORT_WORDS, ROLE_TITLE_WORDS, ROLE_WORDS, STOP_ROLES, isStop, type StopRole } from '@/lib/operations/stopRole';
 import { useState } from 'react';
 import type { Routine, RoutineForm } from './types';
 import { DEFAULT_ROUTINE_FORM } from './types';
@@ -56,7 +63,7 @@ import ZoneSelect from './ZoneSelect';
 import CoaSelect from './CoaSelect';
 import { AccountText, ROUTINE_TABLE_COLUMNS, RoutineStepList } from './RoutineStepList';
 import { ignoredLine, plannedLine, routinePlanned } from '@/lib/operations/routineLines';
-import { canonicalZone, clockOfRule, clockWords, formOfRule, type RoutineEnd } from '@/lib/operations/rruleHelpers';
+import { canonicalZone, clockOfRule, clockWords, formOfRule, withRole, type RoutineEnd } from '@/lib/operations/rruleHelpers';
 import { ACCOUNT_CELL_WORDS, accountCell } from '@/lib/coa/accountCell';
 import type { Entity } from '../EntitySelector';
 
@@ -78,7 +85,7 @@ export function routineToForm(r: Routine): RoutineForm {
   // part opens as Custom rule with the raw box.
   // ROUTINE-02b: the clock in force is the rule's — the start time is seeded from it, and byhour/byminute agree with it.
   const clock = clockOfRule(r.schedule_rrule);
-  return {
+  const seeded: RoutineForm = {
     ...DEFAULT_ROUTINE_FORM,
     name: r.name,
     description: r.description ?? '',
@@ -103,6 +110,8 @@ export function routineToForm(r: Routine): RoutineForm {
     latitude: '',
     longitude: '',
   };
+  // ALLDAY-01: an all-day routine opens with no time — whatever clock its rule still carries, the save derives ALL_DAY_CLOCK.
+  return isStop(r.role) ? seeded : withRole(seeded, r.role);
 }
 
 function formatDateTime(iso: string | null, tz: string): string {
@@ -410,9 +419,10 @@ export default function RoutineRow({ routine, end, entities, onUpdate, onDelete 
               </div>
               <div>
                 <div className={labelClass}>{ROLE_FIELD_WORDS}</div>
+                {/* ALLDAY-01: the role through withRole — all day blanks the time (no TIME row below). */}
                 <select
                   value={form.role}
-                  onChange={(e) => setForm({ ...form, role: e.target.value as StopRole })}
+                  onChange={(e) => setForm(withRole(form, e.target.value as StopRole))}
                   className={inputClass}
                   data-routine-role-select
                 >
@@ -441,9 +451,9 @@ export default function RoutineRow({ routine, end, entities, onUpdate, onDelete 
               </div>
             </div>
 
-            {/* FORM-01: days, then time. */}
+            {/* FORM-01: days, then time. ALLDAY-01: no time row for an all-day routine. */}
             <DaysField form={form} setForm={setForm} />
-            <TimeField form={form} setForm={setForm} />
+            {isStop(form.role) && <TimeField form={form} setForm={setForm} />}
 
             {/* HB-4b: per-occurrence budget + COA (pre-filled from the routine; empty → null on save).
                 COA scoped to the routine's entity (entity is fixed after creation). */}

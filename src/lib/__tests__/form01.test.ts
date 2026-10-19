@@ -165,11 +165,13 @@ test('T4 the list: one flat table in clock order — Routine · Cadence · Days 
   const l = code(LIST);
   assert.deepEqual([...l.matchAll(/<th\b[^>]*>([^<]*)</g)].map((m) => m[1]), ['Routine', 'Cadence', 'Days', 'Time', 'Amount', 'Account', '']);
   assert.match(code(LINES), /export const ROUTINE_TABLE_COLUMNS = 7;/);
-  assert.match(l, /const current = judged\.filter\(\(x\) => !x\.end\.ended\)\.sort\(\(a, b\) => byClockThenName\(a\.r, b\.r\)\);/);
+  // ALLDAY-01 (2026-10-19): the current routines are judged once, then each book's TIMED rows are sorted by the clock (the all-day charges go to the band).
+  assert.match(l, /const current = judged\.filter\(\(x\) => !x\.end\.ended\);/);
+  assert.match(l, /timed: own\.filter\(\(x\) => isStop\(x\.r\.role\)\)\.sort\(\(a, b\) => byClockThenName\(a\.r, b\.r\)\),/);
   assert.doesNotMatch(l, /groupOf|CADENCE_GROUP_ORDER|CADENCE_GROUP_LABELS|data-cadence-group|isOnceRRule/, 'no cadence groups, no second classifier');
-  assert.match(l, /\{current\.map\(\(\{ r, end \}\) => \(\n\s*<RoutineRow/);
+  assert.match(l, /\{timed\.map\(row\)\}/); assert.match(l, /const row = \(\{ r, end \}: \{ r: Routine; end: ReturnType<typeof endedBy> \}\) => \(\n\s*<RoutineRow/);
   assert.match(l, /<tr data-ended-group>/, 'the ENDED group stays (ROUTINE-02a)');
-  assert.ok(l.indexOf('<tr data-ended-group>') > l.indexOf('{current.map(({ r, end }) => ('), 'at the bottom');
+  assert.ok(l.lastIndexOf('<tr data-ended-group>') > l.lastIndexOf('{timed.map(row)}'), 'at the bottom');
   const lines = code(LINES);
   assert.match(lines, /<tr data-routine-main>\n\s*\{cell\}\n\s*<td[^>]*data-routine-cadence>\{cadenceWords\(routine\.schedule_rrule\)\}<\/td>\n\s*<td[^>]*data-routine-days>\{daysWords\(routine\.schedule_rrule, routine\.start_date\)\}<\/td>\n\s*<td[^>]*data-routine-time>\{timeWords\(routine\)\}<\/td>/);
   assert.match(lines, /const rowSpan = 1 \+ steps\.length \+ \(openAdd \? 1 : 0\);/);

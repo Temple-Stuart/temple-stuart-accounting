@@ -21,6 +21,9 @@
  *   · when a place is given, the stay covering date−1 is shortened to it
  *     when it ran later, and the new stay is created; an overlap refused the
  *     plan before any write (the trigger is the backstop for a race).
+ *   · ALLDAY-01 (Alex, 2026-10-19): an all-day routine (role all_day — a
+ *     charge on a date) is left as it is: not listed, not ended, not copied,
+ *     not re-zoned; the plan's words and the audit row say how many.
  * Any refusal rolls the whole move back and says why (400 / 404 / 409).
  * After the write: the per-row audits the create, update and stay paths
  * already write, then ONE operations_routines_moved naming the date, the
@@ -311,6 +314,8 @@ export async function POST(request: NextRequest) {
       timezone: plan.timezone,
       pairs,
       rezoned: outcome.rezoned.map(({ after }) => ({ id: after.id, name: after.name })),
+      // ALLDAY-01: the charges left as they are.
+      all_day: plan.all_day,
       stay: plan.stay === null ? null : { shortened: outcome.shortened === null ? null : outcome.shortened.after, created: outcome.opened },
       words: plan.words,
     };
@@ -325,6 +330,7 @@ export async function POST(request: NextRequest) {
           timezone: plan.timezone,
           ended: pairs.map((p) => ({ id: p.from.id, from_zone: p.from.timezone, copy_id: p.copy === null ? 'no copy' : p.copy.id })),
           rezoned: moved.rezoned.map((r) => r.id),
+          all_day: plan.all_day.map((a) => a.id),
           stay_ids: { shortened: outcome.shortened === null ? null : outcome.shortened.after.id, created: outcome.opened === null ? null : outcome.opened.id },
         },
       },

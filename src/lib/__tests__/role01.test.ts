@@ -117,7 +117,7 @@ test('T1 the words, exact', () => {
     plan: 'plan — the vision in, the plan out',
     execute: 'execute — a work block; what got finished',
     place: 'place — somewhere you go and pay',
-    all_day: 'all day — a subscription or membership, not a stop',
+    all_day: 'all day — a charge on a date, not a stop', // ALLDAY-01 (2026-10-19): the one phrasing (was 'a subscription or membership, not a stop')
     none: 'none — the plain record',
   });
   assert.deepEqual(ROLE_SHORT_WORDS, { journal: 'journal', plan: 'plan', execute: 'execute', place: 'place', all_day: 'all day', none: '' });
@@ -239,7 +239,9 @@ test('T3 the routes read the role by the one rule: the create route writes it (a
   assert.ok(create.indexOf('roleInput(body.role)') < create.indexOf('tx.operations_routines.create('), 'read before the write');
   const patch = code(ROUTE_PATCH);
   assert.match(patch, /if \(body\.role !== undefined\) \{\n\s*const role = roleInput\(body\.role\);\n\s*if \(!role\.ok\) return NextResponse\.json\(\{ error: 'Validation', field: role\.field, message: role\.message \}, \{ status: 400 \}\);\n\s*data\.role = role\.role;\n\s*\}/, 'not sent → untouched; sent → by name');
-  for (const f of [ROUTE_CREATE, ROUTE_PATCH]) assert.match(code(f), /import \{ roleInput \} from '@\/lib\/operations\/stopRole';/);
+  // ALLDAY-01 (2026-10-19): the PATCH also asks isStop — was it all day before this edit (a role leaving all day needs its time).
+  assert.match(code(ROUTE_CREATE), /import \{ roleInput \} from '@\/lib\/operations\/stopRole';/);
+  assert.match(code(ROUTE_PATCH), /import \{ isStop, roleInput \} from '@\/lib\/operations\/stopRole';/);
   // The two reads the card and the week stand on hand the routine over whole — no select strips the column.
   assert.match(code(TODAY_ROUTE), /prisma\.operations_routines\.findMany\(\{\n\s*where: \{ user_id: user\.id, is_active: true \},\n\s*orderBy: \{ name: 'asc' \},\n\s*include: \{\n\s*steps: \{ where: \{ is_active: true \}, orderBy: \{ step_order: 'asc' \} \},\n\s*\},\n\s*\}\);/, 'the today read: the whole routine, with its active lines');
   const list = /prisma\.operations_routines\.findMany\(\{([\s\S]*?)\}\);/.exec(code(ROUTE_CREATE));
@@ -252,9 +254,10 @@ test('T3 the routes read the role by the one rule: the create route writes it (a
   assert.doesNotMatch(/useState<RoutineForm>\(\{([\s\S]*?)\}\)/.exec(code(CREATE_FORM))![1], /\brole\b/, 'the create form never seeds a role of its own');
   // The create form and the edit form: one select over STOP_ROLES, each option its sentence; the row's small print shows a set role.
   const form = code(CREATE_FORM);
-  assert.match(form, /<select\n\s*value=\{createForm\.role\}\n\s*onChange=\{\(e\) => setCreateForm\(\{ \.\.\.createForm, role: e\.target\.value as StopRole \}\)\}\n\s*className=\{inputClass\}\n\s*data-routine-role\n\s*>\n\s*\{STOP_ROLES\.map\(\(r\) => \(\n\s*<option key=\{r\} value=\{r\}>\{ROLE_WORDS\[r\]\}<\/option>/);
+  // ALLDAY-01 (2026-10-19): the role goes through withRole (rruleHelpers.ts) — all day blanks the time; the select and its options are as before.
+  assert.match(form, /<select\n\s*value=\{createForm\.role\}\n\s*onChange=\{\(e\) => setCreateForm\(withRole\(createForm, e\.target\.value as StopRole\)\)\}\n\s*className=\{inputClass\}\n\s*data-routine-role\n\s*>\n\s*\{STOP_ROLES\.map\(\(r\) => \(\n\s*<option key=\{r\} value=\{r\}>\{ROLE_WORDS\[r\]\}<\/option>/);
   const row = code(ROW);
-  assert.match(row, /<select\n\s*value=\{form\.role\}\n\s*onChange=\{\(e\) => setForm\(\{ \.\.\.form, role: e\.target\.value as StopRole \}\)\}\n\s*className=\{inputClass\}\n\s*data-routine-role-select\n\s*>\n\s*\{STOP_ROLES\.map\(\(r\) => \(\n\s*<option key=\{r\} value=\{r\}>\{ROLE_WORDS\[r\]\}<\/option>/);
+  assert.match(row, /<select\n\s*value=\{form\.role\}\n\s*onChange=\{\(e\) => setForm\(withRole\(form, e\.target\.value as StopRole\)\)\}\n\s*className=\{inputClass\}\n\s*data-routine-role-select\n\s*>\n\s*\{STOP_ROLES\.map\(\(r\) => \(\n\s*<option key=\{r\} value=\{r\}>\{ROLE_WORDS\[r\]\}<\/option>/);
   assert.match(row, /    role: r\.role,\n/, 'routineToForm carries it, so an edit never resets it');
   assert.match(row, /\{routine\.role !== 'none' && <span title=\{ROLE_TITLE_WORDS\} data-routine-role=\{routine\.role\}>\{ROLE_SHORT_WORDS\[routine\.role\]\}<\/span>\}/);
   assert.equal((form.match(/\{ROLE_FIELD_WORDS\}/g) ?? []).length, 1);
