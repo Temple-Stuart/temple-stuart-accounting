@@ -30,6 +30,13 @@
  * there is no row), so a morning save never clears an evening typed before; JOURNAL-05's evening
  * card does the same in reverse. No box for them here, no words. Every writer sends the row as held.
  *
+ * JOURNAL-05 (Alex, 2026-10-19): THE MORNING FORM. The three questions are the MORNING's (journal.ts
+ * MORNING_GOALS_QUESTION · MORNING_BLOCKER_QUESTION · MORNING_PLAN_QUESTION — "what must be true by
+ * tonight"); the boxes, the save, "+ yesterday's open steps" and "copy plan prompt" are as they were.
+ * "clear" stays here, and its question says it clears the whole day's journal — morning and evening
+ * (clearJournalQuestion): the evening form (EveningForm.tsx) has no clear, so this is the one way a day is
+ * forgotten.
+ *
  * PLAN-01 (2026-10-13): each plan and goal line loses a pasted list's leading
  * marker ("1." "1)" "-" "•" "*" and a space — stripListMarker) after linesOf
  * and before carryTicks; the plate numbers and bullets them itself. "copy plan
@@ -49,7 +56,7 @@
 
 import { useState } from 'react';
 import {
-  ADD_OPEN_STEPS_WORDS, BLOCKERS_QUESTION, COPY_PLAN_PROMPT_WORDS, GOALS_EXAMPLE, PLAN_EXAMPLE, PLAN_PROMPT_COPIED_WORDS, PLAN_QUESTION, TODAY_GOALS_QUESTION,
+  ADD_OPEN_STEPS_WORDS, COPY_PLAN_PROMPT_WORDS, GOALS_EXAMPLE, MORNING_BLOCKER_QUESTION, MORNING_GOALS_QUESTION, MORNING_PLAN_QUESTION, PLAN_EXAMPLE, PLAN_PROMPT_COPIED_WORDS,
   carryTicks, clearJournalQuestion, journalInput, linesOf, openSteps, planPromptFailedWords, planPromptText, planPromptWaitsWords, stripListMarker,
   type JournalRow, type YesterdayForPrompt,
 } from '@/lib/operations/journal';
@@ -139,16 +146,16 @@ export default function JournalForm({ day, journal, yesterday, onChanged }: {
     <div className="mx-auto space-y-1" style={underStyle(bleed)} data-journal-form>
       <form className="flex flex-col gap-2 text-xs" onSubmit={(e) => { e.preventDefault(); save(); }}>
         <label className="flex flex-col gap-0.5" data-journal-block="goals">
-          <span className={question}>{TODAY_GOALS_QUESTION}</span>
+          <span className={question}>{MORNING_GOALS_QUESTION}</span>
           <textarea rows={3} value={draft.goals} onChange={(e) => setDraft({ ...draft, goals: e.target.value })} placeholder={GOALS_EXAMPLE} className={box} disabled={busy} data-journal-field="goals" />
         </label>
         <label className="flex flex-col gap-0.5" data-journal-block="blocker">
-          <span className={question}>{BLOCKERS_QUESTION}</span>
+          <span className={question}>{MORNING_BLOCKER_QUESTION}</span>
           <textarea rows={2} value={draft.blocker} onChange={(e) => setDraft({ ...draft, blocker: e.target.value })} className={box} disabled={busy} data-journal-field="blocker" />
         </label>
         <div className="flex flex-col gap-0.5" data-journal-block="plan">
           <div className="flex items-center justify-between gap-2">
-            <label htmlFor="journal-plan" className={question}>{PLAN_QUESTION}</label>
+            <label htmlFor="journal-plan" className={question}>{MORNING_PLAN_QUESTION}</label>
             <div className="flex items-center gap-1.5">
               {yesterdayOpen.length > 0 && <button type="button" className={chip} disabled={busy} onClick={addOpen} data-journal-add-open>{ADD_OPEN_STEPS_WORDS(yesterdayOpen.length)}</button>}
               <button type="button" className={chip} disabled={!yesterday.ok} onClick={copyPrompt} data-journal-copy-prompt>{COPY_PLAN_PROMPT_WORDS}</button>

@@ -211,6 +211,7 @@ import DayDeck, { PlateFrame, underStyle, useDeckBleed, type DeckCard } from '..
 import StayBar from '../stays/StayBar';
 import MoveControl from '../stops/MoveControl';
 import JournalForm from '../stops/JournalForm';
+import EveningForm from '../stops/EveningForm';
 import { setJournal as writeJournal } from '../stops/journalWrites';
 import StopForm from '../stops/StopForm';
 import StopVendor from '../stops/StopVendor';
@@ -218,11 +219,12 @@ import AttachRecord from '../stops/AttachRecord';
 import { onDayWritten } from '../dayWritten';
 import { ACCOUNT_CELL_WORDS } from '@/lib/coa/accountCell';
 import {
-  BLOCKERS_BLOCK_WORD, JOURNAL_LOADING_WORDS, PLAN_BLOCK_WORD, TODAY_BLOCK_WORD, YESTERDAY_LOADING_WORDS, YESTERDAY_WORD,
-  answersOf, goalWords, journalInput, noJournalWords, planDoneWords, planStepWords, yesterdayStepsWords,
-  type Answers, type YesterdayForPrompt,
+  AUDIT_WORD, BLOCKERS_BLOCK_WORD, EVENING_BLANK_WORD, EVENING_WORD, JOURNAL_LOADING_WORDS, LEARNED_WORD, MORNING_WORD, NEXT_WORD, PLAN_BLOCK_WORD, TODAY_BLOCK_WORD, TODAY_TICKS_WORD,
+  VERDICT_WORD, YESTERDAY_LOADING_WORDS, YESTERDAY_WORD,
+  answersOf, auditPromptText, auditPromptWaitsWords, goalWords, journalInput, lastNightWords, noJournalWords, planDoneWords, planStepWords, todayStepsWords, yesterdayStepsWords,
+  type Answers, type AuditPromptState, type YesterdayForPrompt,
 } from '@/lib/operations/journal';
-import { starsWords, type StopRecordPlan, type StopRecordRow } from '@/lib/operations/stopRecord';
+import { SKIPPED_WORD, starsWords, type StopRecordPlan, type StopRecordRow } from '@/lib/operations/stopRecord';
 import { ALSO_TODAY_WORDS, allDayBandWords, allDayCentsWords } from '@/lib/operations/stopRole';
 import { readDayReport, readJournal, readStays, readStopRecords, type JournalAnswer, type StaysAnswer, type StopRecordsAnswer } from './dayReads';
 import {
@@ -236,7 +238,7 @@ import {
   CELL_GAP, COLUMN_WIDTHS, dayMeter, dayVerdict,
   TOTAL_WORD, dayTotals, planBeyondStopsWords,
   CAPTION_COPIED_WORDS, COPY_CAPTION_WORDS, COPY_SCRIPT_WORDS, SCRIPT_COPIED_WORDS, captionText, copyFailedWords, reelReadsWords, scriptText, stepSpentSoFarWords, stopName, stopScriptText, stopTagWords,
-  type ReelReads, type ReelText,
+  type DeltaWords, type ReelReads, type ReelText,
   DAY_CARD_PATH,
   DECK_FULL_CARD_WORDS, SWIPE_HINT_WORDS, journalHeaderWords, journalImageName, openJournalWords,
   type Focus, type StayState, type Stop,
@@ -331,6 +333,10 @@ const planOfRecord = (plans: StopRecordsAnswer['plans'], r: StopRecordRow): Stop
  * the steps themselves are the form's "+ yesterday's open steps" and the plan prompt's); nothing typed for the day
  * is the one line noJournalWords in place of TODAY, BLOCKERS and PLAN; once something is typed, a block with no
  * answer is left out — nothing prints '—'. The read's own state (in flight, failed) is still said.
+ * JOURNAL-05 (Alex, 2026-10-19) — THE MORNING CARD, named: MORNING_WORD is the first line of the plate's journal
+ * block (under the stop's bold and small words, above YESTERDAY). The YESTERDAY block gains ONE line above its
+ * counts, only when yesterday's row has a `next` — "Last night: …" (lastNightWords); nothing when it has none.
+ * TODAY, BLOCKERS, PLAN and the tick are unchanged. The evening is its own plate (EveningPlate), under the form.
  */
 function JournalPlate({ day, journal, yesterday, onChanged }: {
   day: string; journal: Read<JournalAnswer> | null; yesterday: Read<JournalAnswer> | null; onChanged: () => void;
@@ -360,10 +366,12 @@ function JournalPlate({ day, journal, yesterday, onChanged }: {
 
   return (
     <div className="flex flex-col border-t border-border" style={{ gap: 13, paddingTop: 13 }} data-day-journal>
+      <div className="font-bold text-text-faint" style={plateLabel} data-day-journal-morning>{MORNING_WORD}</div>
       <div className="flex flex-col" style={{ gap: 3 }} data-day-journal-yesterday>
         <div className="font-bold text-text-faint" style={plateLabel}>{YESTERDAY_WORD}</div>
         {yesterday === null && <div className="font-medium text-text-muted" style={plateSmall} data-day-yesterday-loading>{YESTERDAY_LOADING_WORDS}</div>}
         {yesterday !== null && !yesterday.ok && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-yesterday-journal-failed>{yesterday.words}</div>}
+        {yesterday !== null && yesterday.ok && yRow !== null && yRow.next !== null && <div className="font-semibold text-text-primary break-words" style={plateLine} data-day-yesterday-next>{lastNightWords(yRow.next)}</div>}
         {yesterday !== null && yesterday.ok && <div className="font-semibold text-text-primary break-words" style={plateLine} data-day-yesterday-steps>{yesterdayStepsWords(yRow)}</div>}
       </div>
       {journal === null && <div className="font-medium text-text-muted" style={plateSmall} data-day-journal-loading>{JOURNAL_LOADING_WORDS}</div>}
@@ -433,6 +441,53 @@ function Plate({ plateRef, step, journal, right, children }: {
     <div ref={plateRef} className="bg-ts-white border border-border flex flex-col" style={{ width: PLATE_WIDTH, borderRadius: 23, padding: `25px ${PLATE_PADDING_X}px 24px`, gap: 11 }} data-day-card data-day-step={step} data-day-journal-card={journal ? 'true' : undefined}>
       <PlateHeader right={right} />
       {children}
+    </div>
+  );
+}
+
+/** The evening plate has no image button — its Plate takes no ref. */
+const noPlateRef = (): void => undefined;
+
+/**
+ * JOURNAL-05 (Alex, 2026-10-19): THE EVENING PLATE — reflection, derived, never typed here. TODAY'S TICKS by the
+ * morning's own counts rule applied to today's row (todayStepsWords — "no plan today" when none); the card's VERDICT
+ * as it already says it (the dayVerdict words, in the card's tone; '—' when the card shows none); then the three
+ * answers as held — AUDIT the block as typed (whitespace-pre-line, full), LEARNED, NEXT — each '—' when null. The
+ * journal's own read state (in flight, failed) is said, as the morning says it. No money beyond the verdict line
+ * (CLEAN-02 stands); no image, no reel button (REEL-02 decides the reel).
+ */
+function EveningPlate({ journal, verdict }: { journal: Read<JournalAnswer> | null; verdict: DeltaWords | null }) {
+  const row = journal !== null && journal.ok ? journal.value.journal : null;
+  const answer = (text: string | null): string => (text === null ? EVENING_BLANK_WORD : text);
+  return (
+    <div className="flex flex-col border-t border-border" style={{ gap: 13, paddingTop: 13 }} data-day-evening>
+      <div className="font-bold text-text-faint" style={plateLabel} data-day-evening-label>{EVENING_WORD}</div>
+      {journal === null && <div className="font-medium text-text-muted" style={plateSmall} data-day-evening-loading>{JOURNAL_LOADING_WORDS}</div>}
+      {journal !== null && !journal.ok && <div className="font-medium text-brand-red break-words" style={plateSmall} data-day-evening-failed>{journal.words}</div>}
+      {journal !== null && journal.ok && (
+        <>
+          <div className="flex flex-col" style={{ gap: 3 }} data-day-evening-ticks>
+            <div className="font-bold text-text-faint" style={plateLabel}>{TODAY_TICKS_WORD}</div>
+            <div className="font-semibold text-text-primary break-words" style={plateLine} data-day-evening-ticks-words>{todayStepsWords(row)}</div>
+          </div>
+          <div className="flex flex-col" style={{ gap: 3 }} data-day-evening-verdict>
+            <div className="font-bold text-text-faint" style={plateLabel}>{VERDICT_WORD}</div>
+            <div className={`font-semibold break-words ${verdict === null ? 'text-text-muted' : actualTone(verdict.over)}`} style={plateLine} data-day-evening-verdict-words>{verdict === null ? EVENING_BLANK_WORD : verdict.text}</div>
+          </div>
+          <div className="flex flex-col" style={{ gap: 3 }} data-day-evening-audit>
+            <div className="font-bold text-text-faint" style={plateLabel}>{AUDIT_WORD}</div>
+            <div className={`font-semibold break-words whitespace-pre-line ${row === null || row.audit === null ? 'text-text-muted' : 'text-text-primary'}`} style={plateLine} data-day-evening-audit-words>{answer(row === null ? null : row.audit)}</div>
+          </div>
+          <div className="flex flex-col" style={{ gap: 3 }} data-day-evening-learned>
+            <div className="font-bold text-text-faint" style={plateLabel}>{LEARNED_WORD}</div>
+            <div className={`font-semibold break-words ${row === null || row.learned === null ? 'text-text-muted' : 'text-text-primary'}`} style={plateLine} data-day-evening-learned-words>{answer(row === null ? null : row.learned)}</div>
+          </div>
+          <div className="flex flex-col" style={{ gap: 3 }} data-day-evening-next>
+            <div className="font-bold text-text-faint" style={plateLabel}>{NEXT_WORD}</div>
+            <div className={`font-semibold break-words ${row === null || row.next === null ? 'text-text-muted' : 'text-text-primary'}`} style={plateLine} data-day-evening-next-words>{answer(row === null ? null : row.next)}</div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -704,6 +759,21 @@ export default function DayCard() {
   const reelStay = stayState.kind === 'read' ? stayState.stay : null;
   const reelJournal = journalRead !== null && journalRead.ok ? journalRead.value.journal : null;
   const reelDay = { day, stay: reelStay, stops: result.stops, totals, verdict, journal: reelJournal };
+  // JOURNAL-05 (Alex, 2026-10-19): the audit prompt's input — the card's OWN reads and words, nothing else: the journal as held, every stop
+  // in the table's order with the card's BUDGET and ACTUAL words for it (rowActualWords — the row's own delta; a skipped stop "skipped", an
+  // unrecorded one "—", as the card names them), the TOTAL row's two figures and the verdict as the card says it. Offered only once every
+  // read is in (the gating "copy script" uses: reelReadsWords); nothing paid, nothing leaves the browser but the clipboard (EveningForm.tsx).
+  const auditWait = reelReadsWords(reelReads);
+  const auditPrompt: AuditPromptState = auditWait !== null
+    ? { ok: false, words: auditPromptWaitsWords(auditWait) }
+    : { ok: true, text: auditPromptText({
+      dayWords: dayShortWords(day),
+      journal: reelJournal,
+      stops: result.stops.map((s) => ({ name: stopName(s), vendor: s.vendor, budgetWords: factOf(s.cents === null ? null : planDollars(s.cents)), actualWords: s.status === 'skipped' ? SKIPPED_WORD : s.actualCents === null ? factOf(null) : rowActualWords(s.actualCents, s.cents) })),
+      budgetWords: factOf(totals.budgetCents === null ? null : planDollars(totals.budgetCents)),
+      actualWords: factOf(totals.actualCents === null ? null : planDollars(totals.actualCents)),
+      verdictWords: verdict === null ? null : verdict.text,
+    }) };
   const caption: ReelText | null = focus === null && reelWait === null ? captionText(reelDay) : null;
   const script: ReelText | null = reelWait !== null ? null : focus === null ? scriptText(reelDay) : stopScriptText(day, reelStay, focus.stop);
   const journalScript: ReelText | null = journalStop === null || stopWait !== null ? null : stopScriptText(day, reelStay, journalStop);
@@ -1024,6 +1094,19 @@ export default function DayCard() {
           {journalRead !== null && journalRead.ok && (
             <JournalForm key={`${day}:${journalRead.value.journal === null ? 'none' : journalRead.value.journal.id}`} day={day} journal={journalRead.value.journal} yesterday={yesterdayForPrompt} onChanged={() => setJournalReads((n) => n + 1)} />
           )}
+          {/* JOURNAL-05 (Alex, 2026-10-19): THE EVENING CARD — reflection, under the morning form, inside the journal section: its plate (today's ticks,
+              the verdict, the three answers as held — EveningPlate) and its form (EveningForm — the audit prompt, the pasted audit, learned, next;
+              keyed like the morning's, never offered while the journal could not be read). No image, no reel button here (REEL-02). */}
+          <div className="space-y-2 pt-3" id="evening" data-day-evening-section>
+            <PlateFrame>
+              <Plate plateRef={noPlateRef} journal right={journalHeaderWords(journalStop.time)}>
+                <EveningPlate journal={journalRead} verdict={verdict} />
+              </Plate>
+            </PlateFrame>
+            {journalRead !== null && journalRead.ok && (
+              <EveningForm key={`${day}:${journalRead.value.journal === null ? 'none' : journalRead.value.journal.id}`} day={day} journal={journalRead.value.journal} auditPrompt={auditPrompt} onChanged={() => setJournalReads((n) => n + 1)} />
+            )}
+          </div>
         </div>
       )}
 

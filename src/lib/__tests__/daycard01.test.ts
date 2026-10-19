@@ -972,8 +972,10 @@ test('T8 CLEAN-02 the journal card renders only its four blocks — none of the 
   const attrs = [...new Set([...plate.matchAll(/\b(data-day-[a-z-]+)/g)].map((m) => m[1]))];
   // DECK-01 (Alex, 2026-10-16) — DECLUTTERED: data-day-journal-goals-none and data-day-journal-steps-none are gone (a block with no answer is
   // left out, never '—'); the read's own state (loading, failed, nothing typed) prints before the blocks, where TODAY's '—' was. The list stays exact.
+  // JOURNAL-05 (Alex, 2026-10-19): the MORNING label joins first (data-day-journal-morning), and last night's `next` above the counts
+  // (data-day-yesterday-next). The list stays exact; the evening is its own plate (EveningPlate), outside this slice.
   assert.deepEqual(attrs, [
-    'data-day-journal', 'data-day-journal-yesterday', 'data-day-yesterday-loading', 'data-day-yesterday-journal-failed', 'data-day-yesterday-steps',
+    'data-day-journal', 'data-day-journal-morning', 'data-day-journal-yesterday', 'data-day-yesterday-loading', 'data-day-yesterday-journal-failed', 'data-day-yesterday-next', 'data-day-yesterday-steps',
     'data-day-journal-loading', 'data-day-journal-failed', 'data-day-journal-none',
     'data-day-journal-today', 'data-day-journal-goal', 'data-day-journal-blockers', 'data-day-journal-blocker',
     'data-day-journal-plan-block', 'data-day-journal-step', 'data-day-journal-step-done', 'data-day-journal-plan-done', 'data-day-journal-tick-words',

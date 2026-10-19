@@ -18,8 +18,8 @@ import { resolve } from 'node:path';
 import { Prisma } from '@prisma/client';
 import { code, comments } from '../sourceText';
 import {
-  ADD_OPEN_STEPS_WORDS, ANSWER_FIELDS, BIDI_WORDS, BLOCKERS_BLOCK_WORD, BLOCKERS_QUESTION, CONTROLS_WORDS, DONE_NOT_LIST_WORDS,
-  GOALS_EXAMPLE, JOURNAL_RECORD_WORDS, LIST_MAX, NO_JOURNAL_YESTERDAY_WORDS, NO_PLAN_YESTERDAY_WORDS, NOTHING_TYPED_WORDS, PLAN_BLOCK_WORD, PLAN_EXAMPLE, PLAN_QUESTION, RETIRED_FIELDS, TODAY_BLOCK_WORD, TODAY_GOALS_QUESTION,
+  ADD_OPEN_STEPS_WORDS, ANSWER_FIELDS, BIDI_WORDS, BLOCKERS_BLOCK_WORD, CONTROLS_WORDS, DONE_NOT_LIST_WORDS,
+  GOALS_EXAMPLE, JOURNAL_RECORD_WORDS, LIST_MAX, NO_JOURNAL_YESTERDAY_WORDS, NO_PLAN_YESTERDAY_WORDS, NOTHING_TYPED_WORDS, PLAN_BLOCK_WORD, PLAN_EXAMPLE, MORNING_BLOCKER_QUESTION, MORNING_GOALS_QUESTION, MORNING_PLAN_QUESTION, RETIRED_FIELDS, TODAY_BLOCK_WORD,
   YESTERDAY_WORD, answersOf, blankLineWords, carryTicks, doneLengthWords, doneNotBooleanWords, goalWords, journalInput, journalRowOf, journalUnchanged, lineNotStringWords,
   lineTooLongWords, lineWords, linesOf, notListWords, openSteps, planDoneWords, retiredFieldWords, planStepWords, tooManyWords, yesterdaySteps, yesterdayStepsWords,
   type Answers,
@@ -178,9 +178,10 @@ test('T2 linesOf and openSteps: the lines as the form sends them; the steps a da
 
 test('T2 the words — each a constant or a function, exact', () => {
   // PLAN-01 (2026-10-13): Alex's words for two questions and for yesterday's unticked steps — the pins moved with them.
-  assert.equal(TODAY_GOALS_QUESTION, 'What do you need to get done today? One per line.');
-  assert.equal(BLOCKERS_QUESTION, 'What could stop it?');
-  assert.equal(PLAN_QUESTION, 'The plan — paste the steps from chat, one per line.');
+  // JOURNAL-05 (Alex, 2026-10-19): the morning's questions — "what must be true by tonight"; the JOURNAL-02 names went with their words.
+  assert.equal(MORNING_GOALS_QUESTION, 'What must be true by tonight? One per line.');
+  assert.equal(MORNING_BLOCKER_QUESTION, 'What could stop it?');
+  assert.equal(MORNING_PLAN_QUESTION, 'The plan — copy the plan prompt, paste the steps from chat, one per line.');
   // CLEAN-02 (2026-10-14) — Alex's ruling: END OF DAY asks what was left and why; the plan's ticks say what was done (was "What did you accomplish today? (type tonight)").
   // JOURNAL-03 (Alex, 2026-10-15): END OF DAY is retired — END_OF_DAY_QUESTION, END_OF_DAY_BLOCK_WORD, NOTE_WORD, noteWords and
   // PLAN_PROMPT_NOTE are deleted, not left unused; the plate's blocks are four.
@@ -324,10 +325,10 @@ test('T5 the form: three boxes, each labelled with its question, in the plate’
   const f = code(FORM);
   assert.equal((f.match(/<textarea\b/g) ?? []).length, 3, 'three textareas');
   assert.doesNotMatch(f, /<input\b/, 'no other box');
-  inOrder(f, ['{TODAY_GOALS_QUESTION}', 'data-journal-field="goals"', '{BLOCKERS_QUESTION}', 'data-journal-field="blocker"', '{PLAN_QUESTION}', 'data-journal-field="plan_steps"'], 'each box after its question, in the plate’s order');
+  inOrder(f, ['{MORNING_GOALS_QUESTION}', 'data-journal-field="goals"', '{MORNING_BLOCKER_QUESTION}', 'data-journal-field="blocker"', '{MORNING_PLAN_QUESTION}', 'data-journal-field="plan_steps"'], 'each box after its question, in the plate’s order');
   assert.doesNotMatch(f, /END_OF_DAY_QUESTION|data-journal-field="shipped"|data-journal-block="shipped"|\bshipped\b/, 'no END OF DAY box, and no shipped in the draft or the body');
-  assert.match(f, /<label className="flex flex-col gap-0\.5" data-journal-block="goals">\n\s*<span className=\{question\}>\{TODAY_GOALS_QUESTION\}<\/span>\n\s*<textarea /, 'the question labels its box');
-  assert.match(f, /<label htmlFor="journal-plan" className=\{question\}>\{PLAN_QUESTION\}<\/label>/);
+  assert.match(f, /<label className="flex flex-col gap-0\.5" data-journal-block="goals">\n\s*<span className=\{question\}>\{MORNING_GOALS_QUESTION\}<\/span>\n\s*<textarea /, 'the question labels its box');
+  assert.match(f, /<label htmlFor="journal-plan" className=\{question\}>\{MORNING_PLAN_QUESTION\}<\/label>/);
   assert.match(f, /<textarea id="journal-plan" /);
   assert.match(f, /placeholder=\{GOALS_EXAMPLE\}/);
   assert.match(f, /placeholder=\{PLAN_EXAMPLE\}/);

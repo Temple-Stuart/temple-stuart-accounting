@@ -127,7 +127,8 @@ test('T2 stripListMarker: a leading "1." "12)" "-" "•" "*" and a space is the 
 test('T3 "copy plan prompt": beside the PLAN, writes planPromptText to the clipboard, says copied or the refusal, and tries nothing else', () => {
   const f = code(FORM);
   assert.match(f, /<button type="button" className=\{chip\} disabled=\{!yesterday\.ok\} onClick=\{copyPrompt\} data-journal-copy-prompt>\{COPY_PLAN_PROMPT_WORDS\}<\/button>/);
-  inOrder(f, ['{PLAN_QUESTION}</label>', 'data-journal-copy-prompt', 'data-journal-field="plan_steps"'], 'next to the PLAN box');
+  // JOURNAL-05 (Alex, 2026-10-19): the PLAN question is the morning's (MORNING_PLAN_QUESTION); the chip sits where it sat.
+  inOrder(f, ['{MORNING_PLAN_QUESTION}</label>', 'data-journal-copy-prompt', 'data-journal-field="plan_steps"'], 'next to the PLAN box');
   inOrder(f, ['const copyPrompt = async () => {', 'if (!yesterday.ok) return;', 'const text = planPromptText({', 'setCopyWords(null);', 'try {', 'await navigator.clipboard.writeText(text);', 'setCopyWords({ ok: true, words: PLAN_PROMPT_COPIED_WORDS });', '} catch (error) {', 'setCopyWords({ ok: false, words: planPromptFailedWords(error instanceof Error ? error.message : String(error)) });'], 'build, write, say');
   assert.match(f, /\} catch \(error\) \{\n\s*setCopyWords\(\{ ok: false, words: planPromptFailedWords\(error instanceof Error \? error\.message : String\(error\)\) \}\);\n\s*\}\n\s*\};/, 'on a refusal: its words, and nothing else');
   assert.equal((f.match(/navigator\.clipboard/g) ?? []).length, 1, 'one write — no second path');
