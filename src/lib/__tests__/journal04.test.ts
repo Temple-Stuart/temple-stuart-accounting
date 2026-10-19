@@ -255,6 +255,8 @@ test('T7 every writer sends the row as held (the JOURNAL-04 amendment): the form
   assert.match(comments(FORM), /JOURNAL-04 \(Alex, 2026-10-19\): the form asks the morning's four and carries the evening's three/);
   assert.match(comments(CARD), /JOURNAL-04, 2026-10-19: audit, learned and next ride as held, so a tick never clears an evening/);
   assert.match(comments(ROUTE), /every writer sends the\s*\n\s*\*\s*row as held since JOURNAL-04 \(the tick, the form\); JOURNAL-05's cards do\s*\n\s*\*\s*the same/);
-  assert.doesNotMatch(code(FORM), /data-journal-field="(audit|learned|next)"/, 'no box for the three yet (JOURNAL-05)');
-  assert.doesNotMatch(code(RULE), /QUESTION = '[^']*(audit|learn|surprise|take it next)/i, 'no question words for the three here — JOURNAL-05’s');
+  // JOURNAL-05 (Alex, 2026-10-19): the three have their boxes and their questions now — on the EVENING form (stops/EveningForm.tsx, data-evening-field) and in the rule
+  // (EVENING_AUDIT_QUESTION · EVENING_LEARNED_QUESTION · EVENING_NEXT_QUESTION); the morning form still asks none of them (journal05.test.ts pins both forms).
+  assert.doesNotMatch(code(FORM), /data-journal-field="(audit|learned|next)"/, 'no box for the three on the morning form — they are the evening form’s (JOURNAL-05)');
+  assert.match(code(RULE), /export const EVENING_AUDIT_QUESTION = 'Where did we actually get to\?';\nexport const EVENING_LEARNED_QUESTION = 'What did I learn, or what surprised me\?';\nexport const EVENING_NEXT_QUESTION = 'Where do I want to take it next\?';/, 'the three questions, here, since JOURNAL-05');
 });

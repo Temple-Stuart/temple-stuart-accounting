@@ -237,7 +237,8 @@ test('T1 the words — each a constant or a function, exact', () => {
   for (const gone of ['JOURNAL_NOT_READ_WORDS', 'yesterdayFailedWords', 'typedWords', 'typedOnWords', 'NONE_TYPED_WORDS', 'journalProvenanceWords']) assert.doesNotMatch(code(RULE), new RegExp(`\\b${gone}\\b`), `${gone} is deleted`);
   assert.equal(noJournalWords('Sat Oct 11'), 'nothing typed for Sat Oct 11');
   assert.equal(YESTERDAY_LOADING_WORDS, 'reading yesterday…');
-  assert.equal(clearJournalQuestion('Sat Oct 11'), 'Clear the journal for Sat Oct 11? The audit log keeps it; the card forgets it.');
+  // JOURNAL-05 (Alex, 2026-10-19): the clear takes the whole row — morning and evening — and the question says so.
+  assert.equal(clearJournalQuestion('Sat Oct 11'), 'Clear the whole journal for Sat Oct 11 — morning and evening? The audit log keeps it; the card forgets it.');
   assert.equal(RACE_WORDS(DAY), `the journal for ${DAY} was written moments ago — read the day again`);
   assert.equal(BODY_WORDS, 'the body must be an object with day and the answers');
   assert.equal(CONTROLS_WORDS, 'control characters are not an answer');

@@ -29,8 +29,19 @@
  * surprised me) and `next` (where do I want to take it next — the line
  * tomorrow's morning card shows first and the reel's cliffhanger, REEL-02).
  * Seven answers now, read in ANSWER_FIELDS' order; an evening alone is a
- * journal. The three columns are JOURNAL-04's migration; no card asks them
- * yet — the cards and their words are JOURNAL-05's.
+ * journal. The three columns are JOURNAL-04's migration.
+ *
+ * JOURNAL-05 (Alex, 2026-10-19) — THE TWO CARDS. MORNING — planning: the plate
+ * as it stood, named, with last night's `next` read first in its YESTERDAY
+ * block (LAST_NIGHT_WORD); its form's three questions reworded (the MORNING_*
+ * questions). EVENING — reflection: a second plate under the morning form —
+ * today's ticks by the morning's own counts rule (todayStepsWords), the card's
+ * verdict as it says it, and the three answers as held — and its form
+ * (stops/EveningForm.tsx): "copy audit prompt" (auditPromptText — built from
+ * the card's own reads and words, nothing paid, nothing leaves the browser but
+ * the clipboard), the pasted audit, learned, next. Both forms send the whole
+ * row as held (JOURNAL-04b); the morning's clear clears both. The words are
+ * all here.
  *
  * RETIRED 2026-10-13 (JOURNAL-02): adjustment, one_thing, witness, plan_1_if …
  * plan_3_then, obstacle_if, obstacle_then; 2026-10-15 (JOURNAL-03): shipped.
@@ -407,10 +418,14 @@ export function yesterdaySteps(row: Answers | null): YesterdaySteps {
 
 // ── WORDS ───────────────────────────────────────────────────────────────────
 
-/** The form's three questions — each box is labelled with its question. JOURNAL-03 (2026-10-15): END_OF_DAY_QUESTION is gone with its box. */
-export const TODAY_GOALS_QUESTION = 'What do you need to get done today? One per line.';
-export const BLOCKERS_QUESTION = 'What could stop it?';
-export const PLAN_QUESTION = 'The plan — paste the steps from chat, one per line.';
+/**
+ * The morning form's three questions — each box is labelled with its question. JOURNAL-03 (2026-10-15): END_OF_DAY_QUESTION is gone with its box.
+ * JOURNAL-05 (Alex, 2026-10-19): reworded as the MORNING's — "what must be true by tonight"; TODAY_GOALS_QUESTION, BLOCKERS_QUESTION and
+ * PLAN_QUESTION went with their words (every pin moved to these; no alias was needed).
+ */
+export const MORNING_GOALS_QUESTION = 'What must be true by tonight? One per line.';
+export const MORNING_BLOCKER_QUESTION = 'What could stop it?';
+export const MORNING_PLAN_QUESTION = 'The plan — copy the plan prompt, paste the steps from chat, one per line.';
 /** The examples the goals and plan boxes show until something is typed. */
 export const GOALS_EXAMPLE = 'perfect the day cards\nbook travel for the rest of the trip';
 export const PLAN_EXAMPLE = 'merge TABLE-01\nbook travel while CC runs\nrecord brunch and dinner\nscreenshot the card, edit, post';
@@ -447,8 +462,11 @@ export function yesterdayStepsWords(row: Answers | null): string {
   const y = yesterdaySteps(row);
   if (y.kind === 'no journal') return NO_JOURNAL_YESTERDAY_WORDS;
   if (y.kind === 'no plan') return NO_PLAN_YESTERDAY_WORDS;
-  return y.leftOver.length === 0 ? `all ${y.of} steps done` : `${y.done} of ${y.of} steps done · ${leftOverWords(y.leftOver.length)}`;
+  return stepsCountWords(y);
 }
+/** The counts line itself — "all 6 steps done" · "4 of 6 steps done · 2 left over" — one rule for the morning's YESTERDAY and the evening's TODAY'S TICKS (JOURNAL-05). */
+const stepsCountWords = (y: Extract<YesterdaySteps, { kind: 'steps' }>): string =>
+  (y.leftOver.length === 0 ? `all ${y.of} steps done` : `${y.done} of ${y.of} steps done · ${leftOverWords(y.leftOver.length)}`);
 /** "+ yesterday's open steps (2)" — the form's button that appends them to the plan box. */
 export const ADD_OPEN_STEPS_WORDS = (n: number): string => `+ yesterday's open steps (${n})`;
 // ── PLAN-01 (2026-10-13): THE PLAN PROMPT — YESTERDAY AND TODAY, HANDED TO CLAUDE ──
@@ -519,6 +537,110 @@ export function planPromptText(input: PlanPromptInput): string {
   ].join('\n');
 }
 
+// ── JOURNAL-05 (Alex, 2026-10-19): THE TWO CARDS — MORNING (planning) · EVENING (reflection) ──
+
+/** The two cards' labels — the first line of each plate's journal block, under the stop's bold and small words. */
+export const MORNING_WORD = 'MORNING — planning';
+export const EVENING_WORD = 'EVENING — reflection';
+/** The morning's YESTERDAY block, ONE line above its counts, only when yesterday's row has a `next` — nothing when it has none. */
+export const LAST_NIGHT_WORD = 'Last night: ';
+export const lastNightWords = (next: string): string => `${LAST_NIGHT_WORD}${next}`;
+
+/** The evening plate's blocks, in order. */
+export const TODAY_TICKS_WORD = 'TODAY’S TICKS';
+export const VERDICT_WORD = 'VERDICT';
+export const AUDIT_WORD = 'AUDIT';
+export const LEARNED_WORD = 'LEARNED';
+export const NEXT_WORD = 'NEXT';
+/** The evening's own idiom for an answer not yet typed, and for a verdict the card does not show. */
+export const EVENING_BLANK_WORD = '—';
+/** Today's row has no plan (or no journal) — nothing to tick. */
+export const NO_PLAN_TODAY_WORDS = 'no plan today';
+/** The evening's TODAY'S TICKS — the morning's counts rule (yesterdaySteps, stepsCountWords) applied to TODAY's row; "no plan today" when it has none. */
+export function todayStepsWords(row: Answers | null): string {
+  const y = yesterdaySteps(row);
+  return y.kind === 'steps' ? stepsCountWords(y) : NO_PLAN_TODAY_WORDS;
+}
+
+/** The evening form's three questions — each box labelled with its question. */
+export const EVENING_AUDIT_QUESTION = 'Where did we actually get to?';
+export const EVENING_LEARNED_QUESTION = 'What did I learn, or what surprised me?';
+export const EVENING_NEXT_QUESTION = 'Where do I want to take it next?';
+/** The NEXT box's placeholder — one line on the reel later (REEL-02). */
+export const EVENING_NEXT_PLACEHOLDER = 'one sentence';
+export const EVENING_SAVE_WORDS = 'save';
+export const COPY_AUDIT_PROMPT_WORDS = 'copy audit prompt';
+export const AUDIT_PROMPT_COPIED_WORDS = 'copied — paste it into Claude, then paste the audit here';
+/** The clipboard refused the write — its reason, in words; nothing else is tried. */
+export const auditPromptFailedWords = (reason: string): string => `could not copy the audit prompt — ${reason}`;
+/** The card's reads are in flight or failed — the prompt is not offered, never written from a partial day (the gating "copy script" uses). */
+export const auditPromptWaitsWords = (words: string): string => `the audit prompt needs the day's reads — ${words}`;
+
+/** The audit prompt's heads and its ask. */
+export const AUDIT_PROMPT_DAY = 'Day:';
+export const AUDIT_PROMPT_GOALS = 'Goals:';
+export const AUDIT_PROMPT_BLOCKER = 'Blocker:';
+export const AUDIT_PROMPT_PLAN = 'Plan — steps and ticks:';
+export const AUDIT_PROMPT_STOPS = 'Stops — budget vs actual:';
+export const AUDIT_PROMPT_TOTALS = 'Totals:';
+export const AUDIT_PROMPT_NO_PLAN = 'no plan';
+export const AUDIT_PROMPT_NO_STOPS = 'no stops';
+export const AUDIT_PROMPT_ASK = 'Audit this day. In order: what got done against the plan and what did not, and why it is likely so; where the money went against the budget, stop by stop; what to carry forward tomorrow. Be specific and short; no praise, no filler.';
+/** "✓ merge TABLE-01" · "✗ post the reel" — a step with its tick. */
+export const auditStepWords = (step: string, done: boolean): string => `${done ? '✓' : '✗'} ${step}`;
+
+/** One stop as the card words it: its name, its vendor when known, its BUDGET cell and its ACTUAL cell (the row's own delta; "skipped" and "—" as the card names a skipped and an unrecorded stop). */
+export interface AuditPromptStop {
+  readonly name: string;
+  readonly vendor: string | null;
+  readonly budgetWords: string;
+  readonly actualWords: string;
+}
+/** What the audit prompt is made from — the card's OWN reads and words, handed in by DayCard.tsx; nothing else. */
+export interface AuditPromptInput {
+  readonly dayWords: string;
+  /** The day's journal as held — null when nothing was typed. */
+  readonly journal: Answers | null;
+  /** Every stop of the day in the table's (clock) order. */
+  readonly stops: readonly AuditPromptStop[];
+  /** The TOTAL row's two figures as the card prints them ("—" when unknown). */
+  readonly budgetWords: string;
+  readonly actualWords: string;
+  /** The card's verdict words, or null when the card shows none. */
+  readonly verdictWords: string | null;
+}
+/** The prompt as the evening form holds it: the text, or why it is not offered yet. */
+export type AuditPromptState = { readonly ok: true; readonly text: string } | { readonly ok: false; readonly words: string };
+
+/** "- Brunch at Luka Café — budget $25, actual $22 ▼ $3" — one stop's line. */
+export const auditStopWords = (s: AuditPromptStop): string => `- ${s.name}${s.vendor === null ? '' : ` at ${s.vendor}`} — budget ${s.budgetWords}, actual ${s.actualWords}`;
+/** "budget $284, actual $277.38, ▼ $6.62 under" — the totals line; no verdict words when the card shows none. */
+export const auditTotalsWords = (budgetWords: string, actualWords: string, verdictWords: string | null): string =>
+  `budget ${budgetWords}, actual ${actualWords}${verdictWords === null ? '' : `, ${verdictWords}`}`;
+
+/**
+ * The audit prompt, exactly: every line a constant or built from one — the day, the goals (or none typed), the blocker (or none),
+ * the plan's steps with their ticks (or no plan), the stops with their budget and actual in clock order (or no stops), the totals
+ * with the verdict, then the ask. Pure; from the card's own reads and words, nothing invented, nothing filled in.
+ */
+export function auditPromptText(input: AuditPromptInput): string {
+  const j = input.journal;
+  const steps = j === null ? [] : j.plan_steps;
+  return [
+    `${AUDIT_PROMPT_DAY} ${input.dayWords}`,
+    AUDIT_PROMPT_GOALS,
+    ...promptItems(j === null ? [] : j.goals, PLAN_PROMPT_NONE_TYPED),
+    `${AUDIT_PROMPT_BLOCKER} ${j === null || j.blocker === null ? PLAN_PROMPT_NONE : j.blocker}`,
+    AUDIT_PROMPT_PLAN,
+    ...(steps.length === 0 ? [`- ${AUDIT_PROMPT_NO_PLAN}`] : steps.map((step, i) => `- ${auditStepWords(step, (j as Answers).plan_done[i])}`)),
+    AUDIT_PROMPT_STOPS,
+    ...(input.stops.length === 0 ? [`- ${AUDIT_PROMPT_NO_STOPS}`] : input.stops.map(auditStopWords)),
+    `${AUDIT_PROMPT_TOTALS} ${auditTotalsWords(input.budgetWords, input.actualWords, input.verdictWords)}`,
+    '',
+    AUDIT_PROMPT_ASK,
+  ].join('\n');
+}
+
 /** The journal stop's RECORD row says what the record is (StopForm.tsx). */
 export const JOURNAL_RECORD_WORDS = 'RECORD — when you did the journal';
 /** The journal read is in flight. */
@@ -529,7 +651,7 @@ export const noJournalWords = (dayWords: string): string => `nothing typed for $
 export const YESTERDAY_LOADING_WORDS = 'reading yesterday…';
 // CLEAN-02 (2026-10-14): the journal card shows no money and no source line — JOURNAL_NOT_READ_WORDS, yesterdayFailedWords,
 // typedWords, typedOnWords, NONE_TYPED_WORDS and journalProvenanceWords (the tally's failure and the source line's words) are gone.
-/** The question before a clear — the audit log keeps the answers. */
-export const clearJournalQuestion = (dayWords: string): string => `Clear the journal for ${dayWords}? The audit log keeps it; the card forgets it.`;
+/** The question before a clear — the audit log keeps the answers. JOURNAL-05 (Alex, 2026-10-19): the whole row goes — the morning's four and the evening's three — and the question says so. */
+export const clearJournalQuestion = (dayWords: string): string => `Clear the whole journal for ${dayWords} — morning and evening? The audit log keeps it; the card forgets it.`;
 /** The route's 409: the row moved or was cleared under the writer. */
 export const RACE_WORDS = (day: string): string => `the journal for ${day} was written moments ago — read the day again`;
