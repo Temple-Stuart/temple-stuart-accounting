@@ -9,9 +9,9 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { code, comments } from '../sourceText';
+import { code } from '../sourceText';
 import { ACCOUNT_CELL_WORDS, accountCell, type AccountCellBook } from '../coa/accountCell';
 import { CADENCE_GROUP_ORDER } from '@/components/workbench/operations/routines/types';
 
@@ -20,6 +20,8 @@ const LIST = 'src/components/workbench/operations/routines/RoutineList.tsx';
 const ROW = 'src/components/workbench/operations/routines/RoutineRow.tsx';
 const LINES = 'src/components/workbench/operations/routines/RoutineStepList.tsx';
 const SECTION_E = 'src/components/workbench/operations/SectionE_Routines.tsx';
+// TIME-02 (2026-10-19): TakeifyButton.tsx and AvailableRoutinesList.tsx are deleted with the content pipeline — the two
+// names stay so T2 can pin the absence.
 const TAKEIFY = 'src/components/workbench/operations/content/TakeifyButton.tsx';
 const CONTENT_LIST = 'src/components/workbench/operations/content/AvailableRoutinesList.tsx';
 const TABLE = [LIST, ROW, LINES];
@@ -296,14 +298,14 @@ test('T2 a new line\'s time starts blank — nothing derives it', () => {
   assert.match(lines, /const EMPTY_FORM: StepForm = \{\n\s*activity: '',\n\s*time_of_day: '',/);
 });
 
-test('T2 Scenify and Take leave this screen; Scenify stays on the Content tab; Take waits there, unmounted', () => {
+test('T2 Scenify and Take leave this screen; TIME-02 (2026-10-19): both are deleted with the content pipeline, mounted nowhere', () => {
   for (const f of [...TABLE, SECTION_E]) {
     const body = code(f);
     assert.doesNotMatch(body, /ScenifyButton|TakeifyButton|onScenify|onTakeify|handleScenify|handleTakeify|ContentTable|🎬/, `${f} carries no Scenify or Take`);
   }
-  assert.match(code(CONTENT_LIST), /<ScenifyButton routine=\{r\} onScenify=\{onScenify\} \/>/);
-  const mounts = [...tsFilesUnder('src/app'), ...tsFilesUnder('src/components')].filter((f) => f !== TAKEIFY && /TakeifyButton/.test(code(f)));
-  assert.deepEqual(mounts, [], 'TakeifyButton is mounted nowhere');
-  assert.match(comments(TAKEIFY), /UNMOUNTED \(ROUTINES-01, 2026-09-30\)/);
-  assert.match(comments(TAKEIFY), /waits for the Content tab/);
+  // ROUTINES-01 (2026-09-30) left Scenify on the Content tab and Take waiting there, unmounted; TIME-02 retired the
+  // tab: the two files are gone, and no file under src/app or src/components names either button.
+  for (const f of [TAKEIFY, CONTENT_LIST]) assert.ok(!existsSync(resolve(process.cwd(), f)), `${f} is deleted (TIME-02)`);
+  const mounts = [...tsFilesUnder('src/app'), ...tsFilesUnder('src/components')].filter((f) => /TakeifyButton|ScenifyButton/.test(code(f)));
+  assert.deepEqual(mounts, [], 'neither button is mounted anywhere');
 });

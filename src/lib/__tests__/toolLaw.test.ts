@@ -1,12 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { PIPE_PHASES } from '../pipePhases';
 import { THE_SORT, navRows, navToolByName } from '../nav';
 import { TOOL_GATE } from '../offer';
 import { code, comments } from '../sourceText';
 
 // TOOL-LAW-01 — one tool, one page, its own pipe.
+
+/** Every .ts/.tsx file under a directory, as repo-relative paths (TIME-02: the content pipe is drawn nowhere). */
+function tsFiles(dir: string): string[] {
+  return readdirSync(join(process.cwd(), dir)).flatMap((name) => {
+    const rel = `${dir}/${name}`;
+    if (statSync(join(process.cwd(), rel)).isDirectory()) return tsFiles(rel);
+    return /\.(ts|tsx)$/.test(name) ? [rel] : [];
+  });
+}
 
 
 test('THE WORK is three tools on three pages — the room is gone', () => {
@@ -34,8 +44,10 @@ test('each page renders its own pipe, in the pipe\'s own order', () => {
   assert.doesNotMatch(code('src/components/workbench/operations/SectionE_Routines.tsx'), /PIPE_PHASES|<StageStrip/);
   assert.match(comments('src/components/workbench/operations/projects/TruthMachineView.tsx'), /the per-project StageStrip and the ProofStrip receipts are GONE/);
   assert.match(code('src/components/workbench/operations/projects/ProjectRow.tsx'), /pipelineMode/);
-  // Time → content, a PAGE-LEVEL strip inside ContentPipeline.
-  assert.match(code('src/components/workbench/operations/content/ContentPipeline.tsx'), /PIPE_PHASES\.content/);
+  // Time → content: until TIME-02 a PAGE-LEVEL strip inside ContentPipeline.tsx. TIME-02 (2026-10-19): the content
+  // pipeline is retired — no file under src holds PIPE_PHASES.content; /time draws no strip (time02.test.ts).
+  for (const f of tsFiles('src').filter((p) => !p.startsWith('src/lib/__tests__/'))) assert.doesNotMatch(code(f), /PIPE_PHASES\.content\b/, `${f} draws the content pipe — retired by TIME-02`);
+  assert.doesNotMatch(code('src/app/time/page.tsx'), /PIPE_PHASES|<StageStrip|ContentPipeline/);
   // The order is the pipe's, never retyped (the two Tasks pipes stay DEFINED
   // until PIPES-01 retires them).
   assert.deepEqual(PIPE_PHASES.projects.map((p) => p.num), ['01', '02', '03', '04', '05', '06']);

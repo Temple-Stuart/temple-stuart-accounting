@@ -460,17 +460,18 @@ test('T6 the section: the ten columns, the period and the filters, the TOTAL row
 
 // TIME-01 (Alex, 2026-10-19): the ledger moved to /time with the day card — under the card, above the pipeline; the Tasks page
 // keeps the LEDGER-01 ruling in its history and mounts it no more (time01.test.ts holds the split).
+// TIME-02 (2026-10-19): the content pipeline beneath the ledger is retired — the ledger is the last section of /time.
 test('T6 the ledger mounts on /time under the day card; the two-lists law holds both containers, with the dated rulings', () => {
   const page = code('src/app/time/page.tsx');
   assert.match(page, /import LedgerSection from '@\/components\/workbench\/operations\/ledger\/LedgerSection';/);
-  assert.match(page, /<\/Suspense>\n\s*<LedgerSection \/>\n\s*<ContentPipeline \/>\n\s*<\/div>/);
+  assert.match(page, /<\/Suspense>\n\s*<LedgerSection \/>\n\s*<\/div>/);
   assert.equal((page.match(/<LedgerSection \/>/g) ?? []).length, 1, 'mounted once');
   assert.match(comments(PAGE), /LEDGER-01 \(Alex, 2026-10-16\) — THE CITY LEDGER is the fourth section, under\s*\n\s*\* Routines/);
   assert.doesNotMatch(code(PAGE), /LedgerSection/, 'the Tasks page mounts it no more');
   const law = code(LAW);
   assert.match(law, /const TWO_LISTS_MOUNTS = \['<SectionD_ProjectBacklog \/>', '<SectionE_Routines \/>'\];/);
-  assert.match(law, /const TIME_MOUNTS = \['<DayCard \/>', '<LedgerSection \/>', '<ContentPipeline \/>'\];/);
-  assert.match(law, /timeMounts\.join\(' '\) !== 'DayCard LedgerSection ContentPipeline'/, 'exactly the three on /time');
+  assert.match(law, /const TIME_MOUNTS = \['<DayCard \/>', '<LedgerSection \/>'\];/);
+  assert.match(law, /timeMounts\.join\(' '\) !== 'DayCard LedgerSection'/, 'exactly the two on /time (TIME-02)');
   assert.match(comments(LAW), /LEDGER-01 — the ruling \(Alex, 2026-10-16\): the city ledger is a fourth section, under Routines/);
   // The rules file is pure: no fetch, no clock of its own, no Prisma, no React; the clock is handed in.
   const rules = code(RULES);

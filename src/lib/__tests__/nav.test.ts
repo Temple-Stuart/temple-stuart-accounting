@@ -85,12 +85,21 @@ test('the phases that render no surface say so, and cite where the code declares
   // capability as a plain control. PIPES-01 retires them outright.
   // TRAVEL-01 (2026-09-19): the five travel phases joined them — the cockpit's
   // travel tab is plain sections and draws no strip; Travel still owns all five.
+  // TIME-02 (2026-10-19): the four content phases joined them — the content
+  // pipeline is retired (its components and routes deleted); /time is the day
+  // card and the ledger and draws no strip. Time still owns all four; PIPES-01
+  // retires the pipe.
   assert.deepEqual(silent.map((a) => `${a.pipe} ${a.num}`), [
     'travel 01', 'travel 02', 'travel 03', 'travel 04', 'travel 05',
     'runway 01', 'runway 02',
     'routines 01', 'routines 02', 'routines 03', 'routines 04',
     'projects 01', 'projects 02', 'projects 03', 'projects 04', 'projects 05', 'projects 06',
+    'content 01', 'content 02', 'content 03', 'content 04',
   ]);
+  for (const a of silent.filter((x) => x.pipe === 'content')) {
+    assert.equal(a.owner, 'Time');
+    assert.equal(a.surfaceNote, 'TIME-02 (2026-10-19): drawn nowhere — /time renders no StageStrip (src/app/time/page.tsx); the day card is not a pipe; PIPES-01 retires the pipe');
+  }
   for (const a of silent.filter((x) => x.pipe === 'runway')) {
     assert.match(a.surfaceNote ?? '', /ModuleLauncher\.tsx:\d+/, 'the citation names the file and line');
   }

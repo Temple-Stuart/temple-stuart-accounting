@@ -5,6 +5,7 @@
  * cap already in use — AI_ROUTINE_DAILY_CAP, reserved through
  * requireRoutineBudget (src/lib/routineFireBudget.ts) — and the cap is
  * DECLARED when hit: a 429 carrying the budget's own line, used and cap.
+ * TIME-02 (2026-10-19): those two routes are deleted with the content pipeline; the gate stays for caps.ts (aiCaps — the meal and cart planners).
  *
  * Pure: the reservation is injected, so the gate runs in node:test with a
  * fake meter. Any error that is not the budget's is rethrown (a fault, not a

@@ -286,10 +286,11 @@ test('every lettered header lost its letter', () => {
   // TASKS-ONE-02 (2026-10-14): SectionC_DailyPlan.tsx ('DAILY PLAN') is deleted with the Daily plan — it leaves
   // the list with its code; it cannot wear a letter it does not have.
   assert.ok(!existsSync(resolve(process.cwd(), 'src/components/workbench/operations/SectionC_DailyPlan.tsx')));
+  // TIME-02 (2026-10-19): SectionG_Content.tsx ('CONTENT') is deleted with the content pipeline — it leaves the census too.
+  assert.ok(!existsSync(resolve(process.cwd(), 'src/components/workbench/operations/content/SectionG_Content.tsx')));
   for (const [f, header] of [
     ['src/components/workbench/operations/SectionB_NorthStar.tsx', 'NORTH STAR'],
     ['src/components/workbench/operations/SectionK_AuditTail.tsx', 'AUDIT TRAIL'],
-    ['src/components/workbench/operations/content/SectionG_Content.tsx', 'CONTENT'],
   ] as const) {
     const body = code(f);
     assert.match(body, new RegExp(`>\\s*${header}\\s*<`), `${f} says ${header}`);

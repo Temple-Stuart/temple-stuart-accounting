@@ -39,16 +39,17 @@ const CONFIG = 'next.config.ts';
 const LAW = 'scripts/assert-tool-registry.ts';
 const REGISTRY = 'src/lib/toolRegistry.ts';
 
-test('T1 the pages: /time is the card, the ledger, then the pipeline; /tasks is Projects and Routines only; one opener each; nothing cross-mounted', () => {
+test('T1 the pages: /time is the card then the ledger (TIME-02: nothing beneath); /tasks is Projects and Routines only; one opener each; nothing cross-mounted', () => {
   const time = code(TIME_PAGE);
   const tasks = code(TASKS_PAGE);
-  // /time — a client page (the card reads the URL), the provider, the three in order; the card in its boundary.
+  // /time — a client page (the card reads the URL), the provider, the two in order; the card in its boundary.
+  // TIME-02 (2026-10-19): the third mount, the content pipeline, is retired — time02.test.ts pins the absences.
   assert.match(time, /^'use client';/);
   assert.match(time, /import \{ Suspense \} from 'react';/);
-  for (const imp of ["import DayCard from '@/components/workbench/operations/day/DayCard';", "import LedgerSection from '@/components/workbench/operations/ledger/LedgerSection';", "import ContentPipeline from '@/components/workbench/operations/content/ContentPipeline';"]) assert.ok(time.includes(imp), imp);
-  assert.match(time, /<ToolOpener tools=\{\[navToolByName\('Time', TOOL_GATE\)\]\} \/>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Time">\n\s*<Suspense>\n\s*<DayCard \/>\n\s*<\/Suspense>\n\s*<LedgerSection \/>\n\s*<ContentPipeline \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/);
+  for (const imp of ["import DayCard from '@/components/workbench/operations/day/DayCard';", "import LedgerSection from '@/components/workbench/operations/ledger/LedgerSection';"]) assert.ok(time.includes(imp), imp);
+  assert.match(time, /<ToolOpener tools=\{\[navToolByName\('Time', TOOL_GATE\)\]\} \/>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Time">\n\s*<Suspense>\n\s*<DayCard \/>\n\s*<\/Suspense>\n\s*<LedgerSection \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/);
   const timeBox = time.slice(time.indexOf('data-tool-page="Time"'), time.indexOf('</OperationsEntityProvider>'));
-  assert.deepEqual([...timeBox.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['Suspense', 'DayCard', 'LedgerSection', 'ContentPipeline']);
+  assert.deepEqual([...timeBox.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['Suspense', 'DayCard', 'LedgerSection']);
   assert.equal((time.match(/<ToolOpener/g) ?? []).length, 1);
   // /tasks — the two lists, nothing else; no boundary (nothing reads the URL), no card, no ledger.
   assert.match(tasks, /^'use client';/);
@@ -111,39 +112,40 @@ test('T3 the dated redirect: next.config.ts sends /tasks?date= and ?step= to /ti
   for (const f of ['src/app/content/page.tsx', 'src/app/operations/content/page.tsx']) assert.match(code(f), /redirect\('\/time'\)/);
 });
 
-test('T4 the laws: the two-lists law holds /tasks to the two lists and /time to the three mounts; PHASES_RENDERED_AT, THE SORT and the gate table untouched', () => {
+test('T4 the laws: the two-lists law holds /tasks to the two lists and /time to the two mounts (TIME-02); PHASES_RENDERED_AT and THE SORT say /time draws nothing; the gate table untouched', () => {
   const law = code(LAW);
   assert.match(law, /const TWO_LISTS_PAGE = 'src\/app\/tasks\/page\.tsx';\n\s*const TIME_PAGE = 'src\/app\/time\/page\.tsx';/);
   assert.match(law, /const TWO_LISTS_MOUNTS = \['<SectionD_ProjectBacklog \/>', '<SectionE_Routines \/>'\];/);
   assert.match(law, /pageMounts\.join\(' '\) !== 'SectionD_ProjectBacklog SectionE_Routines'/);
   assert.match(law, /if \(\/DayCard\|LedgerSection\/\.test\(page\)\) twoListsFail\(/, 'the two that went may not come back unnoticed');
-  assert.match(law, /const TIME_MOUNTS = \['<DayCard \/>', '<LedgerSection \/>', '<ContentPipeline \/>'\];/);
-  assert.match(law, /timeMounts\.join\(' '\) !== 'DayCard LedgerSection ContentPipeline'/);
+  assert.match(law, /const TIME_MOUNTS = \['<DayCard \/>', '<LedgerSection \/>'\];/);
+  assert.match(law, /timeMounts\.join\(' '\) !== 'DayCard LedgerSection'/);
   assert.match(law, /if \(!\/<Suspense>\\s\*<DayCard \\\/>\\s\*<\\\/Suspense>\/\.test\(timePage\)\) twoListsFail\(/, 'the card in its boundary');
   assert.match(comments(LAW), /TIME-01 — the ruling \(Alex, 2026-10-19\): the day card and the city ledger moved to \/time/);
-  assert.match(comments(LAW), /the third mount is for TIME-02 to retire, named here until it does/);
+  // TIME-02 (2026-10-19): the third mount is retired — the law says so, dated.
+  assert.match(comments(LAW), /TIME-02 \(2026-10-19\): the third mount, the content pipeline, is retired/);
   // The controls list is unchanged — the stop form's "✓ done now" is still the one way a routine is marked done.
   assert.match(law, /\['src\/components\/workbench\/operations\/stops\/StopForm\.tsx', \/data-stop-done-now\[\\s\\S\]\*✓ done now\/, 'the stop form on the day card lost "✓ done now" — the one way a routine is marked done'\],/);
-  // The pipeline still renders: nothing in the sort or the phases map moved.
-  assert.deepEqual(PHASES_RENDERED_AT['/time'], ['content']);
+  // TIME-02 (2026-10-19): the pipeline is retired — /time draws nothing; the content pipe stays Time's, declared undrawn until PIPES-01.
+  assert.deepEqual(PHASES_RENDERED_AT['/time'], []);
   assert.deepEqual(PHASES_RENDERED_AT['/tasks'], []);
-  assert.deepEqual(THE_SORT.filter((a) => a.pipe === 'content').map((a) => [a.owner, a.rendersSurface]), [['Time', true], ['Time', true], ['Time', true], ['Time', true]]);
+  assert.deepEqual(THE_SORT.filter((a) => a.pipe === 'content').map((a) => [a.owner, a.rendersSurface]), [['Time', false], ['Time', false], ['Time', false], ['Time', false]]);
   // The gate table: both free, as before.
   assert.equal(TOOL_GATE.Time, null);
   assert.equal(TOOL_GATE.Tasks, null);
 });
 
-test('T5 the registry: the Time row says the day card and the ledger; the Tasks row says projects and routines; the maps and redirects stand', () => {
+test('T5 the registry: the Time row says the day card and the ledger (TIME-02: no pipeline in it); the Tasks row says projects and routines; the maps and redirects stand', () => {
   const time = TOOL_REGISTRY.find((t) => t.name === 'Time')!;
   const tasks = TOOL_REGISTRY.find((t) => t.name === 'Tasks')!;
   assert.equal(time.home, '/time'); assert.equal(time.status, 'PARTIAL');
-  assert.match(time.why ?? '', /^the day, narrated: the day card — every stop in clock order with its budget, vendor, record and verdict, the journal, the reel kit — and the city ledger of what each stop cost; the old content pipeline still sits beneath the card until TIME-02 retires it/);
+  assert.equal(time.why, 'the day, narrated: every stop in clock order with its budget, its vendor, what it cost and the verdict, the journal, the caption and script for the reel, and the ledger of every stop by city and account; nothing yet adds up where the hours went');
   assert.match(time.citation, /discover: src\/components\/workbench\/operations\/day\/dayReads\.ts:8-13/);
   assert.match(time.citation, /decide: src\/app\/api\/operations\/journal\/route\.ts:51 \(PUT/);
   assert.match(time.citation, /commit: src\/app\/api\/operations\/stops\/route\.ts \(POST/);
   assert.match(time.citation, /record: src\/components\/workbench\/operations\/ledger\/LedgerSection\.tsx/);
-  assert.match(time.note ?? '', /^TIME-01 \(2026-10-19\): the content pipeline \(ContentPipeline\.tsx\) renders beneath the card and the ledger, unchanged, until TIME-02/);
-  assert.match(time.customer ?? '', /^You can see one day as a card/);
+  assert.equal(time.note, 'TIME-02 (2026-10-19): the content pipeline retired — its components and routes deleted; its five tables kept, untouched, until TABLES-01.');
+  assert.equal(time.customer, 'You can see one day as a card — every stop with what it should cost and what it did, the journal, the caption and script for the day\'s reel — and the ledger of every stop you logged by city and account; nothing yet adds up where your hours went.');
   assert.doesNotMatch(time.customer ?? '', /\b(discover|decide|commit|record)\b/, 'no beat word on a public line (the plan law)');
   assert.equal(tasks.home, '/tasks');
   assert.match(tasks.why ?? '', /^the work, planned: projects with costed tasks and routines with costed lines/);
