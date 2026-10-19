@@ -33,6 +33,7 @@ const LIST = 'src/components/workbench/operations/routines/RoutineList.tsx';
 const ROW = 'src/components/workbench/operations/routines/RoutineRow.tsx';
 const LINES = 'src/components/workbench/operations/routines/RoutineStepList.tsx';
 const BUILDER = 'src/components/workbench/operations/routines/RRULEBuilder.tsx';
+const ZONE_SELECT = 'src/components/workbench/operations/routines/ZoneSelect.tsx';
 const CREATE_FORM = 'src/components/workbench/operations/routines/RoutineCreateForm.tsx';
 
 const BKK = 'Asia/Bangkok';
@@ -246,10 +247,18 @@ test('T7 the zone list: Intl\'s own names, matched without case, stored as spell
   assert.match(patchHandler, /const zoneMoved = canonicalZone\(existing\.timezone\) !== canonicalZone\(nextTz\);/);
   assert.ok(patchHandler.indexOf('operations_stop_records') > patchHandler.indexOf('if (clockMoved || zoneMoved) {'), 'the records are reached only inside the move');
   // The builder: a select over the list — the viewer's zone first (read after mount), the rest by region; an unlisted stored value visible, named.
+  // MOVE-01 (2026-10-19): the select and its viewer-zone effect moved into the one zone picker (routines/ZoneSelect.tsx), which the
+  // builder mounts for the routine's zone and the move control mounts for the new one. Moved, never loosened.
   const b = code(BUILDER);
+  const z = code(ZONE_SELECT);
   assert.doesNotMatch(b, /type="text"\n\s*value=\{form\.timezone\}/, 'the zone is picked, not typed');
-  assert.match(b, /const \[viewerZone, setViewerZone\] = useState<string \| null>\(null\);\n\s*useEffect\(\(\) => \{\n\s*setViewerZone\(Intl\.DateTimeFormat\(\)\.resolvedOptions\(\)\.timeZone\);\n\s*\}, \[\]\);/);
-  assert.match(b, /<select\n\s*value=\{form\.timezone\}\n\s*onChange=\{\(e\) => setForm\(\{ \.\.\.form, timezone: e\.target\.value \}\)\}\n\s*className=\{inputClass\}\n\s*data-routine-timezone\n\s*>\n\s*\{!zoneListed && <option value=\{form\.timezone\} data-routine-timezone-unlisted>\{unlistedZoneWords\(form\.timezone\)\}<\/option>\}\n\s*\{viewerZone !== null && TIME_ZONES\.includes\(viewerZone\) && \(\n\s*<optgroup label=\{VIEWER_ZONE_WORDS\} data-routine-timezone-viewer>\n\s*<option value=\{viewerZone\}>\{viewerZone\}<\/option>\n\s*<\/optgroup>\n\s*\)\}\n\s*\{zonesByRegion\(\)\.map\(\(g\) => \(\n\s*<optgroup key=\{g\.region\} label=\{g\.region\}>/);
+  assert.match(b, /<ZoneSelect\n\s*value=\{form\.timezone\}\n\s*onChange=\{\(zone\) => setForm\(\{ \.\.\.form, timezone: zone \}\)\}\n\s*className=\{inputClass\}\n\s*data-routine-timezone\n\s*\/>/, 'the builder mounts the one picker');
+  assert.doesNotMatch(b, /viewerZone|zonesByRegion|data-routine-timezone-viewer|unlistedZoneWords/, 'the zone machinery left the builder with the picker');
+  assert.match(z, /const \[viewerZone, setViewerZone\] = useState<string \| null>\(null\);\n\s*useEffect\(\(\) => \{\n\s*setViewerZone\(Intl\.DateTimeFormat\(\)\.resolvedOptions\(\)\.timeZone\);\n\s*\}, \[\]\);/);
+  assert.match(z, /<select value=\{value\} onChange=\{\(e\) => onChange\(e\.target\.value\)\} className=\{className\} \{\.\.\.rest\}>/);
+  assert.match(z, /<option value=\{value\} data-routine-timezone-unlisted>\{unlistedZoneWords\(value\)\}<\/option>/, 'an unlisted value stays visible, named');
+  assert.match(z, /<optgroup label=\{VIEWER_ZONE_WORDS\} data-routine-timezone-viewer>\n\s*<option value=\{viewerZone\}>\{viewerZone\}<\/option>/);
+  assert.match(z, /\{zonesByRegion\(\)\.map\(\(g\) => \(\n\s*<optgroup key=\{g\.region\} label=\{g\.region\}>/);
   // The create form starts in the viewer's zone, read after mount.
   assert.match(code(CREATE_FORM), /useEffect\(\(\) => \{\n\s*const zone = Intl\.DateTimeFormat\(\)\.resolvedOptions\(\)\.timeZone;\n\s*setCreateForm\(\(f\) => \(\{ \.\.\.f, timezone: zone \}\)\);\n\s*\}, \[\]\);/);
   assert.match(comments(HELPERS), /ROUTINE-02a — THE ZONE LIST/);

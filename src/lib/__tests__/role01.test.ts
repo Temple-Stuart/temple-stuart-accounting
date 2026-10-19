@@ -215,12 +215,14 @@ test('T3 the migration: one column, NOT NULL default none, the six-value CHECK, 
   // TASKS-ONE-02 (2026-10-14): the completion audit types' migration is newer still — every index moved one; the order holds.
   // RETRO-01 (Alex, 2026-10-16): the stop-moved audit type's migration is newer still — every index moved one; the order holds.
   // ROUTINE-02b (2026-10-18): one more audit-type migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 6], MIGRATION_DIR, 'the migration five before the newest (JOURNAL-01, JOURNAL-02, TASKS-ONE-02, then RETRO-01, ROUTINE-02b followed)');
-  assert.equal(dirs[dirs.length - 5], '20261013120000_journal_01_day_journals');
-  assert.equal(dirs[dirs.length - 4], '20261013200000_journal_02_the_simple_journal');
-  assert.equal(dirs[dirs.length - 3], '20261014090000_tasks_one_02_completion_audit_types');
-  assert.equal(dirs[dirs.length - 2], '20261016120000_retro_01_stop_moved_audit_type', 'the migration before the newest (ROUTINE-02b followed)');
-  assert.equal(dirs[dirs.length - 1], '20261018120000_routine_02b_rekeyed_audit_type', 'the newest migration');
+  assert.equal(dirs[dirs.length - 7], MIGRATION_DIR, 'the migration five before the newest (JOURNAL-01, JOURNAL-02, TASKS-ONE-02, then RETRO-01, ROUTINE-02b followed)');
+  assert.equal(dirs[dirs.length - 6], '20261013120000_journal_01_day_journals');
+  assert.equal(dirs[dirs.length - 5], '20261013200000_journal_02_the_simple_journal');
+  assert.equal(dirs[dirs.length - 4], '20261014090000_tasks_one_02_completion_audit_types');
+  assert.equal(dirs[dirs.length - 3], '20261016120000_retro_01_stop_moved_audit_type', 'the migration before the newest (ROUTINE-02b followed)');
+  // MOVE-01 (2026-10-19): one more audit-type migration followed (the newest); the order below moved by one.
+  assert.equal(dirs[dirs.length - 2], '20261018120000_routine_02b_rekeyed_audit_type', 'the migration before the newest (MOVE-01 followed)');
+  assert.equal(dirs[dirs.length - 1], '20261019090000_move_01_moved_audit_type', 'the newest migration');
   assert.ok(MIGRATION_DIR.slice(0, 14) > '20261012140000', 'after STOP-01’s');
   const model = /model operations_routines \{([\s\S]*?)\n\}/.exec(code(SCHEMA));
   assert.ok(model !== null);

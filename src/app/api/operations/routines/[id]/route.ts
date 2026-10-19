@@ -50,7 +50,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
-import { END_TIME_REQUIRED_WORDS, START_TIME_REQUIRED_WORDS, canonicalZone, clockOfRule, clockOfTime, clockWords, compileFormToRRule, expandForward, isOnceRRule, sameClock, scheduleAnchor, withClock, zoneNotListedWords } from '@/lib/operations/rruleHelpers';
+import { EMPTY_WINDOW_WORDS, END_TIME_REQUIRED_WORDS, START_TIME_REQUIRED_WORDS, canonicalZone, clockOfRule, clockOfTime, clockWords, compileFormToRRule, expandForward, isOnceRRule, sameClock, scheduleAnchor, withClock, zoneNotListedWords } from '@/lib/operations/rruleHelpers';
 import { RekeyRefused, rekeyPlan, rekeyedWords, occupiedWords, type RekeyCounts, type RekeySchedule } from '@/lib/operations/routineRekey';
 import { lockRoutine, moveCompletions } from '@/lib/operations/routineCompletion';
 import { movedWords, stopRecordRowOf, type StopRecordRow } from '@/lib/operations/stopRecord';
@@ -301,9 +301,10 @@ export async function PATCH(
       effectiveEndTime = r.value;
       data.end_time = r.value;
     }
-    if (effectiveStartTime && effectiveEndTime && effectiveStartTime >= effectiveEndTime) {
+    // MOVE-01 (Alex, 2026-10-19): an end before the start ends the next day; only an empty window is refused.
+    if (effectiveStartTime && effectiveEndTime && effectiveStartTime.getTime() === effectiveEndTime.getTime()) {
       return NextResponse.json(
-        { error: 'Validation', field: 'end_time', message: 'end_time must be after start_time' },
+        { error: 'Validation', field: 'end_time', message: EMPTY_WINDOW_WORDS },
         { status: 400 }
       );
     }

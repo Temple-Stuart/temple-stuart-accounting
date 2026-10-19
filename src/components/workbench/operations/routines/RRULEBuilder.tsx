@@ -28,8 +28,8 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
-import { TIME_ZONES, VIEWER_ZONE_WORDS, canonicalZone, clockOfTime, unlistedZoneWords, withClock, zonesByRegion } from '@/lib/operations/rruleHelpers';
+import { clockOfTime, withClock } from '@/lib/operations/rruleHelpers';
+import ZoneSelect from './ZoneSelect';
 import type { CadenceMode, RoutineForm, WeekDay } from './types';
 import {
   CADENCE_MODE_LABELS,
@@ -76,13 +76,6 @@ export default function RRULEBuilder({ form, setForm }: Props & { }) {
   const inputClass =
     'w-full px-2 py-1 border border-border rounded text-xs text-text-primary focus:outline-none focus:border-brand-purple';
   const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
-
-  // ROUTINE-02a: the viewer's zone, read once the component is on screen.
-  const [viewerZone, setViewerZone] = useState<string | null>(null);
-  useEffect(() => {
-    setViewerZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
-  }, []);
-  const zoneListed = canonicalZone(form.timezone) !== null;
 
   const toggleWeekday = (d: WeekDay) => {
     const has = form.weekly_byday.includes(d);
@@ -249,24 +242,13 @@ export default function RRULEBuilder({ form, setForm }: Props & { }) {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <div className={labelClass}>timezone</div>
-          <select
+          {/* MOVE-01 (2026-10-19): the one zone picker, shared with the move control (ZoneSelect.tsx). */}
+          <ZoneSelect
             value={form.timezone}
-            onChange={(e) => setForm({ ...form, timezone: e.target.value })}
+            onChange={(zone) => setForm({ ...form, timezone: zone })}
             className={inputClass}
             data-routine-timezone
-          >
-            {!zoneListed && <option value={form.timezone} data-routine-timezone-unlisted>{unlistedZoneWords(form.timezone)}</option>}
-            {viewerZone !== null && TIME_ZONES.includes(viewerZone) && (
-              <optgroup label={VIEWER_ZONE_WORDS} data-routine-timezone-viewer>
-                <option value={viewerZone}>{viewerZone}</option>
-              </optgroup>
-            )}
-            {zonesByRegion().map((g) => (
-              <optgroup key={g.region} label={g.region}>
-                {g.zones.map((z) => <option key={z} value={z}>{z}</option>)}
-              </optgroup>
-            ))}
-          </select>
+          />
         </div>
         <div>
           <div className={labelClass}>ideal time label (optional)</div>

@@ -209,6 +209,7 @@ import { DOWNLOAD_IMAGE_WORDS, DOWNLOAD_TAG_WORDS, cardImageFailedWords, cardIma
 import StopTag from '../stops/StopTag';
 import DayDeck, { PlateFrame, underStyle, useDeckBleed, type DeckCard } from '../stops/DayDeck';
 import StayBar from '../stays/StayBar';
+import MoveControl from '../stops/MoveControl';
 import JournalForm from '../stops/JournalForm';
 import { setJournal as writeJournal } from '../stops/journalWrites';
 import StopForm from '../stops/StopForm';
@@ -904,6 +905,8 @@ export default function DayCard() {
           <button type="button" className={chip} aria-label="Forward one day" onClick={() => go(hrefFor(shiftDay(day, 1), null))}>›</button>
           <button type="button" className={chip} disabled={day === today} onClick={() => go(hrefFor(today, null))}>{TODAY_WORD}</button>
         </div>
+        {/* MOVE-01 (2026-10-19): "moving" beside the day controls — the dated move's one control (stops/MoveControl.tsx). */}
+        <MoveControl today={today} />
       </div>
 
       {/* Named above the card — never dropped, never filled in. */}

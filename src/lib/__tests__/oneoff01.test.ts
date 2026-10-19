@@ -142,7 +142,9 @@ test('every expansion is anchored on the routine\'s start_date — one mechanism
     'src/lib/operations/routineDay.ts',
     WINDOW_ROUTE, 'src/inngest/functions/routine-evaluator.ts', 'src/lib/operations/routineBudget.ts',
     // TAB13-02a: the budget report's day rules expand a routine, anchored like every caller.
-    'src/lib/budget/days.ts'];
+    'src/lib/budget/days.ts',
+    // MOVE-01 (2026-10-19): the move's plan expands a copy's rule once for its first day, anchored on the copy's start (the date).
+    'src/lib/operations/routineMove.ts'];
   for (const f of callers) {
     const body = code(f);
     const calls = [...body.matchAll(/expand(?:Forward|Between)\([^;]*;/g)].map((m) => m[0]);

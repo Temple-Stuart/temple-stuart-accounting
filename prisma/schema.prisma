@@ -3071,6 +3071,13 @@ enum AuditActionType {
   // 20261018120000_routine_02b_rekeyed_audit_type. In the audit-log route's
   // operations_ list.
   operations_routine_rekeyed
+  // MOVE-01 (Alex, 2026-10-19): "I'm moving" — from a date, every current routine
+  // ended the day before and, when carried, copied into the new zone; the
+  // re-zoned ones; the stay shortened and the stay opened — one transaction
+  // (routines/move/route.ts), audited once with every pair by id. Appended in
+  // ALTER TYPE order — migration 20261019090000_move_01_moved_audit_type. In the
+  // audit-log route's operations_ list.
+  operations_routines_moved
 }
 
 model audit_log {

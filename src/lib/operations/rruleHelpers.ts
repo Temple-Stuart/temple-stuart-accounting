@@ -214,6 +214,8 @@ export function withClock(rrule: string, clock: Clock): string {
 
 export const START_TIME_REQUIRED_WORDS = "start time is required — it is the routine's time";
 export const END_TIME_REQUIRED_WORDS = 'end time is required when a start time is set — the window';
+/** MOVE-01 (Alex, 2026-10-19): the window may cross midnight — an end before the start ends the next day; only an end EQUAL to the start is refused (an empty window). */
+export const EMPTY_WINDOW_WORDS = 'end_time equals start_time — the window is empty; an end before the start ends the next day';
 /** A second writer of the clock that disagrees with the start time — refused by name. */
 export const clockDisagreeWords = (what: string, theirs: string, startTime: string): string =>
   `${what} ${theirs} disagree with the start time ${startTime} — the start time is the routine's time; send one or make them agree`;

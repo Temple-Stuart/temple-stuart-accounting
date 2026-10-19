@@ -73,6 +73,8 @@ const SUBSYSTEM_ACTION_TYPES: Record<string, AuditActionType[]> = {
     'operations_stop_moved',
     // ROUTINE-02b (2026-10-18): a routine's history moved with its time (routines/[id] PATCH).
     'operations_routine_rekeyed',
+    // MOVE-01 (2026-10-19): the dated move — every current routine ended and copied into the new zone (routines/move POST).
+    'operations_routines_moved',
   ],
   // AUDIT-01 (2026-09-26): the booking audit trail's families. AUDIT-01b (2026-09-27):
   // 'commission_' is gone — commission_locked is never returned by this route (below),
