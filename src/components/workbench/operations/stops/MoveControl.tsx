@@ -11,7 +11,8 @@
  * reads "re-zoned, same clock" with no box. Project tasks are not listed;
  * one line says they carry no zone. Under the list, the plan in words BEFORE
  * anything is written — the same planMove the route fires (no drift). Confirm
- * posts the move; on 200 the page loads /tasks?date=<date> in full so the
+ * posts the move; on 200 the page loads the card's page for the date in full
+ * (DAY_CARD_PATH?date=<date> — TIME-01, 2026-10-19: /time; no literal) so the
  * card, the list, the stays and the ledger all re-read (Alex 8 yes); a
  * refusal is shown in the route's own words. Cancel writes nothing. Nothing
  * is stored in the browser.
@@ -26,6 +27,7 @@
 
 import { useState } from 'react';
 import { shiftDay } from '@/lib/budget/reportView';
+import { DAY_CARD_PATH } from '../day/dayCard';
 import { MOVE_CHIP_WORDS, REZONED_WORDS, TASKS_WORDS, allDayStayWords, arrowWords, defaultEntry, leftAlone, listRows, planMove, type MoveEntry } from '@/lib/operations/routineMove';
 import type { StayRow } from '@/lib/operations/stay';
 import { CADENCE_GROUP_LABELS, CADENCE_GROUP_ORDER, type Routine } from '../routines/types';
@@ -105,7 +107,7 @@ export default function MoveControl({ today }: Props) {
       return;
     }
     // Written: every surface reads the new day in full.
-    window.location.assign(`/tasks?date=${plan.date}`);
+    window.location.assign(`${DAY_CARD_PATH}?date=${plan.date}`);
   };
 
   return (

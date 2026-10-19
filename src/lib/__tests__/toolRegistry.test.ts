@@ -40,7 +40,8 @@ test('the three four-beat PARTIALs each carry the census note; no LIVE or NOT_BU
   assert.doesNotMatch(byName('Calendar').why ?? '', /\.tsx?:|src\//);
   // TASKS-01: a customer's line — what is not done for a customer, without the founder's build note.
   assert.equal(byName('Tasks').why, "the work, planned: projects with costed tasks and routines with costed lines, both landing on the calendar and linkable to a posting — a task's actual cost is still typed by hand; nothing posts it from the books");
-  assert.equal(byName('Time').why, 'day blocks and a daily log inside the Narrative pipeline; no time tool');
+  // TIME-01 (Alex, 2026-10-19): the day card and the ledger moved to /time — the why names them, the pipeline beneath until TIME-02.
+  assert.equal(byName('Time').why, 'the day, narrated: the day card — every stop in clock order with its budget, vendor, record and verdict, the journal, the reel kit — and the city ledger of what each stop cost; the old content pipeline still sits beneath the card until TIME-02 retires it, and nothing yet adds up where the hours went');
   // TAB13-02b (ruled 2026-09-27): /budget is plan vs actual now; what is not done is named.
   assert.equal(byName('Budget').why, 'plan vs actual for routines and tasks on /budget; travel and income budgets not connected yet');
   assert.doesNotMatch(byName('Budget').citation, /BudgetingPage/, 'the citation is the report, not the unmounted room');

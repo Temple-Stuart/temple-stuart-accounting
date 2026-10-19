@@ -181,6 +181,12 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     // Day card link went because the card is the first section of /tasks now —
     // /tasks/day is one hop to it. North Star and Audit trail stay until the
     // next ruling.
+    // TIME-01 (Alex, 2026-10-19): the day card and the city ledger moved to
+    // /time — "the day card is what the Time tab was always meant to be: the
+    // narration of the day". /tasks is projects and routines, the work; the
+    // `why` below already says so and is unchanged. /tasks/day still hops to
+    // the card (dayCard.ts DAY_CARD_PATH), and a dated /tasks?date= is sent to
+    // /time by next.config.ts.
     links: [
       { label: 'North Star', href: '/operations/north-star' },
       { label: 'Audit trail', href: '/operations/audit-log' },
@@ -189,14 +195,23 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     customer: 'You can plan projects and routines with what each one should cost, and see them on your calendar; what a task actually cost is still typed in by hand.',
   },
   Time: {
-    // TOOL-LAW-01: one tool, one page. /time renders the content pipe's four
+    // TOOL-LAW-01: one tool, one page. /time rendered the content pipe's four
     // phases and nothing else. DayCalendarView rides phase 03 and is Time's —
     // a clock-ordered list of the day's blocks, not the merged grid.
+    // TIME-01 (Alex, 2026-10-19): THE DAY CARD IS TIME'S — "what the Time tab was
+    // always meant to be: the narration of the day" — with the city ledger, the
+    // record of the day's stops. /time renders, in order: the day card (the
+    // deck, the journal card, the reel kit, the stay bar, the move control),
+    // the ledger, then the content pipeline as it was, beneath, until TIME-02
+    // retires it. The beats below are the card's and the ledger's own routes;
+    // the pipeline's (tasks/unscheduled, daily-plan items and blocks) still
+    // fire from beneath and are listed in the note.
     slug: 'time', status: 'PARTIAL', beats: ALL, home: '/time',
-    why: 'day blocks and a daily log inside the Narrative pipeline; no time tool',
+    why: "the day, narrated: the day card — every stop in clock order with its budget, vendor, record and verdict, the journal, the reel kit — and the city ledger of what each stop cost; the old content pipeline still sits beneath the card until TIME-02 retires it, and nothing yet adds up where the hours went",
     links: [],
-    citation: 'src/app/api/operations/tasks/unscheduled/route.ts · daily-plan/items/route.ts:120 · daily-plan/items/[itemId]/blocks/route.ts:36 · daily-plan/blocks/[blockId]/route.ts:38, :163',
-    customer: 'You can block out a day and keep a daily log; there is no separate place yet that adds up where your hours went.',
+    citation: 'discover: src/components/workbench/operations/day/dayReads.ts:8-13 (the day\'s routines, tasks, budget report, stays, stop records, journal — six GETs) · decide: src/app/api/operations/journal/route.ts:51 (PUT — the day\'s goals, blocker and plan) · src/app/api/operations/stays/route.ts (the stay) · commit: src/app/api/operations/stops/route.ts (POST — the record at a stop, through stops/stopWrites.ts:39) · src/app/api/operations/routines/move/route.ts (the dated move) · record: src/components/workbench/operations/ledger/LedgerSection.tsx (every stop recorded, by date, city, COA and vendor; "+ expense" through src/app/api/operations/routines/route.ts, ledger/ExpenseForm.tsx:87)',
+    note: 'TIME-01 (2026-10-19): the content pipeline (ContentPipeline.tsx) renders beneath the card and the ledger, unchanged, until TIME-02 — its own routes: src/app/api/operations/tasks/unscheduled/route.ts · daily-plan/items/route.ts:120 · daily-plan/items/[itemId]/blocks/route.ts:36 · daily-plan/blocks/[blockId]/route.ts:38, :163 · src/app/api/operations/content/* (enrich-routine and generate-script are paid, cap-gated, no tier).',
+    customer: 'You can see one day as a card — every stop with what it should cost and what it did, the journal, the caption and script for the day\'s reel — and the ledger of every stop you logged; the old content pipeline is still underneath, and nothing yet adds up where your hours went.',
   },
   // ── MONEY IN ──
   CRM: {

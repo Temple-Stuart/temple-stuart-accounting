@@ -91,7 +91,8 @@ test('claim lines come from the registry: "built and running" for LIVE only, "pa
   // TRUTH-01: Tasks and Time are four-beat PARTIALs (the job is not done for a customer), so the showcase CTAs no longer say built and running.
   // TASKS-01: Tasks' why is a customer's line now; the founder note is a code comment.
   assert.equal(claimForCockpit('projects'), "partial — the work, planned: projects with costed tasks and routines with costed lines, both landing on the calendar and linkable to a posting — a task's actual cost is still typed by hand; nothing posts it from the books");
-  assert.equal(claimForCockpit('content'), 'partial — day blocks and a daily log inside the Narrative pipeline; no time tool');
+  // TIME-01 (Alex, 2026-10-19): the day card and the ledger are Time's — the why says so (time01.test.ts pins the row).
+  assert.equal(claimForCockpit('content'), 'partial — the day, narrated: the day card — every stop in clock order with its budget, vendor, record and verdict, the journal, the reel kit — and the city ledger of what each stop cost; the old content pipeline still sits beneath the card until TIME-02 retires it, and nothing yet adds up where the hours went');
   assert.equal(claimForCockpit('calendar'), 'partial — plan vs actual for routines and tasks on /budget; travel and income budgets not connected yet'); // Budget, a four-beat PARTIAL since TRUTH-01; its why since TAB13-02b
   assert.throws(() => claimForCockpit('nope'), OfferLawError);
 });

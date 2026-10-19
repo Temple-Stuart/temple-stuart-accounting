@@ -33,6 +33,8 @@ const PREVIEW_ROUTE = 'src/app/api/operations/projects/[id]/deletion/route.ts';
 // TASKS-ONE-02 (2026-10-14): TodaysStrip, SectionC_DailyPlan, DailyPlanRoutineRow, WeekSection and WeekCell are
 // DELETED (Alex's ruling: the day card replaces the week grid, the Daily plan and the Today strip) — they leave the
 // tree with their code (TASKS_GONE, checked absent below); the day card and its stop form, now on the page, join it.
+// TIME-01 (2026-10-19): the day card and its stop form moved to /time with the ledger; they stay listed here as
+// "draws no strip" files (true on either page), and the page pins below moved to the two lists.
 const TASKS_TREE = [PAGE, SECTION_D, SECTION_E, ROW, ROW_VIEW, PIPE_VIEW, ROUTINE_LIST, ROUTINE_ROW,
   'src/components/workbench/operations/projects/TaskList.tsx',
   // PROJECTS-01 (2026-09-30): the projects list's markup moved into the one
@@ -52,14 +54,16 @@ const TASKS_GONE = [TODAY,
 // ───────────────────────────────────────────────────────────────────────────
 // TASKS-ONE-02 (2026-10-14): the title said "and the daily plan" — the Daily plan is deleted (Alex's ruling), so the
 // pin moved with the page: the day card, then the two lists.
-test('the page is the day card and two lists — no strip, no pipe label, no receipts', () => {
+test('the page is two lists — no strip, no pipe label, no receipts', () => {
   const page = code(PAGE);
   assert.match(page, /<SectionD_ProjectBacklog \/>/);
   assert.match(page, /<SectionE_Routines \/>/);
   // WEEK-01 (2026-09-30): a fourth mount, FIRST — this week, then the two lists and the daily plan.
   // TASKS-ONE-02 (2026-10-14): the week and the daily plan are deleted — the day card replaces them. Three mounts, in order.
   // LEDGER-01 (Alex, 2026-10-16): the city ledger is a fourth mount, LAST — under Routines. Four mounts, in order.
-  assert.match(page, /<DayCard \/>\s*<\/Suspense>\s*<SectionD_ProjectBacklog \/>\s*<SectionE_Routines \/>\s*<LedgerSection \/>\s*<\/div>/);
+  // TIME-01 (Alex, 2026-10-19): the day card and the ledger moved to /time (time01.test.ts). Two mounts, in order.
+  assert.match(page, /<div className="space-y-3" data-tool-page="Tasks">\s*<SectionD_ProjectBacklog \/>\s*<SectionE_Routines \/>\s*<\/div>/);
+  assert.doesNotMatch(page, /DayCard|LedgerSection|Suspense/, 'the day card and the ledger are /time\'s (TIME-01)');
   assert.doesNotMatch(page, /WeekSection|SectionC_DailyPlan|TodaysStrip/);
   for (const f of TASKS_GONE) assert.ok(!existsSync(resolve(process.cwd(), f)), `${f} is deleted`);
   assert.doesNotMatch(page, /data-pipe-section|data-pipe-label|PIPE_LABEL|PIPE_PHASES|<StageStrip|<ProofStrip/);

@@ -1327,11 +1327,15 @@ export function scriptText(d: ReelDay): ReelText {
 }
 
 // ── TASKS-ONE-01 (2026-10-14): WHERE THE CARD LIVES — THE FIRST SECTION OF /tasks ──
+// TIME-01 (Alex, 2026-10-19): THE FIRST SECTION OF /time. The day card is the narration of the
+// day — it moved to Time with the ledger; Tasks keeps the work (projects, routines). Every URL
+// the card pushes derives from this one constant, so the move is this line; /tasks/day's hop
+// follows it, and a dated /tasks?date= is sent here by next.config.ts (the same query).
 
-/** The card's page — the first section of Tasks' one page (Alex, 2026-10-14: one Tasks page, no sub-tabs). Every URL the card pushes, and /tasks/day's one hop, start here. */
-export const DAY_CARD_PATH = '/tasks';
+/** The card's page — the first section of Time's one page (Alex, 2026-10-19, TIME-01; was Tasks', TASKS-ONE-01). Every URL the card pushes, the move control's reload, and /tasks/day's one hop start here. */
+export const DAY_CARD_PATH = '/time';
 
-/** The card's two query parameters (DayCard.tsx reads `date` and `step`, and nothing else on /tasks reads one) — the only ones /tasks/day carries over. */
+/** The card's two query parameters (DayCard.tsx reads `date` and `step`, and nothing else on the card's page reads one) — the only ones /tasks/day carries over. */
 export const DAY_CARD_PARAMS = ['date', 'step'] as const;
 
 /**
