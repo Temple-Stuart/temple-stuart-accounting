@@ -44,7 +44,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
-import { END_TIME_REQUIRED_WORDS, START_TIME_REQUIRED_WORDS, canonicalZone, compileFormToRRule, expandForward, isOnceRRule, scheduleAnchor, zoneNotListedWords } from '@/lib/operations/rruleHelpers';
+import { EMPTY_WINDOW_WORDS, END_TIME_REQUIRED_WORDS, START_TIME_REQUIRED_WORDS, canonicalZone, compileFormToRRule, expandForward, isOnceRRule, scheduleAnchor, zoneNotListedWords } from '@/lib/operations/rruleHelpers';
 import { parseLinesInput, parsePlaceInput } from '@/lib/operations/routineInput';
 import { carriesPlanMoney, planMoney, type PlanBook, type PlanMoney } from '@/lib/operations/planMoney';
 import { loadPlanBook } from '@/lib/operations/loadPlanBook';
@@ -217,13 +217,16 @@ export async function POST(request: NextRequest) {
     const endTimeResult = parseTimeOrNull(body.end_time, 'end_time');
     if (endTimeResult.error) return endTimeResult.error;
 
+    // MOVE-01 (Alex, 2026-10-19): the window may cross midnight — an end before the
+    // start ends the next day (nothing reads the pair as a duration: the hub grid
+    // draws it as its flagged marker, extent.ts). Only an EMPTY window is refused.
     if (
       startTimeResult.value &&
       endTimeResult.value &&
-      startTimeResult.value >= endTimeResult.value
+      startTimeResult.value.getTime() === endTimeResult.value.getTime()
     ) {
       return NextResponse.json(
-        { error: 'Validation', field: 'end_time', message: 'end_time must be after start_time' },
+        { error: 'Validation', field: 'end_time', message: EMPTY_WINDOW_WORDS },
         { status: 400 }
       );
     }

@@ -3208,6 +3208,8 @@ const ONEOFF_CALLERS = [
   'src/lib/operations/routineBudget.ts',
   // TAB13-02a: the day rules expand a routine for the budget report, anchored like every caller.
   'src/lib/budget/days.ts',
+  // MOVE-01 (2026-10-19): the move's plan expands a copy's rule once for its first day, anchored on the copy's own start (the date).
+  'src/lib/operations/routineMove.ts',
 ];
 let oneoffViolations = 0;
 const oneoffFail = (m: string) => { oneoffViolations += 1; violations.push(`one-off law: ${m} (ONEOFF-01)`); };

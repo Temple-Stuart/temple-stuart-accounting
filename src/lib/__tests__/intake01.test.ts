@@ -30,7 +30,9 @@ const W4 = 'src/app/api/operations/routines/steps/[stepId]/route.ts';
 const W5 = 'src/app/api/operations/projects/[id]/tasks/route.ts';
 const W6 = 'src/app/api/operations/projects/[id]/tasks/[taskId]/route.ts';
 const W7 = 'src/app/api/operations/tasks/[id]/assign/route.ts';
-const WRITERS = [W1, W2, W3, W4, W5, W6, W7];
+// MOVE-01 (2026-10-19): the dated move copies a routine and its lines into the new zone — its money through the rule, against the book.
+const W8 = 'src/app/api/operations/routines/move/route.ts';
+const WRITERS = [W1, W2, W3, W4, W5, W6, W7, W8];
 const REPORT = 'src/app/api/budget/report/route.ts';
 
 const row = (code: string, name: string, account_type: string, is_archived = false): PlanChartRow => ({ code, name, account_type, is_archived });
@@ -391,7 +393,7 @@ function srcFiles(dir = 'src'): string[] {
   return out;
 }
 
-test('T6 every file under src that writes a plan\'s money calls the rule — and they are exactly W1–W7', () => {
+test('T6 every file under src that writes a plan\'s money calls the rule — and they are exactly W1–W8', () => {
   const WRITE = /\b(operations_routines|operations_routine_steps|operations_project_tasks)\.(create|createMany|update|updateMany|upsert)\(/;
   const MONEY = /\b(budget_amount|coa_code|estimated_cost_usd)\s*(=(?!=)|:(?!\s*(true|false)\b))/;
   const writers = srcFiles().filter((f) => { const s = code(f); return WRITE.test(s) && MONEY.test(s); }).sort();

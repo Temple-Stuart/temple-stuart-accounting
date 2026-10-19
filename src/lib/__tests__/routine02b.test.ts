@@ -243,15 +243,19 @@ test('T6 the audit type: the enum value last, the one ADD VALUE line applied at 
   const auditEnum = /enum AuditActionType \{([\s\S]*?)\}/.exec(schema);
   assert.ok(auditEnum !== null);
   const values = auditEnum[1].split(/\s+/).filter(Boolean);
-  assert.equal(values[values.length - 1], 'operations_routine_rekeyed');
+  // MOVE-01 (2026-10-19): one more value follows (operations_routines_moved) — the tail moved by one.
+  assert.equal(values[values.length - 2], 'operations_routine_rekeyed');
   assert.equal(values.filter((v) => v === 'operations_routine_rekeyed').length, 1);
   assert.equal(AuditActionType.operations_routine_rekeyed, 'operations_routine_rekeyed', 'prisma generate ran');
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 1], MIGRATION_DIR, 'the newest migration');
-  assert.equal(dirs[dirs.length - 2], '20261016120000_retro_01_stop_moved_audit_type');
+  // MOVE-01 (2026-10-19): one more audit-type migration followed (the newest); the order below moved by one.
+  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the migration before the newest (MOVE-01 followed)');
+  assert.equal(dirs[dirs.length - 1], '20261019090000_move_01_moved_audit_type', 'the newest migration');
+  assert.equal(dirs[dirs.length - 3], '20261016120000_retro_01_stop_moved_audit_type');
   const sql = code(`${MIGRATIONS}/${MIGRATION_DIR}/migration.sql`);
   assert.equal(sql.trim(), `ALTER TYPE "AuditActionType" ADD VALUE IF NOT EXISTS 'operations_routine_rekeyed';`, 'one line and nothing else');
   assert.match(comments(`${MIGRATIONS}/${MIGRATION_DIR}/migration.sql`), /applied at deploy/);
-  assert.match(code(AUDIT_ROUTE), /'operations_stop_moved',\s*'operations_routine_rekeyed',\s*\],/);
+  // MOVE-01 (2026-10-19): the moved type follows the rekeyed type in the list.
+  assert.match(code(AUDIT_ROUTE), /'operations_stop_moved',\s*'operations_routine_rekeyed',\s*'operations_routines_moved',\s*\],/);
   assert.match(comments(SCHEMA), /ROUTINE-02b \(Alex, 2026-10-18\): a routine's history moved with its time/);
 });
