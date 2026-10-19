@@ -186,10 +186,38 @@ export type CadenceMode = 'daily' | 'weekly' | 'monthly_day_of_month' | 'monthly
 
 export type WeekDay = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU';
 
+/**
+ * FORM-01 (Alex, 2026-10-19): DAYS IS ONE CONTROL. The routine form asks which
+ * days · what time · how much · which account, nothing about where. The choice
+ * is the form's own field (UI state, seeded from the stored rule on open —
+ * rruleHelpers.ts formOfRule); the wire fields stay cadence_mode, weekly_byday,
+ * the monthly fields and custom_rrule, so the routes are untouched. Every day,
+ * Weekdays, Weekends and Pick days compile to the existing FREQ=DAILY or
+ * FREQ=WEEKLY;BYDAY rules — no new rule shape.
+ */
+export type DaysChoice = 'every_day' | 'weekdays' | 'weekends' | 'pick_days' | 'once' | 'monthly' | 'custom';
+export const DAYS_CHOICE_ORDER: DaysChoice[] = ['every_day', 'weekdays', 'weekends', 'pick_days', 'once', 'monthly', 'custom'];
+export const DAYS_CHOICE_LABELS: Record<DaysChoice, string> = {
+  every_day: 'Every day',
+  weekdays: 'Weekdays (Mon–Fri)',
+  weekends: 'Weekends (Sat–Sun)',
+  pick_days: 'Pick days',
+  once: 'Once (a date)',
+  monthly: 'Monthly',
+  custom: 'Custom rule',
+};
+/** The two monthly shapes the form has always had, under the one "Monthly" choice. */
+export type MonthlyKind = 'monthly_day_of_month' | 'monthly_nth_weekday';
+export const MONTHLY_KIND_LABELS: Record<MonthlyKind, string> = { monthly_day_of_month: 'on a day of the month', monthly_nth_weekday: 'on the Nth weekday' };
+export const WEEKDAYS: readonly WeekDay[] = ['MO', 'TU', 'WE', 'TH', 'FR'];
+export const WEEKEND: readonly WeekDay[] = ['SA', 'SU'];
+
 export interface RoutineForm {
   name: string;
   description: string;
   entity_id: string;
+  /** FORM-01: the days control's choice — the form's own field; the wire fields below carry the rule. */
+  days: DaysChoice;
   cadence_mode: CadenceMode;
   weekly_byday: WeekDay[];           // for weekly mode
   monthly_day_of_month: string;       // for monthly_day_of_month (e.g., "15")
@@ -236,6 +264,7 @@ export const DEFAULT_ROUTINE_FORM: RoutineForm = {
   name: '',
   description: '',
   entity_id: '',
+  days: 'every_day',
   cadence_mode: 'daily',
   weekly_byday: ['MO', 'TU', 'WE', 'TH', 'FR'],
   monthly_day_of_month: '1',

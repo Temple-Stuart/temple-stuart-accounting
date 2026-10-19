@@ -31,6 +31,18 @@
  * shown as Intl's list spells it, and the edit form is seeded with that
  * spelling, so a stored name that differed only by case is saved canonical on
  * the next edit; a zone Intl cannot read is named in the small print.
+ *
+ * FORM-01 (Alex, 2026-10-19): THE EDIT FORM OPENS IN THE MATCHING DAYS CHOICE
+ * (rruleHelpers.ts formOfRule — a stored rule whose parts equal a choice's
+ * compiled parts as a set opens structured, else as Custom rule with the raw
+ * box) and asks, in order: name · on the day card · entity · days · time ·
+ * amount + account · active from / until · timezone · "more". Saving a form
+ * equal to the one it opened with closes without a request — nothing is
+ * written. The place (location, coordinates, "Find this place") left the form
+ * and the row; the columns stay in the table and the hub map keeps reading
+ * them. The row's cell lost the time range (the Time column says it) and the
+ * place block; it keeps the zone, next, active, the threshold, the role word,
+ * "last done".
  */
 
 'use client';
@@ -39,14 +51,13 @@ import { ROLE_FIELD_WORDS, ROLE_SHORT_WORDS, ROLE_TITLE_WORDS, ROLE_WORDS, STOP_
 import { useState } from 'react';
 import type { Routine, RoutineForm } from './types';
 import { DEFAULT_ROUTINE_FORM } from './types';
-import RRULEBuilder from './RRULEBuilder';
+import { DaysField, MISSED_AFTER_WORDS, TimeField } from './RRULEBuilder';
+import ZoneSelect from './ZoneSelect';
 import CoaSelect from './CoaSelect';
-import FindThisPlace from './FindThisPlace';
 import { AccountText, ROUTINE_TABLE_COLUMNS, RoutineStepList } from './RoutineStepList';
 import { ignoredLine, plannedLine, routinePlanned } from '@/lib/operations/routineLines';
-import { canonicalZone, clockOfRule, clockWords, isOnceRRule, type RoutineEnd } from '@/lib/operations/rruleHelpers';
+import { canonicalZone, clockOfRule, clockWords, formOfRule, type RoutineEnd } from '@/lib/operations/rruleHelpers';
 import { ACCOUNT_CELL_WORDS, accountCell } from '@/lib/coa/accountCell';
-import type { PlaceMatch } from '@/lib/calendar/findPlace';
 import type { Entity } from '../EntitySelector';
 
 
@@ -60,14 +71,11 @@ interface Props {
   onDelete: () => void;
 }
 
-function routineToForm(r: Routine): RoutineForm {
-  // Form fields derived from Routine: we don't reverse-compile RRULE on edit;
-  // user is shown the live cadence_mode as 'custom' with the existing rrule
-  // pre-populated. They can switch to a structured mode if desired (which
-  // overrides the rrule on save).
-  // ONEOFF-01: a one-off (COUNT=1) opens as cadence "once" — its date is the
-  // one field that matters, and its hour/minute are read back off the rule.
-  const once = isOnceRRule(r.schedule_rrule);
+export function routineToForm(r: Routine): RoutineForm {
+  // FORM-01: the stored rule opens in the matching days choice (formOfRule) — once
+  // for COUNT=1 (ONEOFF-01: its date is the one field that matters), every day,
+  // weekdays, weekends, pick days, monthly; anything no choice reproduces part for
+  // part opens as Custom rule with the raw box.
   // ROUTINE-02b: the clock in force is the rule's — the start time is seeded from it, and byhour/byminute agree with it.
   const clock = clockOfRule(r.schedule_rrule);
   return {
@@ -85,16 +93,15 @@ function routineToForm(r: Routine): RoutineForm {
     start_time: clock !== null ? clockWords(clock) : r.start_time ? r.start_time.slice(11, 16) : '',
     end_time: r.end_time ? r.end_time.slice(11, 16) : '',
     is_active: r.is_active,
-    cadence_mode: once ? 'once' : 'custom',
-    custom_rrule: r.schedule_rrule,
+    ...formOfRule(r.schedule_rrule, r.start_date ? r.start_date.slice(0, 10) : null),
     ...(clock !== null ? { byhour: String(clock.hour).padStart(2, '0'), byminute: String(clock.minute).padStart(2, '0') } : {}),
     // HB-4b: pre-fill budget + COA on edit (null → '' empty input/no selection).
     budget_amount: r.budget_amount != null ? String(r.budget_amount) : '',
     coa_code: r.coa_code ?? '',
-    // ONEOFF-01: the place, as stored (null → '').
-    location: r.location ?? '',
-    latitude: r.latitude != null ? String(r.latitude) : '',
-    longitude: r.longitude != null ? String(r.longitude) : '',
+    // FORM-01: the place is not the form's — the stored values stay as they are (the PATCH is not sent them).
+    location: '',
+    latitude: '',
+    longitude: '',
   };
 }
 
@@ -120,14 +127,7 @@ function formatDate(iso: string): string {
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-// HB-4e-style-2: humanize the intent-time window (display only — "00:00" → "12:00 AM").
-function formatTime12h(hhmm: string): string {
-  const [h, m] = hhmm.split(':').map(Number);
-  if (Number.isNaN(h)) return hhmm;
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  const h12 = h % 12 || 12;
-  return `${h12}:${String(m || 0).padStart(2, '0')} ${ampm}`;
-}
+// FORM-01: the 12-hour time range left the small print — the Time column says the window (rruleHelpers.ts timeWords).
 
 /** ROUTINE-02a: the row's words for an end that has passed, or past which nothing remains. */
 export const endedWords = (dateWords: string): string => `ended ${dateWords}`;
@@ -147,8 +147,8 @@ export default function RoutineRow({ routine, end, entities, onUpdate, onDelete 
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // ONEOFF-01: the place picked from a lookup while editing.
-  const [picked, setPicked] = useState<PlaceMatch | null>(null);
+  // FORM-01: "more" — description, ideal time label, the miss threshold — closed until opened (React state only).
+  const [more, setMore] = useState(false);
   const onceForm = form.cadence_mode === 'once';
 
   const enterEdit = () => {
@@ -164,6 +164,12 @@ export default function RoutineRow({ routine, end, entities, onUpdate, onDelete 
   };
 
   const handleSave = async () => {
+    // FORM-01 (Alex, 3 yes): a form equal to the one it opened with writes nothing — no request, no audit row.
+    if (JSON.stringify(form) === JSON.stringify(routineToForm(routine))) {
+      setEditing(false);
+      setError(null);
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -177,10 +183,10 @@ export default function RoutineRow({ routine, end, entities, onUpdate, onDelete 
           end_date: onceForm ? (form.start_date || null) : (form.end_date || null),
           start_time: form.start_time || null,
           end_time: form.end_time || null,
-          // ONEOFF-01: the place; '' → null, never 0.
-          location: form.location || null,
-          latitude: form.latitude || null,
-          longitude: form.longitude || null,
+          // FORM-01: no place is sent — the stored location and coordinates stay as they are.
+          location: undefined,
+          latitude: undefined,
+          longitude: undefined,
         }),
       });
       const body = await res.json();
@@ -267,18 +273,7 @@ export default function RoutineRow({ routine, end, entities, onUpdate, onDelete 
       )}
       <div className="text-text-muted" data-routine-book>{book ? book.name : ACCOUNT_CELL_WORDS.bookNotLoaded}</div>
       <div className="mt-1 flex flex-wrap gap-x-2 text-[10px] text-text-muted" data-routine-small-print>
-        {(routine.start_time || routine.end_time) && (
-          <span title="intent time window">
-            {(() => {
-              const startStr = routine.start_time ? formatTime12h(routine.start_time.slice(11, 16)) : null;
-              const endStr = routine.end_time ? formatTime12h(routine.end_time.slice(11, 16)) : null;
-              if (startStr && endStr) return `${startStr} – ${endStr}`;
-              if (startStr) return `from ${startStr}`;
-              if (endStr) return `until ${endStr}`;
-              return '';
-            })()}
-          </span>
-        )}
+        {/* FORM-01: the time range is the Time column's now. */}
         <span title="time zone" data-routine-zone>{canonicalZone(routine.timezone) ?? routine.timezone}</span>
         {!end.ended && end.reason !== null && (
           <span className="text-amber-800" data-routine-zone-unread>{end.reason}</span>
@@ -334,18 +329,7 @@ export default function RoutineRow({ routine, end, entities, onUpdate, onDelete 
           {ignoredLine(planned)}
         </div>
       )}
-      {/* ONEOFF-01: the routine's place, when it has one — the name and, with
-          both coordinates stored, the pin the day map plots. */}
-      {(routine.location || (routine.latitude != null && routine.longitude != null)) && (
-        <div className="mt-1 text-text-muted" data-routine-place-view>
-          <span data-routine-place-text>{routine.location ?? '—'}</span>
-          {routine.latitude != null && routine.longitude != null && (
-            <span className="ml-1 font-mono text-[10px]" data-routine-pin>
-              {Number(routine.latitude).toFixed(5)}, {Number(routine.longitude).toFixed(5)}
-            </span>
-          )}
-        </div>
-      )}
+      {/* FORM-01: no place here — the row says days · time · amount · account; the hub map reads what is stored. */}
       <div className="mt-1 text-text-muted" title="last completed" data-routine-last-done>
         last done {formatDateTime(routine.last_completed_at, routine.timezone)}
       </div>
@@ -412,6 +396,7 @@ export default function RoutineRow({ routine, end, entities, onUpdate, onDelete 
               </div>
             )}
 
+            {/* FORM-01: name · on the day card · entity. */}
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
                 <div className={labelClass}>name</div>
@@ -423,16 +408,7 @@ export default function RoutineRow({ routine, end, entities, onUpdate, onDelete 
                   maxLength={200}
                 />
               </div>
-              <div className="col-span-2">
-                <div className={labelClass}>description</div>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  rows={2}
-                  className={inputClass}
-                />
-              </div>
-              <div className="col-span-2">
+              <div>
                 <div className={labelClass}>{ROLE_FIELD_WORDS}</div>
                 <select
                   value={form.role}
@@ -465,11 +441,12 @@ export default function RoutineRow({ routine, end, entities, onUpdate, onDelete 
               </div>
             </div>
 
+            {/* FORM-01: days, then time. */}
+            <DaysField form={form} setForm={setForm} />
+            <TimeField form={form} setForm={setForm} />
+
             {/* HB-4b: per-occurrence budget + COA (pre-filled from the routine; empty → null on save).
                 COA scoped to the routine's entity (entity is fixed after creation). */}
-            {/* ROUTINES-UX-1: the anchor pair gets the same strongest-cell
-                treatment as the create form (see RoutineCreateForm) — the
-                edit form is the other of the tab's two money renders. */}
             {/* LINES-01: the routine-level figure is REPORTED as set aside when the
                 lines carry amounts — never silently ignored, never added. */}
             {ignoredLine(planned) && (
@@ -507,78 +484,81 @@ export default function RoutineRow({ routine, end, entities, onUpdate, onDelete 
               </div>
             </div>
 
-            <RRULEBuilder form={form} setForm={setForm} />
-
-            {/* ONEOFF-01: a one-off has ONE date — the occurrence is counted from it. */}
-            {onceForm ? (
-              <div>
-                <div className={labelClass}>date</div>
-                <input
-                  type="date"
-                  value={form.start_date}
-                  onChange={(e) => setForm({ ...form, start_date: e.target.value, end_date: e.target.value })}
-                  className={inputClass}
-                  required
-                  data-routine-once-date
-                />
-              </div>
-            ) : (
+            {/* FORM-01: active from / until — a one-off's day is its date, asked in the days control (ONEOFF-01). */}
+            {!onceForm && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <div className={labelClass}>start date (optional)</div>
+                  <div className={labelClass}>active from (optional)</div>
                   <input
                     type="date"
                     value={form.start_date}
                     onChange={(e) => setForm({ ...form, start_date: e.target.value })}
                     className={inputClass}
+                    data-routine-start-date
                   />
                 </div>
                 <div>
-                  <div className={labelClass}>end date (optional)</div>
+                  <div className={labelClass}>active until (optional)</div>
                   <input
                     type="date"
                     value={form.end_date}
                     onChange={(e) => setForm({ ...form, end_date: e.target.value })}
                     className={inputClass}
+                    data-routine-end-date
                   />
                 </div>
               </div>
             )}
 
-            {/* ONEOFF-01: THE PLACE — the same three fields and the same one-press
-                lookup the create form has. */}
-            <div className="space-y-2 pt-2 border-t border-border-light" data-routine-place>
-              <div>
-                <div className={labelClass}>location (optional)</div>
-                <input
-                  type="text"
-                  value={form.location}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setForm({ ...form, location: v });
-                    if (picked && v.trim() !== picked.name) setPicked(null);
-                  }}
-                  className={inputClass}
-                  maxLength={255}
-                  data-routine-location
-                />
-              </div>
-              <FindThisPlace
-                location={form.location}
-                picked={picked}
-                onPick={(m) => { setForm({ ...form, location: m.name, latitude: String(m.latitude), longitude: String(m.longitude) }); setPicked(m); }}
-                onClear={() => { setForm({ ...form, latitude: '', longitude: '' }); setPicked(null); }}
+            <div>
+              <div className={labelClass}>timezone</div>
+              <ZoneSelect
+                value={form.timezone}
+                onChange={(zone) => setForm({ ...form, timezone: zone })}
+                className={inputClass}
+                data-routine-timezone
               />
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <div className={labelClass}>latitude</div>
-                  <input inputMode="decimal" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: e.target.value })} className={`${inputClass} font-mono`} placeholder="optional" data-routine-latitude />
+            </div>
+
+            {/* FORM-01: "more" — description, ideal time label, the miss threshold — closed until opened. */}
+            <div className="pt-2 border-t border-border-light">
+              <button type="button" onClick={() => setMore((m) => !m)} className="px-2 py-0.5 border border-border rounded hover:bg-bg-row text-xs" aria-expanded={more} data-routine-more>
+                {more ? 'less' : 'more'}
+              </button>
+              {more && (
+                <div className="mt-2 grid grid-cols-2 gap-3" data-routine-more-fields>
+                  <div className="col-span-2">
+                    <div className={labelClass}>description</div>
+                    <textarea
+                      value={form.description}
+                      onChange={(e) => setForm({ ...form, description: e.target.value })}
+                      rows={2}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <div className={labelClass}>ideal time label (optional)</div>
+                    <input
+                      type="text"
+                      value={form.ideal_time_label}
+                      onChange={(e) => setForm({ ...form, ideal_time_label: e.target.value })}
+                      className={inputClass}
+                      placeholder="morning, before lunch, EOD"
+                    />
+                  </div>
+                  <div>
+                    <div className={labelClass}>{MISSED_AFTER_WORDS}</div>
+                    <input
+                      type="number"
+                      min={0}
+                      value={form.fail_threshold_minutes}
+                      onChange={(e) => setForm({ ...form, fail_threshold_minutes: e.target.value })}
+                      className={inputClass}
+                      data-routine-missed-after
+                    />
+                  </div>
                 </div>
-                <div>
-                  <div className={labelClass}>longitude</div>
-                  <input inputMode="decimal" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: e.target.value })} className={`${inputClass} font-mono`} placeholder="optional" data-routine-longitude />
-                </div>
-              </div>
+              )}
             </div>
 
             <div className="flex items-center gap-2 pt-2 border-t border-border-light">

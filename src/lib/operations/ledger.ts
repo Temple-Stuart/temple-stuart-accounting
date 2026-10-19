@@ -642,7 +642,7 @@ export function expenseInput(draft: ExpenseDraft, zone: string): ExpenseInputRes
 /** The create route's body: a one-off (cadence once on the day, at the time, in the zone), role place, one line — the thing itself, with the amount and the COA. */
 export const oneOffBody = (v: ExpenseValues): RoutineForm => ({
   name: v.name, description: '', entity_id: v.bookId,
-  cadence_mode: 'once', weekly_byday: [], monthly_day_of_month: '1', monthly_nth: '1', monthly_weekday: 'MO', custom_rrule: '',
+  cadence_mode: 'once', days: 'once' /* FORM-01 (2026-10-19): the form's days choice — a one-off */, weekly_byday: [], monthly_day_of_month: '1', monthly_nth: '1', monthly_weekday: 'MO', custom_rrule: '',
   byhour: v.time.slice(0, 2), byminute: v.time.slice(3, 5), timezone: v.zone,
   ideal_time_label: '', fail_threshold_minutes: '0', role: 'place',
   start_date: v.day, end_date: '', start_time: v.time, end_time: '', is_active: true,
