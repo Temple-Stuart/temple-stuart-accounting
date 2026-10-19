@@ -55,12 +55,14 @@ const accepted = (body: unknown): Answers => {
 const FULL: AuditPromptInput = {
   dayWords: 'Mon Oct 12',
   journal: answersOf({ goals: ['post the reel', 'book travel'], blocker: 'the clipboard in a headless browser', plan_steps: ['merge TABLE-01', 'book travel while CC runs', 'record brunch and dinner'], plan_done: [true, true, false] }),
+  // REEL-02 (Alex, 2026-10-19): each stop says whether its form asks an amount (the card's asksAmount); the journal stop asks none and
+  // hands its outcome instead of "budget —, actual —". Moved, not loosened.
   stops: [
-    { name: 'Coffee', vendor: 'Luka Café', budgetWords: '$10', actualWords: '$8.98 ▼ $1.02' },
-    { name: 'Brunch', vendor: null, budgetWords: '$25', actualWords: '$22 ▼ $3' },
-    { name: 'Activities', vendor: 'Viator', budgetWords: '$20', actualWords: 'skipped' },
-    { name: 'Dinner', vendor: null, budgetWords: '$30', actualWords: '—' },
-    { name: 'Journal', vendor: null, budgetWords: '—', actualWords: '—' },
+    { name: 'Coffee', vendor: 'Luka Café', asksAmount: true, budgetWords: '$10', actualWords: '$8.98 ▼ $1.02' },
+    { name: 'Brunch', vendor: null, asksAmount: true, budgetWords: '$25', actualWords: '$22 ▼ $3' },
+    { name: 'Activities', vendor: 'Viator', asksAmount: true, budgetWords: '$20', actualWords: 'skipped' },
+    { name: 'Dinner', vendor: null, asksAmount: true, budgetWords: '$30', actualWords: '—' },
+    { name: 'Journal', vendor: null, asksAmount: false, outcomeWords: 'done' },
   ],
   budgetWords: '$85',
   actualWords: '$30.98',
@@ -85,7 +87,7 @@ test('R4 auditPromptText — a full day: the day, the goals, the blocker, the pl
     '- Brunch — budget $25, actual $22 ▼ $3',
     '- Activities at Viator — budget $20, actual skipped',
     '- Dinner — budget $30, actual —',
-    '- Journal — budget —, actual —',
+    '- Journal — done',
     'Totals: budget $85, actual $30.98, ▼ $54.02 under',
     '',
     'Audit this day. In order: what got done against the plan and what did not, and why it is likely so; where the money went against the budget, stop by stop; what to carry forward tomorrow. Be specific and short; no praise, no filler.',
@@ -94,7 +96,7 @@ test('R4 auditPromptText — a full day: the day, the goals, the blocker, the pl
   assert.equal(AUDIT_PROMPT_ASK, 'Audit this day. In order: what got done against the plan and what did not, and why it is likely so; where the money went against the budget, stop by stop; what to carry forward tomorrow. Be specific and short; no praise, no filler.');
   assert.equal(auditStepWords('merge TABLE-01', true), '✓ merge TABLE-01');
   assert.equal(auditStepWords('post the reel', false), '✗ post the reel');
-  assert.equal(auditStopWords({ name: 'Brunch', vendor: 'Luka Café', budgetWords: '$25', actualWords: '$22 ▼ $3' }), '- Brunch at Luka Café — budget $25, actual $22 ▼ $3');
+  assert.equal(auditStopWords({ name: 'Brunch', vendor: 'Luka Café', asksAmount: true, budgetWords: '$25', actualWords: '$22 ▼ $3' }), '- Brunch at Luka Café — budget $25, actual $22 ▼ $3');
   assert.equal(auditTotalsWords('$85', '$30.98', null), 'budget $85, actual $30.98', 'no verdict words when the card shows none');
   assert.equal(auditPromptWaitsWords('reading the records…'), 'the audit prompt needs the day\'s reads — reading the records…');
   assert.equal(auditPromptFailedWords('denied'), 'could not copy the audit prompt — denied');
@@ -105,7 +107,7 @@ test('R4 auditPromptText — a day with no journal and no plan, a day with a ski
   inOrder(noJournal, ['Goals:\n- none typed', 'Blocker: none', 'Plan — steps and ticks:\n- no plan', 'Totals: budget $85, actual $30.98\n\nAudit this day.'], 'no journal: none typed, none, no plan; no verdict words');
   const noPlan = auditPromptText({ ...FULL, journal: answersOf({ goals: ['one goal'] }) });
   inOrder(noPlan, ['Goals:\n- one goal', 'Blocker: none', 'Plan — steps and ticks:\n- no plan'], 'a journal with goals but no plan');
-  const skipped = auditPromptText({ ...FULL, stops: [{ name: 'Activities', vendor: 'Viator', budgetWords: '$20', actualWords: 'skipped' }], verdictWords: null });
+  const skipped = auditPromptText({ ...FULL, stops: [{ name: 'Activities', vendor: 'Viator', asksAmount: true, budgetWords: '$20', actualWords: 'skipped' }], verdictWords: null });
   assert.match(skipped, /Stops — budget vs actual:\n- Activities at Viator — budget \$20, actual skipped\nTotals: budget \$85, actual \$30\.98\n\nAudit this day\./, 'the skipped stop named as the card names it; no verdict');
   assert.match(auditPromptText({ ...FULL, stops: [] }), /Stops — budget vs actual:\n- no stops\n/);
   // Pure, and no second plan prompt: the two prompts share the none words and nothing else.
@@ -122,8 +124,10 @@ test('R4 the card builds the input from its OWN reads and words, and offers the 
   const c = code(CARD);
   assert.match(c, /const auditWait = reelReadsWords\(reelReads\);/, 'the same reads the reel waits on, the journal included');
   assert.match(c, /const auditPrompt: AuditPromptState = auditWait !== null\n\s*\? \{ ok: false, words: auditPromptWaitsWords\(auditWait\) \}\n\s*: \{ ok: true, text: auditPromptText\(\{/, 'not offered while a read is in flight or failed');
-  inOrder(c, ['dayWords: dayShortWords(day),', 'journal: reelJournal,', "stops: result.stops.map((s) => ({ name: stopName(s), vendor: s.vendor, budgetWords: factOf(s.cents === null ? null : planDollars(s.cents)), actualWords: s.status === 'skipped' ? SKIPPED_WORD : s.actualCents === null ? factOf(null) : rowActualWords(s.actualCents, s.cents) })),", 'budgetWords: factOf(totals.budgetCents === null ? null : planDollars(totals.budgetCents)),', 'actualWords: factOf(totals.actualCents === null ? null : planDollars(totals.actualCents)),', 'verdictWords: verdict === null ? null : verdict.text,'], 'the card’s own words for every stop and the TOTAL row, the verdict as the card says it');
-  assert.match(c, /import \{ SKIPPED_WORD, starsWords, type StopRecordPlan, type StopRecordRow \} from '@\/lib\/operations\/stopRecord';/);
+  // REEL-02 (Alex, 2026-10-19): the stop line is built by asksAmount(s.role) — the card's own rule: money words for a stop that asks an amount,
+  // the outcome in the card's own words for one that asks none (reel02.test.ts R6). Moved, not loosened.
+  inOrder(c, ['dayWords: dayShortWords(day),', 'journal: reelJournal,', 'stops: result.stops.map((s) => (asksAmount(s.role)', "? { name: stopName(s), vendor: s.vendor, asksAmount: true, budgetWords: factOf(s.cents === null ? null : planDollars(s.cents)), actualWords: s.status === 'skipped' ? SKIPPED_WORD : s.actualCents === null ? factOf(null) : rowActualWords(s.actualCents, s.cents) }", ": { name: stopName(s), vendor: s.vendor, asksAmount: false, outcomeWords: s.status === 'done' ? DONE_WORD : s.status === 'skipped' ? SKIPPED_WORD : NOT_RECORDED_WORDS })),", 'budgetWords: factOf(totals.budgetCents === null ? null : planDollars(totals.budgetCents)),', 'actualWords: factOf(totals.actualCents === null ? null : planDollars(totals.actualCents)),', 'verdictWords: verdict === null ? null : verdict.text,'], 'the card’s own words for every stop and the TOTAL row, the verdict as the card says it');
+  assert.match(c, /import \{ DONE_WORD, NOT_RECORDED_WORDS, SKIPPED_WORD, starsWords, type StopRecordPlan, type StopRecordRow \} from '@\/lib\/operations\/stopRecord';/);
   const e = code(EVENING_FORM);
   assert.match(e, /if \(!auditPrompt\.ok\) return;\n\s*setCopyWords\(null\);\n\s*try \{\n\s*await navigator\.clipboard\.writeText\(auditPrompt\.text\);\n\s*setCopyWords\(\{ ok: true, words: AUDIT_PROMPT_COPIED_WORDS \}\);\n\s*\} catch \(error\) \{\n\s*setCopyWords\(\{ ok: false, words: auditPromptFailedWords\(error instanceof Error \? error\.message : String\(error\)\) \}\);\n\s*\}/, 'the PLAN-01 shape — copied, or the clipboard’s refusal, nothing else tried');
   assert.match(e, /<button type="button" className=\{chip\} disabled=\{!auditPrompt\.ok\} onClick=\{copyPrompt\} data-evening-copy-prompt>\{COPY_AUDIT_PROMPT_WORDS\}<\/button>/);
@@ -246,7 +250,8 @@ test('R6 every word is the rule’s; the registry’s Time row and the law’s c
   assert.match(code(LAW), /\['src\/components\/workbench\/operations\/stops\/StopForm\.tsx', \/data-stop-done-now\[\\s\\S\]\*✓ done now\/, 'the stop form on the day card lost "✓ done now" — the one way a routine is marked done'\],/, 'the controls list unchanged');
   assert.doesNotMatch(code(LAW), /EveningForm|EveningPlate/, 'the law names neither');
   assert.doesNotMatch(code(CARD_RULES), /EveningForm|EveningPlate|auditPrompt|MORNING_WORD|EVENING_WORD|lastNightWords/, 'dayCard.ts (the reel text) untouched');
-  assert.match(code(CARD_RULES), /readonly journal: Pick<Answers, 'goals' \| 'blocker'> \| null;/, 'the reel reads the goals and blocker only — REEL-02 adds next, not here');
+  // REEL-02 (Alex, 2026-10-19): the reel reads `next` too — the script's cliffhanger and the caption's line before the tags; learned and audit never (reel02.test.ts R1).
+  assert.match(code(CARD_RULES), /readonly journal: Pick<Answers, 'goals' \| 'blocker' \| 'next'> \| null;/, 'the reel reads the goals, the blocker and next — never learned or audit');
   for (const f of ['src/components/workbench/operations/ledger/LedgerSection.tsx', 'src/components/workbench/operations/stops/DayDeck.tsx', 'src/components/workbench/operations/stops/StopForm.tsx', 'src/app/api/operations/journal/route.ts']) {
     assert.doesNotMatch(code(f), /EveningForm|EveningPlate|auditPrompt|MORNING_WORD|EVENING_WORD/, `${f} knows nothing of the two cards`);
   }
