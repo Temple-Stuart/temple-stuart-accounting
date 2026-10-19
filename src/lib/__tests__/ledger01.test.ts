@@ -107,7 +107,7 @@ const built = buildRoutineBudgetLines(ROUTINES, FROM, TO);
 const doubled: BudgetLine[] = [...built.lines, built.lines.find((l) => l.sourceId === occurrenceKey({ routineId: 'gym', lineId: null, instant: new Date(GYM_12) })) as BudgetLine];
 
 const input = (over: Partial<LedgerInput> = {}): LedgerInput => ({
-  from: FROM, to: TO, now: NOW, records: RECORDS, lines: doubled, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, ...over,
+  from: FROM, to: TO, now: NOW, records: RECORDS, links: [], lines: doubled, notPlaced: built.notPlaced, routines: WORDS, roles: ROLES, vendors: VENDORS, stays: STAYS, accounts: ACCOUNTS, books: BOOKS, ...over,
 });
 
 const ledger = ledgerOf(input());
@@ -248,9 +248,10 @@ test('T3 ledgerTotals is the card’s TOTAL-row rule (dayTotals) over the rows s
   assert.equal(t.words, '▲ $26 over', 'against the budgets of the rows that carry an actual: $10 + $10');
   // LEDGER-02 (Alex, 2026-10-19): the totals carry varianceCents — null whenever either total is, never 0 (ledger02.test.ts drives it).
   // LEDGER-02 AMENDMENT (Alex, 2026-10-19): varianceCents is the column's sum over the rows that carry both, with withVariance counting them.
-  assert.deepEqual(ledgerTotals([]), { budgetCents: null, actualCents: null, over: null, words: '—', varianceCents: null, withVariance: 0 }, 'unknown is "—", never $0');
-  assert.deepEqual(ledgerTotals([rowOf('r-gym-13')]), { budgetCents: 2000, actualCents: null, over: null, words: '—', varianceCents: null, withVariance: 0 }, 'a budget with no actual');
-  assert.deepEqual(ledgerTotals([rowOf('r-yoga-12')]), { budgetCents: null, actualCents: 500, over: null, words: '—', varianceCents: null, withVariance: 0 }, 'an actual with no budget');
+  // LEDGER-03 (Alex, 2026-10-19): the totals carry matchCents and withMatch — the MATCH column's sum over the rows with a readable sum (ledger03.test.ts drives it).
+  assert.deepEqual(ledgerTotals([]), { budgetCents: null, actualCents: null, over: null, words: '—', varianceCents: null, withVariance: 0, matchCents: null, withMatch: 0 }, 'unknown is "—", never $0');
+  assert.deepEqual(ledgerTotals([rowOf('r-gym-13')]), { budgetCents: 2000, actualCents: null, over: null, words: '—', varianceCents: null, withVariance: 0, matchCents: null, withMatch: 0 }, 'a budget with no actual');
+  assert.deepEqual(ledgerTotals([rowOf('r-yoga-12')]), { budgetCents: null, actualCents: 500, over: null, words: '—', varianceCents: null, withVariance: 0, matchCents: null, withMatch: 0 }, 'an actual with no budget');
   assert.deepEqual(ledgerTotals([rowOf('r-coffee-12')]).words, '▼ $1 under');
   // The same numbers the card's own rule gives these rows — one rule, reused.
   const mirror = dayTotals({ stops: ledger.rows, spentCents: 4600, withActual: 4 }, null);
@@ -258,7 +259,7 @@ test('T3 ledgerTotals is the card’s TOTAL-row rule (dayTotals) over the rows s
   const rules = code(RULES);
   // LEDGER-02 (Alex, 2026-10-19): the return gained varianceCents — the four fields the card's, as before.
   // LEDGER-02 AMENDMENT (Alex, 2026-10-19): varianceCents is the column's sum (and withVariance its count), not the two totals' difference.
-  assert.match(rules, /const totals = dayTotals\(\{ stops: rows, spentCents: actuals\.reduce\(\(sum, c\) => sum \+ c, 0\), withActual: actuals\.length \}, null\);\n\s*const variances = rows\.map\(\(r\) => r\.varianceCents\)\.filter\(\(c\): c is number => c !== null\);\n\s*return \{\n\s*budgetCents: totals\.budgetCents,\n\s*actualCents: totals\.actualCents,\n\s*over: totals\.over,\n\s*words: deltaWords\(totals\.actualCents, totals\.recordedBudgetCents\)\.text,\n\s*varianceCents: variances\.length === 0 \? null : variances\.reduce\(\(sum, c\) => sum \+ c, 0\),\n\s*withVariance: variances\.length,\n\s*\};/, 'reused, not rewritten');
+  assert.match(rules, /const totals = dayTotals\(\{ stops: rows, spentCents: actuals\.reduce\(\(sum, c\) => sum \+ c, 0\), withActual: actuals\.length \}, null\);\n\s*const variances = rows\.map\(\(r\) => r\.varianceCents\)\.filter\(\(c\): c is number => c !== null\);\n\s*const matches = rows\.map\(\(r\) => readableMatchCents\(r\.match\)\)\.filter\(\(c\): c is number => c !== null\);\n\s*return \{\n\s*budgetCents: totals\.budgetCents,\n\s*actualCents: totals\.actualCents,\n\s*over: totals\.over,\n\s*words: deltaWords\(totals\.actualCents, totals\.recordedBudgetCents\)\.text,\n\s*varianceCents: variances\.length === 0 \? null : variances\.reduce\(\(sum, c\) => sum \+ c, 0\),\n\s*withVariance: variances\.length,\n\s*matchCents: matches\.length === 0 \? null : matches\.reduce\(\(sum, c\) => sum \+ c, 0\),\n\s*withMatch: matches\.length,\n\s*\};/, 'reused, not rewritten');
   assert.doesNotMatch(rules.slice(rules.indexOf('export function ledgerTotals'), rules.indexOf('export const GROUP_KEYS')), /filter\(\(s\) => s\.actualCents !== null\)/, 'the recorded budget is the card’s, not summed again here');
   // LEDGER-01: the card's rule reads what it reads (TotalsInput) and returns the recorded budget — the arithmetic unchanged (totals01 drives it).
   const card = code(CARD_RULES);
@@ -387,7 +388,9 @@ test('T5 the route: GET only, the stops GET’s gate first, from and to by the o
     'return NextResponse.json({ from, to, as_of: now.toISOString(), first_record: firstRecord, rows: ledger.rows, said: ledger.said });',
   ], 'the cookie, the user, the span, the clock once, the reads, the rules, the answer');
   assert.doesNotMatch(r, /\.(create|createMany|update|updateMany|delete|deleteMany|upsert)\s*\(|\$executeRaw|\$queryRaw|writeAuditLog/, 'read only: nothing is written');
-  assert.doesNotMatch(r, /ledger_entries|journal_entries|transactions\b|planned_item_links|budget_line_items|trip_itinerary|calendar_events|fetch\(/, 'no book data, no travel, no paid call');
+  // LEDGER-03 (Alex, 2026-10-19): the route reads the caller's planned_item_links — the books' link, by ruling — and the postings' lines through the one leaf (postingAmount.ts); nothing else of the books, no travel, no paid call.
+  assert.doesNotMatch(r, /ledger_entries|journal_entries\.|transactions\b|budget_line_items|trip_itinerary|calendar_events|fetch\(/, 'nothing of the books but the link, no travel, no paid call');
+  assert.equal((r.match(/prisma\.planned_item_links\.findMany\(/g) ?? []).length, 1, 'the one read of the link (LEDGER-03)');
   assert.match(r, /const recordsFrom = new Date\(Date\.parse\(`\$\{from\}T00:00:00\.000Z`\) - 14 \* HOUR_MS\);\n\s*const recordsTo = new Date\(Date\.parse\(`\$\{to\}T00:00:00\.000Z`\) \+ 36 \* HOUR_MS\);/, 'the any-zone window (recordWindow’s rule) over the span');
   assert.match(r, /const vendorsFrom = new Date\(Date\.parse\(`\$\{from\}T00:00:00\.000Z`\) - DAY_MS\);\n\s*const vendorsTo = new Date\(Date\.parse\(`\$\{to\}T00:00:00\.000Z`\) \+ 2 \* DAY_MS\);/, 'the vendors’ window (vendorWindow’s rule) over the span');
   assert.match(r, /if \(error instanceof BudgetDaysError \|\| error instanceof BudgetInputError\) \{\n\s*return NextResponse\.json\(\{ error: error\.code, message: error\.message \}, \{ status: 500 \}\);/, 'the day rules’ and the inputs’ refusals, by code — as the report answers them');
@@ -444,7 +447,7 @@ test('T6 the section: the sixteen columns (LEDGER-02; ten until then), the perio
     assert.ok(s.includes(attr), `the section carries ${attr}`);
   }
   // LEDGER-02 (Alex, 2026-10-19): sixteen cells in the head's order (ledger02.test.ts holds each against LEDGER_HEAD_WORDS); until then ten, DATE printing dayShortWords and COA the combined cell.
-  inOrder(s, ['data-ledger-cell="day">{dayLongWords(row.day)}', 'data-ledger-cell="date">{row.day}', 'data-ledger-cell="city">{CELL_WORDS.city(row)}', 'data-ledger-cell="country">{CELL_WORDS.country(row)}', 'data-ledger-cell="book">{bookCellWords(row)}', 'data-ledger-cell="account">{accountCellWords(row)}', 'data-ledger-cell="account-name">{accountNameCellWords(row)}', 'data-ledger-cell="description">{row.description}', 'data-ledger-cell="vendor">{vendorCellWords(row.vendor)}', 'data-ledger-cell="stars">{starsCellWords(row.rating)}', 'data-ledger-cell="budget">{budgetCellWords(row.cents)}', 'data-ledger-cell="actual">{actualCellWords(row)}', 'data-ledger-cell="variance">{varianceCellWords(row.varianceCents)}', 'data-ledger-cell="match">{MATCH_CELL_WORDS}', 'data-ledger-cell="under-over">{underOverWords(row.varianceCents)}', 'data-ledger-cell="notes">{noteCellWords(row.note)}'], 'the sixteen cells, each its words');
+  inOrder(s, ['data-ledger-cell="day">{dayLongWords(row.day)}', 'data-ledger-cell="date">{row.day}', 'data-ledger-cell="city">{CELL_WORDS.city(row)}', 'data-ledger-cell="country">{CELL_WORDS.country(row)}', 'data-ledger-cell="book">{bookCellWords(row)}', 'data-ledger-cell="account">{accountCellWords(row)}', 'data-ledger-cell="account-name">{accountNameCellWords(row)}', 'data-ledger-cell="description">{row.description}', 'data-ledger-cell="vendor">{vendorCellWords(row.vendor)}', 'data-ledger-cell="stars">{starsCellWords(row.rating)}', 'data-ledger-cell="budget">{budgetCellWords(row.cents)}', 'data-ledger-cell="actual">{actualCellWords(row)}', 'data-ledger-cell="variance">{varianceCellWords(row.varianceCents)}', 'data-ledger-cell="match" title={matchCellTitle(row.match) ?? undefined}>', '<span data-ledger-match>{matchCellWords(row.match)}</span>', 'data-ledger-link={row.key}', 'data-ledger-cell="under-over">{underOverWords(row.varianceCents)}', 'data-ledger-cell="notes">{noteCellWords(row.note)}'], 'the sixteen cells, each its words');
   assert.match(s, /actualTone\(delta\.over\)/, 'the ACTUAL cell in the row’s tone (deltaWords), as the card');
   // LEDGER-02 (Alex, 2026-10-19): the TOTAL row's ACTUAL cell is the amount alone — the words span (totals.words, against the recorded rows' budgets) left it; VARIANCE and UNDER / OVER follow, from the two totals.
   inOrder(s, ['<tfoot>', '{TOTAL_WORDS}', 'budgetCellWords(totals.budgetCents)', 'budgetCellWords(totals.actualCents)}</td>', 'varianceCellWords(totals.varianceCents)', 'data-ledger-total-match', 'underOverWords(totals.varianceCents)'], 'the TOTAL row under the table');

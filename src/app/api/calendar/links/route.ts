@@ -23,10 +23,21 @@
  * IT WRITES NOTHING BUT THE LINK. No posting is altered, no journal entry is
  * touched, no task's actual_cost_usd is overwritten. The Books commit flow is
  * not in this file.
+ *
+ * LEDGER-03 (Alex, 2026-10-19): A LINK IS A FINANCIAL ASSERTION — AUDITED. The
+ * POST writes planned_item_linked and the DELETE planned_item_unlinked
+ * (writeAuditLog: the actor, the table, the row's id, the payload { kind, id,
+ * instant, journal_entry_id, amountCents }); the migration
+ * 20261019230000_ledger_03_planned_item_link_audit adds the two values. The
+ * amount rule (amountCentsOf) moved to src/lib/calendar/postingAmount.ts so the
+ * ledger route reads a posting's amount by the same rule — one copy. The
+ * candidate rule is unchanged: the window, the date order, nothing pre-selected.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { writeAuditLog } from '@/lib/audit/writeAuditLog';
+import { POSTING_LINES_SELECT, amountCentsOf } from '@/lib/calendar/postingAmount';
 import { LINKABLE_KINDS, isLinkableKind, requiresInstant, targetOwnerQuery, type LinkableKind, type TargetOwnerQuery } from '@/lib/calendar/linkKeys';
 
 /** How far either side of the item's date a candidate may sit. Not a match — a window. */
@@ -42,24 +53,12 @@ async function caller() {
   });
 }
 
-/**
- * The amount of a posting, in cents, or NULL when it cannot be read.
- *
- * EDGE-01 found the opposite of this at src/app/api/trade-card-links/route.ts:80
- * and :255 — `sum + (p.realized_pl ?? 0)` silently counts an unknown as zero. A
- * posting with no readable debit line returns NULL here and is REPORTED by the
- * leaf, never summed.
- */
-function amountCentsOf(entry: { ledger_entries: { entry_type: string; amount: bigint }[] }): number | null {
-  const debit = entry.ledger_entries.find((l) => l.entry_type === 'D');
-  if (!debit) return null;
-  const n = Number(debit.amount);
-  return Number.isFinite(n) ? n : null;
-}
+// The amount of a posting, in cents, or NULL when it cannot be read: src/lib/calendar/postingAmount.ts amountCentsOf — the one
+// rule (LEDGER-03 moved it there; the ledger route reads by it too). A NULL is REPORTED by the leaf, never summed.
 
 const ENTRY_SELECT = {
   id: true, date: true, description: true,
-  ledger_entries: { select: { entry_type: true, amount: true } },
+  ...POSTING_LINES_SELECT,
 } as const;
 
 type EntryRow = { id: string; date: Date; description: string; ledger_entries: { entry_type: string; amount: bigint }[] };
@@ -184,7 +183,7 @@ export async function POST(request: NextRequest) {
   // The posting must be THIS user's. Someone else's resolves to a defensive 404.
   const entry = await prisma.journal_entries.findFirst({
     where: { id: body.journalEntryId, userId: user.id },
-    select: { id: true },
+    select: { id: true, ...POSTING_LINES_SELECT },
   });
   if (!entry) return NextResponse.json({ error: 'No such posting' }, { status: 404 });
 
@@ -207,6 +206,13 @@ export async function POST(request: NextRequest) {
       linked_by: user.email,
     },
   });
+  // LEDGER-03: audited, with the posting's amount as the books hold it (NULL when unreadable — said, never zero).
+  await writeAuditLog({
+    actor: { user_id: user.id, email: user.email, type: 'human_user' },
+    action: { type: 'planned_item_linked', description: `Linked posting ${entry.id} to ${t.kind} ${t.id}${t.instant === null ? '' : ` at ${t.instant.toISOString()}`}` },
+    target: { table: 'planned_item_links', id: link.id },
+    payload: { after: { kind: t.kind, id: t.id, instant: t.instant === null ? null : t.instant.toISOString(), journal_entry_id: entry.id, amountCents: amountCentsOf(entry) } },
+  });
   return NextResponse.json({ link: { journalEntryId: link.journal_entry_id, linkedAt: link.linked_at.toISOString() } }, { status: 201 });
 }
 
@@ -217,10 +223,22 @@ export async function DELETE(request: NextRequest) {
   const journalEntryId = request.nextUrl.searchParams.get('journalEntryId');
   if (!journalEntryId) return NextResponse.json({ error: 'journalEntryId is required' }, { status: 400 });
 
-  // Scoped by user_id: another user's link is invisible, so this is a 404.
+  // Scoped by user_id: another user's link is invisible, so this is a 404. LEDGER-03: the row is read first (user-scoped, with its
+  // posting's lines), so the audit names what was unlinked and the amount it carried.
+  const link = await prisma.planned_item_links.findFirst({
+    where: { journal_entry_id: journalEntryId, user_id: user.id },
+    include: { journal_entry: { select: POSTING_LINES_SELECT } },
+  });
+  if (!link) return NextResponse.json({ error: 'No such link' }, { status: 404 });
   const removed = await prisma.planned_item_links.deleteMany({
     where: { journal_entry_id: journalEntryId, user_id: user.id },
   });
   if (removed.count === 0) return NextResponse.json({ error: 'No such link' }, { status: 404 });
+  await writeAuditLog({
+    actor: { user_id: user.id, email: user.email, type: 'human_user' },
+    action: { type: 'planned_item_unlinked', description: `Unlinked posting ${link.journal_entry_id} from ${link.target_kind} ${link.target_id}${link.target_instant === null ? '' : ` at ${link.target_instant.toISOString()}`}` },
+    target: { table: 'planned_item_links', id: link.id },
+    payload: { before: { kind: link.target_kind, id: link.target_id, instant: link.target_instant === null ? null : link.target_instant.toISOString(), journal_entry_id: link.journal_entry_id, amountCents: amountCentsOf(link.journal_entry) } },
+  });
   return NextResponse.json({ unlinked: journalEntryId });
 }

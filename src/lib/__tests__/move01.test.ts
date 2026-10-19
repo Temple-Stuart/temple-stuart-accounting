@@ -235,9 +235,11 @@ test('T4 the window may cross midnight: the create route and the PATCH refuse on
 test('T5 the audit type: the enum value last, the one ADD VALUE line applied at deploy, the client knows it, the audit log lists it; the one-off law names the plan as an anchored caller', () => {
   const dirs = readdirSync(resolve(process.cwd(), 'prisma/migrations')).filter((d) => /^\d{14}_/.test(d)).sort();
   // JOURNAL-04 (2026-10-19): the evening answers' migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the migration before the newest (JOURNAL-04 followed)');
-  assert.equal(dirs[dirs.length - 1], '20261019210000_journal_04_evening_answers', 'the newest migration');
-  assert.equal(dirs[dirs.length - 3], '20261018120000_routine_02b_rekeyed_audit_type');
+  assert.equal(dirs[dirs.length - 3], MIGRATION_DIR, 'the migration before the newest (JOURNAL-04 followed)');
+  assert.equal(dirs[dirs.length - 2], '20261019210000_journal_04_evening_answers', 'the migration before the newest (LEDGER-03 followed)');
+  // LEDGER-03 (Alex, 2026-10-19): two audit values for the planned-item link — the newest; every position above moved by one.
+  assert.equal(dirs[dirs.length - 1], '20261019230000_ledger_03_planned_item_link_audit', 'the newest migration');
+  assert.equal(dirs[dirs.length - 4], '20261018120000_routine_02b_rekeyed_audit_type');
   const sql = code(MIGRATION);
   assert.equal(sql.trim(), `ALTER TYPE "AuditActionType" ADD VALUE IF NOT EXISTS 'operations_routines_moved';`, 'the one line and nothing else');
   assert.match(comments(MIGRATION), /applied at deploy/);
@@ -245,8 +247,9 @@ test('T5 the audit type: the enum value last, the one ADD VALUE line applied at 
   const auditEnum = /enum AuditActionType \{([\s\S]*?)\}/.exec(schema);
   assert.ok(auditEnum !== null);
   const values = auditEnum[1].split(/\s+/).filter(Boolean);
-  assert.equal(values[values.length - 1], 'operations_routines_moved');
-  assert.equal(values[values.length - 2], 'operations_routine_rekeyed');
+  // LEDGER-03 (Alex, 2026-10-19): planned_item_linked and planned_item_unlinked follow — the last but two now (ledger03.test.ts pins the pair).
+  assert.equal(values[values.length - 3], 'operations_routines_moved');
+  assert.equal(values[values.length - 4], 'operations_routine_rekeyed');
   assert.equal(values.filter((v) => v === 'operations_routines_moved').length, 1);
   assert.equal(AuditActionType.operations_routines_moved, 'operations_routines_moved', 'prisma generate ran');
   assert.match(code(AUDIT_ROUTE), /'operations_routine_rekeyed',\s*'operations_routines_moved',\s*\],/);

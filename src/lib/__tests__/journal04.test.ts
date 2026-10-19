@@ -52,8 +52,10 @@ const refused = (body: unknown): { field: string; message: string } => {
 
 test('T1 the migration: the newest; three nullable columns with no default; the evening not-blank CHECK; at-least-one re-made in ONE statement as JOURNAL-02’s OR the three; no DROP COLUMN, no enum, no row; the header says so', () => {
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 1], MIGRATION_DIR, 'the newest migration');
-  assert.equal(dirs[dirs.length - 2], '20261019090000_move_01_moved_audit_type', 'right after MOVE-01’s');
+  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the migration before the newest (LEDGER-03 followed)');
+  // LEDGER-03 (Alex, 2026-10-19): two audit values for the planned-item link — the newest; every position above moved by one.
+  assert.equal(dirs[dirs.length - 1], '20261019230000_ledger_03_planned_item_link_audit', 'the newest migration');
+  assert.equal(dirs[dirs.length - 3], '20261019090000_move_01_moved_audit_type', 'right after MOVE-01’s');
   const sql = code(MIGRATION);
   assert.match(sql, /ALTER TABLE "operations_day_journals"\n\s*ADD COLUMN "audit"\s+TEXT,\n\s*ADD COLUMN "learned" VARCHAR\(500\),\n\s*ADD COLUMN "next"\s+VARCHAR\(500\);/, 'the three columns, nullable, no default');
   assert.doesNotMatch(sql, /NOT NULL|DEFAULT/, 'NULL is unanswered — no default, nothing required');
