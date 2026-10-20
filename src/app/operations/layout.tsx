@@ -18,6 +18,13 @@ import { OperationsEntityProvider } from '@/components/workbench/operations/Enti
  * placeholder). Two pages render under this layout now — north-star and
  * audit-log, each doored by a link on Tasks' registry row; projects, routines
  * and content are one-hop redirects.
+ *
+ * TASKS-02b (2026-10-20): the paragraph above is history. The North Star's
+ * page, section and routes are deleted (TASKS-02, #1838), so ONE page renders
+ * under this layout now — audit-log/page.tsx — and its door is the Compliance
+ * row's link (src/lib/toolRegistry.ts), not Tasks': Tasks has no sub-rows.
+ * projects, routines and content are still one-hop redirects (to /tasks,
+ * /tasks and /time).
  */
 
 export default function OperationsLayout({ children }: { children: React.ReactNode }) {
