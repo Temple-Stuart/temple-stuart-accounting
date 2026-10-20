@@ -30,6 +30,10 @@
  * there is no row), so a morning save never clears an evening typed before; JOURNAL-05's evening
  * card does the same in reverse. No box for them here, no words. Every writer sends the row as held.
  *
+ * JOURNAL-06 (Alex, 2026-10-20): the evening's SEVEN ride AS HELD — audit, gaps, evolution, direction,
+ * alignment, on_track and next (learned retired, JOURNAL-03's way: the body never carries it; the rule
+ * refuses one that does, by name). The morning's save still never clears an evening typed before.
+ *
  * JOURNAL-05 (Alex, 2026-10-19): THE MORNING FORM. The three questions are the MORNING's (journal.ts
  * MORNING_GOALS_QUESTION · MORNING_BLOCKER_QUESTION · MORNING_PLAN_QUESTION — "what must be true by
  * tonight"); the boxes, the save, "+ yesterday's open steps" and "copy plan prompt" are as they were.
@@ -98,8 +102,8 @@ export default function JournalForm({ day, journal, yesterday, onChanged }: {
     // The lines as typed (blank lines dropped, a pasted list's marker off — PLAN-01), the saved ticks carried to the same steps, then the route's rule — a refusal is the words the route would answer.
     const steps = linesOf(draft.plan).map(stripListMarker);
     const ticks = carryTicks(journal === null ? [] : journal.plan_steps, journal === null ? [] : journal.plan_done, steps);
-    // JOURNAL-04 (2026-10-19): the evening's three ride AS HELD from the journal prop at save time (null when there is no row) — a save never clears an evening.
-    const read = journalInput({ day, goals: linesOf(draft.goals).map(stripListMarker), blocker: draft.blocker === '' ? null : draft.blocker, plan_steps: steps, plan_done: ticks, audit: journal === null ? null : journal.audit, learned: journal === null ? null : journal.learned, next: journal === null ? null : journal.next });
+    // JOURNAL-04 (2026-10-19) / JOURNAL-06 (2026-10-20): the evening's seven ride AS HELD from the journal prop at save time (null when there is no row) — a save never clears an evening; learned is retired and never sent.
+    const read = journalInput({ day, goals: linesOf(draft.goals).map(stripListMarker), blocker: draft.blocker === '' ? null : draft.blocker, plan_steps: steps, plan_done: ticks, audit: journal === null ? null : journal.audit, gaps: journal === null ? null : journal.gaps, evolution: journal === null ? null : journal.evolution, direction: journal === null ? null : journal.direction, alignment: journal === null ? null : journal.alignment, on_track: journal === null ? null : journal.on_track, next: journal === null ? null : journal.next });
     if (!read.ok) { setWords(read.message); return; }
     setBusy(true);
     setWords(null);

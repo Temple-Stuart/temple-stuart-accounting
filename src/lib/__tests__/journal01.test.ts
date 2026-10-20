@@ -196,7 +196,8 @@ test('T1 journalInput: an answer that is nothing visible is unanswered; the leng
   // JOURNAL-03 (2026-10-15): shipped's 500 left ANSWER_MAX with END OF DAY — a shipped of any length is refused as retired, before its length.
   assert.deepEqual(refused({ day: DAY, shipped: 'x'.repeat(501) }), { field: 'shipped', message: retiredFieldWords('shipped') });
   // JOURNAL-04 (2026-10-19): the evening's three joined ANSWER_MAX — learned's and next's 500 are column lengths, audit's 4000 the rule's own cap (journal04.test.ts).
-  assert.deepEqual(ANSWER_MAX, { blocker: 280, audit: 4000, learned: 500, next: 500 }, 'the four text answers; JOURNAL_01_COLUMNS keeps the retired columns’ lengths for the migration’s pins');
+  // JOURNAL-06 (Alex, 2026-10-20): the five blocks joined at the audit's 4000; learned left ANSWER_MAX with its question (retired, JOURNAL-03's way).
+  assert.deepEqual(ANSWER_MAX, { blocker: 280, audit: 4000, gaps: 4000, evolution: 4000, direction: 4000, alignment: 4000, on_track: 4000, next: 500 }, 'the eight text answers; JOURNAL_01_COLUMNS keeps the retired columns’ lengths for the migration’s pins');
 });
 
 // JOURNAL-02 (2026-10-13): the "if … then …" pairs and the obstacle are RETIRED — never read from a body, so a pair is no longer refused
@@ -309,21 +310,23 @@ test('T3 the migration: the table column for column, the UNIQUE named, four pair
   // TASKS-ONE-02 (2026-10-14): the completion audit types' migration is newer still — every index moved one; the order holds.
   // RETRO-01 (Alex, 2026-10-16): the stop-moved audit type's migration is newer still — every index moved one; the order holds.
   // ROUTINE-02b (2026-10-18): one more audit-type migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 10], MIGRATION_DIR, 'the migration four before the newest (JOURNAL-02, TASKS-ONE-02, then RETRO-01, ROUTINE-02b followed)');
-  assert.equal(dirs[dirs.length - 9], '20261013200000_journal_02_the_simple_journal');
-  assert.equal(dirs[dirs.length - 8], '20261014090000_tasks_one_02_completion_audit_types');
-  assert.equal(dirs[dirs.length - 7], '20261016120000_retro_01_stop_moved_audit_type', 'the migration before the newest (ROUTINE-02b followed)');
+  assert.equal(dirs[dirs.length - 11], MIGRATION_DIR, 'the migration four before the newest (JOURNAL-02, TASKS-ONE-02, then RETRO-01, ROUTINE-02b followed)');
+  assert.equal(dirs[dirs.length - 10], '20261013200000_journal_02_the_simple_journal');
+  assert.equal(dirs[dirs.length - 9], '20261014090000_tasks_one_02_completion_audit_types');
+  assert.equal(dirs[dirs.length - 8], '20261016120000_retro_01_stop_moved_audit_type', 'the migration before the newest (ROUTINE-02b followed)');
   // MOVE-01 (2026-10-19): one more audit-type migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 6], '20261018120000_routine_02b_rekeyed_audit_type', 'the migration before the newest (MOVE-01 followed)');
+  assert.equal(dirs[dirs.length - 7], '20261018120000_routine_02b_rekeyed_audit_type', 'the migration before the newest (MOVE-01 followed)');
   // JOURNAL-04 (2026-10-19): the evening answers' migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 5], '20261019090000_move_01_moved_audit_type', 'the migration before the newest (JOURNAL-04 followed)');
-  assert.equal(dirs[dirs.length - 4], '20261019210000_journal_04_evening_answers', 'the migration before the newest (LEDGER-03 followed)');
+  assert.equal(dirs[dirs.length - 6], '20261019090000_move_01_moved_audit_type', 'the migration before the newest (JOURNAL-04 followed)');
+  assert.equal(dirs[dirs.length - 5], '20261019210000_journal_04_evening_answers', 'the migration before the newest (LEDGER-03 followed)');
   // LEDGER-03 (Alex, 2026-10-19): two audit values for the planned-item link — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 3], '20261019230000_ledger_03_planned_item_link_audit', 'the migration before the newest (BACKLOG-01 followed)');
+  assert.equal(dirs[dirs.length - 4], '20261019230000_ledger_03_planned_item_link_audit', 'the migration before the newest (BACKLOG-01 followed)');
   // BACKLOG-01 (Alex, 2026-10-20): the capture's columns and the four statuses — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 2], '20261020120000_backlog_01_capture', 'the migration before the newest (BACKLOG-01b followed)');
+  assert.equal(dirs[dirs.length - 3], '20261020120000_backlog_01_capture', 'the migration before the newest (BACKLOG-01b followed)');
   // BACKLOG-01b (Alex, 2026-10-20): the brief's three columns — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 1], '20261020140000_backlog_01b_brief', 'the newest migration');
+  assert.equal(dirs[dirs.length - 2], '20261020140000_backlog_01b_brief', 'the migration before the newest (JOURNAL-06 followed)');
+  // JOURNAL-06 (Alex, 2026-10-20): the evening's five columns, the two CHECKs re-made — the newest; every position above moved by one.
+  assert.equal(dirs[dirs.length - 1], '20261020150000_journal_06_reflection', 'the newest migration');
   assert.ok(MIGRATION_DIR.slice(0, 14) > '20261013030000', 'after ROLE-01’s');
 });
 
@@ -495,7 +498,8 @@ test('T6 the form: no maxLength, the route’s rule first, the one writer, clear
   // PLAN-01 (2026-10-13): each goal line loses a pasted list's marker (stripListMarker) — the pin moved with it.
   // JOURNAL-03 (2026-10-15): the body carries no shipped — the END OF DAY box is gone; the pin moved with it, as exact.
   // JOURNAL-04 (Alex, 2026-10-19): the body carries the evening's three as held from the journal prop — every writer sends the row as held; the pin moved with it, as exact.
-  assert.match(f, /const read = journalInput\(\{ day, goals: linesOf\(draft\.goals\)\.map\(stripListMarker\), blocker: draft\.blocker === '' \? null : draft\.blocker, plan_steps: steps, plan_done: ticks, audit: journal === null \? null : journal\.audit, learned: journal === null \? null : journal\.learned, next: journal === null \? null : journal\.next \}\);\n\s*if \(!read\.ok\) \{ setWords\(read\.message\); return; \}/, 'a blank box is null; a refusal is the route’s words; the three as held');
+  // JOURNAL-06 (Alex, 2026-10-20): the evening's seven as held — the five blocks joined, learned retired and never sent; the pin moved with it, as exact.
+  assert.match(f, /const read = journalInput\(\{ day, goals: linesOf\(draft\.goals\)\.map\(stripListMarker\), blocker: draft\.blocker === '' \? null : draft\.blocker, plan_steps: steps, plan_done: ticks, audit: journal === null \? null : journal\.audit, gaps: journal === null \? null : journal\.gaps, evolution: journal === null \? null : journal\.evolution, direction: journal === null \? null : journal\.direction, alignment: journal === null \? null : journal\.alignment, on_track: journal === null \? null : journal\.on_track, next: journal === null \? null : journal\.next \}\);\n\s*if \(!read\.ok\) \{ setWords\(read\.message\); return; \}/, 'a blank box is null; a refusal is the route’s words; the seven as held');
   assert.match(f, /const answer = await setJournal\(day, read\.value\.answers\);\n\s*if \(!answer\.ok\) \{ setWords\(answer\.message\); return; \}\n\s*onChanged\(\);/, 'the one writer, then the caller re-reads');
   assert.doesNotMatch(f, /maxLength/, 'no maxLength — it counts UTF-16 units; the rule’s refusal is the limit');
   assert.doesNotMatch(f, /\bfetch\s*\(|\/api\//, 'the form names no route of its own');

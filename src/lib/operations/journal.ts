@@ -43,6 +43,20 @@
  * row as held (JOURNAL-04b); the morning's clear clears both. The words are
  * all here.
  *
+ * JOURNAL-06 (Alex, 2026-10-20) — THE EVENING'S SIX QUESTIONS AND THE
+ * REFLECTION PROMPT. The evening card asks SEVEN, in order: ACCOMPLISHED (the
+ * `audit` column — the narrative the chat writes from the reflection prompt,
+ * pasted back) · GAPS · EVOLUTION · DIRECTION · ALIGNMENT · ON TRACK · NEXT.
+ * Five new Text columns — gaps, evolution, direction, alignment, on_track —
+ * each the audit's rule (blockOf). `learned` RETIRES, JOURNAL-03's way: its
+ * column stays, it leaves ANSWER_FIELDS, joins RETIRED_FIELDS, its question and
+ * box go, nothing reads it. "copy reflection prompt" replaces "copy audit
+ * prompt": reflectionPromptText words a CONSTANT around the day's data (what
+ * auditPromptText carried) + THE BACKLOG + WHAT MOVED TODAY + THE ANSWERS +
+ * THE ASK (REFLECTION_PROMPT_ASK, verbatim, the same every day). Eleven
+ * answers now; every writer sends the whole row. The five columns are
+ * JOURNAL-06's migration.
+ *
  * REEL-02 (Alex, 2026-10-19) — THE AUDIT PROMPT PRINTS MONEY ONLY FOR A STOP
  * THAT ASKS IT. AuditPromptStop carries `asksAmount`, set by the card from its
  * own rule (day/dayCard.ts asksAmount — this file imports nothing of the card):
@@ -75,17 +89,24 @@ import { isIsoDay } from '@/lib/budget/days';
  * columns' lengths (VARCHAR(500)); audit's 4000 is the rule's OWN cap on a TEXT column, which the database does not
  * bound. JOURNAL-03 (2026-10-15): shipped's 500 left with END OF DAY.
  */
+// JOURNAL-06 (Alex, 2026-10-20): the evening's five — gaps, evolution, direction, alignment, on_track — each the
+// audit's rule (a block of at most 4000 code points and 200 lines); learned RETIRED (JOURNAL-03's way) and left
+// ANSWER_MAX with its question.
 export const ANSWER_MAX = {
   blocker: 280,
   audit: 4000,
-  learned: 500,
+  gaps: 4000,
+  evolution: 4000,
+  direction: 4000,
+  alignment: 4000,
+  on_track: 4000,
   next: 500,
 } as const;
 
 export type TextField = keyof typeof ANSWER_MAX;
 
-/** JOURNAL-04: the one BLOCK answer — paragraphs, its line breaks kept (blockOf) — and the lines it may hold. */
-export type BlockField = 'audit';
+/** JOURNAL-04: the BLOCK answers — paragraphs, their line breaks kept (blockOf) — and the lines each may hold. JOURNAL-06: six blocks. */
+export type BlockField = 'audit' | 'gaps' | 'evolution' | 'direction' | 'alignment' | 'on_track';
 export const BLOCK_MAX_LINES = 200;
 
 /** Each list's limits: the lines it holds (the migration's CHECKs) and each line's characters (the rule's). */
@@ -97,11 +118,12 @@ export const LIST_MAX = {
 export type ListField = keyof typeof LIST_MAX;
 
 /**
- * The seven answers: the morning's four in the plate's order — TODAY's goals, BLOCKERS, PLAN's steps and their
- * ticks — then the evening's three (JOURNAL-04, 2026-10-19): audit, learned, next. JOURNAL-03 (2026-10-15): END
- * OF DAY (shipped) is retired.
+ * The eleven answers: the morning's four in the plate's order — TODAY's goals, BLOCKERS, PLAN's steps and their
+ * ticks — then the evening's seven (JOURNAL-06, Alex, 2026-10-20) in the card's order: audit (ACCOMPLISHED — the
+ * narrative), gaps, evolution, direction, alignment, on_track, next. JOURNAL-03 (2026-10-15): END OF DAY
+ * (shipped) is retired; JOURNAL-06: learned is retired the same way.
  */
-export const ANSWER_FIELDS = ['goals', 'blocker', 'plan_steps', 'plan_done', 'audit', 'learned', 'next'] as const;
+export const ANSWER_FIELDS = ['goals', 'blocker', 'plan_steps', 'plan_done', 'audit', 'gaps', 'evolution', 'direction', 'alignment', 'on_track', 'next'] as const;
 
 export type AnswerField = (typeof ANSWER_FIELDS)[number];
 
@@ -111,19 +133,31 @@ export interface Answers {
   readonly plan_steps: string[];
   /** One tick per step, in the steps' order. */
   readonly plan_done: boolean[];
-  /** JOURNAL-04: the pasted audit — a block, paragraphs joined with '\n'; null until typed. */
+  /** JOURNAL-04: ACCOMPLISHED — the narrative pasted back from the chat (JOURNAL-06); a block, paragraphs joined with '\n'; null until typed. */
   readonly audit: string | null;
-  /** JOURNAL-04: what I learned, or what surprised me; null until typed. */
-  readonly learned: string | null;
+  /** JOURNAL-06: the gaps — what is missing, wrong, or not yet true; a block. */
+  readonly gaps: string | null;
+  /** JOURNAL-06: what changed in how we build today; a block. */
+  readonly evolution: string | null;
+  /** JOURNAL-06: going well, or change direction — which, and why; a block. */
+  readonly direction: string | null;
+  /** JOURNAL-06: anything the chat did not aligned with the vision; a block. */
+  readonly alignment: string | null;
+  /** JOURNAL-06: on the rails — accounting rules, SOC 2, the mission; a block. */
+  readonly on_track: string | null;
   /** JOURNAL-04: where I want to take it next; null until typed. */
   readonly next: string | null;
 }
 
-/** RETIRED 2026-10-13 (JOURNAL-02) and 2026-10-15 (JOURNAL-03, shipped) — kept in the table, never asked, shown or written; a body that carries one is refused by name. */
+/**
+ * RETIRED 2026-10-13 (JOURNAL-02), 2026-10-15 (JOURNAL-03, shipped) and 2026-10-20 (JOURNAL-06, learned) — kept in
+ * the table, never asked, shown or written; a body that carries one is refused by name.
+ */
 export const RETIRED_FIELDS = [
   'adjustment', 'one_thing', 'witness',
   'plan_1_if', 'plan_1_then', 'plan_2_if', 'plan_2_then', 'plan_3_if', 'plan_3_then', 'obstacle_if', 'obstacle_then',
   'shipped',
+  'learned',
 ] as const;
 
 export type RetiredField = (typeof RETIRED_FIELDS)[number];
@@ -147,17 +181,21 @@ export type JournalDbRow = Answers & Retired & {
 /** Nothing answered — what an unanswered day reads as. */
 export const NO_ANSWERS: Answers = Object.freeze({
   goals: Object.freeze([]) as unknown as string[], blocker: null, plan_steps: Object.freeze([]) as unknown as string[], plan_done: Object.freeze([]) as unknown as boolean[],
-  audit: null, learned: null, next: null,
+  audit: null, gaps: null, evolution: null, direction: null, alignment: null, on_track: null, next: null,
 });
 
-/** The answers alone, from a row — built fresh from ANSWER_FIELDS (the seven, JOURNAL-04), the lists copied, so no other key passes through. */
+/** The answers alone, from a row — built fresh from ANSWER_FIELDS (the eleven, JOURNAL-06), the lists copied, so no other key passes through. */
 export const answersOf = (source: Partial<Answers>): Answers => ({
   goals: [...(source.goals ?? [])],
   blocker: source.blocker ?? null,
   plan_steps: [...(source.plan_steps ?? [])],
   plan_done: [...(source.plan_done ?? [])],
   audit: source.audit ?? null,
-  learned: source.learned ?? null,
+  gaps: source.gaps ?? null,
+  evolution: source.evolution ?? null,
+  direction: source.direction ?? null,
+  alignment: source.alignment ?? null,
+  on_track: source.on_track ?? null,
   next: source.next ?? null,
 });
 
@@ -289,7 +327,8 @@ function blockOf(field: BlockField, raw: unknown): { readonly ok: true; readonly
 
 /**
  * The one rule for what a journal is given: { day, goals?, blocker?,
- * plan_steps?, plan_done?, audit?, learned?, next? }. The body an object; then no retired field —
+ * plan_steps?, plan_done?, audit?, gaps?, evolution?, direction?, alignment?, on_track?, next? }
+ * (JOURNAL-06: learned retired). The body an object; then no retired field —
  * JOURNAL-03 (Alex, 2026-10-15): a body that carries one of the twelve, any
  * value, null included, is refused by that field's name (retiredFieldWords;
  * JOURNAL-02 ignored them), while any other extra key is still ignored. `day` a real
@@ -303,8 +342,9 @@ function blockOf(field: BlockField, raw: unknown): { readonly ok: true; readonly
  * by name when it is not. A text answer that is nothing visible is unanswered
  * (null). JOURNAL-04 (2026-10-19): then the evening's three — audit a block
  * (blockOf: its line breaks kept, at most 4000 code points and 200 lines),
- * learned and next texts (textOf, at most 500). At least one goal, step,
- * blocker, audit, learned or next (JOURNAL-03: end of day no longer counts).
+ * next a text (textOf, at most 500); JOURNAL-06 (2026-10-20): the five blocks (gaps, evolution,
+ * direction, alignment, on_track) each the audit's rule. At least one of the eleven
+ * (JOURNAL-03: end of day no longer counts; JOURNAL-06: learned neither).
  * Checked in ANSWER_FIELDS' order — the plate's four, then the three — the
  * first bad field named. The answers come back built from the seven fields
  * alone — a retired field, or any other key, never passes.
@@ -337,28 +377,41 @@ export function journalInput(body: unknown): JournalInputResult {
   }
   if (plan_done.length !== steps.lines.length) return refuse('plan_done', doneLengthWords(plan_done.length, steps.lines.length));
 
-  // JOURNAL-04: the evening's three, after the morning's four.
+  // JOURNAL-04: the evening's answers, after the morning's four. JOURNAL-06 (Alex, 2026-10-20): seven, in the
+  // card's order — the narrative and the five as blocks, then next as a line; learned is refused above, retired.
   const audit = blockOf('audit', b.audit);
   if (!audit.ok) return audit.result;
-  const learned = textOf('learned', b.learned);
-  if (!learned.ok) return learned.result;
+  const gaps = blockOf('gaps', b.gaps);
+  if (!gaps.ok) return gaps.result;
+  const evolution = blockOf('evolution', b.evolution);
+  if (!evolution.ok) return evolution.result;
+  const direction = blockOf('direction', b.direction);
+  if (!direction.ok) return direction.result;
+  const alignment = blockOf('alignment', b.alignment);
+  if (!alignment.ok) return alignment.result;
+  const on_track = blockOf('on_track', b.on_track);
+  if (!on_track.ok) return on_track.result;
   const next = textOf('next', b.next);
   if (!next.ok) return next.result;
 
-  if (goals.lines.length === 0 && steps.lines.length === 0 && blocker.text === null && audit.text === null && learned.text === null && next.text === null) return refuse('goals', NOTHING_TYPED_WORDS);
-  return { ok: true, value: { day, answers: { goals: goals.lines, blocker: blocker.text, plan_steps: steps.lines, plan_done, audit: audit.text, learned: learned.text, next: next.text } } };
+  if (goals.lines.length === 0 && steps.lines.length === 0 && blocker.text === null && audit.text === null && gaps.text === null && evolution.text === null && direction.text === null && alignment.text === null && on_track.text === null && next.text === null) return refuse('goals', NOTHING_TYPED_WORDS);
+  return { ok: true, value: { day, answers: { goals: goals.lines, blocker: blocker.text, plan_steps: steps.lines, plan_done, audit: audit.text, gaps: gaps.text, evolution: evolution.text, direction: direction.text, alignment: alignment.text, on_track: on_track.text, next: next.text } } };
 }
 
 const sameList = <T>(a: readonly T[], b: readonly T[]): boolean => a.length === b.length && a.every((x, i) => x === b[i]);
 
-/** Would writing `answers` over `row` change nothing? The seven answers (JOURNAL-04), the lists element by element (JOURNAL-03: shipped is not written, so not compared). */
+/** Would writing `answers` over `row` change nothing? The eleven answers (JOURNAL-06), the lists element by element (JOURNAL-03: shipped is not written, so not compared; JOURNAL-06: learned neither). */
 export const journalUnchanged = (row: Answers, answers: Answers): boolean =>
   sameList(row.goals, answers.goals)
   && row.blocker === answers.blocker
   && sameList(row.plan_steps, answers.plan_steps)
   && sameList(row.plan_done, answers.plan_done)
   && row.audit === answers.audit
-  && row.learned === answers.learned
+  && row.gaps === answers.gaps
+  && row.evolution === answers.evolution
+  && row.direction === answers.direction
+  && row.alignment === answers.alignment
+  && row.on_track === answers.on_track
   && row.next === answers.next;
 
 // ── THE PLAN'S TICKS ────────────────────────────────────────────────────────
@@ -554,11 +607,10 @@ export const EVENING_WORD = 'EVENING — reflection';
 export const LAST_NIGHT_WORD = 'Last night: ';
 export const lastNightWords = (next: string): string => `${LAST_NIGHT_WORD}${next}`;
 
-/** The evening plate's blocks, in order. */
+/** The evening plate's blocks, in order. JOURNAL-06 (2026-10-20): the audit column is ACCOMPLISHED on the plate; LEARNED left with its column's question. */
 export const TODAY_TICKS_WORD = 'TODAY’S TICKS';
 export const VERDICT_WORD = 'VERDICT';
-export const AUDIT_WORD = 'AUDIT';
-export const LEARNED_WORD = 'LEARNED';
+export const AUDIT_WORD = 'ACCOMPLISHED';
 export const NEXT_WORD = 'NEXT';
 /** The evening's own idiom for an answer not yet typed, and for a verdict the card does not show. */
 export const EVENING_BLANK_WORD = '—';
@@ -570,21 +622,40 @@ export function todayStepsWords(row: Answers | null): string {
   return y.kind === 'steps' ? stepsCountWords(y) : NO_PLAN_TODAY_WORDS;
 }
 
-/** The evening form's three questions — each box labelled with its question. */
-export const EVENING_AUDIT_QUESTION = 'Where did we actually get to?';
-export const EVENING_LEARNED_QUESTION = 'What did I learn, or what surprised me?';
+/**
+ * THE EVENING'S QUESTIONS (JOURNAL-06, Alex, 2026-10-20) — seven, verbatim, each box labelled with its question, in
+ * this order. EVENING_AUDIT_QUESTION keeps its NAME (the column is `audit`; the pins moved to the words) — the
+ * words are ACCOMPLISHED's. EVENING_LEARNED_QUESTION left with learned (retired).
+ */
+export const EVENING_AUDIT_QUESTION = 'What got done today — the narrative. Copy the reflection prompt, paste the chat\'s narrative here.';
+export const EVENING_GAPS_QUESTION = 'What gaps do you see — what is missing, wrong, or not yet true?';
+export const EVENING_EVOLUTION_QUESTION = 'What changed in how we build today — a rule, a better way, something we stopped doing?';
+export const EVENING_DIRECTION_QUESTION = 'Going well, or change direction? Which, and why.';
+export const EVENING_ALIGNMENT_QUESTION = 'Is the chat doing anything not aligned with your vision? Name it.';
+export const EVENING_ON_TRACK_QUESTION = 'On the rails — accounting rules, SOC 2, the mission? Anything that bent?';
 export const EVENING_NEXT_QUESTION = 'Where do I want to take it next?';
+/** The seven labels, in the card's order — the form's blocks and the prompt's THE ANSWERS section name the same facts. */
+export const EVENING_LABELS = {
+  audit: 'ACCOMPLISHED', gaps: 'GAPS', evolution: 'EVOLUTION', direction: 'DIRECTION', alignment: 'ALIGNMENT', on_track: 'ON TRACK', next: 'NEXT',
+} as const;
+export type EveningField = keyof typeof EVENING_LABELS;
+export const EVENING_ORDER: readonly EveningField[] = ['audit', 'gaps', 'evolution', 'direction', 'alignment', 'on_track', 'next'];
+export const EVENING_QUESTIONS: Readonly<Record<EveningField, string>> = {
+  audit: EVENING_AUDIT_QUESTION, gaps: EVENING_GAPS_QUESTION, evolution: EVENING_EVOLUTION_QUESTION, direction: EVENING_DIRECTION_QUESTION,
+  alignment: EVENING_ALIGNMENT_QUESTION, on_track: EVENING_ON_TRACK_QUESTION, next: EVENING_NEXT_QUESTION,
+};
 /** The NEXT box's placeholder — one line on the reel later (REEL-02). */
 export const EVENING_NEXT_PLACEHOLDER = 'one sentence';
 export const EVENING_SAVE_WORDS = 'save';
-export const COPY_AUDIT_PROMPT_WORDS = 'copy audit prompt';
-export const AUDIT_PROMPT_COPIED_WORDS = 'copied — paste it into Claude, then paste the audit here';
+/** JOURNAL-06: "copy reflection prompt" replaces "copy audit prompt" — the same clipboard pattern, the words moved. */
+export const COPY_REFLECTION_PROMPT_WORDS = 'copy reflection prompt';
+export const REFLECTION_PROMPT_COPIED_WORDS = 'copied — paste it into Claude, then paste the narrative into ACCOMPLISHED';
 /** The clipboard refused the write — its reason, in words; nothing else is tried. */
-export const auditPromptFailedWords = (reason: string): string => `could not copy the audit prompt — ${reason}`;
+export const reflectionPromptFailedWords = (reason: string): string => `could not copy the reflection prompt — ${reason}`;
 /** The card's reads are in flight or failed — the prompt is not offered, never written from a partial day (the gating "copy script" uses). */
-export const auditPromptWaitsWords = (words: string): string => `the audit prompt needs the day's reads — ${words}`;
+export const reflectionPromptWaitsWords = (words: string): string => `the reflection prompt needs the day's reads — ${words}`;
 
-/** The audit prompt's heads and its ask. */
+/** The day's heads (JOURNAL-05's audit prompt, kept by JOURNAL-06's reflection prompt). */
 export const AUDIT_PROMPT_DAY = 'Day:';
 export const AUDIT_PROMPT_GOALS = 'Goals:';
 export const AUDIT_PROMPT_BLOCKER = 'Blocker:';
@@ -593,7 +664,21 @@ export const AUDIT_PROMPT_STOPS = 'Stops — budget vs actual:';
 export const AUDIT_PROMPT_TOTALS = 'Totals:';
 export const AUDIT_PROMPT_NO_PLAN = 'no plan';
 export const AUDIT_PROMPT_NO_STOPS = 'no stops';
-export const AUDIT_PROMPT_ASK = 'Audit this day. In order: what got done against the plan and what did not, and why it is likely so; where the money went against the budget, stop by stop; what to carry forward tomorrow. Be specific and short; no praise, no filler.';
+/** JOURNAL-06 (Alex, 2026-10-20): the reflection prompt's three sections after the day's lines, and THE ASK — a CONSTANT, the same every day by construction. */
+export const REFLECTION_PROMPT_BACKLOG = 'THE BACKLOG';
+export const REFLECTION_PROMPT_NO_BACKLOG = '— no open projects —';
+export const REFLECTION_PROMPT_MOVED = 'WHAT MOVED TODAY';
+export const REFLECTION_PROMPT_NOTHING_MOVED = '— nothing recorded —';
+export const REFLECTION_PROMPT_ANSWERS = 'THE ANSWERS';
+export const REFLECTION_PROMPT_NOT_ANSWERED = '— not answered —';
+export const REFLECTION_PROMPT_ASK = [
+  'REFLECT ON THIS DAY. Same prompt every day; the data above is today\'s. Return, in this order and nothing else:',
+  '1 THE NARRATIVE — what got done, against the plan: stop by stop, PR by PR (you know the PRs; the app\'s audit slice is above), what did not get done and why it is likely so; where the money went against the budget. Written to be pasted into ACCOMPLISHED.',
+  '2 THE GAPS, VERIFIED — for each gap I named, is it real, what is its cause, and what closes it. Add gaps I did not name.',
+  '3 DIRECTION, VERIFIED — for each change of direction I named, does it make sense against the mandates (Truth-First, Security-First, the accounting rules, SOC 2, the mission)? Yes or no, and why. Then: anything you did today that was off my vision — name it plainly.',
+  '4 NEXT PROJECTS / TASKS — for the days ahead. Each NEW project as one complete block in THE BRIEF FORMAT (TITLE: · TYPE: · BOOK: · SIZE: · TARGET: · WHAT IS WRONG TODAY · WHY IT MATTERS · THE ONE CORRECT OUTCOME · ALREADY RULED · WANT A RECOMMENDATION ON · BY WHEN, AND WHY · PROOF OF DONE · LINKS · NOTES), ready to paste. For EXISTING projects (listed above), the tasks to add, by project title, one line each. Rank what should come first and say why.',
+  'Be specific and short. No praise, no filler. One truth.',
+].join('\n');
 /** "✓ merge TABLE-01" · "✗ post the reel" — a step with its tick. */
 export const auditStepWords = (step: string, done: boolean): string => `${done ? '✓' : '✗'} ${step}`;
 
@@ -606,10 +691,27 @@ export const auditStepWords = (step: string, done: boolean): string => `${done ?
 export type AuditPromptStop =
   | { readonly name: string; readonly vendor: string | null; readonly asksAmount: true; readonly budgetWords: string; readonly actualWords: string }
   | { readonly name: string; readonly vendor: string | null; readonly asksAmount: false; readonly outcomeWords: string };
-/** What the audit prompt is made from — the card's OWN reads and words, handed in by DayCard.tsx; nothing else. */
-export interface AuditPromptInput {
+/** JOURNAL-06: one project of THE BACKLOG — the user's projects not done, as the projects GET answers them (dayReads.ts readBacklog). */
+export interface ReflectionBacklogRow {
+  readonly rank: number | null;
+  readonly title: string;
+  readonly type: string | null;
+  readonly status: string;
+  readonly size: string | null;
+  /** 'YYYY-MM-DD' or null. */
+  readonly target: string | null;
+  /** Tasks not done — open, in progress, blocked, pending review. */
+  readonly openTasks: number;
+}
+/** JOURNAL-06: one row of WHAT MOVED TODAY — the day's audit-log slice for the actor (dayReads.ts readMovedToday). */
+export interface ReflectionMovedRow {
+  readonly action_type: string;
+  readonly description: string;
+}
+/** What the reflection prompt is made from — the card's OWN reads and words, handed in by DayCard.tsx; nothing else. */
+export interface ReflectionPromptInput {
   readonly dayWords: string;
-  /** The day's journal as held — null when nothing was typed. */
+  /** The day's journal as held (the stored row) — null when nothing was typed. THE ANSWERS print from it. */
   readonly journal: Answers | null;
   /** Every stop of the day in the table's (clock) order. */
   readonly stops: readonly AuditPromptStop[];
@@ -618,9 +720,13 @@ export interface AuditPromptInput {
   readonly actualWords: string;
   /** The card's verdict words, or null when the card shows none. */
   readonly verdictWords: string | null;
+  /** THE BACKLOG — printed in rank order, unranked last, then by title. */
+  readonly backlog: readonly ReflectionBacklogRow[];
+  /** WHAT MOVED TODAY — the day's operations_ audit rows for the actor, oldest first as read. */
+  readonly moved: readonly ReflectionMovedRow[];
 }
 /** The prompt as the evening form holds it: the text, or why it is not offered yet. */
-export type AuditPromptState = { readonly ok: true; readonly text: string } | { readonly ok: false; readonly words: string };
+export type ReflectionPromptState = { readonly ok: true; readonly text: string } | { readonly ok: false; readonly words: string };
 
 /** "- Brunch at Luka Café — budget $25, actual $22 ▼ $3" — one stop's line; a stop that asks no amount: "- Co-working — done" (REEL-02). */
 export const auditStopWords = (s: AuditPromptStop): string =>
@@ -629,15 +735,38 @@ export const auditStopWords = (s: AuditPromptStop): string =>
 export const auditTotalsWords = (budgetWords: string, actualWords: string, verdictWords: string | null): string =>
   `budget ${budgetWords}, actual ${actualWords}${verdictWords === null ? '' : `, ${verdictWords}`}`;
 
+/** "#3 · Fix the ledger CSV · engineering · backlog · M · target 2026-11-30 · open tasks 2" — one project of THE BACKLOG; "—" for a rank, type, size or target not set. */
+export const backlogRowWords = (p: ReflectionBacklogRow): string =>
+  `#${p.rank === null ? '—' : p.rank} · ${p.title} · ${p.type ?? '—'} · ${p.status} · ${p.size ?? '—'} · target ${p.target ?? '—'} · open tasks ${p.openTasks}`;
+/** Rank order, unranked last, then by title — the same order however the rows arrive. */
+export const backlogOrder = (rows: readonly ReflectionBacklogRow[]): ReflectionBacklogRow[] =>
+  [...rows].sort((a, b) => (a.rank === null && b.rank === null ? 0 : a.rank === null ? 1 : b.rank === null ? -1 : a.rank - b.rank) || a.title.localeCompare(b.title));
+/** The action types whose descriptions WHAT MOVED TODAY lists one by one — a project's status change, a task's (its completion is the status change to done, its own type). */
+export const MOVED_DESCRIBED_TYPES: readonly string[] = ['operations_project_status_changed', 'operations_project_task_status_changed', 'operations_project_task_completed'];
+/** "- operations_project_created × 2" — the counts per action type, in the type's alphabetical order; then each status change's description. */
+export function movedWords(rows: readonly ReflectionMovedRow[]): string[] {
+  if (rows.length === 0) return [`- ${REFLECTION_PROMPT_NOTHING_MOVED}`];
+  const counts = new Map<string, number>();
+  for (const r of rows) counts.set(r.action_type, (counts.get(r.action_type) ?? 0) + 1);
+  const lines = [...counts.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([type, n]) => `- ${type} × ${n}`);
+  for (const r of rows) if (MOVED_DESCRIBED_TYPES.includes(r.action_type)) lines.push(`- ${r.description}`);
+  return lines;
+}
+/** "ACCOMPLISHED: …" — one answer as typed, or "— not answered —"; a block's lines follow its label. */
+export const answerWords = (field: EveningField, text: string | null): string => `${EVENING_LABELS[field]}: ${text === null ? REFLECTION_PROMPT_NOT_ANSWERED : text}`;
+
 /**
- * The audit prompt, exactly: every line a constant or built from one — the day, the goals (or none typed), the blocker (or none),
- * the plan's steps with their ticks (or no plan), the stops in clock order — each with its budget and actual, or (REEL-02) its outcome
- * alone when its form asks no amount — (or no stops), the totals with the verdict, then the ask. Pure; from the card's own reads and
- * words, nothing invented, nothing filled in.
+ * The reflection prompt (JOURNAL-06, Alex, 2026-10-20), exactly: every line a constant or built from one — the day's lines as the audit
+ * prompt had them (the day, the goals or none typed, the blocker or none, the plan's steps with their ticks or no plan, the stops in
+ * clock order with budget and actual or (REEL-02) the outcome alone, the totals with the verdict), then THE BACKLOG (one line per project
+ * not done, rank order, unranked last; "— no open projects —"), then WHAT MOVED TODAY (the counts per action type, then each project or
+ * task status change's description; "— nothing recorded —"), then THE ANSWERS (the six after ACCOMPLISHED, as typed or "— not answered
+ * —"), then THE ASK — the same words every day. Pure; from the card's own reads and words, nothing invented, nothing filled in.
  */
-export function auditPromptText(input: AuditPromptInput): string {
+export function reflectionPromptText(input: ReflectionPromptInput): string {
   const j = input.journal;
   const steps = j === null ? [] : j.plan_steps;
+  const answered = (field: EveningField): string | null => (j === null ? null : j[field]);
   return [
     `${AUDIT_PROMPT_DAY} ${input.dayWords}`,
     AUDIT_PROMPT_GOALS,
@@ -649,7 +778,16 @@ export function auditPromptText(input: AuditPromptInput): string {
     ...(input.stops.length === 0 ? [`- ${AUDIT_PROMPT_NO_STOPS}`] : input.stops.map(auditStopWords)),
     `${AUDIT_PROMPT_TOTALS} ${auditTotalsWords(input.budgetWords, input.actualWords, input.verdictWords)}`,
     '',
-    AUDIT_PROMPT_ASK,
+    REFLECTION_PROMPT_BACKLOG,
+    ...(input.backlog.length === 0 ? [`- ${REFLECTION_PROMPT_NO_BACKLOG}`] : backlogOrder(input.backlog).map((p) => `- ${backlogRowWords(p)}`)),
+    '',
+    REFLECTION_PROMPT_MOVED,
+    ...movedWords(input.moved),
+    '',
+    REFLECTION_PROMPT_ANSWERS,
+    ...EVENING_ORDER.filter((f) => f !== 'audit').map((f) => answerWords(f, answered(f))),
+    '',
+    REFLECTION_PROMPT_ASK,
   ].join('\n');
 }
 
@@ -663,7 +801,7 @@ export const noJournalWords = (dayWords: string): string => `nothing typed for $
 export const YESTERDAY_LOADING_WORDS = 'reading yesterday…';
 // CLEAN-02 (2026-10-14): the journal card shows no money and no source line — JOURNAL_NOT_READ_WORDS, yesterdayFailedWords,
 // typedWords, typedOnWords, NONE_TYPED_WORDS and journalProvenanceWords (the tally's failure and the source line's words) are gone.
-/** The question before a clear — the audit log keeps the answers. JOURNAL-05 (Alex, 2026-10-19): the whole row goes — the morning's four and the evening's three — and the question says so. */
+/** The question before a clear — the audit log keeps the answers. JOURNAL-05 (Alex, 2026-10-19): the whole row goes — the morning's four and the evening's answers — and the question says so. */
 export const clearJournalQuestion = (dayWords: string): string => `Clear the whole journal for ${dayWords} — morning and evening? The audit log keeps it; the card forgets it.`;
 /** The route's 409: the row moved or was cleared under the writer. */
 export const RACE_WORDS = (day: string): string => `the journal for ${day} was written moments ago — read the day again`;

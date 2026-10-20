@@ -23,7 +23,8 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { code, comments } from '../sourceText';
 import { CAPTION_TAGS, TOMORROW_WORDS, captionTags, captionText, scriptText, tomorrowWords } from '@/components/workbench/operations/day/dayCard';
-import { auditPromptText, auditStopWords, type AuditPromptInput } from '../operations/journal';
+// JOURNAL-06 (Alex, 2026-10-20): the audit prompt became the reflection prompt — the day's lines, auditStopWords among them, unchanged.
+import { auditStopWords, reflectionPromptText, type ReflectionPromptInput } from '../operations/journal';
 import { FULL, HALF, JOURNAL, STAY, build, reelDay } from './fixtureReelDay';
 
 const RULES = 'src/components/workbench/operations/day/dayCard.ts';
@@ -313,7 +314,7 @@ test('R6 the audit prompt: a stop whose form asks no amount prints its name and 
   assert.equal(auditStopWords({ name: 'Vision journal', vendor: null, asksAmount: false, outcomeWords: 'not recorded' }), '- Vision journal — not recorded');
   assert.equal(auditStopWords({ name: 'Stretch', vendor: 'Yoga Tree', asksAmount: false, outcomeWords: 'skipped' }), '- Stretch at Yoga Tree — skipped');
   assert.equal(auditStopWords({ name: 'Brunch', vendor: 'Luka Café', asksAmount: true, budgetWords: '$25', actualWords: '$22 ▼ $3' }), '- Brunch at Luka Café — budget $25, actual $22 ▼ $3', 'as before');
-  const input: AuditPromptInput = {
+  const input: ReflectionPromptInput = {
     dayWords: 'Thu Oct 15', journal: null,
     stops: [
       { name: 'Vision journal', vendor: null, asksAmount: false, outcomeWords: 'done' },
@@ -322,8 +323,10 @@ test('R6 the audit prompt: a stop whose form asks no amount prints its name and 
       { name: 'Gym', vendor: 'Fitness First', asksAmount: true, budgetWords: '$15', actualWords: 'skipped' },
     ],
     budgetWords: '$100', actualWords: '$44.69', verdictWords: null,
+    // JOURNAL-06 (2026-10-20): THE BACKLOG and WHAT MOVED TODAY follow the day's lines — empty here (journal06.test.ts drives them).
+    backlog: [], moved: [],
   };
-  const text = auditPromptText(input);
+  const text = reflectionPromptText(input);
   inOrder(text, ['Stops — budget vs actual:\n- Vision journal — done\n- Brunch at Luka Café — budget $25, actual $9.69 ▼ $15.31\n- Co-working — not recorded\n- Gym at Fitness First — budget $15, actual skipped\nTotals: budget $100, actual $44.69\n'], 'the stop lines in order');
   assert.doesNotMatch(text, /Vision journal — budget|Co-working — budget|budget —, actual —/, 'no money words for a stop that asks none');
   // The flag's home: the words rule's input, set by the card from its own rule — the rule imports nothing of the card.

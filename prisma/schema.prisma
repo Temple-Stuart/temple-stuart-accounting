@@ -502,10 +502,16 @@ model operations_day_journals {
   plan_done     Boolean[] @default([])
   /// JOURNAL-04 (Alex, 2026-10-19): the evening's three, nullable — NULL is unanswered, never "" (the not-blank CHECK). The pasted audit — paragraphs; the rule caps it at 4000 code points and 200 lines (journal.ts blockOf), the database bounds a TEXT column not at all. An evening alone is a journal (the at-least-one CHECK counts the three).
   audit         String?  @db.Text
-  /// What I learned, or what surprised me — VARCHAR(500), counted in code points by the rule.
+  /// What I learned, or what surprised me — VARCHAR(500), counted in code points by the rule. RETIRED 2026-10-20 (JOURNAL-06, JOURNAL-03's way): kept, never asked, shown or written again; a body that carries it is refused by name.
   learned       String?  @db.VarChar(500)
   /// Where I want to take it next — the line tomorrow's morning card shows first and the reel's cliffhanger (REEL-02); VARCHAR(500).
   next          String?  @db.VarChar(500)
+  /// JOURNAL-06 (Alex, 2026-10-20): the evening's five, each the audit's rule (a block — line breaks kept, 4000 code points and 200 lines, journal.ts blockOf), nullable — NULL is unanswered, never "" (the not-blank CHECK, re-made over the eight). The at-least-one CHECK counts them.
+  gaps          String?  @db.Text
+  evolution     String?  @db.Text
+  direction     String?  @db.Text
+  alignment     String?  @db.Text
+  on_track      String?  @db.Text
   created_at    DateTime @default(now()) @db.Timestamptz(6)
   /// Written by @updatedAt (no DB default) — read back as the "typed" instant; the PUT guards its write on it.
   updated_at    DateTime @updatedAt @db.Timestamptz(6)
