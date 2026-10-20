@@ -22,8 +22,8 @@
 
 'use client';
 
-import type { Project, ProjectForm, ProjectStatus } from './types';
-import { STATUS_LABELS, STATUS_PILL_CLASSES, formatAllocatedCents } from './types';
+import type { Project, ProjectForm, ProjectSize, ProjectStatus, ProjectType } from './types';
+import { PROJECT_SIZES, PROJECT_TYPES, SIZE_LABELS, STATUS_LABELS, STATUS_PILL_CLASSES, TYPE_LABELS, formatAllocatedCents } from './types';
 import ListManager from './ListManager';
 import InspectionDrawer, { type InspectionData } from '../ai/InspectionDrawer';
 import AITaskPreview, { type AIGeneratedTask } from './AITaskPreview';
@@ -138,10 +138,17 @@ export interface ProjectRowViewProps {
 }
 
 const STATUS_OPTIONS: ProjectStatus[] = [
+  // BACKLOG-01 (Alex, 2026-10-20): the capture's four first, in the order a
+  // project moves; the six that were here follow. No transition table yet —
+  // the PATCH accepts any of the ten (BACKLOG-03 adds the allowed moves).
+  'backlog',
+  'scoped',
+  'scheduled',
   'not_started',
   'in_progress',
   'blocked',
   'completed',
+  'dropped',
   'cancelled',
   'archived',
 ];
@@ -225,6 +232,10 @@ export default function ProjectRowView({ project,
   const diagnosisItems = Array.isArray(project.diagnosis_items)
     ? project.diagnosis_items.filter((x): x is string => typeof x === 'string')
     : [];
+  // BACKLOG-01: the capture's links — a JsonB list, filtered to strings like the items.
+  const links = Array.isArray(project.links)
+    ? project.links.filter((x): x is string => typeof x === 'string')
+    : [];
 
   /**
    * Render a structured field that may be either:
@@ -275,6 +286,10 @@ export default function ProjectRowView({ project,
           <span className="text-text-faint">{expanded ? '▾' : '▸'}</span>
           <span className="font-bold text-text-primary truncate">{project.title}</span>
           <span className={pillClass}>{STATUS_LABELS[project.status]}</span>
+          {/* BACKLOG-01: type · size beside the status — "—" on a row captured before. */}
+          <span className="text-text-muted" data-project-row-type-size>
+            {project.type ? TYPE_LABELS[project.type] : '—'} · {project.size ? SIZE_LABELS[project.size] : '—'}
+          </span>
           <span className="text-text-muted">{entityName(entities, project.entity_id)}</span>
         </div>
         <div className="flex items-center gap-3 text-text-muted shrink-0">
@@ -284,6 +299,37 @@ export default function ProjectRowView({ project,
 
       {expanded && !editing && (
         <div className="px-4 py-3 border-t border-border-light text-xs space-y-3">
+          {/* BACKLOG-01 (Alex, 2026-10-20): the capture, above the Dalio loop — why is
+              required at capture ("—" on a row captured before); the definition of
+              done, the links and the notes render only when typed (COND-INPUTS-2). */}
+          <div data-project-capture>
+            <div className={labelClass}>why</div>
+            <div className="text-text-primary text-xs whitespace-pre-wrap" data-project-why>
+              {(project.why ?? '').trim().length > 0 ? project.why : '—'}
+            </div>
+            {(project.definition_of_done ?? '').trim().length > 0 && (
+              <div className="mt-2">
+                <div className={labelClass}>definition of done</div>
+                <div className="text-text-primary text-xs whitespace-pre-wrap" data-project-definition-of-done>{project.definition_of_done}</div>
+              </div>
+            )}
+            {links.length > 0 && (
+              <div className="mt-2">
+                <div className={labelClass}>links</div>
+                <ul className="list-disc list-inside text-text-primary text-xs space-y-0.5 ml-2" data-project-links>
+                  {links.map((l, i) => (
+                    <li key={i} className="break-all">{l}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {(project.notes ?? '').trim().length > 0 && (
+              <div className="mt-2">
+                <div className={labelClass}>notes</div>
+                <div className="text-text-primary text-xs whitespace-pre-wrap" data-project-notes>{project.notes}</div>
+              </div>
+            )}
+          </div>
           <div>
             <div className={labelClass}>1 · goal</div>
             {renderStructuredField(goalItems, project.goal)}
@@ -541,6 +587,88 @@ export default function ProjectRowView({ project,
                   </option>
                 ))}
               </select>
+            </div>
+          </div>
+
+          {/* BACKLOG-01 (Alex, 2026-10-20): the capture's fields, editable here. The PATCH
+              refuses by name a type cleared once set and a why emptied once set; size,
+              the definition of done, the links and the notes may be cleared. */}
+          <div className="grid grid-cols-2 gap-3" data-project-capture-edit>
+            <div>
+              <div className={labelClass}>type</div>
+              <select
+                value={form.type}
+                onChange={(e) => onFormChange({ ...form, type: e.target.value as ProjectType | '' })}
+                className={inputClass}
+                aria-label="Type"
+              >
+                <option value="">— choose —</option>
+                {PROJECT_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {TYPE_LABELS[t]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <div className={labelClass}>size</div>
+              <select
+                value={form.size}
+                onChange={(e) => onFormChange({ ...form, size: e.target.value as ProjectSize | '' })}
+                className={inputClass}
+                aria-label="Size"
+              >
+                <option value="">— not sized —</option>
+                {PROJECT_SIZES.map((x) => (
+                  <option key={x} value={x}>
+                    {SIZE_LABELS[x]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-span-2">
+              <div className={labelClass}>why</div>
+              <textarea
+                value={form.why}
+                onChange={(e) => onFormChange({ ...form, why: e.target.value })}
+                className={inputClass}
+                rows={3}
+                maxLength={4000}
+                placeholder="the problem it solves, or the value — a paragraph"
+                aria-label="Why"
+              />
+            </div>
+            <div className="col-span-2">
+              <div className={labelClass}>definition of done</div>
+              <textarea
+                value={form.definition_of_done}
+                onChange={(e) => onFormChange({ ...form, definition_of_done: e.target.value })}
+                className={inputClass}
+                rows={2}
+                placeholder="how we will know it is done"
+                aria-label="Definition of done"
+              />
+            </div>
+            <div className="col-span-2">
+              <div className={labelClass}>links (one per line)</div>
+              <textarea
+                value={form.links.join('\n')}
+                onChange={(e) => onFormChange({ ...form, links: e.target.value.split(/\r\n|\r|\n/) })}
+                className={inputClass}
+                rows={2}
+                placeholder="a doc path or a url, one per line"
+                aria-label="Links"
+              />
+            </div>
+            <div className="col-span-2">
+              <div className={labelClass}>notes</div>
+              <textarea
+                value={form.notes}
+                onChange={(e) => onFormChange({ ...form, notes: e.target.value })}
+                className={inputClass}
+                rows={2}
+                aria-label="Notes"
+              />
             </div>
           </div>
 

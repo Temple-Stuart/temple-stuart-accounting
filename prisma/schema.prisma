@@ -3158,6 +3158,30 @@ enum ProjectStatus {
   completed
   cancelled
   archived
+  // BACKLOG-01 (Alex, 2026-10-20): a captured project lands in the backlog, is
+  // scoped on its row, is scheduled onto the calendar, or is dropped. The six
+  // above stay; no row is rewritten.
+  backlog
+  scoped
+  scheduled
+  dropped
+}
+
+// BACKLOG-01 (Alex, 2026-10-20): what kind of work a project is — required at
+// capture; the column is nullable so a row captured before reads "—".
+enum ProjectType {
+  engineering
+  accounting
+  content
+  travel
+  ops
+}
+
+// BACKLOG-01 (Alex, 2026-10-20): how big — optional at capture ("not sized").
+enum ProjectSize {
+  S
+  M
+  L
 }
 
 enum WorkstreamStatus {
@@ -3588,6 +3612,22 @@ model operations_projects {
   // audit-ingest callback can bind incoming findings to the exact fire (stored-match).
   audit_correlation_id     String?       @db.Text
   status                   ProjectStatus @default(not_started)
+  // BACKLOG-01 (Alex, 2026-10-20): the capture's columns. type and why are
+  // required by the POST for every new project; the columns are nullable so a
+  // row captured before reads "—" and is never defaulted. links' '[]' is the
+  // *_items pattern — "no links". rank is set only by BACKLOG-02's reorder
+  // (NULL or > 0 — the CHECK in the migration); the three dates are written by
+  // BACKLOG-03's transitions only.
+  type                     ProjectType?
+  size                     ProjectSize?
+  why                      String?       @db.Text
+  definition_of_done       String?       @db.Text
+  links                    Json          @default("[]") @db.JsonB
+  notes                    String?       @db.Text
+  rank                     Int?
+  promoted_at              DateTime?     @db.Timestamptz(6)
+  scheduled_at             DateTime?     @db.Timestamptz(6)
+  done_at                  DateTime?     @db.Timestamptz(6)
   target_completion_date   DateTime?     @db.Timestamptz(6)
   estimated_total_minutes  Int?
   estimated_total_cost_usd Decimal?      @db.Decimal(15, 2)
@@ -3610,6 +3650,8 @@ model operations_projects {
   @@unique([user_id, title])
   @@index([user_id, entity_id, status])
   @@index([user_id, status])
+  // BACKLOG-01: the ranked view's read (BACKLOG-02) — a user's projects by status, in rank order.
+  @@index([user_id, status, rank])
   @@index([priority_score])
   @@index([target_completion_date])
   @@map("operations_projects")

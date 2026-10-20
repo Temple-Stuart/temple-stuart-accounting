@@ -12,6 +12,11 @@
  *
  * The tasks are read through the tasks GET in useProjectTasks — the task list's
  * one home for the read, the create and the category list. No fetch here.
+ *
+ * BACKLOG-01 (Alex, 2026-10-20): TYPE and SIZE pills beside the status pill —
+ * "—" when the row has none (captured before the capture form). The book was
+ * already named here (PROJECTS-01); with every book listed (ruling G) it is the
+ * cell's second line.
  */
 
 'use client';
@@ -23,7 +28,7 @@ import ProjectRow from './ProjectRow';
 import TaskCreateInputs from './TaskCreateInputs';
 import TaskTableRow from './TaskTableRow';
 import type { Project } from './types';
-import { STATUS_LABELS, STATUS_PILL_CLASSES, formatAllocatedCents } from './types';
+import { SIZE_LABELS, STATUS_LABELS, STATUS_PILL_CLASSES, TYPE_LABELS, formatAllocatedCents } from './types';
 import { useProjectTasks } from './useProjectTasks';
 import { PROJECTS_TABLE_COLUMNS, TASK_COLUMNS, formatDate, requestsWords, statusCounts } from './projectsTableText';
 
@@ -81,6 +86,12 @@ export default function ProjectTableRows({
       <div className="mt-0.5 flex flex-wrap items-center gap-2">
         <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${STATUS_PILL_CLASSES[project.status]}`}>
           {STATUS_LABELS[project.status]}
+        </span>
+        <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium border border-border text-text-muted" title="type" data-project-type>
+          {project.type ? TYPE_LABELS[project.type] : '—'}
+        </span>
+        <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium border border-border text-text-muted" title="size" data-project-size>
+          {project.size ? SIZE_LABELS[project.size] : '—'}
         </span>
         <span className="text-text-muted" data-project-book>{book ? book.name : ACCOUNT_CELL_WORDS.bookNotLoaded}</span>
       </div>

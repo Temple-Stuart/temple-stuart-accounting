@@ -16,7 +16,20 @@ export type ProjectStatus =
   | 'blocked'
   | 'completed'
   | 'cancelled'
-  | 'archived';
+  | 'archived'
+  // BACKLOG-01 (Alex, 2026-10-20): a captured project lands in the backlog, is
+  // scoped on its row, is scheduled, or is dropped. The six above stay.
+  | 'backlog'
+  | 'scoped'
+  | 'scheduled'
+  | 'dropped';
+
+/** BACKLOG-01: what kind of work — required at capture; null on a row captured before. */
+export type ProjectType = 'engineering' | 'accounting' | 'content' | 'travel' | 'ops';
+/** BACKLOG-01: how big — optional at capture; null is "not sized". */
+export type ProjectSize = 'S' | 'M' | 'L';
+export const PROJECT_TYPES: readonly ProjectType[] = ['engineering', 'accounting', 'content', 'travel', 'ops'];
+export const PROJECT_SIZES: readonly ProjectSize[] = ['S', 'M', 'L'];
 
 export interface Project {
   id: string;
@@ -33,6 +46,19 @@ export interface Project {
   deep_research_input: string | null;
   claude_code_audit_input: string | null;
   status: ProjectStatus;
+  // BACKLOG-01 (Alex, 2026-10-20): the capture's columns, 1:1 with the migration.
+  // null is "not stated" (a row captured before reads "—"); links [] is "no links".
+  // rank and the three dates are read here and written only by BACKLOG-02/03.
+  type: ProjectType | null;
+  size: ProjectSize | null;
+  why: string | null;
+  definition_of_done: string | null;
+  links: string[];
+  notes: string | null;
+  rank: number | null;
+  promoted_at: string | null;
+  scheduled_at: string | null;
+  done_at: string | null;
   target_completion_date: string | null;
   estimated_total_minutes: number | null;
   estimated_total_cost_usd: string | null;
@@ -68,6 +94,12 @@ export interface Project {
  * but writable on edit. The full ProjectForm includes status because the
  * editor handles both create and edit. status changes audit-discriminate
  * server-side via operations_project_status_changed (vs. plain _updated).
+ *
+ * BACKLOG-01 (Alex, 2026-10-20): the capture form sends type (required —
+ * '' is unchosen, refused by name), why (required), size ('' is not sized),
+ * definition_of_done, links (a list; the form types one per line) and notes;
+ * the POST sets status 'backlog' itself and ignores the form's status. The
+ * edit view sends the same fields on PATCH.
  */
 export interface ProjectForm {
   entity_id: string;
@@ -77,6 +109,12 @@ export interface ProjectForm {
   problemItems: string[];
   diagnosisItems: string[];
   status: ProjectStatus;
+  type: ProjectType | '';
+  size: ProjectSize | '';
+  why: string;
+  definition_of_done: string;
+  links: string[];
+  notes: string;
   target_completion_date: string;          // ISO date (yyyy-mm-dd) or empty
   estimated_total_minutes: string;         // string for input binding; coerced server-side
   estimated_total_cost_usd: string;        // string for decimal fidelity
@@ -91,6 +129,12 @@ export const DEFAULT_PROJECT_FORM: ProjectForm = {
   problemItems: [],
   diagnosisItems: [],
   status: 'not_started',
+  type: '',
+  size: '',
+  why: '',
+  definition_of_done: '',
+  links: [],
+  notes: '',
   target_completion_date: '',
   estimated_total_minutes: '',
   estimated_total_cost_usd: '',
@@ -107,6 +151,11 @@ export const STATUS_LABELS: Record<ProjectStatus, string> = {
   completed: 'completed',
   cancelled: 'cancelled',
   archived: 'archived',
+  // BACKLOG-01 (Alex, 2026-10-20): the four new words, lower-case like the six.
+  backlog: 'backlog',
+  scoped: 'scoped',
+  scheduled: 'scheduled',
+  dropped: 'dropped',
 };
 
 export const STATUS_PILL_CLASSES: Record<ProjectStatus, string> = {
@@ -116,6 +165,26 @@ export const STATUS_PILL_CLASSES: Record<ProjectStatus, string> = {
   completed: 'bg-green-50 text-green-800',
   cancelled: 'bg-gray-50 text-gray-500',
   archived: 'bg-gray-50 text-gray-400',
+  // BACKLOG-01: backlog reads like not started (unscoped), scoped purple, scheduled blue like in progress, dropped like cancelled.
+  backlog: 'bg-gray-100 text-gray-700',
+  scoped: 'bg-purple-50 text-purple-800',
+  scheduled: 'bg-blue-50 text-blue-800',
+  dropped: 'bg-gray-50 text-gray-500',
+};
+
+/** BACKLOG-01: the type and size words on the project cell's pills and the two selects. */
+export const TYPE_LABELS: Record<ProjectType, string> = {
+  engineering: 'engineering',
+  accounting: 'accounting',
+  content: 'content',
+  travel: 'travel',
+  ops: 'ops',
+};
+
+export const SIZE_LABELS: Record<ProjectSize, string> = {
+  S: 'small',
+  M: 'medium',
+  L: 'large',
 };
 
 /**
