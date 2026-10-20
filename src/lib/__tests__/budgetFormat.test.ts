@@ -83,11 +83,12 @@ test('ACCOUNT — shown as its account string by the app\'s one renderer, with i
   assert.throws(() => formatAccountCode([], 'b', '5100'), (e: unknown) => e instanceof BudgetFormatError && e.code === 'unknown-book');
 });
 
-test('ON /budget — every account the screen prints goes through formatAccountCode: the row label and both Not-placed lines, never bare digits', () => {
+// BUDGET-02 (Alex, ruling A, 2026-10-20): the two Not-placed lines left /budget with the notice. The row label is
+// built once per row (`account`) and printed in its table and in its drill's title — still by formatAccountCode.
+test('ON /budget — every account the screen prints goes through formatAccountCode: the row label, never bare digits', () => {
   const screen = code('src/components/budget/BudgetReport.tsx');
-  assert.match(screen, /label=\{`\$\{formatAccountCode\(report\.books, row\.entityId, row\.code\)\} · \$\{row\.name\}`\}/, 'the row label is "<account string> · <name>"');
-  assert.match(screen, /budget line on \$\{formatAccountCode\(books, l\.entityId, l\.code\)\}/, 'an unplaced budget line names its account string');
-  assert.match(screen, /ledger line on \$\{formatAccountCode\(books, p\.entityId, p\.code\)\}/, 'an unplaced posting names its account string');
+  assert.match(screen, /const account = `\$\{formatAccountCode\(report\.books, row\.entityId, row\.code\)\} · \$\{row\.name\}`;/, 'the row label is "<account string> · <name>"');
+  assert.doesNotMatch(screen, /budget line on|ledger line on/, 'the Not-placed lines left the screen with the notice');
   assert.doesNotMatch(screen, /\$\{(row|l|p)\.code\}/, 'no account code is printed bare');
 });
 
@@ -102,10 +103,12 @@ test('PURITY — the formatter imports only the one account renderer at run time
   const src = code(FORMAT);
   const imports = src.split('\n').filter((l) => /^\s*import\b/.test(l));
   // TAB13-02c: the account renderer joins — the one place an account string is drawn (accountString.ts:47-57).
+  // BUDGET-02 (2026-10-20): the model's shownBudget joins at run time — WHICH budget a cell prints is the model's
+  // one rule (the drill lists the lines behind the same figure); this file only writes it.
   assert.deepEqual(imports, [
     "import { deriveAccountString } from '@/lib/accountString';",
-    "import type { ColumnState, ReportBook } from '@/lib/budget/report';",
-  ], 'the renderer at run time, types from the model, nothing else');
+    "import { shownBudget, type ColumnState, type ReportBook } from '@/lib/budget/report';",
+  ], 'the renderer and the model\'s one shown-budget rule at run time, types from the model, nothing else');
   assert.doesNotMatch(src, /\bfetch\s*\(|\bDate\.now\s*\(|\bnew\s+Date\s*\(|\bprocess\.env\b|toLocaleString/);
   assert.doesNotMatch(code('src/lib/__tests__/budgetFormat.test.ts'), /['"]@prisma\/client/);
 });

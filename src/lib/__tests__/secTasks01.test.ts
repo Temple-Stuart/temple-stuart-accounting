@@ -42,7 +42,8 @@ const SECTION_K = 'src/components/workbench/operations/SectionK_AuditTail.tsx';
 const COMPLIANCE_LOG = 'src/app/compliance/audit-log/page.tsx';
 const LINKS = 'src/app/api/calendar/links/route.ts';
 const PROJECTS = 'src/app/api/operations/projects/route.ts';
-const BUDGET_REPORT = 'src/app/api/budget/report/route.ts';
+// BUDGET-02 (Alex, ruling G, 2026-10-20): the budget report's actuals query moved into the one loader both budget routes call.
+const BUDGET_REPORT = 'src/lib/budget/reportReads.ts';
 
 const OWNER = 'u_owner';
 const OTHER = 'u_other';

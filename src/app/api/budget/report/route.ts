@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { Prisma } from '@prisma/client';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -8,6 +7,7 @@ import { BudgetDaysError } from '@/lib/budget/days';
 import { loadRoutineBudgetInputs } from '@/lib/operations/routineBudgetInputs';
 import { BudgetInputError, budgetReportResponse, parseReportQuery, utcDay } from '@/lib/budget/reportInputs';
 import { vendorWindow } from '@/lib/budget/planLines';
+import { countLeftOut, readActuals, readBudgetChart, readCostedTasks, readPlanVendors } from '@/lib/budget/reportReads';
 
 /**
  * TAB13-02b — GET /api/budget/report: what you planned, what posted, and the
@@ -18,12 +18,17 @@ import { vendorWindow } from '@/lib/budget/planLines';
  * tab gate — Budget is free with an account (src/lib/offer.ts TOOL_GATE,
  * Budget: null). The path is not in the middleware's PUBLIC_PATHS.
  *
- * THE READS, every one scoped to the viewer and to the viewer's entities:
+ * THE READS, every one scoped to the viewer and to the viewer's entities —
+ * BUDGET-02 (2026-10-20): the chart, the tasks, the actuals, their counts and the
+ * plan's vendors through the ONE loader both budget routes call
+ * (src/lib/budget/reportReads.ts, ruling G); the bank rows here:
  *   · entities → one book each;
- *   · the chart: every chart_of_accounts row of those entities, archived included;
+ *   · the chart: every chart_of_accounts row of those entities, archived included
+ *     (BUDGET-02: with is_archived — an archived account is a row only with a figure);
  *   · routines through the ONE loader (loadRoutineBudgetInputs), per entity;
- *   · costed tasks (estimated_cost_usd not null, every status), each with EVERY
- *     daily-plan item and its blocks' statuses — the earliest day decides;
+ *   · costed tasks (estimated_cost_usd not null, every status), each with its
+ *     project and EVERY daily-plan item and its blocks' statuses — the earliest
+ *     day decides;
  *   · ACTUALS: ledger lines on revenue and expense accounts only, journal date
  *     in [rangeFrom, min(rangeTo, asOf)]. Left out BY NAME, and counted:
  *     reversal pairs (an entry with is_reversal, or one reversed_by another —
@@ -73,9 +78,6 @@ export async function GET(request: NextRequest) {
     const { rangeFrom, rangeTo } = viewRange(view);
     const through = rangeTo < asOf ? rangeTo : asOf;
     const fromDay = new Date(`${rangeFrom}T00:00:00.000Z`);
-    const throughDay = new Date(`${through}T00:00:00.000Z`);
-    const asOfDay = new Date(`${asOf}T00:00:00.000Z`);
-    const toDay = new Date(`${rangeTo}T00:00:00.000Z`);
     const vendorsFrom = vendorWindow(view);
 
     const entities = await prisma.entities.findMany({
@@ -85,57 +87,19 @@ export async function GET(request: NextRequest) {
     });
     const entityIds = entities.map((e) => e.id);
 
-    // A ledger line on one of the viewer's revenue or expense accounts, in one of the viewer's journal entries.
-    const plLine = (journal: Prisma.journal_entriesWhereInput): Prisma.ledger_entriesWhereInput => ({
-      account: { entity_id: { in: entityIds }, entity: { userId: user.id }, account_type: { in: ['revenue', 'expense'] } },
-      journal_entry: { userId: user.id, entity_id: { in: entityIds }, ...journal },
-    });
-
-    const [chart, routineGroups, tasks, ledger, reversalPairLines, closingEntryLines, linesAfterAsOf, bank, planVendors] = await Promise.all([
-      prisma.chart_of_accounts.findMany({
-        where: { entity_id: { in: entityIds }, entity: { userId: user.id } },
-        select: { entity_id: true, code: true, name: true, account_type: true, balance_type: true },
-      }),
+    const [chart, routineGroups, tasks, ledger, excludedLines, bank, planVendors] = await Promise.all([
+      readBudgetChart(prisma, user.id, entityIds),
       Promise.all(entities.map(async (e) => ({ entityId: e.id, rows: await loadRoutineBudgetInputs(prisma, user.id, e.id) }))),
-      prisma.operations_project_tasks.findMany({
-        where: { user_id: user.id, entity_id: { in: entityIds }, estimated_cost_usd: { not: null } },
-        select: {
-          id: true, title: true, entity_id: true, status: true, estimated_cost_usd: true, coa_code: true,
-          daily_plan_items: {
-            where: { user_id: user.id },
-            select: { plan_date: true, calendar_blocks: { where: { user_id: user.id }, select: { status: true } } },
-          },
-        },
-      }),
-      prisma.ledger_entries.findMany({
-        // Actuals: never a reversal pair, never a closing entry — by name.
-        where: plLine({ date: { gte: fromDay, lte: throughDay }, is_reversal: false, reversed_by_entry_id: null, source_type: { not: 'year_end_close' } }),
-        select: { journal_entry_id: true, entry_type: true, amount: true, account: { select: { entity_id: true, code: true } }, journal_entry: { select: { date: true } } },
-      }),
-      prisma.ledger_entries.count({
-        where: plLine({ date: { gte: fromDay, lte: throughDay }, OR: [{ is_reversal: true }, { reversed_by_entry_id: { not: null } }] }),
-      }),
-      prisma.ledger_entries.count({
-        where: plLine({ date: { gte: fromDay, lte: throughDay }, is_reversal: false, reversed_by_entry_id: null, source_type: 'year_end_close' }),
-      }),
-      prisma.ledger_entries.count({
-        where: plLine({ date: { gt: asOfDay, gte: fromDay, lte: toDay } }),
-      }),
+      readCostedTasks(prisma, user.id, entityIds),
+      // Actuals: never a reversal pair, never a closing entry — by name, in the one loader.
+      readActuals(prisma, user.id, entityIds, rangeFrom, through),
+      countLeftOut(prisma, user.id, entityIds, { from: rangeFrom, through, to: rangeTo, asOf }),
       prisma.transactions.findMany({
         where: { accounts: { userId: user.id }, review_status: { not: 'committed' }, date: { gte: fromDay, lte: new Date(`${through}T23:59:59.999Z`) } },
         select: { id: true, date: true, amount: true },
       }),
       // TAB13-04: the plan's vendors — a DAY or WEEK only; a YEAR reads none.
-      vendorsFrom === null ? null : prisma.planned_item_vendors.findMany({
-        where: { user_id: user.id, OR: [{ occurrence_at: null }, { occurrence_at: { gte: vendorsFrom.from, lt: vendorsFrom.to } }] },
-        select: {
-          id: true, routine_id: true, step_id: true, task_id: true, occurrence_at: true,
-          vendor: { select: { id: true, vendor_name: true, entity_id: true } },
-          routine: { select: { name: true, timezone: true } },
-          step: { select: { activity: true, routine_id: true, routine: { select: { name: true, timezone: true } } } },
-          task: { select: { title: true } },
-        },
-      }),
+      vendorsFrom === null ? null : readPlanVendors(prisma, user.id, vendorsFrom),
     ]);
 
     return NextResponse.json(budgetReportResponse({ view, asOf }, {
@@ -144,7 +108,7 @@ export async function GET(request: NextRequest) {
       routines: routineGroups,
       tasks,
       ledger,
-      excludedLines: { reversalPairLines, closingEntryLines, linesAfterAsOf },
+      excludedLines,
       bank,
       planVendors,
     }));

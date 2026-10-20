@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   asOfWindow, budgetReportResponse, parseReportQuery, toPosting, toReportAccount, toReportEntity, toRoutinePlanInput,
   toTaskPlanInput, utcDay, BudgetInputError,
-  type BudgetInputErrorCode, type ChartRow, type EntityRow, type LedgerRow, type QueryRefusalCode, type ReportRows,
+  type BudgetChartRow, type BudgetInputErrorCode, type ChartRow, type EntityRow, type LedgerRow, type QueryRefusalCode, type ReportRows,
   type RoutineRow, type TaskRow,
 } from '../budget/reportInputs';
 import { BudgetReportError, type BudgetReportErrorCode } from '../budget/report';
@@ -112,8 +112,9 @@ test('MAPPING — a routine from the loader: dates as UTC days, the entity\'s ty
   assert.deepEqual(mapped.steps, [{ id: 's1', isActive: true, stepOrder: 2, budgetAmount: 4.25, coaCode: 'P-6150' }]);
 });
 
+// BUDGET-02 (2026-10-20): a costed task carries its project — the drill links its line to /tasks?project=<id>.
 const license: TaskRow = {
-  id: 't-license', title: 'Buy license', entity_id: 'ent-b', status: 'open', estimated_cost_usd: dec('120.5'), coa_code: '6300',
+  id: 't-license', title: 'Buy license', project_id: 'proj-license', entity_id: 'ent-b', status: 'open', estimated_cost_usd: dec('120.5'), coa_code: '6300',
   daily_plan_items: [{ plan_date: at('2026-09-24'), calendar_blocks: [{ status: 'scheduled' }] }],
 };
 
@@ -156,11 +157,12 @@ const WEEK = { view: { kind: 'week' as const, weekOf: '2026-09-23' }, asOf: '202
 
 const rows = (over: Partial<ReportRows> = {}): ReportRows => ({
   entities: [B, P],
+  // BUDGET-02 (2026-10-20): the chart is read with is_archived (ruling C) — every row here is active.
   chart: [
-    { entity_id: 'ent-p', code: '6150', name: 'Coffee', account_type: 'expense', balance_type: 'D' },
-    { entity_id: 'ent-p', code: '4000', name: 'Salary', account_type: 'revenue', balance_type: 'C' },
-    { entity_id: 'ent-p', code: '1010', name: 'Checking', account_type: 'asset', balance_type: 'D' },
-    { entity_id: 'ent-b', code: '6300', name: 'Software', account_type: 'expense', balance_type: 'D' },
+    { entity_id: 'ent-p', code: '6150', name: 'Coffee', account_type: 'expense', balance_type: 'D', is_archived: false },
+    { entity_id: 'ent-p', code: '4000', name: 'Salary', account_type: 'revenue', balance_type: 'C', is_archived: false },
+    { entity_id: 'ent-p', code: '1010', name: 'Checking', account_type: 'asset', balance_type: 'D', is_archived: false },
+    { entity_id: 'ent-b', code: '6300', name: 'Software', account_type: 'expense', balance_type: 'D', is_archived: false },
   ],
   routines: [
     { entityId: 'ent-p', rows: [coffee, { ...coffee, id: 'r-bad-zone', name: 'Bad zone', timezone: 'Mars/Olympus' }] },
@@ -185,15 +187,17 @@ const rows = (over: Partial<ReportRows> = {}): ReportRows => ({
   ...over,
 });
 
-test('RESPONSE — the report from the rows: books P then B, revenue before expense, each cell by hand', () => {
+// BUDGET-02 (Alex, ruling B, 2026-10-20): Business · Personal · Trading — books B then P (was P then B), labelled
+// 'Business' · 'Personal' (were 'BUSINESS' · 'PERSONAL'). Every cell is the same, worked by hand below.
+test('RESPONSE — the report from the rows: books B then P, revenue before expense, each cell by hand', () => {
   const r = budgetReportResponse(WEEK, rows());
   assert.equal(r.asOf, '2026-09-23');
   assert.deepEqual(r.view, { kind: 'week', weekOf: '2026-09-23' });
   assert.deepEqual(r.report.columns.map((c) => `${c.label}:${c.state}`), [
     'WEEK:inProgress', 'Mon:closed', 'Tue:closed', 'Wed:closed', 'Thu:future', 'Fri:future', 'Sat:future', 'Sun:future',
   ]);
-  assert.deepEqual(r.report.books.map((b) => `${b.label} · ${b.entityName}`), ['PERSONAL · Alex', 'BUSINESS · Temple Stuart']);
-  const [personal, business] = r.report.books;
+  assert.deepEqual(r.report.books.map((b) => `${b.label} · ${b.entityName}`), ['Business · Temple Stuart', 'Personal · Alex']);
+  const [business, personal] = r.report.books;
   assert.deepEqual(personal.rows.map((x) => x.code), ['4000', '6150'], 'revenue before expense; the asset account makes no row');
   // Coffee: $5.00 a day from the 1st, ending the 22nd → Mon 500 + Tue 500 = 1000. Posted $4.50 on Monday.
   const coffeeWeek = personal.rows[1].cells[0];
@@ -317,17 +321,18 @@ test('FAIL LOUD — a row that cannot become an input is refused by name; the mo
     assert.throws(() => budgetReportResponse(WEEK, rows(over)), (e: unknown) => e instanceof BudgetReportError && e.code === c, `BudgetReportError ${c}`);
   reportThrows({ ledger: [line({ journal_entry_id: 'je-neg', amount: BigInt(-5) })] }, 'negative-posting-cents');
   reportThrows({ ledger: [line({ journal_entry_id: 'je-x', entry_type: 'X' })] }, 'bad-entry-type');
-  reportThrows({ chart: [{ entity_id: 'ent-p', code: '6150', name: 'Coffee', account_type: 'expense', balance_type: 'X' }] }, 'bad-balance-type');
+  reportThrows({ chart: [{ entity_id: 'ent-p', code: '6150', name: 'Coffee', account_type: 'expense', balance_type: 'X', is_archived: false }] }, 'bad-balance-type');
   // TAB13-02c (T6): "P-6150" on the personal book was refused 'code-not-four-digits'. Under R2 it is
   // account P-6150, saved before COA-01 with its letter — it builds, as one row, 6150 of the P book.
-  const lettered = budgetReportResponse(WEEK, rows({ chart: [{ entity_id: 'ent-p', code: 'P-6150', name: 'Coffee', account_type: 'expense', balance_type: 'D' }] }));
+  const lettered = budgetReportResponse(WEEK, rows({ chart: [{ entity_id: 'ent-p', code: 'P-6150', name: 'Coffee', account_type: 'expense', balance_type: 'D', is_archived: false }] }));
   assert.deepEqual(lettered.report.books.find((b) => b.entityId === 'ent-p')?.rows.map((r) => r.code), ['6150']);
   assert.throws(() => budgetReportResponse(WEEK, rows({ tasks: [{ ...license, status: 'done' }] })), (e: unknown) => e instanceof BudgetDaysError && e.code === 'bad-task-status');
 });
 
 // ── THE CHART AS SAVED (TAB13-02c, ruled 2026-09-27) ────────────────────────
 
-const chartRow = (entity_id: string, code: string, name: string): ChartRow => ({ entity_id, code, name, account_type: 'expense', balance_type: 'D' });
+// BUDGET-02 (2026-10-20): an active chart row, as the budget reads it (with is_archived).
+const chartRow = (entity_id: string, code: string, name: string): BudgetChartRow => ({ entity_id, code, name, account_type: 'expense', balance_type: 'D', is_archived: false });
 
 test('READ — a sole_prop chart row saved "B-5100", a ledger line on it, and routines coded "B-5100" and "5100" land on ONE row of the B book', () => {
   const api = (id: string, amount: number, coa: string): RoutineRow => ({ ...coffee, id, name: `API ${id}`, budget_amount: amount, coa_code: coa });
@@ -412,7 +417,8 @@ test('COLLIDE — two rows of one book that are one account are never merged: ev
     ],
   }));
   const shown = r.report.books.flatMap((b) => b.rows.map((x) => formatAccountCode(r.report.books, x.entityId, x.code)));
-  assert.deepEqual(shown, ['P-5100', 'B-5100'], 'books P then B, each account with its own letter');
+  // BUDGET-02 (ruling B, 2026-10-20): books B then P (was P then B).
+  assert.deepEqual(shown, ['B-5100', 'P-5100'], 'books B then P, each account with its own letter');
 });
 
 // T4 — THE PAGE (TAB13-02d, ruled 2026-09-27): the chart's rows are read by the chart's rule, like every code.
@@ -457,10 +463,10 @@ test('M4 — a ledger line whose code is saved lettered, in an entity that is NO
   const T: EntityRow = { id: 'ent-t', name: 'Trading', entity_type: 'trading' };
   const r = budgetReportResponse(WEEK, rows({
     entities: [B, P, T],
-    chart: [...rows().chart, { entity_id: 'ent-t', code: 'T-6100', name: 'Data feed', account_type: 'expense', balance_type: 'D' }],
+    chart: [...rows().chart, { entity_id: 'ent-t', code: 'T-6100', name: 'Data feed', account_type: 'expense', balance_type: 'D', is_archived: false }],
     ledger: [line({ journal_entry_id: 'je-trade', amount: BigInt(2500), account: { entity_id: 'ent-t', code: 'T-6100' }, journal_entry: { date: at('2026-09-21') } })],
   }));
-  assert.equal(r.report.books.findIndex((b) => b.entityId === 'ent-t'), 2, 'TRADE is the third book');
+  assert.equal(r.report.books.findIndex((b) => b.entityId === 'ent-t'), 2, 'Trading is the third book (BUDGET-02: after Business and Personal)');
   const trade = r.report.books.find((b) => b.entityId === 'ent-t');
   assert.ok(trade);
   assert.deepEqual(trade.rows.map((x) => [x.code, x.name]), [['6100', 'Data feed']], 'read with its own book — one account, T-6100');
@@ -510,12 +516,21 @@ test('TAB13-04 T3 the vendor rows reach the plan by grain; rows that do not matc
   inputThrows(() => budgetReportResponse(WEEK, rows({ planVendors: [every, single] })), 'plan-vendor-both-grains', 'Blue Bottle');
 });
 
+// BUDGET-02 (Alex, ruling G, 2026-10-20): both budget routes read the books through ONE loader
+// (src/lib/budget/reportReads.ts) — the vendor query, its where and its select moved there word for word; the route
+// calls it for a DAY or WEEK only, as before. The route's own reads are the user, the entities and the bank rows.
 test('TAB13-04 T3 the route reads the plan vendors user-scoped, in the window, for a DAY or WEEK only — and no other read changes', () => {
   const route = code('src/app/api/budget/report/route.ts');
+  const reads = code('src/lib/budget/reportReads.ts');
   assert.match(route, /const vendorsFrom = vendorWindow\(view\);/);
-  assert.match(route, /vendorsFrom === null \? null : prisma\.planned_item_vendors\.findMany\(\{\s*where: \{ user_id: user\.id, OR: \[\{ occurrence_at: null \}, \{ occurrence_at: \{ gte: vendorsFrom\.from, lt: vendorsFrom\.to \} \}\] \},/);
-  assert.match(route, /vendor: \{ select: \{ id: true, vendor_name: true, entity_id: true \} \},\s*routine: \{ select: \{ name: true, timezone: true \} \},\s*step: \{ select: \{ activity: true, routine_id: true, routine: \{ select: \{ name: true, timezone: true \} \} \} \},\s*task: \{ select: \{ title: true \} \},/);
+  assert.match(route, /vendorsFrom === null \? null : readPlanVendors\(prisma, user\.id, vendorsFrom\),/);
+  assert.match(reads, /db\.planned_item_vendors\.findMany\(\{\s*where: \{ user_id: userId, OR: \[\{ occurrence_at: null \}, \{ occurrence_at: \{ gte: window\.from, lt: window\.to \} \}\] \},/);
+  assert.match(reads, /vendor: \{ select: \{ id: true, vendor_name: true, entity_id: true \} \},\s*routine: \{ select: \{ name: true, timezone: true \} \},\s*step: \{ select: \{ activity: true, routine_id: true, routine: \{ select: \{ name: true, timezone: true \} \} \} \},\s*task: \{ select: \{ title: true \} \},/);
   assert.match(route, /bank,\s*planVendors,\s*\}\)\);/);
-  assert.equal((route.match(/\bprisma\.\w+\.(findMany|findFirst|count)\(/g) ?? []).length, 10, 'the user, the entities, the chart, the tasks, the ledger, three counts, the bank — and the plan vendors');
+  assert.equal((route.match(/\bprisma\.\w+\.(findMany|findFirst|count)\(/g) ?? []).length, 3, 'the user, the entities, the bank — every other read through the loader');
+  for (const fn of ['readBudgetChart', 'readCostedTasks', 'readActuals', 'countLeftOut', 'readPlanVendors']) {
+    assert.equal((route.match(new RegExp(`\\b${fn}\\(`, 'g')) ?? []).length, 1, `the route calls ${fn} once`);
+  }
+  assert.equal((reads.match(/\bdb\.\w+\.(findMany|findFirst|count)\(/g) ?? []).length, 7, 'the loader: the chart, the tasks, the ledger, three counts, the plan vendors');
   assert.doesNotMatch(route, /export\s+async\s+function\s+(POST|PUT|PATCH|DELETE)/, 'GET only');
 });

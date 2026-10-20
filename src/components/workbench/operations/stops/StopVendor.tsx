@@ -9,7 +9,7 @@
  * the matched plan line; a place stop with no line, its one reason; anything
  * else, nothing.
  *
- * The box is Budget's own, unchanged (budget/DayPlanDrill.tsx VendorBox: pick
+ * The box is Budget's own, unchanged (budget/VendorBox.tsx VendorBox: pick
  * from the book's vendors, "+ add <name>", "This day" / "Every time", Change,
  * Clear), and every write goes through the two vendor routes it already calls
  * (plan-vendors, vendor-directory). After a write the box calls reload — the
@@ -22,7 +22,7 @@
 
 import type { PlanLine } from '@/lib/budget/planLines';
 import { VENDOR_LABEL_WORDS } from '@/lib/operations/stopRole';
-import { VendorBox, useDirectory } from '@/components/budget/DayPlanDrill';
+import { VendorBox, useDirectory } from '@/components/budget/VendorBox';
 import type { VendorSlot } from '../day/dayCard';
 import { underStyle, useDeckBleed } from './DayDeck';
 

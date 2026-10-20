@@ -29,7 +29,7 @@
  */
 
 import { deriveAccountString } from '@/lib/accountString';
-import type { ColumnState, ReportBook } from '@/lib/budget/report';
+import { shownBudget, type ColumnState, type ReportBook } from '@/lib/budget/report';
 
 export const BLANK = '—';
 const MINUS = '−';
@@ -88,12 +88,17 @@ export interface BudgetText {
   readonly note: string | null;
 }
 
-/** A cell's budget line, by its column's state. */
+/**
+ * A cell's budget line, by its column's state. BUDGET-02 (2026-10-20): WHICH
+ * budget is printed is the model's one rule (report.ts shownBudget) — the drill
+ * lists the lines behind the same figure; this function only writes it.
+ */
 export function formatBudget(state: ColumnState, toDate: number | null, full: number | null): BudgetText {
-  if (state === 'closed') return { text: formatCents(toDate), note: null };
-  if (state === 'inProgress') return { text: formatCents(toDate), note: full !== toDate ? `of ${formatCents(full)}` : null };
-  if (state === 'future') return { text: formatCents(full), note: full === null ? null : 'planned' };
-  throw new BudgetFormatError('bad-state', `${JSON.stringify(state)} is not a column state (closed, inProgress, future)`);
+  if (state !== 'closed' && state !== 'inProgress' && state !== 'future') {
+    throw new BudgetFormatError('bad-state', `${JSON.stringify(state)} is not a column state (closed, inProgress, future)`);
+  }
+  if (shownBudget(state) === 'full') return { text: formatCents(full), note: full === null ? null : 'planned' };
+  return { text: formatCents(toDate), note: state === 'inProgress' && full !== toDate ? `of ${formatCents(full)}` : null };
 }
 
 /**

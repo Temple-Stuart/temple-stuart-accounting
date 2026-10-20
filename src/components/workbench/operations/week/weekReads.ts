@@ -2,7 +2,7 @@
  * weekReads — the week's four reads, and the one way their answers are read
  * (WEEK-01, 2026-09-30). Every fetch the week makes of its own is here; the
  * completion is the shared writer (routines/completeRoutine.ts) and the vendor
- * box's writes are Budget's own (DayPlanDrill.tsx VendorBox, useDirectory).
+ * box's writes are Budget's own (VendorBox.tsx VendorBox, useDirectory).
  *
  *   · GET /api/operations/routines?is_active=true         the rows
  *   · GET /api/operations/routines/today?date=<day>       one per day — seven

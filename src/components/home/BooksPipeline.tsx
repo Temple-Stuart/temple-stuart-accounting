@@ -7,7 +7,8 @@ import EntitySetup from '@/components/books/EntitySetup';
 import SpendingTab from '@/components/dashboard/SpendingTab';
 import InvestmentsTab from '@/components/dashboard/InvestmentsTab';
 import JournalEntryEngine from '@/components/dashboard/JournalEntryEngine';
-import GeneralLedger from '@/components/dashboard/GeneralLedger';
+import GeneralLedger, { LEDGER_LINK_KEYS, ledgerLinkOf, type LedgerLink } from '@/components/dashboard/GeneralLedger';
+import { useRoomLock } from '@/components/shell/RoomLock';
 import TrialBalanceSection from '@/components/bookkeeping/TrialBalanceSection';
 import BankReconciliation from '@/components/dashboard/BankReconciliation';
 import AdjustingEntriesTab from '@/components/dashboard/AdjustingEntriesTab';
@@ -88,6 +89,27 @@ export default function BooksPipeline() {
   // unchanged, the house idiom). 'feed' = the strip's first phase, matching
   // ToggleStrip's own first-mode default.
   const [phase, setPhase] = useState<'feed' | 'code' | 'reconcile' | 'close' | 'reports' | 'export'>('feed');
+  // BUDGET-02 (Alex, ruling F, 2026-10-20): a link into the general ledger — /ledger?account=&book=&from=&to=,
+  // forwarded here by src/app/ledger/page.tsx. Read ONCE on mount: the ledger's phase (02 Code — CAT → JE → LDG)
+  // opens, GeneralLedger takes the four filters, and the keys leave the URL (history.replaceState — no server
+  // round trip). The link is handed over once; GeneralLedger says what it cannot show.
+  // The room renders LOCKED until its lock read lands (src/components/shell/RoomLock.tsx useTabLock), then
+  // re-renders unlocked — a different tree, so this component REMOUNTS. The link is read in the unlocked room,
+  // the one that stays: read in the locked one, the keys would leave the URL with a component about to unmount.
+  const roomLocked = useRoomLock();
+  const [ledgerLink, setLedgerLink] = useState<LedgerLink | null>(null);
+  const ledgerLinkUsed = useCallback(() => setLedgerLink(null), []);
+  useEffect(() => {
+    if (roomLocked) return;
+    const search = new URLSearchParams(window.location.search);
+    const link = ledgerLinkOf(search);
+    if (link === null) return;
+    setLedgerLink(link);
+    setPhase('code');
+    for (const key of LEDGER_LINK_KEYS) search.delete(key);
+    const rest = search.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${rest === '' ? '' : `?${rest}`}${window.location.hash}`);
+  }, [roomLocked]);
   // MANUAL-ENTRY: the no-bank path's reveal toggle (the /transactions page's
   // own showAddForm idiom, transactions/page.tsx:140-161 — inline reveal, not
   // a modal; the form's current design decides, declared).
@@ -536,7 +558,7 @@ export default function BooksPipeline() {
         subtitle={`${committedCount * 2} entries`}
         status={committedCount > 0 ? 'complete' : 'pending'}>
         <div className="p-4">
-          <GeneralLedger coaOptions={coaOptions} onReload={reloadAll} />
+          <GeneralLedger coaOptions={coaOptions} onReload={reloadAll} link={ledgerLink} onLinkUsed={ledgerLinkUsed} />
         </div>
       </BookkeepingSection>
       </div>

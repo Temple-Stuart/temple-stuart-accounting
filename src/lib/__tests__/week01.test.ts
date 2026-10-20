@@ -38,7 +38,8 @@ const WRITER = 'src/components/workbench/operations/routines/completeRoutine.ts'
 const GONE = [STRIP, PLAN, WEEK, CELL, RULES, WRITER];
 const READS = 'src/components/workbench/operations/week/weekReads.ts';
 const CARD = 'src/components/workbench/operations/day/DayCard.tsx';
-const DRILL = 'src/components/budget/DayPlanDrill.tsx';
+// BUDGET-02 (2026-10-20): the box's file is VendorBox.tsx — DayPlanDrill.tsx less the drill, which left /budget.
+const DRILL = 'src/components/budget/VendorBox.tsx';
 const SCREEN = 'src/components/budget/BudgetReport.tsx';
 const TODAY_MODULE = 'src/lib/localToday.ts';
 const PAGE = 'src/app/tasks/page.tsx';
@@ -220,7 +221,7 @@ test('T3 the browser\'s date, once: moved out of BudgetReport, outside the Budge
     .filter((f) => !f.includes('__tests__') && /getFullYear\(\)/.test(code(f)) && /getMonth\(\)/.test(code(f)) && /getDate\(\)/.test(code(f)) && /padStart/.test(code(f)));
   assert.ok(readers.includes(TODAY_MODULE));
   for (const f of tsFilesUnder('src/lib/budget')) assert.doesNotMatch(code(f), /localToday/, `${f} does not read the clock`);
-  // DayPlanDrill: two exports, and no fetch added (setVendor, clearVendor, addVendor, the directory).
+  // The vendor box (was DayPlanDrill): two exports, and no fetch added (setVendor, clearVendor, addVendor, the directory).
   const d = code(DRILL);
   assert.match(d, /\nexport function useDirectory\(\): /);
   assert.match(d, /\nexport function VendorBox\(\{ line, bookName, directory, reload \}: \{/);

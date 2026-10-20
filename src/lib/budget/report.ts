@@ -69,6 +69,22 @@
  * DATES are 'YYYY-MM-DD' strings compared as text (fixed width, so text order
  * is date order) and converted to day numbers by integer arithmetic for the
  * week. No Date object, no time zone and no clock enters this file.
+ *
+ * BUDGET-02 (2026-10-20) — Budget is one page, ruled by Alex:
+ *   · ROWS (ruling C): every ACTIVE revenue and expense account of a book's chart
+ *     is a row, with or without a figure; an ARCHIVED one only when it has a
+ *     figure in the view. Asset, liability and equity accounts are never rows.
+ *     So the chart hands in each account's archived flag (ChartAccount).
+ *   · COLUMNS (ruling C): a YEAR is Jan … Dec, then YTD.
+ *   · BOOKS (ruling B): Business · Personal · Trading (sole_prop B, personal P,
+ *     trading T — by the stored entity type, never re-typed here), then any other
+ *     book under its own name. Two books of one type are two books.
+ *   · NO BUDGET (ruling D): a book with no plan line in the view says so
+ *     (ReportBook.hasPlanLines) — its Budget rows print "no budget", never a 0.
+ *   · THE DRILL (rulings E, G): buildBudgetCell() returns the lines and postings
+ *     behind one row's figures over one range — the SAME selection every cell is
+ *     the sum of (selectionOf), never a second rule — and shownBudget() is the one
+ *     rule of which budget a cell prints (format.ts writes it, the drill lists it).
  */
 import { variance } from '@/lib/calendar/links';
 import { FAMILY_RULES, letterFor, isFamily, type EntityLetter } from '@/lib/coa/scheme';
@@ -105,6 +121,11 @@ export interface ReportAccount {
   readonly balanceType: 'D' | 'C';
 }
 
+/** BUDGET-02: a chart account as the report takes it — with chart_of_accounts.is_archived (ruling C: archived rows only with a figure). */
+export interface ChartAccount extends ReportAccount {
+  readonly archived: boolean;
+}
+
 export interface BudgetLine {
   readonly entityId: string;
   readonly code: string;
@@ -131,7 +152,7 @@ export interface BudgetReportInput {
   readonly asOf: IsoDay;
   readonly view: BudgetView;
   readonly entities: readonly ReportEntity[];
-  readonly accounts: readonly ReportAccount[];
+  readonly accounts: readonly ChartAccount[];
   readonly budgetLines: readonly BudgetLine[];
   readonly postings: readonly Posting[];
 }
@@ -182,10 +203,16 @@ export interface ReportBook {
   readonly entityName: string;
   readonly entityType: string;
   readonly letter: EntityLetter | null;
-  /** 'PERSONAL' · 'BUSINESS' · 'TRADE' · or '<name> (<entity type>)' for a type with no letter. */
+  /** BUDGET-02 (ruling B): 'Business' · 'Personal' · 'Trading' · or the book's own name for a type with no letter. */
   readonly label: string;
-  /** Revenue before expense, code ascending. Empty when the entity has no activity in the view. */
+  /**
+   * Revenue before expense, code ascending. BUDGET-02 (ruling C): every active
+   * revenue and expense account of the book's chart, with or without a figure,
+   * and an archived one only when it has a figure in the view.
+   */
   readonly rows: readonly ReportRow[];
+  /** BUDGET-02 (ruling D): true when any budget line of this book is dated in the view's range, placed on a row or not. */
+  readonly hasPlanLines: boolean;
   /**
    * TAB13-03: this book's own totals, one per column — built by the SAME function
    * as the report's (totalsOf), over this book's rows only. A book with no rows
@@ -255,7 +282,13 @@ export type BudgetReportErrorCode =
   | 'balance-disagrees-with-family'
   | 'bad-source'
   | 'missing-id'
-  | 'unsafe-sum';
+  | 'unsafe-sum'
+  // BUDGET-02: an archived flag that is not a boolean; a column state that is not one; a drill the model cannot honour.
+  | 'bad-archived'
+  | 'bad-column-state'
+  | 'cell-account-not-in-chart'
+  | 'cell-account-not-a-row'
+  | 'bad-cell-range';
 
 /** Bad input is refused by name — never coerced into something the model can use. */
 export class BudgetReportError extends Error {
@@ -436,13 +469,29 @@ function columnsFor(view: BudgetView, asOf: IsoDay): { columns: ReportColumn[]; 
     col(`${pad(view.year, 4)}-${pad(i + 1, 2)}`, 'month', label, iso(view.year, i + 1, 1), iso(view.year, i + 1, daysInMonth(view.year, i + 1))));
   // YTD ends at min(asOf, Dec 31). For a year that begins after asOf that is
   // before Jan 1: the column is future, its range is empty and every figure in it is null.
-  return { columns: [col('ytd', 'ytd', 'YTD', jan1, minDay(asOf, dec31)), ...months], rangeFrom, rangeTo };
+  // BUDGET-02 (ruling C): Jan … Dec, then YTD.
+  return { columns: [...months, col('ytd', 'ytd', 'YTD', jan1, minDay(asOf, dec31))], rangeFrom, rangeTo };
+}
+
+/**
+ * BUDGET-02 — WHICH BUDGET A CELL PRINTS, by its column's state (ruled
+ * 2026-09-27): a CLOSED or IN-PROGRESS column prints the budget to date, a
+ * FUTURE one the full budget. The one rule: format.ts formatBudget writes it,
+ * and the drill lists the lines behind whichever it is.
+ */
+export type ShownBudget = 'toDate' | 'full';
+
+export function shownBudget(state: ColumnState): ShownBudget {
+  if (state === 'closed' || state === 'inProgress') return 'toDate';
+  if (state === 'future') return 'full';
+  throw new BudgetReportError('bad-column-state', `${JSON.stringify(state)} is not a column state (closed, inProgress, future)`);
 }
 
 // ── BOOKS AND ORDER ─────────────────────────────────────────────────────────
 
-const BOOK_LABEL: Readonly<Record<EntityLetter, string>> = { P: 'PERSONAL', B: 'BUSINESS', T: 'TRADE' };
-const LETTER_RANK: Readonly<Record<EntityLetter, number>> = { P: 0, B: 1, T: 2 };
+// BUDGET-02 (ruling B): Business · Personal · Trading — by the stored entity type's letter, never re-typed.
+const BOOK_LABEL: Readonly<Record<EntityLetter, string>> = { B: 'Business', P: 'Personal', T: 'Trading' };
+const LETTER_RANK: Readonly<Record<EntityLetter, number>> = { B: 0, P: 1, T: 2 };
 const cmp = (a: string | number, b: string | number): number => (a < b ? -1 : a > b ? 1 : 0);
 
 const keyOf = (entityId: string, code: string): string => `${entityId}\u0000${code}`;
@@ -518,7 +567,29 @@ function totalsOf(rows: readonly ReportRow[], columns: readonly ReportColumn[]):
 
 // ── THE REPORT ──────────────────────────────────────────────────────────────
 
-export function buildBudgetReport(input: BudgetReportInput): BudgetReport {
+/** One account's budget lines and postings in the view's range — the very objects handed in. */
+interface Slot {
+  readonly account: ChartAccount;
+  readonly lines: BudgetLine[];
+  readonly postings: Posting[];
+}
+
+/** The input checked and placed: what buildBudgetReport and buildBudgetCell both stand on. */
+interface Placed {
+  readonly asOf: IsoDay;
+  readonly view: BudgetView;
+  readonly entities: ReadonlyMap<string, ReportEntity>;
+  readonly accounts: ReadonlyMap<string, ChartAccount>;
+  readonly columns: readonly ReportColumn[];
+  readonly rangeFrom: IsoDay;
+  readonly rangeTo: IsoDay;
+  readonly slots: ReadonlyMap<string, Slot>;
+  readonly unplaced: readonly UnplacedItem[];
+  /** BUDGET-02: the entities with a budget line dated in the view's range, placed or not. */
+  readonly planned: ReadonlySet<string>;
+}
+
+function placeInput(input: BudgetReportInput): Placed {
   const asOf = checkDay(input.asOf, 'asOf');
   const view = checkView(input.view);
 
@@ -531,7 +602,7 @@ export function buildBudgetReport(input: BudgetReportInput): BudgetReport {
     entities.set(id, { id, name: e.name, entityType: e.entityType });
   });
 
-  const accounts = new Map<string, ReportAccount>();
+  const accounts = new Map<string, ChartAccount>();
   input.accounts.forEach((a, i) => {
     const entityId = checkId(a.entityId, `accounts[${i}].entityId`);
     const code = checkCode(a.code, `accounts[${i}].code`);
@@ -542,9 +613,10 @@ export function buildBudgetReport(input: BudgetReportInput): BudgetReport {
       throw new BudgetReportError('balance-disagrees-with-family', `accounts[${i}] ${code} in entity ${entityId} is a ${a.accountType} account stored with balance type ${a.balanceType}; a ${a.accountType} account's normal balance is ${FAMILY_RULES[a.accountType].balanceType} — a contra P&L account would be netted one way and signed the other, so it is refused`);
     }
     if (typeof a.name !== 'string') throw new BudgetReportError('missing-id', `accounts[${i}] (${code}) name is not a string`);
+    if (typeof a.archived !== 'boolean') throw new BudgetReportError('bad-archived', `accounts[${i}] (${code}) archived ${JSON.stringify(a.archived)} is not true or false`);
     const key = keyOf(entityId, code);
     if (accounts.has(key)) throw new BudgetReportError('duplicate-account', `accounts[${i}] repeats ${code} in entity ${entityId}`);
-    accounts.set(key, { entityId, code, name: a.name, accountType: a.accountType, balanceType: a.balanceType });
+    accounts.set(key, { entityId, code, name: a.name, accountType: a.accountType, balanceType: a.balanceType, archived: a.archived });
   });
 
   input.budgetLines.forEach((l, i) => {
@@ -570,64 +642,96 @@ export function buildBudgetReport(input: BudgetReportInput): BudgetReport {
   const { columns, rangeFrom, rangeTo } = columnsFor(view, asOf);
 
   // Place everything in the view's range: on a row, or unplaced with its reason.
-  const placed = new Map<string, { account: ReportAccount; lines: BudgetLine[]; postings: Posting[] }>();
+  const slots = new Map<string, Slot>();
   const unplaced: UnplacedItem[] = [];
-  const reasonFor = (account: ReportAccount | undefined): UnplacedReason | null => {
+  const planned = new Set<string>();
+  const reasonFor = (account: ChartAccount | undefined): UnplacedReason | null => {
     if (!account) return 'not in chart';
     if (account.accountType !== 'revenue' && account.accountType !== 'expense') return 'not an income or expense account';
     return null;
   };
-  const slot = (account: ReportAccount) => {
+  const slot = (account: ChartAccount): Slot => {
     const key = keyOf(account.entityId, account.code);
-    let s = placed.get(key);
-    if (!s) { s = { account, lines: [], postings: [] }; placed.set(key, s); }
+    let s = slots.get(key);
+    if (!s) { s = { account, lines: [], postings: [] }; slots.set(key, s); }
     return s;
   };
   for (const line of input.budgetLines) {
     if (!within(line.day, rangeFrom, rangeTo)) continue;
+    planned.add(line.entityId);
     const account = accounts.get(keyOf(line.entityId, line.code));
     const reason = reasonFor(account);
     if (reason) unplaced.push({ kind: 'budgetLine', reason, line: { ...line } });
-    else slot(account as ReportAccount).lines.push(line);
+    else slot(account as ChartAccount).lines.push(line);
   }
   for (const posting of input.postings) {
     if (!within(posting.day, rangeFrom, rangeTo)) continue;
     const account = accounts.get(keyOf(posting.entityId, posting.code));
     const reason = reasonFor(account);
     if (reason) unplaced.push({ kind: 'posting', reason, posting: { ...posting } });
-    else slot(account as ReportAccount).postings.push(posting);
+    else slot(account as ChartAccount).postings.push(posting);
   }
 
-  const cellOf = (s: { account: ReportAccount; lines: BudgetLine[]; postings: Posting[] }, column: ReportColumn): ReportCell => {
-    const toDate = minDay(column.to, asOf);
-    const budgetFull = sumOrNull(s.lines.filter((l) => within(l.day, column.from, column.to)).map((l) => l.cents));
-    const budgetToDate = sumOrNull(s.lines.filter((l) => within(l.day, column.from, toDate)).map((l) => l.cents));
-    let actual: number | null = null;
-    if (column.state !== 'future') {
-      const hits = s.postings.filter((p) => within(p.day, column.from, toDate));
-      if (hits.length > 0) {
-        // The normal side adds, the other side subtracts: a 'D' account is
-        // debits − credits, a 'C' account credits − debits.
-        let net = 0;
-        for (const p of hits) net = safe(net + (p.entryType === s.account.balanceType ? p.cents : -p.cents), 'an actual');
-        actual = net;
-      }
-    }
-    // links.ts variance(a, b) is a − b, null unless both are known. Revenue is
-    // favorable when actual exceeds budget, so the actual goes first.
-    const v = s.account.accountType === 'revenue' ? variance(actual, budgetToDate) : variance(budgetToDate, actual);
-    return { budgetFull, budgetToDate, actual, variance: v === null ? null : safe(v, 'a variance') };
-  };
+  return { asOf, view, entities, accounts, columns, rangeFrom, rangeTo, slots, unplaced, planned };
+}
 
+/** The lines and postings behind one cell — THE selection every figure is the sum of. */
+interface Selection {
+  /** Budget lines dated in [from, to]. */
+  readonly full: readonly BudgetLine[];
+  /** Budget lines dated in [from, min(to, asOf)]. */
+  readonly toDate: readonly BudgetLine[];
+  /** Postings dated in [from, min(to, asOf)]; none for a future column. */
+  readonly postings: readonly Posting[];
+}
+
+function selectionOf(s: Slot, column: Pick<ReportColumn, 'from' | 'to' | 'state'>, asOf: IsoDay): Selection {
+  const toDate = minDay(column.to, asOf);
+  return {
+    full: s.lines.filter((l) => within(l.day, column.from, column.to)),
+    toDate: s.lines.filter((l) => within(l.day, column.from, toDate)),
+    postings: column.state === 'future' ? [] : s.postings.filter((p) => within(p.day, column.from, toDate)),
+  };
+}
+
+/** A selection's figures: the sums, the net actual, the variance. */
+function figuresOf(account: ChartAccount, sel: Selection): ReportCell {
+  const budgetFull = sumOrNull(sel.full.map((l) => l.cents));
+  const budgetToDate = sumOrNull(sel.toDate.map((l) => l.cents));
+  let actual: number | null = null;
+  if (sel.postings.length > 0) {
+    // The normal side adds, the other side subtracts: a 'D' account is
+    // debits − credits, a 'C' account credits − debits.
+    let net = 0;
+    for (const p of sel.postings) net = safe(net + (p.entryType === account.balanceType ? p.cents : -p.cents), 'an actual');
+    actual = net;
+  }
+  // links.ts variance(a, b) is a − b, null unless both are known. Revenue is
+  // favorable when actual exceeds budget, so the actual goes first.
+  const v = account.accountType === 'revenue' ? variance(actual, budgetToDate) : variance(budgetToDate, actual);
+  return { budgetFull, budgetToDate, actual, variance: v === null ? null : safe(v, 'a variance') };
+}
+
+const emptySlot = (account: ChartAccount): Slot => ({ account, lines: [], postings: [] });
+const hasFigure = (c: ReportCell): boolean => c.budgetFull !== null || c.budgetToDate !== null || c.actual !== null;
+
+export function buildBudgetReport(input: BudgetReportInput): BudgetReport {
+  const { asOf, view, entities, accounts, columns, slots, unplaced, planned } = placeInput(input);
+
+  // BUDGET-02 (ruling C): a row for every revenue and expense account — an archived one only with a figure.
   const rowsByEntity = new Map<string, ReportRow[]>();
-  for (const s of placed.values()) {
+  for (const account of accounts.values()) {
+    if (account.accountType !== 'revenue' && account.accountType !== 'expense') continue;
+    const s = slots.get(keyOf(account.entityId, account.code)) ?? emptySlot(account);
+    const cells = columns.map((c) => figuresOf(account, selectionOf(s, c, asOf)));
+    if (account.archived && !cells.some(hasFigure)) continue;
     const row: ReportRow = {
-      entityId: s.account.entityId,
-      code: s.account.code,
-      name: s.account.name,
-      family: s.account.accountType as RowFamily,
-      balanceType: s.account.balanceType,
-      cells: columns.map((c) => cellOf(s, c)),
+      entityId: account.entityId,
+      code: account.code,
+      name: account.name,
+      family: account.accountType,
+      balanceType: account.balanceType,
+      cells,
     };
     const list = rowsByEntity.get(row.entityId) ?? [];
     list.push(row);
@@ -646,13 +750,76 @@ export function buildBudgetReport(input: BudgetReportInput): BudgetReport {
         entityName: e.name,
         entityType: e.entityType,
         letter,
-        label: letter ? BOOK_LABEL[letter] : `${e.name} (${e.entityType})`,
+        label: letter ? BOOK_LABEL[letter] : e.name,
         rows,
+        hasPlanLines: planned.has(e.id),
         totals: totalsOf(rows, columns),
       };
     });
 
   const totals = totalsOf(books.flatMap((b) => b.rows), columns);
 
-  return { asOf, view, columns, books, totals, unplaced: unplaced.sort(compareUnplaced) };
+  return { asOf, view, columns, books, totals, unplaced: [...unplaced].sort(compareUnplaced) };
+}
+
+// ── THE DRILL (BUDGET-02) ───────────────────────────────────────────────────
+
+/** One row's figures over one range of the view — what a click on a figure asks for. */
+export interface CellRequest {
+  readonly entityId: string;
+  /** The bare four digits, as a row gives them. */
+  readonly code: string;
+  readonly from: IsoDay;
+  readonly to: IsoDay;
+}
+
+export interface BudgetCell {
+  readonly asOf: IsoDay;
+  readonly account: { readonly entityId: string; readonly code: string; readonly name: string; readonly family: RowFamily; readonly archived: boolean };
+  /** The range asked for, with its state by the columns' own rule. */
+  readonly range: { readonly from: IsoDay; readonly to: IsoDay; readonly state: ColumnState };
+  /** The figures a column of exactly this range prints — the same function as every cell. */
+  readonly cell: ReportCell;
+  /** Which budget the cell prints (shownBudget): to date, or the full budget for a future range. */
+  readonly shown: ShownBudget;
+  /** The budget lines behind the PRINTED budget figure — the very objects handed in, in input order. */
+  readonly budgetLines: readonly BudgetLine[];
+  /** The postings behind the actual — the very objects handed in, in input order; none for a future range. */
+  readonly postings: readonly Posting[];
+}
+
+/**
+ * BUDGET-02 (rulings E, G): the lines and postings behind one row's figures over
+ * one range of the view, by the SAME placement and the SAME selection as
+ * buildBudgetReport — so the drill's lines sum to the cell by construction. The
+ * input is checked exactly as the report's. Refused by name: an account that is
+ * not in the book's chart, an account that is no row (not revenue or expense),
+ * and a range that is not inside the view's or runs backwards.
+ */
+export function buildBudgetCell(input: BudgetReportInput, request: CellRequest): BudgetCell {
+  const placed = placeInput(input);
+  const entityId = checkId(request.entityId, 'request.entityId');
+  const code = checkCode(request.code, 'request.code');
+  const from = checkDay(request.from, 'request.from');
+  const to = checkDay(request.to, 'request.to');
+  const account = placed.accounts.get(keyOf(entityId, code));
+  if (!account) throw new BudgetReportError('cell-account-not-in-chart', `account ${code} is not in the chart of book ${entityId}`);
+  if (account.accountType !== 'revenue' && account.accountType !== 'expense') {
+    throw new BudgetReportError('cell-account-not-a-row', `account ${code} of book ${entityId} is in the ${account.accountType} family — only revenue and expense accounts are rows`);
+  }
+  if (from > to || from < placed.rangeFrom || to > placed.rangeTo) {
+    throw new BudgetReportError('bad-cell-range', `[${from}, ${to}] is not a range inside the view's [${placed.rangeFrom}, ${placed.rangeTo}]`);
+  }
+  const range = { from, to, state: stateOf(from, to, placed.asOf) };
+  const sel = selectionOf(placed.slots.get(keyOf(entityId, code)) ?? emptySlot(account), range, placed.asOf);
+  const shown = shownBudget(range.state);
+  return {
+    asOf: placed.asOf,
+    account: { entityId, code, name: account.name, family: account.accountType, archived: account.archived },
+    range,
+    cell: figuresOf(account, sel),
+    shown,
+    budgetLines: shown === 'full' ? sel.full : sel.toDate,
+    postings: sel.postings,
+  };
 }

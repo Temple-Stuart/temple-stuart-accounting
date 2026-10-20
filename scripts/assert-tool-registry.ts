@@ -2955,10 +2955,26 @@ lawGuard('The budget report route law', () => {
 // code. The purity law above still reads the shared helpers the Budget math
 // calls: a helper that read the clock, the network or the database would change
 // budget numbers without anyone touching Budget.
+// BUDGET-02 (ruled by Alex 2026-10-20, ruling G): TWO ROUTES, ONE LOADER. The
+// figures on /budget drill to their lines through GET /api/budget/report/cell —
+// read-only, the report route's auth order, scoped to the viewer's books — and
+// both routes read the books through ONE loader (src/lib/budget/reportReads.ts):
+// "One shared loader for the actuals query, called by the report route and the
+// cell route; the route law's one-query clause points at the loader." So:
+// clause 1 holds for BOTH routes (the gate first, GET only, neither path
+// public); clause 3's one actuals query, its two exclusions by name and its two
+// counts live in the loader, and NO other Budget file reads ledger_entries —
+// each route reads actuals only by calling the loader's readActuals; the cell
+// route is a Budget file (clauses 2, 4, 6). Nothing is loosened: the one query
+// and its exclusions are the same text, moved, and a route that read the ledger
+// itself now fails where before only a second query in the one route did.
 const BR_ROUTE = 'src/app/api/budget/report/route.ts';
+const BR_CELL = 'src/app/api/budget/report/cell/route.ts';
+const BR_READS = 'src/lib/budget/reportReads.ts';
 const BR_INPUTS = 'src/lib/budget/reportInputs.ts';
 const BR_PAGE = 'src/app/budget/page.tsx';
 const BR_PATH = '/api/budget/report';
+const BR_CELL_PATH = '/api/budget/report/cell';
 const BR_TRAVEL_TABLES = /\b(budget_line_items|trip_itinerary|calendar_events)\b/;
 const BR_TRAVEL_FILES = /^src\/(lib\/trips|components\/trips|app\/api\/trips|app\/budgets\/trips)\//;
 const BR_WRITE = /\.\w+\.(create|createMany|update|updateMany|delete|deleteMany|upsert)\s*\(|\$executeRaw/;
@@ -2966,6 +2982,7 @@ const BR_WRITE = /\.\w+\.(create|createMany|update|updateMany|delete|deleteMany|
 const BR_LOADER = 'src/lib/operations/routineBudgetInputs.ts';
 const BR_BUDGET_FILES: readonly string[] = [
   BR_ROUTE,
+  BR_CELL,
   ...tsFiles(resolve(ROOT, 'src/lib/budget')).map((abs) => abs.replace(`${ROOT}/`, '')),
   ...tsFiles(resolve(ROOT, 'src/components/budget')).map((abs) => abs.replace(`${ROOT}/`, '')),
   BR_LOADER,
@@ -2992,18 +3009,22 @@ const brTree = (root: string): string[] => {
   return [...seen];
 };
 if (!existsSync(resolve(ROOT, BR_ROUTE))) brFail(`${BR_ROUTE} is missing — the budget report has one route`);
+else if (!existsSync(resolve(ROOT, BR_CELL))) brFail(`${BR_CELL} is missing — the figures on /budget drill through it (BUDGET-02)`);
+else if (!existsSync(resolve(ROOT, BR_READS))) brFail(`${BR_READS} is missing — both budget routes read the books through it (BUDGET-02)`);
 else {
-  const route = codeOf(BR_ROUTE);
-  // 1. The gate first; GET only; not public.
-  if (!route.replace(/\s+/g, ' ').includes(BR_GATE)) brFail(`${BR_ROUTE} does not open with the cart-plan auth — a verified cookie or 401, the user or 404, before any other read`);
-  const methods = [...route.matchAll(/export\s+(?:async\s+)?(?:function|const)\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\b/g)].map((m) => m[1]);
-  if (methods.join(',') !== 'GET') brFail(`${BR_ROUTE} exports a method other than GET (${methods.join(', ')}) — the report is read-only`);
-  const mw = codeOf('src/middleware.ts');
-  const publicList = /const PUBLIC_PATHS = \[([\s\S]*?)\];/.exec(mw);
-  if (!publicList) brFail('src/middleware.ts no longer declares PUBLIC_PATHS — the law cannot see whether the report is public');
-  else {
-    for (const m of publicList[1].matchAll(/\x27([^\x27]+)\x27/g)) {
-      if (BR_PATH === m[1] || BR_PATH.startsWith(`${m[1]}/`)) brFail(`${BR_PATH} is a public path (src/middleware.ts lists ${m[1]}) — a guest would reach the books of a person`);
+  // 1. The gate first; GET only; not public — BUDGET-02: both routes.
+  for (const [file, path] of [[BR_ROUTE, BR_PATH], [BR_CELL, BR_CELL_PATH]] as const) {
+    const body = codeOf(file);
+    if (!body.replace(/\s+/g, ' ').includes(BR_GATE)) brFail(`${file} does not open with the cart-plan auth — a verified cookie or 401, the user or 404, before any other read`);
+    const methods = [...body.matchAll(/export\s+(?:async\s+)?(?:function|const)\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\b/g)].map((m) => m[1]);
+    if (methods.join(',') !== 'GET') brFail(`${file} exports a method other than GET (${methods.join(', ')}) — the report is read-only`);
+    const mw = codeOf('src/middleware.ts');
+    const publicList = /const PUBLIC_PATHS = \[([\s\S]*?)\];/.exec(mw);
+    if (!publicList) brFail('src/middleware.ts no longer declares PUBLIC_PATHS — the law cannot see whether the report is public');
+    else {
+      for (const m of publicList[1].matchAll(/\x27([^\x27]+)\x27/g)) {
+        if (path === m[1] || path.startsWith(`${m[1]}/`)) brFail(`${path} is a public path (src/middleware.ts lists ${m[1]}) — a guest would reach the books of a person`);
+      }
     }
   }
   // 2 and 4. The Budget files: no travel table, no travel file, no write.
@@ -3038,17 +3059,27 @@ else {
       if (!allowed || !allowed.includes(verb)) brFail(`${f} writes (${verb} ${url[1]}) — the one input on /budget is a plan line vendor: POST or DELETE /api/operations/plan-vendors, or POST /api/operations/vendor-directory`);
     }
   }
-  // 3. Left out by name, in the one actuals query.
-  const actuals = [...route.matchAll(/ledger_entries\.findMany\(\{([\s\S]*?)select:/g)];
-  if (actuals.length !== 1) brFail(`${BR_ROUTE} reads ledger lines ${actuals.length} times — the actuals are ONE query, filtered by name`);
+  // 3. Left out by name, in the one actuals query — BUDGET-02: in the one loader both routes call.
+  const reads = codeOf(BR_READS);
+  const actuals = [...reads.matchAll(/ledger_entries\.findMany\(\{([\s\S]*?)select:/g)];
+  if (actuals.length !== 1) brFail(`${BR_READS} reads ledger lines ${actuals.length} times — the actuals are ONE query, filtered by name`);
   else {
     const where = actuals[0][1];
-    if (!/is_reversal:\s*false/.test(where) || !/reversed_by_entry_id:\s*null/.test(where)) brFail(`${BR_ROUTE} does not leave out reversal pairs by name in its actuals query — is_reversal false and reversed_by_entry_id null, both`);
-    if (!/source_type:\s*\{\s*not:\s*\x27year_end_close\x27\s*\}/.test(where)) brFail(`${BR_ROUTE} does not leave out closing entries by name in its actuals query — source_type not year_end_close`);
+    if (!/is_reversal:\s*false/.test(where) || !/reversed_by_entry_id:\s*null/.test(where)) brFail(`${BR_READS} does not leave out reversal pairs by name in its actuals query — is_reversal false and reversed_by_entry_id null, both`);
+    if (!/source_type:\s*\{\s*not:\s*\x27year_end_close\x27\s*\}/.test(where)) brFail(`${BR_READS} does not leave out closing entries by name in its actuals query — source_type not year_end_close`);
   }
-  if (!/is_reversal:\s*true/.test(route)) brFail(`${BR_ROUTE} does not count the reversal pairs it leaves out`);
-  if (!/source_type:\s*\x27year_end_close\x27/.test(route)) brFail(`${BR_ROUTE} does not count the closing entries it leaves out`);
-  if (/\$queryRaw/.test(route)) brFail(`${BR_ROUTE} runs a raw query — the ledger is read through the one filtered query`);
+  if (!/is_reversal:\s*true/.test(reads)) brFail(`${BR_READS} does not count the reversal pairs it leaves out`);
+  if (!/source_type:\s*\x27year_end_close\x27/.test(reads)) brFail(`${BR_READS} does not count the closing entries it leaves out`);
+  for (const f of BR_BUDGET_FILES) {
+    if (f === BR_READS || !existsSync(resolve(ROOT, f))) continue;
+    if (/\bledger_entries\s*\./.test(codeOf(f))) brFail(`${f} reads ledger lines itself — a Budget file reads the actuals only through ${BR_READS} (the one actuals query)`);
+  }
+  for (const f of [BR_ROUTE, BR_CELL, BR_READS]) {
+    if (/\$queryRaw/.test(codeOf(f))) brFail(`${f} runs a raw query — the ledger is read through the one filtered query`);
+  }
+  for (const f of [BR_ROUTE, BR_CELL]) {
+    if (!/\breadActuals\(/.test(codeOf(f))) brFail(`${f} does not read its actuals through readActuals in the loader — both budget routes read the one actuals query`);
+  }
 }
 // 5. /budget renders the report.
 {
@@ -3056,7 +3087,7 @@ else {
   if (!/import BudgetReport from \x27@\/components\/budget\/BudgetReport\x27;/.test(page) || !/<BudgetReport\b/.test(page)) brFail(`${BR_PAGE} does not render BudgetReport — /budget is the budget report`);
   if (/BudgetingPage/.test(page) || brTree(BR_PAGE).includes('src/components/dashboard/BudgetingPage.tsx')) brFail(`BudgetingPage is in the import tree of ${BR_PAGE} — /budget renders BudgetReport, not the category room`);
 }
-if (brViolations === 0) console.log(`✔ The budget report route law passed — GET only, the cart-plan gate first, not a public path; ${BR_BUDGET_FILES.length} Budget files (the route, src/lib/budget, src/components/budget, the routine budget loader) name no travel table or travel file and write nothing; reversal pairs and closing entries are left out of the actuals by name and counted; /budget renders BudgetReport; every write a Budget file sends is a plan line vendor, through the two vendor routes.`);
+if (brViolations === 0) console.log(`✔ The budget report route law passed — both budget routes (the report and the drill) GET only, the cart-plan gate first, neither a public path; ${BR_BUDGET_FILES.length} Budget files (the two routes, src/lib/budget, src/components/budget, the routine budget loader) name no travel table or travel file and write nothing; the one actuals query, in the loader both routes call, leaves out reversal pairs and closing entries by name and counts them, and no other Budget file reads the ledger; /budget renders BudgetReport; every write a Budget file sends is a plan line vendor, through the two vendor routes.`);
 else console.log(`✖ The budget report route law FAILED — ${brViolations} violation(s).`);
 });
 lawGuard('The vendor law', () => {

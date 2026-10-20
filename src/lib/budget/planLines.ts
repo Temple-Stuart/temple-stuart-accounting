@@ -27,6 +27,14 @@
  * by name, never dropped and never matched to a neighbour. A row whose routine's
  * zone cannot be read cannot be dated: it is listed too, undated, with that reason.
  *
+ * BUDGET-02 (2026-10-20) — THE MATCHING, OVER EXPLICIT DAYS. Alex: "Lift
+ * dayPlanOf's matching into a function over explicit days … no second rule."
+ * planLinesOn() is that matching — the plan's one grain, a line's label, line,
+ * time, address and vendor — over the days it is handed. dayPlanOf() is now a
+ * DAY or WEEK view's days (planDays) handed to it, plus the stranded vendors;
+ * the /budget drill (reportInputs.ts budgetCellResponse) hands it the days of
+ * the one figure it lists. One rule, two callers.
+ *
  * Pure — reached through reportInputs.ts, so the budget report purity law reads
  * it: no Prisma client, no framework, no network, no environment, no clock. A
  * call the route got wrong comes back as a named error for reportInputs.ts to
@@ -130,6 +138,22 @@ export type DayPlanResult =
   | { readonly ok: true; readonly plan: DayPlan }
   | { readonly ok: false; readonly code: PlanLinesErrorCode; readonly message: string };
 
+/** BUDGET-02: the matching's input — the days are explicit; the vendor rows are read for them. */
+export interface PlanLinesInput {
+  readonly days: readonly IsoDay[];
+  /** The routine and task lines as handed to the model. */
+  readonly lines: readonly BudgetLine[];
+  readonly routines: ReadonlyMap<string, RoutineWords>;
+  /** Task id → title. */
+  readonly tasks: ReadonlyMap<string, string>;
+  /** Every every-occurrence row and the occurrence rows in vendorWindowOf(days). */
+  readonly vendors: readonly PlanVendorRow[];
+}
+
+export type PlanLinesResult =
+  | { readonly ok: true; readonly lines: readonly PlanLine[] }
+  | { readonly ok: false; readonly code: PlanLinesErrorCode; readonly message: string };
+
 // ── DAYS ────────────────────────────────────────────────────────────────────
 
 const DAY_MS = 86_400_000;
@@ -143,15 +167,28 @@ export function planDays(view: BudgetView): IsoDay[] | null {
   return view.kind === 'day' ? [view.day] : Array.from({ length: 7 }, (_, i) => plusDays(rangeFrom, i));
 }
 
+/** BUDGET-02: every day of [from, to], in order — none when from is after to. */
+export function daysOf(from: IsoDay, to: IsoDay): IsoDay[] {
+  const out: IsoDay[] = [];
+  for (let day = from; day <= to; day = plusDays(day, 1)) out.push(day);
+  return out;
+}
+
 /**
- * The instants the route reads occurrence vendors in: [first day column − 1 day,
- * last day column + 2 days) UTC — a superset of those days' local times in every
- * zone, UTC−12 to UTC+14. planLines decides exactly. Null for a YEAR.
+ * The instants the route reads occurrence vendors in: [first day − 1 day, last
+ * day + 2 days) UTC — a superset of those days' local times in every zone,
+ * UTC−12 to UTC+14. planLines decides exactly. BUDGET-02: over explicit days
+ * (the drill's); null when there are none.
  */
+export function vendorWindowOf(days: readonly IsoDay[]): { readonly from: Date; readonly to: Date } | null {
+  if (days.length === 0) return null;
+  return { from: new Date(midnight(days[0]) - DAY_MS), to: new Date(midnight(days[days.length - 1]) + 2 * DAY_MS) };
+}
+
+/** A DAY's or WEEK's vendor window (vendorWindowOf over its day columns); null for a YEAR. */
 export function vendorWindow(view: BudgetView): { readonly from: Date; readonly to: Date } | null {
   const days = planDays(view);
-  if (days === null) return null;
-  return { from: new Date(midnight(days[0]) - DAY_MS), to: new Date(midnight(days[days.length - 1]) + 2 * DAY_MS) };
+  return days === null ? null : vendorWindowOf(days);
 }
 
 // ── THE PLAN ────────────────────────────────────────────────────────────────
@@ -177,14 +214,14 @@ function planOf(row: PlanVendorRow): { kind: OccurrenceKind; id: string } | null
   return { kind: 'project_task', id: row.task_id as string };
 }
 
-export function dayPlanOf(input: DayPlanInput): DayPlanResult {
-  const fail = (code: PlanLinesErrorCode, message: string): DayPlanResult => ({ ok: false, code, message });
-  const days = planDays(input.view);
-  if (days === null) {
-    if (input.vendors !== null) return fail('plan-vendors-read-for-year', 'a YEAR view was handed plan-vendor rows — a year lists no plan lines, and the route reads none for it');
-    return { ok: true, plan: { listed: false, words: YEAR_WORDS } };
-  }
-  if (input.vendors === null) return fail('plan-vendors-not-read', `a ${input.view.kind.toUpperCase()} view was handed no plan-vendor rows — the route reads them for a day or a week`);
+/**
+ * BUDGET-02 — THE MATCHING: the lines handed to the model that fall on the
+ * explicit days, each with its label, line, time, address and vendor by the
+ * plan's one grain, ordered by day, time, label, line and key.
+ */
+export function planLinesOn(input: PlanLinesInput): PlanLinesResult {
+  const fail = (code: PlanLinesErrorCode, message: string): PlanLinesResult => ({ ok: false, code, message });
+  const days = new Set(input.days);
 
   // The plan's ONE grain — indexed by plan.
   const holds = new Map<string, PlanHolds>();
@@ -209,10 +246,10 @@ export function dayPlanOf(input: DayPlanInput): DayPlanResult {
     }
   }
 
-  // The plan lines: the lines handed to the model, on the view's day columns.
+  // The plan lines: the lines handed to the model, on the days handed in.
   const lines: { line: PlanLine; sourceId: string }[] = [];
   for (const l of input.lines) {
-    if (!days.includes(l.day)) continue;
+    if (!days.has(l.day)) continue;
     const read = readOccurrenceKey(l.sourceId);
     if (read === null) return fail('plan-line-unreadable', `budget line ${JSON.stringify(l.sourceId)} is no occurrence's key`);
     const { address, routineId } = read;
@@ -251,6 +288,21 @@ export function dayPlanOf(input: DayPlanInput): DayPlanResult {
     });
   }
   lines.sort((a, b) => cmp(a.line.day, b.line.day) || cmpMaybe(a.line.time, b.line.time) || cmp(a.line.label, b.line.label) || cmpMaybe(a.line.line, b.line.line) || cmp(a.sourceId, b.sourceId));
+  return { ok: true, lines: lines.map((l) => l.line) };
+}
+
+export function dayPlanOf(input: DayPlanInput): DayPlanResult {
+  const fail = (code: PlanLinesErrorCode, message: string): DayPlanResult => ({ ok: false, code, message });
+  const days = planDays(input.view);
+  if (days === null) {
+    if (input.vendors !== null) return fail('plan-vendors-read-for-year', 'a YEAR view was handed plan-vendor rows — a year lists no plan lines, and the route reads none for it');
+    return { ok: true, plan: { listed: false, words: YEAR_WORDS } };
+  }
+  if (input.vendors === null) return fail('plan-vendors-not-read', `a ${input.view.kind.toUpperCase()} view was handed no plan-vendor rows — the route reads them for a day or a week`);
+
+  // BUDGET-02: the matching, on the view's day columns — every vendor row is checked there.
+  const matched = planLinesOn({ days, lines: input.lines, routines: input.routines, tasks: input.tasks, vendors: input.vendors });
+  if (!matched.ok) return matched;
 
   // Stranded: an occurrence vendor on a day of this view that matches no occurrence the view built.
   const built = new Set<string>([...input.lines.map((l) => l.sourceId), ...input.notPlaced.map((n) => n.sourceId)]);
@@ -278,5 +330,5 @@ export function dayPlanOf(input: DayPlanInput): DayPlanResult {
   }
   stranded.sort((a, b) => cmpMaybe(a.day, b.day) || cmpMaybe(a.time, b.time) || cmp(a.label, b.label) || cmp(a.vendor.name, b.vendor.name));
 
-  return { ok: true, plan: { listed: true, days, lines: lines.map((l) => l.line), stranded } };
+  return { ok: true, plan: { listed: true, days, lines: matched.lines, stranded } };
 }

@@ -424,8 +424,9 @@ test('R9 ONE RANGE — viewRange is the span the model reads, and the day rules 
     asOf, view: { kind: 'week', weekOf: '2026-10-07' },
     entities: [{ id: 'ent-p', name: 'Personal', entityType: 'personal' }],
     accounts: [
-      { entityId: 'ent-p', code: '6150', name: 'Coffee', accountType: 'expense', balanceType: 'D' },
-      { entityId: 'ent-p', code: '6300', name: 'Office', accountType: 'expense', balanceType: 'D' },
+      // BUDGET-02 (2026-10-20): the chart hands in each account's archived flag — active accounts.
+      { entityId: 'ent-p', code: '6150', name: 'Coffee', accountType: 'expense', balanceType: 'D', archived: false },
+      { entityId: 'ent-p', code: '6300', name: 'Office', accountType: 'expense', balanceType: 'D', archived: false },
     ],
     budgetLines: lines, postings: [],
   });
