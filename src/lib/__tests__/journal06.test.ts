@@ -377,11 +377,12 @@ test('T6b JOURNAL-06b the cap: AUDIT_READ_LIMIT is the route’s own 500 and the
 
 // ── T7 · THE TWO READS AND THE ROUTES THEY READ ──────────────────────────────
 
-test('T7 the two reads (dayReads.ts): THE BACKLOG from the projects GET — the five not-done statuses, title and open_task_count required, sorted by the rule; WHAT MOVED TODAY from the audit log — prefix operations_, after/before, limit 500, oldest first; the projects GET counts open tasks; the audit route’s operations_ list carries the described types', () => {
+test('T7 the two reads (dayReads.ts): THE BACKLOG from the projects GET — the not-done statuses (BACKLOG-02b: six, not_started among them), title and open_task_count required, sorted by the rule; WHAT MOVED TODAY from the audit log — prefix operations_, after/before, limit 500, oldest first; the projects GET counts open tasks; the audit route’s operations_ list carries the described types', () => {
   const r = code(READS);
   // BACKLOG-02 (Alex, 2026-10-20): the five statuses have one home, morningLog.ts OPEN_PROJECT_STATUSES (THE LOG's) — the pin moved there, as exact.
   assert.match(r, /export const BACKLOG_STATUSES: readonly string\[\] = OPEN_PROJECT_STATUSES;/, 'projects not done — done and cancelled are not the backlog');
-  assert.match(code('src/lib/operations/morningLog.ts'), /export const OPEN_PROJECT_STATUSES = \['backlog', 'scoped', 'scheduled', 'in_progress', 'blocked'\] as const;/);
+  // BACKLOG-02b (Alex, 2026-10-20): not_started joined the set — THE BACKLOG lists it (backlog02.test.ts T10); the pin moved with it, as exact.
+  assert.match(code('src/lib/operations/morningLog.ts'), /export const OPEN_PROJECT_STATUSES = \['backlog', 'scoped', 'scheduled', 'in_progress', 'blocked', 'not_started'\] as const;/);
   assert.match(r, /export const BACKLOG_READ_NAME = 'the backlog';\nexport const MOVED_READ_NAME = 'what moved today';/);
   // BACKLOG-02 (2026-10-20): the same read is THE LOG's — its rows are LogProject (a ReflectionBacklogRow plus id, book and open tasks); the pin moved with it.
   assert.match(r, /export async function readBacklog\(\): Promise<Read<readonly LogProject\[\]>> \{\n\s*const read = await readJson\('\/api\/operations\/projects'\);/);

@@ -6,7 +6,7 @@
  * index (user_id, status, rank); nothing wrote it before this route).
  *
  * THE RULE. Body { ids: string[] } — the FULL ordered list of the user's OPEN projects (backlog · scoped · scheduled ·
- * in_progress · blocked — morningLog.ts OPEN_PROJECT_STATUSES), every book. Ranks are written 1..n in that order, in
+ * in_progress · blocked · not_started — morningLog.ts OPEN_PROJECT_STATUSES; BACKLOG-02b added not_started), every book. Ranks are written 1..n in that order, in
  * ONE transaction. Refused by name (400, field "ids", the rule named) — checked by the one pure rule,
  * morningLog.ts reorderCheck, in this order:
  *   · shape      — not a list of ids;
