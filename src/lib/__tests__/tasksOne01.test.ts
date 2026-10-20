@@ -132,18 +132,19 @@ test('T4 the Issue log page and PlaceholderCard are deleted, and nothing names t
   assert.equal((tasks.links ?? []).some((l) => l.label === 'Issue log' || l.href === '/operations/issues'), false);
   const law = code(LAW);
   assert.doesNotMatch(law, /\/operations\/issues|PlaceholderCard/, 'no orphan exception names the page');
-  assert.match(law, /const ORPHAN_EXCEPTIONS_MAX = 1;/);
+  // TASKS-02 (2026-10-20): the maximum came down again, 1 → 0 — the audit trail left the list for Compliance's links.
+  assert.match(law, /const ORPHAN_EXCEPTIONS_MAX = 0;/);
 });
 
-// ── T5 · THE TASKS ROW LINKS NORTH STAR AND AUDIT TRAIL ONLY ────────────────
+// ── T5 · THE TASKS ROW LINKS NOTHING ───────────────────────────────────────
+// TASKS-02 (2026-10-20): T5 said "North Star and Audit trail only — until the next ruling". This is that ruling:
+// the North Star's page is deleted and the audit trail is Compliance's link, so the Tasks row links nothing and the
+// rail shows no sub-row. The TASKS-ONE-01 comment stays on the row as history.
 
-test('T5 the Tasks row links North Star and Audit trail only — and the rail shows exactly those two', () => {
+test('T5 the Tasks row links nothing — and the rail shows no sub-row under it', () => {
   const tasks = TOOL_REGISTRY.find((t) => t.name === 'Tasks')!;
-  assert.deepEqual(tasks.links, [
-    { label: 'North Star', href: '/operations/north-star' },
-    { label: 'Audit trail', href: '/operations/audit-log' },
-  ]);
+  assert.deepEqual(tasks.links, []);
   const rail = navToolByName('Tasks', TOOL_GATE);
-  assert.deepEqual(rail.subRows.map((r) => [r.label, r.door.href]), [['North Star', '/operations/north-star'], ['Audit trail', '/operations/audit-log']]);
+  assert.deepEqual(rail.subRows, []);
   assert.match(comments('src/lib/toolRegistry.ts'), /TASKS-ONE-01 \(Alex, 2026-10-14\): one Tasks page, no sub-tabs\./);
 });

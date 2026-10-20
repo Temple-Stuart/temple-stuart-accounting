@@ -189,10 +189,15 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     // /time by next.config.ts.
     // LEDGER-02 (Alex, 2026-10-19): the city ledger above is the TASK LEDGER —
     // renamed, still on /time (the Time row below).
-    links: [
-      { label: 'North Star', href: '/operations/north-star' },
-      { label: 'Audit trail', href: '/operations/audit-log' },
-    ],
+    // TASKS-02 (Alex, 2026-10-20): the ruling TASKS-ONE-01 waited for. Tasks
+    // has NO sub-rows. The North Star page is deleted — its page, its section
+    // and its three routes (the paid optimizer among them); the
+    // operations_north_star table and its AI readers (northStarContext.ts and
+    // the six generators) are untouched, so a row that exists still feeds the
+    // generators and a null row still returns the 'none' shape. The audit
+    // trail is Compliance's — it is the log of what was done, and Compliance
+    // keeps that log (its `why` says so); the Compliance row below links it.
+    links: [],
     citation: 'src/app/api/operations/projects/[id]/tasks/route.ts:43 · generate-tasks/route.ts:42 · tasks/bulk-create/route.ts:117 · tasks/[taskId]/route.ts:82 → :339, :370; accepting a pending_review task fires the paid build at tasks/[taskId]/route.ts:392-402',
     customer: 'You can plan projects and routines with what each one should cost, and see them on your calendar; what a task actually cost is still typed in by hand.',
   },
@@ -371,7 +376,15 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   },
   Compliance: {
     slug: 'compliance', status: 'PARTIAL', beats: some({ discover: true, decide: true, record: true }), home: '/compliance', cockpitKey: 'compliance',
-    links: [{ label: 'SOC 2 proofs', href: '/soc2' }],
+    // TASKS-02 (Alex, 2026-10-20): the audit trail (/operations/audit-log,
+    // SectionK_AuditTail) is doored here, not under Tasks — Compliance "keeps a
+    // log of what was done", and the trail IS that log. The page is no tool's
+    // home, so navLaw rule 7 holds; the orphan law's exception for it closes
+    // (scripts/assert-tool-registry.ts ORPHAN_EXCEPTIONS).
+    links: [
+      { label: 'SOC 2 proofs', href: '/soc2' },
+      { label: 'Audit trail', href: '/operations/audit-log' },
+    ],
     citation: 'src/lib/discovery/runDiscovery.ts:44 · :107 · src/lib/audit/writeAuditLog.ts:101 via materializeProposal.ts:186; nothing signed (attestation_status schema:2675-2678 never written)',
     customer: 'It works out what the entity has to do and keeps a log of what was done; nothing is signed off here yet.',
   },

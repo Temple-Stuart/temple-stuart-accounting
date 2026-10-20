@@ -146,13 +146,15 @@ test('every legacy page hangs under the tool that OWNS it — never another tool
     // DAYCARD-01 (2026-10-11): the day card is the fourth, by the same door.
     // TASKS-ONE-01 (2026-10-14): two left — the Issue log's page is deleted (an unbuilt placeholder), and the day
     // card is the first section of /tasks itself, so no sub-row leads to it.
-    Tasks: ['/operations/north-star', '/operations/audit-log'],
+    // TASKS-02 (2026-10-20): none — the North Star's page is deleted and the audit trail is Compliance's link,
+    // so Tasks carries no sub-row and leaves this map (the map lists only tools WITH sub-rows).
     // TRIPS-01 (2026-09-29): Travel is gone from this map — it carries no sub-row, ever.
     // The Travel tab is the one Trips tab; the legacy pages are redirects to it.
     Budget: ['/agenda', '/shopping', '/hub/itinerary', '/runway'],
     Bookkeeping: ['/chart-of-accounts'],
     Tax: ['/dashboard/tax-filing'],
-    Compliance: ['/soc2'],
+    // TASKS-02 (2026-10-20): the audit trail is Compliance's second sub-row — it is the log of what was done.
+    Compliance: ['/soc2', '/operations/audit-log'],
   });
   // The law that keeps it so: a sub-row may never point at another tool's screen.
   const hung = model();
