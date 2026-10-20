@@ -7,6 +7,13 @@
  *          as operations_project_updated. SOC 2 evidence-of-state-change
  *          control: status transitions are evidentiarily distinct from
  *          content edits.
+ *          BACKLOG-01 (Alex, 2026-10-20): accepts the capture's fields — type
+ *          (strict; may not be cleared once set), size (S/M/L or null), why
+ *          (≤ 4000 code points; may not be cleared once set),
+ *          definition_of_done, notes, links (the *_items shape) — with the
+ *          POST's validation, audited as operations_project_updated as today.
+ *          No transition table yet — any valid status is accepted; BACKLOG-03
+ *          adds the allowed moves and writes promoted_at/scheduled_at/done_at.
  * DELETE — hard delete: the project, its tasks and its dependencies go in ONE
  *          transaction. TASKS-01 (2026-09-18): NEVER through a live link — the
  *          delete is refused with 409, naming the task and the reason, when a
@@ -21,7 +28,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
-import { Prisma, ProjectStatus } from '@prisma/client';
+import { Prisma, ProjectSize, ProjectStatus, ProjectType } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
@@ -48,7 +55,17 @@ const VALID_STATUSES: ProjectStatus[] = [
   'completed',
   'cancelled',
   'archived',
+  // BACKLOG-01 (Alex, 2026-10-20): the four capture statuses.
+  'backlog',
+  'scoped',
+  'scheduled',
+  'dropped',
 ];
+
+// BACKLOG-01: the strict enums and why's cap, as the POST holds them.
+const PROJECT_TYPES: readonly ProjectType[] = ['engineering', 'accounting', 'content', 'travel', 'ops'];
+const PROJECT_SIZES: readonly ProjectSize[] = ['S', 'M', 'L'];
+const WHY_MAX_CODE_POINTS = 4000;
 
 async function loadAuthorizedProject(projectId: string, userId: string) {
   return prisma.operations_projects.findFirst({
@@ -190,6 +207,86 @@ export async function PATCH(
       }
     }
 
+    // BACKLOG-01 (Alex, 2026-10-20): the capture's fields, with the POST's rules.
+    // type: strict; '' or null when the row HAS a type is a clearing — refused by
+    // name. On a row captured before (type null) '' or null is nothing chosen
+    // yet, so the column stays null; it is not a clearing.
+    if (body.type !== undefined) {
+      if (body.type === null || body.type === '') {
+        if (existing.type !== null) {
+          return NextResponse.json(
+            { error: 'Validation', field: 'type', message: 'type may not be cleared once set' },
+            { status: 400 }
+          );
+        }
+      } else {
+        const found = PROJECT_TYPES.find((t) => t === body.type);
+        if (!found) {
+          return NextResponse.json(
+            { error: 'Validation', field: 'type', message: `type must be one of ${PROJECT_TYPES.join(', ')}` },
+            { status: 400 }
+          );
+        }
+        data.type = found;
+      }
+    }
+    // size: S, M, L, or cleared to null ("not sized").
+    if (body.size !== undefined) {
+      if (body.size === null || body.size === '') {
+        data.size = null;
+      } else {
+        const found = PROJECT_SIZES.find((x) => x === body.size);
+        if (!found) {
+          return NextResponse.json(
+            { error: 'Validation', field: 'size', message: `size must be one of ${PROJECT_SIZES.join(', ')} or empty` },
+            { status: 400 }
+          );
+        }
+        data.size = found;
+      }
+    }
+    // why: a paragraph of at most 4000 CODE POINTS (counted as JOURNAL-04 counts
+    // the evening's block, src/lib/operations/journal.ts:285); nothing typed when
+    // the row HAS a why is a clearing — refused by name; on a row captured before
+    // (why null) it stays null.
+    if (body.why !== undefined) {
+      const t = trimNonEmpty(body.why);
+      if (t === null) {
+        if (existing.why !== null) {
+          return NextResponse.json(
+            { error: 'Validation', field: 'why', message: 'why may not be cleared once set' },
+            { status: 400 }
+          );
+        }
+      } else {
+        const whyLength = [...t].length;
+        if (whyLength > WHY_MAX_CODE_POINTS) {
+          return NextResponse.json(
+            { error: 'Validation', field: 'why', message: `why is at most ${WHY_MAX_CODE_POINTS} characters (${whyLength} given)` },
+            { status: 400 }
+          );
+        }
+        data.why = t;
+      }
+    }
+    // definition_of_done and notes: optional — nothing typed is NULL, never "".
+    for (const field of ['definition_of_done', 'notes'] as const) {
+      if (body[field] !== undefined) data[field] = trimNonEmpty(body[field]);
+    }
+    // links: the *_items shape (≤ 20 strings of ≤ 500; a blank line dropped as the items are).
+    if (body.links !== undefined) {
+      const result = validateItems(body.links, 'links');
+      if (!result.ok) {
+        return NextResponse.json(
+          { error: 'Validation', field: 'links', message: result.message },
+          { status: 400 }
+        );
+      }
+      data.links = result.items;
+    }
+
+    // BACKLOG-01: no transition table yet — any valid status is accepted;
+    // BACKLOG-03 adds the allowed moves and writes promoted_at/scheduled_at/done_at.
     let statusChange: { from: ProjectStatus; to: ProjectStatus } | null = null;
     if (body.status !== undefined) {
       const incoming = body.status as ProjectStatus;

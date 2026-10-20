@@ -1,16 +1,23 @@
 /**
  * /api/operations/projects
  *
- * GET  — list the user's projects, optionally filtered by ?entity_id=<uuid>.
- *        Sorted by status priority (not_started/in_progress first), then
+ * GET  — list the user's projects, optionally filtered by ?entity_id=<uuid>
+ *        (the Tasks page no longer sends it — BACKLOG-01 ruling G: the list
+ *        shows every book; the parameter stays for any other caller).
+ *        Sorted by status priority (STATUS_ORDER — the active work first), then
  *        priority_score DESC NULLS LAST, then target_completion_date ASC.
  *        No audit write (read-only).
  *
- * POST — create a project. Validates all 4 Bridgewater scoping fields
- *        (goal, problem, diagnosis, design) non-empty server-side. Verifies
- *        entity ownership before insert. Catches (user_id, title) unique
- *        constraint pre-emptively for clean 409 error.
- *        Audits operations_project_created.
+ * POST — CAPTURE a project (BACKLOG-01, Alex, 2026-10-20). Required: entity_id
+ *        (the book), title, type (ProjectType, by name) and why (a paragraph,
+ *        at most 4000 code points). Optional: size (ProjectSize), definition_of_done,
+ *        notes, links (a list of ≤ 20 strings of ≤ 500 — a doc path or a url,
+ *        not validated as a url), the Dalio items (goalItems may be EMPTY now —
+ *        ruling A: scoping is the row's edit view), target date, estimates.
+ *        The row lands status 'backlog', set EXPLICITLY here. Verifies entity
+ *        ownership before insert. Catches (user_id, title) unique constraint
+ *        pre-emptively for a clean 409. Audits operations_project_created,
+ *        naming the type.
  *
  * Pattern mirrors src/app/api/operations/north-star/route.ts. Sequential
  * prisma + writeAuditLog awaits, NOT transactional (matches codebase
@@ -27,24 +34,35 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
-import { Prisma, ProjectStatus } from '@prisma/client';
+import { Prisma, ProjectSize, ProjectStatus, ProjectType } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 
 /**
- * Status sort key. not_started + in_progress surface first (active work);
- * blocked next (needs attention); completed/cancelled/archived last.
- * Used in the GET orderBy.
+ * Status sort key — the active work first, then what waits, then what ended.
+ * BACKLOG-01 (Alex, 2026-10-20): the four new statuses join the ladder. A
+ * legacy not_started row sits AFTER the backlog so an old row does not jump
+ * the new line; blocked (needs attention) sits between them. Used in the GET's
+ * in-memory sort.
  */
 const STATUS_ORDER: Record<ProjectStatus, number> = {
-  not_started: 0,
-  in_progress: 1,
-  blocked: 2,
-  completed: 3,
-  cancelled: 4,
-  archived: 5,
+  in_progress: 0,
+  scheduled: 1,
+  scoped: 2,
+  backlog: 3,
+  blocked: 4,
+  not_started: 5,
+  completed: 6,
+  dropped: 7,
+  cancelled: 8,
+  archived: 9,
 };
+
+/** BACKLOG-01: the strict enums, as the schema spells them. */
+const PROJECT_TYPES: readonly ProjectType[] = ['engineering', 'accounting', 'content', 'travel', 'ops'];
+const PROJECT_SIZES: readonly ProjectSize[] = ['S', 'M', 'L'];
+const WHY_MAX_CODE_POINTS = 4000;
 
 export async function GET(request: NextRequest) {
   try {
@@ -241,6 +259,43 @@ export async function POST(request: NextRequest) {
     const title = requireString(body.title, 'title', 500);
     if (title instanceof NextResponse) return title;
 
+    // BACKLOG-01 (Alex, 2026-10-20): type is REQUIRED and strict — missing or
+    // not one of the five is refused by name; the column is nullable only so a
+    // row captured before reads "—".
+    const type = PROJECT_TYPES.find((t) => t === body.type);
+    if (!type) {
+      return NextResponse.json(
+        { error: 'Validation', field: 'type', message: `type is required — one of ${PROJECT_TYPES.join(', ')}` },
+        { status: 400 }
+      );
+    }
+    // why is REQUIRED — the value or the problem, a paragraph. Its line breaks
+    // are kept; its cap is counted in CODE POINTS the way JOURNAL-04 counts the
+    // evening's block (src/lib/operations/journal.ts:285 `[...text].length`; the
+    // rule there is module-private, so the expression is repeated, not imported).
+    const whyRaw = requireString(body.why, 'why');
+    if (whyRaw instanceof NextResponse) return whyRaw;
+    const whyLength = [...whyRaw].length;
+    if (whyLength > WHY_MAX_CODE_POINTS) {
+      return NextResponse.json(
+        { error: 'Validation', field: 'why', message: `why is at most ${WHY_MAX_CODE_POINTS} characters (${whyLength} given)` },
+        { status: 400 }
+      );
+    }
+    const why = whyRaw;
+    // size is optional — '' / null / absent is "not sized"; anything else must be S, M or L.
+    let size: ProjectSize | null = null;
+    if (body.size !== undefined && body.size !== null && body.size !== '') {
+      const found = PROJECT_SIZES.find((x) => x === body.size);
+      if (!found) {
+        return NextResponse.json(
+          { error: 'Validation', field: 'size', message: `size must be one of ${PROJECT_SIZES.join(', ')} or empty` },
+          { status: 400 }
+        );
+      }
+      size = found;
+    }
+
     // PR-Ops-3.7: structured-list fields are the source of truth. Each
     // is required, non-empty array of trimmed strings ≤ 500 chars,
     // ≤ 20 items per array.
@@ -312,7 +367,10 @@ export async function POST(request: NextRequest) {
       return { ok: true, items };
     };
 
-    const goalItemsResult = validateItems(body.goalItems, 'goalItems');
+    // BACKLOG-01 (Alex, 2026-10-20) — ruling A: goal items leave the capture
+    // form; the Dalio loop is "scope it" on the row's edit view. The list is
+    // still type/length-validated; EMPTY is accepted.
+    const goalItemsResult = validateItems(body.goalItems, 'goalItems', true);
     if (!goalItemsResult.ok) return goalItemsResult.response;
     // PD-Clean: problem/diagnosis are OPTIONAL — title+goals is a valid project. Items are
     // still type/length-validated; empty is accepted (the pipe degrades to "(none provided)").
@@ -320,6 +378,11 @@ export async function POST(request: NextRequest) {
     if (!problemItemsResult.ok) return problemItemsResult.response;
     const diagnosisItemsResult = validateItems(body.diagnosisItems, 'diagnosisItems', true);
     if (!diagnosisItemsResult.ok) return diagnosisItemsResult.response;
+    // BACKLOG-01: links — the *_items shape (≤ 20 strings of ≤ 500, each
+    // non-empty), empty allowed. A doc path or a url; not validated as a url —
+    // the prompt docs' paths are not urls.
+    const linksResult = validateItems(body.links, 'links', true);
+    if (!linksResult.ok) return linksResult.response;
 
     // Legacy paragraph fields are optional/nullable post-PR-Ops-3.7. The
     // *_items arrays above are the source of truth; legacy text is stored
@@ -340,6 +403,10 @@ export async function POST(request: NextRequest) {
     // Optional pasted Claude Code audit — persisted so later re-runs (design/tasks)
     // stay grounded in the same codebase reality. Column is @db.Text; whole text in.
     const claude_code_audit_input = trimNullable(body.claude_code_audit_input);
+
+    // BACKLOG-01: optional at capture — nothing typed is NULL, never "".
+    const definition_of_done = trimNullable(body.definition_of_done);
+    const notes = trimNullable(body.notes);
 
     // Verify entity ownership.
     const entity = await prisma.entities.findFirst({
@@ -399,6 +466,16 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         entity_id: entity_id_raw,
         title,
+        // BACKLOG-01 (Alex, 2026-10-20): a captured project lands in the
+        // BACKLOG — set here, explicitly; the column's default (not_started)
+        // is a legacy row's, never a capture's.
+        status: 'backlog',
+        type,
+        size,
+        why,
+        definition_of_done,
+        links: linksResult.items,
+        notes,
         goal,
         problem,
         diagnosis,
@@ -422,7 +499,7 @@ export async function POST(request: NextRequest) {
       },
       action: {
         type: 'operations_project_created',
-        description: `Created project "${title}" for ${userEmail}`,
+        description: `captured ${type} project "${title}" for ${userEmail}`,
       },
       target: {
         table: 'operations_projects',

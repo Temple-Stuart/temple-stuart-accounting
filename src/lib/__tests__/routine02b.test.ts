@@ -254,13 +254,15 @@ test('T6 the audit type: the enum value last, the one ADD VALUE line applied at 
   assert.equal(AuditActionType.operations_routine_rekeyed, 'operations_routine_rekeyed', 'prisma generate ran');
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
   // MOVE-01 (2026-10-19): one more audit-type migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 4], MIGRATION_DIR, 'the migration before the newest (MOVE-01 followed)');
+  assert.equal(dirs[dirs.length - 5], MIGRATION_DIR, 'the migration before the newest (MOVE-01 followed)');
   // JOURNAL-04 (2026-10-19): the evening answers' migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 3], '20261019090000_move_01_moved_audit_type', 'the migration before the newest (JOURNAL-04 followed)');
-  assert.equal(dirs[dirs.length - 2], '20261019210000_journal_04_evening_answers', 'the migration before the newest (LEDGER-03 followed)');
+  assert.equal(dirs[dirs.length - 4], '20261019090000_move_01_moved_audit_type', 'the migration before the newest (JOURNAL-04 followed)');
+  assert.equal(dirs[dirs.length - 3], '20261019210000_journal_04_evening_answers', 'the migration before the newest (LEDGER-03 followed)');
   // LEDGER-03 (Alex, 2026-10-19): two audit values for the planned-item link — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 1], '20261019230000_ledger_03_planned_item_link_audit', 'the newest migration');
-  assert.equal(dirs[dirs.length - 5], '20261016120000_retro_01_stop_moved_audit_type');
+  assert.equal(dirs[dirs.length - 2], '20261019230000_ledger_03_planned_item_link_audit', 'the migration before the newest (BACKLOG-01 followed)');
+  // BACKLOG-01 (Alex, 2026-10-20): the capture's columns and the four statuses — the newest; every position above moved by one.
+  assert.equal(dirs[dirs.length - 1], '20261020120000_backlog_01_capture', 'the newest migration');
+  assert.equal(dirs[dirs.length - 6], '20261016120000_retro_01_stop_moved_audit_type');
   const sql = code(`${MIGRATIONS}/${MIGRATION_DIR}/migration.sql`);
   assert.equal(sql.trim(), `ALTER TYPE "AuditActionType" ADD VALUE IF NOT EXISTS 'operations_routine_rekeyed';`, 'one line and nothing else');
   assert.match(comments(`${MIGRATIONS}/${MIGRATION_DIR}/migration.sql`), /applied at deploy/);

@@ -18,6 +18,14 @@
  * project's detail one click away as a full-width row. The queue card that
  * opened one project at a time is gone. "show archived" is the one toggle: it
  * reads archived projects AND archived tasks.
+ *
+ * BACKLOG-01 (Alex, 2026-10-20) — ruling G: the list shows EVERY book. The
+ * page's entity selector no longer filters the fetch (the ledger's rule:
+ * "every book — the COA says which"); the project cell names its book. The
+ * selector still seeds the capture form's default book (startCreate below),
+ * exactly as before. The form is the CAPTURE form (ProjectCreateForm): title,
+ * type, book, why, and the optional size, definition of done, links, notes
+ * and target date; a captured project lands in the backlog.
  */
 
 'use client';
@@ -56,7 +64,7 @@ export default function SectionD_ProjectBacklog({ }: { } = {}) {
     setError(null);
     try {
       const params = new URLSearchParams();
-      if (selectedEntityId) params.set('entity_id', selectedEntityId);
+      // BACKLOG-01 (Alex, 2026-10-20): no entity_id — every book is listed.
       if (showArchived) params.set('include_archived', 'true');
       const qs = params.toString();
       const url = qs ? `/api/operations/projects?${qs}` : '/api/operations/projects';
@@ -78,7 +86,7 @@ export default function SectionD_ProjectBacklog({ }: { } = {}) {
   useEffect(() => {
     fetchProjects();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedEntityId, showArchived]);
+  }, [showArchived]);
 
   const startCreate = () => {
     // Default the new project's entity to the currently-selected one, or the
@@ -144,9 +152,7 @@ export default function SectionD_ProjectBacklog({ }: { } = {}) {
         <div className="text-xs text-text-muted">loading projects…</div>
       ) : projects.length === 0 ? (
         <div className="text-xs text-text-muted">
-          {selectedEntityId
-            ? 'no projects for this entity yet — click "+ new project" to scope your first one.'
-            : 'no projects yet — click "+ new project" to scope your first one.'}
+          no projects yet — click &quot;+ new project&quot; to capture the first one.
         </div>
       ) : (
         <ProjectsTable

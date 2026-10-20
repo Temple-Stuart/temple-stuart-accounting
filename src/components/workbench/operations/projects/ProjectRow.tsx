@@ -68,6 +68,14 @@ function projectToForm(p: Project): ProjectForm {
     problemItems: Array.isArray(p.problem_items) ? p.problem_items.filter((x): x is string => typeof x === 'string') : [],
     diagnosisItems: Array.isArray(p.diagnosis_items) ? p.diagnosis_items.filter((x): x is string => typeof x === 'string') : [],
     status: p.status,
+    // BACKLOG-01 (Alex, 2026-10-20): the capture's fields round-trip through the
+    // edit form; null reads as '' (unchosen / not sized / nothing typed).
+    type: p.type ?? '',
+    size: p.size ?? '',
+    why: p.why ?? '',
+    definition_of_done: p.definition_of_done ?? '',
+    links: Array.isArray(p.links) ? p.links.filter((x): x is string => typeof x === 'string') : [],
+    notes: p.notes ?? '',
     target_completion_date: p.target_completion_date
       ? p.target_completion_date.slice(0, 10)
       : '',
