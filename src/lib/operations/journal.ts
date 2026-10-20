@@ -82,6 +82,7 @@
  * No fetch, no clock, no Prisma — the tests drive every rule.
  */
 import { isIsoDay } from '@/lib/budget/days';
+import { NO_OPEN_PROJECTS_WORDS, logOrder } from './morningLog';
 
 /**
  * The text answers' limits in CHARACTERS, counted in code points (not UTF-16 units). blocker's 280 is its column's
@@ -666,7 +667,8 @@ export const AUDIT_PROMPT_NO_PLAN = 'no plan';
 export const AUDIT_PROMPT_NO_STOPS = 'no stops';
 /** JOURNAL-06 (Alex, 2026-10-20): the reflection prompt's three sections after the day's lines, and THE ASK — a CONSTANT, the same every day by construction. */
 export const REFLECTION_PROMPT_BACKLOG = 'THE BACKLOG';
-export const REFLECTION_PROMPT_NO_BACKLOG = '— no open projects —';
+/** BACKLOG-02 (2026-10-20): the same words THE LOG prints (morningLog.ts) — one home. */
+export const REFLECTION_PROMPT_NO_BACKLOG = NO_OPEN_PROJECTS_WORDS;
 export const REFLECTION_PROMPT_MOVED = 'WHAT MOVED TODAY';
 export const REFLECTION_PROMPT_NOTHING_MOVED = '— nothing recorded —';
 export const REFLECTION_PROMPT_ANSWERS = 'THE ANSWERS';
@@ -739,8 +741,8 @@ export const auditTotalsWords = (budgetWords: string, actualWords: string, verdi
 export const backlogRowWords = (p: ReflectionBacklogRow): string =>
   `#${p.rank === null ? '—' : p.rank} · ${p.title} · ${p.type ?? '—'} · ${p.status} · ${p.size ?? '—'} · target ${p.target ?? '—'} · open tasks ${p.openTasks}`;
 /** Rank order, unranked last, then by title — the same order however the rows arrive. */
-export const backlogOrder = (rows: readonly ReflectionBacklogRow[]): ReflectionBacklogRow[] =>
-  [...rows].sort((a, b) => (a.rank === null && b.rank === null ? 0 : a.rank === null ? 1 : b.rank === null ? -1 : a.rank - b.rank) || a.title.localeCompare(b.title));
+/** BACKLOG-02 (2026-10-20): THE LOG's order (morningLog.ts logOrder) — one rule for the prompt and the card, generic so a log row stays a log row. */
+export const backlogOrder = <T extends { readonly rank: number | null; readonly title: string }>(rows: readonly T[]): T[] => logOrder(rows);
 /** The action types whose descriptions WHAT MOVED TODAY lists one by one — a project's status change, a task's (its completion is the status change to done, its own type). */
 export const MOVED_DESCRIBED_TYPES: readonly string[] = ['operations_project_status_changed', 'operations_project_task_status_changed', 'operations_project_task_completed'];
 /**

@@ -51,12 +51,13 @@ test('T1 the pages: /time is the card then the ledger (TIME-02: nothing beneath)
   const timeBox = time.slice(time.indexOf('data-tool-page="Time"'), time.indexOf('</OperationsEntityProvider>'));
   assert.deepEqual([...timeBox.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['Suspense', 'DayCard', 'LedgerSection']);
   assert.equal((time.match(/<ToolOpener/g) ?? []).length, 1);
-  // /tasks — the two lists, nothing else; no boundary (nothing reads the URL), no card, no ledger.
+  // /tasks — the two lists, nothing else; no card, no ledger.
+  // BACKLOG-02 (Alex, 2026-10-20): a boundary is back on /tasks — around the projects list ALONE, which reads ?project= and ?new=project (useSearchParams); the day card stays /time's: the page itself still reads no URL (the list does, in its boundary).
   assert.match(tasks, /^'use client';/);
-  assert.match(tasks, /<ToolOpener tools=\{\[navToolByName\('Tasks', TOOL_GATE\)\]\} \/>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Tasks">\n\s*<SectionD_ProjectBacklog \/>\n\s*<SectionE_Routines \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/);
+  assert.match(tasks, /<ToolOpener tools=\{\[navToolByName\('Tasks', TOOL_GATE\)\]\} \/>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Tasks">\n\s*<Suspense>\n\s*<SectionD_ProjectBacklog \/>\n\s*<\/Suspense>\n\s*<SectionE_Routines \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/);
   const tasksBox = tasks.slice(tasks.indexOf('data-tool-page="Tasks"'), tasks.indexOf('</OperationsEntityProvider>'));
-  assert.deepEqual([...tasksBox.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['SectionD_ProjectBacklog', 'SectionE_Routines']);
-  assert.doesNotMatch(tasks, /DayCard|LedgerSection|ContentPipeline|Suspense|useSearchParams/, 'nothing of Time on Tasks');
+  assert.deepEqual([...tasksBox.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['Suspense', 'SectionD_ProjectBacklog', 'SectionE_Routines']);
+  assert.doesNotMatch(tasks, /DayCard|LedgerSection|ContentPipeline|useSearchParams/, 'nothing of Time on Tasks');
   assert.doesNotMatch(time, /SectionD_ProjectBacklog|SectionE_Routines/, 'nothing of Tasks on Time');
   assert.equal((tasks.match(/<ToolOpener/g) ?? []).length, 1);
   // The merged grid is Calendar's — neither page pulls it in (tool law 5); the card imports none.

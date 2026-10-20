@@ -11,7 +11,8 @@
  *   · GET /api/operations/stays?day=<day>                 readStays, here (STAY-01)
  *   · GET /api/operations/stops?day=<day>                 readStopRecords, here (STOP-01)
  *   · GET /api/operations/journal?day=<day>               readJournal, here (JOURNAL-01)
- *   · GET /api/operations/projects                        readBacklog, here (JOURNAL-06 — the reflection prompt's THE BACKLOG)
+ *   · GET /api/operations/projects                        readBacklog, here (JOURNAL-06 — the reflection prompt's THE BACKLOG;
+ *                                                         BACKLOG-02 — and the morning card's THE LOG, the same one read)
  *   · GET /api/audit-log?prefix=operations_&after=&before=&limit=500   readMovedToday, here (JOURNAL-06 — WHAT MOVED TODAY)
  *
  * The report's answer is read exactly as the week reads its own (readReport):
@@ -25,7 +26,8 @@
  * a section silently missing (DayCard.tsx gates on both).
  */
 import type { BudgetReportResponse } from '@/lib/budget/reportInputs';
-import type { JournalRow, ReflectionBacklogRow, ReflectionMovedRow } from '@/lib/operations/journal';
+import type { JournalRow, ReflectionMovedRow } from '@/lib/operations/journal';
+import { OPEN_PROJECT_STATUSES, type LogProject, type LogTask } from '@/lib/operations/morningLog';
 import { AUDIT_READ_LIMIT, backlogOrder } from '@/lib/operations/journal';
 import type { StayRow } from '@/lib/operations/stay';
 import type { StopRecordPlan, StopRecordRow } from '@/lib/operations/stopRecord';
@@ -91,8 +93,8 @@ export async function readJournal(day: string): Promise<Read<JournalAnswer>> {
   return { ok: true, value: { journal: read.value.journal as JournalRow | null } };
 }
 
-/** JOURNAL-06: the statuses of a project NOT DONE — what THE BACKLOG lists. */
-export const BACKLOG_STATUSES: readonly string[] = ['backlog', 'scoped', 'scheduled', 'in_progress', 'blocked'];
+/** JOURNAL-06: the statuses of a project NOT DONE — what THE BACKLOG lists. BACKLOG-02 (2026-10-20): THE LOG's open statuses, one home (morningLog.ts). */
+export const BACKLOG_STATUSES: readonly string[] = OPEN_PROJECT_STATUSES;
 
 /** The two reads by the name the prompt's waiting words give them (dayCard.ts reelWaitingWords, the reel's own shape). */
 export const BACKLOG_READ_NAME = 'the backlog';
@@ -104,16 +106,28 @@ export const backlogFailedWords = (words: string): string => `The backlog could 
  * JOURNAL-06: the user's projects not done, every book (the projects GET since BACKLOG-01), filtered here to
  * BACKLOG_STATUSES and sorted rank asc with unranked last, then by title (journal.ts backlogOrder — the prompt's own
  * order). `open_task_count` is the GET's count of a project's tasks not done; a row without it is a failure in words.
+ * BACKLOG-02 (Alex, 2026-10-20): the SAME read feeds THE LOG on the morning card — each row also carries its id, its
+ * book and `open_tasks` (the GET's tasks not done, in display_order); a row without them, or a task without its id,
+ * title, status or order, is a failure in words — the log is never drawn from a partial answer.
  */
-export async function readBacklog(): Promise<Read<readonly ReflectionBacklogRow[]>> {
+export async function readBacklog(): Promise<Read<readonly LogProject[]>> {
   const read = await readJson('/api/operations/projects');
   if (!read.ok) return { ok: false, words: backlogFailedWords(read.words) };
   if (!Array.isArray(read.value.projects)) return { ok: false, words: backlogFailedWords('the projects came back without their list') };
-  const rows: ReflectionBacklogRow[] = [];
+  const rows: LogProject[] = [];
   for (const p of read.value.projects as Record<string, unknown>[]) {
     if (typeof p.status !== 'string' || !BACKLOG_STATUSES.includes(p.status)) continue;
     if (typeof p.title !== 'string' || typeof p.open_task_count !== 'number') return { ok: false, words: backlogFailedWords('a project came back without its title or its open-task count') };
+    if (typeof p.id !== 'string' || typeof p.entity_id !== 'string' || !Array.isArray(p.open_tasks)) return { ok: false, words: backlogFailedWords(`"${p.title}" came back without its id, its book or its open tasks`) };
+    const tasks: LogTask[] = [];
+    for (const t of p.open_tasks as Record<string, unknown>[]) {
+      if (typeof t.id !== 'string' || typeof t.title !== 'string' || typeof t.status !== 'string' || typeof t.display_order !== 'number') return { ok: false, words: backlogFailedWords(`a task of "${p.title}" came back without its id, title, status or order`) };
+      tasks.push({ id: t.id, title: t.title, status: t.status, displayOrder: t.display_order });
+    }
     rows.push({
+      id: p.id,
+      entityId: p.entity_id,
+      tasks,
       rank: typeof p.rank === 'number' ? p.rank : null,
       title: p.title,
       type: typeof p.type === 'string' ? p.type : null,
