@@ -80,7 +80,13 @@
  * with the same query by next.config.ts, before this page renders; a plain
  * /tasks is this page. /tasks/day still hops to the card (dayCard.ts
  * DAY_CARD_PATH, '/time' now).
+ *
+ * BACKLOG-02 (Alex, 2026-10-20): the projects list reads two URL params — ?project=<id> opens that row, ?new=project
+ * opens the capture form — the morning card's doors to this page (src/lib/operations/morningLog.ts). useSearchParams on
+ * a client page Next prerenders needs a Suspense boundary, so the list sits in its own <Suspense>, the boundary
+ * TASKS-ONE-01 gave the day card here before TIME-01 moved it; the page around it still prerenders. Two mounts still.
  */
+import { Suspense } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
 import ToolOpener from '@/components/shell/ToolOpener';
 import { navToolByName } from '@/lib/nav';
@@ -95,7 +101,9 @@ export default function TasksPage() {
       <ToolOpener tools={[navToolByName('Tasks', TOOL_GATE)]} />
       <OperationsEntityProvider>
         <div className="space-y-3" data-tool-page="Tasks">
-          <SectionD_ProjectBacklog />
+          <Suspense>
+            <SectionD_ProjectBacklog />
+          </Suspense>
           <SectionE_Routines />
         </div>
       </OperationsEntityProvider>

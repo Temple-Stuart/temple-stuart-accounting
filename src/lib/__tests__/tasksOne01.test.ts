@@ -55,7 +55,9 @@ test('T1 the card\'s page mounts DayCard first — in its Suspense boundary (TIM
   assert.match(page, /<div className="space-y-3" data-tool-page="Time">\n\s*<Suspense>\n\s*<DayCard \/>\n\s*<\/Suspense>\n\s*<LedgerSection \/>\n\s*<\/div>/);
   assert.ok(page.indexOf('<ToolOpener') < page.indexOf('<DayCard />'), 'the opener first — family, name, registry line — then the card');
   assert.match(comments(PAGE), /TASKS-ONE-01 \(2026-10-14\) — Alex's ruling: the day card is the first section\s*\n\s*\* of Tasks — one Tasks page, no sub-tabs\./, 'the Tasks page keeps the ruling\'s history');
-  assert.doesNotMatch(code(PAGE), /DayCard|Suspense/, 'and mounts the card no more (TIME-01)');
+  // BACKLOG-02 (Alex, 2026-10-20): a boundary is back on /tasks — around the projects list ALONE, which reads ?project= and ?new=project (useSearchParams); the day card stays /time's — the guard moved to the card itself, as exact.
+  assert.doesNotMatch(code(PAGE), /DayCard/, 'and mounts the card no more (TIME-01)');
+  assert.match(code(PAGE), /<Suspense>\n\s*<SectionD_ProjectBacklog \/>\n\s*<\/Suspense>/, 'the one boundary holds the projects list alone (BACKLOG-02)');
 });
 
 test('T1 the two-lists law mounts the day card first, with the dated ruling', () => {

@@ -8,7 +8,9 @@
  *        priority_score DESC NULLS LAST, then target_completion_date ASC.
  *        No audit write (read-only). JOURNAL-06 (2026-10-20): each row also
  *        carries open_task_count — its tasks not done — for the day card's
- *        reflection prompt (THE BACKLOG).
+ *        reflection prompt (THE BACKLOG). BACKLOG-02 (2026-10-20): and
+ *        open_tasks — those same tasks, in display_order — for the morning
+ *        card's running log: one read for the card, never one per project.
  *
  * POST — CAPTURE a project (BACKLOG-01, Alex, 2026-10-20). Required: entity_id
  *        (the book), title, type (ProjectType, by name) and why (a paragraph,
@@ -44,6 +46,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
+import { OPEN_TASK_STATUSES } from '@/lib/operations/morningLog';
 import { Prisma, ProjectSize, ProjectStatus, ProjectType } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -152,6 +155,23 @@ export async function GET(request: NextRequest) {
     const openCountByProject = new Map<string, number>();
     for (const g of openGroups) openCountByProject.set(g.project_id, g._count._all);
 
+    // BACKLOG-02 (Alex, 2026-10-20): open_tasks — beside the count, the same four statuses, each project's tasks not
+    // done in display_order: THE LOG on the morning card lists them under their project in ONE read. User-scoped twice:
+    // through the user's own projects (projectIds) and the task's own user_id.
+    const openTasks = projectIds.length
+      ? await prisma.operations_project_tasks.findMany({
+          where: { user_id: user.id, project_id: { in: projectIds }, status: { in: [...OPEN_TASK_STATUSES] } },
+          select: { id: true, project_id: true, title: true, status: true, display_order: true },
+          orderBy: [{ display_order: 'asc' }, { created_at: 'asc' }],
+        })
+      : [];
+    const openTasksByProject = new Map<string, { id: string; title: string; status: string; display_order: number }[]>();
+    for (const t of openTasks) {
+      const list = openTasksByProject.get(t.project_id) ?? [];
+      list.push({ id: t.id, title: t.title, status: t.status, display_order: t.display_order });
+      openTasksByProject.set(t.project_id, list);
+    }
+
     // PROJECTS-UX-2: REAL cost-per-project — the DIM allocation rollup.
     // READ-ONLY (findMany only), layered onto the payload exactly like the
     // PD-2 counts above. The math derives from the schema's own doctrine:
@@ -239,6 +259,7 @@ export async function GET(request: NextRequest) {
       ...p,
       task_count: _count.tasks,
       open_task_count: openCountByProject.get(p.id) ?? 0,
+      open_tasks: openTasksByProject.get(p.id) ?? [],
       run_count: runCountByProject.get(p.id) ?? 0,
       ...(allocByProject ? { ledger_allocated: allocByProject.get(p.id) ?? null } : {}),
     }));

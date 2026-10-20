@@ -34,6 +34,12 @@
  * alignment, on_track and next (learned retired, JOURNAL-03's way: the body never carries it; the rule
  * refuses one that does, by name). The morning's save still never clears an evening typed before.
  *
+ * BACKLOG-02 (Alex, 2026-10-20): THE LOG (MorningLog.tsx) sits above the goals box, outside this form's <form> so
+ * its "+ task" box is its own form and Enter there never saves the journal. "use as today's goals" APPENDS the
+ * picked tasks' titles to the goals DRAFT (morningLog.ts picksToGoals against the box as the save reads it —
+ * linesOf + stripListMarker; appendGoalLines under what is typed) — never replacing a typed goal, duplicates
+ * skipped, saved only by save below. The save still builds the whole row (JOURNAL-04's law, JOURNAL-06's eleven).
+ *
  * JOURNAL-05 (Alex, 2026-10-19): THE MORNING FORM. The three questions are the MORNING's (journal.ts
  * MORNING_GOALS_QUESTION · MORNING_BLOCKER_QUESTION · MORNING_PLAN_QUESTION — "what must be true by
  * tonight"); the boxes, the save, "+ yesterday's open steps" and "copy plan prompt" are as they were.
@@ -64,7 +70,10 @@ import {
   carryTicks, clearJournalQuestion, journalInput, linesOf, openSteps, planPromptFailedWords, planPromptText, planPromptWaitsWords, stripListMarker,
   type JournalRow, type YesterdayForPrompt,
 } from '@/lib/operations/journal';
+import { appendGoalLines, picksToGoals, type LogProject } from '@/lib/operations/morningLog';
 import { dayShortWords } from '../day/dayCard';
+import type { Read } from '../week/weekReads';
+import MorningLog from './MorningLog';
 import { underStyle, useDeckBleed } from './DayDeck';
 import { clearJournal, setJournal } from './journalWrites';
 
@@ -85,8 +94,13 @@ const draftOf = (journal: JournalRow | null): Draft => ({
   plan: journal === null ? '' : journal.plan_steps.join('\n'),
 });
 
-export default function JournalForm({ day, journal, yesterday, onChanged }: {
-  day: string; journal: JournalRow | null; yesterday: YesterdayForPrompt; onChanged: () => void;
+export default function JournalForm({ day, journal, yesterday, log, onChanged, onLogChanged }: {
+  day: string; journal: JournalRow | null; yesterday: YesterdayForPrompt;
+  /** BACKLOG-02: THE LOG's read — the card's one projects read (dayReads.ts readBacklog); null while in flight. */
+  log: Read<readonly LogProject[]> | null;
+  onChanged: () => void;
+  /** BACKLOG-02: a rank or a task was written from THE LOG — the card reads the log again (not the journal: the draft stays). */
+  onLogChanged: () => void;
 }) {
   const [draft, setDraft] = useState<Draft>(() => draftOf(journal));
   const [words, setWords] = useState<string | null>(null);
@@ -143,11 +157,19 @@ export default function JournalForm({ day, journal, yesterday, onChanged }: {
     }
   };
 
+  /** BACKLOG-02: the picked tasks' titles, appended to the goals box — the draft only; saved on save. Answers what it did. */
+  const useAsGoals = (titles: readonly string[]): { readonly added: number; readonly skipped: number } => {
+    const { add, skipped } = picksToGoals(linesOf(draft.goals).map(stripListMarker), titles);
+    if (add.length > 0) setDraft({ ...draft, goals: appendGoalLines(draft.goals, add) });
+    return { added: add.length, skipped: skipped.length };
+  };
+
   /** Yesterday's open steps, appended to the plan box — the draft only; saved on save. */
   const addOpen = () => setDraft({ ...draft, plan: [...linesOf(draft.plan), ...yesterdayOpen].join('\n') });
 
   return (
     <div className="mx-auto space-y-1" style={underStyle(bleed)} data-journal-form>
+      <MorningLog log={log} disabled={busy} onChanged={onLogChanged} onUseAsGoals={useAsGoals} />
       <form className="flex flex-col gap-2 text-xs" onSubmit={(e) => { e.preventDefault(); save(); }}>
         <label className="flex flex-col gap-0.5" data-journal-block="goals">
           <span className={question}>{MORNING_GOALS_QUESTION}</span>

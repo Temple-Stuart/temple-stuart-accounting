@@ -62,8 +62,9 @@ test('the page is two lists — no strip, no pipe label, no receipts', () => {
   // TASKS-ONE-02 (2026-10-14): the week and the daily plan are deleted — the day card replaces them. Three mounts, in order.
   // LEDGER-01 (Alex, 2026-10-16): the city ledger is a fourth mount, LAST — under Routines. Four mounts, in order.
   // TIME-01 (Alex, 2026-10-19): the day card and the ledger moved to /time (time01.test.ts). Two mounts, in order.
-  assert.match(page, /<div className="space-y-3" data-tool-page="Tasks">\s*<SectionD_ProjectBacklog \/>\s*<SectionE_Routines \/>\s*<\/div>/);
-  assert.doesNotMatch(page, /DayCard|LedgerSection|Suspense/, 'the day card and the ledger are /time\'s (TIME-01)');
+  // BACKLOG-02 (Alex, 2026-10-20): a boundary is back on /tasks — around the projects list ALONE, which reads ?project= and ?new=project (useSearchParams); the day card stays /time's. Two mounts, in order, the first in its boundary.
+  assert.match(page, /<div className="space-y-3" data-tool-page="Tasks">\s*<Suspense>\s*<SectionD_ProjectBacklog \/>\s*<\/Suspense>\s*<SectionE_Routines \/>\s*<\/div>/);
+  assert.doesNotMatch(page, /DayCard|LedgerSection/, 'the day card and the ledger are /time\'s (TIME-01)');
   assert.doesNotMatch(page, /WeekSection|SectionC_DailyPlan|TodaysStrip/);
   for (const f of TASKS_GONE) assert.ok(!existsSync(resolve(process.cwd(), f)), `${f} is deleted`);
   assert.doesNotMatch(page, /data-pipe-section|data-pipe-label|PIPE_LABEL|PIPE_PHASES|<StageStrip|<ProofStrip/);

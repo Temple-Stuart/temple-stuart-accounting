@@ -202,6 +202,7 @@ import { isIsoDay } from '@/lib/budget/days';
 import type { BudgetReportResponse } from '@/lib/budget/reportInputs';
 import { shiftDay } from '@/lib/budget/reportView';
 import { zonedToInstant } from '@/lib/time';
+import type { LogProject } from '@/lib/operations/morningLog';
 import { localToday } from '@/lib/localToday';
 import type { DailyPlanItem } from '../dailyplan/types';
 import RefusedRoutines from '../routines/RefusedRoutines';
@@ -223,7 +224,7 @@ import {
   AUDIT_WORD, BLOCKERS_BLOCK_WORD, EVENING_BLANK_WORD, EVENING_WORD, JOURNAL_LOADING_WORDS, MORNING_WORD, NEXT_WORD, PLAN_BLOCK_WORD, TODAY_BLOCK_WORD, TODAY_TICKS_WORD,
   VERDICT_WORD, YESTERDAY_LOADING_WORDS, YESTERDAY_WORD,
   answersOf, goalWords, journalInput, lastNightWords, noJournalWords, planDoneWords, planStepWords, reflectionPromptText, reflectionPromptWaitsWords, todayStepsWords, yesterdayStepsWords,
-  type Answers, type ReflectionBacklogRow, type ReflectionMovedRow, type ReflectionPromptState, type YesterdayForPrompt,
+  type Answers, type ReflectionMovedRow, type ReflectionPromptState, type YesterdayForPrompt,
 } from '@/lib/operations/journal';
 import { DONE_WORD, NOT_RECORDED_WORDS, SKIPPED_WORD, starsWords, type StopRecordPlan, type StopRecordRow } from '@/lib/operations/stopRecord';
 import { ALSO_TODAY_WORDS, allDayBandWords, allDayCentsWords } from '@/lib/operations/stopRole';
@@ -519,7 +520,10 @@ export default function DayCard() {
   // operations_ audit-log slice for the card's day in the viewer's zone) — each kept WITH the day it was read for, read only on a day with
   // a journal stop, and again after any write the card knows of (a journal write, a record write, the ledger's one-off stop), so the prompt
   // never carries a stale backlog or a day that stopped moving before its last write.
-  const [backlog, setBacklog] = useState<{ readonly day: string; readonly read: Read<readonly ReflectionBacklogRow[]> } | null>(null);
+  // BACKLOG-02 (Alex, 2026-10-20): the same read is THE LOG on the morning card (stops/MorningLog.tsx) — each row with its id,
+  // its book and its open tasks — read again after a write from THE LOG (logReads: a rank or a task), never re-reading the journal.
+  const [backlog, setBacklog] = useState<{ readonly day: string; readonly read: Read<readonly LogProject[]> } | null>(null);
+  const [logReads, setLogReads] = useState(0);
   const [moved, setMoved] = useState<{ readonly day: string; readonly read: Read<readonly ReflectionMovedRow[]> } | null>(null);
   // CLEAN-02 (2026-10-14): "download image" — the plate element, busy while it renders, and a failure kept with the view it was pressed on.
   // DECK-01 (2026-10-16): one plate per card of the deck (by its card number, 0 the full card) and the journal card's own.
@@ -643,7 +647,7 @@ export default function DayCard() {
       if (live) setBacklog({ day, read: b });
     })();
     return () => { live = false; };
-  }, [day, hasJournalStop, journalReads, recordReads, dayWrites]);
+  }, [day, hasJournalStop, journalReads, recordReads, dayWrites, logReads]);
 
   // JOURNAL-06: WHAT MOVED TODAY — the operations_ audit-log slice between the day's midnight and the next IN THE VIEWER'S ZONE (zonedToInstant);
   // the window ends the last millisecond before the next day's midnight (the route's `before` is inclusive), so the next day's first write is not this day's.
@@ -657,7 +661,7 @@ export default function DayCard() {
       if (live) setMoved({ day, read: m });
     })();
     return () => { live = false; };
-  }, [day, zone, hasJournalStop, journalReads, recordReads, dayWrites]);
+  }, [day, zone, hasJournalStop, journalReads, recordReads, dayWrites, logReads]);
 
   if (today === null || zone === null || day === null) {
     return <section className="text-xs text-text-muted" data-day-section>loading the day…</section>;
@@ -1139,7 +1143,7 @@ export default function DayCard() {
           )}
           {/* JOURNAL-01: the questions, under the journal card — keyed by the day and the journal held; never offered while the journal could not be read (a save would write over answers the screen cannot see). */}
           {journalRead !== null && journalRead.ok && (
-            <JournalForm key={`${day}:${journalRead.value.journal === null ? 'none' : journalRead.value.journal.id}`} day={day} journal={journalRead.value.journal} yesterday={yesterdayForPrompt} onChanged={() => setJournalReads((n) => n + 1)} />
+            <JournalForm key={`${day}:${journalRead.value.journal === null ? 'none' : journalRead.value.journal.id}`} day={day} journal={journalRead.value.journal} yesterday={yesterdayForPrompt} log={backlogRead} onChanged={() => setJournalReads((n) => n + 1)} onLogChanged={() => setLogReads((n) => n + 1)} />
           )}
           {/* JOURNAL-05 (Alex, 2026-10-19): THE EVENING CARD — reflection, under the morning form, inside the journal section: its plate (today's ticks,
               the verdict, ACCOMPLISHED and NEXT as held — EveningPlate) and its form (EveningForm — JOURNAL-06: the reflection prompt, then the

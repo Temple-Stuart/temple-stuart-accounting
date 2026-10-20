@@ -21,6 +21,8 @@ const SUBSYSTEM_ACTION_TYPES: Record<string, AuditActionType[]> = {
     'operations_project_updated',
     'operations_project_status_changed',
     'operations_project_deleted',
+    // BACKLOG-02 (2026-10-20): the reorder route's one row per saved rank list.
+    'operations_project_reranked',
     'operations_project_task_created',
     'operations_project_task_updated',
     'operations_project_task_status_changed',

@@ -19,7 +19,8 @@ export type JournalWriteAnswer = { readonly ok: true } | { readonly ok: false; r
 export const SET_FAILED_WORDS = 'failed to save the journal';
 export const CLEAR_FAILED_WORDS = 'failed to clear the journal';
 
-async function answerOf(send: () => Promise<Response>, ownWords: string): Promise<JournalWriteAnswer> {
+/** BACKLOG-02 (2026-10-20): exported — THE LOG's writes (logWrites.ts) read their answers the same way; one reader, not two. */
+export async function answerOf(send: () => Promise<Response>, ownWords: string): Promise<JournalWriteAnswer> {
   let res: Response;
   try {
     res = await send();

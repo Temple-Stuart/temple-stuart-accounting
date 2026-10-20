@@ -2967,6 +2967,8 @@ enum AuditActionType {
   operations_project_updated
   operations_project_status_changed
   operations_project_deleted
+  // BACKLOG-02 (Alex, 2026-10-20): the reorder route's one audit value — ranks 1..n written in one transaction (projects/reorder).
+  operations_project_reranked
   operations_project_task_created
   operations_project_task_updated
   operations_project_task_status_changed

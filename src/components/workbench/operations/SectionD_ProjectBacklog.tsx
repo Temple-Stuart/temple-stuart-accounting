@@ -26,11 +26,27 @@
  * exactly as before. The form is the CAPTURE form (ProjectCreateForm): title,
  * type, book, why, and the optional size, definition of done, links, notes
  * and target date; a captured project lands in the backlog.
+ *
+ * BACKLOG-02 (Alex, 2026-10-20) — THE DOORS FROM THE MORNING CARD. Two URL params, the contract in
+ * src/lib/operations/morningLog.ts (the card's links send them; this list reads them, useSearchParams, inside the
+ * page's Suspense boundary — src/app/tasks/page.tsx):
+ *   · ?project=<id> — once the list has loaded, that project's row is the jump target (the dependency jump's own
+ *     path: its details open, the row expands, scrolls into view and flashes). An id not in the list — not the user's,
+ *     not a project, or archived while "show archived" is off — prints "project not found", never a silent no-op.
+ *     A failed list load says its own error and leaves the param for a reload.
+ *   · ?new=project — the capture form opens, through startCreate (the same book seeding as "+ new project"), once the
+ *     books are read — said while they are not. Any other value of new is said, never ignored.
+ * Each param is cleared from the URL once used (window.history.replaceState — Next keeps useSearchParams in step with
+ * it; no server round trip, no history entry, no scroll), so a reload does not reopen it. FOUND in the browser
+ * (2026-10-20): router.replace cleared it only after a server round trip — seconds on a cold dev server — so a quick
+ * reload reopened the param; the native call is immediate. The capture form stays mounted here alone — its one home (TOOL-LAW-01).
  */
 
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { NEW_PROJECT_WAITS_WORDS, PROJECT_NOT_FOUND_WORDS, TASKS_NEW_PARAM, TASKS_NEW_PROJECT, TASKS_PROJECT_PARAM, newParamWords } from '@/lib/operations/morningLog';
 import { useOperationsEntity } from './EntitySelector';
 import ProjectsTable from './projects/ProjectsTable';
 import ProjectCreateForm from './projects/ProjectCreateForm';
@@ -58,6 +74,19 @@ export default function SectionD_ProjectBacklog({ }: { } = {}) {
   // table opens B's details, and ProjectRow B's useEffect on isJumpTarget
   // triggers scroll + expand.
   const [targetProjectId, setTargetProjectId] = useState<string | null>(null);
+
+  // BACKLOG-02: the doors from the morning card — ?project=<id> and ?new=project (the header above).
+  const search = useSearchParams();
+  const projectParam = search.get(TASKS_PROJECT_PARAM);
+  const newParam = search.get(TASKS_NEW_PARAM);
+  const [doorWords, setDoorWords] = useState<string | null>(null);
+  /** Clear a used param from the URL, keeping every other — replaced in place, so a reload does not reopen it and Back does not either. */
+  const dropParam = (name: string) => {
+    const next = new URLSearchParams(window.location.search);
+    next.delete(name);
+    const qs = next.toString();
+    window.history.replaceState(null, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
+  };
 
   const fetchProjects = async () => {
     setLoading(true);
@@ -87,6 +116,33 @@ export default function SectionD_ProjectBacklog({ }: { } = {}) {
     fetchProjects();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showArchived]);
+
+  // BACKLOG-02 — ?project=<id>: once the list is in, that row is the jump target, or the words say it is not there.
+  useEffect(() => {
+    if (projectParam === null || loading || error !== null) return;
+    if (projects.some((p) => p.id === projectParam)) {
+      setTargetProjectId(projectParam);
+      setDoorWords(null);
+    } else {
+      setDoorWords(PROJECT_NOT_FOUND_WORDS);
+    }
+    dropParam(TASKS_PROJECT_PARAM);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectParam, loading, error, projects]);
+
+  // BACKLOG-02 — ?new=project: the capture form opens through startCreate once the books are read (it seeds the book).
+  useEffect(() => {
+    if (newParam === null) return;
+    if (newParam !== TASKS_NEW_PROJECT) {
+      setDoorWords(newParamWords(newParam));
+      dropParam(TASKS_NEW_PARAM);
+      return;
+    }
+    if (entities.length === 0) return;
+    startCreate();
+    dropParam(TASKS_NEW_PARAM);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newParam, entities]);
 
   const startCreate = () => {
     // Default the new project's entity to the currently-selected one, or the
@@ -129,6 +185,16 @@ export default function SectionD_ProjectBacklog({ }: { } = {}) {
           )}
         </div>
       </div>
+
+      {newParam === TASKS_NEW_PROJECT && entities.length === 0 && (
+        <div className="text-xs text-text-muted" data-projects-new-waits>{NEW_PROJECT_WAITS_WORDS}</div>
+      )}
+
+      {doorWords !== null && (
+        <div className="text-xs mb-3 px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800" data-projects-door-words>
+          {doorWords}
+        </div>
+      )}
 
       {error && (
         <div className="text-xs mb-3 px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
