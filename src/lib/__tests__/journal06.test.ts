@@ -20,6 +20,11 @@
  * ladder pins moved by one in thirteen files, each dated; journal01, journal02,
  * journal04, journal05 and reel02 pins moved to the eleven and the reflection
  * prompt, each dated.
+ *
+ * JOURNAL-06b (Alex, 2026-10-20): the audit read's cap is named —
+ * AUDIT_READ_LIMIT, the route's own 500 (audit-log/route.ts:137) — and when the
+ * read returns exactly that many rows, WHAT MOVED TODAY says so under its
+ * counts (MOVED_CAP_WORDS). T6b pins a 500-row and a 499-row day.
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -28,9 +33,9 @@ import { resolve } from 'node:path';
 import { Prisma } from '@prisma/client';
 import { code, comments } from '../sourceText';
 import {
-  ANSWER_FIELDS, ANSWER_MAX, BIDI_WORDS, BLOCK_MAX_LINES, CONTROLS_WORDS, COPY_REFLECTION_PROMPT_WORDS, EVENING_ALIGNMENT_QUESTION, EVENING_AUDIT_QUESTION,
+  ANSWER_FIELDS, ANSWER_MAX, AUDIT_READ_LIMIT, BIDI_WORDS, BLOCK_MAX_LINES, CONTROLS_WORDS, COPY_REFLECTION_PROMPT_WORDS, EVENING_ALIGNMENT_QUESTION, EVENING_AUDIT_QUESTION,
   EVENING_DIRECTION_QUESTION, EVENING_EVOLUTION_QUESTION, EVENING_GAPS_QUESTION, EVENING_LABELS, EVENING_NEXT_QUESTION, EVENING_ON_TRACK_QUESTION, EVENING_ORDER,
-  EVENING_QUESTIONS, MOVED_DESCRIBED_TYPES, NOTHING_TYPED_WORDS, NO_ANSWERS, REFLECTION_PROMPT_ANSWERS, REFLECTION_PROMPT_ASK, REFLECTION_PROMPT_BACKLOG,
+  EVENING_QUESTIONS, MOVED_CAP_WORDS, MOVED_DESCRIBED_TYPES, NOTHING_TYPED_WORDS, NO_ANSWERS, REFLECTION_PROMPT_ANSWERS, REFLECTION_PROMPT_ASK, REFLECTION_PROMPT_BACKLOG,
   REFLECTION_PROMPT_COPIED_WORDS, REFLECTION_PROMPT_MOVED, REFLECTION_PROMPT_NOTHING_MOVED, REFLECTION_PROMPT_NOT_ANSWERED, REFLECTION_PROMPT_NO_BACKLOG, RETIRED_FIELDS,
   answerWords, answersOf, backlogOrder, backlogRowWords, journalInput, journalUnchanged, movedWords, notStringWords, reflectionPromptFailedWords, reflectionPromptText,
   reflectionPromptWaitsWords, retiredFieldWords, tooLongWords, tooManyLinesWords,
@@ -320,6 +325,54 @@ test('T6 reflectionPromptText — the day’s lines, THE BACKLOG in rank order (
   assert.match(rule, /export function reflectionPromptText\(input: ReflectionPromptInput\): string \{/);
 });
 
+// ── T6b · JOURNAL-06b: THE AUDIT READ'S CAP, NAMED WHEN IT IS HIT ───────────
+
+/** A day of `n` audit rows: one project status change, one journal write, the rest project creations — the counts the route would answer. */
+const movedDay = (n: number): ReflectionMovedRow[] => [
+  { action_type: 'operations_project_status_changed', description: 'Project "Reel kit": backlog → in_progress' },
+  { action_type: 'operations_journal_set', description: 'Journal set for 2026-10-20' },
+  ...Array.from({ length: n - 2 }, (_, i) => ({ action_type: 'operations_project_created', description: `Project "p${i}" created` })),
+];
+
+test('T6b JOURNAL-06b the cap: AUDIT_READ_LIMIT is the route’s own 500 and the read asks for it; a 500-row day prints the cap line under the counts, before the descriptions; a 499-row day prints none', () => {
+  // The constant is the route's cap, read from the route (audit-log/route.ts:137) — one number, two homes, pinned equal.
+  assert.equal(AUDIT_READ_LIMIT, 500);
+  const cap = /const limit = Math\.min\(Math\.max\(parseInt\(limitParam \|\| '100', 10\) \|\| 100, 1\), (\d+)\);/.exec(code(AUDIT_ROUTE));
+  assert.ok(cap !== null, 'the route sets its cap in one line');
+  assert.equal(Number(cap![1]), AUDIT_READ_LIMIT, 'AUDIT_READ_LIMIT is the route’s cap');
+  assert.match(code(READS), /limit: String\(AUDIT_READ_LIMIT\) \}\);/, 'the read asks for exactly the cap — a full read is exactly AUDIT_READ_LIMIT rows');
+  assert.match(comments(RULE), /src\/app\/api\/audit-log\/route\.ts:137/, 'the constant cites where the cap is set');
+  // The words, verbatim, built from the constant.
+  assert.equal(MOVED_CAP_WORDS, '— the read stops at 500 rows; today has at least 500, so these counts may be short —');
+  assert.match(code(RULE), /export const MOVED_CAP_WORDS = `— the read stops at \$\{AUDIT_READ_LIMIT\} rows; today has at least \$\{AUDIT_READ_LIMIT\}, so these counts may be short —`;/, 'the 500 is the constant, never typed twice');
+  // 500 rows: the counts, then the cap line, then the status change.
+  const full = movedDay(500);
+  assert.equal(full.length, 500);
+  assert.deepEqual(movedWords(full), [
+    '- operations_journal_set × 1',
+    '- operations_project_created × 498',
+    '- operations_project_status_changed × 1',
+    '— the read stops at 500 rows; today has at least 500, so these counts may be short —',
+    '- Project "Reel kit": backlog → in_progress',
+  ]);
+  const fullText = reflectionPromptText({ ...INPUT, moved: full });
+  inOrder(fullText, ['\nWHAT MOVED TODAY\n', '- operations_project_status_changed × 1\n', `${MOVED_CAP_WORDS}\n`, '- Project "Reel kit": backlog → in_progress\n', '\nTHE ANSWERS\n'], 'the cap line sits under the counts, before the descriptions');
+  assert.equal(fullText.split(MOVED_CAP_WORDS).length, 2, 'once');
+  // 499 rows: no line.
+  const short = movedDay(499);
+  assert.equal(short.length, 499);
+  assert.deepEqual(movedWords(short), [
+    '- operations_journal_set × 1',
+    '- operations_project_created × 497',
+    '- operations_project_status_changed × 1',
+    '- Project "Reel kit": backlog → in_progress',
+  ]);
+  assert.equal(reflectionPromptText({ ...INPUT, moved: short }).includes(MOVED_CAP_WORDS), false, 'a 499-row day is whole — no cap line');
+  assert.equal(reflectionPromptText(INPUT).includes(MOVED_CAP_WORDS), false, 'nor on the fixture day');
+  assert.deepEqual(movedWords([]), ['- — nothing recorded —'], 'an empty day unchanged');
+  assert.match(code(RULE), /if \(rows\.length === AUDIT_READ_LIMIT\) lines\.push\(MOVED_CAP_WORDS\);/, 'exactly the cap — the route never answers more');
+});
+
 // ── T7 · THE TWO READS AND THE ROUTES THEY READ ──────────────────────────────
 
 test('T7 the two reads (dayReads.ts): THE BACKLOG from the projects GET — the five not-done statuses, title and open_task_count required, sorted by the rule; WHAT MOVED TODAY from the audit log — prefix operations_, after/before, limit 500, oldest first; the projects GET counts open tasks; the audit route’s operations_ list carries the described types', () => {
@@ -328,7 +381,8 @@ test('T7 the two reads (dayReads.ts): THE BACKLOG from the projects GET — the 
   assert.match(r, /export const BACKLOG_READ_NAME = 'the backlog';\nexport const MOVED_READ_NAME = 'what moved today';/);
   assert.match(r, /export async function readBacklog\(\): Promise<Read<readonly ReflectionBacklogRow\[\]>> \{\n\s*const read = await readJson\('\/api\/operations\/projects'\);/);
   inOrder(r, ["if (typeof p.status !== 'string' || !BACKLOG_STATUSES.includes(p.status)) continue;", "if (typeof p.title !== 'string' || typeof p.open_task_count !== 'number') return { ok: false, words: backlogFailedWords('a project came back without its title or its open-task count') };", "rank: typeof p.rank === 'number' ? p.rank : null,", "target: typeof p.target_completion_date === 'string' ? p.target_completion_date.slice(0, 10) : null,", 'openTasks: p.open_task_count,', 'return { ok: true, value: backlogOrder(rows) };'], 'readBacklog — a row without its facts is a failure in words, never a row with "0" invented');
-  assert.match(r, /export async function readMovedToday\(after: Date, before: Date\): Promise<Read<readonly ReflectionMovedRow\[\]>> \{\n\s*const query = new URLSearchParams\(\{ prefix: 'operations_', after: after\.toISOString\(\), before: before\.toISOString\(\), limit: '500' \}\);\n\s*const read = await readJson\(`\/api\/audit-log\?\$\{query\.toString\(\)\}`\);/);
+  // JOURNAL-06b (Alex, 2026-10-20): the limit is the named cap (AUDIT_READ_LIMIT, T6b) — the pin moved with it, as exact.
+  assert.match(r, /export async function readMovedToday\(after: Date, before: Date\): Promise<Read<readonly ReflectionMovedRow\[\]>> \{\n\s*const query = new URLSearchParams\(\{ prefix: 'operations_', after: after\.toISOString\(\), before: before\.toISOString\(\), limit: String\(AUDIT_READ_LIMIT\) \}\);\n\s*const read = await readJson\(`\/api\/audit-log\?\$\{query\.toString\(\)\}`\);/);
   // FOUND in the browser (2026-10-20): the audit_log column is action_description — a reader naming `description` fails every day; pinned on the column's name.
   inOrder(r, ["if (typeof r.action_type !== 'string' || typeof r.action_description !== 'string') return { ok: false, words: movedFailedWords('a row came back without its action type or description') };", 'rows.push({ action_type: r.action_type, description: r.action_description });', 'return { ok: true, value: rows.reverse() };'], 'readMovedToday — the route answers newest first; the prompt reads oldest first');
   assert.match(code(SCHEMA), /\n\s+action_description String\s+@db\.Text\n/, 'the column the reader names');

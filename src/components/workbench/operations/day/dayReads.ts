@@ -26,7 +26,7 @@
  */
 import type { BudgetReportResponse } from '@/lib/budget/reportInputs';
 import type { JournalRow, ReflectionBacklogRow, ReflectionMovedRow } from '@/lib/operations/journal';
-import { backlogOrder } from '@/lib/operations/journal';
+import { AUDIT_READ_LIMIT, backlogOrder } from '@/lib/operations/journal';
 import type { StayRow } from '@/lib/operations/stay';
 import type { StopRecordPlan, StopRecordRow } from '@/lib/operations/stopRecord';
 import { readJson, type Read } from '../week/weekReads';
@@ -134,9 +134,11 @@ export const movedFailedWords = (words: string): string => `What moved today cou
  * The route answers the audit_log rows as stored (action_type, action_description — the column's name), newest first;
  * the prompt reads oldest first. FOUND in the browser (2026-10-20): the first cut read `description`, a key no row has —
  * every day was "could not be read"; the reader now names the column.
+ * JOURNAL-06b (Alex, 2026-10-20): the limit asked is AUDIT_READ_LIMIT — the route's own cap (audit-log/route.ts:137) — so a full
+ * read is exactly that many rows, and the prompt names the cap when it is hit (journal.ts movedWords).
  */
 export async function readMovedToday(after: Date, before: Date): Promise<Read<readonly ReflectionMovedRow[]>> {
-  const query = new URLSearchParams({ prefix: 'operations_', after: after.toISOString(), before: before.toISOString(), limit: '500' });
+  const query = new URLSearchParams({ prefix: 'operations_', after: after.toISOString(), before: before.toISOString(), limit: String(AUDIT_READ_LIMIT) });
   const read = await readJson(`/api/audit-log?${query.toString()}`);
   if (!read.ok) return { ok: false, words: movedFailedWords(read.words) };
   if (!Array.isArray(read.value.rows)) return { ok: false, words: movedFailedWords('the audit log came back without its rows') };
