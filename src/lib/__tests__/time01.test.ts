@@ -151,7 +151,8 @@ test('T5 the registry: the Time row says the day card and the ledger (TIME-02: n
   assert.doesNotMatch(time.customer ?? '', /\b(discover|decide|commit|record)\b/, 'no beat word on a public line (the plan law)');
   assert.equal(tasks.home, '/tasks');
   assert.match(tasks.why ?? '', /^the work, planned: projects with costed tasks and routines with costed lines/);
-  assert.deepEqual(tasks.links, [{ label: 'North Star', href: '/operations/north-star' }, { label: 'Audit trail', href: '/operations/audit-log' }]);
+  // TASKS-02 (2026-10-20): the two links are gone — the North Star's page deleted, the audit trail Compliance's.
+  assert.deepEqual(tasks.links, []);
   assert.match(comments(REGISTRY), /TIME-01 \(Alex, 2026-10-19\): the day card and the city ledger moved to\s*\n\s*\/\/ \/time/);
   assert.match(comments(REGISTRY), /TIME-01 \(Alex, 2026-10-19\): THE DAY CARD IS TIME'S/);
   assert.equal(COCKPIT_PRIMARY_TOOL.content, 'Time');

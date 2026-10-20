@@ -297,10 +297,12 @@ test('R1 ReelDay.journal is goals, blocker and next; the card’s hand-off is un
 test('R5 the orphan AI script generator is deleted; nothing under src or scripts names it; nothing else under src/lib/ai changed', () => {
   assert.ok(!existsSync(at(ORPHAN)), `${ORPHAN} is deleted`);
   for (const f of [...tsFiles('src'), ...tsFiles('scripts')].filter((f) => f !== THIS)) assert.doesNotMatch(code(f), /generateReelScript/, `${f} names the orphan`);
+  // TASKS-02 (2026-10-20): generateNorthStarSectionOptimization.ts left the folder with the North Star's paid
+  // optimizer route (its only caller); northStarContext.ts stays — the six readers still feed on it.
   assert.deepEqual(readdirSync(at('src/lib/ai')).sort(), [
-    'buildAuditPrompt.ts', 'caps.ts', 'client.ts', 'dailyCap.ts', 'exemplars', 'generateDeepResearch.ts', 'generateNorthStarSectionOptimization.ts',
+    'buildAuditPrompt.ts', 'caps.ts', 'client.ts', 'dailyCap.ts', 'exemplars', 'generateDeepResearch.ts',
     'generateProjectDesign.ts', 'generateProjectTasks.ts', 'northStarContext.ts', 'promptSegments.ts', 'recordUsage.ts',
-  ], 'the folder as REEL-02 left it — the orphan gone, the rest as they were');
+  ], 'the folder as TASKS-02 left it — REEL-02\'s orphan and the North Star optimizer gone, the rest as they were');
   for (const f of ['src/lib/ai/dailyCap.ts', 'src/lib/ai/caps.ts', 'src/lib/ai/client.ts', 'src/lib/ai/recordUsage.ts', 'src/lib/routineFireBudget.ts']) assert.ok(existsSync(at(f)), `${f} stays`);
 });
 

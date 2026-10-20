@@ -2503,16 +2503,20 @@ interface OrphanException { route: string; why: string; todo: string }
  * page is deleted. It was an unbuilt placeholder that rendered no tool and held
  * no state; its entry left this list and the maximum came down to the one
  * survivor, exactly as TRIPS_PATH_TESTS_MAX came down when that list emptied.
+ *
+ * TASKS-02 (Alex, 2026-10-20): ORPHAN-02's answer for the audit trail — it
+ * belongs to Compliance. /operations/audit-log is now a page the Compliance
+ * row LINKS to (src/lib/toolRegistry.ts, Compliance.links) and is accounted
+ * for by branch 2 like every other linked page; its entry left this list, the
+ * list is EMPTY and the maximum is 0. It stays declared here in history so a
+ * future survivor cannot reopen the list: the maximum may only shrink, and it
+ * has nowhere left to go. (The North Star page, /operations/north-star, was
+ * deleted in the same ruling — never on this list, it passed branch 2 as a
+ * Tasks link; the link went with the page.)
  */
-const ORPHAN_EXCEPTIONS: readonly OrphanException[] = [
-  {
-    route: '/operations/audit-log',
-    why: 'the operations-filtered hash-chained audit tail (SectionK_AuditTail) — real, working content, and the source phase 06 read before the room was deleted. Tasks links it (src/lib/toolRegistry.ts:120) and src/lib/__tests__/nav.test.ts:110 already records that ownership.',
-    todo: 'ORPHAN-02 decides whether it earns a home of its own, moves under /tasks, or belongs to Compliance beside /compliance/audit-log.',
-  },
-] as const;
-const ORPHAN_EXCEPTIONS_SET_ON = '2026-10-14';
-const ORPHAN_EXCEPTIONS_MAX = 1; // shrink-only, exactly as MULTI_TOOL_ALLOWED is
+const ORPHAN_EXCEPTIONS: readonly OrphanException[] = [] as const;
+const ORPHAN_EXCEPTIONS_SET_ON = '2026-10-20';
+const ORPHAN_EXCEPTIONS_MAX = 0; // shrink-only, exactly as MULTI_TOOL_ALLOWED is
 
 let orphanViolations = 0;
 const orphanFail = (msg: string) => { orphanViolations += 1; violations.push(`orphan law: ${msg} (ORPHAN-01)`); };
@@ -2556,6 +2560,9 @@ for (const sp of SHELL_PAGES) {
 }
 
 // The registry's own anchors: every home, and every page a tool LINKS to.
+// TASKS-02 (2026-10-20): /operations/audit-log is counted by `orphanLinks`
+// below as Compliance's link — the generic line, unchanged; what moved is the
+// row that carries the link (Tasks → Compliance) and the exception above.
 const orphanHomes = TOOL_REGISTRY.map((t) => t.home).filter((h): h is string => !!h);
 const orphanLinks = TOOL_REGISTRY.flatMap((t) => (t.links ?? []).map((l) => l.href)).filter((h): h is string => !!h);
 /** A page whose whole body is one hop to another route. */
@@ -3529,9 +3536,15 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
     const m = codeOf(f).match(/<h2[^>]*>\s*[A-Z] · [A-Z][A-Z ]+/);
     if (m) twoListsFail(`${f} still wears the deleted room's letter in its header ("${m[0].replace(/<h2[^>]*>\s*/, '')}") — every lettered header loses its letter`);
   }
+  // TASKS-02 (Alex, 2026-10-20): the link that says trail is COMPLIANCE's now —
+  // the audit trail is the log of what was done, and Compliance keeps that log;
+  // the Tasks row links nothing (the North Star's page is deleted with it). The
+  // "trail, not tail" rule holds on every row's links, wherever the link lives.
   const tasksRow = TOOL_REGISTRY.find((t) => t.name === 'Tasks');
-  if (!tasksRow?.links?.some((l) => l.label === 'Audit trail' && l.href === '/operations/audit-log')) twoListsFail(`the Tasks registry row does not link "Audit trail" → /operations/audit-log`);
-  if (tasksRow?.links?.some((l) => /tail/i.test(l.label))) twoListsFail(`the Tasks registry row still says "tail"`);
+  const complianceRow = TOOL_REGISTRY.find((t) => t.name === 'Compliance');
+  if ((tasksRow?.links ?? []).length !== 0) twoListsFail(`the Tasks registry row links ${JSON.stringify(tasksRow?.links)} — TASKS-02: Tasks has no sub-rows`);
+  if (!complianceRow?.links?.some((l) => l.label === 'Audit trail' && l.href === '/operations/audit-log')) twoListsFail(`the Compliance registry row does not link "Audit trail" → /operations/audit-log (TASKS-02)`);
+  for (const t of TOOL_REGISTRY) if (t.links?.some((l) => /tail/i.test(l.label))) twoListsFail(`the ${t.name} registry row still says "tail"`);
 }
 
 // 5. the why is a customer's line.

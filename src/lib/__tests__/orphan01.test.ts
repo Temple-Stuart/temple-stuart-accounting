@@ -92,8 +92,11 @@ test('the law names every page: a home, a registry link, a redirect, a guest rou
   // The exception list is CLOSED and shrink-only, like the grandfather list.
   // TASKS-ONE-01 (2026-10-14): it shrank — the issue log's page is deleted — and the maximum came down to the one
   // survivor with it (2 → 1, set that day), as TRIPS_PATH_TESTS_MAX came down when that list emptied.
-  assert.match(law, /ORPHAN_EXCEPTIONS_MAX = 1;/);
-  assert.match(law, /ORPHAN_EXCEPTIONS_SET_ON = '2026-10-14';/);
+  // TASKS-02 (2026-10-20): it emptied — the audit trail is Compliance's link (branch 2) — and the maximum came down
+  // to 0, set that day. The list has nowhere left to go.
+  assert.match(law, /const ORPHAN_EXCEPTIONS: readonly OrphanException\[\] = \[\] as const;/);
+  assert.match(law, /ORPHAN_EXCEPTIONS_MAX = 0;/);
+  assert.match(law, /ORPHAN_EXCEPTIONS_SET_ON = '2026-10-20';/);
   assert.match(law, /it may only shrink, like the tool law's grandfather list/);
   // Every exception carries a reason AND the ruling that ends it.
   assert.match(law, /an exception without an end is a permanent one/);
@@ -102,23 +105,32 @@ test('the law names every page: a home, a registry link, a redirect, a guest rou
   // The two survivors are named with their TODO.
   // TASKS-ONE-01 (2026-10-14): one survivor — ORPHAN-02's answer for the issue log was deletion, so its entry left
   // the list; the pin holds that it stays gone.
-  assert.match(law, /route: '\/operations\/audit-log'/);
+  // TASKS-02 (2026-10-20): no survivor — ORPHAN-02's answer for the audit trail is Compliance; its entry left the
+  // list too, and the dated note records both answers. The pins hold that neither entry returns.
+  assert.doesNotMatch(law, /route: '\/operations\/audit-log'/);
   assert.doesNotMatch(law, /route: '\/operations\/issues'/);
-  assert.match(law, /ORPHAN-02/);
+  // ORPHAN-02 was the `todo` of the last entry (code); with the list empty it is history (a comment).
+  assert.doesNotMatch(law, /ORPHAN-02/);
+  assert.match(comments(LAW), /ORPHAN-02/);
+  assert.match(comments(LAW), /TASKS-02 \(Alex, 2026-10-20\): ORPHAN-02's answer for the audit trail — it\s*\n\s*\* belongs to Compliance\./);
   // The repointed hops are held in place.
   assert.match(law, /const ORPHAN_REPOINTED/);
   assert.match(law, /gone: '\/operations\/routines', home: '\/calendar'/);
   assert.match(law, /gone: '\/operations\/projects', home: '\/tasks'/);
 });
 
-test('the survivors are the registry\'s, and the registry still says so', () => {
+test('the survivor is the registry\'s, and the registry still says so', () => {
   // STEP 0.3's answer: Tasks owns both, by its own links — not Compliance,
   // not nothing.
-  const tasks = TOOL_REGISTRY.find((t) => t.name === 'Tasks');
   // NORTH-01: the North Star is the third, reached the same way.
   // DAYCARD-01 (2026-10-11): the day card is the fourth, reached the same way.
   // TASKS-ONE-01 (2026-10-14): two — the Issue log's page is deleted; the day card is the first section of /tasks.
-  assert.deepEqual((tasks?.links ?? []).map((l) => l.href), ['/operations/north-star', '/operations/audit-log']);
+  // TASKS-02 (2026-10-20): STEP 0.3's answer is overruled — the one survivor, the audit trail, is COMPLIANCE's, by
+  // its own link; Tasks links nothing and the North Star's page is deleted.
+  const tasks = TOOL_REGISTRY.find((t) => t.name === 'Tasks');
+  const compliance = TOOL_REGISTRY.find((t) => t.name === 'Compliance');
+  assert.deepEqual((tasks?.links ?? []).map((l) => l.href), []);
+  assert.deepEqual((compliance?.links ?? []).map((l) => l.href), ['/soc2', '/operations/audit-log']);
   // /operations itself is gone — no page, and no tool claims it.
   assert.equal(existsSync(`${process.cwd()}/src/app/operations/page.tsx`), false);
   assert.equal(TOOL_REGISTRY.some((t) => t.home === '/operations'), false);

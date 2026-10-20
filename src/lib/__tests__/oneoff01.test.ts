@@ -451,7 +451,8 @@ test('the Calendar row lost commit and kept record; Tasks\' row gained nothing',
   assert.doesNotMatch(tasks.why ?? '', /founder|Claude Code/);
   // DAYCARD-01 (2026-10-11): a fourth link, the day card — the pin moved with it.
   // TASKS-ONE-01 (2026-10-14): two links — the Issue log's page is deleted, the day card is on /tasks itself.
-  assert.deepEqual(tasks.links?.map((l) => l.label), ['North Star', 'Audit trail']);
+  // TASKS-02 (2026-10-20): no link — the North Star's page is deleted, the audit trail is Compliance's.
+  assert.deepEqual(tasks.links?.map((l) => l.label), []);
 });
 
 // ───────────────────────────────────────────────────────────────────────────

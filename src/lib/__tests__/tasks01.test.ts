@@ -264,7 +264,9 @@ test('no 🔥 — no streak renders on any customer surface; the writers and the
   assert.doesNotMatch(show, /StreaksPanel|streak counts both ways/);
 });
 
-test('the registry why is a customer\'s line; the founder note is a code comment; the link says trail', () => {
+// TASKS-02 (2026-10-20): the title said "the link says trail"; the Tasks row carries no link now — the trail is
+// Compliance's (pinned in tasks02.test.ts).
+test('the registry why is a customer\'s line; the founder note is a code comment; the row carries no link', () => {
   const tasks = TOOL_REGISTRY.find((t) => t.name === 'Tasks')!;
   assert.doesNotMatch(tasks.why ?? '', /founder|Claude Code|paid|build pipeline/i);
   assert.match(tasks.why ?? '', /a task's actual cost is still typed by hand/, 'what is not done for a customer, named');
@@ -276,10 +278,9 @@ test('the registry why is a customer\'s line; the founder note is a code comment
   // DAYCARD-01 (2026-10-11): the day card, by the same door — the pin moved from three to four.
   // TASKS-ONE-01 (2026-10-14): four became two — the Issue log's page is deleted (an unbuilt placeholder), and the
   // day card is the first section of /tasks. The link still says trail.
-  assert.deepEqual(tasks.links?.map((l) => [l.label, l.href]), [
-    ['North Star', '/operations/north-star'],
-    ['Audit trail', '/operations/audit-log'],
-  ]);
+  // TASKS-02 (2026-10-20): two became none — the North Star's page is deleted and the audit trail is Compliance's
+  // link; the "Audit trail" label (not "tail") is pinned on the Compliance row in tasks02.test.ts.
+  assert.deepEqual(tasks.links, []);
 });
 
 test('every lettered header lost its letter', () => {
@@ -288,8 +289,10 @@ test('every lettered header lost its letter', () => {
   assert.ok(!existsSync(resolve(process.cwd(), 'src/components/workbench/operations/SectionC_DailyPlan.tsx')));
   // TIME-02 (2026-10-19): SectionG_Content.tsx ('CONTENT') is deleted with the content pipeline — it leaves the census too.
   assert.ok(!existsSync(resolve(process.cwd(), 'src/components/workbench/operations/content/SectionG_Content.tsx')));
+  // TASKS-02 (2026-10-20): SectionB_NorthStar.tsx ('NORTH STAR') is deleted with the North Star page — it leaves the
+  // list with its code; the audit trail is the one lettered header left, and it wears no letter.
+  assert.ok(!existsSync(resolve(process.cwd(), 'src/components/workbench/operations/SectionB_NorthStar.tsx')));
   for (const [f, header] of [
-    ['src/components/workbench/operations/SectionB_NorthStar.tsx', 'NORTH STAR'],
     ['src/components/workbench/operations/SectionK_AuditTail.tsx', 'AUDIT TRAIL'],
   ] as const) {
     const body = code(f);
@@ -299,12 +302,14 @@ test('every lettered header lost its letter', () => {
 });
 
 // TASKS-ONE-01 (2026-10-14): the title said four links; two now — the pin moved with the registry row.
-test('the rail under Tasks shows its two links and no phase — the rail never rendered phases, and the opener lists none', () => {
+// TASKS-02 (2026-10-20): none now — the title moved again; the rail under Tasks shows no sub-row at all.
+test('the rail under Tasks shows no link and no phase — the rail never rendered phases, and the opener lists none', () => {
   assert.deepEqual(navLaw({ throwOnFail: false, gate: TOOL_GATE }), []);
   const tasks = navToolByName('Tasks', TOOL_GATE);
   // DAYCARD-01 (2026-10-11): three became four — the day card, by the same door.
   // TASKS-ONE-01 (2026-10-14): four became two — the Issue log's page is deleted, the day card is on /tasks itself.
-  assert.deepEqual(tasks.subRows.map((r) => r.label), ['North Star', 'Audit trail']);
+  // TASKS-02 (2026-10-20): two became none — the North Star's page is deleted, the audit trail is Compliance's.
+  assert.deepEqual(tasks.subRows.map((r) => r.label), []);
   // The rail's sub-rows are the registry links — never tool.phases.
   const rail = code('src/components/shell/Rail.tsx');
   assert.match(rail, /tool\.subRows\.map/);
