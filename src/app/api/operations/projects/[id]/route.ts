@@ -12,8 +12,16 @@
  *          (≤ 4000 code points; may not be cleared once set),
  *          definition_of_done, notes, links (the *_items shape) — with the
  *          POST's validation, audited as operations_project_updated as today.
- *          No transition table yet — any valid status is accepted; BACKLOG-03
- *          adds the allowed moves and writes promoted_at/scheduled_at/done_at.
+ *          BACKLOG-01b (Alex, 2026-10-20): one fact, one home — problem (1) and
+ *          goal (3) follow why's rule (≤ 4000 code points; never cleared once
+ *          set); diagnosis (THE AUDIT) and design (THE PLAN) are pasted back,
+ *          clearable while the row is in the backlog, never once scoped,
+ *          scheduled, in progress or completed; rulings (4), open_questions (5)
+ *          ≤ 4000; deadline_reason (6) ≤ 500 and required while a target date
+ *          is set. "scope it": backlog → scoped only when diagnosis, design and
+ *          definition_of_done are all non-empty after the body is applied —
+ *          refused by name listing the missing; promoted_at set once. The only
+ *          guarded transition; BACKLOG-03 adds the table.
  * DELETE — hard delete: the project, its tasks and its dependencies go in ONE
  *          transaction. TASKS-01 (2026-09-18): NEVER through a live link — the
  *          delete is refused with 409, naming the task and the reason, when a
@@ -66,6 +74,10 @@ const VALID_STATUSES: ProjectStatus[] = [
 const PROJECT_TYPES: readonly ProjectType[] = ['engineering', 'accounting', 'content', 'travel', 'ops'];
 const PROJECT_SIZES: readonly ProjectSize[] = ['S', 'M', 'L'];
 const WHY_MAX_CODE_POINTS = 4000;
+/** BACKLOG-01b: deadline_reason is a VARCHAR(500) — 500 is the column's length, counted in code points. */
+const DEADLINE_REASON_MAX_CODE_POINTS = 500;
+/** BACKLOG-01b: once here, THE AUDIT and THE PLAN may not be cleared. */
+const SCOPED_OR_BEYOND: readonly ProjectStatus[] = ['scoped', 'scheduled', 'in_progress', 'completed'];
 
 async function loadAuthorizedProject(projectId: string, userId: string) {
   return prisma.operations_projects.findFirst({
@@ -147,18 +159,86 @@ export async function PATCH(
       data.title = t;
     }
 
-    // Legacy paragraph fields (goal/problem/diagnosis/design) are now nullable
-    // post-PR-Ops-3.7. Source of truth for goal/problem/diagnosis is the
-    // *_items JSONB arrays; legacy paragraphs persist for backwards-compat
-    // until a future cleanup PR drops them. Design field continues to be
-    // populated by the AI generate-design endpoint via "use this" acceptance.
     // PR-Ops-Evolve-1: deep_research_input / claude_code_audit_input are manual
     // paste targets (reality inputs) saved on the same path as the Text sections.
-    for (const field of ['goal', 'problem', 'diagnosis', 'design', 'deep_research_input', 'claude_code_audit_input'] as const) {
+    // BACKLOG-01b (Alex, 2026-10-20): goal / problem / diagnosis / design left this
+    // loop — one fact, one home, each with its rule below.
+    for (const field of ['deep_research_input', 'claude_code_audit_input'] as const) {
       if (body[field] !== undefined) {
         const t = trimNonEmpty(body[field]);
         data[field] = t;
       }
+    }
+
+    // BACKLOG-01b (Alex, 2026-10-20): problem (1 WHAT IS WRONG TODAY) and goal (3 THE
+    // ONE CORRECT OUTCOME) follow why's rule — a paragraph of ≤ 4000 code points;
+    // nothing typed when the row HAS one is a clearing, refused by name; a row
+    // captured before (null) stays null.
+    for (const field of ['problem', 'goal'] as const) {
+      if (body[field] === undefined) continue;
+      const t = trimNonEmpty(body[field]);
+      if (t === null) {
+        if (existing[field] !== null) {
+          return NextResponse.json(
+            { error: 'Validation', field, message: `${field} may not be cleared once set` },
+            { status: 400 }
+          );
+        }
+        continue;
+      }
+      const length = [...t].length;
+      if (length > WHY_MAX_CODE_POINTS) {
+        return NextResponse.json(
+          { error: 'Validation', field, message: `${field} is at most ${WHY_MAX_CODE_POINTS} characters (${length} given)` },
+          { status: 400 }
+        );
+      }
+      data[field] = t;
+    }
+    // diagnosis (THE AUDIT) and design (THE PLAN): the chat's text pasted back —
+    // unbounded, clearable while the row is in the backlog (or any unscoped status),
+    // never once scoped, scheduled, in progress or completed — refused by name.
+    // The values AFTER this body feed "scope it" below.
+    let diagnosisAfter: string | null = existing.diagnosis;
+    let designAfter: string | null = existing.design;
+    for (const field of ['diagnosis', 'design'] as const) {
+      if (body[field] === undefined) continue;
+      const t = trimNonEmpty(body[field]);
+      if (t === null && existing[field] !== null && SCOPED_OR_BEYOND.includes(existing.status)) {
+        return NextResponse.json(
+          { error: 'Validation', field, message: `${field} may not be cleared once scoped` },
+          { status: 400 }
+        );
+      }
+      data[field] = t;
+      if (field === 'diagnosis') diagnosisAfter = t; else designAfter = t;
+    }
+    // rulings (4 ALREADY RULED) and open_questions (5 WANT A RECOMMENDATION ON):
+    // optional, clearable, capped like the three texts.
+    for (const field of ['rulings', 'open_questions'] as const) {
+      if (body[field] === undefined) continue;
+      const t = trimNonEmpty(body[field]);
+      if (t !== null && [...t].length > WHY_MAX_CODE_POINTS) {
+        return NextResponse.json(
+          { error: 'Validation', field, message: `${field} is at most ${WHY_MAX_CODE_POINTS} characters (${[...t].length} given)` },
+          { status: 400 }
+        );
+      }
+      data[field] = t;
+    }
+    // deadline_reason (6 BY WHEN, AND WHY): ≤ 500 code points; required while a
+    // target date is set — checked with the date below.
+    let deadlineReasonAfter: string | null = existing.deadline_reason;
+    if (body.deadline_reason !== undefined) {
+      const t = trimNonEmpty(body.deadline_reason);
+      if (t !== null && [...t].length > DEADLINE_REASON_MAX_CODE_POINTS) {
+        return NextResponse.json(
+          { error: 'Validation', field: 'deadline_reason', message: `deadline_reason is at most ${DEADLINE_REASON_MAX_CODE_POINTS} characters (${[...t].length} given)` },
+          { status: 400 }
+        );
+      }
+      data.deadline_reason = t;
+      deadlineReasonAfter = t;
     }
 
     // PR-Ops-3.7: structured-list fields. Each is an array of strings,
@@ -273,6 +353,7 @@ export async function PATCH(
     for (const field of ['definition_of_done', 'notes'] as const) {
       if (body[field] !== undefined) data[field] = trimNonEmpty(body[field]);
     }
+    const definitionOfDoneAfter: string | null = body.definition_of_done !== undefined ? trimNonEmpty(body.definition_of_done) : existing.definition_of_done;
     // links: the *_items shape (≤ 20 strings of ≤ 500; a blank line dropped as the items are).
     if (body.links !== undefined) {
       const result = validateItems(body.links, 'links');
@@ -285,8 +366,8 @@ export async function PATCH(
       data.links = result.items;
     }
 
-    // BACKLOG-01: no transition table yet — any valid status is accepted;
-    // BACKLOG-03 adds the allowed moves and writes promoted_at/scheduled_at/done_at.
+    // BACKLOG-01b: the only guarded transition is backlog → scoped (diagnosis, design
+    // and definition_of_done required; promoted_at set once); BACKLOG-03 adds the table.
     let statusChange: { from: ProjectStatus; to: ProjectStatus } | null = null;
     if (body.status !== undefined) {
       const incoming = body.status as ProjectStatus;
@@ -296,17 +377,42 @@ export async function PATCH(
           { status: 400 }
         );
       }
+      // "scope it" (Alex, 2026-10-20): backlog → scoped only when THE AUDIT, THE PLAN
+      // and PROOF OF DONE are all non-empty AFTER this body is applied — refused by
+      // name listing the missing; promoted_at set once, never overwritten.
+      if (incoming === 'scoped' && existing.status === 'backlog') {
+        const after = { diagnosis: diagnosisAfter, design: designAfter, definition_of_done: definitionOfDoneAfter };
+        const missing = (['diagnosis', 'design', 'definition_of_done'] as const).filter((f) => after[f] === null);
+        if (missing.length > 0) {
+          return NextResponse.json(
+            { error: 'Validation', field: 'status', message: `scope it needs: ${missing.join(', ')}` },
+            { status: 400 }
+          );
+        }
+        data.promoted_at = existing.promoted_at ?? new Date();
+      }
       if (incoming !== existing.status) {
         statusChange = { from: existing.status, to: incoming };
       }
       data.status = incoming;
     }
 
+    let targetAfter: Date | null = existing.target_completion_date;
     if (body.target_completion_date !== undefined) {
-      data.target_completion_date =
+      targetAfter =
         typeof body.target_completion_date === 'string' && body.target_completion_date.length > 0
           ? new Date(body.target_completion_date)
           : null;
+      data.target_completion_date = targetAfter;
+    }
+    // BACKLOG-01b (Alex, 2026-10-20): a target date requires its reason — after this
+    // body, the row holds a date and no reason (a date set without one, or the reason
+    // cleared while a date stands) → refused by name. A reason without a date is text.
+    if (targetAfter !== null && deadlineReasonAfter === null) {
+      return NextResponse.json(
+        { error: 'Validation', field: 'deadline_reason', message: 'deadline_reason is required when a target date is set' },
+        { status: 400 }
+      );
     }
 
     if (body.estimated_total_minutes !== undefined) {

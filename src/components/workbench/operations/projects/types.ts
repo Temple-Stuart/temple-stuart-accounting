@@ -55,6 +55,11 @@ export interface Project {
   definition_of_done: string | null;
   links: string[];
   notes: string | null;
+  // BACKLOG-01b (Alex, 2026-10-20): the brief's three — 4 ALREADY RULED, 5 WANT A
+  // RECOMMENDATION ON, and the reason for the target date (6 BY WHEN, AND WHY).
+  rulings: string | null;
+  open_questions: string | null;
+  deadline_reason: string | null;
   rank: number | null;
   promoted_at: string | null;
   scheduled_at: string | null;
@@ -100,6 +105,14 @@ export interface Project {
  * definition_of_done, links (a list; the form types one per line) and notes;
  * the POST sets status 'backlog' itself and ignores the form's status. The
  * edit view sends the same fields on PATCH.
+ *
+ * BACKLOG-01b (Alex, 2026-10-20) — one fact, one home: problem (1 WHAT IS WRONG
+ * TODAY), why (2 WHY IT MATTERS) and goal (3 THE ONE CORRECT OUTCOME) are the
+ * capture's three required texts; rulings (4), open_questions (5) and
+ * deadline_reason (6, required with a target date) join; diagnosis is THE AUDIT
+ * and design THE PLAN, pasted back on the row. goalItems / problemItems /
+ * diagnosisItems stay here for one release: no form writes them — the edit
+ * form round-trips the row's own values untouched (CLEAN-03 rules on dropping).
  */
 export interface ProjectForm {
   entity_id: string;
@@ -111,7 +124,13 @@ export interface ProjectForm {
   status: ProjectStatus;
   type: ProjectType | '';
   size: ProjectSize | '';
+  problem: string;
   why: string;
+  goal: string;
+  diagnosis: string;
+  rulings: string;
+  open_questions: string;
+  deadline_reason: string;
   definition_of_done: string;
   links: string[];
   notes: string;
@@ -131,7 +150,13 @@ export const DEFAULT_PROJECT_FORM: ProjectForm = {
   status: 'not_started',
   type: '',
   size: '',
+  problem: '',
   why: '',
+  goal: '',
+  diagnosis: '',
+  rulings: '',
+  open_questions: '',
+  deadline_reason: '',
   definition_of_done: '',
   links: [],
   notes: '',

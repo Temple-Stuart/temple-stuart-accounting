@@ -16,15 +16,24 @@
  * DependencyList); the public showroom passes the pure PR1–PR4 views fed with
  * static seed. The view owns only the section wrappers + the showEvolution gate,
  * never the section's data source — so when fed pure views the whole expanded
- * subtree is provably fetch-free. <ListManager />, <InspectionDrawer /> and
- * <AITaskPreview /> remain rendered as-is.
+ * subtree is provably fetch-free. <InspectionDrawer /> and <AITaskPreview />
+ * remain rendered as-is.
+ *
+ * BACKLOG-01b (Alex, 2026-10-20): one fact, one home — the read view and the
+ * edit view name the capture's facts in the brief's order (problem · why ·
+ * goal · rulings · open questions · by when and why · proof of done · links ·
+ * notes), then THE AUDIT (diagnosis) and THE PLAN (design) pasted back from
+ * the chat; "— not answered —" when empty, never blank. The three ListManagers
+ * and the structured *_items blocks left with their columns' UI (CLEAN-03
+ * rules on dropping). "copy brief prompt" and "scope it" are container-owned
+ * actions (absent in the showroom → no button), like the pipeline door.
  */
 
 'use client';
 
 import type { Project, ProjectForm, ProjectSize, ProjectStatus, ProjectType } from './types';
 import { PROJECT_SIZES, PROJECT_TYPES, SIZE_LABELS, STATUS_LABELS, STATUS_PILL_CLASSES, TYPE_LABELS, formatAllocatedCents } from './types';
-import ListManager from './ListManager';
+import { AUDIT_LABEL, NOT_ANSWERED_WORDS, PLAN_LABEL, captureQuestion } from '@/lib/operations/projectBrief';
 import InspectionDrawer, { type InspectionData } from '../ai/InspectionDrawer';
 import AITaskPreview, { type AIGeneratedTask } from './AITaskPreview';
 
@@ -98,7 +107,6 @@ export interface ProjectRowViewProps {
   tasksGenError: string | null;
   tasksPreview: TasksPreview | null;
   flash: boolean;
-  showDesignReasoning: boolean;
   showEvolution: boolean;
   researchInput: string;
   auditInput: string;
@@ -107,6 +115,13 @@ export interface ProjectRowViewProps {
   /** PR-Loop-1: research agent running flag + last error. */
   runningResearch: boolean;
   researchError: string | null;
+  /** BACKLOG-01b: "copy brief prompt" (the container writes the clipboard) and its 2-second word; absent (the showroom) → no button. */
+  briefWords?: string | null;
+  onCopyBrief?: () => void;
+  /** BACKLOG-01b: "scope it" (the container's PATCH) — shown while the row is in the backlog; the route's refusal prints by name. */
+  scopeWords?: string | null;
+  scoping?: boolean;
+  onScopeIt?: () => void;
 
   // ── actions (owned by the container) ─────────────────────────────────────
   onToggleExpanded: () => void;
@@ -119,7 +134,6 @@ export interface ProjectRowViewProps {
   onSaveInputs: () => void;
   /** PR-Loop-1: PAID Anthropic AI (web_search) — POST research (container-owned). */
   onRunResearch: () => void;
-  onToggleDesignReasoning: () => void;
   onToggleEvolution: () => void;
   /** PAID Anthropic AI — POST generate-design (container-owned). */
   onGenerateDesign: () => void;
@@ -186,7 +200,6 @@ export default function ProjectRowView({ project,
   tasksGenError,
   tasksPreview,
   flash,
-  showDesignReasoning,
   showEvolution,
   researchInput,
   auditInput,
@@ -194,6 +207,11 @@ export default function ProjectRowView({ project,
   inputsSaved,
   runningResearch,
   researchError,
+  briefWords = null,
+  onCopyBrief,
+  scopeWords = null,
+  scoping = false,
+  onScopeIt,
   onToggleExpanded,
   onEnterEdit,
   onCancelEdit,
@@ -203,7 +221,6 @@ export default function ProjectRowView({ project,
   onAuditInputChange,
   onSaveInputs,
   onRunResearch,
-  onToggleDesignReasoning,
   onToggleEvolution,
   onGenerateDesign,
   onUseGeneratedDesign,
@@ -221,53 +238,13 @@ export default function ProjectRowView({ project,
   const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs';
   const pillClass = `inline-block px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_PILL_CLASSES[project.status]}`;
 
-  // Derive structured-list arrays from the project. JsonB columns may
-  // come back as JsonValue at runtime; filter to strings defensively.
-  const goalItems = Array.isArray(project.goal_items)
-    ? project.goal_items.filter((x): x is string => typeof x === 'string')
-    : [];
-  const problemItems = Array.isArray(project.problem_items)
-    ? project.problem_items.filter((x): x is string => typeof x === 'string')
-    : [];
-  const diagnosisItems = Array.isArray(project.diagnosis_items)
-    ? project.diagnosis_items.filter((x): x is string => typeof x === 'string')
-    : [];
-  // BACKLOG-01: the capture's links — a JsonB list, filtered to strings like the items.
+  // BACKLOG-01b (Alex, 2026-10-20): one fact, one home — the texts ARE the fields;
+  // the structured *_items derivations and renderStructuredField left with them.
   const links = Array.isArray(project.links)
     ? project.links.filter((x): x is string => typeof x === 'string')
     : [];
-
-  /**
-   * Render a structured field that may be either:
-   *   - new structured array (project.goal_items / problem_items / diagnosis_items)
-   *   - legacy paragraph (project.goal / problem / diagnosis as string|null)
-   *
-   * Prefers structured items; falls back to legacy paragraph when items
-   * array is empty. Both states render readably in the row.
-   */
-  const renderStructuredField = (
-    items: string[],
-    legacyText: string | null
-  ) => {
-    if (items.length > 0) {
-      return (
-        <ul className="list-disc list-inside text-text-primary text-xs space-y-0.5 ml-2">
-          {items.map((it, i) => (
-            <li key={i} className="break-words">{it}</li>
-          ))}
-        </ul>
-      );
-    }
-    if (legacyText && legacyText.trim().length > 0) {
-      return (
-        <div className="text-text-primary text-xs whitespace-pre-wrap">
-          {legacyText}
-          <span className="text-text-faint italic ml-2">(legacy paragraph format)</span>
-        </div>
-      );
-    }
-    return <div className="text-text-muted text-xs italic">(no content)</div>;
-  };
+  /** A capture text, or the honest "— not answered —" — never blank. */
+  const answered = (t: string | null): string => ((t ?? '').trim().length > 0 ? (t as string) : NOT_ANSWERED_WORDS);
 
   return (
     <div
@@ -294,80 +271,75 @@ export default function ProjectRowView({ project,
         </div>
         <div className="flex items-center gap-3 text-text-muted shrink-0">
           <span>target: {formatTargetDate(project.target_completion_date)}</span>
+          {/* BACKLOG-01b: THE BRIEF FORMAT from the row + the TO THE CHAT paragraph → the clipboard. */}
+          {onCopyBrief && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onCopyBrief(); }}
+              className="px-2 py-0.5 border border-border rounded text-xs text-text-muted hover:bg-bg-row"
+              data-project-copy-brief
+            >
+              copy brief prompt
+            </button>
+          )}
+          {briefWords && <span className="text-text-faint text-xs" data-project-brief-words>{briefWords}</span>}
         </div>
       </div>
 
       {expanded && !editing && (
         <div className="px-4 py-3 border-t border-border-light text-xs space-y-3">
-          {/* BACKLOG-01 (Alex, 2026-10-20): the capture, above the Dalio loop — why is
-              required at capture ("—" on a row captured before); the definition of
-              done, the links and the notes render only when typed (COND-INPUTS-2). */}
-          <div data-project-capture>
-            <div className={labelClass}>why</div>
-            <div className="text-text-primary text-xs whitespace-pre-wrap" data-project-why>
-              {(project.why ?? '').trim().length > 0 ? project.why : '—'}
-            </div>
-            {(project.definition_of_done ?? '').trim().length > 0 && (
-              <div className="mt-2">
-                <div className={labelClass}>definition of done</div>
-                <div className="text-text-primary text-xs whitespace-pre-wrap" data-project-definition-of-done>{project.definition_of_done}</div>
+          {/* BACKLOG-01b (Alex, 2026-10-20): the capture, read — one fact, one home, in
+              the brief's order; "— not answered —" when empty, never blank. THE AUDIT
+              (diagnosis) and THE PLAN (design) paste back from the chat. */}
+          <div className="space-y-2" data-project-capture>
+            {([
+              ['problem', project.problem],
+              ['why', project.why],
+              ['goal', project.goal],
+              ['rulings', project.rulings],
+              ['open_questions', project.open_questions],
+            ] as const).map(([key, text]) => (
+              <div key={key}>
+                <div className={labelClass}>{captureQuestion(key).label}</div>
+                <div className="text-text-primary text-xs whitespace-pre-wrap" data-project-text={key}>{answered(text)}</div>
               </div>
-            )}
-            {links.length > 0 && (
-              <div className="mt-2">
-                <div className={labelClass}>links</div>
+            ))}
+            <div>
+              <div className={labelClass}>{captureQuestion('by_when').label}</div>
+              <div className="text-text-primary text-xs" data-project-text="target_completion_date">
+                {project.target_completion_date ? formatTargetDate(project.target_completion_date) : NOT_ANSWERED_WORDS}
+              </div>
+              <div className="text-text-primary text-xs whitespace-pre-wrap" data-project-text="deadline_reason">{answered(project.deadline_reason)}</div>
+            </div>
+            <div>
+              <div className={labelClass}>{captureQuestion('definition_of_done').label}</div>
+              <div className="text-text-primary text-xs whitespace-pre-wrap" data-project-text="definition_of_done">{answered(project.definition_of_done)}</div>
+            </div>
+            <div>
+              <div className={labelClass}>{captureQuestion('links').label}</div>
+              {links.length > 0 ? (
                 <ul className="list-disc list-inside text-text-primary text-xs space-y-0.5 ml-2" data-project-links>
                   {links.map((l, i) => (
                     <li key={i} className="break-all">{l}</li>
                   ))}
                 </ul>
-              </div>
-            )}
-            {(project.notes ?? '').trim().length > 0 && (
-              <div className="mt-2">
-                <div className={labelClass}>notes</div>
-                <div className="text-text-primary text-xs whitespace-pre-wrap" data-project-notes>{project.notes}</div>
-              </div>
-            )}
-          </div>
-          <div>
-            <div className={labelClass}>1 · goal</div>
-            {renderStructuredField(goalItems, project.goal)}
-          </div>
-          {/* COND-INPUTS-2: problem/diagnosis/design render ONLY when they have content. New
-              title+goals projects read clean (no "(no content)"/"(no design)" clutter); projects
-              with data still show them. Presentation-only; showroom demo carries data → unchanged. */}
-          {(problemItems.length > 0 || (project.problem ?? '').trim().length > 0) && (
+              ) : (
+                <div className="text-text-primary text-xs" data-project-links>{NOT_ANSWERED_WORDS}</div>
+              )}
+            </div>
             <div>
-              <div className={labelClass}>2 · problem</div>
-              {renderStructuredField(problemItems, project.problem)}
+              <div className={labelClass}>{captureQuestion('notes').label}</div>
+              <div className="text-text-primary text-xs whitespace-pre-wrap" data-project-text="notes">{answered(project.notes)}</div>
             </div>
-          )}
-          {(diagnosisItems.length > 0 || (project.diagnosis ?? '').trim().length > 0) && (
             <div>
-              <div className={labelClass}>3 · diagnosis</div>
-              {renderStructuredField(diagnosisItems, project.diagnosis)}
+              <div className={labelClass}>{AUDIT_LABEL}</div>
+              <div className="text-text-primary text-xs whitespace-pre-wrap" data-project-text="diagnosis">{answered(project.diagnosis)}</div>
             </div>
-          )}
-          {(project.design ?? '').trim().length > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <div className={labelClass}>4 · design</div>
-              <button
-                type="button"
-                onClick={onToggleDesignReasoning}
-                className="px-2 py-0.5 border border-border rounded text-xs text-text-muted hover:bg-bg-row"
-              >
-                {showDesignReasoning ? 'hide AI design reasoning' : 'view AI design reasoning'}
-              </button>
+            <div>
+              <div className={labelClass}>{PLAN_LABEL}</div>
+              <div className="text-text-primary text-xs whitespace-pre-wrap" data-project-text="design">{answered(project.design)}</div>
             </div>
-            {showDesignReasoning && (
-              <div className="text-text-primary text-xs whitespace-pre-wrap p-3 bg-white border border-border-light rounded">
-                {project.design}
-              </div>
-            )}
           </div>
-          )}
           <div className="pt-2 border-t border-border-light">
             <div className={labelClass}>reality inputs (ground AI regeneration)</div>
             {/* PR-Ops-Evolve-1: reality inputs — paste targets that ground task
@@ -491,6 +463,11 @@ export default function ProjectRowView({ project,
               {error}
             </div>
           )}
+          {scopeWords && (
+            <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800" data-project-scope-words>
+              {scopeWords}
+            </div>
+          )}
           <div className="flex items-center gap-2 pt-2 border-t border-border-light">
             <button
               type="button"
@@ -508,6 +485,18 @@ export default function ProjectRowView({ project,
                 data-project-pipeline
               >
                 pipeline
+              </button>
+            )}
+            {/* BACKLOG-01b: "scope it" — backlog → scoped; the route refuses by name (scope it needs: …). */}
+            {onScopeIt && project.status === 'backlog' && (
+              <button
+                type="button"
+                onClick={onScopeIt}
+                disabled={scoping}
+                className="px-2 py-1 border border-brand-purple text-brand-purple rounded hover:bg-purple-50 disabled:opacity-50"
+                data-project-scope-it
+              >
+                {scoping ? 'scoping…' : 'scope it'}
               </button>
             )}
             {project.status === 'archived' ? (
@@ -544,7 +533,7 @@ export default function ProjectRowView({ project,
       {editing && (
         <div className="px-4 py-3 border-t border-border-light text-xs space-y-3">
           {error && (
-            <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800">
+            <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800" data-project-error>
               {error}
             </div>
           )}
@@ -590,9 +579,10 @@ export default function ProjectRowView({ project,
             </div>
           </div>
 
-          {/* BACKLOG-01 (Alex, 2026-10-20): the capture's fields, editable here. The PATCH
-              refuses by name a type cleared once set and a why emptied once set; size,
-              the definition of done, the links and the notes may be cleared. */}
+          {/* BACKLOG-01b (Alex, 2026-10-20): the capture's fields, editable here in the
+              brief's order; THE AUDIT and THE PLAN are paste boxes. The PATCH refuses by
+              name a type cleared once set, 1/2/3 emptied once set, THE AUDIT or THE PLAN
+              cleared once scoped, and a target date without its reason. */}
           <div className="grid grid-cols-2 gap-3" data-project-capture-edit>
             <div>
               <div className={labelClass}>type</div>
@@ -626,27 +616,48 @@ export default function ProjectRowView({ project,
                 ))}
               </select>
             </div>
+            {(['problem', 'why', 'goal', 'rulings', 'open_questions'] as const).map((key) => (
+              <div className="col-span-2" key={key}>
+                <div className={labelClass}>{captureQuestion(key).label}</div>
+                <textarea
+                  value={form[key]}
+                  onChange={(e) => onFormChange({ ...form, [key]: e.target.value })}
+                  className={inputClass}
+                  rows={3}
+                  maxLength={4000}
+                  aria-label={captureQuestion(key).label}
+                />
+              </div>
+            ))}
             <div className="col-span-2">
-              <div className={labelClass}>why</div>
-              <textarea
-                value={form.why}
-                onChange={(e) => onFormChange({ ...form, why: e.target.value })}
-                className={inputClass}
-                rows={3}
-                maxLength={4000}
-                placeholder="the problem it solves, or the value — a paragraph"
-                aria-label="Why"
-              />
+              <div className={labelClass}>{captureQuestion('by_when').label}</div>
+              <div className="grid grid-cols-3 gap-3">
+                <input
+                  type="date"
+                  value={form.target_completion_date}
+                  onChange={(e) => onFormChange({ ...form, target_completion_date: e.target.value })}
+                  className={inputClass}
+                  aria-label="Target date"
+                />
+                <textarea
+                  value={form.deadline_reason}
+                  onChange={(e) => onFormChange({ ...form, deadline_reason: e.target.value })}
+                  className={`${inputClass} col-span-2`}
+                  rows={2}
+                  maxLength={500}
+                  placeholder={captureQuestion('by_when').question}
+                  aria-label="Why that date"
+                />
+              </div>
             </div>
             <div className="col-span-2">
-              <div className={labelClass}>definition of done</div>
+              <div className={labelClass}>{captureQuestion('definition_of_done').label}</div>
               <textarea
                 value={form.definition_of_done}
                 onChange={(e) => onFormChange({ ...form, definition_of_done: e.target.value })}
                 className={inputClass}
-                rows={2}
-                placeholder="how we will know it is done"
-                aria-label="Definition of done"
+                rows={3}
+                aria-label={captureQuestion('definition_of_done').label}
               />
             </div>
             <div className="col-span-2">
@@ -670,62 +681,40 @@ export default function ProjectRowView({ project,
                 aria-label="Notes"
               />
             </div>
+            <div className="col-span-2">
+              <div className={labelClass}>{AUDIT_LABEL}</div>
+              <textarea
+                value={form.diagnosis}
+                onChange={(e) => onFormChange({ ...form, diagnosis: e.target.value })}
+                className={inputClass}
+                rows={6}
+                placeholder="paste the chat's audit here"
+                aria-label={AUDIT_LABEL}
+              />
+            </div>
           </div>
 
           <div>
-            <div className={labelClass}>1 · goal — what success looks like</div>
-            <ListManager
-              items={form.goalItems}
-              onChange={(next) => onFormChange({ ...form, goalItems: next })}
-              verbPrefix="I WANT to "
-              placeholder="get loans approved"
-              disabled={saving}
-            />
-          </div>
-          <div>
-            <div className={labelClass}>2 · problem — gap between current and goal</div>
-            <ListManager
-              items={form.problemItems}
-              onChange={(next) => onFormChange({ ...form, problemItems: next })}
-              verbPrefix="I HAVE NOT "
-              altVerbPrefix="I KEEP "
-              placeholder="created an FSA ID yet"
-              disabled={saving}
-            />
-          </div>
-          <div>
-            <div className={labelClass}>3 · diagnosis — root cause of the gap</div>
-            <ListManager
-              items={form.diagnosisItems}
-              onChange={(next) => onFormChange({ ...form, diagnosisItems: next })}
-              verbPrefix="Because "
-              altVerbPrefix="The root cause is "
-              placeholder="I never blocked dedicated time for it"
-              disabled={saving}
-            />
-          </div>
-          <div>
             <div className="flex items-center justify-between mb-1">
-              <div className={labelClass}>4 · design — the plan (AI-generated)</div>
+              <div className={labelClass}>{PLAN_LABEL}</div>
               <button
                 type="button"
                 onClick={onGenerateDesign}
                 disabled={generatingDesign}
                 className={`px-2 py-0.5 border rounded text-xs disabled:opacity-50 ${'border-brand-purple text-brand-purple hover:bg-purple-50'}`}
-                title="Generate institutional-rigor design field from your goal/problem/diagnosis items"
+                title="Generate a design from the project's goal/problem/diagnosis"
               >
                 {generatingDesign ? 'generating…' : '↑ generate plan'}
               </button>
             </div>
-            {form.design.trim().length > 0 ? (
-              <div className="text-text-primary text-xs whitespace-pre-wrap p-3 bg-white border border-border-light rounded">
-                {form.design}
-              </div>
-            ) : (
-              <div className="text-text-muted text-xs italic p-3 bg-bg-row border border-border-light rounded">
-                (no design yet — fill in goal/problem/diagnosis items above, then click "↑ generate plan")
-              </div>
-            )}
+            <textarea
+              value={form.design}
+              onChange={(e) => onFormChange({ ...form, design: e.target.value })}
+              className={inputClass}
+              rows={6}
+              placeholder="paste the plan here"
+              aria-label={PLAN_LABEL}
+            />
             {generationError && (
               <div className="mt-2 px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs">
                 {generationError}
@@ -822,16 +811,8 @@ export default function ProjectRowView({ project,
             )}
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <div className={labelClass}>target date</div>
-              <input
-                type="date"
-                value={form.target_completion_date}
-                onChange={(e) => onFormChange({ ...form, target_completion_date: e.target.value })}
-                className={inputClass}
-              />
-            </div>
+          {/* BACKLOG-01b: the target date moved up into 6 BY WHEN, AND WHY. */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <div className={labelClass}>est. minutes</div>
               <input

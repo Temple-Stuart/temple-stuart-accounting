@@ -87,6 +87,10 @@ export const demoProject: Project = {
   definition_of_done: null,
   links: [],
   notes: null,
+  // BACKLOG-01b (Alex, 2026-10-20): the brief's three, not captured on a seed.
+  rulings: null,
+  open_questions: null,
+  deadline_reason: null,
   rank: null,
   promoted_at: null,
   scheduled_at: null,
@@ -132,6 +136,10 @@ const demoProjectBankAccount: Project = {
   definition_of_done: null,
   links: [],
   notes: null,
+  // BACKLOG-01b (Alex, 2026-10-20): the brief's three, not captured on a seed.
+  rulings: null,
+  open_questions: null,
+  deadline_reason: null,
   rank: null,
   promoted_at: null,
   scheduled_at: null,
@@ -173,6 +181,10 @@ const demoProjectBudget: Project = {
   definition_of_done: null,
   links: [],
   notes: null,
+  // BACKLOG-01b (Alex, 2026-10-20): the brief's three, not captured on a seed.
+  rulings: null,
+  open_questions: null,
+  deadline_reason: null,
   rank: null,
   promoted_at: null,
   scheduled_at: null,

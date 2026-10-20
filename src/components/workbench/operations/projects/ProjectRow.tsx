@@ -22,6 +22,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { Project, ProjectForm } from './types';
+import { briefPromptText } from '@/lib/operations/projectBrief';
 import { type InspectionData } from '../ai/InspectionDrawer';
 import { type AIGeneratedTask } from './AITaskPreview';
 import TaskList from './TaskList';
@@ -59,6 +60,8 @@ interface Props {
   onTasksChanged?: () => void;
 }
 
+export const BRIEF_COPIED_WORDS = 'copied';
+
 function projectToForm(p: Project): ProjectForm {
   return {
     entity_id: p.entity_id,
@@ -72,7 +75,14 @@ function projectToForm(p: Project): ProjectForm {
     // edit form; null reads as '' (unchosen / not sized / nothing typed).
     type: p.type ?? '',
     size: p.size ?? '',
+    // BACKLOG-01b (Alex, 2026-10-20): one fact, one home — the texts, from the row.
+    problem: p.problem ?? '',
     why: p.why ?? '',
+    goal: p.goal ?? '',
+    diagnosis: p.diagnosis ?? '',
+    rulings: p.rulings ?? '',
+    open_questions: p.open_questions ?? '',
+    deadline_reason: p.deadline_reason ?? '',
     definition_of_done: p.definition_of_done ?? '',
     links: Array.isArray(p.links) ? p.links.filter((x): x is string => typeof x === 'string') : [],
     notes: p.notes ?? '',
@@ -118,7 +128,11 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   const [evolveSaving, setEvolveSaving] = useState(false);
   const [evolveError, setEvolveError] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
-  const [showDesignReasoning, setShowDesignReasoning] = useState(false);
+  // BACKLOG-01b (Alex, 2026-10-20): "copy brief prompt" (the clipboard, a 2-second
+  // word) and "scope it" (PATCH { status: 'scoped' }; the route's refusal, by name).
+  const [briefWords, setBriefWords] = useState<string | null>(null);
+  const [scopeWords, setScopeWords] = useState<string | null>(null);
+  const [scoping, setScoping] = useState(false);
   // PR-Ops-Content-2: lazy-mount the read-only evolution timeline (the project's
   // trajectory by AI re-run). Fetches only when opened (mirrors the design-reasoning
   // toggle + TaskRow history-on-demand pattern).
@@ -265,6 +279,43 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
       setError(e instanceof Error ? e.message : 'failed to save');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // BACKLOG-01b: THE BRIEF FORMAT from the row + the TO THE CHAT paragraph → the
+  // clipboard. Nothing paid, nothing leaves the browser but the clipboard.
+  const handleCopyBrief = async () => {
+    const bookName = entities.find((e) => e.id === project.entity_id)?.name ?? '';
+    try {
+      await navigator.clipboard.writeText(briefPromptText(project, bookName));
+      setBriefWords(BRIEF_COPIED_WORDS);
+      window.setTimeout(() => setBriefWords(null), 2000);
+    } catch (e) {
+      setBriefWords(`copy failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
+  // BACKLOG-01b: "scope it" — backlog → scoped through the project PATCH; the route
+  // refuses by name (scope it needs: …) and the words print on the row.
+  const handleScopeIt = async () => {
+    setScoping(true);
+    setScopeWords(null);
+    try {
+      const res = await fetch(`/api/operations/projects/${project.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'scoped' }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setScopeWords(body?.message ?? body?.error ?? 'scope it failed');
+        return;
+      }
+      onUpdate();
+    } catch (e) {
+      setScopeWords(e instanceof Error ? e.message : 'scope it failed');
+    } finally {
+      setScoping(false);
     }
   };
 
@@ -663,8 +714,12 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
       tasksGenError={tasksGenError}
       tasksPreview={tasksPreview}
       flash={flash}
-      showDesignReasoning={showDesignReasoning}
       showEvolution={showEvolution}
+      briefWords={briefWords}
+      onCopyBrief={handleCopyBrief}
+      scopeWords={scopeWords}
+      scoping={scoping}
+      onScopeIt={handleScopeIt}
       researchInput={researchInput}
       auditInput={auditInput}
       savingInputs={savingInputs}
@@ -680,7 +735,6 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
       onResearchInputChange={(value) => { setResearchInput(value); setInputsSaved(false); }}
       onAuditInputChange={(value) => { setAuditInput(value); setInputsSaved(false); }}
       onSaveInputs={handleSaveInputs}
-      onToggleDesignReasoning={() => setShowDesignReasoning((x) => !x)}
       onToggleEvolution={() => setShowEvolution((x) => !x)}
       onGenerateDesign={handleGenerateDesign}
       onUseGeneratedDesign={handleUseGeneratedDesign}

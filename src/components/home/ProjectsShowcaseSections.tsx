@@ -95,22 +95,15 @@ function ProjectsHeroTerminal() {
 
 // ── THE 7 SLIDE PANELS (the inventory's causal order) ────────────────────────
 
-/** 1. CREATE WITH GOALS — mirrors ProjectCreateForm: title + entity + optional
- *  date + the goal ListManager with the "I WANT to " verb prefix; badge
- *  "title + goals" (ProjectCreateForm.tsx:121-178). */
+/** 1. CAPTURE — mirrors ProjectCreateForm, the capture form (BACKLOG-01b,
+ *  2026-10-20): what only Alex knows — the problem, why it matters, the one
+ *  correct outcome; the audit and the plan paste back from the chat. The
+ *  "title + goals" slide and its "I WANT to" lines went with the goal list. */
 function CreatePanel() {
   return (
-    <DarkSlide title="Create — title + goals, nothing else">
+    <DarkSlide title="Capture — what only you know">
       <div className="space-y-1 text-text-secondary">
-        <p><span className="text-text-faint">title</span> <span className="text-text-primary">Fix the food-truck site&rsquo;s online order form</span></p>
-        <p><span className="text-text-faint">entity</span> Maria&rsquo;s Food Truck <span className="text-text-faint">· target date optional</span></p>
-        <p className="mt-1 text-text-faint">goal — what success looks like</p>
-        <p>· <span className="text-brand-amber">I WANT to</span> <span className="text-text-primary">have customers finish an order without errors</span></p>
-        <p>· <span className="text-brand-amber">I WANT to</span> <span className="text-text-primary">stop losing mobile orders</span></p>
-        <p className="border-t border-border pt-1 text-text-faint">
-          No problem statement, no diagnosis, no design required — a project is valid as
-          <span className="text-text-secondary"> title + goals</span>. The machine does the rest.
-        </p>
+        <p>the problem, why it matters, the one correct outcome; the audit and the plan paste back</p>
       </div>
     </DarkSlide>
   );
@@ -287,9 +280,10 @@ export default function ProjectsShowcase({ onRequireAuth }: Props) {
       editorialTitle="Go further with the Projects tab"
       editorialRows={[
         {
-          title: 'A project starts as goals in your own words.',
+          title: 'A project starts as what only you know, in your own words.',
           copy:
-            'Title, entity, and what you want — "I WANT to…" — one line each. No problem statement, no plan, no jargon required. The machine builds the rest from reality, not from a form you had to fill perfectly.',
+            // BACKLOG-01b (2026-10-20): the capture asks what only you know; the audit and the plan paste back.
+            'Title, type, book, and what only you know — what is wrong today, why it matters, the one correct outcome — in your words. The chat audits the code; the audit and the plan paste back onto the row.',
           panel: <CreatePanel />,
           panelSide: 'left',
         },

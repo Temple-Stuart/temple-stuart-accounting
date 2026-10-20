@@ -329,10 +329,12 @@ test('R4 the hook: useItemLinks(kind, id, instant) is the general form; the thre
 
 test('R5 the audit: the migration adds the two values the MOVE-01 way and says a new value is used at request time; the schema and the client carry them last; the audit-log route lists them; the links route’s POST and DELETE write the row with the ruling’s payload; the ladder moved by one', () => {
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the migration before the newest (BACKLOG-01 followed)');
+  assert.equal(dirs[dirs.length - 3], MIGRATION_DIR, 'the migration before the newest (BACKLOG-01 followed)');
   // BACKLOG-01 (Alex, 2026-10-20): the capture's columns and the four statuses — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 1], '20261020120000_backlog_01_capture', 'the newest migration');
-  assert.equal(dirs[dirs.length - 3], '20261019210000_journal_04_evening_answers', 'right after JOURNAL-04’s');
+  assert.equal(dirs[dirs.length - 2], '20261020120000_backlog_01_capture', 'the migration before the newest (BACKLOG-01b followed)');
+  // BACKLOG-01b (Alex, 2026-10-20): the brief's three columns — the newest; every position above moved by one.
+  assert.equal(dirs[dirs.length - 1], '20261020140000_backlog_01b_brief', 'the newest migration');
+  assert.equal(dirs[dirs.length - 4], '20261019210000_journal_04_evening_answers', 'right after JOURNAL-04’s');
   const sql = code(MIGRATION);
   assert.equal(sql.trim(), `ALTER TYPE "AuditActionType" ADD VALUE IF NOT EXISTS 'planned_item_linked';\nALTER TYPE "AuditActionType" ADD VALUE IF NOT EXISTS 'planned_item_unlinked';`, 'the two lines and nothing else');
   assert.doesNotMatch(sql, /ALTER TABLE|CREATE TABLE|ADD COLUMN|UPDATE|INSERT|DELETE/i, 'no table, no column, no row');
