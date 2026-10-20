@@ -10,7 +10,7 @@
  *
  * T1 the migration · T2 the reorder route in source · T3 the reorder rule driven · T4 the pure log rules driven ·
  * T5 the projects GET · T6 the card's one read driven · T7 THE LOG on the morning card · T8 the doors to /tasks ·
- * T9 nothing else. The ladder pins moved by one in fourteen files; the /tasks page pins (tasks01, tasksOne01,
+ * T9 nothing else · T10 BACKLOG-02b: not_started is open work. The ladder pins moved by one in fourteen files; the /tasks page pins (tasks01, tasksOne01,
  * tasksOne02, time01, week01), the morning form's mount (journal01), journal06's read and card pins and the route
  * census (sec02) moved with it, each dated.
  */
@@ -23,11 +23,11 @@ import { code, comments } from '../sourceText';
 import {
   ADD_PROJECT_WORDS, ADD_TASK_WORDS, LOG_LOADING_WORDS, LOG_WORD, NEW_PROJECT_WAITS_WORDS, NO_OPEN_PROJECTS_WORDS, NO_OPEN_TASKS_WORDS, OPEN_PROJECT_STATUSES,
   OPEN_TASK_STATUSES, PROJECT_NOT_FOUND_WORDS, REORDER_SHAPE_WORDS, TASKS_NEW_PARAM, TASKS_NEW_PROJECT, TASKS_PROJECT_PARAM, USE_AS_GOALS_WORDS,
-  appendGoalLines, canMove, duplicateWords, isProjectId, logOrder, missingWords, moveInLog, moveWords, newParamWords, newProjectHref, notOpenWords,
+  appendGoalLines, canMove, duplicateWords, isOpenProjectStatus, isProjectId, logOrder, missingWords, moveInLog, moveWords, newParamWords, newProjectHref, notOpenWords,
   notYoursWords, picksToGoals, picksWords, projectHref, rankWords, ranksAfter, ranksChange, reorderCheck, reorderIds,
   type OwnedProject,
 } from '../operations/morningLog';
-import { REFLECTION_PROMPT_NO_BACKLOG, backlogOrder, linesOf, stripListMarker } from '../operations/journal';
+import { REFLECTION_PROMPT_NO_BACKLOG, backlogOrder, linesOf, reflectionPromptText, stripListMarker } from '../operations/journal';
 import { readBacklog } from '@/components/workbench/operations/day/dayReads';
 
 const MIGRATIONS = 'prisma/migrations';
@@ -153,7 +153,8 @@ test('T3 reorderCheck: the four refusals by name, in order — duplicate, not yo
   assert.equal(isProjectId('not-a-uuid'), false);
   // 3. not open.
   assert.deepEqual(reorderCheck([A, B, C, DONE], OWNED), { ok: false, rule: 'not_open', message: notOpenWords('Old project', 'completed') });
-  assert.equal(notOpenWords('Old project', 'completed'), '"Old project" is completed — only open projects (backlog · scoped · scheduled · in_progress · blocked) are ranked');
+  // BACKLOG-02b (Alex, 2026-10-20): not_started joined the open set — the words name it; the pin moved with it, as exact.
+  assert.equal(notOpenWords('Old project', 'completed'), '"Old project" is completed — only open projects (backlog · scoped · scheduled · in_progress · blocked · not_started) are ranked');
   // 4. missing — named in rank order.
   assert.deepEqual(reorderCheck([A], OWNED), { ok: false, rule: 'missing', message: missingWords(['Fix the ledger CSV', 'Write the SOC 2 narrative']) });
   assert.equal(missingWords(['Fix the ledger CSV']), 'the list is missing 1 open project: "Fix the ledger CSV" — send every open project, in order');
@@ -222,7 +223,8 @@ test('T5 the projects GET carries open_tasks beside open_task_count — the same
   const countStatuses = /where: \{ project_id: \{ in: projectIds \}, status: \{ in: \[([^\]]*)\] \} \},\n\s*_count/.exec(p)![1];
   assert.deepEqual([...countStatuses.matchAll(/'(\w+)'/g)].map((m) => m[1]), [...OPEN_TASK_STATUSES], 'the count and the list count the same four');
   assert.deepEqual([...OPEN_TASK_STATUSES], ['open', 'in_progress', 'blocked', 'pending_review']);
-  assert.deepEqual([...OPEN_PROJECT_STATUSES], ['backlog', 'scoped', 'scheduled', 'in_progress', 'blocked']);
+  // BACKLOG-02b (Alex, 2026-10-20): not_started is open work — the schema's default, discovery's status (T10 drives it through the log, the rank and THE BACKLOG).
+  assert.deepEqual([...OPEN_PROJECT_STATUSES], ['backlog', 'scoped', 'scheduled', 'in_progress', 'blocked', 'not_started']);
   assert.equal((p.match(/operations_project_tasks\.findMany\(/g) ?? []).length, 1, 'one tasks read for every project — never one per project');
 });
 
@@ -347,4 +349,47 @@ test('T9 nothing else: the capture form is mounted on /tasks alone; the tasks ro
   assert.match(code('src/lib/operations/journal.ts'), /import \{ NO_OPEN_PROJECTS_WORDS, logOrder \} from '\.\/morningLog';/);
   const day = readdirSync(resolve(process.cwd(), 'src/components/workbench/operations/day')).sort();
   assert.ok(!day.includes('MorningLog.tsx'), 'THE LOG lives with the forms (stops/), not in the day folder');
+});
+
+// ── T10 · BACKLOG-02b: not_started IS OPEN WORK ──────────────────────────────
+
+test('T10 BACKLOG-02b not_started is open work — the schema’s default and discovery’s status: in THE LOG (its status as it is), rankable by the reorder rule (and named when left out), and in THE BACKLOG', async () => {
+  // BACKLOG-02b (Alex, 2026-10-20): "not_started is open work … and must not be invisible."
+  const NS = '55555555-5555-4555-8555-555555555555';
+  assert.equal(isOpenProjectStatus('not_started'), true);
+  assert.equal(isOpenProjectStatus('completed'), false, 'done is still done');
+  assert.match(code('prisma/schema.prisma'), /status\s+ProjectStatus @default\(not_started\)/, 'the schema’s default — why it must be open');
+  assert.match(code('src/lib/discovery/materializeProposal.ts'), /status: 'not_started'/, 'discovery creates projects that way');
+  // THE LOG — the card's one read keeps it, in rank order, its status as the GET answers it.
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify({ projects: [
+    { id: B, entity_id: 'ent-1', title: 'Fix the ledger CSV', status: 'backlog', rank: 1, type: 'engineering', size: 'M', target_completion_date: null, open_task_count: 0, open_tasks: [] },
+    { id: NS, entity_id: 'ent-1', title: 'Discovered: tidy the vendor names', status: 'not_started', rank: null, type: 'engineering', size: null, target_completion_date: null, open_task_count: 1, open_tasks: [{ id: 't9', title: 'list the duplicates', status: 'open', display_order: 0 }] },
+    { id: DONE, entity_id: 'ent-1', title: 'Old project', status: 'completed', rank: 3, type: null, size: null, target_completion_date: null, open_task_count: 0, open_tasks: [] },
+  ] }), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof fetch;
+  let log;
+  try {
+    log = await readBacklog();
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  assert.ok(log.ok);
+  if (!log.ok) return;
+  assert.deepEqual(log.value.map((p) => [p.title, p.status]), [['Fix the ledger CSV', 'backlog'], ['Discovered: tidy the vendor names', 'not_started']], 'in the log, unranked after the ranked, the completed one still out');
+  assert.deepEqual(log.value[1].tasks.map((t) => t.title), ['list the duplicates'], 'with its open tasks');
+  assert.match(code(LOG), /<span className="text-text-muted" data-log-status>\{p\.status\}<\/span>/, 'THE LOG prints its status pill as it prints every status — unchanged');
+  // THE RANK — the reorder rule ranks it, and refuses a list that leaves it out, by name.
+  const owned: OwnedProject[] = [
+    { id: B, title: 'Fix the ledger CSV', status: 'backlog', rank: 1 },
+    { id: NS, title: 'Discovered: tidy the vendor names', status: 'not_started', rank: null },
+  ];
+  assert.deepEqual(reorderCheck([NS, B], owned), { ok: true }, 'a list with it passes');
+  assert.deepEqual(ranksAfter([NS, B]), [{ id: NS, rank: 1 }, { id: B, rank: 2 }], 'and ranks it');
+  assert.equal(ranksChange([NS, B], owned), true);
+  assert.deepEqual(reorderCheck([B], owned), { ok: false, rule: 'missing', message: missingWords(['Discovered: tidy the vendor names']) }, 'a list without it is missing it — every open project is ranked');
+  assert.match(code(ROUTE), /\{ status: \{ in: \[\.\.\.OPEN_PROJECT_STATUSES\] \} \}/, 'the route reads the open projects through the one set — not_started among them');
+  // THE BACKLOG — the reflection prompt prints it from the same read.
+  const text = reflectionPromptText({ dayWords: 'Tue Oct 20', journal: null, stops: [], budgetWords: '—', actualWords: '—', verdictWords: null, backlog: log.value, moved: [] });
+  inOrder(text, ['\nTHE BACKLOG\n', '- #1 · Fix the ledger CSV · engineering · backlog · M · target — · open tasks 0\n', '- #— · Discovered: tidy the vendor names · engineering · not_started · — · target — · open tasks 1\n', '\nWHAT MOVED TODAY\n'], 'THE BACKLOG lists it');
+  assert.doesNotMatch(text, /Old project/, 'the completed one is still not the backlog');
 });

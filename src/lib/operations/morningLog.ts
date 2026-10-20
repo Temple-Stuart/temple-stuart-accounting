@@ -26,8 +26,13 @@ import type { ReflectionBacklogRow } from './journal';
 
 // ── A · WHAT IS OPEN ────────────────────────────────────────────────────────
 
-/** A project not done — what THE LOG lists and what the reorder ranks (ruling A). */
-export const OPEN_PROJECT_STATUSES = ['backlog', 'scoped', 'scheduled', 'in_progress', 'blocked'] as const;
+/**
+ * A project not done — what THE LOG lists and what the reorder ranks (ruling A); the reflection prompt's THE BACKLOG
+ * reads the same set (dayReads.ts BACKLOG_STATUSES). BACKLOG-02b (Alex, 2026-10-20): `not_started` is open work — the
+ * schema's default status, and discovery creates projects that way (lib/discovery/materializeProposal.ts) — so it is in
+ * the set: never invisible in the log, rankable, and in THE BACKLOG.
+ */
+export const OPEN_PROJECT_STATUSES = ['backlog', 'scoped', 'scheduled', 'in_progress', 'blocked', 'not_started'] as const;
 /** A task not done — what THE LOG lists under its project (ruling A); the projects GET's open_task_count counts the same four. */
 export const OPEN_TASK_STATUSES = ['open', 'in_progress', 'blocked', 'pending_review'] as const;
 export const isOpenProjectStatus = (status: string): boolean => (OPEN_PROJECT_STATUSES as readonly string[]).includes(status);
