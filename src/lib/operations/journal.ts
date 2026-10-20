@@ -743,12 +743,24 @@ export const backlogOrder = (rows: readonly ReflectionBacklogRow[]): ReflectionB
   [...rows].sort((a, b) => (a.rank === null && b.rank === null ? 0 : a.rank === null ? 1 : b.rank === null ? -1 : a.rank - b.rank) || a.title.localeCompare(b.title));
 /** The action types whose descriptions WHAT MOVED TODAY lists one by one — a project's status change, a task's (its completion is the status change to done, its own type). */
 export const MOVED_DESCRIBED_TYPES: readonly string[] = ['operations_project_status_changed', 'operations_project_task_status_changed', 'operations_project_task_completed'];
-/** "- operations_project_created × 2" — the counts per action type, in the type's alphabetical order; then each status change's description. */
+/**
+ * JOURNAL-06b (Alex, 2026-10-20): the audit-log read's cap — the most rows GET /api/audit-log answers, set at
+ * src/app/api/audit-log/route.ts:137 (`Math.min(…, 500)`). readMovedToday asks for exactly this many (dayReads.ts), so a
+ * read that comes back with this many rows may have stopped short of the day: the prompt says so under its counts.
+ */
+export const AUDIT_READ_LIMIT = 500;
+/** Under WHAT MOVED TODAY's counts, only when the read returned exactly AUDIT_READ_LIMIT rows — the counts may be short, said, never hidden. */
+export const MOVED_CAP_WORDS = `— the read stops at ${AUDIT_READ_LIMIT} rows; today has at least ${AUDIT_READ_LIMIT}, so these counts may be short —`;
+/**
+ * "- operations_project_created × 2" — the counts per action type, in the type's alphabetical order; then (JOURNAL-06b) MOVED_CAP_WORDS
+ * when the read came back full (exactly AUDIT_READ_LIMIT rows); then each status change's description.
+ */
 export function movedWords(rows: readonly ReflectionMovedRow[]): string[] {
   if (rows.length === 0) return [`- ${REFLECTION_PROMPT_NOTHING_MOVED}`];
   const counts = new Map<string, number>();
   for (const r of rows) counts.set(r.action_type, (counts.get(r.action_type) ?? 0) + 1);
   const lines = [...counts.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([type, n]) => `- ${type} × ${n}`);
+  if (rows.length === AUDIT_READ_LIMIT) lines.push(MOVED_CAP_WORDS);
   for (const r of rows) if (MOVED_DESCRIBED_TYPES.includes(r.action_type)) lines.push(`- ${r.description}`);
   return lines;
 }
@@ -759,8 +771,8 @@ export const answerWords = (field: EveningField, text: string | null): string =>
  * The reflection prompt (JOURNAL-06, Alex, 2026-10-20), exactly: every line a constant or built from one — the day's lines as the audit
  * prompt had them (the day, the goals or none typed, the blocker or none, the plan's steps with their ticks or no plan, the stops in
  * clock order with budget and actual or (REEL-02) the outcome alone, the totals with the verdict), then THE BACKLOG (one line per project
- * not done, rank order, unranked last; "— no open projects —"), then WHAT MOVED TODAY (the counts per action type, then each project or
- * task status change's description; "— nothing recorded —"), then THE ANSWERS (the six after ACCOMPLISHED, as typed or "— not answered
+ * not done, rank order, unranked last; "— no open projects —"), then WHAT MOVED TODAY (the counts per action type, then — JOURNAL-06b —
+ * the cap line when the read came back full, then each project or task status change's description; "— nothing recorded —"), then THE ANSWERS (the six after ACCOMPLISHED, as typed or "— not answered
  * —"), then THE ASK — the same words every day. Pure; from the card's own reads and words, nothing invented, nothing filled in.
  */
 export function reflectionPromptText(input: ReflectionPromptInput): string {
