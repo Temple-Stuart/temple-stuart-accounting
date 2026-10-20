@@ -201,6 +201,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { isIsoDay } from '@/lib/budget/days';
 import type { BudgetReportResponse } from '@/lib/budget/reportInputs';
 import { shiftDay } from '@/lib/budget/reportView';
+import { zonedToInstant } from '@/lib/time';
 import { localToday } from '@/lib/localToday';
 import type { DailyPlanItem } from '../dailyplan/types';
 import RefusedRoutines from '../routines/RefusedRoutines';
@@ -219,14 +220,14 @@ import AttachRecord from '../stops/AttachRecord';
 import { onDayWritten } from '../dayWritten';
 import { ACCOUNT_CELL_WORDS } from '@/lib/coa/accountCell';
 import {
-  AUDIT_WORD, BLOCKERS_BLOCK_WORD, EVENING_BLANK_WORD, EVENING_WORD, JOURNAL_LOADING_WORDS, LEARNED_WORD, MORNING_WORD, NEXT_WORD, PLAN_BLOCK_WORD, TODAY_BLOCK_WORD, TODAY_TICKS_WORD,
+  AUDIT_WORD, BLOCKERS_BLOCK_WORD, EVENING_BLANK_WORD, EVENING_WORD, JOURNAL_LOADING_WORDS, MORNING_WORD, NEXT_WORD, PLAN_BLOCK_WORD, TODAY_BLOCK_WORD, TODAY_TICKS_WORD,
   VERDICT_WORD, YESTERDAY_LOADING_WORDS, YESTERDAY_WORD,
-  answersOf, auditPromptText, auditPromptWaitsWords, goalWords, journalInput, lastNightWords, noJournalWords, planDoneWords, planStepWords, todayStepsWords, yesterdayStepsWords,
-  type Answers, type AuditPromptState, type YesterdayForPrompt,
+  answersOf, goalWords, journalInput, lastNightWords, noJournalWords, planDoneWords, planStepWords, reflectionPromptText, reflectionPromptWaitsWords, todayStepsWords, yesterdayStepsWords,
+  type Answers, type ReflectionBacklogRow, type ReflectionMovedRow, type ReflectionPromptState, type YesterdayForPrompt,
 } from '@/lib/operations/journal';
 import { DONE_WORD, NOT_RECORDED_WORDS, SKIPPED_WORD, starsWords, type StopRecordPlan, type StopRecordRow } from '@/lib/operations/stopRecord';
 import { ALSO_TODAY_WORDS, allDayBandWords, allDayCentsWords } from '@/lib/operations/stopRole';
-import { readDayReport, readJournal, readStays, readStopRecords, type JournalAnswer, type StaysAnswer, type StopRecordsAnswer } from './dayReads';
+import { BACKLOG_READ_NAME, MOVED_READ_NAME, readBacklog, readDayReport, readJournal, readMovedToday, readStays, readStopRecords, type JournalAnswer, type StaysAnswer, type StopRecordsAnswer } from './dayReads';
 import {
   ACTUAL_WORD, BADGE_WORDS, BRAND_WORDS, PLAN_WORD, TASK_WORD, TODAY_WORD, badDateWords, badStepWords, completenessWords, dayStops, deltaWords, focusStop,
   bandNameOf, headerWords, heroWord, HOOK_WORDS, linesUnreadWords, linesWithoutStopWords, minutesLine, notPlacedWords, planDollars, progressPercent, provenanceWords,
@@ -237,7 +238,7 @@ import {
   ACTUAL_HEAD_WORD, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, TIME_HEAD_WORD, VENDOR_HEAD_WORD, intervalWords, openStepWords,
   CELL_GAP, COLUMN_WIDTHS, dayMeter, dayVerdict,
   TOTAL_WORD, dayTotals, planBeyondStopsWords,
-  CAPTION_COPIED_WORDS, COPY_CAPTION_WORDS, COPY_SCRIPT_WORDS, SCRIPT_COPIED_WORDS, captionText, copyFailedWords, reelReadsWords, scriptText, stepSpentSoFarWords, stopName, stopScriptText, stopTagWords,
+  CAPTION_COPIED_WORDS, COPY_CAPTION_WORDS, COPY_SCRIPT_WORDS, SCRIPT_COPIED_WORDS, captionText, copyFailedWords, reelReadsWords, reelWaitingWords, scriptText, stepSpentSoFarWords, stopName, stopScriptText, stopTagWords,
   type DeltaWords, type ReelReads, type ReelText,
   DAY_CARD_PATH,
   DECK_FULL_CARD_WORDS, SWIPE_HINT_WORDS, journalHeaderWords, journalImageName, openJournalWords,
@@ -347,7 +348,7 @@ function JournalPlate({ day, journal, yesterday, onChanged }: {
   const a: Answers = answersOf(row === null ? {} : row);
   const yRow = yesterday !== null && yesterday.ok ? yesterday.value.journal : null;
 
-  // A tick: the whole journal as held with that one flag flipped — the seven answers of the row read for the day (JOURNAL-04, 2026-10-19: audit, learned and next ride as held, so a tick never clears an evening; the card
+  // A tick: the whole journal as held with that one flag flipped — the eleven answers of the row read for the day (JOURNAL-04, 2026-10-19 / JOURNAL-06, 2026-10-20: the evening's seven ride as held, learned never sent, so a tick never clears an evening; the card
   // re-reads the journal after every write), through the route's own rule and the one writer; then the journal read again.
   const tick = async (i: number) => {
     if (row === null || busyStep !== null) return;
@@ -452,7 +453,8 @@ const noPlateRef = (): void => undefined;
  * JOURNAL-05 (Alex, 2026-10-19): THE EVENING PLATE — reflection, derived, never typed here. TODAY'S TICKS by the
  * morning's own counts rule applied to today's row (todayStepsWords — "no plan today" when none); the card's VERDICT
  * as it already says it (the dayVerdict words, in the card's tone; '—' when the card shows none); then the three
- * answers as held — AUDIT the block as typed (whitespace-pre-line, full), LEARNED, NEXT — each '—' when null. The
+ * answers as held — ACCOMPLISHED the narrative as pasted (whitespace-pre-line, full) and NEXT — each '—' when null; the
+ * five blocks between them (JOURNAL-06) are the form's alone, the plate does not repeat them; LEARNED is retired. The
  * journal's own read state (in flight, failed) is said, as the morning says it. No money beyond the verdict line
  * (CLEAN-02 stands); no image, no reel button (REEL-02 decides the reel).
  */
@@ -477,10 +479,6 @@ function EveningPlate({ journal, verdict }: { journal: Read<JournalAnswer> | nul
           <div className="flex flex-col" style={{ gap: 3 }} data-day-evening-audit>
             <div className="font-bold text-text-faint" style={plateLabel}>{AUDIT_WORD}</div>
             <div className={`font-semibold break-words whitespace-pre-line ${row === null || row.audit === null ? 'text-text-muted' : 'text-text-primary'}`} style={plateLine} data-day-evening-audit-words>{answer(row === null ? null : row.audit)}</div>
-          </div>
-          <div className="flex flex-col" style={{ gap: 3 }} data-day-evening-learned>
-            <div className="font-bold text-text-faint" style={plateLabel}>{LEARNED_WORD}</div>
-            <div className={`font-semibold break-words ${row === null || row.learned === null ? 'text-text-muted' : 'text-text-primary'}`} style={plateLine} data-day-evening-learned-words>{answer(row === null ? null : row.learned)}</div>
           </div>
           <div className="flex flex-col" style={{ gap: 3 }} data-day-evening-next>
             <div className="font-bold text-text-faint" style={plateLabel}>{NEXT_WORD}</div>
@@ -517,6 +515,12 @@ export default function DayCard() {
   const [journal, setJournal] = useState<{ readonly day: string; readonly read: Read<JournalAnswer> } | null>(null);
   const [journalReads, setJournalReads] = useState(0);
   const [yesterday, setYesterday] = useState<{ readonly day: string; readonly read: Read<JournalAnswer> } | null>(null);
+  // JOURNAL-06 (Alex, 2026-10-20): the reflection prompt's two reads — THE BACKLOG (the projects not done) and WHAT MOVED TODAY (the
+  // operations_ audit-log slice for the card's day in the viewer's zone) — each kept WITH the day it was read for, read only on a day with
+  // a journal stop, and again after any write the card knows of (a journal write, a record write, the ledger's one-off stop), so the prompt
+  // never carries a stale backlog or a day that stopped moving before its last write.
+  const [backlog, setBacklog] = useState<{ readonly day: string; readonly read: Read<readonly ReflectionBacklogRow[]> } | null>(null);
+  const [moved, setMoved] = useState<{ readonly day: string; readonly read: Read<readonly ReflectionMovedRow[]> } | null>(null);
   // CLEAN-02 (2026-10-14): "download image" — the plate element, busy while it renders, and a failure kept with the view it was pressed on.
   // DECK-01 (2026-10-16): one plate per card of the deck (by its card number, 0 the full card) and the journal card's own.
   const plateRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -629,6 +633,31 @@ export default function DayCard() {
     })();
     return () => { live = false; };
   }, [day, hasJournalStop]);
+
+  // JOURNAL-06: THE BACKLOG — the projects not done (dayReads.ts readBacklog), for a day with a journal stop; again after any write the card knows of.
+  useEffect(() => {
+    if (day === null || !hasJournalStop) return;
+    let live = true;
+    (async () => {
+      const b = await readBacklog();
+      if (live) setBacklog({ day, read: b });
+    })();
+    return () => { live = false; };
+  }, [day, hasJournalStop, journalReads, recordReads, dayWrites]);
+
+  // JOURNAL-06: WHAT MOVED TODAY — the operations_ audit-log slice between the day's midnight and the next IN THE VIEWER'S ZONE (zonedToInstant);
+  // the window ends the last millisecond before the next day's midnight (the route's `before` is inclusive), so the next day's first write is not this day's.
+  useEffect(() => {
+    if (day === null || zone === null || !hasJournalStop) return;
+    const after = zonedToInstant(day, '00:00', zone);
+    const before = new Date(zonedToInstant(shiftDay(day, 1), '00:00', zone).getTime() - 1);
+    let live = true;
+    (async () => {
+      const m = await readMovedToday(after, before);
+      if (live) setMoved({ day, read: m });
+    })();
+    return () => { live = false; };
+  }, [day, zone, hasJournalStop, journalReads, recordReads, dayWrites]);
 
   if (today === null || zone === null || day === null) {
     return <section className="text-xs text-text-muted" data-day-section>loading the day…</section>;
@@ -759,16 +788,27 @@ export default function DayCard() {
   const reelStay = stayState.kind === 'read' ? stayState.stay : null;
   const reelJournal = journalRead !== null && journalRead.ok ? journalRead.value.journal : null;
   const reelDay = { day, stay: reelStay, stops: result.stops, totals, verdict, journal: reelJournal };
-  // JOURNAL-05 (Alex, 2026-10-19): the audit prompt's input — the card's OWN reads and words, nothing else: the journal as held, every stop
+  // JOURNAL-05 (Alex, 2026-10-19): the prompt's day — the card's OWN reads and words, nothing else: the journal as held, every stop
   // in the table's order with the card's BUDGET and ACTUAL words for it (rowActualWords — the row's own delta; a skipped stop "skipped", an
   // unrecorded one "—", as the card names them), the TOTAL row's two figures and the verdict as the card says it. Offered only once every
   // read is in (the gating "copy script" uses: reelReadsWords); nothing paid, nothing leaves the browser but the clipboard (EveningForm.tsx).
   // REEL-02 (Alex, 2026-10-19): money only for a stop whose form asks it (asksAmount — the card's own rule): the others hand the rule their
   // name and their outcome in the card's own words (DONE_WORD · SKIPPED_WORD · NOT_RECORDED_WORDS) and no budget or actual words at all.
-  const auditWait = reelReadsWords(reelReads);
-  const auditPrompt: AuditPromptState = auditWait !== null
-    ? { ok: false, words: auditPromptWaitsWords(auditWait) }
-    : { ok: true, text: auditPromptText({
+  // JOURNAL-06 (Alex, 2026-10-20): the REFLECTION prompt (journal.ts reflectionPromptText) replaces the audit prompt — the same day lines, then
+  // THE BACKLOG and WHAT MOVED TODAY from the card's two reads (a failed read is named, a waiting one waited on, in the reel's own words — never a
+  // partial prompt), then THE ANSWERS from the STORED row (the five and NEXT as saved: the form copies, it does not build — save first), then THE
+  // ASK, the same words every day (REFLECTION_PROMPT_ASK).
+  const backlogRead = backlog !== null && backlog.day === day ? backlog.read : null;
+  const movedRead = moved !== null && moved.day === day ? moved.read : null;
+  const dayWait = reelReadsWords(reelReads);
+  const reflectionPrompt: ReflectionPromptState = (() => {
+    if (dayWait !== null) return { ok: false, words: reflectionPromptWaitsWords(dayWait) };
+    if (backlogRead !== null && !backlogRead.ok) return { ok: false, words: reflectionPromptWaitsWords(backlogRead.words) };
+    if (movedRead !== null && !movedRead.ok) return { ok: false, words: reflectionPromptWaitsWords(movedRead.words) };
+    if (backlogRead === null || movedRead === null) {
+      return { ok: false, words: reflectionPromptWaitsWords(reelWaitingWords([...(backlogRead === null ? [BACKLOG_READ_NAME] : []), ...(movedRead === null ? [MOVED_READ_NAME] : [])])) };
+    }
+    return { ok: true, text: reflectionPromptText({
       dayWords: dayShortWords(day),
       journal: reelJournal,
       stops: result.stops.map((s) => (asksAmount(s.role)
@@ -777,7 +817,10 @@ export default function DayCard() {
       budgetWords: factOf(totals.budgetCents === null ? null : planDollars(totals.budgetCents)),
       actualWords: factOf(totals.actualCents === null ? null : planDollars(totals.actualCents)),
       verdictWords: verdict === null ? null : verdict.text,
+      backlog: backlogRead.value,
+      moved: movedRead.value,
     }) };
+  })();
   const caption: ReelText | null = focus === null && reelWait === null ? captionText(reelDay) : null;
   const script: ReelText | null = reelWait !== null ? null : focus === null ? scriptText(reelDay) : stopScriptText(day, reelStay, focus.stop);
   const journalScript: ReelText | null = journalStop === null || stopWait !== null ? null : stopScriptText(day, reelStay, journalStop);
@@ -1099,8 +1142,9 @@ export default function DayCard() {
             <JournalForm key={`${day}:${journalRead.value.journal === null ? 'none' : journalRead.value.journal.id}`} day={day} journal={journalRead.value.journal} yesterday={yesterdayForPrompt} onChanged={() => setJournalReads((n) => n + 1)} />
           )}
           {/* JOURNAL-05 (Alex, 2026-10-19): THE EVENING CARD — reflection, under the morning form, inside the journal section: its plate (today's ticks,
-              the verdict, the three answers as held — EveningPlate) and its form (EveningForm — the audit prompt, the pasted audit, learned, next;
-              keyed like the morning's, never offered while the journal could not be read). No image, no reel button here (REEL-02). */}
+              the verdict, ACCOMPLISHED and NEXT as held — EveningPlate) and its form (EveningForm — JOURNAL-06: the reflection prompt, then the
+              seven questions in order: ACCOMPLISHED · GAPS · EVOLUTION · DIRECTION · ALIGNMENT · ON TRACK · NEXT; keyed like the morning's, never
+              offered while the journal could not be read). No image, no reel button here (REEL-02). */}
           <div className="space-y-2 pt-3" id="evening" data-day-evening-section>
             <PlateFrame>
               <Plate plateRef={noPlateRef} journal right={journalHeaderWords(journalStop.time)}>
@@ -1108,7 +1152,7 @@ export default function DayCard() {
               </Plate>
             </PlateFrame>
             {journalRead !== null && journalRead.ok && (
-              <EveningForm key={`${day}:${journalRead.value.journal === null ? 'none' : journalRead.value.journal.id}`} day={day} journal={journalRead.value.journal} auditPrompt={auditPrompt} onChanged={() => setJournalReads((n) => n + 1)} />
+              <EveningForm key={`${day}:${journalRead.value.journal === null ? 'none' : journalRead.value.journal.id}`} day={day} journal={journalRead.value.journal} reflectionPrompt={reflectionPrompt} onChanged={() => setJournalReads((n) => n + 1)} />
             )}
           </div>
         </div>

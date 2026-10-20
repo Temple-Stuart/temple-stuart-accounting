@@ -62,8 +62,10 @@ test('1 the migration adds the three columns and nothing else; the schema mirror
   assert.match(notes, /Alex, 15:27/);
   assert.match(notes, /CLEAN-03\s*\n?-- rules on dropping/);
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 1], MIGRATION_DIR, 'the newest migration');
-  assert.equal(dirs[dirs.length - 2], '20261020120000_backlog_01_capture', 'right after BACKLOG-01’s');
+  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the migration before the newest (JOURNAL-06 followed)');
+  // JOURNAL-06 (Alex, 2026-10-20): the evening's five columns, the two CHECKs re-made — the newest; every position above moved by one.
+  assert.equal(dirs[dirs.length - 1], '20261020150000_journal_06_reflection', 'the newest migration');
+  assert.equal(dirs[dirs.length - 3], '20261020120000_backlog_01_capture', 'right after BACKLOG-01’s');
   const schema = code(SCHEMA);
   const model = schema.slice(schema.indexOf('model operations_projects {'), schema.indexOf('@@map("operations_projects")'));
   assert.match(model, /^\s+rulings\s+String\?\s+@db\.Text$/m);

@@ -11,13 +11,22 @@
  *   · GET /api/operations/stays?day=<day>                 readStays, here (STAY-01)
  *   · GET /api/operations/stops?day=<day>                 readStopRecords, here (STOP-01)
  *   · GET /api/operations/journal?day=<day>               readJournal, here (JOURNAL-01)
+ *   · GET /api/operations/projects                        readBacklog, here (JOURNAL-06 — the reflection prompt's THE BACKLOG)
+ *   · GET /api/audit-log?prefix=operations_&after=&before=&limit=500   readMovedToday, here (JOURNAL-06 — WHAT MOVED TODAY)
  *
  * The report's answer is read exactly as the week reads its own (readReport):
  * the body as BudgetReportResponse, a failure in the card's words. Every fetch
  * the card makes is here or in weekReads.ts; DayCard.tsx fetches nothing.
+ *
+ * JOURNAL-06 (Alex, 2026-10-20): two cross-tool READS for the reflection prompt
+ * (the card already reads six sources; a read is allowed). Both read-only, the
+ * same auth order as every read here (the route's cookie → user; signed out by
+ * name); a failed read is a failure in words — the prompt is never built with
+ * a section silently missing (DayCard.tsx gates on both).
  */
 import type { BudgetReportResponse } from '@/lib/budget/reportInputs';
-import type { JournalRow } from '@/lib/operations/journal';
+import type { JournalRow, ReflectionBacklogRow, ReflectionMovedRow } from '@/lib/operations/journal';
+import { backlogOrder } from '@/lib/operations/journal';
 import type { StayRow } from '@/lib/operations/stay';
 import type { StopRecordPlan, StopRecordRow } from '@/lib/operations/stopRecord';
 import { readJson, type Read } from '../week/weekReads';
@@ -80,4 +89,61 @@ export async function readJournal(day: string): Promise<Read<JournalAnswer>> {
   if (!read.ok) return { ok: false, words: journalFailedWords(read.words) };
   if (!('journal' in read.value)) return { ok: false, words: journalFailedWords('the journal came back without its row') };
   return { ok: true, value: { journal: read.value.journal as JournalRow | null } };
+}
+
+/** JOURNAL-06: the statuses of a project NOT DONE — what THE BACKLOG lists. */
+export const BACKLOG_STATUSES: readonly string[] = ['backlog', 'scoped', 'scheduled', 'in_progress', 'blocked'];
+
+/** The two reads by the name the prompt's waiting words give them (dayCard.ts reelWaitingWords, the reel's own shape). */
+export const BACKLOG_READ_NAME = 'the backlog';
+export const MOVED_READ_NAME = 'what moved today';
+
+export const backlogFailedWords = (words: string): string => `The backlog could not be read — ${words}`;
+
+/**
+ * JOURNAL-06: the user's projects not done, every book (the projects GET since BACKLOG-01), filtered here to
+ * BACKLOG_STATUSES and sorted rank asc with unranked last, then by title (journal.ts backlogOrder — the prompt's own
+ * order). `open_task_count` is the GET's count of a project's tasks not done; a row without it is a failure in words.
+ */
+export async function readBacklog(): Promise<Read<readonly ReflectionBacklogRow[]>> {
+  const read = await readJson('/api/operations/projects');
+  if (!read.ok) return { ok: false, words: backlogFailedWords(read.words) };
+  if (!Array.isArray(read.value.projects)) return { ok: false, words: backlogFailedWords('the projects came back without their list') };
+  const rows: ReflectionBacklogRow[] = [];
+  for (const p of read.value.projects as Record<string, unknown>[]) {
+    if (typeof p.status !== 'string' || !BACKLOG_STATUSES.includes(p.status)) continue;
+    if (typeof p.title !== 'string' || typeof p.open_task_count !== 'number') return { ok: false, words: backlogFailedWords('a project came back without its title or its open-task count') };
+    rows.push({
+      rank: typeof p.rank === 'number' ? p.rank : null,
+      title: p.title,
+      type: typeof p.type === 'string' ? p.type : null,
+      status: p.status,
+      size: typeof p.size === 'string' ? p.size : null,
+      target: typeof p.target_completion_date === 'string' ? p.target_completion_date.slice(0, 10) : null,
+      openTasks: p.open_task_count,
+    });
+  }
+  return { ok: true, value: backlogOrder(rows) };
+}
+
+export const movedFailedWords = (words: string): string => `What moved today could not be read — ${words}`;
+
+/**
+ * JOURNAL-06: the day's audit-log slice for the actor — the operations_ prefix, the card's day window in the viewer's
+ * zone (after/before as instants, DayCard.tsx: zonedToInstant of the day's midnight and the next), at most 500 rows.
+ * The route answers the audit_log rows as stored (action_type, action_description — the column's name), newest first;
+ * the prompt reads oldest first. FOUND in the browser (2026-10-20): the first cut read `description`, a key no row has —
+ * every day was "could not be read"; the reader now names the column.
+ */
+export async function readMovedToday(after: Date, before: Date): Promise<Read<readonly ReflectionMovedRow[]>> {
+  const query = new URLSearchParams({ prefix: 'operations_', after: after.toISOString(), before: before.toISOString(), limit: '500' });
+  const read = await readJson(`/api/audit-log?${query.toString()}`);
+  if (!read.ok) return { ok: false, words: movedFailedWords(read.words) };
+  if (!Array.isArray(read.value.rows)) return { ok: false, words: movedFailedWords('the audit log came back without its rows') };
+  const rows: ReflectionMovedRow[] = [];
+  for (const r of read.value.rows as Record<string, unknown>[]) {
+    if (typeof r.action_type !== 'string' || typeof r.action_description !== 'string') return { ok: false, words: movedFailedWords('a row came back without its action type or description') };
+    rows.push({ action_type: r.action_type, description: r.action_description });
+  }
+  return { ok: true, value: rows.reverse() };
 }

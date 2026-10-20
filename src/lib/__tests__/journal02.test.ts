@@ -65,19 +65,21 @@ function inOrder(body: string, steps: readonly string[], what: string): void {
 test('T1 journalInput: the four answers — absent lists empty, absent texts null; each line trimmed and collapsed; the answers built from the four alone', () => {
   const a = accepted({ day: DAY, goals: ['  perfect   the day cards ', 'book travel'], plan_steps: ['merge\tTABLE-01', ' record  brunch '], plan_done: [true, false] });
   // JOURNAL-04 (2026-10-19): the evening's three ride every answer, null until typed — the four pins below carry them.
-  assert.deepEqual(a, { goals: ['perfect the day cards', 'book travel'], blocker: null, plan_steps: ['merge TABLE-01', 'record brunch'], plan_done: [true, false], audit: null, learned: null, next: null });
-  assert.deepEqual(Object.keys(a), [...ANSWER_FIELDS], 'the seven answers, the plate’s four first — and nothing else');
-  assert.deepEqual(ANSWER_FIELDS, ['goals', 'blocker', 'plan_steps', 'plan_done', 'audit', 'learned', 'next']);
-  assert.deepEqual(accepted({ day: DAY, goals: null, plan_steps: null, plan_done: null, blocker: 'rain' }), { goals: [], blocker: 'rain', plan_steps: [], plan_done: [], audit: null, learned: null, next: null }, 'null lists are absent too');
+  // JOURNAL-06 (Alex, 2026-10-20): the evening's seven — the five blocks joined after audit, learned retired (RETIRED_FIELDS); eleven answers.
+  assert.deepEqual(a, { goals: ['perfect the day cards', 'book travel'], blocker: null, plan_steps: ['merge TABLE-01', 'record brunch'], plan_done: [true, false], audit: null, gaps: null, evolution: null, direction: null, alignment: null, on_track: null, next: null });
+  assert.deepEqual(Object.keys(a), [...ANSWER_FIELDS], 'the eleven answers, the plate’s four first — and nothing else');
+  assert.deepEqual(ANSWER_FIELDS, ['goals', 'blocker', 'plan_steps', 'plan_done', 'audit', 'gaps', 'evolution', 'direction', 'alignment', 'on_track', 'next']);
+  assert.deepEqual(accepted({ day: DAY, goals: null, plan_steps: null, plan_done: null, blocker: 'rain' }), { goals: [], blocker: 'rain', plan_steps: [], plan_done: [], audit: null, gaps: null, evolution: null, direction: null, alignment: null, on_track: null, next: null }, 'null lists are absent too');
   // JOURNAL-03 (2026-10-15): "the retired answers are never read from the body" became "a body that carries one is refused by name" —
   // stricter: a retired key still never reaches the write, and now the writer is told so instead of believing it was saved.
-  assert.deepEqual(RETIRED_FIELDS, ['adjustment', 'one_thing', 'witness', 'plan_1_if', 'plan_1_then', 'plan_2_if', 'plan_2_then', 'plan_3_if', 'plan_3_then', 'obstacle_if', 'obstacle_then', 'shipped']);
-  assert.doesNotMatch(code(RULE), /\bb\.(adjustment|one_thing|witness|plan_\d_(if|then)|obstacle_(if|then)|shipped)\b/, 'the rule reads no retired key’s value from the body');
+  assert.deepEqual(RETIRED_FIELDS, ['adjustment', 'one_thing', 'witness', 'plan_1_if', 'plan_1_then', 'plan_2_if', 'plan_2_then', 'plan_3_if', 'plan_3_then', 'obstacle_if', 'obstacle_then', 'shipped', 'learned']);
+  assert.doesNotMatch(code(RULE), /\bb\.(adjustment|one_thing|witness|plan_\d_(if|then)|obstacle_(if|then)|shipped|learned)\b/, 'the rule reads no retired key’s value from the body');
 });
 
-test('T1b JOURNAL-03 a retired key is refused by name — all twelve, any value, before the day and the answers; any other extra key is still ignored', () => {
+test('T1b JOURNAL-03 a retired key is refused by name — all thirteen, any value, before the day and the answers; any other extra key is still ignored', () => {
   // JOURNAL-03 (Alex, 2026-10-15) — R1 b: refuse every retired key by name, with words that say what to do. Was: ignored (JOURNAL-02).
-  assert.equal(RETIRED_FIELDS.length, 12, 'the eleven of JOURNAL-02 and shipped');
+  // JOURNAL-06 (Alex, 2026-10-20): learned joined the list the same way — thirteen.
+  assert.equal(RETIRED_FIELDS.length, 13, 'the eleven of JOURNAL-02, shipped (JOURNAL-03) and learned (JOURNAL-06)');
   for (const f of RETIRED_FIELDS) {
     for (const value of ['typed', '', null, 5, ['x'], { a: 1 }, false]) {
       assert.deepEqual(refused({ day: DAY, goals: ['g'], [f]: value }), { field: f, message: retiredFieldWords(f) }, `${f}: ${JSON.stringify(value)}`);
@@ -255,21 +257,23 @@ test('T3 the migration: the three lists added NOT NULL default empty, the four C
   // TASKS-ONE-02 (2026-10-14): the completion audit types' migration is newer still — every index moved one; the order holds.
   // RETRO-01 (Alex, 2026-10-16): the stop-moved audit type's migration is newer still — every index moved one; the order holds.
   // ROUTINE-02b (2026-10-18): one more audit-type migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 9], MIGRATION_DIR, 'the migration three before the newest (TASKS-ONE-02, then RETRO-01, ROUTINE-02b followed)');
-  assert.equal(dirs[dirs.length - 8], '20261014090000_tasks_one_02_completion_audit_types');
-  assert.equal(dirs[dirs.length - 7], '20261016120000_retro_01_stop_moved_audit_type', 'the migration before the newest (ROUTINE-02b followed)');
+  assert.equal(dirs[dirs.length - 10], MIGRATION_DIR, 'the migration three before the newest (TASKS-ONE-02, then RETRO-01, ROUTINE-02b followed)');
+  assert.equal(dirs[dirs.length - 9], '20261014090000_tasks_one_02_completion_audit_types');
+  assert.equal(dirs[dirs.length - 8], '20261016120000_retro_01_stop_moved_audit_type', 'the migration before the newest (ROUTINE-02b followed)');
   // MOVE-01 (2026-10-19): one more audit-type migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 6], '20261018120000_routine_02b_rekeyed_audit_type', 'the migration before the newest (MOVE-01 followed)');
+  assert.equal(dirs[dirs.length - 7], '20261018120000_routine_02b_rekeyed_audit_type', 'the migration before the newest (MOVE-01 followed)');
   // JOURNAL-04 (2026-10-19): the evening answers' migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 5], '20261019090000_move_01_moved_audit_type', 'the migration before the newest (JOURNAL-04 followed)');
-  assert.equal(dirs[dirs.length - 4], '20261019210000_journal_04_evening_answers', 'the migration before the newest (LEDGER-03 followed)');
+  assert.equal(dirs[dirs.length - 6], '20261019090000_move_01_moved_audit_type', 'the migration before the newest (JOURNAL-04 followed)');
+  assert.equal(dirs[dirs.length - 5], '20261019210000_journal_04_evening_answers', 'the migration before the newest (LEDGER-03 followed)');
   // LEDGER-03 (Alex, 2026-10-19): two audit values for the planned-item link — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 3], '20261019230000_ledger_03_planned_item_link_audit', 'the migration before the newest (BACKLOG-01 followed)');
+  assert.equal(dirs[dirs.length - 4], '20261019230000_ledger_03_planned_item_link_audit', 'the migration before the newest (BACKLOG-01 followed)');
   // BACKLOG-01 (Alex, 2026-10-20): the capture's columns and the four statuses — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 2], '20261020120000_backlog_01_capture', 'the migration before the newest (BACKLOG-01b followed)');
+  assert.equal(dirs[dirs.length - 3], '20261020120000_backlog_01_capture', 'the migration before the newest (BACKLOG-01b followed)');
   // BACKLOG-01b (Alex, 2026-10-20): the brief's three columns — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 1], '20261020140000_backlog_01b_brief', 'the newest migration');
-  assert.equal(dirs[dirs.length - 10], '20261013120000_journal_01_day_journals', 'right after JOURNAL-01’s');
+  assert.equal(dirs[dirs.length - 2], '20261020140000_backlog_01b_brief', 'the migration before the newest (JOURNAL-06 followed)');
+  // JOURNAL-06 (Alex, 2026-10-20): the evening's five columns, the two CHECKs re-made — the newest; every position above moved by one.
+  assert.equal(dirs[dirs.length - 1], '20261020150000_journal_06_reflection', 'the newest migration');
+  assert.equal(dirs[dirs.length - 11], '20261013120000_journal_01_day_journals', 'right after JOURNAL-01’s');
 });
 
 test('T3 the schema: the three lists with empty defaults, every JOURNAL-01 column kept; the client generated with them', () => {
@@ -301,7 +305,8 @@ test('T4b JOURNAL-03 R3 — nothing typed before is lost: a tick or a goal edit 
   // The row as Prisma reads it: a plan, a goal, and END OF DAY words typed before JOURNAL-03.
   const retired = Object.fromEntries(RETIRED_FIELDS.map((f) => [f, null])) as Record<(typeof RETIRED_FIELDS)[number], string | null>;
   // JOURNAL-04 (2026-10-19): the row carries the evening's three too — null here, typed by no card yet.
-  const db = { goals: ['film the day card'], blocker: null, plan_steps: ['merge X', 'book travel'], plan_done: [false, false], audit: null, learned: null, next: null, ...retired, shipped: 'merged TABLE-01; the reel is up', id: 'j1', day: new Date(`${DAY}T00:00:00.000Z`), updated_at: new Date(`${DAY}T01:00:00.000Z`) };
+  // JOURNAL-06 (2026-10-20): the five blocks ride too; learned is retired — it comes with `retired`, null.
+  const db = { goals: ['film the day card'], blocker: null, plan_steps: ['merge X', 'book travel'], plan_done: [false, false], audit: null, gaps: null, evolution: null, direction: null, alignment: null, on_track: null, next: null, ...retired, shipped: 'merged TABLE-01; the reel is up', id: 'j1', day: new Date(`${DAY}T00:00:00.000Z`), updated_at: new Date(`${DAY}T01:00:00.000Z`) };
   const held = journalRowOf(db);
   assert.equal(held.retired.shipped, 'merged TABLE-01; the reel is up', 'the words ride `retired`');
   assert.equal(Object.hasOwn(held, 'shipped'), false, 'never the answers');
@@ -312,7 +317,7 @@ test('T4b JOURNAL-03 R3 — nothing typed before is lost: a tick or a goal edit 
     assert.ok(read.ok, what);
     if (!read.ok) continue;
     // JOURNAL-04 (2026-10-19): seven keys now — the three evening answers ride as null, so a morning write clears an evening (decision 6; journal04.test.ts).
-    assert.deepEqual(Object.keys(read.value.answers), ['goals', 'blocker', 'plan_steps', 'plan_done', 'audit', 'learned', 'next'], `${what}: the route writes these seven as \`data\` — no shipped`);
+    assert.deepEqual(Object.keys(read.value.answers), ['goals', 'blocker', 'plan_steps', 'plan_done', 'audit', 'gaps', 'evolution', 'direction', 'alignment', 'on_track', 'next'], `${what}: the route writes these eleven as \`data\` — no shipped, no learned`);
     assert.equal(journalUnchanged(held, read.value.answers), false, `${what}: a change, so the route writes`);
     // What the guarded update leaves in the row: Prisma writes only the keys of `data`, so every other column keeps its value.
     const after = journalRowOf({ ...db, ...read.value.answers });

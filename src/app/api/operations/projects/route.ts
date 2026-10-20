@@ -6,7 +6,9 @@
  *        shows every book; the parameter stays for any other caller).
  *        Sorted by status priority (STATUS_ORDER — the active work first), then
  *        priority_score DESC NULLS LAST, then target_completion_date ASC.
- *        No audit write (read-only).
+ *        No audit write (read-only). JOURNAL-06 (2026-10-20): each row also
+ *        carries open_task_count — its tasks not done — for the day card's
+ *        reflection prompt (THE BACKLOG).
  *
  * POST — CAPTURE a project (BACKLOG-01, Alex, 2026-10-20). Required: entity_id
  *        (the book), title, type (ProjectType, by name) and why (a paragraph,
@@ -138,6 +140,18 @@ export async function GET(request: NextRequest) {
       runCountByProject.set(g.project_id, (runCountByProject.get(g.project_id) ?? 0) + 1);
     }
 
+    // JOURNAL-06 (Alex, 2026-10-20): open_task_count — a project's tasks NOT DONE (open, in progress, blocked,
+    // pending review); the reflection prompt's THE BACKLOG prints "open tasks n". Reads existing data — NO migration.
+    const openGroups = projectIds.length
+      ? await prisma.operations_project_tasks.groupBy({
+          by: ['project_id'],
+          where: { project_id: { in: projectIds }, status: { in: ['open', 'in_progress', 'blocked', 'pending_review'] } },
+          _count: { _all: true },
+        })
+      : [];
+    const openCountByProject = new Map<string, number>();
+    for (const g of openGroups) openCountByProject.set(g.project_id, g._count._all);
+
     // PROJECTS-UX-2: REAL cost-per-project — the DIM allocation rollup.
     // READ-ONLY (findMany only), layered onto the payload exactly like the
     // PD-2 counts above. The math derives from the schema's own doctrine:
@@ -224,6 +238,7 @@ export async function GET(request: NextRequest) {
     const withCounts = sorted.map(({ _count, ...p }) => ({
       ...p,
       task_count: _count.tasks,
+      open_task_count: openCountByProject.get(p.id) ?? 0,
       run_count: runCountByProject.get(p.id) ?? 0,
       ...(allocByProject ? { ledger_allocated: allocByProject.get(p.id) ?? null } : {}),
     }));

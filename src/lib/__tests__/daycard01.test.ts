@@ -513,7 +513,8 @@ test('T4 readJson is the week’s, exported; readDayReport asks the one URL and 
   assert.equal((reads.match(/\bfetch\s*\(/g) ?? []).length, 0, 'the read goes through readJson');
   assert.match(code(CARD), /import \{ readDay, readItems, type DayAnswer, type Read \} from '\.\.\/week\/weekReads';/);
   // JOURNAL-01 (2026-10-13): the journal read joins the line — the pin moved with it.
-  assert.match(code(CARD), /import \{ readDayReport, readJournal, readStays, readStopRecords, type JournalAnswer, type StaysAnswer, type StopRecordsAnswer \} from '\.\/dayReads';/);
+  // JOURNAL-06 (Alex, 2026-10-20): the reflection prompt's two reads and their names joined the import — the pin moved with it, as exact.
+  assert.match(code(CARD), /import \{ BACKLOG_READ_NAME, MOVED_READ_NAME, readBacklog, readDayReport, readJournal, readMovedToday, readStays, readStopRecords, type JournalAnswer, type StaysAnswer, type StopRecordsAnswer \} from '\.\/dayReads';/);
   assert.match(reads, /await readJson\(`\/api\/operations\/stops\?\$\{new URLSearchParams\(\{ day \}\)\.toString\(\)\}`\)/, 'the records read, through the one reader (STOP-01)');
   assert.match(reads, /await readJson\(`\/api\/operations\/stays\?\$\{new URLSearchParams\(\{ day \}\)\.toString\(\)\}`\)/, 'the stays read, through the one reader (STAY-01)');
   for (const f of [CARD, RULES]) assert.doesNotMatch(code(f), /\bfetch\s*\(/, `${f} fetches nothing of its own`);
