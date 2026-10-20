@@ -229,7 +229,7 @@ export default function StopForm({ stop, day, viewerZone, onChanged }: { stop: S
           <input type="text" inputMode="numeric" value={draft.minutes} onChange={(e) => setDraft({ ...draft, minutes: e.target.value })} placeholder="min" aria-label="Minutes" className={`${box} w-14 font-mono`} data-stop-minutes />
         )}
         {shown.note && (
-          <input type="text" value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} placeholder={draft.outcome === 'skipped' ? 'why — required' : NOTE_PROMPT_WORDS[role]} aria-label="Note" className={`${box} w-56`} maxLength={280} data-stop-note />
+          <input type="text" value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} placeholder={draft.outcome === 'skipped' ? 'why — required' : NOTE_PROMPT_WORDS[role]} aria-label="Description" className={`${box} w-56`} maxLength={280} data-stop-note />
         )}
         <button type="submit" className={chip} disabled={busy}>save</button>
         {stop.record !== null && <button type="button" className={chip} disabled={busy} onClick={clear} data-stop-clear>clear</button>}

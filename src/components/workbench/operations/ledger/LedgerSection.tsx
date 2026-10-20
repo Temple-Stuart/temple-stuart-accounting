@@ -14,9 +14,10 @@
  *
  * The period is Month (the default, anchored today) · Week (Monday–Sunday) ·
  * Day · All, with a date to anchor it and ‹ › to step; a period is one read
- * (ledgerReads.ts readLedger, the route's rows). CITY, COUNTRY and COA are
- * chosen among the values present in the period, plus "all"; they change only
- * what is shown — the totals and the summary follow the rows shown. Every rule
+ * (ledgerReads.ts readLedger, the route's rows). Until LEDGER-04 CITY, COUNTRY
+ * and COA were three dropdowns, chosen among the values present in the period,
+ * plus "all"; they changed only what is shown — the totals and the summary
+ * follow the rows shown, as every column's filter does now. Every rule
  * and every sentence is src/lib/operations/ledger.ts's; the cells print the
  * day card's own words (planDollars; the delta's tone from deltaWords; until
  * LEDGER-02 dayShortWords and rowActualWords). The entity selector is not read: the ledger is every book, and the COA says
@@ -61,27 +62,53 @@
  * its coverage said under the table in place of the LEDGER-02 note. Nothing is
  * fetched here (the picker's hook fetches through the links route); nothing is
  * stored in the browser.
+ *
+ * LEDGER-04 (Alex, 2026-10-20): AFTER THE FIRST READ. (1) The heads say SUB
+ * ACCOUNT NAME for the stop's name (it IS the sub-account's) and DESCRIPTION
+ * for the record's note; the cells print the same fields (row.description,
+ * row.note). (2) The three dropdowns are gone: every header carries the head
+ * word (a click sorts — ascending, descending, then the ledger's own order;
+ * one column at a time, the mark showing the direction) and a ▾ that opens
+ * ColumnFilter.tsx under it — one popover at a time, fixed under its ▾ (the
+ * anchor, kept in a ref map) so the table's scroll box never clips it, following
+ * the ▾ on scroll. The filters are ledger.ts's
+ * ColumnFilters (applyColumnFilters: OR within a column, AND across), the
+ * checklists ledger.ts's columnValues over the rows LOADED for the period, the
+ * sort ledger.ts's sortRows; `shown` is the rows filtered then sorted, and the
+ * TOTAL row, the coverage, the summary and the CSV all read `shown` as before
+ * (the CSV in the shown order). A header with an active filter shows a mark;
+ * "clear filters" appears beside "download CSV" while any is active. THE
+ * FILTERS RESET WHEN THE PERIOD CHANGES (a checklist is built from the rows
+ * loaded — a set carried into another period would hide rows whose values the
+ * person never saw unticked); a re-read of the same period after a write keeps
+ * them; the sort persists across periods (it hides nothing). (3) The sentences
+ * under the TOTAL row fold into one toggle — "n notes ▸", closed on every load
+ * (ledger.ts notesCount: the lines with something to say; a line whose count
+ * is 0 is neither counted nor shown; the TODAY rule and the every-book line
+ * shown only when open, never counted) — the same words, one per line, when
+ * open. React state only: nothing stored in the browser.
  */
 
 'use client';
 
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { localToday } from '@/lib/localToday';
 import type { Read } from '../week/weekReads';
 import { deltaWords } from '../day/dayCard';
 import { readLedger, type LedgerAnswer } from './ledgerReads';
 import ExpenseForm from './ExpenseForm';
 import LinkPicker from './LinkPicker';
+import ColumnFilter from './ColumnFilter';
 import { announceDayWritten } from '../dayWritten';
 import {
-  ALL_WORDS, BY_WORDS, CELL_WORDS, CSV_DOWNLOAD_WORDS, CSV_NO_ROWS_WORDS, EVERY_BOOK_WORDS, FILTER_KEYS, FILTER_WORDS, GROUP_KEYS, GROUP_WORDS, LEDGER_HEAD_WORDS, LEDGER_LOADING_WORDS,
-  LEDGER_TITLE_WORDS, LINK_WORDS, MONEY_HEAD_WORDS, NEXT_WORDS, NO_FILTERS, NO_FIRST_RECORD_WORDS, NO_ROWS_SHOWN_WORDS, PERIOD_KINDS, PERIOD_WORDS, PREVIOUS_WORDS, SUMMARY_HEAD_WORDS,
-  SUMMARY_TITLE_WORDS, TODAY_RULE_WORDS, TOTAL_WORDS,
-  accountCellWords, accountNameCellWords, actualCellWords, averageStarsWords, bookCellWords, budgetCellWords, choicesOf, dayLongWords, daysWords, filterRows, firstRecordUnplacedWords, ledgerCsv,
-  ledgerCsvFileName, ledgerSummary, ledgerTotals, leftOutWords, matchCellTitle, matchCellWords, matchCoverageWords, matchState, matchTotalWords, noLineWords, noRowsWords, noStayWords, notPlacedWords,
-  notRecordedWords, noteCellWords, perDayWords, periodOf, periodWords, readableMatchCents, starsCellWords, stepAnchor, underOverWords, unplacedWords, varianceCellWords, varianceCoverageWords,
-  vendorCellWords,
-  type FilterKey, type Filters, type GroupKey, type LedgerRow, type MatchState, type Period, type PeriodKind,
+  BY_WORDS, CELL_WORDS, CLEAR_FILTERS_WORDS, CSV_DOWNLOAD_WORDS, CSV_NO_ROWS_WORDS, EVERY_BOOK_WORDS, FILTER_ON_MARK, FILTER_OPEN_WORDS, GROUP_KEYS, GROUP_WORDS, LEDGER_COLUMNS, LEDGER_HEAD_WORDS,
+  LEDGER_LOADING_WORDS, LEDGER_TITLE_WORDS, LINK_WORDS, MONEY_HEAD_WORDS, NEXT_WORDS, NO_COLUMN_FILTERS, NO_FIRST_RECORD_WORDS, NO_ROWS_SHOWN_WORDS, PERIOD_KINDS, PERIOD_WORDS, PREVIOUS_WORDS,
+  SORT_MARKS, SUMMARY_HEAD_WORDS, SUMMARY_TITLE_WORDS, TODAY_RULE_WORDS, TOTAL_WORDS,
+  accountCellWords, accountNameCellWords, actualCellWords, anyColumnFilterOn, applyColumnFilters, averageStarsWords, bookCellWords, budgetCellWords, columnFilterOn, columnKind, columnValues,
+  dayLongWords, daysWords, filterLabelWords, firstRecordUnplacedWords, headWordOf, ledgerCsv, ledgerCsvFileName, ledgerSummary, ledgerTotals, leftOutTotal, leftOutWords, matchCellTitle, matchCellWords,
+  matchCoverageWords, matchState, matchTotalWords, nextSort, noLineWords, noRowsWords, noStayWords, notPlacedWords, notRecordedWords, noteCellWords, notesCount, notesToggleWords, perDayWords,
+  periodOf, periodWords, readableMatchCents, sortLabelWords, sortRows, starsCellWords, stepAnchor, underOverWords, unplacedWords, varianceCellWords, varianceCoverageWords, vendorCellWords,
+  type ColumnFilters, type GroupKey, type LedgerColumn, type LedgerRow, type LedgerSort, type MatchState, type MoneyColumn, type Period, type PeriodKind, type TextColumn, type ValueColumn,
 } from '@/lib/operations/ledger';
 
 const chip = 'px-2 py-0.5 border border-border rounded hover:bg-bg-row text-xs disabled:opacity-50';
@@ -102,7 +129,13 @@ export default function LedgerSection() {
   const [today, setToday] = useState<string | null>(null);
   const [kind, setKind] = useState<PeriodKind>('month');
   const [anchor, setAnchor] = useState<string | null>(null);
-  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  // LEDGER-04: one filter per column (ledger.ts ColumnFilters), the sort (one column, or the ledger's own order), the column whose popover is
+  // open and the notes toggle — React state only, nothing stored. The ▾ buttons by column (a ref map): the open popover is anchored under its own.
+  const [filters, setFilters] = useState<ColumnFilters>(NO_COLUMN_FILTERS);
+  const [sort, setSort] = useState<LedgerSort | null>(null);
+  const [openFilter, setOpenFilter] = useState<LedgerColumn | null>(null);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const filterButtons = useRef(new Map<LedgerColumn, HTMLButtonElement>());
   const [by, setBy] = useState<GroupKey>('city');
   // The last answer and the period it was read for; the first record's day rides every answer, so ALL can start from it.
   const [answer, setAnswer] = useState<{ readonly period: Period; readonly read: Read<LedgerAnswer> } | null>(null);
@@ -129,14 +162,20 @@ export default function LedgerSection() {
       const read = await readLedger(period.from, period.to);
       if (!live) return;
       setAnswer({ period, read });
-      setFilters(NO_FILTERS);
       if (read.ok) setFirstRecord(read.value.first_record);
     })();
     return () => { live = false; };
   }, [period?.from, period?.to, writes]); // eslint-disable-line react-hooks/exhaustive-deps
+  // LEDGER-04: a new period starts with every filter off and no popover open — the checklists are the period's own; a re-read after a write keeps them.
+  useEffect(() => {
+    setFilters(NO_COLUMN_FILTERS);
+    setOpenFilter(null);
+  }, [period?.from, period?.to]);
+  const closeFilter = useCallback(() => setOpenFilter(null), []);
 
   const rows: readonly LedgerRow[] = answer !== null && answer.read.ok ? answer.read.value.rows : [];
-  const shown = filterRows(rows, filters);
+  // LEDGER-04: the rows filtered (every column, AND across), then sorted — the TOTAL row, the coverage, the summary and the CSV read these.
+  const shown = sortRows(applyColumnFilters(rows, filters), sort);
   const totals = ledgerTotals(shown);
   const groups = ledgerSummary(shown, by);
   // LEDGER-02: the rows SHOWN as a CSV (ledger.ts ledgerCsv) — a Blob (UTF-8, no BOM) and an object URL, the shape dashboard/GeneralLedger.tsx
@@ -149,6 +188,16 @@ export default function LedgerSection() {
     a.download = ledgerCsvFileName(p.from, p.to);
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  /** LEDGER-04: the one popover open — the leaf by the column's kind, under that column's ▾, with its filter and (a VALUE column) the values among the rows loaded. */
+  const popover = (c: LedgerColumn) => {
+    const anchor = filterButtons.current.get(c);
+    if (anchor === undefined) return null;
+    const kind = columnKind(c);
+    if (kind === 'value') return <ColumnFilter kind="value" column={c} anchor={anchor} values={columnValues(rows, c as ValueColumn)} filter={filters[c as ValueColumn]} onChange={(f) => setFilters({ ...filters, [c]: f })} onClose={closeFilter} />;
+    if (kind === 'money') return <ColumnFilter kind="money" column={c} anchor={anchor} filter={filters[c as MoneyColumn]} onChange={(f) => setFilters({ ...filters, [c]: f })} onClose={closeFilter} />;
+    return <ColumnFilter kind="text" column={c} anchor={anchor} filter={filters[c as TextColumn]} onChange={(f) => setFilters({ ...filters, [c]: f })} onClose={closeFilter} />;
   };
 
   return (
@@ -167,18 +216,10 @@ export default function LedgerSection() {
         <button type="button" className={chip} disabled={kind === 'all' || anchor === null} onClick={() => anchor !== null && setAnchor(stepAnchor(kind, anchor, 1))} data-ledger-next aria-label="next">{NEXT_WORDS}</button>
         {period !== null && <span className="font-semibold text-text-secondary" data-ledger-period-words>{periodWords(period)}</span>}
         <button type="button" className={chip} disabled={csvPeriod === null} title={csvPeriod === null ? CSV_NO_ROWS_WORDS : undefined} onClick={() => csvPeriod !== null && downloadCsv(csvPeriod)} data-ledger-csv>{CSV_DOWNLOAD_WORDS}</button>
+        {anyColumnFilterOn(filters) && <button type="button" className={chip} onClick={() => setFilters(NO_COLUMN_FILTERS)} data-ledger-clear-filters>{CLEAR_FILTERS_WORDS}</button>}
         {answer !== null && answer.read.ok && shown.length === 0 && <span className="text-text-faint" data-ledger-csv-why>{CSV_NO_ROWS_WORDS}</span>}
         {kind === 'all' && period === null && firstRecord === null && <span className="text-text-muted" data-ledger-no-first>{NO_FIRST_RECORD_WORDS}</span>}
         {kind === 'all' && period === null && firstRecord !== null && 'words' in firstRecord && <span className="text-brand-red" data-ledger-no-first>{firstRecordUnplacedWords(firstRecord.words)}</span>}
-        {FILTER_KEYS.map((key: FilterKey) => (
-          <label key={key} className="flex items-center gap-1">
-            <span className="text-text-faint tracking-wide">{FILTER_WORDS[key]}</span>
-            <select value={filters[key] ?? ''} onChange={(e) => setFilters({ ...filters, [key]: e.target.value === '' ? null : e.target.value })} className="px-1 py-0.5 border border-border rounded text-xs" data-ledger-filter={key}>
-              <option value="">{ALL_WORDS}</option>
-              {choicesOf(rows, key).map((choice) => <option key={choice} value={choice}>{choice}</option>)}
-            </select>
-          </label>
-        ))}
       </div>
 
       {period !== null && answer === null && <div className="text-xs text-text-muted" data-ledger-loading>{LEDGER_LOADING_WORDS}</div>}
@@ -187,12 +228,30 @@ export default function LedgerSection() {
         <>
           {rows.length === 0 && <div className="text-xs text-text-muted" data-ledger-none>{noRowsWords(answer.period)}</div>}
           {rows.length > 0 && shown.length === 0 && <div className="text-xs text-text-muted" data-ledger-none-shown>{NO_ROWS_SHOWN_WORDS}</div>}
-          {shown.length > 0 && (
+          {/* LEDGER-04: the table stays while rows are LOADED, even when a filter leaves none shown — the filters live in its headers, so they must stay to be undone. */}
+          {rows.length > 0 && (
             <div className="overflow-x-auto border border-border rounded bg-white">
               <table className="w-full min-w-[96rem] border-collapse text-xs" data-ledger-table>
                 <thead>
                   <tr className="text-text-faint uppercase tracking-wide">
-                    {LEDGER_HEAD_WORDS.map((h) => <th key={h} className={(MONEY_HEAD_WORDS as readonly string[]).includes(h) ? `${head} text-right` : head}>{h}</th>)}
+                    {/* LEDGER-04: each header is its head word (a click sorts — nextSort — the mark showing the direction) and a ▾ that opens the column's popover; a mark while its filter is on. */}
+                    {LEDGER_COLUMNS.map((c) => {
+                      const h = headWordOf(c);
+                      const on = columnFilterOn(filters, c);
+                      const sorted = sort !== null && sort.column === c;
+                      return (
+                        <th key={c} className={(MONEY_HEAD_WORDS as readonly string[]).includes(h) ? `${head} text-right` : head}>
+                          <span className="inline-flex items-center gap-1">
+                            <button type="button" className="hover:text-text-primary" onClick={() => setSort(nextSort(sort, c))} aria-label={sortLabelWords(h)} data-ledger-sort={c} data-ledger-sort-direction={sorted ? sort.direction : undefined}>{h}</button>
+                            {sorted && <span data-ledger-sort-mark>{SORT_MARKS[sort.direction]}</span>}
+                            <button type="button" ref={(el) => { if (el === null) filterButtons.current.delete(c); else filterButtons.current.set(c, el); }} className={on ? 'text-brand-purple' : 'hover:text-text-primary'} onClick={() => setOpenFilter(c)} aria-label={filterLabelWords(h)} aria-expanded={openFilter === c} data-ledger-filter={c} data-ledger-filter-on={on ? '' : undefined}>
+                              {on && <span data-ledger-filter-mark>{FILTER_ON_MARK}</span>}
+                              <span data-ledger-filter-open>{FILTER_OPEN_WORDS}</span>
+                            </button>
+                          </span>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
@@ -208,7 +267,7 @@ export default function LedgerSection() {
                         <td className={`${cell} whitespace-nowrap ${row.book === null ? BLANK_CLASS : ''}`} data-ledger-cell="book">{bookCellWords(row)}</td>
                         <td className={`${cell} whitespace-nowrap ${row.coa === null ? BLANK_CLASS : ''}`} data-ledger-cell="account">{accountCellWords(row)}</td>
                         <td className={`${cell} ${row.coa === null || row.coa.name === null ? BLANK_CLASS : ''}`} data-ledger-cell="account-name">{accountNameCellWords(row)}</td>
-                        <td className={`${cell} font-semibold text-text-primary`} data-ledger-cell="description">{row.description}</td>
+                        <td className={`${cell} font-semibold text-text-primary`} data-ledger-cell="sub-account-name">{row.description}</td>
                         <td className={`${cell} ${row.vendor === null ? BLANK_CLASS : ''}`} data-ledger-cell="vendor">{vendorCellWords(row.vendor)}</td>
                         <td className={`${cell} whitespace-nowrap ${row.rating === null ? BLANK_CLASS : ''}`} data-ledger-cell="stars">{starsCellWords(row.rating)}</td>
                         <td className={`${money} ${row.cents === null ? BLANK_CLASS : 'font-semibold text-text-primary'}`} data-ledger-cell="budget">{budgetCellWords(row.cents)}</td>
@@ -219,7 +278,7 @@ export default function LedgerSection() {
                           <button type="button" className={`${chip} ml-1 font-normal`} onClick={() => setPicking(picking === row.key ? null : row.key)} data-ledger-link={row.key} aria-expanded={picking === row.key}>{LINK_WORDS}</button>
                         </td>
                         <td className={`${cell} whitespace-nowrap ${row.varianceCents === null ? BLANK_CLASS : actualTone(delta.over)}`} data-ledger-cell="under-over">{underOverWords(row.varianceCents)}</td>
-                        <td className={`${cell} ${row.note === null ? BLANK_CLASS : 'text-text-muted'}`} data-ledger-cell="notes">{noteCellWords(row.note)}</td>
+                        <td className={`${cell} ${row.note === null ? BLANK_CLASS : 'text-text-muted'}`} data-ledger-cell="description">{noteCellWords(row.note)}</td>
                       </tr>
                       {picking === row.key && (
                         <tr className="border-t border-border" data-ledger-picker={row.key}>
@@ -241,23 +300,32 @@ export default function LedgerSection() {
                     <td className={`${money} ${varianceTone(totals.varianceCents)}`} data-ledger-total-variance>{varianceCellWords(totals.varianceCents)}</td>
                     <td className={`${money} ${totals.matchCents === null ? BLANK_CLASS : ''}`} data-ledger-total-match>{matchTotalWords(totals.matchCents)}</td>
                     <td className={`${cell} whitespace-nowrap ${varianceTone(totals.varianceCents)}`} data-ledger-total-under-over>{underOverWords(totals.varianceCents)}</td>
-                    <td className={cell} data-ledger-total-notes />
+                    <td className={cell} data-ledger-total-description />
                   </tr>
                 </tfoot>
               </table>
             </div>
           )}
-          <div className="text-xs text-text-muted space-y-0.5" data-ledger-said>
-            {shown.length > 0 && <p data-ledger-said-variance>{varianceCoverageWords(totals.withVariance, shown.length)}</p>}
-            {shown.length > 0 && <p data-ledger-said-match>{matchCoverageWords(totals.withMatch, shown.length)}</p>}
-            <p data-ledger-said-no-line>{noLineWords(answer.read.value.said.noLine, answer.read.value.said.doubled)}</p>
-            <p data-ledger-said-no-stay>{noStayWords(answer.read.value.said.noStay)}</p>
-            <p data-ledger-said-unplaced>{unplacedWords(answer.read.value.said.unplaced)}</p>
-            <p data-ledger-said-not-recorded>{notRecordedWords(answer.read.value.said.notRecorded)}</p>
-            <p data-ledger-said-left-out>{leftOutWords(answer.read.value.said.leftOut)}</p>
-            {answer.read.value.said.notPlaced > 0 && <p data-ledger-said-not-placed>{notPlacedWords(answer.read.value.said.notPlaced)}</p>}
-            <p data-ledger-said-today-rule>{TODAY_RULE_WORDS}</p>
-            <p data-ledger-said-every-book>{EVERY_BOOK_WORDS}</p>
+          {openFilter !== null && popover(openFilter)}
+          {/* LEDGER-04 (Alex, 2026-10-20): THE NOTES — the sentences under the TOTAL row, folded into one toggle closed on every load: "n notes ▸" (notesCount — the lines
+              with something to say; a line whose count is 0 is neither counted nor shown; the TODAY rule and the every-book line shown only when open, never counted). Open, the
+              same words as before, one per line. React state only. */}
+          <div className="text-xs text-text-muted" data-ledger-notes>
+            <button type="button" className="hover:text-text-primary" onClick={() => setNotesOpen(!notesOpen)} aria-expanded={notesOpen} data-ledger-notes-toggle>{notesToggleWords(notesCount(answer.read.value.said, shown.length), notesOpen)}</button>
+            {notesOpen && (
+              <div className="space-y-0.5 mt-1" data-ledger-said>
+                {shown.length > 0 && <p data-ledger-said-variance>{varianceCoverageWords(totals.withVariance, shown.length)}</p>}
+                {shown.length > 0 && <p data-ledger-said-match>{matchCoverageWords(totals.withMatch, shown.length)}</p>}
+                {answer.read.value.said.noLine > 0 && <p data-ledger-said-no-line>{noLineWords(answer.read.value.said.noLine, answer.read.value.said.doubled)}</p>}
+                {answer.read.value.said.noStay > 0 && <p data-ledger-said-no-stay>{noStayWords(answer.read.value.said.noStay)}</p>}
+                {answer.read.value.said.unplaced.length > 0 && <p data-ledger-said-unplaced>{unplacedWords(answer.read.value.said.unplaced)}</p>}
+                {answer.read.value.said.notRecorded > 0 && <p data-ledger-said-not-recorded>{notRecordedWords(answer.read.value.said.notRecorded)}</p>}
+                {leftOutTotal(answer.read.value.said.leftOut) > 0 && <p data-ledger-said-left-out>{leftOutWords(answer.read.value.said.leftOut)}</p>}
+                {answer.read.value.said.notPlaced > 0 && <p data-ledger-said-not-placed>{notPlacedWords(answer.read.value.said.notPlaced)}</p>}
+                <p data-ledger-said-today-rule>{TODAY_RULE_WORDS}</p>
+                <p data-ledger-said-every-book>{EVERY_BOOK_WORDS}</p>
+              </div>
+            )}
           </div>
           {shown.length > 0 && (
             <div className="space-y-2" data-ledger-summary>

@@ -150,7 +150,8 @@ test('R1 the row: book from the matched line’s book (personal → Personal, so
 // ── R2 · THE COLUMNS AND THE CELLS ──────────────────────────────────────────
 
 test('R2 the sixteen head words in Alex’s order; the cells each one fact: DAY the full weekday, DATE the day, BOOK the word, ACCOUNT the code with its letter, ACCOUNT NAME the chart’s, ACTUAL the amount alone, VARIANCE signed dollars or EMPTY, MATCH empty, UNDER / OVER the word or EMPTY', () => {
-  assert.deepEqual(LEDGER_HEAD_WORDS, ['DAY', 'DATE', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'DESCRIPTION', 'VENDOR', 'STARS', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'NOTES']);
+  // LEDGER-04 (Alex, 2026-10-20): SUB ACCOUNT NAME where DESCRIPTION stood (the stop's name IS the sub-account's) and DESCRIPTION where NOTES stood (the record's note). Moved, not loosened.
+  assert.deepEqual(LEDGER_HEAD_WORDS, ['DAY', 'DATE', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'STARS', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION']);
   assert.equal(LEDGER_HEAD_WORDS.length, 16);
   assert.equal(new Set(LEDGER_HEAD_WORDS).size, 16, 'no head word twice');
   assert.deepEqual(MONEY_HEAD_WORDS, ['BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH'], 'the money columns, right-aligned');
@@ -184,7 +185,8 @@ test('R2 the sixteen head words in Alex’s order; the cells each one fact: DAY 
   // The section: sixteen cells in the head's order, each printing its one fact; the money heads right-aligned; the MATCH note first under the table.
   const s = code(SECTION);
   const cells = [...s.matchAll(/data-ledger-cell="([a-z-]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(cells, ['day', 'date', 'city', 'country', 'book', 'account', 'account-name', 'description', 'vendor', 'stars', 'budget', 'actual', 'variance', 'match', 'under-over', 'notes'], 'one cell per head word, in its order');
+  // LEDGER-04 (Alex, 2026-10-20): the cells carry the column's name — sub-account-name prints row.description, description prints row.note.
+  assert.deepEqual(cells, ['day', 'date', 'city', 'country', 'book', 'account', 'account-name', 'sub-account-name', 'vendor', 'stars', 'budget', 'actual', 'variance', 'match', 'under-over', 'description'], 'one cell per head word, in its order');
   assert.equal(cells.length, LEDGER_HEAD_WORDS.length);
   assert.match(s, /data-ledger-cell="day">\{dayLongWords\(row\.day\)\}/, 'DAY the full weekday');
   assert.match(s, /data-ledger-cell="date">\{row\.day\}/, 'DATE the day alone — the weekday left the cell');
@@ -199,9 +201,11 @@ test('R2 the sixteen head words in Alex’s order; the cells each one fact: DAY 
   assert.match(s, /data-ledger-cell="match" title=\{matchCellTitle\(row\.match\) \?\? undefined\}>\n\s*<span data-ledger-match>\{matchCellWords\(row\.match\)\}<\/span>/, 'MATCH: the row’s match, "—" with no link (LEDGER-03)');
   assert.equal(matchCellWords(null), '—');
   assert.match(s, /data-ledger-cell="under-over">\{underOverWords\(row\.varianceCents\)\}/);
-  assert.match(s, /\{LEDGER_HEAD_WORDS\.map\(\(h\) => <th key=\{h\} className=\{\(MONEY_HEAD_WORDS as readonly string\[\]\)\.includes\(h\) \? `\$\{head\} text-right` : head\}>\{h\}<\/th>\)\}/, 'the money heads right-aligned, by the one list');
+  // LEDGER-04 (Alex, 2026-10-20): one header per column (LEDGER_COLUMNS, its word by headWordOf), the money heads still right-aligned by the one list; the word is the sort button (ledger04.test.ts).
+  assert.match(s, /<th key=\{c\} className=\{\(MONEY_HEAD_WORDS as readonly string\[\]\)\.includes\(h\) \? `\$\{head\} text-right` : head\}>/, 'the money heads right-aligned, by the one list');
   // LEDGER-02 AMENDMENT (Alex, 2026-10-19): the coverage line comes first; the MATCH line is second (A2 pins the pair).
   // LEDGER-03 (Alex, 2026-10-19): the MATCH line is its coverage now, in the same place.
+  // LEDGER-04 (Alex, 2026-10-20): both lines inside the notes toggle's open state — still adjacent, the coverage line first.
   assert.match(s, /data-ledger-said-variance>[^\n]*<\/p>\}\n\s*\{shown\.length > 0 && <p data-ledger-said-match>\{matchCoverageWords\(totals\.withMatch, shown\.length\)\}<\/p>\}/, 'the MATCH line under the table, after the coverage line');
   assert.match(s, /<h2 className="text-lg font-bold text-brand-purple">\{LEDGER_TITLE_WORDS\}<\/h2>/);
 });
@@ -224,7 +228,7 @@ test('R3 the TOTAL row: colSpan the columns before BUDGET; VARIANCE the two tota
   const s = code(SECTION);
   assert.match(s, /<th scope="row" colSpan=\{10\} className=\{`\$\{cell\} text-left`\}>\{TOTAL_WORDS\}<\/th>/);
   assert.equal(LEDGER_HEAD_WORDS.indexOf('BUDGET'), 10, 'the colSpan is the columns before BUDGET');
-  inOrder(s, ['data-ledger-total>', 'data-ledger-total-budget>{budgetCellWords(totals.budgetCents)}', 'data-ledger-total-actual>{budgetCellWords(totals.actualCents)}</td>', "data-ledger-total-variance>{varianceCellWords(totals.varianceCents)}", 'data-ledger-total-match>{matchTotalWords(totals.matchCents)}</td>', 'data-ledger-total-under-over>{underOverWords(totals.varianceCents)}', '<td className={cell} data-ledger-total-notes />'], 'the TOTAL row’s cells, under their columns');
+  inOrder(s, ['data-ledger-total>', 'data-ledger-total-budget>{budgetCellWords(totals.budgetCents)}', 'data-ledger-total-actual>{budgetCellWords(totals.actualCents)}</td>', "data-ledger-total-variance>{varianceCellWords(totals.varianceCents)}", 'data-ledger-total-match>{matchTotalWords(totals.matchCents)}</td>', 'data-ledger-total-under-over>{underOverWords(totals.varianceCents)}', '<td className={cell} data-ledger-total-description />'], 'the TOTAL row’s cells, under their columns'); // LEDGER-04: the last cell is DESCRIPTION's
   assert.match(s, /const varianceTone = \(cents: number \| null\): string => \(cents === null \? BLANK_CLASS : actualTone\(cents > 0\)\);/, 'the sign’s tone (amended)');
   const tfoot = s.slice(s.indexOf('<tfoot>'), s.indexOf('</tfoot>'));
   assert.equal((tfoot.match(/<td\b/g) ?? []).length, 6, 'BUDGET · ACTUAL · VARIANCE · MATCH · UNDER / OVER · NOTES — six cells after the span of ten');
@@ -295,7 +299,8 @@ test('R6 ledgerCsv: the sixteen head words, one line per row in table order, RFC
   assert.equal(lines[lines.length - 1], '', 'the last line ends CRLF too');
   lines.pop();
   assert.equal(lines.length, ledger.rows.length + 1, 'the header and one line per row');
-  assert.equal(lines[0], 'DAY,DATE,CITY,COUNTRY,BOOK,ACCOUNT,ACCOUNT NAME,DESCRIPTION,VENDOR,STARS,BUDGET,ACTUAL,VARIANCE,MATCH,UNDER / OVER,NOTES');
+  // LEDGER-04 (Alex, 2026-10-20): the header follows the heads — SUB ACCOUNT NAME and DESCRIPTION; the fields under them are as they were (row.description, row.note).
+  assert.equal(lines[0], 'DAY,DATE,CITY,COUNTRY,BOOK,ACCOUNT,ACCOUNT NAME,SUB ACCOUNT NAME,VENDOR,STARS,BUDGET,ACTUAL,VARIANCE,MATCH,UNDER / OVER,DESCRIPTION');
   assert.equal(lines[0], LEDGER_HEAD_WORDS.join(','), 'the head words, none needing quotes');
   assert.deepEqual(lines.slice(1), [
     'Tuesday,2026-10-13,Chiang Mai,Thailand 🇹🇭,Personal,P-5100,Meals,Stretch,,,8.00,,,,,rain',
@@ -331,7 +336,8 @@ test('R6 ledgerCsv: the sixteen head words, one line per row in table order, RFC
   assert.match(block, /return `\$\{lines\.join\('\\r\\n'\)\}\\r\\n`;/, 'CRLF, the last line too');
   // The section: one button beside the period controls, the rows SHOWN, a Blob and an object URL, the file named by the period, the URL revoked; disabled with the reason when no row is shown.
   const s = code(SECTION);
-  inOrder(s, ['data-ledger-period-words>{periodWords(period)}</span>}', '<button type="button" className={chip} disabled={csvPeriod === null} title={csvPeriod === null ? CSV_NO_ROWS_WORDS : undefined} onClick={() => csvPeriod !== null && downloadCsv(csvPeriod)} data-ledger-csv>{CSV_DOWNLOAD_WORDS}</button>', "{answer !== null && answer.read.ok && shown.length === 0 && <span className=\"text-text-faint\" data-ledger-csv-why>{CSV_NO_ROWS_WORDS}</span>}", '{FILTER_KEYS.map('], 'the button after the period words, before the filters');
+  // LEDGER-04 (Alex, 2026-10-20): "clear filters" sits beside the CSV button (shown while a filter is on); the three dropdowns that followed are gone.
+  inOrder(s, ['data-ledger-period-words>{periodWords(period)}</span>}', '<button type="button" className={chip} disabled={csvPeriod === null} title={csvPeriod === null ? CSV_NO_ROWS_WORDS : undefined} onClick={() => csvPeriod !== null && downloadCsv(csvPeriod)} data-ledger-csv>{CSV_DOWNLOAD_WORDS}</button>', '{anyColumnFilterOn(filters) && <button type="button" className={chip} onClick={() => setFilters(NO_COLUMN_FILTERS)} data-ledger-clear-filters>{CLEAR_FILTERS_WORDS}</button>}', "{answer !== null && answer.read.ok && shown.length === 0 && <span className=\"text-text-faint\" data-ledger-csv-why>{CSV_NO_ROWS_WORDS}</span>}"], 'the button after the period words, then clear filters');
   assert.match(s, /const csvPeriod: Period \| null = answer !== null && answer\.read\.ok && shown\.length > 0 \? answer\.period : null;/, 'nothing to download until a row is shown');
   assert.match(s, /const downloadCsv = \(p: Period\): void => \{\n\s*const url = URL\.createObjectURL\(new Blob\(\[ledgerCsv\(shown\)\], \{ type: 'text\/csv;charset=utf-8;' \}\)\);\n\s*const a = document\.createElement\('a'\);\n\s*a\.href = url;\n\s*a\.download = ledgerCsvFileName\(p\.from, p\.to\);\n\s*a\.click\(\);\n\s*URL\.revokeObjectURL\(url\);\n\s*\};/, 'the rows shown, the GeneralLedger shape, the URL revoked');
   assert.equal((s.match(/data-ledger-csv>/g) ?? []).length, 1, 'one button');
@@ -345,8 +351,9 @@ test('R7 nothing else: the route still answers ledgerOf’s rows whole; the said
   assert.match(route, /ledgerOf\(/, 'the route answers the rule’s rows — the two fields ride the payload without a route change');
   assert.doesNotMatch(route, /varianceCents|bookWordOf|BOOK_WORDS/, 'no route code for the two fields');
   const s = code(SECTION);
-  inOrder(s, ['data-ledger-said-match', 'data-ledger-said-no-line', 'data-ledger-said-no-stay', 'data-ledger-said-unplaced', 'data-ledger-said-not-recorded', 'data-ledger-said-left-out', 'data-ledger-said-not-placed', 'data-ledger-said-today-rule', 'data-ledger-said-every-book'], 'what is said, in order, the MATCH note first');
-  assert.match(s, /const shown = filterRows\(rows, filters\);\n\s*const totals = ledgerTotals\(shown\);\n\s*const groups = ledgerSummary\(shown, by\);/);
+  // LEDGER-04 (Alex, 2026-10-20): the same lines, in the same order, inside the notes toggle; the rows shown are filtered by every column then sorted.
+  inOrder(s, ['data-ledger-notes-toggle', 'data-ledger-said-match', 'data-ledger-said-no-line', 'data-ledger-said-no-stay', 'data-ledger-said-unplaced', 'data-ledger-said-not-recorded', 'data-ledger-said-left-out', 'data-ledger-said-not-placed', 'data-ledger-said-today-rule', 'data-ledger-said-every-book'], 'what is said, in order, the MATCH note first');
+  assert.match(s, /const shown = sortRows\(applyColumnFilters\(rows, filters\), sort\);\n\s*const totals = ledgerTotals\(shown\);\n\s*const groups = ledgerSummary\(shown, by\);/);
   assert.doesNotMatch(s, /\bfetch\s*\(|\/api\/|localStorage|sessionStorage|document\.cookie/, 'no fetch of its own, nothing stored');
   assert.match(s, /<ExpenseForm onWritten=/, 'the "+ expense" form stands');
 });
