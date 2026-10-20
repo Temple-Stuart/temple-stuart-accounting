@@ -49,6 +49,14 @@
  * the provider only because the sections share one container. The Issue log
  * link is gone with its page; North Star and Audit trail stay.
  *
+ * TASKS-02b (2026-10-20): the NORTH-01 paragraph and the last line of
+ * TASKS-ONE-01 above are history. The North Star's page, section and routes
+ * are deleted (TASKS-02, #1838) — the page NORTH-01 names no longer exists;
+ * the operations_north_star table and its AI readers stay. Tasks has NO
+ * sub-rows: the registry row's `links` is [] (src/lib/toolRegistry.ts, the
+ * Tasks row's TASKS-02 note). The audit trail is doored by the Compliance
+ * row's link, not by this tool's.
+ *
  * TASKS-ONE-02 (2026-10-14) — Alex's ruling: the day card replaces the week
  * grid, the Daily plan and the Today strip. THREE sections now: the day card,
  * Projects, Routines. week/WeekSection.tsx (WEEK-01 above) and

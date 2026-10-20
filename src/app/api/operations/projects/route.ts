@@ -15,6 +15,14 @@
  * Pattern mirrors src/app/api/operations/north-star/route.ts. Sequential
  * prisma + writeAuditLog awaits, NOT transactional (matches codebase
  * convention; relies on writeAuditLog internal P2034/P2024 retry).
+ *
+ * TASKS-02b (2026-10-20): the mirrored route above is deleted with the North
+ * Star's page and section (TASKS-02, #1838); Tasks has no sub-rows, and the
+ * audit trail is doored by the Compliance row. The pattern stands on its own,
+ * with no file to point at: the create (POST below) awaits
+ * prisma.operations_projects.create, then awaits writeAuditLog — sequential,
+ * NOT in a transaction — and relies on writeAuditLog's internal retry on
+ * P2034/P2024 (src/lib/audit/writeAuditLog.ts).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
