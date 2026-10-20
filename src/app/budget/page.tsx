@@ -14,8 +14,11 @@ import { TOOL_GATE } from '@/lib/offer';
  * Nothing was deleted: BudgetingPage.tsx and src/lib/budgetCategories.ts stay,
  * and the six legacy category URLs still redirect here (ROOM-01).
  *
- * The view lives in the URL (?view=day&day= · week&weekOf= · year&year=) and the
- * report reads it there — no browser storage, no client state beyond the fetch.
+ * BUDGET-02 (Alex, 2026-10-20): Budget is one page — the three tables, every
+ * revenue and expense account × month, each figure drilling to its plan or
+ * ledger lines. The year lives in the URL (?year=YYYY, its only key) and the
+ * report reads it there — no browser storage; the open drill is React state.
+ * The opener's line is ruling I's.
  */
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +29,7 @@ export default function BudgetPage() {
     <AppLayout page>
       <ToolOpener
         tools={[budget]}
-        line="What you planned, what posted, and the difference — by book and account."
+        line="Budget vs actual by account, month by month — click a figure for the lines behind it."
       />
       <BudgetReport />
     </AppLayout>

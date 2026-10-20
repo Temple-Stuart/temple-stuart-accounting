@@ -281,16 +281,12 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     // ROOM-01: the six category sub-links are gone — not six doors in the rail.
     // TAB13-02b: their URLs redirect to /budget, which is the report now; Shopping
     // stays a room of its own.
-    links: [
-      // CAL-01: the agenda planner is Budget's. Its items carry a cadence, a
-      // coa_code and a budget_amount, and committing one writes a `budgets`
-      // plan row (src/app/api/agenda/[id]/route.ts:113-133). ONE sub-row covers
-      // all three pages — /agenda/new and /agenda/[id] are reached through it.
-      { label: 'Recurring plan · the agenda', href: '/agenda' },
-      { label: 'Shopping · meal & cart plans', href: '/shopping' },
-      { label: 'Itinerary budget builder', href: '/hub/itinerary' },
-      { label: 'Runway · the read-only view', cockpitKey: 'calendar' },
-    ],
+    // BUDGET-02 (Alex, ruling H, 2026-10-20): Budget is ONE page — no sub-rows. The
+    // agenda, Shopping and the itinerary budget builder (/agenda, /agenda/new,
+    // /agenda/[id], /shopping, /hub/itinerary) are dated redirects to /budget, and the
+    // Runway sub-row is gone: /runway stays reachable as a cockpit path under the
+    // listed /[tab] route. Their components, routes and tables stay, listed for CLEAN.
+    links: [],
     // TAB13-03 (2026-09-29): re-cited on what is on main — the screen's lines moved, a
     // book's own totals and the view helper joined, and the /api/home routes no screen
     // mounts are no longer cited (the row claims only what a customer reaches).
@@ -298,8 +294,12 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     // in the model, off the screen), and the strip is replaced by the missing-money notice.
     // TAB13-04 (2026-09-29): re-cited — the day plan and its vendors (the route reads the
     // plan vendors; planLines.ts builds the lines; the drill writes a vendor, never a figure).
-    citation: 'src/app/api/budget/report/route.ts:56-67 (the gate) · :110-127 (actuals by name, the counts, the bank rows) · :129-138 (the plan vendors, a DAY or WEEK) · src/lib/budget/reportInputs.ts:421-422 (routine and task lines) · :459-466 (the model) · :474-482 (the day plan) · src/lib/budget/planLines.ts:180 (the plan lines, their vendors, the stranded) · src/lib/budget/report.ts:511 (totalsOf — the report\'s totals, on the Overview) · src/lib/budget/reportView.ts:169 (the section) · :132-142 (every link keeps it) · :263 (what the view is missing) · :300 (the vendor box choices) · src/components/budget/BudgetReport.tsx:398 · :424 (the screen, its one read) · :190 (the chips) · :218 (a book: its itemized table, the Account filter) · :262 (the day plan under a filtered account) · :280 (the missing-money notice) · src/components/budget/DayPlanDrill.tsx:66 · :80 · :91 (the one input: a plan line vendor, through the two vendor routes) · src/app/budget/page.tsx:31',
-    note: 'TAB13-02b: /budget renders the read-only budget report; the six category URLs redirect to it, and BudgetingPage (with its draft form) is mounted nowhere. TAB13-03: one section at a time — the Overview, or one book, its Account column filtering to one account. TAB13-03b: a book is its itemized table; under the section, one line per gap only when the view is missing money. TAB13-04: under a filtered account on a DAY or WEEK, the plan lines behind its figure, each with its vendor — picked or added, for this day or every time; stranded vendors named; every figure read-only.',
+    // BUDGET-02 (2026-10-20): re-cited — one page: the year, three tables of every P&L
+    // account × month, each figure drilling to its plan or ledger lines through the cell
+    // route; both routes read the books through the one loader. The day plan, its vendor
+    // box and the notice left /budget (the box stays, mounted by Tasks — VendorBox.tsx).
+    citation: 'src/app/api/budget/report/route.ts:61-73 (the gate) · :90-103 (the reads, through the one loader) · src/app/api/budget/report/cell/route.ts:46-58 (the drill\'s gate) · :67-68 (a book not yours: a defensive 404) · :77-86 (the book\'s reads, the lines) · src/lib/budget/reportReads.ts:49 (the one actuals query, reversal pairs and closing entries left out by name) · src/lib/budget/reportInputs.ts:450 (the rows → the model\'s input, once) · :579 (the drill\'s query) · :698 (the lines behind a figure) · src/lib/budget/report.ts:718 (every active P&L account a row, Jan … Dec then YTD, Business · Personal · Trading) · :799 (the drill: the same selection as every cell) · :484 (which budget a cell prints) · src/lib/budget/planLines.ts:222 (a plan line\'s words and vendor, over explicit days) · src/lib/budget/reportView.ts:44 (?year=) · :74 (the tables\' labels) · :113 (the panel\'s sum against the cell) · :124 (open in Books) · src/components/budget/BudgetReport.tsx:387 (‹ year ›) · :313 (a table) · :246 (an account\'s Budget · Actual · Variance, "no budget") · :114 (the panel) · src/app/budget/page.tsx:32',
+    note: 'TAB13-02b: /budget renders the read-only budget report; the six category URLs redirect to it, and BudgetingPage (with its draft form) is mounted nowhere. BUDGET-02: Budget is one page — ‹ year › and three tables (Business · Personal · Trading, by entity type), every active revenue and expense account × Jan … Dec and YTD, Budget · Actual · Variance; a book with no plan line prints "no budget"; a Budget figure opens its plan lines (routine → /tasks, task → /tasks?project=), an Actual figure its ledger lines with "open in Books"; each panel prints its sum and whether it matches the cell. No sub-rows: the agenda, Shopping and the itinerary builder redirect to /budget.',
     customer: 'You can compare what you planned in your routines and tasks with what you actually spent, by book and account; travel and income budgets are not connected yet.',
   },
   // ── WHAT YOU OWN ──

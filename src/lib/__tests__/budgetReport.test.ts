@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   buildBudgetReport, BudgetReportError,
   type BudgetLine, type BudgetReport, type BudgetReportErrorCode, type BudgetReportInput, type BudgetSource, type BudgetView,
-  type Posting, type ReportAccount, type ReportEntity,
+  type ChartAccount, type Posting, type ReportEntity,
 } from '../budget/report';
 import { code } from '../sourceText';
 
@@ -18,8 +18,9 @@ const PERSONAL: ReportEntity = { id: 'ent-p', name: 'Personal', entityType: 'per
 const BUSINESS: ReportEntity = { id: 'ent-b', name: 'Business', entityType: 'sole_prop' };
 const TRADING: ReportEntity = { id: 'ent-t', name: 'Trading', entityType: 'trading' };
 
-const expense = (entityId: string, code: string, name: string): ReportAccount => ({ entityId, code, name, accountType: 'expense', balanceType: 'D' });
-const revenue = (entityId: string, code: string, name: string): ReportAccount => ({ entityId, code, name, accountType: 'revenue', balanceType: 'C' });
+// BUDGET-02 (2026-10-20): the chart hands in each account's archived flag (ruling C) — these are active accounts.
+const expense = (entityId: string, code: string, name: string): ChartAccount => ({ entityId, code, name, accountType: 'expense', balanceType: 'D', archived: false });
+const revenue = (entityId: string, code: string, name: string): ChartAccount => ({ entityId, code, name, accountType: 'revenue', balanceType: 'C', archived: false });
 const line = (entityId: string, code: string, day: string, cents: number, sourceId = 'r-1'): BudgetLine => ({ entityId, code, day, cents, source: 'routine', sourceId });
 const post = (entityId: string, code: string, day: string, entryType: 'D' | 'C', cents: number, journalEntryId: string): Posting => ({ entityId, code, day, entryType, cents, journalEntryId });
 
@@ -66,26 +67,29 @@ test('R5 COLUMNS — WEEK of 2026-09-24 (a Thursday): WEEK [Mon 21 … Sun 27], 
   assert.deepEqual([x.columns[0].from, x.columns[0].to], ['2026-12-28', '2027-01-03']);
 });
 
-test('R5 COLUMNS — YEAR 2026 with asOf 2026-09-26: YTD ends 09-26; Jan–Aug closed, Sep in progress, Oct–Dec future', () => {
+// BUDGET-02 (Alex, ruling C, 2026-10-20): a YEAR is Jan … Dec, THEN YTD — moved from YTD first.
+// Every column keeps its range and state; only the order moved (YTD is index 12, Jan index 0).
+test('R5 COLUMNS — YEAR 2026 with asOf 2026-09-26: Jan … Dec then YTD; YTD ends 09-26; Jan–Aug closed, Sep in progress, Oct–Dec future', () => {
   const r = buildBudgetReport(input({ view: { kind: 'year', year: 2026 } }));
-  assert.deepEqual(r.columns[0], { key: 'ytd', kind: 'ytd', label: 'YTD', from: '2026-01-01', to: '2026-09-26', state: 'closed' });
-  assert.deepEqual(r.columns.slice(1).map((c) => c.label), ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']);
-  assert.deepEqual(r.columns.slice(1).map((c) => c.state), [
+  assert.deepEqual(r.columns[12], { key: 'ytd', kind: 'ytd', label: 'YTD', from: '2026-01-01', to: '2026-09-26', state: 'closed' });
+  assert.equal(r.columns.length, 13);
+  assert.deepEqual(r.columns.slice(0, 12).map((c) => c.label), ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']);
+  assert.deepEqual(r.columns.slice(0, 12).map((c) => c.state), [
     'closed', 'closed', 'closed', 'closed', 'closed', 'closed', 'closed', 'closed', 'inProgress', 'future', 'future', 'future',
   ]);
-  assert.deepEqual([r.columns[2].from, r.columns[2].to], ['2026-02-01', '2026-02-28'], 'February 2026 has 28 days');
-  assert.deepEqual([r.columns[9].from, r.columns[9].to], ['2026-09-01', '2026-09-30']);
+  assert.deepEqual([r.columns[1].from, r.columns[1].to], ['2026-02-01', '2026-02-28'], 'February 2026 has 28 days');
+  assert.deepEqual([r.columns[8].from, r.columns[8].to], ['2026-09-01', '2026-09-30']);
   // A leap year: February 2028 has 29 days.
   const leap = buildBudgetReport(input({ view: { kind: 'year', year: 2028 } }));
-  assert.equal(leap.columns[2].to, '2028-02-29');
+  assert.equal(leap.columns[1].to, '2028-02-29');
   // A year that begins after asOf: YTD would end at asOf, before Jan 1 — future, empty, blank.
   const next = buildBudgetReport(input({
     view: { kind: 'year', year: 2027 }, accounts: [expense('ent-p', '6200', 'Rent')], budgetLines: [line('ent-p', '6200', '2027-01-01', 200000)],
   }));
-  assert.deepEqual([next.columns[0].from, next.columns[0].to, next.columns[0].state], ['2027-01-01', '2026-09-26', 'future']);
-  assert.deepEqual(rowOf(next, 'ent-p', '6200').cells[0], { budgetFull: null, budgetToDate: null, actual: null, variance: null });
+  assert.deepEqual([next.columns[12].from, next.columns[12].to, next.columns[12].state], ['2027-01-01', '2026-09-26', 'future']);
+  assert.deepEqual(rowOf(next, 'ent-p', '6200').cells[12], { budgetFull: null, budgetToDate: null, actual: null, variance: null });
   // Jan 2027 is future: its full budget is known, nothing of it is to date.
-  assert.deepEqual(rowOf(next, 'ent-p', '6200').cells[1], { budgetFull: 200000, budgetToDate: null, actual: null, variance: null });
+  assert.deepEqual(rowOf(next, 'ent-p', '6200').cells[0], { budgetFull: 200000, budgetToDate: null, actual: null, variance: null });
 });
 
 test('R6 AS OF — 6150 Coffee, WEEK of 2026-09-21: budgetFull 2800, budgetToDate 2400, actual 2600, variance −200', () => {
@@ -165,7 +169,10 @@ test('R3 BLANK IS NOT ZERO — no lines → budget null; no postings → actual 
   assert.equal(Object.is(rowOf(r, 'ent-p', '6600').cells[mtd].actual, 0), true, 'a positive zero, never −0');
 });
 
-test('R7 ROWS — 6100 in the personal entity and 6100 in the sole_prop entity are two rows in two books; order P, B, revenue before expense, code ascending', () => {
+// BUDGET-02 (Alex, rulings B and C, 2026-10-20): books in the order Business · Personal · Trading (was P, B, T),
+// labelled 'Business' · 'Personal' (was 'BUSINESS' · 'PERSONAL'); and every ACTIVE revenue and expense account is a
+// row with or without a figure — 6900, with nothing in range, is now a row whose every figure is blank (was no row).
+test('R7 ROWS — 6100 in the personal entity and 6100 in the sole_prop entity are two rows in two books; order B, P, revenue before expense, code ascending', () => {
   const r = buildBudgetReport(input({
     entities: [BUSINESS, PERSONAL],
     accounts: [
@@ -179,22 +186,27 @@ test('R7 ROWS — 6100 in the personal entity and 6100 in the sole_prop entity a
       post('ent-p', '6900', '2026-08-31', 'D', 700, 'je-aug'),
     ],
   }));
-  assert.deepEqual(r.books.map((b) => [b.label, b.entityId]), [['PERSONAL', 'ent-p'], ['BUSINESS', 'ent-b']]);
-  assert.deepEqual(r.books[0].rows.map((x) => x.code), ['4000', '6050', '6100'], 'revenue first, then expense by code; 6900 has nothing in range');
-  assert.deepEqual(r.books[1].rows.map((x) => [x.code, x.name]), [['6100', 'Software']]);
+  assert.deepEqual(r.books.map((b) => [b.label, b.entityId]), [['Business', 'ent-b'], ['Personal', 'ent-p']]);
+  assert.deepEqual(r.books[1].rows.map((x) => x.code), ['4000', '6050', '6100', '6900'], 'revenue first, then expense by code; 6900 is a row though nothing of it is in range');
+  assert.ok(rowOf(r, 'ent-p', '6900').cells.every((c) => c.budgetFull === null && c.budgetToDate === null && c.actual === null && c.variance === null), '6900: every figure blank, never 0');
+  assert.deepEqual(r.books[0].rows.map((x) => [x.code, x.name]), [['6100', 'Software']]);
   assert.equal(rowOf(r, 'ent-p', '6100').cells[col(r, 'mtd')].budgetFull, 30000);
   assert.equal(rowOf(r, 'ent-b', '6100').cells[col(r, 'mtd')].budgetFull, 5000, 'never merged with the personal 6100');
   assert.equal(r.unplaced.length, 0, 'the out-of-range posting is outside the view, not unplaced');
 });
 
-test('R8 BOOKS — letters P, B, T from letterFor; an entity of type business is its own book with no letter, labelled with its name and type', () => {
+// BUDGET-02 (Alex, ruling B, 2026-10-20): "Tables are by entity type in the order Business · Personal · Trading …
+// Never re-type a book in code." Moved: the order (was P, B, T), the labels (were 'PERSONAL', 'BUSINESS', 'TRADE'),
+// and a book with no letter is labelled by its own name (was '<name> (<entity type>)') — "any other book after them
+// under its own name". Still by letterFor over the stored type; still never folded into another.
+test('R8 BOOKS — letters B, P, T from letterFor; an entity of type business is its own book with no letter, labelled with its own name', () => {
   const truck: ReportEntity = { id: 'ent-x', name: "Maria's Food Truck", entityType: 'business' };
   const ira: ReportEntity = { id: 'ent-y', name: 'Alex IRA', entityType: 'retirement' };
   const r = buildBudgetReport(input({ entities: [truck, TRADING, ira, BUSINESS, PERSONAL] }));
   assert.deepEqual(r.books.map((b) => [b.letter, b.label]), [
-    ['P', 'PERSONAL'], ['B', 'BUSINESS'], ['T', 'TRADE'],
+    ['B', 'Business'], ['P', 'Personal'], ['T', 'Trading'],
     // No letter: each its own book, after the lettered ones, by name.
-    [null, 'Alex IRA (retirement)'], [null, "Maria's Food Truck (business)"],
+    [null, 'Alex IRA'], [null, "Maria's Food Truck"],
   ]);
   assert.equal(r.books[4].entityType, 'business');
   assert.deepEqual(r.books[4].rows, [], 'a book with no activity in the view is still a book');
@@ -202,7 +214,7 @@ test('R8 BOOKS — letters P, B, T from letterFor; an entity of type business is
 
 test('R9 NOTHING IS DROPPED — a line on 9999 (not in the chart) and a line on an asset account are unplaced with their reasons, in no total', () => {
   const r = buildBudgetReport(input({
-    accounts: [expense('ent-p', '6200', 'Rent'), { entityId: 'ent-p', code: '1010', name: 'Checking', accountType: 'asset', balanceType: 'D' }],
+    accounts: [expense('ent-p', '6200', 'Rent'), { entityId: 'ent-p', code: '1010', name: 'Checking', accountType: 'asset', balanceType: 'D', archived: false }],
     budgetLines: [
       line('ent-p', '6200', '2026-09-01', 200000),
       line('ent-p', '9999', '2026-09-10', 1000, 'trip-9'),
@@ -328,7 +340,7 @@ test('R12 FAIL LOUD — every bad input is refused by a named error, never coerc
   );
   // Asset, liability and equity accounts are not checked: they never become rows.
   // A contra asset (accumulated depreciation, stored C) is accepted.
-  assert.doesNotThrow(() => buildBudgetReport(input({ accounts: [{ entityId: 'ent-p', code: '1590', name: 'Accumulated depreciation', accountType: 'asset', balanceType: 'C' }] })));
+  assert.doesNotThrow(() => buildBudgetReport(input({ accounts: [{ entityId: 'ent-p', code: '1590', name: 'Accumulated depreciation', accountType: 'asset', balanceType: 'C', archived: false }] })));
 });
 
 test('R10 UNBUDGETED TO DATE — WEEK of 2026-09-21, asOf 2026-09-23: budget only on Sun 27, a 300 debit on Tue 22 → no budget to date, so no variance; the 300 is unbudgetedActual', () => {
@@ -358,7 +370,10 @@ test('R10 UNBUDGETED TO DATE — WEEK of 2026-09-21, asOf 2026-09-23: budget onl
   assert.equal(exp.actual, 750); // 300 + 450
 });
 
-test('R7 OUTSIDE THE VIEW — WEEK of 2026-09-21: an item dated outside [21 … 27] makes no row and is not unplaced; a malformed day outside it still throws', () => {
+// BUDGET-02 (Alex, ruling C, 2026-10-20): 6700 and 6800 are active expense accounts, so each is a row — with every
+// figure blank, because nothing of theirs is in the week (was: no row). The out-of-range items still make no figure
+// and are still not unplaced.
+test('R7 OUTSIDE THE VIEW — WEEK of 2026-09-21: an item dated outside [21 … 27] makes no figure and is not unplaced; a malformed day outside it still throws', () => {
   const accounts = [expense('ent-p', '6700', 'Books'), expense('ent-p', '6800', 'Postage')];
   const r = buildBudgetReport(input({
     view: { kind: 'week', weekOf: '2026-09-21' },
@@ -372,7 +387,8 @@ test('R7 OUTSIDE THE VIEW — WEEK of 2026-09-21: an item dated outside [21 … 
       post('ent-p', '9999', '2026-09-14', 'D', 60, 'je-stray'),   // not in the chart — before the week
     ],
   }));
-  assert.deepEqual(r.books.flatMap((b) => b.rows), [], 'no row for 6700 or 6800: nothing of theirs is in the week');
+  assert.deepEqual(r.books.flatMap((b) => b.rows).map((x) => x.code), ['6700', '6800'], 'a row each: active accounts');
+  assert.ok(r.books.flatMap((b) => b.rows).every((x) => x.cells.every((c) => c.budgetFull === null && c.budgetToDate === null && c.actual === null && c.variance === null)), 'every figure blank: nothing of theirs is in the week');
   assert.deepEqual(r.unplaced, [], 'the two 9999 items are outside the view, not unplaced');
   // Every input is still validated wherever it falls.
   throwsCode(() => buildBudgetReport(input({ view: { kind: 'week', weekOf: '2026-09-21' }, accounts, budgetLines: [line('ent-p', '6700', '2026-10-32', 2500)] })), 'malformed-day');
@@ -453,7 +469,8 @@ test('T1 BOOK TOTALS — every book carries its own totals, by the SAME function
     ],
   }));
   assert.deepEqual(r.columns.map((c) => c.state), ['inProgress', 'closed', 'closed', 'closed', 'closed', 'closed', 'closed', 'future']);
-  assert.deepEqual(r.books.map((b) => b.entityId), ['ent-p', 'ent-b', 'ent-t', 'ent-x']);
+  // BUDGET-02 (ruling B, 2026-10-20): Business · Personal · Trading, then the rest — was P, B, T.
+  assert.deepEqual(r.books.map((b) => b.entityId), ['ent-b', 'ent-p', 'ent-t', 'ent-x']);
   for (const b of r.books) assert.equal(b.totals.length, r.columns.length, `${b.label}: one total per column`);
 
   const FIELDS = ['budgetFull', 'budgetToDate', 'actual', 'variance', 'unbudgetedActual'] as const;
@@ -473,7 +490,7 @@ test('T1 BOOK TOTALS — every book carries its own totals, by the SAME function
 
   // Worked by hand, the WEEK column (index 0): Personal plans 1000 + 500 of Coffee and 20000 of Salary.
   const week = col(r, 'week');
-  const [p, b, t, x] = r.books;
+  const [b, p, t, x] = r.books; // BUDGET-02: Business first (was [p, b, t, x])
   assert.deepEqual([p.totals[week].income.budgetFull, p.totals[week].expense.budgetFull], [20000, 1500]);
   assert.deepEqual([b.totals[week].expense.budgetFull, b.totals[week].expense.actual, b.totals[week].expense.unbudgetedActual], [3000, 1200, 1200]);
   assert.equal(t.totals[week].expense.actual, 700);

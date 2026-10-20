@@ -36,19 +36,32 @@
  *     out by name, how many records each source gave, and the travel budgets,
  *     which are not connected.
  *
+ * BUDGET-02 (2026-10-20) — Budget is one page, its figures drill:
+ *   · THE CHART carries is_archived (ruling C: archived rows only with a figure);
+ *     a costed task carries its project (the drill links /tasks?project=<id>); a
+ *     ledger line carries its id, its entry's description and source type.
+ *   · ONE BUILDER, TWO ROUTES. reportInputOf() is the rows → the model's input,
+ *     exactly once: the report (budgetReportResponse) and the drill
+ *     (budgetCellResponse, GET /api/budget/report/cell) both stand on it, so a
+ *     drill's lines are placed by the very rules the cell was.
+ *   · THE DRILL'S QUERY. book, account (the four digits a row gives), from, to —
+ *     one calendar year, from not after to — and asOf by the report's own window.
+ *     Each bad parameter is refused by name.
+ *
  * Structural row shapes, no Prisma import, no clock: the route reads the server's
  * date and passes it in. A build law holds this file pure (scripts/
  * assert-tool-registry.ts, the budget report purity law).
  */
 import {
-  buildBudgetReport, viewRange,
-  type BudgetReport, type BudgetView, type ColumnState, type IsoDay, type Posting, type ReportAccount, type ReportEntity,
+  buildBudgetCell, buildBudgetReport, viewRange,
+  type BudgetLine, type BudgetReport, type BudgetSource, type BudgetView, type ChartAccount, type ColumnState, type IsoDay, type Posting,
+  type ReportAccount, type ReportEntity, type RowFamily, type ShownBudget,
 } from '@/lib/budget/report';
 import {
   buildRoutineBudgetLines, buildTaskBudgetLines, centsFromDollars, isIsoDay, parseBudgetCode,
   type ExcludedByStatus, type NotPlaced, type ParsedCode, type RoutinePlanInput, type TaskPlanInput,
 } from '@/lib/budget/days';
-import { dayPlanOf, type DayPlan, type PlanLinesErrorCode, type PlanVendorRow, type RoutineWords } from '@/lib/budget/planLines';
+import { dayPlanOf, daysOf, planLinesOn, type DayPlan, type PlanLinesErrorCode, type PlanVendorRow, type RoutineWords } from '@/lib/budget/planLines';
 
 // ── FAIL LOUD ───────────────────────────────────────────────────────────────
 
@@ -57,7 +70,9 @@ export type BudgetInputErrorCode =
   // TAB13-02c: a saved chart code the rule cannot read; two saved codes of one book that are one account.
   | 'chart-code-unreadable' | 'chart-codes-collide'
   // TAB13-04: the plan-vendor rows the route read, and the day's plan lines, refused by name (planLines.ts).
-  | PlanLinesErrorCode;
+  | PlanLinesErrorCode
+  // BUDGET-02: a line the model selected for the drill with no row the route read behind it.
+  | 'drill-row-missing';
 
 /** A row the route read that cannot become an input — named, never coerced. The route answers 500. */
 export class BudgetInputError extends Error {
@@ -146,6 +161,11 @@ export interface ChartRow {
   readonly balance_type: string;
 }
 
+/** BUDGET-02: a chart row as the budget reads it — with is_archived (ruling C). */
+export interface BudgetChartRow extends ChartRow {
+  readonly is_archived: boolean;
+}
+
 /** What loadRoutineBudgetInputs() hands back for one routine. */
 export interface RoutineRow {
   readonly id: string;
@@ -163,6 +183,8 @@ export interface RoutineRow {
 export interface TaskRow {
   readonly id: string;
   readonly title: string;
+  /** BUDGET-02: the drill links a task's line to /tasks?project=<project_id>. */
+  readonly project_id: string;
   readonly entity_id: string;
   readonly status: string;
   /** A Prisma Decimal — only its string is read. */
@@ -178,6 +200,13 @@ export interface LedgerRow {
   readonly amount: bigint;
   readonly account: { readonly entity_id: string; readonly code: string };
   readonly journal_entry: { readonly date: Date };
+}
+
+/** BUDGET-02: a ledger line as the one actuals query reads it — with what the drill lists. */
+export interface LedgerDetailRow extends LedgerRow {
+  /** ledger_entries.id. */
+  readonly id: string;
+  readonly journal_entry: { readonly date: Date; readonly description: string; readonly source_type: string };
 }
 
 export interface BankRow {
@@ -200,8 +229,8 @@ export interface ExcludedLines {
 
 export interface ReportRows {
   readonly entities: readonly EntityRow[];
-  /** Every chart row of those entities, archived included. */
-  readonly chart: readonly ChartRow[];
+  /** Every chart row of those entities, archived included (BUDGET-02: with is_archived). */
+  readonly chart: readonly BudgetChartRow[];
   /** One group per entity: that entity's routines, from the loader. */
   readonly routines: readonly { readonly entityId: string; readonly rows: readonly RoutineRow[] }[];
   /** Costed tasks, every status, each with EVERY daily-plan item. */
@@ -401,9 +430,25 @@ function notInBooksOf(report: BudgetReport, bank: readonly BankRow[], rangeFrom:
   return { columns, notTotalled };
 }
 
-/** The rows the route read → the response the screen reads. */
-export function budgetReportResponse(query: { readonly view: BudgetView; readonly asOf: IsoDay }, rows: ReportRows): BudgetReportResponse {
-  const { rangeFrom, rangeTo } = viewRange(query.view);
+/** The rows reportInputOf() turns into the model's input — what both budget routes read. */
+interface InputRows<L extends LedgerRow> {
+  readonly entities: readonly EntityRow[];
+  readonly chart: readonly BudgetChartRow[];
+  readonly routines: readonly { readonly entityId: string; readonly rows: readonly RoutineRow[] }[];
+  readonly tasks: readonly TaskRow[];
+  readonly ledger: readonly L[];
+}
+
+/**
+ * BUDGET-02 — THE ROWS → THE MODEL'S INPUT, ONCE. The day rules place routines
+ * and tasks over the view's range; every chart code is read as saved (TAB13-02c:
+ * every unreadable row, and every pair of rows that are one account, refused at
+ * once); every ledger line becomes a posting on its account's book. The report
+ * and the drill both call this — never a second copy. postingRow maps each
+ * posting the model is handed back to the row it came from.
+ */
+function reportInputOf<L extends LedgerRow>(view: BudgetView, rows: InputRows<L>) {
+  const { rangeFrom, rangeTo } = viewRange(view);
   const entities = rows.entities.map(toReportEntity);
   const entityById = new Map(entities.map((e) => [e.id, e]));
   const entityOf = (entityId: string, what: string): ReportEntity => {
@@ -423,7 +468,7 @@ export function budgetReportResponse(query: { readonly view: BudgetView; readonl
 
   // THE CHART AS SAVED (TAB13-02c) — read every row before the model sees one.
   // R3: every row the rule cannot read, named at once — never only the first.
-  const readable: { row: ChartRow; book: ReportEntity; code: string }[] = [];
+  const readable: { row: BudgetChartRow; book: ReportEntity; code: string }[] = [];
   const unreadable: string[] = [];
   for (const row of rows.chart) {
     const book = entityOf(row.entity_id, `chart row ${JSON.stringify(row.code)}`);
@@ -435,7 +480,7 @@ export function budgetReportResponse(query: { readonly view: BudgetView; readonl
     throw new BudgetInputError('chart-code-unreadable', `${unreadable.length} chart code${unreadable.length === 1 ? '' : 's'} cannot be read — ${unreadable.join('; ')}`);
   }
   // R4: two rows of one book that are one account are never merged — every pair named at once.
-  const byAccount = new Map<string, { row: ChartRow; book: ReportEntity }[]>();
+  const byAccount = new Map<string, { row: BudgetChartRow; book: ReportEntity }[]>();
   for (const r of readable) {
     const key = `${r.book.id}\u0000${r.code}`;
     const same = byAccount.get(key);
@@ -455,22 +500,29 @@ export function budgetReportResponse(query: { readonly view: BudgetView; readonl
     throw new BudgetInputError('chart-codes-collide', `${pairs.length} pair${pairs.length === 1 ? '' : 's'} of chart rows are one account in one book — ${pairs.join('; ')}`);
   }
 
-  const budgetLines = [...routines.lines, ...tasks.lines];
-  const report = buildBudgetReport({
-    asOf: query.asOf,
-    view: query.view,
-    entities,
-    accounts: readable.map((r) => toReportAccount(r.row, r.book)),
-    budgetLines,
-    postings: rows.ledger.map((row) => toPosting(row, entityOf(row.account.entity_id, `journal entry ${row.journal_entry_id}`))),
+  const budgetLines: BudgetLine[] = [...routines.lines, ...tasks.lines];
+  const accounts: ChartAccount[] = readable.map((r) => ({ ...toReportAccount(r.row, r.book), archived: r.row.is_archived }));
+  const postingRow = new Map<Posting, L>();
+  const postings = rows.ledger.map((row) => {
+    const posting = toPosting(row, entityOf(row.account.entity_id, `journal entry ${row.journal_entry_id}`));
+    postingRow.set(posting, row);
+    return posting;
   });
-
-  // TAB13-04: the day's plan — the lines handed to the model, their words, their vendors (planLines.ts decides).
+  // TAB13-04: a plan line's words — the routine's name and zone, each line's activity and time.
   const routineWords = new Map<string, RoutineWords>(rows.routines.flatMap((group) => group.rows.map((row): [string, RoutineWords] => [row.id, {
     name: row.name,
     timezone: row.timezone,
     steps: new Map(row.steps.map((s) => [s.id, { activity: s.activity, timeOfDay: s.time_of_day }])),
   }])));
+  return { rangeFrom, rangeTo, entities, routineInputs, taskInputs, routines, tasks, budgetLines, accounts, postings, postingRow, routineWords };
+}
+
+/** The rows the route read → the response the screen reads. */
+export function budgetReportResponse(query: { readonly view: BudgetView; readonly asOf: IsoDay }, rows: ReportRows): BudgetReportResponse {
+  const { rangeFrom, rangeTo, entities, routineInputs, taskInputs, routines, tasks, budgetLines, accounts, postings, routineWords } = reportInputOf(query.view, rows);
+  const report = buildBudgetReport({ asOf: query.asOf, view: query.view, entities, accounts, budgetLines, postings });
+
+  // TAB13-04: the day's plan — the lines handed to the model, their words, their vendors (planLines.ts decides).
   const plans = dayPlanOf({
     view: report.view,
     lines: budgetLines,
@@ -500,5 +552,220 @@ export function budgetReportResponse(query: { readonly view: BudgetView; readonl
     },
     travelBudgets: 'not connected',
     plans: plans.plan,
+  };
+}
+
+// ── THE DRILL (BUDGET-02) ───────────────────────────────────────────────────
+
+export type CellRefusalCode = 'bad-book' | 'bad-account' | 'bad-from' | 'bad-to' | 'range-outside-one-year' | 'bad-asOf' | 'asOf-outside-window';
+
+export interface CellRefusal {
+  readonly error: CellRefusalCode;
+  readonly message: string;
+}
+
+export type ParsedCellQuery =
+  | { readonly ok: true; readonly book: string; readonly account: string; readonly from: IsoDay; readonly to: IsoDay; readonly asOf: IsoDay; readonly view: BudgetView }
+  | { readonly ok: false; readonly refusal: CellRefusal };
+
+const refuseCell = (error: CellRefusalCode, message: string): ParsedCellQuery => ({ ok: false, refusal: { error, message } });
+
+/**
+ * BUDGET-02 (ruling G): GET /api/budget/report/cell?book=&account=&from=&to=&asOf=
+ * → the drill's query, or the first bad parameter by name. The range is one
+ * calendar year, from not after to (the year's view is the model's range); asOf
+ * is the viewer's local date by the report's own window (asOfWindow).
+ */
+export function parseCellQuery(params: { get(name: string): string | null }, serverToday: IsoDay): ParsedCellQuery {
+  const window = asOfWindow(serverToday);
+  const book = params.get('book');
+  if (book === null || book === '') return refuseCell('bad-book', 'book is missing — the drill reads one book (book=<its id>)');
+  const account = params.get('account');
+  if (account === null || !/^\d{4}$/.test(account)) return refuseCell('bad-account', `account ${JSON.stringify(account)} is not the four digits of a row's code, as 5100`);
+  const from = params.get('from');
+  if (!isIsoDay(from)) return refuseCell('bad-from', `from ${JSON.stringify(from)} is not a 'YYYY-MM-DD' day`);
+  const to = params.get('to');
+  if (!isIsoDay(to)) return refuseCell('bad-to', `to ${JSON.stringify(to)} is not a 'YYYY-MM-DD' day`);
+  if (from > to || from.slice(0, 4) !== to.slice(0, 4)) {
+    return refuseCell('range-outside-one-year', `[${from}, ${to}] is not a range inside one calendar year — a figure on /budget is a month or the year to date`);
+  }
+  const asOf = params.get('asOf');
+  if (!isIsoDay(asOf)) return refuseCell('bad-asOf', `asOf ${JSON.stringify(asOf)} is not a 'YYYY-MM-DD' day — it is the viewer's local date`);
+  if (!window.includes(asOf)) {
+    return refuseCell('asOf-outside-window', `asOf ${asOf} is not a day the viewer can be living today — it must be ${window[0]}, ${window[1]} or ${window[2]} (the server's UTC date and the days either side)`);
+  }
+  return { ok: true, book, account, from, to, asOf, view: { kind: 'year', year: Number(from.slice(0, 4)) } };
+}
+
+/** The words of a book the viewer does not hold — the same for a book of another person and one that does not exist (a defensive 404). */
+export const UNKNOWN_BOOK_WORDS = 'this book is not one of your books';
+
+/** BUDGET-02: the book the drill names, among the viewer's entities — or null, said by the route in UNKNOWN_BOOK_WORDS. */
+export function cellBookOf(entities: readonly EntityRow[], book: string): EntityRow | null {
+  return entities.find((e) => e.id === book) ?? null;
+}
+
+/** What the drill reads — every row scoped to the viewer AND the one book. */
+export interface CellRows {
+  /** The one book, as cellBookOf found it. */
+  readonly book: EntityRow;
+  /** Every chart row of the book, archived included. */
+  readonly chart: readonly BudgetChartRow[];
+  readonly routines: readonly RoutineRow[];
+  /** The book's costed tasks, every status, each with every daily-plan item. */
+  readonly tasks: readonly TaskRow[];
+  /** The book's P&L ledger lines in [Jan 1, min(Dec 31, asOf)] of the year — the one actuals query. */
+  readonly ledger: readonly LedgerDetailRow[];
+  /** Every every-occurrence row and the occurrence rows in vendorWindowOf(the listed days). */
+  readonly planVendors: readonly PlanVendorRow[];
+}
+
+/** A plan line behind the printed Budget figure. */
+export interface CellPlanLine {
+  readonly day: IsoDay;
+  readonly source: BudgetSource;
+  /** The routine's name or the task's title. */
+  readonly label: string;
+  /** The routine line's activity, or null. */
+  readonly line: string | null;
+  readonly cents: number;
+  /** The vendor by the plan's one grain, or null when the plan holds none. */
+  readonly vendor: string | null;
+  /** A routine → /tasks · a task → /tasks?project=<its project>. */
+  readonly href: string;
+}
+
+/** A ledger line behind the Actual figure. */
+export interface CellLedgerLine {
+  readonly day: IsoDay;
+  readonly description: string;
+  readonly entryType: 'D' | 'C';
+  /** The line's cents, never negative. */
+  readonly cents: number;
+  /** In the account's normal direction: + on its normal side, − on the other — the lines sum to the Actual. */
+  readonly signedCents: number;
+  readonly sourceType: string;
+  readonly journalEntryId: string;
+  readonly lineId: string;
+}
+
+export interface BudgetCellResponse {
+  readonly asOf: IsoDay;
+  readonly book: { readonly id: string; readonly name: string; readonly entityType: string };
+  readonly account: { readonly code: string; readonly name: string; readonly family: RowFamily; readonly archived: boolean };
+  readonly range: { readonly from: IsoDay; readonly to: IsoDay; readonly state: ColumnState };
+  readonly budget: {
+    /** Which budget the cell prints (report.ts shownBudget). */
+    readonly shown: ShownBudget;
+    /** The days listed: [from, min(to, asOf)] to date, [from, to] for the full budget. */
+    readonly from: IsoDay;
+    readonly through: IsoDay;
+    readonly lines: readonly CellPlanLine[];
+    /** Σ of the lines' cents; null when there are none. */
+    readonly sum: number | null;
+    /** The figure the cell prints, by the model's own cell function. */
+    readonly cell: number | null;
+  };
+  readonly actual: {
+    /** The days listed: [from, min(to, asOf)]; null for a future range. */
+    readonly from: IsoDay;
+    readonly through: IsoDay | null;
+    readonly lines: readonly CellLedgerLine[];
+    /** Σ of the lines' signed cents; null when there are none. */
+    readonly sum: number | null;
+    readonly cell: number | null;
+  };
+}
+
+const sumCents = (values: readonly number[], what: string): number | null => {
+  if (values.length === 0) return null;
+  let total = 0;
+  for (const v of values) {
+    total += v;
+    if (!Number.isSafeInteger(total)) throw new BudgetInputError('unsafe-cents', `${what} left the safe integer range of cents`);
+  }
+  return total;
+};
+
+/**
+ * BUDGET-02 (rulings E, G) — the rows the drill read → the lines behind one
+ * row's figures. reportInputOf() builds the model's input exactly as the report
+ * does; buildBudgetCell() selects the lines by the model's own selection; the
+ * plan lines get their words and vendors from planLinesOn() over the days the
+ * printed Budget figure covers. The model refuses an account that is not in the
+ * book's chart, or is no row, by name (the route answers 404).
+ */
+export function budgetCellResponse(query: Extract<ParsedCellQuery, { ok: true }>, rows: CellRows): BudgetCellResponse {
+  const input = reportInputOf(query.view, {
+    entities: [rows.book],
+    chart: rows.chart,
+    routines: [{ entityId: rows.book.id, rows: rows.routines }],
+    tasks: rows.tasks,
+    ledger: rows.ledger,
+  });
+  const cell = buildBudgetCell(
+    { asOf: query.asOf, view: query.view, entities: input.entities, accounts: input.accounts, budgetLines: input.budgetLines, postings: input.postings },
+    { entityId: rows.book.id, code: query.account, from: query.from, to: query.to },
+  );
+  const toDate = cell.range.to < cell.asOf ? cell.range.to : cell.asOf;
+  const budgetThrough = cell.shown === 'full' ? cell.range.to : toDate;
+
+  const matched = planLinesOn({
+    days: daysOf(cell.range.from, budgetThrough),
+    lines: cell.budgetLines,
+    routines: input.routineWords,
+    tasks: new Map(rows.tasks.map((t) => [t.id, t.title])),
+    vendors: rows.planVendors,
+  });
+  if (!matched.ok) throw new BudgetInputError(matched.code, matched.message);
+  const projectOf = new Map(rows.tasks.map((t) => [t.id, t.project_id]));
+  const planLines = matched.lines.map((l): CellPlanLine => {
+    let href = '/tasks';
+    if (l.address.kind === 'project_task') {
+      const project = projectOf.get(l.address.id);
+      if (project === undefined) throw new BudgetInputError('plan-line-unreadable', `plan line of task ${l.address.id} names a task the route did not read`);
+      href = `/tasks?project=${encodeURIComponent(project)}`;
+    }
+    return { day: l.day, source: l.source, label: l.label, line: l.line, cents: l.cents, vendor: l.vendor === null ? null : l.vendor.name, href };
+  });
+
+  const account = input.accounts.find((a) => a.entityId === rows.book.id && a.code === query.account);
+  if (account === undefined) throw new BudgetInputError('drill-row-missing', `account ${query.account} of book ${rows.book.id} has no chart row the route read`);
+  const { balanceType } = account;
+  const ledgerLines = cell.postings.map((p): CellLedgerLine => {
+    const row = input.postingRow.get(p);
+    if (row === undefined) throw new BudgetInputError('drill-row-missing', `a posting of journal entry ${p.journalEntryId} has no ledger row the route read`);
+    return {
+      day: p.day,
+      description: row.journal_entry.description,
+      entryType: p.entryType,
+      cents: p.cents,
+      signedCents: p.entryType === balanceType ? p.cents : -p.cents,
+      sourceType: row.journal_entry.source_type,
+      journalEntryId: p.journalEntryId,
+      lineId: row.id,
+    };
+  }).sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : a.lineId < b.lineId ? -1 : a.lineId > b.lineId ? 1 : 0));
+
+  return {
+    asOf: cell.asOf,
+    book: { id: rows.book.id, name: rows.book.name, entityType: rows.book.entity_type },
+    account: { code: cell.account.code, name: cell.account.name, family: cell.account.family, archived: cell.account.archived },
+    range: cell.range,
+    budget: {
+      shown: cell.shown,
+      from: cell.range.from,
+      through: budgetThrough,
+      lines: planLines,
+      sum: sumCents(planLines.map((l) => l.cents), 'the drill\'s plan lines'),
+      cell: cell.shown === 'full' ? cell.cell.budgetFull : cell.cell.budgetToDate,
+    },
+    actual: {
+      from: cell.range.from,
+      through: cell.range.state === 'future' ? null : toDate,
+      lines: ledgerLines,
+      sum: sumCents(ledgerLines.map((l) => l.signedCents), 'the drill\'s ledger lines'),
+      cell: cell.cell.actual,
+    },
   };
 }

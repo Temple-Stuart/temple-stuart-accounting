@@ -33,7 +33,8 @@ const W7 = 'src/app/api/operations/tasks/[id]/assign/route.ts';
 // MOVE-01 (2026-10-19): the dated move copies a routine and its lines into the new zone — its money through the rule, against the book.
 const W8 = 'src/app/api/operations/routines/move/route.ts';
 const WRITERS = [W1, W2, W3, W4, W5, W6, W7, W8];
-const REPORT = 'src/app/api/budget/report/route.ts';
+// BUDGET-02 (Alex, ruling G, 2026-10-20): the report's chart read moved into the one loader both budget routes call.
+const REPORT = 'src/lib/budget/reportReads.ts';
 
 const row = (code: string, name: string, account_type: string, is_archived = false): PlanChartRow => ({ code, name, account_type, is_archived });
 
@@ -201,7 +202,7 @@ test('T2 loadPlanBook: the budget report\'s scope (entity AND entity.userId), ar
   assert.equal(await loadPlanBook(fakeDb(s), 'u1', 'e2'), null, 'another user\'s entity');
   assert.equal(await loadPlanBook(fakeDb(s), 'u1', 'e_none'), null);
   // The report's own scope, the same two conditions.
-  assert.match(code(REPORT), /where: \{ entity_id: \{ in: entityIds \}, entity: \{ userId: user\.id \} \},/);
+  assert.match(code(REPORT), /where: \{ entity_id: \{ in: \[\.\.\.entityIds\] \}, entity: \{ userId \} \},/);
   assert.match(code('src/lib/operations/loadPlanBook.ts'), /where: \{ entity_id: entityId, entity: \{ userId \} \},/);
 });
 

@@ -18,7 +18,7 @@
  * carried along unseen. Save; clear when a record exists. A task has no form
  * here — its record is the task (the Tasks tab). Every RECORD write goes
  * through the one writer (stopWrites.ts); the vendor is planned through
- * Budget's own box (budget/DayPlanDrill.tsx VendorBox, its own writer), mounted
+ * Budget's own box (budget/VendorBox.tsx VendorBox, its own writer), mounted
  * for a place stop only (PlaceVendor) so the directory is read only there, and
  * the route's refusal is shown in its own words under the form; after a write
  * the caller reads the records again — never an optimistic copy. The caller

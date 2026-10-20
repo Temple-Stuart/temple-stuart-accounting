@@ -27,7 +27,8 @@ const CARD = 'src/components/workbench/operations/day/DayCard.tsx';
 const RULES = 'src/components/workbench/operations/day/dayCard.ts';
 const FORM = 'src/components/workbench/operations/stops/StopForm.tsx';
 const VENDOR = 'src/components/workbench/operations/stops/StopVendor.tsx';
-const DRILL = 'src/components/budget/DayPlanDrill.tsx';
+// BUDGET-02 (2026-10-20): the box's file is VendorBox.tsx — DayPlanDrill.tsx less the drill, which left /budget.
+const DRILL = 'src/components/budget/VendorBox.tsx';
 const BUDGET = 'src/components/budget/BudgetReport.tsx';
 const BUDGET_PAGE = 'src/app/budget/page.tsx';
 
@@ -204,14 +205,14 @@ test('T3 the day card names no stranded vendor — no amber line, no count, no w
   assert.equal(completenessWords(r, { day: true, report: true, records: true }), '1 not recorded');
 });
 
-test('T3 /budget still lists the stranded vendors, each with Clear — and still from the report it reads', () => {
+// BUDGET-02 (Alex, ruling A, 2026-10-20): "the 'what this view is missing' notice strip … leave[s] the screen" — and
+// VENDORS STRANDED was that notice's last line. /budget no longer lists the stranded vendors (was: each with Clear,
+// VENDOR-02's home for them). Stated, not hidden: the report still computes them for a DAY or WEEK (planLines.ts
+// dayPlanOf; budgetPlanLines T2 drives it), and no screen shows them now — reported to Alex in the BUDGET-02 PR.
+test('T3 BUDGET-02: /budget lists no stranded vendors — the notice left the page; the report still computes them for a DAY or WEEK', () => {
   const b = code(BUDGET);
-  assert.match(b, /<details key="vendors-stranded" open className="[^"]*" data-missing="vendors-stranded">/);
-  assert.match(b, /<span className="font-bold">VENDORS STRANDED<\/span>/);
-  assert.match(b, /\{line\.stranded\.map\(\(v\) => \([\s\S]*?<ClearVendor address=\{v\.address\} reload=\{reload\} \/>/, 'each one with Clear');
-  assert.match(b, /import DayPlanDrill, \{ ClearVendor \} from '@\/components\/budget\/DayPlanDrill';/);
+  assert.doesNotMatch(b, /vendors-stranded|VENDORS STRANDED|ClearVendor|DayPlanDrill/, 'the notice and its Clear left /budget');
   assert.match(code(BUDGET_PAGE), /import BudgetReport from '@\/components\/budget\/BudgetReport';/);
-  // Nothing moved in the data: the report still computes and returns them (planLines.ts dayPlanOf; budgetPlanLines T2 drives it).
   assert.match(code('src/lib/budget/planLines.ts'), /readonly stranded: readonly StrandedVendor\[\]/);
-  assert.match(code('src/lib/budget/reportView.ts'), /vendorsStranded/);
+  assert.match(code('src/lib/budget/planLines.ts'), /export function dayPlanOf\(input: DayPlanInput\): DayPlanResult \{/);
 });

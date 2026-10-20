@@ -1,15 +1,18 @@
 'use client';
 
 /**
- * TAB13-04 (2026-09-29) — THE DAY'S PLAN, UNDER A FILTERED ACCOUNT, AND ITS VENDORS.
+ * TAB13-04 (2026-09-29) — A PLAN LINE'S VENDOR BOX.
  *
- * On a book, when the Account filter names one account with a row, the plan
- * lines that make that account's figure on a DAY (the day's) or a WEEK (grouped
- * by day): When · Plan · Amount · Vendor. Every figure is the response's, read
- * only.
+ * BUDGET-02 (2026-10-20): this file was DayPlanDrill.tsx. Alex's ruling A took
+ * the day's plan and its vendor box off /budget, and the drill (DayPlanDrill and
+ * its PlanRows table) is deleted. The box stays, under its own name, because it
+ * is not /budget's alone: the Tasks stop form mounts VendorBox
+ * (workbench/operations/stops/StopVendor.tsx) and the expense form reads the
+ * directory through useDirectory (workbench/operations/ledger/ExpenseForm.tsx).
+ * Nothing in it changed but the drill leaving.
  *
- * THE ONE INPUT on /budget: a plan line's vendor (and a new vendor), through the
- * two vendor routes — never a figure (the budget report route law, clause 6):
+ * A plan line's vendor (and a new vendor), through the two vendor routes —
+ * never a figure (the budget report route law, clause 6):
  *   · POST   /api/operations/plan-vendors         set a line's vendor
  *   · DELETE /api/operations/plan-vendors?…       clear exactly one address
  *   · POST   /api/operations/vendor-directory     add a vendor to a book
@@ -23,20 +26,14 @@
  * button, "Set".
  *
  * Every refusal is shown where the line is, in the route's own words; a 401 (or
- * the middleware's redirect) reads as signed out. After a write the report is
- * fetched again with the same query — the screen shows what the server holds,
+ * the middleware's redirect) reads as signed out. After a write the caller's
+ * reload() reads its data again — the screen shows what the server holds,
  * never an optimistic copy.
  */
 import { useEffect, useState } from 'react';
 import { toggleChip } from '@/lib/ds';
-import { formatCents } from '@/lib/budget/format';
 import type { PlanAddressText, PlanLine } from '@/lib/budget/planLines';
 import { vendorChoices, type DirectoryVendor } from '@/lib/budget/reportView';
-
-// TripBudgetActual.tsx:367-368 — the statement table's cell classes (as BudgetReport.tsx).
-const th = 'px-3 py-2 text-left font-medium text-text-faint whitespace-nowrap';
-const td = 'px-3 py-2 whitespace-nowrap';
-const num = `${td} text-right font-mono`;
 
 /** What a write answered: its JSON, or why not — the route's own words, or signed out. */
 type Answer = { ok: true; status: number; body: Record<string, unknown> } | { ok: false; status: number | null; words: string; body: Record<string, unknown> | null };
@@ -266,67 +263,5 @@ export function VendorBox({ line, bookName, directory, reload }: {
       {words !== null && <span className="text-xs text-brand-red" data-vendor-refused>{words}</span>}
       <button type="button" className="self-start text-xs text-text-faint underline" onClick={reset}>Cancel</button>
     </span>
-  );
-}
-
-function PlanRows({ lines, bookName, directory, reload }: {
-  lines: readonly PlanLine[];
-  bookName: string;
-  directory: ReturnType<typeof useDirectory>;
-  reload: () => void;
-}) {
-  return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-white">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border bg-white font-mono text-[10px] uppercase tracking-wider">
-            <th className={th}>When</th>
-            <th className={th}>Plan</th>
-            <th className={`${th} text-right`}>Amount</th>
-            <th className={th}>Vendor</th>
-          </tr>
-        </thead>
-        <tbody>
-          {lines.map((line) => (
-            <tr key={JSON.stringify(line.address)} className="border-b border-border last:border-0 align-top" data-plan-line>
-              <td className={`${td} font-mono text-text-muted`}>{line.time === null ? '—' : line.time}</td>
-              <td className={`${td} text-text-primary`}>{line.label}{line.line !== null && <span className="text-text-muted"> — {line.line}</span>}</td>
-              <td className={num}>{formatCents(line.cents)}</td>
-              <td className={td}><VendorBox line={line} bookName={bookName} directory={directory} reload={reload} /></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-/** The drill: the account's plan lines of the view — a DAY's, or a WEEK's grouped by day (the report's own day columns). */
-export default function DayPlanDrill({ lines, dayColumns, week, bookName, account, reload }: {
-  lines: readonly PlanLine[];
-  /** The report's day columns — their key (the day) and label ('Mon' … 'Sun'). */
-  dayColumns: readonly { readonly key: string; readonly label: string }[];
-  week: boolean;
-  bookName: string;
-  account: string;
-  reload: () => void;
-}) {
-  const directory = useDirectory();
-  return (
-    <div className="space-y-2" data-day-plan>
-      <p className="font-mono text-[10px] uppercase tracking-wider text-text-faint">The plan behind {account}</p>
-      {lines.length === 0 && <p className="text-xs text-text-muted italic">no plan line of this account in this view.</p>}
-      {lines.length > 0 && !week && <PlanRows lines={lines} bookName={bookName} directory={directory} reload={reload} />}
-      {lines.length > 0 && week && dayColumns.map((column) => {
-        const ofDay = lines.filter((l) => l.day === column.key);
-        if (ofDay.length === 0) return null;
-        return (
-          <div key={column.key} className="space-y-1" data-plan-day={column.key}>
-            <p className="font-mono text-xs text-text-muted">{column.label} · {column.key}</p>
-            <PlanRows lines={ofDay} bookName={bookName} directory={directory} reload={reload} />
-          </div>
-        );
-      })}
-    </div>
   );
 }

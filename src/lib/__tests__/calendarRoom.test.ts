@@ -63,7 +63,10 @@ test('the three sources are the three routes — unchanged, no new data path', (
   assert.match(TOOL_REGISTRY.find((t) => t.name === 'Calendar')!.note ?? '', /src\/lib\/calendar\/sources\.ts/);
 });
 
-test('Calendar opens /calendar and owns no agenda page; Budget owns all three', () => {
+// BUDGET-02 (Alex, ruling H, 2026-10-20): Budget is ONE page — the agenda's three pages are dated redirects to
+// /budget, and Budget's row links nothing (was: the agenda planner hung under Budget, labelled for what it is).
+// Calendar still owns no agenda page.
+test('Calendar opens /calendar and owns no agenda page; the three agenda pages redirect to /budget', () => {
   assert.deepEqual(navLaw({ throwOnFail: false, gate: TOOL_GATE }), []);
   const calendar = navToolByName('Calendar', TOOL_GATE);
   assert.equal(calendar.href, '/calendar');
@@ -80,8 +83,10 @@ test('Calendar opens /calendar and owns no agenda page; Budget owns all three', 
   ]);
 
   const budget = navToolByName('Budget', TOOL_GATE);
-  assert.ok(budget.subRows.some((r) => r.door.href === '/agenda'), 'the planner hangs under Budget');
-  assert.equal(budget.subRows[0].label, 'Recurring plan · the agenda', 'labelled for what it is');
+  assert.deepEqual(budget.subRows, [], 'no sub-rows under Budget');
+  for (const page of ['src/app/agenda/page.tsx', 'src/app/agenda/new/page.tsx', 'src/app/agenda/[id]/page.tsx']) {
+    assert.match(code(page), /^import \{ redirect \} from 'next\/navigation';\s*export default function \w+\(\) \{\s*redirect\('\/budget'\);\s*\}\s*$/, `${page} is a dated redirect to /budget, nothing else`);
+  }
   assert.equal(budget.status, 'PARTIAL');
 });
 

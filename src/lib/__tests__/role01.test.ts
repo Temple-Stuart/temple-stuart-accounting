@@ -308,7 +308,8 @@ test('T4 the form asks what the role asks; the vendor box is the card’s child,
   const rules = code(CARD_RULES);
   assert.match(rules, /return \{ kind: 'reason', words: !reportRead \? REPORT_NOT_READ_NO_VENDOR_WORDS : stop\.planLineState === 'unmatched' \? UNMATCHED_NO_VENDOR_WORDS : NO_AMOUNT_NO_VENDOR_WORDS \};/, 'one reason per cause — the report unread, the line at another instant, no amount');
   assert.match(v, /\{slot\.kind === 'box'\n\s*\? <Box line=\{slot\.line\} bookName=\{bookName\} reload=\{reload\} \/>\n\s*: <span className="text-text-muted" data-stop-no-vendor>\{slot\.words\}<\/span>\}/, 'Budget’s own vendor box on the matched plan line, else the reason');
-  assert.match(v, /import \{ VendorBox, useDirectory \} from '@\/components\/budget\/DayPlanDrill';/);
+  // BUDGET-02 (2026-10-20): the box's file is VendorBox.tsx — DayPlanDrill.tsx less the drill, which left /budget.
+  assert.match(v, /import \{ VendorBox, useDirectory \} from '@\/components\/budget\/VendorBox';/);
   assert.match(v, /\{VENDOR_LABEL_WORDS\}/);
   assert.doesNotMatch(f, /\bfetch\s*\(|\/api\//, 'the form still names no route of its own');
   const c = code(CARD);

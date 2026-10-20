@@ -24,6 +24,15 @@
  * report screen itself writes (n), a path the law cannot read (o), and a method
  * the law cannot read (p).
  *
+ * BUDGET-02 (ruled by Alex 2026-10-20, ruling G): TWO ROUTES, ONE LOADER. The
+ * one actuals query and its counts moved into src/lib/budget/reportReads.ts, so
+ * seeds e and f now break it THERE; the drill route GET /api/budget/report/cell
+ * joins clause 1 (seeds q, r, s); no Budget file but the loader may read
+ * ledger_entries (seeds t, u), and the loader reads it once and counts what it
+ * leaves out (seeds v, w). The day-plan drill left /budget, and the vendor box
+ * it held lives in src/components/budget/VendorBox.tsx — seeds l, m, o and p
+ * break it there; seed n breaks the screen's one reader (readBudget).
+ *
  * The anchors occur exactly once in their file, which the harness enforces
  * before it runs anything.
  */
@@ -41,12 +50,16 @@ const SCREEN = 'src/components/budget/BudgetReport.tsx';
 const INPUTS_ANCHOR = 'export function utcDay(instant: Date): IsoDay {';
 const LOADER_ANCHOR = 'export type RoutineBudgetRow = Prisma.operations_routinesGetPayload<{ select: typeof ROUTINE_BUDGET_SELECT }>;';
 const SCREEN_ANCHOR = "import { SECTION_HEADER, toggleChip } from '@/lib/ds';";
-// TAB13-04: the drill — the one input on /budget — and the screen's one read.
-const DRILL = 'src/components/budget/DayPlanDrill.tsx';
+// TAB13-04: the vendor box's writes, and the screen's one read. BUDGET-02: the box's file is VendorBox.tsx
+// (DayPlanDrill.tsx less the drill); the screen reads through one function, readBudget.
+const DRILL = 'src/components/budget/VendorBox.tsx';
 const ADD_ANCHOR = "    return await answerOf(await fetch('/api/operations/vendor-directory', {\n      method: 'POST',";
 const SET_ANCHOR = "    return await answerOf(await fetch('/api/operations/plan-vendors', {\n      method: 'POST',";
 const CLEAR_ANCHOR = "{ method: 'DELETE', redirect: 'manual' }";
-const READ_ANCHOR = "res = await fetch(`/api/budget/report?${query}`, { cache: 'no-store', redirect: 'manual' });";
+const READ_ANCHOR = "res = await fetch(url, { cache: 'no-store', redirect: 'manual' });";
+// BUDGET-02: the drill route and the one loader.
+const CELL = 'src/app/api/budget/report/cell/route.ts';
+const READS = 'src/lib/budget/reportReads.ts';
 
 export const SEEDS: Seed[] = [
   {
@@ -78,18 +91,18 @@ export const SEEDS: Seed[] = [
     expect: 'src/app/api/budget/report/route.ts names the travel table budget_line_items',
   },
   {
-    name: 'route-e the actuals stop excluding closing entries',
-    file: ROUTE,
+    name: 'route-e the actuals stop excluding closing entries (BUDGET-02: in the loader)',
+    file: READS,
     find: "reversed_by_entry_id: null, source_type: { not: 'year_end_close' } }),",
     replace: 'reversed_by_entry_id: null }),',
-    expect: 'does not leave out closing entries by name in its actuals query',
+    expect: 'src/lib/budget/reportReads.ts does not leave out closing entries by name in its actuals query',
   },
   {
-    name: 'route-f the actuals stop excluding reversal pairs',
-    file: ROUTE,
-    find: "lte: throughDay }, is_reversal: false, reversed_by_entry_id: null, source_type: { not:",
-    replace: 'lte: throughDay }, source_type: { not:',
-    expect: 'does not leave out reversal pairs by name in its actuals query',
+    name: 'route-f the actuals stop excluding reversal pairs (BUDGET-02: in the loader)',
+    file: READS,
+    find: 'lte: dayStart(through) }, is_reversal: false, reversed_by_entry_id: null, source_type: { not:',
+    replace: 'lte: dayStart(through) }, source_type: { not:',
+    expect: 'src/lib/budget/reportReads.ts does not leave out reversal pairs by name in its actuals query',
   },
   {
     name: 'route-g the route writes',
@@ -132,7 +145,7 @@ export const SEEDS: Seed[] = [
     file: DRILL,
     find: ADD_ANCHOR,
     replace: "    return await answerOf(await fetch('/api/budget/report', {\n      method: 'POST',",
-    expect: 'src/components/budget/DayPlanDrill.tsx writes (POST /api/budget/report) — the one input on /budget is a plan line vendor',
+    expect: 'src/components/budget/VendorBox.tsx writes (POST /api/budget/report) — the one input on /budget is a plan line vendor',
   },
   {
     name: 'route-m the drill sends plan-vendors a verb it does not take',
@@ -142,18 +155,18 @@ export const SEEDS: Seed[] = [
     expect: 'writes (PATCH /api/operations/plan-vendors)',
   },
   {
-    name: 'route-n the report screen itself writes',
+    name: 'route-n the report screen itself writes (BUDGET-02: through its one reader)',
     file: SCREEN,
     find: READ_ANCHOR,
-    replace: "res = await fetch(`/api/budget/report?${query}`, { method: 'POST', cache: 'no-store', redirect: 'manual' });",
-    expect: 'src/components/budget/BudgetReport.tsx writes (POST /api/budget/report)',
+    replace: "res = await fetch(url, { method: 'POST', cache: 'no-store', redirect: 'manual' });",
+    expect: 'src/components/budget/BudgetReport.tsx writes (POST) to a path the law cannot read as a literal',
   },
   {
     name: 'route-o a write to a path the law cannot read',
     file: DRILL,
     find: SET_ANCHOR,
     replace: "    return await answerOf(await fetch(['/api/operations', 'plan-vendors'].join('/'), {\n      method: 'POST',",
-    expect: 'src/components/budget/DayPlanDrill.tsx writes (POST) to a path the law cannot read as a literal',
+    expect: 'src/components/budget/VendorBox.tsx writes (POST) to a path the law cannot read as a literal',
   },
   {
     name: 'route-p a method the law cannot read',
@@ -161,5 +174,55 @@ export const SEEDS: Seed[] = [
     find: CLEAR_ANCHOR,
     replace: "{ method: ['DEL', 'ETE'].join(''), redirect: 'manual' }",
     expect: 'calls fetch with a method the law cannot read as a literal',
+  },
+  // BUDGET-02 — the drill route holds clause 1; only the loader reads the ledger, once, and counts what it leaves out.
+  {
+    name: 'route-q the cell route reads before the gate',
+    file: CELL,
+    find: GATE_ANCHOR,
+    replace: "  try {\n    const early = request.nextUrl.searchParams.get('book'); void early;\n    const userEmail = await getVerifiedEmail();",
+    expect: 'budget report route law: src/app/api/budget/report/cell/route.ts does not open with the cart-plan auth',
+  },
+  {
+    name: 'route-r the cell route exports a POST beside GET',
+    file: CELL,
+    find: "export const dynamic = 'force-dynamic';",
+    replace: "export const dynamic = 'force-dynamic';\n\nexport async function POST() {\n  return NextResponse.json({ error: 'no' }, { status: 405 });\n}",
+    expect: 'src/app/api/budget/report/cell/route.ts exports a method other than GET (POST, GET)',
+  },
+  {
+    name: 'route-s the cell route is made a public path',
+    file: MIDDLEWARE,
+    find: "  '/api/proposals',\n];",
+    replace: "  '/api/proposals',\n  '/api/budget/report/cell',\n];",
+    expect: '/api/budget/report/cell is a public path (src/middleware.ts lists /api/budget/report/cell)',
+  },
+  {
+    name: 'route-t the cell route reads the ledger itself',
+    file: CELL,
+    find: AFTER_GATE_ANCHOR,
+    replace: `    const stray = await prisma.ledger_entries.findMany({ where: { journal_entry: { userId: user.id } }, select: { id: true } }); void stray;\n${AFTER_GATE_ANCHOR}`,
+    expect: 'src/app/api/budget/report/cell/route.ts reads ledger lines itself — a Budget file reads the actuals only through src/lib/budget/reportReads.ts',
+  },
+  {
+    name: 'route-u the report route reads its actuals itself, not through the loader',
+    file: ROUTE,
+    find: '      readActuals(prisma, user.id, entityIds, rangeFrom, through),',
+    replace: '      prisma.ledger_entries.findMany({ where: { journal_entry: { userId: user.id } }, select: { id: true } }),',
+    expect: 'src/app/api/budget/report/route.ts reads ledger lines itself — a Budget file reads the actuals only through src/lib/budget/reportReads.ts',
+  },
+  {
+    name: 'route-v the loader reads the ledger a second time',
+    file: READS,
+    find: '/** What readActuals leaves out of [from, through], counted',
+    replace: "export const strayActuals = (db: Db) => db.ledger_entries.findMany({ where: {}, select: { id: true } });\n\n/** What readActuals leaves out of [from, through], counted",
+    expect: 'src/lib/budget/reportReads.ts reads ledger lines 2 times — the actuals are ONE query, filtered by name',
+  },
+  {
+    name: 'route-w the loader stops counting the reversal pairs it leaves out',
+    file: READS,
+    find: 'OR: [{ is_reversal: true }, { reversed_by_entry_id: { not: null } }]',
+    replace: 'OR: [{ reversed_by_entry_id: { not: null } }]',
+    expect: 'src/lib/budget/reportReads.ts does not count the reversal pairs it leaves out',
   },
 ];

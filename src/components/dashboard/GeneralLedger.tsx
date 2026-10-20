@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo, useRef, useCallback, Fragment } from 'rea
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { CoverageLine, EntrySourcePanel, EntrySourceWords } from '@/components/books/EntrySourceCell';
 import { coverageOf, type DocumentMoneyEventFacts, type DocumentReservationFacts } from '@/lib/books/entrySource';
+// BUDGET-02 (ruling F): a link's account is read by the budget report's ONE code reader, so an old "B-5100" row matches 5100.
+import { readChartCode } from '@/lib/budget/reportInputs';
 
 
 /* ------------------------------------------------------------------ */
@@ -17,11 +19,53 @@ interface CoaOption {
   accountType: string;
   balanceType: string;
   entity_type?: string | null;
+  // BUDGET-02: /api/chart-of-accounts carries each account's book (route.ts serializes entity_id).
+  entity_id?: string | null;
+}
+
+/**
+ * BUDGET-02 (Alex, ruling F, 2026-10-20) — A LINK INTO THE LEDGER. "open in Books"
+ * on /budget links to /ledger?account=&book=&from=&to=, which carries those four
+ * keys to /books (src/app/ledger/page.tsx); BooksPipeline reads them once, opens
+ * this ledger's phase and hands them here, and clears them from the URL. A key
+ * named twice, or a from/to that is not a day, is not used — and said.
+ */
+export const LEDGER_LINK_KEYS = ['account', 'book', 'from', 'to'] as const;
+
+export interface LedgerLink {
+  readonly account: string | null;
+  readonly book: string | null;
+  readonly from: string | null;
+  readonly to: string | null;
+  /** What the link named that cannot be used, in words. */
+  readonly words: readonly string[];
+}
+
+/** The link the URL carries, or null when it names none of the four keys. */
+export function ledgerLinkOf(search: URLSearchParams): LedgerLink | null {
+  if (LEDGER_LINK_KEYS.every((key) => !search.has(key))) return null;
+  const words: string[] = [];
+  const one = (key: (typeof LEDGER_LINK_KEYS)[number]): string | null => {
+    const all = search.getAll(key);
+    if (all.length === 0) return null;
+    if (all.length > 1) { words.push(`This link names ${key} ${all.length} times — it is not used.`); return null; }
+    return all[0];
+  };
+  const day = (key: 'from' | 'to'): string | null => {
+    const value = one(key);
+    if (value !== null && !/^\d{4}-\d{2}-\d{2}$/.test(value)) { words.push(`This link's ${key} "${value}" is not a day (YYYY-MM-DD) — it is not used.`); return null; }
+    return value;
+  };
+  return { account: one('account'), book: one('book'), from: day('from'), to: day('to'), words };
 }
 
 interface GeneralLedgerProps {
   coaOptions: CoaOption[];
   onReload: () => void;
+  /** BUDGET-02: the link to apply once, or null. */
+  link: LedgerLink | null;
+  /** Called when the link has been taken, so a remount never applies it twice. */
+  onLinkUsed: () => void;
 }
 
 interface LedgerEntry {
@@ -106,7 +150,7 @@ const entryStatus = (e: LedgerEntry): 'Active' | 'Reversed' | 'Reversal' => {
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
-export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerProps & { }) {
+export default function GeneralLedger({ coaOptions, onReload, link, onLinkUsed }: GeneralLedgerProps) {
   /* ---- state ---- */
   // DRILL-01: which entry's source is open. The rows are virtualized at a fixed
   // height, so the panel is rendered UNDER the table rather than inside a row.
@@ -115,6 +159,11 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [entities, setEntities] = useState<Entity[]>([]);
+  // BUDGET-02: whether the books were read — a link's book is looked up only once they are.
+  const [entitiesRead, setEntitiesRead] = useState<'waiting' | 'ok' | 'failed'>('waiting');
+  // BUDGET-02: a link's account, waiting for the book's ledger; and what a link named that cannot be shown, in words.
+  const [pendingAccount, setPendingAccount] = useState<{ book: Entity; account: string } | null>(null);
+  const [linkWords, setLinkWords] = useState<string[]>([]);
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
 
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
@@ -160,10 +209,55 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
         if (res.ok) {
           const data = await res.json();
           setEntities(data.entities || []);
+          setEntitiesRead('ok');
+        } else {
+          setEntitiesRead('failed');
         }
-      } catch {}
+      } catch {
+        setEntitiesRead('failed');
+      }
     })();
   }, []);
+
+  /* ---- BUDGET-02: a link — the book, the dates, then the account once the book's ledger is read ---- */
+  useEffect(() => {
+    if (link === null || entitiesRead === 'waiting') return;
+    const words = [...link.words];
+    if (link.from !== null) setDateFrom(link.from);
+    if (link.to !== null) setDateTo(link.to);
+    let book: Entity | null = null;
+    if (link.book !== null) {
+      const found = entities.find((e) => e.id === link.book);
+      if (entitiesRead === 'failed') words.push('Your books could not be read — this link\'s book cannot be found.');
+      else if (found === undefined) words.push('This link names a book that is not one of your books — the ledger shows every book.');
+      else { book = found; setSelectedEntityId(found.id); }
+    }
+    if (link.account !== null) {
+      if (book === null) words.push(`This link names account ${link.account} without a book of yours — an account is read within its book.`);
+      else setPendingAccount({ book, account: link.account });
+    }
+    setLinkWords(words);
+    onLinkUsed();
+  }, [link, entitiesRead, entities, onLinkUsed]);
+
+
+  /* ---- BUDGET-02: the link's account, read by the one code reader against the book's ledger and chart ---- */
+  useEffect(() => {
+    if (pendingAccount === null || loading) return;
+    const { book, account } = pendingAccount;
+    setPendingAccount(null);
+    if (error !== null) { setLinkWords((w) => [...w, `The ledger could not be read — account ${account} cannot be found.`]); return; }
+    if (book.entity_type === null) { setLinkWords((w) => [...w, `${book.name} has no entity type — its account codes cannot be read.`]); return; }
+    const entity = { id: book.id, name: book.name, entityType: book.entity_type };
+    const want = readChartCode(account, entity);
+    if (!want.ok) { setLinkWords((w) => [...w, `This link's account "${account}" is not a code of ${book.name}: ${want.reason}.`]); return; }
+    const reads = (saved: string): boolean => { const r = readChartCode(saved, entity); return r.ok && r.code === want.code; };
+    const hits = ledgers.filter((l) => l.entityId === book.id && reads(l.accountCode));
+    if (hits.length === 1) { setSelectedCode(hits[0].accountCode); return; }
+    if (hits.length > 1) { setLinkWords((w) => [...w, `${hits.length} accounts of ${book.name} read as ${want.code} (${hits.map((h) => h.accountCode).join(', ')}) — choose one above.`]); return; }
+    const inChart = coaOptions.some((c) => c.entity_id === book.id && reads(c.code));
+    setLinkWords((w) => [...w, inChart ? `Account ${want.code} has no ledger lines in ${book.name}.` : `Account ${want.code} is not an active account of ${book.name}'s chart, and has no ledger lines.`]);
+  }, [pendingAccount, loading, error, ledgers, coaOptions]);
 
   /* ---- initial load + refetch on filters ---- */
   useEffect(() => {
@@ -410,6 +504,9 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
           </button>
         ))}
       </div>
+
+      {/* ---- BUDGET-02: what a link named that cannot be shown, in words ---- */}
+      {linkWords.map((w) => <p key={w} className="px-2 py-1 text-terminal-base text-brand-red" data-ledger-link-words>{w}</p>)}
 
       {/* ---- Controls bar ---- */}
       <div className="p-2 border-b bg-bg-row flex flex-wrap gap-2 items-center">

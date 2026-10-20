@@ -16,14 +16,14 @@
  * On success the caller is told the day (the ledger reads again; the card is
  * told through dayWritten.ts). The books are the provider's list (the entity
  * selector's choice is not read); the COA list is the book's (CoaSelect); the
- * vendors are the directory's (budget/DayPlanDrill.tsx useDirectory), the
+ * vendors are the directory's (budget/VendorBox.tsx useDirectory), the
  * book's own. Nothing is stored in the browser.
  */
 
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useDirectory } from '@/components/budget/DayPlanDrill';
+import { useDirectory } from '@/components/budget/VendorBox';
 import {
   CANCEL_EXPENSE_WORDS, EMPTY_EXPENSE, EXPENSE_FIELD_WORDS, EXPENSE_TITLE_WORDS, EXPENSE_WORDS, NEW_VENDOR_WORDS, NO_BOOK_WORDS, NO_VENDOR_WORDS, SAVE_EXPENSE_WORDS, VENDORS_LOADING_WORDS,
   expenseInput, expenseLandedWords, oneOffBody, outcomeWords, recordBody, vendorBody, withNotTried, zoneWords,

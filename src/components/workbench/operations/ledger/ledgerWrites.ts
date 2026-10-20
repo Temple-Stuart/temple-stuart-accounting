@@ -8,7 +8,7 @@
  *   · the record: stops/stopWrites.ts setStopRecord — the one writer of a stop's record
  *
  * Each answer is read the one way the vendor box reads its own
- * (budget/DayPlanDrill.tsx answerOf): ok with the route's body, or the route's
+ * (budget/VendorBox.tsx answerOf): ok with the route's body, or the route's
  * own words — message, else error; signed out by name; a request that never
  * reached the route, or an answer that is not JSON, in words too. Nothing is
  * retried; nothing is rolled back; the form says each step by name.

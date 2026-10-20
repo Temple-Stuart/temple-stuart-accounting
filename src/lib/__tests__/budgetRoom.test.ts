@@ -41,12 +41,17 @@ test('/budget renders the budget report — not the category switcher, not Budge
 });
 
 // Ruled 2026-09-27: the middleware's 307 stays; the screen reads a redirect as signed out.
+// BUDGET-02 (2026-10-20): the report and the drill read through ONE reader on the screen (readBudget) — the same
+// rules, moved: the redirect is not followed, a redirect is signed out before the no-JSON failure, and the words say so.
 test('the budget screen reads a redirected response as signed out — not as a failure', () => {
   const screen = code('src/components/budget/BudgetReport.tsx');
-  assert.match(screen, /fetch\(`\/api\/budget\/report\?\$\{query\}`, \{ cache: 'no-store', redirect: 'manual' \}\)/, 'the redirect is not followed');
-  assert.match(screen, /if \(res\.type === 'opaqueredirect'\) \{\s*if \(live\) setLoad\(\{ state: 'signedOut' \}\);\s*return;\s*\}/, 'a redirect is signed out');
+  assert.match(screen, /res = await fetch\(url, \{ cache: 'no-store', redirect: 'manual' \}\);/, 'the redirect is not followed');
+  assert.match(screen, /if \(res\.type === 'opaqueredirect'\) return \{ state: 'signedOut' \};/, 'a redirect is signed out');
   assert.ok(screen.indexOf("res.type === 'opaqueredirect'") < screen.indexOf("code: 'not-json'"), 'decided before the no-JSON failure');
-  assert.match(screen, /state === 'signedOut' && <p[^>]*>Sign in to see your budget\.<\/p>/);
+  assert.match(screen, /readBudget<BudgetReportResponse>\(`\/api\/budget\/report\?\$\{query\}`\)/, 'the report reads through it');
+  assert.match(screen, /readBudget<BudgetCellResponse>\(`\/api\/budget\/report\/cell\?\$\{query\}`\)/, 'and the drill');
+  assert.match(screen, /if \(read\.state === 'signedOut'\) return <p[^>]*>Sign in to see \{what\}\.<\/p>;/);
+  assert.match(screen, /<ReadWords read=\{load\} what="your budget" \/>/, '"Sign in to see your budget."');
 });
 
 test('an unknown ?category= falls to the FIRST and says so — never an empty room', () => {
@@ -86,9 +91,9 @@ test('Budget opens /budget, and no category page is a door anywhere', () => {
     if (tool.href) assert.ok(!legacy.has(tool.href), `${tool.name} opens the category page ${tool.href}`);
     for (const sub of tool.subRows) assert.ok(!legacy.has(sub.door.href), `${tool.name} still links ${sub.label}`);
   }
-  // What Budget keeps, plus the agenda planner CAL-01 handed it: recurring-spend
-  // planning is Budget's work, and the planner is where it is done.
-  assert.deepEqual(budget.subRows.map((r) => r.door.href), ['/agenda', '/shopping', '/hub/itinerary', '/runway']);
+  // BUDGET-02 (Alex, ruling H, 2026-10-20): Budget is ONE page — no sub-rows (was the agenda, Shopping, the
+  // itinerary builder and Runway). Their pages are dated redirects to /budget.
+  assert.deepEqual(budget.subRows.map((r) => r.door.href), []);
 });
 
 test('only the PROVABLY identical routes were collapsed — business and home kept their own', () => {

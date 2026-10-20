@@ -150,7 +150,8 @@ test('every legacy page hangs under the tool that OWNS it — never another tool
     // so Tasks carries no sub-row and leaves this map (the map lists only tools WITH sub-rows).
     // TRIPS-01 (2026-09-29): Travel is gone from this map — it carries no sub-row, ever.
     // The Travel tab is the one Trips tab; the legacy pages are redirects to it.
-    Budget: ['/agenda', '/shopping', '/hub/itinerary', '/runway'],
+    // BUDGET-02 (Alex, ruling H, 2026-10-20): Budget is ONE page — no sub-rows, so it leaves this map; the agenda,
+    // Shopping and the itinerary builder are dated redirects to /budget, and /runway is a cockpit path under /[tab].
     Bookkeeping: ['/chart-of-accounts'],
     Tax: ['/dashboard/tax-filing'],
     // TASKS-02 (2026-10-20): the audit trail is Compliance's second sub-row — it is the log of what was done.
