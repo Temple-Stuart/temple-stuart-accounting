@@ -244,7 +244,8 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props & { })
       readViewAiActions={readViewAiActions}
       // Force-expand via static controlled props (these are props, not internal
       // state) so every section is visible; the row never edits (editing=false
-      // → the ListManager/InspectionDrawer/AITaskPreview edit-branch children
+      // → the InspectionDrawer/AITaskPreview edit-branch children (the
+      // ListManagers left the row with BACKLOG-01b)
       // never mount), so nothing in the subtree can fetch.
       expanded={true}
       editing={false}
@@ -262,7 +263,6 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props & { })
       tasksGenError={null}
       tasksPreview={null}
       flash={false}
-      showDesignReasoning={true}
       showEvolution={true}
       researchInput={demoProject.deep_research_input ?? ''}
       auditInput={demoProject.claude_code_audit_input ?? ''}
@@ -279,7 +279,6 @@ export default function ProjectsPipelineShowroom({ onRequireAuth }: Props & { })
       onAuditInputChange={lock}
       onSaveInputs={lock}
       onRunResearch={lock}
-      onToggleDesignReasoning={lock}
       onToggleEvolution={lock}
       // PAID Anthropic AI triggers — LOCKED, not fetched. Both route only to the
       // sign-up modal; no generate-design/generate-tasks call is reachable here.

@@ -72,8 +72,10 @@ test('1 the migration: four ADD VALUEs the precedent\'s way, two CREATE TYPEs, t
   assert.match(notes, /applied at\s*\n?-- deploy after merge/);
   // The ladder: this is the newest migration, right after LEDGER-03's.
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 1], MIGRATION_DIR, 'the newest migration');
-  assert.equal(dirs[dirs.length - 2], '20261019230000_ledger_03_planned_item_link_audit', 'right after LEDGER-03’s');
+  // BACKLOG-01b (2026-10-20): the brief's migration followed (the newest); this one is pinned by NAME and its neighbours.
+  assert.ok(dirs.includes(MIGRATION_DIR), 'the migration exists');
+  assert.equal(dirs[dirs.indexOf(MIGRATION_DIR) - 1], '20261019230000_ledger_03_planned_item_link_audit', 'right after LEDGER-03’s');
+  assert.equal(dirs[dirs.indexOf(MIGRATION_DIR) + 1], '20261020140000_backlog_01b_brief', 'right before BACKLOG-01b’s');
 });
 
 test('1 the schema mirrors the migration: the ten statuses, the two enums, the ten columns and the index', () => {
@@ -117,7 +119,8 @@ test('2 types.ts: the ten statuses have labels and pills; ProjectType and Projec
   assert.match(t, /^  type: ProjectType \| '';$/m);
   assert.match(t, /^  size: ProjectSize \| '';$/m);
   // The edit form round-trips the row's capture fields; the showroom still passes the default form.
-  assert.match(code(ROW), /type: p\.type \?\? '',\s+size: p\.size \?\? '',\s+why: p\.why \?\? '',\s+definition_of_done: p\.definition_of_done \?\? '',\s+links: Array\.isArray\(p\.links\)/);
+  // BACKLOG-01b (2026-10-20): problem and goal (and the brief's three) sit between size and definition_of_done now.
+  assert.match(code(ROW), /type: p\.type \?\? '',\s+size: p\.size \?\? '',[\s\S]{0,400}why: p\.why \?\? '',[\s\S]{0,400}definition_of_done: p\.definition_of_done \?\? '',\s+links: Array\.isArray\(p\.links\)/);
   assert.match(code(SHOWROOM), /form=\{DEFAULT_PROJECT_FORM\}/);
 });
 
@@ -198,53 +201,41 @@ test('4 the PATCH: the ten statuses valid; type strict and never cleared once se
     'if (!VALID_STATUSES.includes(incoming)) {',
   ], 'the PATCH');
   assert.match(patch, /const WHY_MAX_CODE_POINTS = 4000;/);
-  assert.match(comments(PATCH), /BACKLOG-01: no transition table yet — any valid status is accepted;\s*\n?\s*\/\/ BACKLOG-03 adds the allowed moves and writes promoted_at\/scheduled_at\/done_at\./);
+  // BACKLOG-01b (2026-10-20): the note moved with the first guarded transition — "scope it" (pinned in backlog01b.test.ts).
+  assert.match(comments(PATCH), /BACKLOG-01b: the only guarded transition is backlog → scoped \(diagnosis, design\s*\n?\s*\/\/ and definition_of_done required; promoted_at set once\); BACKLOG-03 adds the table\./);
   // Audited as today: a status change is status_changed, anything else updated.
   assert.match(patch, /type: statusChange \? 'operations_project_status_changed' : 'operations_project_updated'/);
 });
 
 // ── 5 · THE CAPTURE FORM ─────────────────────────────────────────────────────
 
-test('5 the capture form: the nine fields in order, no ListManager and no "I WANT to", type and why refused by name next to the field, the badge\'s words', () => {
+// BACKLOG-01b (2026-10-20): the form asks THE CAPTURE'S QUESTIONS — the field order, the badge, the words and the
+// refusals moved to backlog01b.test.ts; held here: no ListManager, no "I WANT to", type and why still refused by name,
+// the book select as before, links one per line.
+test('5 the capture form: no ListManager and no "I WANT to", type and why refused by name next to the field, the book as before', () => {
   const form = code(FORM);
   assert.doesNotMatch(form, /ListManager|I WANT to|goalItems/, 'the goal list left the capture form');
-  inOrder(form, [
-    'data-capture-field="title"',
-    'data-capture-field="type"',
-    'data-capture-field="book"',
-    'data-capture-field="why"',
-    'data-capture-field="size"',
-    'data-capture-field="definition_of_done"',
-    'data-capture-field="links"',
-    'data-capture-field="notes"',
-    'data-capture-field="target_completion_date"',
-  ], 'the capture form');
-  assert.match(form, /CAPTURE — scope it on the row/);
-  assert.doesNotMatch(form, /title \+ goals/);
+  assert.doesNotMatch(form, /title \+ goals|CAPTURE — scope it on the row/);
   assert.match(form, /<option value="">— choose —<\/option>/, 'type has no preselection');
   assert.match(form, /<option value="">— not sized —<\/option>/);
-  assert.match(form, /placeholder="the problem it solves, or the value — a paragraph"/);
-  assert.match(form, /placeholder="how we will know it is done"/);
   // Refused by name, next to the field, before any fetch; the book still refuses as before.
   inOrder(form, [
     "if (!createForm.type) errors.type = TYPE_REQUIRED_WORDS;",
     'if (createForm.why.trim().length === 0) errors.why = WHY_REQUIRED_WORDS;',
     'if (!createForm.entity_id) {',
     'setCreateError(BOOK_REQUIRED_WORDS);',
-    'if (errors.type || errors.why) return;',
+    'if (Object.keys(errors).length > 0) return;',
     "fetch('/api/operations/projects'",
   ], 'the submit');
   assert.match(form, /export const TYPE_REQUIRED_WORDS = 'type is required — choose one';/);
-  assert.match(form, /export const WHY_REQUIRED_WORDS = 'why is required — the problem it solves, or the value';/);
-  assert.match(form, /data-capture-error="type"/);
-  assert.match(form, /data-capture-error="why"/);
+  assert.match(form, /data-capture-error=\{key\}/, 'every refusal prints under its own field');
   // Links: one per line, split to the list the POST receives.
   assert.match(form, /export const splitLinks = \(text: string\): string\[\] =>\s+text\.split\(\/\\r\\n\|\\r\|\\n\/\)\.map\(\(line\) => line\.trim\(\)\)\.filter\(\(line\) => line\.length > 0\);/);
   assert.match(form, /setCreateForm\(\{ \.\.\.createForm, links: splitLinks\(e\.target\.value\) \}\)/);
   // The book select is the entity select as before — Trading filtered out, no default.
   assert.match(form, /const isProjectEntity = \(name: string\) => name\.trim\(\)\.toLowerCase\(\) !== 'trading';/);
   assert.match(form, /<option value="">— select —<\/option>/);
-  assert.match(comments(FORM), /ProjectCreateForm — the CAPTURE form \(BACKLOG-01, Alex, 2026-10-20\)\./);
+  assert.match(comments(FORM), /ProjectCreateForm — the CAPTURE form \(BACKLOG-01b, Alex, 2026-10-20\)\./);
 });
 
 // ── 6 · THE SECTION AND THE CELL ─────────────────────────────────────────────
@@ -278,18 +269,20 @@ test('6 the project cell wears TYPE and SIZE pills beside the status pill, "—"
 
 // ── 7 · THE EDIT VIEW ────────────────────────────────────────────────────────
 
-test('7 the row view: STATUS_OPTIONS covers all ten; why reads above "1 · goal"; the edit mode has the six inputs bound to the form; the pure view stays fetch-free', () => {
+// BACKLOG-01b (2026-10-20): the read view and the edit view name the brief's facts in its order (pinned in
+// backlog01b.test.ts); held here: the ten statuses, the capture block above the rest, the type/size/links/notes
+// inputs, the pure view fetch-free.
+test('7 the row view: STATUS_OPTIONS covers all ten; the capture reads first; the edit mode binds the form; the pure view stays fetch-free', () => {
   const view = code(ROW_VIEW);
   const opts = view.slice(view.indexOf('const STATUS_OPTIONS'), view.indexOf('];', view.indexOf('const STATUS_OPTIONS')));
   assert.deepEqual([...opts.matchAll(/'(\w+)'/g)].map((m) => m[1]).sort(), [...TEN].sort());
   inOrder(view, [
     '{expanded && !editing && (',
     'data-project-capture>',
-    "{(project.why ?? '').trim().length > 0 ? project.why : '—'}",
-    'data-project-definition-of-done',
+    'data-project-text="definition_of_done"',
     'data-project-links',
-    'data-project-notes',
-    '1 · goal</div>',
+    'data-project-text="notes"',
+    'reality inputs',
   ], 'the read view');
   inOrder(view, [
     '{editing && (',
@@ -300,13 +293,13 @@ test('7 the row view: STATUS_OPTIONS covers all ten; why reads above "1 · goal"
     '<option value="">— choose —</option>',
     'value={form.size}',
     '<option value="">— not sized —</option>',
-    'value={form.why}',
-    'onFormChange({ ...form, why: e.target.value })',
+    'value={form[key]}',
     'value={form.definition_of_done}',
     "value={form.links.join('\\n')}",
     "onFormChange({ ...form, links: e.target.value.split(/\\r\\n|\\r|\\n/) })",
     'value={form.notes}',
-    '1 · goal — what success looks like',
+    'value={form.diagnosis}',
+    'value={form.design}',
   ], 'the edit view');
   assert.doesNotMatch(view, /\bfetch\s*\(|\buseEffect\s*\(|['"`]\/api\//, 'the view is props only');
   // The save sends the whole form — the new fields ride on the PATCH with it.

@@ -18,6 +18,14 @@
  *        ownership before insert. Catches (user_id, title) unique constraint
  *        pre-emptively for a clean 409. Audits operations_project_created,
  *        naming the type.
+ *        BACKLOG-01b (Alex, 2026-10-20) — the capture asks only what Alex knows:
+ *        problem (1 WHAT IS WRONG TODAY) and goal (3 THE ONE CORRECT OUTCOME)
+ *        join why as REQUIRED texts by name (the same 4000-code-point cap);
+ *        rulings (4) and open_questions (5) optional, capped the same;
+ *        deadline_reason (6) ≤ 500 code points and REQUIRED when a target
+ *        date is set. diagnosis (THE AUDIT) and design (THE PLAN) stay optional
+ *        text — they paste back on the row. The *_items arrays are still
+ *        accepted and round-tripped (no form fills them; CLEAN-03 rules).
  *
  * Pattern mirrors src/app/api/operations/north-star/route.ts. Sequential
  * prisma + writeAuditLog awaits, NOT transactional (matches codebase
@@ -63,6 +71,8 @@ const STATUS_ORDER: Record<ProjectStatus, number> = {
 const PROJECT_TYPES: readonly ProjectType[] = ['engineering', 'accounting', 'content', 'travel', 'ops'];
 const PROJECT_SIZES: readonly ProjectSize[] = ['S', 'M', 'L'];
 const WHY_MAX_CODE_POINTS = 4000;
+/** BACKLOG-01b: deadline_reason is a VARCHAR(500) — 500 is the column's length, counted in code points. */
+const DEADLINE_REASON_MAX_CODE_POINTS = 500;
 
 export async function GET(request: NextRequest) {
   try {
@@ -283,6 +293,23 @@ export async function POST(request: NextRequest) {
       );
     }
     const why = whyRaw;
+    // BACKLOG-01b (Alex, 2026-10-20): problem (1) and goal (3) are REQUIRED the same
+    // way — by name, line breaks kept, the same cap in code points.
+    const capWords = (field: string, length: number) => `${field} is at most ${WHY_MAX_CODE_POINTS} characters (${length} given)`;
+    const problemRaw = requireString(body.problem, 'problem');
+    if (problemRaw instanceof NextResponse) return problemRaw;
+    const problemLength = [...problemRaw].length;
+    if (problemLength > WHY_MAX_CODE_POINTS) {
+      return NextResponse.json({ error: 'Validation', field: 'problem', message: capWords('problem', problemLength) }, { status: 400 });
+    }
+    const problem = problemRaw;
+    const goalRaw = requireString(body.goal, 'goal');
+    if (goalRaw instanceof NextResponse) return goalRaw;
+    const goalLength = [...goalRaw].length;
+    if (goalLength > WHY_MAX_CODE_POINTS) {
+      return NextResponse.json({ error: 'Validation', field: 'goal', message: capWords('goal', goalLength) }, { status: 400 });
+    }
+    const goal = goalRaw;
     // size is optional — '' / null / absent is "not sized"; anything else must be S, M or L.
     let size: ProjectSize | null = null;
     if (body.size !== undefined && body.size !== null && body.size !== '') {
@@ -392,8 +419,7 @@ export async function POST(request: NextRequest) {
       const t = v.trim();
       return t.length > 0 ? t : null;
     };
-    const goal = trimNullable(body.goal);
-    const problem = trimNullable(body.problem);
+    // BACKLOG-01b: diagnosis is THE AUDIT — pasted back on the row, optional here.
     const diagnosis = trimNullable(body.diagnosis);
 
     // Design is AI-populated post-PR-Ops-3.7 via "use this" acceptance.
@@ -407,6 +433,23 @@ export async function POST(request: NextRequest) {
     // BACKLOG-01: optional at capture — nothing typed is NULL, never "".
     const definition_of_done = trimNullable(body.definition_of_done);
     const notes = trimNullable(body.notes);
+    // BACKLOG-01b: 4 ALREADY RULED and 5 WANT A RECOMMENDATION ON — optional, capped
+    // like the three texts; 6's reason ≤ 500 code points (its column's length).
+    const rulings = trimNullable(body.rulings);
+    if (rulings !== null && [...rulings].length > WHY_MAX_CODE_POINTS) {
+      return NextResponse.json({ error: 'Validation', field: 'rulings', message: capWords('rulings', [...rulings].length) }, { status: 400 });
+    }
+    const open_questions = trimNullable(body.open_questions);
+    if (open_questions !== null && [...open_questions].length > WHY_MAX_CODE_POINTS) {
+      return NextResponse.json({ error: 'Validation', field: 'open_questions', message: capWords('open_questions', [...open_questions].length) }, { status: 400 });
+    }
+    const deadline_reason = trimNullable(body.deadline_reason);
+    if (deadline_reason !== null && [...deadline_reason].length > DEADLINE_REASON_MAX_CODE_POINTS) {
+      return NextResponse.json(
+        { error: 'Validation', field: 'deadline_reason', message: `deadline_reason is at most ${DEADLINE_REASON_MAX_CODE_POINTS} characters (${[...deadline_reason].length} given)` },
+        { status: 400 }
+      );
+    }
 
     // Verify entity ownership.
     const entity = await prisma.entities.findFirst({
@@ -440,6 +483,14 @@ export async function POST(request: NextRequest) {
       typeof body.target_completion_date === 'string' && body.target_completion_date.length > 0
         ? new Date(body.target_completion_date)
         : null;
+    // BACKLOG-01b (Alex, 2026-10-20): a target date requires its reason — 6 BY WHEN,
+    // AND WHY. A reason without a date is allowed (it is just text).
+    if (target_completion_date !== null && deadline_reason === null) {
+      return NextResponse.json(
+        { error: 'Validation', field: 'deadline_reason', message: 'deadline_reason is required when a target date is set' },
+        { status: 400 }
+      );
+    }
 
     const estimated_total_minutes =
       body.estimated_total_minutes !== undefined &&
@@ -480,6 +531,9 @@ export async function POST(request: NextRequest) {
         problem,
         diagnosis,
         design,
+        rulings,
+        open_questions,
+        deadline_reason,
         goal_items: goalItemsResult.items,
         problem_items: problemItemsResult.items,
         diagnosis_items: diagnosisItemsResult.items,
