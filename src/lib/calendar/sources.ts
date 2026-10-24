@@ -35,6 +35,18 @@
  * it already has are the calendar's own — they render, and their owner may
  * correct or remove them. The census below is untouched: it describes what
  * exists.
+ *
+ * CAL-01 (2026-10-24): SEVEN SOURCES LEAVE THE GRID. agenda, home, shopping,
+ * personal, auto, growth and health were written only by tools that are
+ * retired — the six-category budget screens (home and the four modules) left
+ * /budget with TAB13-02b (#1767, 2026-09-27); /agenda and /shopping became
+ * redirects to /budget with BUDGET-02 (#1846, 2026-10-20) — and no screen calls
+ * their routes now. They move from the allowlist to EXCLUDED_CALENDAR_SOURCES
+ * below, each with a dated reason naming its writer and the PR that retired its
+ * tool. Nothing is deleted: the rows stay in calendar_events until TABLES
+ * exports and drops them, GET /api/calendar still returns them, and the grid's
+ * load filter (HubCalendar.tsx, isRenderedCalendarSource) drops them — the shape
+ * DAY-01 set. The census above is untouched: it describes what exists.
  */
 
 /** A source the calendar renders, and why. */
@@ -61,6 +73,10 @@ export interface CalendarSourceRule {
  * The tailwind quartet per colour, written OUT IN FULL. Tailwind's scanner reads
  * source text, so a template-built class name (`text-${c}-600`) is never emitted
  * and the chip would silently render unstyled. Literals only.
+ *
+ * CAL-01 (2026-10-24): violet, orange, pink, purple, slate, blue and green are
+ * worn by no rendered source now — their seven sources are EXCLUDED below. The
+ * quartets stay here, literal and unused, rather than being retyped later.
  */
 const TINTS = {
   cyan:   { text: 'text-cyan-600',   bg: 'bg-cyan-50',   dot: 'bg-cyan-500',   badge: 'bg-cyan-400' },
@@ -100,62 +116,6 @@ export const CALENDAR_SOURCES: readonly CalendarSourceRule[] = [
     why: 'every committed flight, hotel, transfer and activity, and the rows for a trip itself that the legacy planner\'s commit wrote before it was deleted (LEGACY-DEL-01) — the only source that carries a time of day, and on those older rows coordinates',
   },
   {
-    source: 'agenda',
-    icon: '📋',
-    tint: TINTS.violet,
-    label: 'Agenda',
-    writtenBy: 'src/app/api/agenda/[id]/route.ts:84',
-    why: 'a committed agenda item with its own date, budget and account — written since the agenda commit shipped and, until this PR, never rendered anywhere',
-  },
-  {
-    source: 'home',
-    icon: '🏠',
-    tint: TINTS.orange,
-    label: 'Home',
-    writtenBy: 'src/app/api/home/[id]/route.ts:83',
-    why: 'a household bill falling on this date — rent, utilities, the recurring ones',
-  },
-  {
-    source: 'shopping',
-    icon: '🛒',
-    tint: TINTS.pink,
-    label: 'Shopping',
-    writtenBy: 'src/app/api/shopping/[id]/route.ts:83 · src/app/api/shopping/commit/route.ts:84',
-    why: 'a purchase planned for this date',
-  },
-  {
-    source: 'personal',
-    icon: '👤',
-    tint: TINTS.purple,
-    label: 'Personal',
-    writtenBy: 'src/app/api/budget/[module]/[id]/route.ts:104 (MODULE = personal)',
-    why: 'a personal budget line dated to this day',
-  },
-  {
-    source: 'auto',
-    icon: '🚗',
-    tint: TINTS.slate,
-    label: 'Auto',
-    writtenBy: 'src/app/api/budget/[module]/[id]/route.ts:104 (MODULE = auto)',
-    why: 'a vehicle cost dated to this day',
-  },
-  {
-    source: 'growth',
-    icon: '📚',
-    tint: TINTS.blue,
-    label: 'Growth',
-    writtenBy: 'src/app/api/budget/[module]/[id]/route.ts:104 (MODULE = growth)',
-    why: 'a learning or growth cost dated to this day',
-  },
-  {
-    source: 'health',
-    icon: '💪',
-    tint: TINTS.green,
-    label: 'Health',
-    writtenBy: 'src/app/api/budget/[module]/[id]/route.ts:104 (MODULE = health)',
-    why: 'a health cost dated to this day',
-  },
-  {
     // CAL-01 (2026-09-23): a PAID BOOKING, and deliberately NOT `trip`.
     //
     // `trip` is what a person PLANNED — vendor-commit writes it when an option is
@@ -180,9 +140,15 @@ export interface ExcludedCalendarSource {
 }
 
 /**
- * EXCLUDED BY NAME. These two arrive on the grid already — they are merged from
- * their OWN loaders in HubCalendar, not from calendar_events — so admitting them
- * to this allowlist would double every block on the day.
+ * EXCLUDED BY NAME. The first two arrive on the grid already — they are merged
+ * from their OWN loaders in HubCalendar, not from calendar_events — so admitting
+ * them to this allowlist would double every block on the day.
+ *
+ * CAL-01 (2026-10-24): the seven after them are the retired tools' sources. Each
+ * names its writer — the route still exists, auth-gated, with no screen calling
+ * it — and the PR that retired the tool. The hub's load filter drops their rows
+ * (isRenderedCalendarSource); GET /api/calendar is unchanged and still returns
+ * them; nothing here deletes a row — TABLES exports and drops them.
  */
 export const EXCLUDED_CALENDAR_SOURCES: readonly ExcludedCalendarSource[] = [
   {
@@ -192,6 +158,34 @@ export const EXCLUDED_CALENDAR_SOURCES: readonly ExcludedCalendarSource[] = [
   {
     source: 'routines',
     why: 'not a calendar_events row — routine occurrences arrive through mapOperationsRoutines from /api/hub/operations-routines and are merged separately; admitting it here would draw each occurrence twice',
+  },
+  {
+    source: 'agenda',
+    why: 'written only by src/app/api/agenda/[id]/route.ts:84, a tool retired in BUDGET-02 (#1846, 2026-10-20 — /agenda, /agenda/new and /agenda/[id] became redirects to /budget); its rows stay in calendar_events until TABLES exports and drops them (2026-10-24)',
+  },
+  {
+    source: 'home',
+    why: 'written only by src/app/api/home/[id]/route.ts:83, a tool retired in TAB13-02b (#1767, 2026-09-27 — the six-category switcher and its BudgetingPage mount left /budget); its rows stay in calendar_events until TABLES exports and drops them (2026-10-24)',
+  },
+  {
+    source: 'shopping',
+    why: 'written only by src/app/api/shopping/[id]/route.ts:83 and src/app/api/shopping/commit/route.ts:84, a tool retired in BUDGET-02 (#1846, 2026-10-20 — /shopping became a redirect to /budget); its rows stay in calendar_events until TABLES exports and drops them (2026-10-24)',
+  },
+  {
+    source: 'personal',
+    why: 'written only by src/app/api/budget/[module]/[id]/route.ts:104 (MODULE = personal), a tool retired in TAB13-02b (#1767, 2026-09-27 — the six-category switcher and its BudgetingPage mount left /budget); its rows stay in calendar_events until TABLES exports and drops them (2026-10-24)',
+  },
+  {
+    source: 'auto',
+    why: 'written only by src/app/api/budget/[module]/[id]/route.ts:104 (MODULE = auto), a tool retired in TAB13-02b (#1767, 2026-09-27 — the six-category switcher and its BudgetingPage mount left /budget); its rows stay in calendar_events until TABLES exports and drops them (2026-10-24)',
+  },
+  {
+    source: 'growth',
+    why: 'written only by src/app/api/budget/[module]/[id]/route.ts:104 (MODULE = growth), a tool retired in TAB13-02b (#1767, 2026-09-27 — the six-category switcher and its BudgetingPage mount left /budget); its rows stay in calendar_events until TABLES exports and drops them (2026-10-24)',
+  },
+  {
+    source: 'health',
+    why: 'written only by src/app/api/budget/[module]/[id]/route.ts:104 (MODULE = health), a tool retired in TAB13-02b (#1767, 2026-09-27 — the six-category switcher and its BudgetingPage mount left /budget); its rows stay in calendar_events until TABLES exports and drops them (2026-10-24)',
   },
 ] as const;
 

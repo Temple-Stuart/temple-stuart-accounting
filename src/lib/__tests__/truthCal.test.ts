@@ -76,20 +76,23 @@ test('every file:line the row prints resolves to the line it names', () => {
   // The table is the claim; the assertion is that the file really says so.
   // CAL-01 (2026-09-23): the sources.ts lines moved — a tenth tint and the
   // `reservation` entry were appended. The landmarks are the same, re-read.
+  // CAL-01 (2026-10-24): moved again — the seven retired tools' sources left the
+  // allowlist for EXCLUDED and the header records it. Same tokens, re-pointed:
+  // 83→99 · 85→101 · 174→134 · 187→153 · 196→190.
   const CITED: ReadonlyArray<readonly [string, number, string]> = [
     ['src/components/hub/HubCalendar.tsx', 192, '/api/calendar?'],
     ['src/components/hub/HubCalendar.tsx', 199, 'isRenderedCalendarSource'],
     ['src/components/hub/HubCalendar.tsx', 208, '/api/operations/daily-plan/items'],
     ['src/components/hub/HubCalendar.tsx', 220, '/api/hub/operations-routines'],
     ['src/lib/calendar/day.ts', 304, 'export function dayParts'],
-    ['src/lib/calendar/sources.ts', 85, "source: 'manual'"],
+    ['src/lib/calendar/sources.ts', 101, "source: 'manual'"],
     ['src/components/hub/DayView.tsx', 221, 'MANUAL_EVENT_BADGE'],
     ['src/app/api/calendar/events/route.ts', 82, 'export async function PATCH'],
     ['src/app/api/calendar/events/route.ts', 123, 'export async function DELETE'],
-    ['src/lib/calendar/sources.ts', 83, 'export const CALENDAR_SOURCES'],
-    ['src/lib/calendar/sources.ts', 174, '] as const;'],
-    ['src/lib/calendar/sources.ts', 187, 'export const EXCLUDED_CALENDAR_SOURCES'],
-    ['src/lib/calendar/sources.ts', 196, '] as const;'],
+    ['src/lib/calendar/sources.ts', 99, 'export const CALENDAR_SOURCES'],
+    ['src/lib/calendar/sources.ts', 134, '] as const;'],
+    ['src/lib/calendar/sources.ts', 153, 'export const EXCLUDED_CALENDAR_SOURCES'],
+    ['src/lib/calendar/sources.ts', 190, '] as const;'],
   ];
   for (const [file, n, token] of CITED) {
     assert.ok(existsSync(`${process.cwd()}/${file}`), `${file} exists`);

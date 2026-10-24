@@ -290,10 +290,12 @@ export function buildChain(input: ChainInput): Chain | null {
  *                                                        /api/trips/[id]/commit,
  *                                                        its other writer, was
  *                                                        deleted)
- *   agenda   ← /api/agenda/[id]                → Budget (its /agenda sub-row)
- *   shopping ← /api/shopping/[id]              → Budget (its /shopping sub-row)
- *   home     ← /api/home/[id] (home_expenses)  → Budget
- *   personal · auto · growth · health ← /api/budget/[module]/[id] → Budget
+ *   agenda · shopping · home · personal · auto · growth · health — CAL-01
+ *            (2026-10-24): the retired tools' sources (their routes under
+ *            /api/agenda, /api/shopping, /api/home and /api/budget/[module])
+ *            are EXCLUDED in sources.ts now; the hub drops their rows at load,
+ *            so none reaches the panel and none has an owner here — ownerOf
+ *            throws by name if one ever did.
  *   reservation ← /api/travel/liteapi/book    → Travel  (CAL-01: a PAID booking,
  *                                                        the same tool as `trip`
  *                                                        but a different door —
@@ -308,13 +310,9 @@ export const EVENT_SOURCE_OWNER: Readonly<Record<string, string>> = {
   // different source, because what was planned and what was paid for are not the
   // same row and the retro-map has to tell them apart.
   reservation: 'Travel',
-  agenda: 'Budget',
-  home: 'Budget',
-  shopping: 'Budget',
-  personal: 'Budget',
-  auto: 'Budget',
-  growth: 'Budget',
-  health: 'Budget',
+  // CAL-01 (2026-10-24): agenda, home, shopping, personal, auto, growth and health
+  // (all → Budget) left with their sources — a retired tool's row is not rendered,
+  // so it needs no door. drill01 pins keys == the allowlist's length.
 };
 
 /**
