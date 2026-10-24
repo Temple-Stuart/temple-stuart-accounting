@@ -186,7 +186,7 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     // narration of the day". /tasks is projects and routines, the work; the
     // `why` below already says so and is unchanged. /tasks/day still hops to
     // the card (dayCard.ts DAY_CARD_PATH), and a dated /tasks?date= is sent to
-    // /time by next.config.ts.
+    // /time by next.config.ts (HOME-01, 2026-10-24: to /runway, the dashboard).
     // LEDGER-02 (Alex, 2026-10-19): the city ledger above is the TASK LEDGER —
     // renamed, still on /time (the Time row below).
     // TASKS-02 (Alex, 2026-10-20): the ruling TASKS-ONE-01 waited for. Tasks
@@ -220,12 +220,20 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     // line say "the task ledger of every stop … by city, account and book" where
     // they said "the ledger of every stop by city and account" (the amendment
     // kept "every stop" and added the book).
+    // HOME-01 (Alex, 2026-10-24): THE DAY CARD IS ON THE DASHBOARD — the cockpit's
+    // Runway panel (/runway, DAY_CARD_PATH), Time's component shown there by
+    // ruling; no Home registry row. /time is the three tables: the task ledger,
+    // then the morning and the evening journal tables. The row keeps home '/time'
+    // and PARTIAL; the why, the citation and the customer line are the tables'.
+    // The customer line says "logged" where the ruling said "recorded": the plan
+    // law (OFFER-01) refuses a beat word on a customer sentence — flagged in the
+    // HOME-01 report as a judgement call.
     slug: 'time', status: 'PARTIAL', beats: ALL, home: '/time',
-    why: 'the day, narrated: every stop in clock order with its budget, its vendor, what it cost and the verdict, the journal, the caption and script for the reel, and the task ledger of every stop by city, account and book; nothing yet adds up where the hours went',
+    why: 'the task ledger and the two journals, day over day — every stop and every answer the day card records, as tables',
     links: [],
-    citation: 'discover: src/components/workbench/operations/day/dayReads.ts:8-13 (the day\'s routines, tasks, budget report, stays, stop records, journal — six GETs) · decide: src/app/api/operations/journal/route.ts:51 (PUT — the day\'s goals, blocker and plan) · src/app/api/operations/stays/route.ts (the stay) · commit: src/app/api/operations/stops/route.ts (POST — the record at a stop, through stops/stopWrites.ts:39) · src/app/api/operations/routines/move/route.ts (the dated move) · record: src/components/workbench/operations/ledger/LedgerSection.tsx (every stop recorded, by date, city, COA and vendor; "+ expense" through src/app/api/operations/routines/route.ts, ledger/ExpenseForm.tsx:87)',
-    note: 'TIME-02 (2026-10-19): the content pipeline retired — its components and routes deleted; its five tables kept, untouched, until TABLES-01.',
-    customer: 'You can see one day as a card — every stop with what it should cost and what it did, the journal, the caption and script for the day\'s reel — and the task ledger of every stop you logged by city, account and book; nothing yet adds up where your hours went.',
+    citation: 'discover: src/components/workbench/operations/ledger/ledgerReads.ts:27 (GET /api/operations/ledger?from=&to= — the task ledger\'s one read) · src/components/workbench/operations/journal/journalReads.ts:26 (GET /api/operations/journal/range?from=&to= — the journals\' one read) · decide: src/app/api/operations/journal/route.ts:51 (PUT — the day\'s goals, blocker and plan, written by the day card: Time\'s component, shown on the dashboard — HOME-01) · commit: src/app/api/operations/stops/route.ts (POST — the record at a stop, through stops/stopWrites.ts:39, from the card) · record: src/components/workbench/operations/ledger/LedgerSection.tsx (every stop recorded, by date, city, COA and vendor; "+ expense" through ledger/ExpenseForm.tsx:87) · src/components/workbench/operations/journal/MorningJournalTable.tsx · src/components/workbench/operations/journal/EveningJournalTable.tsx (every answer, day over day, through journal/JournalDayTable.tsx)',
+    note: 'HOME-01 (2026-10-24): the day itself is entered on the day card — Time\'s component, shown on the home dashboard (the cockpit\'s Runway panel, /runway); /time is the tables. TIME-02 (2026-10-19): the content pipeline retired — its components and routes deleted; its five tables kept, untouched, until TABLES-01. Not done for a customer: nothing yet adds up where the hours went.',
+    customer: 'You can see every stop you logged and every journal answer, day by day, filter and export them; the day itself is entered on the home dashboard.',
   },
   // ── MONEY IN ──
   CRM: {

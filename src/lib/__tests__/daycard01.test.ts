@@ -715,6 +715,7 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.match(c, /const go = \(href: string\) => router\.push\(href\);/);
   // TASKS-ONE-01 (2026-10-14): the card is the first section of /tasks — every URL it pushes is DAY_CARD_PATH's
   // (dayCard.ts, '/tasks'), same parameters, same rules; the pin moved from the '/tasks/day' literal.
+  // TIME-01 (2026-10-19): '/time'; HOME-01 (Alex, 2026-10-24): '/runway', the dashboard — the regex below is on the constant, unchanged.
   assert.match(c, /const hrefFor = \(day: string, step: number \| null\): string => `\$\{DAY_CARD_PATH\}\?date=\$\{day\}\$\{step === null \? '' : `&step=\$\{step\}`\}`;/);
   assert.match(c, /\bDAY_CARD_PATH,\n[\s\S]*?\} from '\.\/dayCard';/);
   assert.doesNotMatch(c, /\/tasks\/day/, 'the card names no /tasks/day URL');

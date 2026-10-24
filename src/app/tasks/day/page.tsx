@@ -10,6 +10,8 @@ import { dayCardRedirectHref } from '@/components/workbench/operations/day/dayCa
  * given, no other parameter carried and none invented (dayCard.ts
  * dayCardRedirectHref, on DAY_CARD_PATH). TIME-01 (Alex, 2026-10-19): the card
  * is the first section of /time now — the constant moved, this hop follows it.
+ * HOME-01 (Alex, 2026-10-24): the card is on the dashboard (/runway) — the
+ * constant moved again; this hop follows it, unchanged.
  * Old links and bookmarks land on the same day and step.
  */
 export default async function TasksDayRedirect({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {

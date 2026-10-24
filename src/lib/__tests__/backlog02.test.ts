@@ -292,8 +292,9 @@ test('T7 THE LOG: above the goals box, outside the journal form; in flight, fail
   assert.equal(rankWords(3), '#3');
   assert.equal(rankWords(null), '#—');
   assert.equal(moveWords('Ship it', 'up'), 'move "Ship it" up');
-  // The /time page still mounts exactly the card and the ledger.
-  assert.match(code(TIME_PAGE), /<Suspense>\n\s*<DayCard \/>\n\s*<\/Suspense>\n\s*<LedgerSection \/>/);
+  // The /time page still mounts the ledger first — HOME-01 (Alex, 2026-10-24): the card is on the dashboard (the Runway panel mounts it; home01.test.ts).
+  assert.match(code(TIME_PAGE), /data-tool-page="Time">\n\s*<LedgerSection \/>/);
+  assert.match(code('src/components/home/ModuleLauncher.tsx'), /<Suspense>\n\s*<DayCard \/>\n\s*<\/Suspense>/);
 });
 
 // ── T8 · THE DOORS TO /tasks ─────────────────────────────────────────────────

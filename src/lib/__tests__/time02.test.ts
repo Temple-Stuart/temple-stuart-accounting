@@ -42,9 +42,10 @@ const GONE = [
 ];
 // LEDGER-02 (Alex, 2026-10-19): "the task ledger" where both lines said "the ledger of every stop" — the rest unchanged.
 // LEDGER-02 AMENDMENT (Alex, 2026-10-19): "the task ledger of every stop … by city, account and book" — "every stop" kept, the book added.
-const WHY = 'the day, narrated: every stop in clock order with its budget, its vendor, what it cost and the verdict, the journal, the caption and script for the reel, and the task ledger of every stop by city, account and book; nothing yet adds up where the hours went';
-const CUSTOMER = 'You can see one day as a card — every stop with what it should cost and what it did, the journal, the caption and script for the day\'s reel — and the task ledger of every stop you logged by city, account and book; nothing yet adds up where your hours went.';
-const NOTE = 'TIME-02 (2026-10-19): the content pipeline retired — its components and routes deleted; its five tables kept, untouched, until TABLES-01.';
+// HOME-01 (Alex, 2026-10-24, ruling C): the Time row's words are the tables' — the card is shown on the dashboard.
+const WHY = 'the task ledger and the two journals, day over day — every stop and every answer the day card records, as tables';
+const CUSTOMER = 'You can see every stop you logged and every journal answer, day by day, filter and export them; the day itself is entered on the home dashboard.';
+const NOTE = 'HOME-01 (2026-10-24): the day itself is entered on the day card — Time\'s component, shown on the home dashboard (the cockpit\'s Runway panel, /runway); /time is the tables. TIME-02 (2026-10-19): the content pipeline retired — its components and routes deleted; its five tables kept, untouched, until TABLES-01. Not done for a customer: nothing yet adds up where the hours went.';
 const SURFACE_NOTE = 'TIME-02 (2026-10-19): drawn nowhere — /time renders no StageStrip (src/app/time/page.tsx); the day card is not a pipe; PIPES-01 retires the pipe';
 
 const at = (f: string): string => join(process.cwd(), f);
@@ -58,13 +59,15 @@ function tsFiles(dir: string): string[] {
   });
 }
 
-test('T1 the page: /time is the day card (in its boundary) then the city ledger, nothing beneath; the doc says why', () => {
+test('T1 the page: /time is the three tables (HOME-01: the card is on the dashboard), nothing else; the doc says why', () => {
   const page = code(TIME_PAGE);
   const box = page.slice(page.indexOf('data-tool-page="Time"'), page.indexOf('</OperationsEntityProvider>'));
   // JOURNAL-07 (Alex, 2026-10-24): the container is four — the two journal tables under the ledger (TIME-02's "nothing beneath" the ledger held until then).
-  assert.deepEqual([...box.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['Suspense', 'DayCard', 'LedgerSection', 'MorningJournalTable', 'EveningJournalTable']);
-  // JOURNAL-07 (Alex, 2026-10-24): the two journal tables mount under the ledger — the /time container is four (TIME_MOUNTS), the ledger still the section after the card.
-  assert.match(page, /<Suspense>\n\s*<DayCard \/>\n\s*<\/Suspense>\n\s*<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/);
+  // HOME-01 (Alex, 2026-10-24): the card and its boundary moved to the dashboard — the container is the three tables.
+  assert.deepEqual([...box.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['LedgerSection', 'MorningJournalTable', 'EveningJournalTable']);
+  assert.match(page, /data-tool-page="Time">\n\s*<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/);
+  assert.doesNotMatch(page, /DayCard|Suspense/);
+  assert.match(comments(TIME_PAGE), /HOME-01 \(Alex, 2026-10-24\) — THE CARD MOVED TO THE DASHBOARD; \/time IS THE\s*\n\s*\* TABLES/);
   assert.doesNotMatch(page, /ContentPipeline|operations\/content\/|PIPE_PHASES|<StageStrip/);
   assert.equal((page.match(/<ToolOpener/g) ?? []).length, 1);
   assert.match(comments(TIME_PAGE), /TIME-02 \(Alex, 2026-10-19\) — THE CONTENT PIPELINE IS RETIRED/);
@@ -98,10 +101,11 @@ test('T3 the laws: /time draws nothing; the content pipe stays defined, declared
   assert.deepEqual(PIPE_PHASES.content.map((p) => p.num), ['01', '02', '03', '04'], 'the pipe stays DEFINED until PIPES-01');
   assert.match(comments(NAV), /TIME-02 \(2026-10-19\): the content pipeline is retired/);
   const law = code(LAW);
-  assert.match(law, /const TIME_MOUNTS = \['<DayCard \/>', '<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/);
-  assert.match(law, /timeMounts\.join\(' '\) !== 'DayCard LedgerSection MorningJournalTable EveningJournalTable'/);
+  // HOME-01 (Alex, 2026-10-24): three mounts; the card's boundary check reads the cockpit component.
+  assert.match(law, /const TIME_MOUNTS = \['<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/);
+  assert.match(law, /timeMounts\.join\(' '\) !== 'LedgerSection MorningJournalTable EveningJournalTable'/);
   assert.match(law, /if \(\/ContentPipeline\|operations\\\/content\\\/\/\.test\(timePage\)\) twoListsFail\(/, 'the pipeline may not come back unnoticed');
-  assert.match(law, /if \(!\/<Suspense>\\s\*<DayCard \\\/>\\s\*<\\\/Suspense>\/\.test\(timePage\)\) twoListsFail\(/, 'the card in its boundary');
+  assert.match(law, /if \(!\/<Suspense>\\s\*<DayCard \\\/>\\s\*<\\\/Suspense>\/\.test\(launcher\)\) twoListsFail\(/, 'the card in its boundary — on the Runway panel');
   assert.match(comments(LAW), /TIME-02 \(2026-10-19\): the third mount, the content pipeline, is retired/);
   assert.match(comments(LAW), /HISTORY: DayCalendarView/);
   assert.doesNotMatch(comments(LAW), /EXPLICIT NON-VIOLATION: DayCalendarView/);
@@ -109,7 +113,7 @@ test('T3 the laws: /time draws nothing; the content pipe stays defined, declared
   assert.match(comments(SHOWROOM_LAW), /deleted by TIME-02 \(2026-10-19\) with the content pipeline/);
 });
 
-test('T4 the registry: the Time row is a customer\'s line with no build note; the citation is the card\'s and the ledger\'s; the cockpit maps stand', () => {
+test('T4 the registry: the Time row is a customer\'s line with no build note; the citation is the tables\' (HOME-01); the cockpit maps stand', () => {
   const time = TOOL_REGISTRY.find((t) => t.name === 'Time')!;
   assert.equal(time.slug, 'time'); assert.equal(time.status, 'PARTIAL'); assert.equal(time.home, '/time');
   assert.equal(time.why, WHY);
@@ -119,7 +123,8 @@ test('T4 the registry: the Time row is a customer\'s line with no build note; th
     assert.doesNotMatch(line, /TIME-0\d|TABLES-01|PIPES-01|\.tsx?\b|src\/|pipeline/, 'no build note on a line that prints');
     assert.doesNotMatch(line, /\b(discover|decide|commit|record)\b/, 'no beat word on a public line (the plan law)');
   }
-  for (const beat of ['discover: src/components/workbench/operations/day/dayReads.ts:8-13', 'decide: src/app/api/operations/journal/route.ts:51 (PUT', 'commit: src/app/api/operations/stops/route.ts (POST', 'record: src/components/workbench/operations/ledger/LedgerSection.tsx']) {
+  // HOME-01 (Alex, 2026-10-24, ruling C): discover is the tables' reads; decide, commit and record keep the card's routes and the ledger.
+  for (const beat of ['discover: src/components/workbench/operations/ledger/ledgerReads.ts:27', 'decide: src/app/api/operations/journal/route.ts:51 (PUT', 'commit: src/app/api/operations/stops/route.ts (POST', 'record: src/components/workbench/operations/ledger/LedgerSection.tsx']) {
     assert.ok(time.citation.includes(beat), `the citation keeps ${beat.split(':')[0]}`);
   }
   assert.doesNotMatch(time.citation, /operations\/content|daily-plan|unscheduled/, 'no pipeline route in the citation');
@@ -155,7 +160,7 @@ test('T6 what stays, by name: the five tables, the cap helpers, the daily-plan a
   for (const f of ['src/app/api/operations/routines/route.ts', 'src/app/api/operations/routines/[id]/route.ts']) assert.match(code(f), /content_scene_group: true/);
 });
 
-test('T7 the one doc line: the card says its page is /time', () => {
-  assert.match(comments(CARD), /on \/time, where the card is the first section \(TASKS-ONE-01 put it first on \/tasks; TIME-01, 2026-10-19: DAY_CARD_PATH is \/time\)/);
+test('T7 the one doc line: the card says its page is /runway, the dashboard (HOME-01)', () => {
+  assert.match(comments(CARD), /on \/runway, the dashboard's Runway panel, where the card is first \(HOME-01, Alex, 2026-10-24: DAY_CARD_PATH is \/runway; TASKS-ONE-01 put it first on \/tasks; TIME-01, 2026-10-19: \/time\)/);
   assert.doesNotMatch(comments(CARD), /on \/tasks, where the card is the first section/);
 });
