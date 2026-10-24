@@ -196,7 +196,11 @@ import { dailyCap } from '../src/lib/travelSearchQuota';
  * navigation, the utilities menu, or a redirect.
  */
 const GUEST_ROUTES: ReadonlyArray<{ route: string; why: string }> = [
-  { route: '/', why: 'the front door — src/middleware.ts PUBLIC_PATHS' },
+  // HOME-02 (Alex, 2026-10-25): a signed-in visitor is sent on from `/` to /runway by the page itself (src/app/page.tsx, a
+  // page-level redirect() after the ?tab= map, carrying the query) — the cockpit's Runway panel, whose door is the "How long
+  // can I last?" answer. A guest still gets the landing, so `/` is still a page and still the front door; QUERY_REDIRECTS
+  // below lists next.config.ts query rules only, and this is not one.
+  { route: '/', why: 'the front door — src/middleware.ts PUBLIC_PATHS; a signed-in visitor goes on to /runway (HOME-02, 2026-10-25)' },
   { route: '/[tab]', why: 'the cockpit paths (/runway /travel /trade /books /tax) — every cockpit home in the registry; src/app/[tab]/page.tsx TAB_PATHS. ROOM-02 took /routines /projects /content out: they are redirect pages into /operations now' },
   { route: '/login', why: 'the sign-in page (the one LoginBox, SELL-03) — src/app/accounts/page.tsx:37 sends an unauthenticated viewer here' },
   { route: '/pricing', why: 'PUBLIC_PATHS; renders THE OFFER (SELL-02) — LandingHeader.tsx, LandingFooter.tsx' },
@@ -508,6 +512,9 @@ doors.push({ route: NET_WORTH_READ.home, kind: 'answers', via: `Net worth · Ope
 
 // Prefer the most specific door: an exact route match first, listed routes before
 // prefix matches, so `/` reads as the front door and `/[tab]` as the cockpit paths.
+// HOME-02 (2026-10-25): `/` sends a signed-in visitor on to /runway (page.tsx); it stays a page — the guest landing — and the
+// front door here. redirectTarget() reads only a literal redirect('...'), and the front door's redirects are computed, so the
+// fixpoint below leaves `/` as listed.
 const findDoor = (route: string) => {
   const exact = doors.find((d) => d.route.split('?')[0] === route);
   if (exact) return exact;
