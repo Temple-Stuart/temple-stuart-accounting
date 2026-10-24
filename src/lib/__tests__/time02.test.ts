@@ -61,8 +61,10 @@ function tsFiles(dir: string): string[] {
 test('T1 the page: /time is the day card (in its boundary) then the city ledger, nothing beneath; the doc says why', () => {
   const page = code(TIME_PAGE);
   const box = page.slice(page.indexOf('data-tool-page="Time"'), page.indexOf('</OperationsEntityProvider>'));
-  assert.deepEqual([...box.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['Suspense', 'DayCard', 'LedgerSection']);
-  assert.match(page, /<Suspense>\n\s*<DayCard \/>\n\s*<\/Suspense>\n\s*<LedgerSection \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/);
+  // JOURNAL-07 (Alex, 2026-10-24): the container is four — the two journal tables under the ledger (TIME-02's "nothing beneath" the ledger held until then).
+  assert.deepEqual([...box.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['Suspense', 'DayCard', 'LedgerSection', 'MorningJournalTable', 'EveningJournalTable']);
+  // JOURNAL-07 (Alex, 2026-10-24): the two journal tables mount under the ledger — the /time container is four (TIME_MOUNTS), the ledger still the section after the card.
+  assert.match(page, /<Suspense>\n\s*<DayCard \/>\n\s*<\/Suspense>\n\s*<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/);
   assert.doesNotMatch(page, /ContentPipeline|operations\/content\/|PIPE_PHASES|<StageStrip/);
   assert.equal((page.match(/<ToolOpener/g) ?? []).length, 1);
   assert.match(comments(TIME_PAGE), /TIME-02 \(Alex, 2026-10-19\) — THE CONTENT PIPELINE IS RETIRED/);
@@ -96,8 +98,8 @@ test('T3 the laws: /time draws nothing; the content pipe stays defined, declared
   assert.deepEqual(PIPE_PHASES.content.map((p) => p.num), ['01', '02', '03', '04'], 'the pipe stays DEFINED until PIPES-01');
   assert.match(comments(NAV), /TIME-02 \(2026-10-19\): the content pipeline is retired/);
   const law = code(LAW);
-  assert.match(law, /const TIME_MOUNTS = \['<DayCard \/>', '<LedgerSection \/>'\];/);
-  assert.match(law, /timeMounts\.join\(' '\) !== 'DayCard LedgerSection'/);
+  assert.match(law, /const TIME_MOUNTS = \['<DayCard \/>', '<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/);
+  assert.match(law, /timeMounts\.join\(' '\) !== 'DayCard LedgerSection MorningJournalTable EveningJournalTable'/);
   assert.match(law, /if \(\/ContentPipeline\|operations\\\/content\\\/\/\.test\(timePage\)\) twoListsFail\(/, 'the pipeline may not come back unnoticed');
   assert.match(law, /if \(!\/<Suspense>\\s\*<DayCard \\\/>\\s\*<\\\/Suspense>\/\.test\(timePage\)\) twoListsFail\(/, 'the card in its boundary');
   assert.match(comments(LAW), /TIME-02 \(2026-10-19\): the third mount, the content pipeline, is retired/);
