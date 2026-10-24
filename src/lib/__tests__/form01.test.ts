@@ -25,8 +25,9 @@ import {
 
 const BUILDER = 'src/components/workbench/operations/routines/RRULEBuilder.tsx';
 const CREATE_FORM = 'src/components/workbench/operations/routines/RoutineCreateForm.tsx';
-const ROW = 'src/components/workbench/operations/routines/RoutineRow.tsx';
-const LIST = 'src/components/workbench/operations/routines/RoutineList.tsx';
+// WORK-01 (Alex, 2026-10-24): RoutineRow left — its edit form is RoutineEditForm (lifted, moved code); ROW names it.
+const ROW = 'src/components/workbench/operations/routines/RoutineEditForm.tsx';
+const WORK_LIB = 'src/lib/operations/work.ts'; // WORK-01 (2026-10-24): RoutineList left — the routines are rows of THE WORK
 const LINES = 'src/components/workbench/operations/routines/RoutineStepList.tsx';
 const TYPES = 'src/components/workbench/operations/routines/types.ts';
 const HELPERS = 'src/lib/operations/rruleHelpers.ts';
@@ -135,7 +136,7 @@ test('T3 the forms: in order — name · on the day card · entity · days · ti
   // The forms: the order, by the fields' first appearance; no place; "more" closed by default.
   for (const [f, v, setter] of [[CREATE_FORM, 'createForm', 'setCreateForm'], [ROW, 'form', 'setForm']] as const) {
     const s = code(f);
-    const formAt = f === ROW ? s.indexOf('<tr data-routine-editing>') : s.indexOf('data-routine-create-form');
+    const formAt = f === ROW ? s.indexOf('data-routine-editing>') : s.indexOf('data-routine-create-form');
     const body = s.slice(formAt);
     const order = [`value={${v}.name}`, `value={${v}.role}`, `value={${v}.entity_id}`, `<DaysField form={${v}} setForm={setForm} />`, `<TimeField form={${v}} setForm={setForm} />`, `value={${v}.budget_amount ?? ''}`, '<CoaSelect', `value={${v}.start_date}`, `value={${v}.end_date}`, `<ZoneSelect`, 'data-routine-more>', `value={${v}.description}`, `value={${v}.ideal_time_label}`, '{MISSED_AFTER_WORDS}', `value={${v}.fail_threshold_minutes}`];
     let at = -1;
@@ -152,7 +153,7 @@ test('T3 the forms: in order — name · on the day card · entity · days · ti
   const row = code(ROW);
   assert.match(row, /export function routineToForm\(r: Routine\): RoutineForm \{/);
   assert.match(row, /\.\.\.formOfRule\(r\.schedule_rrule, r\.start_date \? r\.start_date\.slice\(0, 10\) : null\),/);
-  assert.match(row, /const handleSave = async \(\) => \{\s*if \(JSON\.stringify\(form\) === JSON\.stringify\(routineToForm\(routine\)\)\) \{\s*setEditing\(false\);\s*setError\(null\);\s*return;\s*\}/, 'the unchanged guard, before any request');
+  assert.match(row, /const handleSave = async \(\) => \{\s*if \(JSON\.stringify\(form\) === JSON\.stringify\(routineToForm\(routine\)\)\) \{\s*setError\(null\);\s*onClose\(\);\s*return;\s*\}/, 'the unchanged guard, before any request');
   assert.doesNotMatch(row, /data-routine-place-view|formatTime12h|intent time window/, 'the place block and the time range left the cell');
   assert.match(row, /data-routine-zone/); assert.match(row, /data-routine-next-due/); assert.match(row, /fail threshold \{routine\.fail_threshold_minutes\} min/); assert.match(row, /data-routine-last-done/);
   // The create form's lines sit with the money, before the dates.
@@ -161,29 +162,30 @@ test('T3 the forms: in order — name · on the day card · entity · days · ti
   assert.match(code(TYPES), /days: DaysChoice;/); assert.match(comments(TYPES), /FORM-01 \(Alex, 2026-10-19\): DAYS IS ONE CONTROL/);
 });
 
-test('T4 the list: one flat table in clock order — Routine · Cadence · Days · Time · Amount · Account · controls; the routine\'s own row, its lines under it; the ended group stays', () => {
-  const l = code(LIST);
-  assert.deepEqual([...l.matchAll(/<th\b[^>]*>([^<]*)</g)].map((m) => m[1]), ['Routine', 'Cadence', 'Days', 'Time', 'Amount', 'Account', '']);
+test('T4 the list: WORK-01 (Alex, 2026-10-24) — the routines are rows of THE WORK in clock order; the lines\' FORM-01 table lives in the editor; the ended routines are a STATUS', () => {
+  const f = code(ROW);
+  assert.deepEqual([...f.matchAll(/<th\b[^>]*>([^<]*)</g)].map((m) => m[1]), ['Routine', 'Cadence', 'Days', 'Time', 'Amount', 'Account', '']);
   assert.match(code(LINES), /export const ROUTINE_TABLE_COLUMNS = 7;/);
-  // ALLDAY-01 (2026-10-19): the current routines are judged once, then each book's TIMED rows are sorted by the clock (the all-day charges go to the band).
-  assert.match(l, /const current = judged\.filter\(\(x\) => !x\.end\.ended\);/);
-  assert.match(l, /timed: own\.filter\(\(x\) => isStop\(x\.r\.role\)\)\.sort\(\(a, b\) => byClockThenName\(a\.r, b\.r\)\),/);
-  assert.doesNotMatch(l, /groupOf|CADENCE_GROUP_ORDER|CADENCE_GROUP_LABELS|data-cadence-group|isOnceRRule/, 'no cadence groups, no second classifier');
-  assert.match(l, /\{timed\.map\(row\)\}/); assert.match(l, /const row = \(\{ r, end \}: \{ r: Routine; end: ReturnType<typeof endedBy> \}\) => \(\n\s*<RoutineRow/);
-  assert.match(l, /<tr data-ended-group>/, 'the ENDED group stays (ROUTINE-02a)');
-  assert.ok(l.lastIndexOf('<tr data-ended-group>') > l.lastIndexOf('{timed.map(row)}'), 'at the bottom');
+  const w = code(WORK_LIB);
+  assert.match(w, /for \(const routine of \[\.\.\.routines\]\.sort\(byClockThenName\)\) \{/, 'clock order then name');
+  assert.match(w, /export const cadenceOf = \(row: WorkRow\): string \| null => \(row\.of === 'task' \? null : cadenceWords\(row\.routine\.schedule_rrule\)\);/, 'CADENCE is cadenceWords');
+  assert.match(w, /const words = daysWords\(row\.routine\.schedule_rrule, row\.routine\.start_date\);/, 'DAYS is daysWords');
+  assert.match(w, /const words = timeWords\(row\.routine\);/, 'TIME is timeWords');
+  assert.doesNotMatch(w, /groupOf|CADENCE_GROUP_ORDER|CADENCE_GROUP_LABELS|data-cadence-group/, 'no cadence groups, no second classifier');
+  assert.match(w, /isOnceRRule\(row\.routine\.schedule_rrule\)/, 'KIND once is the one rule (ONEOFF-01)');
+  assert.match(w, /end\.ended \? 'ended' : routine\.is_active \? 'active' : 'inactive'/, 'the ENDED group is a STATUS (ROUTINE-02a)');
   const lines = code(LINES);
   assert.match(lines, /<tr data-routine-main>\n\s*\{cell\}\n\s*<td[^>]*data-routine-cadence>\{cadenceWords\(routine\.schedule_rrule\)\}<\/td>\n\s*<td[^>]*data-routine-days>\{daysWords\(routine\.schedule_rrule, routine\.start_date\)\}<\/td>\n\s*<td[^>]*data-routine-time>\{timeWords\(routine\)\}<\/td>/);
   assert.match(lines, /const rowSpan = 1 \+ steps\.length \+ \(openAdd \? 1 : 0\);/);
   assert.doesNotMatch(lines, /data-line-where|data-line-minutes|step\.location|step\.duration_minutes|value=\{form\.location\}|value=\{form\.duration_minutes\}/, 'Where and Minutes left the rows and the editor');
   assert.match(lines, /location: f\.location \|\| null,\n\s*sub_activity: f\.sub_activity \|\| null,\n\s*duration_minutes: f\.duration_minutes !== '' \? Number\(f\.duration_minutes\) : null,/, 'a line\'s stored location and duration are sent back as they are');
   assert.match(comments(LINES), /FORM-01 \(Alex, 2026-10-19\): THE TABLE IS Routine · Cadence · Days · Time/);
-  assert.match(comments(LIST), /FORM-01 \(Alex, 2026-10-19\): the CURRENT routines are ONE FLAT TABLE/);
+  assert.match(comments(ROW), /FORM-01 \(Alex, 2026-10-19\): THE EDIT FORM OPENS IN THE MATCHING DAYS CHOICE/);
 });
 
 test('T5 the geo law: no routine form mounts the lookup; the component and the route stand; the create route still accepts the place', () => {
   const law = code(LAW);
-  assert.match(law, /const GEO_NO_MOUNT = \['src\/components\/workbench\/operations\/routines\/RoutineCreateForm\.tsx', 'src\/components\/workbench\/operations\/routines\/RoutineRow\.tsx'\];/);
+  assert.match(law, /const GEO_NO_MOUNT = \['src\/components\/workbench\/operations\/routines\/RoutineCreateForm\.tsx', 'src\/components\/workbench\/operations\/routines\/RoutineEditForm\.tsx'\];/); // WORK-01 (2026-10-24)
   assert.match(law, /for \(const f of GEO_NO_MOUNT\) \{\n\s*if \(\/<FindThisPlace\/\.test\(dayCode\(f\)\)\) geoFail\(/);
   assert.doesNotMatch(law, /the routine creator does not mount FindThisPlace/, 'the old clause moved');
   assert.match(comments(LAW), /FORM-01 \(Alex, 2026-10-19\): NO ROUTINE FORM MOUNTS THE LOOKUP/);

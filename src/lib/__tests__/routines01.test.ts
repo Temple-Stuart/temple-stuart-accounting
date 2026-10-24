@@ -16,15 +16,19 @@ import { ACCOUNT_CELL_WORDS, accountCell, type AccountCellBook } from '../coa/ac
 import { CADENCE_GROUP_ORDER } from '@/components/workbench/operations/routines/types';
 
 const HELPER = 'src/lib/coa/accountCell.ts';
-const LIST = 'src/components/workbench/operations/routines/RoutineList.tsx';
-const ROW = 'src/components/workbench/operations/routines/RoutineRow.tsx';
+// WORK-01 (Alex, 2026-10-24): THE ROUTINES ARE ROWS OF THE WORK. RoutineList and RoutineRow left with the per-book tables;
+// the routines are rows of /tasks' one DataTable (SectionE_Work over src/lib/operations/work.ts — one row per line), and the
+// routine's editor (RoutineEditForm, RoutineRow's form lifted) draws its lines in the FORM-01 table through RoutineStepList.
+// Every T2 pin below moved to the new files; none was loosened.
+const SECTION_E = 'src/components/workbench/operations/SectionE_Work.tsx';
+const EDIT_FORM = 'src/components/workbench/operations/routines/RoutineEditForm.tsx';
 const LINES = 'src/components/workbench/operations/routines/RoutineStepList.tsx';
-const SECTION_E = 'src/components/workbench/operations/SectionE_Routines.tsx';
+const WORK_LIB = 'src/lib/operations/work.ts';
 // TIME-02 (2026-10-19): TakeifyButton.tsx and AvailableRoutinesList.tsx are deleted with the content pipeline — the two
 // names stay so T2 can pin the absence.
 const TAKEIFY = 'src/components/workbench/operations/content/TakeifyButton.tsx';
 const CONTENT_LIST = 'src/components/workbench/operations/content/AvailableRoutinesList.tsx';
-const TABLE = [LIST, ROW, LINES];
+const TABLE = [SECTION_E, EDIT_FORM, LINES, WORK_LIB];
 
 const BOOKS: AccountCellBook[] = [
   { id: 'e_me', entity_type: 'personal' },
@@ -96,93 +100,82 @@ test('T1 every state\'s words, and the helper takes a book list, a book id and a
 
 // ── T2 · THE TABLE ───────────────────────────────────────────────────────────
 
-test('T2 one table: Routine · Cadence · Days · Time · Amount · Account, and a controls column (FORM-01)', () => {
-  const list = code(LIST);
-  // ALLDAY-01 (2026-10-19): one table PER BOOK from one template, and the ended table — two <table> in the source, one header they all carry.
-  assert.equal((list.match(/<table\b/g) ?? []).length, 2, 'the books\' table template and the ended table');
-  assert.equal((list.match(/<thead>/g) ?? []).length, 1, 'one header');
-  for (const f of [ROW, LINES]) assert.doesNotMatch(code(f), /<table\b/, `${f} draws rows of the one table, not a table of its own`);
-  const heads = [...list.matchAll(/<th\b[^>]*>([^<]*)</g)].map((m) => m[1]);
+test('T2 one table: the routines are rows of THE WORK (the shared DataTable); the lines keep their FORM-01 table — Routine · Cadence · Days · Time · Amount · Account · controls — inside the editor', () => {
+  const e = code(SECTION_E);
+  assert.match(e, /<DataTable\n\s*name=\{name\}/, 'the shared table (IDIOM-01)');
+  assert.doesNotMatch(e, /<table\b|<thead>/, 'no table of its own');
+  const f = code(EDIT_FORM);
+  assert.equal((f.match(/<table\b/g) ?? []).length, 1, 'the lines\' table, once, in the editor');
+  assert.equal((f.match(/<thead>/g) ?? []).length, 1, 'one header');
+  assert.doesNotMatch(code(LINES), /<table\b/, `${LINES} draws rows of the one table, not a table of its own`);
+  const heads = [...f.matchAll(/<th\b[^>]*>([^<]*)</g)].map((m) => m[1]);
   assert.deepEqual(heads, ['Routine', 'Cadence', 'Days', 'Time', 'Amount', 'Account', ''], 'FORM-01 (2026-10-19): Routine · Cadence · Days · Time · Amount · Account — Where, Activity and Minutes are gone');
   const columns = Number(/export const ROUTINE_TABLE_COLUMNS = (\d+);/.exec(code(LINES))?.[1]);
   assert.equal(columns, heads.length, 'the column count is the header\'s');
-  // ROUTINE-02a (2026-10-18): each row is handed the list's judgement of its end (routine02a T6).
-  assert.match(list, /<RoutineRow\n\s*key=\{r\.id\}\n\s*routine=\{r\}\n\s*end=\{end\}\n\s*entities=\{entities\}\n\s*onUpdate=\{refresh\}\n\s*onDelete=\{refresh\}\n\s*\/>/);
-  // ROUTINE-02a (2026-10-18): the rows say whether the routine has ended, and its lines are read-only then (routine02a T6).
-  assert.match(code(ROW), /<tbody className=\{[^}]*\} data-routine-rows=\{routine\.id\} data-routine-is-ended=\{end\.ended \? 'true' : undefined\}>\n\s*<RoutineStepList routine=\{routine\} entities=\{entities\} onUpdate=\{onUpdate\} routineCell=\{routineCell\} readOnly=\{end\.ended\} \/>/);
+  // ROUTINE-02a (2026-10-18): the editor is handed THE WORK's judgement of the end, and its lines are read-only then (routine02a T6).
+  assert.match(e, /<RoutineEditForm routine=\{routine\} end=\{end\} entities=\{entities\} onChanged=\{onChanged\} onClose=\{\(\) => setEditing\(false\)\} \/>/);
+  assert.match(f, /<tbody className=\{[^}]*\} data-routine-rows=\{routine\.id\} data-routine-is-ended=\{end\.ended \? 'true' : undefined\}>\n\s*<RoutineStepList routine=\{routine\} entities=\{entities\} onUpdate=\{onChanged\} routineCell=\{routineCell\} readOnly=\{end\.ended\} \/>/);
 });
 
-test('T2 the current routines are one flat table in clock order — no cadence group rows (FORM-01)', () => {
+test('T2 the rows are in clock order — no cadence group rows (FORM-01); "+ routine", the STATUS chip and the create form stay where they are', () => {
   assert.deepEqual(CADENCE_GROUP_ORDER, ['once', 'daily', 'weekly', 'monthly', 'quarterly', 'yearly', 'custom']);
-  const list = code(LIST);
-  // FORM-01 (2026-10-19): the current routines are ONE FLAT TABLE in clock order — no cadence group rows; CADENCE_GROUP_ORDER stays
-  // the list's vocabulary elsewhere (the move control) and the ended group keeps its own label row (routine02a T6).
-  assert.doesNotMatch(list, /CADENCE_GROUP_ORDER|data-cadence-group/);
-  // ALLDAY-01 (2026-10-19): per book — the timed rows in clock order, the all-day charges in the band (allday01 T5).
-  assert.match(list, /const current = judged\.filter\(\(x\) => !x\.end\.ended\);/);
-  assert.match(list, /timed: own\.filter\(\(x\) => isStop\(x\.r\.role\)\)\.sort\(\(a, b\) => byClockThenName\(a\.r, b\.r\)\),/);
-  assert.match(list, /\{timed\.map\(row\)\}/);
-  // "+ new routine", "show inactive", the count and the create form stay where they are.
-  const header = list.indexOf('show inactive');
-  // ROUTINE-02a (2026-10-18): the count is of the rows shown — the current ones, and the ended while shown.
-  assert.ok(list.indexOf("{shownCount === 1 ? 'routine' : 'routines'}") < header);
-  assert.ok(header < list.indexOf('+ new routine'));
-  assert.ok(list.indexOf('+ new routine') < list.indexOf('<RoutineCreateForm'));
-  assert.ok(list.indexOf('<RoutineCreateForm') < list.indexOf('<table'));
+  const w = code(WORK_LIB);
+  assert.match(w, /for \(const routine of \[\.\.\.routines\]\.sort\(byClockThenName\)\) \{/, 'clock order then name, every book in one table (WORK-01)');
+  for (const f of [SECTION_E, WORK_LIB]) assert.doesNotMatch(code(f), /CADENCE_GROUP_ORDER|data-cadence-group/);
+  // ROUTINE-02a (2026-10-18): the ended routines are judged in THE WORK's rows (STATUS); the default STATUS filter drops them and its chip clears (work01 T3).
+  assert.match(w, /const end = endedBy\(routine\.end_date, routine\.timezone, now\);/);
+  const e = code(SECTION_E);
+  assert.ok(e.indexOf('ADD_ROUTINE_WORDS}') < e.indexOf('statusChipWords('), '"+ routine", then the STATUS chip, in the controls row');
+  assert.ok(e.indexOf('statusChipWords(') < e.indexOf('<RoutineCreateForm'), 'the create form opens under the controls');
+  assert.match(e, /\{workCountWords\(shown\.length, rows\.length\)\}/, 'the count is of the rows shown over the rows loaded');
 });
 
-test('T2 nothing collapses: no ▸/▾, no expanded state, no click on a row', () => {
-  for (const f of [...TABLE, SECTION_E]) {
+test('T2 nothing collapses on its own: no ▸/▾, no expanded row state, no click on a row — a row\'s "edit" opens its editor under it (WORK-01 ruling D), and that is the one fold', () => {
+  for (const f of TABLE) {
     const body = code(f);
     assert.doesNotMatch(body, /[▸▾]/, `${f} draws no expand arrow`);
-    // FORM-01 (2026-10-19): the forms' "more" block (aria-expanded) is the form's own fold, not a row's — rows still never collapse.
-    assert.doesNotMatch(body.replace(/aria-expanded=\{more\}/g, ''), /expanded|setExpanded|collapsed/i, `${f} holds no expanded state`);
+    // FORM-01 (2026-10-19): the forms' "more" block (aria-expanded) is the form's own fold; WORK-01 (2026-10-24): the row's "edit" is an a11y-expanded control over its editor.
+    assert.doesNotMatch(body.replace(/aria-expanded=\{[^}]+\}/g, ''), /expanded|setExpanded|collapsed/i, `${f} holds no expanded state`);
+    assert.doesNotMatch(body, /<(tr|tbody|td)\b[^>]*onClick/, `${f}: no row toggles on click`);
   }
-  for (const f of TABLE) assert.doesNotMatch(code(f), /<(tr|tbody|td)\b[^>]*onClick/, `${f}: no row toggles on click`);
 });
 
-test('T2 the routine cell holds what R2 names, and the RRULE, last evaluated and ideal time have left', () => {
-  const row = code(ROW);
-  const cellAt = row.indexOf('const routineCell = (rowSpan: number, addLine: (() => void) | null) => (');
+test('T2 the editor says what the routine cell said beyond THE WORK\'s columns, in order; the RRULE, last evaluated and ideal time have left; the controls are the row\'s', () => {
+  const f = code(EDIT_FORM);
+  const cellAt = f.indexOf('data-routine-small-print-block>');
   assert.ok(cellAt > -1);
-  const cell = row.slice(cellAt, row.indexOf('\n  );\n', cellAt));
-  assert.match(cell, /<td rowSpan=\{rowSpan\}[^>]*data-routine-cell>/, 'the cell spans the routine\'s line rows');
+  const cell = f.slice(cellAt, f.indexOf('data-routine-lines-table', cellAt));
   const inOrder = [
     '{routine.name}',
     'inactive',
     '{routine.description}',
     '{book ? book.name : ACCOUNT_CELL_WORDS.bookNotLoaded}',
-    // FORM-01 (2026-10-19): the time range left the small print — the Time column says the window.
-    // ROUTINE-02a (2026-10-18): the zone as Intl's list spells it; "ended <date>" in place of a next once nothing remains before the end.
     '{canonicalZone(routine.timezone) ?? routine.timezone}',
     '`next: ${formatDateTime(routine.next_due_at, routine.timezone)}`',
     'formatDate(routine.start_date)',
     'fail threshold {routine.fail_threshold_minutes} min',
     '{plannedLine(planned)}',
     '{ignoredLine(planned)}',
-    // FORM-01 (2026-10-19): the place block left the cell — the hub map keeps reading what is stored.
     'last done {formatDateTime(routine.last_completed_at, routine.timezone)}',
-    'onClick={enterEdit}',
-    'onClick={handleToggleActive}',
-    'onClick={handleDelete}',
-    '+ line',
   ];
   let at = -1;
   for (const piece of inOrder) {
     const next = cell.indexOf(piece, at + 1);
-    assert.ok(next > at, `the routine cell draws ${piece} (in order)`);
+    assert.ok(next > at, `the editor's head draws ${piece} (in order)`);
     at = next;
   }
   assert.match(cell, /data-routine-next-due>\n\s*\{routine\.next_due_at === null && routine\.end_date !== null\n\s*\? endedWords\(formatDate\(routine\.end_date\)\)\n\s*: `next: \$\{formatDateTime\(routine\.next_due_at, routine\.timezone\)\}`\}/);
-  assert.match(row, /const book = entities\.find\(\(e\) => e\.id === routine\.entity_id\);/);
-  assert.match(row, /const planned = routinePlanned\(\{ budget_amount: routine\.budget_amount \?\? null, coa_code: routine\.coa_code \?\? null, steps: routine\.steps \}\);/);
+  assert.match(f, /const book = entities\.find\(\(e\) => e\.id === routine\.entity_id\);/);
+  assert.match(f, /const planned = routinePlanned\(\{ budget_amount: routine\.budget_amount \?\? null, coa_code: routine\.coa_code \?\? null, steps: routine\.steps \}\);/);
+  // The controls: edit · deactivate/reactivate · delete on THE WORK's row; "+ line" in the editor's routine cell.
+  const e = code(SECTION_E);
+  for (const piece of ['onClick={() => setEditing(!editing)}', 'onClick={handleToggleActive}', 'onClick={handleDelete}']) assert.ok(e.includes(piece), `the row draws ${piece}`);
+  assert.match(f, /onClick=\{\(\) => addLine\?\.\(\)\}\n\s*disabled=\{addLine === null\}/);
   // What left the screen.
-  assert.doesNotMatch(row, /\{routine\.schedule_rrule\}/, 'the raw RRULE');
-  assert.doesNotMatch(row, /last_evaluated_at/, 'last evaluated');
-  assert.doesNotMatch(row, /routine\.ideal_time_label/, 'the ideal time label');
-  // FORM-01 (2026-10-19): the edit form's "more" block asks the ideal time label (moved there from the builder); the CELL still shows none of these.
+  assert.doesNotMatch(f, /\{routine\.schedule_rrule\}/, 'the raw RRULE');
+  assert.doesNotMatch(f, /last_evaluated_at/, 'last evaluated');
+  assert.doesNotMatch(f, /routine\.ideal_time_label/, 'the ideal time label');
   assert.doesNotMatch(cell, /schedule \(rrule\)|last evaluated|ideal time/);
-  assert.doesNotMatch(row, /schedule \(rrule\)|last evaluated/);
 });
 
 test('T2 a line row: (blank under Cadence) · Activity (· sub-activity, notes) under Days · time of day under Time · Amount · Account · edit delete ↑ ↓ — FORM-01', () => {
@@ -232,55 +225,56 @@ test('T2 every code on the table is drawn through the one helper — never a bar
     assert.doesNotMatch(body, /deriveAccountString|parseCode/, `${f} restates the helper`);
   }
   assert.equal((code(LINES).match(/accountCell\(/g) ?? []).length, 2, 'the line\'s code and the routine\'s own');
-  assert.equal((code(ROW).match(/accountCell\(/g) ?? []).length, 1, 'the figure\'s account');
-  assert.match(code(ROW), /<AccountText cell=\{accountCell\(entities, routine\.entity_id, planned\.coaCode\)\} \/>/);
-  // ALLDAY-01 (2026-10-19): the list names an unlisted book with the helper's words (ACCOUNT_CELL_WORDS.bookNotLoaded) — still no code, no call.
-  assert.doesNotMatch(code(LIST), /coa_code|coaCode|accountCell\(/, 'the list draws no code');
-  // The helper's words are what renders — each state has its own look, blank renders nothing.
+  assert.equal((code(EDIT_FORM).match(/accountCell\(/g) ?? []).length, 1, 'the figure\'s account');
+  assert.match(code(EDIT_FORM), /<AccountText cell=\{accountCell\(entities, routine\.entity_id, planned\.coaCode\)\} \/>/);
+  // WORK-01: THE WORK's ACCOUNT column goes through the helper too (work.ts accountWordsOf) — the section draws no code.
+  assert.equal((code(WORK_LIB).match(/accountCell\(/g) ?? []).length, 1);
+  assert.match(code(WORK_LIB), /const cell = accountCell\(books, bookId, savedCodeOf\(row\)\);/);
+  assert.doesNotMatch(code(SECTION_E), /coa_code|coaCode|accountCell\(/, 'the section draws no code');
   assert.match(code(LINES), /export function AccountText\(\{ cell \}: \{ cell: AccountCell \}\) \{\n\s*if \(cell\.state === 'blank'\) return null;/);
   assert.match(code(LINES), /data-account-state=\{cell\.state\}>\{cell\.text\}</);
-  // The entity list is the tab's own — with entity_type — and nothing is fetched anew.
+  // The entity list is the tab's own — with entity_type — and nothing is fetched anew for it.
   assert.match(code(SECTION_E), /const \{ entities \} = useOperationsEntity\(\);/);
-  // TASKS-ONE-02 (2026-10-14): the section mounts the list alone now — Today, and the two refresh props it passed with
-  // it, went with TodaysStrip (Alex's ruling) — so the props fit on one line. Moved: the entity list is still the tab's.
-  assert.match(code(SECTION_E), /<RoutineList entities=\{entities\} \/>/);
-  for (const f of [LIST, ROW]) assert.match(code(f), /import type \{ Entity \} from '\.\.\/EntitySelector';/, `${f} takes the entity list with its entity_type`);
-  const fetches = TABLE.flatMap((f) => [...code(f).matchAll(/fetch\(\s*([`'][^`']*[`'])/g)].map((m) => m[1]));
-  for (const url of fetches) assert.match(url, /^[`']\/api\/operations\/routines/, `the table fetches only the routines routes, not ${url}`);
+  assert.match(code(EDIT_FORM), /import type \{ Entity \} from '\.\.\/EntitySelector';/);
+  const fetches = [EDIT_FORM, LINES].flatMap((f) => [...code(f).matchAll(/fetch\(\s*([`'][^`']*[`'])/g)].map((m) => m[1]));
+  for (const url of fetches) assert.match(url, /^[`']\/api\/operations\/routines/, `the editor fetches only the routines routes, not ${url}`);
+  // THE WORK reads the routines, the projects with their tasks and the books' charts, and writes through the routines and tasks routes alone.
+  for (const url of [...code(SECTION_E).matchAll(/fetch\(\s*([`'][^`']*[`'])/g)].map((m) => m[1])) assert.match(url, /^[`']\/api\/operations\/(routines|projects)/, `not ${url}`);
+  for (const url of [...code(SECTION_E).matchAll(/readJson\(\s*([`'][^`']*[`'])/g)].map((m) => m[1])) assert.match(url, /^[`']\/api\/(operations\/(routines|projects)|chart-of-accounts)/, `not ${url}`);
 });
 
-test('T2 editing is in place: the routine\'s edit form is a full-width row under its rows; a line\'s edit is its row', () => {
-  const row = code(ROW);
-  const stepsAt = row.indexOf('<RoutineStepList');
-  const editAt = row.indexOf('<tr data-routine-editing>');
-  assert.ok(stepsAt > -1 && editAt > stepsAt, 'the edit row comes directly under the routine\'s rows');
-  assert.match(row, /\{editing && \(\n\s*<tr data-routine-editing>\n\s*<td colSpan=\{ROUTINE_TABLE_COLUMNS\}/);
-  // Today's edit form: the same fields, routineToForm, FindThisPlace.
-  assert.match(row, /setForm\(routineToForm\(routine\)\);\n\s*setEditing\(true\);/);
-  const form = row.slice(editAt);
-  // ROUTINE-02b (2026-10-18): the start and end times are the builder's fields now (RRULEBuilder.tsx) — the row carries them through it.
+test('T2 editing is in place: the routine\'s editor opens under its row on THE WORK (ruling D); a line\'s edit is its row', () => {
+  const e = code(SECTION_E);
+  assert.match(e, /\{editing && \(\n\s*<tr \{\.\.\.dataAttr\(name, 'editing', row\.id\)\}>\n\s*<td colSpan=\{columns\.length \+ 1\}/, 'the editor row comes directly under the row');
+  const f = code(EDIT_FORM);
+  // The same form, seeded by routineToForm on open; the lines above it.
+  assert.match(f, /const \[form, setForm\] = useState<RoutineForm>\(\(\) => routineToForm\(routine\)\);/);
+  const linesAt = f.indexOf('<RoutineStepList');
+  const editAt = f.indexOf('data-routine-editing>');
+  assert.ok(linesAt > -1 && editAt > linesAt, 'the lines, then the form');
+  const form = f.slice(editAt);
+  // ROUTINE-02b (2026-10-18): the start and end times are the builder's fields now (RRULEBuilder.tsx) — the form carries them through it.
   // FORM-01 (2026-10-19): days and time are the builder's two fields; the once date is the days control's; the place left the form.
-  for (const piece of ['value={form.name}', '<DaysField form={form} setForm={setForm} />', '<TimeField form={form} setForm={setForm} />', 'value={form.budget_amount ?? \'\'}', '<CoaSelect', 'value={form.entity_id}', 'value={form.description}', 'onClick={handleSave}', 'onClick={cancelEdit}']) {
-    assert.ok(form.includes(piece), `the edit row carries ${piece}`);
+  for (const piece of ['value={form.name}', '<DaysField form={form} setForm={setForm} />', '<TimeField form={form} setForm={setForm} />', 'value={form.budget_amount ?? \'\'}', '<CoaSelect', 'value={form.entity_id}', 'value={form.timezone}', 'value={form.fail_threshold_minutes}', 'value={form.description}', 'value={form.ideal_time_label}']) {
+    assert.ok(form.includes(piece), `the form carries ${piece}`);
   }
-  // Its refusal is the route's own message, shown in that row.
-  assert.match(row, /setError\(body\?\.message \?\? body\?\.error \?\? 'failed to save'\);/);
+  // Its refusal is the route's own message, shown in the form.
+  assert.match(f, /setError\(body\?\.message \?\? body\?\.error \?\? 'failed to save'\);/);
   assert.match(form, /\{error && \(\n\s*<div[^>]*>\n\s*\{error\}/);
 
   const lines = code(LINES);
   // A line's edit turns ITS row into the line inputs.
   assert.match(lines, /\{editingId === step\.id \? \(\n\s*inputCells\(editForm, setEditForm, step\.id, \{/);
   // "+ line" opens the input row at the end of the routine's rows; the routine's cell spans it.
-  assert.match(code(ROW), /onClick=\{\(\) => addLine\?\.\(\)\}\n\s*disabled=\{addLine === null\}/);
-  assert.match(lines, /const rowSpan = 1 \+ steps\.length \+ \(openAdd \? 1 : 0\);/); // FORM-01 (2026-10-19): the routine's own row, then the lines
+  assert.match(f, /onClick=\{\(\) => addLine\?\.\(\)\}\n\s*disabled=\{addLine === null\}/);
+  assert.match(lines, /const rowSpan = 1 \+ steps\.length \+ \(openAdd \? 1 : 0\);/);
   // ROUTINE-02a (2026-10-18): an ended routine (readOnly) is handed no "+ line" either.
   assert.match(lines, /const cell = routineCell\(rowSpan, openAdd \|\| readOnly \? null : startAdd\);/);
   assert.ok(lines.indexOf('{steps.map((step, index)') < lines.indexOf('{openAdd && ('), 'the new line\'s row is the last');
   assert.match(lines, /\{openAdd && \(\n\s*<tr[^>]*data-line-new>\n\s*\{inputCells\(addForm, setAddForm, NEW_LINE_ROW, \{/);
   // Today's line inputs, every one.
   const inputs = lines.slice(lines.indexOf('const inputCells = ('), lines.indexOf('const rowSpan ='));
-  // FORM-01 (2026-10-19): the location and duration inputs left the line editor with their columns.
-  for (const piece of ['value={form.activity}', 'value={form.sub_activity}', 'value={form.notes}', 'type="time"\n          value={form.time_of_day}', 'value={form.budget_amount}', 'data-step-amount', '<CoaSelect\n          entityId={routine.entity_id}\n          value={form.coa_code}']) {
+  for (const piece of ['value={form.activity}', 'value={form.sub_activity}', 'value={form.notes}', 'type="time"\n          value={form.time_of_day}', 'value={form.budget_amount}', 'data-step-amount', '<CoaSelect\n          entityId={routine.entity_id}']) {
     assert.ok(inputs.includes(piece), `the line inputs carry ${piece}`);
   }
   // Refusals: the route's own message, on the row it refused.
@@ -299,7 +293,7 @@ test('T2 a new line\'s time starts blank — nothing derives it', () => {
 });
 
 test('T2 Scenify and Take leave this screen; TIME-02 (2026-10-19): both are deleted with the content pipeline, mounted nowhere', () => {
-  for (const f of [...TABLE, SECTION_E]) {
+  for (const f of TABLE) {
     const body = code(f);
     assert.doesNotMatch(body, /ScenifyButton|TakeifyButton|onScenify|onTakeify|handleScenify|handleTakeify|ContentTable|🎬/, `${f} carries no Scenify or Take`);
   }

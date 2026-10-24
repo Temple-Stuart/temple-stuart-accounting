@@ -421,9 +421,14 @@ export const TOOL_REGISTRY: readonly ToolEntry[] = PROBLEM_SHEET.flatMap((f) =>
  * above, in a different place. It points at the owner now. Nothing renders from
  * this entry today (claimForCockpit('routines') has no caller), so the change
  * costs nothing and restores the truth.
+ *
+ * WORK-01 (Alex, 2026-10-24): `routines` and `projects` LEFT this map and COCKPIT_PATH —
+ * the cockpit's two tabs retired with Tasks becoming one table at /tasks (the rail's door).
+ * The public Projects deck's CTA reads claimForTool('Tasks') (offer.ts, ruling 1); /routines
+ * and /projects stay redirect pages to /tasks, and the front door's ?tab= map still lands them.
  */
 export const COCKPIT_PRIMARY_TOOL: Readonly<Record<string, ToolName>> = {
-  projects: 'Tasks', content: 'Time', travel: 'Travel', calendar: 'Budget', routines: 'Tasks',
+  content: 'Time', travel: 'Travel', calendar: 'Budget',
   books: 'Bookkeeping', trade: 'Brokerage', tax: 'Tax', compliance: 'Compliance',
 };
 
@@ -435,7 +440,7 @@ export const COCKPIT_PRIMARY_TOOL: Readonly<Record<string, ToolName>> = {
  * and the build-time reachability law (scripts/assert-tool-registry.ts).
  */
 export const COCKPIT_PATH: Readonly<Record<string, string>> = {
-  calendar: '/runway', travel: '/travel', routines: '/routines', projects: '/projects',
+  calendar: '/runway', travel: '/travel',
   content: '/content', trade: '/trade', books: '/books', tax: '/tax', compliance: '/?tab=compliance',
 };
 

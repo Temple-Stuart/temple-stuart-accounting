@@ -29,8 +29,10 @@ const BUDGET = 'src/lib/operations/routineBudget.ts';
 const COMPLETION = 'src/lib/operations/routineCompletion.ts';
 const CREATE_ROUTE = 'src/app/api/operations/routines/route.ts';
 const PATCH_ROUTE = 'src/app/api/operations/routines/[id]/route.ts';
-const LIST = 'src/components/workbench/operations/routines/RoutineList.tsx';
-const ROW = 'src/components/workbench/operations/routines/RoutineRow.tsx';
+const SECTION_E = 'src/components/workbench/operations/SectionE_Work.tsx'; // WORK-01 (2026-10-24): RoutineList left — THE WORK
+const WORK_LIB = 'src/lib/operations/work.ts';
+// WORK-01 (Alex, 2026-10-24): RoutineRow left — its edit form is RoutineEditForm (lifted, moved code); ROW names it.
+const ROW = 'src/components/workbench/operations/routines/RoutineEditForm.tsx';
 const LINES = 'src/components/workbench/operations/routines/RoutineStepList.tsx';
 const BUILDER = 'src/components/workbench/operations/routines/RRULEBuilder.tsx';
 const ZONE_SELECT = 'src/components/workbench/operations/routines/ZoneSelect.tsx';
@@ -167,38 +169,37 @@ test('T6 the archive: ended = end_date before today in the routine\'s own zone; 
   assert.equal(unread.ended, false);
   assert.match((unread as { reason: string }).reason, /^zone "Not\/AZone" not recognised: .*pick one from the list$/, 'named, and current — never hidden, never judged by another zone');
   assert.equal(zoneUnreadWords('X/Y', 'why'), 'zone "X/Y" not recognised: why — pick one from the list');
-  // The list: judged now in each routine's zone; the cadence groups hold the current; the ended group at the bottom, newest end first, only while shown.
-  const l = code(LIST);
-  assert.match(l, /const now = new Date\(\);\n\s*const judged = routines\.map\(\(r\) => \(\{ r, end: endedBy\(r\.end_date, r\.timezone, now\) \}\)\);\n\s*const current = judged\.filter\(\(x\) => !x\.end\.ended\);/); // FORM-01 (2026-10-19): sorted by the clock — ALLDAY-01 (2026-10-19): per book, the timed rows (allday01 T5)
-  assert.match(l, /\.sort\(\(a, b\) => b\.day\.localeCompare\(a\.day\) \|\| a\.r\.name\.localeCompare\(b\.r\.name\)\);/, 'newest end first');
-  // FORM-01 (2026-10-19): the current routines are one flat table in clock order — no cadence groups; the ended group alone remains.
-  assert.doesNotMatch(l, /groupOf|CADENCE_GROUP_ORDER|data-cadence-group/, 'no cadence groups (FORM-01)');
-  assert.match(l, /const \[showEnded, setShowEnded\] = useState\(false\);/, 'React state only');
-  assert.match(l, /checked=\{showEnded\}\n\s*onChange=\{\(e\) => setShowEnded\(e\.target\.checked\)\}\n\s*data-routines-show-ended\n\s*\/>\n\s*<span className="text-text-muted">\{showEndedWords\(ended\.length\)\}<\/span>/);
-  assert.ok(l.indexOf('show inactive') < l.indexOf('data-routines-show-ended'), 'beside "show inactive"');
-  // ALLDAY-01 (2026-10-19): the ended group is its own table at the bottom of the page, under every book's table, behind the same toggle.
-  assert.match(l, /\{showEnded && ended\.length > 0 && \(\n\s*<div className="[^"]*">\n\s*<table className="[^"]*" data-routines-table data-routines-ended>\n\s*\{head\}\n\s*<tbody>\n\s*<tr data-ended-group>/);
-  assert.ok(l.indexOf('<tr data-ended-group>') > l.lastIndexOf('{timed.map(row)}') && l.indexOf('<tr data-ended-group>') > l.lastIndexOf('{allDay.map(row)}'), 'at the bottom');
-  assert.match(l, /const url = showInactive\n\s*\? '\/api\/operations\/routines'\n\s*: '\/api\/operations\/routines\?is_active=true';/, 'the fetch is unchanged');
-  assert.doesNotMatch(l, /localStorage|sessionStorage|document\.cookie/);
-  assert.match(l, /export const showEndedWords = \(n: number\): string => `show ended \(\$\{n\}\)`;/);
-  assert.match(l, /export const endedGroupWords = \(n: number\): string => `ended \(\$\{n\}\)`;/);
+  // WORK-01 (Alex, 2026-10-24): the list is THE WORK (SectionE_Work over work.ts) — judged now in each routine's zone when the rows are built;
+  // the ended ones wear STATUS "ended" (ended first, then inactive, else active) and the default STATUS filter drops them, as a VISIBLE chip the
+  // user clears (work01 T3) — "show ended (n)", its group and its table went with RoutineList; the fetch brings every routine.
+  const w = code(WORK_LIB);
+  assert.match(w, /const end = endedBy\(routine\.end_date, routine\.timezone, now\);/);
+  assert.match(w, /end\.ended \? 'ended' : routine\.is_active \? 'active' : 'inactive'/);
+  assert.match(w, /export const WORK_DEFAULT_DROPPED: readonly string\[\] = \['ended', 'inactive', 'archived'\];/); // WORK-01b (2026-10-24): inactive joined
+  assert.doesNotMatch(w, /groupOf|CADENCE_GROUP_ORDER|data-cadence-group/, 'no cadence groups (FORM-01)');
+  const e = code(SECTION_E);
+  assert.match(e, /workRowsOf\(read\.routines, read\.projects, new Date\(\)\)/, 'judged now');
+  assert.match(e, /readJson\('\/api\/operations\/routines', 'routines'\)/, 'every routine — the filter narrows, never the read');
+  assert.doesNotMatch(e, /showEnded|showInactive|data-routines-show-ended|data-ended-group/);
+  assert.doesNotMatch(e, /localStorage|sessionStorage|document\.cookie/);
   // The row: "ended <date>" beside the name; edit alone; its lines read-only; the zone shown as the list spells it; a zone Intl cannot read named.
   const r = code(ROW);
   assert.match(r, /export const endedWords = \(dateWords: string\): string => `ended \$\{dateWords\}`;/);
   assert.match(r, /\{end\.ended && \(\n\s*<span [^>]*data-routine-ended>\n\s*\{endedWords\(formatDate\(end\.day\)\)\}\n\s*<\/span>\n\s*\)\}/);
-  assert.match(r, /\{!end\.ended && \(\n\s*<>\n\s*<button\n\s*type="button"\n\s*onClick=\{handleToggleActive\}/, 'deactivate, delete and + line only on a current routine');
-  assert.ok(r.indexOf('onClick={enterEdit}') < r.indexOf('{!end.ended && ('), 'edit stays, first');
-  assert.match(r, /<RoutineStepList routine=\{routine\} entities=\{entities\} onUpdate=\{onUpdate\} routineCell=\{routineCell\} readOnly=\{end\.ended\} \/>/);
+  // WORK-01 (2026-10-24): deactivate and delete are THE WORK row's controls; "+ line" is the editor's routine cell; edit stays, first.
+  assert.match(e, /\{!end\.ended && \(\n\s*<>\n\s*<button type="button" onClick=\{handleToggleActive\}/, 'deactivate and delete only on a current routine');
+  assert.ok(e.indexOf('onClick={() => setEditing(!editing)}') < e.indexOf('{!end.ended && ('), 'edit stays, first');
+  assert.match(r, /\{!end\.ended && \(\n\s*<div className="mt-1\.5">\n\s*<button\n\s*type="button"\n\s*onClick=\{\(\) => addLine\?\.\(\)\}/, '"+ line" only on a current routine');
+  assert.match(r, /<RoutineStepList routine=\{routine\} entities=\{entities\} onUpdate=\{onChanged\} routineCell=\{routineCell\} readOnly=\{end\.ended\} \/>/); // WORK-01: the editor's onChanged
   assert.match(r, /<span title="time zone" data-routine-zone>\{canonicalZone\(routine\.timezone\) \?\? routine\.timezone\}<\/span>/);
   assert.match(r, /\{!end\.ended && end\.reason !== null && \(\n\s*<span className="text-amber-800" data-routine-zone-unread>\{end\.reason\}<\/span>\n\s*\)\}/);
   assert.match(r, /timezone: canonicalZone\(r\.timezone\) \?\? r\.timezone,/, 'the edit form is seeded canonical, so the next save stores it');
-  assert.ok(r.indexOf('{!end.ended && (') < r.indexOf('onClick={handleToggleActive}') && r.indexOf('onClick={handleToggleActive}') < r.indexOf('onClick={handleDelete}') && r.indexOf('onClick={handleDelete}') < r.indexOf('data-routine-add-line'), 'deactivate, delete and + line all sit inside the current-only block');
+  assert.ok(e.indexOf('{!end.ended && (') < e.indexOf('onClick={handleToggleActive}') && e.indexOf('onClick={handleToggleActive}') < e.indexOf('onClick={handleDelete}'), 'deactivate, then delete');
   // The lines: no controls, no "+ line".
   const s = code(LINES);
   assert.match(s, /readOnly\?: boolean;/);
   assert.match(s, /\{readOnly \? <td className=\{cellClass\} data-line-read-only \/> : \(/);
-  assert.match(comments(LIST), /ROUTINE-02a \(Alex, 2026-10-18\) — THE ARCHIVE/);
+  assert.match(comments(WORK_LIB), /ROUTINE-02a \(Alex, 2026-10-18\) — THE ARCHIVE/); // WORK-01 (2026-10-24): the archive is a STATUS of THE WORK
   assert.match(comments(ROW), /ROUTINE-02a \(Alex, 2026-10-18\)/);
   assert.match(comments(LINES), /ROUTINE-02a \(Alex, 2026-10-18\)/);
 });

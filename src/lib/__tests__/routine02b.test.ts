@@ -21,7 +21,7 @@ import {
 import { RekeyRefused, noOccurrenceWords, occupiedWords, oldZoneUnreadWords, rekeyPlan, rekeyedWords, type RekeySchedule } from '../operations/routineRekey';
 import { DEFAULT_ROUTINE_FORM } from '@/components/workbench/operations/routines/types';
 import { MISSED_AFTER_WORDS, withStartTime } from '@/components/workbench/operations/routines/RRULEBuilder';
-import { BOOK_FIXED_WORDS, COA_NEEDS_AMOUNT_WORDS, COA_ON_LINES_WORDS } from '@/components/workbench/operations/routines/RoutineRow';
+import { BOOK_FIXED_WORDS, COA_NEEDS_AMOUNT_WORDS, COA_ON_LINES_WORDS } from '@/components/workbench/operations/routines/RoutineEditForm'; // WORK-01 (2026-10-24)
 
 const HELPERS = 'src/lib/operations/rruleHelpers.ts';
 const REKEY = 'src/lib/operations/routineRekey.ts';
@@ -31,7 +31,8 @@ const PATCH_ROUTE = 'src/app/api/operations/routines/[id]/route.ts';
 const LINE_ROUTE = 'src/app/api/operations/routines/steps/[stepId]/route.ts';
 const BUILDER = 'src/components/workbench/operations/routines/RRULEBuilder.tsx';
 const CREATE_FORM = 'src/components/workbench/operations/routines/RoutineCreateForm.tsx';
-const ROW = 'src/components/workbench/operations/routines/RoutineRow.tsx';
+// WORK-01 (Alex, 2026-10-24): RoutineRow left — its edit form is RoutineEditForm (lifted, moved code); ROW names it.
+const ROW = 'src/components/workbench/operations/routines/RoutineEditForm.tsx';
 const LINES = 'src/components/workbench/operations/routines/RoutineStepList.tsx';
 const COA_SELECT = 'src/components/workbench/operations/routines/CoaSelect.tsx';
 const LEDGER = 'src/lib/operations/ledger.ts';

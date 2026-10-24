@@ -16,7 +16,8 @@ const ROUTE = 'src/app/api/calendar/find-place/route.ts';
 // component, mounted by the routine creator (and the row's edit form).
 const FORM = 'src/components/workbench/operations/routines/FindThisPlace.tsx';
 const CREATOR = 'src/components/workbench/operations/routines/RoutineCreateForm.tsx';
-const ROW = 'src/components/workbench/operations/routines/RoutineRow.tsx';
+// WORK-01 (Alex, 2026-10-24): RoutineRow left — its edit form is RoutineEditForm (lifted, moved code); ROW names it.
+const ROW = 'src/components/workbench/operations/routines/RoutineEditForm.tsx';
 const LEAF = 'src/lib/calendar/findPlace.ts';
 
 /** Google's Text Search shape, as placesSearch.ts:160-175 reads it. */
