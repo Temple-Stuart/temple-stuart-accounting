@@ -20,7 +20,7 @@ import type { StayRow } from '../operations/stay';
 import type { StopRecordRow } from '../operations/stopRecord';
 import { TOOL_REGISTRY } from '../toolRegistry';
 import {
-  BOOK_WORDS, CSV_DOWNLOAD_WORDS, CSV_NO_ROWS_WORDS, EVEN_WORDS, GROUP_KEYS, GROUP_WORDS, LEDGER_HEAD_WORDS, LEDGER_TITLE_WORDS, MONEY_HEAD_WORDS,
+  BOOK_WORDS, CSV_DOWNLOAD_WORDS, CSV_NO_ROWS_WORDS, EVEN_WORDS, GROUP_KEYS, GROUP_WORDS, LEDGER_HEAD_WORDS, LEDGER_TABLE, LEDGER_TITLE_WORDS, MONEY_HEAD_WORDS,
   NO_BOOK_GROUP_WORDS, OVER_WORDS, SUMMARY_HEAD_WORDS, SUMMARY_TITLE_WORDS, UNDER_WORDS,
   accountCellWords, accountNameCellWords, actualCellWords, bookCellWords, bookGroupWords, bookWordOf, dayLongWords, ledgerCsv, ledgerCsvFileName, ledgerOf, ledgerSummary, ledgerTotals,
   matchCellWords, matchCoverageWords, underOverWords, varianceCellWords, varianceCoverageWords, varianceSignWords,
@@ -36,6 +36,9 @@ const EXPENSE_FORM = 'src/components/workbench/operations/ledger/ExpenseForm.tsx
 const DAY_WRITTEN = 'src/components/workbench/operations/dayWritten.ts';
 const TIME_PAGE = 'src/app/time/page.tsx';
 const NAV = 'src/lib/nav.ts';
+// IDIOM-01 (Alex, 2026-10-24): the shared table the section renders through, and the idiom's CSV rules — the pins on the header, the CSV button and the quoting moved there.
+const TABLE = 'src/components/table/DataTable.tsx';
+const CSV = 'src/lib/table/csv.ts';
 
 // ── FIXTURES (the Budget's own shapes, as ledger01.test.ts builds them) ─────
 
@@ -202,7 +205,9 @@ test('R2 the sixteen head words in Alex’s order; the cells each one fact: DAY 
   assert.equal(matchCellWords(null), '—');
   assert.match(s, /data-ledger-cell="under-over">\{underOverWords\(row\.varianceCents\)\}/);
   // LEDGER-04 (Alex, 2026-10-20): one header per column (LEDGER_COLUMNS, its word by headWordOf), the money heads still right-aligned by the one list; the word is the sort button (ledger04.test.ts).
-  assert.match(s, /<th key=\{c\} className=\{\(MONEY_HEAD_WORDS as readonly string\[\]\)\.includes\(h\) \? `\$\{head\} text-right` : head\}>/, 'the money heads right-aligned, by the one list');
+  // IDIOM-01 (Alex, 2026-10-24): the header is the shared DataTable's — a money head is right-aligned by the column's KIND; the ledger's money kinds are exactly MONEY_HEAD_WORDS' columns, pinned so the one list and the spec cannot drift.
+  assert.match(code(TABLE), /<th key=\{c\.key\} className=\{c\.kind === 'money' \? `\$\{headClass\} text-right` : headClass\}>/, 'the money heads right-aligned, by the kind');
+  assert.deepEqual(LEDGER_TABLE.filter((c) => c.kind === 'money').map((c) => c.label), [...MONEY_HEAD_WORDS], 'the money kinds are the one list');
   // LEDGER-02 AMENDMENT (Alex, 2026-10-19): the coverage line comes first; the MATCH line is second (A2 pins the pair).
   // LEDGER-03 (Alex, 2026-10-19): the MATCH line is its coverage now, in the same place.
   // LEDGER-04 (Alex, 2026-10-20): both lines inside the notes toggle's open state — still adjacent, the coverage line first.
@@ -332,15 +337,24 @@ test('R6 ledgerCsv: the sixteen head words, one line per row in table order, RFC
   const rules = code(RULES);
   const block = rules.slice(rules.indexOf('export const dayLongWords'), rules.indexOf('export const EXPENSE_FIELDS'));
   assert.doesNotMatch(block, /document\.|window\.|Blob|createObjectURL|from 'react'/, 'pure');
-  assert.match(block, /const csvField = \(text: string\): string => \(\/\[",\\r\\n\]\/\.test\(text\) \? `"\$\{text\.replace\(\/"\/g, '""'\)\}"` : text\);/, 'minimal quoting: a comma, a quote, a CR or an LF');
-  assert.match(block, /return `\$\{lines\.join\('\\r\\n'\)\}\\r\\n`;/, 'CRLF, the last line too');
+  // IDIOM-01 (Alex, 2026-10-24): the quoting and the CRLF lines are src/lib/table/csv.ts's (csvField, csvText) — the same text, moved; pure there too.
+  const csvRules = code(CSV);
+  assert.doesNotMatch(csvRules, /document\.|window\.|Blob|createObjectURL|from 'react'/, 'pure');
+  assert.match(csvRules, /export const csvField = \(text: string\): string => \(\/\[",\\r\\n\]\/\.test\(text\) \? `"\$\{text\.replace\(\/"\/g, '""'\)\}"` : text\);/, 'minimal quoting: a comma, a quote, a CR or an LF');
+  assert.match(csvRules, /return `\$\{lines\.join\('\\r\\n'\)\}\\r\\n`;/, 'CRLF, the last line too');
   // The section: one button beside the period controls, the rows SHOWN, a Blob and an object URL, the file named by the period, the URL revoked; disabled with the reason when no row is shown.
   const s = code(SECTION);
   // LEDGER-04 (Alex, 2026-10-20): "clear filters" sits beside the CSV button (shown while a filter is on); the three dropdowns that followed are gone.
-  inOrder(s, ['data-ledger-period-words>{periodWords(period)}</span>}', '<button type="button" className={chip} disabled={csvPeriod === null} title={csvPeriod === null ? CSV_NO_ROWS_WORDS : undefined} onClick={() => csvPeriod !== null && downloadCsv(csvPeriod)} data-ledger-csv>{CSV_DOWNLOAD_WORDS}</button>', '{anyColumnFilterOn(filters) && <button type="button" className={chip} onClick={() => setFilters(NO_COLUMN_FILTERS)} data-ledger-clear-filters>{CLEAR_FILTERS_WORDS}</button>}', "{answer !== null && answer.read.ok && shown.length === 0 && <span className=\"text-text-faint\" data-ledger-csv-why>{CSV_NO_ROWS_WORDS}</span>}"], 'the button after the period words, then clear filters');
+  // IDIOM-01 (Alex, 2026-10-24): the controls row is the shared DataTable's — the section hands it its period controls (controls), its no-first lines
+  // (trailing) and the file's name (csv); the button, "clear filters" and the reason follow the controls there, in the order they always had.
+  const t = code(TABLE);
+  inOrder(s, ['controls={(', 'data-ledger-period-words>{periodWords(period)}</span>}', 'trailing={('], 'the period words end the controls the section hands over; the no-first lines follow the CSV');
+  inOrder(t, ['{controls}', '<button type="button" className={chipClass} disabled={csv === null} title={csv === null ? CSV_NO_ROWS_WORDS : undefined} onClick={() => csv !== null && downloadCsv(csv.name)} {...dataAttr(name, \'csv\')}>{CSV_DOWNLOAD_WORDS}</button>', '{anyFilterOn(columns, filters) && <button type="button" className={chipClass} onClick={() => onFilters(noFilters)} {...dataAttr(name, \'clear-filters\')}>{CLEAR_FILTERS_WORDS}</button>}', "{loaded && shown.length === 0 && <span className=\"text-text-faint\" {...dataAttr(name, 'csv-why')}>{CSV_NO_ROWS_WORDS}</span>}", '{trailing}'], 'the button after the caller’s controls, then clear filters, then the reason');
   assert.match(s, /const csvPeriod: Period \| null = answer !== null && answer\.read\.ok && shown\.length > 0 \? answer\.period : null;/, 'nothing to download until a row is shown');
-  assert.match(s, /const downloadCsv = \(p: Period\): void => \{\n\s*const url = URL\.createObjectURL\(new Blob\(\[ledgerCsv\(shown\)\], \{ type: 'text\/csv;charset=utf-8;' \}\)\);\n\s*const a = document\.createElement\('a'\);\n\s*a\.href = url;\n\s*a\.download = ledgerCsvFileName\(p\.from, p\.to\);\n\s*a\.click\(\);\n\s*URL\.revokeObjectURL\(url\);\n\s*\};/, 'the rows shown, the GeneralLedger shape, the URL revoked');
-  assert.equal((s.match(/data-ledger-csv>/g) ?? []).length, 1, 'one button');
+  assert.match(s, /const csv = csvPeriod === null \? null : \{ name: ledgerCsvFileName\(csvPeriod\.from, csvPeriod\.to\) \};/, 'the file named by the period read');
+  assert.match(t, /const downloadCsv = \(fileName: string\): void => \{\n\s*const url = URL\.createObjectURL\(new Blob\(\[tableCsv\(columns, shown\)\], \{ type: 'text\/csv;charset=utf-8;' \}\)\);\n\s*const a = document\.createElement\('a'\);\n\s*a\.href = url;\n\s*a\.download = fileName;\n\s*a\.click\(\);\n\s*URL\.revokeObjectURL\(url\);\n\s*\};/, 'the rows shown, the GeneralLedger shape, the URL revoked');
+  assert.equal((t.match(/dataAttr\(name, 'csv'\)/g) ?? []).length, 1, 'one button');
+  assert.equal((s.match(/csv=\{csv\}/g) ?? []).length, 1, 'one name handed over');
   assert.match(code('src/components/dashboard/GeneralLedger.tsx'), /const blob = new Blob\(\[csv\], \{ type: 'text\/csv;charset=utf-8;' \}\);\n\s*const url = URL\.createObjectURL\(blob\);/, 'the precedent');
 });
 
@@ -376,7 +390,8 @@ test('A1 one marker: on screen every null cell prints "—" — VARIANCE, MATCH 
   assert.match(rules, /export const underOverWords = \(varianceCents: number \| null\): string => \(varianceCents === null \? BLANK : varianceSignWords\(varianceCents\)\);/);
   assert.match(rules, /export const varianceCellWords = \(cents: number \| null\): string => \(cents === null \? BLANK : /);
   assert.match(rules, /export const matchCellWords = \(match: LedgerMatch \| null\): string => planDollars\(readableMatchCents\(match\)\);/, 'LEDGER-03: the MATCH cell through the one dollars rule — null is "—"');
-  const block = rules.slice(rules.indexOf('export function ledgerCsv'), rules.indexOf('export const EXPENSE_FIELDS'));
+  // IDIOM-01 (Alex, 2026-10-24): the CSV's fields are LEDGER_CSV — one reader per column, the same sixteen expressions ledgerCsv listed; ledgerCsv is the idiom's tableCsv over the spec. The block pinned is LEDGER_CSV.
+  const block = rules.slice(rules.indexOf('export const LEDGER_CSV'), rules.indexOf('export const LEDGER_TABLE'));
   assert.match(block, /row\.varianceCents === null \? '' : varianceSignWords\(row\.varianceCents\),/, 'the CSV’s own null path for the sign');
   assert.doesNotMatch(block, /underOverWords|varianceCellWords|bookCellWords|accountCellWords|accountNameCellWords|budgetCellWords|actualCellWords|BLANK/, 'the CSV never calls a screen helper');
   // The section: the blank class on each of the three when null; the MATCH cell prints the one marker in every row and in the TOTAL row.

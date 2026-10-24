@@ -23,6 +23,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { code, comments } from '../sourceText';
 import { BLANK } from '../budget/format';
+import { dataAttr } from '@/components/table/dataAttr';
 import type { StopRecordRow } from '../operations/stopRecord';
 import {
   ALL_WORDS, BLANK_CHOICE_WORDS, CLEAR_FILTERS_WORDS, CLOSE_FILTER_WORDS, CONTAINS_WORDS, EXPENSE_FIELD_WORDS, FILTER_ON_MARK, FILTER_OPEN_WORDS, GROUP_WORDS, LEDGER_COLUMNS, LEDGER_HEAD_WORDS,
@@ -35,7 +36,9 @@ import {
 
 const RULES = 'src/lib/operations/ledger.ts';
 const SECTION = 'src/components/workbench/operations/ledger/LedgerSection.tsx';
-const LEAF = 'src/components/workbench/operations/ledger/ColumnFilter.tsx';
+// IDIOM-01 (Alex, 2026-10-24): the leaf moved to the shared table (components/table/) and is generic over src/lib/table's spec — its attributes carry the caller's name.
+const LEAF = 'src/components/table/ColumnFilter.tsx';
+const TABLE = 'src/components/table/DataTable.tsx';
 const EXPENSE_FORM = 'src/components/workbench/operations/ledger/ExpenseForm.tsx';
 const STOP_FORM = 'src/components/workbench/operations/stops/StopForm.tsx';
 const REGISTRY = 'src/lib/toolRegistry.ts';
@@ -188,22 +191,26 @@ test('R2 columnValues: every distinct cell word among the rows loaded with its c
   assert.match(leaf, /^'use client';/m);
   assert.doesNotMatch(leaf, /\bfetch\s*\(|\/api\/|localStorage|sessionStorage|document\.cookie/, 'nothing fetched, nothing stored');
   assert.match(leaf, /\| \{ readonly kind: 'value'; readonly values: readonly ColumnValue\[\]; readonly filter: ValueFilter; readonly onChange: \(filter: ValueFilter\) => void \}\n\s*\| \{ readonly kind: 'money'; readonly filter: MoneyFilter; readonly onChange: \(filter: MoneyFilter\) => void \}\n\s*\| \{ readonly kind: 'text'; readonly filter: TextFilter; readonly onChange: \(filter: TextFilter\) => void \}/, 'the rule’s own shapes, by kind');
-  for (const attr of ['data-ledger-popover={column}', 'data-ledger-popover-head', 'data-ledger-popover-close', 'data-ledger-choice-all', 'data-ledger-choice-none', 'data-ledger-narrow', 'data-ledger-choices', 'data-ledger-choice={v.key}', 'data-ledger-choice-words', 'data-ledger-choice-count', 'data-ledger-min', 'data-ledger-max', 'data-ledger-blank', 'data-ledger-popover-words', 'data-ledger-contains']) {
-    assert.ok(leaf.includes(attr), `the leaf carries ${attr}`);
+  // IDIOM-01 (Alex, 2026-10-24): the leaf is the shared table's and writes the caller's name (dataAttr) — `data-ledger-*` for the ledger, byte for byte; each attribute pinned in that form, dataAttr pinned to write it, and the leaf pinned to know no ledger.
+  for (const attr of [`dataAttr(name, 'popover', column)`, `dataAttr(name, 'popover-head')`, `dataAttr(name, 'popover-close')`, `dataAttr(name, 'choice-all')`, `dataAttr(name, 'choice-none')`, `dataAttr(name, 'narrow')`, `dataAttr(name, 'choices')`, `dataAttr(name, 'choice', v.key)`, `dataAttr(name, 'choice-words')`, `dataAttr(name, 'choice-count')`, `dataAttr(name, 'min')`, `dataAttr(name, 'max')`, `dataAttr(name, 'blank')`, `dataAttr(name, 'popover-words')`, `dataAttr(name, 'contains')`]) {
+    assert.ok(leaf.includes(`{...${attr}}`), `the leaf carries ${attr}`);
   }
-  assert.match(leaf, /onClick=\{\(\) => onChange\(\{ dropped: \[\] \}\)\} data-ledger-choice-all>\{ALL_WORDS\}<\/button>/, '"all" ticks every value');
-  assert.match(leaf, /onClick=\{\(\) => onChange\(\{ dropped: values\.map\(\(v\) => v\.key\) \}\)\} data-ledger-choice-none>\{NONE_WORDS\}<\/button>/, '"none" drops every value present');
+  assert.deepEqual([dataAttr('ledger', 'popover', 'city'), dataAttr('ledger', 'choice-all'), dataAttr('ledger', 'filter-on', ''), dataAttr('ledger', 'filter-on', undefined)], [{ 'data-ledger-popover': 'city' }, { 'data-ledger-choice-all': true }, { 'data-ledger-filter-on': '' }, {}], 'the name, the part, the value; a bare attribute is true (React writes "true", as the bare JSX attribute did); undefined is no attribute');
+  assert.doesNotMatch(leaf, /operations\/ledger|data-ledger/, 'the leaf knows no ledger: the name is handed in');
+  assert.match(code(SECTION), /<DataTable\n\s*name="ledger"/, 'the ledger’s name');
+  assert.match(leaf, /onClick=\{\(\) => onChange\(\{ dropped: \[\] \}\)\} \{\.\.\.dataAttr\(name, 'choice-all'\)\}>\{ALL_WORDS\}<\/button>/, '"all" ticks every value');
+  assert.match(leaf, /onClick=\{\(\) => onChange\(\{ dropped: values\.map\(\(v\) => v\.key\) \}\)\} \{\.\.\.dataAttr\(name, 'choice-none'\)\}>\{NONE_WORDS\}<\/button>/, '"none" drops every value present');
   assert.match(leaf, /\{values\.length > NARROW_FROM && <input type="text" value=\{narrow\}/, 'the narrow box only past ten values');
   assert.match(leaf, /const listed = needle === '' \? values : values\.filter\(\(v\) => choiceWords\(v\.key\)\.toLowerCase\(\)\.includes\(needle\)\);/, 'it narrows the list, not the rows');
-  assert.match(leaf, /<input type="checkbox" checked=\{!filter\.dropped\.includes\(v\.key\)\} onChange=\{\(e\) => tick\(v\.key, e\.target\.checked\)\} data-ledger-choice=\{v\.key\} \/>/, 'ticked unless dropped');
+  assert.match(leaf, /<input type="checkbox" checked=\{!filter\.dropped\.includes\(v\.key\)\} onChange=\{\(e\) => tick\(v\.key, e\.target\.checked\)\} \{\.\.\.dataAttr\(name, 'choice', v\.key\)\} \/>/, 'ticked unless dropped');
   assert.match(leaf, /const read = boundCentsOf\(typed\);\n\s*if \(!read\.ok\) \{ setWords\(read\.words\); return; \}\n\s*setWords\(null\);\n\s*onChange\(\{ \.\.\.filter, \[which\]: read\.cents \}\);/, 'a refusal is said and sets nothing');
-  assert.match(leaf, /<input type="checkbox" checked=\{filter\.blank\} onChange=\{\(e\) => onChange\(\{ \.\.\.filter, blank: e\.target\.checked \}\)\} data-ledger-blank \/>/);
-  assert.match(leaf, /onChange=\{\(e\) => onChange\(\{ contains: e\.target\.value \}\)\} className=\{`\$\{box\} w-48`\} data-ledger-contains \/>/);
+  assert.match(leaf, /<input type="checkbox" checked=\{filter\.blank\} onChange=\{\(e\) => onChange\(\{ \.\.\.filter, blank: e\.target\.checked \}\)\} \{\.\.\.dataAttr\(name, 'blank'\)\} \/>/);
+  assert.match(leaf, /onChange=\{\(e\) => onChange\(\{ contains: e\.target\.value \}\)\} className=\{`\$\{box\} w-48`\} \{\.\.\.dataAttr\(name, 'contains'\)\} \/>/);
   assert.match(leaf, /const follow = \(\) => setAt\(below\(anchor\)\);\n\s*document\.addEventListener\('mousedown', onDown\);\n\s*document\.addEventListener\('keydown', onKey\);\n\s*window\.addEventListener\('scroll', follow, true\);\n\s*window\.addEventListener\('resize', follow\);/, 'closed by a click outside or Escape; follows its ▾ on a scroll or a resize');
   assert.match(leaf, /export const POPOVER_WIDTH = 352;\nexport const below = \(anchor: HTMLElement\): PopoverAt => \{ const r = anchor\.getBoundingClientRect\(\); return \{ left: Math\.max\(8, Math\.min\(r\.left, window\.innerWidth - POPOVER_WIDTH - 8\)\), top: r\.bottom \+ 2 \}; \};/, 'just under the ▾, kept on screen (22rem = 352px, the popover’s max width)');
   assert.match(leaf, /max-w-\[22rem\]/);
   assert.match(leaf, /style=\{\{ position: 'fixed', left: at\.left, top: at\.top \}\}/, 'fixed under the ▾ — never clipped by the table’s scroll box');
-  assert.match(leaf, /role="dialog" aria-label=\{filterLabelWords\(headWordOf\(column\)\)\}/);
+  assert.match(leaf, /role="dialog" aria-label=\{filterLabelWords\(head\)\}/, 'IDIOM-01: the head word is handed in — the leaf reads no ledger');
   const printed = [...leaf.matchAll(/>\{([^}]+)\}<\//g)].map((m) => m[1]);
   assert.ok(printed.length >= 6);
   for (const p of printed) assert.doesNotMatch(p, /^'[^']*'$|^"[^"]*"$|^`[^`]*`$/, `${p} is not a literal sentence`);
@@ -275,41 +282,50 @@ test('R4 notesCount: the lines with something to say — the two coverage lines 
 
 test('the section: no dropdown; every header a sort button and a ▾; one popover at a time, built from the rows LOADED; the rows shown filtered then sorted, feeding the TOTAL row, the coverage, the summary and the CSV; the filters reset with the period, not with a write; "clear filters" beside the CSV; the notes toggle closed on every load, its lines guarded by their counts; nothing stored', () => {
   const s = code(SECTION);
+  // IDIOM-01 (Alex, 2026-10-24): the headers, the one popover, the table element, the CSV button, "clear filters" and the "no row matches" state are the shared
+  // DataTable's (components/table/DataTable.tsx); their pins moved there, generalized only where they named a ledger type or a `data-ledger-*` attribute (the
+  // table writes the caller's name — dataAttr; the section hands "ledger"). The state — the filters, the sort, the column open — stays here and is handed in
+  // (controlled); `shown` is still filtered then sorted here; the filters still reset with the period.
+  const t = code(TABLE);
   assert.doesNotMatch(s, /<select|<option|FILTER_KEYS|choicesOf|filterRows|NO_FILTERS/, 'the three dropdowns are gone');
   assert.doesNotMatch(s, /\bfetch\s*\(|\/api\/|localStorage|sessionStorage|document\.cookie/, 'nothing fetched here, nothing stored');
-  assert.match(s, /const \[filters, setFilters\] = useState<ColumnFilters>\(NO_COLUMN_FILTERS\);\n\s*const \[sort, setSort\] = useState<LedgerSort \| null>\(null\);\n\s*const \[openFilter, setOpenFilter\] = useState<LedgerColumn \| null>\(null\);\n\s*const \[notesOpen, setNotesOpen\] = useState\(false\);\n\s*const filterButtons = useRef\(new Map<LedgerColumn, HTMLButtonElement>\(\)\);/, 'React state only: the filters, the sort, the column open, the toggle — closed at first; the ▾ buttons in a ref map');
+  assert.doesNotMatch(t, /\bfetch\s*\(|\/api\/|localStorage|sessionStorage|document\.cookie|operations\/ledger/, 'the shared table fetches nothing, stores nothing, and knows no ledger');
+  assert.match(s, /const \[filters, setFilters\] = useState<ColumnFilters>\(NO_COLUMN_FILTERS\);\n\s*const \[sort, setSort\] = useState<LedgerSort \| null>\(null\);\n\s*const \[openFilter, setOpenFilter\] = useState<LedgerColumn \| null>\(null\);\n\s*const \[notesOpen, setNotesOpen\] = useState\(false\);/, 'React state only: the filters, the sort, the column open, the toggle — closed at first');
+  assert.match(t, /const filterButtons = useRef\(new Map<Key, HTMLButtonElement>\(\)\);/, 'the ▾ buttons in a ref map — the table’s, where the buttons render');
+  assert.match(s, /<DataTable\n\s*name="ledger"\n\s*columns=\{LEDGER_TABLE\}\n\s*rows=\{rows\}\n\s*shown=\{shown\}\n\s*loaded=\{answer !== null && answer\.read\.ok\}\n\s*tableClassName="min-w-\[96rem\]"\n\s*filters=\{filters\}\n\s*onFilters=\{setFilters\}\n\s*noFilters=\{NO_COLUMN_FILTERS\}\n\s*sort=\{sort\}\n\s*onSort=\{setSort\}\n\s*openFilter=\{openFilter\}\n\s*onOpenFilter=\{setOpenFilter\}\n\s*csv=\{csv\}/, 'the ledger’s name, its spec, the rows loaded and shown, its width, and the state handed in — controlled');
   assert.match(s, /const shown = sortRows\(applyColumnFilters\(rows, filters\), sort\);\n\s*const totals = ledgerTotals\(shown\);\n\s*const groups = ledgerSummary\(shown, by\);/, 'filtered, then sorted; the totals and the summary follow');
-  assert.match(s, /new Blob\(\[ledgerCsv\(shown\)\]/, 'the CSV in the shown order');
+  assert.match(t, /new Blob\(\[tableCsv\(columns, shown\)\]/, 'the CSV in the shown order — the idiom’s writer over the spec (ledgerCsv is the same call: idiom01.test.ts)');
   // The filters reset when the period changes — its own effect; the read effect (a write re-reads the same period) no longer touches them.
   assert.match(s, /useEffect\(\(\) => \{\n\s*setFilters\(NO_COLUMN_FILTERS\);\n\s*setOpenFilter\(null\);\n\s*\}, \[period\?\.from, period\?\.to\]\);/);
   const readEffect = s.slice(s.indexOf('const read = await readLedger(period.from, period.to);'), s.indexOf('return () => { live = false; };'));
   assert.doesNotMatch(readEffect, /setFilters|setSort/, 'a re-read keeps the filters and the sort');
   assert.match(comments(SECTION), /THE\s*\n?\s*\*?\s*FILTERS RESET WHEN THE PERIOD CHANGES/, 'the doc says so, and why');
   // The headers: the head word sorts (nextSort), the mark shows the direction; the ▾ opens the popover at its corner; a mark while the filter is on.
-  assert.match(s, /\{LEDGER_COLUMNS\.map\(\(c\) => \{\n\s*const h = headWordOf\(c\);\n\s*const on = columnFilterOn\(filters, c\);\n\s*const sorted = sort !== null && sort\.column === c;/);
-  assert.match(s, /<button type="button" className="hover:text-text-primary" onClick=\{\(\) => setSort\(nextSort\(sort, c\)\)\} aria-label=\{sortLabelWords\(h\)\} data-ledger-sort=\{c\} data-ledger-sort-direction=\{sorted \? sort\.direction : undefined\}>\{h\}<\/button>/);
-  assert.match(s, /\{sorted && <span data-ledger-sort-mark>\{SORT_MARKS\[sort\.direction\]\}<\/span>\}/);
-  assert.match(s, /<button type="button" ref=\{\(el\) => \{ if \(el === null\) filterButtons\.current\.delete\(c\); else filterButtons\.current\.set\(c, el\); \}\} className=\{on \? 'text-brand-purple' : 'hover:text-text-primary'\} onClick=\{\(\) => setOpenFilter\(c\)\} aria-label=\{filterLabelWords\(h\)\} aria-expanded=\{openFilter === c\} data-ledger-filter=\{c\} data-ledger-filter-on=\{on \? '' : undefined\}>/);
-  assert.match(s, /\{on && <span data-ledger-filter-mark>\{FILTER_ON_MARK\}<\/span>\}\n\s*<span data-ledger-filter-open>\{FILTER_OPEN_WORDS\}<\/span>/);
+  assert.match(t, /\{columns\.map\(\(c\) => \{\n\s*const h = c\.label;\n\s*const on = filterOn\(filters, c\.key, c\.kind\);\n\s*const sorted = sort !== null && sort\.column === c\.key;/);
+  assert.match(t, /<button type="button" className="hover:text-text-primary" onClick=\{\(\) => onSort\(nextSort\(sort, c\.key\)\)\} aria-label=\{sortLabelWords\(h\)\} \{\.\.\.dataAttr\(name, 'sort', c\.key\)\} \{\.\.\.dataAttr\(name, 'sort-direction', sorted \? sort\.direction : undefined\)\}>\{h\}<\/button>/);
+  assert.match(t, /\{sorted && <span \{\.\.\.dataAttr\(name, 'sort-mark'\)\}>\{SORT_MARKS\[sort\.direction\]\}<\/span>\}/);
+  assert.match(t, /<button type="button" ref=\{\(el\) => \{ if \(el === null\) filterButtons\.current\.delete\(c\.key\); else filterButtons\.current\.set\(c\.key, el\); \}\} className=\{on \? 'text-brand-purple' : 'hover:text-text-primary'\} onClick=\{\(\) => onOpenFilter\(c\.key\)\} aria-label=\{filterLabelWords\(h\)\} aria-expanded=\{openFilter === c\.key\} \{\.\.\.dataAttr\(name, 'filter', c\.key\)\} \{\.\.\.dataAttr\(name, 'filter-on', on \? '' : undefined\)\}>/);
+  assert.match(t, /\{on && <span \{\.\.\.dataAttr\(name, 'filter-mark'\)\}>\{FILTER_ON_MARK\}<\/span>\}\n\s*<span \{\.\.\.dataAttr\(name, 'filter-open'\)\}>\{FILTER_OPEN_WORDS\}<\/span>/);
   // One popover: the leaf by the column's kind, the checklist over the rows LOADED (not the rows shown), the filter handed back whole.
-  assert.match(s, /const anchor = filterButtons\.current\.get\(c\);\n\s*if \(anchor === undefined\) return null;/, 'under its own ▾');
-  assert.match(s, /if \(kind === 'value'\) return <ColumnFilter kind="value" column=\{c\} anchor=\{anchor\} values=\{columnValues\(rows, c as ValueColumn\)\} filter=\{filters\[c as ValueColumn\]\} onChange=\{\(f\) => setFilters\(\{ \.\.\.filters, \[c\]: f \}\)\} onClose=\{closeFilter\} \/>;/);
-  assert.match(s, /if \(kind === 'money'\) return <ColumnFilter kind="money" column=\{c\} anchor=\{anchor\} filter=\{filters\[c as MoneyColumn\]\}/);
-  assert.match(s, /return <ColumnFilter kind="text" column=\{c\} anchor=\{anchor\} filter=\{filters\[c as TextColumn\]\}/);
-  assert.match(s, /\{openFilter !== null && popover\(openFilter\)\}/);
-  assert.match(s, /const closeFilter = useCallback\(\(\) => setOpenFilter\(null\), \[\]\);/);
-  assert.equal((s.match(/<ColumnFilter /g) ?? []).length, 3, 'one mount per kind, one open at a time');
-  assert.match(s, /\{rows\.length > 0 && \(\n\s*<div className="overflow-x-auto border border-border rounded bg-white">\n\s*<table className="w-full min-w-\[96rem\] border-collapse text-xs" data-ledger-table>/, 'the table — its headers hold the filters — stays while rows are loaded, even when a filter leaves none shown');
-  assert.match(s, /\{rows\.length > 0 && shown\.length === 0 && <div className="text-xs text-text-muted" data-ledger-none-shown>\{NO_ROWS_SHOWN_WORDS\}<\/div>\}/, 'and says no row matches');
+  assert.match(t, /const anchor = filterButtons\.current\.get\(key\);\n\s*if \(anchor === undefined\) return null;/, 'under its own ▾');
+  assert.match(t, /if \(c\.kind === 'value'\) return <ColumnFilter kind="value" name=\{name\} column=\{key\} head=\{c\.label\} anchor=\{anchor\} values=\{columnValuesOf\(rows, c\)\} filter=\{valueFilterOf\(filters, key\)\} onChange=\{\(f\) => onFilters\(withFilter\(filters, key, f\)\)\} onClose=\{closeFilter\} \/>;/);
+  assert.match(t, /if \(c\.kind === 'money'\) return <ColumnFilter kind="money" name=\{name\} column=\{key\} head=\{c\.label\} anchor=\{anchor\} filter=\{moneyFilterOf\(filters, key\)\}/);
+  assert.match(t, /return <ColumnFilter kind="text" name=\{name\} column=\{key\} head=\{c\.label\} anchor=\{anchor\} filter=\{textFilterOf\(filters, key\)\}/);
+  assert.match(t, /\{openFilter !== null && popover\(openFilter\)\}/);
+  assert.match(t, /const closeFilter = useCallback\(\(\) => onOpenFilter\(null\), \[onOpenFilter\]\);/);
+  assert.equal((t.match(/<ColumnFilter /g) ?? []).length, 3, 'one mount per kind, one open at a time');
+  assert.match(t, /\{loaded && rows\.length > 0 && \(\n\s*<div className="overflow-x-auto border border-border rounded bg-white">\n\s*<table className=\{`w-full \$\{tableClassName\} border-collapse text-xs`\} \{\.\.\.dataAttr\(name, 'table'\)\}>/, 'the table — its headers hold the filters — stays while rows are loaded, even when a filter leaves none shown');
+  assert.match(t, /\{loaded && rows\.length > 0 && shown\.length === 0 && <div className="text-xs text-text-muted" \{\.\.\.dataAttr\(name, 'none-shown'\)\}>\{NO_ROWS_SHOWN_WORDS\}<\/div>\}/, 'and says no row matches');
   // "clear filters" beside "download CSV", only while a filter is on.
-  assert.match(s, /data-ledger-csv>\{CSV_DOWNLOAD_WORDS\}<\/button>\n\s*\{anyColumnFilterOn\(filters\) && <button type="button" className=\{chip\} onClick=\{\(\) => setFilters\(NO_COLUMN_FILTERS\)\} data-ledger-clear-filters>\{CLEAR_FILTERS_WORDS\}<\/button>\}/);
+  assert.match(t, /\{\.\.\.dataAttr\(name, 'csv'\)\}>\{CSV_DOWNLOAD_WORDS\}<\/button>\n\s*\{anyFilterOn\(columns, filters\) && <button type="button" className=\{chipClass\} onClick=\{\(\) => onFilters\(noFilters\)\} \{\.\.\.dataAttr\(name, 'clear-filters'\)\}>\{CLEAR_FILTERS_WORDS\}<\/button>\}/);
   // The cells: row.description under SUB ACCOUNT NAME, row.note under DESCRIPTION; the TOTAL row's last cell.
   assert.match(s, /data-ledger-cell="sub-account-name">\{row\.description\}<\/td>/);
   assert.match(s, /data-ledger-cell="description">\{noteCellWords\(row\.note\)\}<\/td>/);
   assert.match(s, /<td className=\{cell\} data-ledger-total-description \/>/);
   // The notes: the toggle under the TOTAL row with the count's words; open, the lines each guarded by its count; the two uncounted lines unguarded.
   assert.match(s, /<button type="button" className="hover:text-text-primary" onClick=\{\(\) => setNotesOpen\(!notesOpen\)\} aria-expanded=\{notesOpen\} data-ledger-notes-toggle>\{notesToggleWords\(notesCount\(answer\.read\.value\.said, shown\.length\), notesOpen\)\}<\/button>/);
-  inOrder(s, ['</table>', 'data-ledger-notes>', 'data-ledger-notes-toggle', '{notesOpen && (', 'data-ledger-said>',
+  // IDIOM-01 (Alex, 2026-10-24): the table element is DataTable's — the notes follow its mount in the section, as they followed </table>.
+  inOrder(s, ['</DataTable>', 'data-ledger-notes>', 'data-ledger-notes-toggle', '{notesOpen && (', 'data-ledger-said>',
     '{shown.length > 0 && <p data-ledger-said-variance>{varianceCoverageWords(totals.withVariance, shown.length)}</p>}',
     '{shown.length > 0 && <p data-ledger-said-match>{matchCoverageWords(totals.withMatch, shown.length)}</p>}',
     '{answer.read.value.said.noLine > 0 && <p data-ledger-said-no-line>{noLineWords(answer.read.value.said.noLine, answer.read.value.said.doubled)}</p>}',
@@ -325,6 +341,11 @@ test('the section: no dropdown; every header a sort button and a ▾; one popove
   assert.ok(printed.length > 20);
   for (const p of printed) assert.doesNotMatch(p, /^'[^']*'$|^"[^"]*"$|^`[^`]*`$/, `${p} is not a literal sentence`);
   assert.doesNotMatch(s, />[A-Za-z][^<>{}]*[a-z][^<>{}]*</, 'no bare prose between tags');
+  // IDIOM-01: the shared table prints no sentence of its own either — every word it prints is words.ts's.
+  const printedT = [...t.matchAll(/>\{([^}]+)\}<\//g)].map((m) => m[1]);
+  assert.ok(printedT.length >= 5);
+  for (const p of printedT) assert.doesNotMatch(p, /^'[^']*'$|^"[^"]*"$|^`[^`]*`$/, `${p} is not a literal sentence`);
+  assert.doesNotMatch(t, />[A-Za-z][^<>{}]*[a-z][^<>{}]*</, 'no bare prose between tags');
   // R5 nothing else: the period controls, the picker, the route, the schema and the day card (beyond the one aria-label) are untouched.
   assert.match(s, /\{PERIOD_KINDS\.map\(\(k\) => \(/);
   assert.match(s, /disabled=\{kind === 'all' \|\| anchor === null\}/);

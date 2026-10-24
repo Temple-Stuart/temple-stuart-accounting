@@ -87,35 +87,46 @@
  * is 0 is neither counted nor shown; the TODAY rule and the every-book line
  * shown only when open, never counted) — the same words, one per line, when
  * open. React state only: nothing stored in the browser.
+ *
+ * IDIOM-01 (Alex, 2026-10-24): THE TABLE RENDERS THROUGH THE SHARED IDIOM. The
+ * controls row (with "download CSV", "clear filters" and the reason), the
+ * headers (the sort button and the ▾), the one popover, the "no row matches"
+ * state and the table element moved VERBATIM into components/table/DataTable.tsx
+ * (ColumnFilter.tsx beside it), generic over src/lib/table's spec; this section
+ * hands it the ledger's spec (ledger.ts LEDGER_TABLE), the rows loaded and the
+ * rows shown, its own period controls, its ‹ nothing recorded › lines, each row's
+ * cells (renderRow), the TOTAL row whole (foot) and the CSV's file name, and
+ * keeps around it what is the ledger's: the title, "+ expense", the period, the
+ * notes toggle and the summary. The DOM is byte for byte what it was (the
+ * attributes keep the ledger's `data-ledger-*` name), the CSV's bytes too; the
+ * state stays here — `shown` is still filtered then sorted in this file, the
+ * filters still reset with the period. The pins that moved carry dated notes
+ * in ledger01, ledger02 and ledger04; idiom01.test.ts pins the extraction.
  */
 
 'use client';
 
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { localToday } from '@/lib/localToday';
 import type { Read } from '../week/weekReads';
 import { deltaWords } from '../day/dayCard';
 import { readLedger, type LedgerAnswer } from './ledgerReads';
 import ExpenseForm from './ExpenseForm';
 import LinkPicker from './LinkPicker';
-import ColumnFilter from './ColumnFilter';
+import DataTable, { cellClass as cell, chipClass as chip, headClass as head, moneyClass as money } from '@/components/table/DataTable';
 import { announceDayWritten } from '../dayWritten';
 import {
-  BY_WORDS, CELL_WORDS, CLEAR_FILTERS_WORDS, CSV_DOWNLOAD_WORDS, CSV_NO_ROWS_WORDS, EVERY_BOOK_WORDS, FILTER_ON_MARK, FILTER_OPEN_WORDS, GROUP_KEYS, GROUP_WORDS, LEDGER_COLUMNS, LEDGER_HEAD_WORDS,
-  LEDGER_LOADING_WORDS, LEDGER_TITLE_WORDS, LINK_WORDS, MONEY_HEAD_WORDS, NEXT_WORDS, NO_COLUMN_FILTERS, NO_FIRST_RECORD_WORDS, NO_ROWS_SHOWN_WORDS, PERIOD_KINDS, PERIOD_WORDS, PREVIOUS_WORDS,
-  SORT_MARKS, SUMMARY_HEAD_WORDS, SUMMARY_TITLE_WORDS, TODAY_RULE_WORDS, TOTAL_WORDS,
-  accountCellWords, accountNameCellWords, actualCellWords, anyColumnFilterOn, applyColumnFilters, averageStarsWords, bookCellWords, budgetCellWords, columnFilterOn, columnKind, columnValues,
-  dayLongWords, daysWords, filterLabelWords, firstRecordUnplacedWords, headWordOf, ledgerCsv, ledgerCsvFileName, ledgerSummary, ledgerTotals, leftOutTotal, leftOutWords, matchCellTitle, matchCellWords,
-  matchCoverageWords, matchState, matchTotalWords, nextSort, noLineWords, noRowsWords, noStayWords, notPlacedWords, notRecordedWords, noteCellWords, notesCount, notesToggleWords, perDayWords,
-  periodOf, periodWords, readableMatchCents, sortLabelWords, sortRows, starsCellWords, stepAnchor, underOverWords, unplacedWords, varianceCellWords, varianceCoverageWords, vendorCellWords,
-  type ColumnFilters, type GroupKey, type LedgerColumn, type LedgerRow, type LedgerSort, type MatchState, type MoneyColumn, type Period, type PeriodKind, type TextColumn, type ValueColumn,
+  BY_WORDS, CELL_WORDS, EVERY_BOOK_WORDS, GROUP_KEYS, GROUP_WORDS, LEDGER_HEAD_WORDS, LEDGER_LOADING_WORDS, LEDGER_TABLE, LEDGER_TITLE_WORDS, LINK_WORDS, NEXT_WORDS, NO_COLUMN_FILTERS,
+  NO_FIRST_RECORD_WORDS, PERIOD_KINDS, PERIOD_WORDS, PREVIOUS_WORDS, SUMMARY_HEAD_WORDS, SUMMARY_TITLE_WORDS, TODAY_RULE_WORDS, TOTAL_WORDS,
+  accountCellWords, accountNameCellWords, actualCellWords, applyColumnFilters, averageStarsWords, bookCellWords, budgetCellWords, dayLongWords, daysWords, firstRecordUnplacedWords,
+  ledgerCsvFileName, ledgerSummary, ledgerTotals, leftOutTotal, leftOutWords, matchCellTitle, matchCellWords, matchCoverageWords, matchState, matchTotalWords, noLineWords, noRowsWords,
+  noStayWords, notPlacedWords, notRecordedWords, noteCellWords, notesCount, notesToggleWords, perDayWords, periodOf, periodWords, readableMatchCents, sortRows, starsCellWords, stepAnchor,
+  underOverWords, unplacedWords, varianceCellWords, varianceCoverageWords, vendorCellWords,
+  type ColumnFilters, type GroupKey, type LedgerColumn, type LedgerRow, type LedgerSort, type MatchState, type Period, type PeriodKind,
 } from '@/lib/operations/ledger';
 
-const chip = 'px-2 py-0.5 border border-border rounded hover:bg-bg-row text-xs disabled:opacity-50';
+// IDIOM-01 (2026-10-24): the chip, head, cell and money classes are the shared table's (DataTable.tsx), imported under the names this file always used.
 const chipOn = 'px-2 py-0.5 border border-brand-purple bg-brand-purple text-white rounded text-xs';
-const head = 'px-2 py-1.5 font-normal text-left whitespace-nowrap';
-const cell = 'px-2 py-1.5 align-top';
-const money = 'px-2 py-1.5 align-top text-right tabular-nums whitespace-nowrap';
 const BLANK_CLASS = 'text-text-faint';
 
 /** The colour of an actual against its budget, as the card's: over red, under or on it green, no budget to compare muted. */
@@ -130,12 +141,11 @@ export default function LedgerSection() {
   const [kind, setKind] = useState<PeriodKind>('month');
   const [anchor, setAnchor] = useState<string | null>(null);
   // LEDGER-04: one filter per column (ledger.ts ColumnFilters), the sort (one column, or the ledger's own order), the column whose popover is
-  // open and the notes toggle — React state only, nothing stored. The ▾ buttons by column (a ref map): the open popover is anchored under its own.
+  // open and the notes toggle — React state only, nothing stored. IDIOM-01 (2026-10-24): the ▾ buttons' ref map is DataTable's now; the state stays here.
   const [filters, setFilters] = useState<ColumnFilters>(NO_COLUMN_FILTERS);
   const [sort, setSort] = useState<LedgerSort | null>(null);
   const [openFilter, setOpenFilter] = useState<LedgerColumn | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
-  const filterButtons = useRef(new Map<LedgerColumn, HTMLButtonElement>());
   const [by, setBy] = useState<GroupKey>('city');
   // The last answer and the period it was read for; the first record's day rides every answer, so ALL can start from it.
   const [answer, setAnswer] = useState<{ readonly period: Period; readonly read: Read<LedgerAnswer> } | null>(null);
@@ -171,34 +181,15 @@ export default function LedgerSection() {
     setFilters(NO_COLUMN_FILTERS);
     setOpenFilter(null);
   }, [period?.from, period?.to]);
-  const closeFilter = useCallback(() => setOpenFilter(null), []);
-
   const rows: readonly LedgerRow[] = answer !== null && answer.read.ok ? answer.read.value.rows : [];
   // LEDGER-04: the rows filtered (every column, AND across), then sorted — the TOTAL row, the coverage, the summary and the CSV read these.
   const shown = sortRows(applyColumnFilters(rows, filters), sort);
   const totals = ledgerTotals(shown);
   const groups = ledgerSummary(shown, by);
-  // LEDGER-02: the rows SHOWN as a CSV (ledger.ts ledgerCsv) — a Blob (UTF-8, no BOM) and an object URL, the shape dashboard/GeneralLedger.tsx
-  // exports; the file is named by the period read; the URL is revoked after the click. Nothing to download until a row is shown.
+  // LEDGER-02: the rows SHOWN as a CSV, named by the period read. IDIOM-01 (2026-10-24): the writing (ledger.ts ledgerCsv = the idiom's tableCsv over
+  // LEDGER_TABLE — a Blob, UTF-8, no BOM, an object URL revoked after the click) is DataTable's; this file names the file, and nothing to download until a row is shown.
   const csvPeriod: Period | null = answer !== null && answer.read.ok && shown.length > 0 ? answer.period : null;
-  const downloadCsv = (p: Period): void => {
-    const url = URL.createObjectURL(new Blob([ledgerCsv(shown)], { type: 'text/csv;charset=utf-8;' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = ledgerCsvFileName(p.from, p.to);
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  /** LEDGER-04: the one popover open — the leaf by the column's kind, under that column's ▾, with its filter and (a VALUE column) the values among the rows loaded. */
-  const popover = (c: LedgerColumn) => {
-    const anchor = filterButtons.current.get(c);
-    if (anchor === undefined) return null;
-    const kind = columnKind(c);
-    if (kind === 'value') return <ColumnFilter kind="value" column={c} anchor={anchor} values={columnValues(rows, c as ValueColumn)} filter={filters[c as ValueColumn]} onChange={(f) => setFilters({ ...filters, [c]: f })} onClose={closeFilter} />;
-    if (kind === 'money') return <ColumnFilter kind="money" column={c} anchor={anchor} filter={filters[c as MoneyColumn]} onChange={(f) => setFilters({ ...filters, [c]: f })} onClose={closeFilter} />;
-    return <ColumnFilter kind="text" column={c} anchor={anchor} filter={filters[c as TextColumn]} onChange={(f) => setFilters({ ...filters, [c]: f })} onClose={closeFilter} />;
-  };
+  const csv = csvPeriod === null ? null : { name: ledgerCsvFileName(csvPeriod.from, csvPeriod.to) };
 
   return (
     <section className="space-y-3" data-ledger>
@@ -207,106 +198,97 @@ export default function LedgerSection() {
       </div>
       {/* RETRO-01: "+ expense" — a one-off stop, its vendor and its record for a day; the ledger and that day's card read again. */}
       <ExpenseForm onWritten={(day) => { setWrites((n) => n + 1); announceDayWritten(day); }} />
-      <div className="flex flex-wrap items-center gap-2 text-xs" data-ledger-controls>
-        {PERIOD_KINDS.map((k) => (
-          <button key={k} type="button" className={kind === k ? chipOn : chip} onClick={() => setKind(k)} data-ledger-period={k} aria-pressed={kind === k}>{PERIOD_WORDS[k]}</button>
-        ))}
-        <button type="button" className={chip} disabled={kind === 'all' || anchor === null} onClick={() => anchor !== null && setAnchor(stepAnchor(kind, anchor, -1))} data-ledger-previous aria-label="previous">{PREVIOUS_WORDS}</button>
-        <input type="date" value={anchor ?? ''} disabled={kind === 'all'} onChange={(e) => { if (/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) setAnchor(e.target.value); }} className="px-1.5 py-0.5 border border-border rounded text-xs" data-ledger-anchor />
-        <button type="button" className={chip} disabled={kind === 'all' || anchor === null} onClick={() => anchor !== null && setAnchor(stepAnchor(kind, anchor, 1))} data-ledger-next aria-label="next">{NEXT_WORDS}</button>
-        {period !== null && <span className="font-semibold text-text-secondary" data-ledger-period-words>{periodWords(period)}</span>}
-        <button type="button" className={chip} disabled={csvPeriod === null} title={csvPeriod === null ? CSV_NO_ROWS_WORDS : undefined} onClick={() => csvPeriod !== null && downloadCsv(csvPeriod)} data-ledger-csv>{CSV_DOWNLOAD_WORDS}</button>
-        {anyColumnFilterOn(filters) && <button type="button" className={chip} onClick={() => setFilters(NO_COLUMN_FILTERS)} data-ledger-clear-filters>{CLEAR_FILTERS_WORDS}</button>}
-        {answer !== null && answer.read.ok && shown.length === 0 && <span className="text-text-faint" data-ledger-csv-why>{CSV_NO_ROWS_WORDS}</span>}
-        {kind === 'all' && period === null && firstRecord === null && <span className="text-text-muted" data-ledger-no-first>{NO_FIRST_RECORD_WORDS}</span>}
-        {kind === 'all' && period === null && firstRecord !== null && 'words' in firstRecord && <span className="text-brand-red" data-ledger-no-first>{firstRecordUnplacedWords(firstRecord.words)}</span>}
-      </div>
-
-      {period !== null && answer === null && <div className="text-xs text-text-muted" data-ledger-loading>{LEDGER_LOADING_WORDS}</div>}
-      {answer !== null && !answer.read.ok && <div className="text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800" data-ledger-failed>{answer.read.words}</div>}
+      {/* IDIOM-01 (Alex, 2026-10-24): the controls row (with "download CSV", "clear filters" and the reason), the headers, the one popover, the "no row matches"
+          state and the table element are the shared DataTable's (components/table/DataTable.tsx) — the ledger's spec, its rows loaded and shown, and its state
+          handed in; its own period controls, its lines, each row's cells and the TOTAL row rendered HERE and handed to it, so every cell is still the ledger's words. */}
+      <DataTable
+        name="ledger"
+        columns={LEDGER_TABLE}
+        rows={rows}
+        shown={shown}
+        loaded={answer !== null && answer.read.ok}
+        tableClassName="min-w-[96rem]"
+        filters={filters}
+        onFilters={setFilters}
+        noFilters={NO_COLUMN_FILTERS}
+        sort={sort}
+        onSort={setSort}
+        openFilter={openFilter}
+        onOpenFilter={setOpenFilter}
+        csv={csv}
+        controls={(
+          <>
+            {PERIOD_KINDS.map((k) => (
+              <button key={k} type="button" className={kind === k ? chipOn : chip} onClick={() => setKind(k)} data-ledger-period={k} aria-pressed={kind === k}>{PERIOD_WORDS[k]}</button>
+            ))}
+            <button type="button" className={chip} disabled={kind === 'all' || anchor === null} onClick={() => anchor !== null && setAnchor(stepAnchor(kind, anchor, -1))} data-ledger-previous aria-label="previous">{PREVIOUS_WORDS}</button>
+            <input type="date" value={anchor ?? ''} disabled={kind === 'all'} onChange={(e) => { if (/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) setAnchor(e.target.value); }} className="px-1.5 py-0.5 border border-border rounded text-xs" data-ledger-anchor />
+            <button type="button" className={chip} disabled={kind === 'all' || anchor === null} onClick={() => anchor !== null && setAnchor(stepAnchor(kind, anchor, 1))} data-ledger-next aria-label="next">{NEXT_WORDS}</button>
+            {period !== null && <span className="font-semibold text-text-secondary" data-ledger-period-words>{periodWords(period)}</span>}
+          </>
+        )}
+        trailing={(
+          <>
+            {kind === 'all' && period === null && firstRecord === null && <span className="text-text-muted" data-ledger-no-first>{NO_FIRST_RECORD_WORDS}</span>}
+            {kind === 'all' && period === null && firstRecord !== null && 'words' in firstRecord && <span className="text-brand-red" data-ledger-no-first>{firstRecordUnplacedWords(firstRecord.words)}</span>}
+          </>
+        )}
+        renderRow={(row) => {
+          const delta = deltaWords(row.actualCents, row.cents);
+          return (
+            <Fragment key={row.id}>
+              <tr className="border-t border-border" data-ledger-row={row.key} data-ledger-day={row.day}>
+                <td className={`${cell} whitespace-nowrap`} data-ledger-cell="day">{dayLongWords(row.day)}</td>
+                <td className={`${cell} whitespace-nowrap tabular-nums`} data-ledger-cell="date">{row.day}</td>
+                <td className={`${cell} ${row.place === null ? BLANK_CLASS : ''}`} data-ledger-cell="city">{CELL_WORDS.city(row)}</td>
+                <td className={`${cell} ${row.place === null || row.place.country === null ? BLANK_CLASS : ''}`} data-ledger-cell="country">{CELL_WORDS.country(row)}</td>
+                <td className={`${cell} whitespace-nowrap ${row.book === null ? BLANK_CLASS : ''}`} data-ledger-cell="book">{bookCellWords(row)}</td>
+                <td className={`${cell} whitespace-nowrap ${row.coa === null ? BLANK_CLASS : ''}`} data-ledger-cell="account">{accountCellWords(row)}</td>
+                <td className={`${cell} ${row.coa === null || row.coa.name === null ? BLANK_CLASS : ''}`} data-ledger-cell="account-name">{accountNameCellWords(row)}</td>
+                <td className={`${cell} font-semibold text-text-primary`} data-ledger-cell="sub-account-name">{row.description}</td>
+                <td className={`${cell} ${row.vendor === null ? BLANK_CLASS : ''}`} data-ledger-cell="vendor">{vendorCellWords(row.vendor)}</td>
+                <td className={`${cell} whitespace-nowrap ${row.rating === null ? BLANK_CLASS : ''}`} data-ledger-cell="stars">{starsCellWords(row.rating)}</td>
+                <td className={`${money} ${row.cents === null ? BLANK_CLASS : 'font-semibold text-text-primary'}`} data-ledger-cell="budget">{budgetCellWords(row.cents)}</td>
+                <td className={`${money} ${row.outcome === 'skipped' ? 'text-text-muted' : row.actualCents === null ? BLANK_CLASS : `font-semibold ${actualTone(delta.over)}`}`} data-ledger-cell="actual">{actualCellWords(row)}</td>
+                <td className={`${money} ${row.varianceCents === null ? BLANK_CLASS : `font-semibold ${actualTone(delta.over)}`}`} data-ledger-cell="variance">{varianceCellWords(row.varianceCents)}</td>
+                <td className={`${money} ${readableMatchCents(row.match) === null ? BLANK_CLASS : `font-semibold ${matchTone(matchState(row.match, row.actualCents))}`}`} data-ledger-cell="match" title={matchCellTitle(row.match) ?? undefined}>
+                  <span data-ledger-match>{matchCellWords(row.match)}</span>
+                  <button type="button" className={`${chip} ml-1 font-normal`} onClick={() => setPicking(picking === row.key ? null : row.key)} data-ledger-link={row.key} aria-expanded={picking === row.key}>{LINK_WORDS}</button>
+                </td>
+                <td className={`${cell} whitespace-nowrap ${row.varianceCents === null ? BLANK_CLASS : actualTone(delta.over)}`} data-ledger-cell="under-over">{underOverWords(row.varianceCents)}</td>
+                <td className={`${cell} ${row.note === null ? BLANK_CLASS : 'text-text-muted'}`} data-ledger-cell="description">{noteCellWords(row.note)}</td>
+              </tr>
+              {picking === row.key && (
+                <tr className="border-t border-border" data-ledger-picker={row.key}>
+                  <td colSpan={LEDGER_HEAD_WORDS.length} className={cell}>
+                    <LinkPicker kind={row.address.kind} id={row.address.id} instant={row.address.instant} near={row.day} onChanged={() => setWrites((n) => n + 1)} onClose={() => setPicking(null)} />
+                  </td>
+                </tr>
+              )}
+            </Fragment>
+          );
+        }}
+        foot={(
+          <tfoot>
+            {/* LEDGER-02 (amended): TOTAL spans the ten columns before BUDGET; VARIANCE is the column's sum (ledgerTotals), and the ACTUAL tone and UNDER / OVER follow its sign — one truth per row; "—" when no row carries both. */}
+            <tr className="border-t border-border font-bold text-text-primary" data-ledger-total>
+              <th scope="row" colSpan={10} className={`${cell} text-left`}>{TOTAL_WORDS}</th>
+              <td className={`${money} ${totals.budgetCents === null ? BLANK_CLASS : ''}`} data-ledger-total-budget>{budgetCellWords(totals.budgetCents)}</td>
+              <td className={`${money} ${totals.actualCents === null ? BLANK_CLASS : totals.varianceCents === null ? '' : varianceTone(totals.varianceCents)}`} data-ledger-total-actual>{budgetCellWords(totals.actualCents)}</td>
+              <td className={`${money} ${varianceTone(totals.varianceCents)}`} data-ledger-total-variance>{varianceCellWords(totals.varianceCents)}</td>
+              <td className={`${money} ${totals.matchCents === null ? BLANK_CLASS : ''}`} data-ledger-total-match>{matchTotalWords(totals.matchCents)}</td>
+              <td className={`${cell} whitespace-nowrap ${varianceTone(totals.varianceCents)}`} data-ledger-total-under-over>{underOverWords(totals.varianceCents)}</td>
+              <td className={cell} data-ledger-total-description />
+            </tr>
+          </tfoot>
+        )}
+      >
+        {period !== null && answer === null && <div className="text-xs text-text-muted" data-ledger-loading>{LEDGER_LOADING_WORDS}</div>}
+        {answer !== null && !answer.read.ok && <div className="text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800" data-ledger-failed>{answer.read.words}</div>}
+        {answer !== null && answer.read.ok && rows.length === 0 && <div className="text-xs text-text-muted" data-ledger-none>{noRowsWords(answer.period)}</div>}
+      </DataTable>
       {answer !== null && answer.read.ok && (
         <>
-          {rows.length === 0 && <div className="text-xs text-text-muted" data-ledger-none>{noRowsWords(answer.period)}</div>}
-          {rows.length > 0 && shown.length === 0 && <div className="text-xs text-text-muted" data-ledger-none-shown>{NO_ROWS_SHOWN_WORDS}</div>}
-          {/* LEDGER-04: the table stays while rows are LOADED, even when a filter leaves none shown — the filters live in its headers, so they must stay to be undone. */}
-          {rows.length > 0 && (
-            <div className="overflow-x-auto border border-border rounded bg-white">
-              <table className="w-full min-w-[96rem] border-collapse text-xs" data-ledger-table>
-                <thead>
-                  <tr className="text-text-faint uppercase tracking-wide">
-                    {/* LEDGER-04: each header is its head word (a click sorts — nextSort — the mark showing the direction) and a ▾ that opens the column's popover; a mark while its filter is on. */}
-                    {LEDGER_COLUMNS.map((c) => {
-                      const h = headWordOf(c);
-                      const on = columnFilterOn(filters, c);
-                      const sorted = sort !== null && sort.column === c;
-                      return (
-                        <th key={c} className={(MONEY_HEAD_WORDS as readonly string[]).includes(h) ? `${head} text-right` : head}>
-                          <span className="inline-flex items-center gap-1">
-                            <button type="button" className="hover:text-text-primary" onClick={() => setSort(nextSort(sort, c))} aria-label={sortLabelWords(h)} data-ledger-sort={c} data-ledger-sort-direction={sorted ? sort.direction : undefined}>{h}</button>
-                            {sorted && <span data-ledger-sort-mark>{SORT_MARKS[sort.direction]}</span>}
-                            <button type="button" ref={(el) => { if (el === null) filterButtons.current.delete(c); else filterButtons.current.set(c, el); }} className={on ? 'text-brand-purple' : 'hover:text-text-primary'} onClick={() => setOpenFilter(c)} aria-label={filterLabelWords(h)} aria-expanded={openFilter === c} data-ledger-filter={c} data-ledger-filter-on={on ? '' : undefined}>
-                              {on && <span data-ledger-filter-mark>{FILTER_ON_MARK}</span>}
-                              <span data-ledger-filter-open>{FILTER_OPEN_WORDS}</span>
-                            </button>
-                          </span>
-                        </th>
-                      );
-                    })}
-                  </tr>
-                </thead>
-                <tbody>
-                  {shown.map((row) => {
-                    const delta = deltaWords(row.actualCents, row.cents);
-                    return (
-                      <Fragment key={row.id}>
-                      <tr className="border-t border-border" data-ledger-row={row.key} data-ledger-day={row.day}>
-                        <td className={`${cell} whitespace-nowrap`} data-ledger-cell="day">{dayLongWords(row.day)}</td>
-                        <td className={`${cell} whitespace-nowrap tabular-nums`} data-ledger-cell="date">{row.day}</td>
-                        <td className={`${cell} ${row.place === null ? BLANK_CLASS : ''}`} data-ledger-cell="city">{CELL_WORDS.city(row)}</td>
-                        <td className={`${cell} ${row.place === null || row.place.country === null ? BLANK_CLASS : ''}`} data-ledger-cell="country">{CELL_WORDS.country(row)}</td>
-                        <td className={`${cell} whitespace-nowrap ${row.book === null ? BLANK_CLASS : ''}`} data-ledger-cell="book">{bookCellWords(row)}</td>
-                        <td className={`${cell} whitespace-nowrap ${row.coa === null ? BLANK_CLASS : ''}`} data-ledger-cell="account">{accountCellWords(row)}</td>
-                        <td className={`${cell} ${row.coa === null || row.coa.name === null ? BLANK_CLASS : ''}`} data-ledger-cell="account-name">{accountNameCellWords(row)}</td>
-                        <td className={`${cell} font-semibold text-text-primary`} data-ledger-cell="sub-account-name">{row.description}</td>
-                        <td className={`${cell} ${row.vendor === null ? BLANK_CLASS : ''}`} data-ledger-cell="vendor">{vendorCellWords(row.vendor)}</td>
-                        <td className={`${cell} whitespace-nowrap ${row.rating === null ? BLANK_CLASS : ''}`} data-ledger-cell="stars">{starsCellWords(row.rating)}</td>
-                        <td className={`${money} ${row.cents === null ? BLANK_CLASS : 'font-semibold text-text-primary'}`} data-ledger-cell="budget">{budgetCellWords(row.cents)}</td>
-                        <td className={`${money} ${row.outcome === 'skipped' ? 'text-text-muted' : row.actualCents === null ? BLANK_CLASS : `font-semibold ${actualTone(delta.over)}`}`} data-ledger-cell="actual">{actualCellWords(row)}</td>
-                        <td className={`${money} ${row.varianceCents === null ? BLANK_CLASS : `font-semibold ${actualTone(delta.over)}`}`} data-ledger-cell="variance">{varianceCellWords(row.varianceCents)}</td>
-                        <td className={`${money} ${readableMatchCents(row.match) === null ? BLANK_CLASS : `font-semibold ${matchTone(matchState(row.match, row.actualCents))}`}`} data-ledger-cell="match" title={matchCellTitle(row.match) ?? undefined}>
-                          <span data-ledger-match>{matchCellWords(row.match)}</span>
-                          <button type="button" className={`${chip} ml-1 font-normal`} onClick={() => setPicking(picking === row.key ? null : row.key)} data-ledger-link={row.key} aria-expanded={picking === row.key}>{LINK_WORDS}</button>
-                        </td>
-                        <td className={`${cell} whitespace-nowrap ${row.varianceCents === null ? BLANK_CLASS : actualTone(delta.over)}`} data-ledger-cell="under-over">{underOverWords(row.varianceCents)}</td>
-                        <td className={`${cell} ${row.note === null ? BLANK_CLASS : 'text-text-muted'}`} data-ledger-cell="description">{noteCellWords(row.note)}</td>
-                      </tr>
-                      {picking === row.key && (
-                        <tr className="border-t border-border" data-ledger-picker={row.key}>
-                          <td colSpan={LEDGER_HEAD_WORDS.length} className={cell}>
-                            <LinkPicker kind={row.address.kind} id={row.address.id} instant={row.address.instant} near={row.day} onChanged={() => setWrites((n) => n + 1)} onClose={() => setPicking(null)} />
-                          </td>
-                        </tr>
-                      )}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  {/* LEDGER-02 (amended): TOTAL spans the ten columns before BUDGET; VARIANCE is the column's sum (ledgerTotals), and the ACTUAL tone and UNDER / OVER follow its sign — one truth per row; "—" when no row carries both. */}
-                  <tr className="border-t border-border font-bold text-text-primary" data-ledger-total>
-                    <th scope="row" colSpan={10} className={`${cell} text-left`}>{TOTAL_WORDS}</th>
-                    <td className={`${money} ${totals.budgetCents === null ? BLANK_CLASS : ''}`} data-ledger-total-budget>{budgetCellWords(totals.budgetCents)}</td>
-                    <td className={`${money} ${totals.actualCents === null ? BLANK_CLASS : totals.varianceCents === null ? '' : varianceTone(totals.varianceCents)}`} data-ledger-total-actual>{budgetCellWords(totals.actualCents)}</td>
-                    <td className={`${money} ${varianceTone(totals.varianceCents)}`} data-ledger-total-variance>{varianceCellWords(totals.varianceCents)}</td>
-                    <td className={`${money} ${totals.matchCents === null ? BLANK_CLASS : ''}`} data-ledger-total-match>{matchTotalWords(totals.matchCents)}</td>
-                    <td className={`${cell} whitespace-nowrap ${varianceTone(totals.varianceCents)}`} data-ledger-total-under-over>{underOverWords(totals.varianceCents)}</td>
-                    <td className={cell} data-ledger-total-description />
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          )}
-          {openFilter !== null && popover(openFilter)}
           {/* LEDGER-04 (Alex, 2026-10-20): THE NOTES — the sentences under the TOTAL row, folded into one toggle closed on every load: "n notes ▸" (notesCount — the lines
               with something to say; a line whose count is 0 is neither counted nor shown; the TODAY rule and the every-book line shown only when open, never counted). Open, the
               same words as before, one per line. React state only. */}
