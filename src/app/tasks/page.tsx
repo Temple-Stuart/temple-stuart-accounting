@@ -29,8 +29,10 @@
  * the calendar is the view both log to. THE SORT (nav.ts) names Tasks the
  * owner of both pipes; the routine builder moved here from /calendar.
  *
- * SectionE_Work needs no new provider: it reads useOperationsEntity, and
- * OperationsEntityProvider is mounted here for the other two sections.
+ * SectionE_Work needs no new entity provider: it reads useOperationsEntity, and
+ * OperationsEntityProvider is mounted here for the other two sections. WORK-01b
+ * (Alex, 2026-10-24, ruling 3) adds WorkChangesProvider around it — the page's one
+ * task-change signal, shared by THE WORK and PROJECTS.
  *
  * The Daily Plan is Tasks' — verified, not assumed: SectionC_DailyPlan writes
  * /api/operations/daily-plan/items (:130), which the grid reads back as blocks
@@ -100,6 +102,10 @@ import ToolOpener from '@/components/shell/ToolOpener';
 import { navToolByName } from '@/lib/nav';
 import { TOOL_GATE } from '@/lib/offer';
 import { OperationsEntityProvider } from '@/components/workbench/operations/EntitySelector';
+// WORK-01b (Alex, 2026-10-24, ruling 3): the page's one task-change signal — THE WORK bumps it on a task change and PROJECTS'
+// counts re-read on it (and the reverse), so neither section shows a stale number. It wraps the entity provider; the Tasks
+// container's mounts are unchanged (the two-lists law reads inside it).
+import { WorkChangesProvider } from '@/components/workbench/operations/WorkChanges';
 import SectionE_Work from '@/components/workbench/operations/SectionE_Work';
 import SectionD_ProjectBacklog from '@/components/workbench/operations/SectionD_ProjectBacklog';
 
@@ -107,14 +113,16 @@ export default function TasksPage() {
   return (
     <AppLayout page>
       <ToolOpener tools={[navToolByName('Tasks', TOOL_GATE)]} />
-      <OperationsEntityProvider>
-        <div className="space-y-3" data-tool-page="Tasks">
-          <SectionE_Work />
-          <Suspense>
-            <SectionD_ProjectBacklog />
-          </Suspense>
-        </div>
-      </OperationsEntityProvider>
+      <WorkChangesProvider>
+        <OperationsEntityProvider>
+          <div className="space-y-3" data-tool-page="Tasks">
+            <SectionE_Work />
+            <Suspense>
+              <SectionD_ProjectBacklog />
+            </Suspense>
+          </div>
+        </OperationsEntityProvider>
+      </WorkChangesProvider>
     </AppLayout>
   );
 }

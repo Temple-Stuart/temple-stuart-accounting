@@ -12,6 +12,11 @@
  * detail — <ProjectRow> with every control it has, WITHOUT its task list — as a
  * full-width row directly under it. The brief (BACKLOG-01b) is unchanged.
  *
+ * WORK-01b (Alex, 2026-10-24, ruling 3): the count reads the page's task-change
+ * signal (WorkChanges) — a task THE WORK creates, saves or deletes moves its
+ * version and this row's tasks read again; the detail's task writes bump the same
+ * signal, so THE WORK re-reads too. No stale number on either side.
+ *
  * The project's cell holds the title, the status pill, the book, the small
  * print (target date, the estimates when set, the requests, the money
  * allocated from the ledger) and its control: details.
@@ -27,6 +32,7 @@
 import { useEffect, useState } from 'react';
 import { ACCOUNT_CELL_WORDS, type AccountCellBook } from '@/lib/coa/accountCell';
 import { isBlankPlanValue } from '@/lib/operations/planMoney';
+import { useWorkChanges } from '../WorkChanges';
 import ProjectRow from './ProjectRow';
 import type { Project } from './types';
 import { SIZE_LABELS, STATUS_LABELS, STATUS_PILL_CLASSES, TYPE_LABELS, formatAllocatedCents } from './types';
@@ -54,9 +60,9 @@ interface Props {
 export default function ProjectTableRows({
   project, entities, allProjects, showArchived, onProjectsChanged, isJumpTarget, onClearTarget, onJumpTo,
 }: Props) {
-  // Bumped by the detail when the project's tasks change — the count reads again.
-  const [tasksVersion, setTasksVersion] = useState(0);
-  const t = useProjectTasks({ projectId: project.id, entity_id: project.entity_id, showArchived, refreshKey: tasksVersion });
+  // The page's task-change signal (WORK-01b): the count reads again whenever a task changes anywhere on /tasks.
+  const { version, bump } = useWorkChanges();
+  const t = useProjectTasks({ projectId: project.id, entity_id: project.entity_id, showArchived, refreshKey: version });
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   // A dependency jump opens the target's details, where ProjectRow scrolls to
@@ -140,7 +146,7 @@ export default function ProjectTableRows({
               onJumpTo={onJumpTo}
               defaultExpanded
               withoutTaskSection
-              onTasksChanged={() => setTasksVersion((n) => n + 1)}
+              onTasksChanged={bump}
             />
           </td>
         </tr>

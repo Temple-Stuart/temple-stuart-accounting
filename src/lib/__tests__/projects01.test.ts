@@ -283,7 +283,7 @@ test('T1 ONE "show archived": the section\'s toggle reaches every project\'s tas
   assert.match(d, /if \(showArchived\) params\.set\('include_archived', 'true'\);/);
   assert.match(d, /showArchived=\{showArchived\}/);
   assert.match(code(TABLE), /showArchived=\{showArchived\}/);
-  assert.match(code(ROWS), /useProjectTasks\(\{ projectId: project\.id, entity_id: project\.entity_id, showArchived, refreshKey: tasksVersion \}\)/);
+  assert.match(code(ROWS), /useProjectTasks\(\{ projectId: project\.id, entity_id: project\.entity_id, showArchived, refreshKey: version \}\)/); // WORK-01b (2026-10-24): the page's task-change signal
   assert.match(code(PROJECT_TASKS), /`\/api\/operations\/projects\/\$\{projectId\}\/tasks\$\{showArchived \? '\?include_archived=true' : ''\}`/);
   for (const f of TABLE_FILES) {
     assert.doesNotMatch(code(f), /show archived|onShowArchivedChange|type="checkbox"/, `${f} carries no second archived toggle`);
@@ -297,7 +297,7 @@ test('T1 details: ProjectRow without a task section, a full-width row under the 
     '<tr data-project-details>', '<td colSpan={PROJECTS_TABLE_COLUMNS}', '<ProjectRow', 'project={project}', 'entities={entities}',
     'allProjects={allProjects}', 'onUpdate={onProjectsChanged}', 'onDelete={onProjectsChanged}', 'isJumpTarget={isJumpTarget}',
     'onClearTarget={onClearTarget}', 'onJumpTo={onJumpTo}', 'defaultExpanded', 'withoutTaskSection',
-    'onTasksChanged={() => setTasksVersion((n) => n + 1)}',
+    'onTasksChanged={bump}', // WORK-01b (2026-10-24): bumps the page's signal
   ], 'the details row');
   // A dependency jump opens the target's details; ProjectRow scrolls to itself.
   assert.match(rows, /useEffect\(\(\) => \{\n\s*if \(isJumpTarget\) setDetailsOpen\(true\);\n\s*\}, \[isJumpTarget\]\);/);

@@ -10,7 +10,9 @@
  *
  *   · KIND     once | repeated — a task is once; a routine is once when its rule
  *              is Once (rruleHelpers isOnceRRule: FREQ=DAILY;COUNT=1), else repeated.
- *   · NAME     the routine's name (on each of its line rows) or the task's title.
+ *   · NAME     the task's title; a stepless routine's name; a line row's
+ *              "<routine> — <line>" (WORK-01b, Alex, 2026-10-24, ruling 2 — one
+ *              string, so the filter, the sort and the CSV all read it whole).
  *   · PROJECT  the task's project title; a routine has none.
  *   · BOOK     the row's book by name (the tab's entity list); a book the tab has
  *              not listed is "book not loaded" (ROUTINES-01's words), never dropped.
@@ -27,6 +29,8 @@
  *   · ACCOUNT  the saved code drawn through ROUTINES-01's helper (accountCell: the
  *              book's letter and the four digits) with the chart's name beside it —
  *              "P-6150 Food & drink"; the helper's other states print their words.
+ *              WORK-01b (Alex, 2026-10-24, ruling 4): the chart read stays — the code
+ *              alone is ambiguous across books; this is the ledger's idiom.
  *   · STATUS   a routine's active | ended | inactive — ended first (ROUTINE-02a's
  *              endedBy, judged now in the routine's own zone), then is_active — or
  *              a task's status words (TASK_STATUS_LABELS, via taskStatusWords).
@@ -41,7 +45,8 @@
  *
  * THE DEFAULT (ruling B): the rows shown at first are the active routines and the
  * non-archived tasks — as a VISIBLE STATUS filter already applied, the chip
- * reading "STATUS: not ended, not archived", which the user clears to see
+ * reading "STATUS: not ended, not inactive, not archived" (WORK-01b, Alex,
+ * 2026-10-24: inactive joined the default), which the user clears to see
  * everything. Never a hidden default: the reads bring every routine and every
  * task (archived included); the filter alone narrows.
  *
@@ -114,7 +119,9 @@ export function timeWordsOf(row: WorkRow): string | null {
   const words = timeWords(row.routine);
   return words === DAYS_NONE_WORDS ? ALL_DAY_WORDS : words;
 }
-export const nameOf = (row: WorkRow): string => (row.of === 'task' ? row.task.title : row.routine.name);
+/** NAME — WORK-01b (Alex, 2026-10-24, ruling 2): a line row is "<routine> — <line>"; a stepless routine's row keeps the bare name. */
+export const LINE_NAME_JOIN = ' — ';
+export const nameOf = (row: WorkRow): string => (row.of === 'task' ? row.task.title : row.line === null ? row.routine.name : `${row.routine.name}${LINE_NAME_JOIN}${row.line.activity}`);
 export const projectOf = (row: WorkRow): string | null => (row.of === 'task' ? row.project.title : null);
 export const bookIdOf = (row: WorkRow): string => (row.of === 'task' ? row.task.entity_id : row.routine.entity_id);
 export const bookNameOf = (books: readonly WorkBook[], row: WorkRow): string => books.find((b) => b.id === bookIdOf(row))?.name ?? ACCOUNT_CELL_WORDS.bookNotLoaded;
@@ -220,14 +227,17 @@ export function workTable(books: readonly WorkBook[], charts: WorkCharts): reado
 
 // ── THE DEFAULT (ruling B) ───────────────────────────────────────────────────
 
-/** The STATUS values dropped at first — the ended routines and the archived tasks; the rest shows. */
-export const WORK_DEFAULT_DROPPED: readonly string[] = ['ended', 'archived'];
+/**
+ * The STATUS values dropped at first — the ended and the inactive routines and the archived tasks; the rest shows.
+ * WORK-01b (Alex, 2026-10-24, ruling 1): inactive joined ended and archived — the chip reads "STATUS: not ended, not inactive, not archived".
+ */
+export const WORK_DEFAULT_DROPPED: readonly string[] = ['ended', 'inactive', 'archived'];
 /** Every filter off but STATUS, which drops the default: the state at first, and what a re-read keeps. */
 export const workDefaultFilters = (columns: readonly TableColumn<WorkRow, WorkColumn>[]): TableFilters =>
   withFilter(noFilters(columns), 'status', { dropped: [...WORK_DEFAULT_DROPPED] });
 /** The STATUS values a filter drops now. */
 export const statusDroppedOf = (filters: TableFilters): readonly string[] => valueFilterOf(filters, 'status').dropped;
-/** The chip's words while STATUS narrows: "STATUS: not ended, not archived". */
+/** The chip's words while STATUS narrows: "STATUS: not ended, not inactive, not archived" at first. */
 export const statusChipWords = (dropped: readonly string[]): string => `STATUS: ${dropped.map((d) => `not ${d}`).join(', ')}`;
 /** The filters with STATUS cleared — the chip's click: everything shows. */
 export const withoutStatusFilter = (filters: TableFilters): TableFilters => withFilter(filters, 'status', NO_VALUE_FILTER);

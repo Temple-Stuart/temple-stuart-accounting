@@ -175,7 +175,7 @@ test('T6 the archive: ended = end_date before today in the routine\'s own zone; 
   const w = code(WORK_LIB);
   assert.match(w, /const end = endedBy\(routine\.end_date, routine\.timezone, now\);/);
   assert.match(w, /end\.ended \? 'ended' : routine\.is_active \? 'active' : 'inactive'/);
-  assert.match(w, /export const WORK_DEFAULT_DROPPED: readonly string\[\] = \['ended', 'archived'\];/);
+  assert.match(w, /export const WORK_DEFAULT_DROPPED: readonly string\[\] = \['ended', 'inactive', 'archived'\];/); // WORK-01b (2026-10-24): inactive joined
   assert.doesNotMatch(w, /groupOf|CADENCE_GROUP_ORDER|data-cadence-group/, 'no cadence groups (FORM-01)');
   const e = code(SECTION_E);
   assert.match(e, /workRowsOf\(read\.routines, read\.projects, new Date\(\)\)/, 'judged now');

@@ -25,9 +25,10 @@ import {
   ALL_DAY_WORDS, CHART_MISSING_WORDS, WORK_COLUMNS, WORK_DEFAULT_DROPPED, WORK_HEAD_WORDS, OPEN_PROJECT_STATUSES, PROJECT_REQUIRED_WORDS,
   accountWordsOf, amountCentsOf, kindOf, openProjects, statusChipWords, statusDroppedOf, statusWordsOf, timeWordsOf, workCountWords,
   workCsvFileName, workDefaultFilters, workRowsOf, workTable, withoutStatusFilter, type WorkBook, type WorkCharts, type WorkProject,
+  nameOf,
 } from '../operations/work';
 import { daysWords } from '../operations/rruleHelpers';
-import { filterRows, noFilters } from '../table/filters';
+import { filterRows, noFilters, withFilter } from '../table/filters';
 import { sortRows } from '../table/sort';
 import { tableCsv } from '../table/csv';
 import { BLANK } from '../table/words';
@@ -73,7 +74,7 @@ const routine = (o: Partial<Routine> & { id: string; name: string }): Routine =>
   ideal_time_label: null, fail_threshold_minutes: 30, start_date: null, end_date: null, start_time: '1970-01-01T07:00:00.000Z', end_time: '1970-01-01T07:30:00.000Z',
   is_active: true, created_at: '', updated_at: '', created_by: null, budget_amount: null, coa_code: null, role: 'place', steps: [], ...o,
 });
-/** A 3-line routine: Coffee $3 / 6150, Stretch (no amount), Journal $0.50 / 6150 — the name repeats on each row. */
+/** A 3-line routine: Coffee $3 / 6150, Stretch (no amount), Journal $0.50 / 6150 — each row's NAME is "Morning — <line>" (WORK-01b, ruling 2). */
 const MORNING = routine({ id: 'morning', name: 'Morning', steps: [
   step({ id: 's3', activity: 'Journal', step_order: 3, budget_amount: '0.50', coa_code: '6150' }),
   step({ id: 's1', activity: 'Coffee', step_order: 1, budget_amount: '3.00', coa_code: '6150' }),
@@ -106,8 +107,10 @@ test('T1 one row per routine line, one per stepless routine, one per task — in
   assert.deepEqual(ROWS_IN.map((r) => r.id), [
     'routine:apple', 'routine:morning:s1', 'routine:morning:s2', 'routine:morning:s3', 'routine:old', 'routine:paused', 'routine:dentist', 'task:t1', 'task:t3', 'task:t2',
   ]);
-  // The 3-line routine is 3 rows, the name repeated, each line's own amount and account; the stepless routine its own.
-  for (const id of ['routine:morning:s1', 'routine:morning:s2', 'routine:morning:s3']) assert.equal(cell(id, 'name'), 'Morning');
+  // The 3-line routine is 3 rows — NAME "<routine> — <line>" (WORK-01b, Alex, 2026-10-24, ruling 2) — each line's own amount and account; the stepless routine its bare name.
+  assert.deepEqual(['s1', 's2', 's3'].map((s) => cell(`routine:morning:${s}`, 'name')), ['Morning — Coffee', 'Morning — Stretch', 'Morning — Journal']);
+  assert.equal(cell('routine:dentist', 'name'), 'Dentist');
+  assert.equal(cell('task:t1', 'name'), 'write the route');
   assert.deepEqual(['s1', 's2', 's3'].map((s) => cell(`routine:morning:${s}`, 'amount')), ['$3.00', BLANK, '$0.50']);
   assert.deepEqual(['s1', 's2', 's3'].map((s) => cell(`routine:morning:${s}`, 'account')), ['P-6150 Food & drink', BLANK, 'P-6150 Food & drink']);
   assert.equal(cell('routine:dentist', 'amount'), '$40.00');
@@ -173,15 +176,15 @@ test('T2 the columns, their heads and their kinds — AMOUNT money; KIND, BOOK, 
 
 // ── T3 · THE DEFAULT (ruling B) ──────────────────────────────────────────────
 
-test('T3 the default is a VISIBLE STATUS filter — "STATUS: not ended, not archived" — already applied, and its clear shows everything', () => {
-  assert.deepEqual([...WORK_DEFAULT_DROPPED], ['ended', 'archived']);
+test('T3 the default is a VISIBLE STATUS filter — "STATUS: not ended, not inactive, not archived" (WORK-01b, ruling 1) — already applied, and its clear shows everything', () => {
+  assert.deepEqual([...WORK_DEFAULT_DROPPED], ['ended', 'inactive', 'archived']);
   const filters = workDefaultFilters(COLUMNS);
-  assert.deepEqual(statusDroppedOf(filters), ['ended', 'archived']);
-  assert.equal(statusChipWords(statusDroppedOf(filters)), 'STATUS: not ended, not archived');
+  assert.deepEqual(statusDroppedOf(filters), ['ended', 'inactive', 'archived']);
+  assert.equal(statusChipWords(statusDroppedOf(filters)), 'STATUS: not ended, not inactive, not archived');
   // Every other filter is off — the default narrows by STATUS alone.
   for (const c of COLUMNS) if (c.key !== 'status') assert.deepEqual(filters[c.key], noFilters(COLUMNS)[c.key]);
   const shown = filterRows(ROWS_IN, filters, COLUMNS).map((r) => r.id);
-  assert.deepEqual(shown, ['routine:apple', 'routine:morning:s1', 'routine:morning:s2', 'routine:morning:s3', 'routine:paused', 'routine:dentist', 'task:t1', 'task:t3'], 'the ended routine and the archived task are hidden; the inactive routine and the done task show');
+  assert.deepEqual(shown, ['routine:apple', 'routine:morning:s1', 'routine:morning:s2', 'routine:morning:s3', 'routine:dentist', 'task:t1', 'task:t3'], 'the ended and the inactive routines and the archived task are hidden; the done task shows');
   // Cleared: everything.
   assert.deepEqual(filterRows(ROWS_IN, withoutStatusFilter(filters), COLUMNS).map((r) => r.id), ROWS_IN.map((r) => r.id));
   assert.deepEqual(statusDroppedOf(withoutStatusFilter(filters)), []);
@@ -205,7 +208,7 @@ test('T4 sort by AMOUNT descending puts the dearest first and the blanks last; t
   assert.deepEqual(desc.slice(-4), ['routine:morning:s2', 'routine:paused', 'task:t3', 'task:t2'], 'blanks last, in the order given');
   const csv = tableCsv(COLUMNS, ROWS_IN.filter((r) => r.id === 'routine:morning:s1' || r.id === 'task:t1'));
   assert.equal(csv, 'KIND,NAME,PROJECT,BOOK,CADENCE,DAYS,TIME,DEADLINE,AMOUNT,ACCOUNT,STATUS\r\n'
-    + 'repeated,Morning,,Personal,daily,Mon–Sun,07:00 – 07:30,,3.00,P-6150 Food & drink,active\r\n'
+    + 'repeated,Morning — Coffee,,Personal,daily,Mon–Sun,07:00 – 07:30,,3.00,P-6150 Food & drink,active\r\n'
     + 'once,write the route,HOME-01,Personal,,,,2026-10-30,12.50,P-6150 Food & drink,new\r\n');
   assert.equal(workCsvFileName('2026-10-24'), 'work_2026-10-24.csv');
   assert.equal(workCountWords(8, 10), '8 of 10 rows');
@@ -301,7 +304,7 @@ test('T6 PROJECTS keeps project rows only: no task rows, no "+ task" on the proj
   assert.doesNotMatch(rows, /TaskTableRow|TaskCreateInputs|data-task-row|data-project-create-task|\+ task|editIds|historyIds|rowSpan/);
   assert.match(rows, /<tr data-project-row>\n\s*\{projectCell\}\n\s*\{[^}]*\}\n\s*<td[^>]*data-project-tasks>/);
   assert.match(rows, /\{statusCounts\(t\.tasks\.map\(\(task\) => task\.status\)\)\}/, 'the count by status, the one line the task rows left');
-  assert.match(rows, /const t = useProjectTasks\(\{ projectId: project\.id, entity_id: project\.entity_id, showArchived, refreshKey: tasksVersion \}\);/);
+  assert.match(rows, /const t = useProjectTasks\(\{ projectId: project\.id, entity_id: project\.entity_id, showArchived, refreshKey: version \}\);/); // WORK-01b: the page's task-change signal
   assert.match(rows, /<tr data-project-details>\n\s*<td colSpan=\{PROJECTS_TABLE_COLUMNS\}/);
   assert.match(rows, /defaultExpanded\n\s*withoutTaskSection/);
   assert.equal(PROJECTS_TABLE_COLUMNS, 2);
@@ -341,4 +344,50 @@ test('T7 the cockpit\'s Routines and Projects tabs are gone; the keys left both 
   assert.match(code('src/app/page.tsx'), /routines: '\/routines',\n\s*projects: '\/projects'/, 'the front door still sends ?tab=routines and ?tab=projects to their redirect pages');
   assert.ok(existsSync(at('src/components/home/RoutinesShowcaseSections.tsx')) && existsSync(at(DECK)), 'the decks stay');
   assert.match(code('src/lib/modulePillars.ts'), /id: 'routines'/); assert.match(code('src/lib/modulePillars.ts'), /id: 'projects'/);
+});
+
+// ── WORK-01b (Alex, 2026-10-24) · THE FOUR RULINGS ON #1850 ─────────────────
+
+test('WORK-01b ruling 2: a line row\'s NAME is "<routine> — <line>", one string — the filter, the sort and the CSV read it whole; a stepless routine keeps its bare name', () => {
+  assert.equal(nameOf(ROWS_IN.find((r) => r.id === 'routine:morning:s2')!), 'Morning — Stretch');
+  assert.equal(nameOf(ROWS_IN.find((r) => r.id === 'routine:dentist')!), 'Dentist');
+  assert.equal(nameOf(ROWS_IN.find((r) => r.id === 'task:t2')!), 'old chore');
+  // The sort by NAME orders the full string: the three Morning rows by their line.
+  const byName = sortRows(ROWS_IN, { column: 'name', direction: 'asc' }, COLUMNS).map((r) => nameOf(r));
+  assert.deepEqual(byName.filter((n) => n.startsWith('Morning')), ['Morning — Coffee', 'Morning — Journal', 'Morning — Stretch']);
+  // The NAME filter matches the line's half too: "Stretch" finds the one row.
+  const stretch = filterRows(ROWS_IN, withFilter(noFilters(COLUMNS), 'name', { contains: 'Stretch' }), COLUMNS).map((r) => r.id);
+  assert.deepEqual(stretch, ['routine:morning:s2']);
+  // The CSV carries the same string.
+  assert.match(tableCsv(COLUMNS, ROWS_IN.filter((r) => r.id === 'routine:morning:s2')), /\nrepeated,Morning — Stretch,,Personal,/);
+  assert.match(code('src/lib/operations/work.ts'), /row\.line === null \? row\.routine\.name : `\$\{row\.routine\.name\}\$\{LINE_NAME_JOIN\}\$\{row\.line\.activity\}`/);
+});
+
+test('WORK-01b ruling 3: the page holds one task-change signal — THE WORK bumps it on a task change and re-reads on every bump; PROJECTS\' counts read the same version; routines do not bump it', () => {
+  const CHANGES = `${OPS}/WorkChanges.tsx`;
+  const c = code(CHANGES);
+  assert.match(c, /const WorkChangesContext = createContext<WorkChanges \| null>\(null\);/);
+  assert.match(c, /const \[version, setVersion\] = useState\(0\);\n\s*const bump = useCallback\(\(\) => setVersion\(\(n\) => n \+ 1\), \[\]\);/, 'React state only');
+  assert.match(c, /if \(value === null\) throw new Error\(NO_WORK_CHANGES_PROVIDER_WORDS\);/, 'outside the provider it throws — never a silent no-op');
+  assert.doesNotMatch(c, /localStorage|sessionStorage|document\.cookie|dispatchEvent|addEventListener/);
+  // The page wraps both sections in it, outside the entity provider — the Tasks container's mounts are unchanged (the two-lists law).
+  const page = code(PAGE);
+  assert.match(page, /<WorkChangesProvider>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Tasks">\n\s*<SectionE_Work \/>\n\s*<Suspense>\n\s*<SectionD_ProjectBacklog \/>\n\s*<\/Suspense>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>\n\s*<\/WorkChangesProvider>/);
+  // THE WORK: re-reads on the version; task rows and the new-task form bump; routine rows re-read here alone.
+  const e = code(SECTION_E);
+  assert.match(e, /const \{ version: workVersion, bump: taskChanged \} = useWorkChanges\(\);/);
+  assert.match(e, /useEffect\(\(\) => \{ readWork\(\); \}, \[workVersion\]\);/);
+  assert.match(e, /<TaskWorkRow key=\{row\.id\}[^\n]*onChanged=\{taskChanged\} \/>/);
+  assert.match(e, /<NewTaskForm projects=\{openProjects\(allProjects\)\} charts=\{charts\} onCreated=\{\(\) => \{ setCreating\(null\); taskChanged\(\); \}\}/);
+  assert.match(e, /<RoutineWorkRow key=\{row\.id\}[^\n]*onChanged=\{refresh\} \/>/, 'a routine change re-reads THE WORK alone — PROJECTS counts no routines');
+  assert.equal((e.match(/useWorkChanges\(\)/g) ?? []).length, 1);
+  // PROJECTS: each project's count reads the version and the detail's task writes bump it.
+  const rows = code(ROWS);
+  assert.match(rows, /const \{ version, bump \} = useWorkChanges\(\);\n\s*const t = useProjectTasks\(\{ projectId: project\.id, entity_id: project\.entity_id, showArchived, refreshKey: version \}\);/);
+  assert.match(rows, /onTasksChanged=\{bump\}/);
+  assert.doesNotMatch(rows, /tasksVersion|setTasksVersion/, 'no local tasks version beside the page\'s');
+  // Only /tasks' two sections read it.
+  const under = (dir: string): string[] => readdirSync(resolve(process.cwd(), dir), { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? under(`${dir}/${d.name}`) : /\.tsx?$/.test(d.name) ? [`${dir}/${d.name}`] : []));
+  const readers = [...under('src/app'), ...under('src/components')].filter((f) => /= useWorkChanges\(\);/.test(code(f)));
+  assert.deepEqual(readers.sort(), [ROWS, SECTION_E].sort());
 });

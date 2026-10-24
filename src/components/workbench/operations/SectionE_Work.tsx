@@ -14,7 +14,7 @@
  *     ACCOUNT column names the account). Existing routes, no new one; a failed
  *     read is said in words, never an empty table. Everything comes in, so the
  *     STATUS filter is the only thing that narrows (ruling B).
- *   · THE DEFAULT — "STATUS: not ended, not archived" is a VISIBLE chip in the
+ *   · THE DEFAULT — "STATUS: not ended, not inactive, not archived" (WORK-01b: inactive joined) is a VISIBLE chip in the
  *     controls row, already applied; a click on it clears it (everything shows);
  *     "clear filters" clears it with the rest. Never a hidden default. The old
  *     list's "show inactive" and "show ended (n)" toggles are this filter's
@@ -48,6 +48,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useOperationsEntity, type Entity } from './EntitySelector';
+import { useWorkChanges } from './WorkChanges';
 import DataTable, { cellClass as cell, chipClass as chip, moneyClass } from '@/components/table/DataTable';
 import { dataAttr } from '@/components/table/dataAttr';
 import type { TableColumn } from '@/lib/table/columns';
@@ -97,6 +98,9 @@ async function readJson(url: string, what: string): Promise<Record<string, unkno
 
 export default function SectionE_Work() {
   const { entities } = useOperationsEntity();
+  // WORK-01b (Alex, 2026-10-24, ruling 3): the page's task-change signal — a task change here bumps it (PROJECTS' counts
+  // re-read), and THE WORK re-reads on every bump, wherever it came from. Routine changes re-read here alone.
+  const { version: workVersion, bump: taskChanged } = useWorkChanges();
   const [read, setRead] = useState<WorkRead>({ kind: 'loading' });
   const [chartsRead, setChartsRead] = useState<ChartsRead>({ kind: 'loading' });
   // One filter per column — STATUS dropping the default at first (ruling B); the sort; the open popover; the one editor open; what is being created. React state only.
@@ -123,7 +127,7 @@ export default function SectionE_Work() {
       setRead({ kind: 'failed', words: e instanceof Error ? e.message : String(e) });
     }
   };
-  useEffect(() => { readWork(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { readWork(); }, [workVersion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Each book's chart, for ACCOUNT's names and the task forms' category lists — once per entity list.
   useEffect(() => {
@@ -163,7 +167,7 @@ export default function SectionE_Work() {
 
   const renderRow = (row: WorkRow) => (row.of === 'routine'
     ? <RoutineWorkRow key={row.id} row={row} columns={columns} entities={entities} editing={editing === row.id} setEditing={(on) => setEditing(on ? row.id : null)} onChanged={refresh} />
-    : <TaskWorkRow key={row.id} row={row} columns={columns} coaAccounts={[...(charts[row.task.entity_id] ?? [])]} editing={editing === row.id} setEditing={(on) => setEditing(on ? row.id : null)} onChanged={refresh} />);
+    : <TaskWorkRow key={row.id} row={row} columns={columns} coaAccounts={[...(charts[row.task.entity_id] ?? [])]} editing={editing === row.id} setEditing={(on) => setEditing(on ? row.id : null)} onChanged={taskChanged} />);
 
   return (
     <section className="space-y-3" {...dataAttr(name, 'section')}>
@@ -215,7 +219,7 @@ export default function SectionE_Work() {
           />
         )}
         {creating === 'task' && (
-          <NewTaskForm projects={openProjects(allProjects)} charts={charts} onCreated={() => { setCreating(null); refresh(); }} onCancel={() => setCreating(null)} />
+          <NewTaskForm projects={openProjects(allProjects)} charts={charts} onCreated={() => { setCreating(null); taskChanged(); }} onCancel={() => setCreating(null)} />
         )}
         {(read.kind === 'loading' || (read.kind === 'loaded' && chartsRead.kind === 'loading')) && <div className="text-xs text-text-muted" {...dataAttr(name, 'loading')}>{WORK_LOADING_WORDS}</div>}
         {read.kind === 'failed' && <div className="text-xs px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800" {...dataAttr(name, 'failed')}>{workFailedWords(read.words)}</div>}
