@@ -3,6 +3,14 @@
 /**
  * TOOL-LAW-01 — /tasks, TASKS' ONE PAGE (tool 02, THE WORK).
  *
+ * WORK-01 (Alex, 2026-10-24) — TASKS IS ONE TABLE. THE WORK first (SectionE_Work:
+ * every routine line and every task, KIND once | repeated, in the shared table
+ * idiom, with "+ routine" and "+ task"), then PROJECTS (SectionD: project rows
+ * only, their briefs; the task rows left for THE WORK). The projects list keeps
+ * its Suspense boundary (BACKLOG-02: it reads ?project= and ?new=project). The
+ * cockpit's Routines and Projects tabs retired with this ruling; /tasks is the
+ * rail's door.
+ *
  * TASKS-01 (2026-09-18) — TASKS IS TWO LISTS. Projects, then routines, then
  * the daily plan, and nothing else: no pipe strip, no phase, no receipts rail.
  * What the two strips used to hold survives as PLAIN CONTROLS on the rows
@@ -21,7 +29,7 @@
  * the calendar is the view both log to. THE SORT (nav.ts) names Tasks the
  * owner of both pipes; the routine builder moved here from /calendar.
  *
- * SectionE_Routines needs no new provider: it reads useOperationsEntity, and
+ * SectionE_Work needs no new provider: it reads useOperationsEntity, and
  * OperationsEntityProvider is mounted here for the other two sections.
  *
  * The Daily Plan is Tasks' — verified, not assumed: SectionC_DailyPlan writes
@@ -92,8 +100,8 @@ import ToolOpener from '@/components/shell/ToolOpener';
 import { navToolByName } from '@/lib/nav';
 import { TOOL_GATE } from '@/lib/offer';
 import { OperationsEntityProvider } from '@/components/workbench/operations/EntitySelector';
+import SectionE_Work from '@/components/workbench/operations/SectionE_Work';
 import SectionD_ProjectBacklog from '@/components/workbench/operations/SectionD_ProjectBacklog';
-import SectionE_Routines from '@/components/workbench/operations/SectionE_Routines';
 
 export default function TasksPage() {
   return (
@@ -101,10 +109,10 @@ export default function TasksPage() {
       <ToolOpener tools={[navToolByName('Tasks', TOOL_GATE)]} />
       <OperationsEntityProvider>
         <div className="space-y-3" data-tool-page="Tasks">
+          <SectionE_Work />
           <Suspense>
             <SectionD_ProjectBacklog />
           </Suspense>
-          <SectionE_Routines />
         </div>
       </OperationsEntityProvider>
     </AppLayout>

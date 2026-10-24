@@ -189,7 +189,7 @@ test('T3 the week is gone — its files deleted and nothing imports them; the pa
   assert.doesNotMatch(page, /WeekSection/);
   // TIME-01 (2026-10-19): the day card moved to /time — the projects list is first on /tasks now.
   // BACKLOG-02 (Alex, 2026-10-20): a boundary is back on /tasks — around the projects list ALONE, which reads ?project= and ?new=project (useSearchParams); the day card stays /time's — still first.
-  assert.match(page, /<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Tasks">\n\s*<Suspense>\n\s*<SectionD_ProjectBacklog \/>/);
+  assert.match(page, /<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Tasks">\n\s*<SectionE_Work \/>\n\s*<Suspense>\n\s*<SectionD_ProjectBacklog \/>/); // WORK-01 (2026-10-24): THE WORK first
 });
 
 test('T3 the reads stay: four URLs through one fetch in the one reader; signed out named; the day card reads through it', () => {

@@ -38,7 +38,8 @@ const VENDOR = 'src/components/workbench/operations/stops/StopVendor.tsx';
 const ROUTE_CREATE = 'src/app/api/operations/routines/route.ts';
 const ROUTE_PATCH = 'src/app/api/operations/routines/[id]/route.ts';
 const CREATE_FORM = 'src/components/workbench/operations/routines/RoutineCreateForm.tsx';
-const ROW = 'src/components/workbench/operations/routines/RoutineRow.tsx';
+// WORK-01 (Alex, 2026-10-24): RoutineRow left — its edit form is RoutineEditForm (lifted, moved code); ROW names it.
+const ROW = 'src/components/workbench/operations/routines/RoutineEditForm.tsx';
 const TODAY_ROUTE = 'src/app/api/operations/routines/today/route.ts';
 const STOPS_ROUTE = 'src/app/api/operations/stops/route.ts';
 const TYPES = 'src/components/workbench/operations/routines/types.ts';

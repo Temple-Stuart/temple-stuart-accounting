@@ -76,7 +76,5 @@ export function costPair(estimated: string | null, actual: string | null): strin
   return `est ${side(estimated)} · actual ${side(actual)}`;
 }
 
-/** The table's columns: Project · Task · Status · Minutes · Cost · Account · Deadline · Done, and the controls. */
-export const PROJECTS_TABLE_COLUMNS = 9;
-/** The columns beside the project cell — what a task row, and a row opened under a task, spans. */
-export const TASK_COLUMNS = PROJECTS_TABLE_COLUMNS - 1;
+/** WORK-01 (Alex, 2026-10-24): the table's columns — Project · Tasks (the count by status). The task rows left for THE WORK (SectionE_Work); TASK_COLUMNS went with them. */
+export const PROJECTS_TABLE_COLUMNS = 2;

@@ -19,6 +19,11 @@
  * opened one project at a time is gone. "show archived" is the one toggle: it
  * reads archived projects AND archived tasks.
  *
+ * WORK-01 (Alex, 2026-10-24) — ruling E: the task rows left this table for THE
+ * WORK (SectionE_Work, above this section on /tasks); a project is one row with
+ * its tasks counted. "+ new project", "show archived", details and the brief
+ * are unchanged, and so is THE LOG's read (GET /projects open_tasks).
+ *
  * BACKLOG-01 (Alex, 2026-10-20) — ruling G: the list shows EVERY book. The
  * page's entity selector no longer filters the fetch (the ledger's rule:
  * "every book — the COA says which"); the project cell names its book. The

@@ -495,7 +495,7 @@ test('T6 the ledger mounts on /time under the day card; the two-lists law holds 
   assert.match(comments(PAGE), /LEDGER-01 \(Alex, 2026-10-16\) — THE CITY LEDGER is the fourth section, under\s*\n\s*\* Routines/);
   assert.doesNotMatch(code(PAGE), /LedgerSection/, 'the Tasks page mounts it no more');
   const law = code(LAW);
-  assert.match(law, /const TWO_LISTS_MOUNTS = \['<SectionD_ProjectBacklog \/>', '<SectionE_Routines \/>'\];/);
+  assert.match(law, /const TWO_LISTS_MOUNTS = \['<SectionE_Work \/>', '<SectionD_ProjectBacklog \/>'\];/);
   assert.match(law, /const TIME_MOUNTS = \['<DayCard \/>', '<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/);
   // JOURNAL-07 (Alex, 2026-10-24): TIME_MOUNTS is the four — the day card, the ledger, then the morning and the evening journal tables.
   assert.match(law, /timeMounts\.join\(' '\) !== 'DayCard LedgerSection MorningJournalTable EveningJournalTable'/, 'exactly the four on /time (TIME-02; JOURNAL-07)');

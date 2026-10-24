@@ -56,11 +56,11 @@ test('T1 the pages: /time is the card then the ledger (TIME-02: nothing beneath)
   // /tasks — the two lists, nothing else; no card, no ledger.
   // BACKLOG-02 (Alex, 2026-10-20): a boundary is back on /tasks — around the projects list ALONE, which reads ?project= and ?new=project (useSearchParams); the day card stays /time's: the page itself still reads no URL (the list does, in its boundary).
   assert.match(tasks, /^'use client';/);
-  assert.match(tasks, /<ToolOpener tools=\{\[navToolByName\('Tasks', TOOL_GATE\)\]\} \/>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Tasks">\n\s*<Suspense>\n\s*<SectionD_ProjectBacklog \/>\n\s*<\/Suspense>\n\s*<SectionE_Routines \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/);
+  assert.match(tasks, /<ToolOpener tools=\{\[navToolByName\('Tasks', TOOL_GATE\)\]\} \/>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Tasks">\n\s*<SectionE_Work \/>\n\s*<Suspense>\n\s*<SectionD_ProjectBacklog \/>\n\s*<\/Suspense>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/);
   const tasksBox = tasks.slice(tasks.indexOf('data-tool-page="Tasks"'), tasks.indexOf('</OperationsEntityProvider>'));
-  assert.deepEqual([...tasksBox.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['Suspense', 'SectionD_ProjectBacklog', 'SectionE_Routines']);
+  assert.deepEqual([...tasksBox.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['SectionE_Work', 'Suspense', 'SectionD_ProjectBacklog']); // WORK-01 (2026-10-24): THE WORK first
   assert.doesNotMatch(tasks, /DayCard|LedgerSection|ContentPipeline|useSearchParams/, 'nothing of Time on Tasks');
-  assert.doesNotMatch(time, /SectionD_ProjectBacklog|SectionE_Routines/, 'nothing of Tasks on Time');
+  assert.doesNotMatch(time, /SectionD_ProjectBacklog|SectionE_Routines|SectionE_Work/, 'nothing of Tasks on Time');
   assert.equal((tasks.match(/<ToolOpener/g) ?? []).length, 1);
   // The merged grid is Calendar's — neither page pulls it in (tool law 5); the card imports none.
   for (const f of [TIME_PAGE, TASKS_PAGE, CARD]) assert.doesNotMatch(code(f), /HubCalendar/, `${f} mounts no merged grid`);
@@ -118,8 +118,8 @@ test('T3 the dated redirect: next.config.ts sends /tasks?date= and ?step= to /ti
 test('T4 the laws: the two-lists law holds /tasks to the two lists and /time to the two mounts (TIME-02); PHASES_RENDERED_AT and THE SORT say /time draws nothing; the gate table untouched', () => {
   const law = code(LAW);
   assert.match(law, /const TWO_LISTS_PAGE = 'src\/app\/tasks\/page\.tsx';\n\s*const TIME_PAGE = 'src\/app\/time\/page\.tsx';/);
-  assert.match(law, /const TWO_LISTS_MOUNTS = \['<SectionD_ProjectBacklog \/>', '<SectionE_Routines \/>'\];/);
-  assert.match(law, /pageMounts\.join\(' '\) !== 'SectionD_ProjectBacklog SectionE_Routines'/);
+  assert.match(law, /const TWO_LISTS_MOUNTS = \['<SectionE_Work \/>', '<SectionD_ProjectBacklog \/>'\];/);
+  assert.match(law, /pageMounts\.join\(' '\) !== 'SectionE_Work SectionD_ProjectBacklog'/);
   assert.match(law, /if \(\/DayCard\|LedgerSection\/\.test\(page\)\) twoListsFail\(/, 'the two that went may not come back unnoticed');
   assert.match(law, /const TIME_MOUNTS = \['<DayCard \/>', '<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/);
   assert.match(law, /timeMounts\.join\(' '\) !== 'DayCard LedgerSection MorningJournalTable EveningJournalTable'/);

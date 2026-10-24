@@ -13,7 +13,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { code, comments } from '../sourceText';
 import {
-  NOTES_PREVIEW_CHARS, PROJECTS_TABLE_COLUMNS, TASK_COLUMNS, UNLABELED_STATUS_PILL,
+  NOTES_PREVIEW_CHARS, PROJECTS_TABLE_COLUMNS, UNLABELED_STATUS_PILL,
   costPair, formatDate, minutesPair, notesPreview, requestsWords, statusCounts, taskStatusPill, taskStatusWords,
 } from '@/components/workbench/operations/projects/projectsTableText';
 import { TASK_STATUS_LABELS, TASK_STATUS_PILL_CLASSES } from '@/components/workbench/operations/projects/types';
@@ -23,7 +23,8 @@ const P = `${OPS}/projects`;
 const SECTION_D = `${OPS}/SectionD_ProjectBacklog.tsx`;
 const TABLE = `${P}/ProjectsTable.tsx`;
 const ROWS = `${P}/ProjectTableRows.tsx`;
-const TASK_ROW = `${P}/TaskTableRow.tsx`;
+// WORK-01 (Alex, 2026-10-24): TaskTableRow left — the task rows are THE WORK's (SectionE_Work), their one home; the pins below moved there.
+const SECTION_E = `${OPS}/SectionE_Work.tsx`;
 const TEXT = `${P}/projectsTableText.ts`;
 const TASK_ACTIONS = `${P}/useTaskActions.ts`;
 const PROJECT_TASKS = `${P}/useProjectTasks.ts`;
@@ -33,7 +34,7 @@ const LIST_VIEW = `${P}/TaskListView.tsx`;
 const TASK_ROW_CONTAINER = `${P}/TaskRow.tsx`;
 const TASK_LIST_CONTAINER = `${P}/TaskList.tsx`;
 const PROJECT_ROW = `${P}/ProjectRow.tsx`;
-const TABLE_FILES = [TABLE, ROWS, TASK_ROW, TEXT, ...PARTS];
+const TABLE_FILES = [TABLE, ROWS, TEXT, ...PARTS];
 
 function tsFilesUnder(dir: string): string[] {
   const out: string[] = [];
@@ -108,14 +109,13 @@ test('T1 minutes and cost: est · actual, a blank side is "—" — never 0, nev
 
 // ── T1 · THE TABLE (source pins) ─────────────────────────────────────────────
 
-test('T1 one table: Project · Task · Status · Minutes · Cost · Account · Deadline · Done, and a controls column', () => {
+test('T1 one table: Project · Tasks (WORK-01, 2026-10-24: the task columns left with the task rows — THE WORK is their one home)', () => {
   const table = code(TABLE);
   assert.equal((table.match(/<table\b/g) ?? []).length, 1);
-  for (const f of [SECTION_D, ROWS, TASK_ROW, ...PARTS]) assert.doesNotMatch(code(f), /<table\b/, `${f} draws rows of the one table`);
+  for (const f of [SECTION_D, ROWS, ...PARTS]) assert.doesNotMatch(code(f), /<table\b/, `${f} draws rows of the one table`);
   const heads = [...table.matchAll(/<th\b[^>]*>([^<]*)</g)].map((m) => m[1]);
-  assert.deepEqual(heads, ['Project', 'Task', 'Status', 'Minutes', 'Cost', 'Account', 'Deadline', 'Done', '']);
+  assert.deepEqual(heads, ['Project', 'Tasks']);
   assert.equal(PROJECTS_TABLE_COLUMNS, heads.length);
-  assert.equal(TASK_COLUMNS, heads.length - 1);
   // The projects in the order the GET returns them — no sort, no filter on the way.
   assert.match(table, /\{projects\.map\(\(p\) => \(\n\s*<ProjectTableRows\n\s*key=\{p\.id\}/);
   for (const f of [TABLE, ROWS]) assert.doesNotMatch(code(f), /\.sort\(|projects\.filter\(/);
@@ -124,6 +124,7 @@ test('T1 one table: Project · Task · Status · Minutes · Cost · Account · D
   assert.match(d, /<ProjectsTable\n\s*projects=\{projects\}/);
   // The header, the create form above the table, and the error, loading and empty lines stay.
   inOrder(d, ['Projects', "{projects.length === 1 ? 'project' : 'projects'}", 'show archived', '+ new project', '{error && (', '<ProjectCreateForm', 'loading projects…', 'no projects yet', '<ProjectsTable'], 'the section');
+  assert.equal(existsSync(resolve(process.cwd(), `${P}/TaskTableRow.tsx`)), false, 'the task row left with the task rows (WORK-01)');
 });
 
 test('T1 the queue card is gone — deleted, imported by nothing', () => {
@@ -144,10 +145,10 @@ test('T1 nothing collapses: no ▸/▾ and no expanded state in the table\'s fil
   }
 });
 
-test('T1 the project cell: title, pill, book, the small print, and + task · details', () => {
+test('T1 the project cell: title, pill, book, the small print, and details; the Tasks cell counts by status (WORK-01: "+ task" and the task rows are THE WORK\'s)', () => {
   const rows = code(ROWS);
   const cell = rows.slice(rows.indexOf('const projectCell = ('), rows.indexOf('\n  );\n', rows.indexOf('const projectCell = (')));
-  assert.match(cell, /<td rowSpan=\{rowSpan\}[^>]*data-project-cell>/);
+  assert.match(cell, /<td className="[^"]*" data-project-cell>/);
   inOrder(cell, [
     '{project.title}',
     'STATUS_PILL_CLASSES[project.status]',
@@ -163,46 +164,26 @@ test('T1 the project cell: title, pill, book, the small print, and + task · det
     '{project.ledger_allocated && (',
     'title="allocated from ledger"',
     '{formatAllocatedCents(project.ledger_allocated.cents)}',
-    '{statusCounts(t.tasks.map((task) => task.status))}',
-    'onClick={t.startCreate}',
-    '+ task',
     'onClick={() => setDetailsOpen((x) => !x)}',
     "{detailsOpen ? 'hide details' : 'details'}",
   ], 'the project cell');
   assert.match(rows, /const book = entities\.find\(\(e\) => e\.id === project\.entity_id\);/);
   assert.doesNotMatch(cell, /\?\? 0|task_count/, 'no count is imputed: requests are drawn only when the GET sent them');
-  // The cell spans every row of the project it holds: the tasks, the rows opened under them, the new task's row.
-  assert.match(rows, /const openRows = t\.tasks\.reduce\(\(n, task\) => n \+ \(editIds\.has\(task\.id\) \? 1 : 0\) \+ \(historyIds\.has\(task\.id\) \? 1 : 0\), 0\);/);
-  assert.match(rows, /const rowSpan = Math\.max\(t\.tasks\.length, 1\) \+ openRows \+ \(t\.showCreate \? 1 : 0\);/);
-  assert.match(rows, /projectCell=\{i === 0 \? projectCell : null\}/);
-  // A project with no tasks is one row: "no tasks" in Task.
-  assert.match(rows, /\{t\.tasks\.length === 0 \? \(\n\s*<tr data-project-no-tasks>\n\s*\{projectCell\}/);
-  assert.match(rows, /\) : 'no tasks'\}/);
+  assert.doesNotMatch(cell, /\+ task|startCreate|statusCounts/, 'WORK-01: no "+ task" on the project row; the counts moved to the Tasks cell');
+  // One row per project: the cell, then the Tasks cell — loading, the error, "no tasks", or the counts by status.
+  assert.match(rows, /<tr data-project-row>\n\s*\{projectCell\}/);
+  assert.match(rows, /data-project-tasks>\n\s*\{t\.loading \? \(\n\s*<span className="italic">loading tasks…<\/span>\n\s*\) : t\.error \? \(/);
+  assert.match(rows, /\) : t\.tasks\.length === 0 \? \(\n\s*<span className="italic">no tasks<\/span>\n\s*\) : \(\n\s*<span data-project-status-counts>\{statusCounts\(t\.tasks\.map\(\(task\) => task\.status\)\)\}<\/span>/);
+  assert.doesNotMatch(rows, /rowSpan|openRows|editIds|historyIds|projectCell=\{i === 0/);
 });
 
-test('T1 a task row: Task (title, link, description, unblocks, notes) · Status · Minutes · Cost · Account · Deadline · Done · controls', () => {
-  const row = code(TASK_ROW);
+test('T1 a task row is THE WORK\'s (WORK-01, 2026-10-24): the spec\'s cells, then edit · ↗ schedule · history · archive/unarchive · delete — TaskTableRow left, named by nothing', () => {
+  assert.equal(existsSync(resolve(process.cwd(), `${P}/TaskTableRow.tsx`)), false);
+  for (const f of [...tsFilesUnder('src/app'), ...tsFilesUnder('src/components')]) assert.doesNotMatch(code(f), /TaskTableRow/, `${f} names the task row`);
+  const row = code(SECTION_E).slice(code(SECTION_E).indexOf('function TaskWorkRow('));
   const tr = row.slice(row.indexOf('<tr className='), row.indexOf('</tr>'));
   inOrder(tr, [
-    '{projectCell}',
-    "task.status === 'completed' || task.status === 'cancelled'",
-    'line-through',
-    '{task.title}',
-    '{task.link_url && (',
-    '<ExternalLink',
-    '{task.description}',
-    'unblocks: {task.unblocks_label}',
-    '{notes.shown}',
-    '{notes.more && ',
-    'data-task-status',
-    '{taskStatusWords(task.status)}',
-    'data-task-minutes',
-    '{minutesPair(task.estimated_minutes, task.actual_minutes)}',
-    'data-task-cost',
-    '{costPair(task.estimated_cost_usd, task.actual_cost_usd)}',
-    'data-task-account',
-    'data-task-deadline>{formatDate(task.deadline)}',
-    'data-task-done>{formatDate(task.completed_at)}',
+    '{columns.map((c) => <WorkCell key={c.key} column={c} row={row} />)}',
     'onClick={a.enterEdit}',
     '↗ schedule',
     'onClick={() => a.handleToggleHistory()}',
@@ -211,12 +192,14 @@ test('T1 a task row: Task (title, link, description, unblocks, notes) · Status 
     'onClick={a.handleArchive}',
     'onClick={a.handleDelete}',
   ], 'the task row');
-  assert.match(row, /const notes = task\.notes \? notesPreview\(task\.notes\) : null;/);
-  assert.match(tr, /taskStatusPill\(task\.status\)/);
+  // Its words are the pure spec's (work01.test.ts): the title, the project, the status words, the deadline, the account through the helper.
+  const w = code('src/lib/operations/work.ts');
+  assert.match(w, /row\.of === 'task' \? taskStatusWords\(row\.task\.status\)/);
+  assert.match(w, /import \{ formatDate, taskStatusWords \} from '@\/components\/workbench\/operations\/projects\/projectsTableText';/);
 });
 
 test('T1 the quick actions are exactly today\'s — each on the statuses it shows for now', () => {
-  const row = code(TASK_ROW);
+  const row = code(SECTION_E).slice(code(SECTION_E).indexOf('function TaskWorkRow('));
   const view = code(ROW_VIEW);
   for (const [guard, label] of [
     ["task.status === 'pending_review'", '✓ accept'],
@@ -225,7 +208,7 @@ test('T1 the quick actions are exactly today\'s — each on the statuses it show
     ["task.status === 'completed'", '↩ uncomplete'],
     ["task.status !== 'completed' && task.status !== 'cancelled'", '↗ schedule'],
   ] as const) {
-    for (const [f, body] of [[TASK_ROW, row], [ROW_VIEW, view]] as const) {
+    for (const [f, body] of [[SECTION_E, row], [ROW_VIEW, view]] as const) {
       const at = body.indexOf(label);
       assert.ok(at > -1, `${f} offers ${label}`);
       // The status guard nearest before the label is exactly this one — no other status test between.
@@ -243,30 +226,31 @@ test('T1 the quick actions are exactly today\'s — each on the statuses it show
   assert.match(row, /onClick=\{\(\) => a\.handleUncomplete\(\)\}/);
 });
 
-test('T1 the Account column only through ROUTINES-01\'s helper — P-6110, never 6110, never B-B-5130', () => {
-  const row = code(TASK_ROW);
-  assert.match(row, /import \{ accountCell, type AccountCellBook \} from '@\/lib\/coa\/accountCell';/);
-  assert.match(row, /const account = accountCell\(entities, task\.entity_id, task\.coa_code\);/);
-  assert.equal((row.match(/accountCell\(/g) ?? []).length, 1);
-  assert.match(row, /\{account\.state === 'blank' \? <span className="text-text-muted">—<\/span> : <AccountText cell=\{account\} \/>\}/);
+test('T1 the Account column only through ROUTINES-01\'s helper — P-6110, never 6110, never B-B-5130 (WORK-01: THE WORK\'s ACCOUNT reads it in work.ts)', () => {
+  const w = code('src/lib/operations/work.ts');
+  assert.match(w, /import \{ ACCOUNT_CELL_WORDS, accountCell, type AccountCellBook \} from '@\/lib\/coa\/accountCell';/);
+  assert.match(w, /const cell = accountCell\(books, bookId, savedCodeOf\(row\)\);/);
+  assert.equal((w.match(/accountCell\(/g) ?? []).length, 1);
+  assert.match(w, /if \(cell\.state === 'blank'\) return null;\n\s*if \(cell\.state !== 'account'\) return cell\.text;/, 'the helper\'s states, as it states them');
   for (const f of TABLE_FILES.filter((x) => !PARTS.includes(x))) {
     const body = code(f);
     assert.doesNotMatch(body, /\{\s*task\.coa_code\s*\}/, `${f} draws a saved code verbatim`);
     assert.doesNotMatch(body, /deriveAccountString|parseCode/, `${f} restates the helper`);
   }
-  for (const f of [TABLE, ROWS, SECTION_D]) assert.doesNotMatch(code(f), /coa_code/);
+  for (const f of [TABLE, ROWS, SECTION_D, SECTION_E]) assert.doesNotMatch(code(f), /coa_code/);
 });
 
 test('T1 editing in place: edit, + task, ↗ schedule and history open where the task is', () => {
-  const row = code(TASK_ROW);
+  // WORK-01 (2026-10-24): where the task is, is THE WORK's row.
+  const row = code(SECTION_E).slice(code(SECTION_E).indexOf('function TaskWorkRow('));
   const trEnd = row.indexOf('</tr>');
   // ↗ schedule: today's date menu, ON the task's row.
   const menuAt = row.indexOf('{a.scheduleMenuOpen && (\n            <TaskScheduleMenu');
   assert.ok(menuAt > -1 && menuAt < trEnd, 'the date menu is on the task\'s row');
   // history, then edit: each a row directly under the task, across the task's columns.
   inOrder(row.slice(trEnd), [
-    '{a.showHistory && (', '<tr data-task-history={task.id}>', '<td colSpan={TASK_COLUMNS}', '<TaskHistoryList history={a.history} historyLoading={a.historyLoading} historyError={a.historyError} />',
-    '{a.editing && (', '<tr data-task-editing={task.id}>', '<td colSpan={TASK_COLUMNS}', '<TaskEditInputs',
+    '{a.showHistory && (', "<tr {...dataAttr(name, 'history', row.id)}>", '<td colSpan={columns.length + 1}', '<TaskHistoryList history={a.history} historyLoading={a.historyLoading} historyError={a.historyError} />',
+    '{a.editing && (', "<tr {...dataAttr(name, 'editing', row.id)}>", '<td colSpan={columns.length + 1}', '<TaskEditInputs',
     'form={a.form}', 'coaAccounts={coaAccounts}', 'onSave={a.handleSave}', 'onCancelEdit={a.cancelEdit}',
   ], 'the rows under a task');
   // The edit opens today's inputs, prefilled by taskToForm; history is read only when asked.
@@ -275,8 +259,10 @@ test('T1 editing in place: edit, + task, ↗ schedule and history open where the
   assert.match(actions, /const enterEdit = \(\) => \{\n\s*setForm\(taskToForm\(task\)\);\n\s*setEditing\(true\);/);
   assert.match(actions, /setShowHistory\(true\);\n\s*if \(history !== null\) return;\s*\n\s*setHistoryLoading\(true\);/);
   // + task: today's create inputs, a row at the end of the project's rows, before the details.
-  const rows = code(ROWS);
-  inOrder(rows, ['t.tasks.map((task, i) => (', '{t.showCreate && (', '<tr data-project-create-task>', '<td colSpan={TASK_COLUMNS}', '<TaskCreateInputs', 'onCreate={t.handleCreate}', '{detailsOpen && ('], 'the project\'s rows');
+  // WORK-01 (2026-10-24, ruling 3): "+ task" is THE WORK's — the task form under a required project select, posting the same create.
+  const work = code(SECTION_E);
+  inOrder(work, ['function NewTaskForm(', "dataAttr(name, 'task-project')", '<TaskCreateInputs', 'onCreate={handleCreate}'], 'THE WORK\'s new task');
+  assert.doesNotMatch(code(ROWS), /TaskCreateInputs|data-project-create-task|\+ task/);
   // The parts the table renders are the SAME the views render.
   assert.match(code(ROW_VIEW), /<TaskScheduleMenu\n/);
   assert.match(code(ROW_VIEW), /<TaskHistoryList history=\{history\}/);
@@ -339,9 +325,9 @@ test('T1 one writer per action: the handlers\' one home is the two hooks — no 
     assert.match(code(TASK_ROW_CONTAINER), new RegExp(`=\\{a\\.${h}\\}`), `the task row fires the hook's ${h}`);
   }
   for (const h of ['handleSave', 'handleQuickComplete', 'handleDelete', 'handleArchive', 'handleUnarchive', 'handleAcceptPending', 'handleRejectPending', 'handleSchedule']) {
-    assert.match(code(TASK_ROW), new RegExp(`=\\{a\\.${h}\\}`), `the table fires the hook's ${h}`);
+    assert.match(code(SECTION_E), new RegExp(`=\\{a\\.${h}\\}`), `THE WORK fires the hook's ${h}`);
   }
-  assert.match(code(TASK_ROW), /const a = useTaskActions\(/);
+  assert.match(code(SECTION_E), /const a = useTaskActions\(/);
   assert.match(code(TASK_ROW_CONTAINER), /const a = useTaskActions\(/);
   const projectTasks = code(PROJECT_TASKS);
   assert.equal((projectTasks.match(/\bfetch\s*\(/g) ?? []).length, 3, 'the tasks read, the category list, the create');

@@ -40,7 +40,7 @@ test('THE SORT is the one place pipe ownership is declared, and it gives Tasks b
 test('/tasks holds BOTH surfaces — and, since TASKS-01, draws neither as a strip', () => {
   const page = code(TASKS);
   assert.match(page, /<SectionD_ProjectBacklog \/>/);
-  assert.match(page, /<SectionE_Routines \/>/);
+  assert.match(page, /<SectionE_Work \/>/); // WORK-01 (2026-10-24): the routines section is THE WORK
   // TASKS-01 (2026-09-18): the two labelled strips PLAN-01 put here are gone —
   // the page is two lists, and the pipe labels went with the strips they
   // labelled. The amendment's labelling rule still stands for any page that

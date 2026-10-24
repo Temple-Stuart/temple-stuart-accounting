@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Script from 'next/script';
 import { usePathname, useSearchParams } from 'next/navigation';
 import {
-  Calendar, Plane, Repeat, FolderKanban, TrendingUp, BookOpen, Receipt, ShieldCheck, MapPin,
+  Calendar, Plane, TrendingUp, BookOpen, Receipt, ShieldCheck, MapPin,
   type LucideIcon,
 } from 'lucide-react';
 import { SECTION_HEADER, STATE } from '@/lib/ds';
@@ -89,14 +89,13 @@ import ComplianceWorkbench from '@/components/home/ComplianceWorkbench';
 // pointer-card to /modules/<pillar> instead of mounting full decks; the nine
 // deck imports (five thesis decks + the four TabShowcases wrappers) are gone.
 import ModulePointerCard from '@/components/home/ModulePointerCard';
-// HB-4e-mount: the real routine builder (workbench CRUD) + its self-fetching entity provider.
-// Logged-out gets the pointer-card to /modules/routines (MOD-2).
-import { OperationsEntityProvider } from '@/components/workbench/operations/EntitySelector';
-import SectionE_Routines from '@/components/workbench/operations/SectionE_Routines';
-// Projects-mount: the real Projects CRUD (Bridgewater backlog). Authed users get this verbatim,
-// wrapped in the same self-fetching OperationsEntityProvider as SectionE_Routines; logged-out
-// gets the pointer-card to /modules/projects (MOD-2).
-import SectionD_ProjectBacklog from '@/components/workbench/operations/SectionD_ProjectBacklog';
+// HB-4e-mount / Projects-mount — RETIRED by WORK-01 (Alex, 2026-10-24): the cockpit's Routines and
+// Projects tabs are gone — their TABS entries, MODULES entries, MODULE_TO_TAB and TAB_PATH_BY_KEY
+// keys, the two renderBody branches, the two flush sections and the logged-out pointer cards.
+// Tasks is one table at /tasks (SectionE_Work, then SectionD_ProjectBacklog), the rail's door.
+// Old links keep landing: /routines and /projects are redirect pages to /tasks, and the front
+// door still maps ?tab=routines / ?tab=projects to them. The public decks at /modules/routines
+// and /modules/projects are untouched (the Projects deck's CTA reads claimForTool('Tasks') — ruling 1).
 // Content-mount — RETIRED by TIME-02 (Alex, 2026-10-19): the content pipeline (ContentPipeline and
 // src/components/workbench/operations/content/) is deleted; the cockpit's hidden Content tab went with
 // it. It was dead code: no tool carries cockpitKey 'content' (the rail opens cockpit sections only
@@ -139,11 +138,7 @@ interface ModuleDef {
 const MODULES: ModuleDef[] = [
   { key: 'travel',      label: 'Travel',      live: true,  blurb: 'AI trip & flight planning — free to use.' },
   { key: 'trading',     label: 'Trading',     live: false, blurb: 'AI vol scanner + options strategy builder.' },
-  // PR-A-Tabs: the home "Operations" tab is renamed to "Projects" (label/key only — the
-  // backend /operations routes + operations_routines table are unchanged). Routines is a
-  // new sibling tab (its real surface lands in PR-B).
-  { key: 'projects',    label: 'Projects',    live: false, blurb: 'Brain-dump a goal → a scoped project → tasks on your calendar.' },
-  { key: 'routines',    label: 'Routines',    live: false, blurb: 'Recurring routines that land on your calendar.' },
+  // PR-A-Tabs added 'projects' and 'routines' here — RETIRED by WORK-01 (Alex, 2026-10-24): Tasks is one table at /tasks.
   { key: 'bookkeeping', label: 'Bookkeeping', live: false, blurb: 'GAAP accounting engine, Plaid bank sync, period close.' },
   { key: 'tax',         label: 'Tax',         live: false, blurb: 'Form 1040, Schedule C/D/SE, Form 8949.' },
   { key: 'compliance',  label: 'Compliance',  live: false, blurb: 'Monitoring, attestations, audit trail.' },
@@ -161,8 +156,7 @@ const MODULES: ModuleDef[] = [
 // Pure order change: keys, labels, icons, and the 'calendar' default all
 // unchanged (order-insensitive consumers — TABS.some membership checks).
 const TABS: { key: string; label: string; icon: LucideIcon }[] = [
-  { key: 'routines',   label: 'Routines',   icon: Repeat },
-  { key: 'projects',   label: 'Projects',   icon: FolderKanban },
+  // 'routines' and 'projects' — RETIRED by WORK-01 (Alex, 2026-10-24): Tasks is one table at /tasks, the rail's door.
   { key: 'travel',     label: 'Travel',     icon: Plane },
   { key: 'trade',      label: 'Trade',      icon: TrendingUp },
   { key: 'books',      label: 'Books',      icon: BookOpen },
@@ -193,8 +187,6 @@ const MODULE_TO_TAB: Record<string, string> = {
   travel: 'travel',
   trading: 'trade',
   bookkeeping: 'books',
-  projects: 'projects',
-  routines: 'routines',
   tax: 'tax',
   compliance: 'compliance',
 };
@@ -295,8 +287,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // /compliance is the standalone cockpit page (static-beats-dynamic; out of
   // ROUTE-1 scope), pending Alex's ruling on the collision.
   const TAB_PATH_BY_KEY: Record<string, string> = {
-    calendar: '/runway', travel: '/travel', routines: '/routines',
-    projects: '/projects', trade: '/trade',
+    calendar: '/runway', travel: '/travel', trade: '/trade',
     books: '/books', tax: '/tax',
   };
   const writeTabParam = (key: string) => {
@@ -527,61 +518,11 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // One module SectionCard: purple band (name + tag) + white body. Travel's form
   // and the admin Trading form render bandless inside (showHeader={false}) so each
   // card has exactly ONE purple band (the app design rule).
-  const renderBody = (m: ModuleDef) => {
-    if (m.key === 'projects') {
-      // Projects-mount (Option B): authed users get the REAL project builder — the workbench
-      // SectionD_ProjectBacklog (self-fetching project list + create form + edit) wrapped in its
-      // OperationsEntityProvider (self-fetches /api/entities). Reused VERBATIM — no CRUD rewrite,
-      // /operations/projects untouched. This kills the "logged-in kick to login/operations": authed
-      // users now author projects inline instead of every click → onRequireAuth. Logged-out gets
-      // the pointer-card to /modules/projects (MOD-2). Auth resolving → nothing.
-      // (Styling aligns to the homepage tab contract in PR-Projects-style — terminal for now.)
-      if (authed === true) {
-        return (
-          <OperationsEntityProvider>
-            <SectionD_ProjectBacklog />
-          </OperationsEntityProvider>
-        );
-      }
-      if (authed === false) {
-        // MOD-2: the deck lives at /modules/projects — the tab points there.
-        return <ModulePointerCard pillarId="projects" />;
-      }
-      return null; // authed === null → resolving
-    }
-    // The Content-mount branch (authed → <ContentPipeline />; logged-out → the pointer-card to
-    // /modules/content) was here until TIME-02 (2026-10-19) retired the content pipeline.
-    if (m.key === 'routines') {
-      // HB-4e-mount: authed users get the REAL routine builder — the workbench SectionE_Routines
-      // (create form w/ HB-4b COA picker + budget input, self-fetching routine list, edit) wrapped
-      // in its OperationsEntityProvider (which self-fetches /api/entities). Reused VERBATIM — no
-      // CRUD rewrite, /operations/routines untouched. Logged-out gets the pointer-card to
-      // /modules/routines (MOD-2). Auth resolving → nothing. (Authed styling reads workbench/terminal for now, intentionally.)
-      if (authed === true) {
-        return (
-          <OperationsEntityProvider>
-            <SectionE_Routines />
-          </OperationsEntityProvider>
-        );
-      }
-      if (authed === false) {
-        // MOD-2: the deck lives at /modules/routines — the tab points there.
-        return <ModulePointerCard pillarId="routines" />;
-      }
-      return null; // authed === null → resolving
-    }
-    // TAB-SHOW-AND-GATE: the old "coming soon" paid stub is GONE — it mislabeled
-    // live software as unbuilt (FRONTEND-PAYWALL-AUDIT lie #1). Trade/Books/Tax/
-    // Compliance now render showcase-or-real in their own flush blocks below;
-    // renderBody handles only travel/projects/routines (content left with TIME-02), so this is
-    // unreachable and returns nothing rather than a false label.
-    return null;
-  };
+  // renderBody — RETIRED by WORK-01 (Alex, 2026-10-24) with its last two branches (projects, routines); travel
+  // renders in its own block (PR-TG1), and the band map below renders nothing.
 
   // PR-TG1: the Travel ModuleDef, fed to renderBody from Travel's own dedicated block
   // (now that Travel is pulled out of MODULES.map). label/live/blurb are unchanged.
-  const routinesModule = MODULES.find((m) => m.key === 'routines')!;
-  const projectsModule = MODULES.find((m) => m.key === 'projects')!;
   // TAB-SHOW-AND-GATE: Trade/Books/Tax/Compliance render in their own flush blocks
   // below — entitled (or admin) → the real module; locked → the SHOW surface + the
   // per-tab "Subscribe to unlock" CTA (TabShowcases). The old per-module stub consts
@@ -960,30 +901,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           </div>
         </div>
       </section>
-      {/* HB-4e-style: Routines renders in its own FLUSH block (mirrors Calendar/Travel) — out of
-          the MODULES.map purple-band card, so the real builder reads as the app, not a demo card.
-          renderBody handles the authed-builder / logged-out pointer-card branch (MOD-2). */}
-      <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'routines' ? 'block' : 'hidden'}`}>
-        <div className="max-w-7xl mx-auto">
-          <div className="px-4 py-4 lg:px-8 space-y-6">
-            <div>
-              <div className={MODULE_SHELL_CARD}>{renderBody(routinesModule)}</div>
-            </div>
-          </div>
-        </div>
-      </section>
-      {/* Projects-style-1: Projects renders in its own FLUSH block (mirrors Calendar/Travel/
-          Routines) — out of the MODULES.map purple-band card, so the authed builder reads as the
-          app. renderBody handles the authed-builder / logged-out-showroom branch. */}
-      <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'projects' ? 'block' : 'hidden'}`}>
-        <div className="max-w-7xl mx-auto">
-          <div className="px-4 py-4 lg:px-8 space-y-6">
-            <div>
-              <div className={MODULE_SHELL_CARD}>{renderBody(projectsModule)}</div>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* The Routines and Projects FLUSH blocks (HB-4e-style, Projects-style-1) — RETIRED by WORK-01 (Alex, 2026-10-24):
+          the two sections, their renderBody branches and their module consts are gone with the tabs. */}
       {/* Content-mount: Content rendered in its own FLUSH block here until TIME-02 (2026-10-19) retired
           the content pipeline — the section, contentModule and the renderBody branch are gone. */}
       {/* TRADE-1: Trade renders in its own FLUSH block (mirrors Travel/Content) — pulled OUT of
@@ -1318,7 +1237,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         // every module renders in its own flush block and the band map below renders NOTHING
         // (no module remains → nothing to flip). The map code is left in place intentionally;
         // removing it is a separate cleanup PR.
-        if (m.key === 'travel' || m.key === 'routines' || m.key === 'projects' || m.key === 'trading' || m.key === 'bookkeeping' || m.key === 'tax' || m.key === 'compliance') return null;
+        if (m.key === 'travel' || m.key === 'trading' || m.key === 'bookkeeping' || m.key === 'tax' || m.key === 'compliance') return null;
         return (
         <section key={m.key} className={`w-full py-10 ${i % 2 === 1 ? 'bg-bg-row' : 'bg-white'} border-b border-border ${activeModule === (MODULE_TO_TAB[m.key] ?? m.key) ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto px-4 lg:px-8 space-y-6">
@@ -1326,14 +1245,12 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
               <div className="bg-brand-purple text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
                 <span>{m.label}</span>
                 <span className="text-[10px] uppercase tracking-wider font-normal text-white/80">
-                  {/* HB-4e-mount + Projects-mount: an authed user on Routines OR Projects sees the
-                      REAL builder, not a demo — drop the "Live demo" tag for them. Logged-out keeps
-                      it (still a showroom/teaser). */}
-                  {(m.key === 'routines' || m.key === 'projects') && authed === true ? '' : (m.key === 'projects' || m.key === 'routines' ? 'Live demo · log in to use' : m.live ? 'Free · guest ok' : 'Paid')}
+                  {/* WORK-01 (Alex, 2026-10-24): the Routines and Projects tabs retired — the "Live demo" tag went with them. */}
+                  {m.live ? 'Free · guest ok' : 'Paid'}
                 </span>
               </div>
               <div className="bg-white p-4">
-                {renderBody(m)}
+                {null}
               </div>
             </div>
           </div>

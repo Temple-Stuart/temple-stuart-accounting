@@ -101,10 +101,11 @@ export const THE_SORT: readonly PhaseAssignment[] = [
   // already on main 536c862b (it stood at :654-658), and is cited where it stands.
   // TIME-02 (2026-10-19): the two citations below moved up twenty lines when the cockpit's hidden Content tab was
   // deleted above them in ModuleLauncher.tsx (nav.test.ts holds the marker to the cited range); the words are unchanged.
+  // WORK-01 (2026-10-24): fifty-nine lines further up again — the cockpit's Routines and Projects panels (and the dead renderBody) left above them.
   { pipe: 'runway', num: '01', owner: 'Banking', rendersSurface: false,
-    surfaceNote: 'src/components/home/ModuleLauncher.tsx:622-629 — "STATE-ONLY cells (no surface exists in this tab: accounts link in Books 01 Feed)"; the handler excludes its key at :654-658' },
+    surfaceNote: 'src/components/home/ModuleLauncher.tsx:563-570 — "STATE-ONLY cells (no surface exists in this tab: accounts link in Books 01 Feed)"; the handler excludes its key at :595-599' },
   { pipe: 'runway', num: '02', owner: HOME_OWNER, rendersSurface: false,
-    surfaceNote: 'src/components/home/ModuleLauncher.tsx:622-629 — "ledger history renders only THROUGH the burn/budget figures"; the handler excludes its key at :654-658' },
+    surfaceNote: 'src/components/home/ModuleLauncher.tsx:563-570 — "ledger history renders only THROUGH the burn/budget figures"; the handler excludes its key at :595-599' },
   { pipe: 'runway', num: '03', owner: HOME_OWNER, rendersSurface: true },
   { pipe: 'runway', num: '04', owner: 'Bookkeeping', rendersSurface: true },
   { pipe: 'runway', num: '05', owner: 'Budget', rendersSurface: true },

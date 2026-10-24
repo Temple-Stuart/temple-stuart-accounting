@@ -68,8 +68,10 @@ test('no registry string names a surface the tool no longer has', () => {
   assert.doesNotMatch(CAL.why ?? '', /\.tsx?:|src\//);
 
   // And the cockpit section points at the tool that owns routines.
-  assert.equal(COCKPIT_PRIMARY_TOOL.routines, 'Tasks');
-  assert.equal(COCKPIT_PRIMARY_TOOL.projects, 'Tasks', 'its sibling is unchanged');
+  // WORK-01 (Alex, 2026-10-24): the cockpit's Routines and Projects tabs retired — neither key is in the map now (work01 pins it);
+  // Tasks owns both pipes still (THE SORT, nav.ts), and /tasks is its one page.
+  assert.equal(COCKPIT_PRIMARY_TOOL.routines, undefined);
+  assert.equal(COCKPIT_PRIMARY_TOOL.projects, undefined);
 });
 
 test('every file:line the row prints resolves to the line it names', () => {
