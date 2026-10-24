@@ -132,6 +132,13 @@ test('every admitted calendar source names an owner, and every owner link resolv
     assert.ok(EVENT_SOURCE_OWNER[s.source], `${s.source} names the tool that writes it`);
   }
   assert.equal(Object.keys(EVENT_SOURCE_OWNER).length, CALENDAR_SOURCES.length, 'no owner for a source the grid does not render');
+  // CAL-01 (2026-10-24): both sides shrank by seven — the retired tools' sources
+  // left the allowlist and the owner map together. The count pin above stands as
+  // written; this names the seven so the map cannot keep a door for a row the grid
+  // never shows.
+  for (const s of ['agenda', 'home', 'shopping', 'personal', 'auto', 'growth', 'health']) {
+    assert.equal(EVENT_SOURCE_OWNER[s], undefined, `${s} is a retired tool's source — no owner, no door`);
+  }
   const owners = new Set([...Object.values(EVENT_SOURCE_OWNER), ...KIND_FACTS.map((f) => f.owner).filter((o) => o !== 'by source')]);
   for (const name of owners) {
     const tool = navToolByName(name, TOOL_GATE);

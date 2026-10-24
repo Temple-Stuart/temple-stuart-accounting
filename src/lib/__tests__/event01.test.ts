@@ -202,7 +202,10 @@ test('the manual source is in DAY-01\'s allowlist with its writer and its reason
   // 'trip' (which is what was PLANNED), so the deferred budget retro-map can tell
   // the two apart on this column alone. The point of this assertion is unchanged:
   // no source here means "entered by a person".
-  assert.deepEqual(others, ['trip', 'agenda', 'home', 'shopping', 'personal', 'auto', 'growth', 'health', 'reservation']);
+  // CAL-01 (2026-10-24): the seven retired tools' sources (agenda, home, shopping,
+  // personal, auto, growth, health) left the allowlist for EXCLUDED, so the others
+  // are trip and reservation. The point is still the same.
+  assert.deepEqual(others, ['trip', 'reservation']);
 });
 
 test('the category census is gathered from the existing writers, and the form offers only it', () => {

@@ -30,16 +30,29 @@ const ev = (over: Partial<DayEventInput> & { id: string }): DayEventInput => ({
 // ───────────────────────────────────────────────────────────────────────────
 // STEP 1 — a day with events from four sources shows all four.
 // ───────────────────────────────────────────────────────────────────────────
-test('a day with events from four sources shows all four — the bare trip filter is gone', () => {
-  // The four the walk seeds: a manual budget line, a hotel, an activity, an agenda item.
-  for (const s of ['trip', 'home', 'shopping', 'agenda', 'personal', 'auto', 'growth', 'health']) {
+test('a day shows every source the allowlist names and none it excludes — the bare trip filter is gone', () => {
+  // DAY-01 pinned eight sources here (trip, home, shopping, agenda, personal, auto,
+  // growth, health) as "writes calendar_events and must render". CAL-01 (2026-10-24):
+  // the seven retired tools' sources left the allowlist for EXCLUDED, by name and
+  // with a dated reason; what renders is trip, manual and reservation. Same shape:
+  // what renders, renders by name; what does not is named, never omitted.
+  for (const s of ['trip', 'manual', 'reservation']) {
     assert.equal(isRenderedCalendarSource(s), true, `${s} writes calendar_events and must render`);
   }
-  // The two that are NOT calendar_events rows are refused BY NAME, with a reason.
+  const RETIRED = ['home', 'shopping', 'agenda', 'personal', 'auto', 'growth', 'health'];
+  for (const s of RETIRED) {
+    assert.equal(isRenderedCalendarSource(s), false, `${s} is a retired tool's source and must not render (CAL-01, 2026-10-24)`);
+  }
+  // Every exclusion is refused BY NAME, with a reason of one of the two shapes:
+  // the two merged layers (DAY-01) and the seven retired sources (CAL-01, 2026-10-24).
+  const MERGED = ['project', 'routines'];
   for (const e of EXCLUDED_CALENDAR_SOURCES) {
     assert.equal(isRenderedCalendarSource(e.source), false);
-    assert.match(e.why, /merged separately|not a calendar_events row/);
+    if (MERGED.includes(e.source)) assert.match(e.why, /merged separately|not a calendar_events row/);
+    else if (RETIRED.includes(e.source)) assert.match(e.why, /^written only by src\/app\/api\/\S+\/route\.ts:\d+.*, a tool retired in (BUDGET-02 \(#1846, 2026-10-20|TAB13-02b \(#1767, 2026-09-27).*; its rows stay in calendar_events until TABLES exports and drops them \(2026-10-24\)$/);
+    else assert.fail(`${e.source} is excluded for a reason this test does not know`);
   }
+  assert.equal(EXCLUDED_CALENDAR_SOURCES.length, MERGED.length + RETIRED.length, 'the two shapes cover the whole list');
   assert.equal(isRenderedCalendarSource('a-source-nobody-writes'), false);
   assert.equal(isRenderedCalendarSource(null), false);
   assert.equal(isRenderedCalendarSource(undefined), false);
