@@ -40,7 +40,7 @@ import { evaluateWindow } from '../../inngest/functions/routine-evaluator';
 import { allDayEntryWords, allDayStayWords, isCharge, leftAlone, listRows, moveWords, planMove, type MoveRoutine } from '../operations/routineMove';
 import { DEFAULT_ROUTINE_FORM, type Routine, type RoutineForm, type TodayRoutineEntry } from '@/components/workbench/operations/routines/types';
 import { dayStops, type DayCardInput } from '@/components/workbench/operations/day/dayCard';
-import { NO_ROUTINES_WORDS, allDayHeadingWords, booksInOrder } from '@/components/workbench/operations/routines/RoutineList';
+import { ALL_DAY_WORDS, workRowsOf, workTable } from '../operations/work'; // WORK-01 (2026-10-24): RoutineList left — THE WORK's rules
 
 const HELPERS = 'src/lib/operations/rruleHelpers.ts';
 const RULES = 'src/lib/operations/stopRole.ts';
@@ -48,8 +48,10 @@ const CREATE_ROUTE = 'src/app/api/operations/routines/route.ts';
 const PATCH_ROUTE = 'src/app/api/operations/routines/[id]/route.ts';
 const BUILDER = 'src/components/workbench/operations/routines/RRULEBuilder.tsx';
 const CREATE_FORM = 'src/components/workbench/operations/routines/RoutineCreateForm.tsx';
-const ROW = 'src/components/workbench/operations/routines/RoutineRow.tsx';
-const LIST = 'src/components/workbench/operations/routines/RoutineList.tsx';
+// WORK-01 (Alex, 2026-10-24): RoutineRow left — its edit form is RoutineEditForm (lifted, moved code); ROW names it.
+const ROW = 'src/components/workbench/operations/routines/RoutineEditForm.tsx';
+const SECTION_E = 'src/components/workbench/operations/SectionE_Work.tsx';
+const WORK_LIB = 'src/lib/operations/work.ts';
 const PLAN = 'src/lib/operations/routineMove.ts';
 const CONTROL = 'src/components/workbench/operations/stops/MoveControl.tsx';
 const MOVE_ROUTE = 'src/app/api/operations/routines/move/route.ts';
@@ -188,37 +190,35 @@ test('T4 the forms: no TIME row for an all-day routine, the role through withRol
   assert.doesNotMatch(f, /role === 'all_day'/); assert.doesNotMatch(r, /role === 'all_day'/);
 });
 
-test('T5 the list: one table per book in the books\' order, the timed rows then the ALL DAY band under the role\'s words, "no routines", the ENDED table once at the bottom, "+ new routine" once', () => {
-  const l = code(LIST);
-  // The books' order: the business book, then the personal one, then any other by name.
-  const books = [
-    { id: 'p', name: 'Personal', entity_type: 'personal' },
-    { id: 'z', name: 'Zed LLC', entity_type: 'llc' },
-    { id: 'b', name: 'Business', entity_type: 'sole_prop' },
-    { id: 'a', name: 'Another', entity_type: 'partnership' },
-  ];
-  assert.deepEqual(booksInOrder(books).map((b) => b.name), ['Business', 'Personal', 'Another', 'Zed LLC']);
-  assert.equal(NO_ROUTINES_WORDS, 'no routines');
-  assert.equal(allDayHeadingWords(3), 'all day — a charge on a date, not a stop (3)', 'the role\'s own words, one phrasing');
-  // One table per book, headed by the book's name; a book with no routines says so; an unlisted book is named, never dropped.
-  assert.match(l, /const tables = books\.map\(\(book\) => \{/);
-  assert.match(l, /timed: own\.filter\(\(x\) => isStop\(x\.r\.role\)\)\.sort\(\(a, b\) => byClockThenName\(a\.r, b\.r\)\),\n\s*allDay: own\.filter\(\(x\) => !isStop\(x\.r\.role\)\)\.sort\(\(a, b\) => byNextDateThenName\(a\.r, b\.r\)\),/);
-  assert.match(l, /name: ACCOUNT_CELL_WORDS\.bookNotLoaded/);
-  assert.match(l, /\{tables\.map\(\(\{ book, timed, allDay \}\) => \(\n\s*<div key=\{book\.id \|\| 'unlisted'\} className="space-y-1" data-routines-book=\{book\.id \|\| 'unlisted'\}>\n\s*<div className="[^"]*uppercase[^"]*" data-routines-book-name>\{book\.name\}<\/div>/);
-  assert.match(l, /data-routines-book-empty>\{NO_ROUTINES_WORDS\}<\/div>/);
-  // In each: the timed rows, then the band with its sub-heading, then nothing else.
-  const table = l.slice(l.indexOf('<table className="w-full min-w-[56rem] border-collapse text-xs" data-routines-table>'), l.indexOf('</table>'));
-  assert.match(table, /\{head\}\n\s*(?:\{\s*\}\s*)?\{timed\.map\(row\)\}\n\s*(?:\{\s*\}\s*)?\{allDay\.length > 0 && \(\n\s*<Fragment key="all-day">\n\s*<tbody>\n\s*<tr data-all-day-band>\n\s*<td colSpan=\{ROUTINE_TABLE_COLUMNS\}[^>]*>\n\s*\{allDayHeadingWords\(allDay\.length\)\}\n\s*<\/td>\n\s*<\/tr>\n\s*<\/tbody>\n\s*\{allDay\.map\(row\)\}\n\s*<\/Fragment>\n\s*\)\}\n\s*$/);
-  // The ENDED group: once, in its own table at the bottom, behind the toggle (ROUTINE-02a).
-  assert.equal((l.match(/<tr data-ended-group>/g) ?? []).length, 1);
-  assert.ok(l.lastIndexOf('<tr data-ended-group>') > l.lastIndexOf('<tr data-all-day-band>'), 'at the bottom');
-  assert.match(l, /\{showEnded && ended\.length > 0 && \(\n\s*<div className="overflow-x-auto border border-border rounded bg-white">\n\s*<table className="w-full min-w-\[56rem\] border-collapse text-xs" data-routines-table data-routines-ended>\n\s*\{head\}/);
-  assert.equal((l.match(/\+ new routine\n\s*<\/button>/g) ?? []).length, 1, 'the button once, at the top (the zero-state names it)');
-  assert.ok(l.indexOf('+ new routine') < l.indexOf('{tables.map('));
-  assert.equal((l.match(/<thead>/g) ?? []).length, 1, 'one header, every table carries it');
-  assert.doesNotMatch(l, /role === 'all_day'/, 'the list asks the rule');
-  assert.match(l, /import \{ ROLE_WORDS, isStop \} from '@\/lib\/operations\/stopRole';/);
-  assert.match(comments(LIST), /ALLDAY-01 \(Alex, 2026-10-19\): TWO TABLES/);
+test('T5 the list: WORK-01 (Alex, 2026-10-24) — one table, every book: BOOK names the book, TIME says "all day" for a charge; the per-book tables and the ALL DAY band left', () => {
+  const now = new Date('2026-10-19T05:00:00.000Z');
+  const books = [{ id: 'p', name: 'Personal', entity_type: 'personal' }, { id: 'b', name: 'Business', entity_type: 'sole_prop' }];
+  const r = (o: Partial<Routine> & { id: string; name: string }): Routine => ({
+    entity_id: 'p', schedule_rrule: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0;BYSECOND=0', timezone: LA, start_time: '1970-01-01T07:00:00.000Z', end_time: '1970-01-01T07:30:00.000Z',
+    is_active: true, role: 'place', steps: [], start_date: null, end_date: null, budget_amount: null, coa_code: null, ...o,
+  } as Routine);
+  const rows = workRowsOf([
+    r({ id: 'apple', name: 'Apple storage', role: 'all_day', schedule_rrule: APPLE_RULE, start_time: null, end_time: null, budget_amount: '2.99' }),
+    r({ id: 'dinner', name: 'Dinner', entity_id: 'b' }),
+    r({ id: 'stray', name: 'Stray', entity_id: 'nobody' }),
+  ], [], now);
+  const columns = workTable(books, {});
+  const words = (id: string, key: string) => columns.find((c) => c.key === key)!.words(rows.find((x) => x.id === `routine:${id}`)!);
+  // The charge's TIME is the role's own fact — all day, never a clock drawn from its derived 00:00; a timed routine shows its window.
+  assert.equal(words('apple', 'time'), ALL_DAY_WORDS);
+  assert.equal(ALL_DAY_WORDS, 'all day');
+  assert.equal(words('dinner', 'time'), '07:00 – 07:30');
+  // Every book in one table, each row naming its book; a book the tab has not listed is said, never dropped.
+  assert.deepEqual([words('apple', 'book'), words('dinner', 'book'), words('stray', 'book')], ['Personal', 'Business', 'book not loaded']);
+  assert.deepEqual(rows.map((x) => x.id), ['routine:apple', 'routine:dinner', 'routine:stray'], 'clock order then name — the charge\'s derived 00:00 first, the books mixed');
+  // The section: no per-book tables, no band, no second classifier; "+ routine" once.
+  const e = code(SECTION_E);
+  assert.doesNotMatch(e, /data-all-day-band|data-routines-book|booksInOrder|allDayHeadingWords|NO_ROUTINES_WORDS|role === 'all_day'/);
+  assert.equal((e.match(/ADD_ROUTINE_WORDS\}/g) ?? []).length, 1, 'the button once');
+  const w = code(WORK_LIB);
+  assert.match(w, /return words === DAYS_NONE_WORDS \? ALL_DAY_WORDS : words;/, 'THE WORK asks the rule (timeWords), then says all day');
+  assert.doesNotMatch(w, /role === 'all_day'/);
+  assert.match(comments(WORK_LIB), /ALLDAY-01/);
 });
 
 test('T6 the move leaves charges alone: not rows, listed under their own line, an entry naming one refused by name, the words and the audit say how many', () => {

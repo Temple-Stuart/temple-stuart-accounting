@@ -189,7 +189,9 @@ test('every HB-4a reader reads the leaf — none restates the rule', () => {
   for (const f of [
     'src/lib/operations/routineBudget.ts',
     'src/lib/hub/mapOperationsRoutines.ts',
-    'src/components/workbench/operations/routines/RoutineRow.tsx',
+    // WORK-01 (Alex, 2026-10-24): RoutineRow left — THE WORK's AMOUNT (work.ts) and the editor's head (RoutineEditForm) read the leaf.
+    'src/lib/operations/work.ts',
+    'src/components/workbench/operations/routines/RoutineEditForm.tsx',
     'src/components/hub/HubCalendar.tsx',
     // WEEK-01 (2026-09-30): the week's row heads read the leaf too.
     // TASKS-ONE-02 (2026-10-14): TodaysStrip.tsx and week/WeekSection.tsx are deleted (Alex's ruling: the day card

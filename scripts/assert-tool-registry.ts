@@ -2355,7 +2355,8 @@ const GEO_LEAF = 'src/lib/calendar/findPlace.ts';
 // one call site, the same laws) with no door in the product until a later
 // ruling deletes or re-homes them.
 const GEO_FORM = 'src/components/workbench/operations/routines/FindThisPlace.tsx';
-const GEO_NO_MOUNT = ['src/components/workbench/operations/routines/RoutineCreateForm.tsx', 'src/components/workbench/operations/routines/RoutineRow.tsx'];
+// WORK-01 (Alex, 2026-10-24): RoutineRow's form is RoutineEditForm now (lifted, moved code) — the same rule, the new file.
+const GEO_NO_MOUNT = ['src/components/workbench/operations/routines/RoutineCreateForm.tsx', 'src/components/workbench/operations/routines/RoutineEditForm.tsx'];
 let geoViolations = 0;
 const geoFail = (msg: string) => { geoViolations += 1; violations.push(`geo law: ${msg} (GEO-01)`); };
 
@@ -2765,7 +2766,10 @@ const LINES_LEAF = 'src/lib/operations/routineLines.ts';
 const LINES_READERS = [
   'src/lib/operations/routineBudget.ts',
   'src/lib/hub/mapOperationsRoutines.ts',
-  'src/components/workbench/operations/routines/RoutineRow.tsx',
+  // WORK-01 (Alex, 2026-10-24): RoutineRow left with the per-book tables — its figure is THE WORK's AMOUNT
+  // (src/lib/operations/work.ts) and its editor's head (RoutineEditForm.tsx); both read the leaf.
+  'src/lib/operations/work.ts',
+  'src/components/workbench/operations/routines/RoutineEditForm.tsx',
   'src/components/hub/HubCalendar.tsx',
   // TASKS-ONE-02 (2026-10-14): TodaysStrip.tsx and week/WeekSection.tsx (WEEK-01's
   // reader) are deleted — Alex's ruling, the day card replaces the week grid and the
@@ -3454,15 +3458,17 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
   // recorded, by date, city, country, COA and vendor, with its totals. Four mounts, in order; nothing else.
   // TIME-01 — the ruling (Alex, 2026-10-19): the day card and the city ledger moved to /time. Two mounts on /tasks, in
   // order — the projects list, the routines list — and nothing else; the two that went may not come back unnoticed.
-  const TWO_LISTS_MOUNTS = ['<SectionD_ProjectBacklog />', '<SectionE_Routines />'];
+  // WORK-01 — the ruling (Alex, 2026-10-24): Tasks is ONE TABLE. THE WORK first (SectionE_Work — every routine line and
+  // every task in the shared idiom), then PROJECTS (SectionD — project rows only). Two mounts, in that order; nothing else.
+  const TWO_LISTS_MOUNTS = ['<SectionE_Work />', '<SectionD_ProjectBacklog />'];
   for (const section of TWO_LISTS_MOUNTS) {
-    if (!page.includes(section)) twoListsFail(`${TWO_LISTS_PAGE} no longer mounts ${section} — the page is the projects list and the routines list`);
+    if (!page.includes(section)) twoListsFail(`${TWO_LISTS_PAGE} no longer mounts ${section} — the page is THE WORK and the projects list (WORK-01)`);
   }
   const mountAt = TWO_LISTS_MOUNTS.map((section) => page.indexOf(section));
-  if (mountAt.some((at, i) => i > 0 && at < mountAt[i - 1])) twoListsFail(`${TWO_LISTS_PAGE} mounts its sections out of order — projects, then routines`);
+  if (mountAt.some((at, i) => i > 0 && at < mountAt[i - 1])) twoListsFail(`${TWO_LISTS_PAGE} mounts its sections out of order — the work, then projects (WORK-01)`);
   const toolPage = page.slice(page.indexOf('data-tool-page="Tasks"'), page.indexOf('</OperationsEntityProvider>'));
   const pageMounts = [...toolPage.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]).filter((tag) => tag !== 'Suspense');
-  if (pageMounts.join(' ') !== 'SectionD_ProjectBacklog SectionE_Routines') twoListsFail(`${TWO_LISTS_PAGE} mounts [${pageMounts.join(' ')}] in the Tasks container — exactly the projects list and the routines list (TASKS-ONE-02; LEDGER-01; TIME-01)`);
+  if (pageMounts.join(' ') !== 'SectionE_Work SectionD_ProjectBacklog') twoListsFail(`${TWO_LISTS_PAGE} mounts [${pageMounts.join(' ')}] in the Tasks container — exactly THE WORK and the projects list, in that order (WORK-01) (TASKS-ONE-02; LEDGER-01; TIME-01)`);
   if (/DayCard|LedgerSection/.test(page)) twoListsFail(`${TWO_LISTS_PAGE} names the day card or the ledger — both moved to /time (TIME-01)`);
   if ((PHASES_RENDERED_AT['/tasks'] ?? ['?']).length !== 0) twoListsFail(`nav.ts declares /tasks draws [${(PHASES_RENDERED_AT['/tasks'] ?? []).join(' ')}] — it draws nothing`);
   // TIME-01 — the /time container: the day card first, in its Suspense boundary (useSearchParams on a client page), then the
@@ -3499,13 +3505,16 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
     ['src/components/workbench/operations/projects/TruthMachineView.tsx', /onClick=\{onGenerateTasks\}/, 'the pipeline lost "generate tasks"'],
     ['src/components/workbench/operations/projects/TruthMachineView.tsx', /onClick=\{onRunPipe\}/, 'the pipeline lost "run pipe"'],
     ['src/components/workbench/operations/projects/TruthMachineView.tsx', /onClick=\{onEvolveStart\}/, 'the pipeline lost "evolve"'],
-    ['src/components/workbench/operations/routines/RoutineList.tsx', /\+ new routine/, 'the routines list has no "+ new routine"'],
-    ['src/components/workbench/operations/routines/RoutineList.tsx', /show inactive/, 'the routines list has no "show inactive"'],
+    // WORK-01 (Alex, 2026-10-24): the routines list is THE WORK (SectionE_Work) — "+ routine" and "+ task" are its doors; "show inactive" and
+    // "show ended" are the STATUS filter's checklist, shown as a chip while it narrows (ruling B — never a hidden default).
+    ['src/components/workbench/operations/SectionE_Work.tsx', /ADD_ROUTINE_WORDS/, 'THE WORK has no "+ routine"'],
+    ['src/components/workbench/operations/SectionE_Work.tsx', /ADD_TASK_WORDS/, 'THE WORK has no "+ task"'],
+    ['src/components/workbench/operations/SectionE_Work.tsx', /statusChipWords\(/, 'THE WORK hides its STATUS filter — the default must be a visible chip (ruling B)'],
     ['src/components/workbench/operations/stops/StopForm.tsx', /data-stop-done-now[\s\S]*✓ done now/, 'the stop form on the day card lost "✓ done now" — the one way a routine is marked done'],
-    ['src/components/workbench/operations/SectionE_Routines.tsx', /<RoutineList/, 'the routines section no longer mounts the list'],
+    ['src/components/workbench/operations/SectionE_Work.tsx', /<DataTable/, 'THE WORK no longer renders the shared table (IDIOM-01)'],
   ];
   for (const [f, re, why] of controls) if (!re.test(codeOf(f))) twoListsFail(`${f}: ${why}`);
-  if (/TodaysStrip/.test(codeOf('src/components/workbench/operations/SectionE_Routines.tsx'))) twoListsFail('src/components/workbench/operations/SectionE_Routines.tsx mounts Today again — the day card replaced it (TASKS-ONE-02)');
+  if (/TodaysStrip/.test(codeOf('src/components/workbench/operations/SectionE_Work.tsx'))) twoListsFail('src/components/workbench/operations/SectionE_Work.tsx mounts Today again — the day card replaced it (TASKS-ONE-02)');
 }
 
 // 2. no streak on a customer surface; the writers stay.

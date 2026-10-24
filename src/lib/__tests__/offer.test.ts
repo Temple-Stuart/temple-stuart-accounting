@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  FREE_TOOLS, OFFERS, OfferLawError, SELLABLE_KEYS, TOOL_GATE, claimForCockpit, claimLine, freeSetLine, heroCountsLine, keysGranting, moduleDoorPlan,
+  FREE_TOOLS, OFFERS, OfferLawError, SELLABLE_KEYS, TOOL_GATE, claimForCockpit, claimForTool, claimLine, freeSetLine, heroCountsLine, keysGranting, moduleDoorPlan,
   numberWord, offerAvailabilityFromEnv, offerCard, offerFor, offerFromModuleParam, offerGranting, offerLaw, priceEnvName, priceLineFor, type Offer,
 } from '../offer';
 import { TOOL_REGISTRY, type ToolEntry } from '../toolRegistry';
@@ -90,7 +90,9 @@ test('claim lines come from the registry: "built and running" for LIVE only, "pa
   // the free showcases' CTAs read the registry through the cockpit key
   // TRUTH-01: Tasks and Time are four-beat PARTIALs (the job is not done for a customer), so the showcase CTAs no longer say built and running.
   // TASKS-01: Tasks' why is a customer's line now; the founder note is a code comment.
-  assert.equal(claimForCockpit('projects'), "partial — the work, planned: projects with costed tasks and routines with costed lines, both landing on the calendar and linkable to a posting — a task's actual cost is still typed by hand; nothing posts it from the books");
+  // WORK-01 (Alex, 2026-10-24, ruling 1): the cockpit's 'projects' key retired with its tab — the Projects deck's CTA reads the same line by the tool's name.
+  assert.equal(claimForTool('Tasks'), "partial — the work, planned: projects with costed tasks and routines with costed lines, both landing on the calendar and linkable to a posting — a task's actual cost is still typed by hand; nothing posts it from the books");
+  assert.throws(() => claimForCockpit('projects'), OfferLawError);
   // TIME-01 (Alex, 2026-10-19): the day card and the ledger are Time's — the why says so (time01.test.ts pins the row).
   // TIME-02 (Alex, 2026-10-19): the content pipeline is retired — the line prints on the /modules/content CTA with no build note.
   // LEDGER-02 (Alex, 2026-10-19): the city ledger is the task ledger — the line says "the task ledger" where it said "the ledger of every stop".

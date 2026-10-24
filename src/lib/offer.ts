@@ -195,6 +195,13 @@ export function claimForCockpit(cockpitKey: string): string {
   return claimLine(tool);
 }
 
+/** WORK-01 (Alex, 2026-10-24): the same claim line keyed by the tool's NAME — for a public deck whose tool has no cockpit section (the Projects deck → Tasks). OfferLawError on an unknown name. */
+export function claimForTool(name: string): string {
+  const tool = TOOL_REGISTRY.find((t) => t.name === name);
+  if (!tool) throw new OfferLawError(`claimForTool: ${name} names no registry tool`);
+  return claimLine(tool);
+}
+
 export type PriceLine =
   | { kind: 'live'; monthlyPrice: number; text: string }
   | { kind: 'unset'; text: string; missing: ReadonlyArray<'price' | 'stripe'> };

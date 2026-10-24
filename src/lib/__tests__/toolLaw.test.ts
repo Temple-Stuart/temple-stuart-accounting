@@ -41,7 +41,7 @@ test('each page renders its own pipe, in the pipe\'s own order', () => {
   // are gone; the pipeline is a plain control behind the row's "pipeline"
   // button, still behind pipelineMode. tasks01.test.ts pins the absence.
   assert.doesNotMatch(code('src/components/workbench/operations/projects/TruthMachineView.tsx'), /PIPE_PHASES|<StageStrip/);
-  assert.doesNotMatch(code('src/components/workbench/operations/SectionE_Routines.tsx'), /PIPE_PHASES|<StageStrip/);
+  assert.doesNotMatch(code('src/components/workbench/operations/SectionE_Work.tsx'), /PIPE_PHASES|<StageStrip/); // WORK-01 (2026-10-24): SectionE_Work
   assert.match(comments('src/components/workbench/operations/projects/TruthMachineView.tsx'), /the per-project StageStrip and the ProofStrip receipts are GONE/);
   assert.match(code('src/components/workbench/operations/projects/ProjectRow.tsx'), /pipelineMode/);
   // Time → content: until TIME-02 a PAGE-LEVEL strip inside ContentPipeline.tsx. TIME-02 (2026-10-19): the content
@@ -94,7 +94,7 @@ test('/tasks and /time each render exactly one opener, /calendar none, and only 
   // PLAN-01: the routine builder moved to Tasks. The calendar authors NOTHING
   // now — no routine surface, no strip — and Tasks holds it instead.
   assert.equal(code('src/app/calendar/page.tsx').includes('SectionE_Routines'), false);
-  assert.match(code('src/app/tasks/page.tsx'), /<SectionE_Routines \/>/);
+  assert.match(code('src/app/tasks/page.tsx'), /<SectionE_Work \/>/); // WORK-01 (2026-10-24): THE WORK
   // ONEOFF-01: EVENT-01's add-event form is GONE — the calendar authors
   // nothing, a one-off is a routine planned in Tasks. The grid mounts only
   // the correction of a row entered by hand before the ruling.

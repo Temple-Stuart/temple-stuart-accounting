@@ -1,9 +1,9 @@
 /**
  * ProjectsTable — the projects as ONE table (PROJECTS-01, 2026-09-30).
  *
- * Project · Task · Status · Minutes · Cost · Account · Deadline · Done, and a
- * last column for each row's controls. Every project and every task is on
- * screen at once — nothing collapses, nothing expands. The projects come in the
+ * WORK-01 (Alex, 2026-10-24) — ruling E: PROJECTS keeps project rows only. The
+ * columns are Project · Tasks (the count by status); the task rows left for THE
+ * WORK (SectionE_Work), their one home. The projects come in the
  * order the projects GET returns them; each is its own group of rows
  * (ProjectTableRows).
  */
@@ -35,14 +35,7 @@ export default function ProjectsTable({
         <thead>
           <tr className="text-left text-text-faint uppercase tracking-wide">
             <th className="px-2 py-1.5 font-normal">Project</th>
-            <th className="px-2 py-1.5 font-normal">Task</th>
-            <th className="px-2 py-1.5 font-normal">Status</th>
-            <th className="px-2 py-1.5 font-normal">Minutes</th>
-            <th className="px-2 py-1.5 font-normal">Cost</th>
-            <th className="px-2 py-1.5 font-normal">Account</th>
-            <th className="px-2 py-1.5 font-normal">Deadline</th>
-            <th className="px-2 py-1.5 font-normal">Done</th>
-            <th className="px-2 py-1.5 font-normal"><span className="sr-only">controls</span></th>
+            <th className="px-2 py-1.5 font-normal">Tasks</th>
           </tr>
         </thead>
         {projects.map((p) => (

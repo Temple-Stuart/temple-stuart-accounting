@@ -31,7 +31,8 @@ const DAY_VIEW = 'src/components/hub/DayView.tsx';
 const PANEL = 'src/components/hub/EventDetailPanel.tsx';
 const CORRECT_FORM = 'src/components/hub/CorrectEventForm.tsx';
 const CREATOR = 'src/components/workbench/operations/routines/RoutineCreateForm.tsx';
-const ROW = 'src/components/workbench/operations/routines/RoutineRow.tsx';
+// WORK-01 (Alex, 2026-10-24): RoutineRow left — its edit form is RoutineEditForm (lifted, moved code); ROW names it.
+const ROW = 'src/components/workbench/operations/routines/RoutineEditForm.tsx';
 const PICKER = 'src/components/workbench/operations/routines/CoaSelect.tsx';
 const BUTTON = 'src/components/workbench/operations/routines/FindThisPlace.tsx';
 const MIGRATION = 'prisma/migrations/20260918150000_oneoff_01_a_routine_that_happens_once/migration.sql';

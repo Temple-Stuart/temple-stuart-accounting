@@ -24,7 +24,7 @@ const STOPS = 'src/app/api/operations/stops/route.ts';
 const STOPS_ID = 'src/app/api/operations/stops/[id]/route.ts';
 const EVALUATOR = 'src/inngest/functions/routine-evaluator.ts';
 const PAGE = 'src/app/tasks/page.tsx';
-const SECTION_E = 'src/components/workbench/operations/SectionE_Routines.tsx';
+const SECTION_E = 'src/components/workbench/operations/SectionE_Work.tsx'; // WORK-01 (2026-10-24): THE WORK
 const LAUNCHER = 'src/components/home/ModuleLauncher.tsx';
 const LAW = 'scripts/assert-tool-registry.ts';
 const SCHEMA = 'prisma/schema.prisma';
@@ -332,19 +332,19 @@ test('T5 /tasks mounts exactly Projects and Routines — and the law says so wit
   const page = code(PAGE);
   const box = page.slice(page.indexOf('data-tool-page="Tasks"'), page.indexOf('</OperationsEntityProvider>'));
   // BACKLOG-02 (Alex, 2026-10-20): a boundary is back on /tasks — around the projects list ALONE, which reads ?project= and ?new=project (useSearchParams); the day card stays /time's — a boundary is not a mount (the law filters it too: pageMounts).
-  assert.deepEqual([...box.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]).filter((tag) => tag !== 'Suspense'), ['SectionD_ProjectBacklog', 'SectionE_Routines']);
+  assert.deepEqual([...box.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]).filter((tag) => tag !== 'Suspense'), ['SectionE_Work', 'SectionD_ProjectBacklog']); // WORK-01 (2026-10-24): THE WORK first, then PROJECTS
   assert.doesNotMatch(page, /WeekSection|SectionC_DailyPlan|TodaysStrip/);
   const law = code(LAW);
-  assert.match(law, /const TWO_LISTS_MOUNTS = \['<SectionD_ProjectBacklog \/>', '<SectionE_Routines \/>'\];/);
+  assert.match(law, /const TWO_LISTS_MOUNTS = \['<SectionE_Work \/>', '<SectionD_ProjectBacklog \/>'\];/);
   assert.match(comments(LAW), /TASKS-ONE-02 — the ruling \(Alex, 2026-10-14\): the day card replaces the week grid, the Daily plan and the\s*\n\s*\/\/ Today strip\./);
-  assert.match(law, /pageMounts\.join\(' '\) !== 'SectionD_ProjectBacklog SectionE_Routines'/, 'the law holds the container to exactly two');
+  assert.match(law, /pageMounts\.join\(' '\) !== 'SectionE_Work SectionD_ProjectBacklog'/, 'the law holds the container to exactly two');
 });
 
 test('T5 the routines section drops Today — on /tasks and in the cockpit that mounts it', () => {
   const e = code(SECTION_E);
   assert.doesNotMatch(e, /TodaysStrip/);
-  assert.match(e, /<RoutineList entities=\{entities\} \/>/);
-  assert.match(code(LAUNCHER), /<SectionE_Routines \/>/, 'the cockpit mounts the same section — Today is gone there too');
+  assert.match(e, /<DataTable/); // WORK-01 (2026-10-24): the shared table
+  assert.doesNotMatch(code(LAUNCHER), /SectionE_Routines|SectionE_Work/, 'WORK-01 (2026-10-24): the cockpit mounts no routines section — its Routines tab retired');
   assert.doesNotMatch(code(LAUNCHER), /TodaysStrip/);
 });
 
