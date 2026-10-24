@@ -269,18 +269,21 @@ test('R5 the rename: "Task ledger"; the Time row’s why and customer say "the t
   assert.equal(LEDGER_TITLE_WORDS, 'Task ledger');
   const time = TOOL_REGISTRY.find((t) => t.name === 'Time')!;
   // LEDGER-02 AMENDMENT (Alex, 2026-10-19): "the task ledger of every stop … by city, account and book" — "every stop" kept, the book added.
-  assert.equal(time.why, 'the day, narrated: every stop in clock order with its budget, its vendor, what it cost and the verdict, the journal, the caption and script for the reel, and the task ledger of every stop by city, account and book; nothing yet adds up where the hours went');
-  assert.equal(time.customer, 'You can see one day as a card — every stop with what it should cost and what it did, the journal, the caption and script for the day\'s reel — and the task ledger of every stop you logged by city, account and book; nothing yet adds up where your hours went.');
+  // HOME-01 (Alex, 2026-10-24, ruling C): the row's words are the tables' — "the task ledger" and "every stop" kept, the card's narration gone with the card (time02.test.ts pins the words).
+  assert.equal(time.why, 'the task ledger and the two journals, day over day — every stop and every answer the day card records, as tables');
+  assert.equal(time.customer, 'You can see every stop you logged and every journal answer, day by day, filter and export them; the day itself is entered on the home dashboard.');
+  assert.match(time.why, /the task ledger/); assert.match(`${time.why} ${time.customer}`, /every stop/);
   assert.doesNotMatch(`${time.why} ${time.customer}`, /the ledger of every stop|city ledger/i);
   assert.match(comments(REGISTRY), /LEDGER-02 \(Alex, 2026-10-19\): THE CITY LEDGER IS THE TASK LEDGER/);
   const law = code(LAW);
   // JOURNAL-07 (Alex, 2026-10-24): the messages name the two journal tables too — the container is four; LEDGER-02's words stay inside them.
-  assert.match(law, /the page is the day card, the task ledger and the two journal tables \(TIME-01; TIME-02; LEDGER-02 renamed it; JOURNAL-07 added the tables\)/);
-  assert.match(law, /exactly the day card, the task ledger and the two journal tables, nothing beneath \(TIME-01; TIME-02 retired the content pipeline; LEDGER-02 renamed it; JOURNAL-07 added the tables\)/);
+  // HOME-01 (Alex, 2026-10-24): the day card left the messages with the page — LEDGER-02's words stay inside them.
+  assert.match(law, /the page is the task ledger and the two journal tables \(HOME-01 moved the day card to the dashboard; TIME-01; TIME-02; LEDGER-02 renamed it; JOURNAL-07 added the tables\)/);
+  assert.match(law, /exactly the task ledger and the two journal tables, nothing else \(HOME-01; TIME-01; TIME-02 retired the content pipeline; LEDGER-02 renamed it; JOURNAL-07 added the tables\)/);
   assert.doesNotMatch(law, /city ledger/, 'no message of the law names the old name (the comments keep the history)');
   assert.match(comments(LAW), /LEDGER-02 \(Alex, 2026-10-19\): the city ledger is the TASK LEDGER — renamed; the mount is the same component/);
   assert.match(comments(LAW), /LEDGER-01 — the ruling \(Alex, 2026-10-16\): the city ledger is a fourth section, under Routines/, 'the history line keeps its words');
-  assert.match(law, /const TIME_MOUNTS = \['<DayCard \/>', '<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/, 'the mount unchanged; JOURNAL-07 (2026-10-24) added the two journal tables after it');
+  assert.match(law, /const TIME_MOUNTS = \['<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/, 'the mount unchanged; JOURNAL-07 (2026-10-24) added the two journal tables after it; HOME-01 (2026-10-24) moved the day card to the dashboard'); 
   for (const [file, note] of [
     [RULES, /LEDGER-02, Alex, 2026-10-19: renamed — it is a task ledger/],
     [SECTION, /LEDGER-02, Alex, 2026-10-19: renamed — it is a task ledger/],
@@ -442,7 +445,9 @@ test('A2 one truth: the VARIANCE total is the column’s sum over the rows that 
 
 test('A3 the registry words keep "every stop": the why and the customer line say "the task ledger of every stop … by city, account and book", the rest unchanged', () => {
   const time = TOOL_REGISTRY.find((t) => t.name === 'Time')!;
-  assert.equal(time.why, 'the day, narrated: every stop in clock order with its budget, its vendor, what it cost and the verdict, the journal, the caption and script for the reel, and the task ledger of every stop by city, account and book; nothing yet adds up where the hours went');
-  assert.equal(time.customer, 'You can see one day as a card — every stop with what it should cost and what it did, the journal, the caption and script for the day\'s reel — and the task ledger of every stop you logged by city, account and book; nothing yet adds up where your hours went.');
+  // HOME-01 (Alex, 2026-10-24, ruling C): the row's words are the tables' — "the task ledger" and "every stop" kept, the card's narration gone with the card (time02.test.ts pins the words).
+  assert.equal(time.why, 'the task ledger and the two journals, day over day — every stop and every answer the day card records, as tables');
+  assert.equal(time.customer, 'You can see every stop you logged and every journal answer, day by day, filter and export them; the day itself is entered on the home dashboard.');
+  assert.match(time.why, /the task ledger/); assert.match(`${time.why} ${time.customer}`, /every stop/);
   assert.match(comments(REGISTRY), /the amendment\s*\n\s*\/\/ kept "every stop" and added the book/);
 });

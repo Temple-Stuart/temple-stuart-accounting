@@ -44,7 +44,8 @@ test('the three four-beat PARTIALs each carry the census note; no LIVE or NOT_BU
   // TIME-02 (Alex, 2026-10-19): the content pipeline is retired — the why is a customer's line with no build note in it.
   // LEDGER-02 (Alex, 2026-10-19): the city ledger is the task ledger — the why says "the task ledger" where it said "the ledger of every stop".
   // LEDGER-02 AMENDMENT (Alex, 2026-10-19): "the task ledger of every stop … by city, account and book".
-  assert.equal(byName('Time').why, 'the day, narrated: every stop in clock order with its budget, its vendor, what it cost and the verdict, the journal, the caption and script for the reel, and the task ledger of every stop by city, account and book; nothing yet adds up where the hours went');
+  // HOME-01 (Alex, 2026-10-24, ruling C): the day card is on the dashboard; the Time row's why is the tables' — still a customer's line, no build note.
+  assert.equal(byName('Time').why, 'the task ledger and the two journals, day over day — every stop and every answer the day card records, as tables');
   // TAB13-02b (ruled 2026-09-27): /budget is plan vs actual now; what is not done is named.
   assert.equal(byName('Budget').why, 'plan vs actual for routines and tasks on /budget; travel and income budgets not connected yet');
   assert.doesNotMatch(byName('Budget').citation, /BudgetingPage/, 'the citation is the report, not the unmounted room');

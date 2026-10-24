@@ -537,8 +537,12 @@ while (changed) {
 // /time now (src/components/workbench/operations/day/dayCard.ts DAY_CARD_PATH). next.config.ts sends it to /time with the same
 // query before any page renders. Named here like the /content redirect door, verified against the text of the config and the
 // constant, and listed with the doors below; the door of the target is the rail. Closed: an entry is dated and names its ruling.
+// HOME-01 (Alex, 2026-10-24): the card moved to the dashboard — the cockpit's Runway panel, /runway, the door of the
+// "How long can I last?" answer (answers.ts ANSWER_READS). The /tasks entry re-targets, and a second dated entry sends a
+// /time?date= or ?step= bookmark the same way; both are verified against the config and the constant as before. Two entries.
 const QUERY_REDIRECTS: ReadonlyArray<{ source: string; keys: readonly string[]; destination: string; constant: { file: string; name: string }; since: string }> = [
-  { source: '/tasks', keys: ['date', 'step'], destination: '/time', constant: { file: 'src/components/workbench/operations/day/dayCard.ts', name: 'DAY_CARD_PATH' }, since: 'TIME-01 (2026-10-19): the day card moved from /tasks to /time' },
+  { source: '/tasks', keys: ['date', 'step'], destination: '/runway', constant: { file: 'src/components/workbench/operations/day/dayCard.ts', name: 'DAY_CARD_PATH' }, since: 'TIME-01 (2026-10-19): the day card moved from /tasks to /time; HOME-01 (2026-10-24): to the dashboard, /runway' },
+  { source: '/time', keys: ['date', 'step'], destination: '/runway', constant: { file: 'src/components/workbench/operations/day/dayCard.ts', name: 'DAY_CARD_PATH' }, since: 'HOME-01 (2026-10-24): the day card moved from /time to the dashboard, /runway' },
 ];
 const nextConfigText = codeOf('next.config.ts');
 for (const q of QUERY_REDIRECTS) {
@@ -3418,6 +3422,11 @@ lawGuard('The two-lists law', () => {
 // JOURNAL-07 (Alex, 2026-10-24): the /time container is FOUR — the day card, the
 // ledger, then the morning and the evening journal tables (day over day, in the
 // shared idiom); TIME_MOUNTS names the four, in order.
+// HOME-01 (Alex, 2026-10-24): THE DAY CARD MOVED TO THE DASHBOARD — the cockpit's
+// Runway panel (COCKPIT_COMPONENT, /runway, DAY_CARD_PATH), Time's component shown
+// there by ruling; the cockpit is the grandfathered surface and no Home registry
+// row is added. /time is THREE — the ledger, then the two journal tables — and the
+// card's Suspense check follows the card to the panel's mount.
 const TWO_LISTS_PAGE = 'src/app/tasks/page.tsx';
 const TIME_PAGE = 'src/app/time/page.tsx';
 const TWO_LISTS_LEAF = 'src/lib/operations/projectDeletion.ts';
@@ -3478,18 +3487,33 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
   // messages below say the new name.
   // JOURNAL-07 (Alex, 2026-10-24): two more mounts under the ledger — the MORNING and the EVENING journal tables, day over
   // day in the shared idiom, read-only — so the container is exactly the four, in this order, and nothing beneath.
-  const TIME_MOUNTS = ['<DayCard />', '<LedgerSection />', '<MorningJournalTable />', '<EveningJournalTable />'];
+  // HOME-01 (Alex, 2026-10-24): the day card moved to the dashboard — the cockpit's Runway panel (COCKPIT_COMPONENT, /runway);
+  // /time is exactly the three tables, in this order, and the card's boundary check moved to the panel's mount below.
+  const TIME_MOUNTS = ['<LedgerSection />', '<MorningJournalTable />', '<EveningJournalTable />'];
   const timePage = codeOf(TIME_PAGE);
   for (const section of TIME_MOUNTS) {
-    if (!timePage.includes(section)) twoListsFail(`${TIME_PAGE} no longer mounts ${section} — the page is the day card, the task ledger and the two journal tables (TIME-01; TIME-02; LEDGER-02 renamed it; JOURNAL-07 added the tables)`);
+    if (!timePage.includes(section)) twoListsFail(`${TIME_PAGE} no longer mounts ${section} — the page is the task ledger and the two journal tables (HOME-01 moved the day card to the dashboard; TIME-01; TIME-02; LEDGER-02 renamed it; JOURNAL-07 added the tables)`);
   }
   const timeAt = TIME_MOUNTS.map((section) => timePage.indexOf(section));
-  if (timeAt.some((at, i) => i > 0 && at < timeAt[i - 1])) twoListsFail(`${TIME_PAGE} mounts its sections out of order — the day card first, then the ledger, then the morning and the evening journal tables (TIME-01; TIME-02; JOURNAL-07)`);
+  if (timeAt.some((at, i) => i > 0 && at < timeAt[i - 1])) twoListsFail(`${TIME_PAGE} mounts its sections out of order — the ledger first, then the morning and the evening journal tables (HOME-01; TIME-01; TIME-02; JOURNAL-07)`);
   const timeBox = timePage.slice(timePage.indexOf('data-tool-page="Time"'), timePage.indexOf('</OperationsEntityProvider>'));
   const timeMounts = [...timeBox.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]).filter((tag) => tag !== 'Suspense');
-  if (timeMounts.join(' ') !== 'DayCard LedgerSection MorningJournalTable EveningJournalTable') twoListsFail(`${TIME_PAGE} mounts [${timeMounts.join(' ')}] in the Time container — exactly the day card, the task ledger and the two journal tables, nothing beneath (TIME-01; TIME-02 retired the content pipeline; LEDGER-02 renamed it; JOURNAL-07 added the tables)`);
+  if (timeMounts.join(' ') !== 'LedgerSection MorningJournalTable EveningJournalTable') twoListsFail(`${TIME_PAGE} mounts [${timeMounts.join(' ')}] in the Time container — exactly the task ledger and the two journal tables, nothing else (HOME-01; TIME-01; TIME-02 retired the content pipeline; LEDGER-02 renamed it; JOURNAL-07 added the tables)`);
   if (/ContentPipeline|operations\/content\//.test(timePage)) twoListsFail(`${TIME_PAGE} names the content pipeline — retired by TIME-02 (2026-10-19)`);
-  if (!/<Suspense>\s*<DayCard \/>\s*<\/Suspense>/.test(timePage)) twoListsFail(`${TIME_PAGE} mounts the day card outside its Suspense boundary — the card reads the URL (useSearchParams) on a client page (TASKS-ONE-01; TIME-01)`);
+  if (/DayCard|<Suspense/.test(timePage)) twoListsFail(`${TIME_PAGE} mounts the day card or a Suspense boundary — the card moved to the dashboard, and the tables read no URL (HOME-01)`);
+  // HOME-01: the card's boundary check follows the card — the Runway panel mounts <Suspense><DayCard /></Suspense> FIRST, above
+  // its metrics (the StageStrip), inside the signed-in branch, once. The cockpit is the grandfathered surface; the mount's note
+  // says the card is Time's component shown on the dashboard by Alex's ruling of 2026-10-24.
+  const CARD_HOST = 'src/components/home/ModuleLauncher.tsx'; // the cockpit (the tool law's COCKPIT_COMPONENT, named again in this block's scope)
+  const launcher = codeOf(CARD_HOST);
+  const cardMounts = (launcher.match(/<DayCard \/>/g) ?? []).length;
+  if (cardMounts !== 1) twoListsFail(`${CARD_HOST} mounts the day card ${cardMounts} times — once, first on the Runway panel (HOME-01)`);
+  if (!/<Suspense>\s*<DayCard \/>\s*<\/Suspense>/.test(launcher)) twoListsFail(`${CARD_HOST} mounts the day card outside its Suspense boundary — the card reads the URL (useSearchParams) (TASKS-ONE-01; TIME-01; HOME-01)`);
+  const runwayAt = launcher.indexOf("activeModule === 'calendar' ? 'block' : 'hidden'");
+  const cardAt = launcher.indexOf('<DayCard />');
+  const metricsAt = launcher.indexOf('<StageStrip', runwayAt);
+  if (runwayAt < 0 || cardAt < runwayAt || metricsAt < 0 || cardAt > metricsAt) twoListsFail(`${CARD_HOST} does not mount the day card FIRST on the Runway panel, above its metrics (HOME-01)`);
+  if (launcher.lastIndexOf('{authed === true && (', cardAt) < 0 || launcher.lastIndexOf('{authed === false && (', cardAt) > launcher.lastIndexOf('{authed === true && (', cardAt)) twoListsFail(`${CARD_HOST} mounts the day card outside the signed-in branch of the Runway panel (HOME-01)`);
   // Every control the strips held is still a control: the list headers' create
   // buttons, the row's edit/archive/delete and its pipeline door, Today's mark-done.
   // TASKS-ONE-02 (2026-10-14): Today's mark-done moved, not loosened — TodaysStrip is

@@ -97,7 +97,8 @@ test('claim lines come from the registry: "built and running" for LIVE only, "pa
   // TIME-02 (Alex, 2026-10-19): the content pipeline is retired — the line prints on the /modules/content CTA with no build note.
   // LEDGER-02 (Alex, 2026-10-19): the city ledger is the task ledger — the line says "the task ledger" where it said "the ledger of every stop".
   // LEDGER-02 AMENDMENT (Alex, 2026-10-19): "the task ledger of every stop … by city, account and book".
-  assert.equal(claimForCockpit('content'), 'partial — the day, narrated: every stop in clock order with its budget, its vendor, what it cost and the verdict, the journal, the caption and script for the reel, and the task ledger of every stop by city, account and book; nothing yet adds up where the hours went');
+  // HOME-01 (Alex, 2026-10-24, ruling C): the Time row's why is the tables'.
+  assert.equal(claimForCockpit('content'), 'partial — the task ledger and the two journals, day over day — every stop and every answer the day card records, as tables');
   assert.equal(claimForCockpit('calendar'), 'partial — plan vs actual for routines and tasks on /budget; travel and income budgets not connected yet'); // Budget, a four-beat PARTIAL since TRUTH-01; its why since TAB13-02b
   assert.throws(() => claimForCockpit('nope'), OfferLawError);
 });

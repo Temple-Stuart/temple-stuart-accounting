@@ -89,7 +89,8 @@
  * /tasks?date= (or ?step=) — a bookmark, an old reel link — is sent to /time
  * with the same query by next.config.ts, before this page renders; a plain
  * /tasks is this page. /tasks/day still hops to the card (dayCard.ts
- * DAY_CARD_PATH, '/time' now).
+ * DAY_CARD_PATH, '/time' now). HOME-01 (Alex, 2026-10-24): the card is on the
+ * dashboard — DAY_CARD_PATH is '/runway', and the dated redirect lands there.
  *
  * BACKLOG-02 (Alex, 2026-10-20): the projects list reads two URL params — ?project=<id> opens that row, ?new=project
  * opens the capture form — the morning card's doors to this page (src/lib/operations/morningLog.ts). useSearchParams on

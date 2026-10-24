@@ -300,20 +300,24 @@ test('T7 the sections: one component with its kind; the period control copied ve
   // The page: the two under the ledger, in order, inside the provider, no boundary (they read no URL).
   const page = code(TIME_PAGE);
   assert.match(page, /import MorningJournalTable from '@\/components\/workbench\/operations\/journal\/MorningJournalTable';\nimport EveningJournalTable from '@\/components\/workbench\/operations\/journal\/EveningJournalTable';/);
-  assert.match(page, /<\/Suspense>\n\s*<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/);
+  // HOME-01 (Alex, 2026-10-24): the card left for the dashboard — the container is the three tables, the ledger first.
+  assert.match(page, /data-tool-page="Time">\n\s*<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/);
   const box = page.slice(page.indexOf('data-tool-page="Time"'), page.indexOf('</OperationsEntityProvider>'));
-  assert.deepEqual([...box.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['Suspense', 'DayCard', 'LedgerSection', 'MorningJournalTable', 'EveningJournalTable']);
+  assert.deepEqual([...box.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['LedgerSection', 'MorningJournalTable', 'EveningJournalTable']);
   assert.match(comments(TIME_PAGE), /JOURNAL-07 \(Alex, 2026-10-24\) — THE JOURNALS DAY OVER DAY/);
   // The law: TIME_MOUNTS is the four, in order; the messages name the tables; dated.
   const law = code(LAW);
-  assert.match(law, /const TIME_MOUNTS = \['<DayCard \/>', '<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/);
-  assert.match(law, /timeMounts\.join\(' '\) !== 'DayCard LedgerSection MorningJournalTable EveningJournalTable'/);
-  assert.match(law, /the day card first, then the ledger, then the morning and the evening journal tables \(TIME-01; TIME-02; JOURNAL-07\)/);
+  // HOME-01 (Alex, 2026-10-24): TIME_MOUNTS is the three — the card is the Runway panel's.
+  assert.match(law, /const TIME_MOUNTS = \['<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/);
+  assert.match(law, /timeMounts\.join\(' '\) !== 'LedgerSection MorningJournalTable EveningJournalTable'/);
+  assert.match(law, /the ledger first, then the morning and the evening journal tables \(HOME-01; TIME-01; TIME-02; JOURNAL-07\)/);
   assert.match(comments(LAW), /JOURNAL-07 \(Alex, 2026-10-24\): two more mounts under the ledger — the MORNING and the EVENING journal tables/);
-  // Ruling F: the Time registry row's prose is not changed here.
+  // Ruling F: the Time registry row's prose was not changed by JOURNAL-07. HOME-01 (Alex, 2026-10-24, ruling C) rewrote it to the tables' — time02.test.ts pins the words.
   const time = TOOL_REGISTRY.find((tool) => tool.name === 'Time')!;
-  assert.equal(time.why, 'the day, narrated: every stop in clock order with its budget, its vendor, what it cost and the verdict, the journal, the caption and script for the reel, and the task ledger of every stop by city, account and book; nothing yet adds up where the hours went');
-  assert.doesNotMatch(code(REGISTRY), /JOURNAL-07|MorningJournalTable|journal\/range/, 'HOME-01 rewrites the row once');
+  assert.equal(time.why, 'the task ledger and the two journals, day over day — every stop and every answer the day card records, as tables');
+  // HOME-01 (Alex, 2026-10-24) rewrote the row once, to the tables — the citation names the tables and their range read now (home01.test.ts).
+  assert.match(code(REGISTRY), /MorningJournalTable\.tsx · src\/components\/workbench\/operations\/journal\/EveningJournalTable\.tsx/);
+  assert.match(code(REGISTRY), /journalReads\.ts:26 \(GET \/api\/operations\/journal\/range/);
   // Nothing else: the ledger's section, the card's journal forms and the day route are untouched by the tables.
   for (const f of [LEDGER_SECTION, 'src/components/workbench/operations/stops/JournalForm.tsx', 'src/components/workbench/operations/stops/EveningForm.tsx', 'src/components/workbench/operations/day/DayCard.tsx']) {
     assert.doesNotMatch(code(f), /journalTables|JournalDayTable|journal\/range|readJournalRange/, `${f} knows nothing of the tables`);

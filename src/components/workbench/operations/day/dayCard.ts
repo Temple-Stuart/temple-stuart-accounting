@@ -1349,9 +1349,14 @@ export function scriptText(d: ReelDay): ReelText {
 // day — it moved to Time with the ledger; Tasks keeps the work (projects, routines). Every URL
 // the card pushes derives from this one constant, so the move is this line; /tasks/day's hop
 // follows it, and a dated /tasks?date= is sent here by next.config.ts (the same query).
+// HOME-01 (Alex, 2026-10-24): THE CARD IS ON THE DASHBOARD — the cockpit's Runway panel, /runway
+// (home/ModuleLauncher.tsx, the default tab; the front door '/' shows the same panel). The card stays
+// Time's component (the registry's Time row says so); /time is the three tables. The move is this line
+// again: hrefFor, the move control's reload and /tasks/day's hop follow it, and next.config.ts sends a
+// dated /tasks?date|step= and /time?date|step= here with the same query (307).
 
-/** The card's page — the first section of Time's one page (Alex, 2026-10-19, TIME-01; was Tasks', TASKS-ONE-01). Every URL the card pushes, the move control's reload, and /tasks/day's one hop start here. */
-export const DAY_CARD_PATH = '/time';
+/** The card's page — the dashboard's Runway panel, /runway (Alex, 2026-10-24, HOME-01; the first section of Time's one page from TIME-01, 2026-10-19; Tasks' from TASKS-ONE-01). Every URL the card pushes, the move control's reload, and /tasks/day's one hop start here. */
+export const DAY_CARD_PATH = '/runway';
 
 /** The card's two query parameters (DayCard.tsx reads `date` and `step`, and nothing else on the card's page reads one) — the only ones /tasks/day carries over. */
 export const DAY_CARD_PARAMS = ['date', 'step'] as const;

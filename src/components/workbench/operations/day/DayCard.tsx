@@ -250,7 +250,7 @@ const chip = 'px-2 py-0.5 border border-border rounded hover:bg-bg-row text-xs d
 /** DECK-01: the space kept above the journal card when the page scrolls to it (a row's door, or the #journal anchor). */
 const JOURNAL_SCROLL_MARGIN = 8;
 
-/** The URL of a day, and of one of its stops — on /time, where the card is the first section (TASKS-ONE-01 put it first on /tasks; TIME-01, 2026-10-19: DAY_CARD_PATH is /time). DECK-01: the step is the deck's card number. */
+/** The URL of a day, and of one of its stops — on /runway, the dashboard's Runway panel, where the card is first (HOME-01, Alex, 2026-10-24: DAY_CARD_PATH is /runway; TASKS-ONE-01 put it first on /tasks; TIME-01, 2026-10-19: /time). DECK-01: the step is the deck's card number. */
 const hrefFor = (day: string, step: number | null): string => `${DAY_CARD_PATH}?date=${day}${step === null ? '' : `&step=${step}`}`;
 
 /** The row's bold text: the line (the step's activity) when it has one, else the label. REEL-01 (2026-10-15): the rule moved to dayCard.ts stopName, so the reel's caption and script name a stop as the row does. */

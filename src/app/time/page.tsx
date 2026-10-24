@@ -39,14 +39,24 @@
  * read-only range route (api/operations/journal/range); the card still writes
  * the journal. The container is exactly the four, in this order; the two-lists
  * law holds it (TIME_MOUNTS). They read no entity and no URL — no boundary.
+ *
+ * HOME-01 (Alex, 2026-10-24) — THE CARD MOVED TO THE DASHBOARD; /time IS THE
+ * TABLES. The day card (the deck, the morning and evening forms, THE LOG, the
+ * stay bar, the move control, the record row, the reel buttons) is Time's
+ * component shown on the cockpit's Runway panel — home/ModuleLauncher.tsx,
+ * /runway, dayCard.ts DAY_CARD_PATH — first, in its Suspense boundary. This
+ * page mounts the three tables, in order: the task ledger, then the morning
+ * and the evening journal tables; none reads the URL, so the boundary left
+ * with the card. A dated /time?date= or ?step= — a bookmark from the card's
+ * days here — is sent to /runway by next.config.ts (307) before this page
+ * renders; a plain /time is this page. The two-lists law holds the container
+ * to exactly the three (TIME_MOUNTS) and the card's mount on the panel.
  */
-import { Suspense } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
 import ToolOpener from '@/components/shell/ToolOpener';
 import { navToolByName } from '@/lib/nav';
 import { TOOL_GATE } from '@/lib/offer';
 import { OperationsEntityProvider } from '@/components/workbench/operations/EntitySelector';
-import DayCard from '@/components/workbench/operations/day/DayCard';
 import LedgerSection from '@/components/workbench/operations/ledger/LedgerSection';
 import MorningJournalTable from '@/components/workbench/operations/journal/MorningJournalTable';
 import EveningJournalTable from '@/components/workbench/operations/journal/EveningJournalTable';
@@ -57,9 +67,6 @@ export default function TimePage() {
       <ToolOpener tools={[navToolByName('Time', TOOL_GATE)]} />
       <OperationsEntityProvider>
         <div className="space-y-3" data-tool-page="Time">
-          <Suspense>
-            <DayCard />
-          </Suspense>
           <LedgerSection />
           <MorningJournalTable />
           <EveningJournalTable />
