@@ -489,14 +489,16 @@ test('T6 the section: the sixteen columns (LEDGER-02; ten until then), the perio
 test('T6 the ledger mounts on /time under the day card; the two-lists law holds both containers, with the dated rulings', () => {
   const page = code('src/app/time/page.tsx');
   assert.match(page, /import LedgerSection from '@\/components\/workbench\/operations\/ledger\/LedgerSection';/);
-  assert.match(page, /<\/Suspense>\n\s*<LedgerSection \/>\n\s*<\/div>/);
+  // JOURNAL-07 (Alex, 2026-10-24): the two journal tables mount under the ledger — the /time container is four (TIME_MOUNTS), the ledger still the section after the card.
+  assert.match(page, /<\/Suspense>\n\s*<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>\n\s*<\/div>/);
   assert.equal((page.match(/<LedgerSection \/>/g) ?? []).length, 1, 'mounted once');
   assert.match(comments(PAGE), /LEDGER-01 \(Alex, 2026-10-16\) — THE CITY LEDGER is the fourth section, under\s*\n\s*\* Routines/);
   assert.doesNotMatch(code(PAGE), /LedgerSection/, 'the Tasks page mounts it no more');
   const law = code(LAW);
   assert.match(law, /const TWO_LISTS_MOUNTS = \['<SectionD_ProjectBacklog \/>', '<SectionE_Routines \/>'\];/);
-  assert.match(law, /const TIME_MOUNTS = \['<DayCard \/>', '<LedgerSection \/>'\];/);
-  assert.match(law, /timeMounts\.join\(' '\) !== 'DayCard LedgerSection'/, 'exactly the two on /time (TIME-02)');
+  assert.match(law, /const TIME_MOUNTS = \['<DayCard \/>', '<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/);
+  // JOURNAL-07 (Alex, 2026-10-24): TIME_MOUNTS is the four — the day card, the ledger, then the morning and the evening journal tables.
+  assert.match(law, /timeMounts\.join\(' '\) !== 'DayCard LedgerSection MorningJournalTable EveningJournalTable'/, 'exactly the four on /time (TIME-02; JOURNAL-07)');
   assert.match(comments(LAW), /LEDGER-01 — the ruling \(Alex, 2026-10-16\): the city ledger is a fourth section, under Routines/);
   // The rules file is pure: no fetch, no clock of its own, no Prisma, no React; the clock is handed in.
   const rules = code(RULES);

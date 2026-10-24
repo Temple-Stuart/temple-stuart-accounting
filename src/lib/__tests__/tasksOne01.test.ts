@@ -52,7 +52,8 @@ test('T1 the card\'s page mounts DayCard first — in its Suspense boundary (TIM
   // LEDGER-01 (Alex, 2026-10-16): <LedgerSection /> joins, LAST — the container holds exactly four; the card is still first.
   // TIME-01 (2026-10-19): the Time container holds exactly three — the card, the ledger, the pipeline (until TIME-02).
   // TIME-02 (2026-10-19): the pipeline is retired — the container holds exactly two: the card, then the ledger.
-  assert.match(page, /<div className="space-y-3" data-tool-page="Time">\n\s*<Suspense>\n\s*<DayCard \/>\n\s*<\/Suspense>\n\s*<LedgerSection \/>\n\s*<\/div>/);
+  // JOURNAL-07 (Alex, 2026-10-24): the two journal tables mount under the ledger — the /time container is four (TIME_MOUNTS), the ledger still the section after the card.
+  assert.match(page, /<div className="space-y-3" data-tool-page="Time">\n\s*<Suspense>\n\s*<DayCard \/>\n\s*<\/Suspense>\n\s*<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>\n\s*<\/div>/);
   assert.ok(page.indexOf('<ToolOpener') < page.indexOf('<DayCard />'), 'the opener first — family, name, registry line — then the card');
   assert.match(comments(PAGE), /TASKS-ONE-01 \(2026-10-14\) — Alex's ruling: the day card is the first section\s*\n\s*\* of Tasks — one Tasks page, no sub-tabs\./, 'the Tasks page keeps the ruling\'s history');
   // BACKLOG-02 (Alex, 2026-10-20): a boundary is back on /tasks — around the projects list ALONE, which reads ?project= and ?new=project (useSearchParams); the day card stays /time's — the guard moved to the card itself, as exact.
@@ -67,8 +68,9 @@ test('T1 the two-lists law mounts the day card first, with the dated ruling', ()
   // LEDGER-01 (Alex, 2026-10-16): the mount list is four — the city ledger last (ledger01.test.ts pins the ruling).
   // TIME-01 (Alex, 2026-10-19): the day card is first on /time — TIME_MOUNTS; /tasks is the two lists (time01.test.ts).
   // TIME-02 (2026-10-19): TIME_MOUNTS is the two — the content pipeline is retired (time02.test.ts).
-  assert.match(law, /const TIME_MOUNTS = \['<DayCard \/>', '<LedgerSection \/>'\];/);
-  assert.match(law, /mounts its sections out of order — the day card first, then the ledger \(TIME-01; TIME-02\)/);
+  assert.match(law, /const TIME_MOUNTS = \['<DayCard \/>', '<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/);
+  // JOURNAL-07 (Alex, 2026-10-24): the order message names the two journal tables after the ledger.
+  assert.match(law, /mounts its sections out of order — the day card first, then the ledger, then the morning and the evening journal tables \(TIME-01; TIME-02; JOURNAL-07\)/);
   assert.match(comments(LAW), /TASKS-ONE-01 — the ruling \(Alex, 2026-10-14\): the day card is the first section of Tasks — one Tasks page, no\s*\n\s*\/\/ sub-tabs\./);
 });
 

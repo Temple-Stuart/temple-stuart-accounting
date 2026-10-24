@@ -30,6 +30,15 @@
  * page rendered the content pipe's four phases as a page-level strip, and
  * DayCalendarView rode phase 03 as a clock-ordered list — the law named it an
  * explicit non-violation of rule 5; both are gone with the pipeline.
+ *
+ * JOURNAL-07 (Alex, 2026-10-24) — THE JOURNALS DAY OVER DAY. Under the ledger,
+ * two more sections in the shared idiom (IDIOM-01): MorningJournalTable (DAY ·
+ * DATE · GOALS · BLOCKER · PLAN · DONE) then EveningJournalTable (DAY · DATE ·
+ * ACCOMPLISHED · GAPS · EVOLUTION · DIRECTION · ALIGNMENT · ON TRACK · NEXT),
+ * each over the days that have a journal in its period, read through the
+ * read-only range route (api/operations/journal/range); the card still writes
+ * the journal. The container is exactly the four, in this order; the two-lists
+ * law holds it (TIME_MOUNTS). They read no entity and no URL — no boundary.
  */
 import { Suspense } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
@@ -39,6 +48,8 @@ import { TOOL_GATE } from '@/lib/offer';
 import { OperationsEntityProvider } from '@/components/workbench/operations/EntitySelector';
 import DayCard from '@/components/workbench/operations/day/DayCard';
 import LedgerSection from '@/components/workbench/operations/ledger/LedgerSection';
+import MorningJournalTable from '@/components/workbench/operations/journal/MorningJournalTable';
+import EveningJournalTable from '@/components/workbench/operations/journal/EveningJournalTable';
 
 export default function TimePage() {
   return (
@@ -50,6 +61,8 @@ export default function TimePage() {
             <DayCard />
           </Suspense>
           <LedgerSection />
+          <MorningJournalTable />
+          <EveningJournalTable />
         </div>
       </OperationsEntityProvider>
     </AppLayout>

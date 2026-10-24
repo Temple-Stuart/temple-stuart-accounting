@@ -47,9 +47,11 @@ test('T1 the pages: /time is the card then the ledger (TIME-02: nothing beneath)
   assert.match(time, /^'use client';/);
   assert.match(time, /import \{ Suspense \} from 'react';/);
   for (const imp of ["import DayCard from '@/components/workbench/operations/day/DayCard';", "import LedgerSection from '@/components/workbench/operations/ledger/LedgerSection';"]) assert.ok(time.includes(imp), imp);
-  assert.match(time, /<ToolOpener tools=\{\[navToolByName\('Time', TOOL_GATE\)\]\} \/>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Time">\n\s*<Suspense>\n\s*<DayCard \/>\n\s*<\/Suspense>\n\s*<LedgerSection \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/);
+  // JOURNAL-07 (Alex, 2026-10-24): the two journal tables mount under the ledger — the /time container is four (TIME_MOUNTS), the ledger still the section after the card.
+  assert.match(time, /<ToolOpener tools=\{\[navToolByName\('Time', TOOL_GATE\)\]\} \/>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Time">\n\s*<Suspense>\n\s*<DayCard \/>\n\s*<\/Suspense>\n\s*<LedgerSection \/>\n\s*<MorningJournalTable \/>\n\s*<EveningJournalTable \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/);
   const timeBox = time.slice(time.indexOf('data-tool-page="Time"'), time.indexOf('</OperationsEntityProvider>'));
-  assert.deepEqual([...timeBox.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['Suspense', 'DayCard', 'LedgerSection']);
+  // JOURNAL-07 (Alex, 2026-10-24): the container is four — the two journal tables under the ledger, in the shared idiom, read-only.
+  assert.deepEqual([...timeBox.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['Suspense', 'DayCard', 'LedgerSection', 'MorningJournalTable', 'EveningJournalTable']);
   assert.equal((time.match(/<ToolOpener/g) ?? []).length, 1);
   // /tasks — the two lists, nothing else; no card, no ledger.
   // BACKLOG-02 (Alex, 2026-10-20): a boundary is back on /tasks — around the projects list ALONE, which reads ?project= and ?new=project (useSearchParams); the day card stays /time's: the page itself still reads no URL (the list does, in its boundary).
@@ -119,8 +121,8 @@ test('T4 the laws: the two-lists law holds /tasks to the two lists and /time to 
   assert.match(law, /const TWO_LISTS_MOUNTS = \['<SectionD_ProjectBacklog \/>', '<SectionE_Routines \/>'\];/);
   assert.match(law, /pageMounts\.join\(' '\) !== 'SectionD_ProjectBacklog SectionE_Routines'/);
   assert.match(law, /if \(\/DayCard\|LedgerSection\/\.test\(page\)\) twoListsFail\(/, 'the two that went may not come back unnoticed');
-  assert.match(law, /const TIME_MOUNTS = \['<DayCard \/>', '<LedgerSection \/>'\];/);
-  assert.match(law, /timeMounts\.join\(' '\) !== 'DayCard LedgerSection'/);
+  assert.match(law, /const TIME_MOUNTS = \['<DayCard \/>', '<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/);
+  assert.match(law, /timeMounts\.join\(' '\) !== 'DayCard LedgerSection MorningJournalTable EveningJournalTable'/);
   assert.match(law, /if \(!\/<Suspense>\\s\*<DayCard \\\/>\\s\*<\\\/Suspense>\/\.test\(timePage\)\) twoListsFail\(/, 'the card in its boundary');
   assert.match(comments(LAW), /TIME-01 — the ruling \(Alex, 2026-10-19\): the day card and the city ledger moved to \/time/);
   // TIME-02 (2026-10-19): the third mount is retired — the law says so, dated.

@@ -274,12 +274,13 @@ test('R5 the rename: "Task ledger"; the Time row’s why and customer say "the t
   assert.doesNotMatch(`${time.why} ${time.customer}`, /the ledger of every stop|city ledger/i);
   assert.match(comments(REGISTRY), /LEDGER-02 \(Alex, 2026-10-19\): THE CITY LEDGER IS THE TASK LEDGER/);
   const law = code(LAW);
-  assert.match(law, /the page is the day card and the task ledger \(TIME-01; TIME-02; LEDGER-02 renamed it\)/);
-  assert.match(law, /exactly the day card and the task ledger, nothing beneath \(TIME-01; TIME-02 retired the content pipeline; LEDGER-02 renamed it\)/);
+  // JOURNAL-07 (Alex, 2026-10-24): the messages name the two journal tables too — the container is four; LEDGER-02's words stay inside them.
+  assert.match(law, /the page is the day card, the task ledger and the two journal tables \(TIME-01; TIME-02; LEDGER-02 renamed it; JOURNAL-07 added the tables\)/);
+  assert.match(law, /exactly the day card, the task ledger and the two journal tables, nothing beneath \(TIME-01; TIME-02 retired the content pipeline; LEDGER-02 renamed it; JOURNAL-07 added the tables\)/);
   assert.doesNotMatch(law, /city ledger/, 'no message of the law names the old name (the comments keep the history)');
   assert.match(comments(LAW), /LEDGER-02 \(Alex, 2026-10-19\): the city ledger is the TASK LEDGER — renamed; the mount is the same component/);
   assert.match(comments(LAW), /LEDGER-01 — the ruling \(Alex, 2026-10-16\): the city ledger is a fourth section, under Routines/, 'the history line keeps its words');
-  assert.match(law, /const TIME_MOUNTS = \['<DayCard \/>', '<LedgerSection \/>'\];/, 'the mount unchanged');
+  assert.match(law, /const TIME_MOUNTS = \['<DayCard \/>', '<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/, 'the mount unchanged; JOURNAL-07 (2026-10-24) added the two journal tables after it');
   for (const [file, note] of [
     [RULES, /LEDGER-02, Alex, 2026-10-19: renamed — it is a task ledger/],
     [SECTION, /LEDGER-02, Alex, 2026-10-19: renamed — it is a task ledger/],

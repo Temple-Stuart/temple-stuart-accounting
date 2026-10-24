@@ -3411,6 +3411,9 @@ lawGuard('The two-lists law', () => {
 // is held here too: the day card (in its Suspense boundary), the ledger, then
 // the content pipeline as it is, until TIME-02 retires it. Law 1 (no strip in
 // the tree) is for /tasks; the /time pipeline draws the content strip by design.
+// JOURNAL-07 (Alex, 2026-10-24): the /time container is FOUR — the day card, the
+// ledger, then the morning and the evening journal tables (day over day, in the
+// shared idiom); TIME_MOUNTS names the four, in order.
 const TWO_LISTS_PAGE = 'src/app/tasks/page.tsx';
 const TIME_PAGE = 'src/app/time/page.tsx';
 const TWO_LISTS_LEAF = 'src/lib/operations/projectDeletion.ts';
@@ -3467,16 +3470,18 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
   // deleted — so the container is exactly the two, and nothing beneath.
   // LEDGER-02 (Alex, 2026-10-19): the city ledger is the TASK LEDGER — renamed; the mount is the same component and the
   // messages below say the new name.
-  const TIME_MOUNTS = ['<DayCard />', '<LedgerSection />'];
+  // JOURNAL-07 (Alex, 2026-10-24): two more mounts under the ledger — the MORNING and the EVENING journal tables, day over
+  // day in the shared idiom, read-only — so the container is exactly the four, in this order, and nothing beneath.
+  const TIME_MOUNTS = ['<DayCard />', '<LedgerSection />', '<MorningJournalTable />', '<EveningJournalTable />'];
   const timePage = codeOf(TIME_PAGE);
   for (const section of TIME_MOUNTS) {
-    if (!timePage.includes(section)) twoListsFail(`${TIME_PAGE} no longer mounts ${section} — the page is the day card and the task ledger (TIME-01; TIME-02; LEDGER-02 renamed it)`);
+    if (!timePage.includes(section)) twoListsFail(`${TIME_PAGE} no longer mounts ${section} — the page is the day card, the task ledger and the two journal tables (TIME-01; TIME-02; LEDGER-02 renamed it; JOURNAL-07 added the tables)`);
   }
   const timeAt = TIME_MOUNTS.map((section) => timePage.indexOf(section));
-  if (timeAt.some((at, i) => i > 0 && at < timeAt[i - 1])) twoListsFail(`${TIME_PAGE} mounts its sections out of order — the day card first, then the ledger (TIME-01; TIME-02)`);
+  if (timeAt.some((at, i) => i > 0 && at < timeAt[i - 1])) twoListsFail(`${TIME_PAGE} mounts its sections out of order — the day card first, then the ledger, then the morning and the evening journal tables (TIME-01; TIME-02; JOURNAL-07)`);
   const timeBox = timePage.slice(timePage.indexOf('data-tool-page="Time"'), timePage.indexOf('</OperationsEntityProvider>'));
   const timeMounts = [...timeBox.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]).filter((tag) => tag !== 'Suspense');
-  if (timeMounts.join(' ') !== 'DayCard LedgerSection') twoListsFail(`${TIME_PAGE} mounts [${timeMounts.join(' ')}] in the Time container — exactly the day card and the task ledger, nothing beneath (TIME-01; TIME-02 retired the content pipeline; LEDGER-02 renamed it)`);
+  if (timeMounts.join(' ') !== 'DayCard LedgerSection MorningJournalTable EveningJournalTable') twoListsFail(`${TIME_PAGE} mounts [${timeMounts.join(' ')}] in the Time container — exactly the day card, the task ledger and the two journal tables, nothing beneath (TIME-01; TIME-02 retired the content pipeline; LEDGER-02 renamed it; JOURNAL-07 added the tables)`);
   if (/ContentPipeline|operations\/content\//.test(timePage)) twoListsFail(`${TIME_PAGE} names the content pipeline — retired by TIME-02 (2026-10-19)`);
   if (!/<Suspense>\s*<DayCard \/>\s*<\/Suspense>/.test(timePage)) twoListsFail(`${TIME_PAGE} mounts the day card outside its Suspense boundary — the card reads the URL (useSearchParams) on a client page (TASKS-ONE-01; TIME-01)`);
   // Every control the strips held is still a control: the list headers' create
