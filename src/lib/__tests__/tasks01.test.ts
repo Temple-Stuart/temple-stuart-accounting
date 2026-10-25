@@ -17,6 +17,7 @@ import { resolve } from 'node:path';
 const PAGE = 'src/app/tasks/page.tsx';
 const SECTION_D = 'src/components/workbench/operations/SectionD_ProjectBacklog.tsx';
 const SECTION_E = 'src/components/workbench/operations/SectionE_Work.tsx'; // WORK-01 (2026-10-24): THE WORK
+const SECTION_F = 'src/components/workbench/operations/SectionF_RoutineExpenses.tsx'; // WORK-01d (2026-10-25): ROUTINE EXPENSES — the routines' own table
 const ROW = 'src/components/workbench/operations/projects/ProjectRow.tsx';
 const ROW_VIEW = 'src/components/workbench/operations/projects/ProjectRowView.tsx';
 const PIPE_VIEW = 'src/components/workbench/operations/projects/TruthMachineView.tsx';
@@ -37,7 +38,7 @@ const PREVIEW_ROUTE = 'src/app/api/operations/projects/[id]/deletion/route.ts';
 // tree with their code (TASKS_GONE, checked absent below); the day card and its stop form, now on the page, join it.
 // TIME-01 (2026-10-19): the day card and its stop form moved to /time with the ledger; they stay listed here as
 // "draws no strip" files (true on either page), and the page pins below moved to the two lists.
-const TASKS_TREE = [PAGE, SECTION_D, SECTION_E, ROW, ROW_VIEW, PIPE_VIEW, EDIT_FORM, WORK_LIB,
+const TASKS_TREE = [PAGE, SECTION_D, SECTION_E, SECTION_F, ROW, ROW_VIEW, PIPE_VIEW, EDIT_FORM, WORK_LIB,
   'src/components/workbench/operations/projects/TaskList.tsx',
   // PROJECTS-01 (2026-09-30): the projects list's markup moved into the one
   // table — its files are in the tree, and draw no strip either.
@@ -60,12 +61,14 @@ test('the page is two lists — no strip, no pipe label, no receipts', () => {
   const page = code(PAGE);
   assert.match(page, /<SectionD_ProjectBacklog \/>/);
   assert.match(page, /<SectionE_Work \/>/);
+  assert.match(page, /<SectionF_RoutineExpenses \/>/); // WORK-01d (2026-10-25): the third table
   // WEEK-01 (2026-09-30): a fourth mount, FIRST — this week, then the two lists and the daily plan.
   // TASKS-ONE-02 (2026-10-14): the week and the daily plan are deleted — the day card replaces them. Three mounts, in order.
   // LEDGER-01 (Alex, 2026-10-16): the city ledger is a fourth mount, LAST — under Routines. Four mounts, in order.
   // TIME-01 (Alex, 2026-10-19): the day card and the ledger moved to /time (time01.test.ts). Two mounts, in order.
   // BACKLOG-02 (Alex, 2026-10-20): a boundary is back on /tasks — around the projects list ALONE, which reads ?project= and ?new=project (useSearchParams); the day card stays /time's. Two mounts, in order, the first in its boundary.
-  assert.match(page, /<div className="space-y-3" data-tool-page="Tasks">\s*<SectionE_Work \/>\s*<Suspense>\s*<SectionD_ProjectBacklog \/>\s*<\/Suspense>\s*<\/div>/);
+  // WORK-01d (Alex, 2026-10-25): three tables — THE WORK, PROJECTS in its boundary, ROUTINE EXPENSES. Three mounts, in order.
+  assert.match(page, /<div className="space-y-3" data-tool-page="Tasks">\s*<SectionE_Work \/>\s*<Suspense>\s*<SectionD_ProjectBacklog \/>\s*<\/Suspense>\s*<SectionF_RoutineExpenses \/>\s*<\/div>/);
   assert.doesNotMatch(page, /DayCard|LedgerSection/, 'the day card and the ledger are /time\'s (TIME-01)');
   assert.doesNotMatch(page, /WeekSection|SectionC_DailyPlan|TodaysStrip/);
   for (const f of TASKS_GONE) assert.ok(!existsSync(resolve(process.cwd(), f)), `${f} is deleted`);
@@ -114,18 +117,25 @@ test('the projects list keeps its controls: + new, edit, delete, archive, show a
 
 // TASKS-ONE-02 (2026-10-14): the title said "with Today above it" — Today is deleted (Alex's ruling: the day card
 // replaces the Today strip). The pin moved: the list alone, and Today's mark-done is the day card's stop form.
+// WORK-01d (Alex, 2026-10-25): the routines' table is ROUTINE EXPENSES (SectionF_RoutineExpenses) — the routine pins moved there;
+// THE WORK (SectionE_Work) is the open projects' tasks and keeps the shared table and its own chip.
 test('the routines list keeps its controls: in clock order (FORM-01), + new, edit, delete, show inactive — and mark-done is the day card\'s', () => {
-  const e = code(SECTION_E);
-  assert.doesNotMatch(e, /TodaysStrip/, 'Today is gone from the section — here and in the cockpit that mounts it');
-  assert.match(e, /<DataTable/); // WORK-01 (2026-10-24): the shared table
-  assert.match(e, /\{WORK_TITLE_WORDS\}/);
-  assert.doesNotMatch(e, /StageStrip|ProofStrip|PIPE_PHASES|SectionHeader|onTotals|hasStreak/);
-  // The two counters let Today and the list refetch each other — with Today gone, they went (moved, not loosened:
-  // there is no other surface on the section to refetch).
-  assert.doesNotMatch(e, /refreshKey|onCommitted|listVersion|todayVersion|createRequest/);
+  const e = code(SECTION_F);
+  for (const f of [SECTION_E, SECTION_F]) {
+    const body = code(f);
+    assert.doesNotMatch(body, /TodaysStrip/, 'Today is gone from the section — here and in the cockpit that mounts it');
+    assert.match(body, /<DataTable/); // WORK-01 (2026-10-24): the shared table
+    assert.doesNotMatch(body, /StageStrip|ProofStrip|PIPE_PHASES|SectionHeader|onTotals|hasStreak/);
+    // The two counters let Today and the list refetch each other — with Today gone, they went (moved, not loosened:
+    // there is no other surface on the section to refetch).
+    assert.doesNotMatch(body, /refreshKey|onCommitted|listVersion|todayVersion|createRequest/);
+    assert.match(body, /statusChipWords\(/, 'WORK-01: "show inactive" and "show ended" are the STATUS filter, shown as a chip');
+  }
+  assert.match(code(SECTION_E), /\{WORK_TITLE_WORDS\}/);
+  assert.match(e, /\{ROUTINE_EXPENSES_TITLE_WORDS\}/);
   const l = code(WORK_LIB);
   assert.match(e, /ADD_ROUTINE_WORDS/, 'WORK-01: "+ routine"');
-  assert.match(e, /statusChipWords\(/, 'WORK-01: "show inactive" and "show ended" are the STATUS filter, shown as a chip');
+  assert.doesNotMatch(code(SECTION_E), /ADD_ROUTINE_WORDS/, 'WORK-01d: "+ routine" is ROUTINE EXPENSES\' door alone');
   // FORM-01 (2026-10-19): the current routines are one flat table in clock order — no cadence groups.
   assert.match(l, /byClockThenName/);
   assert.doesNotMatch(l, /CADENCE_GROUP_ORDER\.map/);
@@ -238,7 +248,7 @@ test('the route: user-scoped 404, the check inside the transaction, 409 naming t
 test('no 🔥 — no streak renders on any customer surface; the writers and the columns stay', () => {
   // TASKS-ONE-02 (2026-10-14): TodaysStrip and DailyPlanRoutineRow are deleted — they leave the list with their code;
   // the day card and its stop form, where a routine is marked done now, join it.
-  for (const f of [EDIT_FORM, WORK_LIB, SECTION_E, DAY_CARD, STOP_FORM,
+  for (const f of [EDIT_FORM, WORK_LIB, SECTION_E, SECTION_F, DAY_CARD, STOP_FORM,
     'src/components/workbench/operations/day/dayCard.ts',
     'src/components/home/RoutinesShowcaseSections.tsx',
     'src/app/agenda/[id]/page.tsx']) {

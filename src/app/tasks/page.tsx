@@ -109,6 +109,9 @@ import { OperationsEntityProvider } from '@/components/workbench/operations/Enti
 import { WorkChangesProvider } from '@/components/workbench/operations/WorkChanges';
 import SectionE_Work from '@/components/workbench/operations/SectionE_Work';
 import SectionD_ProjectBacklog from '@/components/workbench/operations/SectionD_ProjectBacklog';
+// WORK-01d (Alex, 2026-10-25, ruling A): Tasks is three tables — THE WORK (the open projects' tasks), PROJECTS, ROUTINE
+// EXPENSES (one row per routine line). Routines and tasks are never one table.
+import SectionF_RoutineExpenses from '@/components/workbench/operations/SectionF_RoutineExpenses';
 
 export default function TasksPage() {
   return (
@@ -121,6 +124,7 @@ export default function TasksPage() {
             <Suspense>
               <SectionD_ProjectBacklog />
             </Suspense>
+            <SectionF_RoutineExpenses />
           </div>
         </OperationsEntityProvider>
       </WorkChangesProvider>

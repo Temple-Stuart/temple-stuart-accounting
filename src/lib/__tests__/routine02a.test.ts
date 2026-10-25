@@ -29,7 +29,8 @@ const BUDGET = 'src/lib/operations/routineBudget.ts';
 const COMPLETION = 'src/lib/operations/routineCompletion.ts';
 const CREATE_ROUTE = 'src/app/api/operations/routines/route.ts';
 const PATCH_ROUTE = 'src/app/api/operations/routines/[id]/route.ts';
-const SECTION_E = 'src/components/workbench/operations/SectionE_Work.tsx'; // WORK-01 (2026-10-24): RoutineList left — THE WORK
+// WORK-01 (2026-10-24): RoutineList left — THE WORK; WORK-01d (Alex, 2026-10-25): the routines are ROUTINE EXPENSES (SectionF_RoutineExpenses) — the pins moved there.
+const SECTION_E = 'src/components/workbench/operations/SectionF_RoutineExpenses.tsx';
 const WORK_LIB = 'src/lib/operations/work.ts';
 // WORK-01 (Alex, 2026-10-24): RoutineRow left — its edit form is RoutineEditForm (lifted, moved code); ROW names it.
 const ROW = 'src/components/workbench/operations/routines/RoutineEditForm.tsx';
@@ -175,10 +176,12 @@ test('T6 the archive: ended = end_date before today in the routine\'s own zone; 
   const w = code(WORK_LIB);
   assert.match(w, /const end = endedBy\(routine\.end_date, routine\.timezone, now\);/);
   assert.match(w, /end\.ended \? 'ended' : routine\.is_active \? 'active' : 'inactive'/);
-  assert.match(w, /export const WORK_DEFAULT_DROPPED: readonly string\[\] = \['ended', 'inactive', 'archived'\];/); // WORK-01b (2026-10-24): inactive joined
+  // WORK-01b (2026-10-24): inactive joined; WORK-01d (Alex, 2026-10-25): the routines' own default — ended and inactive dropped, the chip "STATUS: active only"
+  // (archived is a task's status; the tasks have their own table and their own chip).
+  assert.match(w, /export const ROUTINE_DEFAULT: NamedDefault = \{ dropped: \['ended', 'inactive'\], words: 'STATUS: active only' \};/);
   assert.doesNotMatch(w, /groupOf|CADENCE_GROUP_ORDER|data-cadence-group/, 'no cadence groups (FORM-01)');
   const e = code(SECTION_E);
-  assert.match(e, /workRowsOf\(read\.routines, read\.projects, new Date\(\)\)/, 'judged now');
+  assert.match(e, /routineRowsOf\(read\.routines, new Date\(\)\)/, 'judged now'); // WORK-01d: the routine spec's builder
   assert.match(e, /readJson\('\/api\/operations\/routines', 'routines'\)/, 'every routine — the filter narrows, never the read');
   assert.doesNotMatch(e, /showEnded|showInactive|data-routines-show-ended|data-ended-group/);
   assert.doesNotMatch(e, /localStorage|sessionStorage|document\.cookie/);
@@ -199,7 +202,7 @@ test('T6 the archive: ended = end_date before today in the routine\'s own zone; 
   const s = code(LINES);
   assert.match(s, /readOnly\?: boolean;/);
   assert.match(s, /\{readOnly \? <td className=\{cellClass\} data-line-read-only \/> : \(/);
-  assert.match(comments(WORK_LIB), /ROUTINE-02a \(Alex, 2026-10-18\) — THE ARCHIVE/); // WORK-01 (2026-10-24): the archive is a STATUS of THE WORK
+  assert.match(comments(WORK_LIB), /ROUTINE-02a \(Alex, 2026-10-18\) — THE ARCHIVE/); // WORK-01 (2026-10-24): the archive is a STATUS of THE WORK; WORK-01d: of ROUTINE EXPENSES
   assert.match(comments(ROW), /ROUTINE-02a \(Alex, 2026-10-18\)/);
   assert.match(comments(LINES), /ROUTINE-02a \(Alex, 2026-10-18\)/);
 });

@@ -183,7 +183,7 @@ test('T1 a task row is THE WORK\'s (WORK-01, 2026-10-24): the spec\'s cells, the
   const row = code(SECTION_E).slice(code(SECTION_E).indexOf('function TaskWorkRow('));
   const tr = row.slice(row.indexOf('<tr className='), row.indexOf('</tr>'));
   inOrder(tr, [
-    '{columns.map((c) => <WorkCell key={c.key} column={c} row={row} />)}',
+    '{columns.map((c) => <WorkCell key={c.key} name={name} column={c} row={row} />)}', // WORK-01d (2026-10-25): the cell is shared by the two tables (workShared.tsx) and takes the table's name
     'onClick={a.enterEdit}',
     '↗ schedule',
     'onClick={() => a.handleToggleHistory()}',
@@ -194,7 +194,7 @@ test('T1 a task row is THE WORK\'s (WORK-01, 2026-10-24): the spec\'s cells, the
   ], 'the task row');
   // Its words are the pure spec's (work01.test.ts): the title, the project, the status words, the deadline, the account through the helper.
   const w = code('src/lib/operations/work.ts');
-  assert.match(w, /row\.of === 'task' \? taskStatusWords\(row\.task\.status\)/);
+  assert.match(w, /export const taskStatusOf = \(row: TaskRow\): string => taskStatusWords\(row\.task\.status\);/); // WORK-01d (2026-10-25): a TaskRow, no `of` — the tasks have their own table
   assert.match(w, /import \{ formatDate, taskStatusWords \} from '@\/components\/workbench\/operations\/projects\/projectsTableText';/);
 });
 
@@ -229,7 +229,7 @@ test('T1 the quick actions are exactly today\'s — each on the statuses it show
 test('T1 the Account column only through ROUTINES-01\'s helper — P-6110, never 6110, never B-B-5130 (WORK-01: THE WORK\'s ACCOUNT reads it in work.ts)', () => {
   const w = code('src/lib/operations/work.ts');
   assert.match(w, /import \{ ACCOUNT_CELL_WORDS, accountCell, type AccountCellBook \} from '@\/lib\/coa\/accountCell';/);
-  assert.match(w, /const cell = accountCell\(books, bookId, savedCodeOf\(row\)\);/);
+  assert.match(w, /const cell = accountCell\(books, bookId, savedCode\);/); // WORK-01d (2026-10-25): one helper call under both tables' ACCOUNT (accountWordsOf takes the book and the saved code)
   assert.equal((w.match(/accountCell\(/g) ?? []).length, 1);
   assert.match(w, /if \(cell\.state === 'blank'\) return null;\n\s*if \(cell\.state !== 'account'\) return cell\.text;/, 'the helper\'s states, as it states them');
   for (const f of TABLE_FILES.filter((x) => !PARTS.includes(x))) {
@@ -290,15 +290,19 @@ test('T1 ONE "show archived": the section\'s toggle reaches every project\'s tas
   }
 });
 
-test('T1 details: ProjectRow without a task section, a full-width row under the project; its callback re-reads the tasks', () => {
+// WORK-01d (Alex, 2026-10-25, ruling B): the details keep their task list again — THE WORK reads only the OPEN projects' tasks, so a task of an
+// archived, completed, dropped or cancelled project has its home in PROJECTS → show archived → the row's details. `withoutTaskSection` left the
+// mount (the prop stays on ProjectRow, pinned below, unused here).
+test('T1 details: ProjectRow with its task section, a full-width row under the project; its callback re-reads the tasks', () => {
   const rows = code(ROWS);
   const details = rows.slice(rows.indexOf('{detailsOpen && ('));
   inOrder(details, [
     '<tr data-project-details>', '<td colSpan={PROJECTS_TABLE_COLUMNS}', '<ProjectRow', 'project={project}', 'entities={entities}',
     'allProjects={allProjects}', 'onUpdate={onProjectsChanged}', 'onDelete={onProjectsChanged}', 'isJumpTarget={isJumpTarget}',
-    'onClearTarget={onClearTarget}', 'onJumpTo={onJumpTo}', 'defaultExpanded', 'withoutTaskSection',
+    'onClearTarget={onClearTarget}', 'onJumpTo={onJumpTo}', 'defaultExpanded',
     'onTasksChanged={bump}', // WORK-01b (2026-10-24): bumps the page's signal
   ], 'the details row');
+  assert.doesNotMatch(details, /withoutTaskSection/, 'WORK-01d: the details list the project\'s tasks');
   // A dependency jump opens the target's details; ProjectRow scrolls to itself.
   assert.match(rows, /useEffect\(\(\) => \{\n\s*if \(isJumpTarget\) setDetailsOpen\(true\);\n\s*\}, \[isJumpTarget\]\);/);
   assert.match(code(TABLE), /isJumpTarget=\{targetProjectId === p\.id\}/);

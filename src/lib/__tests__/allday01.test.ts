@@ -40,7 +40,7 @@ import { evaluateWindow } from '../../inngest/functions/routine-evaluator';
 import { allDayEntryWords, allDayStayWords, isCharge, leftAlone, listRows, moveWords, planMove, type MoveRoutine } from '../operations/routineMove';
 import { DEFAULT_ROUTINE_FORM, type Routine, type RoutineForm, type TodayRoutineEntry } from '@/components/workbench/operations/routines/types';
 import { dayStops, type DayCardInput } from '@/components/workbench/operations/day/dayCard';
-import { ALL_DAY_WORDS, workRowsOf, workTable } from '../operations/work'; // WORK-01 (2026-10-24): RoutineList left — THE WORK's rules
+import { ALL_DAY_WORDS, routineRowsOf, routineTable } from '../operations/work'; // WORK-01 (2026-10-24): RoutineList left — THE WORK's rules; WORK-01d (2026-10-25): the routine spec's own builder
 
 const HELPERS = 'src/lib/operations/rruleHelpers.ts';
 const RULES = 'src/lib/operations/stopRole.ts';
@@ -51,6 +51,7 @@ const CREATE_FORM = 'src/components/workbench/operations/routines/RoutineCreateF
 // WORK-01 (Alex, 2026-10-24): RoutineRow left — its edit form is RoutineEditForm (lifted, moved code); ROW names it.
 const ROW = 'src/components/workbench/operations/routines/RoutineEditForm.tsx';
 const SECTION_E = 'src/components/workbench/operations/SectionE_Work.tsx';
+const SECTION_F = 'src/components/workbench/operations/SectionF_RoutineExpenses.tsx'; // WORK-01d (2026-10-25): the routines' table
 const WORK_LIB = 'src/lib/operations/work.ts';
 const PLAN = 'src/lib/operations/routineMove.ts';
 const CONTROL = 'src/components/workbench/operations/stops/MoveControl.tsx';
@@ -197,12 +198,13 @@ test('T5 the list: WORK-01 (Alex, 2026-10-24) — one table, every book: BOOK na
     entity_id: 'p', schedule_rrule: 'FREQ=DAILY;BYHOUR=7;BYMINUTE=0;BYSECOND=0', timezone: LA, start_time: '1970-01-01T07:00:00.000Z', end_time: '1970-01-01T07:30:00.000Z',
     is_active: true, role: 'place', steps: [], start_date: null, end_date: null, budget_amount: null, coa_code: null, ...o,
   } as Routine);
-  const rows = workRowsOf([
+  // WORK-01d (Alex, 2026-10-25): the routines are ROUTINE EXPENSES' rows (routineRowsOf over routineTable) — the merged builder left with the KIND column.
+  const rows = routineRowsOf([
     r({ id: 'apple', name: 'Apple storage', role: 'all_day', schedule_rrule: APPLE_RULE, start_time: null, end_time: null, budget_amount: '2.99' }),
     r({ id: 'dinner', name: 'Dinner', entity_id: 'b' }),
     r({ id: 'stray', name: 'Stray', entity_id: 'nobody' }),
-  ], [], now);
-  const columns = workTable(books, {});
+  ], now);
+  const columns = routineTable(books, {});
   const words = (id: string, key: string) => columns.find((c) => c.key === key)!.words(rows.find((x) => x.id === `routine:${id}`)!);
   // The charge's TIME is the role's own fact — all day, never a clock drawn from its derived 00:00; a timed routine shows its window.
   assert.equal(words('apple', 'time'), ALL_DAY_WORDS);
@@ -212,11 +214,13 @@ test('T5 the list: WORK-01 (Alex, 2026-10-24) — one table, every book: BOOK na
   assert.deepEqual([words('apple', 'book'), words('dinner', 'book'), words('stray', 'book')], ['Personal', 'Business', 'book not loaded']);
   assert.deepEqual(rows.map((x) => x.id), ['routine:apple', 'routine:dinner', 'routine:stray'], 'clock order then name — the charge\'s derived 00:00 first, the books mixed');
   // The section: no per-book tables, no band, no second classifier; "+ routine" once.
-  const e = code(SECTION_E);
+  // WORK-01d (Alex, 2026-10-25): the routines' section is SectionF_RoutineExpenses — the pins moved there; THE WORK (SectionE_Work) holds no "+ routine".
+  const e = code(SECTION_F);
   assert.doesNotMatch(e, /data-all-day-band|data-routines-book|booksInOrder|allDayHeadingWords|NO_ROUTINES_WORDS|role === 'all_day'/);
   assert.equal((e.match(/ADD_ROUTINE_WORDS\}/g) ?? []).length, 1, 'the button once');
+  assert.doesNotMatch(code(SECTION_E), /ADD_ROUTINE_WORDS|role === 'all_day'/);
   const w = code(WORK_LIB);
-  assert.match(w, /return words === DAYS_NONE_WORDS \? ALL_DAY_WORDS : words;/, 'THE WORK asks the rule (timeWords), then says all day');
+  assert.match(w, /return words === DAYS_NONE_WORDS \? ALL_DAY_WORDS : words;/, 'ROUTINE EXPENSES asks the rule (timeWords), then says all day');
   assert.doesNotMatch(w, /role === 'all_day'/);
   assert.match(comments(WORK_LIB), /ALLDAY-01/);
 });

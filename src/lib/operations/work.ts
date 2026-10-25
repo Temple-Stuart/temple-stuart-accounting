@@ -1,59 +1,84 @@
 /**
- * WORK-01 (Alex, 2026-10-24) — TASKS IS ONE TABLE: THE WORK, PURE.
+ * WORK-01d (Alex, 2026-10-25) — TASKS IS THREE TABLES: THE WORK AND ROUTINE EXPENSES, PURE.
  *
- * /tasks is THE WORK first, then PROJECTS. THE WORK is one DataTable (IDIOM-01:
- * src/lib/table, components/table/DataTable.tsx; name 'work'): one row per
- * routine LINE (a routine with no lines is one row) and one row per task, every
- * book, in the shared idiom — filters, sort, CSV. Its columns (ruling A):
+ * /tasks mounts, in order: THE WORK · PROJECTS · ROUTINE EXPENSES — three sections,
+ * three DataTables (IDIOM-01: src/lib/table, components/table/DataTable.tsx).
+ * Routines and tasks are never one table: different inputs, different tables.
+ * This module holds the two pure specs and their row builders; PROJECTS has its
+ * own (projects/projectsTableText.ts).
  *
- *   KIND · NAME · PROJECT · BOOK · CADENCE · DAYS · TIME · DEADLINE · AMOUNT · ACCOUNT · STATUS · controls
+ * THE WORK (ruling B) — table 'work': one row per TASK of an OPEN project. A
+ * project is open when its status is in OPEN_PROJECT_STATUSES — the ONE set in
+ * src/lib/operations/morningLog.ts that THE LOG, the reorder route and the
+ * reflection prompt read (isOpenProjectStatus); a task of an archived, completed,
+ * dropped or cancelled project is NOT a row here even when passed — its home is
+ * PROJECTS → show archived → the row's details.
  *
- *   · KIND     once | repeated — a task is once; a routine is once when its rule
- *              is Once (rruleHelpers isOnceRRule: FREQ=DAILY;COUNT=1), else repeated.
- *   · NAME     the task's title; a stepless routine's name; a line row's
- *              "<routine> — <line>" (WORK-01b, Alex, 2026-10-24, ruling 2 — one
- *              string, so the filter, the sort and the CSV all read it whole).
- *   · PROJECT  the task's project title; a routine has none.
- *   · BOOK     the row's book by name (the tab's entity list); a book the tab has
- *              not listed is "book not loaded" (ROUTINES-01's words), never dropped.
- *   · CADENCE  the rule's word as FORM-01 prints it (rruleHelpers cadenceWords).
- *   · DAYS     the days the rule falls on (daysWords); a rule no choice reproduces
- *              has none.
- *   · TIME     the window (timeWords, "HH:MM – HH:MM"); "all day" where the rule
- *              names no clock or the routine is all day (ALLDAY-01); a task has none.
- *   · DEADLINE the task's deadline, drawn as the projects table drew it; sorted and
- *              written as the ISO day; a routine has none.
- *   · AMOUNT   the line's amount, a stepless routine's own, a task's estimated cost
- *              — a routine's figure through the LINES-01 leaf (routinePlanned), never
- *              the column read bare. Blank is blank, never 0.
- *   · ACCOUNT  the saved code drawn through ROUTINES-01's helper (accountCell: the
- *              book's letter and the four digits) with the chart's name beside it —
- *              "P-6150 Food & drink"; the helper's other states print their words.
- *              WORK-01b (Alex, 2026-10-24, ruling 4): the chart read stays — the code
- *              alone is ambiguous across books; this is the ledger's idiom.
- *   · STATUS   a routine's active | ended | inactive — ended first (ROUTINE-02a's
- *              endedBy, judged now in the routine's own zone), then is_active — or
- *              a task's status words (TASK_STATUS_LABELS, via taskStatusWords).
- *              ROUTINE-02a (Alex, 2026-10-18) — THE ARCHIVE lives here now: an ended
- *              routine is a row with STATUS ended, dropped by the default STATUS filter
- *              and shown again when its chip is cleared — never deleted, never
- *              deactivated, read-only but for edit (RoutineEditForm).
+ *   TASK · PROJECT · BOOK · STATUS · DEADLINE · ESTIMATE · ACCOUNT · DONE · controls
  *
- * A cell with nothing is "—" (BLANK) on screen and '' in the CSV. Kinds: AMOUNT
- * money; KIND, BOOK, CADENCE, DAYS, TIME, DEADLINE, STATUS value; NAME, PROJECT,
- * ACCOUNT text.
+ *   · TASK      the task's title.
+ *   · PROJECT   the project's title.
+ *   · BOOK      the task's book by name (the tab's entity list); a book the tab has
+ *               not listed is "book not loaded" (ROUTINES-01's words), never dropped.
+ *   · STATUS    the task's status words (TASK_STATUS_LABELS via taskStatusWords:
+ *               new · in process · blocked · done · cancelled · archived · pending
+ *               review).
+ *   · DEADLINE  the task's deadline, drawn as the projects table drew it; sorted
+ *               and written as the ISO day.
+ *   · ESTIMATE  the task's estimated cost (money). Blank is blank, never 0.
+ *   · ACCOUNT   the saved code through ROUTINES-01's helper (accountCell: the book's
+ *               letter and the four digits) with the chart's name beside it —
+ *               "P-6150 Food & drink" (WORK-01b ruling 4); the helper's other states
+ *               print their words.
+ *   · DONE      completed_at as a date, "—" while open; sorted and written as the
+ *               ISO day.
  *
- * THE DEFAULT (ruling B): the rows shown at first are the active routines and the
- * non-archived tasks — as a VISIBLE STATUS filter already applied, the chip
- * reading "STATUS: not ended, not inactive, not archived" (WORK-01b, Alex,
- * 2026-10-24: inactive joined the default), which the user clears to see
- * everything. Never a hidden default: the reads bring every routine and every
- * task (archived included); the filter alone narrows.
+ *   THE DEFAULT: a VISIBLE STATUS chip "STATUS: open only" dropping done, cancelled
+ *   and archived tasks; clearing it shows them. The reads bring every task of every
+ *   open project (archived included); the filter alone narrows. CSV work_<day>.csv.
+ *   The rows come project by project as the projects read returns them, each
+ *   project's tasks in display order.
  *
- * THE TABLE'S OWN ORDER: the routines in clock order then name (FORM-01's
- * byClockThenName), each routine's lines in step order under it; then the tasks,
- * project by project as the projects read returns them, each project's tasks in
- * display order. Pure: no React, no fetch, no clock — `now` is handed in.
+ * ROUTINE EXPENSES (ruling C) — table 'routine-expenses': one row per routine LINE
+ * (a stepless routine one row), every book, in clock order then name (FORM-01's
+ * byClockThenName), a routine's lines in step order under it:
+ *
+ *   ROUTINE · BOOK · CADENCE · DAYS · TIME · AMOUNT · ACCOUNT · STATUS · controls
+ *
+ *   · ROUTINE   "<routine> — <step>" for a line row (WORK-01b ruling 2 — one
+ *               string, so the filter, the sort and the CSV read it whole); the
+ *               bare name for a stepless routine.
+ *   · CADENCE   the rule's word as FORM-01 prints it (rruleHelpers cadenceWords);
+ *               a Once routine reads "once".
+ *   · DAYS      the days the rule falls on (daysWords); a rule no choice reproduces
+ *               has none.
+ *   · TIME      the window (timeWords, "HH:MM – HH:MM"); "all day" where the rule
+ *               names no clock or the routine is all day (ALLDAY-01).
+ *   · AMOUNT    the line's amount, a stepless routine's own — through the LINES-01
+ *               leaf (routinePlanned), never the column read bare. Blank, never 0.
+ *   · ACCOUNT   as above.
+ *   · STATUS    active | ended | inactive — ended first (ROUTINE-02a's endedBy,
+ *               judged now in the routine's own zone), then is_active.
+ *               ROUTINE-02a (Alex, 2026-10-18) — THE ARCHIVE lives here: an ended
+ *               routine is a row with STATUS ended, dropped by the default STATUS
+ *               filter and shown again when its chip is cleared — never deleted,
+ *               never deactivated, read-only but for edit (RoutineEditForm).
+ *
+ *   THE DEFAULT: a VISIBLE STATUS chip "STATUS: active only" dropping ended and
+ *   inactive; clearing it shows them. CSV routine-expenses_<day>.csv.
+ *
+ * A cell with nothing is "—" (BLANK) on screen and '' in the CSV. Pure: no React,
+ * no fetch, no clock — `now` is handed in.
+ *
+ * HISTORY. WORK-01 (Alex, 2026-10-24) made Tasks ONE table — every routine line
+ * and every task in one DataTable with a KIND column (once | repeated) telling
+ * them apart, one default chip ("STATUS: not ended, not inactive, not archived",
+ * WORK-01b ruling 1) and one builder (workRowsOf). WORK-01d replaced the KIND
+ * column with the two tables themselves, the one builder with taskRowsOf and
+ * routineRowsOf, the one chip with each table's own ("open only" / "active
+ * only"), and the merged projects?include_archived=true read with the open
+ * projects alone. The cells' rules (NAME's join, TIME's "all day", AMOUNT through
+ * the leaf, ACCOUNT through the helper and the chart) are unchanged.
  */
 import type { TableColumn } from '@/lib/table/columns';
 import { csvMoney } from '@/lib/table/csv';
@@ -62,9 +87,10 @@ import { numberKey, textKey } from '@/lib/table/sort';
 import { BLANK } from '@/lib/table/words';
 import { ACCOUNT_CELL_WORDS, accountCell, type AccountCellBook } from '@/lib/coa/accountCell';
 import { routinePlanned, type LinePlanned, type RoutinePlanned } from '@/lib/operations/routineLines';
-import { DAYS_NONE_WORDS, byClockThenName, cadenceWords, daysWords, endedBy, isOnceRRule, timeWords, type RoutineEnd } from '@/lib/operations/rruleHelpers';
+import { DAYS_NONE_WORDS, byClockThenName, cadenceWords, daysWords, endedBy, timeWords, type RoutineEnd } from '@/lib/operations/rruleHelpers';
+import { isOpenProjectStatus } from '@/lib/operations/morningLog';
 import type { Routine } from '@/components/workbench/operations/routines/types';
-import type { CoaAccountSummary, Project, ProjectStatus, Task } from '@/components/workbench/operations/projects/types';
+import type { CoaAccountSummary, Project, Task } from '@/components/workbench/operations/projects/types';
 import { formatDate, taskStatusWords } from '@/components/workbench/operations/projects/projectsTableText';
 
 // ── THE INPUTS ───────────────────────────────────────────────────────────────
@@ -78,81 +104,17 @@ export type WorkCharts = Readonly<Record<string, WorkChart>>;
 /** A project with its tasks as the tasks GET returns them (archived included — the filter narrows, never the read). */
 export interface WorkProject { readonly project: Project; readonly tasks: readonly Task[] }
 
-// ── THE ROWS ─────────────────────────────────────────────────────────────────
-
-/** One row of THE WORK: a routine line (or a stepless routine, `line` null) with the leaf's judgement, or a task with its project. */
-export type WorkRow =
-  | { readonly id: string; readonly of: 'routine'; readonly routine: Routine; readonly planned: RoutinePlanned; readonly line: LinePlanned | null; readonly end: RoutineEnd }
-  | { readonly id: string; readonly of: 'task'; readonly task: Task; readonly project: Project };
-
-/** The rows, in the table's own order (the header above). One row per routine line, one per stepless routine, one per task. */
-export function workRowsOf(routines: readonly Routine[], projects: readonly WorkProject[], now: Date): WorkRow[] {
-  const rows: WorkRow[] = [];
-  for (const routine of [...routines].sort(byClockThenName)) {
-    const planned = routinePlanned({ budget_amount: routine.budget_amount ?? null, coa_code: routine.coa_code ?? null, steps: routine.steps });
-    const end = endedBy(routine.end_date, routine.timezone, now);
-    if (planned.lines.length === 0) rows.push({ id: `routine:${routine.id}`, of: 'routine', routine, planned, line: null, end });
-    else for (const line of planned.lines) rows.push({ id: `routine:${routine.id}:${line.id}`, of: 'routine', routine, planned, line, end });
-  }
-  for (const { project, tasks } of projects) for (const task of tasks) rows.push({ id: `task:${task.id}`, of: 'task', task, project });
-  return rows;
-}
-
-// ── THE CELLS ────────────────────────────────────────────────────────────────
-
-export const WORK_KINDS = ['once', 'repeated'] as const;
-export type WorkKind = (typeof WORK_KINDS)[number];
-/** KIND — a task is once; a routine is once when its rule is Once, else repeated. */
-export const kindOf = (row: WorkRow): WorkKind => (row.of === 'task' || isOnceRRule(row.routine.schedule_rrule) ? 'once' : 'repeated');
-
-export const ROUTINE_STATUSES = ['active', 'ended', 'inactive'] as const;
-export type RoutineStatus = (typeof ROUTINE_STATUSES)[number];
-/** A routine's STATUS: ended first (the end has passed — ROUTINE-02a), then inactive, else active. */
-export const routineStatusOf = (routine: Pick<Routine, 'is_active'>, end: RoutineEnd): RoutineStatus => (end.ended ? 'ended' : routine.is_active ? 'active' : 'inactive');
-/** STATUS — the routine's word, or the task's status words (TASK_STATUS_LABELS; an unlabeled status is its raw value). */
-export const statusWordsOf = (row: WorkRow): string => (row.of === 'task' ? taskStatusWords(row.task.status) : routineStatusOf(row.routine, row.end));
-
-/** TIME — where the rule names no clock, or the routine is all day (ALLDAY-01: a charge on a date, not a stop). */
-export const ALL_DAY_WORDS = 'all day';
-export function timeWordsOf(row: WorkRow): string | null {
-  if (row.of === 'task') return null;
-  const words = timeWords(row.routine);
-  return words === DAYS_NONE_WORDS ? ALL_DAY_WORDS : words;
-}
-/** NAME — WORK-01b (Alex, 2026-10-24, ruling 2): a line row is "<routine> — <line>"; a stepless routine's row keeps the bare name. */
-export const LINE_NAME_JOIN = ' — ';
-export const nameOf = (row: WorkRow): string => (row.of === 'task' ? row.task.title : row.line === null ? row.routine.name : `${row.routine.name}${LINE_NAME_JOIN}${row.line.activity}`);
-export const projectOf = (row: WorkRow): string | null => (row.of === 'task' ? row.project.title : null);
-export const bookIdOf = (row: WorkRow): string => (row.of === 'task' ? row.task.entity_id : row.routine.entity_id);
-export const bookNameOf = (books: readonly WorkBook[], row: WorkRow): string => books.find((b) => b.id === bookIdOf(row))?.name ?? ACCOUNT_CELL_WORDS.bookNotLoaded;
-export const cadenceOf = (row: WorkRow): string | null => (row.of === 'task' ? null : cadenceWords(row.routine.schedule_rrule));
-/** DAYS — the rule's days; a rule no choice reproduces (Custom) names none, which is a blank cell here. */
-export function daysOf(row: WorkRow): string | null {
-  if (row.of === 'task') return null;
-  const words = daysWords(row.routine.schedule_rrule, row.routine.start_date);
-  return words === DAYS_NONE_WORDS ? null : words;
-}
-/** DEADLINE — the task's ISO day, or null. */
-export const deadlineOf = (row: WorkRow): string | null => (row.of === 'task' && row.task.deadline ? row.task.deadline.slice(0, 10) : null);
+// ── SHARED CELLS ─────────────────────────────────────────────────────────────
 
 const numberOrNull = (v: string | number | null | undefined): number | null => {
   if (v == null || v === '') return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 };
-/** AMOUNT in cents — the line's, a stepless routine's own when it is the figure in force (the leaf), a task's estimated cost; null is blank. */
-export function amountCentsOf(row: WorkRow): number | null {
-  const dollars = row.of === 'task'
-    ? numberOrNull(row.task.estimated_cost_usd)
-    : row.line !== null ? row.line.amount : row.planned.from === 'routine' ? row.planned.amount : null;
-  return dollars === null ? null : Math.round(dollars * 100);
-}
-/** "$12.00" — the AMOUNT cell on screen (the CSV writes the bare csvMoney). */
+/** "$12.00" — a money cell on screen (the CSV writes the bare csvMoney). */
 export const moneyWords = (cents: number): string => `$${csvMoney(cents)}`;
-
-/** The saved code a row carries: the line's, a stepless routine's own (as its row drew it), the task's. */
-export const savedCodeOf = (row: WorkRow): string | null =>
-  (row.of === 'task' ? row.task.coa_code ?? null : row.line !== null ? row.line.coaCode : row.routine.coa_code ?? null);
+/** A book's name from the tab's entity list; a book the tab has not listed is said (ROUTINES-01's words), never dropped. */
+export const bookNameOf = (books: readonly WorkBook[], bookId: string): string => books.find((b) => b.id === bookId)?.name ?? ACCOUNT_CELL_WORDS.bookNotLoaded;
 
 export const CHART_MISSING_WORDS = 'not in the chart';
 export const CHART_UNREAD_WORDS = 'chart not read';
@@ -165,9 +127,8 @@ export function chartNameOf(chart: WorkChart, accountText: string): string | nul
   return row === undefined ? null : row.name;
 }
 /** ACCOUNT — the helper's string and the chart's name; the helper's other states print their words; blank is null. */
-export function accountWordsOf(books: readonly WorkBook[], charts: WorkCharts, row: WorkRow): string | null {
-  const bookId = bookIdOf(row);
-  const cell = accountCell(books, bookId, savedCodeOf(row));
+export function accountWordsOf(books: readonly WorkBook[], charts: WorkCharts, bookId: string, savedCode: string | null): string | null {
+  const cell = accountCell(books, bookId, savedCode);
   if (cell.state === 'blank') return null;
   if (cell.state !== 'account') return cell.text;
   const chart = charts[bookId];
@@ -176,93 +137,187 @@ export function accountWordsOf(books: readonly WorkBook[], charts: WorkCharts, r
   return name === null ? `${cell.text} — ${CHART_MISSING_WORDS}` : `${cell.text} ${name}`;
 }
 
-// ── THE COLUMNS ──────────────────────────────────────────────────────────────
-
-export const WORK_COLUMNS = ['kind', 'name', 'project', 'book', 'cadence', 'days', 'time', 'deadline', 'amount', 'account', 'status'] as const;
-export type WorkColumn = (typeof WORK_COLUMNS)[number];
-export const WORK_HEAD_WORDS: Readonly<Record<WorkColumn, string>> = {
-  kind: 'KIND', name: 'NAME', project: 'PROJECT', book: 'BOOK', cadence: 'CADENCE', days: 'DAYS', time: 'TIME', deadline: 'DEADLINE', amount: 'AMOUNT', account: 'ACCOUNT', status: 'STATUS',
-};
-export const WORK_TABLE_NAME = 'work';
-
-/** A VALUE column over one reader: "—" on screen for null; `key` (when given) is what it sorts by and writes — DEADLINE's ISO day under its drawn date. */
-const valueColumn = (column: WorkColumn, words: (row: WorkRow) => string | null, key: (row: WorkRow) => string | null = words): TableColumn<WorkRow, WorkColumn> => ({
-  key: column, label: WORK_HEAD_WORDS[column], kind: 'value',
-  words: (r) => words(r) ?? BLANK,
-  sortKey: (r) => textKey(key(r)),
-  csv: (r) => key(r) ?? '',
-});
+/** A VALUE column over one reader: "—" on screen for null; `key` (when given) is what it sorts by and writes — an ISO day under its drawn date. */
+function valueColumn<Row, Key extends string>(column: Key, label: string, words: (row: Row) => string | null, key: (row: Row) => string | null = words): TableColumn<Row, Key> {
+  return { key: column, label, kind: 'value', words: (r) => words(r) ?? BLANK, sortKey: (r) => textKey(key(r)), csv: (r) => key(r) ?? '' };
+}
 /** A TEXT column over one reader: the filter and the sort read the full text. */
-const textColumn = (column: WorkColumn, text: (row: WorkRow) => string | null): TableColumn<WorkRow, WorkColumn> => ({
-  key: column, label: WORK_HEAD_WORDS[column], kind: 'text',
-  words: (r) => text(r) ?? BLANK,
-  sortKey: (r) => textKey(text(r)),
-  csv: (r) => text(r) ?? '',
-  text,
-});
-const AMOUNT_COLUMN: TableColumn<WorkRow, WorkColumn> = {
-  key: 'amount', label: WORK_HEAD_WORDS.amount, kind: 'money',
-  cents: amountCentsOf,
-  words: (r) => { const c = amountCentsOf(r); return c === null ? BLANK : moneyWords(c); },
-  sortKey: (r) => numberKey(amountCentsOf(r)),
-  csv: (r) => csvMoney(amountCentsOf(r)),
-};
+function textColumn<Row, Key extends string>(column: Key, label: string, text: (row: Row) => string | null): TableColumn<Row, Key> {
+  return { key: column, label, kind: 'text', words: (r) => text(r) ?? BLANK, sortKey: (r) => textKey(text(r)), csv: (r) => text(r) ?? '', text };
+}
+/** A MONEY column over one reader of cents: "$12.00" on screen, bare in the CSV, blanks sorted last. */
+function moneyColumn<Row, Key extends string>(column: Key, label: string, cents: (row: Row) => number | null): TableColumn<Row, Key> {
+  return { key: column, label, kind: 'money', cents, words: (r) => { const c = cents(r); return c === null ? BLANK : moneyWords(c); }, sortKey: (r) => numberKey(cents(r)), csv: (r) => csvMoney(cents(r)) };
+}
 
-/** The spec, over the tab's books and their charts (BOOK and ACCOUNT read them). */
-export function workTable(books: readonly WorkBook[], charts: WorkCharts): readonly TableColumn<WorkRow, WorkColumn>[] {
+// ── THE DEFAULT CHIP (shared rule) ───────────────────────────────────────────
+
+/** A table's named default: the STATUS values it drops at first, and the chip's words while exactly those are dropped. */
+export interface NamedDefault { readonly dropped: readonly string[]; readonly words: string }
+/** Every filter off but STATUS, which drops the default: the state at first, and what a re-read keeps. */
+export const defaultFiltersOf = <Row, Key extends string>(columns: readonly TableColumn<Row, Key>[], statusKey: Key, named: NamedDefault): TableFilters =>
+  withFilter(noFilters(columns), statusKey, { dropped: [...named.dropped] });
+/** The STATUS values a filter drops now. */
+export const statusDroppedOf = (filters: TableFilters, statusKey = 'status'): readonly string[] => valueFilterOf(filters, statusKey).dropped;
+const sameSet = (a: readonly string[], b: readonly string[]): boolean => a.length === b.length && [...a].sort().every((v, i) => v === [...b].sort()[i]);
+/** The chip's words while STATUS narrows: the named default's own words while exactly its values are dropped; otherwise the values spelled out ("STATUS: not done, not archived"). */
+export const statusChipWords = (dropped: readonly string[], named: NamedDefault): string =>
+  (sameSet(dropped, named.dropped) ? named.words : `STATUS: ${dropped.map((d) => `not ${d}`).join(', ')}`);
+/** The filters with STATUS cleared — the chip's click: everything shows. */
+export const withoutStatusFilter = (filters: TableFilters, statusKey = 'status'): TableFilters => withFilter(filters, statusKey, NO_VALUE_FILTER);
+export const EDIT_WORDS = 'edit';
+export const CLEAR_CHIP_MARK = '✕';
+/** "12 of 40 rows" — under a table: the rows shown over the rows loaded. */
+export const rowCountWords = (shown: number, loaded: number): string => `${shown} of ${loaded} rows`;
+
+// ═════════════════════════════════════════════════════════════════════════════
+// THE WORK — one row per task of an open project (ruling B)
+// ═════════════════════════════════════════════════════════════════════════════
+
+/** One row of THE WORK: a task with its (open) project. */
+export interface TaskRow { readonly id: string; readonly task: Task; readonly project: Project }
+
+/** The projects a task may belong to, and the only ones THE WORK reads: morningLog.ts OPEN_PROJECT_STATUSES, the one set. */
+export const openProjects = (projects: readonly Project[]): Project[] => projects.filter((p) => isOpenProjectStatus(p.status));
+
+/** The rows: every task of every OPEN project, project by project as given, each project's tasks in the order given; a task of a project that is not open is no row, however it arrived. */
+export function taskRowsOf(projects: readonly WorkProject[]): TaskRow[] {
+  const rows: TaskRow[] = [];
+  for (const { project, tasks } of projects) {
+    if (!isOpenProjectStatus(project.status)) continue;
+    for (const task of tasks) rows.push({ id: `task:${task.id}`, task, project });
+  }
+  return rows;
+}
+
+export const TASK_COLUMNS = ['task', 'project', 'book', 'status', 'deadline', 'estimate', 'account', 'done'] as const;
+export type TaskColumn = (typeof TASK_COLUMNS)[number];
+export const TASK_HEAD_WORDS: Readonly<Record<TaskColumn, string>> = {
+  task: 'TASK', project: 'PROJECT', book: 'BOOK', status: 'STATUS', deadline: 'DEADLINE', estimate: 'ESTIMATE', account: 'ACCOUNT', done: 'DONE',
+};
+export const TASK_TABLE_NAME = 'work';
+
+/** STATUS — the task's status words (TASK_STATUS_LABELS; an unlabeled status is its raw value). */
+export const taskStatusOf = (row: TaskRow): string => taskStatusWords(row.task.status);
+/** DEADLINE — the task's ISO day, or null. */
+export const taskDeadlineOf = (row: TaskRow): string | null => (row.task.deadline ? row.task.deadline.slice(0, 10) : null);
+/** DONE — the day the task was completed (completed_at's ISO day), or null while it is not. */
+export const taskDoneOf = (row: TaskRow): string | null => (row.task.completed_at ? row.task.completed_at.slice(0, 10) : null);
+/** ESTIMATE in cents — the task's estimated cost; null is blank. */
+export function taskEstimateCentsOf(row: TaskRow): number | null {
+  const dollars = numberOrNull(row.task.estimated_cost_usd);
+  return dollars === null ? null : Math.round(dollars * 100);
+}
+
+/** THE WORK's spec, over the tab's books and their charts (BOOK and ACCOUNT read them). */
+export function taskTable(books: readonly WorkBook[], charts: WorkCharts): readonly TableColumn<TaskRow, TaskColumn>[] {
+  const head = TASK_HEAD_WORDS;
   return [
-    valueColumn('kind', kindOf),
-    textColumn('name', nameOf),
-    textColumn('project', projectOf),
-    valueColumn('book', (r) => bookNameOf(books, r)),
-    valueColumn('cadence', cadenceOf),
-    valueColumn('days', daysOf),
-    valueColumn('time', timeWordsOf),
-    valueColumn('deadline', (r) => { const d = deadlineOf(r); return d === null ? null : formatDate(d); }, deadlineOf),
-    AMOUNT_COLUMN,
-    textColumn('account', (r) => accountWordsOf(books, charts, r)),
-    valueColumn('status', statusWordsOf),
+    textColumn<TaskRow, TaskColumn>('task', head.task, (r) => r.task.title),
+    textColumn<TaskRow, TaskColumn>('project', head.project, (r) => r.project.title),
+    valueColumn<TaskRow, TaskColumn>('book', head.book, (r) => bookNameOf(books, r.task.entity_id)),
+    valueColumn<TaskRow, TaskColumn>('status', head.status, taskStatusOf),
+    valueColumn<TaskRow, TaskColumn>('deadline', head.deadline, (r) => { const d = taskDeadlineOf(r); return d === null ? null : formatDate(d); }, taskDeadlineOf),
+    moneyColumn<TaskRow, TaskColumn>('estimate', head.estimate, taskEstimateCentsOf),
+    textColumn<TaskRow, TaskColumn>('account', head.account, (r) => accountWordsOf(books, charts, r.task.entity_id, r.task.coa_code ?? null)),
+    valueColumn<TaskRow, TaskColumn>('done', head.done, (r) => { const d = taskDoneOf(r); return d === null ? null : formatDate(d); }, taskDoneOf),
   ];
 }
 
-// ── THE DEFAULT (ruling B) ───────────────────────────────────────────────────
-
-/**
- * The STATUS values dropped at first — the ended and the inactive routines and the archived tasks; the rest shows.
- * WORK-01b (Alex, 2026-10-24, ruling 1): inactive joined ended and archived — the chip reads "STATUS: not ended, not inactive, not archived".
- */
-export const WORK_DEFAULT_DROPPED: readonly string[] = ['ended', 'inactive', 'archived'];
-/** Every filter off but STATUS, which drops the default: the state at first, and what a re-read keeps. */
-export const workDefaultFilters = (columns: readonly TableColumn<WorkRow, WorkColumn>[]): TableFilters =>
-  withFilter(noFilters(columns), 'status', { dropped: [...WORK_DEFAULT_DROPPED] });
-/** The STATUS values a filter drops now. */
-export const statusDroppedOf = (filters: TableFilters): readonly string[] => valueFilterOf(filters, 'status').dropped;
-/** The chip's words while STATUS narrows: "STATUS: not ended, not inactive, not archived" at first. */
-export const statusChipWords = (dropped: readonly string[]): string => `STATUS: ${dropped.map((d) => `not ${d}`).join(', ')}`;
-/** The filters with STATUS cleared — the chip's click: everything shows. */
-export const withoutStatusFilter = (filters: TableFilters): TableFilters => withFilter(filters, 'status', NO_VALUE_FILTER);
-
-// ── THE DOORS ────────────────────────────────────────────────────────────────
-
-/** A project a new task may belong to: not completed, cancelled, dropped or archived. */
-export const OPEN_PROJECT_STATUSES: readonly ProjectStatus[] = ['not_started', 'in_progress', 'blocked', 'backlog', 'scoped', 'scheduled'];
-export const openProjects = (projects: readonly Project[]): Project[] => projects.filter((p) => OPEN_PROJECT_STATUSES.includes(p.status));
-
-// ── WORDS ────────────────────────────────────────────────────────────────────
+/** THE WORK's default: the done, cancelled and archived tasks dropped — the chip reads "STATUS: open only" (ruling B). */
+export const TASK_DEFAULT: NamedDefault = { dropped: ['done', 'cancelled', 'archived'], words: 'STATUS: open only' };
+export const taskDefaultFilters = (columns: readonly TableColumn<TaskRow, TaskColumn>[]): TableFilters => defaultFiltersOf(columns, 'status', TASK_DEFAULT);
 
 export const WORK_TITLE_WORDS = 'The work';
 export const WORK_LOADING_WORDS = 'reading the work…';
 export const workFailedWords = (words: string): string => `The work could not be read — ${words}`;
-export const NO_WORK_WORDS = 'no routine and no task yet — "+ routine" plans the first routine, "+ task" the first task';
-export const ADD_ROUTINE_WORDS = '+ routine';
+export const NO_WORK_WORDS = 'no task yet in an open project — "+ task" plans the first';
 export const ADD_TASK_WORDS = '+ task';
-export const EDIT_WORDS = 'edit';
-export const CLEAR_CHIP_MARK = '✕';
 export const PROJECT_FIELD_WORDS = 'project';
 export const PICK_PROJECT_WORDS = '— pick the project —';
 export const PROJECT_REQUIRED_WORDS = 'pick the project — a task belongs to one';
 export const NO_OPEN_PROJECT_WORDS = 'no open project — capture one under PROJECTS first';
-/** "12 of 40 rows" — under the table: the rows shown over the rows loaded. */
-export const workCountWords = (shown: number, loaded: number): string => `${shown} of ${loaded} rows`;
-/** "work_2026-10-24.csv" — the day the CSV was downloaded (the viewer's local day). */
+/** "work_2026-10-25.csv" — the day the CSV was downloaded (the viewer's local day). */
 export const workCsvFileName = (day: string): string => `work_${day}.csv`;
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ROUTINE EXPENSES — one row per routine line (ruling C)
+// ═════════════════════════════════════════════════════════════════════════════
+
+/** One row of ROUTINE EXPENSES: a routine line (or a stepless routine, `line` null) with the leaf's judgement and the end's. */
+export interface RoutineRow { readonly id: string; readonly routine: Routine; readonly planned: RoutinePlanned; readonly line: LinePlanned | null; readonly end: RoutineEnd }
+
+/** The rows, in clock order then name (FORM-01's byClockThenName), each routine's lines in step order under it; ended is judged now, in the routine's own zone (ROUTINE-02a). */
+export function routineRowsOf(routines: readonly Routine[], now: Date): RoutineRow[] {
+  const rows: RoutineRow[] = [];
+  for (const routine of [...routines].sort(byClockThenName)) {
+    const planned = routinePlanned({ budget_amount: routine.budget_amount ?? null, coa_code: routine.coa_code ?? null, steps: routine.steps });
+    const end = endedBy(routine.end_date, routine.timezone, now);
+    if (planned.lines.length === 0) rows.push({ id: `routine:${routine.id}`, routine, planned, line: null, end });
+    else for (const line of planned.lines) rows.push({ id: `routine:${routine.id}:${line.id}`, routine, planned, line, end });
+  }
+  return rows;
+}
+
+export const ROUTINE_STATUSES = ['active', 'ended', 'inactive'] as const;
+export type RoutineStatus = (typeof ROUTINE_STATUSES)[number];
+/** A routine's STATUS: ended first (the end has passed — ROUTINE-02a), then inactive, else active. */
+export const routineStatusOf = (routine: Pick<Routine, 'is_active'>, end: RoutineEnd): RoutineStatus => (end.ended ? 'ended' : routine.is_active ? 'active' : 'inactive');
+
+/** TIME — where the rule names no clock, or the routine is all day (ALLDAY-01: a charge on a date, not a stop). */
+export const ALL_DAY_WORDS = 'all day';
+export function routineTimeOf(row: RoutineRow): string {
+  const words = timeWords(row.routine);
+  return words === DAYS_NONE_WORDS ? ALL_DAY_WORDS : words;
+}
+/** ROUTINE — WORK-01b (Alex, 2026-10-24, ruling 2): a line row is "<routine> — <line>"; a stepless routine's row keeps the bare name. */
+export const LINE_NAME_JOIN = ' — ';
+export const routineNameOf = (row: RoutineRow): string => (row.line === null ? row.routine.name : `${row.routine.name}${LINE_NAME_JOIN}${row.line.activity}`);
+/** CADENCE — the rule's word as FORM-01 prints it; a Once routine reads "once". */
+export const routineCadenceOf = (row: RoutineRow): string => cadenceWords(row.routine.schedule_rrule);
+/** DAYS — the rule's days; a rule no choice reproduces (Custom) names none, which is a blank cell here. */
+export function routineDaysOf(row: RoutineRow): string | null {
+  const words = daysWords(row.routine.schedule_rrule, row.routine.start_date);
+  return words === DAYS_NONE_WORDS ? null : words;
+}
+/** AMOUNT in cents — the line's, a stepless routine's own when it is the figure in force (the leaf); null is blank. */
+export function routineAmountCentsOf(row: RoutineRow): number | null {
+  const dollars = row.line !== null ? row.line.amount : row.planned.from === 'routine' ? row.planned.amount : null;
+  return dollars === null ? null : Math.round(dollars * 100);
+}
+/** The saved code a row carries: the line's, or a stepless routine's own. */
+export const routineSavedCodeOf = (row: RoutineRow): string | null => (row.line !== null ? row.line.coaCode : row.routine.coa_code ?? null);
+
+export const ROUTINE_COLUMNS = ['routine', 'book', 'cadence', 'days', 'time', 'amount', 'account', 'status'] as const;
+export type RoutineColumn = (typeof ROUTINE_COLUMNS)[number];
+export const ROUTINE_HEAD_WORDS: Readonly<Record<RoutineColumn, string>> = {
+  routine: 'ROUTINE', book: 'BOOK', cadence: 'CADENCE', days: 'DAYS', time: 'TIME', amount: 'AMOUNT', account: 'ACCOUNT', status: 'STATUS',
+};
+export const ROUTINE_TABLE_NAME = 'routine-expenses';
+
+/** ROUTINE EXPENSES' spec, over the tab's books and their charts. */
+export function routineTable(books: readonly WorkBook[], charts: WorkCharts): readonly TableColumn<RoutineRow, RoutineColumn>[] {
+  const head = ROUTINE_HEAD_WORDS;
+  return [
+    textColumn<RoutineRow, RoutineColumn>('routine', head.routine, routineNameOf),
+    valueColumn<RoutineRow, RoutineColumn>('book', head.book, (r) => bookNameOf(books, r.routine.entity_id)),
+    valueColumn<RoutineRow, RoutineColumn>('cadence', head.cadence, routineCadenceOf),
+    valueColumn<RoutineRow, RoutineColumn>('days', head.days, routineDaysOf),
+    valueColumn<RoutineRow, RoutineColumn>('time', head.time, routineTimeOf),
+    moneyColumn<RoutineRow, RoutineColumn>('amount', head.amount, routineAmountCentsOf),
+    textColumn<RoutineRow, RoutineColumn>('account', head.account, (r) => accountWordsOf(books, charts, r.routine.entity_id, routineSavedCodeOf(r))),
+    valueColumn<RoutineRow, RoutineColumn>('status', head.status, (r) => routineStatusOf(r.routine, r.end)),
+  ];
+}
+
+/** ROUTINE EXPENSES' default: the ended and the inactive routines dropped — the chip reads "STATUS: active only" (ruling C). */
+export const ROUTINE_DEFAULT: NamedDefault = { dropped: ['ended', 'inactive'], words: 'STATUS: active only' };
+export const routineDefaultFilters = (columns: readonly TableColumn<RoutineRow, RoutineColumn>[]): TableFilters => defaultFiltersOf(columns, 'status', ROUTINE_DEFAULT);
+
+export const ROUTINE_EXPENSES_TITLE_WORDS = 'Routine expenses';
+export const ROUTINE_EXPENSES_LOADING_WORDS = 'reading the routines…';
+export const routineExpensesFailedWords = (words: string): string => `Routine expenses could not be read — ${words}`;
+export const NO_ROUTINE_EXPENSES_WORDS = 'no routine yet — "+ routine" plans the first (Days = Once for a one-off)';
+export const ADD_ROUTINE_WORDS = '+ routine';
+/** "routine-expenses_2026-10-25.csv" — the day the CSV was downloaded (the viewer's local day). */
+export const routineExpensesCsvFileName = (day: string): string => `routine-expenses_${day}.csv`;

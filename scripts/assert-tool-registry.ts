@@ -3476,15 +3476,18 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
   // order — the projects list, the routines list — and nothing else; the two that went may not come back unnoticed.
   // WORK-01 — the ruling (Alex, 2026-10-24): Tasks is ONE TABLE. THE WORK first (SectionE_Work — every routine line and
   // every task in the shared idiom), then PROJECTS (SectionD — project rows only). Two mounts, in that order; nothing else.
-  const TWO_LISTS_MOUNTS = ['<SectionE_Work />', '<SectionD_ProjectBacklog />'];
+  // WORK-01d — the ruling (Alex, 2026-10-25): Tasks is THREE TABLES. THE WORK (SectionE_Work — one row per task of an open
+  // project), then PROJECTS (SectionD — project rows only), then ROUTINE EXPENSES (SectionF_RoutineExpenses — one row per
+  // routine line). Routines and tasks are never one table. Three mounts, in that order; nothing else.
+  const TWO_LISTS_MOUNTS = ['<SectionE_Work />', '<SectionD_ProjectBacklog />', '<SectionF_RoutineExpenses />'];
   for (const section of TWO_LISTS_MOUNTS) {
-    if (!page.includes(section)) twoListsFail(`${TWO_LISTS_PAGE} no longer mounts ${section} — the page is THE WORK and the projects list (WORK-01)`);
+    if (!page.includes(section)) twoListsFail(`${TWO_LISTS_PAGE} no longer mounts ${section} — the page is THE WORK, the projects list and ROUTINE EXPENSES (WORK-01d)`);
   }
   const mountAt = TWO_LISTS_MOUNTS.map((section) => page.indexOf(section));
-  if (mountAt.some((at, i) => i > 0 && at < mountAt[i - 1])) twoListsFail(`${TWO_LISTS_PAGE} mounts its sections out of order — the work, then projects (WORK-01)`);
+  if (mountAt.some((at, i) => i > 0 && at < mountAt[i - 1])) twoListsFail(`${TWO_LISTS_PAGE} mounts its sections out of order — the work, then projects, then routine expenses (WORK-01d)`);
   const toolPage = page.slice(page.indexOf('data-tool-page="Tasks"'), page.indexOf('</OperationsEntityProvider>'));
   const pageMounts = [...toolPage.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]).filter((tag) => tag !== 'Suspense');
-  if (pageMounts.join(' ') !== 'SectionE_Work SectionD_ProjectBacklog') twoListsFail(`${TWO_LISTS_PAGE} mounts [${pageMounts.join(' ')}] in the Tasks container — exactly THE WORK and the projects list, in that order (WORK-01) (TASKS-ONE-02; LEDGER-01; TIME-01)`);
+  if (pageMounts.join(' ') !== 'SectionE_Work SectionD_ProjectBacklog SectionF_RoutineExpenses') twoListsFail(`${TWO_LISTS_PAGE} mounts [${pageMounts.join(' ')}] in the Tasks container — exactly THE WORK, the projects list and ROUTINE EXPENSES, in that order (WORK-01d) (WORK-01; TASKS-ONE-02; LEDGER-01; TIME-01)`);
   if (/DayCard|LedgerSection/.test(page)) twoListsFail(`${TWO_LISTS_PAGE} names the day card or the ledger — both moved to /time (TIME-01)`);
   if ((PHASES_RENDERED_AT['/tasks'] ?? ['?']).length !== 0) twoListsFail(`nav.ts declares /tasks draws [${(PHASES_RENDERED_AT['/tasks'] ?? []).join(' ')}] — it draws nothing`);
   // TIME-01 — the /time container: the day card first, in its Suspense boundary (useSearchParams on a client page), then the
@@ -3538,14 +3541,20 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
     ['src/components/workbench/operations/projects/TruthMachineView.tsx', /onClick=\{onEvolveStart\}/, 'the pipeline lost "evolve"'],
     // WORK-01 (Alex, 2026-10-24): the routines list is THE WORK (SectionE_Work) — "+ routine" and "+ task" are its doors; "show inactive" and
     // "show ended" are the STATUS filter's checklist, shown as a chip while it narrows (ruling B — never a hidden default).
-    ['src/components/workbench/operations/SectionE_Work.tsx', /ADD_ROUTINE_WORDS/, 'THE WORK has no "+ routine"'],
+    // WORK-01d (Alex, 2026-10-25): the routines are ROUTINE EXPENSES (SectionF_RoutineExpenses) — "+ routine" and the "STATUS: active only"
+    // chip are its; THE WORK keeps "+ task" and its "STATUS: open only" chip. Each table is the shared DataTable (IDIOM-01).
+    ['src/components/workbench/operations/SectionF_RoutineExpenses.tsx', /ADD_ROUTINE_WORDS/, 'ROUTINE EXPENSES has no "+ routine"'],
     ['src/components/workbench/operations/SectionE_Work.tsx', /ADD_TASK_WORDS/, 'THE WORK has no "+ task"'],
     ['src/components/workbench/operations/SectionE_Work.tsx', /statusChipWords\(/, 'THE WORK hides its STATUS filter — the default must be a visible chip (ruling B)'],
+    ['src/components/workbench/operations/SectionF_RoutineExpenses.tsx', /statusChipWords\(/, 'ROUTINE EXPENSES hides its STATUS filter — the default must be a visible chip (ruling C)'],
     ['src/components/workbench/operations/stops/StopForm.tsx', /data-stop-done-now[\s\S]*✓ done now/, 'the stop form on the day card lost "✓ done now" — the one way a routine is marked done'],
     ['src/components/workbench/operations/SectionE_Work.tsx', /<DataTable/, 'THE WORK no longer renders the shared table (IDIOM-01)'],
+    ['src/components/workbench/operations/SectionF_RoutineExpenses.tsx', /<DataTable/, 'ROUTINE EXPENSES no longer renders the shared table (IDIOM-01)'],
   ];
   for (const [f, re, why] of controls) if (!re.test(codeOf(f))) twoListsFail(`${f}: ${why}`);
-  if (/TodaysStrip/.test(codeOf('src/components/workbench/operations/SectionE_Work.tsx'))) twoListsFail('src/components/workbench/operations/SectionE_Work.tsx mounts Today again — the day card replaced it (TASKS-ONE-02)');
+  for (const f of ['src/components/workbench/operations/SectionE_Work.tsx', 'src/components/workbench/operations/SectionF_RoutineExpenses.tsx']) {
+    if (/TodaysStrip/.test(codeOf(f))) twoListsFail(`${f} mounts Today again — the day card replaced it (TASKS-ONE-02)`);
+  }
 }
 
 // 2. no streak on a customer surface; the writers stay.

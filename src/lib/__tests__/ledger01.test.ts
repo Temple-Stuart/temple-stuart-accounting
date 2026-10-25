@@ -496,7 +496,7 @@ test('T6 the ledger mounts first on /time (HOME-01: the day card is on the dashb
   assert.match(comments(PAGE), /LEDGER-01 \(Alex, 2026-10-16\) — THE CITY LEDGER is the fourth section, under\s*\n\s*\* Routines/);
   assert.doesNotMatch(code(PAGE), /LedgerSection/, 'the Tasks page mounts it no more');
   const law = code(LAW);
-  assert.match(law, /const TWO_LISTS_MOUNTS = \['<SectionE_Work \/>', '<SectionD_ProjectBacklog \/>'\];/);
+  assert.match(law, /const TWO_LISTS_MOUNTS = \['<SectionE_Work \/>', '<SectionD_ProjectBacklog \/>', '<SectionF_RoutineExpenses \/>'\];/); // WORK-01d (2026-10-25): three tables on /tasks
   // HOME-01 (Alex, 2026-10-24): TIME_MOUNTS is the three — the ledger, then the morning and the evening journal tables; the card is the Runway panel's.
   assert.match(law, /const TIME_MOUNTS = \['<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/);
   assert.match(law, /timeMounts\.join\(' '\) !== 'LedgerSection MorningJournalTable EveningJournalTable'/, 'exactly the three on /time (HOME-01; TIME-02; JOURNAL-07)');
