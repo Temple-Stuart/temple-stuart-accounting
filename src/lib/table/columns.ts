@@ -40,6 +40,8 @@ interface ColumnBase<Row, Key extends string> {
   readonly key: Key;
   /** The head word — the header, the popover's head and the CSV's head line. */
   readonly label: string;
+  /** ROUTINES-03 (Alex, 2026-10-25): the head's tooltip — a CALCULATED column names its rule here; absent, the head has none. */
+  readonly title?: string;
   /** The cell as the table prints it — the one key a VALUE filter matches and a checklist lists; BLANK for a blank cell. */
   readonly words: (row: Row) => string;
   /** What the column sorts by; null for a blank cell. */

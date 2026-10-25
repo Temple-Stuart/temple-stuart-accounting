@@ -138,7 +138,7 @@ export default function DataTable<Row, Key extends string, F extends TableFilter
                   return (
                     <th key={c.key} className={c.kind === 'money' ? `${headClass} text-right` : headClass}>
                       <span className="inline-flex items-center gap-1">
-                        <button type="button" className="hover:text-text-primary" onClick={() => onSort(nextSort(sort, c.key))} aria-label={sortLabelWords(h)} {...dataAttr(name, 'sort', c.key)} {...dataAttr(name, 'sort-direction', sorted ? sort.direction : undefined)}>{h}</button>
+                        <button type="button" className="hover:text-text-primary" onClick={() => onSort(nextSort(sort, c.key))} aria-label={sortLabelWords(h)} title={c.title} {...dataAttr(name, 'sort', c.key)} {...dataAttr(name, 'sort-direction', sorted ? sort.direction : undefined)}>{h}</button>
                         {sorted && <span {...dataAttr(name, 'sort-mark')}>{SORT_MARKS[sort.direction]}</span>}
                         <button type="button" ref={(el) => { if (el === null) filterButtons.current.delete(c.key); else filterButtons.current.set(c.key, el); }} className={on ? 'text-brand-purple' : 'hover:text-text-primary'} onClick={() => onOpenFilter(c.key)} aria-label={filterLabelWords(h)} aria-expanded={openFilter === c.key} {...dataAttr(name, 'filter', c.key)} {...dataAttr(name, 'filter-on', on ? '' : undefined)}>
                           {on && <span {...dataAttr(name, 'filter-mark')}>{FILTER_ON_MARK}</span>}

@@ -51,8 +51,8 @@ import { BudgetDaysError, buildRoutineBudgetLines } from '@/lib/budget/days';
 import { BudgetInputError, toReportAccount, toReportEntity, toRoutinePlanInput } from '@/lib/budget/reportInputs';
 import type { RoutineWords } from '@/lib/budget/planLines';
 import { loadRoutineBudgetInputs } from '@/lib/operations/routineBudgetInputs';
-import { POSTING_LINES_SELECT, amountCentsOf, type PostingLines } from '@/lib/calendar/postingAmount';
-import { ledgerOf, spanInput, type LedgerLinkInput, type LedgerRecordInput } from '@/lib/operations/ledger';
+import { POSTING_LINES_SELECT } from '@/lib/calendar/postingAmount';
+import { ledgerOf, linkInputOf, spanInput, type LedgerRecordInput } from '@/lib/operations/ledger';
 import { refusedWords, stopRecordRowOf } from '@/lib/operations/stopRecord';
 import { stayRowOf } from '@/lib/operations/stay';
 import { instantToZoned } from '@/lib/time';
@@ -83,11 +83,7 @@ function recordInputOf(row: RecordRow): LedgerRecordInput {
 }
 
 /** LEDGER-03: a link as the rule joins it — the three fields a record is addressed by, and the posting's amount by the one rule. A link of a routine kind with no instant is the database's error (the migration's CHECK holds one). */
-function linkInputOf(row: { target_kind: string; target_id: string; target_instant: Date | null; journal_entry_id: string; journal_entry: PostingLines }): LedgerLinkInput {
-  if (row.target_kind !== 'routine' && row.target_kind !== 'routine_line') throw new Error(`ledger GET: link ${row.journal_entry_id} is of kind ${JSON.stringify(row.target_kind)} — the query asked for routine or routine_line`);
-  if (row.target_instant === null) throw new Error(`ledger GET: link ${row.journal_entry_id} of kind ${row.target_kind} has no instant — the migration's CHECK holds one`);
-  return { kind: row.target_kind, targetId: row.target_id, instant: row.target_instant.toISOString(), journalEntryId: row.journal_entry_id, amountCents: amountCentsOf(row.journal_entry) };
-}
+// ROUTINES-03 (Alex, 2026-10-25): linkInputOf moved to ledger.ts, unchanged — the routines' month route reads a link the same way.
 
 export async function GET(request: NextRequest) {
   try {

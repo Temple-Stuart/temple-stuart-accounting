@@ -83,9 +83,12 @@ export async function loadRoutineBudgetInputs(
   db: Pick<PrismaClient, 'operations_routines'>,
   userId: string,
   entityId: string,
+  // ROUTINES-03 (Alex, 2026-10-25, ruling C): the routines' month route reads the caller's routines active AND not — the same read,
+  // grown by one option; every other caller reads the active ones as before (the default).
+  options: { readonly includeInactive?: boolean } = {},
 ): Promise<LoadedRoutineBudgetInput[]> {
   const rows = await db.operations_routines.findMany({
-    where: { user_id: userId, entity_id: entityId, is_active: true },
+    where: { user_id: userId, entity_id: entityId, ...(options.includeInactive === true ? {} : { is_active: true }) },
     select: ROUTINE_BUDGET_SELECT,
   });
   return rows.map(toRoutineBudgetInput);

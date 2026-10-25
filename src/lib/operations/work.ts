@@ -43,29 +43,58 @@
  * (a stepless routine one row), every book, in clock order then name (FORM-01's
  * byClockThenName), a routine's lines in step order under it:
  *
- *   ROUTINE · BOOK · CADENCE · DAYS · TIME · AMOUNT · ACCOUNT · STATUS · controls
+ *   START · END · KIND · BOOK · ACCOUNT · ACCOUNT NAME · SUB ACCOUNT NAME · VENDOR ·
+ *   ROUTINE · TIME · DAYS · CADENCE · NEXT · BUDGET · THIS MONTH · TO DATE · ACTUAL ·
+ *   MATCH · VARIANCE · STATUS · ID · controls
  *
- *   · ROUTINE   "<routine> — <step>" for a line row (WORK-01b ruling 2 — one
- *               string, so the filter, the sort and the CSV read it whole); the
- *               bare name for a stepless routine.
+ *   ROUTINES-03 (Alex, 2026-10-25, rulings A–B) — the columns, in Alex's order:
+ *   when it's in force → what kind → the accounting classification coarse to fine
+ *   → who's paid → the schedule → the money → the state → the identifier. The head
+ *   words are the task ledger's (ledger.ts LEDGER_HEAD_WORDS) wherever the fact is
+ *   the same.
+ *
+ *   · START · END  start_date, end_date drawn as a date (formatDate, at local
+ *               midnight), the ISO day under it for sort and CSV; blank "—".
+ *   · KIND      once when isOnceRRule(schedule_rrule), else repeated — a value
+ *               column; the filter reads it.
+ *   · ACCOUNT   the helper's string alone ("P-8180", accountCell).
+ *   · ACCOUNT NAME  the chart's name alone ("Streaming & Subscriptions",
+ *               chartNameOf); the helper's non-account states and "not in the
+ *               chart" / "chart not read" print here.
+ *   · SUB ACCOUNT NAME  the stop's name by the ledger's rule (dayCard.ts
+ *               stopName): the line's activity; a stepless routine's own name.
+ *   · VENDOR    the plan's vendor at its one grain (VENDOR-01, through the month
+ *               route — routineMonth.ts): an every-occurrence row → the vendor's
+ *               name; occurrence rows only → "by occurrence"; none → "—"; a plan
+ *               holding both → the planLines.ts refusal's words, never one picked.
+ *   · ROUTINE   the routine's name alone. WORK-01b ruling 2's "<routine> — <step>"
+ *               join (LINE_NAME_JOIN) is retired: the line is SUB ACCOUNT NAME's.
  *   · CADENCE   the rule's word as FORM-01 prints it (rruleHelpers cadenceWords);
  *               a Once routine reads "once".
  *   · DAYS      the days the rule falls on (daysWords); a rule no choice reproduces
  *               has none.
  *   · TIME      the window (timeWords, "HH:MM – HH:MM"); "all day" where the rule
  *               names no clock or the routine is all day (ALLDAY-01).
- *   · AMOUNT    the line's amount, a stepless routine's own — through the LINES-01
- *               leaf (routinePlanned), never the column read bare. Blank, never 0.
- *   · ACCOUNT   as above.
+ *   · NEXT      next_due_at as a day in the routine's zone; null → "—".
+ *   · BUDGET    the line's per-occurrence amount (WORK-01's AMOUNT, renamed), a
+ *               stepless routine's own — through the LINES-01 leaf (routinePlanned),
+ *               never the column read bare. Blank, never 0.
+ *   · THIS MONTH · TO DATE · ACTUAL · MATCH · VARIANCE  CALCULATED by the month
+ *               route (routineMonth.ts — the /budget rule, the ledger's placing,
+ *               LEDGER-03's match, links.ts variance), read by row id; each head
+ *               carries a tooltip naming its rule (ROUTINE_TOOLTIPS). A line the
+ *               route did not return is blank and counted (withoutMonthWords).
  *   · STATUS    active | ended | inactive — ended first (ROUTINE-02a's endedBy,
  *               judged now in the routine's own zone), then is_active.
  *               ROUTINE-02a (Alex, 2026-10-18) — THE ARCHIVE lives here: an ended
  *               routine is a row with STATUS ended, dropped by the default STATUS
  *               filter and shown again when its chip is cleared — never deleted,
  *               never deactivated, read-only but for edit (RoutineEditForm).
+ *   · ID        the line's id (a stepless routine: the routine's), monospace.
  *
  *   THE DEFAULT: a VISIBLE STATUS chip "STATUS: active only" dropping ended and
- *   inactive; clearing it shows them. CSV routine-expenses_<day>.csv.
+ *   inactive; clearing it shows them. CSV routine-expenses_<day>.csv — every
+ *   column in the order above, money bare, dates ISO, the full id.
  *
  * A cell with nothing is "—" (BLANK) on screen and '' in the CSV. Pure: no React,
  * no fetch, no clock — `now` is handed in.
@@ -85,13 +114,17 @@ import { csvMoney } from '@/lib/table/csv';
 import { NO_VALUE_FILTER, noFilters, valueFilterOf, withFilter, type TableFilters } from '@/lib/table/filters';
 import { numberKey, textKey } from '@/lib/table/sort';
 import { BLANK } from '@/lib/table/words';
-import { ACCOUNT_CELL_WORDS, accountCell, type AccountCellBook } from '@/lib/coa/accountCell';
+import { ACCOUNT_CELL_WORDS, accountCell, type AccountCell, type AccountCellBook } from '@/lib/coa/accountCell';
 import { routinePlanned, type LinePlanned, type RoutinePlanned } from '@/lib/operations/routineLines';
-import { DAYS_NONE_WORDS, byClockThenName, cadenceWords, daysWords, endedBy, timeWords, type RoutineEnd } from '@/lib/operations/rruleHelpers';
+import { DAYS_NONE_WORDS, byClockThenName, cadenceWords, daysWords, endedBy, isOnceRRule, timeWords, zoneUnreadWords, type RoutineEnd } from '@/lib/operations/rruleHelpers';
 import { isOpenProjectStatus } from '@/lib/operations/morningLog';
+import { monthLineKey, type RoutineMonthLine } from '@/lib/operations/routineMonth';
+import { varianceCellWords } from '@/lib/operations/ledger';
+import { instantToZoned } from '@/lib/time';
 import type { Routine } from '@/components/workbench/operations/routines/types';
 import type { CoaAccountSummary, Project, Task } from '@/components/workbench/operations/projects/types';
 import { formatDate, taskStatusWords } from '@/components/workbench/operations/projects/projectsTableText';
+import { stopName } from '@/components/workbench/operations/day/dayCard';
 
 // ── THE INPUTS ───────────────────────────────────────────────────────────────
 
@@ -126,15 +159,30 @@ export function chartNameOf(chart: WorkChart, accountText: string): string | nul
   const row = chart.find((a) => digitsOf(a.code) === digits);
   return row === undefined ? null : row.name;
 }
-/** ACCOUNT — the helper's string and the chart's name; the helper's other states print their words; blank is null. */
-export function accountWordsOf(books: readonly WorkBook[], charts: WorkCharts, bookId: string, savedCode: string | null): string | null {
+/** The one read of a saved code: ROUTINES-01's helper, then the chart's name for an account (or the chart's two states); the helper's other states carry no name. */
+function readAccount(books: readonly WorkBook[], charts: WorkCharts, bookId: string, savedCode: string | null): { readonly cell: AccountCell; readonly name: string | null } {
   const cell = accountCell(books, bookId, savedCode);
+  if (cell.state !== 'account') return { cell, name: null };
+  const chart = charts[bookId];
+  return { cell, name: chart === undefined ? CHART_UNREAD_WORDS : chartNameOf(chart, cell.text) ?? CHART_MISSING_WORDS };
+}
+/** THE WORK's ACCOUNT — the helper's string and the chart's name in one cell; the helper's other states print their words; blank is null. */
+export function accountWordsOf(books: readonly WorkBook[], charts: WorkCharts, bookId: string, savedCode: string | null): string | null {
+  const { cell, name } = readAccount(books, charts, bookId, savedCode);
   if (cell.state === 'blank') return null;
   if (cell.state !== 'account') return cell.text;
-  const chart = charts[bookId];
-  if (chart === undefined) return `${cell.text} — ${CHART_UNREAD_WORDS}`;
-  const name = chartNameOf(chart, cell.text);
-  return name === null ? `${cell.text} — ${CHART_MISSING_WORDS}` : `${cell.text} ${name}`;
+  return name === CHART_UNREAD_WORDS || name === CHART_MISSING_WORDS ? `${cell.text} — ${name}` : `${cell.text} ${name}`;
+}
+/**
+ * ROUTINE EXPENSES' ACCOUNT and ACCOUNT NAME (ROUTINES-03, Alex, 2026-10-25, ruling B): the helper's string alone ("P-8180"), and the
+ * chart's name alone ("Streaming & Subscriptions"); the helper's non-account states and the chart's "not in the chart" / "chart not read"
+ * print under ACCOUNT NAME. The one-cell "P-8180 Streaming & Subscriptions" left this table (THE WORK keeps it).
+ */
+export function accountCellsOf(books: readonly WorkBook[], charts: WorkCharts, bookId: string, savedCode: string | null): { readonly account: string | null; readonly name: string | null } {
+  const { cell, name } = readAccount(books, charts, bookId, savedCode);
+  if (cell.state === 'blank') return { account: null, name: null };
+  if (cell.state !== 'account') return { account: null, name: cell.text };
+  return { account: cell.text, name };
 }
 
 /** A VALUE column over one reader: "—" on screen for null; `key` (when given) is what it sorts by and writes — an ISO day under its drawn date. */
@@ -253,8 +301,9 @@ export function routineRowsOf(routines: readonly Routine[], now: Date): RoutineR
   for (const routine of [...routines].sort(byClockThenName)) {
     const planned = routinePlanned({ budget_amount: routine.budget_amount ?? null, coa_code: routine.coa_code ?? null, steps: routine.steps });
     const end = endedBy(routine.end_date, routine.timezone, now);
-    if (planned.lines.length === 0) rows.push({ id: `routine:${routine.id}`, routine, planned, line: null, end });
-    else for (const line of planned.lines) rows.push({ id: `routine:${routine.id}:${line.id}`, routine, planned, line, end });
+    // ROUTINES-03: the row's id is the month record's key (routineMonth.ts monthLineKey) — one builder, so the figures land on their row.
+    if (planned.lines.length === 0) rows.push({ id: monthLineKey(routine.id, null), routine, planned, line: null, end });
+    else for (const line of planned.lines) rows.push({ id: monthLineKey(routine.id, line.id), routine, planned, line, end });
   }
   return rows;
 }
@@ -270,9 +319,13 @@ export function routineTimeOf(row: RoutineRow): string {
   const words = timeWords(row.routine);
   return words === DAYS_NONE_WORDS ? ALL_DAY_WORDS : words;
 }
-/** ROUTINE — WORK-01b (Alex, 2026-10-24, ruling 2): a line row is "<routine> — <line>"; a stepless routine's row keeps the bare name. */
-export const LINE_NAME_JOIN = ' — ';
-export const routineNameOf = (row: RoutineRow): string => (row.line === null ? row.routine.name : `${row.routine.name}${LINE_NAME_JOIN}${row.line.activity}`);
+/**
+ * ROUTINE — the routine's name alone (ROUTINES-03, Alex, 2026-10-25, ruling B). WORK-01b ruling 2's "<routine> — <line>" join
+ * (LINE_NAME_JOIN) is RETIRED: the line is SUB ACCOUNT NAME's cell now, by the ledger's stop-name rule, so each column holds one fact.
+ */
+export const routineNameOf = (row: RoutineRow): string => row.routine.name;
+/** SUB ACCOUNT NAME — the stop's name by the ledger's rule (dayCard.ts stopName): the line's activity; a stepless routine's own name. */
+export const routineSubAccountOf = (row: RoutineRow): string => stopName({ line: row.line === null ? null : row.line.activity, label: row.routine.name });
 /** CADENCE — the rule's word as FORM-01 prints it; a Once routine reads "once". */
 export const routineCadenceOf = (row: RoutineRow): string => cadenceWords(row.routine.schedule_rrule);
 /** DAYS — the rule's days; a rule no choice reproduces (Custom) names none, which is a blank cell here. */
@@ -280,7 +333,7 @@ export function routineDaysOf(row: RoutineRow): string | null {
   const words = daysWords(row.routine.schedule_rrule, row.routine.start_date);
   return words === DAYS_NONE_WORDS ? null : words;
 }
-/** AMOUNT in cents — the line's, a stepless routine's own when it is the figure in force (the leaf); null is blank. */
+/** BUDGET in cents (WORK-01's AMOUNT, renamed by ROUTINES-03) — the line's per-occurrence amount, a stepless routine's own when it is the figure in force (the leaf); null is blank. */
 export function routineAmountCentsOf(row: RoutineRow): number | null {
   const dollars = row.line !== null ? row.line.amount : row.planned.from === 'routine' ? row.planned.amount : null;
   return dollars === null ? null : Math.round(dollars * 100);
@@ -288,26 +341,94 @@ export function routineAmountCentsOf(row: RoutineRow): number | null {
 /** The saved code a row carries: the line's, or a stepless routine's own. */
 export const routineSavedCodeOf = (row: RoutineRow): string | null => (row.line !== null ? row.line.coaCode : row.routine.coa_code ?? null);
 
-export const ROUTINE_COLUMNS = ['routine', 'book', 'cadence', 'days', 'time', 'amount', 'account', 'status'] as const;
+// ── ROUTINES-03 (Alex, 2026-10-25) — the cells Alex's order added ─────────────
+
+/** KIND — once when the rule is a one-off (ONEOFF-01's isOnceRRule), else repeated. */
+export const KIND_WORDS = { once: 'once', repeated: 'repeated' } as const;
+export const routineKindOf = (row: RoutineRow): string => (isOnceRRule(row.routine.schedule_rrule) ? KIND_WORDS.once : KIND_WORDS.repeated);
+/** A 'YYYY-MM-DD' day from the API's date text (a @db.Date comes as an ISO instant at UTC midnight); null stays null. */
+export const isoDayOf = (text: string | null | undefined): string | null => (text ? text.slice(0, 10) : null);
+/** START · END — the routine's start_date and end_date as ISO days. */
+export const routineStartOf = (row: RoutineRow): string | null => isoDayOf(row.routine.start_date);
+export const routineEndOf = (row: RoutineRow): string | null => isoDayOf(row.routine.end_date);
+/** A day drawn as the projects table draws one (formatDate), at LOCAL midnight — an ISO day alone parses as UTC midnight and shifts a day west of Greenwich. */
+export const dayWords = (day: string): string => formatDate(`${day}T00:00:00`);
+/** NEXT — next_due_at as a day in the routine's own zone; null when none; a zone Intl cannot read is said (zoneUnreadWords), never placed in UTC. */
+export function routineNextOf(row: RoutineRow): { readonly day: string | null; readonly words: string | null } {
+  if (row.routine.next_due_at === null) return { day: null, words: null };
+  try {
+    return { day: instantToZoned(new Date(row.routine.next_due_at), row.routine.timezone).date, words: null };
+  } catch (error) {
+    return { day: null, words: zoneUnreadWords(row.routine.timezone, error instanceof Error ? error.message : String(error)) };
+  }
+}
+/** ID — the line's id; a stepless routine's the routine's. */
+export const routineIdOf = (row: RoutineRow): string => (row.line === null ? row.routine.id : row.line.id);
+
+/** The month's figures by row id (routineMonth.ts monthLineKey) — the routines' month route's lines, read beside the routines. */
+export type RoutineMonthMap = ReadonlyMap<string, RoutineMonthLine>;
+/** A line the route did not return has blank figures — and is counted under the table (withoutMonthWords), never shown as 0. */
+export const withoutMonthWords = (n: number): string => `${n} line${n === 1 ? '' : 's'} without month figures`;
+
+export const ROUTINE_COLUMNS = [
+  'start', 'end', 'kind', 'book', 'account', 'account_name', 'sub_account', 'vendor', 'routine', 'time', 'days', 'cadence', 'next',
+  'budget', 'this_month', 'to_date', 'actual', 'match', 'variance', 'status', 'id',
+] as const;
 export type RoutineColumn = (typeof ROUTINE_COLUMNS)[number];
+/**
+ * The heads, in Alex's order (ROUTINES-03 ruling A): when it's in force → what kind → the accounting classification coarse to fine → who's
+ * paid → the schedule → the money → the state → the identifier. The words are the task ledger's (ledger.ts LEDGER_HEAD_WORDS) wherever the
+ * fact is the same — BOOK · ACCOUNT · ACCOUNT NAME · SUB ACCOUNT NAME · VENDOR · BUDGET · ACTUAL · VARIANCE · MATCH.
+ */
 export const ROUTINE_HEAD_WORDS: Readonly<Record<RoutineColumn, string>> = {
-  routine: 'ROUTINE', book: 'BOOK', cadence: 'CADENCE', days: 'DAYS', time: 'TIME', amount: 'AMOUNT', account: 'ACCOUNT', status: 'STATUS',
+  start: 'START', end: 'END', kind: 'KIND', book: 'BOOK', account: 'ACCOUNT', account_name: 'ACCOUNT NAME', sub_account: 'SUB ACCOUNT NAME', vendor: 'VENDOR',
+  routine: 'ROUTINE', time: 'TIME', days: 'DAYS', cadence: 'CADENCE', next: 'NEXT', budget: 'BUDGET', this_month: 'THIS MONTH', to_date: 'TO DATE',
+  actual: 'ACTUAL', match: 'MATCH', variance: 'VARIANCE', status: 'STATUS', id: 'ID',
+};
+/** The CALCULATED columns' tooltips — each names its rule (the route labels the same figures). */
+export const ROUTINE_TOOLTIPS: Readonly<Partial<Record<RoutineColumn, string>>> = {
+  this_month: 'calculated: occurrences in the month × amount — the /budget rule',
+  to_date: 'calculated: occurrences from the 1st to today × amount — the /budget rule',
+  actual: 'calculated: recorded at the stops, the 1st to today',
+  match: 'calculated: postings linked in Books, the 1st to today',
+  variance: 'calculated: TO DATE − ACTUAL',
 };
 export const ROUTINE_TABLE_NAME = 'routine-expenses';
 
-/** ROUTINE EXPENSES' spec, over the tab's books and their charts. */
-export function routineTable(books: readonly WorkBook[], charts: WorkCharts): readonly TableColumn<RoutineRow, RoutineColumn>[] {
+/** The figure a row's month record holds, or null when the route returned none for it. */
+const figureOf = (month: RoutineMonthMap, row: RoutineRow, pick: (line: RoutineMonthLine) => number | null): number | null => {
+  const line = month.get(row.id);
+  return line === undefined ? null : pick(line);
+};
+
+/** ROUTINE EXPENSES' spec, over the tab's books, their charts and the month's figures (ruling A's 21 columns, in its order). */
+export function routineTable(books: readonly WorkBook[], charts: WorkCharts, month: RoutineMonthMap): readonly TableColumn<RoutineRow, RoutineColumn>[] {
   const head = ROUTINE_HEAD_WORDS;
-  return [
-    textColumn<RoutineRow, RoutineColumn>('routine', head.routine, routineNameOf),
+  const columns: TableColumn<RoutineRow, RoutineColumn>[] = [
+    valueColumn<RoutineRow, RoutineColumn>('start', head.start, (r) => { const d = routineStartOf(r); return d === null ? null : dayWords(d); }, routineStartOf),
+    valueColumn<RoutineRow, RoutineColumn>('end', head.end, (r) => { const d = routineEndOf(r); return d === null ? null : dayWords(d); }, routineEndOf),
+    valueColumn<RoutineRow, RoutineColumn>('kind', head.kind, routineKindOf),
     valueColumn<RoutineRow, RoutineColumn>('book', head.book, (r) => bookNameOf(books, r.routine.entity_id)),
-    valueColumn<RoutineRow, RoutineColumn>('cadence', head.cadence, routineCadenceOf),
-    valueColumn<RoutineRow, RoutineColumn>('days', head.days, routineDaysOf),
+    valueColumn<RoutineRow, RoutineColumn>('account', head.account, (r) => accountCellsOf(books, charts, r.routine.entity_id, routineSavedCodeOf(r)).account),
+    valueColumn<RoutineRow, RoutineColumn>('account_name', head.account_name, (r) => accountCellsOf(books, charts, r.routine.entity_id, routineSavedCodeOf(r)).name),
+    textColumn<RoutineRow, RoutineColumn>('sub_account', head.sub_account, routineSubAccountOf),
+    valueColumn<RoutineRow, RoutineColumn>('vendor', head.vendor, (r) => month.get(r.id)?.vendor_words ?? null),
+    textColumn<RoutineRow, RoutineColumn>('routine', head.routine, routineNameOf),
     valueColumn<RoutineRow, RoutineColumn>('time', head.time, routineTimeOf),
-    moneyColumn<RoutineRow, RoutineColumn>('amount', head.amount, routineAmountCentsOf),
-    textColumn<RoutineRow, RoutineColumn>('account', head.account, (r) => accountWordsOf(books, charts, r.routine.entity_id, routineSavedCodeOf(r))),
+    valueColumn<RoutineRow, RoutineColumn>('days', head.days, routineDaysOf),
+    valueColumn<RoutineRow, RoutineColumn>('cadence', head.cadence, routineCadenceOf),
+    valueColumn<RoutineRow, RoutineColumn>('next', head.next, (r) => { const n = routineNextOf(r); return n.day === null ? n.words : dayWords(n.day); }, (r) => { const n = routineNextOf(r); return n.day ?? n.words; }),
+    moneyColumn<RoutineRow, RoutineColumn>('budget', head.budget, routineAmountCentsOf),
+    moneyColumn<RoutineRow, RoutineColumn>('this_month', head.this_month, (r) => figureOf(month, r, (l) => l.budget_month_cents)),
+    moneyColumn<RoutineRow, RoutineColumn>('to_date', head.to_date, (r) => figureOf(month, r, (l) => l.budget_to_date_cents)),
+    moneyColumn<RoutineRow, RoutineColumn>('actual', head.actual, (r) => figureOf(month, r, (l) => l.actual_cents)),
+    moneyColumn<RoutineRow, RoutineColumn>('match', head.match, (r) => figureOf(month, r, (l) => l.match_cents)),
+    // VARIANCE wears the ledger's sign (varianceCellWords: "+$2.00" / "−$1.02" / "$0.00"); the CSV the bare cents.
+    { key: 'variance', label: head.variance, kind: 'money', cents: (r) => figureOf(month, r, (l) => l.variance_cents), words: (r) => varianceCellWords(figureOf(month, r, (l) => l.variance_cents)), sortKey: (r) => numberKey(figureOf(month, r, (l) => l.variance_cents)), csv: (r) => csvMoney(figureOf(month, r, (l) => l.variance_cents)) },
     valueColumn<RoutineRow, RoutineColumn>('status', head.status, (r) => routineStatusOf(r.routine, r.end)),
+    textColumn<RoutineRow, RoutineColumn>('id', head.id, routineIdOf),
   ];
+  return columns.map((c) => (ROUTINE_TOOLTIPS[c.key] === undefined ? c : { ...c, title: ROUTINE_TOOLTIPS[c.key] }));
 }
 
 /** ROUTINE EXPENSES' default: the ended and the inactive routines dropped — the chip reads "STATUS: active only" (ruling C). */

@@ -200,9 +200,64 @@ const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 /** null sorts last. */
 const cmpMaybe = (a: string | null, b: string | null): number => (a === b ? 0 : a === null ? 1 : b === null ? -1 : cmp(a, b));
 
-interface PlanHolds {
+export interface PlanHolds {
   every: PlanVendorRow | null;
   readonly occurrences: Map<string, PlanVendorRow>;
+}
+
+/** One refusal the grain rule records, in row order: a both-grains plan (named by its key) or a row the database should not hold (plan null). */
+export interface PlanHoldsRefusal {
+  readonly plan: string | null;
+  readonly code: PlanLinesErrorCode;
+  readonly message: string;
+}
+
+export interface PlanHoldsRead {
+  /** The plans by key ("<kind>:<id>"), each with its every-occurrence row and its occurrence rows by instant. */
+  readonly holds: ReadonlyMap<string, PlanHolds>;
+  /** Every refusal, in the order the rows raised it — planLinesOn fails on the first; ROUTINE EXPENSES prints a both-grains plan's words on its line. */
+  readonly refusals: readonly PlanHoldsRefusal[];
+}
+
+/**
+ * VENDOR-01's ONE GRAIN, indexed by plan. ROUTINES-03 (Alex, 2026-10-25): lifted
+ * out of planLinesOn — the loop that was there, unchanged in what it holds and
+ * what it refuses — so ROUTINE EXPENSES' VENDOR column (src/lib/operations/
+ * routineMonth.ts) reads the same rule: an every-occurrence row → that vendor;
+ * occurrence rows only → "by occurrence"; a plan holding both → the refusal's
+ * words, never one picked (the BUDGET-02 precedent: one rule, two callers).
+ * A row naming no plan or two, or two vendors at one address, is the database's
+ * error ('plan-vendor-unreadable'); a both-grains plan is 'plan-vendor-both-grains',
+ * recorded once, with the occurrences held when the conflict appeared.
+ */
+export function planHoldsOf(vendors: readonly PlanVendorRow[]): PlanHoldsRead {
+  const holds = new Map<string, PlanHolds>();
+  const refusals: PlanHoldsRefusal[] = [];
+  for (const row of vendors) {
+    const plan = planOf(row);
+    if (plan === null) {
+      refusals.push({ plan: null, code: 'plan-vendor-unreadable', message: `plan-vendor row ${row.id} names ${[row.routine_id, row.step_id, row.task_id].filter((v) => v !== null).length} plans — a row names exactly one` });
+      continue;
+    }
+    const key = `${plan.kind}:${plan.id}`;
+    let held = holds.get(key);
+    if (held === undefined) {
+      held = { every: null, occurrences: new Map<string, PlanVendorRow>() };
+      holds.set(key, held);
+    }
+    const at = row.occurrence_at === null ? null : row.occurrence_at.toISOString();
+    if (at === null ? held.every !== null : held.occurrences.has(at)) {
+      refusals.push({ plan: key, code: 'plan-vendor-unreadable', message: `plan ${key} holds two vendors at one address${at === null ? ' (every occurrence)' : ` (${at})`} — the database holds one` });
+      continue;
+    }
+    if (at === null) held.every = row;
+    else held.occurrences.set(at, row);
+    if (held.every !== null && held.occurrences.size > 0 && !refusals.some((r) => r.plan === key && r.code === 'plan-vendor-both-grains')) {
+      const single = [...held.occurrences.values()].map((r) => `"${r.vendor.vendor_name}" at ${(r.occurrence_at as Date).toISOString()}`).join(', ');
+      refusals.push({ plan: key, code: 'plan-vendor-both-grains', message: `plan ${key} holds "${held.every.vendor.vendor_name}" for every occurrence AND ${single} — a plan holds one grain; this is never resolved by picking one` });
+    }
+  }
+  return { holds, refusals };
 }
 
 /** A vendor row's plan: its kind and id — exactly one of the three columns (the migration's CHECK). */
@@ -223,28 +278,11 @@ export function planLinesOn(input: PlanLinesInput): PlanLinesResult {
   const fail = (code: PlanLinesErrorCode, message: string): PlanLinesResult => ({ ok: false, code, message });
   const days = new Set(input.days);
 
-  // The plan's ONE grain — indexed by plan.
-  const holds = new Map<string, PlanHolds>();
-  for (const row of input.vendors) {
-    const plan = planOf(row);
-    if (plan === null) return fail('plan-vendor-unreadable', `plan-vendor row ${row.id} names ${[row.routine_id, row.step_id, row.task_id].filter((v) => v !== null).length} plans — a row names exactly one`);
-    const key = `${plan.kind}:${plan.id}`;
-    let held = holds.get(key);
-    if (held === undefined) {
-      held = { every: null, occurrences: new Map<string, PlanVendorRow>() };
-      holds.set(key, held);
-    }
-    const at = row.occurrence_at === null ? null : row.occurrence_at.toISOString();
-    if (at === null ? held.every !== null : held.occurrences.has(at)) {
-      return fail('plan-vendor-unreadable', `plan ${key} holds two vendors at one address${at === null ? ' (every occurrence)' : ` (${at})`} — the database holds one`);
-    }
-    if (at === null) held.every = row;
-    else held.occurrences.set(at, row);
-    if (held.every !== null && held.occurrences.size > 0) {
-      const single = [...held.occurrences.values()].map((r) => `"${r.vendor.vendor_name}" at ${(r.occurrence_at as Date).toISOString()}`).join(', ');
-      return fail('plan-vendor-both-grains', `plan ${key} holds "${held.every.vendor.vendor_name}" for every occurrence AND ${single} — a plan holds one grain; this is never resolved by picking one`);
-    }
-  }
+  // The plan's ONE grain — indexed by plan (planHoldsOf; ROUTINES-03 lifted it so ROUTINE EXPENSES' VENDOR reads the same rule).
+  // The first refusal in row order fails the matching, as it did when the loop was here.
+  const read = planHoldsOf(input.vendors);
+  if (read.refusals.length > 0) return fail(read.refusals[0].code, read.refusals[0].message);
+  const holds = read.holds;
 
   // The plan lines: the lines handed to the model, on the days handed in.
   const lines: { line: PlanLine; sourceId: string }[] = [];

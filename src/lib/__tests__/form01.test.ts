@@ -173,8 +173,10 @@ test('T4 the list: WORK-01 (Alex, 2026-10-24) — the routines are rows of THE W
   assert.match(w, /const words = daysWords\(row\.routine\.schedule_rrule, row\.routine\.start_date\);/, 'DAYS is daysWords');
   assert.match(w, /const words = timeWords\(row\.routine\);/, 'TIME is timeWords');
   assert.doesNotMatch(w, /groupOf|CADENCE_GROUP_ORDER|CADENCE_GROUP_LABELS|data-cadence-group/, 'no cadence groups, no second classifier');
-  // WORK-01d: KIND left with the merged table — a Once routine is told by CADENCE "once" (cadenceWords, ONEOFF-01's isOnceRRule inside it), not by a second rule here.
-  assert.doesNotMatch(w, /isOnceRRule/, 'no second once-rule beside cadenceWords');
+  // WORK-01d: KIND left with the merged table — a Once routine is told by CADENCE "once". ROUTINES-03 (Alex, 2026-10-25, ruling B): KIND is back as ROUTINE
+  // EXPENSES' own column, read by ONEOFF-01's one rule (isOnceRRule) — the pin moved from "no isOnceRRule" to "isOnceRRule, in KIND alone".
+  assert.match(w, /export const routineKindOf = \(row: RoutineRow\): string => \(isOnceRRule\(row\.routine\.schedule_rrule\) \? KIND_WORDS\.once : KIND_WORDS\.repeated\);/);
+  assert.equal((w.match(/isOnceRRule\(/g) ?? []).length, 1, 'the one rule, once — CADENCE still reads cadenceWords');
   assert.match(code(HELPERS), /export const cadenceWords = \(rrule: string\): string => CADENCE_GROUP_LABELS\[classifyCadence\(rrule\)\]\.toLowerCase\(\);/);
   assert.match(code(HELPERS), /if \(parsed\.options\.count === 1\) return 'once';/, 'cadenceWords says once by the one rule (ONEOFF-01: one occurrence, whatever its FREQ)');
   assert.match(w, /end\.ended \? 'ended' : routine\.is_active \? 'active' : 'inactive'/, 'the ENDED group is a STATUS (ROUTINE-02a)');

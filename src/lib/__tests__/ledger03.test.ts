@@ -181,8 +181,13 @@ test('R2 the join: a record meets its links by (kind, target_id, occurrence_at) 
   assert.match(route, /prisma\.planned_item_links\.findMany\(\{\n\s*where: \{ user_id: user\.id, target_kind: \{ in: \['routine', 'routine_line'\] \}, target_instant: \{ gte: recordsFrom, lt: recordsTo \}, journal_entry: \{ userId: user\.id \} \},\n\s*select: \{ target_kind: true, target_id: true, target_instant: true, journal_entry_id: true, journal_entry: \{ select: POSTING_LINES_SELECT \} \},/, 'the records’ own window, user-scoped twice');
   assert.match(route, /const \[chart, routineGroups, roles, planVendors, stayRows, recordRows, firstRow, linkRows\] = await Promise\.all\(\[/, 'read beside the records, not per record');
   assert.match(route, /links: linkRows\.map\(linkInputOf\),/);
-  assert.match(route, /return \{ kind: row\.target_kind, targetId: row\.target_id, instant: row\.target_instant\.toISOString\(\), journalEntryId: row\.journal_entry_id, amountCents: amountCentsOf\(row\.journal_entry\) \};/, 'the instant as the record’s occurrence_at is answered — toISOString');
-  assert.match(route, /has no instant — the migration's CHECK holds one/, 'a routine kind with no instant is the database’s error');
+  // ROUTINES-03 (Alex, 2026-10-25): linkInputOf moved to ledger.ts, unchanged, so the routines' month route reads a link the same way — the pins moved with it.
+  assert.match(route, /import \{ ledgerOf, linkInputOf, spanInput, type LedgerRecordInput \} from '@\/lib\/operations\/ledger';/);
+  assert.doesNotMatch(route, /function linkInputOf\(/, 'the mapper lives in ledger.ts now');
+  assert.match(rules, /export function linkInputOf\(row: \{ target_kind: string; target_id: string; target_instant: Date \| null; journal_entry_id: string; journal_entry: PostingLines \}\): LedgerLinkInput \{/);
+  assert.match(rules, /return \{ kind: row\.target_kind, targetId: row\.target_id, instant: row\.target_instant\.toISOString\(\), journalEntryId: row\.journal_entry_id, amountCents: amountCentsOf\(row\.journal_entry\) \};/, 'the instant as the record’s occurrence_at is answered — toISOString');
+  assert.match(rules, /has no instant — the migration's CHECK holds one/, 'a routine kind with no instant is the database’s error');
+  assert.match(code('src/app/api/operations/routines/month/route.ts'), /links: linkRows\.map\(linkInputOf\)/, 'the month route reads a link through the same mapper');
   assert.doesNotMatch(route, /planned_item_links\.findFirst|planned_item_links\.findUnique|planned_item_links\.count/, 'no per-record read');
 });
 
@@ -199,7 +204,9 @@ test('R2 the one amount rule: amountCentsOf lives in a pure leaf both routes imp
   assert.match(links, /import \{ POSTING_LINES_SELECT, amountCentsOf \} from '@\/lib\/calendar\/postingAmount';/);
   assert.doesNotMatch(links, /function amountCentsOf/, 'no second copy');
   assert.match(links, /const ENTRY_SELECT = \{\n\s*id: true, date: true, description: true,\n\s*\.\.\.POSTING_LINES_SELECT,\n\} as const;/, 'the same select');
-  assert.match(code(LEDGER_ROUTE), /import \{ POSTING_LINES_SELECT, amountCentsOf, type PostingLines \} from '@\/lib\/calendar\/postingAmount';/);
+  // ROUTINES-03 (2026-10-25): the route keeps the select; the amount rule is read by ledger.ts linkInputOf, which both routes call.
+  assert.match(code(LEDGER_ROUTE), /import \{ POSTING_LINES_SELECT \} from '@\/lib\/calendar\/postingAmount';/);
+  assert.match(code(RULES), /import \{ amountCentsOf, type PostingLines \} from '@\/lib\/calendar\/postingAmount';/);
   assert.match(comments(LEAF), /LEDGER-03, Alex, 2026-10-19/);
 });
 
