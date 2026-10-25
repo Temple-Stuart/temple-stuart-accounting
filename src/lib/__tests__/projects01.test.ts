@@ -228,7 +228,7 @@ test('T1 the quick actions are exactly today\'s — each on the statuses it show
 
 test('T1 the Account column only through ROUTINES-01\'s helper — P-6110, never 6110, never B-B-5130 (WORK-01: THE WORK\'s ACCOUNT reads it in work.ts)', () => {
   const w = code('src/lib/operations/work.ts');
-  assert.match(w, /import \{ ACCOUNT_CELL_WORDS, accountCell, type AccountCellBook \} from '@\/lib\/coa\/accountCell';/);
+  assert.match(w, /import \{ ACCOUNT_CELL_WORDS, accountCell, type AccountCell, type AccountCellBook \} from '@\/lib\/coa\/accountCell';/); // ROUTINES-03 (2026-10-25): the cell's type, for the one read both tables share
   assert.match(w, /const cell = accountCell\(books, bookId, savedCode\);/); // WORK-01d (2026-10-25): one helper call under both tables' ACCOUNT (accountWordsOf takes the book and the saved code)
   assert.equal((w.match(/accountCell\(/g) ?? []).length, 1);
   assert.match(w, /if \(cell\.state === 'blank'\) return null;\n\s*if \(cell\.state !== 'account'\) return cell\.text;/, 'the helper\'s states, as it states them');

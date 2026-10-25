@@ -81,7 +81,7 @@ const ALL_DAY = routine({ id: 'a', name: 'Apple storage', role: 'all_day', sched
 const ENDED = routine({ id: 'e', name: 'Old bill', end_date: '2026-10-13', budget_amount: '12', coa_code: '6150' });
 const INACTIVE = routine({ id: 'i', name: 'Paused', is_active: false });
 const R_ROWS = routineRowsOf([THREE_LINES, ONCE, ALL_DAY, ENDED, INACTIVE], NOW);
-const R_COLUMNS = routineTable(BOOKS, {});
+const R_COLUMNS = routineTable(BOOKS, {}, new Map()); // ROUTINES-03 (2026-10-25): the spec takes the month's figures too
 const T_ROWS = taskRowsOf(PROJECTS);
 const T_COLUMNS = taskTable(BOOKS, {});
 
@@ -143,7 +143,9 @@ test('C routineRowsOf: a 3-line routine is 3 rows, a stepless routine one; Once 
   assert.deepEqual(R_ROWS.map((r) => r.id), ['routine:a', 'routine:m:s1', 'routine:m:s2', 'routine:m:s3', 'routine:e', 'routine:i', 'routine:o']);
   assert.equal(R_ROWS.filter((r) => r.routine.id === 'm').length, 3);
   const cell = (id: string, key: typeof ROUTINE_COLUMNS[number]) => R_COLUMNS.find((c) => c.key === key)!.words(R_ROWS.find((r) => r.id === id)!);
-  assert.deepEqual(['s1', 's2', 's3'].map((s) => cell(`routine:m:${s}`, 'routine')), ['Morning — Coffee', 'Morning — Stretch', 'Morning — Journal']);
+  // ROUTINES-03 (Alex, 2026-10-25, ruling B): ROUTINE is the routine's name alone; the line is SUB ACCOUNT NAME's cell (the "<routine> — <step>" join retired).
+  assert.deepEqual(['s1', 's2', 's3'].map((s) => cell(`routine:m:${s}`, 'routine')), ['Morning', 'Morning', 'Morning']);
+  assert.deepEqual(['s1', 's2', 's3'].map((s) => cell(`routine:m:${s}`, 'sub_account')), ['Coffee', 'Stretch', 'Journal']);
   assert.equal(cell('routine:o', 'cadence'), 'once');
   assert.equal(routineCadenceOf(R_ROWS.find((r) => r.id === 'routine:o')!), 'once');
   assert.equal(cell('routine:a', 'time'), 'all day');
@@ -156,8 +158,10 @@ test('C routineRowsOf: a 3-line routine is 3 rows, a stepless routine one; Once 
   assert.deepEqual(filterRows(R_ROWS, filters, R_COLUMNS).map((r) => r.id), ['routine:a', 'routine:m:s1', 'routine:m:s2', 'routine:m:s3', 'routine:o'], 'the ended and the inactive are dropped by default');
   assert.deepEqual(filterRows(R_ROWS, withoutStatusFilter(filters), R_COLUMNS).map((r) => r.id), R_ROWS.map((r) => r.id), 'the chip cleared shows the ended one');
   assert.equal(routineExpensesCsvFileName('2026-10-25'), 'routine-expenses_2026-10-25.csv');
-  assert.deepEqual([...ROUTINE_COLUMNS], ['routine', 'book', 'cadence', 'days', 'time', 'amount', 'account', 'status']);
-  assert.deepEqual(ROUTINE_COLUMNS.map((k) => ROUTINE_HEAD_WORDS[k]), ['ROUTINE', 'BOOK', 'CADENCE', 'DAYS', 'TIME', 'AMOUNT', 'ACCOUNT', 'STATUS']);
+  // ROUTINES-03 (Alex, 2026-10-25, ruling A): the 21 columns in Alex's order — pinned in full in routines03.test.ts; here the eight WORK-01d named still sit among them.
+  for (const k of ['routine', 'book', 'cadence', 'days', 'time', 'budget', 'account', 'status'] as const) assert.ok((ROUTINE_COLUMNS as readonly string[]).includes(k), `${k} is still a column`);
+  assert.equal(ROUTINE_COLUMNS.length, 21);
+  assert.equal(ROUTINE_HEAD_WORDS.budget, 'BUDGET', 'WORK-01d\'s AMOUNT, renamed by ROUTINES-03');
   assert.equal(ROUTINE_TABLE_NAME, 'routine-expenses');
   const f = code(SECTION_F);
   assert.match(f, /const rows: readonly RoutineRow\[\] = read\.kind === 'loaded' \? routineRowsOf\(read\.routines, new Date\(\)\) : \[\];/);
@@ -196,10 +200,15 @@ test('A /tasks mounts THE WORK, PROJECTS (in its boundary) and ROUTINE EXPENSES,
   assert.match(code(SHARED), /export function useBookCharts\(entities: readonly Entity\[\]\): ChartsRead \{/, 'the charts read is the one shared hook');
 });
 
-test('A no KIND column anywhere: not in work.ts, not in either section, not in the two-lists law\'s block', () => {
-  for (const f of [WORK_LIB, SECTION_E, SECTION_F, SHARED]) assert.doesNotMatch(code(f), /\bKIND\b|\bkindOf\b|WORK_KINDS|'kind'|"kind"|\bworkRowsOf\b|\bworkTable\b/, `${f} holds no KIND`);
-  assert.ok(![...TASK_COLUMNS, ...ROUTINE_COLUMNS].includes('kind' as never));
-  assert.ok(![...Object.values(TASK_HEAD_WORDS), ...Object.values(ROUTINE_HEAD_WORDS)].includes('KIND'));
+// ROUTINES-03 (Alex, 2026-10-25, ruling E): the merged table's KIND (WORK-01's once | repeated over routines AND tasks, with workRowsOf, workTable,
+// WORK_KINDS, kindOf) stays gone; KIND is ROUTINE EXPENSES' own column now — once | repeated over its routines (routines03.test.ts). The pin
+// narrowed to the merged table's names; THE WORK still carries no KIND.
+test('A the merged table\'s KIND stays gone: no workRowsOf, workTable, WORK_KINDS or kindOf in work.ts, either section or the shared cell; THE WORK has no KIND', () => {
+  for (const f of [WORK_LIB, SECTION_E, SECTION_F, SHARED]) assert.doesNotMatch(code(f), /\bkindOf\b|WORK_KINDS|\bworkRowsOf\b|\bworkTable\b/, `${f} holds none of the merged table's names`);
+  assert.ok(!(TASK_COLUMNS as readonly string[]).includes('kind'));
+  assert.ok(!Object.values(TASK_HEAD_WORDS).includes('KIND'));
+  assert.ok((ROUTINE_COLUMNS as readonly string[]).includes('kind'), 'ROUTINES-03: KIND is ROUTINE EXPENSES\' own column');
+  assert.equal(ROUTINE_HEAD_WORDS.kind, 'KIND');
   // The law's two-lists block (the kind-views law elsewhere in the file is TABLES-01's, another KIND).
   const law = code(LAW);
   const block = law.slice(law.indexOf('const TWO_LISTS_MOUNTS'), law.indexOf('const TIME_MOUNTS'));

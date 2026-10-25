@@ -131,6 +131,7 @@ import { NEGATIVE_AMOUNT_WORDS, SKIPPED_WORD, amountWords, recordKey, refusedWor
 import { ROLE_SHORT_WORDS, isStop, isStopRole, type StopRole } from '@/lib/operations/stopRole';
 import { asksAmount, dayShortWords, dayTotals, deltaWords, planDollars, stopName } from '@/components/workbench/operations/day/dayCard';
 import { instantToZoned, zonedToInstant } from '@/lib/time';
+import { amountCentsOf, type PostingLines } from '@/lib/calendar/postingAmount';
 import type { RoutineForm } from '@/components/workbench/operations/routines/types';
 import type { StopBody } from '@/components/workbench/operations/stops/stopWrites';
 
@@ -180,6 +181,20 @@ export interface LedgerLinkInput {
   readonly instant: string;
   readonly journalEntryId: string;
   readonly amountCents: number | null;
+}
+
+/**
+ * A planned_item_links row as the ledger GET reads it → the rule's input, the
+ * amount by LEDGER-03's one rule (postingAmount.ts amountCentsOf). ROUTINES-03
+ * (Alex, 2026-10-25): moved here from the ledger route, unchanged, so the
+ * routines' month route reads a link the same way — one mapper, two routes.
+ * A kind the query did not ask for, or a routine kind with no instant, is the
+ * database's error, thrown by name.
+ */
+export function linkInputOf(row: { target_kind: string; target_id: string; target_instant: Date | null; journal_entry_id: string; journal_entry: PostingLines }): LedgerLinkInput {
+  if (row.target_kind !== 'routine' && row.target_kind !== 'routine_line') throw new Error(`ledger GET: link ${row.journal_entry_id} is of kind ${JSON.stringify(row.target_kind)} — the query asked for routine or routine_line`);
+  if (row.target_instant === null) throw new Error(`ledger GET: link ${row.journal_entry_id} of kind ${row.target_kind} has no instant — the migration's CHECK holds one`);
+  return { kind: row.target_kind, targetId: row.target_id, instant: row.target_instant.toISOString(), journalEntryId: row.journal_entry_id, amountCents: amountCentsOf(row.journal_entry) };
 }
 
 export interface LedgerInput {

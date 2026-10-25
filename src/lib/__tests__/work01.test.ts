@@ -33,8 +33,8 @@ import { resolve } from 'node:path';
 import { code, comments } from '../sourceText';
 import {
   ALL_DAY_WORDS, CHART_MISSING_WORDS, PROJECT_REQUIRED_WORDS, ROUTINE_COLUMNS, ROUTINE_DEFAULT, ROUTINE_HEAD_WORDS, TASK_COLUMNS, TASK_DEFAULT, TASK_HEAD_WORDS,
-  accountWordsOf, openProjects, routineAmountCentsOf, routineDefaultFilters, routineExpensesCsvFileName, routineNameOf, routineRowsOf, routineStatusOf, routineTable,
-  routineTimeOf, rowCountWords, statusChipWords, statusDroppedOf, taskDefaultFilters, taskRowsOf, taskTable, workCsvFileName, withoutStatusFilter,
+  accountWordsOf, openProjects, routineAmountCentsOf, routineDefaultFilters, routineExpensesCsvFileName, routineNameOf, routineRowsOf, routineStatusOf, routineSubAccountOf,
+  routineTable, routineTimeOf, rowCountWords, statusChipWords, statusDroppedOf, taskDefaultFilters, taskRowsOf, taskTable, workCsvFileName, withoutStatusFilter,
   type WorkBook, type WorkCharts, type WorkProject,
 } from '../operations/work';
 import { OPEN_PROJECT_STATUSES } from '../operations/morningLog';
@@ -113,7 +113,7 @@ const PROJECTS: WorkProject[] = [{ project: HOME, tasks: [T_ROUTE, T_DONE] }, { 
 // WORK-01d (Alex, 2026-10-25): two builders, two specs — the routines' rows and the tasks' rows are never one list.
 const R_ROWS = routineRowsOf([MORNING, DENTIST, APPLE, OLD, PAUSED], NOW);
 const T_ROWS = taskRowsOf(PROJECTS);
-const R_COLUMNS = routineTable(BOOKS, CHARTS);
+const R_COLUMNS = routineTable(BOOKS, CHARTS, new Map()); // ROUTINES-03 (2026-10-25): the spec takes the month's figures too — none here (routines03.test.ts drives them)
 const T_COLUMNS = taskTable(BOOKS, CHARTS);
 const rcell = (id: string, key: typeof ROUTINE_COLUMNS[number]) => R_COLUMNS.find((c) => c.key === key)!.words(R_ROWS.find((r) => r.id === id)!);
 const tcell = (id: string, key: typeof TASK_COLUMNS[number]) => T_COLUMNS.find((c) => c.key === key)!.words(T_ROWS.find((r) => r.id === id)!);
@@ -126,24 +126,32 @@ test('T1 one row per routine line, one per stepless routine — in clock order t
   assert.deepEqual(R_ROWS.map((r) => r.id), ['routine:apple', 'routine:morning:s1', 'routine:morning:s2', 'routine:morning:s3', 'routine:old', 'routine:paused', 'routine:dentist']);
   // WORK-01d (Alex, 2026-10-25, ruling B): the archived project's task is NOT a row — THE WORK is the open projects' tasks; its home is PROJECTS → show archived → the row's details.
   assert.deepEqual(T_ROWS.map((r) => r.id), ['task:t1', 'task:t3']);
-  // The 3-line routine is 3 rows — ROUTINE "<routine> — <line>" (WORK-01b, Alex, 2026-10-24, ruling 2) — each line's own amount and account; the stepless routine its bare name.
-  assert.deepEqual(['s1', 's2', 's3'].map((s) => rcell(`routine:morning:${s}`, 'routine')), ['Morning — Coffee', 'Morning — Stretch', 'Morning — Journal']);
+  // The 3-line routine is 3 rows — each line's own budget and account; ROUTINES-03 (Alex, 2026-10-25, ruling B): ROUTINE is the routine's name alone
+  // (WORK-01b ruling 2's "<routine> — <line>" join retired), the line is SUB ACCOUNT NAME's, AMOUNT is BUDGET, ACCOUNT and ACCOUNT NAME are two cells.
+  assert.deepEqual(['s1', 's2', 's3'].map((s) => rcell(`routine:morning:${s}`, 'routine')), ['Morning', 'Morning', 'Morning']);
+  assert.deepEqual(['s1', 's2', 's3'].map((s) => rcell(`routine:morning:${s}`, 'sub_account')), ['Coffee', 'Stretch', 'Journal']);
   assert.equal(rcell('routine:dentist', 'routine'), 'Dentist');
+  assert.equal(rcell('routine:dentist', 'sub_account'), 'Dentist', 'a stepless routine: its own name (stopName)');
   assert.equal(tcell('task:t1', 'task'), 'write the route');
-  assert.deepEqual(['s1', 's2', 's3'].map((s) => rcell(`routine:morning:${s}`, 'amount')), ['$3.00', BLANK, '$0.50']);
-  assert.deepEqual(['s1', 's2', 's3'].map((s) => rcell(`routine:morning:${s}`, 'account')), ['P-6150 Food & drink', BLANK, 'P-6150 Food & drink']);
-  assert.equal(rcell('routine:dentist', 'amount'), '$40.00');
-  assert.equal(rcell('routine:old', 'account'), 'B-6080 Office Expense', 'the book\'s letter and the chart\'s name');
+  assert.deepEqual(['s1', 's2', 's3'].map((s) => rcell(`routine:morning:${s}`, 'budget')), ['$3.00', BLANK, '$0.50']);
+  assert.deepEqual(['s1', 's2', 's3'].map((s) => rcell(`routine:morning:${s}`, 'account')), ['P-6150', BLANK, 'P-6150']);
+  assert.deepEqual(['s1', 's2', 's3'].map((s) => rcell(`routine:morning:${s}`, 'account_name')), ['Food & drink', BLANK, 'Food & drink']);
+  assert.equal(rcell('routine:dentist', 'budget'), '$40.00');
+  assert.equal(rcell('routine:old', 'account'), 'B-6080', 'the book\'s letter');
+  assert.equal(rcell('routine:old', 'account_name'), 'Office Expense', 'the chart\'s name');
   assert.equal(rcell('routine:old', 'book'), 'Business');
 });
 
-test('T1 KIND left (WORK-01d, Alex, 2026-10-25): the two tables are the kinds — work.ts holds no KIND column, no kindOf, no merged builder', () => {
+test('T1 the merged KIND left (WORK-01d, Alex, 2026-10-25): work.ts holds no kindOf, no merged builder; THE WORK has no KIND — ROUTINE EXPENSES\' own KIND is ROUTINES-03\'s', () => {
   // WORK-01 said: a task is once; a routine is once when its rule is Once, else repeated. WORK-01d: a task is a row of THE WORK, a routine line a row of
   // ROUTINE EXPENSES — the table says what the column said, so the column is retired, not loosened (its subjects: work01d.test.ts).
+  // ROUTINES-03 (Alex, 2026-10-25, ruling E): KIND is ROUTINE EXPENSES' own column again — once | repeated over its routines alone (routines03.test.ts);
+  // the pin narrowed to the merged table's names.
   const w = code(WORK_LIB);
-  assert.doesNotMatch(w, /\bkindOf\b|WORK_KINDS|\bworkRowsOf\b|\bworkTable\b|'kind'|KIND/);
-  assert.ok(!(ROUTINE_COLUMNS as readonly string[]).includes('kind') && !(TASK_COLUMNS as readonly string[]).includes('kind'));
-  assert.ok(!Object.values(ROUTINE_HEAD_WORDS).includes('KIND') && !Object.values(TASK_HEAD_WORDS).includes('KIND'));
+  assert.doesNotMatch(w, /\bkindOf\b|WORK_KINDS|\bworkRowsOf\b|\bworkTable\b/);
+  assert.ok(!(TASK_COLUMNS as readonly string[]).includes('kind') && !Object.values(TASK_HEAD_WORDS).includes('KIND'));
+  assert.ok((ROUTINE_COLUMNS as readonly string[]).includes('kind') && ROUTINE_HEAD_WORDS.kind === 'KIND');
+  assert.deepEqual(['routine:dentist', 'routine:morning:s1'].map((id) => rcell(id, 'kind')), ['once', 'repeated']);
   assert.equal(rcell('routine:dentist', 'cadence'), 'once', 'a Once routine still reads "once" — under CADENCE');
   assert.match(comments(WORK_LIB), /WORK-01d replaced the KIND\s*\n?\s*\*?\s*column with the two tables themselves/);
 });
@@ -166,15 +174,19 @@ test('T1 the words by column: a routine has its cadence, days and time, "all day
   assert.equal(tcell('task:t1', 'done'), BLANK);
   assert.equal(tcell('task:t3', 'done'), drawn('2026-10-22'));
   assert.equal(T_COLUMNS.find((c) => c.key === 'done')!.csv(T_ROWS.find((r) => r.id === 'task:t3')!), '2026-10-22');
-  assert.equal(rcell('routine:paused', 'amount'), BLANK);
+  assert.equal(rcell('routine:paused', 'budget'), BLANK);
   assert.equal(rcell('routine:paused', 'account'), BLANK);
+  assert.equal(rcell('routine:paused', 'account_name'), BLANK);
   assert.equal(routineAmountCentsOf(R_ROWS.find((r) => r.id === 'routine:apple')!), 299);
-  // A code the book's chart does not list is said, never silently bare; a book with no chart read is said too (both tables' ACCOUNT, one helper).
+  // A code the book's chart does not list is said, never silently bare; a book with no chart read is said too (THE WORK's one cell, one helper).
   assert.equal(accountWordsOf(BOOKS, CHARTS, 'p', '6999'), `P-6999 — ${CHART_MISSING_WORDS}`);
   assert.equal(accountWordsOf(BOOKS, {}, 'p', '6999'), 'P-6999 — chart not read');
   assert.equal(accountWordsOf([], CHARTS, 'p', '6999'), 'book not loaded', 'ROUTINES-01\'s helper states the book');
+  // ROUTINES-03 (Alex, 2026-10-25, ruling B): on ROUTINE EXPENSES the chart's two states and the helper's non-account states print under ACCOUNT NAME.
   const stray = routineRowsOf([routine({ id: 'stray', name: 'Stray', budget_amount: '5', coa_code: '6999' })], NOW)[0];
-  assert.equal(routineTable(BOOKS, CHARTS).find((c) => c.key === 'account')!.words(stray), `P-6999 — ${CHART_MISSING_WORDS}`);
+  const strayColumns = routineTable(BOOKS, CHARTS, new Map());
+  assert.equal(strayColumns.find((c) => c.key === 'account')!.words(stray), 'P-6999');
+  assert.equal(strayColumns.find((c) => c.key === 'account_name')!.words(stray), CHART_MISSING_WORDS);
 });
 
 test('T1 STATUS: a routine is ended first (ROUTINE-02a, judged now in its zone), then inactive, else active; a task wears its status words', () => {
@@ -186,7 +198,7 @@ test('T1 STATUS: a routine is ended first (ROUTINE-02a, judged now in its zone),
 
 // ── T2 · THE SPECS ────────────────────────────────────────────────────────────
 
-test('T2 the two specs (WORK-01d): THE WORK — TASK · PROJECT · BOOK · STATUS · DEADLINE · ESTIMATE · ACCOUNT · DONE; ROUTINE EXPENSES — ROUTINE · BOOK · CADENCE · DAYS · TIME · AMOUNT · ACCOUNT · STATUS', () => {
+test('T2 the two specs (WORK-01d): THE WORK — TASK · PROJECT · BOOK · STATUS · DEADLINE · ESTIMATE · ACCOUNT · DONE; ROUTINE EXPENSES — its 21 columns in Alex\'s order (ROUTINES-03)', () => {
   assert.deepEqual([...TASK_COLUMNS], ['task', 'project', 'book', 'status', 'deadline', 'estimate', 'account', 'done']);
   assert.deepEqual(T_COLUMNS.map((c) => c.key), [...TASK_COLUMNS]);
   assert.deepEqual(T_COLUMNS.map((c) => c.label), ['TASK', 'PROJECT', 'BOOK', 'STATUS', 'DEADLINE', 'ESTIMATE', 'ACCOUNT', 'DONE']);
@@ -194,16 +206,17 @@ test('T2 the two specs (WORK-01d): THE WORK — TASK · PROJECT · BOOK · STATU
   assert.deepEqual(Object.fromEntries(T_COLUMNS.map((c) => [c.key, c.kind])), {
     task: 'text', project: 'text', book: 'value', status: 'value', deadline: 'value', estimate: 'money', account: 'text', done: 'value',
   });
-  assert.deepEqual([...ROUTINE_COLUMNS], ['routine', 'book', 'cadence', 'days', 'time', 'amount', 'account', 'status']);
+  // ROUTINES-03 (Alex, 2026-10-25, ruling A): the 21 columns in Alex's order — WORK-01d's eight sit among them (AMOUNT renamed BUDGET); the full
+  // order, heads and kinds are routines03.test.ts's pins.
+  assert.equal(ROUTINE_COLUMNS.length, 21);
   assert.deepEqual(R_COLUMNS.map((c) => c.key), [...ROUTINE_COLUMNS]);
-  assert.deepEqual(R_COLUMNS.map((c) => c.label), ['ROUTINE', 'BOOK', 'CADENCE', 'DAYS', 'TIME', 'AMOUNT', 'ACCOUNT', 'STATUS']);
   assert.deepEqual(R_COLUMNS.map((c) => c.label), ROUTINE_COLUMNS.map((k) => ROUTINE_HEAD_WORDS[k]));
-  assert.deepEqual(Object.fromEntries(R_COLUMNS.map((c) => [c.key, c.kind])), {
-    routine: 'text', book: 'value', cadence: 'value', days: 'value', time: 'value', amount: 'money', account: 'text', status: 'value',
-  });
-  // A text column's filter reads the full text; a blank is null there, "—" on screen, '' in the CSV.
+  assert.deepEqual(['routine', 'book', 'cadence', 'days', 'time', 'budget', 'account', 'status'].map((k) => R_COLUMNS.find((c) => c.key === k)!.kind), ['text', 'value', 'value', 'value', 'value', 'money', 'value', 'value']);
+  // A text column's filter reads the full text; a blank is null there, "—" on screen, '' in the CSV (ROUTINES-03: SUB ACCOUNT NAME is the text column; ACCOUNT a value).
+  const sub = R_COLUMNS.find((c) => c.key === 'sub_account')!;
+  assert.equal(sub.kind === 'text' && sub.text(R_ROWS.find((r) => r.id === 'routine:paused')!), 'Paused');
   const account = R_COLUMNS.find((c) => c.key === 'account')!;
-  assert.equal(account.kind === 'text' && account.text(R_ROWS.find((r) => r.id === 'routine:paused')!), null);
+  assert.equal(account.words(R_ROWS.find((r) => r.id === 'routine:paused')!), BLANK);
   assert.equal(account.csv(R_ROWS.find((r) => r.id === 'routine:paused')!), '');
 });
 
@@ -242,7 +255,7 @@ test('T3 each table\'s default is a VISIBLE STATUS chip — "STATUS: open only" 
   const f = code(SECTION_F);
   assert.match(f, /readJson\('\/api\/operations\/routines', 'routines'\)/, 'every routine, active or not (no ?is_active=true)');
   assert.doesNotMatch(f, /\/api\/operations\/projects/, 'no project is read here');
-  assert.match(f, /const \[filters, setFilters\] = useState<TableFilters>\(\(\) => routineDefaultFilters\(routineTable\(\[\], \{\}\)\)\);/, 'applied at first');
+  assert.match(f, /const \[filters, setFilters\] = useState<TableFilters>\(\(\) => routineDefaultFilters\(routineTable\(\[\], \{\}, NO_MONTH\)\)\);/, 'applied at first'); // ROUTINES-03: the spec takes the month too
   assert.match(f, /\{filterOn\(filters, 'status', 'value'\) && \(\n\s*<button type="button" className=\{chipOn\} onClick=\{\(\) => setFilters\(withoutStatusFilter\(filters\)\)\} \{\.\.\.dataAttr\(name, 'status-chip'\)\}>\n\s*\{statusChipWords\(statusDroppedOf\(filters\), ROUTINE_DEFAULT\)\} \{CLEAR_CHIP_MARK\}/, 'the chip, and its click clears it');
   // Each book's chart, for ACCOUNT's names — the shared hook, once per table.
   assert.match(code(SHARED), /readJson\(`\/api\/chart-of-accounts\?entity_id=\$\{encodeURIComponent\(e\.id\)\}`/);
@@ -255,12 +268,13 @@ test('T3 each table\'s default is a VISIBLE STATUS chip — "STATUS: open only" 
 
 // ── T4 · SORT AND CSV ────────────────────────────────────────────────────────
 
-test('T4 sort by AMOUNT / ESTIMATE descending puts the dearest first and the blanks last; each CSV is its spec\'s, money bare, a blank an empty field, each file its own name', () => {
-  const desc = sortRows(R_ROWS, { column: 'amount', direction: 'desc' }, R_COLUMNS).map((r) => r.id);
+test('T4 sort by BUDGET / ESTIMATE descending puts the dearest first and the blanks last; each CSV is its spec\'s, money bare, a blank an empty field, each file its own name', () => {
+  // ROUTINES-03 (Alex, 2026-10-25): AMOUNT is BUDGET; the CSV carries the 21 columns in Alex's order — dates ISO, money bare, the full id.
+  const desc = sortRows(R_ROWS, { column: 'budget', direction: 'desc' }, R_COLUMNS).map((r) => r.id);
   assert.deepEqual(desc, ['routine:dentist', 'routine:old', 'routine:morning:s1', 'routine:apple', 'routine:morning:s3', 'routine:morning:s2', 'routine:paused'], 'blanks last, in the order given');
   assert.deepEqual(sortRows(T_ROWS, { column: 'estimate', direction: 'desc' }, T_COLUMNS).map((r) => r.id), ['task:t1', 'task:t3']);
-  assert.equal(tableCsv(R_COLUMNS, R_ROWS.filter((r) => r.id === 'routine:morning:s1')), 'ROUTINE,BOOK,CADENCE,DAYS,TIME,AMOUNT,ACCOUNT,STATUS\r\n'
-    + 'Morning — Coffee,Personal,daily,Mon–Sun,07:00 – 07:30,3.00,P-6150 Food & drink,active\r\n');
+  assert.equal(tableCsv(R_COLUMNS, R_ROWS.filter((r) => r.id === 'routine:morning:s1')), 'START,END,KIND,BOOK,ACCOUNT,ACCOUNT NAME,SUB ACCOUNT NAME,VENDOR,ROUTINE,TIME,DAYS,CADENCE,NEXT,BUDGET,THIS MONTH,TO DATE,ACTUAL,MATCH,VARIANCE,STATUS,ID\r\n'
+    + ',,repeated,Personal,P-6150,Food & drink,Coffee,,Morning,07:00 – 07:30,Mon–Sun,daily,,3.00,,,,,,active,s1\r\n');
   assert.equal(tableCsv(T_COLUMNS, T_ROWS), 'TASK,PROJECT,BOOK,STATUS,DEADLINE,ESTIMATE,ACCOUNT,DONE\r\n'
     + 'write the route,HOME-01,Personal,new,2026-10-30,12.50,P-6150 Food & drink,\r\n'
     + 'merged,HOME-01,Personal,done,,,,2026-10-22\r\n');
@@ -433,19 +447,24 @@ test('T7 the cockpit\'s Routines and Projects tabs are gone; the keys left both 
 
 // ── WORK-01b (Alex, 2026-10-24) · THE FOUR RULINGS ON #1850 ─────────────────
 
-test('WORK-01b ruling 2: a line row\'s ROUTINE is "<routine> — <line>", one string — the filter, the sort and the CSV read it whole; a stepless routine keeps its bare name', () => {
-  // WORK-01d (2026-10-25): the column is ROUTINE on ROUTINE EXPENSES (routineNameOf) — the rule is the same string.
-  assert.equal(routineNameOf(R_ROWS.find((r) => r.id === 'routine:morning:s2')!), 'Morning — Stretch');
+// ROUTINES-03 (Alex, 2026-10-25, ruling B): WORK-01b ruling 2's "<routine> — <line>" join is RETIRED — ROUTINE is the routine's name alone and the line is
+// SUB ACCOUNT NAME's cell (the ledger's stopName rule), so each column holds one fact; LINE_NAME_JOIN left work.ts. The pins moved to the two columns.
+test('WORK-01b ruling 2, as ROUTINES-03 re-cut it: ROUTINE is the routine alone, the line is SUB ACCOUNT NAME — the filter, the sort and the CSV read each; a stepless routine is its name in both', () => {
+  assert.equal(routineNameOf(R_ROWS.find((r) => r.id === 'routine:morning:s2')!), 'Morning');
+  assert.equal(routineSubAccountOf(R_ROWS.find((r) => r.id === 'routine:morning:s2')!), 'Stretch');
   assert.equal(routineNameOf(R_ROWS.find((r) => r.id === 'routine:dentist')!), 'Dentist');
-  // The sort by ROUTINE orders the full string: the three Morning rows by their line.
-  const byName = sortRows(R_ROWS, { column: 'routine', direction: 'asc' }, R_COLUMNS).map((r) => routineNameOf(r));
-  assert.deepEqual(byName.filter((n) => n.startsWith('Morning')), ['Morning — Coffee', 'Morning — Journal', 'Morning — Stretch']);
-  // The ROUTINE filter matches the line's half too: "Stretch" finds the one row.
-  const stretch = filterRows(R_ROWS, withFilter(noFilters(R_COLUMNS), 'routine', { contains: 'Stretch' }), R_COLUMNS).map((r) => r.id);
-  assert.deepEqual(stretch, ['routine:morning:s2']);
-  // The CSV carries the same string.
-  assert.match(tableCsv(R_COLUMNS, R_ROWS.filter((r) => r.id === 'routine:morning:s2')), /\nMorning — Stretch,Personal,/);
-  assert.match(code(WORK_LIB), /row\.line === null \? row\.routine\.name : `\$\{row\.routine\.name\}\$\{LINE_NAME_JOIN\}\$\{row\.line\.activity\}`/);
+  assert.equal(routineSubAccountOf(R_ROWS.find((r) => r.id === 'routine:dentist')!), 'Dentist');
+  // The sort by SUB ACCOUNT NAME orders the three Morning rows by their line.
+  const bySub = sortRows(R_ROWS, { column: 'sub_account', direction: 'asc' }, R_COLUMNS).filter((r) => r.routine.id === 'morning').map(routineSubAccountOf);
+  assert.deepEqual(bySub, ['Coffee', 'Journal', 'Stretch']);
+  // The SUB ACCOUNT NAME filter finds the one row; the ROUTINE filter finds the routine's three.
+  assert.deepEqual(filterRows(R_ROWS, withFilter(noFilters(R_COLUMNS), 'sub_account', { contains: 'Stretch' }), R_COLUMNS).map((r) => r.id), ['routine:morning:s2']);
+  assert.deepEqual(filterRows(R_ROWS, withFilter(noFilters(R_COLUMNS), 'routine', { contains: 'Morning' }), R_COLUMNS).map((r) => r.id), ['routine:morning:s1', 'routine:morning:s2', 'routine:morning:s3']);
+  // The CSV carries each in its column.
+  assert.match(tableCsv(R_COLUMNS, R_ROWS.filter((r) => r.id === 'routine:morning:s2')), /\n,,repeated,Personal,,,Stretch,,Morning,/);
+  assert.match(code(WORK_LIB), /export const routineNameOf = \(row: RoutineRow\): string => row\.routine\.name;/);
+  assert.match(code(WORK_LIB), /export const routineSubAccountOf = \(row: RoutineRow\): string => stopName\(\{ line: row\.line === null \? null : row\.line\.activity, label: row\.routine\.name \}\);/);
+  assert.doesNotMatch(code(WORK_LIB), /LINE_NAME_JOIN/, 'the join left');
 });
 
 test('WORK-01b ruling 3: the page holds one task-change signal — THE WORK bumps it on a task change and re-reads on every bump; PROJECTS\' counts read the same version; ROUTINE EXPENSES does not touch it', () => {

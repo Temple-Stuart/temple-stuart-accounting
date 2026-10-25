@@ -204,7 +204,7 @@ test('T5 the list: WORK-01 (Alex, 2026-10-24) — one table, every book: BOOK na
     r({ id: 'dinner', name: 'Dinner', entity_id: 'b' }),
     r({ id: 'stray', name: 'Stray', entity_id: 'nobody' }),
   ], now);
-  const columns = routineTable(books, {});
+  const columns = routineTable(books, {}, new Map()); // ROUTINES-03 (2026-10-25): the spec takes the month's figures too
   const words = (id: string, key: string) => columns.find((c) => c.key === key)!.words(rows.find((x) => x.id === `routine:${id}`)!);
   // The charge's TIME is the role's own fact — all day, never a clock drawn from its derived 00:00; a timed routine shows its window.
   assert.equal(words('apple', 'time'), ALL_DAY_WORDS);

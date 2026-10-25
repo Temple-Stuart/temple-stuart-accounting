@@ -98,7 +98,11 @@ test('both budget routes read routines through the one loader, and the loader fi
     assert.doesNotMatch(body, /budget_amount: \{ not: null \}/, `${f} does not hide a lined routine`);
   }
   const loader = code(LOADER);
-  assert.match(loader, /where: \{ user_id: userId, entity_id: entityId, is_active: true \},/);
+  // ROUTINES-03 (Alex, 2026-10-25, ruling C): the routines' month route reads active AND inactive routines through the same loader — one option,
+  // off by default, so both budget routes still read the active ones alone; the pin moved to the option's two branches.
+  assert.match(loader, /where: \{ user_id: userId, entity_id: entityId, \.\.\.\(options\.includeInactive === true \? \{\} : \{ is_active: true \}\) \},/);
+  assert.match(loader, /options: \{ readonly includeInactive\?: boolean \} = \{\},/);
+  for (const f of [PERSONAL, BUSINESS]) assert.doesNotMatch(code(f), /includeInactive/, `${f} reads the active ones, as before`);
   // TAB13-04: the lines' select grew, additively, by the words the day's plan lines print.
   assert.match(loader, /steps: \{ where: \{ is_active: true \}, select: \{ id: true, is_active: true, budget_amount: true, coa_code: true, step_order: true, activity: true, time_of_day: true \} \}/);
   assert.match(loader, /start_date: true,/);
