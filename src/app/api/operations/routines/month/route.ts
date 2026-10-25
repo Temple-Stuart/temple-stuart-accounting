@@ -20,7 +20,7 @@
  *
  * Answers { as_of, from, to, lines: [{ routine_id, step_id, vendor_words,
  * budget_month_cents, budget_to_date_cents, actual_cents, actual_records,
- * match_cents, match_links, match_unreadable, variance_cents }], said: [],
+ * match_cents, match_links, match_unreadable, variance_cents, budget_words }], said: [],
  * calculated: { <figure>: <its rule> } }. No paid service. Not in PUBLIC_PATHS.
  * A rule's named refusal (BudgetDaysError, BudgetInputError, a plan-vendor row the
  * database should not hold) is a 500 with its code and message; anything else fails
@@ -83,7 +83,8 @@ export async function GET(request: NextRequest) {
       if (book === undefined) throw new BudgetInputError('unknown-entity', `the routines of entity ${entityId} name an entity that is not one of the caller's`);
       return book;
     };
-    const routines = routineGroups.flatMap((group) => group.rows.map((row) => toRoutinePlanInput(row, bookOf(group.entityId))));
+    // COLUMNS-01 (Alex, 2026-10-25, ruling A): each routine says whether it is active (the loader's is_active) — the rule budgets the active ones alone.
+    const routines = routineGroups.flatMap((group) => group.rows.map((row) => ({ ...toRoutinePlanInput(row, bookOf(group.entityId)), isActive: row.is_active })));
     const month = routineMonthOf({ asOf, routines, records: recordRows.map(stopRecordRowOf), links: linkRows.map(linkInputOf), vendors: vendorRows });
     if (!month.ok) return NextResponse.json({ error: month.code, message: month.message }, { status: 500 });
     return NextResponse.json({ as_of: month.as_of, from: month.from, to: month.to, lines: month.lines, said: month.said, calculated: ROUTINE_MONTH_CALCULATED });

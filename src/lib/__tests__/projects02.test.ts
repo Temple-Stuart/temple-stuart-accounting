@@ -19,17 +19,17 @@ import {
   PROJECT_TOOLTIPS, TASKS_LOADING_WORDS, estimateCoverageWords, estimateSumOf, previewOf, projectActualCentsOf, projectCellKeyOf, projectDefault, projectDefaultFilters,
   projectEstimateOf, projectRowsOf, projectTable, projectTasksWordsOf, projectsCsvFileName, type ProjectColumn, type ProjectTableRow, type ProjectTasksRead,
 } from '../operations/projectsTable';
-import { estimateCentsOf, statusChipWords, withoutStatusFilter } from '../operations/work';
+import { dayWords, estimateCentsOf, instantDayWords, statusChipWords, withoutStatusFilter } from '../operations/work';
 import { OPEN_PROJECT_STATUSES, isOpenProjectStatus } from '../operations/morningLog';
 import { CAPTURE_QUESTIONS, captureQuestion } from '../operations/projectBrief';
-import { EXPAND_WORDS, COLLAPSE_WORDS, PREVIEW_CHARS } from '../operations/journalTables';
+import { EXPAND_WORDS, COLLAPSE_WORDS, PREVIEW_CHARS } from '../table/preview'; // COLUMNS-01b (2026-10-25, ruling 3): the rule is the idiom's
 import { columnOf } from '../table/columns';
 import { filterRows, noFilters, withFilter } from '../table/filters';
 import { sortRows } from '../table/sort';
 import { csvField, tableCsv } from '../table/csv';
 import { BLANK } from '../table/words';
 import { STATUS_LABELS, type Project, type ProjectStatus, type Task } from '@/components/workbench/operations/projects/types';
-import { formatDate, statusCounts } from '@/components/workbench/operations/projects/projectsTableText';
+import { statusCounts } from '@/components/workbench/operations/projects/projectsTableText';
 
 const OPS = 'src/components/workbench/operations';
 const SECTION_D = `${OPS}/SectionD_ProjectBacklog.tsx`;
@@ -242,18 +242,23 @@ test('B LINKS — one per line; the CSV field carries the line break, quoted; no
   assert.equal(col('links').csv(rowsOf([BARE])[0]), '');
 });
 
-test('B the dates — TARGET · CAPTURED · PROMOTED · SCHEDULED · DONE drawn as formatDate draws them, the ISO day under for the sort and the CSV; unset is blank', () => {
-  for (const [key, iso] of [['target', '2026-11-01T00:00:00.000Z'], ['captured', '2026-10-20T03:00:00.000Z'], ['promoted', '2026-10-21T03:00:00.000Z'], ['scheduled', '2026-10-22T03:00:00.000Z']] as const) {
-    assert.equal(col(key).words(ROW_FULL), formatDate(iso), key);
-    assert.equal(col(key).csv(ROW_FULL), iso.slice(0, 10), key);
-    assert.deepEqual(col(key).sortKey(ROW_FULL), { kind: 'text', t: iso.slice(0, 10) }, key);
+// COLUMNS-01b (Alex, 2026-10-25, ruling 2): TARGET is a DAY (dayWords of the ISO day; the ISO day in the sort and the CSV); CAPTURED · PROMOTED ·
+// SCHEDULED · DONE are EVENT INSTANTS (the viewer's local day on screen, the instant in the sort, the ISO instant as stored in the CSV).
+test('B the dates — TARGET a day drawn at local midnight with its ISO day under; CAPTURED · PROMOTED · SCHEDULED · DONE event instants: the viewer\'s day on screen, the instant in the sort and the CSV; unset is blank', () => {
+  assert.equal(col('target').words(ROW_FULL), dayWords('2026-11-01'));
+  assert.equal(col('target').csv(ROW_FULL), '2026-11-01');
+  assert.deepEqual(col('target').sortKey(ROW_FULL), { kind: 'text', t: '2026-11-01' });
+  for (const [key, iso] of [['captured', '2026-10-20T03:00:00.000Z'], ['promoted', '2026-10-21T03:00:00.000Z'], ['scheduled', '2026-10-22T03:00:00.000Z']] as const) {
+    assert.equal(col(key).words(ROW_FULL), instantDayWords(iso), key);
+    assert.equal(col(key).csv(ROW_FULL), iso, `${key}: the instant as stored`);
+    assert.deepEqual(col(key).sortKey(ROW_FULL), { kind: 'text', t: iso }, key);
   }
   assert.equal(col('done').words(ROW_FULL), BLANK);
   assert.equal(col('done').csv(ROW_FULL), '');
   assert.equal(col('done').sortKey(ROW_FULL), null);
   const done = rowsOf([DONE])[0];
-  assert.equal(col('done').words(done), formatDate('2026-10-24T03:00:00.000Z'));
-  assert.equal(col('done').csv(done), '2026-10-24');
+  assert.equal(col('done').words(done), instantDayWords('2026-10-24T03:00:00.000Z'));
+  assert.equal(col('done').csv(done), '2026-10-24T03:00:00.000Z');
   assert.equal(col('target').words(rowsOf([BARE])[0]), BLANK);
 });
 
@@ -289,7 +294,7 @@ test('C a completed project is dropped by default and shown when the chip is cle
   const filters = projectDefaultFilters(COLUMNS, false);
   assert.deepEqual(filterRows(rows, filters, COLUMNS).map((r) => r.id), ['p-full']);
   assert.deepEqual(filterRows(rows, withoutStatusFilter(filters), COLUMNS).map((r) => r.id), ['p-full', 'p-done']);
-  assert.equal(col('done').words(filterRows(rows, withoutStatusFilter(filters), COLUMNS)[1]), formatDate('2026-10-24T03:00:00.000Z'));
+  assert.equal(col('done').words(filterRows(rows, withoutStatusFilter(filters), COLUMNS)[1]), instantDayWords('2026-10-24T03:00:00.000Z'));
   const withArchived = rowsOf([FULL, DONE, ARCHIVED]);
   assert.deepEqual(filterRows(withArchived, projectDefaultFilters(COLUMNS, true), COLUMNS).map((r) => r.id), ['p-full']);
   assert.deepEqual(filterRows(withArchived, withoutStatusFilter(projectDefaultFilters(COLUMNS, true)), COLUMNS).map((r) => r.id), ['p-full', 'p-done', 'p-arch']);
@@ -322,13 +327,16 @@ test('A the table is the shared DataTable named "projects" over the spec; the tw
 test('B the row: the spec\'s cells through the shared WorkCell — a TEXT cell through previewOf with "all of it" / "less", EST and ACTUAL with their tooltips — then "details"; the details row is ProjectRow with every prop, spanning the columns', () => {
   const r = code(ROWS);
   assert.match(r, /\{columns\.map\(\(c\) => <ProjectCell key=\{c\.key\} column=\{c\} row=\{row\} open=\{opened\.has\(projectCellKeyOf\(row, c\.key\)\)\} onToggle=\{\(\) => onToggleCell\(projectCellKeyOf\(row, c\.key\)\)\} \/>\)\}/);
-  assert.match(r, /if \(column\.kind === 'text'\) return <TextCell column=\{column\.key\} text=\{column\.text\(row\)\} open=\{open\} onToggle=\{onToggle\} \/>;/);
+  // COLUMNS-01 (Alex, 2026-10-25, ruling D): the text cell is the shared one (components/table/TextCell.tsx — the journal tables' own, lifted); the copy left.
+  assert.match(r, /if \(column\.kind === 'text'\) return <TextCell name=\{name\} column=\{column\.key\} text=\{column\.text\(row\)\} open=\{open\} onToggle=\{onToggle\} \/>;/);
+  assert.match(r, /import TextCell from '@\/components\/table\/TextCell';/);
+  assert.doesNotMatch(r, /function TextCell\(|const link = /, 'no copy of the cell');
   assert.match(r, /title=\{sum !== null && sum\.of > 0 \? estimateCoverageWords\(sum\) : undefined\}/);
   assert.match(r, /title=\{projectActualCentsOf\(row\) === null \? undefined : ACTUAL_TOOLTIP_WORDS\}/);
   assert.match(r, /return <WorkCell name=\{name\} column=\{column\} row=\{row\} \/>;/);
   assert.match(code(SHARED), /title\?: string/, 'the shared cell takes the tooltip');
   assert.match(code(SHARED), /title=\{title\}/);
-  const text = r.slice(r.indexOf('function TextCell('));
+  const text = code('src/components/table/TextCell.tsx');
   assert.match(text, /const preview = previewOf\(text\);/);
   assert.match(text, /\{open \|\| preview\.more === null \? text : preview\.shown\}/);
   assert.match(text, /\{!open && <span className="text-text-faint"> \{preview\.more\}<\/span>\}/);
@@ -347,9 +355,9 @@ test('B the row: the spec\'s cells through the shared WorkCell — a TEXT cell t
   assert.match(code(TABLE), /isJumpTarget=\{targetProjectId === row\.id\}/);
   // The spec reads the one preview rule (journalTables.ts) and the one default-chip rule (work.ts) — shared, not copied.
   const s = code(SPEC);
-  assert.match(s, /export \{ COLLAPSE_WORDS, EXPAND_WORDS, PREVIEW_CHARS, previewMoreWords, previewOf \} from '@\/lib\/operations\/journalTables';/);
+  assert.match(s, /export \{ COLLAPSE_WORDS, EXPAND_WORDS, PREVIEW_CHARS, previewMoreWords, previewOf \} from '@\/lib\/table\/preview';/); // COLUMNS-01b (2026-10-25, ruling 3)
   assert.match(s, /defaultFiltersOf\(columns, 'status', projectDefault\(archivedRead\)\)/);
-  assert.match(s, /bookNameOf, defaultFiltersOf, estimateCentsOf, isoDayOf, moneyColumn, textColumn, valueColumn, type NamedDefault, type WorkBook,\n\} from '@\/lib\/operations\/work';/);
+  assert.match(s, /bookNameOf, dayWords, defaultFiltersOf, estimateCentsOf, instantColumn, isoDayOf, moneyColumn, textColumn, valueColumn, type NamedDefault, type WorkBook,\n\} from '@\/lib\/operations\/work';/); // COLUMNS-01 (2026-10-25): dayWords; COLUMNS-01b: instantColumn
   assert.doesNotMatch(s, /function valueColumn|function textColumn|function moneyColumn|PREVIEW_CHARS = |function previewOf/, 'no second copy of a shared rule');
   for (const name of ['valueColumn', 'textColumn', 'moneyColumn']) assert.match(code(WORK), new RegExp(`export function ${name}<Row, Key extends string>\\(`), `work.ts exports ${name}`);
   assert.doesNotMatch(s, /import .* from 'react'|fetch\(|new Date\(\)/, 'pure');

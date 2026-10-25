@@ -110,9 +110,9 @@ test('B the default chip "STATUS: open only" drops the done, the cancelled and t
   assert.deepEqual(filterRows(T_ROWS, filters, T_COLUMNS).map((r) => r.id), ['task:n', 'task:r'], 'the done task is a row the default chip drops; pending review stays');
   assert.deepEqual(T_ROWS.map(taskStatusOf), ['new', 'done', 'pending review', 'cancelled', 'archived'], 'TASK_STATUS_LABELS\' words');
   assert.deepEqual(filterRows(T_ROWS, withoutStatusFilter(filters), T_COLUMNS).map((r) => r.id), T_ROWS.map((r) => r.id));
-  // DONE is completed_at as a date, "—" while open.
+  // DONE is completed_at, "—" while open. COLUMNS-01b (Alex, 2026-10-25, ruling 2): an EVENT INSTANT — the CSV writes the instant as stored, not a day.
   const done = T_COLUMNS.find((c) => c.key === 'done')!;
-  assert.equal(done.csv(T_ROWS[1]), '2026-10-24');
+  assert.equal(done.csv(T_ROWS[1]), '2026-10-24T10:00:00.000Z');
   assert.equal(done.words(T_ROWS[0]), '—');
   assert.equal(workCsvFileName('2026-10-25'), 'work_2026-10-25.csv');
   assert.deepEqual([...TASK_COLUMNS], ['task', 'project', 'book', 'status', 'deadline', 'estimate', 'account', 'done']);

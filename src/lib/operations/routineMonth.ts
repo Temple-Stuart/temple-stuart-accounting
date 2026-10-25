@@ -36,6 +36,16 @@
  * day view opens on the 1st), the placing (instantToZoned), the match (matchOf,
  * readableMatchCents), the variance (variance), the grain (planHoldsOf).
  *
+ * COLUMNS-01 (Alex, 2026-10-25, ruling A): an INACTIVE routine is not budgeted —
+ * /budget excludes it (routineBudgetInputs.ts reads is_active: true unless the month
+ * route's includeInactive), so this rule builds the budget lines over the ACTIVE
+ * routines alone and lists the inactive ones with THIS MONTH, TO DATE and VARIANCE
+ * null and budget_words saying why ("inactive — not budgeted (/budget excludes it)");
+ * ACTUAL and MATCH stay (records and links are real). An ENDED routine is unchanged
+ * (the budget rule bounds it by end_date). Each routine says whether it is active
+ * (RoutineMonthRoutine.isActive, from the loader's row) — RoutinePlanInput and its
+ * /budget callers are untouched.
+ *
  * Pure: no Prisma, no framework, no network, no clock — as_of is handed in (the
  * viewer's local day). What could not be placed or read is SAID, in words, beside
  * the figures — never dropped silently, never imputed as 0.
@@ -49,12 +59,14 @@ import { variance } from '@/lib/calendar/links';
 import { instantToZoned } from '@/lib/time';
 
 export const BY_OCCURRENCE_WORDS = 'by occurrence';
+/** COLUMNS-01 (Alex, 2026-10-25, ruling A): an INACTIVE routine's budget figures are blank — /budget excludes it (routineBudgetInputs.ts reads is_active: true) and this table agrees. */
+export const INACTIVE_NOT_BUDGETED_WORDS = 'inactive — not budgeted (/budget excludes it)';
 export const AS_OF_WORDS = 'as_of must be a real day written YYYY-MM-DD';
 
 /** The figures the route CALCULATES, each naming its rule — labelled in the response and in the column's tooltip. */
 export const ROUTINE_MONTH_CALCULATED = {
-  budget_month_cents: 'calculated: occurrences in the month × amount — the /budget rule (buildRoutineBudgetLines)',
-  budget_to_date_cents: 'calculated: occurrences from the 1st to as_of × amount — the /budget rule (buildRoutineBudgetLines)',
+  budget_month_cents: 'calculated: occurrences in the month × amount — the /budget rule (buildRoutineBudgetLines), over the active routines; an inactive routine is not budgeted',
+  budget_to_date_cents: 'calculated: occurrences from the 1st to as_of × amount — the /budget rule (buildRoutineBudgetLines), over the active routines; an inactive routine is not budgeted',
   actual_cents: 'calculated: the actuals recorded at the stops from the 1st to as_of, each placed in its routine\'s zone',
   match_cents: 'calculated: the postings linked in Books to the occurrences from the 1st to as_of (amountCentsOf)',
   variance_cents: 'calculated: TO DATE − ACTUAL — null unless both are known',
@@ -84,12 +96,17 @@ export interface RoutineMonthLine {
   readonly match_links: number;
   readonly match_unreadable: number;
   readonly variance_cents: number | null;
+  /** COLUMNS-01 (ruling A): why THIS MONTH, TO DATE and VARIANCE are blank — INACTIVE_NOT_BUDGETED_WORDS for an inactive routine's line; null otherwise. */
+  readonly budget_words: string | null;
 }
+
+/** A routine as /budget reads one, with whether it is active — COLUMNS-01 (ruling A): an inactive routine is listed but never budgeted. */
+export interface RoutineMonthRoutine extends RoutinePlanInput { readonly isActive: boolean }
 
 export interface RoutineMonthInput {
   readonly asOf: IsoDay;
-  /** Every routine of the caller as /budget reads one, active and not. */
-  readonly routines: readonly RoutinePlanInput[];
+  /** Every routine of the caller as /budget reads one, active and not — each saying which (the loader's is_active). */
+  readonly routines: readonly RoutineMonthRoutine[];
   /** The stop records the route read for the month's window (stopRecordRowOf). */
   readonly records: readonly StopRecordRow[];
   /** The links the route read for the window, each with its posting's amount (linkInputOf). */
@@ -123,8 +140,9 @@ export function routineMonthOf(input: RoutineMonthInput): RoutineMonthResult {
     }
   }
 
-  // THE BUDGET — the one rule, over the month; the key says which line each occurrence belongs to.
-  const built = buildRoutineBudgetLines(input.routines, from, to);
+  // THE BUDGET — the one rule, over the month, over the ACTIVE routines alone (COLUMNS-01 ruling A: /budget excludes an inactive routine —
+  // routineBudgetInputs.ts reads is_active: true — so no budget line is built for one); the key says which line each occurrence belongs to.
+  const built = buildRoutineBudgetLines(input.routines.filter((r) => r.isActive), from, to);
   const month = new Map<string, number>();
   const toDate = new Map<string, number>();
   for (const line of built.lines) {
@@ -201,12 +219,16 @@ export function routineMonthOf(input: RoutineMonthInput): RoutineMonthResult {
     const actual = actuals.get(key) ?? { records: 0, cents: null };
     const match = matchOf(linksByKey.get(key) ?? []);
     unreadablePostings += match?.unreadable ?? 0;
-    const budgetToDate = toDate.get(key) ?? null;
+    // COLUMNS-01 (ruling A): an inactive routine's line is listed with its ACTUAL and MATCH (records and links are real) and no budget —
+    // THIS MONTH, TO DATE and VARIANCE null, and the words saying why; the plans came from input.routines, so the routine is always there.
+    const routine = routineById.get(plan.routineId);
+    const inactive = routine !== undefined && !routine.isActive;
+    const budgetToDate = inactive ? null : toDate.get(key) ?? null;
     return {
       routine_id: plan.routineId,
       step_id: plan.stepId,
       vendor_words: vendorWordsOf(plan),
-      budget_month_cents: month.get(key) ?? null,
+      budget_month_cents: inactive ? null : month.get(key) ?? null,
       budget_to_date_cents: budgetToDate,
       actual_cents: actual.cents,
       actual_records: actual.records,
@@ -214,6 +236,7 @@ export function routineMonthOf(input: RoutineMonthInput): RoutineMonthResult {
       match_links: match?.postings ?? 0,
       match_unreadable: match?.unreadable ?? 0,
       variance_cents: variance(budgetToDate, actual.cents),
+      budget_words: inactive ? INACTIVE_NOT_BUDGETED_WORDS : null,
     };
   });
   if (unreadablePostings > 0) said.push(`${plural(unreadablePostings, 'posting is', 'postings are')} linked but carry no readable amount — MATCH is blank on those lines`);

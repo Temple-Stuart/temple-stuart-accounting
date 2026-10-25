@@ -61,7 +61,7 @@ import { WorkCell, readJson, useBookCharts } from './workShared';
 import { monthLineKey, type RoutineMonthLine } from '@/lib/operations/routineMonth';
 import {
   ADD_ROUTINE_WORDS, CLEAR_CHIP_MARK, EDIT_WORDS, NO_ROUTINE_EXPENSES_WORDS, ROUTINE_DEFAULT, ROUTINE_EXPENSES_LOADING_WORDS, ROUTINE_EXPENSES_TITLE_WORDS,
-  ROUTINE_TABLE_NAME, routineDefaultFilters, routineExpensesCsvFileName, routineExpensesFailedWords, routineRowsOf, routineTable, rowCountWords, statusChipWords,
+  ROUTINE_TABLE_NAME, routineBudgetWordsOf, routineDefaultFilters, routineExpensesCsvFileName, routineExpensesFailedWords, routineRowsOf, routineTable, rowCountWords, statusChipWords,
   statusDroppedOf, withoutMonthWords, withoutStatusFilter, type RoutineColumn, type RoutineMonthMap, type RoutineRow, type WorkCharts,
 } from '@/lib/operations/work';
 
@@ -128,7 +128,7 @@ export default function SectionF_RoutineExpenses() {
   };
 
   const renderRow = (row: RoutineRow) => (
-    <RoutineWorkRow key={row.id} row={row} columns={columns} entities={entities} editing={editing === row.id} setEditing={(on) => setEditing(on ? row.id : null)} onChanged={refresh} />
+    <RoutineWorkRow key={row.id} row={row} columns={columns} month={month} entities={entities} editing={editing === row.id} setEditing={(on) => setEditing(on ? row.id : null)} onChanged={refresh} />
   );
 
   return (
@@ -204,6 +204,8 @@ export default function SectionF_RoutineExpenses() {
 interface RoutineWorkRowProps {
   row: RoutineRow;
   columns: readonly TableColumn<RoutineRow, RoutineColumn>[];
+  /** The month's records — COLUMNS-01 (ruling A): an inactive routine's blank budget cells say why (routineBudgetWordsOf). */
+  month: RoutineMonthMap;
   entities: Entity[];
   editing: boolean;
   setEditing: (on: boolean) => void;
@@ -211,7 +213,7 @@ interface RoutineWorkRowProps {
 }
 
 /** A routine line's row: the cells, then edit · deactivate / reactivate · delete (RoutineRow's handlers, moved); its editor under it while open. */
-function RoutineWorkRow({ row, columns, entities, editing, setEditing, onChanged }: RoutineWorkRowProps) {
+function RoutineWorkRow({ row, columns, month, entities, editing, setEditing, onChanged }: RoutineWorkRowProps) {
   const { routine, end } = row;
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -263,7 +265,8 @@ function RoutineWorkRow({ row, columns, entities, editing, setEditing, onChanged
   return (
     <Fragment>
       <tr className={'border-t border-border ' + (routine.is_active && !end.ended ? '' : 'opacity-60')} {...dataAttr(name, 'row', row.id)} {...dataAttr(name, 'routine', routine.id)}>
-        {columns.map((c) => <WorkCell key={c.key} name={name} column={c} row={row} />)}
+        {/* COLUMNS-01 (ruling A): THIS MONTH · TO DATE · VARIANCE of an inactive routine are blank and say why (the tooltip). */}
+        {columns.map((c) => <WorkCell key={c.key} name={name} column={c} row={row} title={routineBudgetWordsOf(month, row, c.key)} />)}
         <td className={cell}>
           <div className="flex flex-wrap items-center gap-1">
             <button type="button" onClick={() => setEditing(!editing)} className={actionClass} aria-expanded={editing} {...dataAttr(name, 'edit')}>{EDIT_WORDS}</button>
