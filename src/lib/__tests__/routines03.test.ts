@@ -356,7 +356,9 @@ test('C/D the section reads the routines and their month beside each other, as_o
   assert.match(f, /<RoutineCreateForm\n\s*entities=\{entities\}/);
   assert.match(f, /<RoutineEditForm routine=\{routine\} end=\{end\} entities=\{entities\} onChanged=\{onChanged\} onClose=\{\(\) => setEditing\(false\)\} \/>/);
   assert.match(f, /\{ name: routineExpensesCsvFileName\(localToday\(\)\) \}/);
-  assert.match(code('src/app/tasks/page.tsx'), /<SectionE_Work \/>\n\s*<Suspense>\n\s*<SectionD_ProjectBacklog \/>\n\s*<\/Suspense>\n\s*<SectionF_RoutineExpenses \/>/);
+  // EXPENSES-01 (Alex, 2026-10-25): ROUTINE EXPENSES moved to /expenses (src/app/expenses/page.tsx) — Tasks is THE WORK and PROJECTS. Two mounts, in order.
+  assert.match(code('src/app/tasks/page.tsx'), /<SectionE_Work \/>\n\s*<Suspense>\n\s*<SectionD_ProjectBacklog \/>\n\s*<\/Suspense>\n\s*<\/div>/);
+  assert.match(code('src/app/expenses/page.tsx'), /<div className="space-y-3" data-tool-page="Expenses">\n\s*<SectionF_RoutineExpenses \/>\n\s*<\/div>/);
   assert.match(comments(WORK_LIB), /ROUTINES-03 \(Alex, 2026-10-25, rulings A–B\) — the columns, in Alex's order/);
   assert.match(comments(SECTION_F), /ROUTINES-03, Alex, 2026-10-25, ruling A/);
   assert.match(comments(RULE), /ROUTINES-03 \(Alex, 2026-10-25\) — THE MONTH BEHIND ROUTINE EXPENSES, PURE/);

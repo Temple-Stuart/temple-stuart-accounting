@@ -32,7 +32,7 @@ test('the rail IS the registry — twenty-five rows, six families, both in regis
 
 test('a not-built tool is a row with a status chip and no link — never a placeholder page', () => {
   const unbuilt = navRows(TOOL_GATE).filter((t) => t.status === 'NOT_BUILT');
-  assert.equal(unbuilt.length, 14, 'the census stands: 14 NOT_BUILT');
+  assert.equal(unbuilt.length, 13, 'the census stands: 13 NOT_BUILT (EXPENSES-01, 2026-10-25: Expenses is PARTIAL at /expenses; 14 until then)');
   for (const t of unbuilt) {
     assert.equal(t.href, null, `${t.name} opens nothing`);
     assert.equal(t.phases.length, 0, `${t.name} owns no phase`);
@@ -180,7 +180,8 @@ test('the law throws on a reordered family, a legacy row, and a phase owned by n
   assert.throws(() => navLaw({ sort: [...THE_SORT, { pipe: 'books', num: '01', owner: 'Bookkeeping', rendersSurface: true }] }), NavLawError, 'two owners');
   assert.throws(() => navLaw({ sort: THE_SORT.filter((a) => !(a.pipe === 'tax' && a.num === '07')) }), NavLawError, 'no owner');
   assert.throws(() => navLaw({ sort: THE_SORT.map((a) => (a.pipe === 'content' && a.num === '01' ? { ...a, owner: 'DECK' as never } : a)) }), NavLawError, 'a second non-tool owner');
-  assert.throws(() => navLaw({ gate: TOOL_GATE, sort: THE_SORT.map((a) => (a.pipe === 'travel' && a.num === '04' ? { ...a, owner: 'Expenses' as never } : a)) }), NavLawError, 'a phase under a not-built tool');
+  // EXPENSES-01 (2026-10-25): Expenses is PARTIAL at /expenses now — the not-built probe runs through Payroll, which is NOT_BUILT.
+  assert.throws(() => navLaw({ gate: TOOL_GATE, sort: THE_SORT.map((a) => (a.pipe === 'travel' && a.num === '04' ? { ...a, owner: 'Payroll' as never } : a)) }), NavLawError, 'a phase under a not-built tool');
   assert.throws(() => navLaw({ sort: THE_SORT.map((a) => (a.pipe === 'runway' && a.num === '01' ? { ...a, surfaceNote: undefined } : a)) }), NavLawError, 'an uncited surfaceless phase');
 });
 

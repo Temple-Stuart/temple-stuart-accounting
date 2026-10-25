@@ -104,7 +104,7 @@ test('the opener law still passes on its own terms — /calendar declares and dr
   assert.equal(openerLaw.includes('ToolOpener'), false, 'it never requires an opener to be mounted');
 });
 
-test("no other tool's opener changes — six pages mount one each, /calendar mounts none", () => {
+test("no other tool's opener changes — seven pages mount one each (EXPENSES-01 added /expenses), /calendar mounts none", () => {
   const counts = new Map<string, number>();
   for (const t of navRows(TOOL_GATE)) {
     if (!t.href) continue;
@@ -114,6 +114,7 @@ test("no other tool's opener changes — six pages mount one each, /calendar mou
   assert.equal(counts.get('/calendar'), 0);
   const withOpener = [...counts.entries()].filter(([, n]) => n > 0).map(([r]) => r).sort();
   // The census on 2026-09-18 (CAL-OPEN-01): seven tool pages mounted an opener; six do now.
-  assert.deepEqual(withOpener, ['/brokerage', '/budget', '/compliance', '/tasks', '/time', '/trade-log']);
+  // EXPENSES-01 (Alex, 2026-10-25): seven again — /expenses, Expenses' page, opens with its own registry row.
+  assert.deepEqual(withOpener, ['/brokerage', '/budget', '/compliance', '/expenses', '/tasks', '/time', '/trade-log']);
   for (const r of withOpener) assert.equal(counts.get(r), 1, `${r} mounts exactly one opener`);
 });

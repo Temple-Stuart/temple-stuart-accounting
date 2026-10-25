@@ -61,14 +61,15 @@ test('the page is two lists — no strip, no pipe label, no receipts', () => {
   const page = code(PAGE);
   assert.match(page, /<SectionD_ProjectBacklog \/>/);
   assert.match(page, /<SectionE_Work \/>/);
-  assert.match(page, /<SectionF_RoutineExpenses \/>/); // WORK-01d (2026-10-25): the third table
+  assert.doesNotMatch(page, /SectionF_RoutineExpenses/); // WORK-01d (2026-10-25): the third table; EXPENSES-01 (2026-10-25): it left for /expenses
   // WEEK-01 (2026-09-30): a fourth mount, FIRST — this week, then the two lists and the daily plan.
   // TASKS-ONE-02 (2026-10-14): the week and the daily plan are deleted — the day card replaces them. Three mounts, in order.
   // LEDGER-01 (Alex, 2026-10-16): the city ledger is a fourth mount, LAST — under Routines. Four mounts, in order.
   // TIME-01 (Alex, 2026-10-19): the day card and the ledger moved to /time (time01.test.ts). Two mounts, in order.
   // BACKLOG-02 (Alex, 2026-10-20): a boundary is back on /tasks — around the projects list ALONE, which reads ?project= and ?new=project (useSearchParams); the day card stays /time's. Two mounts, in order, the first in its boundary.
   // WORK-01d (Alex, 2026-10-25): three tables — THE WORK, PROJECTS in its boundary, ROUTINE EXPENSES. Three mounts, in order.
-  assert.match(page, /<div className="space-y-3" data-tool-page="Tasks">\s*<SectionE_Work \/>\s*<Suspense>\s*<SectionD_ProjectBacklog \/>\s*<\/Suspense>\s*<SectionF_RoutineExpenses \/>\s*<\/div>/);
+  // EXPENSES-01 (Alex, 2026-10-25): ROUTINE EXPENSES moved to /expenses (src/app/expenses/page.tsx) — Tasks is THE WORK and PROJECTS. Two mounts, in order.
+  assert.match(page, /<div className="space-y-3" data-tool-page="Tasks">\s*<SectionE_Work \/>\s*<Suspense>\s*<SectionD_ProjectBacklog \/>\s*<\/Suspense>\s*<\/div>/);
   assert.doesNotMatch(page, /DayCard|LedgerSection/, 'the day card and the ledger are /time\'s (TIME-01)');
   assert.doesNotMatch(page, /WeekSection|SectionC_DailyPlan|TodaysStrip/);
   for (const f of TASKS_GONE) assert.ok(!existsSync(resolve(process.cwd(), f)), `${f} is deleted`);

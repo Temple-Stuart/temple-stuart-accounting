@@ -96,6 +96,12 @@
  * opens the capture form — the morning card's doors to this page (src/lib/operations/morningLog.ts). useSearchParams on
  * a client page Next prerenders needs a Suspense boundary, so the list sits in its own <Suspense>, the boundary
  * TASKS-ONE-01 gave the day card here before TIME-01 moved it; the page around it still prerenders. Two mounts still.
+ *
+ * EXPENSES-01 (Alex, 2026-10-25, ruling B) — TASKS IS THE WORK AND PROJECTS. ROUTINE EXPENSES, the third table WORK-01d
+ * put here, moved to its own tool's page, /expenses (src/app/expenses/page.tsx — Expenses is a live tab, ruling A). Two
+ * mounts, in order — THE WORK, then PROJECTS in its boundary — and nothing else; the two-lists law holds this container
+ * to exactly the two and /expenses to ROUTINE EXPENSES alone. WorkChangesProvider stays: THE WORK and PROJECTS still share
+ * the one task-change signal (WORK-01b).
  */
 import { Suspense } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
@@ -111,7 +117,7 @@ import SectionE_Work from '@/components/workbench/operations/SectionE_Work';
 import SectionD_ProjectBacklog from '@/components/workbench/operations/SectionD_ProjectBacklog';
 // WORK-01d (Alex, 2026-10-25, ruling A): Tasks is three tables — THE WORK (the open projects' tasks), PROJECTS, ROUTINE
 // EXPENSES (one row per routine line). Routines and tasks are never one table.
-import SectionF_RoutineExpenses from '@/components/workbench/operations/SectionF_RoutineExpenses';
+// EXPENSES-01 (Alex, 2026-10-25, ruling B): ROUTINE EXPENSES left for /expenses — Tasks is THE WORK and PROJECTS, two tables.
 
 export default function TasksPage() {
   return (
@@ -124,7 +130,6 @@ export default function TasksPage() {
             <Suspense>
               <SectionD_ProjectBacklog />
             </Suspense>
-            <SectionF_RoutineExpenses />
           </div>
         </OperationsEntityProvider>
       </WorkChangesProvider>

@@ -297,6 +297,10 @@ export const PHASES_RENDERED_AT: Readonly<Record<string, readonly PipePillarId[]
   // in the page's tree. The pipes stay DEFINED (pipePhases.ts, THE SORT) until
   // PIPES-01 retires them — see that ruling's scope in the TASKS-01 PR body.
   '/tasks': [],
+  // EXPENSES-01 (Alex, 2026-10-25): /expenses draws NO strip. It is ROUTINE EXPENSES alone — the table WORK-01d put on
+  // /tasks, moved to its own tool's page — whose capability is plain controls on the rows ("+ routine", edit, deactivate,
+  // delete, the CSV), as TASKS-01 ruled for /tasks; the two-lists law refuses a StageStrip anywhere in its tree.
+  '/expenses': [],
   // TIME-02 (2026-10-19): the content pipeline is retired — /time is the day card and the task ledger (the city ledger
   // until LEDGER-02, 2026-10-19, renamed it) and draws no strip (the opener law counts its tree); the content pipe is declared undrawn in THE SORT above.
   '/time': [],

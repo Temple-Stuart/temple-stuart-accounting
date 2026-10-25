@@ -333,7 +333,8 @@ test('T8 the doors: /tasks?project=<id> makes that row the jump target or says "
   const page = code(TASKS_PAGE);
   assert.match(page, /import \{ Suspense \} from 'react';/);
   // WORK-01d (Alex, 2026-10-25): ROUTINE EXPENSES mounts after the boundary — the boundary still holds the projects list alone.
-  assert.match(page, /<div className="space-y-3" data-tool-page="Tasks">\n\s*<SectionE_Work \/>\n\s*<Suspense>\n\s*<SectionD_ProjectBacklog \/>\n\s*<\/Suspense>\n\s*<SectionF_RoutineExpenses \/>\n\s*<\/div>/, 'the boundary holds the projects list alone');
+  // EXPENSES-01 (Alex, 2026-10-25): ROUTINE EXPENSES moved to /expenses (src/app/expenses/page.tsx) — Tasks is THE WORK and PROJECTS. Two mounts, in order.
+  assert.match(page, /<div className="space-y-3" data-tool-page="Tasks">\n\s*<SectionE_Work \/>\n\s*<Suspense>\n\s*<SectionD_ProjectBacklog \/>\n\s*<\/Suspense>\n\s*<\/div>/, 'the boundary holds the projects list alone');
   assert.match(comments(TASKS_PAGE), /BACKLOG-02 \(Alex, 2026-10-20\): the projects list reads two URL params/);
 });
 
