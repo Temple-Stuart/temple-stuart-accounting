@@ -3543,6 +3543,8 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
     // "show ended" are the STATUS filter's checklist, shown as a chip while it narrows (ruling B — never a hidden default).
     // WORK-01d (Alex, 2026-10-25): the routines are ROUTINE EXPENSES (SectionF_RoutineExpenses) — "+ routine" and the "STATUS: active only"
     // chip are its; THE WORK keeps "+ task" and its "STATUS: open only" chip. Each table is the shared DataTable (IDIOM-01).
+    // PROJECTS-02 (Alex, 2026-10-25): PROJECTS is the shared DataTable too (ProjectsTable over src/lib/operations/projectsTable.ts) — its
+    // "STATUS: open only" chip, its CSV and the row's "details" are its; "+ new project" and "show archived" stay the section header's, below.
     ['src/components/workbench/operations/SectionF_RoutineExpenses.tsx', /ADD_ROUTINE_WORDS/, 'ROUTINE EXPENSES has no "+ routine"'],
     ['src/components/workbench/operations/SectionE_Work.tsx', /ADD_TASK_WORDS/, 'THE WORK has no "+ task"'],
     ['src/components/workbench/operations/SectionE_Work.tsx', /statusChipWords\(/, 'THE WORK hides its STATUS filter — the default must be a visible chip (ruling B)'],

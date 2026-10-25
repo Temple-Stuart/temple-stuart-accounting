@@ -13,7 +13,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { code, comments } from '../sourceText';
 import {
-  NOTES_PREVIEW_CHARS, PROJECTS_TABLE_COLUMNS, UNLABELED_STATUS_PILL,
+  NOTES_PREVIEW_CHARS, UNLABELED_STATUS_PILL, // PROJECTS-02 (Alex, 2026-10-25): PROJECTS_TABLE_COLUMNS left with the two-column table
   costPair, formatDate, minutesPair, notesPreview, requestsWords, statusCounts, taskStatusPill, taskStatusWords,
 } from '@/components/workbench/operations/projects/projectsTableText';
 import { TASK_STATUS_LABELS, TASK_STATUS_PILL_CLASSES } from '@/components/workbench/operations/projects/types';
@@ -34,6 +34,7 @@ const LIST_VIEW = `${P}/TaskListView.tsx`;
 const TASK_ROW_CONTAINER = `${P}/TaskRow.tsx`;
 const TASK_LIST_CONTAINER = `${P}/TaskList.tsx`;
 const PROJECT_ROW = `${P}/ProjectRow.tsx`;
+const SPEC = 'src/lib/operations/projectsTable.ts'; // PROJECTS-02 (Alex, 2026-10-25): the table's pure spec
 const TABLE_FILES = [TABLE, ROWS, TEXT, ...PARTS];
 
 function tsFilesUnder(dir: string): string[] {
@@ -109,21 +110,23 @@ test('T1 minutes and cost: est · actual, a blank side is "—" — never 0, nev
 
 // ── T1 · THE TABLE (source pins) ─────────────────────────────────────────────
 
-test('T1 one table: Project · Tasks (WORK-01, 2026-10-24: the task columns left with the task rows — THE WORK is their one home)', () => {
+// PROJECTS-02 (Alex, 2026-10-25): the one table is the shared DataTable (IDIOM-01) over src/lib/operations/projectsTable.ts — Alex's twenty-six
+// columns in his order, pinned in projects02.test.ts. Held here: ONE table (DataTable's), drawn by no file of the projects' own; the rows in the GET's
+// order (no sort, no filter on the way — the idiom's sortRows/filterRows do that); the section's header, form and lines in their order.
+test('T1 one table: the shared DataTable over the projects spec (PROJECTS-02, 2026-10-25) — the task columns left with the task rows (WORK-01), the two columns with the brief as a table', () => {
   const table = code(TABLE);
-  assert.equal((table.match(/<table\b/g) ?? []).length, 1);
+  assert.equal((table.match(/<table\b/g) ?? []).length, 0, 'the DataTable draws the one <table>');
+  assert.match(table, /<DataTable\n\s*name=\{name\}/);
   for (const f of [SECTION_D, ROWS, ...PARTS]) assert.doesNotMatch(code(f), /<table\b/, `${f} draws rows of the one table`);
-  const heads = [...table.matchAll(/<th\b[^>]*>([^<]*)</g)].map((m) => m[1]);
-  assert.deepEqual(heads, ['Project', 'Tasks']);
-  assert.equal(PROJECTS_TABLE_COLUMNS, heads.length);
   // The projects in the order the GET returns them — no sort, no filter on the way.
-  assert.match(table, /\{projects\.map\(\(p\) => \(\n\s*<ProjectTableRows\n\s*key=\{p\.id\}/);
+  assert.match(table, /projectRowsOf\(projects, reads\)/);
+  assert.match(table, /const renderRow = \(row: ProjectTableRow\) => \(\n\s*<ProjectTableRows\n\s*key=\{row\.id\}/);
   for (const f of [TABLE, ROWS]) assert.doesNotMatch(code(f), /\.sort\(|projects\.filter\(/);
   const d = code(SECTION_D);
   assert.match(d, /setProjects\(body\.projects \?\? \[\]\);/);
   assert.match(d, /<ProjectsTable\n\s*projects=\{projects\}/);
-  // The header, the create form above the table, and the error, loading and empty lines stay.
-  inOrder(d, ['Projects', "{projects.length === 1 ? 'project' : 'projects'}", 'show archived', '+ new project', '{error && (', '<ProjectCreateForm', 'loading projects…', 'no projects yet', '<ProjectsTable'], 'the section');
+  // The header, the create form above the table, and the error line stay; the loading and empty lines ride inside the table (between its controls and its rows).
+  inOrder(d, ['Projects', "{projects.length === 1 ? 'project' : 'projects'}", 'show archived', '+ new project', '{error && (', '<ProjectCreateForm', '<ProjectsTable', 'loading projects…', 'no projects yet', '</ProjectsTable>'], 'the section');
   assert.equal(existsSync(resolve(process.cwd(), `${P}/TaskTableRow.tsx`)), false, 'the task row left with the task rows (WORK-01)');
 });
 
@@ -145,36 +148,22 @@ test('T1 nothing collapses: no ▸/▾ and no expanded state in the table\'s fil
   }
 });
 
-test('T1 the project cell: title, pill, book, the small print, and details; the Tasks cell counts by status (WORK-01: "+ task" and the task rows are THE WORK\'s)', () => {
+// PROJECTS-02 (Alex, 2026-10-25): the project cell — title, pills, book, the small print — is twenty-six columns of the spec (projects02.test.ts:
+// RANK · PROJECT · TYPE · BOOK · STATUS · TASKS · EST · ACTUAL · the brief · the dates · ID); the Tasks cell is the TASKS column, the same counts
+// from the same read. Held here: the row is the spec's cells and "details" — no task row, no "+ task", no rowSpan.
+test('T1 the project row: the spec\'s cells through the shared WorkCell, then details; TASKS counts by status from the same read (WORK-01: "+ task" and the task rows are THE WORK\'s)', () => {
   const rows = code(ROWS);
-  const cell = rows.slice(rows.indexOf('const projectCell = ('), rows.indexOf('\n  );\n', rows.indexOf('const projectCell = (')));
-  assert.match(cell, /<td className="[^"]*" data-project-cell>/);
-  inOrder(cell, [
-    '{project.title}',
-    'STATUS_PILL_CLASSES[project.status]',
-    '{STATUS_LABELS[project.status]}',
-    '{book ? book.name : ACCOUNT_CELL_WORDS.bookNotLoaded}',
-    'target {formatDate(project.target_completion_date)}',
-    '{project.estimated_total_minutes !== null && ',
-    'est {project.estimated_total_minutes} min',
-    '{!isBlankPlanValue(project.estimated_total_cost_usd) && ',
-    'est ${project.estimated_total_cost_usd}',
-    '{project.run_count !== undefined && ',
-    '{requestsWords(project.run_count)}',
-    '{project.ledger_allocated && (',
-    'title="allocated from ledger"',
-    '{formatAllocatedCents(project.ledger_allocated.cents)}',
-    'onClick={() => setDetailsOpen((x) => !x)}',
-    "{detailsOpen ? 'hide details' : 'details'}",
-  ], 'the project cell');
-  assert.match(rows, /const book = entities\.find\(\(e\) => e\.id === project\.entity_id\);/);
-  assert.doesNotMatch(cell, /\?\? 0|task_count/, 'no count is imputed: requests are drawn only when the GET sent them');
-  assert.doesNotMatch(cell, /\+ task|startCreate|statusCounts/, 'WORK-01: no "+ task" on the project row; the counts moved to the Tasks cell');
-  // One row per project: the cell, then the Tasks cell — loading, the error, "no tasks", or the counts by status.
-  assert.match(rows, /<tr data-project-row>\n\s*\{projectCell\}/);
-  assert.match(rows, /data-project-tasks>\n\s*\{t\.loading \? \(\n\s*<span className="italic">loading tasks…<\/span>\n\s*\) : t\.error \? \(/);
-  assert.match(rows, /\) : t\.tasks\.length === 0 \? \(\n\s*<span className="italic">no tasks<\/span>\n\s*\) : \(\n\s*<span data-project-status-counts>\{statusCounts\(t\.tasks\.map\(\(task\) => task\.status\)\)\}<\/span>/);
-  assert.doesNotMatch(rows, /rowSpan|openRows|editIds|historyIds|projectCell=\{i === 0/);
+  const tr = rows.slice(rows.indexOf('<tr className='), rows.indexOf('</tr>'));
+  inOrder(tr, [
+    '{columns.map((c) => <ProjectCell key={c.key} column={c} row={row}',
+    "{...dataAttr(name, 'details-toggle')}",
+    '{detailsOpen ? HIDE_DETAILS_WORDS : DETAILS_WORDS}',
+  ], 'the project row');
+  assert.match(rows, /return <WorkCell name=\{name\} column=\{column\} row=\{row\} \/>;/);
+  assert.match(code(SPEC), /return read\.tasks\.length === 0 \? NO_TASKS_WORDS : statusCounts\(read\.tasks\.map\(\(task\) => task\.status\)\);/, 'the counts by status, the one line the task rows left');
+  assert.match(code(SPEC), /export const TASKS_LOADING_WORDS = 'loading tasks…';/);
+  assert.doesNotMatch(rows, /\+ task|startCreate|TaskCreateInputs|data-project-create-task/, 'WORK-01: no "+ task" on the project row');
+  assert.doesNotMatch(rows, /rowSpan|openRows|editIds|historyIds|const projectCell|task_count|\?\? 0/, 'no count is imputed; no task row');
 });
 
 test('T1 a task row is THE WORK\'s (WORK-01, 2026-10-24): the spec\'s cells, then edit · ↗ schedule · history · archive/unarchive · delete — TaskTableRow left, named by nothing', () => {
@@ -297,15 +286,17 @@ test('T1 details: ProjectRow with its task section, a full-width row under the p
   const rows = code(ROWS);
   const details = rows.slice(rows.indexOf('{detailsOpen && ('));
   inOrder(details, [
-    '<tr data-project-details>', '<td colSpan={PROJECTS_TABLE_COLUMNS}', '<ProjectRow', 'project={project}', 'entities={entities}',
-    'allProjects={allProjects}', 'onUpdate={onProjectsChanged}', 'onDelete={onProjectsChanged}', 'isJumpTarget={isJumpTarget}',
+    // PROJECTS-02 (Alex, 2026-10-25): the row spans the spec's columns and the controls (as THE WORK's rows do); onUpdate and onDelete are projectChanged —
+    // the re-read AND the page's bump (ruling D), pinned in projects02.test.ts.
+    "<tr {...dataAttr(name, 'details', row.id)}>", '<td colSpan={columns.length + 1}', '<ProjectRow', 'project={project}', 'entities={entities}',
+    'allProjects={allProjects}', 'onUpdate={projectChanged}', 'onDelete={projectChanged}', 'isJumpTarget={isJumpTarget}',
     'onClearTarget={onClearTarget}', 'onJumpTo={onJumpTo}', 'defaultExpanded',
     'onTasksChanged={bump}', // WORK-01b (2026-10-24): bumps the page's signal
   ], 'the details row');
   assert.doesNotMatch(details, /withoutTaskSection/, 'WORK-01d: the details list the project\'s tasks');
   // A dependency jump opens the target's details; ProjectRow scrolls to itself.
   assert.match(rows, /useEffect\(\(\) => \{\n\s*if \(isJumpTarget\) setDetailsOpen\(true\);\n\s*\}, \[isJumpTarget\]\);/);
-  assert.match(code(TABLE), /isJumpTarget=\{targetProjectId === p\.id\}/);
+  assert.match(code(TABLE), /isJumpTarget=\{targetProjectId === row\.id\}/); // PROJECTS-02 (2026-10-25): the DataTable's row
   assert.match(code(SECTION_D), /onJumpTo=\{setTargetProjectId\}/);
   const pr = code(PROJECT_ROW);
   assert.match(pr, /rowRef\.current\?\.scrollIntoView\(\{ behavior: 'smooth', block: 'center' \}\);/);

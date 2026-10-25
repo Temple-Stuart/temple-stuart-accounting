@@ -46,7 +46,6 @@ import { BLANK } from '../table/words';
 import { COCKPIT_PATH, COCKPIT_PRIMARY_TOOL, TOOL_REGISTRY } from '../toolRegistry';
 import { OfferLawError, claimForCockpit, claimForTool } from '../offer';
 import { DEFAULT_ROUTINE_FORM, type Routine, type RoutineStep } from '@/components/workbench/operations/routines/types';
-import { PROJECTS_TABLE_COLUMNS } from '@/components/workbench/operations/projects/projectsTableText';
 import type { Project, Task } from '@/components/workbench/operations/projects/types';
 
 const OPS = 'src/components/workbench/operations';
@@ -57,6 +56,7 @@ const SHARED = `${OPS}/workShared.tsx`; // WORK-01d: the GET helper, the charts 
 const SECTION_D = `${OPS}/SectionD_ProjectBacklog.tsx`;
 const ROWS = `${OPS}/projects/ProjectTableRows.tsx`;
 const TABLE = `${OPS}/projects/ProjectsTable.tsx`;
+const SPEC = 'src/lib/operations/projectsTable.ts'; // PROJECTS-02 (Alex, 2026-10-25): PROJECTS' pure spec
 const EDIT_FORM = `${OPS}/routines/RoutineEditForm.tsx`;
 const WORK_LIB = 'src/lib/operations/work.ts';
 const LAUNCHER = 'src/components/home/ModuleLauncher.tsx';
@@ -396,18 +396,20 @@ test('T5 the PATCH body shape is unchanged (ruling 2): the editor sends the form
 test('T6 PROJECTS keeps project rows only: no task rows, no "+ task" on the project row; the details list the project\'s tasks again (WORK-01d); the brief, "+ new project", "show archived" and THE LOG\'s read unchanged', () => {
   const rows = code(ROWS);
   assert.doesNotMatch(rows, /TaskTableRow|TaskCreateInputs|data-task-row|data-project-create-task|\+ task|editIds|historyIds|rowSpan/);
-  assert.match(rows, /<tr data-project-row>\n\s*\{projectCell\}\n\s*\{[^}]*\}\n\s*<td[^>]*data-project-tasks>/);
-  assert.match(rows, /\{statusCounts\(t\.tasks\.map\(\(task\) => task\.status\)\)\}/, 'the count by status, the one line the task rows left');
+  // PROJECTS-02 (Alex, 2026-10-25): the project cell and the Tasks cell are the spec's columns (projects02.test.ts) — the row is the cells, then "details";
+  // the count by status is the TASKS column, from the same read: one useProjectTasks per project (the reader), the page's signal as its refreshKey.
+  assert.match(rows, /\{columns\.map\(\(c\) => <ProjectCell key=\{c\.key\} column=\{c\} row=\{row\}/);
+  assert.match(code(SPEC), /statusCounts\(read\.tasks\.map\(\(task\) => task\.status\)\)/, 'the count by status, the one line the task rows left');
   assert.match(rows, /const t = useProjectTasks\(\{ projectId: project\.id, entity_id: project\.entity_id, showArchived, refreshKey: version \}\);/); // WORK-01b: the page's task-change signal
-  assert.match(rows, /<tr data-project-details>\n\s*<td colSpan=\{PROJECTS_TABLE_COLUMNS\}/);
+  assert.match(rows, /<td colSpan=\{columns\.length \+ 1\}/);
   // WORK-01d (Alex, 2026-10-25, ruling B): THE WORK reads only the OPEN projects' tasks, so the details are the home of every other project's tasks —
   // WORK-01's `withoutTaskSection` left the mount (the prop stays on ProjectRow, projects01 pins it).
   assert.match(rows, /defaultExpanded\n\s*onTasksChanged=\{bump\}/);
   assert.doesNotMatch(rows, /withoutTaskSection/);
   assert.match(comments(ROWS), /WORK-01d \(Alex, 2026-10-25, ruling B\): the detail keeps its task list again/);
-  assert.equal(PROJECTS_TABLE_COLUMNS, 2);
   const table = code(TABLE);
-  assert.deepEqual([...table.matchAll(/<th\b[^>]*>([^<]*)</g)].map((m) => m[1]), ['Project', 'Tasks']);
+  assert.match(table, /<DataTable\n\s*name=\{name\}/, 'PROJECTS-02: the shared DataTable; its heads are the spec\'s (projects02.test.ts)');
+  assert.doesNotMatch(table, /<th\b|<table\b/);
   const d = code(SECTION_D);
   assert.match(d, /\+ new project/); assert.match(d, /show archived/); assert.match(d, /<ProjectCreateForm/);
   assert.match(comments(SECTION_D), /WORK-01 \(Alex, 2026-10-24\) — ruling E/);
@@ -491,7 +493,10 @@ test('WORK-01b ruling 3: the page holds one task-change signal — THE WORK bump
   assert.doesNotMatch(f, /useWorkChanges|WorkChanges/);
   // PROJECTS: each project's count reads the version and the detail's task writes bump it.
   const rows = code(ROWS);
-  assert.match(rows, /const \{ version, bump \} = useWorkChanges\(\);\n\s*const t = useProjectTasks\(\{ projectId: project\.id, entity_id: project\.entity_id, showArchived, refreshKey: version \}\);/);
+  // PROJECTS-02 (Alex, 2026-10-25): the read moved to the reader (one per project loaded) — it reads the version; the row reads the bump for the detail's
+  // task writes and, ruling D, for a project update (projectChanged — projects02.test.ts).
+  assert.match(rows, /const \{ version \} = useWorkChanges\(\);\n\s*const t = useProjectTasks\(\{ projectId: project\.id, entity_id: project\.entity_id, showArchived, refreshKey: version \}\);/);
+  assert.match(rows, /const \{ bump \} = useWorkChanges\(\);/);
   assert.match(rows, /onTasksChanged=\{bump\}/);
   assert.doesNotMatch(rows, /tasksVersion|setTasksVersion/, 'no local tasks version beside the page\'s');
   // Only THE WORK and PROJECTS read it.

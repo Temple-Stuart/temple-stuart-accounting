@@ -53,10 +53,10 @@ export function useBookCharts(entities: readonly Entity[]): ChartsRead {
   return chartsRead;
 }
 
-/** One cell as the spec prints it — money right-aligned, a blank faint, a text column wrapping. */
-export function WorkCell<Row, Key extends string>({ name, column, row }: { name: string; column: TableColumn<Row, Key>; row: Row }) {
+/** One cell as the spec prints it — money right-aligned, a blank faint, a text column wrapping; `title` (PROJECTS-02) is the cell's tooltip, when the caller has one. */
+export function WorkCell<Row, Key extends string>({ name, column, row, title }: { name: string; column: TableColumn<Row, Key>; row: Row; title?: string }) {
   const words = column.words(row);
   // ROUTINES-03 (Alex, 2026-10-25): the ID column is monospace.
   const className = column.kind === 'money' ? moneyClass : column.key === 'id' ? `${cell} font-mono whitespace-nowrap` : column.kind === 'text' ? `${cell} max-w-[24rem] break-words` : `${cell} whitespace-nowrap`;
-  return <td className={`${className} ${words === BLANK ? 'text-text-faint' : ''}`} {...dataAttr(name, 'cell', column.key)}>{words}</td>;
+  return <td className={`${className} ${words === BLANK ? 'text-text-faint' : ''}`} title={title} {...dataAttr(name, 'cell', column.key)}>{words}</td>;
 }
