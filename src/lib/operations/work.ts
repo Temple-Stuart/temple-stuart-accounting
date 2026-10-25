@@ -185,16 +185,17 @@ export function accountCellsOf(books: readonly WorkBook[], charts: WorkCharts, b
   return { account: cell.text, name };
 }
 
+// PROJECTS-02 (Alex, 2026-10-25): the three column factories are exported — projectsTable.ts builds PROJECTS' spec from the same three (shared, not copied).
 /** A VALUE column over one reader: "—" on screen for null; `key` (when given) is what it sorts by and writes — an ISO day under its drawn date. */
-function valueColumn<Row, Key extends string>(column: Key, label: string, words: (row: Row) => string | null, key: (row: Row) => string | null = words): TableColumn<Row, Key> {
+export function valueColumn<Row, Key extends string>(column: Key, label: string, words: (row: Row) => string | null, key: (row: Row) => string | null = words): TableColumn<Row, Key> {
   return { key: column, label, kind: 'value', words: (r) => words(r) ?? BLANK, sortKey: (r) => textKey(key(r)), csv: (r) => key(r) ?? '' };
 }
 /** A TEXT column over one reader: the filter and the sort read the full text. */
-function textColumn<Row, Key extends string>(column: Key, label: string, text: (row: Row) => string | null): TableColumn<Row, Key> {
+export function textColumn<Row, Key extends string>(column: Key, label: string, text: (row: Row) => string | null): TableColumn<Row, Key> {
   return { key: column, label, kind: 'text', words: (r) => text(r) ?? BLANK, sortKey: (r) => textKey(text(r)), csv: (r) => text(r) ?? '', text };
 }
 /** A MONEY column over one reader of cents: "$12.00" on screen, bare in the CSV, blanks sorted last. */
-function moneyColumn<Row, Key extends string>(column: Key, label: string, cents: (row: Row) => number | null): TableColumn<Row, Key> {
+export function moneyColumn<Row, Key extends string>(column: Key, label: string, cents: (row: Row) => number | null): TableColumn<Row, Key> {
   return { key: column, label, kind: 'money', cents, words: (r) => { const c = cents(r); return c === null ? BLANK : moneyWords(c); }, sortKey: (r) => numberKey(cents(r)), csv: (r) => csvMoney(cents(r)) };
 }
 
@@ -251,11 +252,13 @@ export const taskStatusOf = (row: TaskRow): string => taskStatusWords(row.task.s
 export const taskDeadlineOf = (row: TaskRow): string | null => (row.task.deadline ? row.task.deadline.slice(0, 10) : null);
 /** DONE — the day the task was completed (completed_at's ISO day), or null while it is not. */
 export const taskDoneOf = (row: TaskRow): string | null => (row.task.completed_at ? row.task.completed_at.slice(0, 10) : null);
-/** ESTIMATE in cents — the task's estimated cost; null is blank. */
-export function taskEstimateCentsOf(row: TaskRow): number | null {
-  const dollars = numberOrNull(row.task.estimated_cost_usd);
+/** A task's estimated cost in cents; null is blank. PROJECTS-02 (Alex, 2026-10-25): the one rule under THE WORK's ESTIMATE and PROJECTS' EST (the sum of these). */
+export function estimateCentsOf(task: Pick<Task, 'estimated_cost_usd'>): number | null {
+  const dollars = numberOrNull(task.estimated_cost_usd);
   return dollars === null ? null : Math.round(dollars * 100);
 }
+/** ESTIMATE in cents — the task's estimated cost; null is blank. */
+export const taskEstimateCentsOf = (row: TaskRow): number | null => estimateCentsOf(row.task);
 
 /** THE WORK's spec, over the tab's books and their charts (BOOK and ACCOUNT read them). */
 export function taskTable(books: readonly WorkBook[], charts: WorkCharts): readonly TableColumn<TaskRow, TaskColumn>[] {

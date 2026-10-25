@@ -24,6 +24,18 @@
  * its tasks counted. "+ new project", "show archived", details and the brief
  * are unchanged, and so is THE LOG's read (GET /projects open_tasks).
  *
+ * PROJECTS-02 (Alex, 2026-10-25) — PROJECTS IS THE BRIEF AS A TABLE. The list is
+ * the shared DataTable (ProjectsTable over src/lib/operations/projectsTable.ts):
+ * one row per project, the brief's fields as columns in Alex's order, filtered,
+ * sorted and downloaded by the idiom's rules, with a VISIBLE "STATUS: open only"
+ * chip dropping every status not in OPEN_PROJECT_STATUSES — archived too once
+ * "show archived" has read them. This header keeps the count of projects loaded,
+ * "show archived" (the read switch: include_archived on the projects GET, as
+ * before) and "+ new project"; the capture form, "paste brief", the dependency
+ * jump and the row's "details" (the brief, every control, the task list) stay.
+ * The table stays mounted across a re-read, so its filters and sort hold; the
+ * loading and nothing-yet lines ride inside it, between its controls and its rows.
+ *
  * BACKLOG-01 (Alex, 2026-10-20) — ruling G: the list shows EVERY book. The
  * page's entity selector no longer filters the fetch (the ledger's rule:
  * "every book — the COA says which"); the project cell names its book. The
@@ -219,23 +231,23 @@ export default function SectionD_ProjectBacklog({ }: { } = {}) {
         />
       )}
 
-      {loading ? (
-        <div className="text-xs text-text-muted">loading projects…</div>
-      ) : projects.length === 0 ? (
-        <div className="text-xs text-text-muted">
-          no projects yet — click &quot;+ new project&quot; to capture the first one.
-        </div>
-      ) : (
-        <ProjectsTable
-          projects={projects}
-          entities={entities}
-          showArchived={showArchived}
-          targetProjectId={targetProjectId}
-          onJumpTo={setTargetProjectId}
-          onClearTarget={() => setTargetProjectId(null)}
-          onProjectsChanged={fetchProjects}
-        />
-      )}
+      <ProjectsTable
+        projects={projects}
+        entities={entities}
+        loaded={!loading}
+        showArchived={showArchived}
+        targetProjectId={targetProjectId}
+        onJumpTo={setTargetProjectId}
+        onClearTarget={() => setTargetProjectId(null)}
+        onProjectsChanged={fetchProjects}
+      >
+        {loading && <div className="text-xs text-text-muted">loading projects…</div>}
+        {!loading && projects.length === 0 && (
+          <div className="text-xs text-text-muted">
+            no projects yet — click &quot;+ new project&quot; to capture the first one.
+          </div>
+        )}
+      </ProjectsTable>
     </section>
   );
 }

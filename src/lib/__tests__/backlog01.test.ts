@@ -254,17 +254,16 @@ test('6 the section fetches every book (no entity_id), refetches on show-archive
   assert.match(comments(SECTION), /BACKLOG-01 \(Alex, 2026-10-20\) — ruling G: the list shows EVERY book\./);
 });
 
-test('6 the project cell wears TYPE and SIZE pills beside the status pill, "—" when null, and still names the book', () => {
-  const rows = code(ROWS);
-  const cell = rows.slice(rows.indexOf('const projectCell = ('), rows.indexOf('\n  );\n', rows.indexOf('const projectCell = (')));
-  inOrder(cell, [
-    '{STATUS_LABELS[project.status]}',
-    'data-project-type',
-    "{project.type ? TYPE_LABELS[project.type] : '—'}",
-    'data-project-size',
-    "{project.size ? SIZE_LABELS[project.size] : '—'}",
-    '{book ? book.name : ACCOUNT_CELL_WORDS.bookNotLoaded}',
-  ], 'the project cell');
+// PROJECTS-02 (Alex, 2026-10-25): the pills are three columns of the spec — TYPE, STATUS and SIZE in the label maps' words, "—" when null —
+// and BOOK names the book; the cell they sat on is gone with the two-column table (projects02.test.ts pins the words over fixtures).
+test('6 the project row wears TYPE and SIZE as columns beside STATUS, "—" when null, and still names the book', () => {
+  const spec = code('src/lib/operations/projectsTable.ts');
+  assert.match(spec, /export const projectTypeOf = \(row: ProjectTableRow\): string \| null => \(row\.project\.type === null \? null : TYPE_LABELS\[row\.project\.type\]\);/);
+  assert.match(spec, /export const projectSizeOf = \(row: ProjectTableRow\): string \| null => \(row\.project\.size === null \? null : SIZE_LABELS\[row\.project\.size\]\);/);
+  assert.match(spec, /export const projectStatusOf = \(row: ProjectTableRow\): string => STATUS_LABELS\[row\.project\.status\];/);
+  assert.match(spec, /valueColumn<ProjectTableRow, ProjectColumn>\('type', head\.type, projectTypeOf\),\n\s*valueColumn<ProjectTableRow, ProjectColumn>\('book', head\.book, \(r\) => bookNameOf\(books, r\.project\.entity_id\)\),\n\s*valueColumn<ProjectTableRow, ProjectColumn>\('status', head\.status, projectStatusOf\),/);
+  assert.match(spec, /valueColumn<ProjectTableRow, ProjectColumn>\('size', head\.size, projectSizeOf\),/);
+  assert.doesNotMatch(code(ROWS), /data-project-type|data-project-size|STATUS_PILL_CLASSES/, 'no pill of its own on the row');
 });
 
 // ── 7 · THE EDIT VIEW ────────────────────────────────────────────────────────
