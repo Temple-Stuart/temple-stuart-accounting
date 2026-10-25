@@ -20,7 +20,10 @@ const HELPER = 'src/lib/coa/accountCell.ts';
 // the routines are rows of /tasks' one DataTable (SectionE_Work over src/lib/operations/work.ts — one row per line), and the
 // routine's editor (RoutineEditForm, RoutineRow's form lifted) draws its lines in the FORM-01 table through RoutineStepList.
 // Every T2 pin below moved to the new files; none was loosened.
+// WORK-01d (Alex, 2026-10-25): Tasks is THREE TABLES — the routines are ROUTINE EXPENSES (SectionF_RoutineExpenses over work.ts's
+// routine spec, one row per line); THE WORK (SectionE_Work) is the open projects' tasks. The routine pins below moved to SectionF.
 const SECTION_E = 'src/components/workbench/operations/SectionE_Work.tsx';
+const SECTION_F = 'src/components/workbench/operations/SectionF_RoutineExpenses.tsx';
 const EDIT_FORM = 'src/components/workbench/operations/routines/RoutineEditForm.tsx';
 const LINES = 'src/components/workbench/operations/routines/RoutineStepList.tsx';
 const WORK_LIB = 'src/lib/operations/work.ts';
@@ -28,7 +31,7 @@ const WORK_LIB = 'src/lib/operations/work.ts';
 // names stay so T2 can pin the absence.
 const TAKEIFY = 'src/components/workbench/operations/content/TakeifyButton.tsx';
 const CONTENT_LIST = 'src/components/workbench/operations/content/AvailableRoutinesList.tsx';
-const TABLE = [SECTION_E, EDIT_FORM, LINES, WORK_LIB];
+const TABLE = [SECTION_E, SECTION_F, EDIT_FORM, LINES, WORK_LIB];
 
 const BOOKS: AccountCellBook[] = [
   { id: 'e_me', entity_type: 'personal' },
@@ -100,10 +103,11 @@ test('T1 every state\'s words, and the helper takes a book list, a book id and a
 
 // ── T2 · THE TABLE ───────────────────────────────────────────────────────────
 
-test('T2 one table: the routines are rows of THE WORK (the shared DataTable); the lines keep their FORM-01 table — Routine · Cadence · Days · Time · Amount · Account · controls — inside the editor', () => {
-  const e = code(SECTION_E);
+test('T2 one table: the routines are rows of ROUTINE EXPENSES (the shared DataTable); the lines keep their FORM-01 table — Routine · Cadence · Days · Time · Amount · Account · controls — inside the editor', () => {
+  const e = code(SECTION_F); // WORK-01d (2026-10-25): the routines' table
   assert.match(e, /<DataTable\n\s*name=\{name\}/, 'the shared table (IDIOM-01)');
   assert.doesNotMatch(e, /<table\b|<thead>/, 'no table of its own');
+  assert.doesNotMatch(code(SECTION_E), /<table\b|<thead>|RoutineEditForm|RoutineCreateForm/, 'THE WORK draws no table of its own and no routine');
   const f = code(EDIT_FORM);
   assert.equal((f.match(/<table\b/g) ?? []).length, 1, 'the lines\' table, once, in the editor');
   assert.equal((f.match(/<thead>/g) ?? []).length, 1, 'one header');
@@ -121,13 +125,13 @@ test('T2 the rows are in clock order — no cadence group rows (FORM-01); "+ rou
   assert.deepEqual(CADENCE_GROUP_ORDER, ['once', 'daily', 'weekly', 'monthly', 'quarterly', 'yearly', 'custom']);
   const w = code(WORK_LIB);
   assert.match(w, /for \(const routine of \[\.\.\.routines\]\.sort\(byClockThenName\)\) \{/, 'clock order then name, every book in one table (WORK-01)');
-  for (const f of [SECTION_E, WORK_LIB]) assert.doesNotMatch(code(f), /CADENCE_GROUP_ORDER|data-cadence-group/);
-  // ROUTINE-02a (2026-10-18): the ended routines are judged in THE WORK's rows (STATUS); the default STATUS filter drops them and its chip clears (work01 T3).
+  for (const f of [SECTION_E, SECTION_F, WORK_LIB]) assert.doesNotMatch(code(f), /CADENCE_GROUP_ORDER|data-cadence-group/);
+  // ROUTINE-02a (2026-10-18): the ended routines are judged in ROUTINE EXPENSES' rows (STATUS); the default STATUS filter drops them and its chip clears (work01d).
   assert.match(w, /const end = endedBy\(routine\.end_date, routine\.timezone, now\);/);
-  const e = code(SECTION_E);
+  const e = code(SECTION_F); // WORK-01d (2026-10-25): the routines' table
   assert.ok(e.indexOf('ADD_ROUTINE_WORDS}') < e.indexOf('statusChipWords('), '"+ routine", then the STATUS chip, in the controls row');
   assert.ok(e.indexOf('statusChipWords(') < e.indexOf('<RoutineCreateForm'), 'the create form opens under the controls');
-  assert.match(e, /\{workCountWords\(shown\.length, rows\.length\)\}/, 'the count is of the rows shown over the rows loaded');
+  assert.match(e, /\{rowCountWords\(shown\.length, rows\.length\)\}/, 'the count is of the rows shown over the rows loaded'); // WORK-01d: the shared count words
 });
 
 test('T2 nothing collapses on its own: no ▸/▾, no expanded row state, no click on a row — a row\'s "edit" opens its editor under it (WORK-01 ruling D), and that is the one fold', () => {
@@ -167,8 +171,8 @@ test('T2 the editor says what the routine cell said beyond THE WORK\'s columns, 
   assert.match(cell, /data-routine-next-due>\n\s*\{routine\.next_due_at === null && routine\.end_date !== null\n\s*\? endedWords\(formatDate\(routine\.end_date\)\)\n\s*: `next: \$\{formatDateTime\(routine\.next_due_at, routine\.timezone\)\}`\}/);
   assert.match(f, /const book = entities\.find\(\(e\) => e\.id === routine\.entity_id\);/);
   assert.match(f, /const planned = routinePlanned\(\{ budget_amount: routine\.budget_amount \?\? null, coa_code: routine\.coa_code \?\? null, steps: routine\.steps \}\);/);
-  // The controls: edit · deactivate/reactivate · delete on THE WORK's row; "+ line" in the editor's routine cell.
-  const e = code(SECTION_E);
+  // The controls: edit · deactivate/reactivate · delete on ROUTINE EXPENSES' row (WORK-01d: SectionF); "+ line" in the editor's routine cell.
+  const e = code(SECTION_F);
   for (const piece of ['onClick={() => setEditing(!editing)}', 'onClick={handleToggleActive}', 'onClick={handleDelete}']) assert.ok(e.includes(piece), `the row draws ${piece}`);
   assert.match(f, /onClick=\{\(\) => addLine\?\.\(\)\}\n\s*disabled=\{addLine === null\}/);
   // What left the screen.
@@ -227,24 +231,29 @@ test('T2 every code on the table is drawn through the one helper — never a bar
   assert.equal((code(LINES).match(/accountCell\(/g) ?? []).length, 2, 'the line\'s code and the routine\'s own');
   assert.equal((code(EDIT_FORM).match(/accountCell\(/g) ?? []).length, 1, 'the figure\'s account');
   assert.match(code(EDIT_FORM), /<AccountText cell=\{accountCell\(entities, routine\.entity_id, planned\.coaCode\)\} \/>/);
-  // WORK-01: THE WORK's ACCOUNT column goes through the helper too (work.ts accountWordsOf) — the section draws no code.
+  // WORK-01: the ACCOUNT column goes through the helper too (work.ts accountWordsOf, both tables' — WORK-01d) — the sections draw no code.
   assert.equal((code(WORK_LIB).match(/accountCell\(/g) ?? []).length, 1);
-  assert.match(code(WORK_LIB), /const cell = accountCell\(books, bookId, savedCodeOf\(row\)\);/);
-  assert.doesNotMatch(code(SECTION_E), /coa_code|coaCode|accountCell\(/, 'the section draws no code');
+  assert.match(code(WORK_LIB), /const cell = accountCell\(books, bookId, savedCode\);/); // WORK-01d (2026-10-25): one helper call under both specs
+  for (const f of [SECTION_E, SECTION_F]) assert.doesNotMatch(code(f), /coaCode|accountCell\(/, `${f} draws no code`);
+  assert.doesNotMatch(code(SECTION_F), /coa_code/, 'the routines\' section draws no code');
   assert.match(code(LINES), /export function AccountText\(\{ cell \}: \{ cell: AccountCell \}\) \{\n\s*if \(cell\.state === 'blank'\) return null;/);
   assert.match(code(LINES), /data-account-state=\{cell\.state\}>\{cell\.text\}</);
   // The entity list is the tab's own — with entity_type — and nothing is fetched anew for it.
-  assert.match(code(SECTION_E), /const \{ entities \} = useOperationsEntity\(\);/);
+  for (const f of [SECTION_E, SECTION_F]) assert.match(code(f), /const \{ entities \} = useOperationsEntity\(\);/);
   assert.match(code(EDIT_FORM), /import type \{ Entity \} from '\.\.\/EntitySelector';/);
   const fetches = [EDIT_FORM, LINES].flatMap((f) => [...code(f).matchAll(/fetch\(\s*([`'][^`']*[`'])/g)].map((m) => m[1]));
   for (const url of fetches) assert.match(url, /^[`']\/api\/operations\/routines/, `the editor fetches only the routines routes, not ${url}`);
-  // THE WORK reads the routines, the projects with their tasks and the books' charts, and writes through the routines and tasks routes alone.
-  for (const url of [...code(SECTION_E).matchAll(/fetch\(\s*([`'][^`']*[`'])/g)].map((m) => m[1])) assert.match(url, /^[`']\/api\/operations\/(routines|projects)/, `not ${url}`);
-  for (const url of [...code(SECTION_E).matchAll(/readJson\(\s*([`'][^`']*[`'])/g)].map((m) => m[1])) assert.match(url, /^[`']\/api\/(operations\/(routines|projects)|chart-of-accounts)/, `not ${url}`);
+  // ROUTINE EXPENSES reads the routines and the books' charts and writes through the routines routes alone; THE WORK reads the projects with
+  // their tasks and the charts and writes through the tasks routes alone (WORK-01d: each table its own reads).
+  for (const url of [...code(SECTION_F).matchAll(/fetch\(\s*([`'][^`']*[`'])/g)].map((m) => m[1])) assert.match(url, /^[`']\/api\/operations\/routines/, `not ${url}`);
+  for (const url of [...code(SECTION_F).matchAll(/readJson\(\s*([`'][^`']*[`'])/g)].map((m) => m[1])) assert.match(url, /^[`']\/api\/operations\/routines/, `not ${url}`);
+  for (const url of [...code(SECTION_E).matchAll(/fetch\(\s*([`'][^`']*[`'])/g)].map((m) => m[1])) assert.match(url, /^[`']\/api\/operations\/projects/, `not ${url}`);
+  for (const url of [...code(SECTION_E).matchAll(/readJson\(\s*([`'][^`']*[`'])/g)].map((m) => m[1])) assert.match(url, /^[`']\/api\/operations\/projects/, `not ${url}`);
+  assert.match(code('src/components/workbench/operations/workShared.tsx'), /readJson\(`\/api\/chart-of-accounts\?entity_id=\$\{encodeURIComponent\(e\.id\)\}`/, 'the charts are the shared hook\'s read');
 });
 
-test('T2 editing is in place: the routine\'s editor opens under its row on THE WORK (ruling D); a line\'s edit is its row', () => {
-  const e = code(SECTION_E);
+test('T2 editing is in place: the routine\'s editor opens under its row on ROUTINE EXPENSES (ruling D; WORK-01d: SectionF); a line\'s edit is its row', () => {
+  const e = code(SECTION_F);
   assert.match(e, /\{editing && \(\n\s*<tr \{\.\.\.dataAttr\(name, 'editing', row\.id\)\}>\n\s*<td colSpan=\{columns\.length \+ 1\}/, 'the editor row comes directly under the row');
   const f = code(EDIT_FORM);
   // The same form, seeded by routineToForm on open; the lines above it.

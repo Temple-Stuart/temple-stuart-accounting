@@ -42,6 +42,7 @@ test('each page renders its own pipe, in the pipe\'s own order', () => {
   // button, still behind pipelineMode. tasks01.test.ts pins the absence.
   assert.doesNotMatch(code('src/components/workbench/operations/projects/TruthMachineView.tsx'), /PIPE_PHASES|<StageStrip/);
   assert.doesNotMatch(code('src/components/workbench/operations/SectionE_Work.tsx'), /PIPE_PHASES|<StageStrip/); // WORK-01 (2026-10-24): SectionE_Work
+  assert.doesNotMatch(code('src/components/workbench/operations/SectionF_RoutineExpenses.tsx'), /PIPE_PHASES|<StageStrip/); // WORK-01d (2026-10-25): the routines' table
   assert.match(comments('src/components/workbench/operations/projects/TruthMachineView.tsx'), /the per-project StageStrip and the ProofStrip receipts are GONE/);
   assert.match(code('src/components/workbench/operations/projects/ProjectRow.tsx'), /pipelineMode/);
   // Time → content: until TIME-02 a PAGE-LEVEL strip inside ContentPipeline.tsx. TIME-02 (2026-10-19): the content

@@ -192,5 +192,6 @@ test('R5 what is left under src/app/operations is the trail, the layout and the 
   // The ai folder holds the two generators the projects use; the optimizer's folder is gone.
   assert.deepEqual(readdirSync(at('src/app/api/operations/ai')).sort(), ['generate-design', 'generate-tasks']);
   // SectionB left the folder; the backlog, the routines and the tail stay (tasks01.test.ts pins the tail's header).
-  assert.deepEqual(readdirSync(at('src/components/workbench/operations')).filter((n) => /^Section[A-Z]_/.test(n)).sort(), ['SectionD_ProjectBacklog.tsx', 'SectionE_Work.tsx', 'SectionK_AuditTail.tsx']);
+  // WORK-01d (Alex, 2026-10-25): SectionF_RoutineExpenses joins — the routines' own table.
+  assert.deepEqual(readdirSync(at('src/components/workbench/operations')).filter((n) => /^Section[A-Z]_/.test(n)).sort(), ['SectionD_ProjectBacklog.tsx', 'SectionE_Work.tsx', 'SectionF_RoutineExpenses.tsx', 'SectionK_AuditTail.tsx']);
 });

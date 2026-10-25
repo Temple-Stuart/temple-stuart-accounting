@@ -168,11 +168,15 @@ test('T4 the list: WORK-01 (Alex, 2026-10-24) — the routines are rows of THE W
   assert.match(code(LINES), /export const ROUTINE_TABLE_COLUMNS = 7;/);
   const w = code(WORK_LIB);
   assert.match(w, /for \(const routine of \[\.\.\.routines\]\.sort\(byClockThenName\)\) \{/, 'clock order then name');
-  assert.match(w, /export const cadenceOf = \(row: WorkRow\): string \| null => \(row\.of === 'task' \? null : cadenceWords\(row\.routine\.schedule_rrule\)\);/, 'CADENCE is cadenceWords');
+  // WORK-01d (Alex, 2026-10-25): the routines are ROUTINE EXPENSES' rows (RoutineRow, no `of` — tasks have their own table), so CADENCE reads the rule bare.
+  assert.match(w, /export const routineCadenceOf = \(row: RoutineRow\): string => cadenceWords\(row\.routine\.schedule_rrule\);/, 'CADENCE is cadenceWords');
   assert.match(w, /const words = daysWords\(row\.routine\.schedule_rrule, row\.routine\.start_date\);/, 'DAYS is daysWords');
   assert.match(w, /const words = timeWords\(row\.routine\);/, 'TIME is timeWords');
   assert.doesNotMatch(w, /groupOf|CADENCE_GROUP_ORDER|CADENCE_GROUP_LABELS|data-cadence-group/, 'no cadence groups, no second classifier');
-  assert.match(w, /isOnceRRule\(row\.routine\.schedule_rrule\)/, 'KIND once is the one rule (ONEOFF-01)');
+  // WORK-01d: KIND left with the merged table — a Once routine is told by CADENCE "once" (cadenceWords, ONEOFF-01's isOnceRRule inside it), not by a second rule here.
+  assert.doesNotMatch(w, /isOnceRRule/, 'no second once-rule beside cadenceWords');
+  assert.match(code(HELPERS), /export const cadenceWords = \(rrule: string\): string => CADENCE_GROUP_LABELS\[classifyCadence\(rrule\)\]\.toLowerCase\(\);/);
+  assert.match(code(HELPERS), /if \(parsed\.options\.count === 1\) return 'once';/, 'cadenceWords says once by the one rule (ONEOFF-01: one occurrence, whatever its FREQ)');
   assert.match(w, /end\.ended \? 'ended' : routine\.is_active \? 'active' : 'inactive'/, 'the ENDED group is a STATUS (ROUTINE-02a)');
   const lines = code(LINES);
   assert.match(lines, /<tr data-routine-main>\n\s*\{cell\}\n\s*<td[^>]*data-routine-cadence>\{cadenceWords\(routine\.schedule_rrule\)\}<\/td>\n\s*<td[^>]*data-routine-days>\{daysWords\(routine\.schedule_rrule, routine\.start_date\)\}<\/td>\n\s*<td[^>]*data-routine-time>\{timeWords\(routine\)\}<\/td>/);

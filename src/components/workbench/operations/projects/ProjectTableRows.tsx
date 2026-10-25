@@ -9,8 +9,13 @@
  * its cell, and a Tasks cell counting its tasks by status (the small print's
  * line, moved) through the same tasks read (useProjectTasks — the section's
  * "show archived" still reaches it). "details" opens the project's existing
- * detail — <ProjectRow> with every control it has, WITHOUT its task list — as a
- * full-width row directly under it. The brief (BACKLOG-01b) is unchanged.
+ * detail — <ProjectRow> with every control it has — as a full-width row
+ * directly under it. The brief (BACKLOG-01b) is unchanged.
+ *
+ * WORK-01d (Alex, 2026-10-25, ruling B): the detail keeps its task list again.
+ * THE WORK reads only the OPEN projects' tasks, so a task of an archived,
+ * completed, dropped or cancelled project has its home here — PROJECTS → show
+ * archived → the row's details — and WORK-01's withoutTaskSection left this mount.
  *
  * WORK-01b (Alex, 2026-10-24, ruling 3): the count reads the page's task-change
  * signal (WorkChanges) — a task THE WORK creates, saves or deletes moves its
@@ -145,7 +150,6 @@ export default function ProjectTableRows({
               onClearTarget={onClearTarget}
               onJumpTo={onJumpTo}
               defaultExpanded
-              withoutTaskSection
               onTasksChanged={bump}
             />
           </td>

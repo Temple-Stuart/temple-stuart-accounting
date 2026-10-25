@@ -332,7 +332,8 @@ test('T8 the doors: /tasks?project=<id> makes that row the jump target or says "
   assert.match(code('src/components/workbench/operations/projects/ProjectRow.tsx'), /if \(!isJumpTarget\) return;\n\s*rowRef\.current\?\.scrollIntoView\(\{ behavior: 'smooth', block: 'center' \}\);\n\s*setExpanded\(true\);/, 'the jump target scrolls to and expands the row — the dependency jump’s own path');
   const page = code(TASKS_PAGE);
   assert.match(page, /import \{ Suspense \} from 'react';/);
-  assert.match(page, /<div className="space-y-3" data-tool-page="Tasks">\n\s*<SectionE_Work \/>\n\s*<Suspense>\n\s*<SectionD_ProjectBacklog \/>\n\s*<\/Suspense>\n\s*<\/div>/, 'the boundary holds the projects list alone');
+  // WORK-01d (Alex, 2026-10-25): ROUTINE EXPENSES mounts after the boundary — the boundary still holds the projects list alone.
+  assert.match(page, /<div className="space-y-3" data-tool-page="Tasks">\n\s*<SectionE_Work \/>\n\s*<Suspense>\n\s*<SectionD_ProjectBacklog \/>\n\s*<\/Suspense>\n\s*<SectionF_RoutineExpenses \/>\n\s*<\/div>/, 'the boundary holds the projects list alone');
   assert.match(comments(TASKS_PAGE), /BACKLOG-02 \(Alex, 2026-10-20\): the projects list reads two URL params/);
 });
 
