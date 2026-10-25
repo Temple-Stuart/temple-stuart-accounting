@@ -33,9 +33,25 @@ import GuestLanding from '@/components/landing/GuestLanding';
  * price-ID values never reach the client). cookies() makes this route
  * request-dynamic by nature; force-dynamic states it explicitly. (PR-PRICE-3:
  * this page IS the pricing surface now — /pricing redirects to /#modules.)
+ *
+ * HOME-02 (Alex, 2026-10-25) — A SIGNED-IN `/` LANDS ON /runway. After the
+ * ?tab= map and before anything renders, a verified arrival (the same two
+ * signals as before — isVerifiedAuthed: the HMAC cookie via getVerifiedEmail,
+ * or the NextAuth JWT) is sent on to the cockpit's Runway panel, /runway, with
+ * the query string it came with (a /?date=… link keeps its date) — a 307, the
+ * page-level redirect() idiom. HOME-01 put the day card first on that panel;
+ * until this ruling the cockpit rendered at `/` as well, so the card's first
+ * ‹ › was a route change (/ → /runway) that remounted the cockpit. Now the
+ * card's URL is stable from the first click. A guest still gets the landing
+ * below, unchanged; /?tab=compliance still renders the cockpit here (the
+ * carve-out above). The destination is the cockpit's default panel, which is
+ * dayCard.ts DAY_CARD_PATH's page (home02.test.ts holds the two equal).
  */
 
 export const dynamic = 'force-dynamic';
+
+/** HOME-02 (Alex, 2026-10-25): where a signed-in `/` lands — the cockpit's Runway panel; the day card's page (dayCard.ts DAY_CARD_PATH, held equal by home02.test.ts). */
+const SIGNED_IN_HOME = '/runway';
 
 async function isVerifiedAuthed(): Promise<boolean> {
   // Signal 1 — the signed cookie, VERIFIED (timing-safe HMAC).
@@ -78,7 +94,16 @@ export default async function Page({ searchParams }: {
     redirect(typeof params.tab === 'string' ? (TAB_TO_PATH[params.tab] ?? '/') : '/');
   }
 
-  if (await isVerifiedAuthed()) return <HomeClient offerAvailability={offerAvailability} />;
+  // HOME-02 (Alex, 2026-10-25): a verified arrival lands on /runway — the cockpit's default panel, the day card first
+  // (HOME-01) — carrying the query string as given; the ?tab= map above has already had its say.
+  if (await isVerifiedAuthed()) {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      for (const v of value === undefined ? [] : typeof value === 'string' ? [value] : value) query.append(key, v);
+    }
+    const qs = query.toString();
+    redirect(qs === '' ? SIGNED_IN_HOME : `${SIGNED_IN_HOME}?${qs}`);
+  }
 
   // SELL-02: the offer's availability (computed above, before the authed branch — the
   // cockpit's locked cards need it too) rides both landings; the env value never leaves.
