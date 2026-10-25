@@ -44,8 +44,8 @@
  *               screen reads the one rule from here.
  *   · LINKS     one per line (links joined by a line break — the brief's own
  *               print); the CSV field carries the line breaks, quoted (csv.ts).
- *   · TARGET    target_completion_date, drawn as the dates were (formatDate), the
- *               ISO day under it for the sort and the CSV; CAPTURED created_at ·
+ *   · TARGET    target_completion_date's ISO day, drawn at local midnight (work.ts
+ *               dayWords — COLUMNS-01), the ISO day under it for the sort and the CSV; CAPTURED created_at ·
  *               PROMOTED promoted_at · SCHEDULED scheduled_at · DONE done_at alike.
  *   · ID        the project's id (monospace on screen), in the CSV.
  *
@@ -65,11 +65,11 @@ import { BLANK } from '@/lib/table/words';
 import { isOpenProjectStatus } from '@/lib/operations/morningLog';
 import { AUDIT_LABEL, PLAN_LABEL, captureQuestion } from '@/lib/operations/projectBrief';
 import {
-  bookNameOf, defaultFiltersOf, estimateCentsOf, isoDayOf, moneyColumn, textColumn, valueColumn, type NamedDefault, type WorkBook,
+  bookNameOf, dayWords, defaultFiltersOf, estimateCentsOf, isoDayOf, moneyColumn, textColumn, valueColumn, type NamedDefault, type WorkBook,
 } from '@/lib/operations/work';
 import type { Project, ProjectStatus, Task } from '@/components/workbench/operations/projects/types';
 import { SIZE_LABELS, STATUS_LABELS, TYPE_LABELS } from '@/components/workbench/operations/projects/types';
-import { formatDate, statusCounts } from '@/components/workbench/operations/projects/projectsTableText';
+import { statusCounts } from '@/components/workbench/operations/projects/projectsTableText';
 
 // The long-text rule is the journal tables' (JOURNAL-07, ruling E) — one rule, read from here by PROJECTS' screen.
 export { COLLAPSE_WORDS, EXPAND_WORDS, PREVIEW_CHARS, previewMoreWords, previewOf } from '@/lib/operations/journalTables';
@@ -183,9 +183,13 @@ export const PROJECT_DATE_FIELDS = {
 } as const satisfies Partial<Record<ProjectColumn, keyof Project>>;
 export type ProjectDateColumn = keyof typeof PROJECT_DATE_FIELDS;
 export const projectDateOf = (row: ProjectTableRow, column: ProjectDateColumn): string | null => row.project[PROJECT_DATE_FIELDS[column]];
-/** A date column: drawn as formatDate draws it; sorted and written as the ISO day under it (THE WORK's DEADLINE and DONE do the same). */
+/**
+ * A date column: the ISO day under it (isoDayOf — what it sorts by and writes) drawn at LOCAL midnight (dayWords), as THE WORK's DEADLINE
+ * and DONE and ROUTINE EXPENSES' START · END · NEXT are. COLUMNS-01 (Alex, 2026-10-25, ruling B): formatDate(instant) drew the instant in the
+ * viewer's zone, which west of Greenwich was the day before the ISO day under it — one rule now, one place (work.ts dayWords).
+ */
 const dateColumn = (column: ProjectDateColumn): TableColumn<ProjectTableRow, ProjectColumn> =>
-  valueColumn<ProjectTableRow, ProjectColumn>(column, PROJECT_HEAD_WORDS[column], (r) => { const d = projectDateOf(r, column); return d === null ? null : formatDate(d); }, (r) => isoDayOf(projectDateOf(r, column)));
+  valueColumn<ProjectTableRow, ProjectColumn>(column, PROJECT_HEAD_WORDS[column], (r) => { const d = isoDayOf(projectDateOf(r, column)); return d === null ? null : dayWords(d); }, (r) => isoDayOf(projectDateOf(r, column)));
 
 /** PROJECTS' spec, over the tab's books (BOOK names them). */
 export function projectTable(books: readonly WorkBook[]): readonly TableColumn<ProjectTableRow, ProjectColumn>[] {

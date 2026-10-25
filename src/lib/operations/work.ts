@@ -23,8 +23,8 @@
  *   · STATUS    the task's status words (TASK_STATUS_LABELS via taskStatusWords:
  *               new · in process · blocked · done · cancelled · archived · pending
  *               review).
- *   · DEADLINE  the task's deadline, drawn as the projects table drew it; sorted
- *               and written as the ISO day.
+ *   · DEADLINE  the task's deadline, its ISO day drawn at local midnight (dayWords,
+ *               COLUMNS-01); sorted and written as the ISO day.
  *   · ESTIMATE  the task's estimated cost (money). Blank is blank, never 0.
  *   · ACCOUNT   the saved code through ROUTINES-01's helper (accountCell: the book's
  *               letter and the four digits) with the chart's name beside it —
@@ -146,6 +146,12 @@ const numberOrNull = (v: string | number | null | undefined): number | null => {
 };
 /** "$12.00" — a money cell on screen (the CSV writes the bare csvMoney). */
 export const moneyWords = (cents: number): string => `$${csvMoney(cents)}`;
+/**
+ * An ISO day drawn as the projects table draws one (formatDate), at LOCAL midnight — an ISO day alone parses as UTC midnight and shifts a
+ * day west of Greenwich. COLUMNS-01 (Alex, 2026-10-25, ruling B): the ONE rule for drawing an ISO day, in one place — START · END · NEXT,
+ * DEADLINE · DONE (THE WORK) and TARGET · CAPTURED · PROMOTED · SCHEDULED · DONE (PROJECTS) all draw through it.
+ */
+export const dayWords = (day: string): string => formatDate(`${day}T00:00:00`);
 /** A book's name from the tab's entity list; a book the tab has not listed is said (ROUTINES-01's words), never dropped. */
 export const bookNameOf = (books: readonly WorkBook[], bookId: string): string => books.find((b) => b.id === bookId)?.name ?? ACCOUNT_CELL_WORDS.bookNotLoaded;
 
@@ -268,10 +274,11 @@ export function taskTable(books: readonly WorkBook[], charts: WorkCharts): reado
     textColumn<TaskRow, TaskColumn>('project', head.project, (r) => r.project.title),
     valueColumn<TaskRow, TaskColumn>('book', head.book, (r) => bookNameOf(books, r.task.entity_id)),
     valueColumn<TaskRow, TaskColumn>('status', head.status, taskStatusOf),
-    valueColumn<TaskRow, TaskColumn>('deadline', head.deadline, (r) => { const d = taskDeadlineOf(r); return d === null ? null : formatDate(d); }, taskDeadlineOf),
+    // COLUMNS-01 (Alex, 2026-10-25, ruling B): the ISO day drawn at LOCAL midnight (dayWords) — formatDate(day) alone parsed it as UTC midnight and showed the previous day west of Greenwich.
+    valueColumn<TaskRow, TaskColumn>('deadline', head.deadline, (r) => { const d = taskDeadlineOf(r); return d === null ? null : dayWords(d); }, taskDeadlineOf),
     moneyColumn<TaskRow, TaskColumn>('estimate', head.estimate, taskEstimateCentsOf),
     textColumn<TaskRow, TaskColumn>('account', head.account, (r) => accountWordsOf(books, charts, r.task.entity_id, r.task.coa_code ?? null)),
-    valueColumn<TaskRow, TaskColumn>('done', head.done, (r) => { const d = taskDoneOf(r); return d === null ? null : formatDate(d); }, taskDoneOf),
+    valueColumn<TaskRow, TaskColumn>('done', head.done, (r) => { const d = taskDoneOf(r); return d === null ? null : dayWords(d); }, taskDoneOf),
   ];
 }
 
@@ -354,8 +361,7 @@ export const isoDayOf = (text: string | null | undefined): string | null => (tex
 /** START · END — the routine's start_date and end_date as ISO days. */
 export const routineStartOf = (row: RoutineRow): string | null => isoDayOf(row.routine.start_date);
 export const routineEndOf = (row: RoutineRow): string | null => isoDayOf(row.routine.end_date);
-/** A day drawn as the projects table draws one (formatDate), at LOCAL midnight — an ISO day alone parses as UTC midnight and shifts a day west of Greenwich. */
-export const dayWords = (day: string): string => formatDate(`${day}T00:00:00`);
+// COLUMNS-01 (Alex, 2026-10-25, ruling B): dayWords moved up to SHARED CELLS — the ONE way an ISO day is drawn, in every table.
 /** NEXT — next_due_at as a day in the routine's own zone; null when none; a zone Intl cannot read is said (zoneUnreadWords), never placed in UTC. */
 export function routineNextOf(row: RoutineRow): { readonly day: string | null; readonly words: string | null } {
   if (row.routine.next_due_at === null) return { day: null, words: null };
@@ -398,6 +404,17 @@ export const ROUTINE_TOOLTIPS: Readonly<Partial<Record<RoutineColumn, string>>> 
 };
 export const ROUTINE_TABLE_NAME = 'routine-expenses';
 
+/**
+ * COLUMNS-01 (Alex, 2026-10-25, ruling A): THIS MONTH · TO DATE · VARIANCE are blank for an INACTIVE routine — /budget excludes it
+ * (routineBudgetInputs.ts reads is_active: true) and ROUTINE EXPENSES agrees — and the cell says why: the month rule's budget_words
+ * ("inactive — not budgeted (/budget excludes it)"). undefined, no tooltip, on every other cell; ACTUAL and MATCH keep their figures.
+ */
+export function routineBudgetWordsOf(month: RoutineMonthMap, row: RoutineRow, column: RoutineColumn): string | undefined {
+  if (column !== 'this_month' && column !== 'to_date' && column !== 'variance') return undefined;
+  const line = month.get(row.id);
+  if (line === undefined || line.budget_words === null) return undefined;
+  return line.budget_words;
+}
 /** The figure a row's month record holds, or null when the route returned none for it. */
 const figureOf = (month: RoutineMonthMap, row: RoutineRow, pick: (line: RoutineMonthLine) => number | null): number | null => {
   const line = month.get(row.id);

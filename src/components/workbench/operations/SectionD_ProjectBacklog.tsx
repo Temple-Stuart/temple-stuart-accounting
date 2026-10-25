@@ -70,7 +70,8 @@ import ProjectCreateForm from './projects/ProjectCreateForm';
 import type { Project } from './projects/types';
 
 
-export default function SectionD_ProjectBacklog({ }: { } = {}) {
+// COLUMNS-01 (Alex, 2026-10-25, ruling E): no props — the empty-object signature tripped @typescript-eslint/no-empty-object-type.
+export default function SectionD_ProjectBacklog() {
   const { entities, selectedEntityId } = useOperationsEntity();
 
   const [projects, setProjects] = useState<Project[]>([]);

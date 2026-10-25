@@ -270,9 +270,11 @@ test('T7 the sections: one component with its kind; the period control copied ve
   assert.match(t, /periodOf\(kind, anchor, today, firstDay\)/, 'ALL starts at the first journal (ruling 1(b))');
   assert.match(t, /if \(read\.ok\) setFirstDay\(read\.value\.first_day\);/);
   assert.match(t, /trailing=\{kind === 'all' && period === null && <span className="text-text-muted" \{\.\.\.dataAttr\(name, 'no-first'\)\}>\{NO_FIRST_JOURNAL_WORDS\}<\/span>\}/, 'ALL with no journal yet — its words');
-  for (const attr of ["dataAttr(name, 'period', k)", "dataAttr(name, 'previous')", "dataAttr(name, 'anchor')", "dataAttr(name, 'next')", "dataAttr(name, 'period-words')", "dataAttr(name, 'row', row.day)", "dataAttr(name, 'cell', c.key)", "dataAttr(name, 'cell', column)", "dataAttr(name, 'cell-toggle')", "dataAttr(name, 'loading')", "dataAttr(name, 'failed')", "dataAttr(name, 'none')", "dataAttr(name, 'days')"]) {
+  for (const attr of ["dataAttr(name, 'period', k)", "dataAttr(name, 'previous')", "dataAttr(name, 'anchor')", "dataAttr(name, 'next')", "dataAttr(name, 'period-words')", "dataAttr(name, 'row', row.day)", "dataAttr(name, 'cell', c.key)", "dataAttr(name, 'loading')", "dataAttr(name, 'failed')", "dataAttr(name, 'none')", "dataAttr(name, 'days')"]) {
     assert.ok(t.includes(`{...${attr}}`), `the table writes ${attr}`);
   }
+  // COLUMNS-01 (Alex, 2026-10-25, ruling D): the cell's attributes are written by the shared TextCell now (components/table/TextCell.tsx).
+  for (const attr of ["dataAttr(name, 'cell', column)", "dataAttr(name, 'cell-toggle')"]) assert.ok(code('src/components/table/TextCell.tsx').includes(`{...${attr}}`), `the shared text cell writes ${attr}`);
   assert.match(t, /const name = `journal-\$\{which\}`;/);
   assert.match(t, /<DataTable\n\s*name=\{name\}\n\s*columns=\{columns\}\n\s*rows=\{rows\}\n\s*shown=\{shown\}\n\s*loaded=\{loaded\}/, 'the shared table, by the table’s name');
   assert.match(t, /const shown = sortRows\(filterRows\(rows, filters, columns\), sort, columns\);/, 'filtered, then sorted');
@@ -283,12 +285,17 @@ test('T7 the sections: one component with its kind; the period control copied ve
   assert.match(t, /const csv = csvPeriod === null \? null : \{ name: journalCsvFileName\(which, csvPeriod\.from, csvPeriod\.to\) \};/);
   assert.match(t, /foot=\{null\}/, 'no TOTAL row');
   // The text cell: "—" for null; the preview, the count and the toggle; the full text when opened; one state per cell key.
-  assert.match(t, /if \(text === null\) return <td className=\{`\$\{cell\} \$\{BLANK_CLASS\}`\} \{\.\.\.dataAttr\(name, 'cell', column\)\}>\{BLANK\}<\/td>;/);
-  assert.match(t, /\{open \|\| preview\.more === null \? text : preview\.shown\}/);
-  assert.match(t, /\{!open && <span className="text-text-faint"> \{preview\.more\}<\/span>\}/);
-  assert.match(t, /<button type="button" className=\{link\} onClick=\{onToggle\} \{\.\.\.dataAttr\(name, 'cell-toggle'\)\}>\{open \? COLLAPSE_WORDS : EXPAND_WORDS\}<\/button>/);
-  assert.match(t, /open=\{opened\.has\(cellKeyOf\(row, c\.key\)\)\} onToggle=\{\(\) => toggle\(cellKeyOf\(row, c\.key\)\)\}/);
-  assert.match(t, /whitespace-pre-line/, 'one goal, one step per line');
+  // COLUMNS-01 (Alex, 2026-10-25, ruling D): the cell moved, as it stood, to the shared idiom (components/table/TextCell.tsx) — the journal
+  // tables render it (DOM byte-identical, proven in the PR) and PROJECTS renders the same one; its pins moved with it.
+  const tc = code('src/components/table/TextCell.tsx');
+  assert.match(t, /import TextCell from '@\/components\/table\/TextCell';/);
+  assert.doesNotMatch(t, /function TextCell\(|previewOf|EXPAND_WORDS|COLLAPSE_WORDS/, 'no cell of its own');
+  assert.match(tc, /if \(text === null\) return <td className=\{`\$\{cell\} \$\{BLANK_CLASS\}`\} \{\.\.\.dataAttr\(name, 'cell', column\)\}>\{BLANK\}<\/td>;/);
+  assert.match(tc, /\{open \|\| preview\.more === null \? text : preview\.shown\}/);
+  assert.match(tc, /\{!open && <span className="text-text-faint"> \{preview\.more\}<\/span>\}/);
+  assert.match(tc, /<button type="button" className=\{link\} onClick=\{onToggle\} \{\.\.\.dataAttr\(name, 'cell-toggle'\)\}>\{open \? COLLAPSE_WORDS : EXPAND_WORDS\}<\/button>/);
+  assert.match(t, /<TextCell key=\{c\.key\} name=\{name\} column=\{c\.key\} text=\{c\.text\(row\)\} open=\{opened\.has\(cellKeyOf\(row, c\.key\)\)\} onToggle=\{\(\) => toggle\(cellKeyOf\(row, c\.key\)\)\} \/>/);
+  assert.match(tc, /whitespace-pre-line/, 'one goal, one step per line');
   // No sentence of its own.
   const printed = [...t.matchAll(/>\{([^}]+)\}<\//g)].map((m) => m[1]);
   assert.ok(printed.length >= 8);

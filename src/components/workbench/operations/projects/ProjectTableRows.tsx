@@ -11,8 +11,9 @@
  *     page's task-change signal re-reads it), reported up as the row's tasks read,
  *     so TASKS and EST filter, sort and download over every row loaded, not only
  *     the rows on screen. It draws nothing.
- *   · ProjectTableRows — the row: the spec's cells (WorkCell; a TEXT cell draws the
- *     journal tables' preview — the first 160 code points, "… (n chars)" and
+ *   · ProjectTableRows — the row: the spec's cells (WorkCell; a TEXT cell is the
+ *     shared TextCell — the journal tables' own, lifted to components/table by
+ *     COLUMNS-01 ruling D: the first 160 code points, "… (n chars)" and
  *     "all of it" / "less", one opened state per cell held by the table), EST
  *     and ACTUAL with their tooltips, then the one control: "details", which
  *     opens the project's existing detail — <ProjectRow> with every control it
@@ -39,11 +40,11 @@
 
 import { Fragment, useEffect, useState } from 'react';
 import { cellClass as cell } from '@/components/table/DataTable';
+import TextCell from '@/components/table/TextCell';
 import { dataAttr } from '@/components/table/dataAttr';
 import type { TableColumn } from '@/lib/table/columns';
-import { BLANK } from '@/lib/table/words';
 import {
-  ACTUAL_TOOLTIP_WORDS, COLLAPSE_WORDS, DETAILS_WORDS, EXPAND_WORDS, HIDE_DETAILS_WORDS, PROJECT_TABLE_NAME, estimateCoverageWords, previewOf,
+  ACTUAL_TOOLTIP_WORDS, DETAILS_WORDS, HIDE_DETAILS_WORDS, PROJECT_TABLE_NAME, estimateCoverageWords,
   projectActualCentsOf, projectCellKeyOf, projectEstimateOf, type ProjectColumn, type ProjectTableRow, type ProjectTasksRead,
 } from '@/lib/operations/projectsTable';
 import { useWorkChanges } from '../WorkChanges';
@@ -55,7 +56,6 @@ import { useProjectTasks } from './useProjectTasks';
 
 const name = PROJECT_TABLE_NAME;
 const actionClass = 'px-2 py-0.5 border border-border rounded hover:bg-bg-row disabled:opacity-50 text-xs';
-const link = 'underline text-brand-purple hover:text-text-primary';
 
 interface ReaderProps {
   project: Project;
@@ -145,29 +145,12 @@ export default function ProjectTableRows({ row, columns, entities, allProjects, 
 
 /** One cell: a TEXT column through the preview; EST and ACTUAL with their tooltips; every other through the shared cell. */
 function ProjectCell({ column, row, open, onToggle }: { column: TableColumn<ProjectTableRow, ProjectColumn>; row: ProjectTableRow; open: boolean; onToggle: () => void }) {
-  if (column.kind === 'text') return <TextCell column={column.key} text={column.text(row)} open={open} onToggle={onToggle} />;
+  // COLUMNS-01 (Alex, 2026-10-25, ruling D): the shared TextCell (components/table) — the journal tables' cell, one for both.
+  if (column.kind === 'text') return <TextCell name={name} column={column.key} text={column.text(row)} open={open} onToggle={onToggle} />;
   if (column.key === 'est') {
     const sum = projectEstimateOf(row);
     return <WorkCell name={name} column={column} row={row} title={sum !== null && sum.of > 0 ? estimateCoverageWords(sum) : undefined} />;
   }
   if (column.key === 'actual') return <WorkCell name={name} column={column} row={row} title={projectActualCentsOf(row) === null ? undefined : ACTUAL_TOOLTIP_WORDS} />;
   return <WorkCell name={name} column={column} row={row} />;
-}
-
-/** A TEXT cell, as the journal tables draw one (JournalDayTable.tsx): the full text when it fits or when opened; else its first 160 code points, how many there are, and the control. */
-function TextCell({ column, text, open, onToggle }: { column: ProjectColumn; text: string | null; open: boolean; onToggle: () => void }) {
-  if (text === null) return <td className={`${cell} text-text-faint`} {...dataAttr(name, 'cell', column)}>{BLANK}</td>;
-  const preview = previewOf(text);
-  return (
-    <td className={`${cell} max-w-[24rem] whitespace-pre-line break-words`} {...dataAttr(name, 'cell', column)} {...dataAttr(name, 'cell-open', open ? '' : undefined)}>
-      {open || preview.more === null ? text : preview.shown}
-      {preview.more !== null && (
-        <>
-          {!open && <span className="text-text-faint"> {preview.more}</span>}
-          {' '}
-          <button type="button" className={link} onClick={onToggle} {...dataAttr(name, 'cell-toggle')}>{open ? COLLAPSE_WORDS : EXPAND_WORDS}</button>
-        </>
-      )}
-    </td>
-  );
 }

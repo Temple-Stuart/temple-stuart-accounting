@@ -40,6 +40,7 @@ import { Prisma, ProjectSize, ProjectStatus, ProjectType } from '@prisma/client'
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
+import { statusStampsOf } from '@/lib/operations/projectStamps';
 import { recordTaskStatusChange } from '@/lib/operations/recordTaskStatusChange';
 import { describeBlockers, projectDeletionCheck, type DeletionPreview } from '@/lib/operations/projectDeletion';
 
@@ -393,6 +394,13 @@ export async function PATCH(
       }
       if (incoming !== existing.status) {
         statusChange = { from: existing.status, to: incoming };
+        // COLUMNS-01 (Alex, 2026-10-25, ruling C): the dates PROJECTS prints — scheduled_at the latest transition INTO scheduled; done_at the
+        // latest INTO completed, null once the status leaves completed (DONE never contradicts STATUS). The pure rule is
+        // src/lib/operations/projectStamps.ts; the stamps ride this status change and its existing audit entry (before/after carry them).
+        // promoted_at keeps its own rule above. No backfill — a project moved before this ruling keeps its null until it moves again.
+        const stamps = statusStampsOf(statusChange.from, statusChange.to, new Date());
+        if (stamps.scheduled_at !== undefined) data.scheduled_at = stamps.scheduled_at;
+        if (stamps.done_at !== undefined) data.done_at = stamps.done_at;
       }
       data.status = incoming;
     }

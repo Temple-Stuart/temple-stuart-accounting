@@ -43,6 +43,9 @@ export const ROUTINE_BUDGET_SELECT = {
   budget_amount: true, coa_code: true, schedule_rrule: true, timezone: true,
   // ONEOFF-01: the anchor the month's occurrence count is built on.
   start_date: true,
+  // COLUMNS-01 (Alex, 2026-10-25, ruling A): whether the routine is active — the month route reads inactive routines too (includeInactive)
+  // and ROUTINE EXPENSES must not budget one; the default read filters on it, so every other caller sees true.
+  is_active: true,
   // LINES-01: the routine's active lines; routinePlanned() decides whether they carry the figure.
   steps: { where: { is_active: true }, select: { id: true, is_active: true, budget_amount: true, coa_code: true, step_order: true, activity: true, time_of_day: true } },
 } as const;
@@ -57,6 +60,8 @@ export type RoutineBudgetRow = Prisma.operations_routinesGetPayload<{ select: ty
 export interface LoadedRoutineBudgetInput extends RoutineBudgetInput {
   id: string;
   name: string;
+  /** COLUMNS-01: the routine's own is_active (the default read returns only true; includeInactive returns both). */
+  is_active: boolean;
   start_date: Date | null;
   end_date: Date | null;
   /** TAB13-04: activity and time_of_day ('HH:MM', or null when the line has no time) are the day's plan lines' words — the month tables read neither. */
@@ -68,6 +73,7 @@ export function toRoutineBudgetInput(r: RoutineBudgetRow): LoadedRoutineBudgetIn
   return {
     id: r.id,
     name: r.name,
+    is_active: r.is_active,
     end_date: r.end_date,
     budget_amount: r.budget_amount != null ? Number(r.budget_amount) : null,
     coa_code: r.coa_code,

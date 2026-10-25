@@ -42,6 +42,7 @@ import { localToday } from '@/lib/localToday';
 import type { Read } from '../week/weekReads';
 import { readJournalRange, type JournalRangeAnswer } from './journalReads';
 import DataTable, { cellClass as cell, chipClass as chip } from '@/components/table/DataTable';
+import TextCell from '@/components/table/TextCell';
 import { dataAttr } from '@/components/table/dataAttr';
 import type { TableColumn } from '@/lib/table/columns';
 import { filterRows, noFilters, type TableFilters } from '@/lib/table/filters';
@@ -49,31 +50,13 @@ import { sortRows, type TableSort } from '@/lib/table/sort';
 import { BLANK } from '@/lib/table/words';
 import { NEXT_WORDS, PERIOD_KINDS, PERIOD_WORDS, PREVIOUS_WORDS, periodOf, periodWords, spanDays, stepAnchor, type Period, type PeriodKind } from '@/lib/operations/ledger';
 import {
-  COLLAPSE_WORDS, EXPAND_WORDS, JOURNALS_LOADING_WORDS, JOURNAL_TABLES, JOURNAL_TITLE_WORDS, NO_FIRST_JOURNAL_WORDS,
-  cellKeyOf, daysWithJournalWords, journalCsvFileName, journalDayRows, noJournalWords, previewOf, type JournalDayRow, type JournalTableKind,
+  JOURNALS_LOADING_WORDS, JOURNAL_TABLES, JOURNAL_TITLE_WORDS, NO_FIRST_JOURNAL_WORDS,
+  cellKeyOf, daysWithJournalWords, journalCsvFileName, journalDayRows, noJournalWords, type JournalDayRow, type JournalTableKind,
 } from '@/lib/operations/journalTables';
 
 const chipOn = 'px-2 py-0.5 border border-brand-purple bg-brand-purple text-white rounded text-xs';
 const BLANK_CLASS = 'text-text-faint';
-const link = 'underline text-brand-purple hover:text-text-primary';
-
-/** A TEXT cell: the full text when it fits or when opened; else its first 160 code points, how many there are, and the control. */
-function TextCell({ name, column, text, open, onToggle }: { name: string; column: string; text: string | null; open: boolean; onToggle: () => void }) {
-  if (text === null) return <td className={`${cell} ${BLANK_CLASS}`} {...dataAttr(name, 'cell', column)}>{BLANK}</td>;
-  const preview = previewOf(text);
-  return (
-    <td className={`${cell} max-w-[24rem] whitespace-pre-line break-words`} {...dataAttr(name, 'cell', column)} {...dataAttr(name, 'cell-open', open ? '' : undefined)}>
-      {open || preview.more === null ? text : preview.shown}
-      {preview.more !== null && (
-        <>
-          {!open && <span className="text-text-faint"> {preview.more}</span>}
-          {' '}
-          <button type="button" className={link} onClick={onToggle} {...dataAttr(name, 'cell-toggle')}>{open ? COLLAPSE_WORDS : EXPAND_WORDS}</button>
-        </>
-      )}
-    </td>
-  );
-}
+// COLUMNS-01 (Alex, 2026-10-25, ruling D): the TEXT cell moved, as it stood, to the shared idiom (components/table/TextCell.tsx) — PROJECTS renders the same one.
 
 export default function JournalDayTable({ kind: which }: { kind: JournalTableKind }) {
   const name = `journal-${which}`;
