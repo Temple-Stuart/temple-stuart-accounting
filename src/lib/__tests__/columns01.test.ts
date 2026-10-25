@@ -196,9 +196,11 @@ test('A the plumbing: the loader reads the routine\'s is_active (its default rea
 
 // ── RULING B · EVERY ISO DAY DRAWN AT LOCAL MIDNIGHT ─────────────────────────
 
-test('B in America/Los_Angeles: DEADLINE, DONE, START and TARGET for 2026-10-25 read "Oct 25, 2026" — the one rule (dayWords); formatDate(day) alone read Oct 24', () => {
-  const projectRow = project({ id: 'x', title: 'X', target_completion_date: at('2026-10-25'), created_at: at('2026-10-25'), promoted_at: at('2026-10-25'), scheduled_at: at('2026-10-25'), done_at: at('2026-10-25') });
-  const work: WorkProject[] = [{ project: projectRow, tasks: [task({ id: 't', title: 'T', project_id: 'x', deadline: at('2026-10-25'), status: 'completed', completed_at: at('2026-10-25') })] }];
+test('B in America/Los_Angeles: the DAYs — DEADLINE, START, END and TARGET — for 2026-10-25 read "Oct 25, 2026" (dayWords); formatDate(day) alone read Oct 24 (COLUMNS-01b: the event instants have their own rule)', () => {
+  // COLUMNS-01b (Alex, 2026-10-25, ruling 2): the DAYs — DEADLINE · TARGET · START · END — draw their UTC day at local midnight; the EVENT INSTANTS
+  // (DONE, CAPTURED · PROMOTED · SCHEDULED · DONE) draw the viewer's day and left this loop for columns01b.test.ts.
+  const projectRow = project({ id: 'x', title: 'X', target_completion_date: at('2026-10-25') });
+  const work: WorkProject[] = [{ project: projectRow, tasks: [task({ id: 't', title: 'T', project_id: 'x', deadline: at('2026-10-25') })] }];
   const taskCols = taskTable(BOOKS, CHARTS);
   const taskRow = taskRowsOf(work)[0];
   const routineCols = routineTable(BOOKS, CHARTS, new Map());
@@ -209,34 +211,30 @@ test('B in America/Los_Angeles: DEADLINE, DONE, START and TARGET for 2026-10-25 
     inZone(zone, () => {
       assert.equal(dayWords('2026-10-25'), 'Oct 25, 2026', zone);
       assert.equal(columnOf(taskCols, 'deadline').words(taskRow), 'Oct 25, 2026', `${zone} DEADLINE`);
-      assert.equal(columnOf(taskCols, 'done').words(taskRow), 'Oct 25, 2026', `${zone} DONE`);
       assert.equal(columnOf(routineCols, 'start').words(routineRow), 'Oct 25, 2026', `${zone} START`);
       assert.equal(columnOf(routineCols, 'end').words(routineRow), 'Oct 25, 2026', `${zone} END`);
-      for (const key of ['target', 'captured', 'promoted', 'scheduled', 'done'] as const) {
-        assert.equal(columnOf(projectCols, key).words(pRow), 'Oct 25, 2026', `${zone} ${key}`);
-        assert.equal(columnOf(projectCols, key).csv(pRow), '2026-10-25', `${zone} ${key} ISO under`);
-      }
+      assert.equal(columnOf(projectCols, 'target').words(pRow), 'Oct 25, 2026', `${zone} TARGET`);
+      assert.equal(columnOf(projectCols, 'target').csv(pRow), '2026-10-25', `${zone} TARGET ISO under`);
       assert.equal(columnOf(taskCols, 'deadline').csv(taskRow), '2026-10-25');
-      assert.equal(columnOf(taskCols, 'done').csv(taskRow), '2026-10-25');
     });
   }
   // The defect, for the record: an ISO day alone parses as UTC midnight — the day before, west of Greenwich.
   inZone('America/Los_Angeles', () => {
-    assert.equal(formatDate('2026-10-25'), 'Oct 24, 2026', 'what DEADLINE and DONE drew before');
+    assert.equal(formatDate('2026-10-25'), 'Oct 24, 2026', 'what DEADLINE drew before');
     assert.equal(formatDate(at('2026-10-25')), 'Oct 24, 2026', 'what TARGET drew before (the instant in the viewer\'s zone, against the ISO day under it)');
   });
 });
 
-test('B one rule, one place: dayWords is defined once in work.ts and every date column draws through it; no column draws formatDate(day) or formatDate(instant)', () => {
+test('B one rule, one place: dayWords is defined once in work.ts and every DAY column draws through it; no column draws formatDate(day) of its own (COLUMNS-01b: the instants have their own rule, instantDayWords)', () => {
   const w = code(WORK);
   assert.equal((w.match(/export const dayWords = \(day: string\): string => formatDate\(`\$\{day\}T00:00:00`\);/g) ?? []).length, 1);
   assert.match(w, /valueColumn<TaskRow, TaskColumn>\('deadline', head\.deadline, \(r\) => \{ const d = taskDeadlineOf\(r\); return d === null \? null : dayWords\(d\); \}, taskDeadlineOf\),/);
-  assert.match(w, /valueColumn<TaskRow, TaskColumn>\('done', head\.done, \(r\) => \{ const d = taskDoneOf\(r\); return d === null \? null : dayWords\(d\); \}, taskDoneOf\),/);
+  assert.match(w, /instantColumn<TaskRow, TaskColumn>\('done', head\.done, taskDoneAtOf\),/); // COLUMNS-01b (2026-10-25, ruling 2): DONE is an EVENT INSTANT
   assert.match(w, /\(r\) => \{ const d = routineStartOf\(r\); return d === null \? null : dayWords\(d\); \}, routineStartOf\),/);
   assert.match(w, /n\.day === null \? n\.words : dayWords\(n\.day\)/, 'NEXT, as ROUTINES-03 drew it');
-  assert.equal((w.match(/formatDate\(/g) ?? []).length, 1, 'formatDate is called once in work.ts — inside dayWords');
+  assert.equal((w.match(/formatDate\(/g) ?? []).length, 2, 'formatDate is called twice in work.ts — inside dayWords and inside instantDayWords (COLUMNS-01b)');
   const s = code(SPEC);
-  assert.match(s, /\(r\) => \{ const d = isoDayOf\(projectDateOf\(r, column\)\); return d === null \? null : dayWords\(d\); \}, \(r\) => isoDayOf\(projectDateOf\(r, column\)\)\)/);
+  assert.match(s, /\(r\) => \{ const d = projectDayOf\(r, column\); return d === null \? null : dayWords\(d\); \}, \(r\) => projectDayOf\(r, column\)\)/); // COLUMNS-01b: the DAY column (TARGET)
   assert.doesNotMatch(s, /formatDate/, 'the projects spec draws no date of its own');
   for (const f of [...under('src/lib/operations'), ...under('src/components/workbench/operations')]) {
     if (f === WORK) continue;
@@ -254,7 +252,7 @@ test('C the stamps: scoped → scheduled sets scheduled_at; scheduled → in_pro
   assert.deepEqual(statusStampsOf('backlog', 'scoped', NOW), {});
   assert.deepEqual(statusStampsOf('in_progress', 'scheduled', NOW), { scheduled_at: NOW }, 'the LATEST transition into scheduled');
   assert.deepEqual(statusStampsOf('scheduled', 'completed', NOW), { done_at: NOW });
-  assert.deepEqual(statusStampsOf('completed', 'archived', NOW), { done_at: null }, 'the status left completed — as ruled');
+  assert.deepEqual(statusStampsOf('completed', 'archived', NOW), {}, 'COLUMNS-01b ruling 1: archived does not contradict done — done_at kept (columns01b.test.ts)');
   assert.deepEqual(statusStampsOf('backlog', 'completed', NOW), { done_at: NOW });
   assert.deepEqual(statusStampsOf('completed', 'completed', NOW), {}, 'no transition, nothing stamped');
   assert.deepEqual(statusStampsOf('scheduled', 'scheduled', NOW), {});
@@ -293,7 +291,7 @@ test('D the journal tables\' TextCell lives in components/table/TextCell.tsx, as
   assert.match(tc, /\{open \|\| preview\.more === null \? text : preview\.shown\}/);
   assert.match(tc, /\{!open && <span className="text-text-faint"> \{preview\.more\}<\/span>\}/);
   assert.match(tc, /<button type="button" className=\{link\} onClick=\{onToggle\} \{\.\.\.dataAttr\(name, 'cell-toggle'\)\}>\{open \? COLLAPSE_WORDS : EXPAND_WORDS\}<\/button>/);
-  assert.match(tc, /import \{ COLLAPSE_WORDS, EXPAND_WORDS, previewOf \} from '@\/lib\/operations\/journalTables';/, 'the rule stays the journal tables\'');
+  assert.match(tc, /import \{ COLLAPSE_WORDS, EXPAND_WORDS, previewOf \} from '@\/lib\/table\/preview';/, 'COLUMNS-01b (2026-10-25, ruling 3): the rule is the idiom\'s — no journal import in components/table');
   assert.match(tc, /const BLANK_CLASS = 'text-text-faint';\nconst link = 'underline text-brand-purple hover:text-text-primary';/);
   assert.doesNotMatch(tc, /fetch\(|useState|useEffect/, 'the opened state is the caller\'s');
   const j = code(JOURNAL_TABLE);

@@ -39,14 +39,17 @@
  *               CAPTURE_QUESTIONS without the capture form's numbers, AUDIT_LABEL,
  *               PLAN_LABEL). The spec holds the FULL text: the filter and the sort
  *               read it, the CSV writes it; the SCREEN draws the journal tables'
- *               preview (journalTables.ts previewOf — the first 160 code points,
+ *               preview (src/lib/table/preview.ts previewOf — the first 160 code points,
  *               "… (n chars)", "all of it" / "less"), re-exported below so the
  *               screen reads the one rule from here.
  *   · LINKS     one per line (links joined by a line break — the brief's own
  *               print); the CSV field carries the line breaks, quoted (csv.ts).
- *   · TARGET    target_completion_date's ISO day, drawn at local midnight (work.ts
- *               dayWords — COLUMNS-01), the ISO day under it for the sort and the CSV; CAPTURED created_at ·
- *               PROMOTED promoted_at · SCHEDULED scheduled_at · DONE done_at alike.
+ *   · TARGET    a DAY — target_completion_date's ISO day drawn at local midnight
+ *               (work.ts dayWords — COLUMNS-01), the ISO day under it for the sort and
+ *               the CSV. CAPTURED created_at · PROMOTED promoted_at · SCHEDULED
+ *               scheduled_at · DONE done_at are EVENT INSTANTS (COLUMNS-01b ruling 2):
+ *               the viewer's local day on screen, the instant in the sort, the ISO
+ *               instant as stored in the CSV.
  *   · ID        the project's id (monospace on screen), in the CSV.
  *
  * THE DEFAULT (ruling C): "STATUS: open only" is a VISIBLE chip, already applied —
@@ -65,14 +68,14 @@ import { BLANK } from '@/lib/table/words';
 import { isOpenProjectStatus } from '@/lib/operations/morningLog';
 import { AUDIT_LABEL, PLAN_LABEL, captureQuestion } from '@/lib/operations/projectBrief';
 import {
-  bookNameOf, dayWords, defaultFiltersOf, estimateCentsOf, isoDayOf, moneyColumn, textColumn, valueColumn, type NamedDefault, type WorkBook,
+  bookNameOf, dayWords, defaultFiltersOf, estimateCentsOf, instantColumn, isoDayOf, moneyColumn, textColumn, valueColumn, type NamedDefault, type WorkBook,
 } from '@/lib/operations/work';
 import type { Project, ProjectStatus, Task } from '@/components/workbench/operations/projects/types';
 import { SIZE_LABELS, STATUS_LABELS, TYPE_LABELS } from '@/components/workbench/operations/projects/types';
 import { statusCounts } from '@/components/workbench/operations/projects/projectsTableText';
 
-// The long-text rule is the journal tables' (JOURNAL-07, ruling E) — one rule, read from here by PROJECTS' screen.
-export { COLLAPSE_WORDS, EXPAND_WORDS, PREVIEW_CHARS, previewMoreWords, previewOf } from '@/lib/operations/journalTables';
+// The long-text rule is the table idiom's (lifted from the journal tables by COLUMNS-01b ruling 3) — one rule, named from here too.
+export { COLLAPSE_WORDS, EXPAND_WORDS, PREVIEW_CHARS, previewMoreWords, previewOf } from '@/lib/table/preview';
 
 // ── THE ROWS ─────────────────────────────────────────────────────────────────
 
@@ -177,19 +180,27 @@ export const projectTextOf = (row: ProjectTableRow, column: ProjectTextColumn): 
 /** LINKS, one per line — the brief's own print (projectBrief.ts: links.join('\n')); none is blank. */
 export const projectLinksOf = (row: ProjectTableRow): string | null => (row.project.links.length === 0 ? null : row.project.links.join('\n'));
 
-/** The dates, by column key: the project's ISO instant (null when unset). */
-export const PROJECT_DATE_FIELDS = {
-  target: 'target_completion_date', captured: 'created_at', promoted: 'promoted_at', scheduled: 'scheduled_at', done: 'done_at',
-} as const satisfies Partial<Record<ProjectColumn, keyof Project>>;
-export type ProjectDateColumn = keyof typeof PROJECT_DATE_FIELDS;
-export const projectDateOf = (row: ProjectTableRow, column: ProjectDateColumn): string | null => row.project[PROJECT_DATE_FIELDS[column]];
 /**
- * A date column: the ISO day under it (isoDayOf — what it sorts by and writes) drawn at LOCAL midnight (dayWords), as THE WORK's DEADLINE
- * and DONE and ROUTINE EXPENSES' START · END · NEXT are. COLUMNS-01 (Alex, 2026-10-25, ruling B): formatDate(instant) drew the instant in the
- * viewer's zone, which west of Greenwich was the day before the ISO day under it — one rule now, one place (work.ts dayWords).
+ * The dates, by column key — two kinds (work.ts, COLUMNS-01b ruling 2). TARGET is a DAY: target_completion_date is stored as
+ * new Date('YYYY-MM-DD') from the capture form's and the edit view's <input type="date"> (projects/route.ts, projects/[id]/route.ts) —
+ * UTC midnight of the day, drawn at local midnight (dayWords), the ISO day in the sort and the CSV. The four stamps are EVENT INSTANTS —
+ * created_at (the row's default now()), promoted_at, scheduled_at and done_at (the PATCH's now(), projectStamps.ts): the viewer's local
+ * day on screen (instantDayWords), the instant in the sort, the ISO instant as stored in the CSV.
  */
-const dateColumn = (column: ProjectDateColumn): TableColumn<ProjectTableRow, ProjectColumn> =>
-  valueColumn<ProjectTableRow, ProjectColumn>(column, PROJECT_HEAD_WORDS[column], (r) => { const d = isoDayOf(projectDateOf(r, column)); return d === null ? null : dayWords(d); }, (r) => isoDayOf(projectDateOf(r, column)));
+export const PROJECT_DAY_FIELDS = { target: 'target_completion_date' } as const satisfies Partial<Record<ProjectColumn, keyof Project>>;
+export const PROJECT_INSTANT_FIELDS = {
+  captured: 'created_at', promoted: 'promoted_at', scheduled: 'scheduled_at', done: 'done_at',
+} as const satisfies Partial<Record<ProjectColumn, keyof Project>>;
+export type ProjectDayColumn = keyof typeof PROJECT_DAY_FIELDS;
+export type ProjectInstantColumn = keyof typeof PROJECT_INSTANT_FIELDS;
+export const projectDayOf = (row: ProjectTableRow, column: ProjectDayColumn): string | null => isoDayOf(row.project[PROJECT_DAY_FIELDS[column]]);
+export const projectInstantOf = (row: ProjectTableRow, column: ProjectInstantColumn): string | null => row.project[PROJECT_INSTANT_FIELDS[column]] || null;
+/** A DAY column: the ISO day under it drawn at LOCAL midnight (dayWords), as THE WORK's DEADLINE and ROUTINE EXPENSES' START · END are. */
+const dayColumn = (column: ProjectDayColumn): TableColumn<ProjectTableRow, ProjectColumn> =>
+  valueColumn<ProjectTableRow, ProjectColumn>(column, PROJECT_HEAD_WORDS[column], (r) => { const d = projectDayOf(r, column); return d === null ? null : dayWords(d); }, (r) => projectDayOf(r, column));
+/** An EVENT INSTANT column: the viewer's local day of the instant on screen; the instant in the sort; the ISO instant in the CSV (work.ts instantColumn). */
+const stampColumn = (column: ProjectInstantColumn): TableColumn<ProjectTableRow, ProjectColumn> =>
+  instantColumn<ProjectTableRow, ProjectColumn>(column, PROJECT_HEAD_WORDS[column], (r) => projectInstantOf(r, column));
 
 /** PROJECTS' spec, over the tab's books (BOOK names them). */
 export function projectTable(books: readonly WorkBook[]): readonly TableColumn<ProjectTableRow, ProjectColumn>[] {
@@ -209,7 +220,7 @@ export function projectTable(books: readonly WorkBook[]): readonly TableColumn<P
     textColumn<ProjectTableRow, ProjectColumn>('goal', head.goal, (r) => projectTextOf(r, 'goal')),
     textColumn<ProjectTableRow, ProjectColumn>('rulings', head.rulings, (r) => projectTextOf(r, 'rulings')),
     textColumn<ProjectTableRow, ProjectColumn>('open_questions', head.open_questions, (r) => projectTextOf(r, 'open_questions')),
-    dateColumn('target'),
+    dayColumn('target'),
     textColumn<ProjectTableRow, ProjectColumn>('deadline_reason', head.deadline_reason, (r) => projectTextOf(r, 'deadline_reason')),
     textColumn<ProjectTableRow, ProjectColumn>('definition_of_done', head.definition_of_done, (r) => projectTextOf(r, 'definition_of_done')),
     textColumn<ProjectTableRow, ProjectColumn>('links', head.links, projectLinksOf),
@@ -217,10 +228,10 @@ export function projectTable(books: readonly WorkBook[]): readonly TableColumn<P
     textColumn<ProjectTableRow, ProjectColumn>('diagnosis', head.diagnosis, (r) => projectTextOf(r, 'diagnosis')),
     textColumn<ProjectTableRow, ProjectColumn>('design', head.design, (r) => projectTextOf(r, 'design')),
     valueColumn<ProjectTableRow, ProjectColumn>('size', head.size, projectSizeOf),
-    dateColumn('captured'),
-    dateColumn('promoted'),
-    dateColumn('scheduled'),
-    dateColumn('done'),
+    stampColumn('captured'),
+    stampColumn('promoted'),
+    stampColumn('scheduled'),
+    stampColumn('done'),
     textColumn<ProjectTableRow, ProjectColumn>('id', head.id, (r) => r.project.id),
   ];
   return columns.map((c) => (PROJECT_TOOLTIPS[c.key] === undefined ? c : { ...c, title: PROJECT_TOOLTIPS[c.key] }));

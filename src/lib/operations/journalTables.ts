@@ -112,18 +112,10 @@ export const JOURNAL_TABLES: Readonly<Record<JournalTableKind, readonly TableCol
 
 // ── LONG TEXT (ruling E) ────────────────────────────────────────────────────
 
-export const PREVIEW_CHARS = 160;
-/** "… (420 chars)" — after the first 160 code points. */
-export const previewMoreWords = (chars: number): string => `… (${chars} chars)`;
-/** A text in full when it fits, else its first 160 code points and how many there are — a character is never cut in half. */
-export function previewOf(text: string): { readonly shown: string; readonly more: string | null } {
-  const chars = [...text];
-  if (chars.length <= PREVIEW_CHARS) return { shown: text, more: null };
-  return { shown: chars.slice(0, PREVIEW_CHARS).join(''), more: previewMoreWords(chars.length) };
-}
-/** The control under a cut cell, and its twin once open (ruling 5). */
-export const EXPAND_WORDS = 'all of it';
-export const COLLAPSE_WORDS = 'less';
+// COLUMNS-01b (Alex, 2026-10-25, ruling 3): the preview rule — PREVIEW_CHARS, previewMoreWords, previewOf, EXPAND_WORDS ("all of it"),
+// COLLAPSE_WORDS ("less") — moved verbatim to the table idiom (src/lib/table/preview.ts), where components/table/TextCell.tsx reads it for
+// the journal tables and PROJECTS alike; re-exported here so this module still names its rule.
+export { COLLAPSE_WORDS, EXPAND_WORDS, PREVIEW_CHARS, previewMoreWords, previewOf } from '@/lib/table/preview';
 /** One expanded state per cell: the row's id and the column's key. */
 export const cellKeyOf = (row: JournalDayRow, column: string): string => `${row.id}:${column}`;
 

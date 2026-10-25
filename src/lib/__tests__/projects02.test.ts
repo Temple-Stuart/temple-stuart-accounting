@@ -19,10 +19,10 @@ import {
   PROJECT_TOOLTIPS, TASKS_LOADING_WORDS, estimateCoverageWords, estimateSumOf, previewOf, projectActualCentsOf, projectCellKeyOf, projectDefault, projectDefaultFilters,
   projectEstimateOf, projectRowsOf, projectTable, projectTasksWordsOf, projectsCsvFileName, type ProjectColumn, type ProjectTableRow, type ProjectTasksRead,
 } from '../operations/projectsTable';
-import { dayWords, estimateCentsOf, statusChipWords, withoutStatusFilter } from '../operations/work';
+import { dayWords, estimateCentsOf, instantDayWords, statusChipWords, withoutStatusFilter } from '../operations/work';
 import { OPEN_PROJECT_STATUSES, isOpenProjectStatus } from '../operations/morningLog';
 import { CAPTURE_QUESTIONS, captureQuestion } from '../operations/projectBrief';
-import { EXPAND_WORDS, COLLAPSE_WORDS, PREVIEW_CHARS } from '../operations/journalTables';
+import { EXPAND_WORDS, COLLAPSE_WORDS, PREVIEW_CHARS } from '../table/preview'; // COLUMNS-01b (2026-10-25, ruling 3): the rule is the idiom's
 import { columnOf } from '../table/columns';
 import { filterRows, noFilters, withFilter } from '../table/filters';
 import { sortRows } from '../table/sort';
@@ -242,18 +242,23 @@ test('B LINKS — one per line; the CSV field carries the line break, quoted; no
   assert.equal(col('links').csv(rowsOf([BARE])[0]), '');
 });
 
-test('B the dates — TARGET · CAPTURED · PROMOTED · SCHEDULED · DONE drawn as formatDate draws them, the ISO day under for the sort and the CSV; unset is blank', () => {
-  for (const [key, iso] of [['target', '2026-11-01T00:00:00.000Z'], ['captured', '2026-10-20T03:00:00.000Z'], ['promoted', '2026-10-21T03:00:00.000Z'], ['scheduled', '2026-10-22T03:00:00.000Z']] as const) {
-    assert.equal(col(key).words(ROW_FULL), dayWords(iso.slice(0, 10)), key); // COLUMNS-01 (2026-10-25, ruling B): the ISO day under, drawn at local midnight
-    assert.equal(col(key).csv(ROW_FULL), iso.slice(0, 10), key);
-    assert.deepEqual(col(key).sortKey(ROW_FULL), { kind: 'text', t: iso.slice(0, 10) }, key);
+// COLUMNS-01b (Alex, 2026-10-25, ruling 2): TARGET is a DAY (dayWords of the ISO day; the ISO day in the sort and the CSV); CAPTURED · PROMOTED ·
+// SCHEDULED · DONE are EVENT INSTANTS (the viewer's local day on screen, the instant in the sort, the ISO instant as stored in the CSV).
+test('B the dates — TARGET a day drawn at local midnight with its ISO day under; CAPTURED · PROMOTED · SCHEDULED · DONE event instants: the viewer\'s day on screen, the instant in the sort and the CSV; unset is blank', () => {
+  assert.equal(col('target').words(ROW_FULL), dayWords('2026-11-01'));
+  assert.equal(col('target').csv(ROW_FULL), '2026-11-01');
+  assert.deepEqual(col('target').sortKey(ROW_FULL), { kind: 'text', t: '2026-11-01' });
+  for (const [key, iso] of [['captured', '2026-10-20T03:00:00.000Z'], ['promoted', '2026-10-21T03:00:00.000Z'], ['scheduled', '2026-10-22T03:00:00.000Z']] as const) {
+    assert.equal(col(key).words(ROW_FULL), instantDayWords(iso), key);
+    assert.equal(col(key).csv(ROW_FULL), iso, `${key}: the instant as stored`);
+    assert.deepEqual(col(key).sortKey(ROW_FULL), { kind: 'text', t: iso }, key);
   }
   assert.equal(col('done').words(ROW_FULL), BLANK);
   assert.equal(col('done').csv(ROW_FULL), '');
   assert.equal(col('done').sortKey(ROW_FULL), null);
   const done = rowsOf([DONE])[0];
-  assert.equal(col('done').words(done), dayWords('2026-10-24'));
-  assert.equal(col('done').csv(done), '2026-10-24');
+  assert.equal(col('done').words(done), instantDayWords('2026-10-24T03:00:00.000Z'));
+  assert.equal(col('done').csv(done), '2026-10-24T03:00:00.000Z');
   assert.equal(col('target').words(rowsOf([BARE])[0]), BLANK);
 });
 
@@ -289,7 +294,7 @@ test('C a completed project is dropped by default and shown when the chip is cle
   const filters = projectDefaultFilters(COLUMNS, false);
   assert.deepEqual(filterRows(rows, filters, COLUMNS).map((r) => r.id), ['p-full']);
   assert.deepEqual(filterRows(rows, withoutStatusFilter(filters), COLUMNS).map((r) => r.id), ['p-full', 'p-done']);
-  assert.equal(col('done').words(filterRows(rows, withoutStatusFilter(filters), COLUMNS)[1]), dayWords('2026-10-24'));
+  assert.equal(col('done').words(filterRows(rows, withoutStatusFilter(filters), COLUMNS)[1]), instantDayWords('2026-10-24T03:00:00.000Z'));
   const withArchived = rowsOf([FULL, DONE, ARCHIVED]);
   assert.deepEqual(filterRows(withArchived, projectDefaultFilters(COLUMNS, true), COLUMNS).map((r) => r.id), ['p-full']);
   assert.deepEqual(filterRows(withArchived, withoutStatusFilter(projectDefaultFilters(COLUMNS, true)), COLUMNS).map((r) => r.id), ['p-full', 'p-done', 'p-arch']);
@@ -350,9 +355,9 @@ test('B the row: the spec\'s cells through the shared WorkCell — a TEXT cell t
   assert.match(code(TABLE), /isJumpTarget=\{targetProjectId === row\.id\}/);
   // The spec reads the one preview rule (journalTables.ts) and the one default-chip rule (work.ts) — shared, not copied.
   const s = code(SPEC);
-  assert.match(s, /export \{ COLLAPSE_WORDS, EXPAND_WORDS, PREVIEW_CHARS, previewMoreWords, previewOf \} from '@\/lib\/operations\/journalTables';/);
+  assert.match(s, /export \{ COLLAPSE_WORDS, EXPAND_WORDS, PREVIEW_CHARS, previewMoreWords, previewOf \} from '@\/lib\/table\/preview';/); // COLUMNS-01b (2026-10-25, ruling 3)
   assert.match(s, /defaultFiltersOf\(columns, 'status', projectDefault\(archivedRead\)\)/);
-  assert.match(s, /bookNameOf, dayWords, defaultFiltersOf, estimateCentsOf, isoDayOf, moneyColumn, textColumn, valueColumn, type NamedDefault, type WorkBook,\n\} from '@\/lib\/operations\/work';/); // COLUMNS-01 (2026-10-25): dayWords, the one day-drawing rule
+  assert.match(s, /bookNameOf, dayWords, defaultFiltersOf, estimateCentsOf, instantColumn, isoDayOf, moneyColumn, textColumn, valueColumn, type NamedDefault, type WorkBook,\n\} from '@\/lib\/operations\/work';/); // COLUMNS-01 (2026-10-25): dayWords; COLUMNS-01b: instantColumn
   assert.doesNotMatch(s, /function valueColumn|function textColumn|function moneyColumn|PREVIEW_CHARS = |function previewOf/, 'no second copy of a shared rule');
   for (const name of ['valueColumn', 'textColumn', 'moneyColumn']) assert.match(code(WORK), new RegExp(`export function ${name}<Row, Key extends string>\\(`), `work.ts exports ${name}`);
   assert.doesNotMatch(s, /import .* from 'react'|fetch\(|new Date\(\)/, 'pure');

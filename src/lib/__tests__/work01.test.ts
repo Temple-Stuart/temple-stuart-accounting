@@ -170,10 +170,11 @@ test('T1 the words by column: a routine has its cadence, days and time, "all day
   assert.equal(tcell('task:t1', 'estimate'), '$12.50');
   assert.equal(tcell('task:t3', 'estimate'), BLANK);
   assert.equal(tcell('task:t1', 'account'), 'P-6150 Food & drink');
-  // WORK-01d (ruling B): DONE is completed_at as a date, "—" while open.
+  // WORK-01d (ruling B): DONE is completed_at, "—" while open. COLUMNS-01b (Alex, 2026-10-25, ruling 2): an EVENT INSTANT — the viewer's day on screen,
+  // the ISO instant as stored in the CSV (columns01b.test.ts holds the two zones).
   assert.equal(tcell('task:t1', 'done'), BLANK);
   assert.equal(tcell('task:t3', 'done'), drawn('2026-10-22'));
-  assert.equal(T_COLUMNS.find((c) => c.key === 'done')!.csv(T_ROWS.find((r) => r.id === 'task:t3')!), '2026-10-22');
+  assert.equal(T_COLUMNS.find((c) => c.key === 'done')!.csv(T_ROWS.find((r) => r.id === 'task:t3')!), '2026-10-22T09:00:00.000Z');
   assert.equal(rcell('routine:paused', 'budget'), BLANK);
   assert.equal(rcell('routine:paused', 'account'), BLANK);
   assert.equal(rcell('routine:paused', 'account_name'), BLANK);
@@ -277,7 +278,7 @@ test('T4 sort by BUDGET / ESTIMATE descending puts the dearest first and the bla
     + ',,repeated,Personal,P-6150,Food & drink,Coffee,,Morning,07:00 – 07:30,Mon–Sun,daily,,3.00,,,,,,active,s1\r\n');
   assert.equal(tableCsv(T_COLUMNS, T_ROWS), 'TASK,PROJECT,BOOK,STATUS,DEADLINE,ESTIMATE,ACCOUNT,DONE\r\n'
     + 'write the route,HOME-01,Personal,new,2026-10-30,12.50,P-6150 Food & drink,\r\n'
-    + 'merged,HOME-01,Personal,done,,,,2026-10-22\r\n');
+    + 'merged,HOME-01,Personal,done,,,,2026-10-22T09:00:00.000Z\r\n'); // COLUMNS-01b (2026-10-25, ruling 2): DONE writes the instant as stored
   assert.equal(workCsvFileName('2026-10-24'), 'work_2026-10-24.csv');
   assert.equal(routineExpensesCsvFileName('2026-10-24'), 'routine-expenses_2026-10-24.csv'); // WORK-01d (ruling C)
   assert.equal(rowCountWords(8, 10), '8 of 10 rows');

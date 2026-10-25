@@ -30,8 +30,9 @@
  *               letter and the four digits) with the chart's name beside it —
  *               "P-6150 Food & drink" (WORK-01b ruling 4); the helper's other states
  *               print their words.
- *   · DONE      completed_at as a date, "—" while open; sorted and written as the
- *               ISO day.
+ *   · DONE      completed_at — an EVENT INSTANT (COLUMNS-01b): the viewer's local day
+ *               on screen, "—" while open; sorted by the instant; the CSV writes the
+ *               ISO instant as stored.
  *
  *   THE DEFAULT: a VISIBLE STATUS chip "STATUS: open only" dropping done, cancelled
  *   and archived tasks; clearing it shows them. The reads bring every task of every
@@ -147,11 +148,21 @@ const numberOrNull = (v: string | number | null | undefined): number | null => {
 /** "$12.00" — a money cell on screen (the CSV writes the bare csvMoney). */
 export const moneyWords = (cents: number): string => `$${csvMoney(cents)}`;
 /**
- * An ISO day drawn as the projects table draws one (formatDate), at LOCAL midnight — an ISO day alone parses as UTC midnight and shifts a
- * day west of Greenwich. COLUMNS-01 (Alex, 2026-10-25, ruling B): the ONE rule for drawing an ISO day, in one place — START · END · NEXT,
- * DEADLINE · DONE (THE WORK) and TARGET · CAPTURED · PROMOTED · SCHEDULED · DONE (PROJECTS) all draw through it.
+ * TWO KINDS OF DATE COLUMN, ONE RULE EACH (COLUMNS-01 ruling B; COLUMNS-01b, Alex, 2026-10-25, ruling 2).
+ *
+ *   · A DAY — a @db.Date column (START · END — routines.start_date / end_date) or a Timestamptz its writer stores as new Date('YYYY-MM-DD'),
+ *     i.e. UTC midnight of a day the form sent as 'YYYY-MM-DD' from <input type="date"> (DEADLINE: tasks/route.ts and tasks/[taskId]/route.ts
+ *     — TaskCreateInputs / TaskEditInputs; TARGET: projects/route.ts and projects/[id]/route.ts — ProjectCreateForm / ProjectRowView). Its
+ *     fact is the day: drawn as that UTC day at LOCAL midnight (dayWords — an ISO day alone parses as UTC midnight and shifts a day west of
+ *     Greenwich); sorted and written as the ISO day (isoDayOf). NEXT draws its day in the routine's own zone the same way.
+ *   · An EVENT INSTANT — a Timestamptz its writer stamps with now() (THE WORK's DONE: completed_at; PROJECTS' CAPTURED created_at ·
+ *     PROMOTED promoted_at · SCHEDULED scheduled_at · DONE done_at). Its fact is the instant: drawn as the VIEWER's local day of it
+ *     (instantDayWords — Manila and Los Angeles see their own day); sorted by the instant; the CSV writes the ISO instant as stored (UTC,
+ *     'Z'), never a day.
  */
 export const dayWords = (day: string): string => formatDate(`${day}T00:00:00`);
+/** An event instant drawn as the viewer's local day of it (formatDate parses the ISO instant and prints it in the process's zone). */
+export const instantDayWords = (instant: string): string => formatDate(instant);
 /** A book's name from the tab's entity list; a book the tab has not listed is said (ROUTINES-01's words), never dropped. */
 export const bookNameOf = (books: readonly WorkBook[], bookId: string): string => books.find((b) => b.id === bookId)?.name ?? ACCOUNT_CELL_WORDS.bookNotLoaded;
 
@@ -203,6 +214,10 @@ export function textColumn<Row, Key extends string>(column: Key, label: string, 
 /** A MONEY column over one reader of cents: "$12.00" on screen, bare in the CSV, blanks sorted last. */
 export function moneyColumn<Row, Key extends string>(column: Key, label: string, cents: (row: Row) => number | null): TableColumn<Row, Key> {
   return { key: column, label, kind: 'money', cents, words: (r) => { const c = cents(r); return c === null ? BLANK : moneyWords(c); }, sortKey: (r) => numberKey(cents(r)), csv: (r) => csvMoney(cents(r)) };
+}
+/** An EVENT INSTANT column (COLUMNS-01b ruling 2): the viewer's local day on screen, sorted by the instant, the ISO instant as stored in the CSV. */
+export function instantColumn<Row, Key extends string>(column: Key, label: string, instant: (row: Row) => string | null): TableColumn<Row, Key> {
+  return { key: column, label, kind: 'value', words: (r) => { const i = instant(r); return i === null ? BLANK : instantDayWords(i); }, sortKey: (r) => textKey(instant(r)), csv: (r) => instant(r) ?? '' };
 }
 
 // ── THE DEFAULT CHIP (shared rule) ───────────────────────────────────────────
@@ -256,8 +271,8 @@ export const TASK_TABLE_NAME = 'work';
 export const taskStatusOf = (row: TaskRow): string => taskStatusWords(row.task.status);
 /** DEADLINE — the task's ISO day, or null. */
 export const taskDeadlineOf = (row: TaskRow): string | null => (row.task.deadline ? row.task.deadline.slice(0, 10) : null);
-/** DONE — the day the task was completed (completed_at's ISO day), or null while it is not. */
-export const taskDoneOf = (row: TaskRow): string | null => (row.task.completed_at ? row.task.completed_at.slice(0, 10) : null);
+/** DONE — the instant the task was completed (completed_at — the task PATCH stamps now()), or null while it is not. COLUMNS-01b: an EVENT INSTANT, not a day. */
+export const taskDoneAtOf = (row: TaskRow): string | null => row.task.completed_at || null;
 /** A task's estimated cost in cents; null is blank. PROJECTS-02 (Alex, 2026-10-25): the one rule under THE WORK's ESTIMATE and PROJECTS' EST (the sum of these). */
 export function estimateCentsOf(task: Pick<Task, 'estimated_cost_usd'>): number | null {
   const dollars = numberOrNull(task.estimated_cost_usd);
@@ -278,7 +293,8 @@ export function taskTable(books: readonly WorkBook[], charts: WorkCharts): reado
     valueColumn<TaskRow, TaskColumn>('deadline', head.deadline, (r) => { const d = taskDeadlineOf(r); return d === null ? null : dayWords(d); }, taskDeadlineOf),
     moneyColumn<TaskRow, TaskColumn>('estimate', head.estimate, taskEstimateCentsOf),
     textColumn<TaskRow, TaskColumn>('account', head.account, (r) => accountWordsOf(books, charts, r.task.entity_id, r.task.coa_code ?? null)),
-    valueColumn<TaskRow, TaskColumn>('done', head.done, (r) => { const d = taskDoneOf(r); return d === null ? null : dayWords(d); }, taskDoneOf),
+    // COLUMNS-01b (Alex, 2026-10-25, ruling 2): DONE is an EVENT INSTANT — the viewer's day on screen, the instant in the sort and the CSV.
+    instantColumn<TaskRow, TaskColumn>('done', head.done, taskDoneAtOf),
   ];
 }
 

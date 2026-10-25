@@ -9,9 +9,12 @@
  *
  *   · scheduled_at — the instant of the latest transition INTO scheduled; a move
  *     out of scheduled leaves it (the day it was scheduled stays a fact).
- *   · done_at      — the instant of the latest transition INTO completed; set to
- *     null when the status LEAVES completed — a project in process is not done,
- *     so DONE never contradicts STATUS.
+ *   · done_at      — the instant of the latest transition INTO completed.
+ *     COLUMNS-01b (Alex, 2026-10-25, ruling 1): cleared ONLY when the status moves
+ *     INTO an OPEN status (morningLog.ts OPEN_PROJECT_STATUSES — reopened is not
+ *     done, so DONE never contradicts STATUS); every other move out of completed
+ *     keeps it — completed → archived, cancelled or dropped keeps done_at (none of
+ *     them contradicts done).
  *   · promoted_at  keeps its own rule in the route (set once, backlog → scoped).
  *
  * No backfill: a project completed or scheduled before this ruling keeps its null
@@ -19,6 +22,7 @@
  * no migration (both columns exist — BACKLOG-01). Pure: the instant is handed in.
  */
 import type { ProjectStatus } from '@/components/workbench/operations/projects/types';
+import { isOpenProjectStatus } from '@/lib/operations/morningLog';
 
 /** What the status change stamps: a key absent is left as it is; done_at null clears it. */
 export interface StatusStamps { readonly scheduled_at?: Date; readonly done_at?: Date | null }
@@ -27,6 +31,6 @@ export function statusStampsOf(from: ProjectStatus, to: ProjectStatus, now: Date
   const stamps: { scheduled_at?: Date; done_at?: Date | null } = {};
   if (to === 'scheduled' && from !== 'scheduled') stamps.scheduled_at = now;
   if (to === 'completed' && from !== 'completed') stamps.done_at = now;
-  if (from === 'completed' && to !== 'completed') stamps.done_at = null;
+  if (from === 'completed' && isOpenProjectStatus(to)) stamps.done_at = null;
   return stamps;
 }
