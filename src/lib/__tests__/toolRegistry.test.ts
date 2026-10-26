@@ -18,21 +18,23 @@ const withTool = (name: string, patch: Partial<ToolEntry>): ToolEntry[] => TOOL_
 // EXPENSES-01 (Alex, 2026-10-25): Expenses NOT_BUILT → PARTIAL — ROUTINE EXPENSES is its page, /expenses. 2 · 9 · 14 → 2 · 10 · 13.
 // EXPENSES-02 (Alex, 2026-10-26): Expenses is LIVE — the vendor decided on the row; receipts are Documents' job. 2 · 10 · 13 → 3 · 9 · 13.
 // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13.
-test('the counts are the dated census — 4 LIVE · 8 PARTIAL · 13 NOT_BUILT — and the law holds on the real registry', () => {
-  assert.deepEqual(EXPECTED_STATUS_COUNTS, { LIVE: 4, PARTIAL: 8, NOT_BUILT: 13 });
-  assert.deepEqual(statusCounts(), { LIVE: 4, PARTIAL: 8, NOT_BUILT: 13 });
+// TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
+test('the counts are the dated census — 5 LIVE · 7 PARTIAL · 13 NOT_BUILT — and the law holds on the real registry', () => {
+  assert.deepEqual(EXPECTED_STATUS_COUNTS, { LIVE: 5, PARTIAL: 7, NOT_BUILT: 13 });
+  assert.deepEqual(statusCounts(), { LIVE: 5, PARTIAL: 7, NOT_BUILT: 13 });
   assert.deepEqual(registryLaw({ throwOnFail: false }), []);
-  assert.deepEqual(TOOL_REGISTRY.filter((t) => t.status === 'LIVE').map((t) => t.name), ['Tasks', 'Expenses', 'Travel', 'Bookkeeping']);
+  assert.deepEqual(TOOL_REGISTRY.filter((t) => t.status === 'LIVE').map((t) => t.name), ['Tasks', 'Time', 'Expenses', 'Travel', 'Bookkeeping']);
 });
 
 // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13. Tasks left the four-beat PARTIALs; two remain.
-test('the two four-beat PARTIALs each carry the census note; no LIVE or NOT_BUILT tool carries one', () => {
+// TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. Time left the four-beat PARTIALs; Budget alone remains.
+test('the one four-beat PARTIAL carries the census note; no LIVE or NOT_BUILT tool carries one', () => {
   const fourBeatPartials = TOOL_REGISTRY.filter((t) => t.status === 'PARTIAL' && beats(t) === 4).map((t) => t.name);
   // TRUTH-CAL: Calendar was the fourth. PLAN-01 moved the routine builder that
   // carried its decide/commit/record to /tasks; the row is re-derived from the
   // page — discover, commit and record through EVENT-01's hand-entered event,
   // and no decide, because nothing persists a draft. PARTIAL is unchanged.
-  assert.deepEqual(fourBeatPartials, ['Time', 'Budget']);
+  assert.deepEqual(fourBeatPartials, ['Budget']); // TIME-03
   // ONEOFF-01: the calendar authors nothing — the add form and its POST are
   // gone, so commit is lost; record is kept by TRUTH-CAL's standard. Two beats.
   assert.equal(beats(byName('Calendar')), 2);
@@ -49,7 +51,7 @@ test('the two four-beat PARTIALs each carry the census note; no LIVE or NOT_BUIL
   // LEDGER-02 (Alex, 2026-10-19): the city ledger is the task ledger — the why says "the task ledger" where it said "the ledger of every stop".
   // LEDGER-02 AMENDMENT (Alex, 2026-10-19): "the task ledger of every stop … by city, account and book".
   // HOME-01 (Alex, 2026-10-24, ruling C): the day card is on the dashboard; the Time row's why is the tables' — still a customer's line, no build note.
-  assert.equal(byName('Time').why, 'the task ledger and the two journals, day over day — every stop and every answer the day card records, as tables');
+  assert.equal(byName('Time').why, undefined, 'TIME-03: a LIVE row carries no why'); // TIME-03 (Alex, 2026-10-26): the tables' line left with the status
   // TAB13-02b (ruled 2026-09-27): /budget is plan vs actual now; what is not done is named.
   assert.equal(byName('Budget').why, 'plan vs actual for routines and tasks on /budget; travel and income budgets not connected yet');
   assert.doesNotMatch(byName('Budget').citation, /BudgetingPage/, 'the citation is the report, not the unmounted room');
@@ -61,11 +63,12 @@ test('the law rejects a four-beat PARTIAL without `why`, a `why` on a non-PARTIA
   // TRUTH-CAL: Calendar is no longer a four-beat PARTIAL, so the four-beat rule is
   // exercised through Tasks, which is. Calendar's own three-beat row is checked
   // to be legal WITHOUT a why — the rule binds four beats, not three.
-  // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE, so the four-beat PARTIAL probe runs through Time, which is one.
-  const noWhy = registryLaw({ throwOnFail: false, registry: withTool('Time', { why: undefined }) }).join('\n');
-  assert.match(noWhy, /Time: PARTIAL with four beats must say why it is not LIVE/);
-  assert.match(registryLaw({ throwOnFail: false, registry: withTool('Time', { why: '   ' }) }).join('\n'), /Time: PARTIAL with four beats must say why/);
-  assert.throws(() => registryLaw({ registry: withTool('Time', { why: undefined }) }), /TOOL REGISTRY LAW failed/); // TASKS-03: through Time
+  // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE, so the four-beat PARTIAL probe ran through Time.
+  // TIME-03 (Alex, 2026-10-26): Time is LIVE too, so the probe runs through Budget, the one four-beat PARTIAL left.
+  const noWhy = registryLaw({ throwOnFail: false, registry: withTool('Budget', { why: undefined }) }).join('\n');
+  assert.match(noWhy, /Budget: PARTIAL with four beats must say why it is not LIVE/);
+  assert.match(registryLaw({ throwOnFail: false, registry: withTool('Budget', { why: '   ' }) }).join('\n'), /Budget: PARTIAL with four beats must say why/);
+  assert.throws(() => registryLaw({ registry: withTool('Budget', { why: undefined }) }), /TOOL REGISTRY LAW failed/); // TIME-03: through Budget
   assert.deepEqual(registryLaw({ throwOnFail: false, registry: withTool('Calendar', { why: undefined }) }), []);
   assert.match(registryLaw({ throwOnFail: false, registry: withTool('Travel', { why: 'not needed' }) }).join('\n'), /Travel: why belongs only to a PARTIAL tool/);
   assert.match(registryLaw({ throwOnFail: false, registry: withTool('Travel', { beats: { discover: true, decide: true, commit: true, record: false } }) }).join('\n'), /Travel: LIVE needs four beats and a home \(beats 3/);
@@ -73,8 +76,8 @@ test('the law rejects a four-beat PARTIAL without `why`, a `why` on a non-PARTIA
   assert.match(registryLaw({ throwOnFail: false, registry: withTool('CRM', { beats: { discover: true, decide: false, commit: false, record: false } }) }).join('\n'), /CRM: NOT_BUILT must have no beats, no home, no links/);
   // EXPENSES-01 (2026-10-25): Expenses is PARTIAL now — the NOT_BUILT-with-a-home probe runs through Payroll, which is NOT_BUILT.
   assert.match(registryLaw({ throwOnFail: false, registry: withTool('Payroll', { home: '/travel' }) }).join('\n'), /Payroll: NOT_BUILT must have no beats, no home, no links/);
-  // a wrong count is named (Calendar back to LIVE → 5/7/13; TASKS-03, 2026-10-26: the census is 4 LIVE)
-  assert.match(registryLaw({ throwOnFail: false, registry: withTool('Calendar', { status: 'LIVE', why: undefined }) }).join('\n'), /LIVE count 5 ≠ census 4/);
+  // a wrong count is named (Calendar back to LIVE → 6/6/13; TIME-03, 2026-10-26: the census is 5 LIVE)
+  assert.match(registryLaw({ throwOnFail: false, registry: withTool('Calendar', { status: 'LIVE', why: undefined }) }).join('\n'), /LIVE count 6 ≠ census 5/);
 });
 
 // EXPENSES-01 (Alex, 2026-10-25): Expenses left this test's NOT_BUILT pair — it is PARTIAL at /expenses (expenses01.test.ts pins
@@ -115,5 +118,5 @@ test('TRIPS-01: Travel carries no sub-link, ever — the registry law refuses on
 
 // EXPENSES-02 (Alex, 2026-10-26): Expenses is LIVE — the vendor decided on the row; receipts are Documents' job. 2 · 10 · 13 → 3 · 9 · 13. The free set is the LIVE tools with no gate — Expenses (gate null) joins Travel; Bookkeeping is gated.
 test('derived surfaces: the free set is Expenses and Travel', () => {
-  assert.deepEqual(FREE_TOOLS.map((t) => t.name), ['Tasks', 'Expenses', 'Travel']); // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13.
+  assert.deepEqual(FREE_TOOLS.map((t) => t.name), ['Tasks', 'Time', 'Expenses', 'Travel']); // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13. TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. Time (gate null) joins after Tasks, in registry order.
 });

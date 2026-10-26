@@ -321,7 +321,7 @@ test('T7 the sections: one component with its kind; the period control copied ve
   assert.match(comments(LAW), /JOURNAL-07 \(Alex, 2026-10-24\): two more mounts under the ledger — the MORNING and the EVENING journal tables/);
   // Ruling F: the Time registry row's prose was not changed by JOURNAL-07. HOME-01 (Alex, 2026-10-24, ruling C) rewrote it to the tables' — time02.test.ts pins the words.
   const time = TOOL_REGISTRY.find((tool) => tool.name === 'Time')!;
-  assert.equal(time.why, 'the task ledger and the two journals, day over day — every stop and every answer the day card records, as tables');
+  assert.equal(time.why, undefined); // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. A LIVE row carries no why — the tables' line left with the status (time03.test.ts pins the row).
   // HOME-01 (Alex, 2026-10-24) rewrote the row once, to the tables — the citation names the tables and their range read now (home01.test.ts).
   assert.match(code(REGISTRY), /MorningJournalTable\.tsx · src\/components\/workbench\/operations\/journal\/EveningJournalTable\.tsx/);
   assert.match(code(REGISTRY), /journalReads\.ts:26 \(GET \/api\/operations\/journal\/range/);

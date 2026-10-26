@@ -108,6 +108,24 @@
  * the words are re-exported, so every import, every test and the CSV's bytes
  * are as they were (the DOM and CSV proofs are in the PR; idiom01.test.ts).
  *
+ * TIME-03 (Alex, 2026-10-26) — WHERE THE HOURS WENT. Time is LIVE: the ledger
+ * prints the minutes and the summary adds up the hours. Two columns after
+ * STARS, nothing reordered — PLANNED MIN · LOGGED MIN: the day card's one
+ * rule (dayCard.ts `minutes` — a line's duration_minutes; a stepless routine
+ * has none) and the record's actual_minutes (dayCard.ts `actualMinutes`). The
+ * record input grows additively (durationMinutes — the route reads the line's
+ * duration_minutes with the record's plan words, RECORD_PLAN); the row gains
+ * plannedMinutes and loggedMinutes. Both are VALUE columns: whole minutes as
+ * the number alone, "—" for null, sorted as numbers, bare integers in the
+ * CSV. The summary gains PLANNED HOURS · LOGGED HOURS — Σ minutes over the
+ * group's rows that carry them, printed as hours to one decimal (hoursWords:
+ * minutes ÷ 60, the screen's formatting only; LedgerTotals holds whole
+ * minutes underneath), null when no row carries minutes — a group with none
+ * says so, never 0.0 — each with its coverage said under the table
+ * (plannedCoverageWords, loggedCoverageWords: the coverageWordsOf idiom, so
+ * notesCount counts four coverage lines). Eighteen columns now. The journal
+ * tables, the day card, the stops route and the minutes input are unchanged.
+ *
  * Here: the rule (ledgerOf — the route's pure half), the period (periodOf,
  * stepAnchor, the 400-day cap), the ledger's spec and its calls into the
  * idiom's filters and sort (LEDGER-04 → IDIOM-01), the totals and the summary
@@ -148,6 +166,8 @@ export interface LedgerRecordInput {
   readonly activity: string | null;
   /** The line's own time, 'HH:MM' (the loader's reading of a @db.Time), or null. */
   readonly timeOfDay: string | null;
+  /** TIME-03: the line's duration_minutes — the day card's PLANNED minutes (dayCard.ts `minutes`); null for a stepless routine, or a line that states none. */
+  readonly durationMinutes: number | null;
 }
 
 /** A chart row of the user's, its code read by the one reader (budget/reportInputs.ts readChartCode). */
@@ -276,6 +296,10 @@ export interface LedgerRow {
   readonly actualCents: number | null;
   /** LEDGER-02: actualCents − cents when both are known; null otherwise — never 0 for a blank. */
   readonly varianceCents: number | null;
+  /** TIME-03: PLANNED MIN — the line's duration_minutes (the day card's `minutes`); null for a stepless routine or a line that states none. */
+  readonly plannedMinutes: number | null;
+  /** TIME-03: LOGGED MIN — the record's actual_minutes (the day card's `actualMinutes`); null when none was typed at the stop. */
+  readonly loggedMinutes: number | null;
 }
 
 export interface LedgerSaid {
@@ -426,6 +450,9 @@ export function ledgerOf(input: LedgerInput): Ledger {
       actualCents,
       // LEDGER-02: arithmetic on the row's own two figures, only when both are known — never 0 for a blank.
       varianceCents: cents === null || actualCents === null ? null : actualCents - cents,
+      // TIME-03: the minutes — the day card's two rules, nothing computed: the line's duration and the record's own.
+      plannedMinutes: r.durationMinutes,
+      loggedMinutes: r.record.actual_minutes,
     };
   });
   // Newest day first; within a day the card's clock order: time, then the routine, then the line.
@@ -544,11 +571,11 @@ export const CELL_WORDS: Readonly<Record<CellWordsKey, (row: LedgerRow) => strin
 
 // ── LEDGER-04 (Alex, 2026-10-20): THE COLUMNS — FILTERS THE SHEET'S WAY, AND SORT ──
 
-/** The sixteen columns by key, in the head's order — LEDGER_HEAD_WORDS[i] is LEDGER_COLUMNS[i]'s word (headWordOf). */
-export const LEDGER_COLUMNS = ['day', 'date', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'stars', 'budget', 'actual', 'variance', 'match', 'underOver', 'description'] as const;
+/** The eighteen columns by key, in the head's order — LEDGER_HEAD_WORDS[i] is LEDGER_COLUMNS[i]'s word (headWordOf). TIME-03 (2026-10-26): plannedMinutes and loggedMinutes after stars, nothing reordered; sixteen until then. */
+export const LEDGER_COLUMNS = ['day', 'date', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'stars', 'plannedMinutes', 'loggedMinutes', 'budget', 'actual', 'variance', 'match', 'underOver', 'description'] as const;
 export type LedgerColumn = (typeof LEDGER_COLUMNS)[number];
-/** A VALUE column filters by a checklist of its cell words; a MONEY column by a min and a max; the TEXT column by a contains-text. */
-export const VALUE_COLUMNS = ['day', 'date', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'stars', 'underOver'] as const;
+/** A VALUE column filters by a checklist of its cell words; a MONEY column by a min and a max; the TEXT column by a contains-text. TIME-03: the two minutes columns are VALUE columns — whole minutes as words, sorted as numbers. */
+export const VALUE_COLUMNS = ['day', 'date', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'stars', 'plannedMinutes', 'loggedMinutes', 'underOver'] as const;
 export const MONEY_COLUMNS = ['budget', 'actual', 'variance', 'match'] as const;
 export const TEXT_COLUMNS = ['description'] as const;
 export type ValueColumn = (typeof VALUE_COLUMNS)[number];
@@ -572,6 +599,8 @@ export function cellWordsOf(row: LedgerRow, column: LedgerColumn): string {
     case 'subAccountName': return row.description;
     case 'vendor': return vendorCellWords(row.vendor);
     case 'stars': return starsCellWords(row.rating);
+    case 'plannedMinutes': return minutesCellWords(row.plannedMinutes);
+    case 'loggedMinutes': return minutesCellWords(row.loggedMinutes);
     case 'budget': return budgetCellWords(row.cents);
     case 'actual': return actualCellWords(row);
     case 'variance': return varianceCellWords(row.varianceCents);
@@ -604,11 +633,11 @@ export { NO_VALUE_FILTER, NO_MONEY_FILTER, NO_TEXT_FILTER, containsNeedle, choic
 export type { SortDirection } from '@/lib/table/sort';
 export type { SortKey } from '@/lib/table/columns';
 export { nextSort } from '@/lib/table/sort';
-/** The ledger's filters: one per column, by the column's kind — the idiom's three shapes in a typed map of sixteen. */
+/** The ledger's filters: one per column, by the column's kind — the idiom's three shapes in a typed map of eighteen (sixteen until TIME-03). */
 export type ColumnFilters = { readonly [C in ValueColumn]: ValueFilter } & { readonly [C in MoneyColumn]: MoneyFilter } & { readonly [C in TextColumn]: TextFilter };
 export const NO_COLUMN_FILTERS: ColumnFilters = Object.freeze({
   day: NO_VALUE_FILTER, date: NO_VALUE_FILTER, city: NO_VALUE_FILTER, country: NO_VALUE_FILTER, book: NO_VALUE_FILTER, account: NO_VALUE_FILTER, accountName: NO_VALUE_FILTER,
-  subAccountName: NO_VALUE_FILTER, vendor: NO_VALUE_FILTER, stars: NO_VALUE_FILTER, underOver: NO_VALUE_FILTER,
+  subAccountName: NO_VALUE_FILTER, vendor: NO_VALUE_FILTER, stars: NO_VALUE_FILTER, plannedMinutes: NO_VALUE_FILTER, loggedMinutes: NO_VALUE_FILTER, underOver: NO_VALUE_FILTER,
   budget: NO_MONEY_FILTER, actual: NO_MONEY_FILTER, variance: NO_MONEY_FILTER, match: NO_MONEY_FILTER,
   description: NO_TEXT_FILTER,
 });
@@ -639,6 +668,8 @@ export function sortKeyOf(row: LedgerRow, column: LedgerColumn): SortKey {
     case 'subAccountName': return text(row.description);
     case 'vendor': return text(row.vendor);
     case 'stars': return num(row.rating);
+    case 'plannedMinutes': return num(row.plannedMinutes);
+    case 'loggedMinutes': return num(row.loggedMinutes);
     case 'budget': case 'actual': case 'variance': case 'match': return num(cellCentsOf(row, column));
     case 'underOver': return text(row.varianceCents === null ? null : varianceSignWords(row.varianceCents));
     case 'description': return text(row.note);
@@ -650,12 +681,13 @@ export const sortRows = (rows: readonly LedgerRow[], sort: LedgerSort | null): L
 /** RETRO-01's left-out count, summed over the roles (leftOutWords prints it). */
 export const leftOutTotal = (left: Readonly<Record<NoMoneyRole, number>>): number => NO_MONEY_ROLES.reduce((sum, role) => sum + left[role], 0);
 /**
- * The notes under the TOTAL row that have something to say — the n of "n notes": the two coverage lines whenever a row is shown, and each
+ * The notes under the TOTAL row that have something to say — the n of "n notes": the four coverage lines whenever a row is shown (VARIANCE,
+ * MATCH, and TIME-03's PLANNED HOURS and LOGGED HOURS — two until then), and each
  * said line whose count is above 0 (no line, no stay, unplaced, not recorded, left out, not placed). The TODAY rule and the every-book
  * line are shown only when open and never counted; a line whose count is 0 is neither counted nor shown.
  */
 export const notesCount = (said: LedgerSaid, shownRows: number): number =>
-  [shownRows, shownRows, said.noLine, said.noStay, said.unplaced.length, said.notRecorded, leftOutTotal(said.leftOut), said.notPlaced].filter((n) => n > 0).length;
+  [shownRows, shownRows, shownRows, shownRows, said.noLine, said.noStay, said.unplaced.length, said.notRecorded, leftOutTotal(said.leftOut), said.notPlaced].filter((n) => n > 0).length;
 
 // ── THE TOTALS AND THE SUMMARY ──────────────────────────────────────────────
 
@@ -676,6 +708,14 @@ export interface LedgerTotals {
   readonly matchCents: number | null;
   /** LEDGER-03: how many of the rows have a readable sum — the n of "MATCH totals the n of m rows". */
   readonly withMatch: number;
+  /** TIME-03: Σ plannedMinutes over the rows that carry one — whole minutes (the summary prints hours, hoursWords); null when none does, never 0. */
+  readonly plannedMinutes: number | null;
+  /** TIME-03: how many of the rows carry planned minutes — the n of the PLANNED HOURS coverage line. */
+  readonly withPlanned: number;
+  /** TIME-03: Σ loggedMinutes over the rows that carry one — whole minutes; null when none does, never 0. */
+  readonly loggedMinutes: number | null;
+  /** TIME-03: how many of the rows carry logged minutes — the n of the LOGGED HOURS coverage line. */
+  readonly withLogged: number;
 }
 
 /** LEDGER-03: a row's match as a figure that may be summed — the sum when every linked posting was readable; null with no link, or with any unreadable posting. */
@@ -687,6 +727,9 @@ export function ledgerTotals(rows: readonly LedgerRow[]): LedgerTotals {
   const totals = dayTotals({ stops: rows, spentCents: actuals.reduce((sum, c) => sum + c, 0), withActual: actuals.length }, null);
   const variances = rows.map((r) => r.varianceCents).filter((c): c is number => c !== null);
   const matches = rows.map((r) => readableMatchCents(r.match)).filter((c): c is number => c !== null);
+  // TIME-03: the minutes summed over the rows that carry them — nothing summed from a blank; null, not 0, when none does.
+  const planned = rows.map((r) => r.plannedMinutes).filter((m): m is number => m !== null);
+  const logged = rows.map((r) => r.loggedMinutes).filter((m): m is number => m !== null);
   return {
     budgetCents: totals.budgetCents,
     actualCents: totals.actualCents,
@@ -696,6 +739,10 @@ export function ledgerTotals(rows: readonly LedgerRow[]): LedgerTotals {
     withVariance: variances.length,
     matchCents: matches.length === 0 ? null : matches.reduce((sum, c) => sum + c, 0),
     withMatch: matches.length,
+    plannedMinutes: planned.length === 0 ? null : planned.reduce((sum, m) => sum + m, 0),
+    withPlanned: planned.length,
+    loggedMinutes: logged.length === 0 ? null : logged.reduce((sum, m) => sum + m, 0),
+    withLogged: logged.length,
   };
 }
 
@@ -757,8 +804,9 @@ export const LEDGER_TITLE_WORDS = 'Task ledger';
 /**
  * LEDGER-02: the sixteen columns in Alex's order — one fact each, nothing combined. LEDGER-04 (Alex, 2026-10-20): the stop's name is
  * the SUB ACCOUNT NAME (was DESCRIPTION) and the record's note is the DESCRIPTION (was NOTES); the CSV header follows (ledgerCsv).
+ * TIME-03 (Alex, 2026-10-26): eighteen — PLANNED MIN · LOGGED MIN after STARS, nothing reordered (the day card's minutes, as the row holds them).
  */
-export const LEDGER_HEAD_WORDS = ['DAY', 'DATE', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'STARS', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION'] as const;
+export const LEDGER_HEAD_WORDS = ['DAY', 'DATE', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION'] as const;
 /** The money columns — right-aligned in the table. */
 export const MONEY_HEAD_WORDS = ['BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH'] as const;
 export const PERIOD_WORDS: Readonly<Record<PeriodKind, string>> = { month: 'Month', week: 'Week', day: 'Day', all: 'All' };
@@ -774,7 +822,8 @@ export const NEXT_WORDS = '›';
 export const SUMMARY_TITLE_WORDS = 'over time, by place and by book';
 export const BY_WORDS = 'by';
 export const GROUP_WORDS: Readonly<Record<GroupKey, string>> = { day: 'Day', week: 'Week', month: 'Month', city: 'City', country: 'Country', coa: 'COA', book: 'Book' };
-export const SUMMARY_HEAD_WORDS = ['DAYS', 'BUDGET', 'ACTUAL', 'UNDER / OVER', 'ACTUAL PER RECORDED DAY', 'STARS'] as const;
+/** TIME-03 (Alex, 2026-10-26): PLANNED HOURS · LOGGED HOURS after STARS — each group's minutes summed, printed as hours (hoursWords); six heads until then. */
+export const SUMMARY_HEAD_WORDS = ['DAYS', 'BUDGET', 'ACTUAL', 'UNDER / OVER', 'ACTUAL PER RECORDED DAY', 'STARS', 'PLANNED HOURS', 'LOGGED HOURS'] as const;
 export const TOTAL_WORDS = 'TOTAL';
 export const LEDGER_LOADING_WORDS = 'reading the ledger…';
 export const ledgerFailedWords = (words: string): string => `The ledger could not be read — ${words}`;
@@ -840,6 +889,17 @@ const coverageWordsOf = (head: string, qualifiers: { readonly rows: string; read
 export const varianceCoverageWords = (n: number, m: number): string => coverageWordsOf('VARIANCE', { rows: 'that carry both a budget and an actual', none: 'no row carries both a budget and an actual' }, n, m);
 /** LEDGER-03: the MATCH total's coverage — n the rows with a readable sum (totals.withMatch); the line that replaced the LEDGER-02 note. */
 export const matchCoverageWords = (n: number, m: number): string => coverageWordsOf('MATCH', { rows: 'linked to the books', none: 'no row is linked to the books' }, n, m);
+/** TIME-03: the hours' coverage — n the rows that carry the minutes (totals.withPlanned / totals.withLogged), m the rows shown; the one words rule. */
+export const plannedCoverageWords = (n: number, m: number): string => coverageWordsOf('PLANNED HOURS', { rows: 'that carry planned minutes', none: 'no row carries planned minutes' }, n, m);
+export const loggedCoverageWords = (n: number, m: number): string => coverageWordsOf('LOGGED HOURS', { rows: 'that carry logged minutes', none: 'no row carries logged minutes' }, n, m);
+/** TIME-03: a minutes cell — whole minutes as the number alone ("45"); "—" for null. A fractional or negative figure is the database's error (the migration's CHECK holds a day), never drawn. */
+export const minutesCellWords = (minutes: number | null): string => {
+  if (minutes === null) return BLANK;
+  if (!Number.isInteger(minutes) || minutes < 0) throw new Error(`ledger: minutes are a whole number of minutes, not ${minutes}`);
+  return String(minutes);
+};
+/** TIME-03: hours to one decimal from whole minutes — "0.8" for 45, "1.0" for 60 (minutes ÷ 60, the screen's formatting only; the figure underneath stays minutes); "—" for null — a group with no minutes says so, never 0.0. */
+export const hoursWords = (minutes: number | null): string => (minutes === null ? BLANK : (minutes / 60).toFixed(1));
 export const starsCellWords = (rating: number | null): string => (rating === null ? BLANK : ledgerStarsWords(rating));
 export const noteCellWords = (note: string | null): string => (note === null ? BLANK : note);
 export const vendorCellWords = (vendor: string | null): string => (vendor === null ? BLANK : vendor);
@@ -896,6 +956,9 @@ export const LEDGER_CSV: Readonly<Record<LedgerColumn, (row: LedgerRow) => strin
   subAccountName: (row) => row.description,
   vendor: (row) => row.vendor ?? '',
   stars: (row) => row.rating === null ? '' : String(row.rating),
+  // TIME-03: whole minutes as bare integers; a null is an EMPTY field.
+  plannedMinutes: (row) => row.plannedMinutes === null ? '' : String(row.plannedMinutes),
+  loggedMinutes: (row) => row.loggedMinutes === null ? '' : String(row.loggedMinutes),
   budget: (row) => csvMoney(row.cents),
   actual: (row) => csvMoney(row.actualCents),
   variance: (row) => csvMoney(row.varianceCents),
@@ -904,7 +967,7 @@ export const LEDGER_CSV: Readonly<Record<LedgerColumn, (row: LedgerRow) => strin
   description: (row) => row.note ?? '',
 };
 /**
- * IDIOM-01 (Alex, 2026-10-24): THE LEDGER'S SPEC for the shared idiom (src/lib/table/columns.ts TableColumn) — the sixteen columns in the
+ * IDIOM-01 (Alex, 2026-10-24): THE LEDGER'S SPEC for the shared idiom (src/lib/table/columns.ts TableColumn) — the columns (eighteen since TIME-03, sixteen until then) in the
  * head's order, each its head word, its kind (columnKind), its cell words (cellWordsOf — what a filter matches and a checklist lists), what
  * it sorts by (sortKeyOf), its CSV field (LEDGER_CSV), and by kind its cents (cellCentsOf) or its text (cellTextOf). Built here, after the
  * words and the CSV fields it reads; every rule the ledger exports calls the idiom with it.
@@ -920,7 +983,7 @@ export const LEDGER_TABLE: readonly TableColumn<LedgerRow, LedgerColumn>[] = LED
 /** The ledger's column of the spec, by key. */
 export const ledgerColumnOf = (column: LedgerColumn): TableColumn<LedgerRow, LedgerColumn> => columnOf(LEDGER_TABLE, column);
 /**
- * The rows shown, as a CSV — the idiom's writer over the ledger's spec (csv.ts tableCsv): the sixteen head words, then one line per row
+ * The rows shown, as a CSV — the idiom's writer over the ledger's spec (csv.ts tableCsv): the head words (eighteen since TIME-03), then one line per row
  * in the table's order, each field LEDGER_CSV's; RFC 4180 with minimal quoting (a field holding a comma, a quote, a CR or an LF is
  * quoted, its quotes doubled); every line ends CRLF, the last one too; UTF-8 with no BOM (the screen writes it as a Blob of this string).
  */

@@ -43,9 +43,10 @@ const GONE = [
 // LEDGER-02 (Alex, 2026-10-19): "the task ledger" where both lines said "the ledger of every stop" — the rest unchanged.
 // LEDGER-02 AMENDMENT (Alex, 2026-10-19): "the task ledger of every stop … by city, account and book" — "every stop" kept, the book added.
 // HOME-01 (Alex, 2026-10-24, ruling C): the Time row's words are the tables' — the card is shown on the dashboard.
-const WHY = 'the task ledger and the two journals, day over day — every stop and every answer the day card records, as tables';
-const CUSTOMER = 'You can see every stop you logged and every journal answer, day by day, filter and export them; the day itself is entered on the home dashboard.';
-const NOTE = 'HOME-01 (2026-10-24): the day itself is entered on the day card — Time\'s component, shown on the home dashboard (the cockpit\'s Runway panel, /runway); /time is the tables. TIME-02 (2026-10-19): the content pipeline retired — its components and routes deleted; its five tables kept, untouched, until TABLES-01. Not done for a customer: nothing yet adds up where the hours went.';
+// TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. The why left with the status (undefined on a LIVE row); the customer line gained the cost, the time against its plan and the hours; the note lost its "not done" sentence.
+const WHY = undefined;
+const CUSTOMER = 'You can see every stop you logged and every journal answer, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.';
+const NOTE = 'HOME-01 (2026-10-24): the day itself is entered on the day card — Time\'s component, shown on the home dashboard (the cockpit\'s Runway panel, /runway); /time is the tables. TIME-02 (2026-10-19): the content pipeline retired — its components and routes deleted; its five tables kept, untouched, until TABLES-01.';
 const SURFACE_NOTE = 'TIME-02 (2026-10-19): drawn nowhere — /time renders no StageStrip (src/app/time/page.tsx); the day card is not a pipe; PIPES-01 retires the pipe';
 
 const at = (f: string): string => join(process.cwd(), f);
@@ -115,7 +116,7 @@ test('T3 the laws: /time draws nothing; the content pipe stays defined, declared
 
 test('T4 the registry: the Time row is a customer\'s line with no build note; the citation is the tables\' (HOME-01); the cockpit maps stand', () => {
   const time = TOOL_REGISTRY.find((t) => t.name === 'Time')!;
-  assert.equal(time.slug, 'time'); assert.equal(time.status, 'PARTIAL'); assert.equal(time.home, '/time');
+  assert.equal(time.slug, 'time'); assert.equal(time.status, 'LIVE'); assert.equal(time.home, '/time'); // TIME-03
   assert.equal(time.why, WHY);
   assert.equal(time.customer, CUSTOMER);
   assert.equal(time.note, NOTE);
@@ -128,7 +129,7 @@ test('T4 the registry: the Time row is a customer\'s line with no build note; th
     assert.ok(time.citation.includes(beat), `the citation keeps ${beat.split(':')[0]}`);
   }
   assert.doesNotMatch(time.citation, /operations\/content|daily-plan|unscheduled/, 'no pipeline route in the citation');
-  assert.equal(claimForCockpit('content'), `partial — ${WHY}`);
+  assert.equal(claimForCockpit('content'), 'built and running'); // TIME-03: a LIVE row's claim
   assert.equal(COCKPIT_PRIMARY_TOOL.content, 'Time');
   assert.equal(COCKPIT_PATH.content, '/content');
 });

@@ -156,19 +156,19 @@ test('T4 the laws: the two-lists law holds /tasks to the two lists and /time to 
 test('T5 the registry: the Time row says the tables (HOME-01, ruling C); the Tasks row says projects and routines; the maps and redirects stand', () => {
   const time = TOOL_REGISTRY.find((t) => t.name === 'Time')!;
   const tasks = TOOL_REGISTRY.find((t) => t.name === 'Tasks')!;
-  assert.equal(time.home, '/time'); assert.equal(time.status, 'PARTIAL');
+  assert.equal(time.home, '/time'); assert.equal(time.status, 'LIVE'); // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
   // LEDGER-02 (Alex, 2026-10-19): "the task ledger" where the why and the customer line said "the ledger of every stop" — the rest unchanged.
   // LEDGER-02 AMENDMENT (Alex, 2026-10-19): "the task ledger of every stop … by city, account and book" — "every stop" kept, the book added.
   // HOME-01 (Alex, 2026-10-24, ruling C): the row's words are the tables'.
-  assert.equal(time.why, 'the task ledger and the two journals, day over day — every stop and every answer the day card records, as tables');
+  assert.equal(time.why, undefined); // TIME-03 (Alex, 2026-10-26): a LIVE row carries no why — the tables' line left with the status (time03.test.ts pins the row)
   // HOME-01 (Alex, 2026-10-24): discover is the two tables' reads; the card's routes stay the decide and commit beats (the card is Time's, on the dashboard).
   assert.match(time.citation, /discover: src\/components\/workbench\/operations\/ledger\/ledgerReads\.ts:27 \(GET \/api\/operations\/ledger\?from=&to=/);
   assert.match(time.citation, /src\/components\/workbench\/operations\/journal\/journalReads\.ts:26 \(GET \/api\/operations\/journal\/range\?from=&to=/);
   assert.match(time.citation, /decide: src\/app\/api\/operations\/journal\/route\.ts:51 \(PUT/);
   assert.match(time.citation, /commit: src\/app\/api\/operations\/stops\/route\.ts \(POST/);
   assert.match(time.citation, /record: src\/components\/workbench\/operations\/ledger\/LedgerSection\.tsx/);
-  assert.equal(time.note, 'HOME-01 (2026-10-24): the day itself is entered on the day card — Time\'s component, shown on the home dashboard (the cockpit\'s Runway panel, /runway); /time is the tables. TIME-02 (2026-10-19): the content pipeline retired — its components and routes deleted; its five tables kept, untouched, until TABLES-01. Not done for a customer: nothing yet adds up where the hours went.');
-  assert.equal(time.customer, 'You can see every stop you logged and every journal answer, day by day, filter and export them; the day itself is entered on the home dashboard.');
+  assert.equal(time.note, 'HOME-01 (2026-10-24): the day itself is entered on the day card — Time\'s component, shown on the home dashboard (the cockpit\'s Runway panel, /runway); /time is the tables. TIME-02 (2026-10-19): the content pipeline retired — its components and routes deleted; its five tables kept, untouched, until TABLES-01.'); // TIME-03: the "not done" sentence left — the ledger adds up the hours now
+  assert.equal(time.customer, 'You can see every stop you logged and every journal answer, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.'); // TIME-03
   assert.doesNotMatch(time.customer ?? '', /\b(discover|decide|commit|record)\b/, 'no beat word on a public line (the plan law)');
   assert.equal(tasks.home, '/tasks');
   assert.equal(tasks.why, undefined); // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13.

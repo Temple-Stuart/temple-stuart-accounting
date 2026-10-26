@@ -157,12 +157,13 @@ test('C /time mounts exactly the three tables, in order, in the one provider —
   assert.equal(navToolByName('Time', TOOL_GATE).href, '/time');
 });
 
-test('C the Time row: home /time, PARTIAL; the why, the citation and the customer line are the tables\' (ruling C); every other row unchanged', () => {
+test('C the Time row: home /time, LIVE since TIME-03 (no why); the citation and the customer line are the tables\' (ruling C); every other row unchanged', () => {
   const time = TOOL_REGISTRY.find((t) => t.name === 'Time')!;
   assert.equal(time.home, '/time');
-  assert.equal(time.status, 'PARTIAL');
-  assert.equal(time.why, 'the task ledger and the two journals, day over day — every stop and every answer the day card records, as tables');
-  assert.equal(time.customer, 'You can see every stop you logged and every journal answer, day by day, filter and export them; the day itself is entered on the home dashboard.');
+  // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. The why left with the status (a LIVE row carries none); the customer line gained the cost, the time against its plan and the hours.
+  assert.equal(time.status, 'LIVE');
+  assert.equal(time.why, undefined);
+  assert.equal(time.customer, 'You can see every stop you logged and every journal answer, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.');
   for (const f of ['src/components/workbench/operations/ledger/ledgerReads.ts:27', 'src/components/workbench/operations/journal/journalReads.ts:26', 'src/components/workbench/operations/ledger/LedgerSection.tsx', 'src/components/workbench/operations/journal/MorningJournalTable.tsx', 'src/components/workbench/operations/journal/EveningJournalTable.tsx']) {
     assert.ok(time.citation.includes(f), `the citation names ${f}`);
   }

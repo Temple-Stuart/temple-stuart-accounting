@@ -284,7 +284,8 @@ test('R6 every word is the rule’s; the registry’s Time row and the law’s c
   const c = code(CARD);
   assert.doesNotMatch(c.slice(c.indexOf('function EveningPlate(')), /'MORNING|'EVENING|'Last night|'no plan today'|'AUDIT'|'ACCOMPLISHED'|'LEARNED'|'NEXT'/, 'the card types none of the new words');
   // HOME-01 (Alex, 2026-10-24, ruling C): the Time row's why is the tables' now — the journal is what the card records, as a table.
-  assert.match(code(REGISTRY), /why: 'the task ledger and the two journals, day over day — every stop and every answer the day card records, as tables'/, 'the Time row — HOME-01 rewrote it to the tables; the journal is in it still');
+  // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. The why left with the status; the journal is in the customer line still.
+  assert.match(code(REGISTRY), /customer: 'You can see every stop you logged and every journal answer, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard\.'/, 'the Time row — HOME-01 rewrote it to the tables; the journal is in it still');
   assert.match(code(LAW), /\['src\/components\/workbench\/operations\/stops\/StopForm\.tsx', \/data-stop-done-now\[\\s\\S\]\*✓ done now\/, 'the stop form on the day card lost "✓ done now" — the one way a routine is marked done'\],/, 'the controls list unchanged');
   assert.doesNotMatch(code(LAW), /EveningForm|EveningPlate/, 'the law names neither');
   assert.doesNotMatch(code(CARD_RULES), /EveningForm|EveningPlate|auditPrompt|MORNING_WORD|EVENING_WORD|lastNightWords/, 'dayCard.ts (the reel text) untouched');
