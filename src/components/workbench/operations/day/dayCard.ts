@@ -83,6 +83,7 @@ import {
 } from '@/lib/operations/stopRecord';
 import { NO_AMOUNT_NO_VENDOR_WORDS, REPORT_NOT_READ_NO_VENDOR_WORDS, UNMATCHED_NO_VENDOR_WORDS, isStop, isStopRole, type StopRole } from '@/lib/operations/stopRole';
 import { instantToZoned, zonedToInstant } from '@/lib/time';
+import { showsWorkBlock } from '@/lib/operations/workBlock';
 import type { DailyPlanItem } from '../dailyplan/types';
 import type { TodayRoutineEntry, TodayStatus } from '../routines/types';
 
@@ -1089,7 +1090,11 @@ export const stopName = (s: Pick<Stop, 'line' | 'label'>): string => (s.line !==
 /** One read an output uses: still in flight, failed, or in. */
 export type ReelRead = 'waiting' | 'failed' | 'ok';
 
-/** The reads behind the reel outputs. The journal is read only on a day with a journal stop; null when the output does not use it. */
+/**
+ * The reads behind the reel outputs. The journal is read only on a day with a journal stop; null when the output does not use it.
+ * WORK-03 (Alex, 2026-10-26): the backlog too — read with the day's window on a day with an execute stop (its done tasks are the
+ * execute stops' scene lines); null on a day with none. A failed backlog read names itself; the reel never makes a scene without it.
+ */
 export interface ReelReads {
   readonly day: ReelRead;
   readonly tasks: ReelRead;
@@ -1097,13 +1102,14 @@ export interface ReelReads {
   readonly records: ReelRead;
   readonly stay: ReelRead;
   readonly journal: ReelRead | null;
+  readonly backlog: ReelRead | null;
 }
 
 /** Each read by the name the waiting and failure words give it, in this order. */
 export const REEL_READ_NAMES: Readonly<Record<keyof ReelReads, string>> = {
-  day: 'the day’s routines', tasks: 'the day’s tasks', report: 'the budget report', records: 'the stop records', stay: 'the stay', journal: 'the journal',
+  day: 'the day’s routines', tasks: 'the day’s tasks', report: 'the budget report', records: 'the stop records', stay: 'the stay', journal: 'the journal', backlog: 'the backlog',
 };
-const REEL_READ_ORDER: readonly (keyof ReelReads)[] = ['day', 'tasks', 'report', 'records', 'stay', 'journal'];
+const REEL_READ_ORDER: readonly (keyof ReelReads)[] = ['day', 'tasks', 'report', 'records', 'stay', 'journal', 'backlog'];
 
 export const reelWaitingWords = (names: readonly string[]): string => `not ready — waiting for ${names.join(', ')}`;
 export const reelFailedWords = (names: readonly string[]): string => `not made — ${names.join(', ')} could not be read`;
@@ -1203,6 +1209,24 @@ export interface ReelDay {
    * caption's line before the tags. `learned` and `audit` are NOT here: they are Alex's, and the reel never reads them.
    */
   readonly journal: Pick<Answers, 'goals' | 'blocker' | 'next'> | null;
+  /**
+   * WORK-03 (Alex, 2026-10-26): per execute stop (by its key), the tasks done in its block — title and completed_at, in completed_at
+   * order — handed in by the card from the backlog read it already holds (workBlock.ts doneInBlocksOf over the day's window). Every
+   * execute stop of `stops` is keyed; a stop with no length maps to none. No other stop is keyed.
+   */
+  readonly done: ReadonlyMap<string, readonly ReelDoneTask[]>;
+}
+/** WORK-03: one task done in an execute stop's block, as the reel reads it (the backlog read's LogDoneTask, narrowed). */
+export interface ReelDoneTask {
+  readonly title: string;
+  readonly completedAt: string;
+}
+/** WORK-03: an execute stop's done tasks as the card handed them in; null for any other stop; an execute stop the card did not hand in is the card's error. */
+export function reelDoneOf(d: Pick<ReelDay, 'done'>, s: Stop): readonly ReelDoneTask[] | null {
+  if (!showsWorkBlock(s)) return null;
+  const list = d.done.get(s.key);
+  if (list === undefined) throw new Error(`dayCard: ${s.key} is an execute stop with no done list — the card hands the reel every execute stop's (workBlock.ts doneInBlocksOf)`);
+  return list;
 }
 
 export const CAPTION_PLAN_HEAD_WORDS = 'Today’s plan:';
@@ -1217,6 +1241,16 @@ export const tomorrowWords = (next: string): string => `${TOMORROW_WORDS} ${next
 export const CAPTION_POINT_WORDS = '👇';
 export const CAPTION_STAR_WORDS = '⭐️';
 export const SKIPPED_TAIL_WORDS = ': skipped';
+/**
+ * WORK-03 (Alex, 2026-10-26): THE BLOCK IN THE REEL. An execute stop's scene gains one line after the note line — "Done in this
+ * block: <task>, <task>." in completed_at order (as the card handed them), or "Nothing ticked in this block." — and the caption gains
+ * "<name>: <k> tasks done" ("1 task done") for an execute stop with at least one; none ticked adds no caption line. Every other
+ * stop's scene and caption line are unchanged, byte for byte.
+ */
+export const DONE_IN_BLOCK_SCENE_WORDS = 'Done in this block:';
+export const NOTHING_TICKED_WORDS = 'Nothing ticked in this block.';
+export const doneInBlockSceneWords = (done: readonly ReelDoneTask[]): string => (done.length === 0 ? NOTHING_TICKED_WORDS : `${DONE_IN_BLOCK_SCENE_WORDS} ${done.map((t) => t.title).join(', ')}.`);
+export const doneCountWords = (name: string, k: number): string => `${name}: ${k} task${k === 1 ? '' : 's'} done`;
 /** The caption's constant tags, after the place's. */
 export const CAPTION_TAGS = ['#digitalnomad', '#costofliving', '#buildinpublic'] as const;
 
@@ -1269,12 +1303,20 @@ export function captionText(d: ReelDay): ReelText {
     if (journal.length > 0) sections.push(journal);
   }
   for (const s of d.stops) {
-    if (s.kind === 'task' || s.role === 'journal' || s.record === null || (s.cents === null && s.actualCents === null)) continue;
-    const block = [`${atVendor(s)}${skippedRecord(s) ? SKIPPED_TAIL_WORDS : ''}`, `Budget: ${planDollars(s.cents)}`, `Actual: ${planDollars(s.actualCents)}`];
-    const delta = knownDelta(s);
-    if (delta !== null) block.push(delta);
-    if (s.record.rating !== null) block.push(CAPTION_STAR_WORDS.repeat(s.record.rating));
-    if (s.record.note !== null) block.push(s.record.note);
+    // WORK-03: an execute stop with tasks done in its block has a section even without money; its count line comes after its money lines.
+    const done = reelDoneOf(d, s);
+    const ticked = done === null ? 0 : done.length;
+    const money = s.record !== null && (s.cents !== null || s.actualCents !== null);
+    if (s.kind === 'task' || s.role === 'journal' || (!money && ticked === 0)) continue;
+    const block: string[] = [];
+    if (s.record !== null && money) {
+      block.push(`${atVendor(s)}${skippedRecord(s) ? SKIPPED_TAIL_WORDS : ''}`, `Budget: ${planDollars(s.cents)}`, `Actual: ${planDollars(s.actualCents)}`);
+      const delta = knownDelta(s);
+      if (delta !== null) block.push(delta);
+      if (s.record.rating !== null) block.push(CAPTION_STAR_WORDS.repeat(s.record.rating));
+      if (s.record.note !== null) block.push(s.record.note);
+    }
+    if (ticked > 0) block.push(doneCountWords(stopName(s), ticked));
     sections.push(block);
   }
   sections.push([`Total budget: ${planDollars(d.totals.budgetCents)}`, `Spent: ${planDollars(d.totals.actualCents)}`, ...(d.verdict !== null ? [d.verdict.text] : [])]);
@@ -1294,13 +1336,23 @@ export const SCRIPT_HOOK_TAIL_WORDS = 'Let’s find out.';
  * <the row's delta>." when the stop shows a budget or an actual (each missing
  * figure a blank, the delta only when both are known) / "<n> out of 5.", or
  * [stars]. A stop that shows neither figure has no money sentence.
+ * WORK-03 (Alex, 2026-10-26): an execute stop's scene gains one line after the
+ * note line (the reason line of a skipped one) — doneInBlockSceneWords over the
+ * tasks done in its block, which the caller hands in (`done`; null for any other
+ * stop). An execute stop without its list is the caller's error.
  */
-export function stopSceneLines(s: Stop): string[] {
+export function stopSceneLines(s: Stop, done: readonly ReelDoneTask[] | null = null): string[] {
+  const block = ((): string | null => {
+    if (!showsWorkBlock(s)) return null;
+    if (done === null) throw new Error(`dayCard: ${s.key} is an execute stop — its scene needs the tasks done in its block`);
+    return doneInBlockSceneWords(done);
+  })();
   if (skippedRecord(s) && s.record !== null) {
     if (s.record.note === null) throw new Error(`dayCard: ${s.key} is skipped by its record but carries no reason`);
-    return [`${stopName(s)}${SKIPPED_TAIL_WORDS}.`, s.record.note];
+    return [`${stopName(s)}${SKIPPED_TAIL_WORDS}.`, s.record.note, ...(block === null ? [] : [block])];
   }
   const lines = [`${atVendor(s)}.`, s.record !== null && s.record.note !== null ? s.record.note : SCRIPT_BLANKS.what];
+  if (block !== null) lines.push(block);
   if (s.cents !== null || s.actualCents !== null) {
     const delta = knownDelta(s);
     lines.push(`Budget ${s.cents === null ? SCRIPT_BLANKS.budget : planDollars(s.cents)}, actual ${s.actualCents === null ? SCRIPT_BLANKS.actual : planDollars(s.actualCents)}${delta === null ? '' : `, ${delta}`}.`);
@@ -1309,10 +1361,10 @@ export function stopSceneLines(s: Stop): string[] {
   return lines;
 }
 
-/** R5, the step view: that one stop's scene; no covering stay → no script, said by name. */
-export function stopScriptText(day: string, stay: StayRow | null, stop: Stop): ReelText {
+/** R5, the step view: that one stop's scene; no covering stay → no script, said by name. WORK-03: an execute stop's done tasks are handed in (`done`), as the card holds them. */
+export function stopScriptText(day: string, stay: StayRow | null, stop: Stop, done: readonly ReelDoneTask[] | null = null): ReelText {
   if (stay === null) return { ok: false, words: noStayReelWords(day) };
-  return { ok: true, text: stopSceneLines(stop).join('\n') };
+  return { ok: true, text: stopSceneLines(stop, done).join('\n') };
 }
 
 /**
@@ -1337,7 +1389,11 @@ export function scriptText(d: ReelDay): ReelText {
     const journal = [...(d.journal.goals.length > 0 ? [`Today’s list: ${d.journal.goals.join(', ')}.`] : []), ...(d.journal.blocker !== null ? [`Blocker: ${d.journal.blocker}.`] : [])];
     if (journal.length > 0) blocks.push(journal);
   }
-  for (const s of d.stops) if (s.cents !== null || s.actualCents !== null) blocks.push(stopSceneLines(s));
+  // WORK-03: an execute stop gets a scene when it shows money OR has at least one task done in its block; every other stop as before.
+  for (const s of d.stops) {
+    const done = reelDoneOf(d, s);
+    if (s.cents !== null || s.actualCents !== null || (done !== null && done.length > 0)) blocks.push(stopSceneLines(s, done));
+  }
   const tally = d.verdict === null ? SCRIPT_BLANKS.actual : planDollars(d.totals.actualCents);
   blocks.push([`Final tally: ${tally} out of ${budget}. ${d.verdict === null ? SCRIPT_BLANKS.verdict : d.verdict.text}. Day ${at.n} of ${at.of}, done.`]);
   if (d.journal !== null && d.journal.next !== null) blocks.push([tomorrowWords(d.journal.next)]);

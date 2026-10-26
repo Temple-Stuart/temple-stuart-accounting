@@ -18,6 +18,7 @@ import type { StopRecordRow } from '../operations/stopRecord';
 import type { StopRole } from '../operations/stopRole';
 import type { Routine, TodayRoutineEntry } from '@/components/workbench/operations/routines/types';
 import { dayStops, dayTotals, dayVerdict, type DayCardInput, type ReelDay } from '@/components/workbench/operations/day/dayCard';
+import { doneInBlocksOf } from '../operations/workBlock';
 
 export const DAY = '2026-10-15';
 export const BKK = 'Asia/Bangkok';
@@ -92,8 +93,13 @@ export const STAY: StayRow = { id: 's1', place: 'Chiang Mai, Thailand 🇹🇭',
 // REEL-02 (Alex, 2026-10-19): the reel reads `next` too — the fixture's journal has none, so the caption and the script are byte-for-byte REEL-01's (reel02.test.ts R4).
 export const JOURNAL: NonNullable<ReelDay['journal']> = { goals: ['Ship the reel kit', 'Call the bank'], blocker: 'waiting on the bank', next: null };
 
-/** The ReelDay exactly as DayCard.tsx composes it: the card's stops, its TOTAL row, its verdict on the TOTAL row's BUDGET. */
+/**
+ * The ReelDay exactly as DayCard.tsx composes it: the card's stops, its TOTAL row, its verdict on the TOTAL row's BUDGET.
+ * WORK-03 (Alex, 2026-10-26): and `done` — each execute stop's done tasks by the one rule (doneInBlocksOf); none here, as a day
+ * with nothing ticked, so REEL-01's and REEL-02's byte-for-byte pins hold against the one fixture (Co-working, the execute stop,
+ * is stepless — no length — and shows no money, so it has no scene in the full script and adds no caption line).
+ */
 export function reelDay(r: ReturnType<typeof build>, over: Partial<ReelDay> = {}): ReelDay {
   const totals = dayTotals(r, r.plannedCents);
-  return { day: DAY, stay: STAY, stops: r.stops, totals, verdict: dayVerdict(r, totals.budgetCents), journal: JOURNAL, ...over };
+  return { day: DAY, stay: STAY, stops: r.stops, totals, verdict: dayVerdict(r, totals.budgetCents), journal: JOURNAL, done: doneInBlocksOf(r.stops, DAY, []), ...over };
 }
