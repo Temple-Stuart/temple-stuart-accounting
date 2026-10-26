@@ -154,5 +154,5 @@ test('no tool row moved and the 25-row order is untouched', () => {
   const cal = navToolByName('Calendar', TOOL_GATE);
   assert.equal(cal.href, '/calendar');
   assert.equal(cal.status, 'PARTIAL');
-  assert.equal(navToolByName('Tasks', TOOL_GATE).status, 'PARTIAL');
+  assert.equal(navToolByName('Tasks', TOOL_GATE).status, 'LIVE'); // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair).
 });

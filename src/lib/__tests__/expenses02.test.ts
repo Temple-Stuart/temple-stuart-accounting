@@ -18,7 +18,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { code, comments } from '../sourceText';
-import { EXPECTED_STATUS_COUNTS, TOOL_REGISTRY, registryLaw, statusCounts } from '../toolRegistry';
+import { TOOL_REGISTRY, registryLaw } from '../toolRegistry';
 import { navToolByName } from '../nav';
 import { FREE_TOOLS, TOOL_GATE, claimForTool, freeSetLine, heroCountsLine } from '../offer';
 import { CAPABILITY_GROUPS, PLANS, cellState } from '../offer/plans';
@@ -195,10 +195,10 @@ test('C Expenses is LIVE with four beats, no why, the customer line without "not
   assert.match(t.citation, /clear → route\.ts:\d+ \(DELETE\); add → vendor-directory\/route\.ts:\d+ \(POST\)/);
   assert.match(t.citation, /receipts are the Documents job, not this row's \(ruled 2026-10-26\)/);
   assert.match(comments(REGISTRY), /EXPENSES-02 census \(Alex, 2026-10-26\): Expenses LIVE — the vendor decided on the row; receipts are Documents' job\./);
-  assert.match(comments(REGISTRY), /3 LIVE · 9 PARTIAL · 13 NOT_BUILT/);
+  // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13. The EXPENSES-02 census line stays in the record; the counts moved on (tasks03.test.ts).
+  assert.match(comments(REGISTRY), /2 · 10 · 13 → 3 · 9 · 13/);
   assert.match(comments(REGISTRY), /RECEIPTS ARE THE DOCUMENTS JOB — ruled in chat 2026-10-26/);
-  assert.deepEqual(EXPECTED_STATUS_COUNTS, { LIVE: 3, PARTIAL: 9, NOT_BUILT: 13 });
-  assert.deepEqual(statusCounts(), { LIVE: 3, PARTIAL: 9, NOT_BUILT: 13 });
+  assert.deepEqual(registryLaw({ throwOnFail: false }), []);
   assert.deepEqual(registryLaw({ throwOnFail: false }), []);
   // The law would refuse the row as LIVE with a why, or short of a beat.
   assert.match(registryLaw({ throwOnFail: false, registry: TOOL_REGISTRY.map((x) => (x.name === 'Expenses' ? { ...x, why: 'x' } : x)) }).join('\n'), /Expenses: why belongs only to a PARTIAL tool/);
@@ -210,11 +210,12 @@ test('C Expenses is LIVE with four beats, no why, the customer line without "not
 
 test('C the free set and the selling surfaces follow by derivation: Expenses joins Travel; the hero counts three live; the verification email names it free', () => {
   assert.equal(TOOL_GATE.Expenses, null);
-  assert.deepEqual(FREE_TOOLS.map((t) => t.name), ['Expenses', 'Travel']);
-  assert.equal(freeSetLine(), "Free with an account, no module to buy: Expenses, Travel — the registry's live tools with no tab gate.");
-  assert.equal(heroCountsLine(), 'Twenty-five tools, counted: three live, nine partial, thirteen on the blueprint.');
+  // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13. Tasks joined the free set before Expenses; the counts are tasks03.test.ts's.
+  assert.ok(FREE_TOOLS.some((t) => t.name === 'Expenses') && FREE_TOOLS.some((t) => t.name === 'Travel'));
+  assert.match(freeSetLine(), /^Free with an account, no module to buy: .*Expenses, Travel — the registry's live tools with no tab gate\.$/);
+  assert.match(heroCountsLine(), /^Twenty-five tools, counted: \w+ live, \w+ partial, thirteen on the blueprint\.$/);
   const mail = verificationEmail({ name: 'Ada', verifyUrl: 'https://templestuart.com/api/auth/verify?token=t', baseUrl: 'https://templestuart.com/' });
-  assert.ok(mail.text.includes('Free with your account: Expenses, Travel.'));
+  assert.match(mail.text, /Free with your account: .*Expenses, Travel\./); // TASKS-03 (2026-10-26): Tasks precedes them
 });
 
 test('C the plan surfaces flip the one row standing on Expenses to ✓ by derivation, in every plan (all four hold personal); its label says what Expenses does', () => {

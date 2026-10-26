@@ -26,6 +26,16 @@
  *   · DEADLINE  the task's deadline, its ISO day drawn at local midnight (dayWords,
  *               COLUMNS-01); sorted and written as the ISO day.
  *   · ESTIMATE  the task's estimated cost (money). Blank is blank, never 0.
+ *   · ACTUAL    TASKS-03 (Alex, 2026-10-26, ruling A): the task's actual_cost_usd —
+ *               what was logged (TaskEditInputs and the calendar card write it);
+ *               blank is blank, never $0.00. Tooltip "as you logged it".
+ *   · MATCH     TASKS-03: the sum of the postings linked to the task in Books
+ *               (planned_item_links project_task — LINK-01; the amount by
+ *               postingAmount.ts amountCentsOf, summed by the tasks GET through
+ *               taskMatch.ts, ROUTINES-03's convention: an unreadable posting is
+ *               counted and the sum blank); blank with no link. Tooltip "postings
+ *               linked in Books". The money sits together — ESTIMATE · ACTUAL ·
+ *               MATCH — in the ledger's words.
  *   · ACCOUNT   the saved code through ROUTINES-01's helper (accountCell: the book's
  *               letter and the four digits) with the chart's name beside it —
  *               "P-6150 Food & drink" (WORK-01b ruling 4); the helper's other states
@@ -299,11 +309,14 @@ export function taskRowsOf(projects: readonly WorkProject[]): TaskRow[] {
   return rows;
 }
 
-export const TASK_COLUMNS = ['task', 'project', 'book', 'status', 'deadline', 'estimate', 'account', 'done'] as const;
+// TASKS-03 (Alex, 2026-10-26, ruling A): the money together — ESTIMATE · ACTUAL · MATCH — in the ledger's words.
+export const TASK_COLUMNS = ['task', 'project', 'book', 'status', 'deadline', 'estimate', 'actual', 'match', 'account', 'done'] as const;
 export type TaskColumn = (typeof TASK_COLUMNS)[number];
 export const TASK_HEAD_WORDS: Readonly<Record<TaskColumn, string>> = {
-  task: 'TASK', project: 'PROJECT', book: 'BOOK', status: 'STATUS', deadline: 'DEADLINE', estimate: 'ESTIMATE', account: 'ACCOUNT', done: 'DONE',
+  task: 'TASK', project: 'PROJECT', book: 'BOOK', status: 'STATUS', deadline: 'DEADLINE', estimate: 'ESTIMATE', actual: 'ACTUAL', match: 'MATCH', account: 'ACCOUNT', done: 'DONE',
 };
+/** TASKS-03: the heads' tooltips — ACTUAL is what was logged, MATCH what Books linked; the other heads have none. */
+export const TASK_TOOLTIPS: Readonly<Partial<Record<TaskColumn, string>>> = { actual: 'as you logged it', match: 'postings linked in Books' };
 export const TASK_TABLE_NAME = 'work';
 
 /** STATUS — the task's status words (TASK_STATUS_LABELS; an unlabeled status is its raw value). */
@@ -319,11 +332,19 @@ export function estimateCentsOf(task: Pick<Task, 'estimated_cost_usd'>): number 
 }
 /** ESTIMATE in cents — the task's estimated cost; null is blank. */
 export const taskEstimateCentsOf = (row: TaskRow): number | null => estimateCentsOf(row.task);
+/** TASKS-03: ACTUAL in cents — the task's actual_cost_usd as logged; null is blank, never 0. */
+export function actualCentsOf(task: Pick<Task, 'actual_cost_usd'>): number | null {
+  const dollars = numberOrNull(task.actual_cost_usd);
+  return dollars === null ? null : Math.round(dollars * 100);
+}
+export const taskActualCentsOf = (row: TaskRow): number | null => actualCentsOf(row.task);
+/** TASKS-03: MATCH in cents — the tasks GET's sum of the postings linked to the task (taskMatch.ts); null with no link, an unreadable posting, or a task the GET did not carry. */
+export const taskMatchCentsOf = (row: TaskRow): number | null => row.task.match_cents ?? null;
 
 /** THE WORK's spec, over the tab's books and their charts (BOOK and ACCOUNT read them). */
 export function taskTable(books: readonly WorkBook[], charts: WorkCharts): readonly TableColumn<TaskRow, TaskColumn>[] {
   const head = TASK_HEAD_WORDS;
-  return [
+  const columns: readonly TableColumn<TaskRow, TaskColumn>[] = [
     textColumn<TaskRow, TaskColumn>('task', head.task, (r) => r.task.title),
     textColumn<TaskRow, TaskColumn>('project', head.project, (r) => r.project.title),
     valueColumn<TaskRow, TaskColumn>('book', head.book, (r) => bookNameOf(books, r.task.entity_id)),
@@ -331,10 +352,14 @@ export function taskTable(books: readonly WorkBook[], charts: WorkCharts): reado
     // COLUMNS-01 (Alex, 2026-10-25, ruling B): the ISO day drawn at LOCAL midnight (dayWords) — formatDate(day) alone parsed it as UTC midnight and showed the previous day west of Greenwich.
     valueColumn<TaskRow, TaskColumn>('deadline', head.deadline, (r) => { const d = taskDeadlineOf(r); return d === null ? null : dayWords(d); }, taskDeadlineOf),
     moneyColumn<TaskRow, TaskColumn>('estimate', head.estimate, taskEstimateCentsOf),
+    // TASKS-03 (Alex, 2026-10-26, ruling A): ACTUAL as logged, MATCH from Books — the ledger's pair, the CSV bare like every money column.
+    moneyColumn<TaskRow, TaskColumn>('actual', head.actual, taskActualCentsOf),
+    moneyColumn<TaskRow, TaskColumn>('match', head.match, taskMatchCentsOf),
     textColumn<TaskRow, TaskColumn>('account', head.account, (r) => accountWordsOf(books, charts, r.task.entity_id, r.task.coa_code ?? null)),
     // COLUMNS-01b (Alex, 2026-10-25, ruling 2): DONE is an EVENT INSTANT — the viewer's day on screen, the instant in the sort and the CSV.
     instantColumn<TaskRow, TaskColumn>('done', head.done, taskDoneAtOf),
   ];
+  return columns.map((c) => (TASK_TOOLTIPS[c.key] === undefined ? c : { ...c, title: TASK_TOOLTIPS[c.key] }));
 }
 
 /** THE WORK's default: the done, cancelled and archived tasks dropped — the chip reads "STATUS: open only" (ruling B). */

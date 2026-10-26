@@ -174,6 +174,6 @@ test('C the Time row: home /time, PARTIAL; the why, the citation and the custome
   // Tasks and the rest: unchanged words.
   const tasks = TOOL_REGISTRY.find((t) => t.name === 'Tasks')!;
   assert.equal(tasks.home, '/tasks');
-  assert.match(tasks.customer ?? '', /^You can plan projects and routines with what each one should cost/);
+  assert.match(tasks.customer ?? '', /^You can capture a project as a brief, rank it, plan its tasks with what each should cost/); // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair).
   assert.equal(TOOL_REGISTRY.filter((t) => t.home === '/runway').length, 0, 'no Home registry row (ruling D)');
 });

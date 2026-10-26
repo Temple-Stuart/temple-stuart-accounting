@@ -170,10 +170,11 @@ test('R3 the Tasks row links nothing; its why, citation and customer line did no
   const tasks = TOOL_REGISTRY.find((t) => t.name === 'Tasks')!;
   assert.deepEqual(tasks.links, []);
   assert.equal(tasks.home, '/tasks');
-  assert.equal(tasks.status, 'PARTIAL');
-  assert.equal(tasks.why, "the work, planned: projects with costed tasks and routines with costed lines, both landing on the calendar and linkable to a posting — a task's actual cost is still typed by hand; nothing posts it from the books");
-  assert.equal(tasks.citation, 'src/app/api/operations/projects/[id]/tasks/route.ts:43 · generate-tasks/route.ts:42 · tasks/bulk-create/route.ts:117 · tasks/[taskId]/route.ts:82 → :339, :370; accepting a pending_review task fires the paid build at tasks/[taskId]/route.ts:392-402');
-  assert.equal(tasks.customer, 'You can plan projects and routines with what each one should cost, and see them on your calendar; what a task actually cost is still typed in by hand.');
+  // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13. The row's status, why, citation tail and customer line are tasks03.test.ts's; the TASKS-02 facts stay pinned.
+  assert.equal(tasks.status, 'LIVE');
+  assert.equal(tasks.why, undefined);
+  assert.match(tasks.citation, /^src\/app\/api\/operations\/projects\/\[id\]\/tasks\/route\.ts:43 · generate-tasks\/route\.ts:42 · tasks\/bulk-create\/route\.ts:117 · tasks\/\[taskId\]\/route\.ts:82 → :339, :370; accepting a pending_review task fires the paid build at tasks\/\[taskId\]\/route\.ts:392-402/);
+  assert.match(tasks.customer ?? '', /^You can capture a project as a brief, rank it, plan its tasks/);
   assert.match(comments(REGISTRY), /TASKS-02 \(Alex, 2026-10-20\): the ruling TASKS-ONE-01 waited for\. Tasks\s*\n\s*\/\/ has NO sub-rows\./);
   const rail = navToolByName('Tasks', TOOL_GATE);
   assert.deepEqual(rail.subRows, []);

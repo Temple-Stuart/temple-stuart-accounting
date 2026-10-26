@@ -199,13 +199,14 @@ test('T1 STATUS: a routine is ended first (ROUTINE-02a, judged now in its zone),
 
 // ── T2 · THE SPECS ────────────────────────────────────────────────────────────
 
-test('T2 the two specs (WORK-01d): THE WORK — TASK · PROJECT · BOOK · STATUS · DEADLINE · ESTIMATE · ACCOUNT · DONE; ROUTINE EXPENSES — its 21 columns in Alex\'s order (ROUTINES-03)', () => {
-  assert.deepEqual([...TASK_COLUMNS], ['task', 'project', 'book', 'status', 'deadline', 'estimate', 'account', 'done']);
+// TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13. ACTUAL · MATCH sit after ESTIMATE (tasks03.test.ts).
+test('T2 the two specs (WORK-01d): THE WORK — TASK · PROJECT · BOOK · STATUS · DEADLINE · ESTIMATE · ACTUAL · MATCH · ACCOUNT · DONE (TASKS-03); ROUTINE EXPENSES — its 21 columns in Alex\'s order (ROUTINES-03)', () => {
+  assert.deepEqual([...TASK_COLUMNS], ['task', 'project', 'book', 'status', 'deadline', 'estimate', 'actual', 'match', 'account', 'done']);
   assert.deepEqual(T_COLUMNS.map((c) => c.key), [...TASK_COLUMNS]);
-  assert.deepEqual(T_COLUMNS.map((c) => c.label), ['TASK', 'PROJECT', 'BOOK', 'STATUS', 'DEADLINE', 'ESTIMATE', 'ACCOUNT', 'DONE']);
+  assert.deepEqual(T_COLUMNS.map((c) => c.label), ['TASK', 'PROJECT', 'BOOK', 'STATUS', 'DEADLINE', 'ESTIMATE', 'ACTUAL', 'MATCH', 'ACCOUNT', 'DONE']);
   assert.deepEqual(T_COLUMNS.map((c) => c.label), TASK_COLUMNS.map((k) => TASK_HEAD_WORDS[k]));
   assert.deepEqual(Object.fromEntries(T_COLUMNS.map((c) => [c.key, c.kind])), {
-    task: 'text', project: 'text', book: 'value', status: 'value', deadline: 'value', estimate: 'money', account: 'text', done: 'value',
+    task: 'text', project: 'text', book: 'value', status: 'value', deadline: 'value', estimate: 'money', actual: 'money', match: 'money', account: 'text', done: 'value',
   });
   // ROUTINES-03 (Alex, 2026-10-25, ruling A): the 21 columns in Alex's order — WORK-01d's eight sit among them (AMOUNT renamed BUDGET); the full
   // order, heads and kinds are routines03.test.ts's pins.
@@ -276,9 +277,10 @@ test('T4 sort by BUDGET / ESTIMATE descending puts the dearest first and the bla
   assert.deepEqual(sortRows(T_ROWS, { column: 'estimate', direction: 'desc' }, T_COLUMNS).map((r) => r.id), ['task:t1', 'task:t3']);
   assert.equal(tableCsv(R_COLUMNS, R_ROWS.filter((r) => r.id === 'routine:morning:s1')), 'START,END,KIND,BOOK,ACCOUNT,ACCOUNT NAME,SUB ACCOUNT NAME,VENDOR,ROUTINE,TIME,DAYS,CADENCE,NEXT,BUDGET,THIS MONTH,TO DATE,ACTUAL,MATCH,VARIANCE,STATUS,ID\r\n'
     + ',,repeated,Personal,P-6150,Food & drink,Coffee,,Morning,07:00 – 07:30,Mon–Sun,daily,,3.00,,,,,,active,s1\r\n');
-  assert.equal(tableCsv(T_COLUMNS, T_ROWS), 'TASK,PROJECT,BOOK,STATUS,DEADLINE,ESTIMATE,ACCOUNT,DONE\r\n'
-    + 'write the route,HOME-01,Personal,new,2026-10-30,12.50,P-6150 Food & drink,\r\n'
-    + 'merged,HOME-01,Personal,done,,,,2026-10-22T09:00:00.000Z\r\n'); // COLUMNS-01b (2026-10-25, ruling 2): DONE writes the instant as stored
+  // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13. Two empty money fields more per row — the fixtures log no actual and carry no match.
+  assert.equal(tableCsv(T_COLUMNS, T_ROWS), 'TASK,PROJECT,BOOK,STATUS,DEADLINE,ESTIMATE,ACTUAL,MATCH,ACCOUNT,DONE\r\n'
+    + 'write the route,HOME-01,Personal,new,2026-10-30,12.50,,,P-6150 Food & drink,\r\n'
+    + 'merged,HOME-01,Personal,done,,,,,,2026-10-22T09:00:00.000Z\r\n'); // COLUMNS-01b (2026-10-25, ruling 2): DONE writes the instant as stored
   assert.equal(workCsvFileName('2026-10-24'), 'work_2026-10-24.csv');
   assert.equal(routineExpensesCsvFileName('2026-10-24'), 'routine-expenses_2026-10-24.csv'); // WORK-01d (ruling C)
   assert.equal(rowCountWords(8, 10), '8 of 10 rows');
@@ -437,7 +439,7 @@ test('T7 the cockpit\'s Routines and Projects tabs are gone; the keys left both 
   assert.throws(() => claimForCockpit('projects'), OfferLawError);
   assert.throws(() => claimForCockpit('routines'), OfferLawError);
   // Ruling 1: the same claim line by the tool's name — the words the offer pin held.
-  assert.equal(claimForTool('Tasks'), "partial — the work, planned: projects with costed tasks and routines with costed lines, both landing on the calendar and linkable to a posting — a task's actual cost is still typed by hand; nothing posts it from the books");
+  assert.equal(claimForTool('Tasks'), 'built and running'); // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13.
   assert.throws(() => claimForTool('nope'), OfferLawError);
   const deck = code(DECK);
   assert.match(deck, /\{label\} — \{claimForTool\('Tasks'\)\}/);

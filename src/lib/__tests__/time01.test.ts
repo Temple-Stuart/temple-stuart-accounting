@@ -171,7 +171,7 @@ test('T5 the registry: the Time row says the tables (HOME-01, ruling C); the Tas
   assert.equal(time.customer, 'You can see every stop you logged and every journal answer, day by day, filter and export them; the day itself is entered on the home dashboard.');
   assert.doesNotMatch(time.customer ?? '', /\b(discover|decide|commit|record)\b/, 'no beat word on a public line (the plan law)');
   assert.equal(tasks.home, '/tasks');
-  assert.match(tasks.why ?? '', /^the work, planned: projects with costed tasks and routines with costed lines/);
+  assert.equal(tasks.why, undefined); // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13.
   // TASKS-02 (2026-10-20): the two links are gone — the North Star's page deleted, the audit trail Compliance's.
   assert.deepEqual(tasks.links, []);
   assert.match(comments(REGISTRY), /TIME-01 \(Alex, 2026-10-19\): the day card and the city ledger moved to\s*\n\s*\/\/ \/time/);

@@ -14,12 +14,14 @@
  *   NOT_BUILT = no beats — no page or route does any of the tool's job (code
  *               that touches the name but belongs to another tool is cited,
  *               not counted).
- * 3 LIVE · 9 PARTIAL · 13 NOT_BUILT — the counts are a LAW below; bump them
+ * 4 LIVE · 8 PARTIAL · 13 NOT_BUILT — the counts are a LAW below; bump them
  * only with a new dated census. (EXPENSES-01 census, Alex, 2026-10-25: Expenses
  * NOT_BUILT → PARTIAL, ROUTINE EXPENSES being its page; 2 · 9 · 14 stood from
  * the 2026-09-09 census until then. EXPENSES-02 census, Alex, 2026-10-26:
  * Expenses PARTIAL → LIVE — the vendor decided on the row; 2 · 10 · 13 stood
- * for one day.)
+ * for one day. TASKS-03 census, Alex, 2026-10-26: Tasks PARTIAL → LIVE —
+ * ACTUAL as logged and MATCH from Books on THE WORK; 3 LIVE · 9 PARTIAL · 13
+ * NOT_BUILT stood for the hours between.)
  *
  * `home` is an EXISTING route only — this PR links, it moves nothing. A
  * cockpit-hosted tool also carries `cockpitKey` (the ModuleLauncher section
@@ -111,7 +113,9 @@ const some = (b: Partial<Beats>): Beats => ({ ...NONE, ...b });
 // cites its beats); one NOT_BUILT fewer, one PARTIAL more. 2 · 9 · 14 → 2 · 10 · 13.
 // EXPENSES-02 census (Alex, 2026-10-26): Expenses LIVE — the vendor decided on the row; receipts are Documents' job.
 // One PARTIAL fewer, one LIVE more. 2 · 10 · 13 → 3 · 9 · 13.
-export const EXPECTED_STATUS_COUNTS: Readonly<Record<ToolStatus, number>> = { LIVE: 3, PARTIAL: 9, NOT_BUILT: 13 };
+// TASKS-03 census (Alex, 2026-10-26): Tasks LIVE — ACTUAL as logged and MATCH from Books on THE WORK, the ledger's pair.
+// One PARTIAL fewer, one LIVE more. 3 · 9 · 13 → 4 · 8 · 13.
+export const EXPECTED_STATUS_COUNTS: Readonly<Record<ToolStatus, number>> = { LIVE: 4, PARTIAL: 8, NOT_BUILT: 13 };
 
 const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // ── THE WORK ──
@@ -182,8 +186,19 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     // customer (a gated section, its own page, or gone) is Alex's call — put in
     // the TASKS-01 PR body, not decided here. "Audit tail" → "Audit trail": the
     // label said tail, the page is the trail.
-    slug: 'tasks', status: 'PARTIAL', beats: ALL, home: '/tasks',
-    why: "the work, planned: projects with costed tasks and routines with costed lines, both landing on the calendar and linkable to a posting — a task's actual cost is still typed by hand; nothing posts it from the books",
+    // TASKS-03 (Alex, 2026-10-26, ruling C): LIVE. THE WORK prints the ledger's
+    // pair for every task — ACTUAL, the cost as logged (actual_cost_usd:
+    // TaskEditInputs.tsx and the calendar card write it), and MATCH, the postings
+    // linked to the task in Books (the tasks GET's one planned_item_links query,
+    // project_task, summed by taskMatch.ts through the ledger's matchOf) — so the
+    // `why` that stood here ("a task's actual cost is still typed by hand;
+    // nothing posts it from the books") LEAVES with the status (the law holds a
+    // `why` to a PARTIAL row): the pair IS the ledger's — the task ledger and
+    // ROUTINE EXPENSES print ACTUAL as logged beside MATCH from Books the same
+    // way, and that is the job, ruled in chat 2026-10-26. The typed cost is not a
+    // gap; it is what ACTUAL means. Routines are planned under Expenses now
+    // (EXPENSES-01/02); the customer line says so.
+    slug: 'tasks', status: 'LIVE', beats: ALL, home: '/tasks',
     // TASKS-ONE-01 (Alex, 2026-10-14): one Tasks page, no sub-tabs. The Issue
     // log link went with its page (an unbuilt placeholder, deleted), and the
     // Day card link went because the card is the first section of /tasks now —
@@ -206,8 +221,9 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     // trail is Compliance's — it is the log of what was done, and Compliance
     // keeps that log (its `why` says so); the Compliance row below links it.
     links: [],
-    citation: 'src/app/api/operations/projects/[id]/tasks/route.ts:43 · generate-tasks/route.ts:42 · tasks/bulk-create/route.ts:117 · tasks/[taskId]/route.ts:82 → :339, :370; accepting a pending_review task fires the paid build at tasks/[taskId]/route.ts:392-402',
-    customer: 'You can plan projects and routines with what each one should cost, and see them on your calendar; what a task actually cost is still typed in by hand.',
+    citation: 'src/app/api/operations/projects/[id]/tasks/route.ts:43 · generate-tasks/route.ts:42 · tasks/bulk-create/route.ts:117 · tasks/[taskId]/route.ts:82 → :339, :370; accepting a pending_review task fires the paid build at tasks/[taskId]/route.ts:392-402 · TASKS-03 (2026-10-26) the match read: tasks/route.ts:101-108 (one planned_item_links query, project_task, POSTING_LINES_SELECT, scoped to the caller twice) → src/lib/operations/taskMatch.ts taskMatchesOf (ledger.ts matchOf, readableMatchCents; src/lib/calendar/postingAmount.ts amountCentsOf) → THE WORK\'s ACTUAL · MATCH (work.ts taskTable: taskActualCentsOf, taskMatchCentsOf)',
+    // TASKS-03 (Alex, 2026-10-26, ruling C): the customer line, verbatim.
+    customer: 'You can capture a project as a brief, rank it, plan its tasks with what each should cost and tick them off, and see what each task cost as you logged it and what Books matched; routines are planned under Expenses.',
   },
   Time: {
     // TOOL-LAW-01: one tool, one page. Until TIME-01 /time rendered the content
