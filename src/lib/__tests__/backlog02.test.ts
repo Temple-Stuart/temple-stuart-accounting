@@ -225,7 +225,8 @@ test('T5 the projects GET carries open_tasks beside open_task_count — the same
   assert.deepEqual([...OPEN_TASK_STATUSES], ['open', 'in_progress', 'blocked', 'pending_review']);
   // BACKLOG-02b (Alex, 2026-10-20): not_started is open work — the schema's default, discovery's status (T10 drives it through the log, the rank and THE BACKLOG).
   assert.deepEqual([...OPEN_PROJECT_STATUSES], ['backlog', 'scoped', 'scheduled', 'in_progress', 'blocked', 'not_started']);
-  assert.equal((p.match(/operations_project_tasks\.findMany\(/g) ?? []).length, 1, 'one tasks read for every project — never one per project');
+  // WORK-02 (Alex, 2026-10-26): THE WORK BLOCK — on an execute stop the card lists the open tasks to tick and the tasks done inside the block by completed_at; the backlog read is the same read, asked with the day's bounds on a day with an execute stop (work02.test.ts). A second tasks read, for the done tasks — only when a window is asked, and still one for every project.
+  assert.equal((p.match(/operations_project_tasks\.findMany\(/g) ?? []).length, 2, 'one tasks read for the open tasks and one for the done tasks when asked — never one per project');
 });
 
 // ── T6 · THE CARD'S ONE READ, DRIVEN ─────────────────────────────────────────
@@ -285,7 +286,8 @@ test('T7 THE LOG: above the goals box, outside the journal form; in flight, fail
   // The card: the one read, re-read after a log write, handed to the form.
   const c = code(CARD);
   assert.match(c, /log=\{backlogRead\} onChanged=\{\(\) => setJournalReads\(\(n\) => n \+ 1\)\} onLogChanged=\{\(\) => setLogReads\(\(n\) => n \+ 1\)\} \/>/);
-  assert.match(c, /\}, \[day, hasJournalStop, journalReads, recordReads, dayWrites, logReads\]\);/, 'the log re-read after a log write');
+  // WORK-02 (Alex, 2026-10-26): THE WORK BLOCK — on an execute stop the card lists the open tasks to tick and the tasks done inside the block by completed_at; the backlog read is the same read, asked with the day's bounds on a day with an execute stop (work02.test.ts). The deps gained zone and hasExecuteStop; logReads still re-reads.
+  assert.match(c, /\}, \[day, zone, hasJournalStop, hasExecuteStop, journalReads, recordReads, dayWrites, logReads\]\);/, 'the log re-read after a log write');
   // The words.
   assert.deepEqual([LOG_WORD, LOG_LOADING_WORDS, NO_OPEN_PROJECTS_WORDS, NO_OPEN_TASKS_WORDS, ADD_PROJECT_WORDS, ADD_TASK_WORDS, USE_AS_GOALS_WORDS], ['THE LOG', 'reading the projects…', '— no open projects —', '— no open tasks —', '+ project', '+ task', 'use as today\'s goals']);
   assert.equal(REFLECTION_PROMPT_NO_BACKLOG, NO_OPEN_PROJECTS_WORDS, 'the prompt and the card say the same words, from one home');

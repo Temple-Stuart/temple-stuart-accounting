@@ -3,9 +3,14 @@
  *
  * Moved verbatim out of TaskRow.tsx (its handlers :110-351 and the state they
  * drive) so the task row and the projects table fire the SAME handlers — never
- * a copied fetch. The fetches, in order: PATCH save · PATCH quick-complete ·
- * GET history · POST uncomplete · POST schedule · DELETE · PATCH archive ·
- * PATCH unarchive · PATCH accept/reject (pending_review → open / cancelled).
+ * a copied fetch. The fetches, in order: PATCH save · GET history · POST
+ * schedule · DELETE · PATCH archive · PATCH unarchive · PATCH accept/reject
+ * (pending_review → open / cancelled) — and, at the foot of the file, the two
+ * the handlers call as plain writers: PATCH quick-complete · POST uncomplete.
+ * WORK-02 (Alex, 2026-10-26): those two are LIFTED there (completeTask,
+ * uncompleteTask), not copied, so THE WORK BLOCK on the day card fires the
+ * same writer the task row does; the hook's handlers keep their names and
+ * their chrome (the busy flag, the error, the reason prompt, the alert).
  *
  * Whether the edit inputs and the history are open is the CALLER's state
  * (`editing` / `showHistory`): the row holds it itself; the table holds it per
@@ -132,17 +137,10 @@ export function useTaskActions({ task, projectId, onUpdate, onDelete, editing, s
     setCompleting(true);
     setError(null);
     try {
-      const res = await fetch(
-        `/api/operations/projects/${projectId}/tasks/${task.id}`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'completed' }),
-        }
-      );
-      const body = await res.json();
-      if (!res.ok) {
-        setError(body?.message ?? body?.error ?? 'failed to complete');
+      // WORK-02: the one writer, lifted (completeTask below).
+      const answer = await completeTask(projectId, task.id);
+      if (!answer.ok) {
+        setError(answer.words);
         return;
       }
       onUpdate();
@@ -179,18 +177,9 @@ export function useTaskActions({ task, projectId, onUpdate, onDelete, editing, s
   const handleUncomplete = async () => {
     const reason = window.prompt('Reason for uncompleting? (optional)') ?? undefined;
     try {
-      const res = await fetch(
-        `/api/operations/projects/${projectId}/tasks/${task.id}/uncomplete`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reason: reason || undefined }),
-        }
-      );
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.error ?? `HTTP ${res.status}`);
-      }
+      // WORK-02: the one writer, lifted (uncompleteTask below).
+      const answer = await uncompleteTask(projectId, task.id, reason || undefined);
+      if (!answer.ok) throw new Error(answer.words);
       onUpdate();
       // Invalidate cached history so the new row shows on next open.
       setHistory(null);
@@ -360,3 +349,44 @@ export function useTaskActions({ task, projectId, onUpdate, onDelete, editing, s
 }
 
 export type TaskActions = ReturnType<typeof useTaskActions>;
+
+// ── WORK-02 (Alex, 2026-10-26): THE TWO WRITERS, LIFTED ──────────────────────
+//
+// The quick-complete and the uncomplete as plain writers — moved VERBATIM out of
+// the two handlers above (which call them now), so THE WORK BLOCK on the day
+// card (stops/WorkBlock.tsx) fires the SAME fetch the task row does: one writer
+// per action, never a copied fetch. Each answers ok, or the route's own words.
+
+export type TaskWriteAnswer = { readonly ok: true } | { readonly ok: false; readonly words: string };
+
+/** PATCH …/tasks/<id> { status: 'completed' } — the route sets completed_at = now. */
+export async function completeTask(projectId: string, taskId: string): Promise<TaskWriteAnswer> {
+  const res = await fetch(
+    `/api/operations/projects/${projectId}/tasks/${taskId}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'completed' }),
+    }
+  );
+  const body = await res.json();
+  if (!res.ok) return { ok: false, words: body?.message ?? body?.error ?? 'failed to complete' };
+  return { ok: true };
+}
+
+/** POST …/tasks/<id>/uncomplete { reason? } — the route sets status open and clears completed_at. */
+export async function uncompleteTask(projectId: string, taskId: string, reason: string | undefined): Promise<TaskWriteAnswer> {
+  const res = await fetch(
+    `/api/operations/projects/${projectId}/tasks/${taskId}/uncomplete`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason }),
+    }
+  );
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    return { ok: false, words: errBody.error ?? `HTTP ${res.status}` };
+  }
+  return { ok: true };
+}

@@ -11,6 +11,14 @@
  *        reflection prompt (THE BACKLOG). BACKLOG-02 (2026-10-20): and
  *        open_tasks — those same tasks, in display_order — for the morning
  *        card's running log: one read for the card, never one per project.
+ *        WORK-02 (2026-10-26): optionally ?done_from=<ISO>&done_to=<ISO> —
+ *        both or neither (src/lib/operations/workBlock.ts doneWindowInput: one
+ *        without the other, a value that is no ISO instant, or from after to
+ *        is a 400 naming the field). With both, each row also carries
+ *        done_tasks (id, title, completed_at — status completed, completed_at
+ *        in [from, to], earliest first), built like open_tasks: ONE query,
+ *        user-scoped twice. Without them the answer is byte-identical to
+ *        before — THE LOG, the reflection prompt and PROJECTS read it as they did.
  *
  * POST — CAPTURE a project (BACKLOG-01, Alex, 2026-10-20). Required: entity_id
  *        (the book), title, type (ProjectType, by name) and why (a paragraph,
@@ -47,6 +55,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { OPEN_TASK_STATUSES } from '@/lib/operations/morningLog';
+import { doneWindowInput } from '@/lib/operations/workBlock';
 import { Prisma, ProjectSize, ProjectStatus, ProjectType } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -95,6 +104,9 @@ export async function GET(request: NextRequest) {
     // explicitly requested (the "show archived" toggle). History is preserved —
     // this is a read filter only.
     const includeArchived = searchParams.get('include_archived') === 'true';
+    // WORK-02: the done window — none, both, or refused by name BEFORE any read.
+    const done = doneWindowInput(searchParams.get('done_from'), searchParams.get('done_to'));
+    if (done.kind === 'refused') return NextResponse.json({ error: 'Validation', field: done.field, message: done.message }, { status: 400 });
 
     const where: Prisma.operations_projectsWhereInput = { user_id: user.id };
     if (!includeArchived) {
@@ -170,6 +182,24 @@ export async function GET(request: NextRequest) {
       const list = openTasksByProject.get(t.project_id) ?? [];
       list.push({ id: t.id, title: t.title, status: t.status, display_order: t.display_order });
       openTasksByProject.set(t.project_id, list);
+    }
+
+    // WORK-02 (Alex, 2026-10-26): done_tasks — only when a window was asked: each project's tasks completed inside it
+    // (status completed, completed_at in [from, to]), earliest first, built like open_tasks — ONE query, user-scoped twice.
+    const doneTasks = done.kind === 'window' && projectIds.length
+      ? await prisma.operations_project_tasks.findMany({
+          where: { user_id: user.id, project_id: { in: projectIds }, status: 'completed', completed_at: { gte: done.from, lte: done.to } },
+          select: { id: true, project_id: true, title: true, completed_at: true },
+          orderBy: [{ completed_at: 'asc' }, { created_at: 'asc' }],
+        })
+      : [];
+    const doneTasksByProject = new Map<string, { id: string; title: string; completed_at: string }[]>();
+    for (const t of doneTasks) {
+      // The where holds completed_at non-null; a null here is the database's contradiction, thrown by name.
+      if (t.completed_at === null) throw new Error(`Projects GET: task ${t.id} is completed inside the window with no completed_at`);
+      const list = doneTasksByProject.get(t.project_id) ?? [];
+      list.push({ id: t.id, title: t.title, completed_at: t.completed_at.toISOString() });
+      doneTasksByProject.set(t.project_id, list);
     }
 
     // PROJECTS-UX-2: REAL cost-per-project — the DIM allocation rollup.
@@ -260,6 +290,7 @@ export async function GET(request: NextRequest) {
       task_count: _count.tasks,
       open_task_count: openCountByProject.get(p.id) ?? 0,
       open_tasks: openTasksByProject.get(p.id) ?? [],
+      ...(done.kind === 'window' ? { done_tasks: doneTasksByProject.get(p.id) ?? [] } : {}),
       run_count: runCountByProject.get(p.id) ?? 0,
       ...(allocByProject ? { ledger_allocated: allocByProject.get(p.id) ?? null } : {}),
     }));
