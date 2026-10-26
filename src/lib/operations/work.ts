@@ -68,6 +68,13 @@
  *               route — routineMonth.ts): an every-occurrence row → the vendor's
  *               name; occurrence rows only → "by occurrence"; none → "—"; a plan
  *               holding both → the planLines.ts refusal's words, never one picked.
+ *               EXPENSES-02 (Alex, 2026-10-26, ruling A): this cell is where a
+ *               line's vendor is DECIDED — the row's "vendor" control opens the
+ *               book's directory under the row and writes the EVERY-OCCURRENCE
+ *               grain through plan-vendors (routineVendorAddressOf: instant null;
+ *               kind routine_line, or routine for a stepless routine); "clear" is
+ *               the route's DELETE at the same address. A line at the occurrence
+ *               grain gets no picker — routineVendorControlOf names the refusal.
  *   · ROUTINE   the routine's name alone. WORK-01b ruling 2's "<routine> — <step>"
  *               join (LINE_NAME_JOIN) is retired: the line is SUB ACCOUNT NAME's.
  *   · CADENCE   the rule's word as FORM-01 prints it (rruleHelpers cadenceWords);
@@ -237,6 +244,38 @@ export const statusChipWords = (dropped: readonly string[], named: NamedDefault)
 export const withoutStatusFilter = (filters: TableFilters, statusKey = 'status'): TableFilters => withFilter(filters, statusKey, NO_VALUE_FILTER);
 export const EDIT_WORDS = 'edit';
 export const CLEAR_CHIP_MARK = '✕';
+
+// ── EXPENSES-02 (Alex, 2026-10-26, ruling A): THE VENDOR IS DECIDED ON THE ROW ──
+/** The row control that opens the book's vendor list under the row. */
+export const VENDOR_CONTROL_WORDS = 'vendor';
+/** The panel's clear — the plan-vendors DELETE at the every-occurrence address. */
+export const VENDOR_CLEAR_WORDS = 'clear';
+/** A line already at the OCCURRENCE grain: the control prints this and writes nothing — the grain is never overridden here. */
+export const VENDOR_BY_OCCURRENCE_REFUSAL_WORDS = 'this line names its vendor per stop — set it on the day card';
+/** A line the month route did not return: nothing is known of its vendor here, so nothing is offered. */
+export const VENDOR_MONTH_NOT_READ_WORDS = 'the month route did not return this line — its vendor cannot be read here';
+/** "<name> · every time" — what the panel says of the vendor it holds. */
+export const vendorHeldWords = (name: string): string => `${name} · every time`;
+/** "+ add <name> to <book>" — the directory's POST, in the vendor box's own words. */
+export const vendorAddWords = (name: string, book: string): string => `+ add ${name} to ${book}`;
+
+/** The every-occurrence address of a row's plan: the line (routine_line) or, for a stepless routine, the routine itself. instant is null — EVERY occurrence; never an instant here. */
+export const routineVendorAddressOf = (row: Pick<RoutineRow, 'routine' | 'line'>): { readonly kind: 'routine_line' | 'routine'; readonly id: string; readonly instant: null } =>
+  (row.line === null ? { kind: 'routine', id: row.routine.id, instant: null } : { kind: 'routine_line', id: row.line.id, instant: null });
+
+/** What the vendor control may do on a line: pick (holding nothing, or an every-occurrence vendor it can clear), or a named refusal that writes nothing. */
+export type RoutineVendorControl =
+  | { readonly kind: 'pick'; readonly held: { readonly name: string } | null }
+  | { readonly kind: 'refusal'; readonly words: string };
+
+/** By the month line's GRAIN, never its words: null or 'every' → pick; 'occurrence' → the ruling's refusal; 'both' → the month's own refusal; no line → not read. */
+export function routineVendorControlOf(line: Pick<RoutineMonthLine, 'vendor_words' | 'vendor_grain'> | undefined): RoutineVendorControl {
+  if (line === undefined) return { kind: 'refusal', words: VENDOR_MONTH_NOT_READ_WORDS };
+  if (line.vendor_grain === 'occurrence') return { kind: 'refusal', words: VENDOR_BY_OCCURRENCE_REFUSAL_WORDS };
+  if (line.vendor_grain === 'both') return { kind: 'refusal', words: line.vendor_words ?? VENDOR_MONTH_NOT_READ_WORDS };
+  if (line.vendor_grain === 'every') return { kind: 'pick', held: { name: line.vendor_words ?? '' } };
+  return { kind: 'pick', held: null };
+}
 /** "12 of 40 rows" — under a table: the rows shown over the rows loaded. */
 export const rowCountWords = (shown: number, loaded: number): string => `${shown} of ${loaded} rows`;
 

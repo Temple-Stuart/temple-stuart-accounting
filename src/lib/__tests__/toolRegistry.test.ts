@@ -16,11 +16,12 @@ const beats = (t: ToolEntry) => [t.beats.discover, t.beats.decide, t.beats.commi
 const withTool = (name: string, patch: Partial<ToolEntry>): ToolEntry[] => TOOL_REGISTRY.map((t) => (t.name === name ? { ...t, ...patch } : t));
 
 // EXPENSES-01 (Alex, 2026-10-25): Expenses NOT_BUILT → PARTIAL — ROUTINE EXPENSES is its page, /expenses. 2 · 9 · 14 → 2 · 10 · 13.
-test('the counts are the dated census — 2 LIVE · 10 PARTIAL · 13 NOT_BUILT — and the law holds on the real registry', () => {
-  assert.deepEqual(EXPECTED_STATUS_COUNTS, { LIVE: 2, PARTIAL: 10, NOT_BUILT: 13 });
-  assert.deepEqual(statusCounts(), { LIVE: 2, PARTIAL: 10, NOT_BUILT: 13 });
+// EXPENSES-02 (Alex, 2026-10-26): Expenses is LIVE — the vendor decided on the row; receipts are Documents' job. 2 · 10 · 13 → 3 · 9 · 13.
+test('the counts are the dated census — 3 LIVE · 9 PARTIAL · 13 NOT_BUILT — and the law holds on the real registry', () => {
+  assert.deepEqual(EXPECTED_STATUS_COUNTS, { LIVE: 3, PARTIAL: 9, NOT_BUILT: 13 });
+  assert.deepEqual(statusCounts(), { LIVE: 3, PARTIAL: 9, NOT_BUILT: 13 });
   assert.deepEqual(registryLaw({ throwOnFail: false }), []);
-  assert.deepEqual(TOOL_REGISTRY.filter((t) => t.status === 'LIVE').map((t) => t.name), ['Travel', 'Bookkeeping']);
+  assert.deepEqual(TOOL_REGISTRY.filter((t) => t.status === 'LIVE').map((t) => t.name), ['Expenses', 'Travel', 'Bookkeeping']);
 });
 
 test('the three four-beat PARTIALs each carry the census note; no LIVE or NOT_BUILT tool carries one', () => {
@@ -69,8 +70,8 @@ test('the law rejects a four-beat PARTIAL without `why`, a `why` on a non-PARTIA
   assert.match(registryLaw({ throwOnFail: false, registry: withTool('CRM', { beats: { discover: true, decide: false, commit: false, record: false } }) }).join('\n'), /CRM: NOT_BUILT must have no beats, no home, no links/);
   // EXPENSES-01 (2026-10-25): Expenses is PARTIAL now — the NOT_BUILT-with-a-home probe runs through Payroll, which is NOT_BUILT.
   assert.match(registryLaw({ throwOnFail: false, registry: withTool('Payroll', { home: '/travel' }) }).join('\n'), /Payroll: NOT_BUILT must have no beats, no home, no links/);
-  // a wrong count is named (Calendar back to LIVE → 3/9/13)
-  assert.match(registryLaw({ throwOnFail: false, registry: withTool('Calendar', { status: 'LIVE', why: undefined }) }).join('\n'), /LIVE count 3 ≠ census 2/);
+  // a wrong count is named (Calendar back to LIVE → 4/8/13; EXPENSES-02, 2026-10-26: the census is 3 LIVE)
+  assert.match(registryLaw({ throwOnFail: false, registry: withTool('Calendar', { status: 'LIVE', why: undefined }) }).join('\n'), /LIVE count 4 ≠ census 3/);
 });
 
 // EXPENSES-01 (Alex, 2026-10-25): Expenses left this test's NOT_BUILT pair — it is PARTIAL at /expenses (expenses01.test.ts pins
@@ -84,9 +85,9 @@ test('CRM is NOT_BUILT with the census citation, no home, no beats; Expenses is 
     assert.equal(t.links, undefined);
   }
   assert.match(byName('CRM').citation, /proposals inbox — no contact or deal object \(src\/app\/api\/owner\/proposals\/route\.ts\)/);
-  assert.equal(byName('Expenses').status, 'PARTIAL');
+  assert.equal(byName('Expenses').status, 'LIVE'); // EXPENSES-02 (Alex, 2026-10-26): Expenses is LIVE — the vendor decided on the row; receipts are Documents' job. 2 · 10 · 13 → 3 · 9 · 13.
   assert.equal(byName('Expenses').home, '/expenses');
-  assert.match(byName('Expenses').citation, /^EXPENSES-01 \(2026-10-25\): src\/app\/expenses\/page\.tsx mounts ROUTINE EXPENSES alone/);
+  assert.match(byName('Expenses').citation, /^EXPENSES-01 \(2026-10-25\): src\/app\/expenses\/page\.tsx mounts ROUTINE EXPENSES alone · EXPENSES-02 \(2026-10-26\) decide:/);
   assert.doesNotMatch(byName('Expenses').citation, /^no expenses tooling writes trip_expenses now — the trip delete clears a trip's rows \(src\/app\/api\/trips\/\[id\]\/route\.ts:135\) and the export reads them \(src\/app\/api\/export\/route\.ts:154\)$/);
   assert.ok(OWNER_UTILITIES.some((u) => u.href === '/owner'), '/owner keeps its door in the utilities menu');
   // TRIPS-01 (2026-09-29): the legacy pages under /budgets/trips are redirects to the Travel
@@ -109,6 +110,7 @@ test('TRIPS-01: Travel carries no sub-link, ever — the registry law refuses on
   assert.deepEqual(registryLaw({ throwOnFail: false, registry: withTool('Travel', { links: [] }) }), []);
 });
 
-test('derived surfaces: the free set is Travel alone', () => {
-  assert.deepEqual(FREE_TOOLS.map((t) => t.name), ['Travel']);
+// EXPENSES-02 (Alex, 2026-10-26): Expenses is LIVE — the vendor decided on the row; receipts are Documents' job. 2 · 10 · 13 → 3 · 9 · 13. The free set is the LIVE tools with no gate — Expenses (gate null) joins Travel; Bookkeeping is gated.
+test('derived surfaces: the free set is Expenses and Travel', () => {
+  assert.deepEqual(FREE_TOOLS.map((t) => t.name), ['Expenses', 'Travel']);
 });

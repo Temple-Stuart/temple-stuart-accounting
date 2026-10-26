@@ -50,6 +50,17 @@
  * OperationsEntityProvider alone (useOperationsEntity below) — no
  * WorkChangesProvider, because nothing here reads or bumps the task-change
  * signal (the "re-reads this table alone" line above).
+ *
+ * EXPENSES-02 (Alex, 2026-10-26, ruling A): THE VENDOR CELL IS WHERE A LINE'S
+ * VENDOR IS DECIDED. The row's "vendor" control opens, under the row, the book's
+ * vendor list with "+ add" and "clear" (routines/RoutineVendorPanel.tsx — the
+ * budget box's own writes, VENDOR-01's one list); picking writes the
+ * every-occurrence grain through plan-vendors (instant null; the line, or the
+ * routine when stepless). What the control may do is decided from the month
+ * line's GRAIN (work.ts routineVendorControlOf): a line at the occurrence grain
+ * gets no picker — the refusal is printed by name and nothing is written.
+ * Ruling B: a vendor write re-reads this table — both routes — as a routine
+ * change does (onChanged → refresh), so VENDOR shows what the server holds.
  */
 
 'use client';
@@ -65,13 +76,14 @@ import { localToday } from '@/lib/localToday';
 import { SETUP_DOOR } from '@/lib/entities/kinds';
 import RoutineCreateForm from './routines/RoutineCreateForm';
 import RoutineEditForm from './routines/RoutineEditForm';
+import RoutineVendorPanel from './routines/RoutineVendorPanel';
 import type { Routine } from './routines/types';
 import { WorkCell, readJson, useBookCharts } from './workShared';
 import { monthLineKey, type RoutineMonthLine } from '@/lib/operations/routineMonth';
 import {
   ADD_ROUTINE_WORDS, CLEAR_CHIP_MARK, EDIT_WORDS, NO_ROUTINE_EXPENSES_WORDS, ROUTINE_DEFAULT, ROUTINE_EXPENSES_LOADING_WORDS, ROUTINE_EXPENSES_TITLE_WORDS,
-  ROUTINE_TABLE_NAME, routineBudgetWordsOf, routineDefaultFilters, routineExpensesCsvFileName, routineExpensesFailedWords, routineRowsOf, routineTable, rowCountWords, statusChipWords,
-  statusDroppedOf, withoutMonthWords, withoutStatusFilter, type RoutineColumn, type RoutineMonthMap, type RoutineRow, type WorkCharts,
+  ROUTINE_TABLE_NAME, VENDOR_CONTROL_WORDS, routineBudgetWordsOf, routineDefaultFilters, routineExpensesCsvFileName, routineExpensesFailedWords, routineRowsOf, routineTable,
+  routineVendorControlOf, rowCountWords, statusChipWords, statusDroppedOf, withoutMonthWords, withoutStatusFilter, type RoutineColumn, type RoutineMonthMap, type RoutineRow, type WorkCharts,
 } from '@/lib/operations/work';
 
 const chipOn = 'px-2 py-0.5 border border-brand-purple bg-brand-purple text-white rounded text-xs';
@@ -93,6 +105,8 @@ export default function SectionF_RoutineExpenses() {
   const [sort, setSort] = useState<TableSort<RoutineColumn> | null>(null);
   const [openFilter, setOpenFilter] = useState<RoutineColumn | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+  // EXPENSES-02 (ruling A): the one vendor panel open, by row id — React state only.
+  const [vendorFor, setVendorFor] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   // The book the routine form opens on, captured when it opens (RoutineList's rule, kept).
   const [createEntityId, setCreateEntityId] = useState('');
@@ -137,7 +151,7 @@ export default function SectionF_RoutineExpenses() {
   };
 
   const renderRow = (row: RoutineRow) => (
-    <RoutineWorkRow key={row.id} row={row} columns={columns} month={month} entities={entities} editing={editing === row.id} setEditing={(on) => setEditing(on ? row.id : null)} onChanged={refresh} />
+    <RoutineWorkRow key={row.id} row={row} columns={columns} month={month} entities={entities} editing={editing === row.id} setEditing={(on) => setEditing(on ? row.id : null)} vendorOpen={vendorFor === row.id} setVendorOpen={(on) => setVendorFor(on ? row.id : null)} onChanged={refresh} />
   );
 
   return (
@@ -218,12 +232,18 @@ interface RoutineWorkRowProps {
   entities: Entity[];
   editing: boolean;
   setEditing: (on: boolean) => void;
+  /** EXPENSES-02: the vendor panel under the row, open or not. */
+  vendorOpen: boolean;
+  setVendorOpen: (on: boolean) => void;
   onChanged: () => void;
 }
 
-/** A routine line's row: the cells, then edit · deactivate / reactivate · delete (RoutineRow's handlers, moved); its editor under it while open. */
-function RoutineWorkRow({ row, columns, month, entities, editing, setEditing, onChanged }: RoutineWorkRowProps) {
+/** A routine line's row: the cells, then edit · vendor (EXPENSES-02) · deactivate / reactivate · delete (RoutineRow's handlers, moved); its editor or its vendor panel under it while open. */
+function RoutineWorkRow({ row, columns, month, entities, editing, setEditing, vendorOpen, setVendorOpen, onChanged }: RoutineWorkRowProps) {
   const { routine, end } = row;
+  // EXPENSES-02 (ruling A): what the vendor control may do on this line, by the month line's grain.
+  const vendorControl = routineVendorControlOf(month.get(row.id));
+  const bookName = entities.find((e) => e.id === routine.entity_id)?.name ?? routine.entity_id;
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -279,6 +299,8 @@ function RoutineWorkRow({ row, columns, month, entities, editing, setEditing, on
         <td className={cell}>
           <div className="flex flex-wrap items-center gap-1">
             <button type="button" onClick={() => setEditing(!editing)} className={actionClass} aria-expanded={editing} {...dataAttr(name, 'edit')}>{EDIT_WORDS}</button>
+            {/* EXPENSES-02 (ruling A): the vendor is decided here — the panel under the row; a refusal is printed there by name. */}
+            <button type="button" onClick={() => setVendorOpen(!vendorOpen)} className={actionClass} aria-expanded={vendorOpen} {...dataAttr(name, 'vendor')} {...dataAttr(name, 'vendor-control', vendorControl.kind)}>{VENDOR_CONTROL_WORDS}</button>
             {/* ROUTINE-02a: an ended routine keeps "edit" alone — nothing is deactivated or deleted. */}
             {!end.ended && (
               <>
@@ -300,6 +322,13 @@ function RoutineWorkRow({ row, columns, month, entities, editing, setEditing, on
         <tr {...dataAttr(name, 'editing', row.id)}>
           <td colSpan={columns.length + 1} className="p-2 border-t border-border-light bg-bg-row">
             <RoutineEditForm routine={routine} end={end} entities={entities} onChanged={onChanged} onClose={() => setEditing(false)} />
+          </td>
+        </tr>
+      )}
+      {vendorOpen && (
+        <tr {...dataAttr(name, 'vendor-open', row.id)}>
+          <td colSpan={columns.length + 1} className="p-2 border-t border-border-light bg-bg-row">
+            <RoutineVendorPanel row={row} control={vendorControl} bookName={bookName} onChanged={onChanged} onClose={() => setVendorOpen(false)} />
           </td>
         </tr>
       )}

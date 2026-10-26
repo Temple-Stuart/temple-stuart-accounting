@@ -14,10 +14,12 @@
  *   NOT_BUILT = no beats — no page or route does any of the tool's job (code
  *               that touches the name but belongs to another tool is cited,
  *               not counted).
- * 2 LIVE · 10 PARTIAL · 13 NOT_BUILT — the counts are a LAW below; bump them
+ * 3 LIVE · 9 PARTIAL · 13 NOT_BUILT — the counts are a LAW below; bump them
  * only with a new dated census. (EXPENSES-01 census, Alex, 2026-10-25: Expenses
  * NOT_BUILT → PARTIAL, ROUTINE EXPENSES being its page; 2 · 9 · 14 stood from
- * the 2026-09-09 census until then.)
+ * the 2026-09-09 census until then. EXPENSES-02 census, Alex, 2026-10-26:
+ * Expenses PARTIAL → LIVE — the vendor decided on the row; 2 · 10 · 13 stood
+ * for one day.)
  *
  * `home` is an EXISTING route only — this PR links, it moves nothing. A
  * cockpit-hosted tool also carries `cockpitKey` (the ModuleLauncher section
@@ -107,7 +109,9 @@ const some = (b: Partial<Beats>): Beats => ({ ...NONE, ...b });
 // census 2026-09-09 (TRUTH-01): door by door, the job done for a customer on production.
 // EXPENSES-01 census (Alex, 2026-10-25): Expenses is PARTIAL — /expenses mounts ROUTINE EXPENSES (the Expenses row below
 // cites its beats); one NOT_BUILT fewer, one PARTIAL more. 2 · 9 · 14 → 2 · 10 · 13.
-export const EXPECTED_STATUS_COUNTS: Readonly<Record<ToolStatus, number>> = { LIVE: 2, PARTIAL: 10, NOT_BUILT: 13 };
+// EXPENSES-02 census (Alex, 2026-10-26): Expenses LIVE — the vendor decided on the row; receipts are Documents' job.
+// One PARTIAL fewer, one LIVE more. 2 · 10 · 13 → 3 · 9 · 13.
+export const EXPECTED_STATUS_COUNTS: Readonly<Record<ToolStatus, number>> = { LIVE: 3, PARTIAL: 9, NOT_BUILT: 13 };
 
 const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // ── THE WORK ──
@@ -277,9 +281,20 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   //     routines' month GET (SectionF :106-107), each cookie-gated and
   //     user-scoped before it reads (routines/route.ts:102-110,
   //     month/route.ts:42-47).
-  //   · decide — NOT claimed: nothing persists a draft (the Calendar row's
-  //     standard). The routine form is React state until its POST; a routine
-  //     exists or it does not.
+  //   · decide — NOT claimed by EXPENSES-01: nothing persisted a draft (the
+  //     Calendar row's standard). EXPENSES-02 (Alex, 2026-10-26, ruling A):
+  //     CLAIMED — the vendor is DECIDED on the row. The VENDOR cell's "vendor"
+  //     control opens the book's directory under the row
+  //     (routines/RoutineVendorPanel.tsx) and picking writes the every-occurrence
+  //     grain through the existing route and rule: POST /api/operations/
+  //     plan-vendors { kind: routine_line | routine, id, instant: null, vendorId }
+  //     (budget/VendorBox.tsx setVendor → plan-vendors/route.ts:78; planVendor.ts
+  //     readPlanAddress decides the address, grainAllows the grain, the
+  //     migration's trigger holds it — GRAIN_TAG). "clear" is the route's DELETE
+  //     (:209) at the same address; "+ add" is the directory's POST
+  //     (vendor-directory/route.ts:67). A line at the occurrence grain gets no
+  //     picker — the refusal by name, nothing written (work.ts
+  //     routineVendorControlOf, by the month line's grain).
   //   · commit — "+ routine" POSTs the routine (RoutineCreateForm.tsx:142 →
   //     routines/route.ts:145); a row's "edit" PATCHes it (RoutineEditForm.tsx:189
   //     → routines/[id]/route.ts:152); deactivate / reactivate PATCHes is_active
@@ -290,23 +305,27 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   //     (month/route.ts:60-68 → routineMonth.ts actual_cents, match_cents), and
   //     the table prints them per line as ACTUAL, MATCH and VARIANCE against the
   //     budget. The record itself is made elsewhere — the stop on the day card
-  //     ("✓ done now", stops/StopForm.tsx), the posting's link in Books — so
-  //     what is not done for a customer is in `why`: no receipt is matched to the
-  //     charge that made it from this page.
-  // Three beats — discover · commit · record — PARTIAL, at /expenses. Until this
-  // ruling the row was NOT_BUILT: "no expenses tool: the trip cost split that was
-  // Travel's was deleted with the legacy trip planner (LEGACY-DEL-01)" — still
-  // true of trip_expenses (nothing writes it: the trip delete clears a trip's
-  // rows, src/app/api/trips/[id]/route.ts:135, and the export reads them,
+  //     ("✓ done now", stops/StopForm.tsx), the posting's link in Books.
+  // EXPENSES-01: three beats — discover · commit · record — PARTIAL, at /expenses,
+  // with a `why` saying no receipt was matched to its charge from this page.
+  // EXPENSES-02 (Alex, 2026-10-26, ruling C): FOUR BEATS and LIVE — the tool does
+  // the job the sheet names, for a customer, on production: every recurring
+  // expense planned with its amount, account, cadence and VENDOR, and this
+  // month's budget, actuals and matches read back per line. The `why` is gone
+  // with the status (the law holds a `why` to a PARTIAL row), and its receipts
+  // clause with it: RECEIPTS ARE THE DOCUMENTS JOB — ruled in chat 2026-10-26 —
+  // not Expenses', so the customer line says no "not yet". Until EXPENSES-01 the
+  // row was NOT_BUILT: "no expenses tool: the trip cost split that was Travel's
+  // was deleted with the legacy trip planner (LEGACY-DEL-01)" — still true of
+  // trip_expenses (nothing writes it: the trip delete clears a trip's rows,
+  // src/app/api/trips/[id]/route.ts:135, and the export reads them,
   // src/app/api/export/route.ts:154); it is simply not what Expenses is now.
   Expenses: {
-    slug: 'expenses', status: 'PARTIAL', beats: some({ discover: true, commit: true, record: true }), home: '/expenses',
-    why: "every recurring expense, planned — its amount, account, cadence and vendor — with this month's budget, what was recorded at its stops and what Books matched, line by line; a receipt is not yet matched to the charge that made it",
+    slug: 'expenses', status: 'LIVE', beats: ALL, home: '/expenses',
     links: [],
-    citation: 'EXPENSES-01 (2026-10-25): src/app/expenses/page.tsx mounts ROUTINE EXPENSES alone · discover: src/components/workbench/operations/SectionF_RoutineExpenses.tsx:106 (GET /api/operations/routines) · :107 (GET /api/operations/routines/month?as_of=) · commit: routines/RoutineCreateForm.tsx:142 → src/app/api/operations/routines/route.ts:145 (POST) · routines/RoutineEditForm.tsx:189 and SectionF_RoutineExpenses.tsx:236 → routines/[id]/route.ts:152 (PATCH) · SectionF_RoutineExpenses.tsx:260 → routines/[id]/route.ts:574 (DELETE) · record: src/app/api/operations/routines/month/route.ts:60-68 → src/lib/operations/routineMonth.ts (actual_cents, match_cents), read back per line as ACTUAL · MATCH · VARIANCE; not done here: the stop is recorded on the day card (stops/StopForm.tsx) and the posting linked in Books — no receipt is matched to its charge from this page',
-    // The plan law refuses a beat word in a customer sentence ("record" — OFFER-01), so this says "what you actually paid" where the
-    // ruling's suggested line said "what you recorded": the ACTUAL column is the amounts paid at the line's stops.
-    customer: "You can plan every recurring expense — its amount, account, cadence and vendor — and see this month's budget, what you actually paid and what was matched in Books, line by line; receipts are not yet matched to the charge that made them.",
+    citation: 'EXPENSES-01 (2026-10-25): src/app/expenses/page.tsx mounts ROUTINE EXPENSES alone · EXPENSES-02 (2026-10-26) decide: the VENDOR cell\'s control (SectionF_RoutineExpenses.tsx VENDOR_CONTROL_WORDS) opens routines/RoutineVendorPanel.tsx — setVendor (budget/VendorBox.tsx) → POST src/app/api/operations/plan-vendors/route.ts:78 at instant null (work.ts routineVendorAddressOf), planVendor.ts readPlanAddress / grainAllows; clear → route.ts:209 (DELETE); add → vendor-directory/route.ts:67 (POST) · discover: src/components/workbench/operations/SectionF_RoutineExpenses.tsx:106 (GET /api/operations/routines) · :107 (GET /api/operations/routines/month?as_of=) · commit: routines/RoutineCreateForm.tsx:142 → src/app/api/operations/routines/route.ts:145 (POST) · routines/RoutineEditForm.tsx:189 and SectionF_RoutineExpenses.tsx:236 → routines/[id]/route.ts:152 (PATCH) · SectionF_RoutineExpenses.tsx:260 → routines/[id]/route.ts:574 (DELETE) · record: src/app/api/operations/routines/month/route.ts:60-68 → src/lib/operations/routineMonth.ts (actual_cents, match_cents), read back per line as ACTUAL · MATCH · VARIANCE — the stop itself is made on the day card (stops/StopForm.tsx) and the posting linked in Books; receipts are the Documents job, not this row\'s (ruled 2026-10-26)',
+    // EXPENSES-02 (Alex, 2026-10-26, ruling C): the customer line, verbatim — no "not yet": receipts are Documents' job, not this tool's.
+    customer: "You can plan every recurring expense — its amount, account, cadence and vendor — and see this month's budget, what you logged at each stop and what Books matched, line by line.",
   },
   Travel: {
     slug: 'travel', status: 'LIVE', beats: ALL, home: '/travel', cockpitKey: 'travel',

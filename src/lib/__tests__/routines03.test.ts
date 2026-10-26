@@ -256,10 +256,11 @@ const MARS = routine({ id: 'mars', name: 'Mars', timezone: 'Mars/Olympus', next_
 const NOW = new Date('2026-10-25T06:00:00.000Z');
 const ROWS = routineRowsOf([APPLE, TWO, DENTIST, MARS], NOW);
 // COLUMNS-01 (Alex, 2026-10-25, ruling A): a month line carries budget_words — null on an active routine's line.
+// EXPENSES-02 (Alex, 2026-10-26, ruling A): a month line carries vendor_grain — the grain behind its vendor words (expenses02.test.ts).
 const MONTH: RoutineMonthMap = new Map([
-  [monthLineKey('apple', null), { routine_id: 'apple', step_id: null, vendor_words: 'Apple', budget_month_cents: 1000, budget_to_date_cents: 1000, actual_cents: 1000, actual_records: 1, match_cents: 1000, match_links: 1, match_unreadable: 0, variance_cents: 0, budget_words: null }],
-  [monthLineKey('two', 'l1'), { routine_id: 'two', step_id: 'l1', vendor_words: BY_OCCURRENCE_WORDS, budget_month_cents: 6200, budget_to_date_cents: 5000, actual_cents: 5100, actual_records: 25, match_cents: null, match_links: 0, match_unreadable: 0, variance_cents: -100, budget_words: null }],
-  [monthLineKey('two', 'l2'), { routine_id: 'two', step_id: 'l2', vendor_words: null, budget_month_cents: null, budget_to_date_cents: null, actual_cents: null, actual_records: 0, match_cents: null, match_links: 0, match_unreadable: 0, variance_cents: null, budget_words: null }],
+  [monthLineKey('apple', null), { routine_id: 'apple', step_id: null, vendor_words: 'Apple', vendor_grain: 'every', budget_month_cents: 1000, budget_to_date_cents: 1000, actual_cents: 1000, actual_records: 1, match_cents: 1000, match_links: 1, match_unreadable: 0, variance_cents: 0, budget_words: null }],
+  [monthLineKey('two', 'l1'), { routine_id: 'two', step_id: 'l1', vendor_words: BY_OCCURRENCE_WORDS, vendor_grain: 'occurrence', budget_month_cents: 6200, budget_to_date_cents: 5000, actual_cents: 5100, actual_records: 25, match_cents: null, match_links: 0, match_unreadable: 0, variance_cents: -100, budget_words: null }],
+  [monthLineKey('two', 'l2'), { routine_id: 'two', step_id: 'l2', vendor_words: null, vendor_grain: null, budget_month_cents: null, budget_to_date_cents: null, actual_cents: null, actual_records: 0, match_cents: null, match_links: 0, match_unreadable: 0, variance_cents: null, budget_words: null }],
 ]);
 const COLS = routineTable(BOOKS, CHARTS, MONTH);
 const cell = (id: string, key: typeof ROUTINE_COLUMNS[number]) => COLS.find((c) => c.key === key)!.words(ROWS.find((r) => r.id === id)!);

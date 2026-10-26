@@ -3574,6 +3574,12 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
     // "STATUS: open only" chip, its CSV and the row's "details" are its; "+ new project" and "show archived" stay the section header's, below.
     // EXPENSES-01 (Alex, 2026-10-25): ROUTINE EXPENSES' controls are the same controls on Expenses' page, /expenses — the component moved, not
     // loosened: "+ routine", its "STATUS: active only" chip and its DataTable are held here as before.
+    // EXPENSES-02 (Alex, 2026-10-26, ruling A): the vendor is DECIDED on the row — the "vendor" control and the panel under the row that writes the
+    // every-occurrence grain through the budget box's own setVendor (plan-vendors POST) and clears through ClearVendor (its DELETE).
+    ['src/components/workbench/operations/SectionF_RoutineExpenses.tsx', /VENDOR_CONTROL_WORDS/, 'ROUTINE EXPENSES has no "vendor" control — the vendor is decided on the row (EXPENSES-02)'],
+    ['src/components/workbench/operations/routines/RoutineVendorPanel.tsx', /setVendor\(address, null, vendorId\)/, 'the vendor panel no longer writes the every-occurrence grain through the budget box setVendor (EXPENSES-02)'],
+    ['src/components/workbench/operations/routines/RoutineVendorPanel.tsx', /<ClearVendor address=\{address\}/, 'the vendor panel lost "clear" — the plan-vendors DELETE at the same address (EXPENSES-02)'],
+    ['src/components/workbench/operations/routines/RoutineVendorPanel.tsx', /control\.kind === 'refusal'/, 'the vendor panel no longer prints the occurrence-grain refusal by name (EXPENSES-02)'],
     ['src/components/workbench/operations/SectionF_RoutineExpenses.tsx', /ADD_ROUTINE_WORDS/, 'ROUTINE EXPENSES has no "+ routine"'],
     ['src/components/workbench/operations/SectionE_Work.tsx', /ADD_TASK_WORDS/, 'THE WORK has no "+ task"'],
     ['src/components/workbench/operations/SectionE_Work.tsx', /statusChipWords\(/, 'THE WORK hides its STATUS filter — the default must be a visible chip (ruling B)'],

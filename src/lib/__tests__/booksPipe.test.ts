@@ -25,8 +25,9 @@ test('no tool\'s rendered line is a citation — a tool with no `why` gets no li
   // The seven that used to print a path now print none — less Brokerage and
   // Trade Log, which TRADE-SPLIT gave a `why` of their own (each says, in the
   // customer's language, why it is still PARTIAL).
+  // EXPENSES-02 (Alex, 2026-10-26): Expenses is LIVE — a LIVE row carries no why, so its opener prints no line, like Travel's and Bookkeeping's.
   const silent = navRows(TOOL_GATE).filter((t) => t.href && t.line === null).map((t) => t.name);
-  assert.deepEqual(silent, ['Travel', 'Banking', 'Bookkeeping', 'Tax', 'Compliance']);
+  assert.deepEqual(silent, ['Expenses', 'Travel', 'Banking', 'Bookkeeping', 'Tax', 'Compliance']);
 });
 
 test('the opener renders no file path, for any tool, on any page', () => {

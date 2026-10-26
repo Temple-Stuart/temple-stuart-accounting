@@ -83,11 +83,21 @@ export function monthRangeOf(asOf: IsoDay): { readonly from: IsoDay; readonly to
   return { from: rangeFrom, to };
 }
 
+/**
+ * EXPENSES-02 (Alex, 2026-10-26, ruling A): the grain the plan's vendor rows hold, as planHoldsOf reads them — 'every' (one
+ * every-occurrence row: vendor_words is its name), 'occurrence' (occurrence rows only: "by occurrence"), 'both' (the refusal's
+ * words), or null (no row). ROUTINE EXPENSES' vendor control decides by THIS, never by parsing the words: a picker on null or
+ * 'every', the refusal on 'occurrence', the month's own refusal on 'both'.
+ */
+export type RoutineVendorGrain = 'every' | 'occurrence' | 'both' | null;
+
 export interface RoutineMonthLine {
   readonly routine_id: string;
   /** The line's id; null for a stepless routine. */
   readonly step_id: string | null;
   readonly vendor_words: string | null;
+  /** EXPENSES-02: the grain behind vendor_words — what the vendor control may do on this line. */
+  readonly vendor_grain: RoutineVendorGrain;
   readonly budget_month_cents: number | null;
   readonly budget_to_date_cents: number | null;
   readonly actual_cents: number | null;
@@ -212,6 +222,15 @@ export function routineMonthOf(input: RoutineMonthInput): RoutineMonthResult {
     if (held.every !== null) return held.every.vendor.vendor_name;
     return held.occurrences.size > 0 ? BY_OCCURRENCE_WORDS : null;
   };
+  // EXPENSES-02 (ruling A): the same read, as a grain — the words above are this grain spelled for the cell.
+  const vendorGrainOf = (plan: { readonly routineId: string; readonly stepId: string | null }): RoutineVendorGrain => {
+    const key = plan.stepId === null ? `routine:${plan.routineId}` : `routine_line:${plan.stepId}`;
+    if (bothGrains.has(key)) return 'both';
+    const held = grain.holds.get(key);
+    if (held === undefined) return null;
+    if (held.every !== null) return 'every';
+    return held.occurrences.size > 0 ? 'occurrence' : null;
+  };
 
   let unreadablePostings = 0;
   const lines: RoutineMonthLine[] = plans.map((plan) => {
@@ -228,6 +247,7 @@ export function routineMonthOf(input: RoutineMonthInput): RoutineMonthResult {
       routine_id: plan.routineId,
       step_id: plan.stepId,
       vendor_words: vendorWordsOf(plan),
+      vendor_grain: vendorGrainOf(plan),
       budget_month_cents: inactive ? null : month.get(key) ?? null,
       budget_to_date_cents: budgetToDate,
       actual_cents: actual.cents,
