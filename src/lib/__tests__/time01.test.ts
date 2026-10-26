@@ -58,9 +58,10 @@ test('T1 the pages: /time is the three tables (HOME-01: the card is on the dashb
   // BACKLOG-02 (Alex, 2026-10-20): a boundary is back on /tasks — around the projects list ALONE, which reads ?project= and ?new=project (useSearchParams); the day card stays /time's: the page itself still reads no URL (the list does, in its boundary).
   assert.match(tasks, /^'use client';/);
   // WORK-01d (Alex, 2026-10-25): three tables on /tasks — THE WORK, PROJECTS in its boundary, ROUTINE EXPENSES.
-  assert.match(tasks, /<ToolOpener tools=\{\[navToolByName\('Tasks', TOOL_GATE\)\]\} \/>\n\s*<WorkChangesProvider>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Tasks">\n\s*<SectionE_Work \/>\n\s*<Suspense>\n\s*<SectionD_ProjectBacklog \/>\n\s*<\/Suspense>\n\s*<SectionF_RoutineExpenses \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/);
+  // EXPENSES-01 (Alex, 2026-10-25): ROUTINE EXPENSES moved to /expenses (src/app/expenses/page.tsx) — Tasks is THE WORK and PROJECTS. Two mounts, in order.
+  assert.match(tasks, /<ToolOpener tools=\{\[navToolByName\('Tasks', TOOL_GATE\)\]\} \/>\n\s*<WorkChangesProvider>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Tasks">\n\s*<SectionE_Work \/>\n\s*<Suspense>\n\s*<SectionD_ProjectBacklog \/>\n\s*<\/Suspense>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>/);
   const tasksBox = tasks.slice(tasks.indexOf('data-tool-page="Tasks"'), tasks.indexOf('</OperationsEntityProvider>'));
-  assert.deepEqual([...tasksBox.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['SectionE_Work', 'Suspense', 'SectionD_ProjectBacklog', 'SectionF_RoutineExpenses']); // WORK-01 (2026-10-24): THE WORK first; WORK-01d: ROUTINE EXPENSES last
+  assert.deepEqual([...tasksBox.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['SectionE_Work', 'Suspense', 'SectionD_ProjectBacklog']); // WORK-01 (2026-10-24): THE WORK first; WORK-01d: ROUTINE EXPENSES last; EXPENSES-01: it left for /expenses
   assert.doesNotMatch(tasks, /DayCard|LedgerSection|ContentPipeline|useSearchParams/, 'nothing of Time on Tasks');
   assert.doesNotMatch(time, /SectionD_ProjectBacklog|SectionE_Routines|SectionE_Work|SectionF_RoutineExpenses/, 'nothing of Tasks on Time');
   assert.equal((tasks.match(/<ToolOpener/g) ?? []).length, 1);
@@ -128,8 +129,10 @@ test('T4 the laws: the two-lists law holds /tasks to the two lists and /time to 
   const law = code(LAW);
   assert.match(law, /const TWO_LISTS_PAGE = 'src\/app\/tasks\/page\.tsx';\n\s*const TIME_PAGE = 'src\/app\/time\/page\.tsx';/);
   // WORK-01d (Alex, 2026-10-25): three mounts on /tasks.
-  assert.match(law, /const TWO_LISTS_MOUNTS = \['<SectionE_Work \/>', '<SectionD_ProjectBacklog \/>', '<SectionF_RoutineExpenses \/>'\];/);
-  assert.match(law, /pageMounts\.join\(' '\) !== 'SectionE_Work SectionD_ProjectBacklog SectionF_RoutineExpenses'/);
+  // EXPENSES-01 (Alex, 2026-10-25): two — ROUTINE EXPENSES moved to /expenses (src/app/expenses/page.tsx), held by the same block.
+  assert.match(law, /const TWO_LISTS_MOUNTS = \['<SectionE_Work \/>', '<SectionD_ProjectBacklog \/>'\];/);
+  assert.match(law, /pageMounts\.join\(' '\) !== 'SectionE_Work SectionD_ProjectBacklog'/);
+  assert.match(law, /const EXPENSES_PAGE = 'src\/app\/expenses\/page\.tsx';/);
   assert.match(law, /if \(\/DayCard\|LedgerSection\/\.test\(page\)\) twoListsFail\(/, 'the two that went may not come back unnoticed');
   // HOME-01 (Alex, 2026-10-24): three mounts on /time; the card's boundary check reads the cockpit component.
   assert.match(law, /const TIME_MOUNTS = \['<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/);

@@ -41,6 +41,15 @@
  *
  * HISTORY. These rows were THE WORK's routine rows under WORK-01 (2026-10-24),
  * one table with the tasks and a KIND column; WORK-01d gave them their own table.
+ *
+ * EXPENSES-01 (Alex, 2026-10-25, ruling A): THE MOUNT MOVED — this section is
+ * Expenses' page, /expenses (src/app/expenses/page.tsx), its one and only mount;
+ * /tasks is THE WORK and PROJECTS. Nothing in this file changed but this note:
+ * the two reads, the columns, the chip, "+ routine", the editor, the controls,
+ * the CSV and the month route are what /tasks showed. The page mounts it inside
+ * OperationsEntityProvider alone (useOperationsEntity below) — no
+ * WorkChangesProvider, because nothing here reads or bumps the task-change
+ * signal (the "re-reads this table alone" line above).
  */
 
 'use client';

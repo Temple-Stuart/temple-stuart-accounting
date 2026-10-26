@@ -3436,6 +3436,8 @@ lawGuard('The two-lists law', () => {
 // card's Suspense check follows the card to the panel's mount.
 const TWO_LISTS_PAGE = 'src/app/tasks/page.tsx';
 const TIME_PAGE = 'src/app/time/page.tsx';
+// EXPENSES-01 (Alex, 2026-10-25): Expenses' page — ROUTINE EXPENSES alone, held by this block the way /tasks and /time are.
+const EXPENSES_PAGE = 'src/app/expenses/page.tsx';
 const TWO_LISTS_LEAF = 'src/lib/operations/projectDeletion.ts';
 const TWO_LISTS_ROUTE = 'src/app/api/operations/projects/[id]/route.ts';
 const TWO_LISTS_PREVIEW = 'src/app/api/operations/projects/[id]/deletion/route.ts';
@@ -3450,20 +3452,25 @@ let twoListsViolations = 0;
 const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`two-lists law: ${m} (TASKS-01)`); };
 
 // 1. no strip in the page's tree, no pipe label on the page.
+// EXPENSES-01 (Alex, 2026-10-25): the same walk over /expenses' tree — ROUTINE EXPENSES moved there from /tasks, and a
+// phase is still a filter over a list the page already shows.
 {
-  const seen = new Set<string>();
-  const stack = [TWO_LISTS_PAGE];
-  while (stack.length) {
-    const f = stack.pop()!;
-    if (seen.has(f)) continue;
-    seen.add(f);
-    const body = existsSync(resolve(ROOT, f)) ? codeOf(f) : '';
-    if (body.includes('<StageStrip')) twoListsFail(`${f} renders a StageStrip inside /tasks' tree — Tasks is two lists, and a phase is a filter over a list it already shows`);
-    if (body.includes('<ProofStrip')) twoListsFail(`${f} renders a ProofStrip inside /tasks' tree — the receipts repeated counts the surfaces already show`);
-    for (const next of importsFor(f)) stack.push(next);
+  for (const [root, room] of [[TWO_LISTS_PAGE, '/tasks'], [EXPENSES_PAGE, '/expenses']] as const) {
+    const seen = new Set<string>();
+    const stack: string[] = [root];
+    while (stack.length) {
+      const f = stack.pop()!;
+      if (seen.has(f)) continue;
+      seen.add(f);
+      const body = existsSync(resolve(ROOT, f)) ? codeOf(f) : '';
+      if (body.includes('<StageStrip')) twoListsFail(`${f} renders a StageStrip inside ${room}' tree — the page is its lists, and a phase is a filter over a list it already shows`);
+      if (body.includes('<ProofStrip')) twoListsFail(`${f} renders a ProofStrip inside ${room}' tree — the receipts repeated counts the surfaces already show`);
+      for (const next of importsFor(f)) stack.push(next);
+    }
+    const body = existsSync(resolve(ROOT, root)) ? codeOf(root) : '';
+    if (/data-pipe-label|PIPE_LABEL|PIPE_PHASES/.test(body)) twoListsFail(`${root} labels a pipe — there is no strip to label`);
   }
   const page = codeOf(TWO_LISTS_PAGE);
-  if (/data-pipe-label|PIPE_LABEL|PIPE_PHASES/.test(page)) twoListsFail(`${TWO_LISTS_PAGE} labels a pipe — there is no strip to label`);
   // WEEK-01 (2026-09-30): the page gains a fourth mount, FIRST — this week, then the two lists and the daily plan.
   // TASKS-ONE-01 — the ruling (Alex, 2026-10-14): the day card is the first section of Tasks — one Tasks page, no
   // sub-tabs. A fifth mount, FIRST: the day card, then this week, the two lists and the daily plan.
@@ -3479,17 +3486,37 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
   // WORK-01d — the ruling (Alex, 2026-10-25): Tasks is THREE TABLES. THE WORK (SectionE_Work — one row per task of an open
   // project), then PROJECTS (SectionD — project rows only), then ROUTINE EXPENSES (SectionF_RoutineExpenses — one row per
   // routine line). Routines and tasks are never one table. Three mounts, in that order; nothing else.
-  const TWO_LISTS_MOUNTS = ['<SectionE_Work />', '<SectionD_ProjectBacklog />', '<SectionF_RoutineExpenses />'];
+  // EXPENSES-01 — the ruling (Alex, 2026-10-25): Expenses is a LIVE TAB. ROUTINE EXPENSES moved to its own tool's page,
+  // /expenses, which mounts it ALONE; Tasks is THE WORK and PROJECTS. Two mounts on /tasks, in that order, nothing else —
+  // and the table that left may not come back unnoticed. The /expenses container is held below the same way.
+  const TWO_LISTS_MOUNTS = ['<SectionE_Work />', '<SectionD_ProjectBacklog />'];
   for (const section of TWO_LISTS_MOUNTS) {
-    if (!page.includes(section)) twoListsFail(`${TWO_LISTS_PAGE} no longer mounts ${section} — the page is THE WORK, the projects list and ROUTINE EXPENSES (WORK-01d)`);
+    if (!page.includes(section)) twoListsFail(`${TWO_LISTS_PAGE} no longer mounts ${section} — the page is THE WORK and the projects list (EXPENSES-01)`);
   }
   const mountAt = TWO_LISTS_MOUNTS.map((section) => page.indexOf(section));
-  if (mountAt.some((at, i) => i > 0 && at < mountAt[i - 1])) twoListsFail(`${TWO_LISTS_PAGE} mounts its sections out of order — the work, then projects, then routine expenses (WORK-01d)`);
+  if (mountAt.some((at, i) => i > 0 && at < mountAt[i - 1])) twoListsFail(`${TWO_LISTS_PAGE} mounts its sections out of order — the work, then projects (WORK-01d; EXPENSES-01)`);
   const toolPage = page.slice(page.indexOf('data-tool-page="Tasks"'), page.indexOf('</OperationsEntityProvider>'));
   const pageMounts = [...toolPage.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]).filter((tag) => tag !== 'Suspense');
-  if (pageMounts.join(' ') !== 'SectionE_Work SectionD_ProjectBacklog SectionF_RoutineExpenses') twoListsFail(`${TWO_LISTS_PAGE} mounts [${pageMounts.join(' ')}] in the Tasks container — exactly THE WORK, the projects list and ROUTINE EXPENSES, in that order (WORK-01d) (WORK-01; TASKS-ONE-02; LEDGER-01; TIME-01)`);
+  if (pageMounts.join(' ') !== 'SectionE_Work SectionD_ProjectBacklog') twoListsFail(`${TWO_LISTS_PAGE} mounts [${pageMounts.join(' ')}] in the Tasks container — exactly THE WORK and the projects list, in that order, nothing else (EXPENSES-01) (WORK-01d; WORK-01; TASKS-ONE-02; LEDGER-01; TIME-01)`);
   if (/DayCard|LedgerSection/.test(page)) twoListsFail(`${TWO_LISTS_PAGE} names the day card or the ledger — both moved to /time (TIME-01)`);
+  if (/SectionF_RoutineExpenses/.test(page)) twoListsFail(`${TWO_LISTS_PAGE} names ROUTINE EXPENSES — it is Expenses' page's, /expenses (EXPENSES-01)`);
   if ((PHASES_RENDERED_AT['/tasks'] ?? ['?']).length !== 0) twoListsFail(`nav.ts declares /tasks draws [${(PHASES_RENDERED_AT['/tasks'] ?? []).join(' ')}] — it draws nothing`);
+  // EXPENSES-01 — the /expenses container: ROUTINE EXPENSES alone, inside the entity provider it reads, under the tool's own
+  // opener; no boundary (it reads no URL), no WorkChangesProvider (nothing in its tree reads or bumps the task-change
+  // signal — the section's own header), and nothing of Tasks on it: a component belonging to tool A is not mounted on
+  // tool B's page (TOOL-LAW-01 rule 5).
+  const EXPENSES_MOUNTS = ['<SectionF_RoutineExpenses />'];
+  const expensesPage = existsSync(resolve(ROOT, EXPENSES_PAGE)) ? codeOf(EXPENSES_PAGE) : '';
+  if (!expensesPage) twoListsFail(`${EXPENSES_PAGE} is missing — Expenses' one page, ROUTINE EXPENSES' one mount (EXPENSES-01)`);
+  for (const section of EXPENSES_MOUNTS) {
+    if (!expensesPage.includes(section)) twoListsFail(`${EXPENSES_PAGE} no longer mounts ${section} — the page is ROUTINE EXPENSES (EXPENSES-01)`);
+  }
+  const expensesBox = expensesPage.slice(expensesPage.indexOf('data-tool-page="Expenses"'), expensesPage.indexOf('</OperationsEntityProvider>'));
+  const expensesMounts = [...expensesBox.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]);
+  if (expensesMounts.join(' ') !== 'SectionF_RoutineExpenses') twoListsFail(`${EXPENSES_PAGE} mounts [${expensesMounts.join(' ')}] in the Expenses container — exactly ROUTINE EXPENSES, nothing else (EXPENSES-01)`);
+  if (!/<ToolOpener tools=\{\[navToolByName\('Expenses', TOOL_GATE\)\]\} \/>/.test(expensesPage)) twoListsFail(`${EXPENSES_PAGE} does not open with Expenses' own registry row (TOOL-LAW-01 rule 3)`);
+  if (/WorkChangesProvider|<Suspense|SectionE_Work|SectionD_ProjectBacklog|DayCard|LedgerSection|HubCalendar/.test(expensesPage)) twoListsFail(`${EXPENSES_PAGE} mounts a provider, a boundary or a component that is not ROUTINE EXPENSES' — the page is the section alone inside the entity provider it reads (EXPENSES-01)`);
+  if ((PHASES_RENDERED_AT['/expenses'] ?? ['?']).length !== 0) twoListsFail(`nav.ts declares /expenses draws [${(PHASES_RENDERED_AT['/expenses'] ?? []).join(' ')}] — it draws nothing`);
   // TIME-01 — the /time container: the day card first, in its Suspense boundary (useSearchParams on a client page), then the
   // ledger. TIME-02 (2026-10-19): the third mount, the content pipeline, is retired — its components and its routes are
   // deleted — so the container is exactly the two, and nothing beneath.
@@ -3545,6 +3572,8 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
     // chip are its; THE WORK keeps "+ task" and its "STATUS: open only" chip. Each table is the shared DataTable (IDIOM-01).
     // PROJECTS-02 (Alex, 2026-10-25): PROJECTS is the shared DataTable too (ProjectsTable over src/lib/operations/projectsTable.ts) — its
     // "STATUS: open only" chip, its CSV and the row's "details" are its; "+ new project" and "show archived" stay the section header's, below.
+    // EXPENSES-01 (Alex, 2026-10-25): ROUTINE EXPENSES' controls are the same controls on Expenses' page, /expenses — the component moved, not
+    // loosened: "+ routine", its "STATUS: active only" chip and its DataTable are held here as before.
     ['src/components/workbench/operations/SectionF_RoutineExpenses.tsx', /ADD_ROUTINE_WORDS/, 'ROUTINE EXPENSES has no "+ routine"'],
     ['src/components/workbench/operations/SectionE_Work.tsx', /ADD_TASK_WORDS/, 'THE WORK has no "+ task"'],
     ['src/components/workbench/operations/SectionE_Work.tsx', /statusChipWords\(/, 'THE WORK hides its STATUS filter — the default must be a visible chip (ruling B)'],
@@ -9405,7 +9434,12 @@ const LEGACY_DELETED_ROUTES: ReadonlyArray<{ file: string; path: string; call: R
   { file: 'src/app/api/trips/[id]/scanner-results/route.ts', path: '/api/trips/[id]/scanner-results', call: /(?:['"`]|\})\/api\/trips\/[^'"`\s]*\/scanner-results\b|['"`]\/scanner-results\b/ },
   { file: 'src/app/api/trips/[id]/destinations/route.ts', path: '/api/trips/[id]/destinations', call: /(?:['"`]|\})\/api\/trips\/[^'"`\s]*\/destinations\b|['"`]\/destinations\b/ },
   { file: 'src/app/api/trips/[id]/commit/route.ts', path: '/api/trips/[id]/commit', call: /(?:['"`]|\})\/api\/trips\/[^'"`\s]*\/commit\b|['"`]\/commit\b/ },
-  { file: 'src/app/api/trips/[id]/expenses/route.ts', path: '/api/trips/[id]/expenses', call: /(?:['"`]|\})\/api\/trips\/[^'"`\s]*\/expenses\b|['"`]\/expenses\b/ },
+  // EXPENSES-01 (Alex, 2026-10-25): '/expenses' is the Expenses tool's HOME now (toolRegistry.ts, nav.ts PHASES_RENDERED_AT, the page's
+  // tests) — a page route, not a call. The bare-segment alternative (`'/expenses'` anywhere) read the home as a call to the deleted
+  // trip route, so it is narrowed to the form it was written for: the last segment built onto '/api/trips/' + id by concatenation
+  // (`+ '/expenses'` — the seed scripts/proofs/legacydel01.seeds.ts:65 plants exactly that and is still caught). The first alternative
+  // (the whole path in one string or template) is unchanged.
+  { file: 'src/app/api/trips/[id]/expenses/route.ts', path: '/api/trips/[id]/expenses', call: /(?:['"`]|\})\/api\/trips\/[^'"`\s]*\/expenses\b|\+\s*['"`]\/expenses\b/ },
   { file: 'src/app/api/trips/[id]/participants/route.ts', path: '/api/trips/[id]/participants', call: /(?:['"`]|\})\/api\/trips\/[^'"`\s]*\/participants\b|['"`]\/participants\b/ },
 ];
 /**

@@ -151,8 +151,9 @@ test('the free set is the registry\'s LIVE tools with no gate; the gate map cove
 });
 
 test('the hero line is the registry\'s counts in words — never typed', () => {
-  assert.equal(heroCountsLine(), 'Twenty-five tools, counted: two live, nine partial, fourteen on the blueprint.');
-  assert.equal(heroCountsLine(TOOL_REGISTRY.filter((t) => t.status !== 'NOT_BUILT')), 'Eleven tools, counted: two live, nine partial, zero on the blueprint.');
+  // EXPENSES-01 (Alex, 2026-10-25): Expenses NOT_BUILT → PARTIAL — ten partial, thirteen on the blueprint (nine and fourteen until then).
+  assert.equal(heroCountsLine(), 'Twenty-five tools, counted: two live, ten partial, thirteen on the blueprint.');
+  assert.equal(heroCountsLine(TOOL_REGISTRY.filter((t) => t.status !== 'NOT_BUILT')), 'Twelve tools, counted: two live, ten partial, zero on the blueprint.');
   assert.equal(numberWord(25), 'twenty-five');
   assert.throws(() => numberWord(26), OfferLawError);
 });

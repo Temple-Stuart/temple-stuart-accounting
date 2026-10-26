@@ -292,13 +292,14 @@ test('T4 sort by BUDGET / ESTIMATE descending puts the dearest first and the bla
 test('T5 /tasks mounts THE WORK, PROJECTS in its Suspense boundary, then ROUTINE EXPENSES; the two-lists law says so', () => {
   const page = code(PAGE);
   // WORK-01d (Alex, 2026-10-25, ruling A): three mounts, in order.
-  assert.match(page, /<div className="space-y-3" data-tool-page="Tasks">\n\s*<SectionE_Work \/>\n\s*<Suspense>\n\s*<SectionD_ProjectBacklog \/>\n\s*<\/Suspense>\n\s*<SectionF_RoutineExpenses \/>\n\s*<\/div>/);
+  // EXPENSES-01 (Alex, 2026-10-25): ROUTINE EXPENSES moved to /expenses (src/app/expenses/page.tsx) — Tasks is THE WORK and PROJECTS. Two mounts, in order.
+  assert.match(page, /<div className="space-y-3" data-tool-page="Tasks">\n\s*<SectionE_Work \/>\n\s*<Suspense>\n\s*<SectionD_ProjectBacklog \/>\n\s*<\/Suspense>\n\s*<\/div>/);
   assert.doesNotMatch(page, /SectionE_Routines/);
   assert.match(comments(PAGE), /WORK-01 \(Alex, 2026-10-24\) — TASKS IS ONE TABLE/);
   assert.match(comments(PAGE), /WORK-01d \(Alex, 2026-10-25, ruling A\): Tasks is three tables/);
   const law = code(LAW);
-  assert.match(law, /const TWO_LISTS_MOUNTS = \['<SectionE_Work \/>', '<SectionD_ProjectBacklog \/>', '<SectionF_RoutineExpenses \/>'\];/);
-  assert.match(law, /pageMounts\.join\(' '\) !== 'SectionE_Work SectionD_ProjectBacklog SectionF_RoutineExpenses'/);
+  assert.match(law, /const TWO_LISTS_MOUNTS = \['<SectionE_Work \/>', '<SectionD_ProjectBacklog \/>'\];/); // EXPENSES-01 (2026-10-25): two — ROUTINE EXPENSES is /expenses'
+  assert.match(law, /pageMounts\.join\(' '\) !== 'SectionE_Work SectionD_ProjectBacklog'/);
   assert.match(comments(LAW), /WORK-01 — the ruling \(Alex, 2026-10-24\): Tasks is ONE TABLE/);
   assert.match(comments(LAW), /WORK-01d — the ruling \(Alex, 2026-10-25\): Tasks is THREE TABLES/);
   const controls = law.slice(law.indexOf('const controls: Array<[string, RegExp, string]> = ['), law.indexOf('for (const [f, re, why] of controls)'));
@@ -477,9 +478,9 @@ test('WORK-01b ruling 3: the page holds one task-change signal — THE WORK bump
   assert.match(c, /const \[version, setVersion\] = useState\(0\);\n\s*const bump = useCallback\(\(\) => setVersion\(\(n\) => n \+ 1\), \[\]\);/, 'React state only');
   assert.match(c, /if \(value === null\) throw new Error\(NO_WORK_CHANGES_PROVIDER_WORDS\);/, 'outside the provider it throws — never a silent no-op');
   assert.doesNotMatch(c, /localStorage|sessionStorage|document\.cookie|dispatchEvent|addEventListener/);
-  // The page wraps the three sections in it, outside the entity provider — the Tasks container's mounts are the law's (WORK-01d: three).
+  // The page wraps the sections in it, outside the entity provider — the Tasks container's mounts are the law's (WORK-01d: three; EXPENSES-01, 2026-10-25: two — ROUTINE EXPENSES is /expenses').
   const page = code(PAGE);
-  assert.match(page, /<WorkChangesProvider>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Tasks">\n\s*<SectionE_Work \/>\n\s*<Suspense>\n\s*<SectionD_ProjectBacklog \/>\n\s*<\/Suspense>\n\s*<SectionF_RoutineExpenses \/>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>\n\s*<\/WorkChangesProvider>/);
+  assert.match(page, /<WorkChangesProvider>\n\s*<OperationsEntityProvider>\n\s*<div className="space-y-3" data-tool-page="Tasks">\n\s*<SectionE_Work \/>\n\s*<Suspense>\n\s*<SectionD_ProjectBacklog \/>\n\s*<\/Suspense>\n\s*<\/div>\n\s*<\/OperationsEntityProvider>\n\s*<\/WorkChangesProvider>/);
   // THE WORK: re-reads on the version; task rows and the new-task form bump.
   const e = code(SECTION_E);
   assert.match(e, /const \{ version: workVersion, bump: taskChanged \} = useWorkChanges\(\);/);

@@ -14,8 +14,10 @@
  *   NOT_BUILT = no beats — no page or route does any of the tool's job (code
  *               that touches the name but belongs to another tool is cited,
  *               not counted).
- * 2 LIVE · 9 PARTIAL · 14 NOT_BUILT — the counts are a LAW below; bump them
- * only with a new dated census.
+ * 2 LIVE · 10 PARTIAL · 13 NOT_BUILT — the counts are a LAW below; bump them
+ * only with a new dated census. (EXPENSES-01 census, Alex, 2026-10-25: Expenses
+ * NOT_BUILT → PARTIAL, ROUTINE EXPENSES being its page; 2 · 9 · 14 stood from
+ * the 2026-09-09 census until then.)
  *
  * `home` is an EXISTING route only — this PR links, it moves nothing. A
  * cockpit-hosted tool also carries `cockpitKey` (the ModuleLauncher section
@@ -103,7 +105,9 @@ const NONE: Beats = { discover: false, decide: false, commit: false, record: fal
 const some = (b: Partial<Beats>): Beats => ({ ...NONE, ...b });
 
 // census 2026-09-09 (TRUTH-01): door by door, the job done for a customer on production.
-export const EXPECTED_STATUS_COUNTS: Readonly<Record<ToolStatus, number>> = { LIVE: 2, PARTIAL: 9, NOT_BUILT: 14 };
+// EXPENSES-01 census (Alex, 2026-10-25): Expenses is PARTIAL — /expenses mounts ROUTINE EXPENSES (the Expenses row below
+// cites its beats); one NOT_BUILT fewer, one PARTIAL more. 2 · 9 · 14 → 2 · 10 · 13.
+export const EXPECTED_STATUS_COUNTS: Readonly<Record<ToolStatus, number>> = { LIVE: 2, PARTIAL: 10, NOT_BUILT: 13 };
 
 const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // ── THE WORK ──
@@ -262,10 +266,47 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     slug: 'payroll', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 9 — no page, route, or model',
     customer: 'You cannot run payroll here yet, or see the taxes that come with it.',
   },
+  // EXPENSES-01 (Alex, 2026-10-25): EXPENSES IS A LIVE TAB. ROUTINE EXPENSES
+  // (SectionF_RoutineExpenses — WORK-01d's third table on /tasks, one row per
+  // routine line: when it is in force, what kind, the account coarse to fine,
+  // who is paid, the schedule, the money, the state, the identifier) is
+  // Expenses' page, /expenses, and its one mount; /tasks is THE WORK and
+  // PROJECTS. The row is re-derived from what the page DOES, by this file's own
+  // standard (the Calendar row above):
+  //   · discover — the two reads beside each other, the routines GET and the
+  //     routines' month GET (SectionF :106-107), each cookie-gated and
+  //     user-scoped before it reads (routines/route.ts:102-110,
+  //     month/route.ts:42-47).
+  //   · decide — NOT claimed: nothing persists a draft (the Calendar row's
+  //     standard). The routine form is React state until its POST; a routine
+  //     exists or it does not.
+  //   · commit — "+ routine" POSTs the routine (RoutineCreateForm.tsx:142 →
+  //     routines/route.ts:145); a row's "edit" PATCHes it (RoutineEditForm.tsx:189
+  //     → routines/[id]/route.ts:152); deactivate / reactivate PATCHes is_active
+  //     (SectionF :236); delete DELETEs it (SectionF :260 → [id]/route.ts:574).
+  //   · record — KEPT by TRUTH-CAL's standard ("the row is read back, badged and
+  //     counted"): the month GET reads back every stop record placed in the
+  //     line's month and every posting linked to its occurrences
+  //     (month/route.ts:60-68 → routineMonth.ts actual_cents, match_cents), and
+  //     the table prints them per line as ACTUAL, MATCH and VARIANCE against the
+  //     budget. The record itself is made elsewhere — the stop on the day card
+  //     ("✓ done now", stops/StopForm.tsx), the posting's link in Books — so
+  //     what is not done for a customer is in `why`: no receipt is matched to the
+  //     charge that made it from this page.
+  // Three beats — discover · commit · record — PARTIAL, at /expenses. Until this
+  // ruling the row was NOT_BUILT: "no expenses tool: the trip cost split that was
+  // Travel's was deleted with the legacy trip planner (LEGACY-DEL-01)" — still
+  // true of trip_expenses (nothing writes it: the trip delete clears a trip's
+  // rows, src/app/api/trips/[id]/route.ts:135, and the export reads them,
+  // src/app/api/export/route.ts:154); it is simply not what Expenses is now.
   Expenses: {
-    slug: 'expenses', status: 'NOT_BUILT', beats: NONE, home: null,
-    citation: "no expenses tool: the trip cost split that was Travel's (src/app/api/trips/[id]/expenses/route.ts) was deleted with the legacy trip planner (LEGACY-DEL-01); nothing writes trip_expenses now — the trip delete clears a trip's rows (src/app/api/trips/[id]/route.ts:135) and the export reads them (src/app/api/export/route.ts:154)",
-    customer: 'Receipts are not yet matched to the charge that made them.',
+    slug: 'expenses', status: 'PARTIAL', beats: some({ discover: true, commit: true, record: true }), home: '/expenses',
+    why: "every recurring expense, planned — its amount, account, cadence and vendor — with this month's budget, what was recorded at its stops and what Books matched, line by line; a receipt is not yet matched to the charge that made it",
+    links: [],
+    citation: 'EXPENSES-01 (2026-10-25): src/app/expenses/page.tsx mounts ROUTINE EXPENSES alone · discover: src/components/workbench/operations/SectionF_RoutineExpenses.tsx:106 (GET /api/operations/routines) · :107 (GET /api/operations/routines/month?as_of=) · commit: routines/RoutineCreateForm.tsx:142 → src/app/api/operations/routines/route.ts:145 (POST) · routines/RoutineEditForm.tsx:189 and SectionF_RoutineExpenses.tsx:236 → routines/[id]/route.ts:152 (PATCH) · SectionF_RoutineExpenses.tsx:260 → routines/[id]/route.ts:574 (DELETE) · record: src/app/api/operations/routines/month/route.ts:60-68 → src/lib/operations/routineMonth.ts (actual_cents, match_cents), read back per line as ACTUAL · MATCH · VARIANCE; not done here: the stop is recorded on the day card (stops/StopForm.tsx) and the posting linked in Books — no receipt is matched to its charge from this page',
+    // The plan law refuses a beat word in a customer sentence ("record" — OFFER-01), so this says "what you actually paid" where the
+    // ruling's suggested line said "what you recorded": the ACTUAL column is the amounts paid at the line's stops.
+    customer: "You can plan every recurring expense — its amount, account, cadence and vendor — and see this month's budget, what you actually paid and what was matched in Books, line by line; receipts are not yet matched to the charge that made them.",
   },
   Travel: {
     slug: 'travel', status: 'LIVE', beats: ALL, home: '/travel', cockpitKey: 'travel',

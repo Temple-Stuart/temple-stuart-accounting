@@ -334,12 +334,13 @@ test('T5 /tasks mounts exactly Projects and Routines — and the law says so wit
   const box = page.slice(page.indexOf('data-tool-page="Tasks"'), page.indexOf('</OperationsEntityProvider>'));
   // BACKLOG-02 (Alex, 2026-10-20): a boundary is back on /tasks — around the projects list ALONE, which reads ?project= and ?new=project (useSearchParams); the day card stays /time's — a boundary is not a mount (the law filters it too: pageMounts).
   // WORK-01d (Alex, 2026-10-25): three tables — THE WORK, PROJECTS, ROUTINE EXPENSES — and the law holds the container to exactly the three.
-  assert.deepEqual([...box.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]).filter((tag) => tag !== 'Suspense'), ['SectionE_Work', 'SectionD_ProjectBacklog', 'SectionF_RoutineExpenses']);
+  // EXPENSES-01 (Alex, 2026-10-25): ROUTINE EXPENSES moved to /expenses (src/app/expenses/page.tsx) — Tasks is THE WORK and PROJECTS. Two mounts, in order. The law holds the container to exactly the two (expenses01.test.ts holds /expenses to ROUTINE EXPENSES alone).
+  assert.deepEqual([...box.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]).filter((tag) => tag !== 'Suspense'), ['SectionE_Work', 'SectionD_ProjectBacklog']);
   assert.doesNotMatch(page, /WeekSection|SectionC_DailyPlan|TodaysStrip/);
   const law = code(LAW);
-  assert.match(law, /const TWO_LISTS_MOUNTS = \['<SectionE_Work \/>', '<SectionD_ProjectBacklog \/>', '<SectionF_RoutineExpenses \/>'\];/);
+  assert.match(law, /const TWO_LISTS_MOUNTS = \['<SectionE_Work \/>', '<SectionD_ProjectBacklog \/>'\];/);
   assert.match(comments(LAW), /TASKS-ONE-02 — the ruling \(Alex, 2026-10-14\): the day card replaces the week grid, the Daily plan and the\s*\n\s*\/\/ Today strip\./);
-  assert.match(law, /pageMounts\.join\(' '\) !== 'SectionE_Work SectionD_ProjectBacklog SectionF_RoutineExpenses'/, 'the law holds the container to exactly three');
+  assert.match(law, /pageMounts\.join\(' '\) !== 'SectionE_Work SectionD_ProjectBacklog'/, 'the law holds the container to exactly two');
 });
 
 test('T5 the routines section drops Today — on /tasks and in the cockpit that mounts it', () => {

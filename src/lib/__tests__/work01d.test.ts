@@ -182,15 +182,18 @@ test('the two chips\' words are the named default\'s alone — any other narrowi
 
 // ── RULING A · THE PAGE AND THE LAW ──────────────────────────────────────────
 
-test('A /tasks mounts THE WORK, PROJECTS (in its boundary) and ROUTINE EXPENSES, in that order; the two-lists law holds exactly the three', () => {
+// EXPENSES-01 (Alex, 2026-10-25): ROUTINE EXPENSES moved to /expenses (src/app/expenses/page.tsx) — Tasks is THE WORK and PROJECTS. Two mounts, in order. The three tables are still three DataTables, each its own name — the third on its own tool's page (expenses01.test.ts).
+test('A /tasks mounts THE WORK and PROJECTS (in its boundary), in that order; the two-lists law holds exactly the two (EXPENSES-01 moved ROUTINE EXPENSES to /expenses)', () => {
   const page = code(PAGE);
   const box = page.slice(page.indexOf('data-tool-page="Tasks"'), page.indexOf('</OperationsEntityProvider>'));
-  assert.deepEqual([...box.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['SectionE_Work', 'Suspense', 'SectionD_ProjectBacklog', 'SectionF_RoutineExpenses']);
+  assert.deepEqual([...box.matchAll(/<([A-Z]\w*)\b/g)].map((m) => m[1]), ['SectionE_Work', 'Suspense', 'SectionD_ProjectBacklog']);
   assert.match(comments(PAGE), /WORK-01d \(Alex, 2026-10-25, ruling A\): Tasks is three tables/);
+  assert.match(comments(PAGE), /EXPENSES-01 \(Alex, 2026-10-25, ruling B\) — TASKS IS THE WORK AND PROJECTS/);
   const law = code(LAW);
-  assert.match(law, /const TWO_LISTS_MOUNTS = \['<SectionE_Work \/>', '<SectionD_ProjectBacklog \/>', '<SectionF_RoutineExpenses \/>'\];/);
-  assert.match(law, /pageMounts\.join\(' '\) !== 'SectionE_Work SectionD_ProjectBacklog SectionF_RoutineExpenses'/);
+  assert.match(law, /const TWO_LISTS_MOUNTS = \['<SectionE_Work \/>', '<SectionD_ProjectBacklog \/>'\];/);
+  assert.match(law, /pageMounts\.join\(' '\) !== 'SectionE_Work SectionD_ProjectBacklog'/);
   assert.match(comments(LAW), /WORK-01d — the ruling \(Alex, 2026-10-25\): Tasks is THREE TABLES/);
+  assert.match(comments(LAW), /EXPENSES-01 — the ruling \(Alex, 2026-10-25\): Expenses is a LIVE TAB/);
   for (const re of [/SectionF_RoutineExpenses\.tsx', \/ADD_ROUTINE_WORDS\//, /SectionE_Work\.tsx', \/ADD_TASK_WORDS\//, /SectionF_RoutineExpenses\.tsx', \/statusChipWords\\\(\//, /SectionF_RoutineExpenses\.tsx', \/<DataTable\//]) assert.match(law, re, `the law holds ${re}`);
   // Three sections, each the shared DataTable, each its own name; neither of the two reads the other's rows.
   const e = code(SECTION_E); const f = code(SECTION_F);

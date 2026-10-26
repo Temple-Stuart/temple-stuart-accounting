@@ -406,5 +406,6 @@ test('D a project update in the details — save, scope, archive, unarchive, del
   // Only THE WORK and PROJECTS' rows read the signal (work01 pins the pair); the reader reads the version, the row the bump.
   assert.equal((r.match(/useWorkChanges\(\)/g) ?? []).length, 2);
   assert.match(comments(LAW), /PROJECTS-02 \(Alex, 2026-10-25\): PROJECTS is the shared DataTable too/);
-  assert.match(code(LAW), /const TWO_LISTS_MOUNTS = \['<SectionE_Work \/>', '<SectionD_ProjectBacklog \/>', '<SectionF_RoutineExpenses \/>'\];/, 'the two-lists mount is unchanged');
+  // EXPENSES-01 (Alex, 2026-10-25): ROUTINE EXPENSES moved to /expenses (src/app/expenses/page.tsx) — Tasks is THE WORK and PROJECTS. Two mounts, in order.
+  assert.match(code(LAW), /const TWO_LISTS_MOUNTS = \['<SectionE_Work \/>', '<SectionD_ProjectBacklog \/>'\];/, 'the two-lists mount holds THE WORK and PROJECTS');
 });
