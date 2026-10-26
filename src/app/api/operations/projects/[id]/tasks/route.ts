@@ -5,6 +5,15 @@
  *        in_progress first, then blocked, then completed/cancelled),
  *        then display_order ASC, then deadline ASC NULLS LAST.
  *        No audit (read-only).
+ *        TASKS-03 (Alex, 2026-10-26, ruling B): each task also carries,
+ *        additively, match_cents (number | null), match_links and
+ *        match_unreadable — the postings linked to it in Books
+ *        (planned_item_links target_kind 'project_task'), read in ONE query
+ *        for the project's tasks with POSTING_LINES_SELECT, user-scoped
+ *        through the caller's journal entries as the ledger route scopes
+ *        its links, and summed by src/lib/operations/taskMatch.ts (the
+ *        ledger's matchOf; an unreadable posting counted and the sum blank).
+ *        Every other caller of this GET reads the same tasks as before.
  *
  * POST — create a task. Server inherits entity_id from parent project
  *        (β-1: tasks denormalize entity_id for index speed; never
@@ -24,6 +33,8 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { carriesPlanMoney, planMoney, type PlanBook } from '@/lib/operations/planMoney';
 import { loadPlanBook } from '@/lib/operations/loadPlanBook';
+import { POSTING_LINES_SELECT } from '@/lib/calendar/postingAmount';
+import { taskMatchOf, taskMatchesOf } from '@/lib/operations/taskMatch';
 
 const STATUS_ORDER: Record<OperationsTaskStatus, number> = {
   // PHASE2-1: auto-fired tasks awaiting the user's accept sort FIRST (need attention).
@@ -85,7 +96,16 @@ export async function GET(
       return 0;
     });
 
-    return NextResponse.json({ tasks: sorted });
+    // TASKS-03 (ruling B): the caller's links of these tasks, with each posting's lines — one query, never one per task;
+    // scoped to the caller twice, as the ledger route scopes its links (the link's user and the posting's user).
+    const linkRows = sorted.length === 0 ? [] : await prisma.planned_item_links.findMany({
+      where: { user_id: user.id, target_kind: 'project_task', target_id: { in: sorted.map((t) => t.id) }, journal_entry: { userId: user.id } },
+      select: { target_kind: true, target_id: true, target_instant: true, journal_entry_id: true, journal_entry: { select: POSTING_LINES_SELECT } },
+      orderBy: { linked_at: 'asc' },
+    });
+    const matches = taskMatchesOf(linkRows);
+
+    return NextResponse.json({ tasks: sorted.map((t) => ({ ...t, ...taskMatchOf(matches, t.id) })) });
   } catch (error) {
     return failClosedResponse('Tasks GET', 'Failed to load tasks', error);
   }

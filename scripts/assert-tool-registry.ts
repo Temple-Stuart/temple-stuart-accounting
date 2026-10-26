@@ -3670,10 +3670,17 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
 }
 
 // 5. the why is a customer's line.
+// TASKS-03 (Alex, 2026-10-26): Tasks is LIVE, and the registry law holds a `why` to a PARTIAL row — so the row carries none, and
+// the line a customer reads is the customer sentence. The founder-note check runs on both lines, whichever the row carries; the
+// empty-why check binds a four-beat PARTIAL, as it did; a LIVE row carrying a why is the registry law's refusal, named here too.
 {
-  const why = TOOL_REGISTRY.find((t) => t.name === 'Tasks')?.why ?? '';
+  const tasksRow = TOOL_REGISTRY.find((t) => t.name === 'Tasks');
+  const why = tasksRow?.why ?? '';
   if (/founder|Claude Code|paid|build pipeline/i.test(why)) twoListsFail(`the Tasks registry why carries the founder's build note — it is a customer's line; the note is a code comment beside the row`);
-  if (!why.trim()) twoListsFail('the Tasks registry why is empty — a four-beat PARTIAL says what is not done for a customer');
+  if (/founder|Claude Code|paid|build pipeline/i.test(tasksRow?.customer ?? '')) twoListsFail('the Tasks customer line carries the founder build note — the note is a code comment beside the row');
+  if (tasksRow?.status === 'PARTIAL' && !why.trim()) twoListsFail('the Tasks registry why is empty — a four-beat PARTIAL says what is not done for a customer');
+  if (tasksRow?.status === 'LIVE' && why.trim()) twoListsFail('the Tasks registry row is LIVE and carries a why — a why belongs to a PARTIAL row (TASKS-03)');
+  if (!(tasksRow?.customer ?? '').trim()) twoListsFail('the Tasks registry row has no customer line — the one line a plan row shows (WHY-01)');
 }
 
 if (twoListsViolations === 0) console.log(`✔ The two-lists law passed — /tasks' tree mounts no StageStrip and no ProofStrip, and the page labels no pipe; ${STREAK_WRITERS.length} streak writers untouched while no page or component reads or draws a streak; a project delete runs the one deletion leaf inside its transaction, refuses 409 naming the task on any of five live links, and the row previews before it confirms; no operations header wears a letter; the Tasks why is a customer's line.`);

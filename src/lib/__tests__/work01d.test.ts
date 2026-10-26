@@ -115,8 +115,9 @@ test('B the default chip "STATUS: open only" drops the done, the cancelled and t
   assert.equal(done.csv(T_ROWS[1]), '2026-10-24T10:00:00.000Z');
   assert.equal(done.words(T_ROWS[0]), '—');
   assert.equal(workCsvFileName('2026-10-25'), 'work_2026-10-25.csv');
-  assert.deepEqual([...TASK_COLUMNS], ['task', 'project', 'book', 'status', 'deadline', 'estimate', 'account', 'done']);
-  assert.deepEqual(TASK_COLUMNS.map((k) => TASK_HEAD_WORDS[k]), ['TASK', 'PROJECT', 'BOOK', 'STATUS', 'DEADLINE', 'ESTIMATE', 'ACCOUNT', 'DONE']);
+  // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13.
+  assert.deepEqual([...TASK_COLUMNS], ['task', 'project', 'book', 'status', 'deadline', 'estimate', 'actual', 'match', 'account', 'done']);
+  assert.deepEqual(TASK_COLUMNS.map((k) => TASK_HEAD_WORDS[k]), ['TASK', 'PROJECT', 'BOOK', 'STATUS', 'DEADLINE', 'ESTIMATE', 'ACTUAL', 'MATCH', 'ACCOUNT', 'DONE']);
   assert.equal(TASK_TABLE_NAME, 'work');
 });
 

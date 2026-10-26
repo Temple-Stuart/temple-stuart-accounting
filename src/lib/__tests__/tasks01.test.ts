@@ -283,8 +283,9 @@ test('no 🔥 — no streak renders on any customer surface; the writers and the
 test('the registry why is a customer\'s line; the founder note is a code comment; the row carries no link', () => {
   const tasks = TOOL_REGISTRY.find((t) => t.name === 'Tasks')!;
   assert.doesNotMatch(tasks.why ?? '', /founder|Claude Code|paid|build pipeline/i);
-  assert.match(tasks.why ?? '', /a task's actual cost is still typed by hand/, 'what is not done for a customer, named');
-  assert.equal(tasks.status, 'PARTIAL');
+  // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13. The why left with the status — the typed cost is what ACTUAL means, not a gap.
+  assert.equal(tasks.why, undefined);
+  assert.equal(tasks.status, 'LIVE');
   assert.deepEqual(tasks.beats, { discover: true, decide: true, commit: true, record: true });
   // The founder's note moved into the comment beside the row — prose, read as prose.
   assert.match(comments('src/lib/toolRegistry.ts'), /accepting a task fires a paid Claude Code\s*\n?\s*\/\/\s*build; not a customer's task tool/);

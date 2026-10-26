@@ -256,6 +256,15 @@ export interface Task {
   created_at: string;
   updated_at: string;
   created_by: string | null;
+  /**
+   * TASKS-03 (Alex, 2026-10-26, ruling B): the postings linked to the task in Books, as the
+   * project tasks GET adds them (src/lib/operations/taskMatch.ts): the sum in cents, or null
+   * with no link or an unreadable posting; how many links; how many the rule could not read.
+   * Optional: a task that did not come from that GET (a POST's answer, a PATCH's) carries none.
+   */
+  match_cents?: number | null;
+  match_links?: number;
+  match_unreadable?: number;
 }
 
 /**

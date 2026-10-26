@@ -41,6 +41,13 @@
  * one table of every routine line and every task with a KIND column; WORK-01d
  * split that table in two — the routines went to SectionF_RoutineExpenses, and
  * KIND left with the merge.
+ *
+ * TASKS-03 (Alex, 2026-10-26, ruling A): THE WORK prints the ledger's pair —
+ * ACTUAL (actual_cost_usd as logged) and MATCH (the postings linked to the task
+ * in Books, which the tasks GET now carries per task: match_cents · match_links
+ * · match_unreadable, ruling B) — between ESTIMATE and ACCOUNT, drawn through the
+ * same WorkCell as every other column; the spec is work.ts taskTable. Nothing
+ * else here changed.
  */
 
 'use client';

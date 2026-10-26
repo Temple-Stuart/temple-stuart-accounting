@@ -27,7 +27,8 @@ test('no tool\'s rendered line is a citation — a tool with no `why` gets no li
   // customer's language, why it is still PARTIAL).
   // EXPENSES-02 (Alex, 2026-10-26): Expenses is LIVE — a LIVE row carries no why, so its opener prints no line, like Travel's and Bookkeeping's.
   const silent = navRows(TOOL_GATE).filter((t) => t.href && t.line === null).map((t) => t.name);
-  assert.deepEqual(silent, ['Expenses', 'Travel', 'Banking', 'Bookkeeping', 'Tax', 'Compliance']);
+  // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13. A LIVE Tasks carries no why either.
+  assert.deepEqual(silent, ['Tasks', 'Expenses', 'Travel', 'Banking', 'Bookkeeping', 'Tax', 'Compliance']);
 });
 
 test('the opener renders no file path, for any tool, on any page', () => {
