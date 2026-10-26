@@ -225,7 +225,8 @@ test('A the merged table\'s KIND stays gone: no workRowsOf, workTable, WORK_KIND
 test('D THE LOG\'s read is unchanged — readBacklog in dayReads.ts byte for byte (its sha256), and MorningLog.tsx untouched; PROJECTS keeps its section', () => {
   const fn = functionBody(code(DAY_READS), 'readBacklog');
   assert.ok(fn !== null, 'readBacklog is there');
-  assert.equal(createHash('sha256').update(fn!).digest('hex'), 'e15f77bea1a202914796e9fca4ddbd8ce3dfa2fbd7022385ff76ab8c5fb75636', 'THE LOG\'s read as it stood on main at 76094d20 (2026-10-25)');
+  // WORK-02 (Alex, 2026-10-26): THE WORK BLOCK — on an execute stop the card lists the open tasks to tick and the tasks done inside the block by completed_at; the backlog read is the same read, asked with the day's bounds on a day with an execute stop (work02.test.ts). The read grew by the optional window — re-pinned on its new bytes (e15f77be… stood from 76094d20, 2026-10-25, until then).
+  assert.equal(createHash('sha256').update(fn!).digest('hex'), '73bcaf355c50391abdfbf5aff3163e0b182540172b0e1ba911b34f929bbcdbe9', 'THE LOG\'s read as it stands with WORK-02 (2026-10-26)');
   assert.doesNotMatch(code(DAY_READS) + comments(DAY_READS), /WORK-01d/);
   assert.doesNotMatch(code(MORNING_LOG) + comments(MORNING_LOG), /WORK-01/);
   assert.doesNotMatch(code(SECTION_D) + comments(SECTION_D), /WORK-01d/, 'PROJECTS is unchanged');

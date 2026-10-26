@@ -203,6 +203,7 @@ import type { BudgetReportResponse } from '@/lib/budget/reportInputs';
 import { shiftDay } from '@/lib/budget/reportView';
 import { zonedToInstant } from '@/lib/time';
 import type { LogProject } from '@/lib/operations/morningLog';
+import { dayWindowOf, showsWorkBlock } from '@/lib/operations/workBlock';
 import { localToday } from '@/lib/localToday';
 import type { DailyPlanItem } from '../dailyplan/types';
 import RefusedRoutines from '../routines/RefusedRoutines';
@@ -217,6 +218,7 @@ import EveningForm from '../stops/EveningForm';
 import { setJournal as writeJournal } from '../stops/journalWrites';
 import StopForm from '../stops/StopForm';
 import StopVendor from '../stops/StopVendor';
+import WorkBlock from '../stops/WorkBlock';
 import AttachRecord from '../stops/AttachRecord';
 import { onDayWritten } from '../dayWritten';
 import { ACCOUNT_CELL_WORDS } from '@/lib/coa/accountCell';
@@ -558,6 +560,8 @@ export default function DayCard() {
   const day = today === null ? null : dateParam !== null && isIsoDay(dateParam) ? dateParam : today;
   // The day has a journal stop: a routine whose role is journal occurs on it (the today read's entries, landed for THIS day).
   const hasJournalStop = readsDay === day && dayRead !== null && dayRead.ok && dayRead.value.entries.some((e) => e.routine.role === 'journal');
+  // WORK-02 (Alex, 2026-10-26): the day has an execute stop — THE WORK BLOCK reads the backlog too, with the day's bounds.
+  const hasExecuteStop = readsDay === day && dayRead !== null && dayRead.ok && dayRead.value.entries.some((e) => e.routine.role === 'execute');
 
   useEffect(() => {
     if (day === null || today === null) return;
@@ -639,15 +643,18 @@ export default function DayCard() {
   }, [day, hasJournalStop]);
 
   // JOURNAL-06: THE BACKLOG — the projects not done (dayReads.ts readBacklog), for a day with a journal stop; again after any write the card knows of.
+  // WORK-02 (Alex, 2026-10-26): and for a day with an execute stop — THE WORK BLOCK's TO DO is the same read, asked with the DAY's bounds in the
+  // viewer's zone (dayWindowOf) so each project also carries the tasks done today; the block narrows to its window client-side.
   useEffect(() => {
-    if (day === null || !hasJournalStop) return;
+    if (day === null || !(hasJournalStop || hasExecuteStop)) return;
+    const doneWindow = hasExecuteStop && zone !== null ? dayWindowOf(day, zone) : null;
     let live = true;
     (async () => {
-      const b = await readBacklog();
+      const b = await readBacklog(doneWindow);
       if (live) setBacklog({ day, read: b });
     })();
     return () => { live = false; };
-  }, [day, hasJournalStop, journalReads, recordReads, dayWrites, logReads]);
+  }, [day, zone, hasJournalStop, hasExecuteStop, journalReads, recordReads, dayWrites, logReads]);
 
   // JOURNAL-06: WHAT MOVED TODAY — the operations_ audit-log slice between the day's midnight and the next IN THE VIEWER'S ZONE (zonedToInstant);
   // the window ends the last millisecond before the next day's midnight (the route's `before` is inclusive), so the next day's first write is not this day's.
@@ -1106,6 +1113,12 @@ export default function DayCard() {
       {/* VENDOR-02 (2026-10-14): the stop's VENDOR, directly above the record row — Budget's own box for every priced stop, a place stop's one reason, else nothing (vendorSlot). A write reads the report again, so the plate's VENDOR shows it; keyed by the stop, so a swipe starts a fresh box. */}
       {loaded && focus !== null && (
         <StopVendor key={focus.stop.key} slot={vendorSlot(focus.stop, reportRead)} bookName={focus.stop.planLine === null ? ACCOUNT_CELL_WORDS.bookNotLoaded : bookNameOf(focus.stop.planLine.entityId)} reload={() => setReportReads((n) => n + 1)} />
+      )}
+
+      {/* WORK-02 (Alex, 2026-10-26): THE WORK BLOCK — on an execute stop alone (showsWorkBlock), between the VENDOR row and the record form: TO DO (the backlog's open tasks, ✓ through the one writer) and
+          DONE IN THIS BLOCK (by completed_at, inside the block's window); a write reads the backlog again (logReads). Never on the journal card. */}
+      {loaded && focus !== null && showsWorkBlock(focus.stop) && (
+        <WorkBlock key={focus.stop.key} stop={focus.stop} day={day} viewerZone={zone} log={backlogRead} onChanged={() => setLogReads((n) => n + 1)} />
       )}
 
       {/* STOP-01: the record, typed under the plate on the step view — outside the recorded box; a write reads the records again. Keyed by the stop and its record so each starts from what is held; never offered while the records could not be read (a save would write over a record the screen cannot see). */}

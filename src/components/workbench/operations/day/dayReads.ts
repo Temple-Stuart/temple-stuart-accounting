@@ -12,7 +12,9 @@
  *   · GET /api/operations/stops?day=<day>                 readStopRecords, here (STOP-01)
  *   · GET /api/operations/journal?day=<day>               readJournal, here (JOURNAL-01)
  *   · GET /api/operations/projects                        readBacklog, here (JOURNAL-06 — the reflection prompt's THE BACKLOG;
- *                                                         BACKLOG-02 — and the morning card's THE LOG, the same one read)
+ *                                                         BACKLOG-02 — and the morning card's THE LOG, the same one read;
+ *                                                         WORK-02 — and THE WORK BLOCK's TO DO; with ?done_from=&done_to= on a
+ *                                                         day with an execute stop, each row also carries the tasks done today)
  *   · GET /api/audit-log?prefix=operations_&after=&before=&limit=500   readMovedToday, here (JOURNAL-06 — WHAT MOVED TODAY)
  *
  * The report's answer is read exactly as the week reads its own (readReport):
@@ -27,7 +29,8 @@
  */
 import type { BudgetReportResponse } from '@/lib/budget/reportInputs';
 import type { JournalRow, ReflectionMovedRow } from '@/lib/operations/journal';
-import { OPEN_PROJECT_STATUSES, type LogProject, type LogTask } from '@/lib/operations/morningLog';
+import { OPEN_PROJECT_STATUSES, type LogDoneTask, type LogProject, type LogTask } from '@/lib/operations/morningLog';
+import type { BlockWindow } from '@/lib/operations/workBlock';
 import { AUDIT_READ_LIMIT, backlogOrder } from '@/lib/operations/journal';
 import type { StayRow } from '@/lib/operations/stay';
 import type { StopRecordPlan, StopRecordRow } from '@/lib/operations/stopRecord';
@@ -109,9 +112,12 @@ export const backlogFailedWords = (words: string): string => `The backlog could 
  * BACKLOG-02 (Alex, 2026-10-20): the SAME read feeds THE LOG on the morning card — each row also carries its id, its
  * book and `open_tasks` (the GET's tasks not done, in display_order); a row without them, or a task without its id,
  * title, status or order, is a failure in words — the log is never drawn from a partial answer.
+ * WORK-02 (Alex, 2026-10-26): the SAME read feeds THE WORK BLOCK — with a window (the day's bounds in the viewer's zone)
+ * the GET is asked ?done_from=&done_to= and each row also carries `doneTasks` (the GET's done_tasks: id, title, completed_at);
+ * a row without them, or a done task without its facts, is a failure in words. Without a window the read is as it was.
  */
-export async function readBacklog(): Promise<Read<readonly LogProject[]>> {
-  const read = await readJson('/api/operations/projects');
+export async function readBacklog(done: BlockWindow | null = null): Promise<Read<readonly LogProject[]>> {
+  const read = await readJson(done === null ? '/api/operations/projects' : `/api/operations/projects?${new URLSearchParams({ done_from: done.from.toISOString(), done_to: done.to.toISOString() })}`);
   if (!read.ok) return { ok: false, words: backlogFailedWords(read.words) };
   if (!Array.isArray(read.value.projects)) return { ok: false, words: backlogFailedWords('the projects came back without their list') };
   const rows: LogProject[] = [];
@@ -124,10 +130,20 @@ export async function readBacklog(): Promise<Read<readonly LogProject[]>> {
       if (typeof t.id !== 'string' || typeof t.title !== 'string' || typeof t.status !== 'string' || typeof t.display_order !== 'number') return { ok: false, words: backlogFailedWords(`a task of "${p.title}" came back without its id, title, status or order`) };
       tasks.push({ id: t.id, title: t.title, status: t.status, displayOrder: t.display_order });
     }
+    // WORK-02: the done tasks, only when a window was asked — the GET answers done_tasks only then.
+    const doneTasks: LogDoneTask[] = [];
+    if (done !== null) {
+      if (!Array.isArray(p.done_tasks)) return { ok: false, words: backlogFailedWords(`"${p.title}" came back without its done tasks`) };
+      for (const t of p.done_tasks as Record<string, unknown>[]) {
+        if (typeof t.id !== 'string' || typeof t.title !== 'string' || typeof t.completed_at !== 'string') return { ok: false, words: backlogFailedWords(`a done task of "${p.title}" came back without its id, title or completed_at`) };
+        doneTasks.push({ id: t.id, title: t.title, completedAt: t.completed_at });
+      }
+    }
     rows.push({
       id: p.id,
       entityId: p.entity_id,
       tasks,
+      ...(done === null ? {} : { doneTasks }),
       rank: typeof p.rank === 'number' ? p.rank : null,
       title: p.title,
       type: typeof p.type === 'string' ? p.type : null,

@@ -44,12 +44,21 @@ export interface LogTask {
   readonly status: string;
   readonly displayOrder: number;
 }
+/** WORK-02 (Alex, 2026-10-26): one task done today under its project, as the projects GET answers it (done_tasks, when asked for a window). */
+export interface LogDoneTask {
+  readonly id: string;
+  readonly title: string;
+  /** The completion's instant, ISO text — THE WORK BLOCK narrows to the block by it. */
+  readonly completedAt: string;
+}
 /** One open project of THE LOG — the reflection prompt's backlog row (journal.ts) plus what the card acts on. */
 export interface LogProject extends ReflectionBacklogRow {
   readonly id: string;
   readonly entityId: string;
   /** Its open tasks, in display_order. */
   readonly tasks: readonly LogTask[];
+  /** WORK-02: its tasks done in the window the read asked for (completed_at order) — present only when a window was asked. */
+  readonly doneTasks?: readonly LogDoneTask[];
 }
 
 /** Rank order: rank ascending, unranked last, then by title — the same order however the rows arrive. */
