@@ -23,6 +23,11 @@
  * re-reads the routines and their month (ruling B) — the VENDOR cell shows what
  * the server holds, never an optimistic copy. React state only: the typed text
  * and the last refusal; the directory is read while the panel is open.
+ *
+ * The panel's row spans the whole 150rem table; the panel itself sticks to the
+ * scroll container's left edge (sticky left-0) so it is in view wherever the
+ * row was scrolled to when "vendor" was clicked — the control sits at the far
+ * right of the row.
  */
 
 'use client';
@@ -66,7 +71,7 @@ export default function RoutineVendorPanel({ row, control, bookName, onChanged, 
   // The refusal: printed by name, nothing offered, nothing written (ruling A).
   if (control.kind === 'refusal') {
     return (
-      <div className="flex flex-wrap items-center gap-2 text-xs" {...dataAttr(name, 'vendor-panel', row.id)} {...dataAttr(name, 'vendor-refusal')}>
+      <div className="sticky left-0 flex max-w-3xl flex-wrap items-center gap-2 text-xs" {...dataAttr(name, 'vendor-panel', row.id)} {...dataAttr(name, 'vendor-refusal')}>
         <span className="text-text-muted">{control.words}</span>
         <button type="button" className="text-text-faint underline" onClick={onClose} {...dataAttr(name, 'vendor-close')}>close</button>
       </div>
@@ -97,7 +102,7 @@ export default function RoutineVendorPanel({ row, control, bookName, onChanged, 
 
   const choices = directory.vendors === null ? null : offeredOf(typed, directory.vendors, bookId);
   return (
-    <div className="flex flex-col gap-1.5 text-xs" {...dataAttr(name, 'vendor-panel', row.id)}>
+    <div className="sticky left-0 flex max-w-3xl flex-col gap-1.5 text-xs" {...dataAttr(name, 'vendor-panel', row.id)}>
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-text-faint uppercase tracking-wide">vendor · {bookName}</span>
         {control.held !== null && (
