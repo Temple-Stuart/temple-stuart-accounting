@@ -45,7 +45,7 @@ export interface BlockStop {
   readonly time: string | null;
   /** The routine's zone; null for a task. */
   readonly zone: string | null;
-  /** The line's duration_minutes; null for a stepless routine, a line that states none, and a task. */
+  /** The stop's planned minutes by the day card's one rule (dayCard.ts plannedMinutesOf): a line's duration_minutes; WORK-03b (Alex, 2026-10-26), a stepless routine's window length (start_time to end_time); null for a line that states none, a stepless routine without a window, and a task. */
   readonly minutes: number | null;
 }
 
@@ -55,7 +55,7 @@ export interface BlockWindow {
 }
 
 /**
- * [the stop's planned instant, + the line's minutes]: the planned instant is the stop's clock in the routine's zone on
+ * [the stop's planned instant, + the stop's minutes (the day card's one rule)]: the planned instant is the stop's clock in the routine's zone on
  * the card's day (dayCard.ts draws the lateness from the same instant); null without minutes — the block has no length —
  * and (WORK-03, WORK-02 call 4 ruled 2026-10-26) null for ≤ 0 minutes too: a zero or negative length is no length.
  * A stop with minutes but no clock is the card's error, thrown by name.
@@ -81,24 +81,26 @@ export function doneInBlockOf<T extends LogDoneTask>(tasks: readonly T[], block:
 /** WORK-03: every project carries its done tasks — the read was asked with the window (dayReads.ts readBacklog); false when the card read the backlog without one. */
 export const carriesDoneTasks = (projects: readonly Pick<LogProject, 'title' | 'doneTasks'>[]): boolean => projects.every((p) => p.doneTasks !== undefined);
 /** WORK-03: no execute stop's list yet — the reel's `done` until the backlog read is in (the reel waits on it by name). */
-export const NO_DONE_IN_BLOCKS: ReadonlyMap<string, readonly LogDoneTask[]> = new Map();
+export const NO_DONE_IN_BLOCKS: ReadonlyMap<string, readonly LogDoneTask[] | null> = new Map();
 /**
  * WORK-03 (Alex, 2026-10-26): the tasks done in EACH execute stop's block, by the stop's key — the day's done tasks (every
- * project's, from the backlog read with the day's window) narrowed per stop by blockWindowOf and doneInBlockOf, so a stop with
- * no length maps to none. Only the execute stops are keyed (showsWorkBlock). A project read without its done tasks is the
- * card's error, thrown by name — the card asks for the day's window on a day with an execute stop.
+ * project's, from the backlog read with the day's window) narrowed per stop by blockWindowOf and doneInBlockOf. Only the
+ * execute stops are keyed (showsWorkBlock). A project read without its done tasks is the card's error, thrown by name — the
+ * card asks for the day's window on a day with an execute stop.
+ * WORK-03b (Alex, 2026-10-26): a stop with no length (blockWindowOf null) maps to null — not an empty list: nothing could be
+ * counted in it, and the reel prints no block line for it (dayCard.ts stopSceneLines).
  */
-export function doneInBlocksOf(stops: readonly BlockStop[], day: string, projects: readonly Pick<LogProject, 'title' | 'doneTasks'>[]): ReadonlyMap<string, readonly LogDoneTask[]> {
+export function doneInBlocksOf(stops: readonly BlockStop[], day: string, projects: readonly Pick<LogProject, 'title' | 'doneTasks'>[]): ReadonlyMap<string, readonly LogDoneTask[] | null> {
   const all: LogDoneTask[] = [];
   for (const p of projects) {
     if (p.doneTasks === undefined) throw new Error(`workBlock: "${p.title}" was read without its done tasks — the card asks for the day's window on a day with an execute stop`);
     all.push(...p.doneTasks);
   }
-  const map = new Map<string, readonly LogDoneTask[]>();
+  const map = new Map<string, readonly LogDoneTask[] | null>();
   for (const s of stops) {
     if (!showsWorkBlock(s)) continue;
     const block = blockWindowOf(s, day);
-    map.set(s.key, block === null ? [] : doneInBlockOf(all, block));
+    map.set(s.key, block === null ? null : doneInBlockOf(all, block));
   }
   return map;
 }

@@ -10,6 +10,8 @@
  * the step view and the record form are unchanged; no schema, no migration, no route (ruling E). The pure rules are driven over the
  * reel's own fixture and a day with an execute line; every other stop's scene and caption are proved byte-identical against the
  * texts captured before this change; the card is pinned to its source with comments stripped.
+ * WORK-03b (Alex, 2026-10-26): a block with no length maps to null — no block line (work03b.test.ts); the pins below that held the
+ * empty list and the "Nothing ticked" line for a no-length block moved there, each with its note.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -156,7 +158,7 @@ test('B the caption: "<name>: 2 tasks done" after the execute stop’s money lin
 
 // ── BYTE FOR BYTE · EVERY OTHER STOP ─────────────────────────────────────────
 
-test('every other stop’s scene and caption are byte-identical to the texts captured before this change — the reel’s own day, half and full; the place stop’s and the skipped stop’s step-view scenes; the execute stop with nothing ticked gains its one line', () => {
+test('every other stop’s scene and caption are byte-identical to the texts captured before this change — the reel’s own day, half and full; the place stop’s and the skipped stop’s step-view scenes; the execute stop with no length gains no line (WORK-03b)', () => {
   const half = build(HALF);
   const full = build(FULL, { taskActual: '8.50' });
   const text = (t: ReturnType<typeof captionText>) => { assert.ok(t.ok); return t.text; };
@@ -167,7 +169,8 @@ test('every other stop’s scene and caption are byte-identical to the texts cap
   const stopOf = (id: string) => half.stops.find((s) => s.key === `routine:${id}:${STOPS.find((x) => x.id === id)?.at}`)!;
   assert.equal(text(stopScriptText(DAY, STAY, stopOf('brunch'))), BEFORE.brunch);
   assert.equal(text(stopScriptText(DAY, STAY, stopOf('gym'))), BEFORE.gym);
-  assert.equal(text(stopScriptText(DAY, STAY, stopOf('cowork'), [])), `${BEFORE.cowork.split('\n').slice(0, 2).join('\n')}\n${NOTHING_TICKED_WORDS}\n${BEFORE.cowork.split('\n').slice(2).join('\n')}`, 'Co-working (execute, stepless, no money): the one line after the note line');
+  // WORK-03b (Alex, 2026-10-26): Co-working is stepless with no window — no length — so the card hands null and the scene carries no block line: REEL-01's bytes. A block with length and nothing ticked still says so (test A, `[]`).
+  assert.equal(text(stopScriptText(DAY, STAY, stopOf('cowork'), null)), BEFORE.cowork, 'Co-working (execute, stepless, no window, no money): no block line');
   assert.equal(BEFORE.cowork, 'Co-working.\n[what you got]\n[stars] out of 5.');
   // The fixture composes `done` as the card does — nothing ticked, so the reel's own day is as REEL-01 and REEL-02 pinned it.
   assert.match(code(FIXTURE), /done: doneInBlocksOf\(r\.stops, DAY, \[\]\), \.\.\.over \};/);
@@ -176,15 +179,16 @@ test('every other stop’s scene and caption are byte-identical to the texts cap
 
 // ── RULING C · THE HAND-OFF AND THE WAIT ─────────────────────────────────────
 
-test('C ReelDay carries each execute stop’s done tasks (workBlock.ts doneInBlocksOf — only the execute stops keyed, a block with no length none); the card hands them in from the backlog read it holds; a waiting or failed backlog read makes the reel wait on "the backlog" by name; no new read', () => {
+test('C ReelDay carries each execute stop’s done tasks (workBlock.ts doneInBlocksOf — only the execute stops keyed, a block with no length null — WORK-03b); the card hands them in from the backlog read it holds; a waiting or failed backlog read makes the reel wait on "the backlog" by name; no new read', () => {
   // doneInBlocksOf: every project's done tasks, narrowed per execute stop; a project read without them is the card's error.
   const r = workDay({ money: true, record: workRecord() });
   const map = doneInBlocksOf(r.stops, DAY, [project([C]), project([B, A])]);
-  assert.deepEqual([...map.entries()].map(([k, v]) => [k, v.map((t) => t.id)]), [[KEY, ['a', 'b']]]);
+  assert.deepEqual([...map.entries()].map(([k, v]) => [k, v === null ? null : v.map((t) => t.id)]), [[KEY, ['a', 'b']]]);
   assert.throws(() => doneInBlocksOf(r.stops, DAY, [{ title: 'Unread', doneTasks: undefined }]), /"Unread" was read without its done tasks/);
   assert.deepEqual([carriesDoneTasks([project([]), project([A])]), carriesDoneTasks([project([]), { title: 'x', doneTasks: undefined }]), carriesDoneTasks([])], [true, false, true]);
   const stepless = build(HALF);
-  assert.deepEqual([...doneInBlocksOf(stepless.stops, DAY, [project([A])]).values()], [[]], 'Co-working has no length: none, even with a task done at 11:00');
+  // WORK-03b (Alex, 2026-10-26): a block with no length maps to null, not an empty list — nothing could be counted in it (was `[[]]`).
+  assert.deepEqual([...doneInBlocksOf(stepless.stops, DAY, [project([A])]).values()], [null], 'Co-working has no length: null, even with a task done at 11:00');
   assert.equal(NO_DONE_IN_BLOCKS.size, 0);
   // The wait: the backlog is a named read, last in the order; null on a day with no execute stop.
   const ok: ReelReads = { day: 'ok', tasks: 'ok', report: 'ok', records: 'ok', stay: 'ok', journal: 'ok', backlog: 'ok' };
@@ -198,7 +202,7 @@ test('C ReelDay carries each execute stop’s done tasks (workBlock.ts doneInBlo
   const rules = code(RULES);
   assert.match(rules, /const REEL_READ_ORDER: readonly \(keyof ReelReads\)\[\] = \['day', 'tasks', 'report', 'records', 'stay', 'journal', 'backlog'\];/);
   assert.match(rules, /readonly journal: ReelRead \| null;\n\s*readonly backlog: ReelRead \| null;\n\}/);
-  assert.match(rules, /readonly done: ReadonlyMap<string, readonly ReelDoneTask\[\]>;\n\}/);
+  assert.match(rules, /readonly done: ReadonlyMap<string, readonly ReelDoneTask\[\] \| null>;\n\}/); // WORK-03b (2026-10-26): null for a block with no length
   assert.match(rules, /import \{ showsWorkBlock \} from '@\/lib\/operations\/workBlock';/);
   // The card: the backlog's state on a day with an execute stop, in once it carries the day's done tasks; the lists from the read it holds; both stop scripts hand the list in.
   const c = code(CARD);

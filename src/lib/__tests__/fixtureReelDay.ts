@@ -97,7 +97,8 @@ export const JOURNAL: NonNullable<ReelDay['journal']> = { goals: ['Ship the reel
  * The ReelDay exactly as DayCard.tsx composes it: the card's stops, its TOTAL row, its verdict on the TOTAL row's BUDGET.
  * WORK-03 (Alex, 2026-10-26): and `done` — each execute stop's done tasks by the one rule (doneInBlocksOf); none here, as a day
  * with nothing ticked, so REEL-01's and REEL-02's byte-for-byte pins hold against the one fixture (Co-working, the execute stop,
- * is stepless — no length — and shows no money, so it has no scene in the full script and adds no caption line).
+ * is stepless with no window — no length; WORK-03b: null, no block line — and shows no money, so it has no scene in the full
+ * script and adds no caption line).
  */
 export function reelDay(r: ReturnType<typeof build>, over: Partial<ReelDay> = {}): ReelDay {
   const totals = dayTotals(r, r.plannedCents);

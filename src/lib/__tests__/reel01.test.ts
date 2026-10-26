@@ -253,7 +253,8 @@ test('T3 the step view’s script is that one stop’s scene', () => {
   assert.deepEqual(stopScriptText(DAY, STAY, stopOf(r, 'brunch').stop), { ok: true, text: 'Brunch at Luka Café.\nEggs benedict\nBudget $25, actual $9.69, ▼ $15.31 under.\n4 out of 5.' });
   assert.deepEqual(stopScriptText(DAY, STAY, stopOf(r, 'gym').stop), { ok: true, text: 'Gym: skipped.\nclosed for a holiday' });
   // WORK-03 (Alex, 2026-10-26): the work block reaches the reel — an execute stop's scene says what was done in its block and the caption counts it; the reel waits on the backlog by name (work03.test.ts). Co-working is an execute stop: its scene gains the block line after the note line — none ticked here (the list handed in is empty).
-  assert.deepEqual(stopScriptText(DAY, STAY, stopOf(r, 'cowork').stop, []), { ok: true, text: 'Co-working.\n[what you got]\nNothing ticked in this block.\n[stars] out of 5.' }, 'a stop that shows neither figure has no money sentence');
+  // WORK-03b (Alex, 2026-10-26): no block line without a length — Co-working is stepless with no window, so the card hands null and the scene is REEL-01's again (work03b.test.ts).
+  assert.deepEqual(stopScriptText(DAY, STAY, stopOf(r, 'cowork').stop, null), { ok: true, text: 'Co-working.\n[what you got]\n[stars] out of 5.' }, 'a stop that shows neither figure has no money sentence');
 });
 
 // ── T4 · 2a THE READS: WAIT, OR NAME THE FAILURE — NEVER A PARTIAL TEXT ─────

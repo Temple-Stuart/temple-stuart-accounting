@@ -82,6 +82,7 @@ import {
   type StopRecordKind, type StopRecordPlan, type StopRecordRow,
 } from '@/lib/operations/stopRecord';
 import { NO_AMOUNT_NO_VENDOR_WORDS, REPORT_NOT_READ_NO_VENDOR_WORDS, UNMATCHED_NO_VENDOR_WORDS, isStop, isStopRole, type StopRole } from '@/lib/operations/stopRole';
+import { minutesOf } from '@/lib/calendar/day';
 import { instantToZoned, zonedToInstant } from '@/lib/time';
 import { showsWorkBlock } from '@/lib/operations/workBlock';
 import type { DailyPlanItem } from '../dailyplan/types';
@@ -136,6 +137,7 @@ export interface Stop {
   readonly vendor: string | null;
   /** TABLE-01: the line's location when the stop is a line and the step states one, else the routine's — never a vendor; null when neither states one. */
   readonly location: string | null;
+  /** WORK-03b: the stop's planned minutes by the one rule (plannedMinutesOf) — a line's duration_minutes, a stepless routine's window length; null for a line that states none, a stepless routine without a window, and a task. */
   readonly minutes: number | null;
   /** The matched plan line's cents; null when the report lists none for this stop. */
   readonly cents: number | null;
@@ -238,6 +240,34 @@ const STATUS: Record<TodayStatus, StopStatus> = { completed: 'done', missed: 'mi
 
 /** 'HH:MM' of a @db.Time value ('1970-01-01THH:MM:SS.000Z'), as the week's clockOf. */
 const clockOf = (time: string): string => time.slice(11, 16);
+
+/** What the planned-minutes rule reads: a line (its duration_minutes) or a stepless routine (its window — @db.Time values: a Date on the server, its JSON '1970-01-01THH:MM:SS.000Z' on the card). */
+export type PlannedMinutesPlan =
+  | { readonly kind: 'line'; readonly duration_minutes: number | null }
+  | { readonly kind: 'routine'; readonly start_time: Date | string | null; readonly end_time: Date | string | null };
+/** Minutes past midnight of a routine's @db.Time; null for none; a value that is no time is the read's error, thrown by name. */
+const windowMinutesOf = (what: 'start_time' | 'end_time', v: Date | string | null): number | null => {
+  if (v === null) return null;
+  const m = minutesOf(clockOf(v instanceof Date ? v.toISOString() : v));
+  if (m === null) throw new Error(`dayCard: ${what} ${JSON.stringify(v)} is not a time — a @db.Time arrives as 1970-01-01THH:MM:SS.000Z`);
+  return m;
+};
+/**
+ * WORK-03b (Alex, 2026-10-26): THE ONE PLANNED-MINUTES RULE — the stop's `minutes`: what the work block's length is drawn
+ * from (workBlock.ts blockWindowOf), what the ledger prints as PLANNED MIN (ledger.ts, through the ledger route's
+ * recordInputOf) and what the stop's own minutes are. A line → its duration_minutes (the line's own, as it was). A stepless
+ * routine with both start_time and end_time → end − start in whole minutes, an end before the start ending the next day
+ * (rruleHelpers.ts EMPTY_WINDOW_WORDS — MOVE-01's window convention); an end equal to the start is 0 — refused on write, and
+ * no length here (blockWindowOf: ≤ 0 is none). Else null: a line that states none, a stepless routine without a window.
+ * Applied here for the card's stops and in the ledger route for a record's plan; no reader restates it.
+ */
+export function plannedMinutesOf(plan: PlannedMinutesPlan): number | null {
+  if (plan.kind === 'line') return plan.duration_minutes;
+  const start = windowMinutesOf('start_time', plan.start_time);
+  const end = windowMinutesOf('end_time', plan.end_time);
+  if (start === null || end === null) return null;
+  return end >= start ? end - start : end + 24 * 60 - start;
+}
 
 const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 /** null sorts last. */
@@ -376,7 +406,7 @@ export function dayStops(input: DayCardInput): DayStops {
         line: null,
         vendor: vendorOf(line),
         location: locationOf(r.location),
-        minutes: null,
+        minutes: plannedMinutesOf({ kind: 'routine', start_time: r.start_time, end_time: r.end_time }),
         cents: line === null ? null : line.cents,
         role: r.role,
         planLine: line,
@@ -401,7 +431,7 @@ export function dayStops(input: DayCardInput): DayStops {
         line: step.activity,
         vendor: vendorOf(line),
         location: locationOf(step.location, r.location),
-        minutes: step.duration_minutes,
+        minutes: plannedMinutesOf({ kind: 'line', duration_minutes: step.duration_minutes }),
         cents: line === null ? null : line.cents,
         role: r.role,
         planLine: line,
@@ -1212,16 +1242,18 @@ export interface ReelDay {
   /**
    * WORK-03 (Alex, 2026-10-26): per execute stop (by its key), the tasks done in its block — title and completed_at, in completed_at
    * order — handed in by the card from the backlog read it already holds (workBlock.ts doneInBlocksOf over the day's window). Every
-   * execute stop of `stops` is keyed; a stop with no length maps to none. No other stop is keyed.
+   * execute stop of `stops` is keyed. No other stop is keyed.
+   * WORK-03b (Alex, 2026-10-26): a stop with no length (blockWindowOf null) maps to null — no list, so no block line: the reel
+   * never claims a count nothing could count.
    */
-  readonly done: ReadonlyMap<string, readonly ReelDoneTask[]>;
+  readonly done: ReadonlyMap<string, readonly ReelDoneTask[] | null>;
 }
 /** WORK-03: one task done in an execute stop's block, as the reel reads it (the backlog read's LogDoneTask, narrowed). */
 export interface ReelDoneTask {
   readonly title: string;
   readonly completedAt: string;
 }
-/** WORK-03: an execute stop's done tasks as the card handed them in; null for any other stop; an execute stop the card did not hand in is the card's error. */
+/** WORK-03: an execute stop's done tasks as the card handed them in — WORK-03b: null when its block has no length (no block line); null for any other stop; an execute stop the card did not hand in is the card's error. */
 export function reelDoneOf(d: Pick<ReelDay, 'done'>, s: Stop): readonly ReelDoneTask[] | null {
   if (!showsWorkBlock(s)) return null;
   const list = d.done.get(s.key);
@@ -1246,6 +1278,8 @@ export const SKIPPED_TAIL_WORDS = ': skipped';
  * block: <task>, <task>." in completed_at order (as the card handed them), or "Nothing ticked in this block." — and the caption gains
  * "<name>: <k> tasks done" ("1 task done") for an execute stop with at least one; none ticked adds no caption line. Every other
  * stop's scene and caption line are unchanged, byte for byte.
+ * WORK-03b (Alex, 2026-10-26): no block line without a length — a block blockWindowOf reads as null (no minutes, ≤ 0) carries
+ * neither sentence; the panel's no-length words on the step view say why (workBlock.ts NO_LENGTH_WORDS).
  */
 export const DONE_IN_BLOCK_SCENE_WORDS = 'Done in this block:';
 export const NOTHING_TICKED_WORDS = 'Nothing ticked in this block.';
@@ -1338,14 +1372,16 @@ export const SCRIPT_HOOK_TAIL_WORDS = 'Let’s find out.';
  * [stars]. A stop that shows neither figure has no money sentence.
  * WORK-03 (Alex, 2026-10-26): an execute stop's scene gains one line after the
  * note line (the reason line of a skipped one) — doneInBlockSceneWords over the
- * tasks done in its block, which the caller hands in (`done`; null for any other
- * stop). An execute stop without its list is the caller's error.
+ * tasks done in its block, which the caller hands in (`done`, as reelDoneOf
+ * reads it off the map: the list; WORK-03b, null for a block with no length —
+ * no block line; nothing for any other stop). An execute stop handed nothing is
+ * the caller's error.
  */
-export function stopSceneLines(s: Stop, done: readonly ReelDoneTask[] | null = null): string[] {
+export function stopSceneLines(s: Stop, done?: readonly ReelDoneTask[] | null): string[] {
   const block = ((): string | null => {
     if (!showsWorkBlock(s)) return null;
-    if (done === null) throw new Error(`dayCard: ${s.key} is an execute stop — its scene needs the tasks done in its block`);
-    return doneInBlockSceneWords(done);
+    if (done === undefined) throw new Error(`dayCard: ${s.key} is an execute stop — its scene needs the tasks done in its block`);
+    return done === null ? null : doneInBlockSceneWords(done);
   })();
   if (skippedRecord(s) && s.record !== null) {
     if (s.record.note === null) throw new Error(`dayCard: ${s.key} is skipped by its record but carries no reason`);
@@ -1361,8 +1397,8 @@ export function stopSceneLines(s: Stop, done: readonly ReelDoneTask[] | null = n
   return lines;
 }
 
-/** R5, the step view: that one stop's scene; no covering stay → no script, said by name. WORK-03: an execute stop's done tasks are handed in (`done`), as the card holds them. */
-export function stopScriptText(day: string, stay: StayRow | null, stop: Stop, done: readonly ReelDoneTask[] | null = null): ReelText {
+/** R5, the step view: that one stop's scene; no covering stay → no script, said by name. WORK-03: an execute stop's done tasks are handed in (`done`), as the card holds them — WORK-03b: null for a block with no length. */
+export function stopScriptText(day: string, stay: StayRow | null, stop: Stop, done?: readonly ReelDoneTask[] | null): ReelText {
   if (stay === null) return { ok: false, words: noStayReelWords(day) };
   return { ok: true, text: stopSceneLines(stop, done).join('\n') };
 }

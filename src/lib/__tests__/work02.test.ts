@@ -92,15 +92,15 @@ test('C the window: [the stop’s planned instant, + the line’s minutes] — a
   assert.deepEqual([w.from.toISOString(), w.to.toISOString()], ['2026-10-26T17:00:00.000Z', '2026-10-27T01:00:00.000Z'], '10:00–18:00 Los Angeles (PDT) as instants');
   assert.equal(w.from.toISOString(), EXECUTE.key.split(':').slice(2).join(':'), 'the window starts at the stop’s instant');
   assert.equal(blockWindowOf(stop({ role: 'execute', minutes: null }), DAY), null, 'no minutes: no length');
-  assert.equal(blockWindowOf(stop({ role: 'execute', key: 'routine:r1:2026-10-26T17:00:00.000Z', minutes: null }), DAY), null, 'a stepless routine has none (dayCard.ts: minutes null)');
+  assert.equal(blockWindowOf(stop({ role: 'execute', key: 'routine:r1:2026-10-26T17:00:00.000Z', minutes: null }), DAY), null, 'a stepless routine without a window has none (WORK-03b: dayCard.ts plannedMinutesOf — with one, its length)');
   // WORK-03 (Alex, 2026-10-26; WORK-02 call 4, ruled): a block of ≤ 0 minutes has no length — null, the same words as no minutes (work03.test.ts drives 0 and -5).
   assert.equal(blockWindowOf(stop({ role: 'execute', minutes: 0 }), DAY), null, 'zero minutes is no length');
   assert.throws(() => blockWindowOf(stop({ role: 'execute', minutes: 1.5 }), DAY), /whole number of minutes/);
   assert.throws(() => blockWindowOf(stop({ role: 'execute', time: null }), DAY), /has minutes but no clock/);
   assert.equal(NO_LENGTH_WORDS, "this block has no length — set the line's minutes on /expenses to count what was done in it");
-  // The rule is the day card's: the line's duration_minutes, a stepless routine's null — dayCard.ts, unchanged.
-  assert.match(code(CARD_RULES), /minutes: step\.duration_minutes,/);
-  assert.match(code(CARD_RULES), /minutes: null,\n\s*cents: line === null \? null : line\.cents,\n\s*role: r\.role,/, 'a stepless routine: minutes null');
+  // The rule is the day card's — WORK-03b (Alex, 2026-10-26): the ONE planned-minutes rule, plannedMinutesOf, at both sites (a line's duration_minutes; a stepless routine's window length, null without one — work03b.test.ts).
+  assert.match(code(CARD_RULES), /minutes: plannedMinutesOf\(\{ kind: 'line', duration_minutes: step\.duration_minutes \}\),/);
+  assert.match(code(CARD_RULES), /minutes: plannedMinutesOf\(\{ kind: 'routine', start_time: r\.start_time, end_time: r\.end_time \}\),\n\s*cents: line === null \? null : line\.cents,\n\s*role: r\.role,/, 'a stepless routine: its window by the one rule');
   assert.match(code(RULE), /const from = zonedToInstant\(day, stop\.time, stop\.zone\);\n\s*return \{ from, to: new Date\(from\.getTime\(\) \+ stop\.minutes \* 60_000\) \};/);
 });
 
@@ -221,7 +221,8 @@ test('E the record form, the execute words, the reel’s words and THE LOG are u
   assert.match(code(STOP_FORM), /: \{ amount: false, rating: false, minutes: true, note: true \};/, 'a work stop (plan · execute): the minutes and one line, as before');
   assert.match(code(STOP_ROLE), /execute: 'execute — a work block; what got finished',/);
   // WORK-03 (Alex, 2026-10-26): built — the step view's script takes the stop's done tasks now (work03.test.ts drives the line).
-  assert.match(code(CARD_RULES), /export function stopScriptText\(day: string, stay: StayRow \| null, stop: Stop, done: readonly ReelDoneTask\[\] \| null = null\): ReelText \{/, 'the reel’s words — WORK-03’s line, handed in');
+  // WORK-03b (Alex, 2026-10-26): `done` is handed as reelDoneOf reads it — the list, or null for a block with no length (no block line); nothing handed for an execute stop still throws.
+  assert.match(code(CARD_RULES), /export function stopScriptText\(day: string, stay: StayRow \| null, stop: Stop, done\?: readonly ReelDoneTask\[\] \| null\): ReelText \{/, 'the reel’s words — WORK-03’s line, handed in');
   // WORK-03 (Alex, 2026-10-26): built — the header's note moved from "not built here" to what it does.
   assert.match(comments(PANEL), /WORK-03 \(Alex, 2026-10-26\): the block reaches the reel — the execute stop's scene says what was done in it and the caption\s*\n?\s*\*?\s*counts it/);
   assert.doesNotMatch(code(ROUTE) + code(READS) + code(PANEL) + code(RULE), /prisma\.\$executeRaw|ALTER TABLE|migrations/, 'no migration, no raw SQL');
