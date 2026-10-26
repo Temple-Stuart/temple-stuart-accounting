@@ -219,8 +219,9 @@ test('C the free set and the selling surfaces follow by derivation: Expenses joi
 });
 
 test('C the plan surfaces flip the one row standing on Expenses to ✓ by derivation, in every plan (all four hold personal); its label says what Expenses does', () => {
-  const rows = CAPABILITY_GROUPS.flatMap((g) => g.rows.map((row) => ({ group: g.id, row }))).filter((r) => r.row.tools.includes('Expenses'));
-  assert.equal(rows.length, 1, 'one row stands on Expenses');
+  // TIME-03 (Alex, 2026-10-26, ruling E): "Projects and routines, each with what it costs" is backed by Tasks and Expenses too (time03.test.ts) — this test holds the Expenses row of its own.
+  const rows = CAPABILITY_GROUPS.flatMap((g) => g.rows.map((row) => ({ group: g.id, row }))).filter((r) => r.row.tools.includes('Expenses') && r.group === 'books');
+  assert.equal(rows.length, 1, 'one row of the books group stands on Expenses');
   const [{ group, row }] = rows;
   assert.equal(group, 'books');
   assert.deepEqual(row.tools, ['Expenses']);

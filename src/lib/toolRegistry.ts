@@ -14,14 +14,16 @@
  *   NOT_BUILT = no beats — no page or route does any of the tool's job (code
  *               that touches the name but belongs to another tool is cited,
  *               not counted).
- * 4 LIVE · 8 PARTIAL · 13 NOT_BUILT — the counts are a LAW below; bump them
+ * 5 LIVE · 7 PARTIAL · 13 NOT_BUILT — the counts are a LAW below; bump them
  * only with a new dated census. (EXPENSES-01 census, Alex, 2026-10-25: Expenses
  * NOT_BUILT → PARTIAL, ROUTINE EXPENSES being its page; 2 · 9 · 14 stood from
  * the 2026-09-09 census until then. EXPENSES-02 census, Alex, 2026-10-26:
  * Expenses PARTIAL → LIVE — the vendor decided on the row; 2 · 10 · 13 stood
  * for one day. TASKS-03 census, Alex, 2026-10-26: Tasks PARTIAL → LIVE —
  * ACTUAL as logged and MATCH from Books on THE WORK; 3 LIVE · 9 PARTIAL · 13
- * NOT_BUILT stood for the hours between.)
+ * NOT_BUILT stood for the hours between. TIME-03 census, Alex, 2026-10-26: Time
+ * PARTIAL → LIVE — the ledger prints planned and logged minutes and adds up the
+ * hours; 4 LIVE · 8 PARTIAL · 13 NOT_BUILT stood for the hours between.)
  *
  * `home` is an EXISTING route only — this PR links, it moves nothing. A
  * cockpit-hosted tool also carries `cockpitKey` (the ModuleLauncher section
@@ -115,7 +117,9 @@ const some = (b: Partial<Beats>): Beats => ({ ...NONE, ...b });
 // One PARTIAL fewer, one LIVE more. 2 · 10 · 13 → 3 · 9 · 13.
 // TASKS-03 census (Alex, 2026-10-26): Tasks LIVE — ACTUAL as logged and MATCH from Books on THE WORK, the ledger's pair.
 // One PARTIAL fewer, one LIVE more. 3 · 9 · 13 → 4 · 8 · 13.
-export const EXPECTED_STATUS_COUNTS: Readonly<Record<ToolStatus, number>> = { LIVE: 4, PARTIAL: 8, NOT_BUILT: 13 };
+// TIME-03 census (Alex, 2026-10-26): Time LIVE — the ledger prints planned and logged minutes and adds up the hours.
+// One PARTIAL fewer, one LIVE more. 4 · 8 · 13 → 5 · 7 · 13.
+export const EXPECTED_STATUS_COUNTS: Readonly<Record<ToolStatus, number>> = { LIVE: 5, PARTIAL: 7, NOT_BUILT: 13 };
 
 const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // ── THE WORK ──
@@ -252,12 +256,17 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     // The customer line says "logged" where the ruling said "recorded": the plan
     // law (OFFER-01) refuses a beat word on a customer sentence — flagged in the
     // HOME-01 report as a judgement call.
-    slug: 'time', status: 'PARTIAL', beats: ALL, home: '/time',
-    why: 'the task ledger and the two journals, day over day — every stop and every answer the day card records, as tables',
+    // TIME-03 (Alex, 2026-10-26): TIME IS LIVE — the task ledger prints PLANNED
+    // MIN and LOGGED MIN after STARS (the day card's two rules: a line's
+    // duration_minutes, the record's actual_minutes) and the summary adds up the
+    // hours (PLANNED HOURS · LOGGED HOURS, their coverage said under the table).
+    // The why leaves, as the law requires of a LIVE row; the note's "not done"
+    // sentence leaves with it; the customer line says what a customer can do.
+    slug: 'time', status: 'LIVE', beats: ALL, home: '/time',
     links: [],
-    citation: 'discover: src/components/workbench/operations/ledger/ledgerReads.ts:27 (GET /api/operations/ledger?from=&to= — the task ledger\'s one read) · src/components/workbench/operations/journal/journalReads.ts:26 (GET /api/operations/journal/range?from=&to= — the journals\' one read) · decide: src/app/api/operations/journal/route.ts:51 (PUT — the day\'s goals, blocker and plan, written by the day card: Time\'s component, shown on the dashboard — HOME-01) · commit: src/app/api/operations/stops/route.ts (POST — the record at a stop, through stops/stopWrites.ts:39, from the card) · record: src/components/workbench/operations/ledger/LedgerSection.tsx (every stop recorded, by date, city, COA and vendor; "+ expense" through ledger/ExpenseForm.tsx:87) · src/components/workbench/operations/journal/MorningJournalTable.tsx · src/components/workbench/operations/journal/EveningJournalTable.tsx (every answer, day over day, through journal/JournalDayTable.tsx)',
-    note: 'HOME-01 (2026-10-24): the day itself is entered on the day card — Time\'s component, shown on the home dashboard (the cockpit\'s Runway panel, /runway); /time is the tables. TIME-02 (2026-10-19): the content pipeline retired — its components and routes deleted; its five tables kept, untouched, until TABLES-01. Not done for a customer: nothing yet adds up where the hours went.',
-    customer: 'You can see every stop you logged and every journal answer, day by day, filter and export them; the day itself is entered on the home dashboard.',
+    citation: 'discover: src/components/workbench/operations/ledger/ledgerReads.ts:27 (GET /api/operations/ledger?from=&to= — the task ledger\'s one read) · src/components/workbench/operations/journal/journalReads.ts:26 (GET /api/operations/journal/range?from=&to= — the journals\' one read) · decide: src/app/api/operations/journal/route.ts:51 (PUT — the day\'s goals, blocker and plan, written by the day card: Time\'s component, shown on the dashboard — HOME-01) · commit: src/app/api/operations/stops/route.ts (POST — the record at a stop, through stops/stopWrites.ts:39, from the card) · record: src/components/workbench/operations/ledger/LedgerSection.tsx (every stop recorded, by date, city, COA and vendor; "+ expense" through ledger/ExpenseForm.tsx:87) · src/components/workbench/operations/journal/MorningJournalTable.tsx · src/components/workbench/operations/journal/EveningJournalTable.tsx (every answer, day over day, through journal/JournalDayTable.tsx) · TIME-03 (2026-10-26) the minutes: src/lib/operations/ledger.ts:809 (LEDGER_HEAD_WORDS — PLANNED MIN · LOGGED MIN after STARS; the row\'s plannedMinutes is the line\'s duration_minutes, read with the record\'s plan words by src/app/api/operations/ledger/route.ts:71, its loggedMinutes the record\'s actual_minutes) · src/components/workbench/operations/ledger/LedgerSection.tsx:262 (the two cells) · LedgerSection.tsx:355 (PLANNED HOURS · LOGGED HOURS — the summary\'s sums, src/lib/operations/ledger.ts:826, their coverage said at LedgerSection.tsx:314)',
+    note: 'HOME-01 (2026-10-24): the day itself is entered on the day card — Time\'s component, shown on the home dashboard (the cockpit\'s Runway panel, /runway); /time is the tables. TIME-02 (2026-10-19): the content pipeline retired — its components and routes deleted; its five tables kept, untouched, until TABLES-01.',
+    customer: 'You can see every stop you logged and every journal answer, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.',
   },
   // ── MONEY IN ──
   CRM: {

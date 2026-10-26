@@ -67,7 +67,8 @@ test('claim lines come from the registry: "built and running" for LIVE only, "pa
   // TRUTH-CAL: Calendar left this set. PLAN-01 moved the routine builder to /tasks,
   // so the row no longer claims decide; three beats keep the beats form.
   // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair). Tasks left the four-beat PARTIALs: "built and running" (claimForTool below).
-  for (const name of ['Time', 'Budget'] as const) {
+  // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. Time left the four-beat PARTIALs: "built and running" (claimForCockpit('content') below).
+  for (const name of ['Budget'] as const) {
     const t = tool(name);
     assert.equal(t.status, 'PARTIAL');
     assert.equal(claimLine(t), `partial — ${t.why}`);
@@ -78,9 +79,9 @@ test('claim lines come from the registry: "built and running" for LIVE only, "pa
   assert.equal(claimLine(tool('Calendar')), 'partial — discover · record');
   assert.equal(tool('Calendar').status, 'PARTIAL', 'the census did not move with the beats');
   // a four-beat PARTIAL with no why is thrown, not rendered as the beats form
-  // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE, so the four-beat PARTIAL probe runs through Time, which is one.
-  assert.throws(() => claimLine({ ...tool('Time'), why: undefined }), /Time is PARTIAL with four beats and no why/);
-  assert.throws(() => claimLine({ ...tool('Time'), why: '  ' }), /Time is PARTIAL with four beats and no why/);
+  // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE, so the four-beat PARTIAL probe ran through Time. TIME-03 (Alex, 2026-10-26): Time is LIVE too — through Budget, the one left.
+  assert.throws(() => claimLine({ ...tool('Budget'), why: undefined }), /Budget is PARTIAL with four beats and no why/);
+  assert.throws(() => claimLine({ ...tool('Budget'), why: '  ' }), /Budget is PARTIAL with four beats and no why/);
   // fewer than four beats keeps the beats form even when a why is present
   assert.equal(claimLine({ ...tool('Tax'), why: 'not used' }), 'partial — discover · decide');
   const card = offerCard(books(), {});
@@ -102,7 +103,8 @@ test('claim lines come from the registry: "built and running" for LIVE only, "pa
   // LEDGER-02 (Alex, 2026-10-19): the city ledger is the task ledger — the line says "the task ledger" where it said "the ledger of every stop".
   // LEDGER-02 AMENDMENT (Alex, 2026-10-19): "the task ledger of every stop … by city, account and book".
   // HOME-01 (Alex, 2026-10-24, ruling C): the Time row's why is the tables'.
-  assert.equal(claimForCockpit('content'), 'partial — the task ledger and the two journals, day over day — every stop and every answer the day card records, as tables');
+  // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. The cockpit's content key reads a LIVE row now.
+  assert.equal(claimForCockpit('content'), 'built and running');
   assert.equal(claimForCockpit('calendar'), 'partial — plan vs actual for routines and tasks on /budget; travel and income budgets not connected yet'); // Budget, a four-beat PARTIAL since TRUTH-01; its why since TAB13-02b
   assert.throws(() => claimForCockpit('nope'), OfferLawError);
 });
@@ -147,9 +149,10 @@ test('the free set is the registry\'s LIVE tools with no gate; the gate map cove
   // TRUTH-01 (census 2026-09-09): Calendar, Tasks, Time and Budget are PARTIAL — four beats cited, the job not done for a customer — so the free set is Travel alone.
   // EXPENSES-02 (Alex, 2026-10-26): Expenses is LIVE — the vendor decided on the row; receipts are Documents' job. 2 · 10 · 13 → 3 · 9 · 13. Expenses (gate null) joins the free set, in registry order before Travel.
   // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13. Tasks (gate null) joins the free set, first in registry order.
-  assert.deepEqual(FREE_TOOLS.map((t) => t.name), ['Tasks', 'Expenses', 'Travel']);
+  // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. Time (gate null) joins the free set after Tasks, in registry order.
+  assert.deepEqual(FREE_TOOLS.map((t) => t.name), ['Tasks', 'Time', 'Expenses', 'Travel']);
   // TRUTH-01b: the landing's free line — singular for the one free tool, plural otherwise, the rest of the sentence unchanged
-  assert.equal(freeSetLine(), "Free with an account, no module to buy: Tasks, Expenses, Travel — the registry's live tools with no tab gate.");
+  assert.equal(freeSetLine(), "Free with an account, no module to buy: Tasks, Time, Expenses, Travel — the registry's live tools with no tab gate.");
   assert.equal(freeSetLine([{ name: 'Travel' }]), "Free with an account, no module to buy: Travel — the registry's live tool with no tab gate.");
   assert.equal(freeSetLine([{ name: 'Travel' }, { name: 'Budget' }]), "Free with an account, no module to buy: Travel, Budget — the registry's live tools with no tab gate.");
   assert.equal(Object.keys(TOOL_GATE).length, TOOL_REGISTRY.length);
@@ -161,8 +164,9 @@ test('the hero line is the registry\'s counts in words — never typed', () => {
   // EXPENSES-01 (Alex, 2026-10-25): Expenses NOT_BUILT → PARTIAL — ten partial, thirteen on the blueprint (nine and fourteen until then).
   // EXPENSES-02 (Alex, 2026-10-26): Expenses is LIVE — the vendor decided on the row; receipts are Documents' job. 2 · 10 · 13 → 3 · 9 · 13. Three live, nine partial.
   // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13.
-  assert.equal(heroCountsLine(), 'Twenty-five tools, counted: four live, eight partial, thirteen on the blueprint.');
-  assert.equal(heroCountsLine(TOOL_REGISTRY.filter((t) => t.status !== 'NOT_BUILT')), 'Twelve tools, counted: four live, eight partial, zero on the blueprint.');
+  // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
+  assert.equal(heroCountsLine(), 'Twenty-five tools, counted: five live, seven partial, thirteen on the blueprint.');
+  assert.equal(heroCountsLine(TOOL_REGISTRY.filter((t) => t.status !== 'NOT_BUILT')), 'Twelve tools, counted: five live, seven partial, zero on the blueprint.');
   assert.equal(numberWord(25), 'twenty-five');
   assert.throws(() => numberWord(26), OfferLawError);
 });

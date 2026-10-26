@@ -87,7 +87,7 @@ const WORDS = new Map<string, RoutineWords>(ROUTINES.map((r) => [r.id, { name: r
 const record = (over: Partial<StopRecordRow> & { id: string; kind: StopRecordRow['kind']; target_id: string; occurrence_at: string }): StopRecordRow => ({
   outcome: 'done', done_at: over.occurrence_at, actual_cents: null, rating: null, note: null, actual_minutes: null, ...over,
 });
-const stop = (id: string, name: string, role: string, r: StopRecordRow): LedgerRecordInput => ({ record: r, routineId: id, routineName: name, zone: BKK, role, activity: null, timeOfDay: null });
+const stop = (id: string, name: string, role: string, r: StopRecordRow): LedgerRecordInput => ({ record: r, routineId: id, routineName: name, zone: BKK, role, activity: null, timeOfDay: null, durationMinutes: null });
 const RECORDS: LedgerRecordInput[] = [
   stop('brunch', 'Brunch', 'place', record({ id: 'r-brunch', kind: 'routine', target_id: 'brunch', occurrence_at: BRUNCH_13, actual_cents: 2200, rating: 4 })),
   stop('journal', 'Vision journal', 'journal', record({ id: 'r-journal', kind: 'routine', target_id: 'journal', occurrence_at: JOURNAL_13, actual_minutes: 12 })),

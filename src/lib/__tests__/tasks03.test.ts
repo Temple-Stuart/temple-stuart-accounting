@@ -174,8 +174,9 @@ test('C Tasks is LIVE with four beats, no why, the customer line verbatim and wi
   assert.match(comments(REGISTRY), /TASKS-03 census \(Alex, 2026-10-26\): Tasks LIVE — ACTUAL as logged and MATCH from Books on THE WORK, the ledger's pair\./);
   assert.match(comments(REGISTRY), /4 LIVE · 8 PARTIAL · 13 NOT_BUILT/);
   assert.match(comments(REGISTRY), /the pair IS the ledger's/);
-  assert.deepEqual(EXPECTED_STATUS_COUNTS, { LIVE: 4, PARTIAL: 8, NOT_BUILT: 13 });
-  assert.deepEqual(statusCounts(), { LIVE: 4, PARTIAL: 8, NOT_BUILT: 13 });
+  // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. The TASKS-03 census line stays in the record; the counts moved on (time03.test.ts pins them).
+  assert.match(comments(REGISTRY), /3 · 9 · 13 → 4 · 8 · 13/);
+  assert.deepEqual(statusCounts(), EXPECTED_STATUS_COUNTS);
   assert.deepEqual(registryLaw({ throwOnFail: false }), []);
   assert.match(registryLaw({ throwOnFail: false, registry: TOOL_REGISTRY.map((x) => (x.name === 'Tasks' ? { ...x, why: 'x' } : x)) }).join('\n'), /Tasks: why belongs only to a PARTIAL tool/);
   assert.equal(claimForTool('Tasks'), 'built and running');
@@ -184,11 +185,12 @@ test('C Tasks is LIVE with four beats, no why, the customer line verbatim and wi
 
 test('C the free set and the selling surfaces follow by derivation: Tasks joins the free set first; the hero counts four live; the verification email names it', () => {
   assert.equal(TOOL_GATE.Tasks, null);
-  assert.deepEqual(FREE_TOOLS.map((t) => t.name), ['Tasks', 'Expenses', 'Travel']);
-  assert.equal(freeSetLine(), "Free with an account, no module to buy: Tasks, Expenses, Travel — the registry's live tools with no tab gate.");
-  assert.equal(heroCountsLine(), 'Twenty-five tools, counted: four live, eight partial, thirteen on the blueprint.');
+  // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. Time joined the free set after Tasks; the counts are time03.test.ts's.
+  assert.equal(FREE_TOOLS[0].name, 'Tasks');
+  assert.match(freeSetLine(), /^Free with an account, no module to buy: Tasks, .*Expenses, Travel — the registry's live tools with no tab gate\.$/);
+  assert.match(heroCountsLine(), /^Twenty-five tools, counted: \w+ live, \w+ partial, thirteen on the blueprint\.$/);
   const mail = verificationEmail({ name: 'Ada', verifyUrl: 'https://templestuart.com/api/auth/verify?token=t', baseUrl: 'https://templestuart.com/' });
-  assert.ok(mail.text.includes('Free with your account: Tasks, Expenses, Travel.'));
+  assert.match(mail.text, /Free with your account: Tasks, .*Expenses, Travel\./); // TIME-03 (2026-10-26): Time sits between
 });
 
 test('C the plan surfaces flip the one row standing on Tasks to ✓ by derivation, in every plan; nothing typed', () => {
@@ -196,7 +198,8 @@ test('C the plan surfaces flip the one row standing on Tasks to ✓ by derivatio
   assert.equal(rows.length, 1);
   const [{ group, row }] = rows;
   assert.equal(group, 'days');
-  assert.deepEqual(row.tools, ['Tasks']);
+  // TIME-03 (Alex, 2026-10-26, ruling E; TASKS-03 call 1, ruled in chat): the row is backed by Tasks AND Expenses — half its claim stands on Expenses. Both LIVE: ✓ unchanged.
+  assert.deepEqual(row.tools, ['Tasks', 'Expenses']);
   assert.equal(row.module, 'personal');
   for (const plan of PLANS) assert.equal(cellState(plan, row), 'ready', `${plan.id} reads ✓`);
   assert.equal(cellState(PLANS[0], row, TOOL_REGISTRY.map((x) => (x.name === 'Tasks' ? { ...x, status: 'PARTIAL' as const } : x))), 'partial');

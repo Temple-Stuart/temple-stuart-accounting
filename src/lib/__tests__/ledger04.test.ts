@@ -58,7 +58,7 @@ function inOrder(body: string, steps: readonly string[], what: string): void {
 const row = (over: Partial<LedgerRow> & { readonly id: string }): LedgerRow => ({
   key: `routine:${over.id}:2026-10-13T00:30:00.000Z`, address: { kind: 'routine', id: over.id, instant: '2026-10-13T00:30:00.000Z' }, match: null, day: '2026-10-13', time: '07:30',
   place: { city: 'Chiang Mai', country: 'Thailand 🇹🇭' }, book: 'Personal', coa: { account: 'P-6150', name: 'Dining Out' }, vendor: null, description: 'Brunch', rating: null, note: null,
-  cents: null, budgetState: 'none', outcome: 'done', actualCents: null, varianceCents: null, ...over,
+  cents: null, budgetState: 'none', outcome: 'done', actualCents: null, varianceCents: null, plannedMinutes: null, loggedMinutes: null, ...over, // TIME-03: the row's two minutes fields
 });
 /** Saturday: the gym, skipped — a budget, no actual, no variance. */
 const GYM = row({ id: 'e', day: '2026-10-17', coa: { account: 'P-5300', name: 'Fitness' }, vendor: 'Fitness First', description: 'Gym', rating: 3, note: 'leg day', outcome: 'skipped', cents: 1500, budgetState: 'matched' });
@@ -79,11 +79,12 @@ const NOTHING_SAID: LedgerSaid = { noLine: 0, doubled: 0, noStay: 0, unplaced: [
 // ── R1 · THE RENAMES ────────────────────────────────────────────────────────
 
 test('R1 the heads: SUB ACCOUNT NAME where DESCRIPTION stood, DESCRIPTION where NOTES stood; the CSV header follows; the fields keep their names and say which column each prints to; the expense form and the stop form say the same; the summary’s groups and the registry untouched', () => {
-  assert.deepEqual(LEDGER_HEAD_WORDS, ['DAY', 'DATE', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'STARS', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION']);
-  assert.equal(ledgerCsv([]).split('\r\n')[0], 'DAY,DATE,CITY,COUNTRY,BOOK,ACCOUNT,ACCOUNT NAME,SUB ACCOUNT NAME,VENDOR,STARS,BUDGET,ACTUAL,VARIANCE,MATCH,UNDER / OVER,DESCRIPTION');
+  // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
+  assert.deepEqual(LEDGER_HEAD_WORDS, ['DAY', 'DATE', 'CITY', 'COUNTRY', 'BOOK', 'ACCOUNT', 'ACCOUNT NAME', 'SUB ACCOUNT NAME', 'VENDOR', 'STARS', 'PLANNED MIN', 'LOGGED MIN', 'BUDGET', 'ACTUAL', 'VARIANCE', 'MATCH', 'UNDER / OVER', 'DESCRIPTION']);
+  assert.equal(ledgerCsv([]).split('\r\n')[0], 'DAY,DATE,CITY,COUNTRY,BOOK,ACCOUNT,ACCOUNT NAME,SUB ACCOUNT NAME,VENDOR,STARS,PLANNED MIN,LOGGED MIN,BUDGET,ACTUAL,VARIANCE,MATCH,UNDER / OVER,DESCRIPTION');
   // The row's fields keep their names; the CSV line is as LEDGER-02 wrote it — description eighth, note sixteenth.
   const line = ledgerCsv([BRUNCH]).split('\r\n')[1];
-  assert.equal(line, 'Tuesday,2026-10-13,Chiang Mai,Thailand 🇹🇭,Personal,P-6150,Dining Out,Brunch,Luka Café,4,25.00,22.00,-3.00,22.00,under,"khao soi, worth it"', 'the stop’s name eighth, the note (quoted — it holds a comma) last');
+  assert.equal(line, 'Tuesday,2026-10-13,Chiang Mai,Thailand 🇹🇭,Personal,P-6150,Dining Out,Brunch,Luka Café,4,,,25.00,22.00,-3.00,22.00,under,"khao soi, worth it"', 'the stop’s name eighth, the note (quoted — it holds a comma) last; TIME-03: two empty minutes fields after the stars');
   const rules = code(RULES);
   assert.match(rules, /readonly description: string;\n\s*readonly rating: number \| null;\n\s*readonly note: string \| null;/, 'no field rename — the route’s payload is unchanged');
   assert.match(comments(RULES), /LEDGER-04 \(Alex, 2026-10-20\): printed under SUB ACCOUNT NAME/);
@@ -104,16 +105,16 @@ test('R1 the heads: SUB ACCOUNT NAME where DESCRIPTION stood, DESCRIPTION where 
 
 // ── R2 · THE COLUMN FILTERS ─────────────────────────────────────────────────
 
-test('R2 the columns: sixteen keys in the head’s order, each a VALUE, MONEY or TEXT column; the cell key is the words the table prints, "—" for a blank; the money figure is the CSV’s own', () => {
-  assert.equal(LEDGER_COLUMNS.length, 16);
+test('R2 the columns: eighteen keys in the head’s order (TIME-03), each a VALUE, MONEY or TEXT column; the cell key is the words the table prints, "—" for a blank; the money figure is the CSV’s own', () => {
+  assert.equal(LEDGER_COLUMNS.length, 18); // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
   assert.deepEqual(LEDGER_COLUMNS.map(headWordOf), [...LEDGER_HEAD_WORDS], 'LEDGER_COLUMNS[i] is LEDGER_HEAD_WORDS[i]');
   assert.deepEqual([...VALUE_COLUMNS, ...MONEY_COLUMNS, ...TEXT_COLUMNS].sort(), [...LEDGER_COLUMNS].sort(), 'every column has one kind');
-  assert.deepEqual(VALUE_COLUMNS, ['day', 'date', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'stars', 'underOver']);
+  assert.deepEqual(VALUE_COLUMNS, ['day', 'date', 'city', 'country', 'book', 'account', 'accountName', 'subAccountName', 'vendor', 'stars', 'plannedMinutes', 'loggedMinutes', 'underOver']); // TIME-03: the minutes are VALUE columns
   assert.deepEqual(MONEY_COLUMNS, ['budget', 'actual', 'variance', 'match']);
   assert.deepEqual(TEXT_COLUMNS, ['description']);
-  assert.deepEqual(LEDGER_COLUMNS.map(columnKind), ['value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'money', 'money', 'money', 'money', 'value', 'text']);
-  assert.deepEqual(LEDGER_COLUMNS.map((c) => cellWordsOf(BRUNCH, c)), ['Tuesday', '2026-10-13', 'Chiang Mai', 'Thailand 🇹🇭', 'Personal', 'P-6150', 'Dining Out', 'Brunch', 'Luka Café', '★★★★', '$25', '$22', '−$3.00', '$22', 'under', 'khao soi, worth it']);
-  assert.deepEqual(LEDGER_COLUMNS.map((c) => cellWordsOf(YOGA, c)), ['Monday', '2026-10-12', BLANK, BLANK, BLANK, BLANK, BLANK, 'Yoga', BLANK, '★★', BLANK, '$5', BLANK, BLANK, BLANK, BLANK], 'a blank cell is BLANK, as the table prints it');
+  assert.deepEqual(LEDGER_COLUMNS.map(columnKind), ['value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'value', 'money', 'money', 'money', 'money', 'value', 'text']);
+  assert.deepEqual(LEDGER_COLUMNS.map((c) => cellWordsOf(BRUNCH, c)), ['Tuesday', '2026-10-13', 'Chiang Mai', 'Thailand 🇹🇭', 'Personal', 'P-6150', 'Dining Out', 'Brunch', 'Luka Café', '★★★★', BLANK, BLANK, '$25', '$22', '−$3.00', '$22', 'under', 'khao soi, worth it']); // TIME-03: the minutes cells, blank in this fixture
+  assert.deepEqual(LEDGER_COLUMNS.map((c) => cellWordsOf(YOGA, c)), ['Monday', '2026-10-12', BLANK, BLANK, BLANK, BLANK, BLANK, 'Yoga', BLANK, '★★', BLANK, BLANK, BLANK, '$5', BLANK, BLANK, BLANK, BLANK], 'a blank cell is BLANK, as the table prints it');
   assert.equal(cellWordsOf(GYM, 'actual'), 'skipped', 'the ACTUAL cell’s own words');
   assert.deepEqual(MONEY_COLUMNS.map((c) => cellCentsOf(BRUNCH, c)), [2500, 2200, -300, 2200]);
   assert.deepEqual(MONEY_COLUMNS.map((c) => cellCentsOf(CLIENT, c)), [2500, 2500, 0, null], 'an unreadable posting: no MATCH figure (readableMatchCents)');
@@ -267,11 +268,11 @@ test('R3 sortRows: one column, ascending then descending, blanks last both ways;
 
 // ── R4 · THE NOTES ──────────────────────────────────────────────────────────
 
-test('R4 notesCount: the lines with something to say — the two coverage lines while a row is shown, each said line whose count is above 0; the TODAY rule and the every-book line never counted; the toggle’s words', () => {
+test('R4 notesCount: the lines with something to say — the four coverage lines while a row is shown (TIME-03: VARIANCE, MATCH, PLANNED HOURS, LOGGED HOURS; two until then), each said line whose count is above 0; the TODAY rule and the every-book line never counted; the toggle’s words', () => {
   assert.equal(notesCount(NOTHING_SAID, 0), 0, 'nothing shown, nothing said');
-  assert.equal(notesCount(NOTHING_SAID, 3), 2, 'rows shown: the VARIANCE and MATCH coverage lines');
+  assert.equal(notesCount(NOTHING_SAID, 3), 4, 'rows shown: the VARIANCE, MATCH, PLANNED HOURS and LOGGED HOURS coverage lines'); // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
   assert.equal(notesCount({ ...NOTHING_SAID, notRecorded: 2 }, 0), 1, 'the one fact the table cannot show');
-  assert.equal(notesCount({ ...NOTHING_SAID, noLine: 2, doubled: 1, noStay: 3, unplaced: [{ record: record('r-mars'), detail: 'x' }], notRecorded: 2, notPlaced: 1, leftOut: { journal: 1, plan: 0, execute: 0, all_day: 0 } }, 7), 8, 'every line');
+  assert.equal(notesCount({ ...NOTHING_SAID, noLine: 2, doubled: 1, noStay: 3, unplaced: [{ record: record('r-mars'), detail: 'x' }], notRecorded: 2, notPlaced: 1, leftOut: { journal: 1, plan: 0, execute: 0, all_day: 0 } }, 7), 10, 'every line'); // TIME-03: four coverage lines
   assert.equal(notesCount({ ...NOTHING_SAID, doubled: 1 }, 0), 0, 'doubled rides the no-line words — not a line of its own');
   assert.equal(leftOutTotal({ journal: 1, plan: 2, execute: 0, all_day: 0 }), 3);
   assert.deepEqual([notesToggleWords(0, false), notesToggleWords(1, false), notesToggleWords(3, true)], ['0 notes ▸', '1 note ▸', '3 notes ▾']);

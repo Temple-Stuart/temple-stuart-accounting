@@ -3,6 +3,15 @@
  * city ledger, under Routines on the Tasks page; TIME-01: moved under the day
  * card on /time; LEDGER-02, Alex, 2026-10-19: renamed — it is a task ledger).
  *
+ * TIME-03 (Alex, 2026-10-26): WHERE THE HOURS WENT — Time is LIVE. Two cells
+ * after STARS, nothing reordered: PLANNED MIN (the line's duration, the day
+ * card's rule) and LOGGED MIN (the record's minutes), whole minutes, "—" for
+ * null (ledger.ts minutesCellWords); the TOTAL row spans the twelve columns
+ * before BUDGET now. The summary gains PLANNED HOURS · LOGGED HOURS — each
+ * group's minutes as hours to one decimal (hoursWords), "—" when no row
+ * carries minutes — and their coverage is said under the table beside the
+ * VARIANCE and MATCH lines (plannedCoverageWords, loggedCoverageWords).
+ *
  * Under the day card: every stop Alex recorded in a period, one row per record,
  * newest day first — the sixteen columns of ledger.ts LEDGER_HEAD_WORDS (DAY ·
  * DATE · CITY · COUNTRY · BOOK · ACCOUNT · ACCOUNT NAME · DESCRIPTION · VENDOR ·
@@ -122,6 +131,7 @@ import {
   ledgerCsvFileName, ledgerSummary, ledgerTotals, leftOutTotal, leftOutWords, matchCellTitle, matchCellWords, matchCoverageWords, matchState, matchTotalWords, noLineWords, noRowsWords,
   noStayWords, notPlacedWords, notRecordedWords, noteCellWords, notesCount, notesToggleWords, perDayWords, periodOf, periodWords, readableMatchCents, sortRows, starsCellWords, stepAnchor,
   underOverWords, unplacedWords, varianceCellWords, varianceCoverageWords, vendorCellWords,
+  hoursWords, loggedCoverageWords, minutesCellWords, plannedCoverageWords, // TIME-03 (2026-10-26): the minutes cells, the hours and their coverage
   type ColumnFilters, type GroupKey, type LedgerColumn, type LedgerRow, type LedgerSort, type MatchState, type Period, type PeriodKind,
 } from '@/lib/operations/ledger';
 
@@ -248,6 +258,9 @@ export default function LedgerSection() {
                 <td className={`${cell} font-semibold text-text-primary`} data-ledger-cell="sub-account-name">{row.description}</td>
                 <td className={`${cell} ${row.vendor === null ? BLANK_CLASS : ''}`} data-ledger-cell="vendor">{vendorCellWords(row.vendor)}</td>
                 <td className={`${cell} whitespace-nowrap ${row.rating === null ? BLANK_CLASS : ''}`} data-ledger-cell="stars">{starsCellWords(row.rating)}</td>
+                {/* TIME-03 (2026-10-26): the minutes after STARS — the line's planned and the record's logged, whole minutes, "—" for null. */}
+                <td className={`${cell} whitespace-nowrap tabular-nums ${row.plannedMinutes === null ? BLANK_CLASS : ''}`} data-ledger-cell="planned-minutes">{minutesCellWords(row.plannedMinutes)}</td>
+                <td className={`${cell} whitespace-nowrap tabular-nums ${row.loggedMinutes === null ? BLANK_CLASS : ''}`} data-ledger-cell="logged-minutes">{minutesCellWords(row.loggedMinutes)}</td>
                 <td className={`${money} ${row.cents === null ? BLANK_CLASS : 'font-semibold text-text-primary'}`} data-ledger-cell="budget">{budgetCellWords(row.cents)}</td>
                 <td className={`${money} ${row.outcome === 'skipped' ? 'text-text-muted' : row.actualCents === null ? BLANK_CLASS : `font-semibold ${actualTone(delta.over)}`}`} data-ledger-cell="actual">{actualCellWords(row)}</td>
                 <td className={`${money} ${row.varianceCents === null ? BLANK_CLASS : `font-semibold ${actualTone(delta.over)}`}`} data-ledger-cell="variance">{varianceCellWords(row.varianceCents)}</td>
@@ -270,9 +283,9 @@ export default function LedgerSection() {
         }}
         foot={(
           <tfoot>
-            {/* LEDGER-02 (amended): TOTAL spans the ten columns before BUDGET; VARIANCE is the column's sum (ledgerTotals), and the ACTUAL tone and UNDER / OVER follow its sign — one truth per row; "—" when no row carries both. */}
+            {/* LEDGER-02 (amended): TOTAL spans the columns before BUDGET (twelve since TIME-03 — PLANNED MIN and LOGGED MIN sit among them; their sums are the summary's hours, not this row's); VARIANCE is the column's sum (ledgerTotals), and the ACTUAL tone and UNDER / OVER follow its sign — one truth per row; "—" when no row carries both. */}
             <tr className="border-t border-border font-bold text-text-primary" data-ledger-total>
-              <th scope="row" colSpan={10} className={`${cell} text-left`}>{TOTAL_WORDS}</th>
+              <th scope="row" colSpan={12} className={`${cell} text-left`}>{TOTAL_WORDS}</th>
               <td className={`${money} ${totals.budgetCents === null ? BLANK_CLASS : ''}`} data-ledger-total-budget>{budgetCellWords(totals.budgetCents)}</td>
               <td className={`${money} ${totals.actualCents === null ? BLANK_CLASS : totals.varianceCents === null ? '' : varianceTone(totals.varianceCents)}`} data-ledger-total-actual>{budgetCellWords(totals.actualCents)}</td>
               <td className={`${money} ${varianceTone(totals.varianceCents)}`} data-ledger-total-variance>{varianceCellWords(totals.varianceCents)}</td>
@@ -298,6 +311,8 @@ export default function LedgerSection() {
               <div className="space-y-0.5 mt-1" data-ledger-said>
                 {shown.length > 0 && <p data-ledger-said-variance>{varianceCoverageWords(totals.withVariance, shown.length)}</p>}
                 {shown.length > 0 && <p data-ledger-said-match>{matchCoverageWords(totals.withMatch, shown.length)}</p>}
+                {shown.length > 0 && <p data-ledger-said-planned>{plannedCoverageWords(totals.withPlanned, shown.length)}</p>}
+                {shown.length > 0 && <p data-ledger-said-logged>{loggedCoverageWords(totals.withLogged, shown.length)}</p>}
                 {answer.read.value.said.noLine > 0 && <p data-ledger-said-no-line>{noLineWords(answer.read.value.said.noLine, answer.read.value.said.doubled)}</p>}
                 {answer.read.value.said.noStay > 0 && <p data-ledger-said-no-stay>{noStayWords(answer.read.value.said.noStay)}</p>}
                 {answer.read.value.said.unplaced.length > 0 && <p data-ledger-said-unplaced>{unplacedWords(answer.read.value.said.unplaced)}</p>}
@@ -336,6 +351,9 @@ export default function LedgerSection() {
                         <td className={`${money} ${g.totals.over === null ? BLANK_CLASS : actualTone(g.totals.over)}`} data-ledger-group-words>{g.totals.words}</td>
                         <td className={`${money} ${g.perDayCents === null ? BLANK_CLASS : ''}`} data-ledger-group-per-day>{perDayWords(g.perDayCents)}</td>
                         <td className={`${cell} whitespace-nowrap ${g.stars === null ? BLANK_CLASS : ''}`} data-ledger-group-stars>{g.stars === null ? starsCellWords(null) : averageStarsWords(g.stars)}</td>
+                        {/* TIME-03 (2026-10-26): the group's minutes as hours to one decimal; "—" when no row of the group carries them. */}
+                        <td className={`${money} ${g.totals.plannedMinutes === null ? BLANK_CLASS : ''}`} data-ledger-group-planned-hours>{hoursWords(g.totals.plannedMinutes)}</td>
+                        <td className={`${money} ${g.totals.loggedMinutes === null ? BLANK_CLASS : ''}`} data-ledger-group-logged-hours>{hoursWords(g.totals.loggedMinutes)}</td>
                       </tr>
                     ))}
                   </tbody>

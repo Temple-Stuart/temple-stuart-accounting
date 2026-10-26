@@ -90,15 +90,15 @@ const BOOKS = [{ id: 'P', entityType: 'personal' }, { id: 'B', entityType: 'sole
 const record = (over: Partial<StopRecordRow> & { id: string; kind: StopRecordRow['kind']; target_id: string; occurrence_at: string }): StopRecordRow => ({
   outcome: 'done', done_at: `${over.occurrence_at.slice(0, 11)}00:41:00.000Z`, actual_cents: null, rating: null, note: null, actual_minutes: null, ...over,
 });
-const morningLine = (r: StopRecordRow, activity: string, timeOfDay: string): LedgerRecordInput => ({ record: r, routineId: 'morning', routineName: 'Morning', zone: BKK, role: 'place', activity, timeOfDay });
+const morningLine = (r: StopRecordRow, activity: string, timeOfDay: string): LedgerRecordInput => ({ record: r, routineId: 'morning', routineName: 'Morning', zone: BKK, role: 'place', activity, timeOfDay, durationMinutes: null }); // TIME-03: the input grows additively — null here, time03.test.ts drives the minutes
 
 const RECORDS: LedgerRecordInput[] = [
   morningLine(record({ id: 'r-coffee-13', kind: 'routine_line', target_id: 'coffee', occurrence_at: MORNING_13, actual_cents: 898, rating: 4, note: 'khao soi, "the good one"' }), 'Coffee', '07:30'),
   morningLine(record({ id: 'r-stretch-13', kind: 'routine_line', target_id: 'stretch', occurrence_at: MORNING_13, outcome: 'skipped', done_at: null, note: 'rain' }), 'Stretch', '06:30'),
   morningLine(record({ id: 'r-lunch-13', kind: 'routine_line', target_id: 'lunch', occurrence_at: MORNING_13, rating: 3 }), 'Lunch', '12:00'),
-  { record: record({ id: 'r-client-13', kind: 'routine', target_id: 'client', occurrence_at: CLIENT_13, actual_cents: 3000, rating: 5 }), routineId: 'client', routineName: 'Client lunch', zone: BKK, role: 'place', activity: null, timeOfDay: null },
+  { record: record({ id: 'r-client-13', kind: 'routine', target_id: 'client', occurrence_at: CLIENT_13, actual_cents: 3000, rating: 5 }), routineId: 'client', routineName: 'Client lunch', zone: BKK, role: 'place', activity: null, timeOfDay: null, durationMinutes: null },
   morningLine(record({ id: 'r-coffee-12', kind: 'routine_line', target_id: 'coffee', occurrence_at: MORNING_12, actual_cents: 1200, rating: 5, note: 'latte' }), 'Coffee', '07:30'),
-  { record: record({ id: 'r-yoga-12', kind: 'routine', target_id: 'yoga', occurrence_at: YOGA_12, actual_cents: 500, rating: 2 }), routineId: 'yoga', routineName: 'Yoga', zone: BKK, role: 'place', activity: null, timeOfDay: null },
+  { record: record({ id: 'r-yoga-12', kind: 'routine', target_id: 'yoga', occurrence_at: YOGA_12, actual_cents: 500, rating: 2 }), routineId: 'yoga', routineName: 'Yoga', zone: BKK, role: 'place', activity: null, timeOfDay: null, durationMinutes: null },
   morningLine(record({ id: 'r-coffee-11', kind: 'routine_line', target_id: 'coffee', occurrence_at: MORNING_11, actual_cents: 1000 }), 'Coffee', '07:30'),
 ];
 
@@ -251,7 +251,7 @@ test('R3 the MATCH cell: the sum in dollars; "—" with no link or any unreadabl
   const lines = ledgerCsv(ledger.rows).split('\r\n');
   const field = (id: string, i: number): string => lines[1 + ledger.rows.findIndex((r) => r.id === id)].split(',')[i];
   const MATCH = LEDGER_HEAD_WORDS.indexOf('MATCH');
-  assert.equal(MATCH, 13);
+  assert.equal(MATCH, 15); // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
   assert.equal(field('r-coffee-13', MATCH), '8.98');
   assert.match(lines[1 + ledger.rows.findIndex((r) => r.id === 'r-coffee-13')], /,10\.00,8\.98,-1\.02,8\.98,under,"khao soi, ""the good one"""$/, 'BUDGET · ACTUAL · VARIANCE · MATCH 8.98 · UNDER / OVER');
   assert.match(lines[1 + ledger.rows.findIndex((r) => r.id === 'r-client-13')], /,25\.00,30\.00,5\.00,30\.00,over,$/);
@@ -267,7 +267,7 @@ test('R3 the MATCH cell: the sum in dollars; "—" with no link or any unreadabl
   assert.match(s, /<td className=\{`\$\{money\} \$\{totals\.matchCents === null \? BLANK_CLASS : ''\}`\} data-ledger-total-match>\{matchTotalWords\(totals\.matchCents\)\}<\/td>/, 'the TOTAL row’s MATCH, no tone');
   assert.match(s, /\{shown\.length > 0 && <p data-ledger-said-match>\{matchCoverageWords\(totals\.withMatch, shown\.length\)\}<\/p>\}/, 'the coverage line');
   assert.doesNotMatch(s, /MATCH_NOTE_WORDS|MATCH_CELL_WORDS/);
-  assert.equal(LEDGER_HEAD_WORDS.length, 16, 'Alex’s sixteen stand — the cue is a tone, not a column');
+  assert.equal(LEDGER_HEAD_WORDS.length, 18, 'the cue is a tone, not a column (TIME-03 added the two minutes columns, not a MATCH cue)'); // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
 });
 
 // ── R4 · THE PICKER ─────────────────────────────────────────────────────────

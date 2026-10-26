@@ -244,7 +244,10 @@ export const CAPABILITY_GROUPS: readonly CapabilityGroup[] = [
     title: 'Plan your days and what they cost',
     rows: [
       { label: 'One calendar for plans, bookings and the day’s cost', tools: ['Calendar'], module: 'personal' },
-      { label: 'Projects and routines, each with what it costs', tools: ['Tasks'], module: 'personal' },
+      // TIME-03 (Alex, 2026-10-26; TASKS-03 call 1, ruled in chat): half this claim stands on Expenses — routines and what each
+      // costs are planned under Expenses (/expenses, ROUTINE EXPENSES), projects under Tasks — so the row is backed by both.
+      // Both LIVE: the ✓ is unchanged; the label is unchanged.
+      { label: 'Projects and routines, each with what it costs', tools: ['Tasks', 'Expenses'], module: 'personal' },
       { label: 'Where the hours went', tools: ['Time'], module: 'personal' },
     ],
   },
