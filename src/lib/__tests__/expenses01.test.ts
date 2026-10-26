@@ -17,9 +17,9 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { code, comments } from '../sourceText';
-import { EXPECTED_STATUS_COUNTS, TOOL_REGISTRY, registryLaw, statusCounts } from '../toolRegistry';
+import { TOOL_REGISTRY, registryLaw } from '../toolRegistry';
 import { PHASES_RENDERED_AT, navFamilies, navRows, navToolByName, phasesRenderedOn } from '../nav';
-import { FREE_TOOLS, TOOL_GATE, claimForTool } from '../offer';
+import { TOOL_GATE } from '../offer';
 import { PROBLEM_SHEET } from '../problemSheet';
 
 const OPS = 'src/components/workbench/operations';
@@ -102,36 +102,22 @@ test('B /tasks mounts THE WORK then PROJECTS (in its boundary), in that order, a
 
 // ── RULING C · THE REGISTRY ROW ──────────────────────────────────────────────
 
-test('C Expenses is PARTIAL at /expenses with discover · commit · record, gate null, a true why and customer line, a citation naming this PR; the census is 2 · 10 · 13', () => {
+// EXPENSES-02 (Alex, 2026-10-26): the row moved on — LIVE, four beats, no why, the customer line without "not yet", the census 3 · 9 · 13,
+// Expenses in the free set — pinned in expenses02.test.ts. What EXPENSES-01 settled and EXPENSES-02 kept is pinned here.
+test('C Expenses is at /expenses with gate null, its home and links as EXPENSES-01 set them, its citation naming EXPENSES-01 first; the EXPENSES-01 census line stays in the record', () => {
   const t = expenses();
-  assert.equal(t.status, 'PARTIAL');
   assert.equal(t.home, '/expenses');
-  assert.deepEqual(t.beats, { discover: true, decide: false, commit: true, record: true });
   assert.equal(t.cockpitKey, undefined);
   assert.deepEqual(t.links, []);
   assert.equal(TOOL_GATE.Expenses, null, 'the gate stays null');
-  assert.equal(t.why, "every recurring expense, planned — its amount, account, cadence and vendor — with this month's budget, what was recorded at its stops and what Books matched, line by line; a receipt is not yet matched to the charge that made it");
-  // "what you actually paid", not the ruling's suggested "what you recorded": the plan law refuses a beat word in a customer sentence.
-  assert.equal(t.customer, "You can plan every recurring expense — its amount, account, cadence and vendor — and see this month's budget, what you actually paid and what was matched in Books, line by line; receipts are not yet matched to the charge that made them.");
-  // Customer copy: no source path in either line.
-  assert.doesNotMatch(t.why ?? '', /\.tsx?:|src\//);
+  // Customer copy: no source path.
   assert.doesNotMatch(t.customer ?? '', /\.tsx?:|src\//);
-  // The citation names this PR and the lines each beat is read from.
-  assert.match(t.citation, /^EXPENSES-01 \(2026-10-25\): src\/app\/expenses\/page\.tsx mounts ROUTINE EXPENSES alone · discover: src\/components\/workbench\/operations\/SectionF_RoutineExpenses\.tsx:\d+ \(GET \/api\/operations\/routines\) · :\d+ \(GET \/api\/operations\/routines\/month\?as_of=\) · commit: routines\/RoutineCreateForm\.tsx:\d+ → src\/app\/api\/operations\/routines\/route\.ts:\d+ \(POST\)/);
+  // The citation names this PR first and the lines each beat is read from.
+  assert.match(t.citation, /^EXPENSES-01 \(2026-10-25\): src\/app\/expenses\/page\.tsx mounts ROUTINE EXPENSES alone · /);
+  assert.match(t.citation, /discover: src\/components\/workbench\/operations\/SectionF_RoutineExpenses\.tsx:\d+ \(GET \/api\/operations\/routines\) · :\d+ \(GET \/api\/operations\/routines\/month\?as_of=\) · commit: routines\/RoutineCreateForm\.tsx:\d+ → src\/app\/api\/operations\/routines\/route\.ts:\d+ \(POST\)/);
   assert.match(t.citation, /record: src\/app\/api\/operations\/routines\/month\/route\.ts:\d+-\d+ → src\/lib\/operations\/routineMonth\.ts \(actual_cents, match_cents\)/);
-  assert.match(t.citation, /not done here: the stop is recorded on the day card/);
-  // The claim the offer renders: three beats keep the beats form (offer.ts claimLine — the why form is the four-beat PARTIAL's);
-  // the opener's line is the why (nav.ts `line`). A PARTIAL is never a free tool.
-  assert.equal(claimForTool('Expenses'), 'partial — discover · commit · record');
-  assert.ok(!FREE_TOOLS.some((x) => x.name === 'Expenses'));
-  // The census moved with a dated note, and the law holds on the real registry.
-  assert.deepEqual(EXPECTED_STATUS_COUNTS, { LIVE: 2, PARTIAL: 10, NOT_BUILT: 13 });
-  assert.deepEqual(statusCounts(), { LIVE: 2, PARTIAL: 10, NOT_BUILT: 13 });
   assert.deepEqual(registryLaw({ throwOnFail: false }), []);
   assert.match(comments(REGISTRY), /EXPENSES-01 census \(Alex, 2026-10-25\): Expenses is PARTIAL/);
-  assert.match(comments(REGISTRY), /2 LIVE · 10 PARTIAL · 13 NOT_BUILT/);
-  // Three beats, not four: the law asks no why of it, and the row carries one anyway — the opener's line.
-  assert.deepEqual(registryLaw({ throwOnFail: false, registry: TOOL_REGISTRY.map((x) => (x.name === 'Expenses' ? { ...x, why: undefined } : x)) }), []);
   // The declaration: /expenses draws no strip.
   assert.deepEqual(PHASES_RENDERED_AT['/expenses'], []);
   assert.deepEqual(phasesRenderedOn('/expenses', navToolByName('Expenses', TOOL_GATE)), []);
@@ -175,9 +161,9 @@ test('E the rail lists Expenses in MONEY OUT after Payroll, with its home /expen
   assert.equal(row.name, 'Expenses');
   assert.equal(row.href, '/expenses');
   assert.deepEqual(row.door, { kind: 'route', href: '/expenses' });
-  assert.equal(row.status, 'PARTIAL');
+  assert.equal(row.status, 'LIVE'); // EXPENSES-02 (2026-10-26): LIVE
   assert.equal(row.gate, null);
-  assert.equal(row.line, expenses().why);
+  assert.equal(row.line, null, 'EXPENSES-02: a LIVE row carries no why, so the opener prints no line — as Travel and Bookkeeping');
   assert.deepEqual(row.subRows, []);
   assert.equal(row.n, expenses().order);
   assert.equal(navRows(TOOL_GATE).filter((t) => t.href === '/expenses').length, 1, 'one door');

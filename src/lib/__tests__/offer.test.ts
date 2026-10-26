@@ -141,9 +141,11 @@ test('the grants: Books unlocks Trade, Tax and Compliance at both gates; the bun
 
 test('the free set is the registry\'s LIVE tools with no gate; the gate map covers every tool', () => {
   // TRUTH-01 (census 2026-09-09): Calendar, Tasks, Time and Budget are PARTIAL — four beats cited, the job not done for a customer — so the free set is Travel alone.
-  assert.deepEqual(FREE_TOOLS.map((t) => t.name), ['Travel']);
+  // EXPENSES-02 (Alex, 2026-10-26): Expenses is LIVE — the vendor decided on the row; receipts are Documents' job. 2 · 10 · 13 → 3 · 9 · 13. Expenses (gate null) joins the free set, in registry order before Travel.
+  assert.deepEqual(FREE_TOOLS.map((t) => t.name), ['Expenses', 'Travel']);
   // TRUTH-01b: the landing's free line — singular for the one free tool, plural otherwise, the rest of the sentence unchanged
-  assert.equal(freeSetLine(), "Free with an account, no module to buy: Travel — the registry's live tool with no tab gate.");
+  assert.equal(freeSetLine(), "Free with an account, no module to buy: Expenses, Travel — the registry's live tools with no tab gate.");
+  assert.equal(freeSetLine([{ name: 'Travel' }]), "Free with an account, no module to buy: Travel — the registry's live tool with no tab gate.");
   assert.equal(freeSetLine([{ name: 'Travel' }, { name: 'Budget' }]), "Free with an account, no module to buy: Travel, Budget — the registry's live tools with no tab gate.");
   assert.equal(Object.keys(TOOL_GATE).length, TOOL_REGISTRY.length);
   for (const t of TOOL_REGISTRY) assert.ok(t.name in TOOL_GATE, t.name);
@@ -152,8 +154,9 @@ test('the free set is the registry\'s LIVE tools with no gate; the gate map cove
 
 test('the hero line is the registry\'s counts in words — never typed', () => {
   // EXPENSES-01 (Alex, 2026-10-25): Expenses NOT_BUILT → PARTIAL — ten partial, thirteen on the blueprint (nine and fourteen until then).
-  assert.equal(heroCountsLine(), 'Twenty-five tools, counted: two live, ten partial, thirteen on the blueprint.');
-  assert.equal(heroCountsLine(TOOL_REGISTRY.filter((t) => t.status !== 'NOT_BUILT')), 'Twelve tools, counted: two live, ten partial, zero on the blueprint.');
+  // EXPENSES-02 (Alex, 2026-10-26): Expenses is LIVE — the vendor decided on the row; receipts are Documents' job. 2 · 10 · 13 → 3 · 9 · 13. Three live, nine partial.
+  assert.equal(heroCountsLine(), 'Twenty-five tools, counted: three live, nine partial, thirteen on the blueprint.');
+  assert.equal(heroCountsLine(TOOL_REGISTRY.filter((t) => t.status !== 'NOT_BUILT')), 'Twelve tools, counted: three live, nine partial, zero on the blueprint.');
   assert.equal(numberWord(25), 'twenty-five');
   assert.throws(() => numberWord(26), OfferLawError);
 });

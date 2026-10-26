@@ -35,8 +35,8 @@ import { toggleChip } from '@/lib/ds';
 import type { PlanAddressText, PlanLine } from '@/lib/budget/planLines';
 import { vendorChoices, type DirectoryVendor } from '@/lib/budget/reportView';
 
-/** What a write answered: its JSON, or why not — the route's own words, or signed out. */
-type Answer = { ok: true; status: number; body: Record<string, unknown> } | { ok: false; status: number | null; words: string; body: Record<string, unknown> | null };
+/** What a write answered: its JSON, or why not — the route's own words, or signed out. (EXPENSES-02: exported with the writes.) */
+export type Answer = { ok: true; status: number; body: Record<string, unknown> } | { ok: false; status: number | null; words: string; body: Record<string, unknown> | null };
 
 const SIGNED_OUT = 'You are signed out — sign in to set a vendor.';
 
@@ -59,8 +59,12 @@ async function answerOf(res: Response): Promise<Answer> {
 /** A request that never reached the route. */
 const unreached = (error: unknown): Answer => ({ ok: false, status: null, words: `the request did not reach the server: ${error instanceof Error ? error.message : String(error)}`, body: null });
 
-/** POST /api/operations/plan-vendors — this line's vendor, at the grain chosen (instant null = every occurrence). */
-async function setVendor(address: PlanAddressText, instant: string | null, vendorId: string): Promise<Answer> {
+/**
+ * POST /api/operations/plan-vendors — this line's vendor, at the grain chosen (instant null = every occurrence).
+ * EXPENSES-02 (Alex, 2026-10-26): exported, with addVendor below — ROUTINE EXPENSES' vendor panel
+ * (workbench/operations/routines/RoutineVendorPanel.tsx) writes through these same two calls, at the every-occurrence grain.
+ */
+export async function setVendor(address: PlanAddressText, instant: string | null, vendorId: string): Promise<Answer> {
   try {
     return await answerOf(await fetch('/api/operations/plan-vendors', {
       method: 'POST',
@@ -84,8 +88,8 @@ export async function clearVendor(address: PlanAddressText): Promise<Answer> {
   }
 }
 
-/** POST /api/operations/vendor-directory — a new vendor in the line's book. */
-async function addVendor(entityId: string, name: string): Promise<Answer> {
+/** POST /api/operations/vendor-directory — a new vendor in the line's book. (EXPENSES-02: exported — see setVendor.) */
+export async function addVendor(entityId: string, name: string): Promise<Answer> {
   try {
     return await answerOf(await fetch('/api/operations/vendor-directory', {
       method: 'POST',

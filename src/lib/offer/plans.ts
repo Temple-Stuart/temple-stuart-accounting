@@ -267,7 +267,11 @@ export const CAPABILITY_GROUPS: readonly CapabilityGroup[] = [
       // accounts; it is what KIND of records you keep: one personal entity, against a
       // company with invoices, payroll, sales tax and filings — and those stay 'business'.
       { label: 'Double-entry books written from what you already did', tools: ['Bookkeeping'], module: 'personal' },
-      { label: 'Receipts matched to the charge that made them', tools: ['Expenses'], module: 'personal' },
+      // EXPENSES-02 (Alex, 2026-10-26): Expenses is LIVE, so this row reads ✓ by derivation in every plan (all four hold
+      // 'personal'). Its label said "Receipts matched to the charge that made them" — receipts are the Documents job (ruled
+      // in chat 2026-10-26), a job nobody built, and a ✓ over it would have been a claim the registry does not make. The
+      // label says what Expenses does today; the row's tool and module are unchanged. Flagged in the EXPENSES-02 report.
+      { label: 'Every recurring expense planned, with its vendor and what it cost this month', tools: ['Expenses'], module: 'personal' },
     ],
   },
   {
