@@ -103,7 +103,8 @@ export interface RoutinesWindowResponse {
   truncated: boolean;
 }
 
-const ROUTINES_SOURCE = 'routines';
+/** The source every routine tile carries — CAL-03's palette tells a routine tile apart by it. */
+export const ROUTINES_SOURCE = 'routines';
 // ORPHAN-01 (2026-09-17): was '/operations/routines'. That page is a redirect to
 // /calendar, so a routine click on /hub took TWO hops to reach the tool that owns
 // it — and the hop pointed at a survivor of the deleted /operations room rather
