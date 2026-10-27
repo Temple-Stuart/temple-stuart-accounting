@@ -165,6 +165,15 @@ const TABS: { key: string; label: string; icon: LucideIcon }[] = [
   { key: 'calendar',   label: 'Runway',     icon: Calendar },
   // 'content' (Clapperboard) left this list with TIME-02 (2026-10-19) — the content pipeline is retired.
 ];
+
+/** COCKPIT-PERF-01 (Alex, 2026-10-27, ruling 1): the tab a path names, read DURING RENDER — /runway → calendar,
+ *  /travel → travel, … — so the first paint is the path's own panel on the server and the client alike (the same
+ *  pathname on both sides; hydration-safe). A path that names no tab (the bare '/') keeps the cockpit's 'calendar'
+ *  default, the one useState('calendar') held before; a legacy ?tab= is still read by the restore effect. */
+function tabOfPath(pathname: string | null): string {
+  const seg = (pathname ?? '').split('/')[1] ?? '';
+  return seg === 'runway' ? 'calendar' : TABS.some((t) => t.key === seg) ? seg : 'calendar';
+}
 // ONE-BAND: the per-tab module band cards RETIRED from the tab sections — the
 // hero above the tab bar is the module band now (HomeClient reads the same
 // copy from the MODULE_BANDS leaf, src/lib/moduleBands.ts — the strings moved
@@ -215,6 +224,149 @@ interface Props {
  *  for a "dark surface" REPAINT-3 had already retired — white on cream. */
 function TravelHeading({ children }: { children: React.ReactNode }) {
   return <h2 className={SECTION_HEADER} data-travel-heading>{children}</h2>;
+}
+
+/** COCKPIT-PERF-01 (Alex, 2026-10-27, ruling A): THE BOOKS PANEL OWNS ITS READS. The cockpit bar's three reads (the
+ *  trial balance, the accounts, the closing periods) and the Plaid link token (useBankConnection) lived in the
+ *  launcher's body and fired at every cockpit mount, whatever tab was open. They moved here VERBATIM: they fire when
+ *  this panel mounts and not before, and a re-opened panel re-reads (no cache). A locked viewer fires none of them —
+ *  the same `booksLocked` gate the launcher held, handed in. */
+function BooksPanel({ booksLocked, lapsed }: { booksLocked: boolean; lapsed: LapsedEntitlement | null }) {
+  // ── BOOKS-1: cockpit data layer ───────────────────────────────────────────────
+  // The BookkeepingCockpitBar needs 10 props, sourced from three ALREADY-AUTHED,
+  // user-scoped routes (no new routes): /api/trial-balance, /api/accounts,
+  // /api/closing-periods. selectedYear defaults to the current year (no picker in
+  // BOOKS-1). TRUTH-FIRST: the cockpit bar's API is plain booleans/numbers with no
+  // loading/unknown state, so we do NOT feed it a `?? true` fallback. Instead the
+  // section renders a loading OR an explicit error state and only mounts the cockpit
+  // bar with REAL numbers when all three fetches succeed and isBalanced is a real
+  // boolean. Never fake "Balanced", never fake zeros.
+  const [booksYear] = useState(new Date().getFullYear());
+  const [booksState, setBooksState] = useState<'loading' | 'error' | 'ok'>('loading');
+  const [booksData, setBooksData] = useState<{
+    totalAssets: number; totalLiabilities: number; totalEquity: number;
+    isBalanced: boolean; hasActivity: boolean; connectedAccounts: number; periodStatus: 'open' | 'closed';
+  } | null>(null);
+
+  const loadBooksCockpit = useCallback(async () => {
+    setBooksState('loading');
+    try {
+      const [tbRes, accRes, cpRes] = await Promise.all([
+        fetch('/api/trial-balance'),
+        fetch('/api/accounts'),
+        fetch(`/api/closing-periods?year=${booksYear}`),
+      ]);
+      // Fail-loud: any non-OK response → explicit error state (NOT balanced, NOT zeros).
+      if (!tbRes.ok || !accRes.ok || !cpRes.ok) throw new Error('books cockpit fetch failed');
+      const tb = await tbRes.json();
+      const acc = await accRes.json();
+      const cp = await cpRes.json();
+      // isBalanced + hasActivity MUST come from the real trial balance — if
+      // either is absent, that's an error we surface, never a silent "true".
+      if (typeof tb?.totals?.isBalanced !== 'boolean' || typeof tb?.totals?.hasActivity !== 'boolean') throw new Error('trial balance missing isBalanced/hasActivity');
+      const tbAccounts: any[] = Array.isArray(tb.accounts) ? tb.accounts : []; // eslint-disable-line @typescript-eslint/no-explicit-any
+      const sumBy = (type: string) =>
+        tbAccounts.filter((a) => a.accountType === type)
+          .reduce((s: number, a) => s + Math.abs(Number(a.normalBalance) || 0), 0);
+      // connectedAccounts mirrors the dashboard: flatten items[].accounts[] and count.
+      const connectedAccounts = (acc.items || [])
+        .reduce((n: number, it: any) => n + ((it.accounts || []).length), 0); // eslint-disable-line @typescript-eslint/no-explicit-any
+      const month = new Date().getMonth() + 1;
+      const periodStatus: 'open' | 'closed' =
+        (cp.periods || []).some((p: any) => p.year === booksYear && p.month === month && p.status === 'closed') // eslint-disable-line @typescript-eslint/no-explicit-any
+          ? 'closed' : 'open';
+      setBooksData({
+        totalAssets: sumBy('asset'),
+        totalLiabilities: sumBy('liability'),
+        totalEquity: sumBy('equity'),
+        isBalanced: tb.totals.isBalanced,
+        hasActivity: tb.totals.hasActivity,
+        connectedAccounts,
+        periodStatus,
+      });
+      setBooksState('ok');
+    } catch {
+      setBooksData(null);
+      setBooksState('error');
+    }
+  }, [booksYear]);
+
+  // Load the cockpit (and a Plaid Link token) only for a viewer who actually sees the
+  // Books surface (tab entitled, or admin via the lock helper) — locked viewers get the
+  // SHOW surface and fire zero Books fetches.
+  useEffect(() => {
+    if (booksLocked) return;
+    loadBooksCockpit();
+  }, [booksLocked, loadBooksCockpit]);
+
+  // ACCOUNTS-01: the link token, Plaid Link, exchange-token, sync-complete and the OAuth
+  // return line all live in the shared hook now — the SAME glue step 1's screen (/accounts)
+  // and Books' Source Accounts drive, against the same routes. Enabled only for a viewer who
+  // actually sees this surface: a locked tab fetches no token.
+  const bank = useBankConnection({ onChanged: loadBooksCockpit, enabled: !booksLocked });
+  const booksSyncMessage = bank.message;
+
+  return (
+    <RoomLock locked={booksLocked} lapsed={lapsed} stepName="Books">
+      <>
+        {/* Plaid Link script — loaded only for a viewer who sees this surface (locked
+            viewers never pull Plaid). Mirrors dashboard/page.tsx:454. */}
+        <Script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js" strategy="lazyOnload" />
+        {/* Cockpit — TRUTH-FIRST: loading / explicit-error / real-data only. Never a
+            fake "Balanced" or zeros. */}
+        {booksState === 'loading' && (
+          <div className="rounded-xl border-2 border-border bg-bg-row px-4 py-3 text-sm text-text-muted">
+            Loading your books…
+          </div>
+        )}
+        {booksState === 'error' && (
+          <div role="alert" className={`${STATE.errorCard} flex items-center justify-between gap-3`}>
+            <span>Couldn&rsquo;t load your books right now. Nothing is assumed — the balance sheet is hidden until it loads.</span>
+            <button
+              type="button"
+              onClick={loadBooksCockpit}
+              className="shrink-0 rounded-lg border border-status-danger/40 px-3 py-1.5 text-xs font-semibold text-status-danger hover:bg-status-danger/10"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+        {booksState === 'ok' && booksData && (
+          <BookkeepingCockpitBar
+            totalAssets={booksData.totalAssets}
+            totalLiabilities={booksData.totalLiabilities}
+            totalEquity={booksData.totalEquity}
+            isBalanced={booksData.isBalanced}
+            hasActivity={booksData.hasActivity}
+            connectedAccounts={booksData.connectedAccounts}
+            periodLabel={`${new Date().toLocaleString('en-US', { month: 'long' })} ${booksYear}`}
+            periodStatus={booksData.periodStatus}
+            onSync={bank.syncAccounts}
+            syncing={bank.syncing}
+            onLinkAccount={bank.linkAccount}
+          />
+        )}
+        {booksSyncMessage && (
+          <div
+            role={booksSyncMessage.tone === 'ok' ? 'status' : 'alert'}
+            className={booksSyncMessage.tone === 'ok'
+              ? 'rounded-lg border border-border bg-bg-row p-3 text-xs text-text-secondary'
+              : STATE.errorCard}
+          >
+            {/* HYG-03: one line per failed bank above one line for what succeeded —
+                one dead bank never reads as "sync failed". */}
+            {booksSyncMessage.lines.map((l, i) => <div key={i}>{l}</div>)}
+          </div>
+        )}
+        {/* BOOKS-2: the full pipe below the cockpit — import → categorize/COA →
+            journal → ledger → trial balance → reconcile → adjusting → statements →
+            wash-sales → close → year-end → positions → CPA export (dashboard order).
+            The 5 BOOKS-1 drop-ins are interleaved inside BooksPipeline at their
+            dashboard positions; the cockpit above keeps its own BOOKS-1 wiring. */}
+        <BooksPipeline />
+      </>
+    </RoomLock>
+  );
 }
 
 export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
@@ -276,12 +428,16 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // desktop (top tab row); one module panel shows at a time on each. Additive — does
   // not touch any existing state (authed/currentTrip/tripsRefresh/scanner). Default the
   // master calendar.
-  const [activeModule, setActiveModule] = useState('calendar');
+  // COCKPIT-PERF-01 (Alex, 2026-10-27, ruling 1): the first tab is the path's, read during render (tabOfPath above) —
+  // /travel's first paint is Travel, on the server and the client alike; the 'calendar' default stands for the bare '/'.
+  const pathname = usePathname();
+  const [activeModule, setActiveModule] = useState(() => tabOfPath(pathname));
   // F2 → ROUTE-1: the active tab lives in the URL as a REAL PATH (/runway,
   // /travel, …) so reload and deep links restore it. Still written with NATIVE
   // history.replaceState — a shallow URL update: no Next.js navigation, no RSC
-  // refetch, no scroll jump, no remount (tab panels are CSS block/hidden
-  // anyway; the App Router syncs usePathname from native replaceState). Other
+  // refetch, no scroll jump (the App Router syncs usePathname from native replaceState).
+  // COCKPIT-PERF-01 (Alex, 2026-10-27, ruling A): "no remount (tab panels are CSS block/hidden anyway)" stood here
+  // until this ruling — a switch now MOUNTS the new panel and UNMOUNTS the old one (no cache, no prefetch). Other
   // params + hash survive; any legacy 'tab' param is dropped (the path IS the
   // truth now). CARVE-OUT: 'compliance' keeps the legacy /?tab=compliance URL —
   // /compliance is the standalone cockpit page (static-beats-dynamic; out of
@@ -313,8 +469,11 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   // the front door 307s every valid param to its real path EXCEPT the
   // compliance carve-out). An invalid leftover param is STRIPPED in place
   // (never a lying URL). Bare '/' → the 'calendar' default stands, URL
-  // untouched (the FD-2 front door renders as today). Effect-only read keeps
-  // hydration safe: first paint is 'calendar' on server and client alike.
+  // untouched (the FD-2 front door renders as today).
+  // COCKPIT-PERF-01 (Alex, 2026-10-27, ruling 1): "Effect-only read keeps hydration safe: first paint is 'calendar' on
+  // server and client alike" stood here — the path is now read during render too (activeModule's initial state), so
+  // the first paint is the path's tab on both sides; this effect still tells the parent (onTabChange), normalises the
+  // URL and answers the legacy ?tab= param.
   useEffect(() => {
     const seg = window.location.pathname.split('/')[1] ?? '';
     const fromPath = seg === 'runway' ? 'calendar' : TABS.some((t) => t.key === seg) ? seg : null;
@@ -417,79 +576,20 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
   const [tradeRecordStats, setTradeRecordStats] = useState<(RecordStats & { unlinkedClosed: number }) | null>(null);
   const [tradeCoverage, setTradeCoverage] = useState<{ investment_txn_count: number; earliest_txn_date: string | null; latest_txn_date: string | null } | null>(null);
 
-  // ── BOOKS-1: cockpit data layer ───────────────────────────────────────────────
-  // The BookkeepingCockpitBar needs 10 props, sourced from three ALREADY-AUTHED,
-  // user-scoped routes (no new routes): /api/trial-balance, /api/accounts,
-  // /api/closing-periods. selectedYear defaults to the current year (no picker in
-  // BOOKS-1). TRUTH-FIRST: the cockpit bar's API is plain booleans/numbers with no
-  // loading/unknown state, so we do NOT feed it a `?? true` fallback. Instead the
-  // section renders a loading OR an explicit error state and only mounts the cockpit
-  // bar with REAL numbers when all three fetches succeed and isBalanced is a real
-  // boolean. Never fake "Balanced", never fake zeros.
-  const [booksYear] = useState(new Date().getFullYear());
-  const [booksState, setBooksState] = useState<'loading' | 'error' | 'ok'>('loading');
-  const [booksData, setBooksData] = useState<{
-    totalAssets: number; totalLiabilities: number; totalEquity: number;
-    isBalanced: boolean; hasActivity: boolean; connectedAccounts: number; periodStatus: 'open' | 'closed';
-  } | null>(null);
+  // COCKPIT-PERF-01 (Alex, 2026-10-27, ruling A): what a panel REPORTED UP closes with the panel. The receipts and strip
+  // states above are drawn from these reports; once a panel unmounts, its figures are a mount that is gone, so a
+  // re-opened panel says "not loaded yet" until its own re-read lands — never the last mount's figures over a failed
+  // re-read. Selections (the trip, the runway and trade phases) are the viewer's choices, not reads, and stay.
+  useEffect(() => () => {
+    if (activeModule === 'calendar') { setRunwayTotals(null); setMatchTotals(null); }
+    if (activeModule === 'travel') setUnattachedCount(null);
+    if (activeModule === 'trade') { setTradeScanMeta(null); setTradeTally(null); setTradeRecordStats(null); setTradeCoverage(null); }
+  }, [activeModule]);
 
-  const loadBooksCockpit = useCallback(async () => {
-    setBooksState('loading');
-    try {
-      const [tbRes, accRes, cpRes] = await Promise.all([
-        fetch('/api/trial-balance'),
-        fetch('/api/accounts'),
-        fetch(`/api/closing-periods?year=${booksYear}`),
-      ]);
-      // Fail-loud: any non-OK response → explicit error state (NOT balanced, NOT zeros).
-      if (!tbRes.ok || !accRes.ok || !cpRes.ok) throw new Error('books cockpit fetch failed');
-      const tb = await tbRes.json();
-      const acc = await accRes.json();
-      const cp = await cpRes.json();
-      // isBalanced + hasActivity MUST come from the real trial balance — if
-      // either is absent, that's an error we surface, never a silent "true".
-      if (typeof tb?.totals?.isBalanced !== 'boolean' || typeof tb?.totals?.hasActivity !== 'boolean') throw new Error('trial balance missing isBalanced/hasActivity');
-      const tbAccounts: any[] = Array.isArray(tb.accounts) ? tb.accounts : []; // eslint-disable-line @typescript-eslint/no-explicit-any
-      const sumBy = (type: string) =>
-        tbAccounts.filter((a) => a.accountType === type)
-          .reduce((s: number, a) => s + Math.abs(Number(a.normalBalance) || 0), 0);
-      // connectedAccounts mirrors the dashboard: flatten items[].accounts[] and count.
-      const connectedAccounts = (acc.items || [])
-        .reduce((n: number, it: any) => n + ((it.accounts || []).length), 0); // eslint-disable-line @typescript-eslint/no-explicit-any
-      const month = new Date().getMonth() + 1;
-      const periodStatus: 'open' | 'closed' =
-        (cp.periods || []).some((p: any) => p.year === booksYear && p.month === month && p.status === 'closed') // eslint-disable-line @typescript-eslint/no-explicit-any
-          ? 'closed' : 'open';
-      setBooksData({
-        totalAssets: sumBy('asset'),
-        totalLiabilities: sumBy('liability'),
-        totalEquity: sumBy('equity'),
-        isBalanced: tb.totals.isBalanced,
-        hasActivity: tb.totals.hasActivity,
-        connectedAccounts,
-        periodStatus,
-      });
-      setBooksState('ok');
-    } catch {
-      setBooksData(null);
-      setBooksState('error');
-    }
-  }, [booksYear]);
-
-  // Load the cockpit (and a Plaid Link token) only for a viewer who actually sees the
-  // Books surface (tab entitled, or admin via the lock helper) — locked viewers get the
-  // SHOW surface and fire zero Books fetches.
-  useEffect(() => {
-    if (booksLocked) return;
-    loadBooksCockpit();
-  }, [booksLocked, loadBooksCockpit]);
-
-  // ACCOUNTS-01: the link token, Plaid Link, exchange-token, sync-complete and the OAuth
-  // return line all live in the shared hook now — the SAME glue step 1's screen (/accounts)
-  // and Books' Source Accounts drive, against the same routes. Enabled only for a viewer who
-  // actually sees this surface: a locked tab fetches no token.
-  const bank = useBankConnection({ onChanged: loadBooksCockpit, enabled: !booksLocked });
-  const booksSyncMessage = bank.message;
+  // COCKPIT-PERF-01 (Alex, 2026-10-27, ruling A): the BOOKS-1 cockpit data layer (booksYear, booksState, booksData,
+  // loadBooksCockpit and its effect) and the ACCOUNTS-01 bank hook (useBankConnection — the Plaid link-token POST)
+  // stood here, in the launcher's body, so they fired at EVERY cockpit mount whatever tab was open. They moved,
+  // verbatim, into BooksPanel (above): nothing of Books fires until the Books panel mounts.
 
   // Travel register-gate: guests fill the form freely, but "Create trip" while
   // unauthenticated opens the register modal instead of POSTing. Returns true
@@ -557,8 +657,14 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       {/* PR-Calendar-Flush: Calendar tab is flush — no purple band, no card chrome (the
           highlighted Calendar tab already says you're here). The grid toolbar sits right
           under the tab row, one continuous surface. Other modules keep their bands. */}
+      {/* COCKPIT-PERF-01 (Alex, 2026-10-27, ruling A): THE COCKPIT MOUNTS ONLY THE ACTIVE TAB'S PANEL. Every panel below
+          was a CSS-hidden section — `${activeModule === '<tab>' ? 'block' : 'hidden'}` — so all six mounted and read at once,
+          whatever tab was open. Each is now mounted only while its tab is active (`activeModule === '<tab>' && (`), carries
+          data-cockpit-panel="<tab>", and unmounts on a switch: no cache, no prefetch — a tab re-reads when opened again. */}
+      {activeModule === 'calendar' && (
+      <>
       {authed === true && (
-        <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
+        <section className="w-full bg-bg-terminal border-b border-border" data-cockpit-panel="calendar">
           <div className="max-w-7xl mx-auto">
             {/* HOME-03 (Alex, 2026-10-27): the day card left this panel for the home page, /home (answers/AnswersClient.tsx,
                 dayCard.ts DAY_CARD_PATH) — HOME-01 (2026-10-24) had put it FIRST here, above the shell card below. The panel
@@ -666,7 +772,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
         </section>
       )}
       {authed === false && (
-        <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
+        <section className="w-full bg-bg-terminal border-b border-border" data-cockpit-panel="calendar">
           <div className="max-w-7xl mx-auto">
             <div className="px-4 py-4 space-y-6">
               <div>
@@ -679,6 +785,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
             </div>
           </div>
         </section>
+      )}
+      </>
       )}
       {/* PR-TG1: Travel gets its own dedicated block (mirrors the calendar above) — pulled
           OUT of MODULES.map so it sheds the generic purple band + rounded card + wide
@@ -696,7 +804,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           TripBudgetActual/UnattachedBookings) are their own light cards and stay
           readable islands (untouched — a separate ruling if full dark parity is
           wanted). */}
-      <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'travel' ? 'block' : 'hidden'}`}>
+      {activeModule === 'travel' && (
+      <section className="w-full bg-bg-terminal border-b border-border" data-cockpit-panel="travel">
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
             {/* MOD-2 (TRAVEL EXCEPTION): only the deck mount is replaced by the
@@ -905,6 +1014,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           </div>
         </div>
       </section>
+      )}
       {/* The Routines and Projects FLUSH blocks (HB-4e-style, Projects-style-1) — RETIRED by WORK-01 (Alex, 2026-10-24):
           the two sections, their renderBody branches and their module consts are gone with the tabs. */}
       {/* Content-mount: Content rendered in its own FLUSH block here until TIME-02 (2026-10-19) retired
@@ -923,7 +1033,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       {/* TRADE-DS-1 → REPAINT-3: the dark surface passes died — the shared
           workbench components render their light defaults everywhere
           (themed()'s byte-identical light originals). */}
-      <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'trade' ? 'block' : 'hidden'}`}>
+      {activeModule === 'trade' && (
+      <section className="w-full bg-bg-terminal border-b border-border" data-cockpit-panel="trade">
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
             <RoomLock locked={tradeLocked} lapsed={lapsedFor(keysGranting('tab:trade'), lapsed)} stepName="Trading">
@@ -1105,6 +1216,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           </div>
         </div>
       </section>
+      )}
       {/* BOOKS-1: Books renders in its own FLUSH block (mirrors Travel/Trade) — pulled OUT of
           the MODULES.map purple-band card. Active-module check uses the TAB key 'books'
           (TABS :93; MODULE_TO_TAB bookkeeping→'books' :102; selectTab sets activeModule to the
@@ -1114,82 +1226,27 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       {/* BOOKS-DS-1 → REPAINT-3: the dark surface passes died — the cockpit,
           pipeline, and locked card render their light defaults (themed()'s
           byte-identical light originals). */}
-      <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'books' ? 'block' : 'hidden'}`}>
+      {activeModule === 'books' && (
+      <section className="w-full bg-bg-terminal border-b border-border" data-cockpit-panel="books">
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
             <div>
               <div className={MODULE_SHELL_CARD}>
-            <RoomLock locked={booksLocked} lapsed={lapsedFor(keysGranting('tab:books'), lapsed)} stepName="Books">
-              <>
-                {/* Plaid Link script — loaded only for a viewer who sees this surface (locked
-                    viewers never pull Plaid). Mirrors dashboard/page.tsx:454. */}
-                <Script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js" strategy="lazyOnload" />
-                {/* Cockpit — TRUTH-FIRST: loading / explicit-error / real-data only. Never a
-                    fake "Balanced" or zeros. */}
-                {booksState === 'loading' && (
-                  <div className="rounded-xl border-2 border-border bg-bg-row px-4 py-3 text-sm text-text-muted">
-                    Loading your books…
-                  </div>
-                )}
-                {booksState === 'error' && (
-                  <div role="alert" className={`${STATE.errorCard} flex items-center justify-between gap-3`}>
-                    <span>Couldn&rsquo;t load your books right now. Nothing is assumed — the balance sheet is hidden until it loads.</span>
-                    <button
-                      type="button"
-                      onClick={loadBooksCockpit}
-                      className="shrink-0 rounded-lg border border-status-danger/40 px-3 py-1.5 text-xs font-semibold text-status-danger hover:bg-status-danger/10"
-                    >
-                      Retry
-                    </button>
-                  </div>
-                )}
-                {booksState === 'ok' && booksData && (
-                  <BookkeepingCockpitBar
-                    totalAssets={booksData.totalAssets}
-                    totalLiabilities={booksData.totalLiabilities}
-                    totalEquity={booksData.totalEquity}
-                    isBalanced={booksData.isBalanced}
-                    hasActivity={booksData.hasActivity}
-                    connectedAccounts={booksData.connectedAccounts}
-                    periodLabel={`${new Date().toLocaleString('en-US', { month: 'long' })} ${booksYear}`}
-                    periodStatus={booksData.periodStatus}
-                    onSync={bank.syncAccounts}
-                    syncing={bank.syncing}
-                    onLinkAccount={bank.linkAccount}
-                  />
-                )}
-                {booksSyncMessage && (
-                  <div
-                    role={booksSyncMessage.tone === 'ok' ? 'status' : 'alert'}
-                    className={booksSyncMessage.tone === 'ok'
-                      ? 'rounded-lg border border-border bg-bg-row p-3 text-xs text-text-secondary'
-                      : STATE.errorCard}
-                  >
-                    {/* HYG-03: one line per failed bank above one line for what succeeded —
-                        one dead bank never reads as "sync failed". */}
-                    {booksSyncMessage.lines.map((l, i) => <div key={i}>{l}</div>)}
-                  </div>
-                )}
-                {/* BOOKS-2: the full pipe below the cockpit — import → categorize/COA →
-                    journal → ledger → trial balance → reconcile → adjusting → statements →
-                    wash-sales → close → year-end → positions → CPA export (dashboard order).
-                    The 5 BOOKS-1 drop-ins are interleaved inside BooksPipeline at their
-                    dashboard positions; the cockpit above keeps its own BOOKS-1 wiring. */}
-                <BooksPipeline />
-              </>
-            </RoomLock>
+            <BooksPanel booksLocked={booksLocked} lapsed={lapsedFor(keysGranting('tab:books'), lapsed)} />
               </div>
             </div>
           </div>
         </div>
       </section>
+      )}
       {/* TAX-1: Tax renders in its own FLUSH block (mirrors Books/Trade). Active-module check
           uses the TAB key 'tax' (TABS :103; MODULE_TO_TAB tax→'tax' :115 — module key and tab
           key both 'tax'; selectTab sets activeModule to the tab key). TAB-SHOW-AND-GATE:
           gate is the tab:tax entitlement (isTabLocked — admin bypass inside). Entitled →
           the closed-books handoff gate (wizard once a period is closed, else a "close your
           books first" screen that jumps to the Books tab); locked → pointer-card + CTA (MOD-2). */}
-      <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'tax' ? 'block' : 'hidden'}`}>
+      {activeModule === 'tax' && (
+      <section className="w-full bg-bg-terminal border-b border-border" data-cockpit-panel="tax">
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
             <div>
@@ -1202,6 +1259,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           </div>
         </div>
       </section>
+      )}
       {/* COMP-1: Compliance renders in its own FLUSH block (mirrors Books/Tax). Active-module
           check uses the TAB key 'compliance' (TABS :107; MODULE_TO_TAB compliance→'compliance'
           :119 — module key and tab key both 'compliance'; selectTab sets activeModule to the tab
@@ -1209,7 +1267,8 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           admin bypass inside). Entitled → the A–J workbench (Section A → sub-page link
           row → Sections B…J, bare — no AppLayout chrome inside the tab); locked →
           pointer-card + unlock CTA (MOD-2). */}
-      <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'compliance' ? 'block' : 'hidden'}`}>
+      {activeModule === 'compliance' && (
+      <section className="w-full bg-bg-terminal border-b border-border" data-cockpit-panel="compliance">
         <div className="max-w-7xl mx-auto">
           <div className="px-4 py-4 space-y-6">
             <div>
@@ -1222,6 +1281,7 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
           </div>
         </div>
       </section>
+      )}
       {MODULES.map((m, i) => {
         // PR-TG1: Travel now renders in its own flush, edge-to-edge block above (out of
         // this map, no purple band). Skip it here so it never double-renders. Returning

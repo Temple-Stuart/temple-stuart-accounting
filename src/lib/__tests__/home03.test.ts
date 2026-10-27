@@ -171,7 +171,8 @@ test('C a bare /runway is the cockpit\'s calendar tab, and its panel is the runw
   const l = code(LAUNCHER);
   assert.match(l, /calendar: '\/runway', travel: '\/travel', trade: '\/trade',/);
   assert.match(l, /const fromPath = seg === 'runway' \? 'calendar' : TABS\.some\(\(t\) => t\.key === seg\) \? seg : null;/);
-  const runwayAt = l.indexOf("activeModule === 'calendar' ? 'block' : 'hidden'");
+  // COCKPIT-PERF-01 (Alex, 2026-10-27, ruling A): the anchor was the panel's CSS-hidden class; the panel now mounts only while its tab is active.
+  const runwayAt = l.indexOf('data-cockpit-panel="calendar"');
   const guestAt = l.indexOf('{authed === false && (');
   const panel = l.slice(runwayAt, guestAt);
   assert.ok(runwayAt > -1 && guestAt > runwayAt);

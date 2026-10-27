@@ -103,7 +103,7 @@ function toClock(v: string | null): string | null {
 // the UMBRELLA (Projects + Routines), so the events tagged here are really PROJECT
 // events; the legend now reads "Projects". One entry here gives a layer its legend
 // chip + grid color automatically (HUB_GRID_CONFIG below + CalendarGrid). Each layer
-// uses a distinct color scale: trip=cyan, project=indigo, routines=teal, trade=amber.
+// uses a distinct color scale: trip=cyan, project=indigo, trade=amber. Routines' teal below is drawn on no tile and no chip — the grid colours a routine tile by its account and lists the accounts in its legend; the entry still gives the day view its 🔁 icon (COCKPIT-PERF-01, 2026-10-27: "routines=teal" stood here).
 // The layers that do NOT come from calendar_events — Projects and Routines arrive
 // from their own loaders (that is why sources.ts excludes them by name), and Trade
 // is the /trade-log mount's layer. These three keep their existing styling verbatim.

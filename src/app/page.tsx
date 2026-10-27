@@ -18,7 +18,9 @@ import GuestLanding from '@/components/landing/GuestLanding';
  * former page body, moved verbatim); an unverified arrival gets the Landing
  * sales floor. Any ?tab= param is EXPLICIT APP INTENT and renders the app for
  * both audiences (a guest gets today's guest view; the F2 client-side restore
- * in ModuleLauncher :204-231 then selects the tab).
+ * in ModuleLauncher — its path/param restore effect, "F2 → ROUTE-1: on mount the URL
+ * is the source of truth" — then selects the tab; COCKPIT-PERF-01, 2026-10-27: the
+ * stale ":204-231" left).
  *
  * VERIFICATION, not cookie existence — the SAME two signals middleware trusts
  * (middleware.ts:127-138):

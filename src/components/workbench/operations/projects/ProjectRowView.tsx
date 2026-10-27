@@ -784,7 +784,7 @@ export default function ProjectRowView({ project,
             </div>
             {!tasksPreview && (
               <div className="text-text-muted text-xs italic p-3 bg-bg-row border border-border-light rounded">
-                (tasks are saved directly to this project on accept — click "↑ generate tasks" to synthesize an atomic task array from the goal/problem/diagnosis items above)
+                (tasks are saved directly to this project on accept — click &quot;↑ generate tasks&quot; to synthesize an atomic task array from the goal/problem/diagnosis items above)
               </div>
             )}
             {tasksGenError && (
