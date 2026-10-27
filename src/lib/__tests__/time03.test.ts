@@ -247,7 +247,7 @@ test('C Time is LIVE with four beats, no why, the customer line verbatim; the no
   assert.equal(time.why, undefined, 'a LIVE row carries no why');
   assert.equal(time.customer, CUSTOMER);
   assert.doesNotMatch(time.customer ?? '', /not yet|\.tsx?:|src\/|\b(discover|decide|commit|record)\b|founder|module|registry|beat|loop|_/i, 'the plan law’s words');
-  assert.match(time.note ?? '', /^HOME-01 \(2026-10-24\): the day itself is entered on the day card/);
+  assert.match(time.note ?? '', /^HOME-03 \(2026-10-27\): the day itself is entered on the day card/); // HOME-03 (Alex, 2026-10-27): the note opens with the card's move to /home
   assert.doesNotMatch(time.note ?? '', /Not done for a customer|nothing yet adds up/, 'the sentence left with the status');
   // The citation adds the minutes columns' lines — and each cited line is what it says.
   const cited = (re: RegExp): number => { const m = time.citation.match(re); assert.ok(m, `the citation names ${re}`); return Number(m[1]); };

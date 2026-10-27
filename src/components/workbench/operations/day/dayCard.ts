@@ -1446,9 +1446,13 @@ export function scriptText(d: ReelDay): ReelText {
 // Time's component (the registry's Time row says so); /time is the three tables. The move is this line
 // again: hrefFor, the move control's reload and /tasks/day's hop follow it, and next.config.ts sends a
 // dated /tasks?date|step= and /time?date|step= here with the same query (307).
+// HOME-03 (Alex, 2026-10-27): THE CARD IS ON THE HOME PAGE — /home, the rail's HOME (answers/AnswersClient.tsx: THE
+// ANSWERS, then the card, then THE SHEET; a signed-in `/` lands there). The card stays Time's component; the cockpit's
+// Runway panel, /runway, is the runway pipe's again. The move is this line once more: hrefFor, the move control's reload
+// and /tasks/day's hop follow it, and next.config.ts sends a dated /runway, /tasks or /time ?date|step= here (307).
 
-/** The card's page — the dashboard's Runway panel, /runway (Alex, 2026-10-24, HOME-01; the first section of Time's one page from TIME-01, 2026-10-19; Tasks' from TASKS-ONE-01). Every URL the card pushes, the move control's reload, and /tasks/day's one hop start here. */
-export const DAY_CARD_PATH = '/runway';
+/** The card's page — the home page, /home (Alex, 2026-10-27, HOME-03; the cockpit's Runway panel, /runway, from HOME-01, 2026-10-24; the first section of Time's one page from TIME-01, 2026-10-19; Tasks' from TASKS-ONE-01). Every URL the card pushes, the move control's reload, and /tasks/day's one hop start here. */
+export const DAY_CARD_PATH = '/home';
 
 /** The card's two query parameters (DayCard.tsx reads `date` and `step`, and nothing else on the card's page reads one) — the only ones /tasks/day carries over. */
 export const DAY_CARD_PARAMS = ['date', 'step'] as const;

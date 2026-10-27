@@ -20,6 +20,9 @@
  *    the card's and the ledger's own routes, the pipeline in the note); the
  *    Tasks row says projects and routines, unchanged; the showcase map and the
  *    content redirects stand.
+ *
+ * HOME-03 (Alex, 2026-10-27): the card moved on to the home page, /home (answers/AnswersClient.tsx; DAY_CARD_PATH '/home';
+ * home03.test.ts). Every pin below that said /runway was the card's page moved with it, dated; the rules are unchanged.
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -70,51 +73,60 @@ test('T1 the pages: /time is the three tables (HOME-01: the card is on the dashb
   for (const f of [TIME_PAGE, TASKS_PAGE]) assert.match(comments(f), /TIME-01 \(Alex, 2026-10-19\)/);
 });
 
-test('T2 the path: DAY_CARD_PATH is /runway (HOME-01), every derived URL follows, the move control reloads through the constant, no /tasks? or /time? literal left', () => {
-  assert.equal(DAY_CARD_PATH, '/runway'); // HOME-01 (Alex, 2026-10-24): the card moved to the dashboard
+test('T2 the path: DAY_CARD_PATH is /home (HOME-03; /runway from HOME-01), every derived URL follows, the move control reloads through the constant, no /tasks? or /time? literal left', () => {
+  assert.equal(DAY_CARD_PATH, '/home'); // HOME-01 (Alex, 2026-10-24): the card moved to the dashboard; HOME-03 (Alex, 2026-10-27): to the home page
   assert.deepEqual([...DAY_CARD_PARAMS], ['date', 'step']);
-  assert.match(code(RULES), /export const DAY_CARD_PATH = '\/runway';/);
+  assert.match(code(RULES), /export const DAY_CARD_PATH = '\/home';/);
   assert.match(comments(RULES), /TIME-01 \(Alex, 2026-10-19\): THE FIRST SECTION OF \/time/);
   assert.match(comments(RULES), /HOME-01 \(Alex, 2026-10-24\): THE CARD IS ON THE DASHBOARD/);
+  assert.match(comments(RULES), /HOME-03 \(Alex, 2026-10-27\): THE CARD IS ON THE HOME PAGE/);
   // The card's own URLs — hrefFor on the constant; the controls push it; the deck replaces it (unchanged rules).
   const c = code(CARD);
   assert.match(c, /const hrefFor = \(day: string, step: number \| null\): string => `\$\{DAY_CARD_PATH\}\?date=\$\{day\}\$\{step === null \? '' : `&step=\$\{step\}`\}`;/);
   assert.equal((c.match(/go\(hrefFor\(/g) ?? []).length, 3);
   assert.match(c, /router\.replace\(hrefFor\(day, step\), \{ scroll: false \}\)/);
-  assert.doesNotMatch(c, /['"`]\/tasks|['"`]\/time\?|['"`]\/runway\?/, 'no URL of the card is typed outside DAY_CARD_PATH');
-  // The hop keeps date and step exactly as given, on the constant.
-  assert.equal(dayCardRedirectHref({ date: '2026-10-15', step: '2' }), '/runway?date=2026-10-15&step=2');
-  assert.equal(dayCardRedirectHref({}), '/runway');
+  assert.doesNotMatch(c, /['"`]\/tasks|['"`]\/time\?|['"`]\/runway\?|['"`]\/home\?/, 'no URL of the card is typed outside DAY_CARD_PATH');
+  // The hop keeps date and step exactly as given, on the constant. HOME-03 (2026-10-27): /home.
+  assert.equal(dayCardRedirectHref({ date: '2026-10-15', step: '2' }), '/home?date=2026-10-15&step=2');
+  assert.equal(dayCardRedirectHref({}), '/home');
   const hop = code(DAY_PAGE);
   assert.match(hop, /redirect\(dayCardRedirectHref\(await searchParams\)\);/);
-  assert.doesNotMatch(hop, /['"`]\/tasks|['"`]\/time|['"`]\/runway/, 'the hop types no path — the constant is the path');
+  assert.doesNotMatch(hop, /['"`]\/tasks|['"`]\/time|['"`]\/runway|['"`]\/home/, 'the hop types no path — the constant is the path');
   assert.match(comments(DAY_PAGE), /TIME-01 \(Alex, 2026-10-19\): the card\s*\n\s*\* is the first section of \/time now/);
   // The move control: the reload through the constant; the literal is gone.
   const m = code(MOVE);
   assert.match(m, /import \{ DAY_CARD_PATH \} from '\.\.\/day\/dayCard';/);
   assert.match(m, /window\.location\.assign\(`\$\{DAY_CARD_PATH\}\?date=\$\{plan\.date\}`\);/);
   assert.doesNotMatch(m, /\/tasks/, 'no literal');
-  assert.match(comments(MOVE), /TIME-01, 2026-10-19: \/time; HOME-01, 2026-10-24: \/runway; no literal/);
+  assert.match(comments(MOVE), /TIME-01, 2026-10-19: \/time; HOME-01, 2026-10-24: \/runway; HOME-03, 2026-10-27: \/home; no literal/); // HOME-03: the note gained its line
   // Nothing under the product's components types a /tasks? URL — the constant is the one place.
   for (const f of [CARD, RULES, MOVE, 'src/components/workbench/operations/stops/JournalForm.tsx', 'src/components/workbench/operations/ledger/LedgerSection.tsx', 'src/components/workbench/operations/stays/StayBar.tsx', 'src/components/workbench/operations/stops/DayDeck.tsx']) {
-    assert.doesNotMatch(code(f), /\/tasks\?|\/time\?|\/runway\?/, `${f} types no card URL`);
+    assert.doesNotMatch(code(f), /\/tasks\?|\/time\?|\/runway\?|\/home\?/, `${f} types no card URL`);
   }
 });
 
-test('T3 the dated redirects: next.config.ts sends /tasks?date=|step= and /time?date=|step= to /runway with the same query (HOME-01); the law names both as doors and verifies them; a plain /tasks and a plain /time are their pages', () => {
+test('T3 the dated redirects: next.config.ts sends /tasks?date=|step=, /time?date=|step= and /runway?date=|step= to /home with the same query (HOME-03; /runway from HOME-01); the law names the three as doors and verifies them; a plain /tasks, /time and /runway are their pages', () => {
   const cfg = code(CONFIG);
   // HOME-01 (Alex, 2026-10-24): the two /tasks rules land on /runway; two dated /time rules follow the same way (307).
-  assert.match(cfg, /\{ source: '\/tasks', has: \[\{ type: 'query', key: 'date' \}\], destination: '\/runway', permanent: false \},\n\s*\{ source: '\/tasks', has: \[\{ type: 'query', key: 'step' \}\], destination: '\/runway', permanent: false \},\n\s*\{ source: '\/time', has: \[\{ type: 'query', key: 'date' \}\], destination: '\/runway', permanent: false \},\n\s*\{ source: '\/time', has: \[\{ type: 'query', key: 'step' \}\], destination: '\/runway', permanent: false \},/);
+  // HOME-03 (Alex, 2026-10-27): the four land on /home; two dated /runway rules follow the same way (307).
+  assert.match(cfg, /\{ source: '\/tasks', has: \[\{ type: 'query', key: 'date' \}\], destination: '\/home', permanent: false \},\n\s*\{ source: '\/tasks', has: \[\{ type: 'query', key: 'step' \}\], destination: '\/home', permanent: false \},\n\s*\{ source: '\/time', has: \[\{ type: 'query', key: 'date' \}\], destination: '\/home', permanent: false \},\n\s*\{ source: '\/time', has: \[\{ type: 'query', key: 'step' \}\], destination: '\/home', permanent: false \},\n\s*\{ source: '\/runway', has: \[\{ type: 'query', key: 'date' \}\], destination: '\/home', permanent: false \},\n\s*\{ source: '\/runway', has: \[\{ type: 'query', key: 'step' \}\], destination: '\/home', permanent: false \},/);
+  assert.equal((cfg.match(/source: '\/runway'/g) ?? []).length, 2, 'the two keys, and no rule for a bare /runway');
   assert.equal((cfg.match(/source: '\/tasks'/g) ?? []).length, 2, 'the two keys, and no rule for a plain /tasks');
   assert.equal((cfg.match(/source: '\/time'/g) ?? []).length, 2, 'the two keys, and no rule for a plain /time');
-  assert.doesNotMatch(cfg, /destination: '\/time'/, 'nothing is sent to /time now — the card left it (HOME-01)');
+  assert.doesNotMatch(cfg, /destination: '\/time'|destination: '\/runway'/, 'nothing is sent to /time or /runway now — the card left both (HOME-01; HOME-03)');
   assert.doesNotMatch(cfg, /source: '\/tasks\/:path\*'|source: '\/tasks\/day'|source: '\/time\/:path\*'/, '/tasks/day keeps its own hop (the page); nothing else under /tasks or /time is redirected');
   assert.match(comments(CONFIG), /TIME-01 \(Alex, 2026-10-19\): the day card moved from \/tasks to \/time/);
   assert.match(comments(CONFIG), /HOME-01 \(Alex, 2026-10-24\): the card moved again — to the dashboard/);
+  assert.match(comments(CONFIG), /HOME-03 \(Alex, 2026-10-27\): the card moved once more — to the home page, \/home/);
   // Named in the registry's redirect doors like /content's, verified against the config and the constant.
   const law = code(LAW);
   // HOME-01 (Alex, 2026-10-24): two entries, both to /runway, both verified against the constant — the /tasks entry re-dated, the /time entry new.
-  assert.match(law, /const QUERY_REDIRECTS: ReadonlyArray<\{ source: string; keys: readonly string\[\]; destination: string; constant: \{ file: string; name: string \}; since: string \}> = \[\n\s*\{ source: '\/tasks', keys: \['date', 'step'\], destination: '\/runway', constant: \{ file: 'src\/components\/workbench\/operations\/day\/dayCard\.ts', name: 'DAY_CARD_PATH' \}, since: 'TIME-01 \(2026-10-19\): the day card moved from \/tasks to \/time; HOME-01 \(2026-10-24\): to the dashboard, \/runway' \},\n\s*\{ source: '\/time', keys: \['date', 'step'\], destination: '\/runway', constant: \{ file: 'src\/components\/workbench\/operations\/day\/dayCard\.ts', name: 'DAY_CARD_PATH' \}, since: 'HOME-01 \(2026-10-24\): the day card moved from \/time to the dashboard, \/runway' \},\n\];/);
+  // HOME-03 (Alex, 2026-10-27): three entries, all to /home — the two re-dated, the /runway entry new (home01.test.ts pins the full text).
+  const entries = [...law.matchAll(/\{ source: '([^']+)', keys: \['date', 'step'\], destination: '([^']+)', constant: \{ file: 'src\/components\/workbench\/operations\/day\/dayCard\.ts', name: 'DAY_CARD_PATH' \}, since: '([^\n]*?)' \},/g)].map((m) => [m[1], m[2], m[3]]);
+  assert.deepEqual(entries.map(([s, d]) => `${s} → ${d}`), ['/tasks → /home', '/time → /home', '/runway → /home']);
+  assert.match(entries[0][2], /^TIME-01 \(2026-10-19\): the day card moved from \/tasks to \/time; HOME-01 \(2026-10-24\): to the dashboard, \/runway; HOME-03 \(2026-10-27\): to the home page, \/home$/);
+  assert.match(entries[1][2], /^HOME-01 \(2026-10-24\): the day card moved from \/time to the dashboard, \/runway; HOME-03 \(2026-10-27\): to the home page, \/home$/);
+  assert.match(entries[2][2], /^HOME-03 \(2026-10-27\): the day card moved from the cockpit/);
   assert.match(comments(LAW), /HOME-01 \(Alex, 2026-10-24\): the card moved to the dashboard — the cockpit's Runway panel, \/runway/);
   assert.match(law, /const rule = `\{ source: '\$\{q\.source\}', has: \[\{ type: 'query', key: '\$\{key\}' \}\], destination: '\$\{q\.destination\}', permanent: false \}`;\n\s*if \(!nextConfigText\.includes\(rule\)\) violations\.push\(/, 'the rule verified against the config text');
   assert.match(law, /if \(!codeOf\(q\.constant\.file\)\.includes\(`export const \$\{q\.constant\.name\} = '\$\{q\.destination\}';`\)\) violations\.push\(/, 'the destination verified against the constant');
@@ -125,7 +137,7 @@ test('T3 the dated redirects: next.config.ts sends /tasks?date=|step= and /time?
   for (const f of ['src/app/content/page.tsx', 'src/app/operations/content/page.tsx']) assert.match(code(f), /redirect\('\/time'\)/);
 });
 
-test('T4 the laws: the two-lists law holds /tasks to the two lists and /time to the three tables (HOME-01); the card\'s boundary check is the Runway panel\'s; PHASES_RENDERED_AT and THE SORT say /time draws nothing; the gate table untouched', () => {
+test('T4 the laws: the two-lists law holds /tasks to the two lists and /time to the three tables (HOME-01); the card\'s boundary check is /home\'s (HOME-03); PHASES_RENDERED_AT and THE SORT say /time draws nothing; the gate table untouched', () => {
   const law = code(LAW);
   assert.match(law, /const TWO_LISTS_PAGE = 'src\/app\/tasks\/page\.tsx';\n\s*const TIME_PAGE = 'src\/app\/time\/page\.tsx';/);
   // WORK-01d (Alex, 2026-10-25): three mounts on /tasks.
@@ -138,7 +150,7 @@ test('T4 the laws: the two-lists law holds /tasks to the two lists and /time to 
   assert.match(law, /const TIME_MOUNTS = \['<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/);
   assert.match(law, /timeMounts\.join\(' '\) !== 'LedgerSection MorningJournalTable EveningJournalTable'/);
   assert.match(law, /if \(\/DayCard\|<Suspense\/\.test\(timePage\)\) twoListsFail\(/, 'the card may not come back to /time unnoticed');
-  assert.match(law, /if \(!\/<Suspense>\\s\*<DayCard \\\/>\\s\*<\\\/Suspense>\/\.test\(launcher\)\) twoListsFail\(/, 'the card in its boundary — on the Runway panel');
+  assert.match(law, /if \(!\/<Suspense>\\s\*<DayCard \\\/>\\s\*<\\\/Suspense>\/\.test\(host\)\) twoListsFail\(/, 'the card in its boundary — on /home (HOME-03, 2026-10-27; the Runway panel until then)');
   assert.match(comments(LAW), /TIME-01 — the ruling \(Alex, 2026-10-19\): the day card and the city ledger moved to \/time/);
   // TIME-02 (2026-10-19): the third mount is retired — the law says so, dated.
   assert.match(comments(LAW), /TIME-02 \(2026-10-19\): the third mount, the content pipeline, is retired/);
@@ -167,7 +179,8 @@ test('T5 the registry: the Time row says the tables (HOME-01, ruling C); the Tas
   assert.match(time.citation, /decide: src\/app\/api\/operations\/journal\/route\.ts:51 \(PUT/);
   assert.match(time.citation, /commit: src\/app\/api\/operations\/stops\/route\.ts \(POST/);
   assert.match(time.citation, /record: src\/components\/workbench\/operations\/ledger\/LedgerSection\.tsx/);
-  assert.equal(time.note, 'HOME-01 (2026-10-24): the day itself is entered on the day card — Time\'s component, shown on the home dashboard (the cockpit\'s Runway panel, /runway); /time is the tables. TIME-02 (2026-10-19): the content pipeline retired — its components and routes deleted; its five tables kept, untouched, until TABLES-01.'); // TIME-03: the "not done" sentence left — the ledger adds up the hours now
+  // HOME-03 (Alex, 2026-10-27): the note says the card is on the home page, /home.
+  assert.equal(time.note, 'HOME-03 (2026-10-27): the day itself is entered on the day card — Time\'s component, shown on the home page, /home, between the answers and the sheet (HOME-01, 2026-10-24, had it on the cockpit\'s Runway panel, /runway); /time is the tables. TIME-02 (2026-10-19): the content pipeline retired — its components and routes deleted; its five tables kept, untouched, until TABLES-01.'); // TIME-03: the "not done" sentence left — the ledger adds up the hours now
   assert.equal(time.customer, 'You can see every stop you logged and every journal answer, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.'); // TIME-03
   assert.doesNotMatch(time.customer ?? '', /\b(discover|decide|commit|record)\b/, 'no beat word on a public line (the plan law)');
   assert.equal(tasks.home, '/tasks');

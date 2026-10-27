@@ -44,10 +44,15 @@ const nextConfig: NextConfig = {
       // /runway; dayCard.ts DAY_CARD_PATH). The two /tasks rules land there now, and a dated /time?date=
       // or ?step= (a bookmark from TIME-01's days) follows the same way, 307; a plain /time is the tables.
       // Named in the registry's redirect doors (scripts/assert-tool-registry.ts QUERY_REDIRECTS).
-      { source: '/tasks', has: [{ type: 'query', key: 'date' }], destination: '/runway', permanent: false },
-      { source: '/tasks', has: [{ type: 'query', key: 'step' }], destination: '/runway', permanent: false },
-      { source: '/time', has: [{ type: 'query', key: 'date' }], destination: '/runway', permanent: false },
-      { source: '/time', has: [{ type: 'query', key: 'step' }], destination: '/runway', permanent: false },
+      // HOME-03 (Alex, 2026-10-27): the card moved once more — to the home page, /home (dayCard.ts DAY_CARD_PATH),
+      // between THE ANSWERS and THE SHEET. The four rules land there now, and a dated /runway?date= or ?step= (a
+      // bookmark from HOME-01's days) follows the same way, 307; a bare /runway stays the cockpit's calendar tab.
+      { source: '/tasks', has: [{ type: 'query', key: 'date' }], destination: '/home', permanent: false },
+      { source: '/tasks', has: [{ type: 'query', key: 'step' }], destination: '/home', permanent: false },
+      { source: '/time', has: [{ type: 'query', key: 'date' }], destination: '/home', permanent: false },
+      { source: '/time', has: [{ type: 'query', key: 'step' }], destination: '/home', permanent: false },
+      { source: '/runway', has: [{ type: 'query', key: 'date' }], destination: '/home', permanent: false },
+      { source: '/runway', has: [{ type: 'query', key: 'step' }], destination: '/home', permanent: false },
     ];
   },
 };

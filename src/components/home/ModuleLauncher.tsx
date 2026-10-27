@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Script from 'next/script';
 import { usePathname, useSearchParams } from 'next/navigation';
 import {
@@ -27,8 +27,6 @@ import { TOOL_GATE } from '@/lib/offer';
 import HubCalendar from '@/components/hub/HubCalendar';
 import RunwayDataProvider from '@/components/hub/RunwayDataProvider';
 import RunwayBudgetPanel, { type RunwayReceipts } from '@/components/hub/RunwayBudgetPanel';
-// HOME-01 (Alex, 2026-10-24): the day card — Time's component — on the dashboard (the Runway panel below).
-import DayCard from '@/components/workbench/operations/day/DayCard';
 import MatchReviewSection from '@/components/hub/MatchReviewSection';
 import { travelStripModes } from '@/components/trips/travelStripModes';
 import PublicCategorySearch from '@/components/trips/PublicCategorySearch';
@@ -562,24 +560,10 @@ export default function ModuleLauncher({ onRequireAuth, onTabChange }: Props) {
       {authed === true && (
         <section className={`w-full bg-bg-terminal border-b border-border ${activeModule === 'calendar' ? 'block' : 'hidden'}`}>
           <div className="max-w-7xl mx-auto">
-            {/* HOME-01 (Alex, 2026-10-24): THE DAY CARD ON THE DASHBOARD — FIRST on the Runway panel, above the
-                zero-date / runway / burn metrics, inside the signed-in branch (a guest sees the landing below,
-                nothing new). The card is TIME'S component (toolRegistry.ts, the Time row; TIME-01, 2026-10-19),
-                shown here by Alex's ruling of 2026-10-24 — not a Home registry row: the cockpit is the tool law's
-                grandfathered surface (scripts/assert-tool-registry.ts COCKPIT_COMPONENT; its rule-5 loop skips it),
-                and the two-lists law pins this mount (first, once, in its boundary). The deck, the morning and
-                evening forms, THE LOG, the stay bar, the move control, the record row and the reel buttons move
-                with it untouched (day/DayCard.tsx) — every URL it writes is DAY_CARD_PATH ('/runway', dayCard.ts).
-                No entity provider: the card reads none. The boundary stays for useSearchParams — belt and braces
-                on a force-dynamic route ('/' page.tsx and /[tab]/page.tsx both force-dynamic). The frame is the
-                layout's PAGE gutter (px-4 lg:px-8 — AppLayout.tsx, the frame the card had on /time), not the
-                shell card's, so the deck's lg bleed (WIDTH-01, stops/DayDeck.tsx) has the 32 px it was measured
-                for and nothing clips at any width. */}
-            <div className="px-4 lg:px-8 pt-6 sm:pt-8" data-runway-day-card>
-              <Suspense>
-                <DayCard />
-              </Suspense>
-            </div>
+            {/* HOME-03 (Alex, 2026-10-27): the day card left this panel for the home page, /home (answers/AnswersClient.tsx,
+                dayCard.ts DAY_CARD_PATH) — HOME-01 (2026-10-24) had put it FIRST here, above the shell card below. The panel
+                is the runway pipe's, as before: the strip, the burn and project surfaces, the match review, the merged grid
+                and the receipts rail; a dated /runway?date= or ?step= is sent to /home by next.config.ts. */}
             <div className="px-4 py-4">
               <div className={MODULE_SHELL_CARD}>
             {/* RUNWAY-PIPE: the ratified Pipe Frame on the Runway tab — the

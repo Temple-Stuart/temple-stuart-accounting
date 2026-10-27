@@ -51,6 +51,12 @@
  * days here — is sent to /runway by next.config.ts (307) before this page
  * renders; a plain /time is this page. The two-lists law holds the container
  * to exactly the three (TIME_MOUNTS) and the card's mount on the panel.
+ *
+ * HOME-03 (Alex, 2026-10-27) — THE CARD IS ON THE HOME PAGE, /home
+ * (answers/AnswersClient.tsx, dayCard.ts DAY_CARD_PATH): THE ANSWERS, then the
+ * card, then THE SHEET. This page is unchanged — the three tables; a dated
+ * /time?date= or ?step= is sent to /home now (307); the law holds the card's
+ * mount on /home.
  */
 import AppLayout from '@/components/ui/AppLayout';
 import ToolOpener from '@/components/shell/ToolOpener';
