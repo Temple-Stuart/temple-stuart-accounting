@@ -90,9 +90,11 @@ interface Props {
   /** The TEXT cells opened to all of their text (projectCellKeyOf), and the click that opens or closes one. */
   opened: ReadonlySet<string>;
   onToggleCell: (cellKey: string) => void;
+  /** ARCHIVE-01 (Alex, 2026-10-27): after the detail's "unarchive", the project's title and the route's words — the table prints the line above its rows (this detail closes with the re-read). */
+  onUnarchived: (title: string, words: string) => void;
 }
 
-export default function ProjectTableRows({ row, columns, entities, allProjects, onProjectsChanged, isJumpTarget, onClearTarget, onJumpTo, opened, onToggleCell }: Props) {
+export default function ProjectTableRows({ row, columns, entities, allProjects, onProjectsChanged, isJumpTarget, onClearTarget, onJumpTo, opened, onToggleCell, onUnarchived }: Props) {
   const { project } = row;
   // The page's task-change signal (WORK-01b): the detail's task writes bump it, so THE WORK re-reads too.
   const { bump } = useWorkChanges();
@@ -135,6 +137,7 @@ export default function ProjectTableRows({ row, columns, entities, allProjects, 
               onJumpTo={onJumpTo}
               defaultExpanded
               onTasksChanged={bump}
+              onUnarchived={(words) => onUnarchived(project.title, words)}
             />
           </td>
         </tr>

@@ -32,6 +32,14 @@
  *          the GET at [id]/deletion is the same check for the confirm dialog).
  *          Archive is the path for those. Full payload_before captured in
  *          audit_log for replay, with the counts of what the cascade removed.
+ *          ARCHIVE-01 (Alex, 2026-10-27): archived → not_started (the row's
+ *          "unarchive") restores, in the same transaction, exactly the tasks
+ *          the LATEST cascade archived — the ids from that cascade's audit
+ *          entry, each still archived by it, to the previous_status its cascade
+ *          history row recorded — with a history row each and the audit entry
+ *          naming what was restored and what stays archived (the rule:
+ *          src/lib/operations/archiveCascade.ts). No cascade on record → nothing
+ *          restored, said in words.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -42,6 +50,7 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { statusStampsOf } from '@/lib/operations/projectStamps';
 import { recordTaskStatusChange } from '@/lib/operations/recordTaskStatusChange';
+import { CASCADE_ARCHIVE_REASON, CASCADE_RESTORE_REASON, NO_CASCADE_ON_RECORD, cascadeIdsOf, restorePlanOf, unarchiveWords, type ArchivedTaskFacts, type RestorePlan } from '@/lib/operations/archiveCascade';
 import { describeBlockers, projectDeletionCheck, type DeletionPreview } from '@/lib/operations/projectDeletion';
 
 // Active task statuses that an archive cascade retires to 'archived'. Terminal
@@ -457,9 +466,13 @@ export async function PATCH(
     const isArchiving = statusChange?.to === 'archived';
     let archivedTaskIds: string[] = [];
     let removedItemCount = 0;
+    // ARCHIVE-01 (Alex, 2026-10-27): the row's "unarchive" — archived → not_started — restores the latest
+    // cascade's tasks in this transaction (archiveCascade.ts). Any other move out of archived restores nothing.
+    const isUnarchiving = statusChange?.from === 'archived' && statusChange?.to === 'not_started';
 
-    const project = await prisma.$transaction(async (tx) => {
+    const { updated: project, cascadeRestore } = await prisma.$transaction(async (tx) => {
       const updated = await tx.operations_projects.update({ where: { id }, data });
+      let restoreInTx: { source: { audit_log_id: string; sequence_number: string } | null; plan: RestorePlan } | null = null;
 
       if (isArchiving) {
         const activeTasks = await tx.operations_project_tasks.findMany({
@@ -471,7 +484,10 @@ export async function PATCH(
         for (const t of activeTasks) {
           // Status-history row per task — preserves the single-funnel invariant
           // (a task status change never lands without its history row).
-          await recordTaskStatusChange(tx, t.id, user.id, t.status, 'archived', userEmail, 'project archived');
+          // ARCHIVE-01 (ruling A): this row — previous_status the status it had, new_status 'archived', reason
+          // CASCADE_ARCHIVE_REASON ('project archived', the word written here since the cascade was built), changed_by
+          // the actor — is what the restore reads back; nothing here changed.
+          await recordTaskStatusChange(tx, t.id, user.id, t.status, 'archived', userEmail, CASCADE_ARCHIVE_REASON);
           await tx.operations_project_tasks.update({
             where: { id: t.id },
             data: { status: 'archived' },
@@ -493,8 +509,51 @@ export async function PATCH(
         }
       }
 
-      return updated;
+      if (isUnarchiving) {
+        // ARCHIVE-01 (ruling B): ONE SOURCE for which tasks the latest cascade archived — the project's latest audit
+        // entry with status_to 'archived' (its cascade_archived_task_ids). The previous status of each comes from its
+        // own cascade history row; a task is restored only while still archived by that cascade (archiveCascade.ts).
+        const cascadeEntry = await tx.audit_log.findFirst({
+          where: {
+            target_table: 'operations_projects',
+            target_id: id,
+            action_type: 'operations_project_status_changed',
+            payload_metadata: { path: ['status_to'], equals: 'archived' },
+          },
+          orderBy: { sequence_number: 'desc' },
+          select: { id: true, sequence_number: true, payload_metadata: true },
+        });
+        const cascadeIds = cascadeEntry === null ? null : cascadeIdsOf(cascadeEntry.payload_metadata);
+        const archivedTasks = await tx.operations_project_tasks.findMany({
+          where: { project_id: id, status: 'archived' },
+          select: { id: true },
+        });
+        const latestRows = archivedTasks.length === 0 ? [] : await tx.operations_task_status_history.findMany({
+          where: { task_id: { in: archivedTasks.map((t) => t.id) } },
+          orderBy: { changed_at: 'desc' },
+          distinct: ['task_id'],
+          select: { task_id: true, new_status: true, previous_status: true, reason: true },
+        });
+        const latestByTask = new Map(latestRows.map((r) => [r.task_id, { new_status: r.new_status, previous_status: r.previous_status, reason: r.reason }]));
+        const facts: ArchivedTaskFacts[] = archivedTasks.map((t) => ({ id: t.id, latest: latestByTask.get(t.id) ?? null }));
+        const plan = restorePlanOf(cascadeIds, facts);
+        for (const r of plan.restore) {
+          // The restore's history row — 'archived' back to the status the cascade recorded — then the task, atomically. The
+          // WHERE names the proven project and the still-archived guard (SEC-02): a task that is not this project's, or
+          // changed under the read, throws (P2025) and the whole restore rolls back — never a stray row.
+          await recordTaskStatusChange(tx, r.id, user.id, 'archived', r.status, userEmail, CASCADE_RESTORE_REASON);
+          await tx.operations_project_tasks.update({ where: { id: r.id, project_id: id, status: 'archived' }, data: { status: r.status } });
+        }
+        restoreInTx = {
+          source: cascadeEntry === null ? null : { audit_log_id: cascadeEntry.id, sequence_number: cascadeEntry.sequence_number.toString() },
+          plan,
+        };
+      }
+
+      return { updated, cascadeRestore: restoreInTx };
     });
+    // ARCHIVE-01: the words the row prints, and the counts the audit entry carries.
+    const restoreWords = cascadeRestore === null ? null : unarchiveWords(cascadeRestore.plan, cascadeRestore.source !== null);
 
     // Status changes audit as a distinct evidentiary event. For an archive
     // cascade, the project-level audit records the cascade counts (matching the
@@ -511,7 +570,8 @@ export async function PATCH(
           ? `Project "${existing.title}" status: ${statusChange.from} → ${statusChange.to}` +
             (isArchiving
               ? ` (archived ${archivedTaskIds.length} active task(s); removed ${removedItemCount} future plan item(s))`
-              : '')
+              : '') +
+            (restoreWords !== null ? ` (${restoreWords})` : '')
           : `Updated project "${existing.title}" for ${userEmail}`,
       },
       target: {
@@ -531,11 +591,35 @@ export async function PATCH(
                     cascade_removed_future_item_count: removedItemCount,
                   }
                 : {}),
+              // ARCHIVE-01: what the restore did, from which cascade entry, and what stays archived (with its why).
+              ...(cascadeRestore !== null
+                ? {
+                    cascade_source: cascadeRestore.source,
+                    ...(cascadeRestore.source === null ? { cascade_note: NO_CASCADE_ON_RECORD } : {}),
+                    cascade_restored_task_ids: cascadeRestore.plan.restore.map((r) => r.id),
+                    cascade_restored: cascadeRestore.plan.restore,
+                    cascade_left_archived_task_ids: cascadeRestore.plan.left.map((l) => l.id),
+                    cascade_left_archived: cascadeRestore.plan.left,
+                    cascade_no_longer_archived_task_ids: cascadeRestore.plan.noLongerArchived,
+                  }
+                : {}),
             }
           : undefined,
       },
     });
 
+    if (cascadeRestore !== null && restoreWords !== null) {
+      return NextResponse.json({
+        project,
+        cascade: {
+          source: cascadeRestore.source,
+          restored: cascadeRestore.plan.restore,
+          left_archived: cascadeRestore.plan.left,
+          no_longer_archived: cascadeRestore.plan.noLongerArchived,
+          words: restoreWords,
+        },
+      });
+    }
     return NextResponse.json({ project });
   } catch (error) {
     return failClosedResponse('Project PATCH', 'Failed to update project', error);

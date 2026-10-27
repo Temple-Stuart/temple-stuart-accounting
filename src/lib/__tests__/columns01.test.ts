@@ -267,7 +267,9 @@ test('C the route: the stamps ride the existing status-change path and its exist
   assert.match(r, /data\.promoted_at = existing\.promoted_at \?\? new Date\(\);/, 'promoted_at: set once, backlog → scoped (BACKLOG-01b)');
   assert.equal((r.match(/data\.scheduled_at = |data\.done_at = /g) ?? []).length, 2, 'the two columns are written on this path alone');
   assert.match(r, /type: statusChange \? 'operations_project_status_changed' : 'operations_project_updated'/, 'the audit entry\'s type is unchanged');
-  assert.equal((r.match(/operations_project_status_changed/g) ?? []).length, 1);
+  // ARCHIVE-01 (Alex, 2026-10-27): two — the write's type above, and the restore's READ of the project's latest entry of the same type (the cascade's audit entry, its one source); still no new type.
+  assert.equal((r.match(/operations_project_status_changed/g) ?? []).length, 2);
+  assert.match(r, /action_type: 'operations_project_status_changed',\n\s*payload_metadata: \{ path: \['status_to'\], equals: 'archived' \},/);
   assert.match(r, /payload: \{\n\s*before: existing,\n\s*after: project,/, 'before/after carry the stamps');
   assert.doesNotMatch(code(STAMPS), /prisma|fetch|new Date\(\)/, 'pure — the instant is handed in');
   assert.match(comments(STAMPS), /COLUMNS-01 \(Alex, 2026-10-25, ruling C\)/);

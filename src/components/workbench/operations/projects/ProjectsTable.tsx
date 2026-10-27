@@ -47,8 +47,7 @@ import { localToday } from '@/lib/localToday';
 import { CLEAR_CHIP_MARK, rowCountWords, statusChipWords, statusDroppedOf, withoutStatusFilter } from '@/lib/operations/work';
 import {
   PROJECT_TABLE_NAME, projectDefault, projectDefaultFilters, projectRowsOf, projectTable, projectsCsvFileName,
-  type ProjectColumn, type ProjectTableRow, type ProjectTasksRead,
-} from '@/lib/operations/projectsTable';
+  type ProjectColumn, type ProjectTableRow, type ProjectTasksRead, unarchivedLineOf } from '@/lib/operations/projectsTable';
 import type { Entity } from '../EntitySelector';
 import ProjectTableRows, { ProjectTasksReader } from './ProjectTableRows';
 import type { Project } from './types';
@@ -98,6 +97,11 @@ export default function ProjectsTable({ projects, entities, loaded, showArchived
   const shown = sortRows(filterRows(rows, filters, columns), sort, columns);
   const csv = loaded && shown.length > 0 ? { name: projectsCsvFileName(localToday()) } : null;
 
+  // ARCHIVE-01 (Alex, 2026-10-27): the last "unarchive" — the project and the route's words (what the cascade restore did),
+  // printed above the rows: the list re-reads after the write and the detail closes with it, so the line lives here. It
+  // stays until the next unarchive, or ✕. React state only.
+  const [unarchived, setUnarchived] = useState<{ title: string; words: string } | null>(null);
+
   const renderRow = (row: ProjectTableRow) => (
     <ProjectTableRows
       key={row.id}
@@ -111,6 +115,7 @@ export default function ProjectsTable({ projects, entities, loaded, showArchived
       onJumpTo={onJumpTo}
       opened={opened}
       onToggleCell={toggleCell}
+      onUnarchived={(title, words) => setUnarchived({ title, words })}
     />
   );
 
@@ -147,6 +152,12 @@ export default function ProjectsTable({ projects, entities, loaded, showArchived
         {children}
       </DataTable>
       {loaded && rows.length > 0 && <p className="text-xs text-text-muted" {...dataAttr(name, 'count')}>{rowCountWords(shown.length, rows.length)}</p>}
+      {unarchived && (
+        <p className="text-xs font-mono text-text-secondary flex items-center gap-2" {...dataAttr(name, 'unarchived')}>
+          <span {...dataAttr(name, 'unarchived-words')}>{unarchivedLineOf(unarchived.title, unarchived.words)}</span>
+          <button type="button" className="text-text-faint hover:text-text-primary" onClick={() => setUnarchived(null)} aria-label="dismiss" {...dataAttr(name, 'unarchived-dismiss')}>{CLEAR_CHIP_MARK}</button>
+        </p>
+      )}
     </>
   );
 }

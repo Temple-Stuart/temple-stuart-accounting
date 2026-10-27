@@ -258,6 +258,8 @@ export const projectDefaultFilters = (columns: readonly TableColumn<ProjectTable
 /** One opened state per TEXT cell: the row's id and the column's key (the journal tables' cellKeyOf, over this table's rows). */
 export const projectCellKeyOf = (row: ProjectTableRow, column: ProjectColumn): string => `${row.id}:${column}`;
 export const DETAILS_WORDS = 'details';
+/** ARCHIVE-01 (Alex, 2026-10-27): the line the table prints after a row's "unarchive" — the project, then the route's words (archiveCascade.ts unarchiveWords), verbatim. It sits above the rows because the list re-reads after the write and the detail closes with it. */
+export const unarchivedLineOf = (title: string, words: string): string => `${title} unarchived — ${words}`;
 export const HIDE_DETAILS_WORDS = 'hide details';
 /** "projects_2026-10-25.csv" — the day the CSV was downloaded (the viewer's local day). */
 export const projectsCsvFileName = (day: string): string => `projects_${day}.csv`;
