@@ -57,6 +57,11 @@
  * VENDOR-02 (2026-10-14) — Alex's ruling: the day card is the daily and overlay
  * surface; stranded vendor picks are Budget's to show and clear. Stranded
  * vendors are no longer counted or named here — /budget lists each with Clear.
+ * VENDOR-03 (Alex, 2026-10-27): BUDGET-02 (2026-10-20) took that list off
+ * /budget, and no screen showed them. They have a home here again — not on the
+ * plate and not in the completeness line, but as a section under the full
+ * card's plate, "STRANDED VENDORS", one line each with "clear"
+ * (stops/StrandedVendors.tsx), read from the report the card already holds.
  * THE PLATE WRITES NOTHING: it is a view of what Tasks, Budget and the stop
  * records hold; the form under it is the one way a record is written. Nothing
  * is stored in the browser.
@@ -218,6 +223,9 @@ import EveningForm from '../stops/EveningForm';
 import { setJournal as writeJournal } from '../stops/journalWrites';
 import StopForm from '../stops/StopForm';
 import StopVendor from '../stops/StopVendor';
+// VENDOR-03 (Alex, 2026-10-27): the day's stranded vendors, under the full card's plate, each with "clear".
+import StrandedVendors from '../stops/StrandedVendors';
+import { strandedRowsOf } from '@/lib/operations/strandedVendors';
 import WorkBlock from '../stops/WorkBlock';
 import AttachRecord from '../stops/AttachRecord';
 import { onDayWritten } from '../dayWritten';
@@ -684,6 +692,8 @@ export default function DayCard() {
   const refused = dayRead !== null && dayRead.ok ? dayRead.value.refused : [];
   const plans = report !== null && report.ok ? report.value.plans : null;
   const lines = plans !== null && plans.listed ? plans.lines : [];
+  // VENDOR-03 (Alex, 2026-10-27): the report's stranded vendors — none while the report is unread or failed (its words show in the foot).
+  const strandedRows = strandedRowsOf(plans);
   const notPlaced = report !== null && report.ok ? report.value.notPlaced : [];
   const dayItems = items !== null && items.ok ? items.value : [];
   const result = dayStops({ day, entries, lines, notPlaced, items: dayItems, viewerZone: zone, records: recordRows });
@@ -1114,6 +1124,13 @@ export default function DayCard() {
 
       {/* ROLE-01: the record lives on the step view — said under the full plate, outside the recorded box. DECK-01: the deck's way in. */}
       {loaded && focus === null && N > 0 && <p className="mx-auto text-xs text-text-muted" style={under} data-day-hint>{SWIPE_HINT_WORDS}</p>}
+
+      {/* VENDOR-03 (Alex, 2026-10-27): STRANDED VENDORS — on the full card only, under the plate: one line per stranded vendor the report
+          lists, each with "clear" (Budget's own Clear, the plan-vendors DELETE at its address); a clear reads the report again, as the
+          vendor box does. No row → no section, nothing says "none". */}
+      {loaded && focus === null && strandedRows.length > 0 && (
+        <StrandedVendors rows={strandedRows} reload={() => setReportReads((n) => n + 1)} />
+      )}
 
       {/* VENDOR-02 (2026-10-14): the stop's VENDOR, directly above the record row — Budget's own box for every priced stop, a place stop's one reason, else nothing (vendorSlot). A write reads the report again, so the plate's VENDOR shows it; keyed by the stop, so a swipe starts a fresh box. */}
       {loaded && focus !== null && (

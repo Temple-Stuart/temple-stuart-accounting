@@ -822,6 +822,10 @@ export function progressPercent(soFarCents: number | null, plannedCents: number 
  * stranded" left this line (and its count left the signature); /budget lists
  * them, each with Clear. strandedWords, the amber sentence that named them under
  * the plate, is deleted with its one caller.
+ * VENDOR-03 (Alex, 2026-10-27): /budget has not listed them since BUDGET-02; the
+ * card's full view lists them again, as a section under the plate with "clear"
+ * (stops/StrandedVendors.tsx, src/lib/operations/strandedVendors.ts). This line
+ * still counts none of them.
  */
 export function completenessWords(result: DayStops, read: { readonly day: boolean; readonly report: boolean; readonly records: boolean }): string | null {
   const parts: string[] = [];
