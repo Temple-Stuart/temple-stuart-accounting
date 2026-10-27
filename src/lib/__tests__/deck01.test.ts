@@ -236,7 +236,8 @@ test('T4 the journal card: under the deck and its controls, always shown on a da
   assert.match(reel![1], /onClick=\{\(\) => downloadImage\(journalPlateRef\.current, journalImageName\(day\), journalView\)\} data-day-download-image>/, 'its own plate, its own file name');
   assert.match(reel![1], /disabled=\{journalScript === null \|\| !journalScript\.ok\} onClick=\{\(\) => copyReel\('script', journalScript, journalView\)\} data-day-copy-script>/);
   assert.match(c, /const stopWait = reelReadsWords\(\{ \.\.\.reelReads, journal: null \}\);/, 'a stop’s script waits on no journal answer');
-  assert.match(c, /const journalScript: ReelText \| null = journalStop === null \|\| stopWait !== null \? null : stopScriptText\(day, reelStay, journalStop\);/, 'the journal stop’s script — the one rule every stop’s script is');
+  // WORK-03 (Alex, 2026-10-26): the block reaches the reel — every stop's script hands in the stop's done tasks (null for a journal stop, reelDoneOf); the one rule still.
+  assert.match(c, /const journalScript: ReelText \| null = journalStop === null \|\| stopWait !== null \? null : stopScriptText\(day, reelStay, journalStop, reelDoneOf\(reelDay, journalStop\)\);/, 'the journal stop’s script — the one rule every stop’s script is');
   assert.match(journalSection, /\{imageFailed !== null && imageFailed\.view === journalView && <p className="text-brand-red" data-day-image-failed>\{imageFailed\.words\}<\/p>\}/);
   assert.match(journalSection, /\{reelWords !== null && reelWords\.view === journalView && <p/);
   assert.match(journalSection, /\{recordsOk && journalStop\.address !== null && \(\n\s*<StopForm key=\{`\$\{journalStop\.key\}:\$\{journalStop\.record === null \? 'none' : journalStop\.record\.id\}`\} stop=\{journalStop\} day=\{day\} viewerZone=\{zone\} onChanged=\{\(\) => setRecordReads\(\(n\) => n \+ 1\)\} \/>\n\s*\)\}/, 'its record row, keyed as every stop’s');

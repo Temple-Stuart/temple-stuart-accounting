@@ -12,7 +12,8 @@
  *
  *   DONE IN THIS BLOCK — the tasks whose completed_at falls inside the block's window, [the stop's planned instant, +
  *   the line's minutes] (workBlock.ts blockWindowOf — the day card's minutes rule and its clock), narrowed here from the
- *   day's done tasks the read carries (doneInBlockOf). A block with no minutes lists nothing and says so (NO_LENGTH_WORDS).
+ *   day's done tasks the read carries (doneInBlockOf). A block with no minutes — or, WORK-03 (call 4, ruled 2026-10-26), with
+ *   ≤ 0 minutes — lists nothing and says so (NO_LENGTH_WORDS, blockWindowOf null for both).
  *   Each row "<title> · <HH:MM in the viewer's zone>" with ↩ — the existing uncomplete POST (uncompleteTask), the reason
  *   UNTICK_REASON_WORDS — so a mis-tick is undone where it was made. Derived from completed_at and labelled so (the
  *   tooltip DONE_BY_WORDS).
@@ -24,7 +25,8 @@
  * Tasks component is mounted on the card (TOOL-LAW-01 rule 5 — "a component belonging to tool A may not be mounted on
  * tool B's page").
  *
- * WORK-03 (not built here): a line for the block in the reel's words — dayCard.ts stopScriptText is unchanged by WORK-02.
+ * WORK-03 (Alex, 2026-10-26): the block reaches the reel — the execute stop's scene says what was done in it and the caption
+ * counts it (dayCard.ts stopSceneLines, captionText; the card hands the reel the lists through workBlock.ts doneInBlocksOf).
  */
 
 'use client';

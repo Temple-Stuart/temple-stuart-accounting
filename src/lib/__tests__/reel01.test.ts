@@ -252,26 +252,29 @@ test('T3 the step view’s script is that one stop’s scene', () => {
   const r = build(HALF);
   assert.deepEqual(stopScriptText(DAY, STAY, stopOf(r, 'brunch').stop), { ok: true, text: 'Brunch at Luka Café.\nEggs benedict\nBudget $25, actual $9.69, ▼ $15.31 under.\n4 out of 5.' });
   assert.deepEqual(stopScriptText(DAY, STAY, stopOf(r, 'gym').stop), { ok: true, text: 'Gym: skipped.\nclosed for a holiday' });
-  assert.deepEqual(stopScriptText(DAY, STAY, stopOf(r, 'cowork').stop), { ok: true, text: 'Co-working.\n[what you got]\n[stars] out of 5.' }, 'a stop that shows neither figure has no money sentence');
+  // WORK-03 (Alex, 2026-10-26): the work block reaches the reel — an execute stop's scene says what was done in its block and the caption counts it; the reel waits on the backlog by name (work03.test.ts). Co-working is an execute stop: its scene gains the block line after the note line — none ticked here (the list handed in is empty).
+  // WORK-03b (Alex, 2026-10-26): no block line without a length — Co-working is stepless with no window, so the card hands null and the scene is REEL-01's again (work03b.test.ts).
+  assert.deepEqual(stopScriptText(DAY, STAY, stopOf(r, 'cowork').stop, null), { ok: true, text: 'Co-working.\n[what you got]\n[stars] out of 5.' }, 'a stop that shows neither figure has no money sentence');
 });
 
 // ── T4 · 2a THE READS: WAIT, OR NAME THE FAILURE — NEVER A PARTIAL TEXT ─────
 
 test('T4 every read the outputs use: in flight → wait and say which; failed → named (a failure never waits); all in → made', () => {
-  const ok: ReelReads = { day: 'ok', tasks: 'ok', report: 'ok', records: 'ok', stay: 'ok', journal: 'ok' };
+  // WORK-03 (Alex, 2026-10-26): the work block reaches the reel — an execute stop's scene says what was done in its block and the caption counts it; the reel waits on the backlog by name (work03.test.ts). The reads gained the backlog — null on a day with no execute stop, as here.
+  const ok: ReelReads = { day: 'ok', tasks: 'ok', report: 'ok', records: 'ok', stay: 'ok', journal: 'ok', backlog: null };
   assert.equal(reelReadsWords(ok), null);
   assert.equal(reelReadsWords({ ...ok, journal: null }), null, 'a day with no journal stop: the card reads no journal, nothing to wait for');
   assert.equal(reelReadsWords({ ...ok, stay: 'waiting' }), 'not ready — waiting for the stay');
   assert.equal(reelReadsWords({ ...ok, records: 'waiting', journal: 'waiting' }), 'not ready — waiting for the stop records, the journal');
   assert.equal(reelReadsWords({ ...ok, report: 'failed', journal: 'waiting' }), 'not made — the budget report could not be read', 'the failure is named, never waited on');
   assert.equal(reelReadsWords({ ...ok, day: 'failed', records: 'failed' }), 'not made — the day’s routines, the stop records could not be read');
-  assert.deepEqual(Object.keys(REEL_READ_NAMES), ['day', 'tasks', 'report', 'records', 'stay', 'journal']);
+  assert.deepEqual(Object.keys(REEL_READ_NAMES), ['day', 'tasks', 'report', 'records', 'stay', 'journal', 'backlog']); // WORK-03: the backlog, last
   const c = code(CARD);
-  assert.match(c, /const reelReads: ReelReads = \{\n\s*day: dayRead === null \? 'waiting' : dayRead\.ok && refused\.length === 0 \? 'ok' : 'failed',\n\s*tasks: items === null \? 'waiting' : items\.ok \? 'ok' : 'failed',\n\s*report: report === null \? 'waiting' : report\.ok && report\.value\.plans\.listed \? 'ok' : 'failed',\n\s*records: recordsRead === null \? 'waiting' : recordsRead\.ok \? 'ok' : 'failed',\n\s*stay: staysRead === null \? 'waiting' : staysRead\.ok \? 'ok' : 'failed',\n\s*journal: !hasJournalStop \? null : journalRead === null \? 'waiting' : journalRead\.ok \? 'ok' : 'failed',\n\s*\};/, 'the card’s own read states, by name');
+  assert.match(c, /const reelReads: ReelReads = \{\n\s*day: dayRead === null \? 'waiting' : dayRead\.ok && refused\.length === 0 \? 'ok' : 'failed',\n\s*tasks: items === null \? 'waiting' : items\.ok \? 'ok' : 'failed',\n\s*report: report === null \? 'waiting' : report\.ok && report\.value\.plans\.listed \? 'ok' : 'failed',\n\s*records: recordsRead === null \? 'waiting' : recordsRead\.ok \? 'ok' : 'failed',\n\s*stay: staysRead === null \? 'waiting' : staysRead\.ok \? 'ok' : 'failed',\n\s*journal: !hasJournalStop \? null : journalRead === null \? 'waiting' : journalRead\.ok \? 'ok' : 'failed',\n(?:\s*\{\s*\}\n)?\s*backlog: !hasExecuteStop \? null : backlog === null \|\| backlog\.day !== day \? 'waiting' : !backlog\.read\.ok \? 'failed' : carriesDoneTasks\(backlog\.read\.value\) \? 'ok' : 'waiting',\n\s*\};/, 'the card’s own read states, by name'); // WORK-03: the backlog's state, on a day with an execute stop
   assert.match(c, /const reelWait = focus === null \? reelReadsWords\(reelReads\) : reelReadsWords\(\{ \.\.\.reelReads, journal: null \}\);/, 'the step view’s tag and scene use no journal');
   assert.match(c, /const caption: ReelText \| null = focus === null && reelWait === null \? captionText\(reelDay\) : null;/, 'made only when every read is in');
-  assert.match(c, /const script: ReelText \| null = reelWait !== null \? null : focus === null \? scriptText\(reelDay\) : stopScriptText\(day, reelStay, focus\.stop\);/);
-  assert.match(c, /const reelDay = \{ day, stay: reelStay, stops: result\.stops, totals, verdict, journal: reelJournal \};/, 'R3: the card’s own stops, TOTAL row and verdict');
+  assert.match(c, /const script: ReelText \| null = reelWait !== null \? null : focus === null \? scriptText\(reelDay\) : stopScriptText\(day, reelStay, focus\.stop, reelDoneOf\(reelDay, focus\.stop\)\);/); // WORK-03: the stop's done tasks handed in
+  assert.match(c, /const reelDay = \{ day, stay: reelStay, stops: result\.stops, totals, verdict, journal: reelJournal, done: reelDone \};/, 'R3: the card’s own stops, TOTAL row and verdict'); // WORK-03: and each execute stop's done tasks
 });
 
 // ── T5 · THE SCREEN: THE BUTTONS, THE WORDS, NOTHING LEAVES THE BROWSER ────

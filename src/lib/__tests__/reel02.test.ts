@@ -289,7 +289,7 @@ test('R1 ReelDay.journal is goals, blocker and next; the card’s hand-off is un
   assert.match(reel, /d\.journal\.next/);
   const c = code(CARD);
   assert.match(c, /const reelJournal = journalRead !== null && journalRead\.ok \? journalRead\.value\.journal : null;/, 'the whole row the card read — only the type narrows it');
-  assert.match(c, /const reelDay = \{ day, stay: reelStay, stops: result\.stops, totals, verdict, journal: reelJournal \};/);
+  assert.match(c, /const reelDay = \{ day, stay: reelStay, stops: result\.stops, totals, verdict, journal: reelJournal, done: reelDone \};/); // WORK-03 (Alex, 2026-10-26): the work block reaches the reel — an execute stop's scene says what was done in its block and the caption counts it; the reel waits on the backlog by name (work03.test.ts).
   assert.match(comments(RULES), /REEL-02 \(Alex, 2026-10-19\): `next` too/);
 });
 

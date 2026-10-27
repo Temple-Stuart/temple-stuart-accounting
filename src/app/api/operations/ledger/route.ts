@@ -35,6 +35,11 @@
  *     record's plan words (RECORD_PLAN's step select — additive, no new query)
  *     — the ledger's PLANNED MIN; the record's own actual_minutes was always in
  *     the row (stopRecordRowOf) — its LOGGED MIN.
+ *   · WORK-03b (Alex, 2026-10-26): the routine's start_time and end_time, read
+ *     WITH a stepless record's plan words (RECORD_PLAN's routine select —
+ *     additive, no new query): a stepless routine with a window is as long as
+ *     its window — the one planned-minutes rule (dayCard.ts plannedMinutesOf,
+ *     recordInputOf applies it for both kinds); one without has none.
  * READ ONLY: this route writes nothing, reads no book data, no travel, no paid
  * service. The clock is read HERE, once (as_of); the pure half takes it.
  *
@@ -58,6 +63,7 @@ import { loadRoutineBudgetInputs } from '@/lib/operations/routineBudgetInputs';
 import { POSTING_LINES_SELECT } from '@/lib/calendar/postingAmount';
 import { ledgerOf, linkInputOf, spanInput, type LedgerRecordInput } from '@/lib/operations/ledger';
 import { refusedWords, stopRecordRowOf } from '@/lib/operations/stopRecord';
+import { plannedMinutesOf } from '@/components/workbench/operations/day/dayCard';
 import { stayRowOf } from '@/lib/operations/stay';
 import { instantToZoned } from '@/lib/time';
 
@@ -67,12 +73,12 @@ const messageOf = (error: unknown): string => (error instanceof Error ? error.me
 
 /** The plan's words a record is read with: the step's routine for a line, the routine for a stepless one. */
 const RECORD_PLAN = {
-  routine: { select: { name: true, timezone: true, role: true } },
+  routine: { select: { name: true, timezone: true, role: true, start_time: true, end_time: true } },
   step: { select: { activity: true, time_of_day: true, duration_minutes: true, routine_id: true, routine: { select: { name: true, timezone: true, role: true } } } },
 } as const;
 
 type RecordRow = Parameters<typeof stopRecordRowOf>[0] & {
-  readonly routine: { readonly name: string; readonly timezone: string; readonly role: string } | null;
+  readonly routine: { readonly name: string; readonly timezone: string; readonly role: string; readonly start_time: Date | null; readonly end_time: Date | null } | null;
   readonly step: { readonly activity: string; readonly time_of_day: Date | null; readonly duration_minutes: number | null; readonly routine_id: string; readonly routine: { readonly name: string; readonly timezone: string; readonly role: string } } | null;
 };
 
@@ -80,10 +86,10 @@ type RecordRow = Parameters<typeof stopRecordRowOf>[0] & {
 function recordInputOf(row: RecordRow): LedgerRecordInput {
   const record = stopRecordRowOf(row);
   if (row.step !== null) {
-    return { record, routineId: row.step.routine_id, routineName: row.step.routine.name, zone: row.step.routine.timezone, role: row.step.routine.role, activity: row.step.activity, timeOfDay: row.step.time_of_day === null ? null : row.step.time_of_day.toISOString().slice(11, 16), durationMinutes: row.step.duration_minutes };
+    return { record, routineId: row.step.routine_id, routineName: row.step.routine.name, zone: row.step.routine.timezone, role: row.step.routine.role, activity: row.step.activity, timeOfDay: row.step.time_of_day === null ? null : row.step.time_of_day.toISOString().slice(11, 16), durationMinutes: plannedMinutesOf({ kind: 'line', duration_minutes: row.step.duration_minutes }) };
   }
   if (row.routine === null || row.routine_id === null) throw new Error(`ledger GET: record ${row.id} names no plan — the migration's CHECK holds one`);
-  return { record, routineId: row.routine_id, routineName: row.routine.name, zone: row.routine.timezone, role: row.routine.role, activity: null, timeOfDay: null, durationMinutes: null };
+  return { record, routineId: row.routine_id, routineName: row.routine.name, zone: row.routine.timezone, role: row.routine.role, activity: null, timeOfDay: null, durationMinutes: plannedMinutesOf({ kind: 'routine', start_time: row.routine.start_time, end_time: row.routine.end_time }) };
 }
 
 /** LEDGER-03: a link as the rule joins it — the three fields a record is addressed by, and the posting's amount by the one rule. A link of a routine kind with no instant is the database's error (the migration's CHECK holds one). */

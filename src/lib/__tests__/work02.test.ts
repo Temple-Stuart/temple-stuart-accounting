@@ -47,7 +47,7 @@ test('A the block shows for the execute role alone — not place, none, journal,
   assert.equal(showsWorkBlock(EXECUTE), true);
   for (const role of ['place', 'none', 'journal', 'plan', 'all_day'] as const) assert.equal(showsWorkBlock(stop({ role })), false, `${role}: no block`);
   const c = code(CARD);
-  assert.match(c, /import \{ dayWindowOf, showsWorkBlock \} from '@\/lib\/operations\/workBlock';/);
+  assert.match(c, /import \{ NO_DONE_IN_BLOCKS, carriesDoneTasks, dayWindowOf, doneInBlocksOf, showsWorkBlock \} from '@\/lib\/operations\/workBlock';/); // WORK-03: the reel's hand-off imports beside the two
   assert.match(c, /import WorkBlock from '\.\.\/stops\/WorkBlock';/);
   // VENDOR → WORK BLOCK → StopForm, in that order, each under its own gate; the block's gate is the rule (showsWorkBlock), not a retyped role.
   assert.match(c, /<StopVendor key=\{focus\.stop\.key\}[^\n]*\/>\n\s*\)\}\n(?:\s*\{\s*\}\n)?\s*\{loaded && focus !== null && showsWorkBlock\(focus\.stop\) && \(\n\s*<WorkBlock key=\{focus\.stop\.key\} stop=\{focus\.stop\} day=\{day\} viewerZone=\{zone\} log=\{backlogRead\} onChanged=\{\(\) => setLogReads\(\(n\) => n \+ 1\)\} \/>\n\s*\)\}\n(?:\s*\{\s*\}\n)?\s*\{loaded && recordsOk && focus !== null && focus\.stop\.address !== null && \(\n\s*<StopForm key=/, 'the VENDOR row, then the block, then the record form');
@@ -92,14 +92,15 @@ test('C the window: [the stop’s planned instant, + the line’s minutes] — a
   assert.deepEqual([w.from.toISOString(), w.to.toISOString()], ['2026-10-26T17:00:00.000Z', '2026-10-27T01:00:00.000Z'], '10:00–18:00 Los Angeles (PDT) as instants');
   assert.equal(w.from.toISOString(), EXECUTE.key.split(':').slice(2).join(':'), 'the window starts at the stop’s instant');
   assert.equal(blockWindowOf(stop({ role: 'execute', minutes: null }), DAY), null, 'no minutes: no length');
-  assert.equal(blockWindowOf(stop({ role: 'execute', key: 'routine:r1:2026-10-26T17:00:00.000Z', minutes: null }), DAY), null, 'a stepless routine has none (dayCard.ts: minutes null)');
-  assert.deepEqual(blockWindowOf(stop({ role: 'execute', minutes: 0 }), DAY), { from: new Date('2026-10-26T17:00:00.000Z'), to: new Date('2026-10-26T17:00:00.000Z') }, 'zero minutes is a window of no span, not "no length"');
+  assert.equal(blockWindowOf(stop({ role: 'execute', key: 'routine:r1:2026-10-26T17:00:00.000Z', minutes: null }), DAY), null, 'a stepless routine without a window has none (WORK-03b: dayCard.ts plannedMinutesOf — with one, its length)');
+  // WORK-03 (Alex, 2026-10-26; WORK-02 call 4, ruled): a block of ≤ 0 minutes has no length — null, the same words as no minutes (work03.test.ts drives 0 and -5).
+  assert.equal(blockWindowOf(stop({ role: 'execute', minutes: 0 }), DAY), null, 'zero minutes is no length');
   assert.throws(() => blockWindowOf(stop({ role: 'execute', minutes: 1.5 }), DAY), /whole number of minutes/);
   assert.throws(() => blockWindowOf(stop({ role: 'execute', time: null }), DAY), /has minutes but no clock/);
   assert.equal(NO_LENGTH_WORDS, "this block has no length — set the line's minutes on /expenses to count what was done in it");
-  // The rule is the day card's: the line's duration_minutes, a stepless routine's null — dayCard.ts, unchanged.
-  assert.match(code(CARD_RULES), /minutes: step\.duration_minutes,/);
-  assert.match(code(CARD_RULES), /minutes: null,\n\s*cents: line === null \? null : line\.cents,\n\s*role: r\.role,/, 'a stepless routine: minutes null');
+  // The rule is the day card's — WORK-03b (Alex, 2026-10-26): the ONE planned-minutes rule, plannedMinutesOf, at both sites (a line's duration_minutes; a stepless routine's window length, null without one — work03b.test.ts).
+  assert.match(code(CARD_RULES), /minutes: plannedMinutesOf\(\{ kind: 'line', duration_minutes: step\.duration_minutes \}\),/);
+  assert.match(code(CARD_RULES), /minutes: plannedMinutesOf\(\{ kind: 'routine', start_time: r\.start_time, end_time: r\.end_time \}\),\n\s*cents: line === null \? null : line\.cents,\n\s*role: r\.role,/, 'a stepless routine: its window by the one rule');
   assert.match(code(RULE), /const from = zonedToInstant\(day, stop\.time, stop\.zone\);\n\s*return \{ from, to: new Date\(from\.getTime\(\) \+ stop\.minutes \* 60_000\) \};/);
 });
 
@@ -214,11 +215,16 @@ test('D readBacklog with a window asks the GET for it and carries doneTasks per 
 // ── RULING E · UNCHANGED ─────────────────────────────────────────────────────
 
 test('E the record form, the execute words, the reel’s words and THE LOG are unchanged; no schema, no migration, no new route; the law’s mount rule holds — the panel is the card’s own, under stops/, and names the rule', () => {
-  for (const f of [STOP_FORM, STOP_ROLE, CARD_RULES, MORNING_LOG]) assert.doesNotMatch(code(f) + comments(f), /WORK-02|WorkBlock|workBlock|doneTasks|done_tasks/, `${f} is untouched`);
+  // WORK-03 (Alex, 2026-10-26): the block reaches the reel — dayCard.ts (the reel's rules) reads workBlock.ts showsWorkBlock now and names WORK-03, not WORK-02; the three screens stay untouched.
+  for (const f of [STOP_FORM, STOP_ROLE, MORNING_LOG]) assert.doesNotMatch(code(f) + comments(f), /WORK-02|WorkBlock|workBlock|doneTasks|done_tasks/, `${f} is untouched`);
+  assert.doesNotMatch(code(CARD_RULES) + comments(CARD_RULES), /WORK-02|\bWorkBlock\b|doneTasks|done_tasks/, 'dayCard.ts carries nothing of WORK-02 — its one tie to the block is WORK-03’s reel line (showsWorkBlock, the rule)');
   assert.match(code(STOP_FORM), /: \{ amount: false, rating: false, minutes: true, note: true \};/, 'a work stop (plan · execute): the minutes and one line, as before');
   assert.match(code(STOP_ROLE), /execute: 'execute — a work block; what got finished',/);
-  assert.match(code(CARD_RULES), /export function stopScriptText\(day: string, stay: StayRow \| null, stop: Stop\): ReelText \{/, 'the reel’s words — WORK-03’s line is not built here');
-  assert.match(comments(PANEL), /WORK-03 \(not built here\): a line for the block in the reel's words — dayCard\.ts stopScriptText is unchanged by WORK-02\./);
+  // WORK-03 (Alex, 2026-10-26): built — the step view's script takes the stop's done tasks now (work03.test.ts drives the line).
+  // WORK-03b (Alex, 2026-10-26): `done` is handed as reelDoneOf reads it — the list, or null for a block with no length (no block line); nothing handed for an execute stop still throws.
+  assert.match(code(CARD_RULES), /export function stopScriptText\(day: string, stay: StayRow \| null, stop: Stop, done\?: readonly ReelDoneTask\[\] \| null\): ReelText \{/, 'the reel’s words — WORK-03’s line, handed in');
+  // WORK-03 (Alex, 2026-10-26): built — the header's note moved from "not built here" to what it does.
+  assert.match(comments(PANEL), /WORK-03 \(Alex, 2026-10-26\): the block reaches the reel — the execute stop's scene says what was done in it and the caption\s*\n?\s*\*?\s*counts it/);
   assert.doesNotMatch(code(ROUTE) + code(READS) + code(PANEL) + code(RULE), /prisma\.\$executeRaw|ALTER TABLE|migrations/, 'no migration, no raw SQL');
   assert.doesNotMatch(code(RULE), /from 'react'|from 'next|\bfetch\b|@prisma\/client|document\.|window\./, 'the rule stays pure');
   // TOOL-LAW-01 rule 5: a component belonging to tool A may not be mounted on tool B's page — the panel is a Time-owned component reading through the card's read and writing through Tasks' routes; it mounts nothing of Tasks'.

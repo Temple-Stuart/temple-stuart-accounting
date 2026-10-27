@@ -3,7 +3,8 @@
  *
  * The task ledger gains two columns after STARS, nothing reordered — PLANNED
  * MIN · LOGGED MIN (ruling A): the day card's one rule (a line's
- * duration_minutes; a stepless routine has none) and the record's
+ * duration_minutes; a stepless routine without a window has none — WORK-03b,
+ * 2026-10-26: with one, its length, plannedMinutesOf) and the record's
  * actual_minutes; whole minutes, "—" for null, sorted as numbers, bare integers
  * in the CSV; the record read grows additively (durationMinutes, read with the
  * record's plan words). The summary gains PLANNED HOURS · LOGGED HOURS — the
@@ -116,7 +117,7 @@ test('A PLANNED MIN is the line’s duration_minutes (blank for a stepless routi
   const gym12 = rowOf('r-gym-12');
   assert.deepEqual(ids(ledger.rows), ['r-coffee', 'r-lunch', 'r-gym', 'r-gym-12'], 'the ledger’s own order: newest day first, the card’s clock within');
   assert.deepEqual([coffee.plannedMinutes, coffee.loggedMinutes], [45, 50], 'a line planned 45, logged 50');
-  assert.deepEqual([gym.plannedMinutes, gym.loggedMinutes], [null, 30], 'a stepless routine has no planned minutes; its logged minutes stand');
+  assert.deepEqual([gym.plannedMinutes, gym.loggedMinutes], [null, 30], 'a stepless routine without a window has no planned minutes; its logged minutes stand');
   assert.deepEqual([lunch.plannedMinutes, lunch.loggedMinutes], [60, null], 'planned, nothing logged');
   assert.deepEqual([gym12.plannedMinutes, gym12.loggedMinutes], [null, null]);
   // The cell words: the number alone, "—" for null; the one blank word.
@@ -161,12 +162,13 @@ test('A PLANNED MIN is the line’s duration_minutes (blank for a stepless routi
   }
 });
 
-test('A the read grows additively: the route selects the line’s duration_minutes with the record’s plan words (no new query) and hands it to the rule as durationMinutes, null for a stepless routine; the rule copies the two figures onto the row', () => {
+test('A the read grows additively: the route selects the line’s duration_minutes with the record’s plan words (no new query) and hands it to the rule as durationMinutes by the one planned-minutes rule (WORK-03b: a stepless routine’s window length, null without one); the rule copies the two figures onto the row', () => {
   const route = code(ROUTE);
   assert.match(route, /step: \{ select: \{ activity: true, time_of_day: true, duration_minutes: true, routine_id: true, routine: \{ select: \{ name: true, timezone: true, role: true \} \} \} \},/, 'RECORD_PLAN reads the duration with the step');
   assert.match(route, /readonly duration_minutes: number \| null; readonly routine_id: string;/, 'the row type');
-  assert.match(route, /timeOfDay: row\.step\.time_of_day === null \? null : row\.step\.time_of_day\.toISOString\(\)\.slice\(11, 16\), durationMinutes: row\.step\.duration_minutes \};/);
-  assert.match(route, /activity: null, timeOfDay: null, durationMinutes: null \};/, 'a stepless routine has none');
+  // WORK-03b (Alex, 2026-10-26): both kinds through the ONE rule (dayCard.ts plannedMinutesOf) — a line's duration_minutes; a stepless routine's start_time and end_time, read with its plan words (work03b.test.ts pins the routine select).
+  assert.match(route, /timeOfDay: row\.step\.time_of_day === null \? null : row\.step\.time_of_day\.toISOString\(\)\.slice\(11, 16\), durationMinutes: plannedMinutesOf\(\{ kind: 'line', duration_minutes: row\.step\.duration_minutes \}\) \};/);
+  assert.match(route, /activity: null, timeOfDay: null, durationMinutes: plannedMinutesOf\(\{ kind: 'routine', start_time: row\.routine\.start_time, end_time: row\.routine\.end_time \}\) \};/, 'a stepless routine: its window by the one rule, none without one');
   assert.equal((route.match(/prisma\.[a-z_]+\.(findMany|findFirst)\(/g) ?? []).length, 9, 'the same queries as before — the duration rides the record include');
   assert.doesNotMatch(route, /actual_minutes/, 'the record’s minutes were always in the row (stopRecordRowOf) — nothing added for them');
   assert.match(comments(ROUTE), /TIME-03 \(Alex, 2026-10-26\): the line's duration_minutes, read WITH the\s*\n?\s*\*?\s*record's plan words/);
@@ -178,7 +180,7 @@ test('A the read grows additively: the route selects the line’s duration_minut
   assert.match(rules, /case 'plannedMinutes': return num\(row\.plannedMinutes\);\n\s*case 'loggedMinutes': return num\(row\.loggedMinutes\);/, 'sorted as numbers');
   assert.match(rules, /plannedMinutes: \(row\) => row\.plannedMinutes === null \? '' : String\(row\.plannedMinutes\),\n\s*loggedMinutes: \(row\) => row\.loggedMinutes === null \? '' : String\(row\.loggedMinutes\),/, 'the CSV’s own null path');
   // The day card's rules are the ledger's: the same two columns of the same tables.
-  assert.match(code(DAY_CARD), /minutes: step\.duration_minutes,/);
+  assert.match(code(DAY_CARD), /minutes: plannedMinutesOf\(\{ kind: 'line', duration_minutes: step\.duration_minutes \}\),/); // WORK-03b (2026-10-26): the one rule at the line's site
   assert.match(code(DAY_CARD), /actualMinutes: record\.actual_minutes,/);
 });
 
@@ -304,7 +306,8 @@ test('C the plan surfaces flip the one row standing on Time — "Where the hours
 // ── RULING D · UNCHANGED ─────────────────────────────────────────────────────
 
 test('D the journal tables, the day card, the stops route and the minutes input are unchanged; no schema, no migration, no new route', () => {
-  for (const f of UNCHANGED) assert.doesNotMatch(code(f) + comments(f), /TIME-03|plannedMinutes|loggedMinutes|hoursWords/, `${f} is untouched`);
+  // WORK-03b (Alex, 2026-10-26): the day card holds the ONE planned-minutes rule now (plannedMinutesOf, PlannedMinutesPlan — the ledger route reads it); none of these carries TIME-03's columns.
+  for (const f of UNCHANGED) assert.doesNotMatch(code(f) + comments(f), /TIME-03|plannedMinutes(?!Of|Plan)|loggedMinutes|hoursWords/, `${f} is untouched`);
   assert.match(code(STOPS_ROUTE), /actual_minutes: v\.actualMinutes \};/, 'the record stores its minutes as before');
   assert.match(code(STOP_FORM), /actualMinutes = Number\(d\.minutes\.trim\(\)\);/, 'the minutes input as before');
   assert.match(code(STOP_FORM), /minutes: r === null \|\| r\.actual_minutes === null \? '' : String\(r\.actual_minutes\),/);

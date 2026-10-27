@@ -203,7 +203,7 @@ import type { BudgetReportResponse } from '@/lib/budget/reportInputs';
 import { shiftDay } from '@/lib/budget/reportView';
 import { zonedToInstant } from '@/lib/time';
 import type { LogProject } from '@/lib/operations/morningLog';
-import { dayWindowOf, showsWorkBlock } from '@/lib/operations/workBlock';
+import { NO_DONE_IN_BLOCKS, carriesDoneTasks, dayWindowOf, doneInBlocksOf, showsWorkBlock } from '@/lib/operations/workBlock';
 import { localToday } from '@/lib/localToday';
 import type { DailyPlanItem } from '../dailyplan/types';
 import RefusedRoutines from '../routines/RefusedRoutines';
@@ -241,7 +241,7 @@ import {
   ACTUAL_HEAD_WORD, BUDGET_HEAD_WORD, DESCRIPTION_HEAD_WORD, TIME_HEAD_WORD, VENDOR_HEAD_WORD, intervalWords, openStepWords,
   CELL_GAP, COLUMN_WIDTHS, dayMeter, dayVerdict,
   TOTAL_WORD, dayTotals, planBeyondStopsWords,
-  CAPTION_COPIED_WORDS, COPY_CAPTION_WORDS, COPY_SCRIPT_WORDS, SCRIPT_COPIED_WORDS, captionText, copyFailedWords, reelReadsWords, reelWaitingWords, scriptText, stepSpentSoFarWords, stopName, stopScriptText, stopTagWords,
+  CAPTION_COPIED_WORDS, COPY_CAPTION_WORDS, COPY_SCRIPT_WORDS, SCRIPT_COPIED_WORDS, captionText, copyFailedWords, reelDoneOf, reelReadsWords, reelWaitingWords, scriptText, stepSpentSoFarWords, stopName, stopScriptText, stopTagWords,
   type DeltaWords, type ReelReads, type ReelText,
   DAY_CARD_PATH,
   DECK_FULL_CARD_WORDS, SWIPE_HINT_WORDS, journalHeaderWords, journalImageName, openJournalWords,
@@ -792,13 +792,18 @@ export default function DayCard() {
     records: recordsRead === null ? 'waiting' : recordsRead.ok ? 'ok' : 'failed',
     stay: staysRead === null ? 'waiting' : staysRead.ok ? 'ok' : 'failed',
     journal: !hasJournalStop ? null : journalRead === null ? 'waiting' : journalRead.ok ? 'ok' : 'failed',
+    // WORK-03 (Alex, 2026-10-26): the backlog, on a day with an execute stop — in once it carries the day's done tasks (read with the window).
+    backlog: !hasExecuteStop ? null : backlog === null || backlog.day !== day ? 'waiting' : !backlog.read.ok ? 'failed' : carriesDoneTasks(backlog.read.value) ? 'ok' : 'waiting',
   };
   // A stop's script (the deck's cards and the journal card) reads no journal answer — its wait is the other reads'.
   const reelWait = focus === null ? reelReadsWords(reelReads) : reelReadsWords({ ...reelReads, journal: null });
   const stopWait = reelReadsWords({ ...reelReads, journal: null });
   const reelStay = stayState.kind === 'read' ? stayState.stay : null;
   const reelJournal = journalRead !== null && journalRead.ok ? journalRead.value.journal : null;
-  const reelDay = { day, stay: reelStay, stops: result.stops, totals, verdict, journal: reelJournal };
+  // WORK-03 (Alex, 2026-10-26): each execute stop's done tasks — from the backlog read the card already holds (with the day's window, WORK-02),
+  // narrowed per stop by the one rule; none until that read is in (the reel waits on it by name, reelReads.backlog). No new read.
+  const reelDone = reelReads.backlog === 'ok' && backlog !== null && backlog.read.ok ? doneInBlocksOf(result.stops, day, backlog.read.value) : NO_DONE_IN_BLOCKS;
+  const reelDay = { day, stay: reelStay, stops: result.stops, totals, verdict, journal: reelJournal, done: reelDone };
   // JOURNAL-05 (Alex, 2026-10-19): the prompt's day — the card's OWN reads and words, nothing else: the journal as held, every stop
   // in the table's order with the card's BUDGET and ACTUAL words for it (rowActualWords — the row's own delta; a skipped stop "skipped", an
   // unrecorded one "—", as the card names them), the TOTAL row's two figures and the verdict as the card says it. Offered only once every
@@ -833,8 +838,8 @@ export default function DayCard() {
     }) };
   })();
   const caption: ReelText | null = focus === null && reelWait === null ? captionText(reelDay) : null;
-  const script: ReelText | null = reelWait !== null ? null : focus === null ? scriptText(reelDay) : stopScriptText(day, reelStay, focus.stop);
-  const journalScript: ReelText | null = journalStop === null || stopWait !== null ? null : stopScriptText(day, reelStay, journalStop);
+  const script: ReelText | null = reelWait !== null ? null : focus === null ? scriptText(reelDay) : stopScriptText(day, reelStay, focus.stop, reelDoneOf(reelDay, focus.stop));
+  const journalScript: ReelText | null = journalStop === null || stopWait !== null ? null : stopScriptText(day, reelStay, journalStop, reelDoneOf(reelDay, journalStop));
   const tag = focus !== null && reelWait === null ? stopTagWords({ day, stay: reelStay, stop: focus.stop, foot: stepSpentSoFarWords(focus, totals.budgetCents) }) : null;
   const copyReel = async (what: 'caption' | 'script', text: ReelText | null, at: string) => {
     if (text === null || !text.ok) return;
