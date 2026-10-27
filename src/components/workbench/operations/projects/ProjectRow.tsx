@@ -58,6 +58,8 @@ interface Props {
   /** PROJECTS-01: called whenever this project's tasks change (the pipe landed
    *  tasks, or generated tasks were accepted) — the table re-reads them. */
   onTasksChanged?: () => void;
+  /** ARCHIVE-01 (Alex, 2026-10-27): after "unarchive", the route's words — what the cascade restore did — for the table to print above its rows. */
+  onUnarchived: (words: string) => void;
 }
 
 export const BRIEF_COPIED_WORDS = 'copied';
@@ -97,7 +99,7 @@ function projectToForm(p: Project): ProjectForm {
   };
 }
 
-export default function ProjectRow({ project, entities, allProjects, onUpdate, onDelete, isJumpTarget, onClearTarget, onJumpTo, defaultExpanded = false, withoutTaskSection = false, onTasksChanged }: Props & { }) {
+export default function ProjectRow({ project, entities, allProjects, onUpdate, onDelete, isJumpTarget, onClearTarget, onJumpTo, defaultExpanded = false, withoutTaskSection = false, onTasksChanged, onUnarchived }: Props & { }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<ProjectForm>(() => projectToForm(project));
@@ -595,8 +597,13 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   };
 
   // Unarchive restores the project to the non-archived default status
-  // (not_started — the schema/create default). Does NOT auto-restore task
-  // statuses; archived tasks are unarchived individually.
+  // (not_started — the schema/create default). ARCHIVE-01 (Alex, 2026-10-27):
+  // the route restores, in the same transaction, exactly the tasks the latest
+  // cascade archived, to their previous statuses, and answers with the words
+  // (archiveCascade.ts unarchiveWords) — handed up through onUnarchived, because
+  // the list re-reads after the write and this detail closes with it (the table
+  // prints the line above its rows); a task archived on its own stays and is
+  // counted. A route that answers no words is said, never silent.
   const handleUnarchive = async () => {
     setArchiving(true);
     setError(null);
@@ -611,7 +618,9 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
         setError(body?.message ?? body?.error ?? 'failed to unarchive');
         return;
       }
+      onUnarchived(typeof body?.cascade?.words === 'string' ? body.cascade.words : 'the route said nothing about its tasks');
       onUpdate();
+      onTasksChanged?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'failed to unarchive');
     } finally {
