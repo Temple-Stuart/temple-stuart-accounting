@@ -38,10 +38,18 @@
  * timezone, so the tile lands on the correct calendar day regardless of
  * where the Hub is being viewed. Mirrors the server's own formatLocalDate
  * helper at /api/hub/operations-routines/route.ts:45-55.
+ *
+ * CAL-02 (Alex, 2026-10-27): the tile carries its ACCOUNT — the window route's
+ * server-side read (`account`, `account_state` per routine and per line) decided
+ * for the tile by tileAccount.ts tileAccountOf: a stepless routine's own; the one
+ * account every coded line shares; 'several' when the lines carry more than one
+ * code; 'none' when nothing is coded; 'missing' when the chart lists no row.
+ * coaCode on the event is unchanged for its existing readers.
  */
 
 import type { CalendarEvent } from '@/components/shared/CalendarGrid';
 import { routinePlanned, type RoutineLineInput } from '@/lib/operations/routineLines';
+import { tileAccountOf, type AccountState, type TileAccount } from '@/lib/hub/tileAccount';
 
 export interface RoutineWindowEntry {
   routine_id: string;
@@ -59,7 +67,15 @@ export interface RoutineWindowEntry {
    * the sum of the lines when any carries an amount, else the routine-level
    * pair. Never both. Absent ⇒ a stepless routine, as before.
    */
-  steps?: RoutineLineInput[] | null;
+  steps?: (RoutineLineInput & RoutineLineAccount)[] | null;
+  /**
+   * CAL-02 (Alex, 2026-10-27): the routine's own account, read on the server with
+   * its book's chart — the chart's name beside the code; 'missing' (name null)
+   * when the chart lists no row; 'none' (account null) without a code. Absent ⇒
+   * an answer that was not read with its accounts (the tile then carries none).
+   */
+  account?: TileAccount | null;
+  account_state?: AccountState;
   /**
    * ONEOFF-01: the routine's place, carried onto every occurrence tile so the
    * day view pins it and the drill panel prints Where and Pin — exactly as a
@@ -74,6 +90,12 @@ export interface RoutineWindowEntry {
    * glyph. Absent ⇒ recurring, as every tile was before.
    */
   cadence?: string | null;
+}
+
+/** CAL-02: each line's own account, read as the routine's is. */
+export interface RoutineLineAccount {
+  account?: TileAccount | null;
+  account_state?: AccountState;
 }
 
 export interface RoutinesWindowResponse {
@@ -129,6 +151,9 @@ export function mapOperationsRoutines(response: RoutinesWindowResponse): Calenda
     const latitude = routine.latitude ?? null;
     const longitude = routine.longitude ?? null;
     const isRecurring = routine.cadence !== 'once';
+    // CAL-02: the tile's account by the leaf grain — the lines' own codes, else the routine's own; none when the answer carried no read.
+    const tileAccount = tileAccountOf(routine);
+    const accountFields = tileAccount === null ? {} : { account: tileAccount.account, accountState: tileAccount.accountState };
 
     for (const occISO of routine.occurrences) {
       const startDate = formatDateInZone(occISO, routine.timezone);
@@ -149,6 +174,7 @@ export function mapOperationsRoutines(response: RoutinesWindowResponse): Calenda
           location,
           latitude,
           longitude,
+          ...accountFields,
         });
       } else {
         // Time-less routine → all-day event at the top of the calendar.
@@ -171,6 +197,7 @@ export function mapOperationsRoutines(response: RoutinesWindowResponse): Calenda
           location,
           latitude,
           longitude,
+          ...accountFields,
         });
       }
     }

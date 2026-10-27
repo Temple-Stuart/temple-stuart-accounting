@@ -52,7 +52,8 @@ const MIGRATIONS = 'prisma/migrations';
 const MIGRATION_DIR = '20261019230000_ledger_03_planned_item_link_audit';
 const MIGRATION = `${MIGRATIONS}/${MIGRATION_DIR}/migration.sql`;
 /** The drill panel at 9680cf7b (main after #1833), whole file — LEDGER-03 touches it not at all. */
-const PANEL_SHA256 = '4e44840886f1731e436e26465eb60c596374f0ca077ab5ab4d3a77cd6e60c7ab';
+// CAL-02 (Alex, 2026-10-27): the panel's Category (COA) row became ACCOUNT for a routine occurrence and each line prints its own account words (cal02b.test.ts) — the byte-for-byte pin moved from 9680cf7b's 4e448408… to this change's file.
+const PANEL_SHA256 = '333c96a6463fef69931b1e393246a467b005f63b0cf46ba5da492db072f984a0';
 
 // ── FIXTURES (the Budget's own shapes, as ledger02.test.ts builds them) ─────
 

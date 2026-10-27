@@ -346,8 +346,14 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
     const m = new Map<string, RoutineLines>();
     for (const r of routinesWindow.routines) {
       const p = routinePlanned({ budget_amount: r.budget_amount, coa_code: r.coa_code, steps: r.steps ?? null });
+      // CAL-02 (Alex, 2026-10-27): each line's own account, as the window route read it — by the line's id, never guessed.
+      const stepsById = new Map((r.steps ?? []).map((s) => [s.id, s]));
       m.set(r.routine_id, {
-        lines: p.lines.map((l) => ({ stepId: l.id, activity: l.activity, timeOfDay: l.timeOfDay ? l.timeOfDay.slice(11, 16) : null, amount: l.amount, coaCode: l.coaCode })),
+        lines: p.lines.map((l) => {
+          const s = stepsById.get(l.id);
+          if (s === undefined) throw new Error(`HubCalendar: line ${l.id} of ${r.name} is not among the window's steps`);
+          return { stepId: l.id, activity: l.activity, timeOfDay: l.timeOfDay ? l.timeOfDay.slice(11, 16) : null, amount: l.amount, coaCode: l.coaCode, account: s.account, accountState: s.account_state };
+        }),
         coverage: p.coverage,
         ignoredRoutineLevel: p.ignoredRoutineLevel,
       });
@@ -362,6 +368,8 @@ export default function HubCalendar({ demoEvents, onRequireAuth }: HubCalendarPr
     startTime: e.startTime, endTime: e.endTime,
     location: e.location, latitude: e.latitude, longitude: e.longitude,
     coaCode: e.coaCode, budgetAmount: e.budgetAmount ?? null,
+    // CAL-02: the tile's account, as the mapper decided it.
+    account: e.account, accountState: e.accountState,
     vendor: e.vendor ?? null, provider: e.provider ?? null, tripItemId: e.tripItemId ?? null, itemType: e.itemType ?? null,
   }, taskCostsByBlock.get(e.id) ?? null, routineLinesById.get(parseRoutineTileId(e.id)?.routineId ?? '') ?? null);
 

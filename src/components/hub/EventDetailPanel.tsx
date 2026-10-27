@@ -27,12 +27,20 @@
  * be read is named and excluded from the total — the EDGE-01 bug, inverted.
  *
  * LINES-01. A routine occurrence made of lines lists them — each line with its
- * time, activity, amount (or —) and account (or "no category") — then the total
+ * time, activity, amount (or —) and account — then the total
  * with its coverage ("$280 across 2 of 3 lines"). The routine-level Category
  * row is REMOVED for a lined routine: one chip would be a lie about a routine
  * that has three. Each line carries its own Link / Unlink on kind 'routine_line'
  * keyed on (step, instant); a line's actual is the sum of its links, and the
  * occurrence's actual is the sum of its lines' actuals. Never both grains.
+ *
+ * CAL-02 (Alex, 2026-10-27). A routine occurrence's ACCOUNT row prints the words
+ * the window route's server-side read decided for the tile (tileAccount.ts):
+ * "P-6150 Food & drink" — the book's letter, the four digits, the chart's name,
+ * never the bare code; "several accounts" for a lined routine coded to more than
+ * one (LINES-01's "never one chip" kept, said in words); "no account"; "P-9999 —
+ * not in the chart". Each line in the list prints its own account words the
+ * same way. Every other kind keeps its Category (COA) row as it was.
  *
  * IT READS its own links and writes only those links — no posting is altered,
  * no journal entry is touched, and no task's typed actual_cost_usd is ever
@@ -53,6 +61,7 @@ import { parseRoutineTileId, type LinkableKind } from '@/lib/calendar/linkKeys';
 import { isManualEvent } from '@/lib/calendar/sources';
 import { navToolByName } from '@/lib/nav';
 import { TOOL_GATE } from '@/lib/offer';
+import { readAccountWords } from '@/lib/hub/tileAccount';
 
 interface Props {
   row: DrillRow;
@@ -311,15 +320,21 @@ export default function EventDetailPanel({ row, onClose, linkable = true, onCorr
               <Row label="Pin" mono testId="pin"
                 value={`${row.pin.lat.toFixed(5)}, ${row.pin.lon.toFixed(5)}`} />
             )}
+            {/* CAL-02 (Alex, 2026-10-27): a routine occurrence's ACCOUNT — the words the
+                window route's read decided for the tile (tileAccount.ts readAccountWords). */}
+            {row.kind === 'routine' && (
+              <Row label="Account" value={readAccountWords(row)} testId="account" />
+            )}
             {/* LINES-01: a lined routine has a category PER LINE, listed below —
-                one routine-level chip would be a lie about a routine that has three. */}
-            {!(row.lines && row.lines.length > 0) && (
+                one routine-level chip would be a lie about a routine that has three.
+                CAL-02: every other kind keeps this row as it was. */}
+            {row.kind !== 'routine' && !(row.lines && row.lines.length > 0) && (
               <Row label="Category (COA)" value={row.coaCode ?? NONE} mono testId="coa" />
             )}
           </div>
 
           {/* THE LINES — LINES-01. Each with its time, activity, amount (or —) and
-              account (or "no category"), then the total with its coverage. */}
+              account (CAL-02: its own account words), then the total with its coverage. */}
           {row.lines && row.lines.length > 0 && (
             <div className="mt-4 rounded-lg border border-border p-3" data-drill-lines>
               <p className={labelClass}>Lines</p>
@@ -331,8 +346,8 @@ export default function EventDetailPanel({ row, onClose, linkable = true, onCorr
                       <div className="flex items-center justify-between gap-2">
                         <span className="min-w-0 flex-1 truncate">
                           <span className="font-mono text-text-muted">{l.timeOfDay ?? '—'}</span> {l.activity}
-                          <span className="ml-1.5 font-mono text-[10px] text-text-faint" data-drill-line-coa>
-                            {l.coaCode ?? 'no category'}
+                          <span className="ml-1.5 text-[10px] text-text-faint" data-drill-line-coa>
+                            {readAccountWords(l)}
                           </span>
                         </span>
                         <span className="font-mono tabular-nums" data-drill-line-planned>{money(l.amount)}</span>

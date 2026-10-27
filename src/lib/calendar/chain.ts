@@ -24,6 +24,7 @@
  * fourth one — and it is why a blank never becomes $0.
  */
 import { ACTUALS_JOIN_SOUND, ACTUALS_NOT_JOINABLE_LINE } from './actuals';
+import type { AccountState, TileAccount, TileAccountState } from '@/lib/hub/tileAccount';
 
 export const CHAIN_STATES = ['PLANNED', 'PLANNED_AND_SETTLED', 'NOT_LINKED'] as const;
 export type ChainState = (typeof CHAIN_STATES)[number];
@@ -358,6 +359,13 @@ export interface DrillRow {
   readonly location: string | null;
   readonly pin: { lat: number; lon: number } | null;
   readonly coaCode: string | null;
+  /**
+   * CAL-02 (Alex, 2026-10-27): a routine occurrence's ACCOUNT as the window route read it and the tile
+   * carries it (tileAccount.ts) — the panel prints its words. Absent for every other kind, and for a
+   * routine tile whose window answer carried no read.
+   */
+  readonly account?: TileAccount | null;
+  readonly accountState?: TileAccountState;
   /** TRAVEL-01: a trip item's vendor, the provider it was booked through (or null when hand-added), and its trip_itinerary id. */
   readonly vendor: string | null;
   readonly provider: string | null;
@@ -386,6 +394,9 @@ export interface DrillLine {
   readonly timeOfDay: string | null;
   readonly amount: number | null;
   readonly coaCode: string | null;
+  /** CAL-02: the line's own account, as the window route read it; absent when the answer carried no read. */
+  readonly account?: TileAccount | null;
+  readonly accountState?: AccountState;
 }
 
 export interface DrillEventInput {
@@ -401,6 +412,9 @@ export interface DrillEventInput {
   longitude?: number | null;
   coaCode?: string | null;
   budgetAmount?: number | null;
+  /** CAL-02: the tile's account and state (mapOperationsRoutines), carried onto the row as they are. */
+  account?: TileAccount | null;
+  accountState?: TileAccountState;
   /** TRAVEL-01: set on a trip vendor row by the calendar feed's overlay. */
   vendor?: string | null;
   provider?: string | null;
@@ -460,6 +474,8 @@ export function buildDrill(e: DrillEventInput, taskCosts?: TaskCosts | null, rou
     location: e.location ?? null,
     pin: e.latitude != null && e.longitude != null ? { lat: e.latitude, lon: e.longitude } : null,
     coaCode: (kind === 'project_task' && taskCosts ? taskCosts.coaCode : e.coaCode) ?? null,
+    // CAL-02: the account rides as the tile carries it — present only when the window answer was read with one.
+    ...(e.accountState === undefined ? {} : { account: e.account ?? null, accountState: e.accountState }),
     vendor: e.vendor ?? null,
     provider: e.provider ?? null,
     tripItemId: e.tripItemId ?? null,

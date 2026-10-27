@@ -24,6 +24,15 @@
  * (compileFormToRRule always writes BYHOUR/BYMINUTE) but if a hand-
  * authored "custom" rrule omits BYHOUR, the occurrence still carries
  * a default time; the client renders the resulting HH:MM as-is.
+ *
+ * CAL-02 (Alex, 2026-10-27): THE ACCOUNT RIDES WITH THE ROUTINE. After the
+ * window is built, the returned routines' books and their charts are read ONCE
+ * (two queries for the whole answer — never per routine, never on the client)
+ * and every routine and every line gains `account` and `account_state` by the
+ * one rule (src/lib/hub/tileAccount.ts annotateWindow): the chart's name beside
+ * the code, 'missing' when the chart lists no row, 'none' without a code. Every
+ * field that was in the answer is still in it, as it was; coa_code stays for
+ * every reader that has it.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -32,6 +41,8 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { classifyCadence, expandBetween, scheduleAnchor } from '@/lib/operations/rruleHelpers';
 import type { CadenceGroup } from '@/components/workbench/operations/routines/types';
+import { annotateWindow, type TileBook } from '@/lib/hub/tileAccount';
+import type { WorkChart } from '@/lib/operations/work';
 
 const MAX_WINDOW_DAYS = 92;
 const MAX_OCCURRENCES = 500;
@@ -218,7 +229,21 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ routines: out, truncated });
+    // CAL-02: the returned routines' books, then their charts — one read each for the
+    // whole window, never per routine; the pure rule annotates every entry and line.
+    const bookIds = [...new Set(out.map((e) => e.entity_id))];
+    const books: TileBook[] = bookIds.length === 0 ? [] : await prisma.entities.findMany({
+      where: { id: { in: bookIds }, userId: user.id },
+      select: { id: true, entity_type: true },
+    });
+    const chartRows: { entity_id: string; code: string; name: string; account_type: string }[] = bookIds.length === 0 ? [] : await prisma.chart_of_accounts.findMany({
+      where: { entity_id: { in: bookIds }, entity: { userId: user.id } },
+      select: { entity_id: true, code: true, name: true, account_type: true },
+    });
+    const chartsByBook = new Map<string, WorkChart>();
+    for (const row of chartRows) chartsByBook.set(row.entity_id, [...(chartsByBook.get(row.entity_id) ?? []), row]);
+
+    return NextResponse.json({ routines: annotateWindow(out, books, chartsByBook), truncated });
   } catch (error) {
     return failClosedResponse('Hub Routines GET', 'Failed to load routines window', error);
   }
