@@ -193,7 +193,10 @@ test('T2 the box is Budget\'s, unchanged — pick from the book, "+ add", This d
 
 // ── T3 · STRANDED VENDORS LEAVE THE CARD; BUDGET KEEPS THEM WITH CLEAR ──────
 
-test('T3 the day card names no stranded vendor — no amber line, no count, no word; the completeness line takes no stranded count', () => {
+// VENDOR-03 (Alex, 2026-10-27): the card lists them again — not on the plate, the foot or the completeness line, but in their own
+// section under the full card's plate (stops/StrandedVendors.tsx, vendor03.test.ts). These pins still hold for the card's own file:
+// no amber foot line, no count, no word of its own; the section's markup and words live in the section and its words module.
+test('T3 the day card\'s plate, foot and completeness line name no stranded vendor (VENDOR-03: the section under the plate does, in its own file)', () => {
   const c = code(CARD);
   assert.doesNotMatch(c, /data-day-stranded|strandedWords|\bstranded\b|vendors? stranded/);
   assert.doesNotMatch(code(RULES), /strandedWords|StrandedVendor|vendors? stranded/);

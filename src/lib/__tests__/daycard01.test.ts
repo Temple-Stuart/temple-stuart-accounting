@@ -675,7 +675,9 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.match(c, /data-day-lines-without-stop>\{dayFailed \? linesUnreadWords\(result\.linesWithoutStop\) : linesWithoutStopWords\(result\.linesWithoutStop\)\}/);
   assert.match(c, /data-day-routine-figures>\{routineFigureWords\(result\.routineFigures\)\}/);
   // VENDOR-02 (2026-10-14): the amber stranded-vendor line left the foot (and stranded left the foot's condition, above).
-  assert.doesNotMatch(c, /data-day-stranded|strandedWords|\bstranded\b/, 'the card names no stranded vendor — /budget lists them with Clear');
+  // VENDOR-03 (Alex, 2026-10-27): /budget has listed none since BUDGET-02; the card's full view lists them in a section of their own under the
+  // plate (stops/StrandedVendors.tsx — vendor03.test.ts pins it). The foot and this file still name none; the message moved, not the pin.
+  assert.doesNotMatch(c, /data-day-stranded|strandedWords|\bstranded\b/, 'the foot names no stranded vendor — the section under the plate does (VENDOR-03)');
   assert.match(c, /<RefusedRoutines refused=\{refused\} \/>/);
   // The step card: PLAN and its amount, "so far" and the bar — both null-safe while the report cannot be read.
   assert.match(c, /\{PLAN_WORD\}<\/div>/);
