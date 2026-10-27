@@ -139,6 +139,7 @@ import { INPUT_SIGNS, buyerAdmittedInputs } from '../src/lib/convergence/input-s
 import { GATE_CARDS, NOT_BUILT_STRATEGIES, README_GATE_CARDS_END, README_GATE_CARDS_START, gateCardsMarkdown } from '../src/lib/convergence/gateCards';
 import { AVAILABLE_STRATEGIES } from '../src/lib/convergence/filter-types';
 import { CALENDAR_SOURCES, EXCLUDED_CALENDAR_SOURCES, MANUAL_EVENT_SOURCE } from '../src/lib/calendar/sources';
+import { ACCOUNT_QUARTETS, GREY_QUARTET, QUARTET_COUNT, SEVERAL_QUARTET } from '../src/lib/calendar/accountPalette';
 import { EVENT_CATEGORIES } from '../src/lib/calendar/manualEvent';
 import { buildCboeRegimeInputs } from '../src/lib/convergence/regime';
 import { SNAPSHOT_SUGGESTED_STRATEGY_MAX } from '../src/lib/convergence/snapshot-logger';
@@ -2134,6 +2135,12 @@ for (const r of CALENDAR_SOURCES) {
   for (const cls of Object.values(r.tint)) if (cls.includes('${')) dayFail(`${r.source} builds the class "${cls}" — Tailwind reads source text, so it would ship unstyled`);
 }
 for (const e of EXCLUDED_CALENDAR_SOURCES) if (!e.why) dayFail(`${e.source} is excluded with no reason`);
+// CAL-03 (Alex, 2026-10-27): the account palette's quartets are literals too — every class a routine
+// tile and its legend chip wear — and there are exactly the eight the ruling names, plus the two neutrals.
+if (ACCOUNT_QUARTETS.length !== QUARTET_COUNT || QUARTET_COUNT !== 8) dayFail(`accountPalette holds ${ACCOUNT_QUARTETS.length} hashed quartets — CAL-03 ruled eight`);
+for (const q of [...ACCOUNT_QUARTETS, SEVERAL_QUARTET, GREY_QUARTET]) {
+  for (const cls of Object.values(q)) if (cls.includes('${')) dayFail(`accountPalette builds the class "${cls}" — Tailwind reads source text, so it would ship unstyled`);
+}
 
 // NO BARE SOURCE FILTER anywhere a calendar_events row is SELECTED for render.
 // The allowlist is the one place a source string decides WHETHER a row is drawn.

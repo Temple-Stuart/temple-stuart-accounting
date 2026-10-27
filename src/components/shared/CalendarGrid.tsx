@@ -8,6 +8,7 @@ import { instantToZoned } from '@/lib/time';
 import { FLAG_TEXT, assignLanes, blockExtent, unverifiedDurationExtent, type ExtentFlag } from '@/lib/calendar/extent';
 import { isDateOnlyTripType } from '@/lib/calendar/tripItem';
 import type { TileAccount, TileAccountState } from '@/lib/hub/tileAccount';
+import { legendOf, sharesColourWords, tileQuartetOf } from '@/lib/calendar/accountPalette';
 
 // RUNWAY-DEEP: house toolbar treatments for the DARK mount (HubCalendar).
 
@@ -47,8 +48,9 @@ export interface CalendarEvent {
    *  name (null for a code the chart lacks) — and its state: 'account' · 'several' (a
    *  lined routine coded to more than one, account null) · 'none' (account null) ·
    *  'missing'. Read on the server by the window route, decided for the tile by
-   *  tileAccount.ts; the grid draws neither (it colours by source — CAL-03 is the
-   *  colour's), the drill panel prints the words. Absent on every other source.
+   *  tileAccount.ts; the drill panel prints the words. CAL-03 (Alex, 2026-10-27): the
+   *  grid colours a routine tile by them — accountPalette.ts tileQuartetOf — and lists
+   *  the accounts in the legend (legendOf). Absent on every other source.
    */
   account?: TileAccount | null;
   accountState?: TileAccountState;
@@ -722,18 +724,33 @@ export default function CalendarGrid({
         </div>
       </div>
 
-      {/* Compact horizontal legend — only categories with events, deduplicated */}
+      {/* Compact horizontal legend — CAL-03 (Alex, 2026-10-27): the accounts the fetched range holds
+          come first (accountPalette.ts legendOf — one chip per account with its swatch, by book then
+          code, a collision declared on the chip), then the neutral chips present, then the sources as
+          before — only sources with events, deduplicated; the routines source has no chip of its own
+          now, its tiles wear their accounts. */}
       {showCategoryLegend && (() => {
+        const accountChips = legendOf(events);
         const activeSources = new Set(events.map(e => e.source));
         const seen = new Set<string>();
         const legendItems = Object.entries(sourceConfig).filter(([source, config]) => {
+          if (tileQuartetOf({ source }) !== null) return false;
           if (!activeSources.has(source)) return false;
           if (seen.has(config.label)) return false;
           seen.add(config.label);
           return true;
         });
-        return legendItems.length > 0 ? (
-          <div className="px-4 py-2 border-b border-border flex flex-wrap gap-x-4 gap-y-1">
+        return accountChips.length > 0 || legendItems.length > 0 ? (
+          <div className="px-4 py-2 border-b border-border flex flex-wrap gap-x-4 gap-y-1" data-calendar-legend>
+            {accountChips.map((chip) => (
+              <span key={chip.key} className="flex items-center gap-1.5" data-legend-chip={chip.kind} data-legend-words={chip.words}>
+                <span className={`w-2.5 h-2.5 rounded-sm border ${chip.quartet.swatch} ${chip.quartet.border}`} />
+                <span className="text-xs text-text-secondary">{chip.words}</span>
+                {chip.sharesWith.map((other) => (
+                  <span key={other} className="text-[10px] text-text-muted" data-legend-shares={other}>{sharesColourWords(other)}</span>
+                ))}
+              </span>
+            ))}
             {legendItems.map(([source, config]) => (
               <label key={source} className="flex items-center gap-1.5 cursor-pointer" onClick={() => setVisibleCategories(prev => ({ ...prev, [source]: prev[source] === false ? true : false }))}>
                 <div className={`w-2.5 h-2.5 rounded-sm ${visibleCategories[source] !== false ? (config.badge || config.dot) : 'bg-border'}`} />
@@ -813,11 +830,14 @@ export default function CalendarGrid({
                         <div key={idx} className="flex-1 min-w-0 border-l border-border-light p-0.5 min-h-[28px]">
                           {evts.slice(0, 3).map((event, i) => {
                             const config = sourceConfig[event.source] || { badge: 'bg-gray-400', dot: 'bg-gray-400' };
+                            // CAL-03 (Alex, 2026-10-27): a routine tile wears its account's quartet (accountPalette.ts); every other tile its source's badge, as before.
+                            const quartet = tileQuartetOf(event);
                             return (
                               <div key={event.id || i}
                                 onClick={(e) => handleTileClick(event, e.nativeEvent)}
-                                className={`${config.badge || config.dot} text-white text-[10px] px-1.5 py-0.5 rounded truncate mb-0.5 ${(event.href || onEventClick) ? 'cursor-pointer hover:opacity-90' : ''}`}
+                                className={`${quartet ? `${quartet.bg} ${quartet.text} border ${quartet.border}` : `${config.badge || config.dot} text-white`} text-[10px] px-1.5 py-0.5 rounded truncate mb-0.5 ${(event.href || onEventClick) ? 'cursor-pointer hover:opacity-90' : ''}`}
                                 title={event.title}
+                                data-tile-quartet={quartet ? quartet.swatch : undefined}
                                 data-lodging-unstated={event.itemType === 'lodging' ? 'true' : undefined}>
                                 {/* HOTEL-01 (2026-09-22): a stay here has NO stated check-in time (a stated
                                     one draws below at its clock) — flagged, exactly as GRID-01 flags a row
@@ -895,6 +915,8 @@ export default function CalendarGrid({
                           const { lane, lanes: laneCount } = lanes[blockIdx];
                           const config = sourceConfig[block.event.source] || { badge: 'bg-gray-400', dot: 'bg-gray-400' };
                           const badgeColor = config.badge || config.dot;
+                          // CAL-03 (Alex, 2026-10-27): a routine block wears its account's quartet; every other block its source's badge, as before.
+                          const quartet = tileQuartetOf(block.event);
                           // No rounding on split edges
                           const roundClass = block.isDepart ? 'rounded-t' : block.isArrive ? 'rounded-b' : 'rounded';
                           // The whole label rides the hover/focus title, so a marker too short
@@ -905,7 +927,7 @@ export default function CalendarGrid({
                             <div
                               key={`${block.event.id}-${blockIdx}`}
                               onClick={(e) => handleTileClick(block.event, e.nativeEvent)}
-                              className={`absolute ${badgeColor} text-white ${roundClass} overflow-hidden z-10 ${(block.event.href || onEventClick) ? 'cursor-pointer hover:opacity-90' : ''} transition-opacity`}
+                              className={`absolute ${quartet ? `${quartet.bg} ${quartet.text} border ${quartet.border}` : `${badgeColor} text-white`} ${roundClass} overflow-hidden z-10 ${(block.event.href || onEventClick) ? 'cursor-pointer hover:opacity-90' : ''} transition-opacity`}
                               style={{ top: `${top}px`, height: `${height}px`, left: `calc(${(lane / laneCount) * 100}% + 2px)`, width: `calc(${100 / laneCount}% - 4px)` }}
                               title={hoverTitle}
                               aria-label={hoverTitle}
@@ -916,6 +938,7 @@ export default function CalendarGrid({
                               data-block-flag={block.flag ?? undefined}
                               data-block-start={block.startMin}
                               data-block-end={block.endMin}
+                              data-tile-quartet={quartet ? quartet.swatch : undefined}
                             >
                               <div className="px-2 py-1.5 h-full overflow-hidden">
                                 <div className="text-[11px] font-semibold leading-tight truncate">{block.label}</div>
@@ -1055,7 +1078,9 @@ export default function CalendarGrid({
                               <div className="flex flex-wrap gap-0.5 mt-auto">
                                 {dayEvents.slice(0, 4).map((e, i) => {
                                   const config = sourceConfig[e.source] || { dot: 'bg-gray-400' };
-                                  return <div key={i} className={`w-2 h-2 rounded-full ${config.dot}`} title={e.title} />;
+                                  // CAL-03: a routine's dot is its account's swatch.
+                                  const quartet = tileQuartetOf(e);
+                                  return <div key={i} className={`w-2 h-2 rounded-full ${quartet ? quartet.swatch : config.dot}`} title={e.title} />;
                                 })}
                                 {dayEvents.length > 4 && <span className="text-[8px] text-text-faint">+{dayEvents.length - 4}</span>}
                               </div>

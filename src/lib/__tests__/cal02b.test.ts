@@ -217,17 +217,18 @@ test('D the drill row carries the tile’s account and each line its own; the pa
 
 // ── RULING E · NOTHING ELSE CHANGES ──────────────────────────────────────────
 
-test('E no colour, no legend: the grid’s legend block and sources.ts are byte-identical to main 935af394; the source colour line stands; no schema, no migration, no new route; the panel’s other rows untouched', () => {
+test('E no colour, no legend (as CAL-02 left them — CAL-03 colours routine tiles by account): sources.ts is byte-identical to main 935af394; the source colour line stands; no schema, no migration, no new route; the panel’s other rows untouched', () => {
   // Read through the one reader (TEST-TRUTH-01): the legend block of code(GRID) and the whole of sources.ts (its code and its comments).
   const grid = code(GRID);
   const start = grid.indexOf('      {showCategoryLegend && (() => {');
   const end = grid.indexOf('      })()}\n', start) + '      })()}\n'.length;
   assert.ok(start > 0 && end > start, 'the legend block is where it was');
   const sha = (s: string): string => createHash('sha256').update(s).digest('hex');
-  assert.equal(sha(grid.slice(start, end)), '6dd5243dd7228df8d27e1fbf2f70ff219c11d9cb34b64dc789e5d7b3d1ad7ef2', 'the legend block, byte for byte (21 lines, captured on main 935af394)');
+  // CAL-03 (Alex, 2026-10-27): the legend lists the accounts now (accountPalette.ts legendOf) — its pin is cal03.test.ts; CAL-02's byte pin on the block moved there.
   assert.equal(sha(code(SOURCES) + comments(SOURCES)), '288471dab672b2a19a5dd554afc0185388c17f3acec92d24a5a71059255a57b5', 'sources.ts, byte for byte (captured on main 935af394)');
   assert.match(grid, /const config = sourceConfig\[event\.source\] \|\| \{ badge: 'bg-gray-400', dot: 'bg-gray-400' \};/, 'a tile is coloured by its source, as before');
-  assert.doesNotMatch(grid, /\.(account|accountState)\b|accountWords|tileAccountOf/, 'the grid reads nothing of the account — the two fields are declared on the event and drawn by no line of the grid');
+  // CAL-03 (Alex, 2026-10-27): the grid hands each event to accountPalette (tileQuartetOf, legendOf) — no line of the grid reads the two fields itself.
+  assert.doesNotMatch(grid, /\.(account|accountState)\b|accountWords|tileAccountOf/, 'no line of the grid reads the account fields itself — the palette module does');
   assert.doesNotMatch(code(ROUTE) + code(RULE) + code(MAPPER) + code(CHAIN), /prisma\.\$executeRaw|ALTER TABLE|migrations/);
   const panel = code(PANEL);
   for (const row of ['<Row label="Date"', '<Row label="Time" value={when}', '<Row label="Where" value={row.location ?? NONE}', '<Row label="Vendor"', '<Row label="Pin" mono']) assert.ok(panel.includes(row), `${row} stands`);
