@@ -7,6 +7,7 @@ import { formatMoney, moneyColorClass, kindForSource } from '@/lib/money';
 import { instantToZoned } from '@/lib/time';
 import { FLAG_TEXT, assignLanes, blockExtent, unverifiedDurationExtent, type ExtentFlag } from '@/lib/calendar/extent';
 import { isDateOnlyTripType } from '@/lib/calendar/tripItem';
+import type { TileAccount, TileAccountState } from '@/lib/hub/tileAccount';
 
 // RUNWAY-DEEP: house toolbar treatments for the DARK mount (HubCalendar).
 
@@ -41,6 +42,16 @@ export interface CalendarEvent {
    *  calendar_events.coa_code (snake→camel like durationMinutes). Used in the per-day footer
    *  to identify lodging (suffix '9200') for nightly amortization. Null on non-trip/old rows. */
   coaCode?: string | null;
+  /**
+   *  CAL-02 (Alex, 2026-10-27): a routine tile's ACCOUNT — book, code and the chart's
+   *  name (null for a code the chart lacks) — and its state: 'account' · 'several' (a
+   *  lined routine coded to more than one, account null) · 'none' (account null) ·
+   *  'missing'. Read on the server by the window route, decided for the tile by
+   *  tileAccount.ts; the grid draws neither (it colours by source — CAL-03 is the
+   *  colour's), the drill panel prints the words. Absent on every other source.
+   */
+  account?: TileAccount | null;
+  accountState?: TileAccountState;
   /**
    *  DAY-01: the event's stored coordinates (calendar_events.latitude/longitude,
    *  snake→camel like coaCode). Nothing writes them now: their one writer, the legacy planner's trip
