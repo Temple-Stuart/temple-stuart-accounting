@@ -46,7 +46,8 @@ const GONE = [
 // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. The why left with the status (undefined on a LIVE row); the customer line gained the cost, the time against its plan and the hours; the note lost its "not done" sentence.
 const WHY = undefined;
 const CUSTOMER = 'You can see every stop you logged and every journal answer, day by day — what each cost, how long it took against its plan, and where the hours went over any period — filter and export them; the day itself is entered on the home dashboard.';
-const NOTE = 'HOME-01 (2026-10-24): the day itself is entered on the day card — Time\'s component, shown on the home dashboard (the cockpit\'s Runway panel, /runway); /time is the tables. TIME-02 (2026-10-19): the content pipeline retired — its components and routes deleted; its five tables kept, untouched, until TABLES-01.';
+// HOME-03 (Alex, 2026-10-27): the note says the card is on the home page, /home — the dashboard's Runway panel until then.
+const NOTE = 'HOME-03 (2026-10-27): the day itself is entered on the day card — Time\'s component, shown on the home page, /home, between the answers and the sheet (HOME-01, 2026-10-24, had it on the cockpit\'s Runway panel, /runway); /time is the tables. TIME-02 (2026-10-19): the content pipeline retired — its components and routes deleted; its five tables kept, untouched, until TABLES-01.';
 const SURFACE_NOTE = 'TIME-02 (2026-10-19): drawn nowhere — /time renders no StageStrip (src/app/time/page.tsx); the day card is not a pipe; PIPES-01 retires the pipe';
 
 const at = (f: string): string => join(process.cwd(), f);
@@ -106,7 +107,7 @@ test('T3 the laws: /time draws nothing; the content pipe stays defined, declared
   assert.match(law, /const TIME_MOUNTS = \['<LedgerSection \/>', '<MorningJournalTable \/>', '<EveningJournalTable \/>'\];/);
   assert.match(law, /timeMounts\.join\(' '\) !== 'LedgerSection MorningJournalTable EveningJournalTable'/);
   assert.match(law, /if \(\/ContentPipeline\|operations\\\/content\\\/\/\.test\(timePage\)\) twoListsFail\(/, 'the pipeline may not come back unnoticed');
-  assert.match(law, /if \(!\/<Suspense>\\s\*<DayCard \\\/>\\s\*<\\\/Suspense>\/\.test\(launcher\)\) twoListsFail\(/, 'the card in its boundary — on the Runway panel');
+  assert.match(law, /if \(!\/<Suspense>\\s\*<DayCard \\\/>\\s\*<\\\/Suspense>\/\.test\(host\)\) twoListsFail\(/, 'the card in its boundary — on /home (HOME-03, 2026-10-27; the Runway panel until then)');
   assert.match(comments(LAW), /TIME-02 \(2026-10-19\): the third mount, the content pipeline, is retired/);
   assert.match(comments(LAW), /HISTORY: DayCalendarView/);
   assert.doesNotMatch(comments(LAW), /EXPLICIT NON-VIOLATION: DayCalendarView/);
@@ -161,7 +162,8 @@ test('T6 what stays, by name: the five tables, the cap helpers, the daily-plan a
   for (const f of ['src/app/api/operations/routines/route.ts', 'src/app/api/operations/routines/[id]/route.ts']) assert.match(code(f), /content_scene_group: true/);
 });
 
-test('T7 the one doc line: the card says its page is /runway, the dashboard (HOME-01)', () => {
-  assert.match(comments(CARD), /on \/runway, the dashboard's Runway panel, where the card is first \(HOME-01, Alex, 2026-10-24: DAY_CARD_PATH is \/runway; TASKS-ONE-01 put it first on \/tasks; TIME-01, 2026-10-19: \/time\)/);
+test('T7 the one doc line: the card says its page is /home, the home page (HOME-03; /runway, the dashboard, from HOME-01)', () => {
+  // HOME-03 (Alex, 2026-10-27): the line names /home first and keeps the history in order.
+  assert.match(comments(CARD), /on \/home, the home page, between the answers and the sheet \(HOME-03, Alex, 2026-10-27: DAY_CARD_PATH is \/home; HOME-01, 2026-10-24: \/runway, the dashboard's Runway panel; TASKS-ONE-01 put it first on \/tasks; TIME-01, 2026-10-19: \/time\)/);
   assert.doesNotMatch(comments(CARD), /on \/tasks, where the card is the first section/);
 });

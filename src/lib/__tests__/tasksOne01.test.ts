@@ -20,6 +20,11 @@
  * and /time is the three tables. Every pin below that named /time as the card's
  * page moved with it (home01.test.ts drives the panel's mount); the card's rules
  * are unchanged.
+ *
+ * HOME-03 (Alex, 2026-10-27): the card moved on to the home page, /home
+ * (answers/AnswersClient.tsx, between the answers and the sheet); DAY_CARD_PATH is
+ * '/home'. Every pin below that named the panel or /runway as the card's page
+ * moved with it (home03.test.ts drives the mount); the card's rules are unchanged.
  *   · The Issue log's page and PlaceholderCard are deleted, its link and its
  *     orphan exception gone; the Tasks row links North Star and Audit trail only.
  *
@@ -37,7 +42,8 @@ import { DAY_CARD_PARAMS, DAY_CARD_PATH, dayCardRedirectHref } from '@/component
 const PAGE = 'src/app/tasks/page.tsx';
 // TIME-01 (2026-10-19): the card's page.
 const TIME_PAGE = 'src/app/time/page.tsx';
-const LAUNCHER = 'src/components/home/ModuleLauncher.tsx'; // HOME-01 (2026-10-24): the card's page is the dashboard
+const LAUNCHER = 'src/components/home/ModuleLauncher.tsx'; // HOME-01 (2026-10-24): the card's page was the dashboard — HOME-03 (2026-10-27): it names the card no more
+const HOST = 'src/components/answers/AnswersClient.tsx'; // HOME-03 (2026-10-27): the card's page is /home
 const DAY_PAGE = 'src/app/tasks/day/page.tsx';
 const CARD = 'src/components/workbench/operations/day/DayCard.tsx';
 const LAW = 'scripts/assert-tool-registry.ts';
@@ -48,16 +54,19 @@ const PLACEHOLDER = 'src/components/workbench/operations/PlaceholderCard.tsx';
 
 // TASKS-ONE-02 (2026-10-14): the title said "above the week, the lists and the daily plan" — the week and the daily
 // plan are deleted (Alex's ruling: the day card replaces the week grid, the Daily plan and the Today strip). Moved.
-test('T1 the card\'s page mounts DayCard first — in its Suspense boundary (HOME-01: the dashboard\'s Runway panel; /time is the three tables)', () => {
+test('T1 the card\'s page mounts DayCard in its Suspense boundary (HOME-03: /home, between the answers and the sheet; HOME-01: the dashboard\'s Runway panel; /time is the three tables)', () => {
   // TIME-01 (Alex, 2026-10-19): the page is /time; the boundary and the order are the same rule.
   // HOME-01 (Alex, 2026-10-24): the card's page is the cockpit's Runway panel — the boundary and "first" hold there; /time keeps the tables.
+  // HOME-03 (Alex, 2026-10-27): the card's page is /home — the boundary holds there, between Net worth and the sheet; the cockpit names the card no more.
   const page = code(TIME_PAGE);
   assert.match(page, /^'use client';/, 'a client page still — the tables are client sections');
   assert.doesNotMatch(page, /Suspense|DayCard/, 'the card and its boundary left with it (HOME-01)');
-  const launcher = code(LAUNCHER);
-  assert.match(launcher, /import DayCard from '@\/components\/workbench\/operations\/day\/DayCard';/);
-  assert.equal((launcher.match(/<DayCard \/>/g) ?? []).length, 1, 'mounted once');
-  assert.match(launcher, /<Suspense>\n\s*<DayCard \/>\n\s*<\/Suspense>/, 'in its boundary');
+  const host = code(HOST);
+  assert.match(host, /import DayCard from '@\/components\/workbench\/operations\/day\/DayCard';/);
+  assert.equal((host.match(/<DayCard \/>/g) ?? []).length, 1, 'mounted once');
+  assert.match(host, /<Suspense>\n\s*<DayCard \/>\n\s*<\/Suspense>/, 'in its boundary');
+  assert.ok(host.indexOf('data-net-worth') < host.indexOf('<DayCard />') && host.indexOf('<DayCard />') < host.indexOf('<TheSheet />'), 'between Net worth and the sheet');
+  assert.doesNotMatch(code(LAUNCHER), /DayCard/, 'the cockpit names the card no more (HOME-03)');
   // TASKS-ONE-02 (2026-10-14): <WeekSection /> and <SectionC_DailyPlan /> came off — the container holds exactly three.
   // LEDGER-01 (Alex, 2026-10-16): <LedgerSection /> joins, LAST — the container holds exactly four; the card is still first.
   // TIME-01 (2026-10-19): the Time container holds exactly three — the card, the ledger, the pipeline (until TIME-02).
@@ -88,8 +97,8 @@ test('T1 the two-lists law mounts the day card first, with the dated ruling', ()
 
 // ── T2 · THE CARD'S URLS ARE /tasks?… ───────────────────────────────────────
 
-test('T2 hrefFor builds DAY_CARD_PATH?date=&step= — the same two parameters, the same rules (HOME-01: /runway)', () => {
-  assert.equal(DAY_CARD_PATH, '/runway'); // TIME-01 (Alex, 2026-10-19): /time; HOME-01 (Alex, 2026-10-24): the card moved to the dashboard, /runway
+test('T2 hrefFor builds DAY_CARD_PATH?date=&step= — the same two parameters, the same rules (HOME-03: /home)', () => {
+  assert.equal(DAY_CARD_PATH, '/home'); // TIME-01 (Alex, 2026-10-19): /time; HOME-01 (Alex, 2026-10-24): the dashboard, /runway; HOME-03 (Alex, 2026-10-27): the home page, /home
   assert.deepEqual([...DAY_CARD_PARAMS], ['date', 'step']);
   const c = code(CARD);
   assert.match(c, /const hrefFor = \(day: string, step: number \| null\): string => `\$\{DAY_CARD_PATH\}\?date=\$\{day\}\$\{step === null \? '' : `&step=\$\{step\}`\}`;/);
@@ -107,23 +116,23 @@ test('T2 hrefFor builds DAY_CARD_PATH?date=&step= — the same two parameters, t
 
 // ── T3 · /tasks/day IS ONE SERVER HOP, KEEPING date AND step ────────────────
 
-test('T3 /tasks/day redirects to the card\'s page keeping date and step exactly as given (HOME-01: /runway)', () => {
-  // TIME-01 (Alex, 2026-10-19): the hop follows DAY_CARD_PATH — the same rule. HOME-01 (Alex, 2026-10-24): the card's page is /runway.
-  assert.equal(dayCardRedirectHref({ date: '2026-10-13', step: '2' }), '/runway?date=2026-10-13&step=2');
-  assert.equal(dayCardRedirectHref({ date: '2026-10-13' }), '/runway?date=2026-10-13');
-  assert.equal(dayCardRedirectHref({ step: '3' }), '/runway?step=3');
-  assert.equal(dayCardRedirectHref({}), '/runway', 'neither given — the bare path, nothing invented');
+test('T3 /tasks/day redirects to the card\'s page keeping date and step exactly as given (HOME-03: /home)', () => {
+  // TIME-01 (Alex, 2026-10-19): the hop follows DAY_CARD_PATH — the same rule. HOME-01 (Alex, 2026-10-24): the card's page is /runway. HOME-03 (Alex, 2026-10-27): /home.
+  assert.equal(dayCardRedirectHref({ date: '2026-10-13', step: '2' }), '/home?date=2026-10-13&step=2');
+  assert.equal(dayCardRedirectHref({ date: '2026-10-13' }), '/home?date=2026-10-13');
+  assert.equal(dayCardRedirectHref({ step: '3' }), '/home?step=3');
+  assert.equal(dayCardRedirectHref({}), '/home', 'neither given — the bare path, nothing invented');
 });
 
 test('T3 nothing else is carried and nothing is checked — a bad value arrives as sent, for the card to name', () => {
-  // TIME-01 (2026-10-19): the path is /time; HOME-01 (2026-10-24): /runway; every rule below is unchanged.
-  assert.equal(dayCardRedirectHref({ date: '2026-10-13', step: '2', entity: 'P', utm_source: 'x' }), '/runway?date=2026-10-13&step=2');
-  assert.equal(dayCardRedirectHref({ date: 'not-a-day', step: '99' }), '/runway?date=not-a-day&step=99');
-  assert.equal(dayCardRedirectHref({ date: '' }), '/runway?date=', 'an empty ?date= is still given');
+  // TIME-01 (2026-10-19): the path is /time; HOME-01 (2026-10-24): /runway; HOME-03 (2026-10-27): /home; every rule below is unchanged.
+  assert.equal(dayCardRedirectHref({ date: '2026-10-13', step: '2', entity: 'P', utm_source: 'x' }), '/home?date=2026-10-13&step=2');
+  assert.equal(dayCardRedirectHref({ date: 'not-a-day', step: '99' }), '/home?date=not-a-day&step=99');
+  assert.equal(dayCardRedirectHref({ date: '' }), '/home?date=', 'an empty ?date= is still given');
   // Date first, as the card's own links write them — whatever order the request named them in.
-  assert.equal(dayCardRedirectHref({ step: '2', date: '2026-10-13' }), '/runway?date=2026-10-13&step=2');
+  assert.equal(dayCardRedirectHref({ step: '2', date: '2026-10-13' }), '/home?date=2026-10-13&step=2');
   // A parameter given twice keeps both values, in order — the card reads the first, as it did at /tasks/day.
-  assert.equal(dayCardRedirectHref({ date: ['2026-10-13', '2026-10-14'] }), '/runway?date=2026-10-13&date=2026-10-14');
+  assert.equal(dayCardRedirectHref({ date: ['2026-10-13', '2026-10-14'] }), '/home?date=2026-10-13&date=2026-10-14');
   // Exactly as given: what the card reads back on /tasks is byte-for-byte what /tasks/day was sent.
   for (const date of ['2026-10-13', 'a b&c=d', 'ü/?#']) {
     const back = new URLSearchParams(dayCardRedirectHref({ date, step: '1' }).split('?')[1]);

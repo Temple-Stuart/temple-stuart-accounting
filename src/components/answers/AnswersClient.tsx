@@ -22,14 +22,26 @@
  *
  * The shell is the one shell (NAV-01b → SHELL-01): ShellBar + THE RAIL (the
  * steps, in link mode; Home is its first entry). Mobile: cards stack; ≥10px.
+ *
+ * HOME-03 (Alex, 2026-10-27) — /home IS THE HOME: a signed-in `/` lands here
+ * (src/app/page.tsx), and THE DAY CARD sits between THE ANSWERS and THE SHEET.
+ * The card is TIME'S component (toolRegistry.ts, the Time row), moved here from
+ * the cockpit's Runway panel (HOME-01, 2026-10-24) with everything it carries —
+ * the deck, the stops, the work block, the journal cards, the reel kit and its
+ * downloads — unchanged inside (day/DayCard.tsx). Every URL it writes is
+ * dayCard.ts DAY_CARD_PATH ('/home'): ?date= and ?step= are this page's. The
+ * order, held by the two-lists law (scripts/assert-tool-registry.ts): the four
+ * cards, Net worth, the card in its Suspense boundary, the sheet.
  */
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import ShellBar from '@/components/ui/ShellBar';
 import Rail from '@/components/shell/Rail';
 import TheSheet from '@/components/shell/TheSheet';
+// HOME-03 (Alex, 2026-10-27): the day card — Time's component — on the home page, between the answers and the sheet.
+import DayCard from '@/components/workbench/operations/day/DayCard';
 import CheckoutResultBanner from '@/components/CheckoutResultBanner';
 import { deriveRunwayReceipts } from '@/components/hub/RunwayBudgetPanel';
 import { ANSWER_ROWS, ANSWER_READS, NET_WORTH_READ, type AnswerRead, type ComputedRead } from '@/lib/answers';
@@ -393,6 +405,23 @@ export default function AnswersClient({ viewer, offerAvailability }: { viewer: s
             <FigureBlock read={netWorth} figure={netWorthFigure} />
           </AnswerCard>
         </section>
+
+        {/* HOME-03 (Alex, 2026-10-27): THE DAY CARD ON THE HOME PAGE — after THE ANSWERS (the four cards and Net worth),
+            before THE SHEET. The card is TIME'S component (toolRegistry.ts, the Time row; TIME-01, 2026-10-19), moved here
+            from the cockpit's Runway panel (HOME-01, 2026-10-24) and unchanged inside: the deck, the stops, the work block,
+            the journal cards, the reel kit and its downloads (day/DayCard.tsx). Every URL it writes is DAY_CARD_PATH
+            ('/home', dayCard.ts) — ?date= and ?step= are this page's; a dated /runway, /tasks or /time link is sent here by
+            next.config.ts. No entity provider: the card reads none. The boundary stays for useSearchParams — belt and
+            braces on a force-dynamic route (home/page.tsx). The frame is this main's page gutter (px-4 lg:px-8 — the
+            frame the card had on /time and on the panel), so the deck's lg bleed (WIDTH-01, stops/DayDeck.tsx) has the
+            32 px it was measured for. /home is the shell's page, no tool's (SHELL_PAGES, scripts/assert-tool-registry.ts),
+            so the tool law's rule 5 skips it; the two-lists law pins this mount — once, in its boundary, after Net worth
+            and before the sheet. */}
+        <div className="mt-5 sm:mt-6" data-home-day-card>
+          <Suspense>
+            <DayCard />
+          </Suspense>
+        </div>
 
         {/* SHELL-01: below the answers, the whole sheet — every job, its step, its true status. */}
         <TheSheet />

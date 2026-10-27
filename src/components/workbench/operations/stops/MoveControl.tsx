@@ -12,7 +12,7 @@
  * one line says they carry no zone. Under the list, the plan in words BEFORE
  * anything is written — the same planMove the route fires (no drift). Confirm
  * posts the move; on 200 the page loads the card's page for the date in full
- * (DAY_CARD_PATH?date=<date> — TIME-01, 2026-10-19: /time; HOME-01, 2026-10-24: /runway; no literal) so the
+ * (DAY_CARD_PATH?date=<date> — TIME-01, 2026-10-19: /time; HOME-01, 2026-10-24: /runway; HOME-03, 2026-10-27: /home; no literal) so the
  * card, the list, the stays and the ledger all re-read (Alex 8 yes); a
  * refusal is shown in the route's own words. Cancel writes nothing. Nothing
  * is stored in the browser.

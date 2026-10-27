@@ -4,6 +4,8 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { decode } from 'next-auth/jwt';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+// HOME-03 (Alex, 2026-10-27): the rail's HOME — where a signed-in `/` lands now.
+import { ANSWERS_HOME } from '@/lib/answers';
 // SELL-02: per offer key, is its Stripe price id set — the one env-presence read, passed to both landings.
 import { offerAvailabilityFromEnv } from '@/lib/offer';
 import { BUILT_ON } from '@/lib/builtOnWall';
@@ -46,12 +48,21 @@ import GuestLanding from '@/components/landing/GuestLanding';
  * below, unchanged; /?tab=compliance still renders the cockpit here (the
  * carve-out above). The destination is the cockpit's default panel, which is
  * dayCard.ts DAY_CARD_PATH's page (home02.test.ts holds the two equal).
+ *
+ * HOME-03 (Alex, 2026-10-27) — /home IS THE HOME. The same verified arrival is
+ * sent to /home — the rail's HOME (answers.ts ANSWERS_HOME): THE ANSWERS, then
+ * the day card (moved there from the cockpit's Runway panel, unchanged inside;
+ * dayCard.ts DAY_CARD_PATH is '/home'), then THE SHEET — with the query string
+ * it came with, as before. The guest landing below is unchanged; /?tab=compliance
+ * still renders the cockpit here; /?tab=calendar still redirects to /runway, the
+ * cockpit's calendar tab, which keeps its panel without the card. home03.test.ts
+ * holds SIGNED_IN_HOME, ANSWERS_HOME and DAY_CARD_PATH equal.
  */
 
 export const dynamic = 'force-dynamic';
 
-/** HOME-02 (Alex, 2026-10-25): where a signed-in `/` lands — the cockpit's Runway panel; the day card's page (dayCard.ts DAY_CARD_PATH, held equal by home02.test.ts). */
-const SIGNED_IN_HOME = '/runway';
+/** Where a signed-in `/` lands — HOME-03 (Alex, 2026-10-27): /home, the rail's HOME and the day card's page (dayCard.ts DAY_CARD_PATH; home03.test.ts holds the three equal). HOME-02 (2026-10-25) sent it to /runway, the cockpit's Runway panel, where the card was. */
+const SIGNED_IN_HOME = ANSWERS_HOME;
 
 async function isVerifiedAuthed(): Promise<boolean> {
   // Signal 1 — the signed cookie, VERIFIED (timing-safe HMAC).
@@ -94,8 +105,8 @@ export default async function Page({ searchParams }: {
     redirect(typeof params.tab === 'string' ? (TAB_TO_PATH[params.tab] ?? '/') : '/');
   }
 
-  // HOME-02 (Alex, 2026-10-25): a verified arrival lands on /runway — the cockpit's default panel, the day card first
-  // (HOME-01) — carrying the query string as given; the ?tab= map above has already had its say.
+  // HOME-02 (Alex, 2026-10-25): a verified arrival lands on the day card's page — carrying the query string as given; the
+  // ?tab= map above has already had its say. HOME-03 (Alex, 2026-10-27): that page is /home (SIGNED_IN_HOME above).
   if (await isVerifiedAuthed()) {
     const query = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {

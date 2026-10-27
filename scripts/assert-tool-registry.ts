@@ -201,7 +201,9 @@ const GUEST_ROUTES: ReadonlyArray<{ route: string; why: string }> = [
   // page-level redirect() after the ?tab= map, carrying the query) — the cockpit's Runway panel, whose door is the "How long
   // can I last?" answer. A guest still gets the landing, so `/` is still a page and still the front door; QUERY_REDIRECTS
   // below lists next.config.ts query rules only, and this is not one.
-  { route: '/', why: 'the front door — src/middleware.ts PUBLIC_PATHS; a signed-in visitor goes on to /runway (HOME-02, 2026-10-25)' },
+  // HOME-03 (Alex, 2026-10-27): the same visitor is sent on to /home — the rail's HOME (ANSWERS_HOME), the day card's page
+  // now (dayCard.ts DAY_CARD_PATH). Nothing else here changes: `/` is still the guest landing and the front door.
+  { route: '/', why: 'the front door — src/middleware.ts PUBLIC_PATHS; a signed-in visitor goes on to /home (HOME-03, 2026-10-27; /runway from HOME-02, 2026-10-25)' },
   { route: '/[tab]', why: 'the cockpit paths (/runway /travel /trade /books /tax) — every cockpit home in the registry; src/app/[tab]/page.tsx TAB_PATHS. ROOM-02 took /routines /projects /content out: they are redirect pages into /operations now' },
   { route: '/login', why: 'the sign-in page (the one LoginBox, SELL-03) — src/app/accounts/page.tsx:37 sends an unauthenticated viewer here' },
   { route: '/pricing', why: 'PUBLIC_PATHS; renders THE OFFER (SELL-02) — LandingHeader.tsx, LandingFooter.tsx' },
@@ -514,7 +516,7 @@ doors.push({ route: NET_WORTH_READ.home, kind: 'answers', via: `Net worth · Ope
 // Prefer the most specific door: an exact route match first, listed routes before
 // prefix matches, so `/` reads as the front door and `/[tab]` as the cockpit paths.
 // HOME-02 (2026-10-25): `/` sends a signed-in visitor on to /runway (page.tsx); it stays a page — the guest landing — and the
-// front door here. redirectTarget() reads only a literal redirect('...'), and the front door's redirects are computed, so the
+// front door here. HOME-03 (2026-10-27): to /home now — the same shape, the same computed redirect. redirectTarget() reads only a literal redirect('...'), and the front door's redirects are computed, so the
 // fixpoint below leaves `/` as listed.
 const findDoor = (route: string) => {
   const exact = doors.find((d) => d.route.split('?')[0] === route);
@@ -548,9 +550,13 @@ while (changed) {
 // HOME-01 (Alex, 2026-10-24): the card moved to the dashboard — the cockpit's Runway panel, /runway, the door of the
 // "How long can I last?" answer (answers.ts ANSWER_READS). The /tasks entry re-targets, and a second dated entry sends a
 // /time?date= or ?step= bookmark the same way; both are verified against the config and the constant as before. Two entries.
+// HOME-03 (Alex, 2026-10-27): the card moved to the home page — /home, the rail's HOME (ANSWERS_HOME, the rail door below).
+// Both entries re-target, and a third dated entry sends a /runway?date= or ?step= bookmark (HOME-01's days) the same way; a
+// bare /runway stays the cockpit's calendar tab. All three verified against the config and the constant as before. Three.
 const QUERY_REDIRECTS: ReadonlyArray<{ source: string; keys: readonly string[]; destination: string; constant: { file: string; name: string }; since: string }> = [
-  { source: '/tasks', keys: ['date', 'step'], destination: '/runway', constant: { file: 'src/components/workbench/operations/day/dayCard.ts', name: 'DAY_CARD_PATH' }, since: 'TIME-01 (2026-10-19): the day card moved from /tasks to /time; HOME-01 (2026-10-24): to the dashboard, /runway' },
-  { source: '/time', keys: ['date', 'step'], destination: '/runway', constant: { file: 'src/components/workbench/operations/day/dayCard.ts', name: 'DAY_CARD_PATH' }, since: 'HOME-01 (2026-10-24): the day card moved from /time to the dashboard, /runway' },
+  { source: '/tasks', keys: ['date', 'step'], destination: '/home', constant: { file: 'src/components/workbench/operations/day/dayCard.ts', name: 'DAY_CARD_PATH' }, since: 'TIME-01 (2026-10-19): the day card moved from /tasks to /time; HOME-01 (2026-10-24): to the dashboard, /runway; HOME-03 (2026-10-27): to the home page, /home' },
+  { source: '/time', keys: ['date', 'step'], destination: '/home', constant: { file: 'src/components/workbench/operations/day/dayCard.ts', name: 'DAY_CARD_PATH' }, since: 'HOME-01 (2026-10-24): the day card moved from /time to the dashboard, /runway; HOME-03 (2026-10-27): to the home page, /home' },
+  { source: '/runway', keys: ['date', 'step'], destination: '/home', constant: { file: 'src/components/workbench/operations/day/dayCard.ts', name: 'DAY_CARD_PATH' }, since: 'HOME-03 (2026-10-27): the day card moved from the cockpit\'s Runway panel, /runway, to the home page, /home; a bare /runway stays the cockpit\'s calendar tab' },
 ];
 const nextConfigText = codeOf('next.config.ts');
 for (const q of QUERY_REDIRECTS) {
@@ -3441,6 +3447,10 @@ lawGuard('The two-lists law', () => {
 // there by ruling; the cockpit is the grandfathered surface and no Home registry
 // row is added. /time is THREE — the ledger, then the two journal tables — and the
 // card's Suspense check follows the card to the panel's mount.
+// HOME-03 (Alex, 2026-10-27): THE DAY CARD MOVED TO THE HOME PAGE — /home
+// (answers/AnswersClient.tsx, DAY_CARD_PATH), between THE ANSWERS and THE SHEET,
+// still Time's component and still no Home registry row (/home is the shell's page,
+// SHELL_PAGES). /time is unchanged; the card's Suspense check follows the card again.
 const TWO_LISTS_PAGE = 'src/app/tasks/page.tsx';
 const TIME_PAGE = 'src/app/time/page.tsx';
 // EXPENSES-01 (Alex, 2026-10-25): Expenses' page — ROUTINE EXPENSES alone, held by this block the way /tasks and /time are.
@@ -3548,16 +3558,22 @@ const twoListsFail = (m: string) => { twoListsViolations += 1; violations.push(`
   // HOME-01: the card's boundary check follows the card — the Runway panel mounts <Suspense><DayCard /></Suspense> FIRST, above
   // its metrics (the StageStrip), inside the signed-in branch, once. The cockpit is the grandfathered surface; the mount's note
   // says the card is Time's component shown on the dashboard by Alex's ruling of 2026-10-24.
-  const CARD_HOST = 'src/components/home/ModuleLauncher.tsx'; // the cockpit (the tool law's COCKPIT_COMPONENT, named again in this block's scope)
-  const launcher = codeOf(CARD_HOST);
-  const cardMounts = (launcher.match(/<DayCard \/>/g) ?? []).length;
-  if (cardMounts !== 1) twoListsFail(`${CARD_HOST} mounts the day card ${cardMounts} times — once, first on the Runway panel (HOME-01)`);
-  if (!/<Suspense>\s*<DayCard \/>\s*<\/Suspense>/.test(launcher)) twoListsFail(`${CARD_HOST} mounts the day card outside its Suspense boundary — the card reads the URL (useSearchParams) (TASKS-ONE-01; TIME-01; HOME-01)`);
-  const runwayAt = launcher.indexOf("activeModule === 'calendar' ? 'block' : 'hidden'");
-  const cardAt = launcher.indexOf('<DayCard />');
-  const metricsAt = launcher.indexOf('<StageStrip', runwayAt);
-  if (runwayAt < 0 || cardAt < runwayAt || metricsAt < 0 || cardAt > metricsAt) twoListsFail(`${CARD_HOST} does not mount the day card FIRST on the Runway panel, above its metrics (HOME-01)`);
-  if (launcher.lastIndexOf('{authed === true && (', cardAt) < 0 || launcher.lastIndexOf('{authed === false && (', cardAt) > launcher.lastIndexOf('{authed === true && (', cardAt)) twoListsFail(`${CARD_HOST} mounts the day card outside the signed-in branch of the Runway panel (HOME-01)`);
+  // HOME-03 (Alex, 2026-10-27): the check follows the card again — /home (answers/AnswersClient.tsx) mounts
+  // <Suspense><DayCard /></Suspense> once, after Net worth (THE ANSWERS) and before THE SHEET. /home is the shell's page, no
+  // tool's (SHELL_PAGES), so the tool law's rule 5 skips it; the page is protected by the middleware (no signed-in branch to
+  // check). The mount's note says the card is Time's component, moved here by Alex's ruling of 2026-10-27. The cockpit
+  // (COCKPIT_COMPONENT) names the card no more.
+  const CARD_HOST = 'src/components/answers/AnswersClient.tsx'; // the home page's client (HOME-03)
+  const host = codeOf(CARD_HOST);
+  const cardMounts = (host.match(/<DayCard \/>/g) ?? []).length;
+  if (cardMounts !== 1) twoListsFail(`${CARD_HOST} mounts the day card ${cardMounts} times — once, between THE ANSWERS and THE SHEET (HOME-03)`);
+  if (!/<Suspense>\s*<DayCard \/>\s*<\/Suspense>/.test(host)) twoListsFail(`${CARD_HOST} mounts the day card outside its Suspense boundary — the card reads the URL (useSearchParams) (TASKS-ONE-01; TIME-01; HOME-01; HOME-03)`);
+  const netWorthAt = host.indexOf('data-net-worth');
+  const cardAt = host.indexOf('<DayCard />');
+  const sheetAt = host.indexOf('<TheSheet />');
+  if (netWorthAt < 0 || sheetAt < 0 || cardAt < netWorthAt || cardAt > sheetAt) twoListsFail(`${CARD_HOST} does not mount the day card between Net worth (THE ANSWERS) and THE SHEET (HOME-03)`);
+  const CARD_HOST_UNTIL_HOME_03 = 'src/components/home/ModuleLauncher.tsx'; // the cockpit (the tool law's COCKPIT_COMPONENT, named again in this block's scope)
+  if (/DayCard/.test(codeOf(CARD_HOST_UNTIL_HOME_03))) twoListsFail(`${CARD_HOST_UNTIL_HOME_03} names the day card — it moved to /home (HOME-03)`);
   // Every control the strips held is still a control: the list headers' create
   // buttons, the row's edit/archive/delete and its pipeline door, Today's mark-done.
   // TASKS-ONE-02 (2026-10-14): Today's mark-done moved, not loosened — TodaysStrip is
