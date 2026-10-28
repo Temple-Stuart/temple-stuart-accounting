@@ -217,7 +217,12 @@ export default function BooksPipeline() {
   // ACCOUNTS-01: Reconnect is the shared hook now — the SAME update-mode Link,
   // reconnect-complete and link-exit report step 1's screen (/accounts) drives. Books'
   // Source Accounts phase is unchanged: it still offers Reconnect on a flagged row.
-  const bank = useBankConnection({ onChanged: () => reloadAll() });
+  // BOOKS-GATE-01 (Alex, 2026-10-28, ruling A): the hook takes an explicit `enabled` — false while this room is
+  // locked, so a locked viewer's pipeline POSTs no link token and reads no OAuth-return line. The locked state is
+  // the panel's own booksLocked: BooksPanel (ModuleLauncher.tsx) hands it to <RoomLock locked={booksLocked}>, and
+  // useRoomLock() above reads that RoomLock's value. `enabled`, not an unmount: LOCK-01 renders a locked room in
+  // full, frozen, so the pipeline stays mounted and only the hook stands down. Unlocked, the hook runs as before.
+  const bank = useBankConnection({ onChanged: () => reloadAll(), enabled: !roomLocked });
   const reconnectNote = bank.reconnectNote;
   const reconnecting = bank.reconnecting;
   const reconnectItem = bank.reconnect;

@@ -114,6 +114,8 @@ import RoomLock from '@/components/shell/RoomLock';
 import { keysGranting } from '@/lib/offer';
 import { lapsedFor, type LapsedEntitlement } from '@/lib/lapse';
 import { isTabLocked } from '@/lib/categoryLock';
+// BOOKS-GATE-01: the Books summary's sums — an unreadable trial-balance balance is refused by name, never summed as 0.
+import { sumByType } from '@/lib/books/cockpitSums';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
 import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
 
@@ -230,8 +232,9 @@ function TravelHeading({ children }: { children: React.ReactNode }) {
  *  trial balance, the accounts, the closing periods) and the Plaid link token (useBankConnection) lived in the
  *  launcher's body and fired at every cockpit mount, whatever tab was open. They moved here VERBATIM: they fire when
  *  this panel mounts and not before, and a re-opened panel re-reads (no cache). A locked viewer fires none of them —
- *  the same `booksLocked` gate the launcher held, handed in. */
-function BooksPanel({ booksLocked, lapsed }: { booksLocked: boolean; lapsed: LapsedEntitlement | null }) {
+ *  the same `booksLocked` gate the launcher held, handed in. BOOKS-GATE-01 (2026-10-28): exported by name so
+ *  booksGate01.test.ts can drive its summary read; the launcher below is still its one mount. */
+export function BooksPanel({ booksLocked, lapsed }: { booksLocked: boolean; lapsed: LapsedEntitlement | null }) {
   // ── BOOKS-1: cockpit data layer ───────────────────────────────────────────────
   // The BookkeepingCockpitBar needs 10 props, sourced from three ALREADY-AUTHED,
   // user-scoped routes (no new routes): /api/trial-balance, /api/accounts,
@@ -265,9 +268,11 @@ function BooksPanel({ booksLocked, lapsed }: { booksLocked: boolean; lapsed: Lap
       // either is absent, that's an error we surface, never a silent "true".
       if (typeof tb?.totals?.isBalanced !== 'boolean' || typeof tb?.totals?.hasActivity !== 'boolean') throw new Error('trial balance missing isBalanced/hasActivity');
       const tbAccounts: any[] = Array.isArray(tb.accounts) ? tb.accounts : []; // eslint-disable-line @typescript-eslint/no-explicit-any
-      const sumBy = (type: string) =>
-        tbAccounts.filter((a) => a.accountType === type)
-          .reduce((s: number, a) => s + Math.abs(Number(a.normalBalance) || 0), 0);
+      // BOOKS-GATE-01 (Alex, 2026-10-28, ruling B): `Math.abs(Number(a.normalBalance) || 0)` stood here — a balance
+      // that was not a number was summed as 0. sumByType (src/lib/books/cockpitSums.ts) reads each balance and THROWS
+      // by name on one it cannot read ("trial balance account <code> has no readable normalBalance"); the catch below
+      // turns it into the panel's existing error words, as it does the isBalanced/hasActivity check above.
+      const sumBy = (type: string) => sumByType(tbAccounts, type);
       // connectedAccounts mirrors the dashboard: flatten items[].accounts[] and count.
       const connectedAccounts = (acc.items || [])
         .reduce((n: number, it: any) => n + ((it.accounts || []).length), 0); // eslint-disable-line @typescript-eslint/no-explicit-any
