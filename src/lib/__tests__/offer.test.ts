@@ -165,8 +165,10 @@ test('the hero line is the registry\'s counts in words — never typed', () => {
   // EXPENSES-02 (Alex, 2026-10-26): Expenses is LIVE — the vendor decided on the row; receipts are Documents' job. 2 · 10 · 13 → 3 · 9 · 13. Three live, nine partial.
   // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13.
   // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
-  assert.equal(heroCountsLine(), 'Twenty-five tools, counted: five live, seven partial, thirteen on the blueprint.');
-  assert.equal(heroCountsLine(TOOL_REGISTRY.filter((t) => t.status !== 'NOT_BUILT')), 'Twelve tools, counted: five live, seven partial, zero on the blueprint.');
+  // BILLPAY-01 (Alex, 2026-10-28): Bill Pay NOT_BUILT → PARTIAL — eight partial, twelve on the blueprint (seven and thirteen until then).
+  assert.equal(heroCountsLine(), 'Twenty-five tools, counted: five live, eight partial, twelve on the blueprint.');
+  // BILLPAY-01 (Alex, 2026-10-28): the built tools are thirteen now — Bill Pay among them (twelve, seven partial, until then).
+  assert.equal(heroCountsLine(TOOL_REGISTRY.filter((t) => t.status !== 'NOT_BUILT')), 'Thirteen tools, counted: five live, eight partial, zero on the blueprint.');
   assert.equal(numberWord(25), 'twenty-five');
   assert.throws(() => numberWord(26), OfferLawError);
 });

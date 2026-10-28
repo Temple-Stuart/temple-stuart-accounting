@@ -293,7 +293,9 @@ export const CAPABILITY_GROUPS: readonly CapabilityGroup[] = [
       { label: 'Contracts signed and what they committed you to', tools: ['Contracts'], module: 'business' },
       { label: 'Invoices out, and who has not paid', tools: ['Invoicing'], module: 'business' },
       { label: 'Money in, matched to the invoice that earned it', tools: ['Payments'], module: 'business' },
-      { label: 'Bills scheduled and paid on time', tools: ['Bill Pay'], module: 'business' },
+      // BILLPAY-01 (Alex, 2026-10-28, ruling E): the row claimed scheduling and paying, which Bill Pay does not do; it says what it does —
+      // tool and module unchanged, its cell derived (◐, PARTIAL).
+      { label: 'Every bill\'s due days, paid or overdue', tools: ['Bill Pay'], module: 'business' },
       { label: 'Payroll run, with the taxes it triggers', tools: ['Payroll'], module: 'business' },
       { label: 'Runway, margin and the forecast behind them', tools: ['FP&A'], module: 'business' },
     ],
