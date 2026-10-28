@@ -13,7 +13,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as React from 'react';
 import { code, comments } from '../sourceText';
-import { readableBalanceOf, sumByType, unreadableBalanceWords } from '../books/cockpitSums';
+import { MISSING_ACCOUNTS_WORDS, readableBalanceOf, sumByType, trialBalanceAccountsOf, unreadableBalanceWords } from '../books/cockpitSums';
 
 Object.assign(globalThis, { React });
 
@@ -178,4 +178,21 @@ test('B the panel: an unreadable balance puts the panel in its error state (its 
   assert.match(l, /\{booksState === 'error' && \(\n\s*<div role="alert" className=\{`\$\{STATE\.errorCard\} flex items-center justify-between gap-3`\}>\n\s*<span>Couldn&rsquo;t load your books right now\. Nothing is assumed — the balance sheet is hidden until it loads\.<\/span>/);
   assert.match(l, /const sumBy = \(type: string\) => sumByType\(tbAccounts, type\);/);
   assert.doesNotMatch(l, /Number\(a\.normalBalance\) \|\| 0/, 'the zero in place of a balance is gone');
+});
+
+test('B ruling 6: a trial balance without its accounts array throws by name and the panel shows its error words — never a $0 bar; an empty list stays a real empty ledger', async () => {
+  assert.equal(MISSING_ACCOUNTS_WORDS, 'trial balance came back without its accounts');
+  for (const tb of [{}, { accounts: null }, { accounts: 'none' }, { accounts: {} }, null, undefined]) {
+    assert.throws(() => trialBalanceAccountsOf(tb as never), { message: MISSING_ACCOUNTS_WORDS }, `${JSON.stringify(tb)} throws`);
+  }
+  assert.deepEqual(trialBalanceAccountsOf({ accounts: [] }), [], 'an empty ledger is an empty list, not an error');
+  // The fixture: the route's answer with totals but no accounts — the panel goes to error and draws no total.
+  const { BooksPanel } = await import('../../components/home/ModuleLauncher');
+  const run = await drive(BooksPanel as never, { booksLocked: false, lapsed: null }, false, answerWith({ totals: { isBalanced: true, hasActivity: true } }));
+  assert.ok(run.stateWrites.includes('error'), 'the panel\'s state is error');
+  assert.ok(!run.stateWrites.includes('ok'));
+  assert.ok(!run.stateWrites.some((w) => typeof w === 'object' && w !== null && 'totalAssets' in w), 'no $0 total is drawn');
+  const l = code(LAUNCHER);
+  assert.match(l, /const tbAccounts = trialBalanceAccountsOf\(tb\);/);
+  assert.doesNotMatch(l, /Array\.isArray\(tb\.accounts\) \? tb\.accounts : \[\]/, 'the empty list in place of a missing one is gone');
 });
