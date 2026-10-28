@@ -60,7 +60,7 @@ import { BudgetDaysError, buildRoutineBudgetLines } from '@/lib/budget/days';
 import { BudgetInputError, toReportAccount, toReportEntity, toRoutinePlanInput } from '@/lib/budget/reportInputs';
 import type { RoutineWords } from '@/lib/budget/planLines';
 import { loadRoutineBudgetInputs } from '@/lib/operations/routineBudgetInputs';
-import { POSTING_LINES_SELECT } from '@/lib/calendar/postingAmount';
+import { LINKED_POSTING_SELECT } from '@/lib/calendar/postingAmount';
 import { ledgerOf, linkInputOf, spanInput, type LedgerRecordInput } from '@/lib/operations/ledger';
 import { refusedWords, stopRecordRowOf } from '@/lib/operations/stopRecord';
 import { plannedMinutesOf } from '@/components/workbench/operations/day/dayCard';
@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
       // LEDGER-03: the caller's links of a routine occurrence or a line, in the records' window, with each posting's lines — one query.
       prisma.planned_item_links.findMany({
         where: { user_id: user.id, target_kind: { in: ['routine', 'routine_line'] }, target_instant: { gte: recordsFrom, lt: recordsTo }, journal_entry: { userId: user.id } },
-        select: { target_kind: true, target_id: true, target_instant: true, journal_entry_id: true, journal_entry: { select: POSTING_LINES_SELECT } },
+        select: { target_kind: true, target_id: true, target_instant: true, journal_entry_id: true, journal_entry: { select: LINKED_POSTING_SELECT } },
         orderBy: { linked_at: 'asc' },
       }),
     ]);

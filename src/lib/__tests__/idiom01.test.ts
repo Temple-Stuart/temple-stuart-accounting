@@ -80,10 +80,10 @@ const row = (over: Partial<LedgerRow> & { readonly id: string }): LedgerRow => (
   cents: null, budgetState: 'none', outcome: 'done', actualCents: null, varianceCents: null, plannedMinutes: null, loggedMinutes: null, ...over, // TIME-03: the row's two minutes fields
 });
 const GYM = row({ id: 'e', day: '2026-10-17', coa: { account: 'P-5300', name: 'Fitness' }, vendor: 'Fitness First', description: 'Gym', rating: 3, note: 'leg day', outcome: 'skipped', cents: 1500, budgetState: 'matched' });
-const BRUNCH = row({ id: 'a', vendor: 'Luka Café', description: 'Brunch', rating: 4, note: 'khao soi, worth it', cents: 2500, actualCents: 2200, varianceCents: -300, budgetState: 'matched', match: { cents: 2200, postings: 1, unreadable: 0 } });
+const BRUNCH = row({ id: 'a', vendor: 'Luka Café', description: 'Brunch', rating: 4, note: 'khao soi, worth it', cents: 2500, actualCents: 2200, varianceCents: -300, budgetState: 'matched', match: { cents: 2200, postings: 1, unreadable: 0, reversed: 0 } });
 const DINNER = row({ id: 'b', description: 'Dinner', rating: 5, note: 'Pad thai', cents: 3000, actualCents: 3500, varianceCents: 500, budgetState: 'matched' });
 const YOGA = row({ id: 'c', day: '2026-10-12', place: null, book: null, coa: null, description: 'Yoga', rating: 2, actualCents: 500 });
-const CLIENT = row({ id: 'd', day: '2026-10-11', place: { city: 'Bangkok', country: 'Thailand 🇹🇭' }, book: 'Business', coa: { account: 'B-6100', name: 'Client meals' }, vendor: 'Som Tam Nua', description: 'Client lunch', note: 'with Pim', cents: 2500, actualCents: 2500, varianceCents: 0, budgetState: 'matched', match: { cents: null, postings: 1, unreadable: 1 } });
+const CLIENT = row({ id: 'd', day: '2026-10-11', place: { city: 'Bangkok', country: 'Thailand 🇹🇭' }, book: 'Business', coa: { account: 'B-6100', name: 'Client meals' }, vendor: 'Som Tam Nua', description: 'Client lunch', note: 'with Pim', cents: 2500, actualCents: 2500, varianceCents: 0, budgetState: 'matched', match: { cents: null, postings: 1, unreadable: 1, reversed: 0 } });
 const ROWS: readonly LedgerRow[] = [GYM, BRUNCH, DINNER, YOGA, CLIENT];
 const rowIds = (rows: readonly LedgerRow[]): string[] => rows.map((r) => r.id);
 

@@ -56,7 +56,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ACTUAL_SOURCE_LABEL, buildChain, type DrillRow } from '@/lib/calendar/chain';
 import { FREE_TEXT_RULE, linkedSourceLine, sumLinks, typedVsLinked, variance, type LinkedPosting } from '@/lib/calendar/links';
-import { useLineLinks } from '@/components/hub/useLineLinks';
+import { CANDIDATES_REVERSED_MISSING_WORDS, REVERSED_TAG_WORDS, useLineLinks } from '@/components/hub/useLineLinks';
+import { reversedCandidatesWords, reversedLinkedWords } from '@/lib/calendar/postingAmount';
 import { parseRoutineTileId, type LinkableKind } from '@/lib/calendar/linkKeys';
 import { isManualEvent } from '@/lib/calendar/sources';
 import { navToolByName } from '@/lib/nav';
@@ -171,6 +172,8 @@ export default function EventDetailPanel({ row, onClose, linkable = true, onCorr
 
   const [links, setLinks] = useState<LinkRow[] | null>(null);
   const [candidates, setCandidates] = useState<LinkedPosting[] | null>(null);
+  // LINK-LAW-01 (ruling C): how many reversed postings the window held — not offered, and said.
+  const [candidatesReversed, setCandidatesReversed] = useState<number | null>(null);
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
@@ -201,8 +204,9 @@ export default function EventDetailPanel({ row, onClose, linkable = true, onCorr
       const res = await fetch(`/api/calendar/links?${q.toString()}`);
       const data = await res.json().catch(() => null);
       if (!res.ok) { setRefusal(data?.error ?? `Links could not be read (HTTP ${res.status}).`); return; }
+      if (withCandidates && typeof data.candidatesReversed !== 'number') { setRefusal(CANDIDATES_REVERSED_MISSING_WORDS); return; }
       setLinks(data.links ?? []);
-      if (withCandidates) setCandidates(data.candidates ?? []);
+      if (withCandidates) { setCandidates(data.candidates ?? []); setCandidatesReversed(data.candidatesReversed); }
     } catch { setRefusal('Links could not be read.'); }
   }, [linkable, row.startDate, target]);
 
@@ -365,7 +369,7 @@ export default function EventDetailPanel({ row, onClose, linkable = true, onCorr
                           {own.links.map((k) => (
                             <li key={k.journalEntryId} className="flex items-center justify-between gap-2 text-[11px]" data-drill-line-linked={k.journalEntryId}>
                               <span className="min-w-0 flex-1 truncate"><span className="font-mono text-text-muted">{k.date ?? '—'}</span> {k.description ?? ''}</span>
-                              <span className="font-mono tabular-nums">{k.amountCents === null ? <span className="text-status-danger">no readable amount</span> : money(k.amountCents / 100)}</span>
+                              <span className="font-mono tabular-nums">{k.amountCents === null ? <span className="text-status-danger">no readable amount</span> : money(k.amountCents / 100)}{k.reversed === true && <span className="ml-1 text-amber-800" data-drill-line-link-reversed>{REVERSED_TAG_WORDS}</span>}</span>
                               <button type="button" data-drill-line-unlink={k.journalEntryId} disabled={busy}
                                 onClick={() => { void lineLinks.unlink(l.stepId, k.journalEntryId); }}
                                 className="shrink-0 px-1.5 py-0.5 text-[10px] text-status-danger hover:bg-bg-row">Unlink</button>
@@ -392,6 +396,9 @@ export default function EventDetailPanel({ row, onClose, linkable = true, onCorr
                               <li className="text-[11px] text-text-faint">No unlinked postings within the window.</li>
                             )}
                           </ul>
+                          {lineLinks.candidatesReversed !== null && lineLinks.candidatesReversed > 0 && (
+                            <p className="mt-1 text-[11px] text-amber-800" data-drill-line-candidates-reversed>{reversedCandidatesWords(lineLinks.candidatesReversed)}</p>
+                          )}
                           <button type="button" onClick={() => lineLinks.closePicker()} className="mt-1 text-[11px] text-text-faint hover:text-text-muted">Cancel</button>
                         </div>
                       )}
@@ -440,6 +447,10 @@ export default function EventDetailPanel({ row, onClose, linkable = true, onCorr
                 {linkedActual !== null && <> — {linkedSourceLine(summed)}</>}.
               </p>
             )}
+            {/* LINK-LAW-01 (ruling C): a reversed posting pays nothing — left out of the actual, and said, even when nothing else is linked. */}
+            {summed.reversed.length > 0 && (
+              <p className="pt-2 text-xs text-amber-800" data-drill-reversed-note>{reversedLinkedWords(summed.reversed.length)}</p>
+            )}
             {/* STEP 0.4: the typed figure and the links disagree. Both are shown,
                 the rule is named, and NOTHING is overwritten. */}
             {conflict && (
@@ -464,6 +475,7 @@ export default function EventDetailPanel({ row, onClose, linkable = true, onCorr
                       {l.amountCents === null
                         ? <span className="text-status-danger" data-drill-link-unreadable>no readable amount</span>
                         : money(l.amountCents / 100)}
+                      {l.reversed === true && <span className="ml-1 text-amber-800" data-drill-link-reversed>{REVERSED_TAG_WORDS}</span>}
                     </span>
                     <button type="button" data-drill-unlink={l.journalEntryId} disabled={busy}
                       onClick={() => unlink(l.journalEntryId)}
@@ -531,6 +543,9 @@ export default function EventDetailPanel({ row, onClose, linkable = true, onCorr
                       </li>
                     )}
                   </ul>
+                  {candidatesReversed !== null && candidatesReversed > 0 && (
+                    <p className="mt-1 text-[11px] text-amber-800" data-drill-candidates-reversed>{reversedCandidatesWords(candidatesReversed)}</p>
+                  )}
                   <button type="button" onClick={() => setPicking(false)}
                     className="mt-2 text-[11px] text-text-faint hover:text-text-muted">Cancel</button>
                 </div>

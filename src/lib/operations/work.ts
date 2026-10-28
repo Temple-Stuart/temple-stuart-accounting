@@ -340,6 +340,8 @@ export function actualCentsOf(task: Pick<Task, 'actual_cost_usd'>): number | nul
 export const taskActualCentsOf = (row: TaskRow): number | null => actualCentsOf(row.task);
 /** TASKS-03: MATCH in cents — the tasks GET's sum of the postings linked to the task (taskMatch.ts); null with no link, an unreadable posting, or a task the GET did not carry. */
 export const taskMatchCentsOf = (row: TaskRow): number | null => row.task.match_cents ?? null;
+/** LINK-LAW-01 (ruling C): the linked postings the rows' MATCH left out because they were reversed — a task the GET did not answer carries no match, and adds none. */
+export const tasksReversedOf = (rows: readonly TaskRow[]): number => rows.reduce((sum, row) => sum + (row.task.match_reversed === undefined ? 0 : row.task.match_reversed), 0);
 
 /** THE WORK's spec, over the tab's books and their charts (BOOK and ACCOUNT read them). */
 export function taskTable(books: readonly WorkBook[], charts: WorkCharts): readonly TableColumn<TaskRow, TaskColumn>[] {

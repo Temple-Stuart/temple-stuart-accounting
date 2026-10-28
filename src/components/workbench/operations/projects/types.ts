@@ -265,6 +265,8 @@ export interface Task {
   match_cents?: number | null;
   match_links?: number;
   match_unreadable?: number;
+  /** LINK-LAW-01 (Alex, 2026-10-28, ruling C): linked postings MATCH left out because they were reversed. Optional, as above. */
+  match_reversed?: number;
 }
 
 /**

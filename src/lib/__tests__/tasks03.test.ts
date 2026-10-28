@@ -56,7 +56,7 @@ const COLS = taskTable(BOOKS, CHARTS);
 const rowOf = (id: string) => { const r = ROWS.find((x) => x.task.id === id); if (!r) throw new Error(id); return r; };
 const cell = (id: string, key: typeof TASK_COLUMNS[number]) => columnOf(COLS, key).words(rowOf(id));
 
-const entry = (debit: number | null): TaskLinkRow['journal_entry'] => ({ ledger_entries: debit === null ? [{ entry_type: 'C', amount: BigInt(100) }] : [{ entry_type: 'D', amount: BigInt(debit) }, { entry_type: 'C', amount: BigInt(debit) }] });
+const entry = (debit: number | null): TaskLinkRow['journal_entry'] => ({ status: 'posted', is_reversal: false, reversed_by_entry_id: null, ledger_entries: debit === null ? [{ entry_type: 'C', amount: BigInt(100) }] : [{ entry_type: 'D', amount: BigInt(debit) }, { entry_type: 'C', amount: BigInt(debit) }] });
 const link = (o: Partial<TaskLinkRow> & { journal_entry_id: string; target_id: string }): TaskLinkRow => ({ target_kind: 'project_task', target_instant: null, journal_entry: entry(1000), ...o });
 
 // ── RULING A · THE COLUMNS ──────────────────────────────────────────────────
@@ -122,28 +122,31 @@ test('B the rule: three tasks, two links on one → its sum and 2 links, the oth
     link({ journal_entry_id: 'je-2', target_id: 'a', journal_entry: entry(500) }),
   ];
   const matches = taskMatchesOf(rows);
-  assert.deepEqual(taskMatchOf(matches, 'a'), { match_cents: 1500, match_links: 2, match_unreadable: 0 });
+  // LINK-LAW-01 (Alex, 2026-10-28, ruling C): a task's match also counts the reversed postings it left out — none in these fixtures (linkLaw01.test.ts drives it).
+  assert.deepEqual(taskMatchOf(matches, 'a'), { match_cents: 1500, match_links: 2, match_unreadable: 0, match_reversed: 0 });
   assert.deepEqual(taskMatchOf(matches, 'b'), NO_TASK_MATCH);
-  assert.deepEqual(taskMatchOf(matches, 'c'), { match_cents: null, match_links: 0, match_unreadable: 0 });
+  assert.deepEqual(taskMatchOf(matches, 'c'), { match_cents: null, match_links: 0, match_unreadable: 0, match_reversed: 0 });
   // An unreadable posting (no debit line): counted and said; the sum is blank, never the readable part alone.
   const unread = taskMatchesOf([...rows, link({ journal_entry_id: 'je-3', target_id: 'a', journal_entry: entry(null) }), link({ journal_entry_id: 'je-4', target_id: 'b', journal_entry: entry(null) })]);
-  assert.deepEqual(taskMatchOf(unread, 'a'), { match_cents: null, match_links: 3, match_unreadable: 1 });
-  assert.deepEqual(taskMatchOf(unread, 'b'), { match_cents: null, match_links: 1, match_unreadable: 1 });
+  assert.deepEqual(taskMatchOf(unread, 'a'), { match_cents: null, match_links: 3, match_unreadable: 1, match_reversed: 0 });
+  assert.deepEqual(taskMatchOf(unread, 'b'), { match_cents: null, match_links: 1, match_unreadable: 1, match_reversed: 0 });
   assert.throws(() => taskMatchesOf([link({ journal_entry_id: 'je-5', target_id: 'a', target_kind: 'routine_line' })]), /is of kind "routine_line" — the query asked for project_task/);
   assert.throws(() => taskMatchesOf([link({ journal_entry_id: 'je-6', target_id: 'a', target_instant: new Date('2026-10-26T00:00:00Z') })]), /carries an instant — a task happens once/);
   // The rule is the ledger's: matchOf and readableMatchCents, the amount by postingAmount.ts.
   const r = code(RULE);
-  assert.match(r, /import \{ amountCentsOf, type PostingLines \} from '@\/lib\/calendar\/postingAmount';/);
+  // LINK-LAW-01 (Alex, 2026-10-28, ruling C): the rule reads the reversal state too — LinkedPostingRow, isReversedPosting.
+  assert.match(r, /import \{ amountCentsOf, isReversedPosting, type LinkedPostingRow \} from '@\/lib\/calendar\/postingAmount';/);
   assert.match(r, /import \{ matchOf, readableMatchCents \} from '@\/lib\/operations\/ledger';/);
-  assert.match(r, /match_cents: readableMatchCents\(match\), match_links: match\?\.postings \?\? 0, match_unreadable: match\?\.unreadable \?\? 0/);
+  assert.match(r, /match_cents: readableMatchCents\(match\), match_links: match\?\.postings \?\? 0, match_unreadable: match\?\.unreadable \?\? 0, match_reversed: match === null \? 0 : match\.reversed/);
   assert.doesNotMatch(r, /prisma|fetch\(|new Date\(\)/, 'pure');
 });
 
 test('B the GET: one query for the project\'s tasks\' links with POSTING_LINES_SELECT, scoped to the caller twice; the fields added additively; every other caller reads the same tasks', () => {
   const route = code(ROUTE);
-  assert.match(route, /import \{ POSTING_LINES_SELECT \} from '@\/lib\/calendar\/postingAmount';/);
+  // LINK-LAW-01 (Alex, 2026-10-28, ruling C): the select is LINKED_POSTING_SELECT — the same lines plus the reversal state.
+  assert.match(route, /import \{ LINKED_POSTING_SELECT \} from '@\/lib\/calendar\/postingAmount';/);
   assert.match(route, /import \{ taskMatchOf, taskMatchesOf \} from '@\/lib\/operations\/taskMatch';/);
-  assert.match(route, /const linkRows = sorted\.length === 0 \? \[\] : await prisma\.planned_item_links\.findMany\(\{\n\s*where: \{ user_id: user\.id, target_kind: 'project_task', target_id: \{ in: sorted\.map\(\(t\) => t\.id\) \}, journal_entry: \{ userId: user\.id \} \},\n\s*select: \{ target_kind: true, target_id: true, target_instant: true, journal_entry_id: true, journal_entry: \{ select: POSTING_LINES_SELECT \} \},\n\s*orderBy: \{ linked_at: 'asc' \},\n\s*\}\);/);
+  assert.match(route, /const linkRows = sorted\.length === 0 \? \[\] : await prisma\.planned_item_links\.findMany\(\{\n\s*where: \{ user_id: user\.id, target_kind: 'project_task', target_id: \{ in: sorted\.map\(\(t\) => t\.id\) \}, journal_entry: \{ userId: user\.id \} \},\n\s*select: \{ target_kind: true, target_id: true, target_instant: true, journal_entry_id: true, journal_entry: \{ select: LINKED_POSTING_SELECT \} \},\n\s*orderBy: \{ linked_at: 'asc' \},\n\s*\}\);/);
   assert.equal((route.match(/planned_item_links\.findMany/g) ?? []).length, 1, 'one query, never one per task');
   assert.match(route, /return NextResponse\.json\(\{ tasks: sorted\.map\(\(t\) => \(\{ \.\.\.t, \.\.\.taskMatchOf\(matches, t\.id\) \}\)\) \}\);/, 'additive: the task as before, the three fields beside it');
   // The scoping is the ledger route's: the link's user AND the posting's user (user B's links never reach user A's read, and a posting of another user never counts).
@@ -170,7 +173,8 @@ test('C Tasks is LIVE with four beats, no why, the customer line verbatim and wi
   assert.equal(t.why, undefined, 'a LIVE row carries no why — the typed-cost clause left with the status');
   assert.equal(t.customer, 'You can capture a project as a brief, rank it, plan its tasks with what each should cost and tick them off, and see what each task cost as you logged it and what Books matched; routines are planned under Expenses.');
   assert.doesNotMatch(t.customer ?? '', /not yet|\.tsx?:|src\/|\b(discover|decide|commit|record)\b|founder|module|registry/i);
-  assert.match(t.citation, /TASKS-03 \(2026-10-26\) the match read: tasks\/route\.ts:\d+-\d+ \(one planned_item_links query, project_task, POSTING_LINES_SELECT, scoped to the caller twice\) → src\/lib\/operations\/taskMatch\.ts taskMatchesOf/);
+  // LINK-LAW-01 (Alex, 2026-10-28, ruling C): the match read selects LINKED_POSTING_SELECT — the citation says so.
+  assert.match(t.citation, /TASKS-03 \(2026-10-26\) the match read: tasks\/route\.ts:\d+-\d+ \(one planned_item_links query, project_task, LINKED_POSTING_SELECT, scoped to the caller twice\) → src\/lib\/operations\/taskMatch\.ts taskMatchesOf/);
   assert.match(comments(REGISTRY), /TASKS-03 census \(Alex, 2026-10-26\): Tasks LIVE — ACTUAL as logged and MATCH from Books on THE WORK, the ledger's pair\./);
   assert.match(comments(REGISTRY), /4 LIVE · 8 PARTIAL · 13 NOT_BUILT/);
   assert.match(comments(REGISTRY), /the pair IS the ledger's/);

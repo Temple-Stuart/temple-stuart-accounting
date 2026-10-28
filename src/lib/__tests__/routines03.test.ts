@@ -63,7 +63,7 @@ const BOTH = plan({ id: 'both', name: 'Both', budgetAmount: '1', coaCode: '6150'
 const record = (o: Partial<StopRecordRow> & { id: string; kind: 'routine' | 'routine_line'; target_id: string; occurrence_at: string }): StopRecordRow => ({
   outcome: 'done', done_at: o.occurrence_at, actual_cents: null, rating: null, note: null, actual_minutes: null, ...o,
 });
-const link = (o: Partial<LedgerLinkInput> & { journalEntryId: string; instant: string; amountCents: number | null }): LedgerLinkInput => ({ kind: 'routine_line', targetId: 's1', ...o });
+const link = (o: Partial<LedgerLinkInput> & { journalEntryId: string; instant: string; amountCents: number | null }): LedgerLinkInput => ({ kind: 'routine_line', targetId: 's1', reversed: false, ...o });
 const vendor = (o: Partial<PlanVendorRow> & { id: string }): PlanVendorRow => ({
   routine_id: null, step_id: null, task_id: null, occurrence_at: null, vendor: { id: 'v1', vendor_name: 'Luka Café', entity_id: 'p' }, routine: null, step: null, task: null, ...o,
 });

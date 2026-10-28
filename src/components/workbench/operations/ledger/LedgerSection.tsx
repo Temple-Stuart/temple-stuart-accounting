@@ -122,6 +122,7 @@ import { deltaWords } from '../day/dayCard';
 import { readLedger, type LedgerAnswer } from './ledgerReads';
 import ExpenseForm from './ExpenseForm';
 import LinkPicker from './LinkPicker';
+import { reversedLinkedWords } from '@/lib/calendar/postingAmount';
 import DataTable, { cellClass as cell, chipClass as chip, headClass as head, moneyClass as money } from '@/components/table/DataTable';
 import { announceDayWritten } from '../dayWritten';
 import {
@@ -319,6 +320,8 @@ export default function LedgerSection() {
                 {answer.read.value.said.notRecorded > 0 && <p data-ledger-said-not-recorded>{notRecordedWords(answer.read.value.said.notRecorded)}</p>}
                 {leftOutTotal(answer.read.value.said.leftOut) > 0 && <p data-ledger-said-left-out>{leftOutWords(answer.read.value.said.leftOut)}</p>}
                 {answer.read.value.said.notPlaced > 0 && <p data-ledger-said-not-placed>{notPlacedWords(answer.read.value.said.notPlaced)}</p>}
+                {/* LINK-LAW-01 (ruling C): the linked postings MATCH left out because they were reversed. */}
+                {answer.read.value.said.reversed > 0 && <p data-ledger-said-reversed>{reversedLinkedWords(answer.read.value.said.reversed)}</p>}
                 <p data-ledger-said-today-rule>{TODAY_RULE_WORDS}</p>
                 <p data-ledger-said-every-book>{EVERY_BOOK_WORDS}</p>
               </div>

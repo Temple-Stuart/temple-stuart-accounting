@@ -15,6 +15,7 @@
  * leaf does the opposite: a posting whose amount cannot be read is REPORTED,
  * by id, and the sum is declared incomplete. It is never counted as zero.
  */
+import { reversedLinkedWords } from '@/lib/calendar/postingAmount';
 
 /** One posting, as this leaf needs it. `amountCents` is null when unreadable. */
 export interface LinkedPosting {
@@ -23,6 +24,11 @@ export interface LinkedPosting {
   readonly description: string;
   /** Cents. NULL means the entry carried no readable amount — NOT zero. */
   readonly amountCents: number | null;
+  /**
+   * LINK-LAW-01 (ruling C): the posting is a reversal, or has been reversed (postingAmount.ts isReversedPosting) — it pays
+   * nothing, so the sum leaves it out and names it. NULL when the entry itself could not be read (it is unreadable then).
+   */
+  readonly reversed: boolean | null;
 }
 
 export interface LinkedActual {
@@ -34,6 +40,8 @@ export interface LinkedActual {
   readonly counted: number;
   /** The ids whose amount could not be read — reported, never summed as zero. */
   readonly unreadable: readonly string[];
+  /** LINK-LAW-01 (ruling C): the ids of reversed postings — left out of the sum, named, never summed. */
+  readonly reversed: readonly string[];
   /** True when every link contributed. A caller must not print a bare total when false. */
   readonly complete: boolean;
 }
@@ -47,9 +55,15 @@ export interface LinkedActual {
  */
 export function sumLinks(postings: readonly LinkedPosting[]): LinkedActual {
   const unreadable: string[] = [];
+  const reversed: string[] = [];
   let cents = 0;
   let counted = 0;
   for (const p of postings) {
+    // LINK-LAW-01 (ruling C): a reversed posting pays nothing — named, never summed.
+    if (p.reversed === true) {
+      reversed.push(p.journalEntryId);
+      continue;
+    }
     if (p.amountCents === null || !Number.isFinite(p.amountCents)) {
       unreadable.push(p.journalEntryId);
       continue;
@@ -62,6 +76,7 @@ export function sumLinks(postings: readonly LinkedPosting[]): LinkedActual {
     count: postings.length,
     counted,
     unreadable,
+    reversed,
     complete: postings.length > 0 && unreadable.length === 0,
   };
 }
@@ -70,8 +85,10 @@ export function sumLinks(postings: readonly LinkedPosting[]): LinkedActual {
 export function linkedSourceLine(a: LinkedActual): string {
   const n = a.counted;
   const base = `linked to ${n} posting${n === 1 ? '' : 's'} in Books`;
-  if (a.unreadable.length === 0) return base;
-  return `${base}; ${a.unreadable.length} more ${a.unreadable.length === 1 ? 'is' : 'are'} linked but carry no readable amount and are NOT in this total (${a.unreadable.join(', ')})`;
+  const unread = a.unreadable.length === 0 ? '' : `; ${a.unreadable.length} more ${a.unreadable.length === 1 ? 'is' : 'are'} linked but carry no readable amount and are NOT in this total (${a.unreadable.join(', ')})`;
+  // LINK-LAW-01 (ruling C): the reversed ones, named — the posting leaf's words.
+  const rev = a.reversed.length === 0 ? '' : `; ${reversedLinkedWords(a.reversed.length)} (${a.reversed.join(', ')})`;
+  return `${base}${unread}${rev}`;
 }
 
 /**

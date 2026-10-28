@@ -34,7 +34,7 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { BudgetDaysError, isIsoDay } from '@/lib/budget/days';
 import { BudgetInputError, toReportEntity, toRoutinePlanInput } from '@/lib/budget/reportInputs';
 import { loadRoutineBudgetInputs } from '@/lib/operations/routineBudgetInputs';
-import { POSTING_LINES_SELECT } from '@/lib/calendar/postingAmount';
+import { LINKED_POSTING_SELECT } from '@/lib/calendar/postingAmount';
 import { linkInputOf } from '@/lib/operations/ledger';
 import { recordWindow, stopRecordRowOf } from '@/lib/operations/stopRecord';
 import { AS_OF_WORDS, ROUTINE_MONTH_CALCULATED, monthRangeOf, routineMonthOf } from '@/lib/operations/routineMonth';
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
       }),
       prisma.planned_item_links.findMany({
         where: { user_id: user.id, target_kind: { in: ['routine', 'routine_line'] }, target_instant: window, journal_entry: { userId: user.id } },
-        select: { target_kind: true, target_id: true, target_instant: true, journal_entry_id: true, journal_entry: { select: POSTING_LINES_SELECT } },
+        select: { target_kind: true, target_id: true, target_instant: true, journal_entry_id: true, journal_entry: { select: LINKED_POSTING_SELECT } },
         orderBy: { linked_at: 'asc' },
       }),
       prisma.planned_item_vendors.findMany({

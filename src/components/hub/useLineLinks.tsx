@@ -21,6 +21,10 @@
  * — ONE item of any linkable kind, which the ledger's LinkPicker uses on a stop
  * record's own (kind, target_id, occurrence_at). Nothing is stored in the
  * browser; nothing is ranked.
+ *
+ * LINK-LAW-01 (Alex, 2026-10-28, ruling C): the route marks each linked posting `reversed` (the leaf's sum leaves a
+ * reversed one out and names it) and offers no reversed posting as a candidate, answering how many it left out
+ * (candidatesReversed). The count is read, never assumed: an answer without it is refused by name.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { LinkableKind } from '@/lib/calendar/linkKeys';
@@ -31,15 +35,21 @@ interface LineState { links: LineLink[]; summed: LinkedActual }
 
 type Outcome<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly words: string };
 
+/** LINK-LAW-01: the words a candidate answer without its reversed count is refused with — never read as none. */
+export const CANDIDATES_REVERSED_MISSING_WORDS = 'The candidates came back without the count of reversed postings left out — the list is not shown.';
+/** LINK-LAW-01: the tag a reversed linked posting wears beside its amount. */
+export const REVERSED_TAG_WORDS = 'reversed';
+
 /** GET the item's links and, with `near`, its candidates — the route's words on refusal. */
-async function readLinks(kind: LinkableKind, id: string, instant: string | null, near?: string): Promise<Outcome<{ links: LineLink[]; candidates: LinkedPosting[] | null }>> {
+async function readLinks(kind: LinkableKind, id: string, instant: string | null, near?: string): Promise<Outcome<{ links: LineLink[]; candidates: LinkedPosting[] | null; candidatesReversed: number | null }>> {
   const q = new URLSearchParams({ kind, id });
   if (instant) q.set('instant', instant);
   if (near) q.set('near', near);
   const res = await fetch(`/api/calendar/links?${q.toString()}`);
   const data = await res.json().catch(() => null);
   if (!res.ok) return { ok: false, words: data?.error ?? `Links could not be read (HTTP ${res.status}).` };
-  return { ok: true, value: { links: data.links ?? [], candidates: near ? (data.candidates ?? []) : null } };
+  if (near && typeof data.candidatesReversed !== 'number') return { ok: false, words: CANDIDATES_REVERSED_MISSING_WORDS };
+  return { ok: true, value: { links: data.links ?? [], candidates: near ? (data.candidates ?? []) : null, candidatesReversed: near ? data.candidatesReversed : null } };
 }
 /** POST one link. */
 async function postLink(kind: LinkableKind, id: string, instant: string | null, journalEntryId: string): Promise<Outcome<null>> {
@@ -63,6 +73,7 @@ export function useLineLinks(stepIds: readonly string[], instant: string | null)
   const [byStep, setByStep] = useState<Map<string, LineState>>(new Map());
   const [picking, setPicking] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<LinkedPosting[] | null>(null);
+  const [candidatesReversed, setCandidatesReversed] = useState<number | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
   const key = stepIds.join('|');
 
@@ -70,7 +81,7 @@ export function useLineLinks(stepIds: readonly string[], instant: string | null)
     if (!instant) return null;
     const read = await readLinks('routine_line', stepId, instant, near);
     if (!read.ok) { setRefusal(read.words); return null; }
-    if (near) setCandidates(read.value.candidates ?? []);
+    if (near) { setCandidates(read.value.candidates ?? []); setCandidatesReversed(read.value.candidatesReversed); }
     return read.value.links;
   }, [instant]);
 
@@ -113,7 +124,7 @@ export function useLineLinks(stepIds: readonly string[], instant: string | null)
   // so an unreadable amount on any line is named in the occurrence's own line.
   const summed = useMemo(() => sumLinks([...byStep.values()].flatMap((l) => l.links)), [byStep]);
 
-  return { byStep, summed, picking, candidates, refusal, openPicker, closePicker, link, unlink };
+  return { byStep, summed, picking, candidates, candidatesReversed, refusal, openPicker, closePicker, link, unlink };
 }
 
 /**
@@ -127,6 +138,7 @@ export function useLineLinks(stepIds: readonly string[], instant: string | null)
 export function useItemLinks(kind: LinkableKind, id: string, instant: string | null) {
   const [links, setLinks] = useState<LineLink[] | null>(null);
   const [candidates, setCandidates] = useState<LinkedPosting[] | null>(null);
+  const [candidatesReversed, setCandidatesReversed] = useState<number | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -134,7 +146,7 @@ export function useItemLinks(kind: LinkableKind, id: string, instant: string | n
     const read = await readLinks(kind, id, instant, near);
     if (!read.ok) { setRefusal(read.words); return; }
     setLinks(read.value.links);
-    if (near) setCandidates(read.value.candidates ?? []);
+    if (near) { setCandidates(read.value.candidates ?? []); setCandidatesReversed(read.value.candidatesReversed); }
   }, [kind, id, instant]);
 
   useEffect(() => { void reload(); }, [reload]);
@@ -164,5 +176,5 @@ export function useItemLinks(kind: LinkableKind, id: string, instant: string | n
 
   const summed = useMemo(() => sumLinks(links ?? []), [links]);
 
-  return { links, summed, candidates, refusal, busy, openPicker, closePicker, link, unlink, reload };
+  return { links, summed, candidates, candidatesReversed, refusal, busy, openPicker, closePicker, link, unlink, reload };
 }

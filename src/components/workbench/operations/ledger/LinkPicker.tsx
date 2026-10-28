@@ -22,7 +22,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useItemLinks } from '@/components/hub/useLineLinks';
+import { REVERSED_TAG_WORDS, useItemLinks } from '@/components/hub/useLineLinks';
+import { reversedCandidatesWords } from '@/lib/calendar/postingAmount';
 import type { LinkableKind } from '@/lib/calendar/linkKeys';
 import {
   CANDIDATES_WORDS, LINKED_POSTINGS_WORDS, LINKS_LOADING_WORDS, LINK_WORDS, NO_CANDIDATES_WORDS, NO_LINKED_POSTINGS_WORDS, NO_SUGGESTION_WORDS, PICKER_CANCEL_WORDS, UNLINK_WORDS,
@@ -62,6 +63,7 @@ export default function LinkPicker({ kind, id, instant, near, onChanged, onClose
               <span className="font-mono text-text-muted">{postingDateWords(l.date)}</span>
               <span className="min-w-0 flex-1 truncate">{l.description}</span>
               <span className="font-mono tabular-nums">{postingAmountWords(l.amountCents)}</span>
+              {l.reversed === true && <span className="text-amber-800" data-link-picker-linked-reversed>{REVERSED_TAG_WORDS}</span>}
               <button type="button" className={chip} disabled={item.busy} onClick={async () => { if (await item.unlink(l.journalEntryId, near)) onChanged(); }} data-link-picker-unlink={l.journalEntryId}>{UNLINK_WORDS}</button>
             </li>
           ))}
@@ -82,6 +84,8 @@ export default function LinkPicker({ kind, id, instant, near, onChanged, onClose
           ))}
         </ul>
       )}
+      {/* LINK-LAW-01 (ruling C): the reversed postings in the window are not offered — how many, said. */}
+      {item.candidatesReversed !== null && item.candidatesReversed > 0 && <p className="text-amber-800" data-link-picker-candidates-reversed>{reversedCandidatesWords(item.candidatesReversed)}</p>}
       <button type="button" className="text-text-faint hover:text-text-muted" onClick={onClose} data-link-picker-cancel>{PICKER_CANCEL_WORDS}</button>
     </div>
   );

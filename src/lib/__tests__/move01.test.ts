@@ -262,7 +262,8 @@ test('T5 the audit type: the enum value last, the one ADD VALUE line applied at 
   assert.equal(AuditActionType.operations_routines_moved, 'operations_routines_moved', 'prisma generate ran');
   assert.match(code(AUDIT_ROUTE), /'operations_routine_rekeyed',\s*'operations_routines_moved',\s*\],/);
   // The law: the plan is a named, anchored caller (the law's own words say how a caller registers).
-  assert.match(code(LAW), /'src\/lib\/budget\/days\.ts',\n\s*'src\/lib\/operations\/routineMove\.ts',\n\];/);
+  // LINK-LAW-01 (Alex, 2026-10-28, ruling B): the links POST's occurrence test joined the list after the plan — an anchored caller like it.
+  assert.match(code(LAW), /'src\/lib\/budget\/days\.ts',\n\s*'src\/lib\/operations\/routineMove\.ts',\n\s*'src\/lib\/operations\/linkOccurrence\.ts',\n\];/);
   assert.match(comments(LAW), /MOVE-01 \(2026-10-19\): the move's plan expands a copy's rule once/);
   const calls = [...code(PLAN).matchAll(/expand(?:Forward|Between)\([^;]*;/g)].map((m) => m[0]);
   assert.equal(calls.length, 1, 'one expansion in the plan'); assert.match(calls[0], /scheduleAnchor\(date\)/);

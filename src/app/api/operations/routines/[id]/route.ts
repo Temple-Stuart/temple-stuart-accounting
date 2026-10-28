@@ -11,6 +11,12 @@
  *            * everything else → operations_routine_updated
  * DELETE — hard delete. Cascades to operations_routine_completions via FK.
  *          Audits operations_routine_deleted with full payload_before.
+ *          LINK-LAW-01 (Alex, 2026-10-28, ruling D): NO ORPHANS — while the
+ *          routine or any of its lines holds a link in planned_item_links (no
+ *          FK on target_id), it refuses 409 by name, counted and deleted in one
+ *          transaction (linkHold.ts; the move route's precedent): "this routine
+ *          has N postings linked in Books — deactivate it instead (every
+ *          record stays)". Deactivate (PATCH is_active) is unchanged.
  *
  * ONEOFF-01: start_date is the ANCHOR every expansion is built on, so patching
  * it recomputes next_due_at; a one-off (COUNT=1) must keep a date and ends on
@@ -69,6 +75,7 @@ import { carriesPlanMoney, editedPlanMoney, planMoney, type PlanBook } from '@/l
 import { loadPlanBook } from '@/lib/operations/loadPlanBook';
 import type { RoutineForm } from '@/components/workbench/operations/routines/types';
 import { parseTimeOrNull } from '@/lib/operations/parseTime';
+import { routineHoldsLinksWords, routineLinksWhere } from '@/lib/operations/linkHold';
 
 /**
  * Parse an optional YYYY-MM-DD date-bound value. Empty/null/undefined → null
@@ -588,7 +595,16 @@ export async function DELETE(
     const existing = await loadAuthorizedRoutine(id, user.id);
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    await prisma.operations_routines.delete({ where: { id } });
+    // LINK-LAW-01 (ruling D): the links the routine and its lines hold — every line, active or archived (the delete cascades them all) —
+    // counted inside the transaction that deletes; any held refuses the delete by name, and nothing is written.
+    const linked = await prisma.$transaction(async (tx) => {
+      const lineIds = (await tx.operations_routine_steps.findMany({ where: { routine_id: id, user_id: user.id }, select: { id: true } })).map((s) => s.id);
+      const held = await tx.planned_item_links.count({ where: routineLinksWhere(user.id, id, lineIds) });
+      if (held > 0) return held;
+      await tx.operations_routines.delete({ where: { id } });
+      return 0;
+    });
+    if (linked > 0) return NextResponse.json({ error: routineHoldsLinksWords(linked) }, { status: 409 });
 
     await writeAuditLog({
       actor: {

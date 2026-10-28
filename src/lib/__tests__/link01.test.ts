@@ -16,7 +16,7 @@ test('linking a posting fills the actual and the state flips to PLANNED AND SETT
   assert.equal(none.actual, null, 'zero links is NOT an actual of zero');
   assert.equal(buildChain({ kind: 'calendar_event', planned: 300, actual: none.actual })!.state, 'NOT_LINKED');
 
-  const one = sumLinks([{ journalEntryId: 'je1', date: '2026-09-19', description: 'Barber', amountCents: 30000 }]);
+  const one = sumLinks([{ journalEntryId: 'je1', date: '2026-09-19', description: 'Barber', amountCents: 30000, reversed: false }]);
   assert.equal(one.actual, 300);
   assert.equal(one.count, 1);
   assert.equal(one.complete, true);
@@ -29,8 +29,8 @@ test('linking a posting fills the actual and the state flips to PLANNED AND SETT
 
 test('an item may have MANY postings — the actual is their sum', () => {
   const two = sumLinks([
-    { journalEntryId: 'a', date: '2026-09-01', description: 'Hotel deposit', amountCents: 12000 },
-    { journalEntryId: 'b', date: '2026-09-19', description: 'Hotel balance', amountCents: 30000 },
+    { journalEntryId: 'a', date: '2026-09-01', description: 'Hotel deposit', amountCents: 12000, reversed: false },
+    { journalEntryId: 'b', date: '2026-09-19', description: 'Hotel balance', amountCents: 30000, reversed: false },
   ]);
   assert.equal(two.actual, 420);
   assert.equal(two.counted, 2);
@@ -48,8 +48,8 @@ test('unlinking returns the item to NOT LINKED, never $0', () => {
 
 test('a posting with no readable amount is REPORTED, not summed as zero (the EDGE-01 bug, inverted)', () => {
   const mixed = sumLinks([
-    { journalEntryId: 'good', date: '2026-09-19', description: 'Barber', amountCents: 30000 },
-    { journalEntryId: 'bad', date: '2026-09-19', description: 'Broken entry', amountCents: null },
+    { journalEntryId: 'good', date: '2026-09-19', description: 'Barber', amountCents: 30000, reversed: false },
+    { journalEntryId: 'bad', date: '2026-09-19', description: 'Broken entry', amountCents: null, reversed: false },
   ]);
   assert.equal(mixed.actual, 300, 'the readable posting alone — the null did NOT add 0');
   assert.equal(mixed.count, 2);
@@ -58,7 +58,7 @@ test('a posting with no readable amount is REPORTED, not summed as zero (the EDG
   assert.equal(mixed.complete, false, 'a sum missing a posting is never called complete');
   assert.match(linkedSourceLine(mixed), /carry no readable amount and are NOT in this total \(bad\)/);
   // Every link unreadable → no actual at all, rather than 0.
-  const allBad = sumLinks([{ journalEntryId: 'x', date: '2026-09-19', description: 'y', amountCents: null }]);
+  const allBad = sumLinks([{ journalEntryId: 'x', date: '2026-09-19', description: 'y', amountCents: null, reversed: false }]);
   assert.equal(allBad.actual, null);
   // And the source it must never copy is named in this repo, still.
   assert.match(code('src/app/api/trade-card-links/route.ts'), /realized_pl \?\? 0/, 'the EDGE-01 bug is still there to be avoided');
