@@ -386,24 +386,26 @@ test('T6 the migration: two ADD VALUE IF NOT EXISTS lines and nothing else; the 
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
   // RETRO-01 (Alex, 2026-10-16): the stop-moved audit type's migration is newer still — every index moved one; the order holds.
   // ROUTINE-02b (2026-10-18): one more audit-type migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 10], MIGRATION_DIR, 'the migration two before the newest (RETRO-01, ROUTINE-02b followed)');
-  assert.equal(dirs[dirs.length - 9], '20261016120000_retro_01_stop_moved_audit_type', 'the migration before the newest (ROUTINE-02b followed)');
+  assert.equal(dirs[dirs.length - 11], MIGRATION_DIR, 'the migration two before the newest (RETRO-01, ROUTINE-02b followed)');
+  assert.equal(dirs[dirs.length - 10], '20261016120000_retro_01_stop_moved_audit_type', 'the migration before the newest (ROUTINE-02b followed)');
   // MOVE-01 (2026-10-19): one more audit-type migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 8], '20261018120000_routine_02b_rekeyed_audit_type', 'the migration before the newest (MOVE-01 followed)');
+  assert.equal(dirs[dirs.length - 9], '20261018120000_routine_02b_rekeyed_audit_type', 'the migration before the newest (MOVE-01 followed)');
   // JOURNAL-04 (2026-10-19): the evening answers' migration followed (the newest); the order below moved by one.
-  assert.equal(dirs[dirs.length - 7], '20261019090000_move_01_moved_audit_type', 'the migration before the newest (JOURNAL-04 followed)');
-  assert.equal(dirs[dirs.length - 6], '20261019210000_journal_04_evening_answers', 'the migration before the newest (LEDGER-03 followed)');
+  assert.equal(dirs[dirs.length - 8], '20261019090000_move_01_moved_audit_type', 'the migration before the newest (JOURNAL-04 followed)');
+  assert.equal(dirs[dirs.length - 7], '20261019210000_journal_04_evening_answers', 'the migration before the newest (LEDGER-03 followed)');
   // LEDGER-03 (Alex, 2026-10-19): two audit values for the planned-item link — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 5], '20261019230000_ledger_03_planned_item_link_audit', 'the migration before the newest (BACKLOG-01 followed)');
+  assert.equal(dirs[dirs.length - 6], '20261019230000_ledger_03_planned_item_link_audit', 'the migration before the newest (BACKLOG-01 followed)');
   // BACKLOG-01 (Alex, 2026-10-20): the capture's columns and the four statuses — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 4], '20261020120000_backlog_01_capture', 'the migration before the newest (BACKLOG-01b followed)');
+  assert.equal(dirs[dirs.length - 5], '20261020120000_backlog_01_capture', 'the migration before the newest (BACKLOG-01b followed)');
   // BACKLOG-01b (Alex, 2026-10-20): the brief's three columns — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 3], '20261020140000_backlog_01b_brief', 'the migration before the newest (JOURNAL-06 followed)');
+  assert.equal(dirs[dirs.length - 4], '20261020140000_backlog_01b_brief', 'the migration before the newest (JOURNAL-06 followed)');
   // JOURNAL-06 (Alex, 2026-10-20): the evening's five columns, the two CHECKs re-made — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 2], '20261020150000_journal_06_reflection', 'the migration before the newest (BACKLOG-02 followed)');
+  assert.equal(dirs[dirs.length - 3], '20261020150000_journal_06_reflection', 'the migration before the newest (BACKLOG-02 followed)');
   // BACKLOG-02 (Alex, 2026-10-20): the reorder route's one audit value — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 1], '20261020160000_backlog_02_reranked', 'the newest migration');
-  assert.equal(dirs[dirs.length - 11], '20261013200000_journal_02_the_simple_journal');
+  assert.equal(dirs[dirs.length - 2], '20261020160000_backlog_02_reranked', 'the migration before the newest (DOCUMENTS-01 followed)');
+  // DOCUMENTS-01 (Alex, 2026-10-28): source_documents, the receipt on its posting — the newest; every position above moved by one.
+  assert.equal(dirs[dirs.length - 1], '20261028120000_documents_01_source_documents', 'the newest migration');
+  assert.equal(dirs[dirs.length - 12], '20261013200000_journal_02_the_simple_journal');
 });
 
 test('T6 the schema’s enum ends with the two, the client knows them, the audit log lists them under operations_', () => {

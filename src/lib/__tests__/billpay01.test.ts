@@ -299,7 +299,8 @@ test('E Bill Pay is PARTIAL at /bill-pay with discover and record, its why verba
   assert.doesNotMatch(t.customer ?? '', /not yet|\.tsx?:|src\/|\b(discover|decide|commit|record)\b|founder|module|registry/i, 'the plan law’s words');
   assert.match(t.citation, /^discover: src\/app\/api\/bill-pay\/route\.ts:\d+ \(GET \/api\/bill-pay/);
   assert.match(t.citation, /record: BillPaySection\.tsx:\d+ \("link payment" on an unpaid row\) → :\d+ the existing ledger\/LinkPicker\.tsx → POST \/api\/calendar\/links/);
-  assert.match(t.citation, /operations_vendor_directory \(schema:4229\)/, 'the stale :3973 re-cited');
+  // DOCUMENTS-01 (2026-10-28): source_documents' three back-relations moved the vendor directory :4229 → :4232.
+  assert.match(t.citation, /operations_vendor_directory \(schema:4232\)/, 'the stale :3973 re-cited, then moved by DOCUMENTS-01');
   assert.doesNotMatch(t.citation, /schema:3973/);
   // The cited lines say what the citation says.
   const lineOf = (file: string, n: number): string => code(file).split('\n')[n - 1] ?? '';
@@ -308,7 +309,7 @@ test('E Bill Pay is PARTIAL at /bill-pay with discover and record, its why verba
   assert.match(lineOf(RULE, n(/billPay\.ts:(\d+) billPayOf/)), /^export function billPayOf\(/);
   assert.match(lineOf(SECTION, n(/BillPaySection\.tsx:(\d+) \("link payment"/)), /LINK_PAYMENT_WORDS/);
   assert.match(lineOf(SECTION, n(/→ :(\d+) the existing/)), /<LinkPicker /);
-  assert.match(lineOf('prisma/schema.prisma', 4229), /^model operations_vendor_directory \{/);
+  assert.match(lineOf('prisma/schema.prisma', 4232), /^model operations_vendor_directory \{/);
   assert.deepEqual(EXPECTED_STATUS_COUNTS, { LIVE: 5, PARTIAL: 8, NOT_BUILT: 12 });
   assert.deepEqual(statusCounts(), { LIVE: 5, PARTIAL: 8, NOT_BUILT: 12 });
   assert.match(comments(REGISTRY), /BILLPAY-01 census \(Alex, 2026-10-28\): Bill Pay PARTIAL — the due list and the manual link; it pays nothing\./);

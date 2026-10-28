@@ -49,12 +49,25 @@ export async function GET(request: NextRequest) {
       ]
     });
 
-    const accountMap = new Map<string, any>();
+    // DOCUMENTS-01 (2026-10-28): the accumulator is typed (it was Map<string, any>) — this file
+    // changed, and the lint holds a changed file to 0 errors. The shape is unchanged.
+    interface AccountAccumulator {
+      accountCode: string;
+      accountName: string;
+      accountType: string;
+      balanceType: string;
+      entityId: string | null;
+      entityName: string;
+      entries: Record<string, unknown>[];
+      runningBalance: number;
+    }
+    const accountMap = new Map<string, AccountAccumulator>();
 
     ledgerEntries.forEach(entry => {
       const accountId = entry.account_id;
-      if (!accountMap.has(accountId)) {
-        accountMap.set(accountId, {
+      let account = accountMap.get(accountId);
+      if (!account) {
+        account = {
           accountCode: entry.account.code,
           accountName: entry.account.name,
           accountType: entry.account.account_type,
@@ -63,10 +76,10 @@ export async function GET(request: NextRequest) {
           entityName: entry.account.entity?.name || 'Other',
           entries: [],
           runningBalance: 0
-        });
+        };
+        accountMap.set(accountId, account);
       }
 
-      const account = accountMap.get(accountId);
       const isNormalBalance = entry.entry_type === entry.account.balance_type;
       const change = isNormalBalance ? Number(entry.amount) : -Number(entry.amount);
       account.runningBalance += change;
@@ -81,6 +94,9 @@ export async function GET(request: NextRequest) {
         journal_id: entry.journal_entry.id,
         is_reversal: entry.journal_entry.is_reversal ?? false,
         reversed_by_entry_id: entry.journal_entry.reversed_by_entry_id ?? null,
+        // DOCUMENTS-01 (2026-10-28): the entry's status rides with its reversal fields, so the
+        // ledger reads "can this posting carry a receipt" by the one rule (isReversedPosting).
+        status: entry.journal_entry.status,
         // DRILL-01 (2026-09-23): the three columns the ledger dropped. The include
         // at :37 already pulled the whole journal_entry — this map simply never
         // carried where the entry came from, so the ledger could not say it.

@@ -60,6 +60,7 @@ model accounts {
   holdings                holdings[]
   transactions            transactions[]
   bank_reconciliations    bank_reconciliations[]
+  source_documents        source_documents[]
 
   @@unique([userId, accountId])
   @@index([userId, entity_id])
@@ -216,6 +217,7 @@ model journal_entries {
   ledger_entries    ledger_entries[]
   vendor            operations_vendor_directory? @relation(fields: [vendor_id], references: [id], onDelete: SetNull)
   planned_item_links planned_item_links[]
+  source_documents   source_documents[]
   document_reservation reservations?  @relation("posting_document", fields: [document_reservation_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
   document_money_event money_events?  @relation("posting_document_event", fields: [document_money_event_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
@@ -848,6 +850,7 @@ model users {
   commission_ledger       commission_ledger[]
   transaction_reservation_links transaction_reservation_links[]
   planned_item_links            planned_item_links[]
+  source_documents              source_documents[]
   // VENDOR-01: who each of this user's plans is paid to.
   planned_item_vendors          planned_item_vendors[]
   // STAY-01: where this user is, day by day — their stays.
@@ -4587,4 +4590,47 @@ model scan_candidates {
   @@index([expiration, outcome_at])
   @@index([symbol, generated_at])
   @@index([side, generated_at])
+}
+
+/// DOCUMENTS-01 (Alex, 2026-10-28) — THE SOURCE DOCUMENT, KEPT: the file behind a posting, word for word.
+/// A receipt is addressed to its posting (journal_entry_id); a statement to an account's month
+/// (account_id + period_month — its screen is DOCUMENTS-02). The bytes live HERE, in Postgres (ruling C);
+/// the list read never selects them (src/lib/books/sourceDocuments.ts SOURCE_DOCUMENT_LIST_SELECT).
+/// HELD BY THE DATABASE (prisma/migrations/20261028120000_documents_01_source_documents — Prisma cannot
+/// express a partial index or a trigger; the migration holds them): one address per row (CHECK); one
+/// CURRENT document per address (partial unique indexes over superseded_by IS NULL); the type, the 4 MiB cap
+/// and the 32-byte sha256 (CHECKs); a FREEZE trigger — nothing changes once kept, except superseded_by set
+/// once from NULL — and a NO-DELETE trigger. superseded_by's self reference is DEFERRABLE INITIALLY DEFERRED:
+/// a replace marks the old row, then inserts the new one, in one transaction. One writer: the upload route
+/// (src/app/api/books/documents/route.ts POST) — the build's documents law.
+model source_documents {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id          String
+  /// 'receipt' | 'statement' — a CHECK, not a convention.
+  kind             String    @db.VarChar(12)
+  journal_entry_id String?
+  account_id       String?
+  /// The first day of the statement's month; NULL for a receipt.
+  period_month     DateTime? @db.Date
+  /// Display only — never a path. Sanitized by the upload route.
+  file_name        String    @db.VarChar(255)
+  /// Read from the file's first bytes, never from the browser: application/pdf | image/jpeg | image/png.
+  content_type     String    @db.VarChar(32)
+  byte_size        Int
+  /// sha256 of `bytes`, computed by the server.
+  sha256           Bytes     @db.ByteA
+  bytes            Bytes     @db.ByteA
+  superseded_by    String?   @db.Uuid
+  uploaded_at      DateTime  @default(now()) @db.Timestamptz(6)
+  uploaded_by      String?
+
+  user              users              @relation(fields: [user_id], references: [id], onDelete: Restrict)
+  journal_entry     journal_entries?   @relation(fields: [journal_entry_id], references: [id], onDelete: Restrict)
+  account           accounts?          @relation(fields: [account_id], references: [id], onDelete: Restrict)
+  superseded_by_doc source_documents?  @relation("source_document_supersede", fields: [superseded_by], references: [id], onDelete: Restrict)
+  supersedes        source_documents[] @relation("source_document_supersede")
+
+  @@index([user_id, journal_entry_id])
+  @@index([user_id, account_id, period_month])
+  @@map("source_documents")
 }

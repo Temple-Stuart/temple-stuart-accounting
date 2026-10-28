@@ -3,7 +3,10 @@
 import { useState, useEffect, useMemo, useRef, useCallback, Fragment } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { CoverageLine, EntrySourcePanel, EntrySourceWords } from '@/components/books/EntrySourceCell';
-import { coverageOf, type DocumentMoneyEventFacts, type DocumentReservationFacts } from '@/lib/books/entrySource';
+import { coverageOf, documentOf, type DocumentMoneyEventFacts, type DocumentReservationFacts } from '@/lib/books/entrySource';
+// DOCUMENTS-01 (2026-10-28): the receipt on its posting — Bookkeeping's controls, on Bookkeeping's page.
+import { ReceiptLine, ReceiptPanel, readReceipts, type ReceiptsRead } from '@/components/books/ReceiptControls';
+import { canCarryReceipt, receiptCoverage, receiptsFailedWords, RECEIPTS_LOADING_WORDS } from '@/lib/books/sourceDocuments';
 // BUDGET-02 (ruling F): a link's account is read by the budget report's ONE code reader, so an old "B-5100" row matches 5100.
 import { readChartCode } from '@/lib/budget/reportInputs';
 
@@ -77,7 +80,12 @@ interface LedgerEntry {
   runningBalance: number;
   journal_id: string;
   is_reversal: boolean;
-  reversed_by_transaction_id: string | null;
+  // DOCUMENTS-01 (2026-10-28): the wire's own names. This field was read as
+  // `reversed_by_transaction_id`, a name /api/ledger never sends (route.ts:96 sends
+  // reversed_by_entry_id), so no row ever read as Reversed; and the entry's status
+  // now rides beside it (route.ts) — the receipt rule (canCarryReceipt) reads all three.
+  reversed_by_entry_id: string | null;
+  status: string;
   // DRILL-01 (2026-09-23): WHERE THE ENTRY CAME FROM. /api/ledger already pulled the
   // whole journal_entry (route.ts:37) and dropped these three when it mapped its rows;
   // the route now carries them and this type reads them.
@@ -122,6 +130,9 @@ type SortDir = 'asc' | 'desc';
 /* ------------------------------------------------------------------ */
 
 const ROW_HEIGHT = 30;
+// DOCUMENTS-01: a row grows by one line for each line under its source — the booking it documents
+// (POST-01) and the receipt line — so neither is clipped by the fixed-height virtual row.
+const LINE_HEIGHT = 16;
 
 const fmtMoney = (n: number): string => {
   const sign = n < 0 ? '-' : '';
@@ -142,7 +153,7 @@ const fmtDate = (iso: string): string => {
 
 const entryStatus = (e: LedgerEntry): 'Active' | 'Reversed' | 'Reversal' => {
   if (e.is_reversal) return 'Reversal';
-  if (e.reversed_by_transaction_id) return 'Reversed';
+  if (e.reversed_by_entry_id) return 'Reversed';
   return 'Active';
 };
 
@@ -176,6 +187,12 @@ export default function GeneralLedger({ coaOptions, onReload, link, onLinkUsed }
 
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+
+  // DOCUMENTS-01 (ruling F): the account's postings' current receipts, the open attach/replace panel,
+  // and a counter bumped after a kept file so the ledger re-reads its receipts. React state only.
+  const [receiptsRead, setReceiptsRead] = useState<ReceiptsRead>({ state: 'loading' });
+  const [receiptFor, setReceiptFor] = useState<{ entryId: string; replacing: boolean } | null>(null);
+  const [receiptWrites, setReceiptWrites] = useState(0);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -360,13 +377,34 @@ export default function GeneralLedger({ coaOptions, onReload, link, onLinkUsed }
     return entries;
   }, [selectedAccount, dateFrom, dateTo, keyword, sortField, sortDir]);
 
+  /* ---- DOCUMENTS-01: the receipts of the selected account's postings ---- */
+  const accountEntryIds = useMemo(() => (selectedAccount ? [...new Set(selectedAccount.entries.map((e) => e.journal_id))] : []), [selectedAccount]);
+  useEffect(() => {
+    if (accountEntryIds.length === 0) { setReceiptsRead({ state: 'done', receipts: new Map() }); return; }
+    let alive = true;
+    setReceiptsRead({ state: 'loading' });
+    readReceipts(accountEntryIds)
+      .then((receipts) => { if (alive) setReceiptsRead({ state: 'done', receipts }); })
+      .catch((err: unknown) => { if (alive) setReceiptsRead({ state: 'failed', reason: err instanceof Error ? err.message : String(err) }); });
+    return () => { alive = false; };
+  }, [accountEntryIds, receiptWrites]);
+
+  /** Whether the receipt line shows on a row: a posting that can carry one, or one that already does. */
+  const showsReceiptLine = useCallback((e: LedgerEntry): boolean =>
+    canCarryReceipt(e) || (receiptsRead.state === 'done' && receiptsRead.receipts.has(e.journal_id)), [receiptsRead]);
+  const rowHeightOf = useCallback((e: LedgerEntry): number =>
+    ROW_HEIGHT + (documentOf(e).kind !== 'none' ? LINE_HEIGHT : 0) + (receiptsRead.state !== 'failed' && showsReceiptLine(e) ? LINE_HEIGHT : 0),
+  [receiptsRead, showsReceiptLine]);
+
   /* ---- virtualizer ---- */
   const virtualizer = useVirtualizer({
     count: filteredEntries.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT,
+    estimateSize: (i) => rowHeightOf(filteredEntries[i]),
     overscan: 20,
   });
+  // DOCUMENTS-01: the rows' heights follow their lines; re-measure when the rows or the receipts change.
+  useEffect(() => { virtualizer.measure(); }, [virtualizer, filteredEntries, rowHeightOf]);
 
   /* ---- totals ---- */
   const totalDebits = useMemo(
@@ -877,6 +915,15 @@ export default function GeneralLedger({ coaOptions, onReload, link, onLinkUsed }
                             onOpen={(id) => setSourceFor((cur) => (cur === id ? null : id))}
                             compact
                           />
+                          {/* DOCUMENTS-01: the receipt under its source — a reversal or a reversed row offers no attach. */}
+                          <div className="text-[11px]">
+                            <ReceiptLine
+                              entryId={entry.journal_id}
+                              read={receiptsRead}
+                              canCarry={canCarryReceipt(entry)}
+                              onAttach={(id, replacing) => setReceiptFor({ entryId: id, replacing })}
+                            />
+                          </div>
                         </div>
                       </div>
                     );
@@ -899,6 +946,24 @@ export default function GeneralLedger({ coaOptions, onReload, link, onLinkUsed }
             </div>
           )}
 
+          {/* DOCUMENTS-01: the attach (or replace) panel, under the virtualized table like the source. */}
+          {receiptFor && (
+            <div className="border-x border-b border-border px-3 py-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-text-faint">
+                  {receiptFor.replacing ? 'Replace the receipt of' : 'A receipt for'} entry {receiptFor.entryId.substring(0, 8)}
+                </span>
+              </div>
+              <ReceiptPanel
+                key={`${receiptFor.entryId}:${receiptFor.replacing}`}
+                entryId={receiptFor.entryId}
+                replacing={receiptFor.replacing}
+                onKept={() => { setReceiptFor(null); setReceiptWrites((n) => n + 1); }}
+                onClose={() => setReceiptFor(null)}
+              />
+            </div>
+          )}
+
           {/* Footer summary */}
           <div className="px-3 py-1.5 bg-bg-row border-t flex flex-wrap items-center justify-between gap-2 text-terminal-sm">
             <span className="text-text-secondary">
@@ -907,6 +972,12 @@ export default function GeneralLedger({ coaOptions, onReload, link, onLinkUsed }
             {/* COVERAGE IS DECLARED over the rows shown — the same filteredEntries the
                 table renders, derived by coverageOf(), never typed. */}
             <CoverageLine line={coverageOf(filteredEntries.map((e) => ({ source_type: e.source_type, source_id: e.source_id, reverses_entry_id: e.reverses_entry_id }))).line} />
+            {/* DOCUMENTS-01: the receipts over the same rows — counted once per posting that can carry one. */}
+            <p className="font-mono text-[10px] uppercase tracking-wider text-text-faint" data-receipt-coverage={receiptsRead.state}>
+              {receiptsRead.state === 'done' ? receiptCoverage(filteredEntries, receiptsRead.receipts).line
+                : receiptsRead.state === 'loading' ? RECEIPTS_LOADING_WORDS
+                : receiptsFailedWords(receiptsRead.reason)}
+            </p>
             <span className="text-text-secondary">
               Total Debits:{' '}
               <span className="font-semibold text-brand-red">{fmtMoney(totalDebits)}</span>
