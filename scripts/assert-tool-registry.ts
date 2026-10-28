@@ -94,6 +94,7 @@ import { CHAIN_STATES, KIND_FACTS, EVENT_SOURCE_OWNER, buildChain } from '../src
 import { LINKABLE_KINDS, requiresInstant } from '../src/lib/calendar/linkKeys';
 import { sumLinks } from '../src/lib/calendar/links';
 import { BILL_POSTING_SELECT, POSTING_STATE_SELECT, isReversedPosting, reversedLinkedWords } from '../src/lib/calendar/postingAmount';
+import { HEIC_WORDS, MAX_RECEIPT_BYTES, MAX_UPLOAD_BODY_BYTES, SOURCE_DOCUMENT_LIST_SELECT, VERCEL_BODY_LIMIT_BYTES, fileResponseHeaders, sniffContentType } from '../src/lib/books/sourceDocuments';
 import { occurrenceCheck } from '../src/lib/operations/linkOccurrence';
 import { routineHoldsLinksWords } from '../src/lib/operations/linkHold';
 import { matchOf, readableMatchCents } from '../src/lib/operations/ledger';
@@ -2878,6 +2879,104 @@ for (const { file, src } of srcFiles) {
 }
 if (linkViolations === 0) console.log(`✔ The link law passed — ${LINKABLE_KINDS.length} linkable kinds, the occurrence keyed on its instant, one item per posting enforced in SQL; no matcher, no score, and no null summed as zero; one writer (the links route creates and deletes, the rekey moves an instant); a link only to a real occurrence; a reversed posting refused and never summed; no routine deleted out from under its links (LINK-LAW-01).`);
 else console.log(`✖ The link law FAILED — ${linkViolations} violation(s).`);
+});
+lawGuard('The documents law', () => {
+
+// ── THE DOCUMENTS LAW (DOCUMENTS-01, Alex, 2026-10-28, ruling E) ─────────────
+// A source document is kept word for word and changed by nothing: ONE WRITER (the upload route's POST,
+// scanned across all of src/ the link law's way), the list read NEVER names `bytes`, every read carries the
+// caller's user_id, the gate runs before the body is read, the type comes from the first bytes, the file is
+// handed back as a download, and the database holds the freeze, the no-delete and the one current receipt.
+let docViolations = 0;
+const docFail = (m: string) => { docViolations += 1; violations.push(`documents law: ${m} (DOCUMENTS-01)`); };
+const DOCS_ROUTE = 'src/app/api/books/documents/route.ts';
+const DOCS_FILE_ROUTE = 'src/app/api/books/documents/[id]/file/route.ts';
+const DOCS_CONTROLS = 'src/components/books/ReceiptControls.tsx';
+const DOCS_MOUNT = 'src/components/dashboard/GeneralLedger.tsx';
+const DOCS_MIGRATION = 'prisma/migrations/20261028120000_documents_01_source_documents/migration.sql';
+{
+  const docsRoute = codeOf(DOCS_ROUTE);
+  const postAt = docsRoute.indexOf('export async function POST(');
+  const getAt = docsRoute.indexOf('export async function GET(');
+  if (postAt < 0 || getAt < 0) docFail(`${DOCS_ROUTE} does not export both POST (the upload) and GET (the list)`);
+  const postEnd = getAt > postAt ? getAt : docsRoute.length;
+  const docsPost = docsRoute.slice(postAt, postEnd);
+  const docsGet = docsRoute.slice(getAt, postAt > getAt ? postAt : docsRoute.length);
+
+  // 1. ONE WRITER (ruling E): source_documents is created — and an old row marked superseded — only in the upload POST;
+  // nothing updates otherwise, nothing deletes, no nested write, no raw SQL, anywhere in src/.
+  const ALLOWED_IN_POST = new Set(['create', 'updateMany']);
+  for (const { file, src } of srcFiles) {
+    for (const m of src.matchAll(/source_documents\s*\.\s*(create|createMany|createManyAndReturn|update|updateMany|updateManyAndReturn|upsert|delete|deleteMany)\s*\(/g)) {
+      const at = m.index ?? -1;
+      if (file === DOCS_ROUTE && at >= postAt && at < postEnd && ALLOWED_IN_POST.has(m[1])) continue;
+      docFail(`${file} calls source_documents.${m[1]} — the upload route’s POST (${DOCS_ROUTE}) alone creates a source document, and marks the one it replaces; nothing else writes, and nothing deletes`);
+    }
+    if (/source_documents\s*:\s*\{\s*(create|createMany|connectOrCreate|upsert|update|updateMany|delete|deleteMany|set|connect|disconnect)\b/.test(src)) docFail(`${file} writes source_documents through a nested write — the upload route is its one writer`);
+    if (/(INSERT\s+INTO|UPDATE|DELETE\s+FROM|TRUNCATE(\s+TABLE)?)\s+"?source_documents/i.test(src)) docFail(`${file} writes source_documents in raw SQL`);
+    // 3. EVERY READ CARRIES THE CALLER: a source_documents read names user_id: user.id in its where; findUnique cannot, so it is not used.
+    for (const m of src.matchAll(/source_documents\s*\.\s*(findMany|findFirst|findFirstOrThrow|findUnique|findUniqueOrThrow|count|aggregate|groupBy)\s*\(/g)) {
+      if (m[1].startsWith('findUnique')) { docFail(`${file} reads source_documents with ${m[1]} — a read is scoped by user_id, which a unique lookup cannot carry`); continue; }
+      const call = src.slice(m.index ?? 0, (m.index ?? 0) + 400);
+      if (!/where:\s*\{[^}]*\buser_id: user\.id\b/.test(call)) docFail(`${file} reads source_documents (${m[1]}) without user_id: user.id in its where — every read is the caller’s own`);
+    }
+  }
+  if ((docsPost.match(/tx\.source_documents\.create\(/g) ?? []).length !== 1) docFail(`${DOCS_ROUTE} POST does not create the document exactly once`);
+  if (!/tx\.source_documents\.updateMany\(\{ where: \{ id: current\.id, user_id: user\.id, superseded_by: null \}, data: \{ superseded_by: id \} \}\)/.test(docsPost)) docFail(`${DOCS_ROUTE} POST does not mark the replaced receipt superseded — by the new id, only while it is current, only the caller’s — before it creates the new one`);
+  const marks = docsPost.indexOf('tx.source_documents.updateMany(');
+  const creates = docsPost.indexOf('tx.source_documents.create(');
+  if (!(marks > 0 && creates > marks) || !docsPost.includes('prisma.$transaction(async (tx) =>')) docFail(`${DOCS_ROUTE} POST does not replace in ONE transaction, the old row marked before the new one is inserted (the one-current index holds between them)`);
+
+  // 2. THE LIST NEVER NAMES THE BYTES (ruling C).
+  if ('bytes' in SOURCE_DOCUMENT_LIST_SELECT) docFail('SOURCE_DOCUMENT_LIST_SELECT names bytes — the list read carries metadata only');
+  if (!/select: SOURCE_DOCUMENT_LIST_SELECT,/.test(docsGet) || /\bbytes\b/.test(docsGet)) docFail(`${DOCS_ROUTE} GET does not read through SOURCE_DOCUMENT_LIST_SELECT, or names bytes — the list never returns a file`);
+  if (!/select: SOURCE_DOCUMENT_LIST_SELECT,/.test(docsPost)) docFail(`${DOCS_ROUTE} POST answers with more than the metadata — the kept row is read back through SOURCE_DOCUMENT_LIST_SELECT`);
+  if (!/superseded_by: null, journal_entry_id: \{ in: input\.ids \}/.test(docsGet)) docFail(`${DOCS_ROUTE} GET lists a superseded receipt — the ledger names the current one`);
+
+  // 4. THE GATE BEFORE THE BODY, AND THE TYPE FROM THE BYTES (ruling D).
+  const order = ['getVerifiedEmail()', "requireTabAccess(user.id, 'tab:books')", 'await rateLimit(`books-documents:${user.id}`', "contentLengthRule(request.headers.get('content-length'))", 'request.formData()', 'sniffContentType(bytes)', 'prisma.$transaction('];
+  const at = order.map((piece) => docsPost.indexOf(piece));
+  if (at.some((i) => i < 0) || at.some((i, k) => k > 0 && i < at[k - 1])) docFail(`${DOCS_ROUTE} POST does not run cookie → user → Books’ entitlement → rate limit → Content-Length → the form → the bytes’ type → the write, in that order — ${order.filter((_, k) => at[k] < 0).join(', ') || 'out of order'}`);
+  if (/\bfile\.type\b/.test(docsPost)) docFail(`${DOCS_ROUTE} POST reads the browser’s word for the type (file.type) — the type comes from the first bytes only`);
+  for (const [route, body] of [[DOCS_ROUTE + ' GET', docsGet], [DOCS_FILE_ROUTE, codeOf(DOCS_FILE_ROUTE)]] as const) {
+    const g = body.indexOf('getVerifiedEmail()'), t = body.indexOf("requireTabAccess(user.id, 'tab:books')"), r = body.indexOf('prisma.source_documents.find');
+    if (g < 0 || t < 0 || r < 0 || !(g < t && t < r)) docFail(`${route} does not gate cookie → user → Books’ entitlement before it reads a document`);
+  }
+  if (!/where: \{ id, user_id: user\.id \}/.test(codeOf(DOCS_FILE_ROUTE)) || !/if \(!doc\) return NextResponse\.json\(NOT_FOUND, \{ status: 404 \}\);/.test(codeOf(DOCS_FILE_ROUTE))) docFail(`${DOCS_FILE_ROUTE} does not answer another user’s document with the defensive 404`);
+  if (!/headers: fileResponseHeaders\(doc\)/.test(codeOf(DOCS_FILE_ROUTE))) docFail(`${DOCS_FILE_ROUTE} does not hand the file back through fileResponseHeaders`);
+  const h = fileResponseHeaders({ file_name: 'a"b\\c;d.pdf', content_type: 'application/pdf', byte_size: 5 });
+  if (!h['Content-Disposition'].startsWith('attachment; filename="a_b_c_d.pdf"') || h['X-Content-Type-Options'] !== 'nosniff' || h['Content-Security-Policy'] !== 'sandbox' || h['Cache-Control'] !== 'no-store' || h['Content-Type'] !== 'application/pdf') docFail(`the file’s headers drifted — attachment with a sanitized name, nosniff, sandbox, no-store, the stored type: ${JSON.stringify(h)}`);
+  const sniff = (b: number[]) => sniffContentType(Uint8Array.from(b));
+  const pdf = sniff([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31]), jpg = sniff([0xff, 0xd8, 0xff, 0xe0]), png = sniff([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a]);
+  const heic = sniff([0, 0, 0, 0x18, ...Array.from('ftypheic', (c) => c.charCodeAt(0))]), junk = sniff([0x50, 0x4b, 0x03, 0x04]);
+  if (!(pdf.ok && pdf.contentType === 'application/pdf' && jpg.ok && jpg.contentType === 'image/jpeg' && png.ok && png.contentType === 'image/png')) docFail('the first-bytes rule does not read %PDF-, FF D8 FF and 89 50 4E 47 as PDF, JPEG and PNG');
+  if (heic.ok || heic.status !== 415 || heic.error !== HEIC_WORDS || junk.ok || junk.status !== 415) docFail('the first-bytes rule keeps an HEIC photo or an unknown file, or refuses them without 415 and their words');
+  if (!(MAX_RECEIPT_BYTES === 4194304 && MAX_UPLOAD_BODY_BYTES < VERCEL_BODY_LIMIT_BYTES)) docFail(`the cap drifted — 4 MiB per file, and the upload (${MAX_UPLOAD_BODY_BYTES} bytes) must fit under Vercel’s ${VERCEL_BODY_LIMIT_BYTES}-byte body limit, never lowered silently`);
+
+  // 5. NOT PUBLIC, NO EXTENSION, OUT OF THE EXPORT, MOUNTED ONLY ON BOOKKEEPING'S LEDGER.
+  if (/\x27\/api\/books/.test(codeOf('src/middleware.ts'))) docFail('src/middleware.ts names /api/books as a public path — documents are the caller’s alone');
+  const docDirs = (function walk(dir: string): string[] { return readdirSync(resolve(ROOT, dir), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? [`${dir}/${e.name}`, ...walk(`${dir}/${e.name}`)] : [])); })('src/app/api/books');
+  for (const d of docDirs) if (/\.[a-z0-9]+$/i.test(d.split('/').pop() ?? '')) docFail(`${d} ends in a file extension — middleware.ts skips its auth for such a path`);
+  if (/source_documents/.test(codeOf('src/app/api/export/route.ts'))) docFail('the export ZIP reads source_documents — files stay out of it (ruling G)');
+  for (const { file, src } of srcFiles) if (file !== DOCS_MOUNT && /from '@\/components\/books\/ReceiptControls'/.test(src)) docFail(`${file} mounts the receipt controls — they are Bookkeeping’s, on its ledger (${DOCS_MOUNT}) alone (TOOL-LAW-01)`);
+  if (!/<ReceiptLine\b/.test(codeOf(DOCS_MOUNT)) || !/<ReceiptPanel\b/.test(codeOf(DOCS_MOUNT))) docFail(`${DOCS_MOUNT} does not render the receipt line and its panel`);
+  if (!existsSync(resolve(ROOT, DOCS_CONTROLS))) docFail(`${DOCS_CONTROLS} is missing`);
+
+  // 6. THE DATABASE HOLDS IT: the freeze, the no-delete, one current receipt, the deferred self reference, RESTRICT.
+  const mig = codeOf(DOCS_MIGRATION);
+  for (const piece of [
+    'CREATE TRIGGER protect_source_document_fields\nBEFORE UPDATE ON "source_documents"',
+    'CREATE TRIGGER no_source_document_deletes\nBEFORE DELETE ON "source_documents"',
+    'CREATE UNIQUE INDEX "source_documents_one_current_receipt"\n  ON "source_documents" ("journal_entry_id")\n  WHERE "kind" = \'receipt\' AND "superseded_by" IS NULL;',
+    'CREATE UNIQUE INDEX "source_documents_one_current_statement"\n  ON "source_documents" ("account_id", "period_month")\n  WHERE "kind" = \'statement\' AND "superseded_by" IS NULL;',
+    'DEFERRABLE INITIALLY DEFERRED',
+    'FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT',
+    'FOREIGN KEY ("journal_entry_id") REFERENCES "journal_entries"("id") ON DELETE RESTRICT',
+    `CHECK ("byte_size" > 0 AND "byte_size" <= ${MAX_RECEIPT_BYTES} AND octet_length("bytes") = "byte_size")`,
+  ]) if (!mig.includes(piece)) docFail(`${DOCS_MIGRATION} does not hold ${JSON.stringify(piece.split('\n')[0])}`);
+}
+if (docViolations === 0) console.log('✔ The documents law passed — one writer (the upload POST creates, and marks the one it replaces), the list never names the bytes, every read the caller’s own, the gate before the body, the type from the first bytes, the file handed back as a download, not public, out of the export, mounted on Bookkeeping’s ledger alone; the database freezes it, never deletes it, and keeps one current receipt per posting (DOCUMENTS-01).');
+else console.log(`✖ The documents law FAILED — ${docViolations} violation(s).`);
 });
 lawGuard('The lines law', () => {
 

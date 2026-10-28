@@ -75,8 +75,10 @@ const OWNED: readonly OwnedProject[] = [
 
 test('T1 the migration: the newest; ONE ADD VALUE IF NOT EXISTS line, the precedent’s way, nothing else; the schema and the client carry the value; the audit read lists it', () => {
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 1], MIGRATION_DIR, 'the newest migration');
-  assert.equal(dirs[dirs.length - 2], '20261020150000_journal_06_reflection', 'right after JOURNAL-06’s');
+  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the migration before the newest (DOCUMENTS-01 followed)');
+  // DOCUMENTS-01 (Alex, 2026-10-28): source_documents, the receipt on its posting — the newest; every position above moved by one.
+  assert.equal(dirs[dirs.length - 1], '20261028120000_documents_01_source_documents', 'the newest migration');
+  assert.equal(dirs[dirs.length - 3], '20261020150000_journal_06_reflection', 'right after JOURNAL-06’s');
   const sql = code(MIGRATION).trim();
   assert.equal(sql, `ALTER TYPE "AuditActionType" ADD VALUE IF NOT EXISTS 'operations_project_reranked';`, 'the one statement, and nothing else — no BEGIN, no row, no column');
   const head = comments(MIGRATION);
