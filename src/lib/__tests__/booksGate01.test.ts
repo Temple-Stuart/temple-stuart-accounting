@@ -196,3 +196,39 @@ test('B ruling 6: a trial balance without its accounts array throws by name and 
   assert.match(l, /const tbAccounts = trialBalanceAccountsOf\(tb\);/);
   assert.doesNotMatch(l, /Array\.isArray\(tb\.accounts\) \? tb\.accounts : \[\]/, 'the empty list in place of a missing one is gone');
 });
+
+test('BOOKS-GATE-01b: the catch hands the thrown reason to console.error — each of the three — and the card\'s words stay', async () => {
+  const { BooksPanel } = await import('../../components/home/ModuleLauncher');
+  const cases: ReadonlyArray<[string, unknown]> = [
+    ['trial balance missing isBalanced/hasActivity', { accounts: [] }],
+    ['trial balance account 1020 has no readable normalBalance', TB_OK([{ accountCode: '1020', accountType: 'asset', normalBalance: null }])],
+    [MISSING_ACCOUNTS_WORDS, { totals: { isBalanced: true, hasActivity: true } }],
+  ];
+  for (const [reason, tb] of cases) {
+    const logged: unknown[][] = [];
+    const real = console.error;
+    console.error = (...args: unknown[]) => { logged.push(args); };
+    let run: Run;
+    try {
+      run = await drive(BooksPanel as never, { booksLocked: false, lapsed: null }, false, answerWith(tb));
+    } finally {
+      console.error = real;
+    }
+    assert.ok(run.stateWrites.includes('error'), `${reason}: the panel's state is error`);
+    assert.equal(logged.length, 1, `${reason}: logged once`);
+    assert.equal(logged[0][0], '[books] cockpit summary:');
+    assert.ok(logged[0][1] instanceof Error && logged[0][1].message === reason, `${reason}: the error itself is handed over`);
+  }
+  // A good answer logs nothing.
+  const logged: unknown[] = [];
+  const real = console.error;
+  console.error = (...args: unknown[]) => { logged.push(args); };
+  try {
+    await drive(BooksPanel as never, { booksLocked: false, lapsed: null }, false, answerWith(TB_OK([{ accountCode: '1010', accountType: 'asset', normalBalance: 5 }])));
+  } finally {
+    console.error = real;
+  }
+  assert.deepEqual(logged, []);
+  const l = code(LAUNCHER);
+  assert.match(l, /\} catch \(err\) \{\n\s*console\.error\('\[books\] cockpit summary:', err\);\n\s*setBooksData\(null\);\n\s*setBooksState\('error'\);/);
+});

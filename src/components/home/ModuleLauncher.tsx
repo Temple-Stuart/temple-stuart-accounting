@@ -292,7 +292,9 @@ export function BooksPanel({ booksLocked, lapsed }: { booksLocked: boolean; laps
         periodStatus,
       });
       setBooksState('ok');
-    } catch {
+    } catch (err) {
+      // BOOKS-GATE-01b (Alex, 2026-10-28): the thrown reason reaches the console; the card keeps its existing words.
+      console.error('[books] cockpit summary:', err);
       setBooksData(null);
       setBooksState('error');
     }
