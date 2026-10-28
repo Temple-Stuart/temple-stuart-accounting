@@ -5,6 +5,7 @@ import { generateTaxReport } from '@/lib/tax-report-service';
 import { generateScheduleC, generateScheduleSE } from '@/lib/schedule-c-service';
 import { generateForm1040 } from '@/lib/form-1040-service';
 import { requireTabAccess } from '@/lib/auth-helpers';
+import { ValidationError } from '@/lib/errors/ValidationError';
 
 /**
  * GET /api/tax/report?year=2025
@@ -62,6 +63,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(report);
 
   } catch (error) {
+    // TAX-WAGES-01: a tax document the 1040 cannot read is refused by name (422) — its words reach the customer.
+    if (error instanceof ValidationError) return NextResponse.json({ error: error.message }, { status: error.status });
     console.error('Tax report error:', error);
     return NextResponse.json({ error: 'Failed to generate tax report' }, { status: 500 });
   }

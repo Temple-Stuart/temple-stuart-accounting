@@ -81,6 +81,8 @@ interface Form1040Full {
   scheduleC: ScheduleC;
   scheduleSE: ScheduleSE;
   overridesUsed: string[];
+  /** TAX-WAGES-01: every blank box on an entered form read as none, said (form-1040-service.ts documentNotes). */
+  documentNotes: string[];
 }
 
 interface CalculateResponse {
@@ -434,6 +436,12 @@ export default function ReviewStep({ taxYear,
           </div>
         </div>
         <div className="px-4 py-3 space-y-0">
+          {/* TAX-WAGES-01 (ruling B): a blank box read as none is declared, never silent. */}
+          {f.documentNotes.length > 0 && (
+            <ul className="mb-2 text-[11px] text-gray-600 list-disc list-inside" data-document-notes>
+              {f.documentNotes.map((n) => <li key={n}>{n}</li>)}
+            </ul>
+          )}
           {/* ── INCOME ── */}
           <SectionHeader title="Income" />
           <LineRow

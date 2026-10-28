@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { StepProps } from '../TaxFilingWizard';
+import { E1098, R1099, T1098, W2 } from '@/lib/tax/documentFields';
+import { taxAmount } from '@/lib/tax/documentAmounts';
 
 
 // ═══════════════════════════════════════════════════════════════════
@@ -130,15 +132,9 @@ function amountClass(n: number | null | undefined): string {
   return n < 0 ? 'text-red-600' : 'text-gray-900';
 }
 
-function numField(data: Record<string, unknown>, key: string): number {
-  const v = data[key];
-  if (typeof v === 'number') return v;
-  if (typeof v === 'string') {
-    const n = parseFloat(v);
-    return isNaN(n) ? 0 : n;
-  }
-  return 0;
-}
+// TAX-WAGES-01 (Alex, 2026-10-28, ruling B): an amount is read by the one rule (src/lib/tax/documentAmounts.ts
+// taxAmount) — the numField that stood here read "abc" as 0. A blank box reads as none (the 1040 declares it);
+// an unreadable one is refused by name — /api/tax/calculate refuses the same document first, and its words show.
 
 function strField(data: Record<string, unknown>, key: string): string {
   const v = data[key];
@@ -351,43 +347,43 @@ export default function IncomeReviewStep({ taxYear,
   const scheduleC = form1040?.scheduleC;
 
   const w2TotalWages = w2Docs.reduce(
-    (s, d) => s + numField(d.data, 'gross_wages'),
+    (s, d) => s + taxAmount(d, W2.grossWages),
     0
   );
   const w2TotalFedWH = w2Docs.reduce(
-    (s, d) => s + numField(d.data, 'federal_withheld'),
+    (s, d) => s + taxAmount(d, W2.federalWithheld),
     0
   );
   const w2TotalStateWH = w2Docs.reduce(
-    (s, d) => s + numField(d.data, 'state_withheld'),
+    (s, d) => s + taxAmount(d, W2.stateWithheld),
     0
   );
   const effectiveWithholdingPct =
     w2TotalWages > 0 ? (w2TotalFedWH / w2TotalWages) * 100 : 0;
 
   const retTotalGross = r1099Docs.reduce(
-    (s, d) => s + numField(d.data, 'gross_distribution'),
+    (s, d) => s + taxAmount(d, R1099.grossDistribution),
     0
   );
   const retTotalTaxable = r1099Docs.reduce(
-    (s, d) => s + numField(d.data, 'taxable_amount'),
+    (s, d) => s + taxAmount(d, R1099.taxableAmount),
     0
   );
   const retTotalWH = r1099Docs.reduce(
-    (s, d) => s + numField(d.data, 'federal_withheld'),
+    (s, d) => s + taxAmount(d, R1099.federalWithheld),
     0
   );
 
   const slTotalInterest = e1098Docs.reduce(
-    (s, d) => s + numField(d.data, 'interest_paid'),
+    (s, d) => s + taxAmount(d, E1098.interestPaid),
     0
   );
   const edTotalBilled = t1098Docs.reduce(
-    (s, d) => s + numField(d.data, 'amounts_billed'),
+    (s, d) => s + taxAmount(d, T1098.amountsBilled),
     0
   );
   const edTotalScholarships = t1098Docs.reduce(
-    (s, d) => s + numField(d.data, 'scholarships'),
+    (s, d) => s + taxAmount(d, T1098.scholarships),
     0
   );
   const edQualifiedExpenses = Math.max(0, edTotalBilled - edTotalScholarships);
@@ -541,9 +537,9 @@ export default function IncomeReviewStep({ taxYear,
                   {w2Docs.map((d) => {
                     const key = `w2:${d.id}`;
                     const isOpen = expanded.has(key);
-                    const wages = numField(d.data, 'gross_wages');
+                    const wages = taxAmount(d, W2.grossWages);
                     const employer =
-                      strField(d.data, 'employer_name') || d.label || 'Employer';
+                      strField(d.data, W2.employerName) || d.label || 'Employer';
                     return (
                       <div
                         key={d.id}
@@ -569,55 +565,55 @@ export default function IncomeReviewStep({ taxYear,
                             <DetailRow
                               indent={1}
                               label="Employer EIN"
-                              value={strField(d.data, 'employer_ein') || '—'}
+                              value={strField(d.data, W2.employerEin) || '—'}
                             />
                             <DetailRow
                               indent={1}
                               label="Gross wages (Box 1)"
                               value={fmtMoney(
-                                numField(d.data, 'gross_wages')
+                                taxAmount(d, W2.grossWages)
                               )}
                             />
                             <DetailRow
                               indent={1}
                               label="Federal withheld (Box 2)"
                               value={fmtMoney(
-                                numField(d.data, 'federal_withheld')
+                                taxAmount(d, W2.federalWithheld)
                               )}
                             />
                             <DetailRow
                               indent={1}
                               label="SS wages (Box 3)"
                               value={fmtMoney(
-                                numField(d.data, 'social_security_wages')
+                                taxAmount(d, W2.socialSecurityWages)
                               )}
                             />
                             <DetailRow
                               indent={1}
                               label="SS tax (Box 4)"
                               value={fmtMoney(
-                                numField(d.data, 'social_security_tax')
+                                taxAmount(d, W2.socialSecurityTax)
                               )}
                             />
                             <DetailRow
                               indent={1}
                               label="Medicare wages (Box 5)"
                               value={fmtMoney(
-                                numField(d.data, 'medicare_wages')
+                                taxAmount(d, W2.medicareWages)
                               )}
                             />
                             <DetailRow
                               indent={1}
                               label="State wages (Box 16)"
                               value={fmtMoney(
-                                numField(d.data, 'state_wages')
+                                taxAmount(d, W2.stateWages)
                               )}
                             />
                             <DetailRow
                               indent={1}
                               label="State withheld (Box 17)"
                               value={fmtMoney(
-                                numField(d.data, 'state_withheld')
+                                taxAmount(d, W2.stateWithheld)
                               )}
                             />
                           </div>
@@ -764,8 +760,8 @@ export default function IncomeReviewStep({ taxYear,
                 <>
                   {r1099Docs.map((d) => {
                     const payer =
-                      strField(d.data, 'payer_name') || d.label || 'Payer';
-                    const code = strField(d.data, 'distribution_code');
+                      strField(d.data, R1099.payerName) || d.label || 'Payer';
+                    const code = strField(d.data, R1099.distributionCode);
                     const codeHint = code
                       ? DISTRIBUTION_CODE_HINTS[code]
                       : undefined;
@@ -780,26 +776,26 @@ export default function IncomeReviewStep({ taxYear,
                           </span>
                           <span className="font-mono text-sm text-gray-900">
                             {fmtMoney(
-                              numField(d.data, 'gross_distribution')
+                              taxAmount(d, R1099.grossDistribution)
                             )}
                           </span>
                         </div>
                         <DetailRow
                           label="Gross distribution (Box 1)"
                           value={fmtMoney(
-                            numField(d.data, 'gross_distribution')
+                            taxAmount(d, R1099.grossDistribution)
                           )}
                           indent={1}
                         />
                         <DetailRow
                           label="Taxable amount (Box 2a)"
-                          value={fmtMoney(numField(d.data, 'taxable_amount'))}
+                          value={fmtMoney(taxAmount(d, R1099.taxableAmount))}
                           indent={1}
                         />
                         <DetailRow
                           label="Federal withheld (Box 4)"
                           value={fmtMoney(
-                            numField(d.data, 'federal_withheld')
+                            taxAmount(d, R1099.federalWithheld)
                           )}
                           indent={1}
                         />
@@ -945,10 +941,10 @@ export default function IncomeReviewStep({ taxYear,
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-800">
-                      {strField(d.data, 'lender_name') || d.label || 'Lender'}
+                      {strField(d.data, E1098.lenderName) || d.label || 'Lender'}
                     </span>
                     <span className="font-mono text-sm text-gray-900">
-                      {fmtMoney(numField(d.data, 'interest_paid'))}
+                      {fmtMoney(taxAmount(d, E1098.interestPaid))}
                     </span>
                   </div>
                 </div>
@@ -994,7 +990,7 @@ export default function IncomeReviewStep({ taxYear,
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium text-gray-800">
-                      {strField(d.data, 'school_name') ||
+                      {strField(d.data, T1098.schoolName) ||
                         d.label ||
                         'School'}
                     </span>
@@ -1002,12 +998,12 @@ export default function IncomeReviewStep({ taxYear,
                   <DetailRow
                     indent={1}
                     label="Qualified tuition (Box 1)"
-                    value={fmtMoney(numField(d.data, 'amounts_billed'))}
+                    value={fmtMoney(taxAmount(d, T1098.amountsBilled))}
                   />
                   <DetailRow
                     indent={1}
                     label="Scholarships (Box 5)"
-                    value={fmtMoney(numField(d.data, 'scholarships'))}
+                    value={fmtMoney(taxAmount(d, T1098.scholarships))}
                   />
                 </div>
               ))}
