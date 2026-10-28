@@ -104,10 +104,11 @@ export const THE_SORT: readonly PhaseAssignment[] = [
   // WORK-01 (2026-10-24): fifty-nine lines further up again — the cockpit's Routines and Projects panels (and the dead renderBody) left above them.
   // HOME-01 (2026-10-24): twenty lines further down — the day card's mount (and its note) went in above the Runway panel's shell card.
   // HOME-03 (2026-10-27): sixteen lines back up — the day card's mount left the panel for /home; a four-line note stands where it was.
+  // COCKPIT-PERF-01 (2026-10-27): 106 lines further down — tabOfPath and the Books panel (the Books reads left the launcher's body for it) went in above, with the panels' one-mount note.
   { pipe: 'runway', num: '01', owner: 'Banking', rendersSurface: false,
-    surfaceNote: 'src/components/home/ModuleLauncher.tsx:567-574 — "STATE-ONLY cells (no surface exists in this tab: accounts link in Books 01 Feed)"; the handler excludes its key at :599-603' },
+    surfaceNote: 'src/components/home/ModuleLauncher.tsx:673-680 — "STATE-ONLY cells (no surface exists in this tab: accounts link in Books 01 Feed)"; the handler excludes its key at :705-709' },
   { pipe: 'runway', num: '02', owner: HOME_OWNER, rendersSurface: false,
-    surfaceNote: 'src/components/home/ModuleLauncher.tsx:567-574 — "ledger history renders only THROUGH the burn/budget figures"; the handler excludes its key at :599-603' },
+    surfaceNote: 'src/components/home/ModuleLauncher.tsx:673-680 — "ledger history renders only THROUGH the burn/budget figures"; the handler excludes its key at :705-709' },
   { pipe: 'runway', num: '03', owner: HOME_OWNER, rendersSurface: true },
   { pipe: 'runway', num: '04', owner: 'Bookkeeping', rendersSurface: true },
   { pipe: 'runway', num: '05', owner: 'Budget', rendersSurface: true },

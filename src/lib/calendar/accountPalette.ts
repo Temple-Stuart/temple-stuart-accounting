@@ -18,6 +18,11 @@
  * E. One rule, one module — pure; CalendarGrid reads it for routine tiles and the
  *    legend. sources.ts, the drill panel, the day card and the tables are untouched.
  *
+ * CAL-03b (Alex, 2026-10-27; built in COCKPIT-PERF-01) — EVERY CHIP TOGGLES ITS TILES.
+ * A routine tile belongs to exactly one legend chip: legendKeyOf hands the SAME key
+ * legendOf gives that chip (one key builder each — accountChipKey, missingChipKey), so
+ * the grid hides a chip's tiles by its key, exactly as a source chip hides its source's.
+ *
  * THE EIGHT, measured (WCAG 2 contrast of the text on the background, over the token
  * values in globals.css; the floor is 4.5:1):
  *   0 purple  bg-brand-purple #3b2d6b · text-white         11.84
@@ -135,6 +140,10 @@ export interface LegendChip {
 }
 export const sharesColourWords = (words: string): string => `shares a colour with ${words}`;
 
+/** CAL-03b: the one key builder per keyed chip — legendOf names its chips with them, legendKeyOf files a tile under them. */
+const accountChipKey = (a: TileAccount): string => `account:${accountWords(a, 'account')}`;
+const missingChipKey = (a: Pick<TileAccount, 'book' | 'code'>): string => `missing:${a.book}-${a.code}`;
+
 const byBookThenCode = (a: TileAccount, b: TileAccount): number => a.book.localeCompare(b.book) || a.code.localeCompare(b.code) || (a.name ?? '').localeCompare(b.name ?? '');
 
 /**
@@ -169,11 +178,50 @@ export function legendOf(events: readonly PaletteEvent[]): LegendChip[] {
     const words = accountWords(a, 'account');
     const index = quartetIndexOf(a);
     const sharesWith = sorted.filter((o) => o !== a && quartetIndexOf(o) === index).map((o) => accountWords(o, 'account'));
-    return { key: `account:${words}`, kind: 'account', words, quartet: ACCOUNT_QUARTETS[index], sharesWith };
+    return { key: accountChipKey(a), kind: 'account', words, quartet: ACCOUNT_QUARTETS[index], sharesWith };
   });
   if (several) chips.push({ key: 'several', kind: 'several', words: SEVERAL_ACCOUNTS_WORDS, quartet: SEVERAL_QUARTET, sharesWith: [] });
   if (none) chips.push({ key: 'none', kind: 'none', words: NO_ACCOUNT_WORDS, quartet: GREY_QUARTET, sharesWith: [] });
-  for (const a of [...missing.values()].sort(byBookThenCode)) chips.push({ key: `missing:${a.book}-${a.code}`, kind: 'missing', words: accountWords(a, 'missing'), quartet: GREY_QUARTET, sharesWith: [] });
+  for (const a of [...missing.values()].sort(byBookThenCode)) chips.push({ key: missingChipKey(a), kind: 'missing', words: accountWords(a, 'missing'), quartet: GREY_QUARTET, sharesWith: [] });
   if (notRead) chips.push({ key: 'not-read', kind: 'not-read', words: ACCOUNT_NOT_READ_WORDS, quartet: GREY_QUARTET, sharesWith: [] });
   return chips;
 }
+
+// ── CAL-03b · THE CHIP A TILE BELONGS TO ─────────────────────────────────────
+
+/**
+ * The legend chip a tile is filed under — the SAME key legendOf gives that chip:
+ * an account's 'account:<words>', 'several', 'none', 'missing:<book>-<code>', or
+ * 'not-read' for an answer not read with its account. Null for a tile of another
+ * source: its source's chip toggles it, as before. A tile whose state says
+ * 'account' or 'missing' but carries no account is the mapper's error, thrown —
+ * the same contract as tileQuartetOf and legendOf.
+ */
+export function legendKeyOf(e: PaletteEvent): string | null {
+  if (!isRoutineTile(e)) return null;
+  switch (e.accountState) {
+    case undefined: return 'not-read';
+    case 'several': return 'several';
+    case 'none': return 'none';
+    case 'missing':
+      if (!e.account) throw new Error('accountPalette: a tile in state missing carries no account — the mapper hands its code and book');
+      return missingChipKey(e.account);
+    case 'account':
+      if (!e.account) throw new Error('accountPalette: a tile in state account carries no account — the mapper hands both');
+      return accountChipKey(e.account);
+  }
+}
+
+/**
+ * CAL-03b: is a tile shown, given the chips' state? Hidden only when its chip's
+ * entry is false — the source chips' own rule (CalendarGrid: visibleCategories[source]
+ * !== false); a tile of another source has no account chip and answers true here.
+ */
+export const chipShows = (e: PaletteEvent, visible: Readonly<Record<string, boolean>>): boolean => {
+  const key = legendKeyOf(e);
+  return key === null || visible[key] !== false;
+};
+
+/** CAL-03b: one click on a chip — shown ⇄ hidden, the source chips' own toggle (`prev[k] === false ? true : false`). */
+export const toggleShown = (prev: Readonly<Record<string, boolean>>, key: string): Record<string, boolean> =>
+  ({ ...prev, [key]: prev[key] === false ? true : false });

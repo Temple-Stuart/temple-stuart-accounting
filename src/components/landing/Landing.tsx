@@ -8,12 +8,16 @@
  * THE ACTS, in document order:
  *   hero (full-bleed aubergine band)
  *   LIVE DEMO — TRAVEL  — travel search/booking, real and public
- *   PERSONAS            — one system · six lives, "Who is this for?"
- *                         (structure restored from bc1a6fef by
- *                         PR-PERSONAS-RESTORE; copy PR-PERSONAS-COPY; seated
- *                         here by PR-REORDER — the who-first order)
- *   [PR-MODULES placeholder — "the what", content TBD]
+ *   THE GUEST'S TRIP    — the guest's session trip (BOOK-3, GuestTripStrip);
+ *                         renders only when records exist
+ *   THE PLANS           — four plan cards and one comparison table
+ *                         (OFFER-01; PlansSection over src/lib/offer/plans.ts);
+ *                         the section carries id="modules"
  *   DONE-FOR-YOU        — the professional-services panel
+ *   (COCKPIT-PERF-01, 2026-10-27: the PERSONAS act — "one system · six lives" —
+ *   and the "[PR-MODULES placeholder]" seat, the SELL-02 offer act, stood
+ *   between the demo and DONE-FOR-YOU here; OFFER-01 (2026-09-23) replaced both
+ *   with THE PLANS.)
  *   THE PIPELINE header — names the 14-step run (essay front matter, PR-CHROME)
  *   01 / IDENTIFY THE PROBLEM, THE TOOLS, THE FAMILIES — AND SORT THEM IN — four moves drawn: the raw list, the family sheet, the flow arcs
  *   02 / LOOK AT THE TOOLS AND PICK THE PROVIDERS BEHIND THEM — the provider menu + the open doors
@@ -85,12 +89,14 @@
  * research pack — the STRUCTURE is still bc1a6fef's; the historical copy
  * lives in git history.
  *
- * id="modules" lives on THE OFFER act (SELL-02, data-offer-act) — the section
- * that renders src/lib/offer.ts. It is a commerce contract, not decoration:
+ * id="modules" lives on THE PLANS act (OFFER-01 — PlansSection's own section,
+ * data-plans, over src/lib/offer/plans.ts). It is a commerce contract, not decoration:
  * the Stripe checkout cancel_url (/?checkout=cancelled#modules), the /pricing
  * and /modules pages' doors (/?module=<slug>#modules) all resolve to it.
  * Moving or dropping it breaks the buy path — see the ANCHOR note on that
- * section.
+ * section. (COCKPIT-PERF-01, 2026-10-27: "lives on THE OFFER act (SELL-02,
+ * data-offer-act) — the section that renders src/lib/offer.ts" stood here;
+ * OFFER-01 deleted that act and the anchor rode on to THE PLANS.)
  *
  * SELL-02 settled what the deck's retirement left open: the selling surfaces
  * (this act, /pricing, the /modules access block, the cockpit's locked tabs)
@@ -1955,8 +1961,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                 "Twenty-five tools, counted: two live, nine partial, fourteen on the
                 blueprint" (heroCountsLine, src/lib/offer.ts) — the builder's own
                 census on the customer's first screen. What the product is for is
-                said by the three plans below, each in the words of the person who
-                buys it. The count stays in the registry and the audit trail. */}
+                said by the four plans below, each in the words of the person who
+                buys it. The count stays in the registry and the audit trail.
+                (COCKPIT-PERF-01, 2026-10-27: "three plans" stood here — PLANS holds
+                four: personal, business, trading, everything.) */}
             <p className="mb-6 max-w-xl text-base text-white/70">
               One system for your money, your days and your books — so every number
               can be traced back to what actually happened.

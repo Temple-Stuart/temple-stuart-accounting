@@ -395,8 +395,10 @@ test('T3 the words, exact', () => {
     line({ address: { kind: 'routine', id: 'night', instant: AT }, cents: 1000, label: 'Night' }),
   ]), '2 routines are priced as a whole — their lines carry no amount, so none of their stops is — Morning $60.00 · Night $10.00');
   // VENDOR-02 (2026-10-14) — Alex's ruling: the day card is the daily and overlay surface; stranded vendor picks are
-  // Budget's to show and clear. strandedWords is deleted with its one caller (the card's amber line); /budget lists
-  // each stranded vendor with Clear (budgetReportView.test.ts T5 pins it). Moved: the words are gone from the rules.
+  // Budget's to show and clear. strandedWords is deleted with its one caller (the card's amber line). Moved: the words are gone from the rules.
+  // COCKPIT-PERF-01 (2026-10-27): "/budget lists each stranded vendor with Clear (budgetReportView.test.ts T5 pins it)" stood here — no
+  // longer true: VENDOR-03 (2026-10-27) gave the stranded vendors their home on the day card (stops/StrandedVendors.tsx), each row with
+  // Clear, pinned by vendor03.test.ts; budgetReportView.test.ts's T5 pins the vendor box's writes, not a stranded list.
   assert.doesNotMatch(code(RULES), /strandedWords|vendors? stranded/, 'the day rules name no stranded vendor');
   assert.equal(notPlacedWords([
     { source: 'routine', sourceId: 'routine:night', entityId: 'P', label: 'Night', cents: null, day: null, reason: 'timezone not recognised', detail: '"Mars/Olympus"' },

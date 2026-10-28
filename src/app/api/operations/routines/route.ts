@@ -237,8 +237,12 @@ export async function POST(request: NextRequest) {
     if (endTimeResult.error) return endTimeResult.error;
 
     // MOVE-01 (Alex, 2026-10-19): the window may cross midnight — an end before the
-    // start ends the next day (nothing reads the pair as a duration: the hub grid
-    // draws it as its flagged marker, extent.ts). Only an EMPTY window is refused.
+    // start ends the next day. Only an EMPTY window is refused. The pair is read as a
+    // length since WORK-03b (2026-10-26): a stepless routine's planned minutes are
+    // end − start, an end before the start ending the next day (dayCard.ts
+    // plannedMinutesOf — the day card's stop, the work block, the ledger's PLANNED
+    // MIN); the hub grid still draws such a window as its flagged marker (extent.ts).
+    // COCKPIT-PERF-01 (2026-10-27): "nothing reads the pair as a duration" stood here.
     if (
       startTimeResult.value &&
       endTimeResult.value &&

@@ -50,7 +50,9 @@ test('A the Runway panel mounted the day card first (HOME-01) — HOME-03 (Alex,
   assert.match(l, /import \{ useState, useEffect, useRef, useCallback \} from 'react';/, 'Suspense left with the card');
   assert.doesNotMatch(l, /DayCard|Suspense|data-runway-day-card/);
   assert.match(comments(LAUNCHER), /HOME-03 \(Alex, 2026-10-27\): the day card left this panel for the home page, \/home[\s\S]*HOME-01 \(2026-10-24\) had put it FIRST here/);
-  const runwayAt = l.indexOf("activeModule === 'calendar' ? 'block' : 'hidden'");
+  // COCKPIT-PERF-01 (Alex, 2026-10-27, ruling A): the panel's anchor was its CSS-hidden class ("activeModule === 'calendar' ? 'block' : 'hidden'");
+  // the panel is now mounted only while its tab is active, and carries data-cockpit-panel="calendar" — the anchor moved, the order pinned below did not.
+  const runwayAt = l.indexOf('data-cockpit-panel="calendar"');
   const stripAt = l.indexOf('<StageStrip', runwayAt);
   const shellAt = l.indexOf('<div className={MODULE_SHELL_CARD}>', runwayAt);
   assert.ok(runwayAt > -1 && shellAt > runwayAt && stripAt > shellAt, 'the shell card that holds the strip and the metrics is first on the panel now');
@@ -135,8 +137,11 @@ test('B the cockpit\'s tab-switch rewrite keeps every other parameter — ?date 
   // The restore effect reads the PATH first and strips only an invalid ?tab= — never date or step.
   assert.match(l, /const seg = window\.location\.pathname\.split\('\/'\)\[1\] \?\? '';\n\s*const fromPath = seg === 'runway' \? 'calendar' : TABS\.some\(\(t\) => t\.key === seg\) \? seg : null;/);
   assert.match(l, /calendar: '\/runway', travel: '\/travel', trade: '\/trade',/);
-  // The panels are CSS-hidden, never unmounted — the card keeps its state across a switch.
-  assert.match(l, /\$\{activeModule === 'calendar' \? 'block' : 'hidden'\}/);
+  // COCKPIT-PERF-01 (Alex, 2026-10-27, ruling A): "The panels are CSS-hidden, never unmounted — the card keeps its state across a switch"
+  // stood here, pinning `${activeModule === 'calendar' ? 'block' : 'hidden'}`. The card left the cockpit with HOME-03, and the ruling
+  // reverses the rest: a panel mounts only while its tab is active and unmounts on a switch (cockpitPerf01.test.ts proves it by render).
+  assert.match(l, /\{activeModule === 'calendar' && \(/);
+  assert.doesNotMatch(l, /\$\{activeModule === '(?:calendar|travel|trade|books|tax|compliance)' \? 'block' : 'hidden'\}/, 'no cockpit panel is CSS-hidden any more');
 });
 
 // ── C · TIME = TABLES ─────────────────────────────────────────────────────────

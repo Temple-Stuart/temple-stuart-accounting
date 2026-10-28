@@ -177,7 +177,8 @@ test('D the legend is the fetched range: one chip per account by book letter the
 
 test('E the grid colours a routine tile and its dot by the module and lists the accounts in the legend before the sources; every class is a literal in the module; the sources’ line and sources.ts stand; the law checks the quartets; the panel, the day view, the day card, the tables untouched', () => {
   const grid = code(GRID);
-  assert.match(grid, /import \{ legendOf, sharesColourWords, tileQuartetOf \} from '@\/lib\/calendar\/accountPalette';/);
+  // CAL-03b (Alex, 2026-10-27; COCKPIT-PERF-01): the import was `{ legendOf, sharesColourWords, tileQuartetOf }` — chipShows and toggleShown joined it (the chips toggle their tiles; cockpitPerf01.test.ts).
+  assert.match(grid, /import \{ chipShows, legendOf, sharesColourWords, tileQuartetOf, toggleShown \} from '@\/lib\/calendar\/accountPalette';/);
   assert.equal((grid.match(/const quartet = tileQuartetOf\((event|block\.event|e)\);/g) ?? []).length, 3, 'the all-day tile, the timed block, the month dot');
   assert.equal((grid.match(/\$\{quartet \? `\$\{quartet\.bg\} \$\{quartet\.text\} border \$\{quartet\.border\}` : `\$\{(config\.badge \|\| config\.dot|badgeColor)\} text-white`\}/g) ?? []).length, 2, 'the two tile shapes: the quartet, else the source’s badge and white text as before');
   assert.match(grid, /\$\{quartet \? quartet\.swatch : config\.dot\}/, 'the month dot');
@@ -187,7 +188,9 @@ test('E the grid colours a routine tile and its dot by the module and lists the 
   assert.match(grid, /const accountChips = legendOf\(events\);/);
   assert.match(grid, /if \(tileQuartetOf\(\{ source \}\) !== null\) return false;/, 'no chip for the routines source');
   assert.match(grid, /return accountChips\.length > 0 \|\| legendItems\.length > 0 \? \(/);
-  assert.match(grid, /\{accountChips\.map\(\(chip\) => \(\n\s*<span key=\{chip\.key\} className="flex items-center gap-1\.5" data-legend-chip=\{chip\.kind\} data-legend-words=\{chip\.words\}>\n\s*<span className=\{`w-2\.5 h-2\.5 rounded-sm border \$\{chip\.quartet\.swatch\} \$\{chip\.quartet\.border\}`\} \/>\n\s*<span className="text-xs text-text-secondary">\{chip\.words\}<\/span>/);
+  // CAL-03b (Alex, 2026-10-27; COCKPIT-PERF-01): the chip was a plain <span> (swatch, then the words in text-text-secondary) that no click reached; it is
+  // a <label> that toggles its tiles as a source chip does — the swatch and the words as before while shown, greyed and struck through while hidden.
+  assert.match(grid, /\{accountChips\.map\(\(chip\) => \(\n\s*<label key=\{chip\.key\} className="flex items-center gap-1\.5 cursor-pointer" data-legend-chip=\{chip\.kind\} data-legend-words=\{chip\.words\} onClick=\{\(\) => setVisibleChips\(prev => toggleShown\(prev, chip\.key\)\)\}>\n\s*<span className=\{`w-2\.5 h-2\.5 rounded-sm border \$\{visibleChips\[chip\.key\] !== false \? `\$\{chip\.quartet\.swatch\} \$\{chip\.quartet\.border\}` : 'bg-border border-border'\}`\} \/>\n\s*<span className=\{`text-xs \$\{visibleChips\[chip\.key\] !== false \? 'text-text-secondary' : 'text-text-faint line-through'\}`\}>\{chip\.words\}<\/span>/);
   assert.match(grid, /<span key=\{other\} className="text-\[10px\] text-text-muted" data-legend-shares=\{other\}>\{sharesColourWords\(other\)\}<\/span>/, 'the collision, declared on the chip');
   const accountChipsAt = grid.indexOf('{accountChips.map((chip) => (');
   const sourcesAt = grid.indexOf('{legendItems.map(([source, config]) => (');

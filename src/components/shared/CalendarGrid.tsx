@@ -8,7 +8,7 @@ import { instantToZoned } from '@/lib/time';
 import { FLAG_TEXT, assignLanes, blockExtent, unverifiedDurationExtent, type ExtentFlag } from '@/lib/calendar/extent';
 import { isDateOnlyTripType } from '@/lib/calendar/tripItem';
 import type { TileAccount, TileAccountState } from '@/lib/hub/tileAccount';
-import { legendOf, sharesColourWords, tileQuartetOf } from '@/lib/calendar/accountPalette';
+import { chipShows, legendOf, sharesColourWords, tileQuartetOf, toggleShown } from '@/lib/calendar/accountPalette';
 
 // RUNWAY-DEEP: house toolbar treatments for the DARK mount (HubCalendar).
 
@@ -460,6 +460,10 @@ export default function CalendarGrid({
   const [visibleCategories, setVisibleCategories] = useState<Record<string, boolean>>(
     () => Object.fromEntries(allSources.map(s => [s, true]))
   );
+  // CAL-03b (Alex, 2026-10-27; built in COCKPIT-PERF-01): the legend's account chips — and the neutral ones (several ·
+  // no account · not read) — toggle their routine tiles exactly as a source chip toggles its source's: shown until
+  // clicked, hidden on a click, shown again on the next (accountPalette.ts toggleShown / chipShows). React state only.
+  const [visibleChips, setVisibleChips] = useState<Record<string, boolean>>({});
 
   // ── Highlight range ──
   const hlStart = highlightStart ? parseDate(highlightStart) : null;
@@ -540,7 +544,7 @@ export default function CalendarGrid({
 
   const getEventsForDate = (date: Date) => {
     const key = dateToKey(date);
-    return (eventsByDateKey[key] || []).filter(e => visibleCategories[e.source] !== false);
+    return (eventsByDateKey[key] || []).filter(e => visibleCategories[e.source] !== false && chipShows(e, visibleChips));
   };
 
   // ── Navigation ──
@@ -728,7 +732,10 @@ export default function CalendarGrid({
           come first (accountPalette.ts legendOf — one chip per account with its swatch, by book then
           code, a collision declared on the chip), then the neutral chips present, then the sources as
           before — only sources with events, deduplicated; the routines source has no chip of its own
-          now, its tiles wear their accounts. */}
+          now, its tiles wear their accounts.
+          CAL-03b (Alex, 2026-10-27): an account chip and a neutral chip are a <label> that toggles its tiles, as a
+          source chip is — the swatch greys and the words strike through while its tiles are hidden; a source chip is
+          unchanged. */}
       {showCategoryLegend && (() => {
         const accountChips = legendOf(events);
         const activeSources = new Set(events.map(e => e.source));
@@ -743,13 +750,13 @@ export default function CalendarGrid({
         return accountChips.length > 0 || legendItems.length > 0 ? (
           <div className="px-4 py-2 border-b border-border flex flex-wrap gap-x-4 gap-y-1" data-calendar-legend>
             {accountChips.map((chip) => (
-              <span key={chip.key} className="flex items-center gap-1.5" data-legend-chip={chip.kind} data-legend-words={chip.words}>
-                <span className={`w-2.5 h-2.5 rounded-sm border ${chip.quartet.swatch} ${chip.quartet.border}`} />
-                <span className="text-xs text-text-secondary">{chip.words}</span>
+              <label key={chip.key} className="flex items-center gap-1.5 cursor-pointer" data-legend-chip={chip.kind} data-legend-words={chip.words} onClick={() => setVisibleChips(prev => toggleShown(prev, chip.key))}>
+                <span className={`w-2.5 h-2.5 rounded-sm border ${visibleChips[chip.key] !== false ? `${chip.quartet.swatch} ${chip.quartet.border}` : 'bg-border border-border'}`} />
+                <span className={`text-xs ${visibleChips[chip.key] !== false ? 'text-text-secondary' : 'text-text-faint line-through'}`}>{chip.words}</span>
                 {chip.sharesWith.map((other) => (
                   <span key={other} className="text-[10px] text-text-muted" data-legend-shares={other}>{sharesColourWords(other)}</span>
                 ))}
-              </span>
+              </label>
             ))}
             {legendItems.map(([source, config]) => (
               <label key={source} className="flex items-center gap-1.5 cursor-pointer" onClick={() => setVisibleCategories(prev => ({ ...prev, [source]: prev[source] === false ? true : false }))}>

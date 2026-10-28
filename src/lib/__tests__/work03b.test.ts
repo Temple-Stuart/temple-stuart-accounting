@@ -213,9 +213,12 @@ test('3 the caption’s rule, the tag, the forms and the routes are untouched; t
   assert.doesNotMatch(functionBody(code(RULES), 'captionText') ?? '', /plannedMinutesOf|WORK-03b/, 'the caption reads the lists as before');
   assert.match(functionBody(code(RULES), 'captionText') ?? '', /const ticked = done === null \? 0 : done\.length;/);
   assert.doesNotMatch(functionBody(code(RULES), 'stopTagWords') ?? '', /done|minutes/, 'the tag reads nothing of the block');
-  for (const f of [TAG, STOP_FORM, ROUTINE_FORM, ROUTINES_ROUTE, ROUTINE_ROUTE, PROJECTS_ROUTE, PANEL]) {
+  for (const f of [TAG, STOP_FORM, ROUTINE_FORM, ROUTINE_ROUTE, PROJECTS_ROUTE, PANEL]) {
     assert.doesNotMatch(code(f) + comments(f), /WORK-03b|plannedMinutesOf/, `${f}: untouched`);
   }
+  // COCKPIT-PERF-01 (Alex, 2026-10-27, ruling C): the create route's MOVE-01 comment said "nothing reads the pair as a duration" —
+  // false since this ruling's rule — and now cites it (WORK-03b, dayCard.ts plannedMinutesOf) by name. Its CODE is still untouched.
+  assert.doesNotMatch(code(ROUTINES_ROUTE), /WORK-03b|plannedMinutesOf/, `${ROUTINES_ROUTE}: its code untouched`);
   assert.doesNotMatch(code(ROUTE) + code(RULE) + code(RULES), /prisma\.\$executeRaw|ALTER TABLE|migrations/, 'no migration, no raw SQL');
   assert.doesNotMatch(code(RULES), /\bfetch\b|new Date\(\)|Date\.now\(|from 'react'|@prisma\/client/, 'the card’s rules stay pure');
 });

@@ -1258,8 +1258,10 @@ const FOREIGN_PHASE_ALLOWED: ReadonlyArray<{ route: string; pipe: string; num: s
   },
 ];
 // The cockpit is the third grandfathered surface and is checked by route below:
-// ModuleLauncher renders every cockpit tab as a CSS-hidden section of ONE
-// component, so /books, /tax, /travel and /runway are its tabs, not pages.
+// ModuleLauncher renders every cockpit tab as a section of ONE component, so
+// /books, /tax, /travel and /runway are its tabs, not pages.
+// COCKPIT-PERF-01 (Alex, 2026-10-27, ruling A): "as a CSS-hidden section" stood above — each section is now MOUNTED
+// only while its tab is active (data-cockpit-panel; a switch unmounts the old one), still one component, still tabs.
 const COCKPIT_COMPONENT = 'src/components/home/ModuleLauncher.tsx';
 // THE MERGED GRID is HubCalendar — the one component that fetches the three
 // sources (trip events, daily-plan blocks, routine occurrences) and merges them.
