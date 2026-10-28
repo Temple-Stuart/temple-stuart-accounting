@@ -115,7 +115,7 @@ import { keysGranting } from '@/lib/offer';
 import { lapsedFor, type LapsedEntitlement } from '@/lib/lapse';
 import { isTabLocked } from '@/lib/categoryLock';
 // BOOKS-GATE-01: the Books summary's sums — an unreadable trial-balance balance is refused by name, never summed as 0.
-import { sumByType } from '@/lib/books/cockpitSums';
+import { sumByType, trialBalanceAccountsOf } from '@/lib/books/cockpitSums';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
 import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
 
@@ -267,7 +267,9 @@ export function BooksPanel({ booksLocked, lapsed }: { booksLocked: boolean; laps
       // isBalanced + hasActivity MUST come from the real trial balance — if
       // either is absent, that's an error we surface, never a silent "true".
       if (typeof tb?.totals?.isBalanced !== 'boolean' || typeof tb?.totals?.hasActivity !== 'boolean') throw new Error('trial balance missing isBalanced/hasActivity');
-      const tbAccounts: any[] = Array.isArray(tb.accounts) ? tb.accounts : []; // eslint-disable-line @typescript-eslint/no-explicit-any
+      // BOOKS-GATE-01 (Alex, 2026-10-28, ruling 6): `Array.isArray(tb.accounts) ? tb.accounts : []` stood here — a trial
+      // balance without its accounts drew $0; trialBalanceAccountsOf throws "trial balance came back without its accounts".
+      const tbAccounts = trialBalanceAccountsOf(tb);
       // BOOKS-GATE-01 (Alex, 2026-10-28, ruling B): `Math.abs(Number(a.normalBalance) || 0)` stood here — a balance
       // that was not a number was summed as 0. sumByType (src/lib/books/cockpitSums.ts) reads each balance and THROWS
       // by name on one it cannot read ("trial balance account <code> has no readable normalBalance"); the catch below
@@ -290,7 +292,9 @@ export function BooksPanel({ booksLocked, lapsed }: { booksLocked: boolean; laps
         periodStatus,
       });
       setBooksState('ok');
-    } catch {
+    } catch (err) {
+      // BOOKS-GATE-01b (Alex, 2026-10-28): the thrown reason reaches the console; the card keeps its existing words.
+      console.error('[books] cockpit summary:', err);
       setBooksData(null);
       setBooksState('error');
     }

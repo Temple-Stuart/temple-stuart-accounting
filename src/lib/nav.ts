@@ -105,11 +105,12 @@ export const THE_SORT: readonly PhaseAssignment[] = [
   // HOME-01 (2026-10-24): twenty lines further down — the day card's mount (and its note) went in above the Runway panel's shell card.
   // HOME-03 (2026-10-27): sixteen lines back up — the day card's mount left the panel for /home; a four-line note stands where it was.
   // COCKPIT-PERF-01 (2026-10-27): 106 lines further down — tabOfPath and the Books panel (the Books reads left the launcher's body for it) went in above, with the panels' one-mount note.
-  // BOOKS-GATE-01 (2026-10-28): five lines further down — the cockpitSums import and the Books panel's notes (its export, its sums) went in above.
+  // BOOKS-GATE-01 (2026-10-28): seven lines further down — the cockpitSums import and the Books panel's notes (its export, its sums, its accounts list) went in above.
+  // BOOKS-GATE-01b (2026-10-28): two lines further down — the Books panel's catch logs its thrown reason.
   { pipe: 'runway', num: '01', owner: 'Banking', rendersSurface: false,
-    surfaceNote: 'src/components/home/ModuleLauncher.tsx:678-685 — "STATE-ONLY cells (no surface exists in this tab: accounts link in Books 01 Feed)"; the handler excludes its key at :710-714' },
+    surfaceNote: 'src/components/home/ModuleLauncher.tsx:682-689 — "STATE-ONLY cells (no surface exists in this tab: accounts link in Books 01 Feed)"; the handler excludes its key at :714-718' },
   { pipe: 'runway', num: '02', owner: HOME_OWNER, rendersSurface: false,
-    surfaceNote: 'src/components/home/ModuleLauncher.tsx:678-685 — "ledger history renders only THROUGH the burn/budget figures"; the handler excludes its key at :710-714' },
+    surfaceNote: 'src/components/home/ModuleLauncher.tsx:682-689 — "ledger history renders only THROUGH the burn/budget figures"; the handler excludes its key at :714-718' },
   { pipe: 'runway', num: '03', owner: HOME_OWNER, rendersSurface: true },
   { pipe: 'runway', num: '04', owner: 'Bookkeeping', rendersSurface: true },
   { pipe: 'runway', num: '05', owner: 'Budget', rendersSurface: true },
