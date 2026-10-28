@@ -119,7 +119,9 @@ const some = (b: Partial<Beats>): Beats => ({ ...NONE, ...b });
 // One PARTIAL fewer, one LIVE more. 3 · 9 · 13 → 4 · 8 · 13.
 // TIME-03 census (Alex, 2026-10-26): Time LIVE — the ledger prints planned and logged minutes and adds up the hours.
 // One PARTIAL fewer, one LIVE more. 4 · 8 · 13 → 5 · 7 · 13.
-export const EXPECTED_STATUS_COUNTS: Readonly<Record<ToolStatus, number>> = { LIVE: 5, PARTIAL: 7, NOT_BUILT: 13 };
+// BILLPAY-01 census (Alex, 2026-10-28): Bill Pay PARTIAL — the due list and the manual link; it pays nothing.
+// One NOT_BUILT fewer, one PARTIAL more. 5 · 7 · 13 → 5 · 8 · 12.
+export const EXPECTED_STATUS_COUNTS: Readonly<Record<ToolStatus, number>> = { LIVE: 5, PARTIAL: 8, NOT_BUILT: 12 };
 
 const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
   // ── THE WORK ──
@@ -299,9 +301,17 @@ const FACTS: Readonly<Record<ToolName, ToolFacts>> = {
     customer: 'Money arriving is not yet matched to the invoice that earned it.',
   },
   // ── MONEY OUT ──
+  // BILLPAY-01 (Alex, 2026-10-28, ruling E): BILL PAY IS PARTIAL. /bill-pay lists every bill — an all-day routine's costed
+  // line (or stepless routine) that names an every-occurrence vendor — on each due day of a month, with what was linked to
+  // pay it (LINK-LAW-01's match: reversed postings left out) and the account it was paid from, and marks it paid, due today,
+  // upcoming or overdue in the routine's own zone. The payment is linked by hand through the existing picker. It pays
+  // nothing and schedules nothing; the account a bill will be paid from is known only after payment (PAY-ACCOUNT-01) and no
+  // bill is accrued (ACCRUAL-01). The vendor directory's own bill columns are still written by nothing (re-cited: schema:4229).
   'Bill Pay': {
-    slug: 'bill-pay', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 8 — operations_vendor_directory (schema:3973): its GET lists vendors (vendor-directory/route.ts:20) and, since VENDOR-01, its POST creates one (:67) — never updates or deletes one; the bill columns (amount_usd, billing_rrule, next_due_date, last_paid_date, last_paid_amount_usd) are written by nothing, so no bill is scheduled or paid',
-    customer: 'You cannot schedule or pay a bill here yet.',
+    slug: 'bill-pay', status: 'PARTIAL', beats: some({ discover: true, record: true }), home: '/bill-pay',
+    citation: 'discover: src/app/api/bill-pay/route.ts:37 (GET /api/bill-pay?from=&to= — the window by ledger.ts spanInput; the routines with their role through routineBudgetInputs.ts loadRoutineBudgetInputs, the plan vendors through reportReads.ts readPlanVendors, ONE planned_item_links read with postingAmount.ts BILL_POSTING_SELECT) → src/lib/operations/billPay.ts:170 billPayOf (days.ts buildRoutineBudgetLines, ledger.ts matchOf, linkOccurrence.ts occurrenceCheck) → src/components/workbench/operations/billpay/BillPaySection.tsx (/bill-pay) · record: BillPaySection.tsx:78 ("link payment" on an unpaid row) → :86 the existing ledger/LinkPicker.tsx → POST /api/calendar/links · TOOL CENSUS row 8 — operations_vendor_directory (schema:4229): its GET lists vendors (vendor-directory/route.ts:20) and, since VENDOR-01, its POST creates one (:67) — never updates or deletes one; its bill columns (amount_usd, billing_rrule, next_due_date, last_paid_date, last_paid_amount_usd) are written by nothing',
+    why: 'every bill and its due days, paid or overdue, from the postings you linked; nothing is paid from here, and the paying account is known only after payment',
+    customer: 'See every bill on each day it falls due, with what you linked to pay it and the account it came from, marked paid, due today or overdue; payments are made outside the app.',
   },
   Payroll: {
     slug: 'payroll', status: 'NOT_BUILT', beats: NONE, home: null, citation: 'TOOL CENSUS row 9 — no page, route, or model',

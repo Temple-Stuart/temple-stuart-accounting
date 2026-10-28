@@ -23,8 +23,9 @@ const line = (id: string, amount: string | null, coa: string | null, order: numb
   ({ id, is_active: isActive, budget_amount: amount === null ? null : dec(amount), coa_code: coa, step_order: order, activity: `line ${id}`, time_of_day: null });
 // TAB13-02b: the select grew by id, name and end_date (the budget report's); the month tables read none of them.
 // COLUMNS-01 (Alex, 2026-10-25, ruling A): the select grew by the routine's own is_active (the month route reads inactive routines too); the month tables read it not.
+// BILLPAY-01 (Alex, 2026-10-28, ruling C): and by the routine's role (Bill Pay keeps the all_day ones); the month tables read it not.
 const row = (over: Partial<RoutineBudgetRow>): RoutineBudgetRow =>
-  ({ id: 'r1', name: 'a routine', is_active: true, end_date: null, budget_amount: null, coa_code: null, schedule_rrule: DAILY, timezone: 'UTC', start_date: null, steps: [], ...over });
+  ({ id: 'r1', name: 'a routine', is_active: true, role: 'none', end_date: null, budget_amount: null, coa_code: null, schedule_rrule: DAILY, timezone: 'UTC', start_date: null, steps: [], ...over });
 
 // What the Personal route handed routinesMonthlyByCoa before this PR: no lines, no anchor.
 const beforeInput = (r: RoutineBudgetRow) => ({

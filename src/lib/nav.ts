@@ -305,6 +305,9 @@ export const PHASES_RENDERED_AT: Readonly<Record<string, readonly PipePillarId[]
   // /tasks, moved to its own tool's page — whose capability is plain controls on the rows ("+ routine", edit, deactivate,
   // delete, the CSV), as TASKS-01 ruled for /tasks; the two-lists law refuses a StageStrip anywhere in its tree.
   '/expenses': [],
+  // BILLPAY-01 (Alex, 2026-10-28, ruling B): /bill-pay draws NO strip. It is the bills table alone — DataTable rows with a
+  // "link payment" control (the existing link picker); Bill Pay owns no phase in THE SORT.
+  '/bill-pay': [],
   // TIME-02 (2026-10-19): the content pipeline is retired — /time is the day card and the task ledger (the city ledger
   // until LEDGER-02, 2026-10-19, renamed it) and draws no strip (the opener law counts its tree); the content pipe is declared undrawn in THE SORT above.
   '/time': [],

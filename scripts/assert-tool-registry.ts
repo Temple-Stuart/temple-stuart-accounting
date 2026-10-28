@@ -93,7 +93,7 @@ import { code as codeOf, comments as commentsOf, functionBody, rejoin } from '..
 import { CHAIN_STATES, KIND_FACTS, EVENT_SOURCE_OWNER, buildChain } from '../src/lib/calendar/chain';
 import { LINKABLE_KINDS, requiresInstant } from '../src/lib/calendar/linkKeys';
 import { sumLinks } from '../src/lib/calendar/links';
-import { isReversedPosting, reversedLinkedWords } from '../src/lib/calendar/postingAmount';
+import { BILL_POSTING_SELECT, POSTING_STATE_SELECT, isReversedPosting, reversedLinkedWords } from '../src/lib/calendar/postingAmount';
 import { occurrenceCheck } from '../src/lib/operations/linkOccurrence';
 import { routineHoldsLinksWords } from '../src/lib/operations/linkHold';
 import { matchOf, readableMatchCents } from '../src/lib/operations/ledger';
@@ -2832,6 +2832,14 @@ if (!/reversed: isReversedPosting\(e\),/.test(linkRoute)) linkFail(`${LINK_ROUTE
 for (const f of MATCH_READ_ROUTES) {
   const src = codeOf(f);
   if (!/journal_entry: \{ select: LINKED_POSTING_SELECT \}/.test(src) || /POSTING_LINES_SELECT/.test(src)) linkFail(`${f} reads a linked posting without its reversal state (LINKED_POSTING_SELECT) — a reversed payment would read as paid (LINK-LAW-01 ruling C)`);
+}
+// BILLPAY-01 (Alex, 2026-10-28): Bill Pay's PAID is a MATCH read too — its one links read selects BILL_POSTING_SELECT, which carries the
+// reversal state (and the lines' accounts, for PAID FROM); the rule leaves a reversed posting out through matchOf.
+{
+  const BILL_ROUTE = 'src/app/api/bill-pay/route.ts';
+  if (!/journal_entry: \{ select: BILL_POSTING_SELECT \}/.test(codeOf(BILL_ROUTE))) linkFail(`${BILL_ROUTE} reads a linked posting without BILL_POSTING_SELECT — its reversal state would be missing (LINK-LAW-01 ruling C, BILLPAY-01)`);
+  for (const k of Object.keys(POSTING_STATE_SELECT)) if (!(k in BILL_POSTING_SELECT)) linkFail(`BILL_POSTING_SELECT does not carry ${k} — a reversed payment would read as paid (LINK-LAW-01 ruling C, BILLPAY-01)`);
+  if (!/matchOf\(links\.map\(\(l\) => \(\{ amountCents: amountCentsOf\(l\.journal_entry\), reversed: isReversedPosting\(l\.journal_entry\) \}\)\)\)/.test(codeOf('src/lib/operations/billPay.ts'))) linkFail('src/lib/operations/billPay.ts does not read PAID through matchOf with each posting’s reversal (LINK-LAW-01 ruling C, BILLPAY-01)');
 }
 for (const { file, src } of srcFiles) {
   if (file !== POSTING_LEAF && /select: POSTING_LINES_SELECT\b|\.\.\.POSTING_LINES_SELECT\b/.test(src)) linkFail(`${file} selects a posting’s lines without its reversal state — LINKED_POSTING_SELECT is the select (LINK-LAW-01 ruling C)`);

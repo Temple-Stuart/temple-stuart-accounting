@@ -192,7 +192,8 @@ test('C the free set and the selling surfaces follow by derivation: Tasks joins 
   // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13. Time joined the free set after Tasks; the counts are time03.test.ts's.
   assert.equal(FREE_TOOLS[0].name, 'Tasks');
   assert.match(freeSetLine(), /^Free with an account, no module to buy: Tasks, .*Expenses, Travel — the registry's live tools with no tab gate\.$/);
-  assert.match(heroCountsLine(), /^Twenty-five tools, counted: \w+ live, \w+ partial, thirteen on the blueprint\.$/);
+  // BILLPAY-01 (Alex, 2026-10-28): Bill Pay NOT_BUILT → PARTIAL — twelve on the blueprint (thirteen until then).
+  assert.match(heroCountsLine(), /^Twenty-five tools, counted: \w+ live, \w+ partial, twelve on the blueprint\.$/);
   const mail = verificationEmail({ name: 'Ada', verifyUrl: 'https://templestuart.com/api/auth/verify?token=t', baseUrl: 'https://templestuart.com/' });
   assert.match(mail.text, /Free with your account: Tasks, .*Expenses, Travel\./); // TIME-03 (2026-10-26): Time sits between
 });

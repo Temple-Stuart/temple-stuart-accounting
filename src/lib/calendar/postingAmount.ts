@@ -80,3 +80,14 @@ export function reversedRefusalWords(entry: PostingState & { readonly id: string
     ? `${what} is a reversal entry — it pays nothing, so it cannot be linked`
     : `${what} has been reversed — it pays nothing, so it cannot be linked`;
 }
+
+/**
+ * BILLPAY-01 (Alex, 2026-10-28, ruling B) — PAID FROM. Bill Pay's one links read selects a linked posting with its state
+ * (LINK-LAW-01) and each of its lines' chart account: a bank posting is DR expense / CR bank (journal-entry-service.ts
+ * commitPlaidTransaction), so the credit line's account is the account the bill was paid from. Wider than
+ * POSTING_LINES_SELECT by the account alone; amountCentsOf reads it as before.
+ */
+export const BILL_POSTING_SELECT = {
+  ledger_entries: { select: { entry_type: true, amount: true, account: { select: { code: true, name: true, entity_id: true } } } },
+  ...POSTING_STATE_SELECT,
+} as const;

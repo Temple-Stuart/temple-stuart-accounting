@@ -213,7 +213,8 @@ test('C the free set and the selling surfaces follow by derivation: Expenses joi
   // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13. Tasks joined the free set before Expenses; the counts are tasks03.test.ts's.
   assert.ok(FREE_TOOLS.some((t) => t.name === 'Expenses') && FREE_TOOLS.some((t) => t.name === 'Travel'));
   assert.match(freeSetLine(), /^Free with an account, no module to buy: .*Expenses, Travel — the registry's live tools with no tab gate\.$/);
-  assert.match(heroCountsLine(), /^Twenty-five tools, counted: \w+ live, \w+ partial, thirteen on the blueprint\.$/);
+  // BILLPAY-01 (Alex, 2026-10-28): Bill Pay NOT_BUILT → PARTIAL — twelve on the blueprint (thirteen until then).
+  assert.match(heroCountsLine(), /^Twenty-five tools, counted: \w+ live, \w+ partial, twelve on the blueprint\.$/);
   const mail = verificationEmail({ name: 'Ada', verifyUrl: 'https://templestuart.com/api/auth/verify?token=t', baseUrl: 'https://templestuart.com/' });
   assert.match(mail.text, /Free with your account: .*Expenses, Travel\./); // TASKS-03 (2026-10-26): Tasks precedes them
 });

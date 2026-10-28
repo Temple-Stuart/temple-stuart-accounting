@@ -19,9 +19,10 @@ const withTool = (name: string, patch: Partial<ToolEntry>): ToolEntry[] => TOOL_
 // EXPENSES-02 (Alex, 2026-10-26): Expenses is LIVE — the vendor decided on the row; receipts are Documents' job. 2 · 10 · 13 → 3 · 9 · 13.
 // TASKS-03 (Alex, 2026-10-26): Tasks is LIVE — THE WORK prints ACTUAL as logged and MATCH from Books (the ledger's pair); 3 · 9 · 13 → 4 · 8 · 13.
 // TIME-03 (Alex, 2026-10-26): Time is LIVE — PLANNED MIN · LOGGED MIN after STARS, nothing reordered; the summary adds up the hours; 4 · 8 · 13 → 5 · 7 · 13.
-test('the counts are the dated census — 5 LIVE · 7 PARTIAL · 13 NOT_BUILT — and the law holds on the real registry', () => {
-  assert.deepEqual(EXPECTED_STATUS_COUNTS, { LIVE: 5, PARTIAL: 7, NOT_BUILT: 13 });
-  assert.deepEqual(statusCounts(), { LIVE: 5, PARTIAL: 7, NOT_BUILT: 13 });
+// BILLPAY-01 (Alex, 2026-10-28): Bill Pay PARTIAL — the due list and the manual link; it pays nothing. 5 · 7 · 13 → 5 · 8 · 12.
+test('the counts are the dated census — 5 LIVE · 8 PARTIAL · 12 NOT_BUILT — and the law holds on the real registry', () => {
+  assert.deepEqual(EXPECTED_STATUS_COUNTS, { LIVE: 5, PARTIAL: 8, NOT_BUILT: 12 });
+  assert.deepEqual(statusCounts(), { LIVE: 5, PARTIAL: 8, NOT_BUILT: 12 });
   assert.deepEqual(registryLaw({ throwOnFail: false }), []);
   assert.deepEqual(TOOL_REGISTRY.filter((t) => t.status === 'LIVE').map((t) => t.name), ['Tasks', 'Time', 'Expenses', 'Travel', 'Bookkeeping']);
 });
