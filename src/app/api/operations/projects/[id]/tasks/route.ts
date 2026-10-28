@@ -9,7 +9,7 @@
  *        additively, match_cents (number | null), match_links and
  *        match_unreadable — the postings linked to it in Books
  *        (planned_item_links target_kind 'project_task'), read in ONE query
- *        for the project's tasks with POSTING_LINES_SELECT, user-scoped
+ *        for the project's tasks with LINKED_POSTING_SELECT, user-scoped
  *        through the caller's journal entries as the ledger route scopes
  *        its links, and summed by src/lib/operations/taskMatch.ts (the
  *        ledger's matchOf; an unreadable posting counted and the sum blank).
@@ -33,7 +33,7 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { carriesPlanMoney, planMoney, type PlanBook } from '@/lib/operations/planMoney';
 import { loadPlanBook } from '@/lib/operations/loadPlanBook';
-import { POSTING_LINES_SELECT } from '@/lib/calendar/postingAmount';
+import { LINKED_POSTING_SELECT } from '@/lib/calendar/postingAmount';
 import { taskMatchOf, taskMatchesOf } from '@/lib/operations/taskMatch';
 
 const STATUS_ORDER: Record<OperationsTaskStatus, number> = {
@@ -96,11 +96,11 @@ export async function GET(
       return 0;
     });
 
-    // TASKS-03 (ruling B): the caller's links of these tasks, with each posting's lines — one query, never one per task;
+    // TASKS-03 (ruling B): the caller's links of these tasks, with each posting's lines — one query, never one per task; LINK-LAW-01 (ruling C): and its reversal state;
     // scoped to the caller twice, as the ledger route scopes its links (the link's user and the posting's user).
     const linkRows = sorted.length === 0 ? [] : await prisma.planned_item_links.findMany({
       where: { user_id: user.id, target_kind: 'project_task', target_id: { in: sorted.map((t) => t.id) }, journal_entry: { userId: user.id } },
-      select: { target_kind: true, target_id: true, target_instant: true, journal_entry_id: true, journal_entry: { select: POSTING_LINES_SELECT } },
+      select: { target_kind: true, target_id: true, target_instant: true, journal_entry_id: true, journal_entry: { select: LINKED_POSTING_SELECT } },
       orderBy: { linked_at: 'asc' },
     });
     const matches = taskMatchesOf(linkRows);

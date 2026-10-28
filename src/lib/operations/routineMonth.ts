@@ -22,6 +22,10 @@
  *                          readableMatchCents (ledger.ts), the amount by
  *                          postingAmount.ts amountCentsOf; null with no link, or with
  *                          an unreadable posting (said, counted in match_unreadable).
+ *                          LINK-LAW-01 (Alex, 2026-10-28, ruling C): a linked posting
+ *                          that is a reversal or was reversed pays nothing — matchOf
+ *                          leaves it out, and the month says how many ("1 linked
+ *                          posting was reversed — MATCH leaves it out").
  *   · variance_cents       links.ts variance(TO DATE, ACTUAL): null unless both are
  *                          known. A whole-month budget is never set against a to-date
  *                          actual.
@@ -56,6 +60,7 @@ import { planHoldsOf, type PlanVendorRow } from '@/lib/budget/planLines';
 import { matchOf, readableMatchCents, type LedgerLinkInput } from '@/lib/operations/ledger';
 import { refusedWords, type StopRecordRow } from '@/lib/operations/stopRecord';
 import { variance } from '@/lib/calendar/links';
+import { reversedLinkedWords } from '@/lib/calendar/postingAmount';
 import { instantToZoned } from '@/lib/time';
 
 export const BY_OCCURRENCE_WORDS = 'by occurrence';
@@ -233,11 +238,14 @@ export function routineMonthOf(input: RoutineMonthInput): RoutineMonthResult {
   };
 
   let unreadablePostings = 0;
+  let reversedPostings = 0;
   const lines: RoutineMonthLine[] = plans.map((plan) => {
     const key = monthLineKey(plan.routineId, plan.stepId);
     const actual = actuals.get(key) ?? { records: 0, cents: null };
     const match = matchOf(linksByKey.get(key) ?? []);
     unreadablePostings += match?.unreadable ?? 0;
+    // LINK-LAW-01 (ruling C): the reversed postings matchOf left out — counted for the said line, never summed.
+    reversedPostings += match === null ? 0 : match.reversed;
     // COLUMNS-01 (ruling A): an inactive routine's line is listed with its ACTUAL and MATCH (records and links are real) and no budget —
     // THIS MONTH, TO DATE and VARIANCE null, and the words saying why; the plans came from input.routines, so the routine is always there.
     const routine = routineById.get(plan.routineId);
@@ -260,5 +268,6 @@ export function routineMonthOf(input: RoutineMonthInput): RoutineMonthResult {
     };
   });
   if (unreadablePostings > 0) said.push(`${plural(unreadablePostings, 'posting is', 'postings are')} linked but carry no readable amount — MATCH is blank on those lines`);
+  if (reversedPostings > 0) said.push(reversedLinkedWords(reversedPostings));
   return { ok: true, as_of: asOf, from, to, lines, said };
 }

@@ -93,6 +93,10 @@ import { code as codeOf, comments as commentsOf, functionBody, rejoin } from '..
 import { CHAIN_STATES, KIND_FACTS, EVENT_SOURCE_OWNER, buildChain } from '../src/lib/calendar/chain';
 import { LINKABLE_KINDS, requiresInstant } from '../src/lib/calendar/linkKeys';
 import { sumLinks } from '../src/lib/calendar/links';
+import { isReversedPosting, reversedLinkedWords } from '../src/lib/calendar/postingAmount';
+import { occurrenceCheck } from '../src/lib/operations/linkOccurrence';
+import { routineHoldsLinksWords } from '../src/lib/operations/linkHold';
+import { matchOf, readableMatchCents } from '../src/lib/operations/ledger';
 import { routinePlanned } from '../src/lib/operations/routineLines';
 // VENDOR-01 (2026-09-29): the plan-vendor rule, probed by the vendor law.
 import { GRAIN_TAG, VENDOR_NAME_MAX, grainAllows, readVendorName, takenBy, vendorNameKey } from '../src/lib/operations/planVendor';
@@ -2748,8 +2752,8 @@ for (const f of [LINK_ROUTE, 'src/lib/calendar/links.ts']) {
 }
 // And the leaf proves it here, at build time.
 const linkProbe = sumLinks([
-  { journalEntryId: 'a', date: '2026-01-01', description: 'x', amountCents: 30000 },
-  { journalEntryId: 'b', date: '2026-01-02', description: 'y', amountCents: null },
+  { journalEntryId: 'a', date: '2026-01-01', description: 'x', amountCents: 30000, reversed: false },
+  { journalEntryId: 'b', date: '2026-01-02', description: 'y', amountCents: null, reversed: false },
 ]);
 if (linkProbe.actual !== 300) linkFail(`the link leaf summed ${linkProbe.actual} — the readable posting alone is 300`);
 if (linkProbe.complete) linkFail('the link leaf called a sum complete while a posting carried no readable amount');
@@ -2773,7 +2777,98 @@ if (!/CREATE UNIQUE INDEX "planned_item_links_one_item_per_posting"[\s\S]{0,120}
   linkFail(`${LINK_MIGRATION} does not enforce one item per posting — two items would each claim the whole amount`);
 }
 if (!/ON DELETE RESTRICT/.test(linkMigration)) linkFail(`${LINK_MIGRATION} lets a linked posting be deleted — financial attribution never vanishes`);
-if (linkViolations === 0) console.log(`✔ The link law passed — ${LINKABLE_KINDS.length} linkable kinds, the occurrence keyed on its instant, one item per posting enforced in SQL; no matcher, no score, and no null summed as zero.`);
+
+// ── LINK-LAW-01 (Alex, 2026-10-28) — "PAID" STAYS A HUMAN ACT, AND A LINK MEANS WHAT IT SAYS. ──
+const ROUTINE_ID_ROUTE = 'src/app/api/operations/routines/[id]/route.ts';
+const LINE_ROUTE = 'src/app/api/operations/routines/steps/[stepId]/route.ts';
+const OCCURRENCE_LEAF = 'src/lib/operations/linkOccurrence.ts';
+const POSTING_LEAF = 'src/lib/calendar/postingAmount.ts';
+const HOLD_LEAF = 'src/lib/operations/linkHold.ts';
+const MATCH_READ_ROUTES = ['src/app/api/operations/routines/month/route.ts', 'src/app/api/operations/ledger/route.ts', 'src/app/api/operations/projects/[id]/tasks/route.ts'];
+const postBody = (() => { const at = linkRoute.indexOf('export async function POST('); return at < 0 ? '' : linkRoute.slice(at, linkRoute.indexOf('export async function DELETE(')); })();
+const getBody = (() => { const at = linkRoute.indexOf('export async function GET('); return at < 0 ? '' : linkRoute.slice(at, linkRoute.indexOf('export async function POST(')); })();
+
+// 7. ONE WRITER (ruling A). planned_item_links is created and deleted only by the links route (POST/DELETE) and its instant
+// moved only by the routine rekey — scanned across ALL of src/ (the budget-link law's scope), every other site named.
+const LINK_CREATE_DELETE = new Set(['create', 'createMany', 'createManyAndReturn', 'upsert', 'delete', 'deleteMany']);
+const LINK_MOVE = new Set(['update', 'updateMany', 'updateManyAndReturn']);
+for (const { file, src } of srcFiles) {
+  for (const m of src.matchAll(/planned_item_links\s*\.\s*(create|createMany|createManyAndReturn|update|updateMany|updateManyAndReturn|upsert|delete|deleteMany)\s*\(/g)) {
+    const verb = m[1];
+    if (file === LINK_ROUTE && LINK_CREATE_DELETE.has(verb)) continue;
+    if (file === ROUTINE_ID_ROUTE && LINK_MOVE.has(verb)) continue;
+    linkFail(`${file} calls planned_item_links.${verb} — the links route (${LINK_ROUTE}) alone creates and deletes a link, and the routine rekey (${ROUTINE_ID_ROUTE}) alone moves its instant (LINK-LAW-01 ruling A)`);
+  }
+  if (/planned_item_links\s*:\s*\{\s*(create|createMany|connectOrCreate|upsert|update|updateMany|delete|deleteMany|set|connect|disconnect)\b/.test(src)) linkFail(`${file} writes planned_item_links through a nested write — the links route is its one writer (LINK-LAW-01 ruling A)`);
+  if (/(INSERT\s+INTO|UPDATE|DELETE\s+FROM|TRUNCATE(\s+TABLE)?)\s+"?planned_item_links/i.test(src)) linkFail(`${file} writes planned_item_links in raw SQL (LINK-LAW-01 ruling A)`);
+}
+if ((postBody.match(/planned_item_links\.create\(/g) ?? []).length !== 1 || (linkRoute.match(/planned_item_links\.deleteMany\(/g) ?? []).length !== 1) linkFail(`${LINK_ROUTE} does not write the link exactly once each way (one create in the POST, one deleteMany) (LINK-LAW-01 ruling A)`);
+const rekeyMoves = codeOf(ROUTINE_ID_ROUTE).match(/planned_item_links\.update\(\{ where: \{ id: l\.id \}, data: \{ target_instant: to \} \}\)/g) ?? [];
+if (rekeyMoves.length !== 1 || /planned_item_links\.updateMany\(/.test(codeOf(ROUTINE_ID_ROUTE))) linkFail(`${ROUTINE_ID_ROUTE} does not move a link’s instant exactly once, through the rekey, writing target_instant alone (LINK-LAW-01 ruling A)`);
+
+// 8. A LINK IS TO A REAL OCCURRENCE (ruling B). The POST tests a routine's or a line's instant against the routine's rule,
+// in its own zone, through the budget's builder, before it writes; the leaf has no second expansion.
+const occurrenceLeaf = codeOf(OCCURRENCE_LEAF);
+const atCheck = postBody.indexOf('const occurrence = occurrenceCheck(routine, t.instant);');
+if (atCheck < 0 || atCheck > postBody.indexOf('planned_item_links.create(') || !/if \(!occurrence\.ok\) return NextResponse\.json\(\{ error: occurrence\.message \}, \{ status: 400 \}\);/.test(postBody)) linkFail(`${LINK_ROUTE} POST does not refuse an instant that is not an occurrence of the routine before it writes (LINK-LAW-01 ruling B)`);
+if (!/if \(t\.kind === 'routine' \|\| t\.kind === 'routine_line'\)/.test(postBody)) linkFail(`${LINK_ROUTE} POST does not test both routine kinds’ instants (LINK-LAW-01 ruling B)`);
+for (const piece of ["import { dayWindow } from '@/lib/budget/days';", 'expandBetween(routine.schedule_rrule, routine.timezone, windowFrom, windowTo, scheduleAnchor(routine.start_date), routine.end_date)', 'instantToZoned(instant, routine.timezone)', 'occurrences.some((o) => o.getTime() === instant.getTime())']) {
+  if (!occurrenceLeaf.includes(piece)) linkFail(`${OCCURRENCE_LEAF} does not test the instant with the budget’s builder — missing ${JSON.stringify(piece)} (LINK-LAW-01 ruling B)`);
+}
+if (/expandForward|new RRule|rrulestr|getUTCDate\(\)|setUTCDate/.test(occurrenceLeaf)) linkFail(`${OCCURRENCE_LEAF} expands or places by a second rule — the budget’s builder is the one (LINK-LAW-01 ruling B)`);
+{
+  const probe = { name: 'Late snack', timezone: 'America/Los_Angeles', schedule_rrule: 'FREQ=DAILY;BYHOUR=23;BYMINUTE=30;BYSECOND=0', start_date: null, end_date: null };
+  if (!occurrenceCheck(probe, new Date('2026-10-15T06:30:00.000Z')).ok) linkFail('the occurrence test refused 23:30 Los Angeles on Oct 14 (06:30Z Oct 15) — the day is the zone’s, not UTC’s (LINK-LAW-01 ruling B)');
+  const off = occurrenceCheck(probe, new Date('2026-10-14T23:30:00.000Z'));
+  if (off.ok || !/ is not an occurrence of "Late snack"$/.test(off.message)) linkFail('the occurrence test accepted 23:30Z — 16:30 in Los Angeles is no occurrence — or did not refuse it by name (LINK-LAW-01 ruling B)');
+}
+
+// 9. A REVERSED POSTING PAYS NOTHING (ruling C). The POST refuses one by name; every MATCH read selects the reversal state and
+// leaves a reversed posting out, saying how many; the candidates offer none and count the ones left out.
+const reversedAt = postBody.indexOf('if (isReversedPosting(entry)) return NextResponse.json({ error: reversedRefusalWords(entry) }, { status: 409 });');
+if (reversedAt < 0 || reversedAt > postBody.indexOf('planned_item_links.create(')) linkFail(`${LINK_ROUTE} POST does not refuse a reversal or a reversed posting by name before it writes (LINK-LAW-01 ruling C)`);
+if (!/planned_item_links: \{ none: \{\} \},\n\s*\.\.\.PAYING_POSTING_WHERE,/.test(getBody) || !/candidatesReversed = await prisma\.journal_entries\.count\(\{\n\s*where: \{ userId: user\.id, date: \{ gte: from, lte: to \}, planned_item_links: \{ none: \{\} \}, \.\.\.REVERSED_POSTING_WHERE \},/.test(getBody) || !/candidatesReversed,/.test(getBody)) linkFail(`${LINK_ROUTE} GET offers a reversed posting as a candidate, or does not say how many it left out (LINK-LAW-01 ruling C)`);
+if (!/reversed: isReversedPosting\(e\),/.test(linkRoute)) linkFail(`${LINK_ROUTE} GET does not mark a linked posting reversed — the leaf’s sum would count it (LINK-LAW-01 ruling C)`);
+for (const f of MATCH_READ_ROUTES) {
+  const src = codeOf(f);
+  if (!/journal_entry: \{ select: LINKED_POSTING_SELECT \}/.test(src) || /POSTING_LINES_SELECT/.test(src)) linkFail(`${f} reads a linked posting without its reversal state (LINKED_POSTING_SELECT) — a reversed payment would read as paid (LINK-LAW-01 ruling C)`);
+}
+for (const { file, src } of srcFiles) {
+  if (file !== POSTING_LEAF && /select: POSTING_LINES_SELECT\b|\.\.\.POSTING_LINES_SELECT\b/.test(src)) linkFail(`${file} selects a posting’s lines without its reversal state — LINKED_POSTING_SELECT is the select (LINK-LAW-01 ruling C)`);
+}
+{
+  const rev = { status: 'reversed', is_reversal: false, reversed_by_entry_id: 'je-rev' };
+  if (!isReversedPosting(rev) || !isReversedPosting({ status: 'posted', is_reversal: true, reversed_by_entry_id: null }) || isReversedPosting({ status: 'posted', is_reversal: false, reversed_by_entry_id: null })) linkFail('isReversedPosting does not read a reversal and a reversed posting as reversed, and a posted one as paying (LINK-LAW-01 ruling C)');
+  const m = matchOf([{ amountCents: 1000, reversed: true }, { amountCents: 250, reversed: false }]);
+  if (m === null || m.cents !== 250 || m.reversed !== 1 || m.postings !== 1) linkFail(`the match summed a reversed posting, or did not count it — ${JSON.stringify(m)} (LINK-LAW-01 ruling C)`);
+  const allRev = matchOf([{ amountCents: 1000, reversed: true }]);
+  if (allRev === null || readableMatchCents(allRev) !== null) linkFail('a match of reversed postings alone reads as a figure — it is blank (LINK-LAW-01 ruling C)');
+  const leaf = sumLinks([{ journalEntryId: 'r', date: '2026-01-01', description: 'x', amountCents: 30000, reversed: true }]);
+  if (leaf.actual !== null || !leaf.reversed.includes('r')) linkFail('the link leaf summed a reversed posting, or did not name it (LINK-LAW-01 ruling C)');
+  if (reversedLinkedWords(1) !== '1 linked posting was reversed — MATCH leaves it out') linkFail(`the reversed words drifted from the ruling’s ("1 linked posting was reversed") — ${reversedLinkedWords(1)}`);
+}
+
+// 10. NO ORPHANS (ruling D). The routine DELETE counts the links the routine and every line hold, in the transaction that deletes,
+// and refuses 409 by name; the line DELETE refuses while the line holds one; nothing else deletes a routine or hard-deletes a line.
+{
+  const routineRoute = codeOf(ROUTINE_ID_ROUTE);
+  const del = routineRoute.slice(routineRoute.indexOf('export async function DELETE('));
+  const count = del.indexOf('const held = await tx.planned_item_links.count({ where: routineLinksWhere(user.id, id, lineIds) });');
+  const lines = del.indexOf('tx.operations_routine_steps.findMany({ where: { routine_id: id, user_id: user.id }, select: { id: true } })');
+  const gone = del.indexOf('await tx.operations_routines.delete({ where: { id } });');
+  if (lines < 0 || count < 0 || gone < 0 || !(lines < count && count < gone) || !/if \(held > 0\) return held;/.test(del) || !/if \(linked > 0\) return NextResponse\.json\(\{ error: routineHoldsLinksWords\(linked\) \}, \{ status: 409 \}\);/.test(del)) linkFail(`${ROUTINE_ID_ROUTE} DELETE does not count the routine’s and its lines’ links before it deletes, in one transaction, and refuse 409 by name (LINK-LAW-01 ruling D)`);
+  const line = codeOf(LINE_ROUTE);
+  const ldel = line.slice(line.indexOf('export async function DELETE('));
+  const lcount = ldel.indexOf("const linked = await prisma.planned_item_links.count({ where: { user_id: user.id, target_kind: 'routine_line', target_id: stepId } });");
+  if (lcount < 0 || lcount > ldel.indexOf('prisma.operations_routine_steps.update(') || !/if \(linked > 0\) return NextResponse\.json\(\{ error: lineHoldsLinksWords\(linked\) \}, \{ status: 409 \}\);/.test(ldel)) linkFail(`${LINE_ROUTE} DELETE does not refuse 409 by name while the line holds links (LINK-LAW-01 ruling D)`);
+  for (const { file, src } of srcFiles) {
+    if (/operations_routines\s*\.\s*(delete|deleteMany)\s*\(/.test(src) && file !== ROUTINE_ID_ROUTE) linkFail(`${file} deletes a routine — the routine DELETE alone does, after it proves no link is held (LINK-LAW-01 ruling D)`);
+    if (/operations_routine_steps\s*\.\s*(delete|deleteMany)\s*\(/.test(src)) linkFail(`${file} hard-deletes a routine line — a line is archived, and its links would be orphaned (LINK-LAW-01 ruling D)`);
+  }
+  if (routineHoldsLinksWords(2) !== 'this routine has 2 postings linked in Books — deactivate it instead (every record stays)') linkFail(`the routine DELETE’s words drifted from the ruling’s — ${routineHoldsLinksWords(2)}`);
+  if (!existsSync(resolve(ROOT, HOLD_LEAF))) linkFail(`${HOLD_LEAF} is missing`);
+}
+if (linkViolations === 0) console.log(`✔ The link law passed — ${LINKABLE_KINDS.length} linkable kinds, the occurrence keyed on its instant, one item per posting enforced in SQL; no matcher, no score, and no null summed as zero; one writer (the links route creates and deletes, the rekey moves an instant); a link only to a real occurrence; a reversed posting refused and never summed; no routine deleted out from under its links (LINK-LAW-01).`);
 else console.log(`✖ The link law FAILED — ${linkViolations} violation(s).`);
 });
 lawGuard('The lines law', () => {
@@ -3307,6 +3402,9 @@ const ONEOFF_CALLERS = [
   'src/lib/budget/days.ts',
   // MOVE-01 (2026-10-19): the move's plan expands a copy's rule once for its first day, anchored on the copy's own start (the date).
   'src/lib/operations/routineMove.ts',
+  // LINK-LAW-01 (2026-10-28, ruling B): the links POST tests an instant against the routine's rule — the budget's builder over one
+  // day, anchored on the routine's start_date like every caller.
+  'src/lib/operations/linkOccurrence.ts',
 ];
 let oneoffViolations = 0;
 const oneoffFail = (m: string) => { oneoffViolations += 1; violations.push(`one-off law: ${m} (ONEOFF-01)`); };

@@ -32,12 +32,22 @@
  * amount rule (amountCentsOf) moved to src/lib/calendar/postingAmount.ts so the
  * ledger route reads a posting's amount by the same rule — one copy. The
  * candidate rule is unchanged: the window, the date order, nothing pre-selected.
+ *
+ * LINK-LAW-01 (Alex, 2026-10-28). THIS ROUTE IS THE ONE WRITER of planned_item_links (ruling A — the tool-registry law
+ * fails the build on any other create or delete; the routine rekey alone moves an instant). A LINK IS TO A REAL
+ * OCCURRENCE (ruling B): the POST, for a routine or a line, refuses an instant the routine's rule does not produce in
+ * its own zone — linkOccurrence.ts occurrenceCheck, the budget's builder — "<instant> is not an occurrence of
+ * <routine>". A REVERSED POSTING PAYS NOTHING (ruling C): the POST refuses a posting that is a reversal or has been
+ * reversed, by name (postingAmount.ts isReversedPosting); the GET marks each linked posting `reversed` (the leaf's sum
+ * leaves it out and says so — links.ts sumLinks) and offers no reversed posting as a candidate, counting the ones it
+ * left out (candidatesReversed).
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
-import { POSTING_LINES_SELECT, amountCentsOf } from '@/lib/calendar/postingAmount';
+import { LINKED_POSTING_SELECT, PAYING_POSTING_WHERE, REVERSED_POSTING_WHERE, amountCentsOf, isReversedPosting, reversedRefusalWords } from '@/lib/calendar/postingAmount';
+import { OCCURRENCE_ROUTINE_SELECT, occurrenceCheck } from '@/lib/operations/linkOccurrence';
 import { LINKABLE_KINDS, isLinkableKind, requiresInstant, targetOwnerQuery, type LinkableKind, type TargetOwnerQuery } from '@/lib/calendar/linkKeys';
 
 /** How far either side of the item's date a candidate may sit. Not a match — a window. */
@@ -58,16 +68,18 @@ async function caller() {
 
 const ENTRY_SELECT = {
   id: true, date: true, description: true,
-  ...POSTING_LINES_SELECT,
+  ...LINKED_POSTING_SELECT,
 } as const;
 
-type EntryRow = { id: string; date: Date; description: string; ledger_entries: { entry_type: string; amount: bigint }[] };
+type EntryRow = { id: string; date: Date; description: string; ledger_entries: { entry_type: string; amount: bigint }[]; status: string; is_reversal: boolean; reversed_by_entry_id: string | null };
 
+// LINK-LAW-01 (ruling C): each posting says whether it was reversed — a reversed one pays nothing, and the leaf's sum leaves it out.
 const asPosting = (e: EntryRow) => ({
   journalEntryId: e.id,
   date: e.date.toISOString().slice(0, 10),
   description: e.description,
   amountCents: amountCentsOf(e),
+  reversed: isReversedPosting(e),
 });
 
 /** The (kind, id, instant) triple, validated. Returns the reason on refusal. */
@@ -126,6 +138,8 @@ export async function GET(request: NextRequest) {
   // THE CANDIDATES. Every posting of THIS user inside a window around the item's
   // date, minus any already linked to something. Date order — not closeness.
   let candidates: ReturnType<typeof asPosting>[] = [];
+  // LINK-LAW-01 (ruling C): a reversed posting is never offered; how many the window held is said, never hidden.
+  let candidatesReversed = 0;
   if (near) {
     const anchor = new Date(`${near.slice(0, 10)}T00:00:00Z`);
     if (!Number.isNaN(anchor.getTime())) {
@@ -139,12 +153,16 @@ export async function GET(request: NextRequest) {
           // cardinality rule (one posting, at most one item) shown in the UI
           // rather than left for the database to refuse.
           planned_item_links: { none: {} },
+          ...PAYING_POSTING_WHERE,
         },
         select: ENTRY_SELECT,
         orderBy: { date: 'desc' },
         take: CANDIDATE_LIMIT,
       });
       candidates = rows.map(asPosting);
+      candidatesReversed = await prisma.journal_entries.count({
+        where: { userId: user.id, date: { gte: from, lte: to }, planned_item_links: { none: {} }, ...REVERSED_POSTING_WHERE },
+      });
     }
   }
 
@@ -154,10 +172,11 @@ export async function GET(request: NextRequest) {
       // A link whose entry cannot be read keeps its id and reports a NULL
       // amount — the leaf excludes it from the sum and names it. It is never
       // counted as zero (the EDGE-01 bug, done the other way round).
-      const posting = e ? asPosting(e) : { journalEntryId: l.journal_entry_id, date: null, description: null, amountCents: null };
+      const posting = e ? asPosting(e) : { journalEntryId: l.journal_entry_id, date: null, description: null, amountCents: null, reversed: null };
       return { ...posting, linkedAt: l.linked_at.toISOString(), linkedBy: l.linked_by };
     }),
     candidates,
+    candidatesReversed,
     candidateWindowDays: CANDIDATE_DAYS,
   });
 }
@@ -180,12 +199,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'No such item' }, { status: 404 });
   }
 
+  // LINK-LAW-01 (ruling B): a routine's occurrence, or a line's, must be one the routine's rule produces in its own zone —
+  // the budget's builder (linkOccurrence.ts). The routine is read user-scoped, as the ownership read was; refused by name.
+  if (t.kind === 'routine' || t.kind === 'routine_line') {
+    const routine = t.kind === 'routine'
+      ? await prisma.operations_routines.findFirst({ where: { id: t.id, user_id: user.id }, select: OCCURRENCE_ROUTINE_SELECT })
+      : (await prisma.operations_routine_steps.findFirst({ where: { id: t.id, routine: { user_id: user.id } }, select: { routine: { select: OCCURRENCE_ROUTINE_SELECT } } }))?.routine ?? null;
+    if (!routine) return NextResponse.json({ error: 'No such item' }, { status: 404 });
+    if (t.instant === null) throw new Error(`links POST: a ${t.kind} target reached the occurrence test without its instant — readTarget requires one`);
+    const occurrence = occurrenceCheck(routine, t.instant);
+    if (!occurrence.ok) return NextResponse.json({ error: occurrence.message }, { status: 400 });
+  }
+
   // The posting must be THIS user's. Someone else's resolves to a defensive 404.
   const entry = await prisma.journal_entries.findFirst({
     where: { id: body.journalEntryId, userId: user.id },
-    select: { id: true, ...POSTING_LINES_SELECT },
+    select: { id: true, date: true, description: true, ...LINKED_POSTING_SELECT },
   });
   if (!entry) return NextResponse.json({ error: 'No such posting' }, { status: 404 });
+  // LINK-LAW-01 (ruling C): a reversal, or a reversed posting, pays nothing — refused by name, nothing written.
+  if (isReversedPosting(entry)) return NextResponse.json({ error: reversedRefusalWords(entry) }, { status: 409 });
 
   // The cardinality rule, stated before the database has to refuse it.
   const taken = await prisma.planned_item_links.findUnique({ where: { journal_entry_id: entry.id } });
@@ -227,7 +260,7 @@ export async function DELETE(request: NextRequest) {
   // posting's lines), so the audit names what was unlinked and the amount it carried.
   const link = await prisma.planned_item_links.findFirst({
     where: { journal_entry_id: journalEntryId, user_id: user.id },
-    include: { journal_entry: { select: POSTING_LINES_SELECT } },
+    include: { journal_entry: { select: LINKED_POSTING_SELECT } },
   });
   if (!link) return NextResponse.json({ error: 'No such link' }, { status: 404 });
   const removed = await prisma.planned_item_links.deleteMany({

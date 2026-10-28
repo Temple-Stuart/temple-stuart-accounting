@@ -53,7 +53,9 @@ const MIGRATION_DIR = '20261019230000_ledger_03_planned_item_link_audit';
 const MIGRATION = `${MIGRATIONS}/${MIGRATION_DIR}/migration.sql`;
 /** The drill panel at 9680cf7b (main after #1833), whole file — LEDGER-03 touches it not at all. */
 // CAL-02 (Alex, 2026-10-27): the panel's Category (COA) row became ACCOUNT for a routine occurrence and each line prints its own account words (cal02b.test.ts) — the byte-for-byte pin moved from 9680cf7b's 4e448408… to this change's file.
-const PANEL_SHA256 = '333c96a6463fef69931b1e393246a467b005f63b0cf46ba5da492db072f984a0';
+// LINK-LAW-01 (Alex, 2026-10-28, ruling C): a reversed linked posting wears a tag and the actual's note says how many were left out; each candidate list says how
+// many reversed postings it did not offer — the byte-for-byte pin moved from CAL-02's 333c96a6… to this change's file (linkLaw01.test.ts drives the words).
+const PANEL_SHA256 = 'f8eb9e968096e40178e61db8488444ac02f13793f61b6428906b67ec4b578e6c';
 
 // ── FIXTURES (the Budget's own shapes, as ledger02.test.ts builds them) ─────
 
@@ -106,22 +108,22 @@ const RECORDS: LedgerRecordInput[] = [
 /** The links as the route reads them — both kinds; the ones that must NOT join are named. */
 const LINKS: LedgerLinkInput[] = [
   // The coffee line on Oct 13: one posting, equal to the actual to the cent.
-  { kind: 'routine_line', targetId: 'coffee', instant: MORNING_13, journalEntryId: 'je-coffee-13', amountCents: 898 },
+  { kind: 'routine_line', targetId: 'coffee', instant: MORNING_13, journalEntryId: 'je-coffee-13', amountCents: 898, reversed: false },
   // The stepless client lunch on Oct 13: two postings that sum to the actual.
-  { kind: 'routine', targetId: 'client', instant: CLIENT_13, journalEntryId: 'je-client-a', amountCents: 2500 },
-  { kind: 'routine', targetId: 'client', instant: CLIENT_13, journalEntryId: 'je-client-b', amountCents: 500 },
+  { kind: 'routine', targetId: 'client', instant: CLIENT_13, journalEntryId: 'je-client-a', amountCents: 2500, reversed: false },
+  { kind: 'routine', targetId: 'client', instant: CLIENT_13, journalEntryId: 'je-client-b', amountCents: 500, reversed: false },
   // The coffee line on Oct 12: a posting that differs from the actual.
-  { kind: 'routine_line', targetId: 'coffee', instant: MORNING_12, journalEntryId: 'je-coffee-12', amountCents: 1000 },
+  { kind: 'routine_line', targetId: 'coffee', instant: MORNING_12, journalEntryId: 'je-coffee-12', amountCents: 1000, reversed: false },
   // The yoga (no plan line): one posting the books cannot read — reported, never summed as zero.
-  { kind: 'routine', targetId: 'yoga', instant: YOGA_12, journalEntryId: 'je-yoga', amountCents: null },
+  { kind: 'routine', targetId: 'yoga', instant: YOGA_12, journalEntryId: 'je-yoga', amountCents: null, reversed: false },
   // The lunch line on Oct 13: a posting, but the record carries no actual — a sum with no cue.
-  { kind: 'routine_line', targetId: 'lunch', instant: MORNING_13, journalEntryId: 'je-lunch', amountCents: 1500 },
+  { kind: 'routine_line', targetId: 'lunch', instant: MORNING_13, journalEntryId: 'je-lunch', amountCents: 1500, reversed: false },
   // MUST NOT JOIN: the same step and day as r-coffee-11 but one millisecond off — byte for byte, or nothing.
-  { kind: 'routine_line', targetId: 'coffee', instant: '2026-10-11T00:00:00.001Z', journalEntryId: 'je-off-by-one', amountCents: 1000 },
+  { kind: 'routine_line', targetId: 'coffee', instant: '2026-10-11T00:00:00.001Z', journalEntryId: 'je-off-by-one', amountCents: 1000, reversed: false },
   // MUST NOT JOIN: the step's id under the ROUTINE kind.
-  { kind: 'routine', targetId: 'coffee', instant: MORNING_11, journalEntryId: 'je-wrong-kind', amountCents: 1000 },
+  { kind: 'routine', targetId: 'coffee', instant: MORNING_11, journalEntryId: 'je-wrong-kind', amountCents: 1000, reversed: false },
   // MUST NOT JOIN: a day with no record of this routine.
-  { kind: 'routine', targetId: 'client', instant: '2026-10-12T05:30:00.000Z', journalEntryId: 'je-no-record', amountCents: 2500 },
+  { kind: 'routine', targetId: 'client', instant: '2026-10-12T05:30:00.000Z', journalEntryId: 'je-no-record', amountCents: 2500, reversed: false },
 ];
 
 const built = buildRoutineBudgetLines(ROUTINES, FROM, TO);
@@ -152,23 +154,25 @@ test('R2 the join: a record meets its links by (kind, target_id, occurrence_at) 
   assert.equal(linkKeyOf('routine_line', 'coffee', MORNING_13), `routine_line:coffee:${MORNING_13}`);
   const coffee = rowOf('r-coffee-13');
   assert.deepEqual(coffee.address, { kind: 'routine_line', id: 'coffee', instant: MORNING_13 }, 'the record’s own three fields — the picker’s props');
-  assert.deepEqual(coffee.match, { cents: 898, postings: 1, unreadable: 0 }, 'a line: one posting');
+  // LINK-LAW-01 (Alex, 2026-10-28, ruling C): a match counts the reversed postings it left out — none in these fixtures (linkLaw01.test.ts drives it).
+  assert.deepEqual(coffee.match, { cents: 898, postings: 1, unreadable: 0, reversed: 0 }, 'a line: one posting');
   const client = rowOf('r-client-13');
   assert.deepEqual(client.address, { kind: 'routine', id: 'client', instant: CLIENT_13 });
-  assert.deepEqual(client.match, { cents: 3000, postings: 2, unreadable: 0 }, 'a stepless routine: two postings summed');
-  assert.deepEqual(rowOf('r-coffee-12').match, { cents: 1000, postings: 1, unreadable: 0 });
-  assert.deepEqual(rowOf('r-yoga-12').match, { cents: null, postings: 1, unreadable: 1 }, 'a posting with no readable amount: counted, never summed as zero');
-  assert.deepEqual(rowOf('r-lunch-13').match, { cents: 1500, postings: 1, unreadable: 0 });
+  assert.deepEqual(client.match, { cents: 3000, postings: 2, unreadable: 0, reversed: 0 }, 'a stepless routine: two postings summed');
+  assert.deepEqual(rowOf('r-coffee-12').match, { cents: 1000, postings: 1, unreadable: 0, reversed: 0 });
+  assert.deepEqual(rowOf('r-yoga-12').match, { cents: null, postings: 1, unreadable: 1, reversed: 0 }, 'a posting with no readable amount: counted, never summed as zero');
+  assert.deepEqual(rowOf('r-lunch-13').match, { cents: 1500, postings: 1, unreadable: 0, reversed: 0 });
   assert.equal(rowOf('r-coffee-11').match, null, 'the off-by-one-millisecond link and the wrong-kind link join nothing — null, not a guess');
   assert.equal(rowOf('r-stretch-13').match, null, 'no link: null');
   assert.equal(ledger.rows.filter((r) => r.match !== null).length, 5);
   // The rule alone.
   assert.equal(matchOf([]), null);
-  assert.deepEqual(matchOf([{ amountCents: 100 }, { amountCents: null }, { amountCents: 250 }]), { cents: 350, postings: 3, unreadable: 1 });
-  assert.deepEqual(matchOf([{ amountCents: null }]), { cents: null, postings: 1, unreadable: 1 });
+  // LINK-LAW-01 (2026-10-28, ruling C): a link says whether its posting was reversed, and the match counts the reversed it left out (0 here).
+  assert.deepEqual(matchOf([{ amountCents: 100, reversed: false }, { amountCents: null, reversed: false }, { amountCents: 250, reversed: false }]), { cents: 350, postings: 3, unreadable: 1, reversed: 0 });
+  assert.deepEqual(matchOf([{ amountCents: null, reversed: false }]), { cents: null, postings: 1, unreadable: 1, reversed: 0 });
   assert.equal(readableMatchCents(null), null);
-  assert.equal(readableMatchCents({ cents: 350, postings: 3, unreadable: 1 }), null, 'any unreadable posting: no readable sum');
-  assert.equal(readableMatchCents({ cents: 350, postings: 2, unreadable: 0 }), 350);
+  assert.equal(readableMatchCents({ cents: 350, postings: 3, unreadable: 1, reversed: 0 }), null, 'any unreadable posting: no readable sum');
+  assert.equal(readableMatchCents({ cents: 350, postings: 2, unreadable: 0, reversed: 0 }), 350);
   // In the source: the links indexed once by the record's own key; no per-record query anywhere.
   const rules = code(RULES);
   assert.match(rules, /export const linkKeyOf = \(kind: string, id: string, instant: string\): string => `\$\{kind\}:\$\{id\}:\$\{instant\}`;/);
@@ -179,14 +183,17 @@ test('R2 the join: a record meets its links by (kind, target_id, occurrence_at) 
   // The route: ONE query for the span's window, both kinds, the caller's, with each posting's lines for the one amount rule.
   const route = code(LEDGER_ROUTE);
   assert.equal((route.match(/prisma\.planned_item_links\.findMany\(/g) ?? []).length, 1, 'one query');
-  assert.match(route, /prisma\.planned_item_links\.findMany\(\{\n\s*where: \{ user_id: user\.id, target_kind: \{ in: \['routine', 'routine_line'\] \}, target_instant: \{ gte: recordsFrom, lt: recordsTo \}, journal_entry: \{ userId: user\.id \} \},\n\s*select: \{ target_kind: true, target_id: true, target_instant: true, journal_entry_id: true, journal_entry: \{ select: POSTING_LINES_SELECT \} \},/, 'the records’ own window, user-scoped twice');
+  // LINK-LAW-01 (Alex, 2026-10-28, ruling C): the select is LINKED_POSTING_SELECT — the lines plus the reversal state.
+  assert.match(route, /prisma\.planned_item_links\.findMany\(\{\n\s*where: \{ user_id: user\.id, target_kind: \{ in: \['routine', 'routine_line'\] \}, target_instant: \{ gte: recordsFrom, lt: recordsTo \}, journal_entry: \{ userId: user\.id \} \},\n\s*select: \{ target_kind: true, target_id: true, target_instant: true, journal_entry_id: true, journal_entry: \{ select: LINKED_POSTING_SELECT \} \},/, 'the records’ own window, user-scoped twice');
   assert.match(route, /const \[chart, routineGroups, roles, planVendors, stayRows, recordRows, firstRow, linkRows\] = await Promise\.all\(\[/, 'read beside the records, not per record');
   assert.match(route, /links: linkRows\.map\(linkInputOf\),/);
   // ROUTINES-03 (Alex, 2026-10-25): linkInputOf moved to ledger.ts, unchanged, so the routines' month route reads a link the same way — the pins moved with it.
   assert.match(route, /import \{ ledgerOf, linkInputOf, spanInput, type LedgerRecordInput \} from '@\/lib\/operations\/ledger';/);
   assert.doesNotMatch(route, /function linkInputOf\(/, 'the mapper lives in ledger.ts now');
-  assert.match(rules, /export function linkInputOf\(row: \{ target_kind: string; target_id: string; target_instant: Date \| null; journal_entry_id: string; journal_entry: PostingLines \}\): LedgerLinkInput \{/);
-  assert.match(rules, /return \{ kind: row\.target_kind, targetId: row\.target_id, instant: row\.target_instant\.toISOString\(\), journalEntryId: row\.journal_entry_id, amountCents: amountCentsOf\(row\.journal_entry\) \};/, 'the instant as the record’s occurrence_at is answered — toISOString');
+  // LINK-LAW-01 (Alex, 2026-10-28, ruling C): the mapper reads the posting's reversal state too (LinkedPostingRow) and says whether it was reversed.
+  assert.match(rules, /export function linkInputOf\(row: \{ target_kind: string; target_id: string; target_instant: Date \| null; journal_entry_id: string; journal_entry: LinkedPostingRow \}\): LedgerLinkInput \{/);
+  // LINK-LAW-01 (Alex, 2026-10-28, ruling C): the link also says whether its posting was reversed (isReversedPosting).
+  assert.match(rules, /return \{ kind: row\.target_kind, targetId: row\.target_id, instant: row\.target_instant\.toISOString\(\), journalEntryId: row\.journal_entry_id, amountCents: amountCentsOf\(row\.journal_entry\), reversed: isReversedPosting\(row\.journal_entry\) \};/, 'the instant as the record’s occurrence_at is answered — toISOString');
   assert.match(rules, /has no instant — the migration's CHECK holds one/, 'a routine kind with no instant is the database’s error');
   assert.match(code('src/app/api/operations/routines/month/route.ts'), /links: linkRows\.map\(linkInputOf\)/, 'the month route reads a link through the same mapper');
   assert.doesNotMatch(route, /planned_item_links\.findFirst|planned_item_links\.findUnique|planned_item_links\.count/, 'no per-record read');
@@ -202,12 +209,15 @@ test('R2 the one amount rule: amountCentsOf lives in a pure leaf both routes imp
   assert.doesNotMatch(leaf, /@prisma\/client|\bfetch\b|from 'react'|from 'next/, 'pure');
   assert.match(leaf, /export function amountCentsOf\(entry: PostingLines\): number \| null \{\n\s*const debit = entry\.ledger_entries\.find\(\(l\) => l\.entry_type === 'D'\);\n\s*if \(!debit\) return null;\n\s*const n = Number\(debit\.amount\);\n\s*return Number\.isFinite\(n\) \? n : null;\n\}/, 'the links route’s rule, moved whole');
   const links = code(LINKS_ROUTE);
-  assert.match(links, /import \{ POSTING_LINES_SELECT, amountCentsOf \} from '@\/lib\/calendar\/postingAmount';/);
+  // LINK-LAW-01 (Alex, 2026-10-28, ruling C): the select is LINKED_POSTING_SELECT — the same lines plus the reversal state (postingAmount.ts) —
+  // in the links route, the ledger route and the rules' mapper; the amount rule is unchanged and still the leaf's one copy.
+  assert.match(links, /import \{ LINKED_POSTING_SELECT, PAYING_POSTING_WHERE, REVERSED_POSTING_WHERE, amountCentsOf, isReversedPosting, reversedRefusalWords \} from '@\/lib\/calendar\/postingAmount';/);
   assert.doesNotMatch(links, /function amountCentsOf/, 'no second copy');
-  assert.match(links, /const ENTRY_SELECT = \{\n\s*id: true, date: true, description: true,\n\s*\.\.\.POSTING_LINES_SELECT,\n\} as const;/, 'the same select');
+  assert.match(links, /const ENTRY_SELECT = \{\n\s*id: true, date: true, description: true,\n\s*\.\.\.LINKED_POSTING_SELECT,\n\} as const;/, 'the same select');
+  assert.match(code(LEAF), /export const LINKED_POSTING_SELECT = \{ \.\.\.POSTING_LINES_SELECT, \.\.\.POSTING_STATE_SELECT \} as const;/, 'the lines select, unchanged, inside it');
   // ROUTINES-03 (2026-10-25): the route keeps the select; the amount rule is read by ledger.ts linkInputOf, which both routes call.
-  assert.match(code(LEDGER_ROUTE), /import \{ POSTING_LINES_SELECT \} from '@\/lib\/calendar\/postingAmount';/);
-  assert.match(code(RULES), /import \{ amountCentsOf, type PostingLines \} from '@\/lib\/calendar\/postingAmount';/);
+  assert.match(code(LEDGER_ROUTE), /import \{ LINKED_POSTING_SELECT \} from '@\/lib\/calendar\/postingAmount';/);
+  assert.match(code(RULES), /import \{ amountCentsOf, isReversedPosting, type LinkedPostingRow \} from '@\/lib\/calendar\/postingAmount';/);
   assert.match(comments(LEAF), /LEDGER-03, Alex, 2026-10-19/);
 });
 
@@ -276,7 +286,8 @@ test('R3 the MATCH cell: the sum in dollars; "—" with no link or any unreadabl
 test('R4 the picker: one leaf the ledger mounts under the row with the record’s own (kind, id, instant) and near = its day; LINK-01’s list as the route answers it — date order, nothing pre-selected, nothing ranked, no amount closeness, no vendor match; linked postings with unlink above; the ledger re-reads after a link or unlink; nothing stored', () => {
   const p = code(PICKER);
   assert.match(p, /^'use client';/m);
-  assert.match(p, /import \{ useItemLinks \} from '@\/components\/hub\/useLineLinks';/, 'the generalised hook');
+  // LINK-LAW-01 (Alex, 2026-10-28, ruling C): the picker also reads the hook's reversed tag.
+  assert.match(p, /import \{ REVERSED_TAG_WORDS, useItemLinks \} from '@\/components\/hub\/useLineLinks';/, 'the generalised hook');
   assert.match(p, /export default function LinkPicker\(\{ kind, id, instant, near, onChanged, onClose \}: Props\)/);
   assert.match(p, /readonly kind: LinkableKind;\n\s*readonly id: string;\n\s*readonly instant: string;\s*readonly near: string;\s*readonly onChanged: \(\) => void;\n\s*readonly onClose: \(\) => void;/, 'the four props the ruling names, then the two callbacks');
   assert.match(p, /const item = useItemLinks\(kind, id, instant\);/);
@@ -325,12 +336,13 @@ test('R4 the hook: useItemLinks(kind, id, instant) is the general form; the thre
   assert.match(h, /const read = await readLinks\('routine_line', stepId, instant, near\);/, 'the lines hook reads through it, on its kind');
   assert.match(h, /const done = await postLink\('routine_line', stepId, instant, journalEntryId\);/);
   assert.match(h, /if \(!done\.ok\) \{ setRefusal\(done\.words\); return; \}\n\s*setPicking\(null\); setCandidates\(null\);\n\s*await reload\(\);/, 'the lines hook’s behaviour after a link, as before');
-  assert.match(h, /return \{ byStep, summed, picking, candidates, refusal, openPicker, closePicker, link, unlink \};/, 'the lines hook’s answer, unchanged');
-  assert.match(h, /return \{ links, summed, candidates, refusal, busy, openPicker, closePicker, link, unlink, reload \};/);
+  // LINK-LAW-01 (Alex, 2026-10-28, ruling C): both hooks also answer how many reversed postings the candidate window left out.
+  assert.match(h, /return \{ byStep, summed, picking, candidates, candidatesReversed, refusal, openPicker, closePicker, link, unlink \};/, 'the lines hook’s answer, plus the reversed count');
+  assert.match(h, /return \{ links, summed, candidates, candidatesReversed, refusal, busy, openPicker, closePicker, link, unlink, reload \};/);
   assert.doesNotMatch(h, /\.sort\(|localStorage|sessionStorage/, 'nothing ranked, nothing stored');
   // The drill panel: untouched — the whole file, byte for byte (rejoin is exact: TRAVEL-01).
-  assert.equal(sha256(rejoin(code(PANEL), comments(PANEL))), PANEL_SHA256, 'EventDetailPanel.tsx is the file it was at 9680cf7b');
-  assert.match(code(PANEL), /import \{ useLineLinks \} from '@\/components\/hub\/useLineLinks';/);
+  assert.equal(sha256(rejoin(code(PANEL), comments(PANEL))), PANEL_SHA256, 'EventDetailPanel.tsx is the file LINK-LAW-01 left');
+  assert.match(code(PANEL), /import \{ CANDIDATES_REVERSED_MISSING_WORDS, REVERSED_TAG_WORDS, useLineLinks \} from '@\/components\/hub\/useLineLinks';/);
 });
 
 // ── R5 · THE AUDIT TRAIL ────────────────────────────────────────────────────
@@ -366,8 +378,9 @@ test('R5 the audit: the migration adds the two values the MOVE-01 way and says a
   assert.match(r, /import \{ writeAuditLog \} from '@\/lib\/audit\/writeAuditLog';/);
   const post = r.slice(r.indexOf('export async function POST('), r.indexOf('export async function DELETE('));
   const del = r.slice(r.indexOf('export async function DELETE('));
-  inOrder(post, ['const user = await caller()', "{ status: 401 }", 'ownsTarget(targetOwnerQuery(t.kind, t.id, user.id))', 'const entry = await prisma.journal_entries.findFirst({', 'select: { id: true, ...POSTING_LINES_SELECT },', 'prisma.planned_item_links.findUnique({ where: { journal_entry_id: entry.id } })', 'const link = await prisma.planned_item_links.create({', 'await writeAuditLog({', "action: { type: 'planned_item_linked'", "target: { table: 'planned_item_links', id: link.id },", 'payload: { after: { kind: t.kind, id: t.id, instant: t.instant === null ? null : t.instant.toISOString(), journal_entry_id: entry.id, amountCents: amountCentsOf(entry) } },', '{ status: 201 }'], 'POST: the ownership checks, the write, then its audit');
-  inOrder(del, ['const user = await caller()', "{ status: 401 }", 'const link = await prisma.planned_item_links.findFirst({', 'where: { journal_entry_id: journalEntryId, user_id: user.id },', 'include: { journal_entry: { select: POSTING_LINES_SELECT } },', "{ status: 404 }", 'const removed = await prisma.planned_item_links.deleteMany({', 'where: { journal_entry_id: journalEntryId, user_id: user.id },', 'await writeAuditLog({', "action: { type: 'planned_item_unlinked'", "target: { table: 'planned_item_links', id: link.id },", 'payload: { before: { kind: link.target_kind, id: link.target_id, instant: link.target_instant === null ? null : link.target_instant.toISOString(), journal_entry_id: link.journal_entry_id, amountCents: amountCentsOf(link.journal_entry) } },', 'return NextResponse.json({ unlinked: journalEntryId });'], 'DELETE: read the row user-scoped, delete it, then its audit');
+  // LINK-LAW-01 (Alex, 2026-10-28, ruling C) and B: the POST reads the posting with its date, description and reversal state (the refusal names it); the DELETE reads the same select.
+  inOrder(post, ['const user = await caller()', "{ status: 401 }", 'ownsTarget(targetOwnerQuery(t.kind, t.id, user.id))', 'const entry = await prisma.journal_entries.findFirst({', 'select: { id: true, date: true, description: true, ...LINKED_POSTING_SELECT },', 'prisma.planned_item_links.findUnique({ where: { journal_entry_id: entry.id } })', 'const link = await prisma.planned_item_links.create({', 'await writeAuditLog({', "action: { type: 'planned_item_linked'", "target: { table: 'planned_item_links', id: link.id },", 'payload: { after: { kind: t.kind, id: t.id, instant: t.instant === null ? null : t.instant.toISOString(), journal_entry_id: entry.id, amountCents: amountCentsOf(entry) } },', '{ status: 201 }'], 'POST: the ownership checks, the write, then its audit');
+  inOrder(del, ['const user = await caller()', "{ status: 401 }", 'const link = await prisma.planned_item_links.findFirst({', 'where: { journal_entry_id: journalEntryId, user_id: user.id },', 'include: { journal_entry: { select: LINKED_POSTING_SELECT } },', "{ status: 404 }", 'const removed = await prisma.planned_item_links.deleteMany({', 'where: { journal_entry_id: journalEntryId, user_id: user.id },', 'await writeAuditLog({', "action: { type: 'planned_item_unlinked'", "target: { table: 'planned_item_links', id: link.id },", 'payload: { before: { kind: link.target_kind, id: link.target_id, instant: link.target_instant === null ? null : link.target_instant.toISOString(), journal_entry_id: link.journal_entry_id, amountCents: amountCentsOf(link.journal_entry) } },', 'return NextResponse.json({ unlinked: journalEntryId });'], 'DELETE: read the row user-scoped, delete it, then its audit');
   assert.equal((r.match(/await writeAuditLog\(/g) ?? []).length, 2, 'two writes — one per verb');
   assert.doesNotMatch(r.slice(r.indexOf('export async function GET('), r.indexOf('export async function POST(')), /writeAuditLog/, 'a read is not audited');
   assert.match(r, /actor: \{ user_id: user\.id, email: user\.email, type: 'human_user' \}/);

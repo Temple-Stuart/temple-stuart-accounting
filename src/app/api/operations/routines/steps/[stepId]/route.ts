@@ -10,6 +10,8 @@
  *          of hard-deleting, so the step's content_scene row and every logged
  *          take (answer) survive. Active routine/grid views filter is_active.
  *          The full row is still captured in the audit payload_before.
+ *          LINK-LAW-01 (Alex, 2026-10-28, ruling D): refused 409 by name while
+ *          the line holds links in Books (linkHold.ts lineHoldsLinksWords).
  *
  * Both scope by user_id (denormalized on the step row) with defensive 404.
  */
@@ -29,6 +31,7 @@ import { trimNullable } from '@/lib/operations/routineInput';
 import { carriesPlanMoney, editedPlanMoney, planMoney, type PlanBook } from '@/lib/operations/planMoney';
 import { loadPlanBook } from '@/lib/operations/loadPlanBook';
 import { loadAuthorizedRoutineStep } from '@/lib/operations/loadAuthorizedRoutineStep';
+import { lineHoldsLinksWords } from '@/lib/operations/linkHold';
 
 
 export async function PATCH(
@@ -200,6 +203,11 @@ export async function DELETE(
 
     const existing = await loadAuthorizedRoutineStep(stepId, user.id);
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+    // LINK-LAW-01 (Alex, 2026-10-28, ruling D): a line that holds links in Books is not archived — archiving drops it from
+    // ROUTINE EXPENSES' plans, and its links with it. Refused by name (linkHold.ts); the routine's deactivate is the way.
+    const linked = await prisma.planned_item_links.count({ where: { user_id: user.id, target_kind: 'routine_line', target_id: stepId } });
+    if (linked > 0) return NextResponse.json({ error: lineHoldsLinksWords(linked) }, { status: 409 });
 
     // OPS-CE-1: ARCHIVE, do NOT hard-delete. A hard delete would CASCADE through
     // operations_content_scenes (routine_step_id, onDelete: Cascade) into

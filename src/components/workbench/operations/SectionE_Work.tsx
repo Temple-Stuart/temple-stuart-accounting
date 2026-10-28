@@ -73,8 +73,9 @@ import { WorkCell, readJson, useBookCharts } from './workShared';
 import {
   ADD_TASK_WORDS, CLEAR_CHIP_MARK, EDIT_WORDS, NO_OPEN_PROJECT_WORDS, NO_WORK_WORDS, PICK_PROJECT_WORDS, PROJECT_FIELD_WORDS,
   PROJECT_REQUIRED_WORDS, TASK_DEFAULT, TASK_TABLE_NAME, WORK_LOADING_WORDS, WORK_TITLE_WORDS, openProjects, rowCountWords, statusChipWords, statusDroppedOf,
-  taskDefaultFilters, taskRowsOf, taskTable, workCsvFileName, workFailedWords, withoutStatusFilter, type TaskColumn, type TaskRow, type WorkCharts, type WorkProject,
+  taskDefaultFilters, taskRowsOf, taskTable, tasksReversedOf, workCsvFileName, workFailedWords, withoutStatusFilter, type TaskColumn, type TaskRow, type WorkCharts, type WorkProject,
 } from '@/lib/operations/work';
+import { reversedLinkedWords } from '@/lib/calendar/postingAmount';
 
 const chipOn = 'px-2 py-0.5 border border-brand-purple bg-brand-purple text-white rounded text-xs';
 const actionClass = 'px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row disabled:opacity-50 text-xs';
@@ -177,6 +178,8 @@ export default function SectionE_Work() {
         {loaded && rows.length === 0 && <div className="text-xs text-text-muted" {...dataAttr(name, 'none')}>{NO_WORK_WORDS}</div>}
       </DataTable>
       {loaded && rows.length > 0 && <p className="text-xs text-text-muted" {...dataAttr(name, 'count')}>{rowCountWords(shown.length, rows.length)}</p>}
+      {/* LINK-LAW-01 (ruling C): the linked postings MATCH left out on the rows shown, because they were reversed. */}
+      {loaded && tasksReversedOf(shown) > 0 && <p className="text-xs text-amber-800" {...dataAttr(name, 'reversed')}>{reversedLinkedWords(tasksReversedOf(shown))}</p>}
     </section>
   );
 }

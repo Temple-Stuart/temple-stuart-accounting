@@ -71,7 +71,7 @@ const plan = (o: Partial<RoutineMonthRoutine> & { id: string; name: string }): R
 const record = (o: Partial<StopRecordRow> & { id: string; kind: 'routine' | 'routine_line'; target_id: string; occurrence_at: string }): StopRecordRow => ({
   outcome: 'done', done_at: o.occurrence_at, actual_cents: null, rating: null, note: null, actual_minutes: null, ...o,
 });
-const link = (o: Partial<LedgerLinkInput> & { targetId: string; journalEntryId: string; instant: string; amountCents: number | null }): LedgerLinkInput => ({ kind: 'routine_line', ...o });
+const link = (o: Partial<LedgerLinkInput> & { targetId: string; journalEntryId: string; instant: string; amountCents: number | null }): LedgerLinkInput => ({ kind: 'routine_line', reversed: false, ...o });
 const step = (o: Partial<RoutineStep> & { id: string; activity: string; step_order: number }): RoutineStep => ({
   routine_id: 'r', user_id: 'u', entity_id: 'p', time_of_day: null, sub_activity: null, location: null, duration_minutes: null, notes: null,
   created_at: '', updated_at: '', created_by: null, ...o,

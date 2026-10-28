@@ -63,18 +63,18 @@ const row = (over: Partial<LedgerRow> & { readonly id: string }): LedgerRow => (
 /** Saturday: the gym, skipped — a budget, no actual, no variance. */
 const GYM = row({ id: 'e', day: '2026-10-17', coa: { account: 'P-5300', name: 'Fitness' }, vendor: 'Fitness First', description: 'Gym', rating: 3, note: 'leg day', outcome: 'skipped', cents: 1500, budgetState: 'matched' });
 /** Tuesday: brunch at Luka Café, under, linked and readable. */
-const BRUNCH = row({ id: 'a', vendor: 'Luka Café', description: 'Brunch', rating: 4, note: 'khao soi, worth it', cents: 2500, actualCents: 2200, varianceCents: -300, budgetState: 'matched', match: { cents: 2200, postings: 1, unreadable: 0 } });
+const BRUNCH = row({ id: 'a', vendor: 'Luka Café', description: 'Brunch', rating: 4, note: 'khao soi, worth it', cents: 2500, actualCents: 2200, varianceCents: -300, budgetState: 'matched', match: { cents: 2200, postings: 1, unreadable: 0, reversed: 0 } });
 /** Tuesday: dinner, over, no vendor, no link. */
 const DINNER = row({ id: 'b', description: 'Dinner', rating: 5, note: 'Pad thai', cents: 3000, actualCents: 3500, varianceCents: 500, budgetState: 'matched' });
 /** Monday: yoga on a day no stay covers — no place, no book, no COA, no budget, no note. */
 const YOGA = row({ id: 'c', day: '2026-10-12', place: null, book: null, coa: null, description: 'Yoga', rating: 2, actualCents: 500 });
 /** Sunday: a client lunch in Bangkok on the business book, even, linked but unreadable, no stars. */
-const CLIENT = row({ id: 'd', day: '2026-10-11', place: { city: 'Bangkok', country: 'Thailand 🇹🇭' }, book: 'Business', coa: { account: 'B-6100', name: 'Client meals' }, vendor: 'Som Tam Nua', description: 'Client lunch', note: 'with Pim', cents: 2500, actualCents: 2500, varianceCents: 0, budgetState: 'matched', match: { cents: null, postings: 1, unreadable: 1 } });
+const CLIENT = row({ id: 'd', day: '2026-10-11', place: { city: 'Bangkok', country: 'Thailand 🇹🇭' }, book: 'Business', coa: { account: 'B-6100', name: 'Client meals' }, vendor: 'Som Tam Nua', description: 'Client lunch', note: 'with Pim', cents: 2500, actualCents: 2500, varianceCents: 0, budgetState: 'matched', match: { cents: null, postings: 1, unreadable: 1, reversed: 0 } });
 const ROWS: readonly LedgerRow[] = [GYM, BRUNCH, DINNER, YOGA, CLIENT];
 const ids = (rows: readonly LedgerRow[]): string[] => rows.map((r) => r.id);
 const withFilter = (over: Partial<ColumnFilters>): ColumnFilters => ({ ...NO_COLUMN_FILTERS, ...over });
 const record = (id: string): StopRecordRow => ({ id, kind: 'routine', target_id: 'gym', occurrence_at: '2026-10-12T05:00:00.000Z', outcome: 'done', done_at: '2026-10-12T05:00:00.000Z', actual_cents: 100, rating: null, note: null, actual_minutes: null });
-const NOTHING_SAID: LedgerSaid = { noLine: 0, doubled: 0, noStay: 0, unplaced: [], notRecorded: 0, notPlaced: 0, leftOut: { journal: 0, plan: 0, execute: 0, all_day: 0 } };
+const NOTHING_SAID: LedgerSaid = { noLine: 0, doubled: 0, noStay: 0, unplaced: [], notRecorded: 0, notPlaced: 0, leftOut: { journal: 0, plan: 0, execute: 0, all_day: 0 }, reversed: 0 };
 
 // ── R1 · THE RENAMES ────────────────────────────────────────────────────────
 

@@ -121,11 +121,11 @@ test('the day-blocks bridge and the month never add routine-level and line-level
 });
 
 test('a coffee posting linked to the coffee LINE moves the line and the occurrence to settled', () => {
-  const coffeeLinks = sumLinks([{ journalEntryId: 'je-coffee', date: '2026-09-19', description: 'CAFE', amountCents: 8000 }]);
+  const coffeeLinks = sumLinks([{ journalEntryId: 'je-coffee', date: '2026-09-19', description: 'CAFE', amountCents: 8000, reversed: false }]);
   assert.equal(coffeeLinks.actual, 80);
   // The occurrence's actual is the sum of its lines' actuals — the pooled links, summed once.
   const occurrence = sumLinks([
-    { journalEntryId: 'je-coffee', date: '2026-09-19', description: 'CAFE', amountCents: 8000 },
+    { journalEntryId: 'je-coffee', date: '2026-09-19', description: 'CAFE', amountCents: 8000, reversed: false },
   ]);
   const chain = buildChain({ kind: 'routine', planned: 280, actual: occurrence.actual, actualSource: 'linked', linkLine: 'linked to 1 posting in Books' })!;
   assert.equal(chain.state, 'PLANNED_AND_SETTLED');

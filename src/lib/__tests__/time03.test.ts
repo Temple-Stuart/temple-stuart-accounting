@@ -87,7 +87,7 @@ const rowOf = (id: string): LedgerRow => {
   return row;
 };
 const ids = (rows: readonly LedgerRow[]): string[] => rows.map((r) => r.id);
-const NOTHING_SAID: LedgerSaid = { noLine: 0, doubled: 0, noStay: 0, unplaced: [], notRecorded: 0, notPlaced: 0, leftOut: { journal: 0, plan: 0, execute: 0, all_day: 0 } };
+const NOTHING_SAID: LedgerSaid = { noLine: 0, doubled: 0, noStay: 0, unplaced: [], notRecorded: 0, notPlaced: 0, leftOut: { journal: 0, plan: 0, execute: 0, all_day: 0 }, reversed: 0 };
 
 // ── RULING A · THE TWO COLUMNS ───────────────────────────────────────────────
 

@@ -151,7 +151,7 @@ import { NEGATIVE_AMOUNT_WORDS, SKIPPED_WORD, amountWords, recordKey, refusedWor
 import { ROLE_SHORT_WORDS, isStop, isStopRole, type StopRole } from '@/lib/operations/stopRole';
 import { asksAmount, dayShortWords, dayTotals, deltaWords, planDollars, stopName } from '@/components/workbench/operations/day/dayCard';
 import { instantToZoned, zonedToInstant } from '@/lib/time';
-import { amountCentsOf, type PostingLines } from '@/lib/calendar/postingAmount';
+import { amountCentsOf, isReversedPosting, type LinkedPostingRow } from '@/lib/calendar/postingAmount';
 import type { RoutineForm } from '@/components/workbench/operations/routines/types';
 import type { StopBody } from '@/components/workbench/operations/stops/stopWrites';
 
@@ -203,6 +203,8 @@ export interface LedgerLinkInput {
   readonly instant: string;
   readonly journalEntryId: string;
   readonly amountCents: number | null;
+  /** LINK-LAW-01 (ruling C): the posting is a reversal or was reversed (postingAmount.ts isReversedPosting) — it pays nothing. */
+  readonly reversed: boolean;
 }
 
 /**
@@ -211,12 +213,14 @@ export interface LedgerLinkInput {
  * (Alex, 2026-10-25): moved here from the ledger route, unchanged, so the
  * routines' month route reads a link the same way — one mapper, two routes.
  * A kind the query did not ask for, or a routine kind with no instant, is the
- * database's error, thrown by name.
+ * database's error, thrown by name. LINK-LAW-01 (Alex, 2026-10-28, ruling C): the
+ * routes select the posting's reversal state too (LINKED_POSTING_SELECT), and the
+ * link says whether it was reversed — matchOf leaves a reversed one out.
  */
-export function linkInputOf(row: { target_kind: string; target_id: string; target_instant: Date | null; journal_entry_id: string; journal_entry: PostingLines }): LedgerLinkInput {
+export function linkInputOf(row: { target_kind: string; target_id: string; target_instant: Date | null; journal_entry_id: string; journal_entry: LinkedPostingRow }): LedgerLinkInput {
   if (row.target_kind !== 'routine' && row.target_kind !== 'routine_line') throw new Error(`ledger GET: link ${row.journal_entry_id} is of kind ${JSON.stringify(row.target_kind)} — the query asked for routine or routine_line`);
   if (row.target_instant === null) throw new Error(`ledger GET: link ${row.journal_entry_id} of kind ${row.target_kind} has no instant — the migration's CHECK holds one`);
-  return { kind: row.target_kind, targetId: row.target_id, instant: row.target_instant.toISOString(), journalEntryId: row.journal_entry_id, amountCents: amountCentsOf(row.journal_entry) };
+  return { kind: row.target_kind, targetId: row.target_id, instant: row.target_instant.toISOString(), journalEntryId: row.journal_entry_id, amountCents: amountCentsOf(row.journal_entry), reversed: isReversedPosting(row.journal_entry) };
 }
 
 export interface LedgerInput {
@@ -263,8 +267,11 @@ export interface LedgerAddress {
 /** LEDGER-03: the postings linked to a record. cents: the readable amounts summed (null when none could be read); unreadable: how many carry no readable amount — never summed as zero. */
 export interface LedgerMatch {
   readonly cents: number | null;
+  /** The postings that enter the match — LINK-LAW-01: a reversed one does not. */
   readonly postings: number;
   readonly unreadable: number;
+  /** LINK-LAW-01 (ruling C): linked postings left out because they are a reversal or were reversed — counted, never summed. */
+  readonly reversed: number;
 }
 
 export interface LedgerRow {
@@ -317,6 +324,8 @@ export interface LedgerSaid {
   readonly notPlaced: number;
   /** RETRO-01: records in the period left out because their plan's role takes no money, by role. */
   readonly leftOut: Readonly<Record<NoMoneyRole, number>>;
+  /** LINK-LAW-01 (ruling C): linked postings the rows' MATCH left out because they are a reversal or were reversed. */
+  readonly reversed: number;
 }
 
 /** RETRO-01: the roles that take no money (dayCard.ts asksAmount is false) — a record of one is not an expense. */
@@ -352,11 +361,17 @@ function dayLines(input: LedgerInput, day: string): readonly PlanLine[] {
 /** LEDGER-03: the join key — a record's (kind, target_id, occurrence_at) and a link's (target_kind, target_id, target_instant) are the same three strings. */
 export const linkKeyOf = (kind: string, id: string, instant: string): string => `${kind}:${id}:${instant}`;
 
-/** LEDGER-03: a record's match from its links — null with none; the readable amounts summed, the unreadable counted, never summed as zero. */
-export function matchOf(links: readonly Pick<LedgerLinkInput, 'amountCents'>[]): LedgerMatch | null {
+/**
+ * LEDGER-03: a record's match from its links — null with none; the readable amounts summed, the unreadable counted, never summed as zero.
+ * LINK-LAW-01 (Alex, 2026-10-28, ruling C): A REVERSED POSTING PAYS NOTHING — a link to a reversal, or to a reversed posting, is left out of
+ * the sum and counted (reversed); with every link reversed the sum is null, never 0. The one rule the three MATCH reads share: the ledger,
+ * ROUTINE EXPENSES (routineMonth.ts) and THE WORK (taskMatch.ts).
+ */
+export function matchOf(links: readonly Pick<LedgerLinkInput, 'amountCents' | 'reversed'>[]): LedgerMatch | null {
   if (links.length === 0) return null;
-  const readable = links.map((l) => l.amountCents).filter((c): c is number => c !== null);
-  return { cents: readable.length === 0 ? null : readable.reduce((sum, c) => sum + c, 0), postings: links.length, unreadable: links.length - readable.length };
+  const paying = links.filter((l) => !l.reversed);
+  const readable = paying.map((l) => l.amountCents).filter((c): c is number => c !== null);
+  return { cents: readable.length === 0 ? null : readable.reduce((sum, c) => sum + c, 0), postings: paying.length, unreadable: paying.length - readable.length, reversed: links.length - paying.length };
 }
 
 export function ledgerOf(input: LedgerInput): Ledger {
@@ -490,6 +505,7 @@ export function ledgerOf(input: LedgerInput): Ledger {
       notRecorded: missing.size,
       notPlaced: input.notPlaced.length,
       leftOut,
+      reversed: rows.reduce((sum, row) => sum + (row.match === null ? 0 : row.match.reversed), 0),
     },
   };
 }
@@ -685,11 +701,11 @@ export const leftOutTotal = (left: Readonly<Record<NoMoneyRole, number>>): numbe
 /**
  * The notes under the TOTAL row that have something to say — the n of "n notes": the four coverage lines whenever a row is shown (VARIANCE,
  * MATCH, and TIME-03's PLANNED HOURS and LOGGED HOURS — two until then), and each
- * said line whose count is above 0 (no line, no stay, unplaced, not recorded, left out, not placed). The TODAY rule and the every-book
- * line are shown only when open and never counted; a line whose count is 0 is neither counted nor shown.
+ * said line whose count is above 0 (no line, no stay, unplaced, not recorded, left out, not placed — and LINK-LAW-01's reversed). The TODAY
+ * rule and the every-book line are shown only when open and never counted; a line whose count is 0 is neither counted nor shown.
  */
 export const notesCount = (said: LedgerSaid, shownRows: number): number =>
-  [shownRows, shownRows, shownRows, shownRows, said.noLine, said.noStay, said.unplaced.length, said.notRecorded, leftOutTotal(said.leftOut), said.notPlaced].filter((n) => n > 0).length;
+  [shownRows, shownRows, shownRows, shownRows, said.noLine, said.noStay, said.unplaced.length, said.notRecorded, leftOutTotal(said.leftOut), said.notPlaced, said.reversed].filter((n) => n > 0).length;
 
 // ── THE TOTALS AND THE SUMMARY ──────────────────────────────────────────────
 
