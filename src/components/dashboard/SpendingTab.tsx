@@ -5,6 +5,7 @@ import { TAB_DESCRIPTORS } from '@/lib/tabDescriptors';
 import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Button } from '@/components/ui';
+import { FUNCTIONAL_CURRENCY, bankMoneyWords, centsOfTypedDollars, functionalMoneyWords, isWholeCents } from '@/lib/books/functionalCurrency';
 
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -33,6 +34,8 @@ export interface SpendingTransaction {
   name: string;
   merchantName: string | null;
   amount: number;
+  /** FX-01b: the account's stated currency (accounts.isoCurrencyCode via /api/transactions), or NULL — a bank row prints in it, never as dollars by assumption. */
+  currency: string | null;
   category: string | null;
   pending: boolean;
   authorized_date: string | null;
@@ -122,10 +125,6 @@ const EMPTY_COL_FILTERS: ColumnFilters = {};
 function formatDate(d: string) {
   const dt = new Date(d);
   return `${String(dt.getMonth() + 1).padStart(2, '0')}/${String(dt.getDate()).padStart(2, '0')}/${dt.getFullYear()}`;
-}
-
-function formatMoney(n: number) {
-  return '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function matchesSearch(txn: SpendingTransaction, term: string): boolean {
@@ -253,7 +252,7 @@ function columnFilterSummary(filter: ColumnFilterValue): string {
   switch (filter.type) {
     case 'checkbox': return filter.selected.slice(0, 2).join(', ') + (filter.selected.length > 2 ? ` +${filter.selected.length - 2}` : '');
     case 'dateRange': return [filter.from, filter.to].filter(Boolean).join(' – ');
-    case 'amountRange': return ['$' + filter.min, '$' + filter.max].filter(v => v !== '$').join(' – ');
+    case 'amountRange': return [filter.min, filter.max].filter(Boolean).join(' – ');
     case 'search': return `"${filter.term}"`;
   }
 }
@@ -628,11 +627,11 @@ function ColumnFilterDropdown({ field,
         {filterType === 'amountRange' && (
           <div className="space-y-2">
             <div>
-              <label className="block text-[10px] text-text-muted mb-1">Min ($)</label>
+              <label className="block text-[10px] text-text-muted mb-1">Min</label>
               <input ref={searchRef} type="number" placeholder="0.00" value={localMin} onChange={e => setLocalMin(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" />
             </div>
             <div>
-              <label className="block text-[10px] text-text-muted mb-1">Max ($)</label>
+              <label className="block text-[10px] text-text-muted mb-1">Max</label>
               <input type="number" placeholder="999999" value={localMax} onChange={e => setLocalMax(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" />
             </div>
           </div>
@@ -893,7 +892,7 @@ function VirtualTable({ rows,
                 {/* Amount */}
                 <td className="py-1 px-2 text-right font-mono font-semibold whitespace-nowrap text-terminal-base">
                   <span className={txn.amount > 0 ? 'text-brand-red' : 'text-brand-green'}>
-                    {txn.amount > 0 ? '-' : '+'}{formatMoney(txn.amount)}
+                    {txn.amount > 0 ? '-' : '+'}{bankMoneyWords(Math.abs(txn.amount), txn.currency)}
                   </span>
                 </td>
                 {/* Account */}
@@ -1189,11 +1188,20 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
   const hasPendingColFilters = pendingColFilterCount > 0;
   const hasCommittedColFilters = committedColFilterCount > 0;
 
-  // Selection totals
-  const selectedPendingAmount = useMemo(() =>
-    transactions.filter(t => selectedPending.has(t.id)).reduce((s, t) => s + Math.abs(t.amount), 0),
-    [transactions, selectedPending]
-  );
+  // Selection total — FX-01b (ruling A): a sum of integer CENTS over the selected rows stated in the functional
+  // currency; a row in another currency, with no stated currency, or not whole cents is counted out BY NAME,
+  // never added as dollars by assumption.
+  const selectedPendingTotal = useMemo(() => {
+    let cents = BigInt(0);
+    let countedOut = 0;
+    for (const t of transactions) {
+      if (!selectedPending.has(t.id)) continue;
+      const abs = Math.abs(t.amount);
+      if (t.currency === null || t.currency.toUpperCase() !== FUNCTIONAL_CURRENCY || !isWholeCents(abs)) { countedOut += 1; continue; }
+      cents += centsOfTypedDollars(String(abs));
+    }
+    return { cents, countedOut };
+  }, [transactions, selectedPending]);
 
   // Handlers
   const handlePendingSort = (field: SortField, forcedDir?: SortDir) => {
@@ -1524,7 +1532,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-terminal-base font-mono font-medium">
               {selectedPending.size} txn{selectedPending.size !== 1 ? 's' : ''}
-              <span className="ml-1 text-white/60">({formatMoney(selectedPendingAmount)})</span>
+              <span className="ml-1 text-white/60" data-selection-total>({functionalMoneyWords(selectedPendingTotal.cents)}{selectedPendingTotal.countedOut > 0 ? ` · ${selectedPendingTotal.countedOut} not in ${FUNCTIONAL_CURRENCY} or not whole cents, counted out` : ''})</span>
             </span>
             <select
               value={batchCoa}

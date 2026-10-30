@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { FUNCTIONAL_CURRENCY_WORDS, functionalMoneyWords } from '@/lib/books/functionalCurrency';
 
-
+// FX-01b (Alex, 2026-10-30, ruling A): the year-end net income is integer CENTS from /api/year-end-close
+// (Number(netIncome) of the GL's bigint) and is written by the one formatter — the local formatCents is gone.
 interface YearEndStatus {
   isClosed: boolean;
   closingEntryId: string | null;
@@ -67,10 +69,9 @@ export default function CloseBooksTab({ entityId, selectedYear }: CloseBooksTabP
       const result = await res.json();
 
       if (res.ok) {
-        const netDollars = (result.netIncome / 100).toFixed(2);
         alert(
           `Books closed successfully!\n\n` +
-          `Net Income: $${netDollars}\n` +
+          `Net Income: ${functionalMoneyWords(result.netIncome)} (${FUNCTIONAL_CURRENCY_WORDS})\n` +
           `Accounts Closed: ${result.accountsClosed}\n` +
           `Closing Entry ID: ${result.closingEntryId}`
         );
@@ -82,14 +83,6 @@ export default function CloseBooksTab({ entityId, selectedYear }: CloseBooksTabP
       alert('Failed to perform year-end close');
     }
     setLoading(false);
-  };
-
-  const formatCents = (cents: number | null) => {
-    if (cents === null) return '—';
-    const dollars = cents / 100;
-    return dollars < 0
-      ? `-$${Math.abs(dollars).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-      : `$${dollars.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   return (
@@ -112,7 +105,8 @@ export default function CloseBooksTab({ entityId, selectedYear }: CloseBooksTabP
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-green-700 font-medium">Net Income:</span>
-              <span className="ml-2 text-green-900 font-semibold">{formatCents(status.netIncome)}</span>
+              <span className="ml-2 text-green-900 font-semibold">{status.netIncome === null ? '—' : functionalMoneyWords(status.netIncome)}</span>
+              <span className="ml-2 text-xs text-green-700 font-mono" data-functional-currency>{FUNCTIONAL_CURRENCY_WORDS}</span>
             </div>
             <div>
               <span className="text-green-700 font-medium">Closed At:</span>

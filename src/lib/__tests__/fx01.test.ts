@@ -20,6 +20,7 @@ import {
 } from '../books/functionalCurrency';
 import { DATA_KEYS } from '../arrivals/prismaDomain';
 import { proposeMatches } from '../runway/reservationMatcher';
+import { booksLaneImports } from '../books/booksLane';
 
 const HOME = 'src/lib/books/functionalCurrency.ts';
 const LAW = 'scripts/assert-tool-registry.ts';
@@ -39,13 +40,24 @@ const CONFIRM = 'src/app/booking/confirm/page.tsx';
 const MONEY = 'src/lib/money.ts';
 
 const LANE_DIRS = ['src/lib/books', 'src/app/api/trial-balance', 'src/app/api/journal-entries', 'src/app/api/bank-reconciliations', 'src/app/api/books', 'src/app/api/journal-transactions', 'src/app/api/ledger'];
-const LANE_COMPONENTS = [
+const ROOT = process.cwd();
+/** FX-01's eleven, named by hand on 2026-10-30 — still every one in the lane. */
+const FX01_COMPONENTS = [
   'src/components/home/BooksPipeline.tsx', 'src/components/dashboard/GeneralLedger.tsx', 'src/components/dashboard/JournalEntryEngine.tsx',
   'src/components/bookkeeping/TrialBalanceSection.tsx', 'src/components/bookkeeping/BookkeepingCockpitBar.tsx', 'src/components/dashboard/BankReconciliation.tsx',
   'src/components/dashboard/PeriodClose.tsx', 'src/components/dashboard/CPAExport.tsx', 'src/components/dashboard/JournalEntriesTab.tsx',
   'src/components/dashboard/AdjustingEntriesTab.tsx', 'src/components/bookkeeping/COAManagementTable.tsx',
 ];
-const ROOT = process.cwd();
+// FX-01b (2026-10-30, ruling A): the component lane is DERIVED from BooksPipeline's imports (src/lib/books/booksLane.ts),
+// as the law derives it — BooksPipeline itself and every '@/components/…' module it imports, resolved to its file;
+// fx01b.test.ts pins the derived list. BookkeepingCockpitBar and COAManagementTable are mounted by BookkeepingSection
+// (a derived member) and stay in the lane through FX01_COMPONENTS here, as the law's directories and fx01b's list hold.
+const PIPE = 'src/components/home/BooksPipeline.tsx';
+const LANE_COMPONENTS = [...new Set([PIPE, ...booksLaneImports(code(PIPE)).map((p) => {
+  const f = [`${p}.tsx`, `${p}.ts`].find((c) => existsSync(resolve(ROOT, c)));
+  if (f === undefined) throw new Error(`${p} resolves to no file`);
+  return f;
+}), ...FX01_COMPONENTS])];
 function laneFiles(): string[] {
   const walk = (dir: string): string[] => readdirSync(resolve(ROOT, dir), { withFileTypes: true }).flatMap((e) =>
     e.isDirectory() ? (e.name === '__tests__' ? [] : walk(`${dir}/${e.name}`)) : (/\.tsx?$/.test(e.name) ? [`${dir}/${e.name}`] : []));
@@ -184,11 +196,13 @@ test('B every lane screen that prints a figure imports the one formatter; the lo
   assert.match(code('src/app/api/transactions/route.ts'), /currency: txn\.accounts\?\.isoCurrencyCode \?\? null,/);
 });
 
-test('C the law: beside the documents law, the lane named file by file, the eight shapes, the home checks, an EMPTY closed allowlist that may only shrink', () => {
+test('C the law: beside the documents law, the lane derived from BooksPipeline’s imports (FX-01b) over the seven named directories, the eight shapes, the home checks, an EMPTY closed allowlist that may only shrink', () => {
   const law = code(LAW);
   assert.match(law, /lawGuard\('The books currency law', \(\) => \{/);
   assert.match(law, /const FX_HOME = 'src\/lib\/books\/functionalCurrency\.ts';/);
-  for (const f of LANE_COMPONENTS) assert.ok(law.includes(`'${f}',`), `the law names ${f}`);
+  // FX-01b (2026-10-30, ruling A): the law no longer names the components file by file — it derives them (fx01b.test.ts pins the call); FX-01's eleven are all derived members.
+  assert.match(law, /const FX_LANE_COMPONENTS = fxLaneComponents\(\);/);
+  for (const f of FX01_COMPONENTS) assert.ok(LANE_COMPONENTS.includes(f), `${f} is in the derived lane`);
   for (const d of LANE_DIRS) assert.ok(law.includes(`'${d}'`), `the law names ${d}`);
   assert.match(law, /const FX_ALLOW: ReadonlyArray<\{ file: string; snippet: string; dated: string; reason: string \}> = \[\];/, 'EMPTY at merge (ruling C)');
   assert.match(law, /the allowance for \$\{a\.file\} "\$\{a\.snippet\}" \(\$\{a\.dated\}\) matches no line — it is stale; the list only shrinks/);
@@ -275,7 +289,8 @@ test('G the manual route requires an ISO 4217 code by name, creates the account 
   const form = code(FORM);
   assert.match(form, /const \[currency, setCurrency\] = useState\(''\);/, 'nothing preselected');
   assert.match(form, /<option value="" disabled>\{CHOOSE_CURRENCY_WORDS\}<\/option>/);
-  assert.match(form, /\{MANUAL_ACCOUNT_CURRENCIES\.map\(\(c\) => \(/);
+  // FX-01b (2026-10-30, ruling C): the list is the runtime's (fx01b.test.ts) — the hand-picked twenty are gone.
+  assert.match(form, /\{currencies\.map\(\(c\) => \(/);
   assert.match(form, /required\n\s+data-manual-currency/);
   assert.match(form, /amount: finalAmount,\n\s+currency,\n/);
   assert.match(form, /if \(currency === ''\) \{\n\s+setError\(CURRENCY_NOT_CHOSEN_WORDS\);/);

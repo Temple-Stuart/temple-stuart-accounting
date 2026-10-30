@@ -95,6 +95,7 @@ import { LINKABLE_KINDS, requiresInstant } from '../src/lib/calendar/linkKeys';
 import { sumLinks } from '../src/lib/calendar/links';
 import { BILL_POSTING_SELECT, POSTING_STATE_SELECT, isReversedPosting, reversedLinkedWords } from '../src/lib/calendar/postingAmount';
 import { HEIC_WORDS, MAX_RECEIPT_BYTES, MAX_UPLOAD_BODY_BYTES, SOURCE_DOCUMENT_LIST_SELECT, VERCEL_BODY_LIMIT_BYTES, fileResponseHeaders, sniffContentType } from '../src/lib/books/sourceDocuments';
+import { booksLaneImports } from '../src/lib/books/booksLane';
 import { occurrenceCheck } from '../src/lib/operations/linkOccurrence';
 import { routineHoldsLinksWords } from '../src/lib/operations/linkHold';
 import { matchOf, readableMatchCents } from '../src/lib/operations/ledger';
@@ -3003,26 +3004,30 @@ lawGuard('The books currency law', () => {
 // LANE reads it. In the lane, with comments stripped (codeOf): no literal `$` before a figure (the four
 // shapes FX-00 §4 counted), no `currency: 'USD'` and no 'USD' literal outside the home, no
 // Intl.NumberFormat outside the home, and no local function named fmt*/format*Money|Dollars|Cents.
-// The lane is named here file by file: src/lib/books/**, the six books route directories, and the
-// books components BooksPipeline mounts (confirmed from its imports and BookkeepingSection's). A closed,
-// dated allowlist may only shrink — the law fails when an entry matches nothing — and it is EMPTY.
+// The lane: src/lib/books/**, the six books route directories (named here), and EVERY module BooksPipeline
+// mounts — FX-01b (Alex, 2026-10-30, ruling A): the component lane is DERIVED from BooksPipeline.tsx's
+// '@/components/…' imports (comments stripped, src/lib/books/booksLane.ts), each resolved to its file here,
+// so a component added to BooksPipeline joins the lane with no law change and no hand-kept list can drift.
+// FX-01 named eleven components by hand; five more BooksPipeline mounts still printed a literal `$`. A
+// closed, dated allowlist may only shrink — the law fails when an entry matches nothing — and it is EMPTY.
 let fxViolations = 0;
 const fxFail = (m: string) => { fxViolations += 1; violations.push(`books currency law: ${m} (FX-01)`); };
 const FX_HOME = 'src/lib/books/functionalCurrency.ts';
+const FX_PIPE = 'src/components/home/BooksPipeline.tsx';
 const FX_LANE_DIRS = ['src/lib/books', 'src/app/api/trial-balance', 'src/app/api/journal-entries', 'src/app/api/bank-reconciliations', 'src/app/api/books', 'src/app/api/journal-transactions', 'src/app/api/ledger'];
-const FX_LANE_COMPONENTS = [
-  'src/components/home/BooksPipeline.tsx',
-  'src/components/dashboard/GeneralLedger.tsx',
-  'src/components/dashboard/JournalEntryEngine.tsx',
-  'src/components/bookkeeping/TrialBalanceSection.tsx',
-  'src/components/bookkeeping/BookkeepingCockpitBar.tsx',
-  'src/components/dashboard/BankReconciliation.tsx',
-  'src/components/dashboard/PeriodClose.tsx',
-  'src/components/dashboard/CPAExport.tsx',
-  'src/components/dashboard/JournalEntriesTab.tsx',
-  'src/components/dashboard/AdjustingEntriesTab.tsx',
-  'src/components/bookkeeping/COAManagementTable.tsx',
-];
+/** The component lane, derived: BooksPipeline itself, then every '@/components/…' module it imports, resolved to .tsx / .ts / an index file — an import no file answers to fails by name. */
+const fxLaneComponents = (): string[] => {
+  const files = [FX_PIPE];
+  const imports = booksLaneImports(codeOf(FX_PIPE));
+  if (imports.length === 0) fxFail(`${FX_PIPE} imports nothing from '@/components/' — the component lane cannot be derived`);
+  for (const p of imports) {
+    const found = [`${p}.tsx`, `${p}.ts`, `${p}/index.tsx`, `${p}/index.ts`].find((c) => existsSync(resolve(ROOT, c)));
+    if (found === undefined) { fxFail(`${FX_PIPE} imports '${p}' and no .tsx, .ts or index file answers to it`); continue; }
+    if (!files.includes(found)) files.push(found);
+  }
+  return files;
+};
+const FX_LANE_COMPONENTS = fxLaneComponents();
 /** The shapes a lane file may not hold. `homeToo` shapes are refused in the home file as well. */
 const FX_SHAPES: ReadonlyArray<{ name: string; re: RegExp; homeToo: boolean }> = [
   { name: 'a literal $ before a figure in a template (`$${…}`)', re: /\$\$\{/, homeToo: true },
@@ -3048,7 +3053,7 @@ const FX_ALLOW: ReadonlyArray<{ file: string; snippet: string; dated: string; re
     ...FX_LANE_COMPONENTS,
     ...FX_LANE_DIRS.flatMap((d) => existsSync(resolve(ROOT, d)) ? tsFiles(resolve(ROOT, d)).map((abs) => abs.replace(`${ROOT}/`, '')) : (fxFail(`${d} is named in the lane and does not exist`), [])),
   ])].filter((f) => !f.includes('__tests__'));
-  for (const f of FX_LANE_COMPONENTS) if (!existsSync(resolve(ROOT, f))) fxFail(`${f} is named in the lane and does not exist`);
+  for (const f of FX_LANE_COMPONENTS) if (!existsSync(resolve(ROOT, f))) fxFail(`${f} is in the lane and does not exist`);
   const used = new Set<number>();
   for (const f of laneFiles) {
     if (!existsSync(resolve(ROOT, f))) continue;
@@ -3078,7 +3083,7 @@ const FX_ALLOW: ReadonlyArray<{ file: string; snippet: string; dated: string; re
   if (/\?\?\s*['"]USD['"]|\|\|\s*['"]USD['"]/.test(matcher)) fxFail('reservationMatcher.ts defaults a currency to USD — the account states it or the amount signal is excluded by name');
   if (!/accountCurrency,\n  opts,\n\}: \{\n  reservations: MatcherReservation\[\];/.test(matcher)) fxFail('reservationMatcher.ts proposeMatches does not take accountCurrency beside its reservations');
 }
-if (fxViolations === 0) console.log(`✔ The books currency law passed — the functional currency declared once (${FX_HOME}: FUNCTIONAL_CURRENCY, FUNCTIONAL_CURRENCY_WORDS, functionalMoneyWords over integer cents); the books lane (${FX_LANE_COMPONENTS.length} components + ${FX_LANE_DIRS.length} directories) holds no literal $ before a figure, no 'USD' literal, no Intl.NumberFormat and no local money formatter outside the home; the allowlist is ${FX_ALLOW.length === 0 ? 'EMPTY' : `${FX_ALLOW.length} entries`}; the commit route refuses a NULL or non-USD account by name before it posts; the sync keeps Plaid's currency; the matcher reads the account's (FX-01).`);
+if (fxViolations === 0) console.log(`✔ The books currency law passed — the functional currency declared once (${FX_HOME}: FUNCTIONAL_CURRENCY, FUNCTIONAL_CURRENCY_WORDS, functionalMoneyWords over integer cents); the books lane (${FX_LANE_COMPONENTS.length} components, derived from the imports of ${FX_PIPE}: ${FX_LANE_COMPONENTS.map((f) => f.replace(/^src\/components\//, '')).join(', ')}; + ${FX_LANE_DIRS.length} directories) holds no literal $ before a figure, no 'USD' literal, no Intl.NumberFormat and no local money formatter outside the home; the allowlist is ${FX_ALLOW.length === 0 ? 'EMPTY' : `${FX_ALLOW.length} entries`}; the commit route refuses a NULL or non-USD account by name before it posts; the sync keeps Plaid's currency; the matcher reads the account's (FX-01, FX-01b).`);
 else console.log(`✖ The books currency law FAILED — ${fxViolations} violation(s).`);
 });
 lawGuard('The lines law', () => {
