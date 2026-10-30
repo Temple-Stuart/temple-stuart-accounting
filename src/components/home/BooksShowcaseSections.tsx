@@ -28,7 +28,7 @@
  *   Reconciliation  statement 9,400.00 = book 9,400.00 → difference $0.00 ✓
  *   All account codes/names are the REAL seeded sole-prop chart
  *   (src/lib/seed-coa-templates.ts:89-121). "BALANCED ✓" (CPAExport.tsx:143)
- *   and "✓ RECONCILED" (BankReconciliation.tsx:273) are the real product
+ *   and "✓ RECONCILED" (BankReconciliation.tsx:248) are the real product
  *   strings. NO AI-insights claim anywhere — the categorizer is pure DB that
  *   learns from commits (commit-to-ledger/route.ts:123-195); the OpenAI
  *   insights route is dead UI (inventory finding) and is not advertised.
@@ -229,7 +229,7 @@ export function TrialBalancePanel() {
 }
 
 /** 5. RECONCILE — statement vs book, difference $0.00, real verdict string
- *  ("✓ RECONCILED", BankReconciliation.tsx:273). */
+ *  ("✓ RECONCILED", BankReconciliation.tsx:248). */
 export function ReconcilePanel() {
   return (
     <DarkSlide title="Bank reconciliation — Business Checking ···· 4821">

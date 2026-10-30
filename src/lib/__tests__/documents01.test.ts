@@ -25,6 +25,7 @@ const LEAF = 'src/lib/books/sourceDocuments.ts';
 const ROUTE = 'src/app/api/books/documents/route.ts';
 const FILE_ROUTE = 'src/app/api/books/documents/[id]/file/route.ts';
 const CONTROLS = 'src/components/books/ReceiptControls.tsx';
+const PANEL = 'src/components/books/DocumentPanel.tsx';
 const LEDGER = 'src/components/dashboard/GeneralLedger.tsx';
 const LEDGER_ROUTE = 'src/app/api/ledger/route.ts';
 const MIDDLEWARE = 'src/middleware.ts';
@@ -129,12 +130,14 @@ test('A the list read: entry= or entries=, exactly one, real ids, at most 200, e
   assert.deepEqual(pages.map((p) => p.length), [200, 200, 50]);
   assert.deepEqual(pagesOf([]), []);
   // The list's select is metadata — never the file.
-  assert.deepEqual(Object.keys(SOURCE_DOCUMENT_LIST_SELECT), ['id', 'journal_entry_id', 'file_name', 'content_type', 'byte_size', 'uploaded_at']);
+  // DOCUMENTS-02 (Alex, 2026-10-30, ruling A): account_id and period_month ride along — a statement's row says its month.
+  assert.deepEqual(Object.keys(SOURCE_DOCUMENT_LIST_SELECT), ['id', 'journal_entry_id', 'account_id', 'period_month', 'file_name', 'content_type', 'byte_size', 'uploaded_at']);
   assert.ok(!('bytes' in SOURCE_DOCUMENT_LIST_SELECT) && !('sha256' in SOURCE_DOCUMENT_LIST_SELECT));
 });
 
 test('A the words: the receipt line, the size, and the coverage counted once per posting that can carry one', () => {
-  const r: ReceiptMeta = { id: 'd1', journal_entry_id: 'je-1', file_name: 'lunch.pdf', content_type: 'application/pdf', byte_size: 1_234_567, uploaded_at: '2026-10-28T10:00:00.000Z' };
+  // DOCUMENTS-02 (Alex, 2026-10-30, ruling A): a document's meta carries its address — a receipt's account_id and period_month are null.
+  const r: ReceiptMeta = { id: 'd1', journal_entry_id: 'je-1', account_id: null, period_month: null, file_name: 'lunch.pdf', content_type: 'application/pdf', byte_size: 1_234_567, uploaded_at: '2026-10-28T10:00:00.000Z' };
   // DOCUMENTS-01b (Alex, 2026-10-30, ruling B): one unit — binary, as the cap is said (4 MiB). 1,234,567 bytes was '1.2 MB'; 48,100 was '48.1 KB'.
   assert.equal(receiptLineWords(r), 'Receipt: lunch.pdf · 1.2 MiB · PDF');
   assert.equal(receiptLineWords({ ...r, content_type: 'image/jpeg', byte_size: 48_100 }), 'Receipt: lunch.pdf · 47.0 KiB · JPEG');
@@ -153,8 +156,10 @@ test('A the words: the receipt line, the size, and the coverage counted once per
 
 test('B the migration: the newest; one table column for column, the CHECKs, RESTRICT, the deferred self reference, one current receipt and statement, the freeze and the no-delete', () => {
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 1], MIGRATION_DIR, 'the newest migration');
-  assert.equal(dirs[dirs.length - 2], '20261020160000_backlog_02_reranked', 'right after BACKLOG-02’s');
+  // DOCUMENTS-02 (Alex, 2026-10-30): the reconciliation's supersession migration followed — this one is the second newest.
+  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the migration before the newest (DOCUMENTS-02 followed)');
+  assert.equal(dirs[dirs.length - 1], '20261030120000_documents_02_reconciliation_supersession', 'the newest migration');
+  assert.equal(dirs[dirs.length - 3], '20261020160000_backlog_02_reranked', 'right after BACKLOG-02’s');
   const sql = code(MIGRATION);
   assert.match(sql, /CREATE TABLE "source_documents" \(\n  "id"\s+UUID\s+NOT NULL DEFAULT gen_random_uuid\(\),\n  "user_id"\s+TEXT\s+NOT NULL,\n  "kind"\s+VARCHAR\(12\)\s+NOT NULL,\n  "journal_entry_id" TEXT,\n  "account_id"\s+TEXT,\n  "period_month"\s+DATE,\n  "file_name"\s+VARCHAR\(255\)\s+NOT NULL,\n  "content_type"\s+VARCHAR\(32\)\s+NOT NULL,\n  "byte_size"\s+INTEGER\s+NOT NULL,\n  "sha256"\s+BYTEA\s+NOT NULL,\n  "bytes"\s+BYTEA\s+NOT NULL,\n  "superseded_by"\s+UUID,\n  "uploaded_at"\s+TIMESTAMPTZ\(6\) NOT NULL DEFAULT now\(\),\n  "uploaded_by"\s+TEXT,\n  CONSTRAINT "source_documents_pkey" PRIMARY KEY \("id"\)\n\);/);
   assert.match(sql, /CHECK \("kind" IN \('receipt', 'statement'\)\)/);
@@ -211,10 +216,11 @@ test('C the upload: the gate, then the size before the body, then the form, the 
     'const name = fileNameRule(file.name);',
     "const sha256 = createHash('sha256').update(bytes).digest();",
     'const result = await prisma.$transaction(async (tx) => {',
-    "const entry = await tx.journal_entries.findFirst({ where: { id: entryId, userId: user.id }, select: { id: true, ...POSTING_STATE_SELECT } });",
-    'const address = addressRule(entry);',
-    "where: { user_id: user.id, kind: 'receipt', journal_entry_id: entryId, superseded_by: null },",
-    'const one = currentRule(current !== null, replace.replace);',
+    // DOCUMENTS-02 (Alex, 2026-10-30, ruling A): the address is one of two (uploadAddressRule) — the receipt's posting is address.entryId, its rule the posting's.
+    "const entry = await tx.journal_entries.findFirst({ where: { id: address.entryId, userId: user.id }, select: { id: true, ...POSTING_STATE_SELECT } });",
+    'const posting = addressRule(entry);',
+    "where: { user_id: user.id, kind: 'receipt', journal_entry_id: address.entryId, superseded_by: null },",
+    "const one = address.kind === 'receipt' ? currentRule(current !== null, replace.replace) : statementCurrentRule(current !== null, replace.replace);",
     'const marked = await tx.source_documents.updateMany({ where: { id: current.id, user_id: user.id, superseded_by: null }, data: { superseded_by: id } });',
     'if (marked.count !== 1) throw new ReplacedMeanwhile();',
     'const kept = await tx.source_documents.create({',
@@ -228,9 +234,10 @@ test('C the upload: the gate, then the size before the body, then the form, the 
   assert.doesNotMatch(post, /\bfile\.type\b/, 'the browser’s word for the type is never read');
   assert.match(post, /select: SOURCE_DOCUMENT_LIST_SELECT,\n\s+\}\);/, 'the kept row is answered as metadata');
   assert.match(post, /status: 201/);
-  assert.match(post, /error\.code === 'P2002'\) return NextResponse\.json\(\{ error: HAS_RECEIPT_WORDS \}, \{ status: 409 \}\);/);
+  // DOCUMENTS-02 (Alex, 2026-10-30, ruling A): the one-current refusal and the fail-closed words name the kind the form gave.
+  assert.match(post, /error\.code === 'P2002'\) return NextResponse\.json\(\{ error: kind === 'receipt' \? HAS_RECEIPT_WORDS : HAS_STATEMENT_WORDS \}, \{ status: 409 \}\);/);
   assert.match(post, /if \(error instanceof RateLimitError\) \{\n\s+return NextResponse\.json\(\{ error: RATE_WORDS \}, \{ status: 429, headers: \{ 'Retry-After': String\(error\.retryAfterSeconds\) \} \}\);/);
-  assert.match(post, /return failClosedResponse\('Books documents POST', 'Failed to keep the receipt', error\);/);
+  assert.match(post, /return failClosedResponse\('Books documents POST', kind === 'receipt' \? 'Failed to keep the receipt' : 'Failed to keep the statement', error\);/);
   assert.doesNotMatch(r, /anthropic|openai|fetch\(/i, 'no paid call, no outbound call');
   // The list: the same gate, current receipts only, the metadata select.
   const get = r.slice(r.indexOf('export async function GET('));
@@ -269,11 +276,15 @@ test('D the ledger: the receipt under each posted row’s source, attach and rep
   const c = code(CONTROLS);
   assert.match(c, /if \(receipt === undefined\) \{\n\s+if \(!canCarry\) return null;/);
   assert.match(c, /\{canCarry && \(\n\s+<button type="button" onClick=\{\(e\) => \{ e\.stopPropagation\(\); onAttach\(entryId, true\); \}\}/);
-  assert.match(c, /<input type="file" accept=\{RECEIPT_ACCEPT\}/);
   assert.match(c, /href=\{`\/api\/books\/documents\/\$\{encodeURIComponent\(receipt\.id\)\}\/file`\}/);
-  assert.match(c, /if \(replacing\) form\.append\(UPLOAD_FIELDS\.replace, 'true'\);/);
   assert.match(c, /\/api\/books\/documents\?entries=\$\{page\.map\(encodeURIComponent\)\.join\(','\)\}/);
   assert.doesNotMatch(c, /localStorage|sessionStorage|document\.cookie/);
+  // DOCUMENTS-02 (Alex, 2026-10-30, ruling A): the panel is DocumentPanel.tsx, generalized to an address; ReceiptPanel is its receipt mount.
+  assert.match(c, /<DocumentPanel address=\{\{ journal_entry_id: entryId \}\} kind=\{RECEIPT_KIND_WORDS\}/);
+  const panel = code(PANEL);
+  assert.match(panel, /<input type="file" accept=\{RECEIPT_ACCEPT\}/);
+  assert.match(panel, /if \(replacing\) form\.append\(UPLOAD_FIELDS\.replace, 'true'\);/);
+  assert.doesNotMatch(panel, /localStorage|sessionStorage|document\.cookie/);
   // Bookkeeping's controls on Bookkeeping's ledger alone (TOOL-LAW-01).
   for (const f of ['src/components/dashboard/JournalEntryEngine.tsx', 'src/components/home/BooksPipeline.tsx']) assert.doesNotMatch(code(f), /ReceiptControls/);
 });

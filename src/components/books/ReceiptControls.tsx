@@ -8,18 +8,19 @@
  *     "No receipt — attach". A reversal or a reversed posting offers no attach (it shows a receipt it
  *     already carries, read-only). "open" is a plain link to the authed file route — a download.
  *   · ReceiptPanel — the attach (or replace) panel, rendered UNDER the table: the ledger's rows are
- *     virtualized at a fixed height, the DRILL-01 precedent. One <input type="file"> limited to the three
- *     types kept, the limit said before the file is chosen, the server's refusal shown by name.
+ *     virtualized at a fixed height, the DRILL-01 precedent. DOCUMENTS-02 (Alex, 2026-10-30): the panel
+ *     itself is DocumentPanel.tsx, generalized to an address — the receipt's posting here, the statement's
+ *     account-month on the bank reconciliation; this is its receipt mount.
  *   · readReceipts — the ledger's read of its postings' current receipts, in pages of 200.
  *
  * Every word comes from src/lib/books/sourceDocuments.ts; this file types none. Nothing is kept in the
  * browser — React state only — and nothing is guessed: a read that fails says so and shows no receipt
  * as missing.
  */
-import { useState } from 'react';
+import { DocumentPanel } from '@/components/books/DocumentPanel';
 import {
-  ATTACH_WORDS, CANCEL_WORDS, NO_RECEIPT_WORDS, OPEN_WORDS, RECEIPT_ACCEPT, RECEIPT_LIMIT_WORDS, RECEIPTS_LOADING_WORDS, REPLACE_WORDS,
-  UPLOAD_FIELDS, pagesOf, receiptLineWords, sizeRule, uploadFailedWords, type ReceiptMeta,
+  ATTACH_WORDS, NO_RECEIPT_WORDS, OPEN_WORDS, RECEIPT_KIND_WORDS, RECEIPTS_LOADING_WORDS, REPLACE_WORDS,
+  pagesOf, receiptLineWords, type ReceiptMeta,
 } from '@/lib/books/sourceDocuments';
 
 export type ReceiptsRead =
@@ -34,7 +35,7 @@ export async function readReceipts(entryIds: readonly string[]): Promise<Map<str
     const res = await fetch(`/api/books/documents?entries=${page.map(encodeURIComponent).join(',')}`);
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(typeof body.error === 'string' ? body.error : `the receipts read answered ${res.status}`);
-    for (const d of body.documents as ReceiptMeta[]) receipts.set(d.journal_entry_id, d);
+    for (const d of body.documents as ReceiptMeta[]) if (d.journal_entry_id !== null) receipts.set(d.journal_entry_id, d);
   }
   return receipts;
 }
@@ -88,47 +89,5 @@ export function ReceiptPanel({ entryId, replacing, onKept, onClose }: {
   onKept: () => void;
   onClose: () => void;
 }) {
-  const [file, setFile] = useState<File | null>(null);
-  const [sending, setSending] = useState(false);
-  const [refusal, setRefusal] = useState<string | null>(null);
-
-  const send = async () => {
-    if (file === null) return;
-    // The same size rule the route holds — a file over the cap is refused here by its words, before it is sent.
-    const size = sizeRule(file.size);
-    if (!size.ok) { setRefusal(uploadFailedWords(size.error)); return; }
-    setSending(true);
-    setRefusal(null);
-    try {
-      const form = new FormData();
-      form.append(UPLOAD_FIELDS.file, file);
-      form.append(UPLOAD_FIELDS.entry, entryId);
-      if (replacing) form.append(UPLOAD_FIELDS.replace, 'true');
-      const res = await fetch('/api/books/documents', { method: 'POST', body: form });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) { setRefusal(uploadFailedWords(typeof body.error === 'string' ? body.error : `the upload answered ${res.status}`)); return; }
-      onKept();
-    } catch (err) {
-      setRefusal(uploadFailedWords(err instanceof Error ? err.message : 'the upload did not reach the server'));
-    } finally {
-      setSending(false);
-    }
-  };
-
-  return (
-    <div className="mt-1 rounded border border-border bg-white p-2 text-xs space-y-1" data-receipt-panel={entryId} data-receipt-replacing={replacing ? 'true' : 'false'}>
-      <p className="text-text-secondary">{RECEIPT_LIMIT_WORDS}</p>
-      <div className="flex flex-wrap items-center gap-2">
-        <input type="file" accept={RECEIPT_ACCEPT} onChange={(e) => { setFile(e.target.files?.[0] ?? null); setRefusal(null); }} data-receipt-input={entryId} />
-        <button type="button" onClick={send} disabled={file === null || sending}
-          className="h-6 px-2 rounded border border-border bg-brand-purple text-white disabled:opacity-40" data-receipt-submit={entryId}>
-          {replacing ? REPLACE_WORDS : ATTACH_WORDS}
-        </button>
-        <button type="button" onClick={onClose} className="h-6 px-2 rounded border border-border text-text-secondary hover:bg-bg-row" data-receipt-cancel={entryId}>
-          {CANCEL_WORDS}
-        </button>
-      </div>
-      {refusal !== null && <p className="text-brand-red" role="alert" data-receipt-error>{refusal}</p>}
-    </div>
-  );
+  return <DocumentPanel address={{ journal_entry_id: entryId }} kind={RECEIPT_KIND_WORDS} panelId={entryId} replacing={replacing} onKept={onKept} onClose={onClose} />;
 }

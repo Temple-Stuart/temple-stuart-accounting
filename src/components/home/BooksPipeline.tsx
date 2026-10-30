@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import BookkeepingSection from '@/components/bookkeeping/BookkeepingSection';
+import type { ReconciliationStatus } from '@/lib/books/reconciliationStatus';
+import type { ReconciliationSave, SaveAnswer } from '@/components/dashboard/BankReconciliation';
+import { utcDayOf } from '@/lib/books/period';
 // SELL-04: the first-run entity step — a viewer with no entity sets one up before the pipeline reads.
 import EntitySetup from '@/components/books/EntitySetup';
 import SpendingTab from '@/components/dashboard/SpendingTab';
@@ -129,6 +132,9 @@ export default function BooksPipeline() {
   const [investmentTransactions, setInvestmentTransactions] = useState<Row[]>([]);
   const [journalEntries, setJournalEntries] = useState<Row[]>([]);
   const [reconciliations, setReconciliations] = useState<Row[]>([]);
+  // DOCUMENTS-02 (Alex, 2026-10-30, ruling G): the pipeline's word on reconciliation — the server's, from
+  // src/lib/books/reconciliationStatus.ts over the same rows — not a count of rows ever reconciled.
+  const [reconStatus, setReconStatus] = useState<ReconciliationStatus | null>(null);
   const [periodCloses, setPeriodCloses] = useState<Row[]>([]);
   const [entityId, setEntityId] = useState<string | null>(null);
   const [mappingTab, setMappingTab] = useState<'spending' | 'investments'>('spending');
@@ -143,7 +149,9 @@ export default function BooksPipeline() {
     const res = await fetch('/api/bank-reconciliations');
     if (!res.ok) throw new Error('bank-reconciliations fetch failed');
     const d = await res.json();
-    setReconciliations(d.reconciliations || []);
+    if (!Array.isArray(d.reconciliations) || typeof d.status !== 'object' || d.status === null) throw new Error('bank-reconciliations: expected { reconciliations, status }');
+    setReconciliations(d.reconciliations);
+    setReconStatus(d.status as ReconciliationStatus);
   }, []);
 
   const loadPeriodCloses = useCallback(async () => {
@@ -281,7 +289,8 @@ export default function BooksPipeline() {
   // dots' 9 hardcoded 'pending' props are the ledgered G2 anti-pattern, NEXT
   // PR, untouched here).
   const pendingCount = uncommittedSpending.length + investmentQueue;
-  const reconciledCount = reconciliations.filter((r) => r.status === 'reconciled').length;
+  // DOCUMENTS-02: the REC word is the server's rule (previous calendar month, every resolvable bank account reconciled).
+  const reconciled = reconStatus !== null && reconStatus.state === 'complete';
   const closedThisYear = periodCloses.filter((p) => p.year === year && p.status === 'closed').length;
 
   // BOOKS-PIPE-01: THE PIPELINE IS THE PAGE. The strip is hoisted out of the
@@ -298,7 +307,7 @@ export default function BooksPipeline() {
         { key: 'code', num: PIPE_CODE.num, label: PIPE_CODE.name,
           state: phase === 'code' ? 'active' : committedCount > 0 && pendingCount === 0 ? 'done' : 'pending' },
         { key: 'reconcile', num: PIPE_RECONCILE.num, label: PIPE_RECONCILE.name,
-          state: phase === 'reconcile' ? 'active' : reconciledCount > 0 ? 'done' : 'pending' },
+          state: phase === 'reconcile' ? 'active' : reconciled ? 'done' : 'pending' },
         { key: 'close', num: PIPE_CLOSE.num, label: PIPE_CLOSE.name,
           state: phase === 'close' ? 'active' : closedThisYear > 0 ? 'done' : 'pending' },
         { key: 'reports', num: PIPE_REPORTS.num, label: PIPE_REPORTS.name,
@@ -385,7 +394,8 @@ export default function BooksPipeline() {
     <>
       {/* BOOKS-PIPE-FRAME: strip states DERIVED ONLY from audited signals —
           feed ⇐ connected accounts; code ⇐ all caught up AND something coded;
-          reconcile ⇐ a reconciled reconciliation exists; close ⇐ a closed
+          reconcile ⇐ every resolvable bank account reconciled for the previous
+          month (DOCUMENTS-02, reconciliationStatus.ts — the server's word); close ⇐ a closed
           period exists; reports ⇐ the T1 truth (hasActivity && isBalanced,
           reported up by TrialBalanceSection); export = DECLARED GAP — no
           export-completion signal exists client-side, so it renders pending
@@ -572,22 +582,22 @@ export default function BooksPipeline() {
         <SectionHeader kicker="03 / Reconcile" right="PHASE 03 OF 06" />
       {/* 6. REC — Bank Reconciliation (dashboard :620). */}
       {/* NAV-01b: status derived from the loaded reconciliations, no hardcoded 'pending'. */}
+      {/* DOCUMENTS-02: the word and the subtitle are the server's rule (ruling G); a failed save shows the server's words in place (ruling H). */}
       <BookkeepingSection title="Bank Reconciliation" pipelineKey="REC"
-        subtitle={`${reconciledCount} reconciled`}
-        status={reconciledCount > 0 ? 'complete' : 'pending'}>
+        subtitle={reconStatus === null ? '' : reconStatus.subtitle}
+        status={reconciled ? 'complete' : 'pending'}>
         <div className="p-2">
           <BankReconciliation
             accounts={accounts}
-            transactions={transactions}
             reconciliations={reconciliations}
-            onSave={async (data: Row) => {
+            today={utcDayOf(new Date())}
+            onSave={async (data: ReconciliationSave): Promise<SaveAnswer> => {
               const res = await fetch('/api/bank-reconciliations', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
               });
-              if (!res.ok) {
-                const err = await res.json();
-                alert(err.error || 'Failed to save reconciliation');
-              }
+              if (res.ok) return { ok: true };
+              const err = await res.json().catch(() => ({}));
+              return { ok: false, status: res.status, error: typeof err.error === 'string' ? err.error : `the save answered ${res.status}` };
             }}
             onReload={loadReconciliations}
           />
