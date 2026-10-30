@@ -139,7 +139,9 @@ function money(amount: number, currency: string): string {
   try {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 2 }).format(amount);
   } catch {
-    return `$${amount.toFixed(2)}`;
+    // FX-01 (2026-10-30, ruling I): a code Intl does not know prints the figure WITH that code
+    // (the travel lane's own words, src/lib/activities/products.ts money) — never relabelled as dollars.
+    return `${amount.toFixed(2)} ${currency}`;
   }
 }
 

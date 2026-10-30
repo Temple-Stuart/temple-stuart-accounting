@@ -21,6 +21,7 @@ const PANEL = 'src/components/trips/LiteApiFlightCheckoutPanel.tsx';
 const FCONFIRM = 'src/app/booking/flight-confirm/page.tsx';
 const HCONFIRM = 'src/app/booking/confirm/page.tsx';
 
+// FX-01 (2026-10-30, ruling H): proposeMatches takes the account's currency, as the refund pass does — the fixtures state USD.
 const OPTS = { amountTolerancePct: 0.05, dateWindowDays: 3 };
 const TXN = { id: 't1', amount: 432.1, date: '2026-09-20', name: 'NUITEE FLIGHTS', pending: false };
 const RES = { id: 'r1', finalPriceCents: 43210, currency: 'USD', provider: 'liteapi', hotelName: null, createdAt: '2026-09-20' };
@@ -28,7 +29,7 @@ const RES = { id: 'r1', finalPriceCents: 43210, currency: 'USD', provider: 'lite
 // ── the matcher ─────────────────────────────────────────────────────────────
 
 test('matcher: a NULL price EXCLUDES the amount signal, says so, and re-normalizes over date + descriptor', () => {
-  const [p] = proposeMatches({ reservations: [{ ...RES, finalPriceCents: null }], transactions: [TXN], opts: OPTS });
+  const [p] = proposeMatches({ reservations: [{ ...RES, finalPriceCents: null }], transactions: [TXN], accountCurrency: 'USD', opts: OPTS });
   assert.ok(p, 'a proposal still comes from date + descriptor');
   assert.match(p.rationale, /amount: EXCLUDED — reservation price not stated by the vendor \(NULL recorded\)/);
   assert.doesNotMatch(p.rationale, /booked \$/, 'no amount is compared');
@@ -38,12 +39,12 @@ test('matcher: a NULL price EXCLUDES the amount signal, says so, and re-normaliz
 });
 
 test('matcher: a REAL 0 is an amount — against a positive charge it is a contradiction, not a wildcard', () => {
-  const out = proposeMatches({ reservations: [{ ...RES, finalPriceCents: 0 }], transactions: [TXN], opts: OPTS });
+  const out = proposeMatches({ reservations: [{ ...RES, finalPriceCents: 0 }], transactions: [TXN], accountCurrency: 'USD', opts: OPTS });
   assert.equal(out.length, 0, 'a $0 booking does not match a $432.10 charge');
 });
 
 test('matcher: a stated price still matches as before, and the rationale names both figures', () => {
-  const [p] = proposeMatches({ reservations: [RES], transactions: [TXN], opts: OPTS });
+  const [p] = proposeMatches({ reservations: [RES], transactions: [TXN], accountCurrency: 'USD', opts: OPTS });
   assert.ok(p);
   assert.match(p.rationale, /amount: \$432\.10 vs booked \$432\.10/);
   assert.equal(p.confidence, 1);

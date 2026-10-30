@@ -1,5 +1,7 @@
 'use client';
 
+import { functionalMoneyWords } from '@/lib/books/functionalCurrency';
+
 
 export interface BookkeepingCockpitBarProps {
   // Accounting equation
@@ -20,8 +22,8 @@ export interface BookkeepingCockpitBarProps {
   onLinkAccount: () => void;
 }
 
-const fmtDollars = (cents: number) =>
-  '$' + (Math.abs(cents) / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+// FX-01 (2026-10-30, ruling B): the books' one formatter (functionalMoneyWords) over integer cents — two
+// decimals, the sign its own; the local whole-dollars formatter is gone.
 
 export default function BookkeepingCockpitBar({
   totalAssets,
@@ -59,17 +61,17 @@ export default function BookkeepingCockpitBar({
           <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-xs">
             <span>
               <span className={('text-text-muted uppercase tracking-wider text-[10px] mr-1')}>Assets</span>
-              <span className={('font-mono font-semibold text-text-primary')}>{fmtDollars(totalAssets)}</span>
+              <span className={('font-mono font-semibold text-text-primary')}>{functionalMoneyWords(totalAssets)}</span>
             </span>
             <span className="text-text-faint">|</span>
             <span>
               <span className={('text-text-muted uppercase tracking-wider text-[10px] mr-1')}>Liabilities</span>
-              <span className={('font-mono font-semibold text-text-primary')}>{fmtDollars(totalLiabilities)}</span>
+              <span className={('font-mono font-semibold text-text-primary')}>{functionalMoneyWords(totalLiabilities)}</span>
             </span>
             <span className="text-text-faint">|</span>
             <span>
               <span className={('text-text-muted uppercase tracking-wider text-[10px] mr-1')}>Equity</span>
-              <span className={('font-mono font-semibold text-text-primary')}>{fmtDollars(totalEquity)}</span>
+              <span className={('font-mono font-semibold text-text-primary')}>{functionalMoneyWords(totalEquity)}</span>
             </span>
           </div>
           <div className="mt-1">
@@ -86,7 +88,7 @@ export default function BookkeepingCockpitBar({
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 text-[10px] font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
-                {'\u2717'} Unbalanced by {fmtDollars(Math.abs(imbalance))}
+                {'\u2717'} Unbalanced by {functionalMoneyWords(Math.abs(imbalance))}
               </span>
             )}
           </div>

@@ -9,6 +9,7 @@ import { ReceiptLine, ReceiptPanel, readReceipts, type ReceiptsRead } from '@/co
 import { canCarryReceipt, receiptCoverage, receiptsFailedWords, RECEIPTS_LOADING_WORDS } from '@/lib/books/sourceDocuments';
 // BUDGET-02 (ruling F): a link's account is read by the budget report's ONE code reader, so an old "B-5100" row matches 5100.
 import { readChartCode } from '@/lib/budget/reportInputs';
+import { FUNCTIONAL_CURRENCY_WORDS, functionalMoneyWords } from '@/lib/books/functionalCurrency';
 
 
 /* ------------------------------------------------------------------ */
@@ -76,6 +77,7 @@ interface LedgerEntry {
   date: string;
   description: string;
   entryType: string; // 'D' or 'C'
+  /** Integer cents (FX-01) — the route no longer divides into dollars. */
   amount: number;
   runningBalance: number;
   journal_id: string;
@@ -134,14 +136,8 @@ const ROW_HEIGHT = 30;
 // (POST-01) and the receipt line — so neither is clipped by the fixed-height virtual row.
 const LINE_HEIGHT = 16;
 
-const fmtMoney = (n: number): string => {
-  const sign = n < 0 ? '-' : '';
-  return sign + '$' +
-    Math.abs(n).toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-};
+// FX-01 (2026-10-30, ruling B): every figure is integer CENTS from /api/ledger, written by the books' one
+// formatter (src/lib/books/functionalCurrency.ts functionalMoneyWords) — the local dollars formatter is gone.
 
 const fmtDate = (iso: string): string => {
   const d = new Date(iso);
@@ -441,9 +437,9 @@ export default function GeneralLedger({ coaOptions, onReload, link, onLinkUsed }
         fmtDate(e.date),
         e.journal_id.substring(0, 8),
         `"${e.description.replace(/"/g, '""')}"`,
-        e.entryType === 'D' ? fmtMoney(e.amount) : '',
-        e.entryType === 'C' ? fmtMoney(e.amount) : '',
-        fmtMoney(e.runningBalance),
+        e.entryType === 'D' ? functionalMoneyWords(e.amount) : '',
+        e.entryType === 'C' ? functionalMoneyWords(e.amount) : '',
+        functionalMoneyWords(e.runningBalance),
         status,
       ];
     });
@@ -607,7 +603,7 @@ export default function GeneralLedger({ coaOptions, onReload, link, onLinkUsed }
                         <span className="font-medium">{a.code}</span>{' '}
                         <span className="text-text-secondary">- {a.name}</span>
                       </span>
-                      <span className="text-text-muted ml-2 tabular-nums">{fmtMoney(a.balance)}</span>
+                      <span className="text-text-muted ml-2 tabular-nums">{functionalMoneyWords(a.balance)}</span>
                     </button>
                   ))}
                 </div>
@@ -660,6 +656,7 @@ export default function GeneralLedger({ coaOptions, onReload, link, onLinkUsed }
             Export CSV
           </button>
         )}
+        <span className="text-[10px] text-text-muted" data-functional-currency>{FUNCTIONAL_CURRENCY_WORDS}</span>
       </div>
 
       {/* ---- Loading / Error ---- */}
@@ -723,7 +720,7 @@ export default function GeneralLedger({ coaOptions, onReload, link, onLinkUsed }
                           <td className="py-1 px-2 text-text-secondary">{acct.accountName}</td>
                           <td className="py-1 px-2 text-text-muted">{acct.accountType}</td>
                           <td className="py-1 px-2 text-right font-mono tabular-nums">
-                            {fmtMoney(acct.closingBalance)}
+                            {functionalMoneyWords(acct.closingBalance)}
                           </td>
                         </tr>
                       ))}
@@ -751,13 +748,13 @@ export default function GeneralLedger({ coaOptions, onReload, link, onLinkUsed }
             <div>
               <span className="text-text-muted">Opening Balance</span>
               <div className="font-semibold tabular-nums mt-0.5">
-                {fmtMoney(selectedAccount.openingBalance)}
+                {functionalMoneyWords(selectedAccount.openingBalance)}
               </div>
             </div>
             <div>
               <span className="text-text-muted">Total Debits</span>
               <div className="font-semibold text-brand-red tabular-nums mt-0.5">
-                {fmtMoney(
+                {functionalMoneyWords(
                   selectedAccount.entries
                     .filter((e) => e.entryType === 'D')
                     .reduce((s, e) => s + e.amount, 0),
@@ -767,7 +764,7 @@ export default function GeneralLedger({ coaOptions, onReload, link, onLinkUsed }
             <div>
               <span className="text-text-muted">Total Credits</span>
               <div className="font-semibold text-brand-green tabular-nums mt-0.5">
-                {fmtMoney(
+                {functionalMoneyWords(
                   selectedAccount.entries
                     .filter((e) => e.entryType === 'C')
                     .reduce((s, e) => s + e.amount, 0),
@@ -777,7 +774,7 @@ export default function GeneralLedger({ coaOptions, onReload, link, onLinkUsed }
             <div>
               <span className="text-text-muted">Closing Balance</span>
               <div className="font-semibold tabular-nums mt-0.5">
-                {fmtMoney(selectedAccount.closingBalance)}
+                {functionalMoneyWords(selectedAccount.closingBalance)}
               </div>
             </div>
             <div className="ml-auto self-center text-text-muted">
@@ -872,17 +869,17 @@ export default function GeneralLedger({ coaOptions, onReload, link, onLinkUsed }
 
                         {/* Debit */}
                         <div className="py-1 px-2 w-[100px] shrink-0 text-right font-mono tabular-nums">
-                          {entry.entryType === 'D' ? fmtMoney(entry.amount) : ''}
+                          {entry.entryType === 'D' ? functionalMoneyWords(entry.amount) : ''}
                         </div>
 
                         {/* Credit */}
                         <div className="py-1 px-2 w-[100px] shrink-0 text-right font-mono tabular-nums">
-                          {entry.entryType === 'C' ? fmtMoney(entry.amount) : ''}
+                          {entry.entryType === 'C' ? functionalMoneyWords(entry.amount) : ''}
                         </div>
 
                         {/* Balance */}
                         <div className="py-1 px-2 w-[110px] shrink-0 text-right font-mono tabular-nums">
-                          {fmtMoney(entry.runningBalance)}
+                          {functionalMoneyWords(entry.runningBalance)}
                         </div>
 
                         {/* Status */}
@@ -980,11 +977,11 @@ export default function GeneralLedger({ coaOptions, onReload, link, onLinkUsed }
             </p>
             <span className="text-text-secondary">
               Total Debits:{' '}
-              <span className="font-semibold text-brand-red">{fmtMoney(totalDebits)}</span>
+              <span className="font-semibold text-brand-red">{functionalMoneyWords(totalDebits)}</span>
             </span>
             <span className="text-text-secondary">
               Total Credits:{' '}
-              <span className="font-semibold text-brand-green">{fmtMoney(totalCredits)}</span>
+              <span className="font-semibold text-brand-green">{functionalMoneyWords(totalCredits)}</span>
             </span>
           </div>
         </>

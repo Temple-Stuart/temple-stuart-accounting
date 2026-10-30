@@ -85,14 +85,29 @@ export async function POST(request: NextRequest) {
       select: {
         id: true, amount: true, date: true, authorized_date: true,
         name: true, merchantName: true, pending: true,
+        // FX-01 (ruling H): the account's stated currency rides with each row — the charge pass scores per account currency.
+        accounts: { select: { isoCurrencyCode: true } },
       },
     });
 
-    const proposals = proposeMatches({
+    // FX-01 (Alex, 2026-10-30, ruling H): THE CHARGE PASS READS THE ACCOUNT'S CURRENCY, as the refund
+    // pass below has since MATCH-02 — the rows grouped by accounts.isoCurrencyCode (a NULL key kept),
+    // each group scored with its own currency; a NULL currency EXCLUDES the amount signal by name
+    // inside the matcher. Nothing is defaulted to USD and nothing is converted.
+    const byAccountCurrency = new Map<string | null, typeof transactions>();
+    for (const t of transactions) {
+      const key = t.accounts.isoCurrencyCode;
+      const group = byAccountCurrency.get(key) ?? [];
+      group.push(t);
+      byAccountCurrency.set(key, group);
+    }
+    const chargeCurrencies = [...byAccountCurrency.keys()].sort((a, b) => (a ?? '').localeCompare(b ?? ''));
+    const proposals = chargeCurrencies.flatMap((accountCurrency) => proposeMatches({
       reservations,
-      transactions,
+      transactions: byAccountCurrency.get(accountCurrency) ?? [],
+      accountCurrency,
       opts: { amountTolerancePct: MATCH_AMOUNT_TOLERANCE_PCT, dateWindowDays: MATCH_DATE_WINDOW_DAYS },
-    });
+    }));
 
     // Partition against existing lifecycle rows — reviewed rows are untouchable.
     const existing = await prisma.transaction_reservation_links.findMany({

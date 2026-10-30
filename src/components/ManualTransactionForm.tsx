@@ -34,6 +34,16 @@ const ACCOUNT_TYPES = [
   { value: 'other', label: 'Other' },
 ];
 
+/**
+ * FX-01 (Alex, 2026-10-30, ruling G): the currency a manual account is kept in — chosen by the customer,
+ * NEVER preselected (a pre-filled 'USD' is a default). ISO 4217 codes; the route refuses anything else
+ * by name. The books post only an account in the functional currency (functionalCurrency.ts); a manual
+ * account in another currency waits for FX-02.
+ */
+export const MANUAL_ACCOUNT_CURRENCIES = ['USD', 'PHP', 'IDR', 'THB', 'VND', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'SGD', 'MYR', 'HKD', 'KRW', 'CNY', 'INR', 'MXN', 'CHF', 'NZD', 'AED'] as const;
+export const CHOOSE_CURRENCY_WORDS = '— choose the currency —';
+export const CURRENCY_NOT_CHOSEN_WORDS = 'choose the currency this account is kept in';
+
 export default function ManualTransactionForm({ onSuccess, onCancel }: ManualTransactionFormProps) {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [description, setDescription] = useState('');
@@ -42,6 +52,8 @@ export default function ManualTransactionForm({ onSuccess, onCancel }: ManualTra
   const [category, setCategory] = useState('');
   const [accountName, setAccountName] = useState('');
   const [accountType, setAccountType] = useState('depository');
+  // FX-01: no preselected currency — '' until the customer chooses.
+  const [currency, setCurrency] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -58,6 +70,11 @@ export default function ManualTransactionForm({ onSuccess, onCancel }: ManualTra
       setSubmitting(false);
       return;
     }
+    if (currency === '') {
+      setError(CURRENCY_NOT_CHOSEN_WORDS);
+      setSubmitting(false);
+      return;
+    }
 
     // Plaid convention: positive = money out (expense), negative = money in (income)
     const finalAmount = isExpense ? parsedAmount : -parsedAmount;
@@ -70,6 +87,7 @@ export default function ManualTransactionForm({ onSuccess, onCancel }: ManualTra
           date,
           description,
           amount: finalAmount,
+          currency,
           category: category || undefined,
           accountName: accountName || undefined,
           accountType,
@@ -145,7 +163,7 @@ export default function ManualTransactionForm({ onSuccess, onCancel }: ManualTra
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Amount ($)</label>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Amount{currency ? ` (${currency})` : ''}</label>
             <input
               type="number"
               step="0.01"
@@ -157,6 +175,23 @@ export default function ManualTransactionForm({ onSuccess, onCancel }: ManualTra
               required
             />
           </div>
+        </div>
+
+        {/* Currency — FX-01 (ruling G): required, nothing preselected */}
+        <div>
+          <label className="block text-xs font-medium text-text-secondary mb-1">Currency</label>
+          <select
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            required
+            data-manual-currency
+            className="w-full px-3 py-2 border border-border rounded text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple bg-white"
+          >
+            <option value="" disabled>{CHOOSE_CURRENCY_WORDS}</option>
+            {MANUAL_ACCOUNT_CURRENCIES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
         </div>
 
         {/* Description */}

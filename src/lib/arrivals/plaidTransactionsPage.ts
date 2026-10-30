@@ -22,6 +22,14 @@
  * The parser itself is sync-complete's existing domain logic, moved here
  * unchanged in behavior: the "complete data" skip, the upsert, the pending
  * delete (promise 1 on the domain table is PR-2b).
+ *
+ * FX-01 (Alex, 2026-10-30, ruling E): the parser keeps Plaid's own word for the
+ * row's currency — transactions.iso_currency_code, NULL when Plaid states none.
+ * unofficial_currency_code is NOT kept: a row Plaid states only in an unofficial
+ * code (a cryptocurrency, a currency with no ISO code) lands with a NULL iso code
+ * and is refused at commit by name (src/lib/books/functionalCurrency.ts
+ * postingCurrencyRule). The domain binding's DATA_KEYS (prismaDomain.ts) names
+ * the same key — the two move together, or the binding refuses the unknown key.
  */
 import type { Transaction } from 'plaid';
 import { stageFailed, type StageFailed } from '@/lib/plaid/failLoud';
@@ -90,6 +98,10 @@ async function parseTransaction(domain: DomainDb, ctx: TransactionsPageInput, ar
   const t = txn as Transaction & Record<string, unknown>;
   const txnData = {
     amount: txn.amount,
+    // FX-01 (2026-10-30, ruling E): Plaid's own word for the row's currency, or NULL when Plaid states
+    // none. unofficial_currency_code is NOT kept: a row Plaid states only in an unofficial code lands
+    // with a NULL iso code and is refused at commit by name (functionalCurrency.ts postingCurrencyRule).
+    iso_currency_code: txn.iso_currency_code ?? null,
     date: new Date(txn.date),
     name: txn.name,
     merchantName: txn.merchant_name,

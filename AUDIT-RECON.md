@@ -887,6 +887,7 @@ Enforced via `requireTier(user.tier, feature)` in `src/lib/tiers.ts`.
 | `prisma/add-journal-metadata.sql` | account_code, amount, strategy, trade_num on journal_transactions | Likely yes |
 | `prisma/add-trading-entity.sql` | Adds 'trading' to entity_type CHECK constraint | Likely yes |
 | `prisma/add_plaid_rich_data.sql` | 15+ rich Plaid columns on transactions | Likely yes |
+| ↳ FX-01 (2026-10-30) | the one column that file added which Prisma never declared (`transactions.iso_currency_code TEXT DEFAULT 'USD'`) is now a migration, `20261030150000_fx_01_transactions_currency`, which converges both states (column present or not) and backfills every row from its account's stated currency; the ad-hoc file is deleted from the repo | Migration |
 | `prisma/migrations/add_missing_columns.sql` | needs_update on plaid_items, rfps table | Likely yes |
 | `add_securities.sql` | DROP + recreate securities table | Superseded |
 | `fix-irs-coa.sh` | sed replacement for assignCOA in robinhood-parser.ts | Code change, not DB |

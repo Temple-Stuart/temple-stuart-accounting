@@ -2995,6 +2995,92 @@ const DOCS_MIGRATION = 'prisma/migrations/20261028120000_documents_01_source_doc
 if (docViolations === 0) console.log('✔ The documents law passed — one writer (the upload POST creates, and marks the one it replaces), the list never names the bytes, every read the caller’s own, the gate before the body, the type from the first bytes, the file handed back as a download, not public, out of the export, mounted on Bookkeeping’s ledger alone; the database freezes it, never deletes it, and keeps one current receipt per posting (DOCUMENTS-01).');
 else console.log(`✖ The documents law FAILED — ${docViolations} violation(s).`);
 });
+lawGuard('The books currency law', () => {
+
+// ── THE BOOKS CURRENCY LAW (FX-01, Alex, 2026-10-30, rulings A–C) ────────────
+// The functional currency is declared ONCE — src/lib/books/functionalCurrency.ts: FUNCTIONAL_CURRENCY,
+// FUNCTIONAL_CURRENCY_WORDS, the one formatter functionalMoneyWords over integer cents — and the BOOKS
+// LANE reads it. In the lane, with comments stripped (codeOf): no literal `$` before a figure (the four
+// shapes FX-00 §4 counted), no `currency: 'USD'` and no 'USD' literal outside the home, no
+// Intl.NumberFormat outside the home, and no local function named fmt*/format*Money|Dollars|Cents.
+// The lane is named here file by file: src/lib/books/**, the six books route directories, and the
+// books components BooksPipeline mounts (confirmed from its imports and BookkeepingSection's). A closed,
+// dated allowlist may only shrink — the law fails when an entry matches nothing — and it is EMPTY.
+let fxViolations = 0;
+const fxFail = (m: string) => { fxViolations += 1; violations.push(`books currency law: ${m} (FX-01)`); };
+const FX_HOME = 'src/lib/books/functionalCurrency.ts';
+const FX_LANE_DIRS = ['src/lib/books', 'src/app/api/trial-balance', 'src/app/api/journal-entries', 'src/app/api/bank-reconciliations', 'src/app/api/books', 'src/app/api/journal-transactions', 'src/app/api/ledger'];
+const FX_LANE_COMPONENTS = [
+  'src/components/home/BooksPipeline.tsx',
+  'src/components/dashboard/GeneralLedger.tsx',
+  'src/components/dashboard/JournalEntryEngine.tsx',
+  'src/components/bookkeeping/TrialBalanceSection.tsx',
+  'src/components/bookkeeping/BookkeepingCockpitBar.tsx',
+  'src/components/dashboard/BankReconciliation.tsx',
+  'src/components/dashboard/PeriodClose.tsx',
+  'src/components/dashboard/CPAExport.tsx',
+  'src/components/dashboard/JournalEntriesTab.tsx',
+  'src/components/dashboard/AdjustingEntriesTab.tsx',
+  'src/components/bookkeeping/COAManagementTable.tsx',
+];
+/** The shapes a lane file may not hold. `homeToo` shapes are refused in the home file as well. */
+const FX_SHAPES: ReadonlyArray<{ name: string; re: RegExp; homeToo: boolean }> = [
+  { name: 'a literal $ before a figure in a template (`$${…}`)', re: /\$\$\{/, homeToo: true },
+  { name: "a literal '$' + figure", re: /['"]\$['"]\s*\+/, homeToo: true },
+  { name: 'a JSX <span>$</span>', re: />\$</, homeToo: true },
+  { name: 'a JSX text $ before a figure', re: />\s*\$\s*\{/, homeToo: true },
+  { name: "currency: 'USD'", re: /currency:\s*['"]USD['"]/, homeToo: false },
+  { name: "a 'USD' literal", re: /['"]USD['"]/, homeToo: false },
+  { name: 'Intl.NumberFormat', re: /Intl\.NumberFormat/, homeToo: false },
+  { name: 'a local money formatter named fmt*/format*Money|Dollars|Cents', re: /\b(?:fmt|format)\w*(?:Money|Dollars|Cents)\b/, homeToo: true },
+];
+/** Closed and dated; may only shrink; EMPTY at merge (ruling C). An entry that matches no line is stale and fails. */
+const FX_ALLOW: ReadonlyArray<{ file: string; snippet: string; dated: string; reason: string }> = [];
+{
+  const home = codeOf(FX_HOME);
+  if (!/export const FUNCTIONAL_CURRENCY = 'USD' as const;/.test(home)) fxFail(`${FX_HOME} does not declare FUNCTIONAL_CURRENCY = 'USD' as const — the one declaration`);
+  if (!/export const FUNCTIONAL_CURRENCY_WORDS = `All figures in \$\{FUNCTIONAL_CURRENCY\}`;/.test(home)) fxFail(`${FX_HOME} does not declare FUNCTIONAL_CURRENCY_WORDS from the constant`);
+  if (!/export function functionalMoneyWords\(cents: bigint \| number\): string/.test(home)) fxFail(`${FX_HOME} does not export the one formatter functionalMoneyWords(cents)`);
+  if (!/export function centsOfDecimalString\(value: string\): bigint/.test(home)) fxFail(`${FX_HOME} does not export centsOfDecimalString`);
+  if (!/export function postingCurrencyRule\(/.test(home)) fxFail(`${FX_HOME} does not export postingCurrencyRule (ruling F)`);
+  if (/\/\s*100\b|\*\s*100\b|Math\.round\(/.test(home)) fxFail(`${FX_HOME} divides or multiplies by 100, or rounds — the formatter is integer arithmetic over a decimal string`);
+  const laneFiles = [...new Set([
+    ...FX_LANE_COMPONENTS,
+    ...FX_LANE_DIRS.flatMap((d) => existsSync(resolve(ROOT, d)) ? tsFiles(resolve(ROOT, d)).map((abs) => abs.replace(`${ROOT}/`, '')) : (fxFail(`${d} is named in the lane and does not exist`), [])),
+  ])].filter((f) => !f.includes('__tests__'));
+  for (const f of FX_LANE_COMPONENTS) if (!existsSync(resolve(ROOT, f))) fxFail(`${f} is named in the lane and does not exist`);
+  const used = new Set<number>();
+  for (const f of laneFiles) {
+    if (!existsSync(resolve(ROOT, f))) continue;
+    const isHome = f === FX_HOME;
+    for (const [i, line] of codeOf(f).split('\n').entries()) {
+      for (const shape of FX_SHAPES) {
+        if (isHome && !shape.homeToo) continue;
+        if (!shape.re.test(line)) continue;
+        const at = FX_ALLOW.findIndex((a) => a.file === f && line.includes(a.snippet));
+        if (at < 0) fxFail(`${f}:${i + 1} holds ${shape.name} (${line.trim().slice(0, 100)}) — the books lane writes every figure through ${FX_HOME} functionalMoneyWords and reads every USD label from FUNCTIONAL_CURRENCY_WORDS`);
+        else used.add(at);
+      }
+    }
+  }
+  FX_ALLOW.forEach((a, i) => { if (!used.has(i)) fxFail(`the allowance for ${a.file} "${a.snippet}" (${a.dated}) matches no line — it is stale; the list only shrinks`); });
+  // The commit route calls the rule before anything posts (ruling F): after the account is loaded, before the accountCode check.
+  const commit = codeOf('src/app/api/transactions/commit-to-ledger/route.ts');
+  const ruleAt = commit.indexOf('postingCurrencyRule(linkedAccount,');
+  const codeAt = commit.indexOf('const bankAccountCode = linkedAccount.accountCode;');
+  const postAt = commit.indexOf('commitPlaidTransaction(prisma,');
+  if (ruleAt < 0 || codeAt < 0 || postAt < 0 || !(ruleAt < codeAt && codeAt < postAt)) fxFail('commit-to-ledger does not call postingCurrencyRule after the account is loaded and before the accountCode check and the posting');
+  // The sync keeps Plaid's word (ruling E): the parser and the binding name the key together.
+  if (!/iso_currency_code: txn\.iso_currency_code \?\? null,/.test(codeOf('src/lib/arrivals/plaidTransactionsPage.ts'))) fxFail('plaidTransactionsPage.ts does not keep iso_currency_code from the arrival payload');
+  if (!/'iso_currency_code', 'arrival_id', 'updatedAt',/.test(codeOf('src/lib/arrivals/prismaDomain.ts'))) fxFail('prismaDomain.ts DATA_KEYS does not name iso_currency_code');
+  // The charge pass reads the account's currency (ruling H): no 'USD' default in the matcher.
+  const matcher = codeOf('src/lib/runway/reservationMatcher.ts');
+  if (/\?\?\s*['"]USD['"]|\|\|\s*['"]USD['"]/.test(matcher)) fxFail('reservationMatcher.ts defaults a currency to USD — the account states it or the amount signal is excluded by name');
+  if (!/accountCurrency,\n  opts,\n\}: \{\n  reservations: MatcherReservation\[\];/.test(matcher)) fxFail('reservationMatcher.ts proposeMatches does not take accountCurrency beside its reservations');
+}
+if (fxViolations === 0) console.log(`✔ The books currency law passed — the functional currency declared once (${FX_HOME}: FUNCTIONAL_CURRENCY, FUNCTIONAL_CURRENCY_WORDS, functionalMoneyWords over integer cents); the books lane (${FX_LANE_COMPONENTS.length} components + ${FX_LANE_DIRS.length} directories) holds no literal $ before a figure, no 'USD' literal, no Intl.NumberFormat and no local money formatter outside the home; the allowlist is ${FX_ALLOW.length === 0 ? 'EMPTY' : `${FX_ALLOW.length} entries`}; the commit route refuses a NULL or non-USD account by name before it posts; the sync keeps Plaid's currency; the matcher reads the account's (FX-01).`);
+else console.log(`✖ The books currency law FAILED — ${fxViolations} violation(s).`);
+});
 lawGuard('The lines law', () => {
 
 // ── THE LINES LAW (LINES-01, 2026-09-18) ────────────────────────────────────
@@ -8363,7 +8449,6 @@ const FIGURE_DEFAULTS_ALLOWED: ReadonlyArray<{ file: string; snippet: string; re
   { file: 'src/lib/activities/product.ts', snippet: '(party.ADULT ?? 0) + (party.SENIOR ?? 0) < 1', reason: "the customer's own party count — not a vendor figure" },
   { file: 'src/lib/activities/save.ts', snippet: 'save.extra?.total ?? 0', reason: 'an absent optional extra is no extra charge — the total is the stated native amount plus the extras the customer chose' },
   { file: 'src/lib/arrivals/land.ts', snippet: '(rowsPerId.get(f.their_id) ?? 0) + 1', reason: 'a counter of our own landed rows' },
-  { file: 'src/lib/runway/reservationMatcher.ts', snippet: "(opts.accountCurrency ?? 'USD').toUpperCase()", reason: "LISTED FOR A RULING: the MATCH-01 charge pass is called without the account currency (runway/match/propose/route.ts proposeMatches) and declares USD (reservationMatcher.ts MatcherOptions.accountCurrency); reading accounts.isoCurrencyCode like the MATCH-02 refund pass changes its scoring" },
   { file: 'src/lib/plaid/failLoud.ts', snippet: 'sum[k] = (sum[k] ?? 0) + v;', reason: 'a counter of our own sync outcomes' },
   { file: 'src/lib/plaid/failLoud.ts', snippet: '${tx.landed ?? 0} landed', reason: 'a counter of our own sync outcomes' },
   { file: 'src/app/api/plaid/attach-item/route.ts', snippet: '${report?.pairs.length ?? 0} account(s) attached', reason: 'a count of our own attach report' },
@@ -9547,7 +9632,11 @@ lawGuard('The row law', () => {
     // drops the `commission` param nothing read. Where it mounts, which the row law
     // owns, is untouched.
     // Was ab04853f236ae7d519c717a7aa5183efbaa20eab370caa2bd73b9f46904734b0 at main 0ca0f678.
-    { file: 'src/components/trips/CheckoutPanel.tsx', sha256: 'ef2f083e519dc885715582626205db24e0fa293e5e2b114728ecbc1646fe9782' },
+    // FX-01 (2026-10-30, ruling I): re-pinned by its own ruling — the panel's money() no longer
+    // relabels a currency Intl does not know as dollars; its catch prints the figure WITH its code.
+    // Where it mounts, which the row law owns, is untouched.
+    // Was ef2f083e519dc885715582626205db24e0fa293e5e2b114728ecbc1646fe9782 at main f1c63aef.
+    { file: 'src/components/trips/CheckoutPanel.tsx', sha256: '6df693d3424c39da6846ad836b063f4c7bbaf990c1f19da30ccdb0b9d517350f' },
     // FL-5b (2026-09-23): re-pinned by its own ruling — the panel sends the contact
     // with the book call so the confirmation has somewhere to go. Where it mounts,
     // which TRAVEL-ROW-01 owns, is untouched.

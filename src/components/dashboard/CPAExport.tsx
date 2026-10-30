@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { FUNCTIONAL_CURRENCY_WORDS, functionalMoneyWords } from '@/lib/books/functionalCurrency';
 
 
 // ═══════════════════════════════════════════════════════════════════
@@ -101,9 +102,9 @@ function downloadCSV(csv: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-function fmtMoney(n: number): string {
-  return n.toFixed(2);
-}
+// FX-01 (2026-10-30, ruling B): every figure /api/cpa-export hands over is integer CENTS; each is written
+// by the books' one formatter (functionalMoneyWords), and every CSV states its unit in a header line
+// (FUNCTIONAL_CURRENCY_WORDS). The local toFixed formatter is gone.
 
 // ─── CSV generators (format data → CSV string) ──────────────────────
 
@@ -112,6 +113,7 @@ function buildTrialBalanceCSV(data: CPAExportData): string {
   const rows: unknown[][] = [
     ['TRIAL BALANCE'],
     [`For the Year Ended December 31, ${period.year}`],
+    [FUNCTIONAL_CURRENCY_WORDS],
     period.entityId ? [`Entity: ${period.entityId}`] : [],
     [],
     ['Account Code', 'Account Name', 'Account Type', 'Debit Balance', 'Credit Balance'],
@@ -122,8 +124,8 @@ function buildTrialBalanceCSV(data: CPAExportData): string {
       r.accountCode,
       r.accountName,
       r.accountType,
-      r.debitBalance ? fmtMoney(r.debitBalance) : '',
-      r.creditBalance ? fmtMoney(r.creditBalance) : '',
+      r.debitBalance ? functionalMoneyWords(r.debitBalance) : '',
+      r.creditBalance ? functionalMoneyWords(r.creditBalance) : '',
     ]);
   }
 
@@ -132,15 +134,15 @@ function buildTrialBalanceCSV(data: CPAExportData): string {
     '',
     'TOTALS',
     '',
-    fmtMoney(trialBalance.totals.totalDebits),
-    fmtMoney(trialBalance.totals.totalCredits),
+    functionalMoneyWords(trialBalance.totals.totalDebits),
+    functionalMoneyWords(trialBalance.totals.totalCredits),
   ]);
   rows.push([]);
   rows.push([
     '',
     'VERIFICATION',
     '',
-    `Difference: ${fmtMoney(trialBalance.totals.difference)}`,
+    `Difference: ${functionalMoneyWords(trialBalance.totals.difference)}`,
     trialBalance.totals.isBalanced ? 'BALANCED ✓' : 'OUT OF BALANCE ✗',
   ]);
 
@@ -152,6 +154,7 @@ function buildIncomeStatementCSV(data: CPAExportData): string {
   const rows: unknown[][] = [
     ['INCOME STATEMENT'],
     [`For the Year Ended December 31, ${period.year}`],
+    [FUNCTIONAL_CURRENCY_WORDS],
     period.entityId ? [`Entity: ${period.entityId}`] : [],
     [],
     ['Account Code', 'Account Name', 'Amount'],
@@ -160,17 +163,17 @@ function buildIncomeStatementCSV(data: CPAExportData): string {
   ];
 
   for (const l of incomeStatement.revenue) {
-    rows.push([l.accountCode, l.accountName, fmtMoney(l.amount)]);
+    rows.push([l.accountCode, l.accountName, functionalMoneyWords(l.amount)]);
   }
-  rows.push(['', 'Total Revenue', fmtMoney(incomeStatement.totals.totalRevenue)]);
+  rows.push(['', 'Total Revenue', functionalMoneyWords(incomeStatement.totals.totalRevenue)]);
   rows.push([]);
   rows.push(['', 'EXPENSES', '']);
   for (const l of incomeStatement.expenses) {
-    rows.push([l.accountCode, l.accountName, fmtMoney(l.amount)]);
+    rows.push([l.accountCode, l.accountName, functionalMoneyWords(l.amount)]);
   }
-  rows.push(['', 'Total Expenses', fmtMoney(incomeStatement.totals.totalExpenses)]);
+  rows.push(['', 'Total Expenses', functionalMoneyWords(incomeStatement.totals.totalExpenses)]);
   rows.push([]);
-  rows.push(['', 'NET INCOME', fmtMoney(incomeStatement.totals.netIncome)]);
+  rows.push(['', 'NET INCOME', functionalMoneyWords(incomeStatement.totals.netIncome)]);
 
   return rowsToCSV(rows);
 }
@@ -180,6 +183,7 @@ function buildBalanceSheetCSV(data: CPAExportData): string {
   const rows: unknown[][] = [
     ['BALANCE SHEET'],
     [`As of December 31, ${period.year}`],
+    [FUNCTIONAL_CURRENCY_WORDS],
     period.entityId ? [`Entity: ${period.entityId}`] : [],
     [],
     ['Account Code', 'Account Name', 'Amount'],
@@ -188,30 +192,30 @@ function buildBalanceSheetCSV(data: CPAExportData): string {
   ];
 
   for (const l of balanceSheet.assets) {
-    rows.push([l.accountCode, l.accountName, fmtMoney(l.amount)]);
+    rows.push([l.accountCode, l.accountName, functionalMoneyWords(l.amount)]);
   }
-  rows.push(['', 'Total Assets', fmtMoney(balanceSheet.totals.totalAssets)]);
+  rows.push(['', 'Total Assets', functionalMoneyWords(balanceSheet.totals.totalAssets)]);
   rows.push([]);
 
   rows.push(['', 'LIABILITIES', '']);
   for (const l of balanceSheet.liabilities) {
-    rows.push([l.accountCode, l.accountName, fmtMoney(l.amount)]);
+    rows.push([l.accountCode, l.accountName, functionalMoneyWords(l.amount)]);
   }
-  rows.push(['', 'Total Liabilities', fmtMoney(balanceSheet.totals.totalLiabilities)]);
+  rows.push(['', 'Total Liabilities', functionalMoneyWords(balanceSheet.totals.totalLiabilities)]);
   rows.push([]);
 
   rows.push(['', 'EQUITY', '']);
   for (const l of balanceSheet.equity) {
-    rows.push([l.accountCode, l.accountName, fmtMoney(l.amount)]);
+    rows.push([l.accountCode, l.accountName, functionalMoneyWords(l.amount)]);
   }
-  rows.push(['', 'Retained Earnings (Net Income)', fmtMoney(balanceSheet.retainedEarnings)]);
-  rows.push(['', 'Total Equity', fmtMoney(balanceSheet.totals.totalEquity)]);
+  rows.push(['', 'Retained Earnings (Net Income)', functionalMoneyWords(balanceSheet.retainedEarnings)]);
+  rows.push(['', 'Total Equity', functionalMoneyWords(balanceSheet.totals.totalEquity)]);
   rows.push([]);
 
   rows.push([
     '',
     'TOTAL LIABILITIES + EQUITY',
-    fmtMoney(
+    functionalMoneyWords(
       balanceSheet.totals.totalLiabilities + balanceSheet.totals.totalEquity
     ),
   ]);
@@ -219,9 +223,9 @@ function buildBalanceSheetCSV(data: CPAExportData): string {
   rows.push([
     '',
     'VERIFICATION',
-    `Assets: ${fmtMoney(balanceSheet.totals.totalAssets)} | L+E: ${fmtMoney(
+    `Assets: ${functionalMoneyWords(balanceSheet.totals.totalAssets)} | L+E: ${functionalMoneyWords(
       balanceSheet.totals.totalLiabilities + balanceSheet.totals.totalEquity
-    )} | Difference: ${fmtMoney(balanceSheet.totals.difference)}`,
+    )} | Difference: ${functionalMoneyWords(balanceSheet.totals.difference)}`,
   ]);
   rows.push([
     '',
@@ -237,6 +241,7 @@ function buildGeneralLedgerCSV(data: CPAExportData): string {
   const rows: unknown[][] = [
     ['GENERAL LEDGER'],
     [`For the Year ${period.year}`],
+    [FUNCTIONAL_CURRENCY_WORDS],
     period.entityId ? [`Entity: ${period.entityId}`] : [],
     [],
     [
@@ -265,8 +270,8 @@ function buildGeneralLedgerCSV(data: CPAExportData): string {
       e.description,
       e.accountCode,
       e.accountName,
-      debit ? fmtMoney(debit) : '',
-      credit ? fmtMoney(credit) : '',
+      debit ? functionalMoneyWords(debit) : '',
+      credit ? functionalMoneyWords(credit) : '',
       e.sourceType,
       e.sourceId || '',
     ]);
@@ -279,8 +284,8 @@ function buildGeneralLedgerCSV(data: CPAExportData): string {
     '',
     '',
     'TOTALS',
-    fmtMoney(totalDebits),
-    fmtMoney(totalCredits),
+    functionalMoneyWords(totalDebits),
+    functionalMoneyWords(totalCredits),
     '',
     '',
   ]);
@@ -291,8 +296,8 @@ function buildGeneralLedgerCSV(data: CPAExportData): string {
     '',
     '',
     'VERIFICATION',
-    `Difference: ${fmtMoney(totalDebits - totalCredits)}`,
-    Math.abs(totalDebits - totalCredits) < 0.01 ? 'BALANCED ✓' : 'OUT OF BALANCE ✗',
+    `Difference: ${functionalMoneyWords(totalDebits - totalCredits)}`,
+    totalDebits === totalCredits ? 'BALANCED ✓' : 'OUT OF BALANCE ✗',
     '',
     '',
   ]);
@@ -432,7 +437,7 @@ export default function CPAExport({ year, entityId }: CPAExportProps & { }) {
               {stats.sheetBalanced ? 'Balance Sheet ✓' : 'Balance Sheet ✗'}
             </span>
             <span className="text-text-secondary">
-              Net Income: <strong>${fmtMoney(stats.netIncome)}</strong>
+              Net Income: <strong>{functionalMoneyWords(stats.netIncome)}</strong> <span className="text-text-faint" data-functional-currency>{FUNCTIONAL_CURRENCY_WORDS}</span>
             </span>
           </>
         )}

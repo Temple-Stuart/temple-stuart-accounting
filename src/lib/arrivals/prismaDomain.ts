@@ -65,7 +65,9 @@ export const CREATE_KEYS = ['id', 'accountId', 'transactionId'] as const;
 export const DATA_KEYS = [
   'amount', 'date', 'name', 'merchantName', 'category', 'pending', 'authorized_date', 'authorized_datetime',
   'counterparties', 'location', 'payment_channel', 'payment_meta', 'personal_finance_category',
-  'personal_finance_category_icon_url', 'transaction_code', 'transaction_type', 'logo_url', 'website', 'arrival_id', 'updatedAt',
+  'personal_finance_category_icon_url', 'transaction_code', 'transaction_type', 'logo_url', 'website',
+  // FX-01 (2026-10-30, ruling E): the row's currency as Plaid states it — the parser's txnData carries it (plaidTransactionsPage.ts).
+  'iso_currency_code', 'arrival_id', 'updatedAt',
 ] as const;
 type DataKey = (typeof DATA_KEYS)[number];
 

@@ -20,6 +20,7 @@
  *
  * THIS FILE IS PURE: no Prisma, no fetch, no clock, no React — the screen reads through it too.
  */
+import { centsOfTypedDollars, functionalMoneyWords } from './functionalCurrency';
 import { BAD_PERIOD_WORDS, periodOf, periodRule, type Period } from './period';
 import type { ReceiptMeta, Refusal } from './sourceDocuments';
 
@@ -54,10 +55,14 @@ export const noCoaRowWords = (code: string, entityType: string): string =>
   `the ${entityType} entity has no chart-of-accounts row ${code} — the account’s code names a row the books do not hold`;
 export const currentMeanwhileWords = (period: Period): string => `${period.words} was saved by someone else meanwhile — read it again`;
 
-/** $9,445.00 — en-US grouping, two decimals, the sign in front. */
+/**
+ * A reconciliation figure (dollars, the reconcile() arithmetic's unit — every one rounded to the cent
+ * by cents() below) written by the books' ONE formatter (FX-01, ruling B): its own decimal text read
+ * as cents by string arithmetic, so a figure that is not whole cents is refused by name, never rounded
+ * into dollars on the way out. "$9,445.00" · "-$45.00".
+ */
 export function moneyWords(n: number): string {
-  const abs = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return n < 0 ? `-$${abs}` : `$${abs}`;
+  return functionalMoneyWords(centsOfTypedDollars(String(n)));
 }
 
 // ─── the inputs ──────────────────────────────────────────────────────────────

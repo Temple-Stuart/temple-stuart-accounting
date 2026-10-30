@@ -89,8 +89,10 @@ export async function GET(request: NextRequest) {
         date: entry.journal_entry.date,
         description: entry.journal_entry.description || 'No description',
         entryType: entry.entry_type,
-        amount: Number(entry.amount) / 100,
-        runningBalance: account.runningBalance / 100,
+        // FX-01 (2026-10-30, ruling B): integer CENTS on the wire — the screen writes them through the
+        // books' one formatter (src/lib/books/functionalCurrency.ts); nothing is divided into float dollars.
+        amount: Number(entry.amount),
+        runningBalance: account.runningBalance,
         journal_id: entry.journal_entry.id,
         is_reversal: entry.journal_entry.is_reversal ?? false,
         reversed_by_entry_id: entry.journal_entry.reversed_by_entry_id ?? null,
@@ -122,7 +124,7 @@ export async function GET(request: NextRequest) {
       entityName: account.entityName,
       entries: account.entries,
       openingBalance: 0,
-      closingBalance: account.runningBalance / 100
+      closingBalance: account.runningBalance
     }));
 
     return NextResponse.json({ ledgers });
