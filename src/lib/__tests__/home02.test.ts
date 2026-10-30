@@ -43,7 +43,9 @@ test('A the front door: a server component; the ?tab= map first, then the verifi
   const carveOutAt = page.indexOf("if (params.tab === 'compliance') return <HomeClient offerAvailability={offerAvailability} />;");
   const tabRedirectAt = page.indexOf("redirect(typeof params.tab === 'string' ? (TAB_TO_PATH[params.tab] ?? '/') : '/');");
   const authedAt = page.indexOf('if (await isVerifiedAuthed()) {');
-  const landingAt = page.indexOf('return <GuestLanding offerAvailability={offerAvailability} logoAvailability={logoAvailability} />;');
+  // EVENTS-01 (2026-10-30): re-pinned — the guest mount gains today={today}, the UTC calendar date page.tsx computes once
+  // for the experiences section (the day rule); the order and the shape of the redirect are unchanged.
+  const landingAt = page.indexOf('return <GuestLanding offerAvailability={offerAvailability} logoAvailability={logoAvailability} today={today} />;');
   assert.ok(tabMapAt > -1 && carveOutAt > tabMapAt && tabRedirectAt > carveOutAt && authedAt > tabRedirectAt && landingAt > authedAt, 'the ?tab= map, then the signed-in redirect, then the guest landing');
   // The redirect: the query string as given — every value of every key, in order — then the one redirect().
   assert.match(page, /if \(await isVerifiedAuthed\(\)\) \{\n\s*const query = new URLSearchParams\(\);\n\s*for \(const \[key, value\] of Object\.entries\(params\)\) \{\n\s*for \(const v of value === undefined \? \[\] : typeof value === 'string' \? \[value\] : value\) query\.append\(key, v\);\n\s*\}\n\s*const qs = query\.toString\(\);\n\s*redirect\(qs === '' \? SIGNED_IN_HOME : `\$\{SIGNED_IN_HOME\}\?\$\{qs\}`\);\n\s*\}/);

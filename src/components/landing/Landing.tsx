@@ -8,6 +8,7 @@
  * THE ACTS, in document order:
  *   hero (full-bleed aubergine band)
  *   LIVE DEMO — TRAVEL  — travel search/booking, real and public
+ *   EXPERIENCES         — the events section under the strip (EVENTS-01)
  *   THE GUEST'S TRIP    — the guest's session trip (BOOK-3, GuestTripStrip);
  *                         renders only when records exist
  *   THE PLANS           — four plan cards and one comparison table
@@ -185,6 +186,9 @@ import LandingFooter from './LandingFooter';
 // BOOK-3: the session-trip strip (guest-only by construction — Landing renders
 // only on the FD-2 verified-guest branch).
 import GuestTripStrip from './GuestTripStrip';
+// EVENTS-01 (2026-10-30): the experiences under the strip — the leaf's rows, the
+// words module's lines, the URL's one filter; it reads the day the server passed.
+import ExperiencesSection from './ExperiencesSection';
 import GuestBookingLookup from '@/components/guest/GuestBookingLookup';
 import { PROBLEM_SHEET } from '@/lib/problemSheet';
 import { ANSWER_ROWS, ANSWER_INPUTS } from '@/lib/answers';
@@ -1879,6 +1883,10 @@ interface Props {
    *  computed (page.tsx fs check over BUILT_ON's logo slots). Missing/false
    *  → the text-only card, exactly as before — never a broken <img>. */
   logoAvailability: Record<string, boolean>;
+  /** EVENTS-01 (2026-10-30): THE DAY RULE — the UTC calendar date ('YYYY-MM-DD')
+   *  src/app/page.tsx computed ONCE and passed down; the experiences compare their
+   *  dates to it as strings. No component reads the clock during render. */
+  today: string;
 }
 
 // REPAINT-2 (Direction C): the local HERO_BG radial-glow const DIED — the
@@ -1894,7 +1902,7 @@ interface Props {
 // own URL effect, which now also checks availability itself. REAL-MARKS:
 // logoAvailability is CONSUMED — the marquee chips carry the lit-logo two-state
 // render, so the server fs-check → availability → chip pipeline is live end to end.
-export default function Landing({ onRequireAuth, onRequireLogin, logoAvailability }: Props) {
+export default function Landing({ onRequireAuth, onRequireLogin, logoAvailability, today }: Props) {
   // LOBBY-DECK-1b: the demo modal's open flag.
   // UNREACHABLE AS OF THE MODULES RETIREMENT, DECLARED — the only
   // setShowDemo(true) in the file was the merged section's header button, which
@@ -2072,6 +2080,15 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
           row below the strip is gone; the both-surfaces-at-once light-up
           ruling now holds at chip level via the shared builder. */}
 
+      {/* ── EVENTS-01 (Alex, 2026-10-30): THE EXPERIENCES — the marquee events a guest
+            books a stay and a flight around, directly under the strip; every row from
+            src/lib/experiences.ts, dated from its own calendar with the day checked; the
+            one filter lives in the URL (?into=). The section is a full-bleed aubergine
+            band (the hero's rule) and carries id="events" — the strip's Events mode
+            points at it. `today` is the server's UTC calendar date (page.tsx), passed
+            down so nothing here reads the clock. ───────────────────────────────── */}
+      <ExperiencesSection today={today} />
+
       {/* ── BOOK-3: the guest's session trip — renders only when records
             exist (fail-honest empty state = nothing). ─────────────────────── */}
       <GuestTripStrip onRequireAuth={onRequireAuth} />
@@ -2213,6 +2230,10 @@ export default function Landing({ onRequireAuth, onRequireLogin, logoAvailabilit
                                          rule follows the hero, so it now
                                          governs the demo act rather than this
                                          one.
+              live demo | experiences  → the demo act's border-b (EVENTS-01, 2026-10-30:
+                                         the experiences band is full-bleed aubergine
+                                         like the hero, so its own bottom edge closes
+                                         experiences | guest strip, or | plans, by colour)
               live demo | personas     → the demo act's border-b (PR-REORDER
                                          moved personas above done-for-you —
                                          the who-first order; the strip case
