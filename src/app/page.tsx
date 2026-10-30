@@ -59,6 +59,14 @@ import GuestLanding from '@/components/landing/GuestLanding';
  * still renders the cockpit here; /?tab=calendar still redirects to /runway, the
  * cockpit's calendar tab, which keeps its panel without the card. home03.test.ts
  * holds SIGNED_IN_HOME, ANSWERS_HOME and DAY_CARD_PATH equal.
+ *
+ * EVENTS-01 (Alex, 2026-10-30) — THE DAY RULE. The experiences section under the
+ * guest landing's strip compares every event's dates to `today` as 'YYYY-MM-DD'
+ * strings. That date is computed HERE, once per request (this page is force-dynamic
+ * and runs on the server), as the UTC calendar date, and passed down
+ * GuestLanding → Landing → ExperiencesSection. No component reads the clock during
+ * render, so the server's words and the browser's are the same words and hydration
+ * cannot drift at midnight. The registry law pins the one expression.
  */
 
 export const dynamic = 'force-dynamic';
@@ -129,5 +137,7 @@ export default async function Page({ searchParams }: {
       e.logo ? [[e.logo.slug, fs.existsSync(path.join(process.cwd(), 'public', 'logos', `${e.logo.slug}.svg`))]] : [],
     ),
   );
-  return <GuestLanding offerAvailability={offerAvailability} logoAvailability={logoAvailability} />;
+  // EVENTS-01: the one UTC calendar date every experience comparison reads (the day rule above).
+  const today = new Date().toISOString().slice(0, 10);
+  return <GuestLanding offerAvailability={offerAvailability} logoAvailability={logoAvailability} today={today} />;
 }

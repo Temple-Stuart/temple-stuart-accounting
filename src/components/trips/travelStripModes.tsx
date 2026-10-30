@@ -5,6 +5,8 @@
  * coming-soon tiles (Travel insurance / Stay connected / Events) as SELECTABLE
  * chips with a "Soon" badge whose panels carry the tiles' explainer content
  * verbatim (ComingSoonSection — reused as the soon-panel body, not rebuilt).
+ * EVENTS-01 (2026-10-30): Events left the Soon set — its panel points at the
+ * experiences section under the strip (the mode below); insurance and esim stay.
  *
  * STRUCTURAL LIGHT-UP (the PR-LANDING-1 ruling, now at chip level): when a
  * tile's affiliate ID lands, its mode's panel swaps from the ComingSoonSection
@@ -178,12 +180,23 @@ export function travelStripModes(opts: TravelStripOptions): ToggleMode[] {
         explainer="Get data the moment you land, no hunting for a SIM."
       />
     ) },
-    { key: 'events', label: 'Events', badge: SOON_BADGE, icon: <CalendarDays className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />,
-      headline: 'Events — coming soon.', panel: (
-      <ComingSoonSection
-        title="Events"
-        explainer="Concerts, shows, and live events wherever you're headed."
-      />
+    // EVENTS-01 (2026-10-30): the Events mode is no longer a Soon tile. The
+    // experiences live on the guest landing directly under this strip
+    // (ExperiencesSection, id="events"), so the mode keeps its key and label,
+    // loses the badge, and its panel is its OWN node — one sentence and the jump
+    // link — not the shared ComingSoonSection (insurance and esim keep that,
+    // and their badges, byte for byte).
+    { key: 'events', label: 'Events', icon: <CalendarDays className={ICON_CLASS} strokeWidth={1.75} aria-hidden="true" />,
+      headline: 'Events — book around them.', panel: (
+      <div className="mt-6 border-t border-border pt-6" data-events-mode>
+        <p className="text-sm text-text-secondary">The experiences are right below this strip.</p>
+        <a
+          href="#events"
+          className="mt-3 inline-flex min-h-[44px] items-center border border-brand-purple/40 px-5 text-sm font-medium text-brand-purple hover:bg-brand-purple-wash"
+        >
+          Jump to them ↓
+        </a>
+      </div>
     ) },
   ];
 }

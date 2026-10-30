@@ -155,6 +155,8 @@ import { MODEL_NUMBER_TOOLTIP } from '../src/lib/convergence/modelLabels';
 import { OWNER_UTILITIES } from '../src/lib/shellMenu';
 import { ANSWERS_HOME, ANSWER_READS, ANSWER_ROWS, NET_WORTH_READ, answersLaw } from '../src/lib/answers';
 import { ARRIVAL_KINDS, PROVIDERS, PROVIDER_CODES, ROUTING_RULES, RULE_BOOK, providersLaw, ruleFor } from '../src/lib/providers';
+// EVENTS-01: the experiences leaf — every marquee event dated from its own calendar, with the day checked.
+import { EXPERIENCES, EXPERIENCE_CATEGORIES, experiencesLaw } from '../src/lib/experiences';
 import { KIND_VIEWS_HONEST_LINE, KIND_VIEW_CENSUS, STOPPED_TABLES, VIEW_COLUMNS, kindOfTable, kindViewsLaw, latestViews, latestViewsSql, parseViews } from '../src/lib/kindViews';
 // SELL-02: the offer law — every sales claim from the registry, every price from one source.
 import { FREE_TOOLS, OFFERS, TOOL_GATE, heroCountsLine, offerCard, offerLaw, priceEnvName } from '../src/lib/offer';
@@ -682,6 +684,21 @@ console.log('#   tool          family        status    beats                    
 for (const r of rows) console.log(r);
 const counts = statusCounts();
 console.log(`counts: LIVE ${counts.LIVE} · PARTIAL ${counts.PARTIAL} · NOT_BUILT ${counts.NOT_BUILT} (census ${EXPECTED_STATUS_COUNTS.LIVE}/${EXPECTED_STATUS_COUNTS.PARTIAL}/${EXPECTED_STATUS_COUNTS.NOT_BUILT}) · sheet cells ${PROBLEM_SHEET.flatMap((f) => f.tools).length}`);
+
+// ── THE EXPERIENCES LAW (EVENTS-01, 2026-10-30) ─────────────────────────────
+// The leaf's own law first (src/lib/experiences.ts experiencesLaw — every row
+// dated from its own calendar with the day checked, one featured), then the one
+// check only the script can see: the landing mounts the section exactly once with
+// the server's day, and the front door computes that day as the UTC calendar date.
+{
+  const before = violations.length;
+  violations.push(...experiencesLaw({ throwOnFail: false }));
+  const landingMounts = (codeOf('src/components/landing/Landing.tsx').match(/<ExperiencesSection today=\{today\}/g) ?? []).length;
+  if (landingMounts !== 1) violations.push(`experiences: Landing.tsx mounts <ExperiencesSection today={today} ${landingMounts} time(s) — exactly once, directly under the booking strip (EVENTS-01)`);
+  if (!codeOf('src/app/page.tsx').includes('const today = new Date().toISOString().slice(0, 10);')) violations.push('experiences: src/app/page.tsx does not compute today as new Date().toISOString().slice(0, 10) — the one UTC calendar date every experience comparison reads (EVENTS-01)');
+  if (violations.length === before) console.log(`✔ The experiences law passed — ${EXPERIENCES.length} rows in ${EXPERIENCE_CATEGORIES.length} categories, ${EXPERIENCES.filter((r) => r.featured).length} featured, every one dated from its own calendar with the day it was checked; the landing mounts the section once with the day the front door computed.`);
+  else console.log(`✖ The experiences law FAILED — ${violations.length - before} violation(s).`);
+}
 
 // ── THE ARRIVALS LAW (REBUILD-01 PR-1) ──────────────────────────────────────
 violations.push(...providersLaw({ throwOnFail: false }));
