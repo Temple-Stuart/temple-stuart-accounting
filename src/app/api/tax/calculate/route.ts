@@ -6,6 +6,9 @@ import { generateScheduleC, generateScheduleSE } from '@/lib/schedule-c-service'
 import { generateForm8949, generateScheduleD } from '@/lib/tax-report-service';
 import { generateForm1040 } from '@/lib/form-1040-service';
 import { requireTabAccess } from '@/lib/auth-helpers';
+// TAX-WAGES-01: the documents' amounts by the wizard's keys, through the one rule (no silent zero).
+import { documentTotals, taxAmount } from '@/lib/tax/documentAmounts';
+import { R1099, W2 } from '@/lib/tax/documentFields';
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -64,12 +67,8 @@ export async function GET(request: Request) {
     const taxDocs = await prisma.tax_documents.findMany({
       where: { userId: user.id, tax_year: taxYear },
     });
-    const docsByType = new Map<string, Array<{ label: string | null; data: Record<string, unknown> }>>();
-    for (const doc of taxDocs) {
-      const list = docsByType.get(doc.doc_type) || [];
-      list.push({ label: doc.label, data: doc.data as Record<string, unknown> });
-      docsByType.set(doc.doc_type, list);
-    }
+    // TAX-WAGES-01: each type's rows, kept whole (doc_type, label, data) — the one rule names the document it refuses.
+    const docsOf = (type: string) => taxDocs.filter((doc) => doc.doc_type === type);
 
     // ═══════════════════════════════════════════════════════════
     // SCHEDULE C — from existing service + ledger drill-down
@@ -218,22 +217,27 @@ export async function GET(request: Request) {
     const form1040 = await generateForm1040(user.id, taxYear);
 
     // Overlay tax document data
-    const w2Docs = docsByType.get('w2') || [];
-    const doc1099r = docsByType.get('1099r') || [];
-    const doc1098t = docsByType.get('1098t') || [];
-    const doc1098e = docsByType.get('1098e') || [];
+    const w2Docs = docsOf('w2');
+    const doc1099r = docsOf('1099r');
+    const doc1098t = docsOf('1098t');
+    const doc1098e = docsOf('1098e');
 
-    const totalW2Wages = w2Docs.reduce((s, d) => s + (Number(d.data.wages) || 0), 0);
-    const totalW2FedWithheld = w2Docs.reduce((s, d) => s + (Number(d.data.federal_tax_withheld) || 0), 0);
+    // TAX-WAGES-01 (Alex, 2026-10-28): read by the wizard's keys through the one rule. These lines read
+    // data.wages, data.federal_tax_withheld (W-2 and 1099-R) and data.qualified_tuition through
+    // `Number(…) || 0` — keys the wizard never writes — so the wizard's W-2 read as $0. A blank box is
+    // declared (document_notes); an unreadable one is refused by name (422, its words verbatim).
+    const totals = documentTotals(taxDocs);
+    const totalW2Wages = totals.w2.wages;
+    const totalW2FedWithheld = totals.w2.withheld;
 
-    const total1099rGross = doc1099r.reduce((s, d) => s + (Number(d.data.gross_distribution) || 0), 0);
-    const total1099rTaxable = doc1099r.reduce((s, d) => s + (Number(d.data.taxable_amount) || 0), 0);
-    const total1099rWithheld = doc1099r.reduce((s, d) => s + (Number(d.data.federal_tax_withheld) || 0), 0);
+    const total1099rGross = totals.r1099.gross;
+    const total1099rTaxable = totals.r1099.taxable;
+    const total1099rWithheld = totals.r1099.withheld;
 
-    const totalTuition = doc1098t.reduce((s, d) => s + (Number(d.data.qualified_tuition) || 0), 0);
-    const totalScholarships = doc1098t.reduce((s, d) => s + (Number(d.data.scholarships) || 0), 0);
+    const totalTuition = totals.t1098.tuition;
+    const totalScholarships = totals.t1098.scholarships;
 
-    const totalStudentLoanInterest = doc1098e.reduce((s, d) => s + (Number(d.data.interest_paid) || 0), 0);
+    const totalStudentLoanInterest = totals.e1098.interest;
 
     // Education credit (American Opportunity): 100% of first $2,000 + 25% of next $2,000 = max $2,500
     const qualifiedEducationExpense = Math.max(0, totalTuition - totalScholarships);
@@ -245,13 +249,13 @@ export async function GET(request: Request) {
       line_1_wages: {
         amount: w2Docs.length > 0 ? totalW2Wages : (form1040.line1 || null),
         source: w2Docs.length > 0
-          ? `W-2: ${w2Docs.map(d => `${d.label || 'W-2'} ($${Number(d.data.wages).toLocaleString()})`).join(' + ')}`
+          ? `W-2: ${w2Docs.map(d => `${d.label || 'W-2'} ($${taxAmount(d, W2.grossWages).toLocaleString()})`).join(' + ')}`
           : form1040.line1 > 0 ? form1040.line1Source : 'W-2 not yet entered',
       },
       line_4a_ira_distributions: {
         amount: doc1099r.length > 0 ? total1099rGross : (form1040.line5a || null),
         source: doc1099r.length > 0
-          ? `1099-R: ${doc1099r.map(d => `${d.label || '1099-R'} ($${Number(d.data.gross_distribution).toLocaleString()})`).join(' + ')}`
+          ? `1099-R: ${doc1099r.map(d => `${d.label || '1099-R'} ($${taxAmount(d, R1099.grossDistribution).toLocaleString()})`).join(' + ')}`
           : '1099-R not yet entered',
       },
       line_4b_taxable_distributions: {
@@ -357,6 +361,10 @@ export async function GET(request: Request) {
 
       missing_documents: missingDocuments,
       data_quality: dataQuality,
+
+      // TAX-WAGES-01 (ruling B): every blank box read as none, said — the same rows by the same rule as
+      // form_1040_full.documentNotes, so the two lists are one list.
+      document_notes: totals.notes,
     });
   } catch (error) {
     return failClosedResponse('Tax calculate', 'Tax calculate failed', error);

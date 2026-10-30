@@ -2,6 +2,8 @@ import { prisma } from '@/lib/prisma';
 import { generateScheduleC, generateScheduleSE } from './schedule-c-service';
 import type { ScheduleC, ScheduleSE } from './schedule-c-service';
 import { generateTaxReport } from './tax-report-service';
+// TAX-WAGES-01: the documents' amounts by the wizard's keys, through the one rule (no silent zero).
+import { documentTotals } from './tax/documentAmounts';
 
 // ============================================
 // Form 1040 — U.S. Individual Income Tax Return
@@ -118,6 +120,10 @@ export interface Form1040 {
 
   // Override status
   overridesUsed: string[];
+
+  // TAX-WAGES-01 (2026-10-28, ruling B): every blank box read as none, said — "W-2 from Acme: Box 2 is
+  // blank — read as none". An unreadable amount is never here: it is refused by name before a figure is made.
+  documentNotes: readonly string[];
 }
 
 // ─── Tax override helper ───────────────────────────────────────
@@ -154,29 +160,12 @@ function overrideNum(overrides: Record<string, string>, key: string, fallback: n
 //
 // The ledger fallback is scoped to the Personal entity to prevent pulling a
 // business's Service Revenue (code 4000 in Sole Prop Standard) into W-2 wages.
-
-async function getW2FromDocuments(
-  userId: string,
-  taxYear: number
-): Promise<{ wages: number; withheld: number; hasDocs: boolean }> {
-  const w2Docs = await prisma.tax_documents.findMany({
-    where: { userId, tax_year: taxYear, doc_type: 'w2' },
-  });
-
-  let wages = 0;
-  let withheld = 0;
-  for (const doc of w2Docs) {
-    const data = doc.data as Record<string, unknown>;
-    wages += Number(data.wages) || 0;
-    withheld += Number(data.federal_tax_withheld) || 0;
-  }
-
-  return {
-    wages: round2(wages),
-    withheld: round2(withheld),
-    hasDocs: w2Docs.length > 0,
-  };
-}
+//
+// TAX-WAGES-01 (Alex, 2026-10-28): the W-2s are read in generateForm1040 with every other document,
+// by the wizard's keys (src/lib/tax/documentFields.ts) through the one rule (src/lib/tax/documentAmounts.ts).
+// The reader that stood here read data.wages and data.federal_tax_withheld through `Number(…) || 0` — keys
+// the wizard never writes (it writes gross_wages and federal_withheld) — so a W-2 entered in the wizard read
+// as $0 wages and $0 withheld, and, a document existing, the ledger was not used either.
 
 async function getW2WagesFromPersonalLedger(userId: string, taxYear: number): Promise<number> {
   const yearStart = new Date(`${taxYear}-01-01T00:00:00.000Z`);
@@ -354,8 +343,15 @@ export async function generateForm1040(
 
   // ── INCOME ──
 
+  // TAX-WAGES-01: every document of the year, read once by the one rule — the W-2s here, the 1098-T and
+  // 1098-E below; a blank box read as none is declared in documentNotes, an unreadable amount refused by name.
+  const taxDocs = await prisma.tax_documents.findMany({
+    where: { userId, tax_year: taxYear },
+  });
+  const docs = documentTotals(taxDocs);
+
   // Line 1: W-2 wages — priority: override > tax_documents > Personal-entity ledger
-  const w2FromDocs = await getW2FromDocuments(userId, taxYear);
+  const w2FromDocs = { wages: docs.w2.wages, withheld: docs.w2.withheld, hasDocs: docs.w2.count > 0 };
   const w2FromLedger = await getW2WagesFromPersonalLedger(userId, taxYear);
 
   // Choose the non-override source up front, then let overrideNum see it as fallback.
@@ -409,37 +405,25 @@ export async function generateForm1040(
   // Line 9: Total income
   const line9 = round2(line1 + line5b + line7 + line8);
 
-  // ── Load tax documents for education + student loan ──
+  // ── Tax documents for education + student loan (read above, by the one rule) ──
 
-  const taxDocs = await prisma.tax_documents.findMany({
-    where: { userId, tax_year: taxYear },
-  });
-  const docsByType = new Map<string, Array<{ label: string | null; data: Record<string, unknown> }>>();
-  for (const doc of taxDocs) {
-    const list = docsByType.get(doc.doc_type) || [];
-    list.push({ label: doc.label, data: doc.data as Record<string, unknown> });
-    docsByType.set(doc.doc_type, list);
-  }
-
-  const doc1098t = docsByType.get('1098t') || [];
-  const doc1098e = docsByType.get('1098e') || [];
-
-  // Education: use tax_documents if available, otherwise check overrides
-  const docTuition = doc1098t.reduce((s, d) => s + (Number(d.data.qualified_tuition) || 0), 0);
-  const docScholarships = doc1098t.reduce((s, d) => s + (Number(d.data.scholarships) || 0), 0);
+  // Education: use tax_documents if available, otherwise check overrides.
+  // TAX-WAGES-01: the 1098-T's Box 1 is amounts_billed, as the wizard writes it (it read qualified_tuition).
+  const docTuition = docs.t1098.tuition;
+  const docScholarships = docs.t1098.scholarships;
   const ovTuition = overrideNum(overrides, 'education_qualified_tuition', 0);
   const ovScholarships = overrideNum(overrides, 'education_scholarships', 0);
   if (ovTuition.used) overridesUsed.push('education_qualified_tuition');
   if (ovScholarships.used) overridesUsed.push('education_scholarships');
-  const totalTuition = doc1098t.length > 0 ? docTuition : ovTuition.value;
-  const totalScholarships = doc1098t.length > 0 ? docScholarships : ovScholarships.value;
+  const totalTuition = docs.t1098.count > 0 ? docTuition : ovTuition.value;
+  const totalScholarships = docs.t1098.count > 0 ? docScholarships : ovScholarships.value;
   const qualifiedEducationExpense = Math.max(0, totalTuition - totalScholarships);
 
   // Student loan interest: use tax_documents if available, otherwise check overrides
-  const docInterest = doc1098e.reduce((s, d) => s + (Number(d.data.interest_paid) || 0), 0);
+  const docInterest = docs.e1098.interest;
   const ovInterest = overrideNum(overrides, 'student_loan_interest_paid', 0);
   if (ovInterest.used) overridesUsed.push('student_loan_interest_paid');
-  const totalStudentLoanInterest = doc1098e.length > 0 ? docInterest : ovInterest.value;
+  const totalStudentLoanInterest = docs.e1098.count > 0 ? docInterest : ovInterest.value;
 
   // ── ADJUSTMENTS ──
 
@@ -580,6 +564,8 @@ export async function generateForm1040(
     scheduleSE,
 
     overridesUsed,
+
+    documentNotes: docs.notes,
   };
 }
 

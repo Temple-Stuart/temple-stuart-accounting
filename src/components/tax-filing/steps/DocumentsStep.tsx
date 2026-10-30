@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { StepProps } from '../TaxFilingWizard';
 import type { LifeEvents } from '../TaxFilingWizard';
+// TAX-WAGES-01 (Alex, 2026-10-28, ruling A): the field keys and the amount boxes are the shared vocabulary —
+// every reader (form-1040-service.ts, /api/tax/calculate, the Income Review and File steps) imports the same list.
+import { AMOUNT_BOXES, E1098, R1099, T1098, W2 } from '@/lib/tax/documentFields';
 
 
 // ═══════════════════════════════════════════════════════════════════
@@ -39,25 +42,25 @@ interface DocTypeDef {
 // ─── Canonical field schemas ────────────────────────────────────────
 
 const W2_FIELDS: FieldDef[] = [
-  { key: 'employer_name', label: 'Employer name', type: 'text', required: true },
-  { key: 'employer_ein', label: 'Employer EIN', type: 'ein' },
-  { key: 'gross_wages', label: 'Gross wages', box: 'Box 1', type: 'number' },
-  { key: 'federal_withheld', label: 'Federal income tax withheld', box: 'Box 2', type: 'number' },
-  { key: 'social_security_wages', label: 'Social Security wages', box: 'Box 3', type: 'number' },
-  { key: 'social_security_tax', label: 'Social Security tax withheld', box: 'Box 4', type: 'number' },
-  { key: 'medicare_wages', label: 'Medicare wages', box: 'Box 5', type: 'number' },
-  { key: 'medicare_tax', label: 'Medicare tax withheld', box: 'Box 6', type: 'number' },
-  { key: 'state_wages', label: 'State wages', box: 'Box 16', type: 'number' },
-  { key: 'state_withheld', label: 'State income tax withheld', box: 'Box 17', type: 'number' },
+  { key: W2.employerName, label: 'Employer name', type: 'text', required: true },
+  { key: W2.employerEin, label: 'Employer EIN', type: 'ein' },
+  { key: W2.grossWages, label: 'Gross wages', box: AMOUNT_BOXES.w2[W2.grossWages].box, type: 'number' },
+  { key: W2.federalWithheld, label: 'Federal income tax withheld', box: AMOUNT_BOXES.w2[W2.federalWithheld].box, type: 'number' },
+  { key: W2.socialSecurityWages, label: 'Social Security wages', box: AMOUNT_BOXES.w2[W2.socialSecurityWages].box, type: 'number' },
+  { key: W2.socialSecurityTax, label: 'Social Security tax withheld', box: AMOUNT_BOXES.w2[W2.socialSecurityTax].box, type: 'number' },
+  { key: W2.medicareWages, label: 'Medicare wages', box: AMOUNT_BOXES.w2[W2.medicareWages].box, type: 'number' },
+  { key: W2.medicareTax, label: 'Medicare tax withheld', box: AMOUNT_BOXES.w2[W2.medicareTax].box, type: 'number' },
+  { key: W2.stateWages, label: 'State wages', box: AMOUNT_BOXES.w2[W2.stateWages].box, type: 'number' },
+  { key: W2.stateWithheld, label: 'State income tax withheld', box: AMOUNT_BOXES.w2[W2.stateWithheld].box, type: 'number' },
 ];
 
 const R1099_FIELDS: FieldDef[] = [
-  { key: 'payer_name', label: 'Payer name', type: 'text', required: true },
-  { key: 'gross_distribution', label: 'Gross distribution', box: 'Box 1', type: 'number' },
-  { key: 'taxable_amount', label: 'Taxable amount', box: 'Box 2a', type: 'number' },
-  { key: 'federal_withheld', label: 'Federal income tax withheld', box: 'Box 4', type: 'number' },
+  { key: R1099.payerName, label: 'Payer name', type: 'text', required: true },
+  { key: R1099.grossDistribution, label: 'Gross distribution', box: AMOUNT_BOXES['1099r'][R1099.grossDistribution].box, type: 'number' },
+  { key: R1099.taxableAmount, label: 'Taxable amount', box: AMOUNT_BOXES['1099r'][R1099.taxableAmount].box, type: 'number' },
+  { key: R1099.federalWithheld, label: 'Federal income tax withheld', box: AMOUNT_BOXES['1099r'][R1099.federalWithheld].box, type: 'number' },
   {
-    key: 'distribution_code',
+    key: R1099.distributionCode,
     label: 'Distribution code',
     box: 'Box 7',
     type: 'select',
@@ -71,18 +74,18 @@ const R1099_FIELDS: FieldDef[] = [
       { value: 'G', label: 'G — Direct rollover' },
     ],
   },
-  { key: 'is_ira_sep_simple', label: 'IRA / SEP / SIMPLE', box: 'Box 7', type: 'checkbox' },
+  { key: R1099.isIraSepSimple, label: 'IRA / SEP / SIMPLE', box: 'Box 7', type: 'checkbox' },
 ];
 
 const E1098_FIELDS: FieldDef[] = [
-  { key: 'lender_name', label: 'Lender name', type: 'text', required: true },
-  { key: 'interest_paid', label: 'Student loan interest paid', box: 'Box 1', type: 'number' },
+  { key: E1098.lenderName, label: 'Lender name', type: 'text', required: true },
+  { key: E1098.interestPaid, label: 'Student loan interest paid', box: AMOUNT_BOXES['1098e'][E1098.interestPaid].box, type: 'number' },
 ];
 
 const T1098_FIELDS: FieldDef[] = [
-  { key: 'school_name', label: 'School name', type: 'text', required: true },
-  { key: 'amounts_billed', label: 'Qualified tuition and fees', box: 'Box 1', type: 'number' },
-  { key: 'scholarships', label: 'Scholarships / grants', box: 'Box 5', type: 'number' },
+  { key: T1098.schoolName, label: 'School name', type: 'text', required: true },
+  { key: T1098.amountsBilled, label: 'Qualified tuition and fees', box: AMOUNT_BOXES['1098t'][T1098.amountsBilled].box, type: 'number' },
+  { key: T1098.scholarships, label: 'Scholarships / grants', box: AMOUNT_BOXES['1098t'][T1098.scholarships].box, type: 'number' },
 ];
 
 const DOC_TYPES: DocTypeDef[] = [
@@ -91,7 +94,7 @@ const DOC_TYPES: DocTypeDef[] = [
     label: 'W-2',
     fullName: 'Wage and Tax Statement',
     fields: W2_FIELDS,
-    labelField: 'employer_name',
+    labelField: W2.employerName,
     labelPrompt: 'Employer',
     shownWhen: 'hasW2',
   },
@@ -100,7 +103,7 @@ const DOC_TYPES: DocTypeDef[] = [
     label: '1099-R',
     fullName: 'Distributions From Pensions, Annuities, Retirement',
     fields: R1099_FIELDS,
-    labelField: 'payer_name',
+    labelField: R1099.payerName,
     labelPrompt: 'Payer',
     shownWhen: 'hasRetirement',
   },
@@ -109,7 +112,7 @@ const DOC_TYPES: DocTypeDef[] = [
     label: '1098-E',
     fullName: 'Student Loan Interest Statement',
     fields: E1098_FIELDS,
-    labelField: 'lender_name',
+    labelField: E1098.lenderName,
     labelPrompt: 'Lender',
     shownWhen: 'hasStudentLoan',
   },
@@ -118,7 +121,7 @@ const DOC_TYPES: DocTypeDef[] = [
     label: '1098-T',
     fullName: 'Tuition Statement',
     fields: T1098_FIELDS,
-    labelField: 'school_name',
+    labelField: T1098.schoolName,
     labelPrompt: 'School',
     shownWhen: 'hasEducation',
   },
@@ -707,7 +710,7 @@ export default function DocumentsStep({ taxYear, onComplete, lifeEvents }: StepP
           </ul>
           {allDone ? (
             <p className="mt-3 text-sm text-emerald-700 font-medium">
-              All required documents entered — you're ready to continue.
+              All required documents entered — you&apos;re ready to continue.
             </p>
           ) : (
             <div className="mt-3 flex items-center justify-between">

@@ -3,6 +3,7 @@ import { failClosedResponse } from '@/lib/http/failClosedResponse';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireTabAccess } from '@/lib/auth-helpers';
+import { TAX_DOC_TYPES, isTaxDocType } from '@/lib/tax/documentFields';
 
 export async function GET(request: Request) {
   try {
@@ -56,10 +57,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const validTypes = ['w2', '1099r', '1098t', '1098e', '1099b', '1099int', '1099div'];
-    if (!validTypes.includes(doc_type)) {
+    // TAX-WAGES-01: the seven types, from the one vocabulary (src/lib/tax/documentFields.ts TAX_DOC_TYPES).
+    if (!isTaxDocType(doc_type)) {
       return NextResponse.json(
-        { error: `doc_type must be one of: ${validTypes.join(', ')}` },
+        { error: `doc_type must be one of: ${TAX_DOC_TYPES.join(', ')}` },
         { status: 400 }
       );
     }
