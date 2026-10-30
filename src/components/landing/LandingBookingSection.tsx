@@ -42,7 +42,10 @@ import ToggleStrip, { type ToggleMode } from '@/components/ui/ToggleStrip';
 import { travelStripModes } from '@/components/trips/travelStripModes';
 
 export default function LandingBookingSection({ onRequireAuth }: { onRequireAuth: () => void }) {
-  const modes: ToggleMode[] = travelStripModes({ onRequireAuth, authed: false });
+  // EVENTS-01b (2026-10-30): this strip sits in Landing.tsx, which mounts the experiences
+  // section with id="events" directly under it — so the Events mode's jump link names it.
+  // (experiences01.test.ts holds this literal equal to ExperiencesSection's EVENTS_ANCHOR.)
+  const modes: ToggleMode[] = travelStripModes({ onRequireAuth, authed: false, eventsAnchor: '#events' });
 
   return (
     // LANDING-V5 (Alex's ruling; spec :93-178): the demo section carries ZERO

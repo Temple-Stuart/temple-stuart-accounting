@@ -54,8 +54,12 @@ export interface ExperienceCategory {
 
 /** The nine categories, in the ruled order — the chips read in this order. */
 export const EXPERIENCE_CATEGORIES: readonly ExperienceCategory[] = [
-  { id: 'surfing', label: 'Surfing' },
-  { id: 'snowboarding', label: 'Snowboarding' },
+  // EVENTS-01b (2026-10-30): the labels read Surf · Snow; the ids and the order are the
+  // URL values and the law's list and do not change. The FIRST entry is the section's
+  // default category (ExperiencesSection.tsx DEFAULT_INTO), so reordering this list is a
+  // conscious change — experiences01.test.ts pins it.
+  { id: 'surfing', label: 'Surf' },
+  { id: 'snowboarding', label: 'Snow' },
   { id: 'skate', label: 'Skate' },
   { id: 'golf', label: 'Golf' },
   { id: 'f1', label: 'F1' },

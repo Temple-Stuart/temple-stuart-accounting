@@ -14,10 +14,12 @@
  *                                (one day) · "Nov 1, 2026 – Mar 31, 2027" (cross-year)
  *   experienceLine(row, today)   THE one line a card shows (see the function)
  *   upcoming(rows, today, n)     announced/conflict rows with end ≥ today, by start, first n
- *   seriesSummary(rows, today)   a series with more than SERIES_COLLAPSE_OVER upcoming
- *                                rows collapses to one pill — derived, never typed
  *   lineupPill(row, today)       the lineup's pill words for one row
- *   seriesPill(summary)          the lineup's pill words for a collapsed series
+ *
+ * EVENTS-01b (2026-10-30): the series summary and its pill are DELETED — the section
+ * always shows one category, so every row is its own pill and nothing collapses; a
+ * conflict pill says " · window being confirmed" only (a conflict is unconfirmed by
+ * definition).
  */
 
 import type { Experience } from './experiences';
@@ -104,67 +106,16 @@ export function upcoming(rows: readonly Experience[], today: string, n: number):
     .slice(0, n);
 }
 
-/** A series with MORE than this many upcoming rows collapses to one lineup pill. */
-export const SERIES_COLLAPSE_OVER = 3;
-
-export interface SeriesSummary {
-  /** The series name, as the rows spell it. */
-  name: string;
-  /** How many of its rows are upcoming. */
-  count: number;
-  /** The word for one of them: a championship has rounds; anything else has events. */
-  unit: 'rounds' | 'events';
-  /** dateWords of the earliest upcoming row. */
-  first: string;
-  /** dateWords of the latest upcoming row. */
-  last: string;
-  /** The whole run, earliest start to latest end: "Mar 12 – Dec 12, 2027". */
-  span: string;
-  /** The earliest upcoming row's source — the pill's one link. */
-  sourceUrl: string;
-}
-
-/** One summary per series with more than SERIES_COLLAPSE_OVER upcoming rows, in the order the series first appear. */
-export function seriesSummary(rows: readonly Experience[], today: string): SeriesSummary[] {
-  const groups = new Map<string, Experience[]>();
-  for (const row of upcoming(rows, today, rows.length)) {
-    if (row.series === null) continue;
-    const group = groups.get(row.series);
-    if (group) group.push(row); else groups.set(row.series, [row]);
-  }
-  const out: SeriesSummary[] = [];
-  for (const [name, group] of groups) {
-    if (group.length <= SERIES_COLLAPSE_OVER) continue;
-    const earliest = group[0];
-    const latest = group.reduce((best, row) => ((row.end as string) > (best.end as string) ? row : best), group[0]);
-    out.push({
-      name,
-      count: group.length,
-      unit: /championship/i.test(name) ? 'rounds' : 'events',
-      first: dateWords(earliest.start as string, earliest.end as string),
-      last: dateWords(latest.start as string, latest.end as string),
-      span: dateWords(earliest.start as string, latest.end as string),
-      sourceUrl: earliest.sourceUrl,
-    });
-  }
-  return out;
-}
-
 /**
  * The lineup's pill for one row.
- *   announced / conflict, window open → "name · city · <dateWords>", then " · reported" for a
- *                                        secondary source and " · window being confirmed" for a conflict
+ *   conflict, window open              → "name · city · <dateWords> · window being confirmed" — and
+ *                                        nothing else: a conflict is unconfirmed by definition (EVENTS-01b)
+ *   announced, window open             → "name · city · <dateWords>", then " · reported" for a secondary source
  *   not_announced, or window passed    → "name · not announced"
  */
 export function lineupPill(row: Experience, today: string): string {
   if (row.status === 'not_announced' || row.start === null || row.end === null || row.end < today) return `${row.name} · not announced`;
-  let words = `${row.name} · ${row.city} · ${dateWords(row.start, row.end)}`;
-  if (row.sourceKind === 'secondary') words += ' · reported';
-  if (row.status === 'conflict') words += ' · window being confirmed';
-  return words;
-}
-
-/** The lineup's pill for a collapsed series: "2027 FIA Formula One World Championship · 24 rounds · Mar 12 – Dec 12, 2027". */
-export function seriesPill(summary: SeriesSummary): string {
-  return `${summary.name} · ${summary.count} ${summary.unit} · ${summary.span}`;
+  const words = `${row.name} · ${row.city} · ${dateWords(row.start, row.end)}`;
+  if (row.status === 'conflict') return `${words} · window being confirmed`;
+  return row.sourceKind === 'secondary' ? `${words} · reported` : words;
 }
