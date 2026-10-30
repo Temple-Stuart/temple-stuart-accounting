@@ -102,8 +102,9 @@ export const RECEIPTS_LOADING_WORDS = 'reading the receipts…';
 export const RECEIPT_LIMIT_WORDS = 'Up to 4 MiB · PDF, JPEG or PNG';
 
 export const unknownFieldWords = (name: string): string => `the upload carries "${name}", which is not one of its fields (file, journal_entry_id, replace)`;
-export const tooLargeWords = (bytes: number): string => `the file is ${sizeWords(bytes)} — the most kept is 4 MiB (${MAX_RECEIPT_BYTES.toLocaleString('en-US')} bytes)`;
-export const bodyTooLargeWords = (bytes: number): string => `the upload is ${sizeWords(bytes)} — a receipt of at most 4 MiB, with its form, is at most ${MAX_UPLOAD_BODY_BYTES.toLocaleString('en-US')} bytes; refused before it was read`;
+// DOCUMENTS-01b (Alex, 2026-10-30, ruling B): a refusal names both exact byte counts — the file's and the cap's — beside the size in words.
+export const tooLargeWords = (bytes: number): string => `the file is ${bytes.toLocaleString('en-US')} bytes (${sizeWords(bytes)}) — the most kept is 4 MiB (${MAX_RECEIPT_BYTES.toLocaleString('en-US')} bytes)`;
+export const bodyTooLargeWords = (bytes: number): string => `the upload is ${bytes.toLocaleString('en-US')} bytes (${sizeWords(bytes)}) — a receipt of at most 4 MiB, with its form, is at most ${MAX_UPLOAD_BODY_BYTES.toLocaleString('en-US')} bytes; refused before it was read`;
 export const tooManyEntriesWords = (n: number): string => `${n} postings named — at most ${MAX_ENTRIES_PER_READ} in one read`;
 export const badListIdWords = (id: string): string => `"${id}" is not a posting id`;
 export const receiptsFailedWords = (reason: string): string => `The receipts could not be read — ${reason}. No receipt is shown as missing.`;
@@ -111,11 +112,15 @@ export const uploadFailedWords = (reason: string): string => `Not kept — ${rea
 export const coverageWords = (withReceipt: number, postings: number): string =>
   `${withReceipt} of ${postings} posting${postings === 1 ? '' : 's'} in view carr${postings === 1 ? 'ies' : 'y'} a receipt`;
 
-/** A size in the customer's words: bytes, KB or MB (decimal — 1 MB is 1,000,000 bytes), one decimal place. */
+/**
+ * A size in the customer's words: B, KiB or MiB (binary — 1 KiB is 1,024 bytes, 1 MiB is 1,048,576), one
+ * decimal place. DOCUMENTS-01b (Alex, 2026-10-30, ruling B): ONE UNIT — the cap is 4 MiB (4,194,304 bytes)
+ * and every other word on the screen says MiB; this said decimal MB, two units on one screen.
+ */
 export function sizeWords(bytes: number): string {
-  if (bytes < 1000) return `${bytes} B`;
-  if (bytes < 1_000_000) return `${(bytes / 1000).toFixed(1)} KB`;
-  return `${(bytes / 1_000_000).toFixed(1)} MB`;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1_048_576) return `${(bytes / 1024).toFixed(1)} KiB`;
+  return `${(bytes / 1_048_576).toFixed(1)} MiB`;
 }
 
 /** A type's short name on the screen. */
@@ -126,7 +131,7 @@ export function typeWords(contentType: string): string {
   return contentType;
 }
 
-/** The ledger's line for a kept receipt: "Receipt: <name> · 1.2 MB · PDF". */
+/** The ledger's line for a kept receipt: "Receipt: <name> · 1.2 MiB · PDF". */
 export function receiptLineWords(r: Pick<ReceiptMeta, 'file_name' | 'byte_size' | 'content_type'>): string {
   return `${RECEIPT_WORDS}: ${r.file_name} · ${sizeWords(r.byte_size)} · ${typeWords(r.content_type)}`;
 }

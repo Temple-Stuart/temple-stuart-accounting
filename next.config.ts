@@ -31,6 +31,26 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      // DOCUMENTS-01b (Alex, 2026-10-30, ruling A): the receipt download's own policy. The file route
+      // (src/app/api/books/documents/[id]/file/route.ts) answers a kept receipt with
+      // `Content-Security-Policy: sandbox` (sourceDocuments.ts fileResponseHeaders), but the site-wide
+      // rule above set the same key on every path and replaced it on the wire — #1873's finding: the
+      // download reached the browser under the app's policy, not its own. Next's documented rule: when
+      // two header rules match one path and set the same key, the LAST one wins
+      // (nextjs.org/docs/15/app/api-reference/config/next-config-js/headers, "Header Overriding
+      // Behavior"), so this rule stands after the site-wide one and `:id` matches one segment — the
+      // uuid — and nothing else. The site-wide value does not change by one byte. What it protects:
+      // customer-uploaded bytes handed back from this origin as a download; should a copy ever be
+      // rendered, under `sandbox` it can run nothing here.
+      {
+        source: '/api/books/documents/:id/file',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: 'sandbox',
+          },
+        ],
+      },
     ];
   },
   async redirects() {
