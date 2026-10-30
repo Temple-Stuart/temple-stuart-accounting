@@ -5,6 +5,7 @@ import BookkeepingSection from '@/components/bookkeeping/BookkeepingSection';
 import type { ReconciliationStatus } from '@/lib/books/reconciliationStatus';
 import type { ReconciliationSave, SaveAnswer } from '@/components/dashboard/BankReconciliation';
 import { utcDayOf } from '@/lib/books/period';
+import { FUNCTIONAL_CURRENCY, FUNCTIONAL_CURRENCY_WORDS, bankMoneyWords, centsOfTypedDollars, functionalMoneyWords, isWholeCents } from '@/lib/books/functionalCurrency';
 // SELL-04: the first-run entity step — a viewer with no entity sets one up before the pipeline reads.
 import EntitySetup from '@/components/books/EntitySetup';
 import SpendingTab from '@/components/dashboard/SpendingTab';
@@ -77,8 +78,9 @@ import ManualTransactionForm from '@/components/ManualTransactionForm';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = any;
 
-const fmt = (n: number) =>
-  '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+// FX-01 (2026-10-30, ruling B): a linked account's balance is a BANK figure in the account's own currency —
+// written by the books' one formatter only when that currency is the functional one, else with its code,
+// a currency Plaid did not state named (functionalCurrency.ts bankMoneyWords). The local `$` is gone.
 
 export default function BooksPipeline() {
   // BOOKS-DS-1 → BOOKS-PIPE-FRAME: the dark chrome converted to Direction C
@@ -197,7 +199,9 @@ export default function BooksPipeline() {
       (item.accounts || []).forEach((a: Row) => {
         flat.push({
           id: a.id, name: a.name, mask: a.mask, type: a.type,
-          balance: a.balance || 0, institutionName: item.institutionName || 'Unknown',
+          // ACCOUNTS-01 / FX-01: the balance as the route sends it (null when the institution reported
+          // nothing — never 0) and the currency it is stated in (null when Plaid stated none).
+          balance: a.balance ?? null, currency: a.currency ?? null, institutionName: item.institutionName || 'Unknown',
           entityType: a.entityType || null,
           // BANK-01: the item this account rides on, and its recorded Plaid error (null when healthy).
           itemId: item.id, lastErrorCode: item.lastErrorCode ?? null,
@@ -282,7 +286,11 @@ export default function BooksPipeline() {
   const committedInvestments = investmentTransactions.filter((t) => t.journalProof);
   const uncommittedInvestments = investmentTransactions.filter((t) => !t.journalProof);
   const committedCount = committedSpending.length + committedInvestments.length;
-  const totalBalance = accounts.reduce((s, a) => s + (a.balance || 0), 0);
+  // FX-01: the total is a books figure, so it sums only balances stated in the functional currency and
+  // whole cents; every other account is counted out by name beside it, never summed into dollars.
+  const summable = accounts.filter((a) => a.currency === FUNCTIONAL_CURRENCY && typeof a.balance === 'number' && isWholeCents(a.balance));
+  const totalBalanceCents = summable.reduce((s, a) => s + centsOfTypedDollars(String(a.balance)), BigInt(0));
+  const notSummed = accounts.length - summable.length;
 
   // BOOKS-PIPE-FRAME: strip-state signals — DERIVED ONLY, from state this
   // component already holds (hardcoded states forbidden; the in-card stage
@@ -473,7 +481,7 @@ export default function BooksPipeline() {
                           <option value="trading">Trading</option>
                         </select>
                       </td>
-                      <td className="px-3 py-2 text-right font-mono font-semibold">{fmt(acc.balance)}</td>
+                      <td className="px-3 py-2 text-right font-mono font-semibold" data-account-balance>{bankMoneyWords(acc.balance, acc.currency)}</td>
                     </tr>
                   );
                 })}
@@ -483,8 +491,8 @@ export default function BooksPipeline() {
               </tbody>
               <tfoot className={'bg-bg-row border-t border-border'}>
                 <tr>
-                  <td colSpan={4} className={'px-3 py-2 font-semibold text-text-primary'}>Total</td>
-                  <td className={'px-3 py-2 text-right font-mono font-bold text-text-primary'}>{fmt(totalBalance)}</td>
+                  <td colSpan={4} className={'px-3 py-2 font-semibold text-text-primary'}>Total ({FUNCTIONAL_CURRENCY} accounts{notSummed > 0 ? `; ${notSummed} not in ${FUNCTIONAL_CURRENCY} or with no stated balance, counted out` : ''})</td>
+                  <td className={'px-3 py-2 text-right font-mono font-bold text-text-primary'} data-accounts-total>{functionalMoneyWords(totalBalanceCents)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -728,14 +736,14 @@ export default function BooksPipeline() {
           {
             label: 'Trial balance',
             value: tbTotals
-              ? `${(tbTotals.totalDebits / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} D · ${(tbTotals.totalCredits / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} C`
+              ? `${functionalMoneyWords(tbTotals.totalDebits)} D · ${functionalMoneyWords(tbTotals.totalCredits)} C · ${FUNCTIONAL_CURRENCY_WORDS}`
               : undefined,
             sub: tbTotals
               ? !tbTotals.hasActivity
                 ? 'no activity yet — nothing posted'
                 : tbTotals.isBalanced
                   ? 'balanced'
-                  : `unbalanced by ${(Math.abs(tbTotals.imbalance) / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`
+                  : `unbalanced by ${functionalMoneyWords(Math.abs(tbTotals.imbalance))}`
               : undefined,
             emptyLabel: 'not loaded yet',
           },

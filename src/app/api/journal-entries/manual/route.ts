@@ -35,6 +35,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields: date, description, entityId, lines (min 2)' }, { status: 400 });
     }
 
+    // FX-01 (2026-10-30, ruling B): every amount on this wire is integer CENTS (the screen reads the typed
+    // figure by string arithmetic); a non-integer is refused by name, never rounded.
+    if (lines.some((l: { amount: unknown }) => !Number.isSafeInteger(l.amount))) {
+      return NextResponse.json({ error: 'each line amount must be an integer number of cents' }, { status: 400 });
+    }
     const totalDebits = lines
       .filter((l: { entryType: string }) => l.entryType === 'D')
       .reduce((sum: number, l: { amount: number }) => sum + l.amount, 0);
@@ -42,7 +47,7 @@ export async function POST(request: Request) {
       .filter((l: { entryType: string }) => l.entryType === 'C')
       .reduce((sum: number, l: { amount: number }) => sum + l.amount, 0);
 
-    if (Math.abs(totalDebits - totalCredits) > 1) {
+    if (totalDebits !== totalCredits) {
       return NextResponse.json({ error: 'Debits must equal credits' }, { status: 400 });
     }
 
@@ -87,7 +92,7 @@ export async function POST(request: Request) {
         },
         lines: lines.map((line: { accountCode: string; entryType: 'D' | 'C'; amount: number }) => {
           const account = accounts.find((a) => a.code === line.accountCode)!;
-          const amountCents = BigInt(Math.round(line.amount));
+          const amountCents = BigInt(line.amount);
           return {
             account_id: account.id,
             entry_type: line.entryType,

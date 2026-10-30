@@ -385,7 +385,11 @@ export const BOOKING_FLOW_FILES: readonly BookingFlowPin[] = [
   // returnUrl no longer carries a `commission` param nothing read. Where it mounts, and
   // the SDK hand-off, are untouched.
   // Was ab04853f236ae7d519c717a7aa5183efbaa20eab370caa2bd73b9f46904734b0 at main 0ca0f678.
-  { file: 'src/components/trips/CheckoutPanel.tsx', sha256: 'ef2f083e519dc885715582626205db24e0fa293e5e2b114728ecbc1646fe9782' },
+  // FX-01 (2026-10-30, ruling I): re-pinned — the panel's money() no longer relabels a currency Intl
+  // does not know as dollars; its catch prints the figure WITH its code. Where it mounts, and the
+  // SDK hand-off, are untouched. No prebook/book/pay/cancel call changed.
+  // Was ef2f083e519dc885715582626205db24e0fa293e5e2b114728ecbc1646fe9782 at main f1c63aef.
+  { file: 'src/components/trips/CheckoutPanel.tsx', sha256: '6df693d3424c39da6846ad836b063f4c7bbaf990c1f19da30ccdb0b9d517350f' },
   // FL-5b (2026-09-23): re-pinned — the panel sends the contact it already holds.
   // The SAME address it validated and sent at prebook now rides the book call too,
   // and the booked state says whether the confirmation went out. No payment path,

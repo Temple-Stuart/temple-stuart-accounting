@@ -1,6 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { FUNCTIONAL_CURRENCY_WORDS, FunctionalCurrencyError, centsOfTypedDollars, functionalMoneyWords } from '@/lib/books/functionalCurrency';
+
+/** FX-01 (2026-10-30, ruling B): a typed line amount read as a decimal string into integer cents (string arithmetic); a figure that is not dollars is null here and refused by name on submit. */
+function lineCents(amount: string): bigint | null {
+  if (amount.trim() === '') return null;
+  try { return centsOfTypedDollars(amount); } catch (e) { if (e instanceof FunctionalCurrencyError) return null; throw e; }
+}
 
 
 interface CoaOption {
@@ -58,22 +65,19 @@ export default function AdjustingEntriesTab({ }: { } = {}) {
     setLines(newLines);
   };
 
-  const getTotalDebits = () => {
-    return lines
-      .filter(l => l.entryType === 'D' && l.amount)
-      .reduce((sum, l) => sum + parseFloat(l.amount), 0);
-  };
+  const getTotalDebits = (): bigint => lines
+    .filter(l => l.entryType === 'D')
+    .reduce((sum, l) => sum + (lineCents(l.amount) ?? BigInt(0)), BigInt(0));
 
-  const getTotalCredits = () => {
-    return lines
-      .filter(l => l.entryType === 'C' && l.amount)
-      .reduce((sum, l) => sum + parseFloat(l.amount), 0);
-  };
+  const getTotalCredits = (): bigint => lines
+    .filter(l => l.entryType === 'C')
+    .reduce((sum, l) => sum + (lineCents(l.amount) ?? BigInt(0)), BigInt(0));
 
   const isBalanced = () => {
     const debits = getTotalDebits();
     const credits = getTotalCredits();
-    return debits > 0 && credits > 0 && Math.abs(debits - credits) < 0.01;
+    // Integer cents (FX-01): balanced is exactly equal, both sides carrying something.
+    return debits > BigInt(0) && credits > BigInt(0) && debits === credits;
   };
 
   const canSubmit = () => {
@@ -81,7 +85,7 @@ export default function AdjustingEntriesTab({ }: { } = {}) {
       date &&
       description &&
       lines.length >= 2 &&
-      lines.every(l => l.accountCode && l.amount && parseFloat(l.amount) > 0) &&
+      lines.every(l => l.accountCode && (lineCents(l.amount) ?? BigInt(0)) > BigInt(0)) &&
       isBalanced()
     );
   };
@@ -103,7 +107,7 @@ export default function AdjustingEntriesTab({ }: { } = {}) {
           lines: lines.map(l => ({
             accountCode: l.accountCode,
             entryType: l.entryType,
-            amount: Math.round(parseFloat(l.amount) * 100) // Convert to cents
+            amount: Number(centsOfTypedDollars(l.amount)) // integer cents, read from the typed decimal string (FX-01)
           }))
         })
       });
@@ -239,17 +243,17 @@ export default function AdjustingEntriesTab({ }: { } = {}) {
         <div className="border-t pt-4 mb-4">
           <div className="flex justify-end gap-8 text-sm">
             <div>
-              <span className="text-text-secondary">Total Debits:</span>
-              <span className="ml-2 font-semibold text-brand-purple">${totalDebits.toFixed(2)}</span>
+              <span className="text-text-secondary">Total Debits ({FUNCTIONAL_CURRENCY_WORDS}):</span>
+              <span className="ml-2 font-semibold text-brand-purple">{functionalMoneyWords(totalDebits)}</span>
             </div>
             <div>
               <span className="text-text-secondary">Total Credits:</span>
-              <span className="ml-2 font-semibold text-brand-green">${totalCredits.toFixed(2)}</span>
+              <span className="ml-2 font-semibold text-brand-green">{functionalMoneyWords(totalCredits)}</span>
             </div>
             <div>
               <span className="text-text-secondary">Difference:</span>
               <span className={`ml-2 font-semibold ${balanced ? 'text-brand-green' : 'text-brand-red'}`}>
-                ${Math.abs(totalDebits - totalCredits).toFixed(2)}
+                {functionalMoneyWords(totalDebits > totalCredits ? totalDebits - totalCredits : totalCredits - totalDebits)}
               </span>
             </div>
           </div>

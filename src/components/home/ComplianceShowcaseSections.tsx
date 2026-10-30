@@ -38,7 +38,7 @@
  * re-verified on ingest updates". Neither is code: citations have NO pinning
  * field and NO ingest-triggered re-verification exists. The truthful language
  * used throughout this deck: "version-locked at retrieval (stable URI + SHA-256
- * content hash) · re-verify on demand" (schema.prisma:2141-2199,
+ * content hash) · re-verify on demand" (schema.prisma:2145-2203,
  * verifyCitation.ts — inventory §2).
  *
  * ── CLAIMS CALIBRATION (inventory §§2-6) ─────────────────────────────────────
@@ -55,7 +55,7 @@
  *   no throttling claim anywhere in this deck; banned #10 variant).
  *   Lifecycle: compliance_tasks statuses incl. awaiting_evidence /
  *   awaiting_attestation; attestation_frequency / attestation_expires_at /
- *   evidence_freshness_days are TRACKING fields (schema.prisma:2537-2548) —
+ *   evidence_freshness_days are TRACKING fields (schema.prisma:2541-2552) —
  *   no attest endpoint exists, so the copy describes the model, never an
  *   attest-button flow (banned #7). Evidence == linked citations (banned #8).
  *
@@ -198,7 +198,7 @@ function ChecksPanel() {
 
 /** 3. VERSION-LOCKED, ON THE RECORD — the retrieval lock (citations model:
  *  stable_uri unique, retrieved_at, retrieved_content_hash SHA-256,
- *  version_label, supersession chain — schema.prisma:2141-2199) with the
+ *  version_label, supersession chain — schema.prisma:2145-2203) with the
  *  CORRECTED language (inventory §10 truth-fix). Mismatch string verbatim
  *  (verifyCitation.ts:91). */
 function VersionLockPanel() {
@@ -294,7 +294,7 @@ function DiscoveryPanel() {
 }
 
 /** 7. COMPLIANCE AS A LIFECYCLE — the real compliance_tasks TRACKING model
- *  (schema.prisma:2537-2548 attestation/evidence fields; statuses incl.
+ *  (schema.prisma:2541-2552 attestation/evidence fields; statuses incl.
  *  awaiting_evidence / awaiting_attestation :2389-2390). Copy describes the
  *  model, never an attest-button flow (none exists — inventory §5); evidence
  *  here means linked citations. */

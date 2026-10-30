@@ -7,6 +7,13 @@ import { requireEntitySetup } from '@/lib/ensure-bookkeeping';
 import { assertPeriodOpen, PeriodClosedError } from '@/lib/period-close-guard';
 import { balanceDeltaOf, postJournal } from '@/lib/posting/postJournal';
 import { requireTabAccess } from '@/lib/auth-helpers';
+import { FunctionalCurrencyError, centsOfTypedDollars } from '@/lib/books/functionalCurrency';
+
+// FX-01 (Alex, 2026-10-30, ruling B): a typed side ('100', '12.50') is read as a DECIMAL STRING into integer
+// cents by string arithmetic — never parseFloat × 100. A blank side is no amount on that side (BigInt(0)); any
+// other text that is not dollars is refused by name (400). The entry posts in the functional currency by
+// construction (src/lib/books/functionalCurrency.ts header).
+const sideCents = (v: unknown): bigint => (v === undefined || v === null || v === '' ? BigInt(0) : centsOfTypedDollars(typeof v === 'number' ? String(v) : String(v)));
 
 export async function GET() {
   try {
@@ -58,11 +65,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'entityId is required' }, { status: 400 });
     }
 
-    // Validate debits = credits
-    const totalDebits = lines.reduce((sum: number, l: any) => sum + (parseFloat(l.debit) || 0), 0);
-    const totalCredits = lines.reduce((sum: number, l: any) => sum + (parseFloat(l.credit) || 0), 0);
+    // Validate debits = credits — in integer cents, read from the typed decimal strings (FX-01).
+    if (!Array.isArray(lines)) return NextResponse.json({ error: 'lines must be an array' }, { status: 400 });
+    let sides: Array<{ debit: bigint; credit: bigint }>;
+    try {
+      sides = lines.map((l: any) => ({ debit: sideCents(l?.debit), credit: sideCents(l?.credit) }));
+    } catch (e) {
+      if (e instanceof FunctionalCurrencyError) return NextResponse.json({ error: e.message }, { status: 400 });
+      throw e;
+    }
+    const totalDebits = sides.reduce((sum, s) => sum + s.debit, BigInt(0));
+    const totalCredits = sides.reduce((sum, s) => sum + s.credit, BigInt(0));
 
-    if (Math.abs(totalDebits - totalCredits) > 0.01) {
+    if (totalDebits !== totalCredits) {
       return NextResponse.json({ error: 'Entry must be balanced (debits must equal credits)' }, { status: 400 });
     }
 
@@ -112,12 +127,11 @@ export async function POST(request: Request) {
           request_id: randomUUID(),
           created_by: userEmail,
         },
-        lines: lines.map((l: any) => {
-          const debitAmt = parseFloat(l.debit) || 0;
-          const creditAmt = parseFloat(l.credit) || 0;
-          const isDebit = debitAmt > 0;
+        lines: lines.map((l: any, i: number) => {
+          const { debit, credit } = sides[i];
+          const isDebit = debit > BigInt(0);
           const entryType: 'D' | 'C' = isDebit ? 'D' : 'C';
-          const amountCents = BigInt(Math.round((isDebit ? debitAmt : creditAmt) * 100));
+          const amountCents = isDebit ? debit : credit;
           const account = ownedAccounts.find((a) => a.id === l.accountId)!;
           return {
             account_id: l.accountId,

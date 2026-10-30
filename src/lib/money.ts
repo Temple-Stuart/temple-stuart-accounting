@@ -1,5 +1,15 @@
 /**
- * lib/money.ts — the SINGLE money formatter + color convention (PR-Money-Convention).
+ * lib/money.ts — the trips and P&L lanes' SIGN-AND-COLOUR formatter (PR-Money-Convention).
+ *
+ * WHAT IT IS (FX-01, 2026-10-30, ruling I): a dollars-as-number formatter for the trips lane (a
+ * booking's USD figure beside its bank actual, TripBudgetActual.tsx) and the trading P&L calendar —
+ * a signed "-$500" / "+$500" with the brand colour. It is NOT the books' formatter and never was the
+ * single one: the BOOKS LANE (the general ledger, the trial balance, the journal, the reconciliation,
+ * the CPA export) writes every figure through src/lib/books/functionalCurrency.ts functionalMoneyWords —
+ * integer cents of the declared functional currency, no float arithmetic — and the books law in
+ * scripts/assert-tool-registry.ts holds that lane to it. This file keeps the `$` because its callers
+ * print USD figures by construction; a figure in another currency is printed with its code by the
+ * travel lane's own words (src/lib/activities/products.ts, flights/fares.ts, hotels/rates.ts).
  *
  * Convention (institutional bar — direction comes from the caller, NEVER guessed):
  *   - EXPENSE (money out: trips, costs)   → red,   NEGATIVE-signed:  "-$500"

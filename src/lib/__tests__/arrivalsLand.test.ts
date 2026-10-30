@@ -141,6 +141,8 @@ test('the parser reads the arrival row, never the HTTP object, and every new arr
   t.name = 'Mutated after landing';
   assert.deepEqual(counts, { landed: 1, already_landed: 0, corrected: 0, synced: 1, skipped: 0 });
   assert.equal(domain.upserts[0].create.name, 'As landed');
+  // FX-01 (2026-10-30, ruling E): the landed row carries Plaid's own currency code from the arrival payload.
+  assert.equal(domain.upserts[0].create.iso_currency_code, 'USD');
   const a = [...landing.arrivals.values()][0];
   assert.equal(domain.upserts[0].create.arrival_id, a.row.id);
   assert.equal(a.status, 'done');

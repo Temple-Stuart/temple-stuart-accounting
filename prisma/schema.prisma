@@ -712,6 +712,8 @@ model transactions {
   accountId                          String
   transactionId                      String    @unique
   amount                             Float
+  /// FX-01 (2026-10-30): Plaid's own ISO 4217 code for the row, kept by the sync; NULL for a row synced before FX-01 — those were backfilled from the ACCOUNT's stated currency on 2026-10-30 (never 'USD' by default), see 20261030150000_fx_01_transactions_currency.
+  iso_currency_code                  String?   @db.VarChar(3)
   date                               DateTime
   name                               String
   merchantName                       String?
@@ -1734,7 +1736,8 @@ model reservations {
   guestCount               Int      @default(1)
   /// SEC-03 (2026-09-25): NULLABLE. NULL = price not stated by the vendor — reconcile against the bank. Never 0 for unknown; a 0 is a real $0.
   finalPriceCents          Int? // integer cents to avoid float math
-  currency                 String   @default("USD") @db.VarChar(3)
+  /// FX-01 (2026-10-30): no default — the book routes state the vendor's currency on every create; an omitted one is refused by the database.
+  currency                 String   @db.VarChar(3)
   cancellationPolicyJson   Json?
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
@@ -1935,7 +1938,8 @@ model commission_ledger {
   grossAmountCents      Int? // total guest paid (final price)
   /// COMM-01 (2026-09-26): NULLABLE. NULL = the vendor stated no commission at booking (a flight — NOT DOCUMENTED; a hotel answer without the field). The book-time figure, never overwritten; the lock below states the earned figure.
   commissionAmountCents Int?
-  currency              String    @default("USD") @db.VarChar(3)
+  /// FX-01 (2026-10-30): no default — the book routes state it on every create; an omitted one is refused by the database.
+  currency              String    @db.VarChar(3)
   /// CANCEL-01 (2026-09-26): 'cancelled' added — an 'estimated' row moves here when the reservation's cancel is FINAL (the margin will not be earned). COMM-01 (2026-09-26): the four documented words are now CHECK-enforced in SQL (commission_ledger_status); 'confirmed' is written only by the lock (applyVendorState through the read leaf); 'paid' has no writer yet (MATCH-02 / POST-01).
   status                String    @db.VarChar(20) // 'estimated' | 'confirmed' | 'paid' | 'cancelled'
   payoutDate            DateTime?

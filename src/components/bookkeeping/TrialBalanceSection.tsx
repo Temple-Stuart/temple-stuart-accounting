@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { FUNCTIONAL_CURRENCY_WORDS, functionalMoneyWords } from '@/lib/books/functionalCurrency';
 
 
 interface TrialBalanceAccount {
@@ -35,12 +36,8 @@ interface TrialBalanceData {
   totals: TrialBalanceTotals;
 }
 
-const fmtCents = (cents: number) => {
-  const abs = Math.abs(cents);
-  const dollars = abs / 100;
-  const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(dollars);
-  return cents < 0 ? `(${formatted})` : formatted;
-};
+// FX-01 (2026-10-30, ruling B): the books' one formatter (functionalMoneyWords) over the route's integer
+// cents — the local Intl formatter is gone. A negative figure carries its minus (the formatter's own sign).
 
 export default function TrialBalanceSection({ onTotals }: {
   /** BOOKS-PIPE-FRAME: optional report-up of the ALREADY-FETCHED totals (the
@@ -100,9 +97,10 @@ export default function TrialBalanceSection({ onTotals }: {
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 text-[10px] font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
-            {'\u2717'} Unbalanced by {fmtCents(data.totals.imbalance)}
+            {'\u2717'} Unbalanced by {functionalMoneyWords(data.totals.imbalance)}
           </span>
         )}
+        <span className="text-[10px] text-text-muted" data-functional-currency>{FUNCTIONAL_CURRENCY_WORDS}</span>
         <span className="text-terminal-sm text-text-muted font-mono">{data.accounts.length} accounts</span>
       </div>
 
@@ -129,10 +127,10 @@ export default function TrialBalanceSection({ onTotals }: {
                   <td className="px-3 py-2 text-text-muted capitalize">{acct.accountType}</td>
                   <td className="px-3 py-2 text-text-muted">{acct.entityName}</td>
                   <td className="px-3 py-2 text-right font-mono text-text-primary">
-                    {acct.displaySide === 'debit' ? fmtCents(absBalance) : ''}
+                    {acct.displaySide === 'debit' ? functionalMoneyWords(absBalance) : ''}
                   </td>
                   <td className="px-3 py-2 text-right font-mono text-text-primary">
-                    {acct.displaySide === 'credit' ? fmtCents(absBalance) : ''}
+                    {acct.displaySide === 'credit' ? functionalMoneyWords(absBalance) : ''}
                   </td>
                 </tr>
               );
@@ -141,8 +139,8 @@ export default function TrialBalanceSection({ onTotals }: {
           <tfoot className="bg-gray-50 border-t-2 border-border">
             <tr className="font-semibold">
               <td colSpan={4} className="px-3 py-2 text-text-primary">Totals</td>
-              <td className="px-3 py-2 text-right font-mono text-text-primary">{fmtCents(data.totals.totalDebits)}</td>
-              <td className="px-3 py-2 text-right font-mono text-text-primary">{fmtCents(data.totals.totalCredits)}</td>
+              <td className="px-3 py-2 text-right font-mono text-text-primary">{functionalMoneyWords(data.totals.totalDebits)}</td>
+              <td className="px-3 py-2 text-right font-mono text-text-primary">{functionalMoneyWords(data.totals.totalCredits)}</td>
             </tr>
           </tfoot>
         </table>

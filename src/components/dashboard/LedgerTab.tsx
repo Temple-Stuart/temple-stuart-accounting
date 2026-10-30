@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { functionalMoneyWords } from '@/lib/books/functionalCurrency';
 
 interface LedgerEntry {
   id: string;
@@ -131,7 +132,7 @@ export default function LedgerTab() {
                     ledger.closingBalance < 0 ? 'text-brand-red' :
                     'text-text-faint'
                   }`}>
-                    {ledger.closingBalance < 0 ? '-' : ''}${Math.abs(ledger.closingBalance).toFixed(2)}
+                    {functionalMoneyWords(ledger.closingBalance)}
                   </div>
                 </div>
               </div>
@@ -155,13 +156,13 @@ export default function LedgerTab() {
                         <td className="px-4 py-2">{new Date(entry.date).toLocaleDateString()}</td>
                         <td className="px-4 py-2">{entry.description}</td>
                         <td className="px-4 py-2 text-right font-semibold text-brand-purple">
-                          {entry.entryType === 'D' ? `$${entry.amount.toFixed(2)}` : '—'}
+                          {entry.entryType === 'D' ? functionalMoneyWords(entry.amount) : '—'}
                         </td>
                         <td className="px-4 py-2 text-right font-semibold text-brand-green">
-                          {entry.entryType === 'C' ? `$${entry.amount.toFixed(2)}` : '—'}
+                          {entry.entryType === 'C' ? functionalMoneyWords(entry.amount) : '—'}
                         </td>
                         <td className="px-4 py-2 text-right font-bold">
-                          {entry.runningBalance < 0 ? '-' : ''}${Math.abs(entry.runningBalance).toFixed(2)}
+                          {functionalMoneyWords(entry.runningBalance)}
                         </td>
                       </tr>
                     ))}

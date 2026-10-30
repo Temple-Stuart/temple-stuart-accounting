@@ -49,8 +49,10 @@ const stmt = (over: Partial<ReceiptMeta> = {}): ReceiptMeta => ({
 
 test('D the migration: superseded_by with its deferred self reference, the partial unique over the five columns WHERE superseded_by IS NULL, the status CHECK, the freeze that allows one change, the no-delete — the newest, after DOCUMENTS-01’s', () => {
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 1], MIGRATION_DIR, 'the newest migration');
-  assert.equal(dirs[dirs.length - 2], '20261028120000_documents_01_source_documents', 'right after DOCUMENTS-01’s');
+  assert.equal(dirs[dirs.length - 2], MIGRATION_DIR, 'the migration before the newest (FX-01 followed)');
+  // FX-01 (2026-10-30): the transactions currency migration followed — every pin above moved by one.
+  assert.equal(dirs[dirs.length - 1], '20261030150000_fx_01_transactions_currency', 'the newest migration');
+  assert.equal(dirs[dirs.length - 3], '20261028120000_documents_01_source_documents', 'right after DOCUMENTS-01’s');
   const sql = code(MIGRATION);
   assert.match(sql, /ALTER TABLE "bank_reconciliations" ADD COLUMN "superseded_by" TEXT;/);
   assert.match(sql, /FOREIGN KEY \("superseded_by"\) REFERENCES "bank_reconciliations"\("id"\) ON DELETE RESTRICT ON UPDATE CASCADE\n\s+DEFERRABLE INITIALLY DEFERRED;/);
@@ -159,7 +161,10 @@ test('C the numbers are the server’s: the one arithmetic; G ≠ P — statemen
   assert.deepEqual(bodyFieldsRule({ periodEnd: '2026-10-31' }), { ok: false, status: 400, error: unknownReconciliationFieldWords('periodEnd') });
   assert.deepEqual(bodyFieldsRule({ accountId: 'a', period: '2026-10', statementBalance: 1, items: [], status: 'draft', reopen: true }), { ok: true });
   assert.equal(moneyWords(-45), '-$45.00');
-  assert.equal(moneyWords(1234567.891), '$1,234,567.89');
+  // FX-01 (2026-10-30, ruling B): moneyWords writes through the books' one formatter — a figure that is not whole
+  // cents is refused by name, never rounded (it was '$1,234,567.89' for 1234567.891 before).
+  assert.equal(moneyWords(1234567.89), '$1,234,567.89');
+  assert.throws(() => moneyWords(1234567.891), /not a dollars figure/);
 });
 
 test('E no reconciled without its statement: the gate — the books first, then the difference, then the statement; its words', () => {

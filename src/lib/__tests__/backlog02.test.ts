@@ -75,12 +75,14 @@ const OWNED: readonly OwnedProject[] = [
 
 test('T1 the migration: the newest; ONE ADD VALUE IF NOT EXISTS line, the precedent’s way, nothing else; the schema and the client carry the value; the audit read lists it', () => {
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 3], MIGRATION_DIR, 'the migration before the newest (DOCUMENTS-01 followed)');
+  assert.equal(dirs[dirs.length - 4], MIGRATION_DIR, 'the migration before the newest (DOCUMENTS-01 followed)');
   // DOCUMENTS-01 (Alex, 2026-10-28): source_documents, the receipt on its posting — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 2], '20261028120000_documents_01_source_documents', 'the migration before the newest (DOCUMENTS-02 followed)');
+  assert.equal(dirs[dirs.length - 3], '20261028120000_documents_01_source_documents', 'the migration before the newest (DOCUMENTS-02 followed)');
   // DOCUMENTS-02 (Alex, 2026-10-30): the reconciliation's supersession — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 1], '20261030120000_documents_02_reconciliation_supersession', 'the newest migration');
-  assert.equal(dirs[dirs.length - 4], '20261020150000_journal_06_reflection', 'right after JOURNAL-06’s');
+  assert.equal(dirs[dirs.length - 2], '20261030120000_documents_02_reconciliation_supersession', 'the migration before the newest (FX-01 followed)');
+  // FX-01 (2026-10-30): the transactions currency migration followed — every pin above moved by one.
+  assert.equal(dirs[dirs.length - 1], '20261030150000_fx_01_transactions_currency', 'the newest migration');
+  assert.equal(dirs[dirs.length - 5], '20261020150000_journal_06_reflection', 'right after JOURNAL-06’s');
   const sql = code(MIGRATION).trim();
   assert.equal(sql, `ALTER TYPE "AuditActionType" ADD VALUE IF NOT EXISTS 'operations_project_reranked';`, 'the one statement, and nothing else — no BEGIN, no row, no column');
   const head = comments(MIGRATION);

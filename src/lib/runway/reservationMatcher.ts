@@ -69,13 +69,6 @@ export interface MatcherOptions {
   amountTolerancePct: number;
   /** Days a transaction may sit from the nearest date anchor. */
   dateWindowDays: number;
-  /** The currency transactions.amount is denominated in. Plaid rows carry NO
-   *  currency column (schema.prisma transactions:414-449), so this is the
-   *  caller's declaration — default 'USD'. A reservation in any OTHER
-   *  currency gets its amount signal EXCLUDED (never converted by a guessed
-   *  rate); date + descriptor must carry the proposal and the rationale says
-   *  so. */
-  accountCurrency?: string;
 }
 
 export interface MatchProposal {
@@ -138,17 +131,25 @@ function hotelTokens(hotelName: string | null): string[] {
 export function proposeMatches({
   reservations,
   transactions,
+  accountCurrency,
   opts,
 }: {
   reservations: MatcherReservation[];
   transactions: MatcherTransaction[];
+  /** FX-01 (Alex, 2026-10-30, ruling H): the currency these transactions' ACCOUNT states
+   *  (accounts.isoCurrencyCode :48 — as Plaid stated it, or NULL), the caller's declaration per
+   *  account group, exactly as the refund pass takes it. Since FX-01 the rows themselves carry
+   *  Plaid's word too (schema.prisma transactions :710-755, iso_currency_code :716). NULL → the
+   *  amount signal is EXCLUDED by name — never 'USD' by default, never converted by a guessed rate;
+   *  date + descriptor carry the proposal and the rationale says so. */
+  accountCurrency: string | null;
   opts: MatcherOptions;
 }): MatchProposal[] {
-  const accountCurrency = (opts.accountCurrency ?? 'USD').toUpperCase();
+  const account = accountCurrency === null ? null : accountCurrency.toUpperCase();
   const proposals: MatchProposal[] = [];
 
   for (const r of reservations) {
-    const sameCurrency = r.currency.toUpperCase() === accountCurrency;
+    const sameCurrency = account !== null && r.currency.toUpperCase() === account;
     // SEC-03: NULL is the one "unknown"; 0 is an amount and is compared (a real
     // $0 booking against a positive charge is a contradiction, not a wildcard).
     const amountKnown = r.finalPriceCents !== null;
@@ -177,9 +178,11 @@ export function proposeMatches({
           `amount: $${t.amount.toFixed(2)} vs booked $${resDollars.toFixed(2)} ` +
           `(drift ${(driftPct * 100).toFixed(1)}% ≤ ${(opts.amountTolerancePct * 100).toFixed(1)}% tolerance)`
         );
+      } else if (account === null) {
+        parts.push('amount: EXCLUDED — the account currency is not stated (accounts.isoCurrencyCode NULL); date + descriptor carry this proposal');
       } else if (!sameCurrency) {
         parts.push(
-          `amount: EXCLUDED — reservation currency ${r.currency.toUpperCase()} ≠ account ${accountCurrency} ` +
+          `amount: EXCLUDED — reservation currency ${r.currency.toUpperCase()} ≠ account ${account} ` +
           `(never converted by guess); date + descriptor carry this proposal`
         );
       } else {

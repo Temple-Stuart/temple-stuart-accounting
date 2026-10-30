@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { deriveAccountString } from '@/lib/accountString';
+import { FUNCTIONAL_CURRENCY, bankMoneyWords, centsOfTypedDollars, decimalStringOfCents, functionalMoneyWords } from '@/lib/books/functionalCurrency';
 import { FAMILIES, FAMILY_RULES, letterFor, schemeHint, type Family } from '@/lib/coa/scheme';
 import { seedSetsFor, type SeedPlanRow } from '@/lib/coa/seedSets';
 
@@ -44,6 +45,8 @@ interface DrilldownTxn {
   merchantName: string | null;
   name: string;
   amount: number;
+  /** FX-01: the row's account currency — as Plaid stated it, or null; the drill writes the figure in THAT currency. */
+  currency: string | null;
   accountCode: string | null;
 }
 
@@ -58,15 +61,9 @@ interface SeedResult {
 const ACCOUNT_TYPE_ORDER = [...FAMILIES];
 const ACCOUNT_TYPE_LABELS: Record<string, string> = Object.fromEntries(FAMILIES.map((f) => [f, FAMILY_RULES[f].label]));
 
-function formatCurrency(cents: string | number): string {
-  const val = typeof cents === 'string' ? parseInt(cents, 10) : cents;
-  if (isNaN(val)) return '$0.00';
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val / 100);
-}
-
-function formatAmount(dollars: number): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Math.abs(dollars));
-}
+// FX-01 (2026-10-30, ruling B): a settled balance is the bigint's own text (cents) — written by the books'
+// one formatter (functionalMoneyWords(BigInt(text))); a non-integer is refused by name (BigInt throws),
+// never a zero for an unreadable figure. The two local Intl formatters are gone.
 
 function formatDate(d: string): string {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -258,7 +255,7 @@ export default function COAManagementTable({ entityId, entityName, entityType }:
   const openReclass = (account: COAAccount) => {
     const cents = Math.abs(parseInt(account.settledBalance, 10) || 0);
     setReclassId(account.id);
-    setReclassForm({ toCode: '', amount: (cents / 100).toFixed(2), memo: '', date: today() });
+    setReclassForm({ toCode: '', amount: decimalStringOfCents(cents), memo: '', date: today() });
     setReclassError(null);
     setReclassDone(null);
   };
@@ -267,8 +264,8 @@ export default function COAManagementTable({ entityId, entityName, entityType }:
     setReclassSaving(true);
     setReclassError(null);
     try {
-      const dollars = Number(reclassForm.amount);
-      if (!Number.isFinite(dollars)) throw new Error('amount: enter dollars, e.g. 120.00');
+      // FX-01: the typed figure read as a decimal string into integer cents — refused by name when it is not dollars.
+      const amountCents = Number(centsOfTypedDollars(reclassForm.amount));
       const res = await fetch('/api/chart-of-accounts/reclassify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -276,7 +273,7 @@ export default function COAManagementTable({ entityId, entityName, entityType }:
           entityId,
           fromCode: account.code,
           toCode: reclassForm.toCode,
-          amountCents: Math.round(dollars * 100),
+          amountCents,
           memo: reclassForm.memo,
           date: reclassForm.date,
         }),
@@ -757,7 +754,7 @@ function GroupedRow({
             className="cursor-pointer hover:underline hover:text-brand-purple-deep transition-colors"
             title="Click to view transactions"
           >
-            {formatCurrency(account.settledBalance)}
+            {functionalMoneyWords(BigInt(account.settledBalance))}
           </button>
         </td>
         <td className="px-3 py-2 text-right">
@@ -855,7 +852,7 @@ function GroupedRow({
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] text-text-muted uppercase tracking-wider block mb-1">Amount (USD)</label>
+                  <label className="text-[10px] text-text-muted uppercase tracking-wider block mb-1">Amount ({FUNCTIONAL_CURRENCY})</label>
                   <input
                     type="number" step="0.01" min="0.01"
                     value={reclassForm.amount}
@@ -930,7 +927,7 @@ function GroupedRow({
                         <td className="py-1.5 font-mono text-text-secondary">{formatDate(txn.date)}</td>
                         <td className="py-1.5 text-text-primary">{txn.merchantName || '—'}</td>
                         <td className="py-1.5 text-text-muted truncate max-w-[200px]">{txn.name}</td>
-                        <td className="py-1.5 text-right font-mono font-semibold">{formatAmount(txn.amount)}</td>
+                        <td className="py-1.5 text-right font-mono font-semibold">{bankMoneyWords(txn.amount, txn.currency)}</td>
                         <td className="py-1.5 text-right">
                           <select
                             value={txn.accountCode || ''}

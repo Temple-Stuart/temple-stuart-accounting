@@ -28,6 +28,8 @@ function data(over: Record<string, unknown> = {}) {
     authorized_date: null, authorized_datetime: null, counterparties: [{ name: 'X' }], location: { city: 'Austin' },
     payment_channel: 'in store', payment_meta: { reference_number: null }, personal_finance_category: { primary: 'FOOD_AND_DRINK' },
     personal_finance_category_icon_url: null, transaction_code: null, transaction_type: 'place', logo_url: null, website: null,
+    // FX-01 (2026-10-30, ruling E): the parser's txnData carries Plaid's currency code — the fixture mirrors it.
+    iso_currency_code: 'USD',
     arrival_id: 'arr_1', updatedAt: NOW, ...over,
   };
 }

@@ -33,9 +33,14 @@ const REVIEW_UI = 'src/components/hub/MatchReviewSection.tsx';
 const WRITER = 'src/lib/journal-entry-service.ts';
 const MIGRATION = 'prisma/migrations/20260926210000_match_02_refund_settlement/migration.sql';
 
-/** sha256 and length of code(MATCHER) on main cfe3a9ee — the outflow pass, byte-identical; MATCH-02 only APPENDS after it. */
-const MAIN_MATCHER_CODE_SHA256 = '2bd2fb68f1824d3e363fdbc2abe0f6dccb35d34b16c68b5c120d9c30e0bf11ba';
-const MAIN_MATCHER_CODE_LENGTH = 11674;
+/**
+ * sha256 and length of code(MATCHER) on main cfe3a9ee — the outflow pass, byte-identical; MATCH-02 only APPENDS after it.
+ * FX-01 (2026-10-30, ruling H): the charge pass now takes the account's currency beside its reservations (no 'USD'
+ * default; a NULL account currency excludes the amount signal by name) — the prefix re-pinned at main f1c63aef + FX-01.
+ * Was 2bd2fb68f1824d3e363fdbc2abe0f6dccb35d34b16c68b5c120d9c30e0bf11ba / 11674. The refund section still comes after it.
+ */
+const MAIN_MATCHER_CODE_SHA256 = 'ed0c7b7bf29a5456973ca09a60846ff6526db9a6284b85fb86f52c341f57b6e8';
+const MAIN_MATCHER_CODE_LENGTH = 15062;
 
 const EVENT: MatcherRefundEvent = {
   id: 'me_1', reservationId: 'res_1', kind: 'refund', status: 'stated', amountCents: 25000, currency: 'USD', refundDestination: null,
@@ -162,6 +167,8 @@ test('the outflow pass is byte-identical: main’s code half is the prefix of th
   const out = proposeMatches({
     reservations: [{ id: 'res_1', finalPriceCents: 25000, currency: 'USD', provider: 'liteapi', hotelName: 'Hotel Temple', createdAt: '2026-09-01' }],
     transactions: [{ id: 't_out', amount: 250, date: '2026-09-02', name: 'NUITEE*HOTEL TEMPLE' }, INFLOW],
+    // FX-01 (2026-10-30, ruling H): the charge pass takes the account's currency, as the refund pass does.
+    accountCurrency: 'USD',
     opts: { amountTolerancePct: 0.05, dateWindowDays: 5 },
   });
   assert.deepEqual(out.map((p) => p.transactionId), ['t_out'], 'the inflow is not an outflow candidate');

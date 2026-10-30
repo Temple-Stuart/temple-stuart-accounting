@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import EntrySourceCell, { CoverageLine } from '@/components/books/EntrySourceCell';
 import { coverageOf, type DocumentMoneyEventFacts, type DocumentReservationFacts } from '@/lib/books/entrySource';
+import { FUNCTIONAL_CURRENCY, FUNCTIONAL_CURRENCY_WORDS, FunctionalCurrencyError, centsOfTypedDollars, functionalMoneyWords, isWholeCents } from '@/lib/books/functionalCurrency';
 
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -116,12 +117,14 @@ function formatDate(d: string | null | undefined): string {
   return `${String(dt.getMonth() + 1).padStart(2, '0')}/${String(dt.getDate()).padStart(2, '0')}/${dt.getFullYear()}`;
 }
 
-function formatMoney(cents: number): string {
-  return '$' + (Math.abs(cents) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+// FX-01 (2026-10-30, ruling B): every figure here is integer CENTS (journal-transactions puts
+// ledger_entries.amount on the wire as a number of cents), written by the books' one formatter
+// (src/lib/books/functionalCurrency.ts functionalMoneyWords). The two local dollars formatters are gone.
 
-function formatMoneyDollars(dollars: number): string {
-  return '$' + Math.abs(dollars).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** A typed side of a new line ('100', '12.50') as integer cents by string arithmetic; blank is no amount on that side; other text is not dollars → null. */
+function typedSideCents(typed: string): bigint | null {
+  if (typed.trim() === '') return BigInt(0);
+  try { return centsOfTypedDollars(typed); } catch (e) { if (e instanceof FunctionalCurrencyError) return null; throw e; }
 }
 
 function getDerivedType(txn: JournalTxn): string {
@@ -134,12 +137,14 @@ function getDerivedStatus(txn: JournalTxn): string {
   return 'Active';
 }
 
+/** Integer cents — the debit side of an entry (FX-01: no division into dollars). */
 function getDebits(txn: JournalTxn): number {
-  return txn.ledger_entries.filter(e => e.entry_type === 'D').reduce((s, e) => s + e.amount, 0) / 100;
+  return txn.ledger_entries.filter(e => e.entry_type === 'D').reduce((s, e) => s + e.amount, 0);
 }
 
+/** Integer cents — the credit side of an entry. */
 function getCredits(txn: JournalTxn): number {
-  return txn.ledger_entries.filter(e => e.entry_type === 'C').reduce((s, e) => s + e.amount, 0) / 100;
+  return txn.ledger_entries.filter(e => e.entry_type === 'C').reduce((s, e) => s + e.amount, 0);
 }
 
 function truncateId(id: string): string {
@@ -197,8 +202,10 @@ function applyColumnFilters(txns: JournalTxn[], colFilters: ColumnFilters): Jour
         if (filter.to) { const to = new Date(filter.to); to.setHours(23, 59, 59, 999); result = result.filter(t => new Date(t.date) <= to); }
         break;
       case 'amountRange': {
-        if (filter.min) { const min = parseFloat(filter.min); if (!isNaN(min)) result = result.filter(t => parseFloat(getFieldValue(t, field)) >= min); }
-        if (filter.max) { const max = parseFloat(filter.max); if (!isNaN(max)) result = result.filter(t => parseFloat(getFieldValue(t, field)) <= max); }
+        // FX-01: the bounds are typed dollars, read as decimal strings into cents (the popover refuses a
+        // bound that is not dollars before it is applied); the field values are integer cents.
+        if (filter.min) { const min = centsOfTypedDollars(filter.min); result = result.filter(t => BigInt(getFieldValue(t, field)) >= min); }
+        if (filter.max) { const max = centsOfTypedDollars(filter.max); result = result.filter(t => BigInt(getFieldValue(t, field)) <= max); }
         break;
       }
       case 'search':
@@ -225,7 +232,7 @@ function columnFilterSummary(filter: ColumnFilterValue): string {
   switch (filter.type) {
     case 'checkbox': return filter.selected.slice(0, 2).join(', ') + (filter.selected.length > 2 ? ` +${filter.selected.length - 2}` : '');
     case 'dateRange': return [filter.from, filter.to].filter(Boolean).join(' \u2013 ');
-    case 'amountRange': return ['$' + filter.min, '$' + filter.max].filter(v => v !== '$').join(' \u2013 ');
+    case 'amountRange': return [filter.min, filter.max].filter(Boolean).map((v) => `${FUNCTIONAL_CURRENCY} ${v}`).join(' \u2013 ');
     case 'search': return `"${filter.term}"`;
   }
 }
@@ -275,6 +282,7 @@ function JournalColumnFilterDropdown({ field, filterType, allTransactions, curre
   const [localTo, setLocalTo] = useState(() => currentFilter?.type === 'dateRange' ? currentFilter.to : '');
   const [localMin, setLocalMin] = useState(() => currentFilter?.type === 'amountRange' ? currentFilter.min : '');
   const [localMax, setLocalMax] = useState(() => currentFilter?.type === 'amountRange' ? currentFilter.max : '');
+  const [boundWords, setBoundWords] = useState<string | null>(null);
   const [localTerm, setLocalTerm] = useState(() => currentFilter?.type === 'search' ? currentFilter.term : '');
 
   const uniqueValues = useMemo(() => filterType === 'checkbox' ? getUniqueValues(allTransactions, field) : [], [allTransactions, field, filterType]);
@@ -304,7 +312,13 @@ function JournalColumnFilterDropdown({ field, filterType, allTransactions, curre
     switch (filterType) {
       case 'checkbox': onApply(localSelected.size > 0 ? { type: 'checkbox', selected: Array.from(localSelected) } : undefined); break;
       case 'dateRange': onApply(localFrom || localTo ? { type: 'dateRange', from: localFrom, to: localTo } : undefined); break;
-      case 'amountRange': onApply(localMin || localMax ? { type: 'amountRange', min: localMin, max: localMax } : undefined); break;
+      case 'amountRange': {
+        // FX-01: a bound that is not a dollars figure (digits, at most two decimals) is refused by name, not applied.
+        const bad = [localMin, localMax].find((v) => v !== '' && !isWholeCents(Number(v)));
+        if (bad !== undefined) { setBoundWords(`${JSON.stringify(bad)} is not a dollars figure (digits, at most two decimals)`); return; }
+        setBoundWords(null);
+        onApply(localMin || localMax ? { type: 'amountRange', min: localMin, max: localMax } : undefined); break;
+      }
       case 'search': onApply(localTerm ? { type: 'search', term: localTerm } : undefined); break;
     }
   };
@@ -377,6 +391,7 @@ function JournalColumnFilterDropdown({ field, filterType, allTransactions, curre
               <input ref={searchRef} type="number" placeholder="0" value={localMin} onChange={e => setLocalMin(e.target.value)} className="w-full px-2 h-7 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple" /></div>
             <div><label className="block text-[10px] text-text-muted mb-1">Max</label>
               <input type="number" placeholder="999999" value={localMax} onChange={e => setLocalMax(e.target.value)} className="w-full px-2 h-7 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple" /></div>
+            {boundWords && <p className="text-[10px] text-brand-red" data-amount-bound-words>{boundWords}</p>}
           </div>
         )}
 
@@ -532,9 +547,13 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
 
   // ─── New Entry Form Logic ────────────────────────────────────────────────
 
-  const totalDebits = newLines.reduce((sum, l) => sum + (parseFloat(l.debit) || 0), 0);
-  const totalCredits = newLines.reduce((sum, l) => sum + (parseFloat(l.credit) || 0), 0);
-  const isBalanced = Math.abs(totalDebits - totalCredits) < 0.01 && totalDebits > 0;
+  // FX-01: the typed sides read as decimal strings into integer cents; a side that is not dollars
+  // leaves the entry unbalanced by name (typedSideCents → null) until it is corrected.
+  const sideCents = newLines.map((l) => ({ debit: typedSideCents(l.debit), credit: typedSideCents(l.credit) }));
+  const sidesReadable = sideCents.every((s) => s.debit !== null && s.credit !== null);
+  const totalDebits = sideCents.reduce((sum, s) => sum + (s.debit ?? BigInt(0)), BigInt(0));
+  const totalCredits = sideCents.reduce((sum, s) => sum + (s.credit ?? BigInt(0)), BigInt(0));
+  const isBalanced = sidesReadable && totalDebits === totalCredits && totalDebits > BigInt(0);
 
   const updateLine = (index: number, field: keyof JournalEntryLine, value: string) => {
     const updated = [...newLines];
@@ -707,8 +726,8 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                 <td className="px-2 py-2" colSpan={2}>
                   <button onClick={addLine} className="text-brand-purple text-sm hover:underline">+ Add Line</button>
                 </td>
-                <td className="px-2 py-2 text-right">${totalDebits.toFixed(2)}</td>
-                <td className="px-2 py-2 text-right">${totalCredits.toFixed(2)}</td>
+                <td className="px-2 py-2 text-right">{functionalMoneyWords(totalDebits)}</td>
+                <td className="px-2 py-2 text-right">{functionalMoneyWords(totalCredits)}</td>
                 <td className="px-1">
                   {isBalanced ? (
                     <span className="text-brand-green">{'\u2713'}</span>
@@ -723,9 +742,12 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
           {/* Actions */}
           <div className="flex items-center justify-between">
             <div className="text-sm">
-              {!isBalanced && totalDebits > 0 && (
+              {!sidesReadable && (
+                <span className="text-brand-red">a side is not a dollars figure (digits, at most two decimals)</span>
+              )}
+              {sidesReadable && !isBalanced && totalDebits > BigInt(0) && (
                 <span className="text-brand-red">
-                  Out of balance by ${Math.abs(totalDebits - totalCredits).toFixed(2)}
+                  Out of balance by {functionalMoneyWords(totalDebits > totalCredits ? totalDebits - totalCredits : totalCredits - totalDebits)}
                 </span>
               )}
             </div>
@@ -871,11 +893,11 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                       </div>
                       {/* Debits */}
                       <div className="px-2 py-1 w-24 flex-shrink-0 text-right font-mono font-semibold">
-                        {debits > 0 ? formatMoneyDollars(debits) : '\u2014'}
+                        {debits > 0 ? functionalMoneyWords(debits) : '\u2014'}
                       </div>
                       {/* Credits */}
                       <div className="px-2 py-1 w-24 flex-shrink-0 text-right font-mono font-semibold">
-                        {credits > 0 ? formatMoneyDollars(credits) : '\u2014'}
+                        {credits > 0 ? functionalMoneyWords(credits) : '\u2014'}
                       </div>
                       {/* Balanced */}
                       <div className="px-2 py-1 w-16 flex-shrink-0 text-center">
@@ -939,10 +961,10 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                                     {leg.account.name}
                                   </td>
                                   <td className={`py-1 px-2 text-right font-mono font-semibold ${isReversed ? 'line-through' : ''}`}>
-                                    {legDebit > 0 ? formatMoney(legDebit) : '\u2014'}
+                                    {legDebit > 0 ? functionalMoneyWords(legDebit) : '\u2014'}
                                   </td>
                                   <td className={`py-1 px-2 text-right font-mono font-semibold ${isReversed ? 'line-through' : ''}`}>
-                                    {legCredit > 0 ? formatMoney(legCredit) : '\u2014'}
+                                    {legCredit > 0 ? functionalMoneyWords(legCredit) : '\u2014'}
                                   </td>
                                 </tr>
                               );
@@ -951,8 +973,8 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                           <tfoot className="bg-bg-row font-semibold">
                             <tr>
                               <td colSpan={2} className="py-1 px-2">Total</td>
-                              <td className="py-1 px-2 text-right font-mono font-semibold">{formatMoneyDollars(debits)}</td>
-                              <td className="py-1 px-2 text-right font-mono font-semibold">{formatMoneyDollars(credits)}</td>
+                              <td className="py-1 px-2 text-right font-mono font-semibold">{functionalMoneyWords(debits)}</td>
+                              <td className="py-1 px-2 text-right font-mono font-semibold">{functionalMoneyWords(credits)}</td>
                             </tr>
                           </tfoot>
                         </table>
@@ -991,9 +1013,11 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
           {filtered.length === txns.length ? txns.length : `${filtered.length} of ${txns.length}`} entries
         </span>
         <span className="font-mono font-medium">
-          Debits: {formatMoneyDollars(filtered.reduce((s, t) => s + getDebits(t), 0))}
+          Debits: {functionalMoneyWords(filtered.reduce((s, t) => s + getDebits(t), 0))}
           {' \u00B7 '}
-          Credits: {formatMoneyDollars(filtered.reduce((s, t) => s + getCredits(t), 0))}
+          Credits: {functionalMoneyWords(filtered.reduce((s, t) => s + getCredits(t), 0))}
+          {' \u00B7 '}
+          <span data-functional-currency>{FUNCTIONAL_CURRENCY_WORDS}</span>
         </span>
       </div>
     </div>

@@ -6,6 +6,7 @@ import { summarizeError, userFacingMessage } from '@/lib/http/failClosed';
 import { prisma } from '@/lib/prisma';
 import { commitPlaidTransaction, type CommitLink } from '@/lib/journal-entry-service';
 import { documentsForBatch } from '@/lib/posting/documentGate';
+import { postingCurrencyRule } from '@/lib/books/functionalCurrency';
 import { humanActor, recordBookingEvent } from '@/lib/reservations/auditTrail';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { requireEntitySetup } from '@/lib/ensure-bookkeeping';
@@ -244,6 +245,18 @@ export async function POST(request: NextRequest) {
 
         // Look up bank COA account dynamically from the linked Plaid account
         const linkedAccount = plaidTxn.accounts;
+
+        // FX-01 (Alex, 2026-10-30, ruling F): THE PLAID RULE AT COMMIT. The account's stated currency
+        // (accounts.isoCurrencyCode — as Plaid stated it, or NULL) must BE the books' functional
+        // currency, and the row's own stated currency (transactions.iso_currency_code) must agree with
+        // it — refused by name here, before anything posts; never converted
+        // (src/lib/books/functionalCurrency.ts postingCurrencyRule).
+        const currency = postingCurrencyRule(linkedAccount, { id: plaidTxn.id, iso_currency_code: plaidTxn.iso_currency_code });
+        if (!currency.ok) {
+          errors.push({ txnId, error: currency.error });
+          continue;
+        }
+
         const bankAccountCode = linkedAccount.accountCode;
 
         if (!bankAccountCode) {
