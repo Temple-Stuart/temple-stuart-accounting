@@ -4,7 +4,7 @@
  * DOCUMENTS-01 (Alex, 2026-10-28, ruling F) — THE RECEIPT ON ITS POSTING, on the /books ledger.
  *
  * Bookkeeping's own controls, mounted only by its general ledger (GeneralLedger.tsx, on /books):
- *   · ReceiptLine — under a row's source: "Receipt: <name> · 1.2 MB · PDF — open · replace", or
+ *   · ReceiptLine — under a row's source: "Receipt: <name> · 1.2 MiB · PDF — open · replace", or
  *     "No receipt — attach". A reversal or a reversed posting offers no attach (it shows a receipt it
  *     already carries, read-only). "open" is a plain link to the authed file route — a download.
  *   · ReceiptPanel — the attach (or replace) panel, rendered UNDER the table: the ledger's rows are

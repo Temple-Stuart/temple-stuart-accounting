@@ -135,8 +135,9 @@ test('A the list read: entry= or entries=, exactly one, real ids, at most 200, e
 
 test('A the words: the receipt line, the size, and the coverage counted once per posting that can carry one', () => {
   const r: ReceiptMeta = { id: 'd1', journal_entry_id: 'je-1', file_name: 'lunch.pdf', content_type: 'application/pdf', byte_size: 1_234_567, uploaded_at: '2026-10-28T10:00:00.000Z' };
-  assert.equal(receiptLineWords(r), 'Receipt: lunch.pdf · 1.2 MB · PDF');
-  assert.equal(receiptLineWords({ ...r, content_type: 'image/jpeg', byte_size: 48_100 }), 'Receipt: lunch.pdf · 48.1 KB · JPEG');
+  // DOCUMENTS-01b (Alex, 2026-10-30, ruling B): one unit — binary, as the cap is said (4 MiB). 1,234,567 bytes was '1.2 MB'; 48,100 was '48.1 KB'.
+  assert.equal(receiptLineWords(r), 'Receipt: lunch.pdf · 1.2 MiB · PDF');
+  assert.equal(receiptLineWords({ ...r, content_type: 'image/jpeg', byte_size: 48_100 }), 'Receipt: lunch.pdf · 47.0 KiB · JPEG');
   assert.equal(sizeWords(999), '999 B');
   const rows = [
     { journal_id: 'je-1', ...posted }, { journal_id: 'je-1', ...posted }, // one posting, two lines (debit and credit)
