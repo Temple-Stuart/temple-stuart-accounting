@@ -84,12 +84,14 @@ function inOrder(body: string, steps: readonly string[], what: string): void {
 
 test('T1 the migration: the newest; five nullable TEXT columns with no default; the evening not-blank CHECK DROPPED and re-ADDED in ONE statement over the eight; at-least-one DROPPED and re-ADDED in ONE statement, its last clause the eight; learned kept; no DROP COLUMN, no enum, no row', () => {
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 3], MIGRATION_DIR, 'the migration before the newest (BACKLOG-02 followed)');
+  // DOCUMENTS-02 (Alex, 2026-10-30): the reconciliation's supersession — the newest; every position above moved by one.
+  assert.equal(dirs[dirs.length - 4], MIGRATION_DIR, 'the migration before the newest (BACKLOG-02 followed)');
   // BACKLOG-02 (Alex, 2026-10-20): the reorder route's one audit value — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 2], '20261020160000_backlog_02_reranked', 'the migration before the newest (DOCUMENTS-01 followed)');
+  assert.equal(dirs[dirs.length - 3], '20261020160000_backlog_02_reranked', 'the migration before the newest (DOCUMENTS-01 followed)');
   // DOCUMENTS-01 (Alex, 2026-10-28): source_documents, the receipt on its posting — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 1], '20261028120000_documents_01_source_documents', 'the newest migration');
-  assert.equal(dirs[dirs.length - 4], '20261020140000_backlog_01b_brief', 'right after BACKLOG-01b’s');
+  assert.equal(dirs[dirs.length - 2], '20261028120000_documents_01_source_documents', 'the migration before the newest (DOCUMENTS-02 followed)');
+  assert.equal(dirs[dirs.length - 1], '20261030120000_documents_02_reconciliation_supersession', 'the newest migration');
+  assert.equal(dirs[dirs.length - 5], '20261020140000_backlog_01b_brief', 'right after BACKLOG-01b’s');
   const sql = code(MIGRATION);
   assert.match(sql, /ALTER TABLE "operations_day_journals"\n\s*ADD COLUMN "gaps"\s+TEXT,\n\s*ADD COLUMN "evolution" TEXT,\n\s*ADD COLUMN "direction" TEXT,\n\s*ADD COLUMN "alignment" TEXT,\n\s*ADD COLUMN "on_track"\s+TEXT;/, 'the five columns, nullable, no default');
   assert.doesNotMatch(sql, /NOT NULL|DEFAULT/, 'NULL is unanswered — no default, nothing required');

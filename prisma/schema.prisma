@@ -2413,6 +2413,16 @@ model closing_periods {
 // BANK RECONCILIATIONS — Per-account, per-period reconciliation records
 // ═══════════════════════════════════════════════════════════════════
 
+/// DOCUMENTS-02 (Alex, 2026-10-30, ruling D): a reconciled month is FROZEN and re-opened only by
+/// supersession — the source_documents pattern. HELD BY THE DATABASE
+/// (prisma/migrations/20261030120000_documents_02_reconciliation_supersession — Prisma cannot express a
+/// partial index or a trigger): ONE CURRENT row per (user, entity, account, year, month) — a partial unique
+/// over superseded_by IS NULL (the five-column @@unique that stood here lives there now); status is 'draft'
+/// or 'reconciled' (CHECK); a FREEZE trigger — a reconciled row changes only by superseded_by set once
+/// from NULL — and a NO-DELETE trigger. superseded_by's self reference is DEFERRABLE INITIALLY DEFERRED:
+/// a re-open marks the old row, then inserts the new one, in one transaction
+/// (src/app/api/bank-reconciliations/route.ts POST). The book side is the books (bankSide.ts), never
+/// accounts.currentBalance; the numbers stored are the server's (src/lib/books/reconciliation.ts).
 model bank_reconciliations {
   id                String    @id @default(uuid())
   userId            String
@@ -2432,13 +2442,17 @@ model bank_reconciliations {
   notes             String?
   created_at        DateTime  @default(now())
   updated_at        DateTime  @updatedAt
+  /// The row that re-opened this one; NULL while this row is the month's current reconciliation.
+  superseded_by     String?
 
   user    users    @relation(fields: [userId], references: [id])
   entity  entities @relation(fields: [entity_id], references: [id])
   account accounts @relation(fields: [account_id], references: [id])
+  superseded_by_row bank_reconciliations?  @relation("bank_reconciliation_supersede", fields: [superseded_by], references: [id], onDelete: Restrict)
+  supersedes        bank_reconciliations[] @relation("bank_reconciliation_supersede")
 
-  @@unique([userId, entity_id, account_id, year, month])
   @@index([userId, entity_id, status])
+  @@index([superseded_by])
 }
 
 // ═══════════════════════════════════════════════════════════════════

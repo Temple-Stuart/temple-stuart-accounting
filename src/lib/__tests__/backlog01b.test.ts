@@ -62,14 +62,16 @@ test('1 the migration adds the three columns and nothing else; the schema mirror
   assert.match(notes, /Alex, 15:27/);
   assert.match(notes, /CLEAN-03\s*\n?-- rules on dropping/);
   const dirs = readdirSync(resolve(process.cwd(), MIGRATIONS)).filter((d) => /^\d{14}_/.test(d)).sort();
-  assert.equal(dirs[dirs.length - 4], MIGRATION_DIR, 'the migration before the newest (JOURNAL-06 followed)');
+  assert.equal(dirs[dirs.length - 5], MIGRATION_DIR, 'the migration before the newest (JOURNAL-06 followed)');
   // JOURNAL-06 (Alex, 2026-10-20): the evening's five columns, the two CHECKs re-made — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 3], '20261020150000_journal_06_reflection', 'the migration before the newest (BACKLOG-02 followed)');
+  assert.equal(dirs[dirs.length - 4], '20261020150000_journal_06_reflection', 'the migration before the newest (BACKLOG-02 followed)');
   // BACKLOG-02 (Alex, 2026-10-20): the reorder route's one audit value — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 2], '20261020160000_backlog_02_reranked', 'the migration before the newest (DOCUMENTS-01 followed)');
+  assert.equal(dirs[dirs.length - 3], '20261020160000_backlog_02_reranked', 'the migration before the newest (DOCUMENTS-01 followed)');
   // DOCUMENTS-01 (Alex, 2026-10-28): source_documents, the receipt on its posting — the newest; every position above moved by one.
-  assert.equal(dirs[dirs.length - 1], '20261028120000_documents_01_source_documents', 'the newest migration');
-  assert.equal(dirs[dirs.length - 5], '20261020120000_backlog_01_capture', 'right after BACKLOG-01’s');
+  assert.equal(dirs[dirs.length - 2], '20261028120000_documents_01_source_documents', 'the migration before the newest (DOCUMENTS-02 followed)');
+  // DOCUMENTS-02 (Alex, 2026-10-30): the reconciliation's supersession — the newest; every position above moved by one.
+  assert.equal(dirs[dirs.length - 1], '20261030120000_documents_02_reconciliation_supersession', 'the newest migration');
+  assert.equal(dirs[dirs.length - 6], '20261020120000_backlog_01_capture', 'right after BACKLOG-01’s');
   const schema = code(SCHEMA);
   const model = schema.slice(schema.indexOf('model operations_projects {'), schema.indexOf('@@map("operations_projects")'));
   assert.match(model, /^\s+rulings\s+String\?\s+@db\.Text$/m);

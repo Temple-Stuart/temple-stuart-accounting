@@ -28,6 +28,7 @@
  *     empty after that is refused by name (400), never invented.
  */
 import { isReversedPosting, type PostingState } from '../calendar/postingAmount';
+import { periodRule, type Period } from './period';
 
 // ─── the limits ──────────────────────────────────────────────────────────────
 
@@ -52,23 +53,43 @@ export type ReceiptContentType = (typeof RECEIPT_CONTENT_TYPES)[number];
 /** The file input's accept attribute — the same three, never retyped. */
 export const RECEIPT_ACCEPT = RECEIPT_CONTENT_TYPES.join(',');
 
-/** The form's three fields — anything else in the body is refused by name. */
-export const UPLOAD_FIELDS = { file: 'file', entry: 'journal_entry_id', replace: 'replace' } as const;
+/**
+ * The form's fields — anything else in the body is refused by name. A receipt names its posting
+ * (journal_entry_id); a statement its account and month (account_id + period 'YYYY-MM') — DOCUMENTS-02
+ * (Alex, 2026-10-30, ruling A): exactly one address, else 400 by name.
+ */
+export const UPLOAD_FIELDS = { file: 'file', entry: 'journal_entry_id', account: 'account_id', period: 'period', replace: 'replace' } as const;
 
-/** The list read's columns: the metadata, and never `bytes` (ruling C; the build's documents law). */
+/** A document's address: the posting it is the receipt of, or the account-month it is the statement of. */
+export type DocumentAddress = { readonly journal_entry_id: string } | { readonly account_id: string; readonly period: string };
+
+/**
+ * The list read's columns: the metadata, and never `bytes` (ruling C; the build's documents law).
+ * DOCUMENTS-02: account_id and period_month ride along — a statement's row says which month it is.
+ */
 export const SOURCE_DOCUMENT_LIST_SELECT = {
-  id: true, journal_entry_id: true, file_name: true, content_type: true, byte_size: true, uploaded_at: true,
+  id: true, journal_entry_id: true, account_id: true, period_month: true, file_name: true, content_type: true, byte_size: true, uploaded_at: true,
 } as const;
 
-/** What the list answers per receipt. */
+/** What the list answers per document: a receipt carries journal_entry_id, a statement account_id and period_month ('YYYY-MM-01'). */
 export interface ReceiptMeta {
   readonly id: string;
-  readonly journal_entry_id: string;
+  readonly journal_entry_id: string | null;
+  readonly account_id: string | null;
+  readonly period_month: string | null;
   readonly file_name: string;
   readonly content_type: string;
   readonly byte_size: number;
   readonly uploaded_at: string;
 }
+
+/** A list row as Prisma reads it (SOURCE_DOCUMENT_LIST_SELECT), on the wire: the instant as ISO, the month as its UTC day. */
+export function documentMetaOf(row: Omit<ReceiptMeta, 'uploaded_at' | 'period_month'> & { readonly uploaded_at: Date; readonly period_month: Date | null }): ReceiptMeta {
+  return { ...row, uploaded_at: row.uploaded_at.toISOString(), period_month: row.period_month === null ? null : row.period_month.toISOString().slice(0, 10) };
+}
+
+/** A @db.Date's value on the way in: the day at UTC midnight, written as a string — never a Date built in a zone. */
+export const dateColumnOf = (day: string): string => `${day}T00:00:00.000Z`;
 
 // ─── the words ───────────────────────────────────────────────────────────────
 
@@ -90,9 +111,20 @@ export const REPLACED_MEANWHILE_WORDS = 'the receipt was replaced while you chos
 export const BAD_REPLACE_WORDS = "replace is 'true' or absent";
 export const BAD_FORM_WORDS = 'the upload is not a form with one file (multipart/form-data)';
 export const RATE_WORDS = 'too many uploads this hour — try again later';
-export const LIST_ONE_OF_WORDS = 'name the postings: entry=<id> or entries=<id,id,…>, one of the two';
+export const LIST_ONE_OF_WORDS = 'name the postings: entry=<id> or entries=<id,id,…>, or the statements: account=<id>&periods=YYYY-MM,… — one of the three';
 export const RECEIPT_WORDS = 'Receipt';
 export const NO_RECEIPT_WORDS = 'No receipt';
+// DOCUMENTS-02 (Alex, 2026-10-30, ruling A): the statement's words and its address's refusals.
+export const STATEMENT_WORDS = 'Statement';
+export const NO_STATEMENT_WORDS = 'No statement';
+export const STATEMENTS_LOADING_WORDS = 'reading the statements…';
+export const ONE_ADDRESS_WORDS = 'say what the document is for: journal_entry_id (a receipt), or account_id with period (a statement) — one of the two';
+export const NO_ACCOUNT_WORDS = 'say which account the statement is for (account_id)';
+export const NOT_YOUR_ACCOUNT_WORDS = 'no account of yours has that id';
+export const NOT_DEPOSITORY_WORDS = 'that account is not a bank (depository) account — a statement is a bank account’s';
+export const HAS_STATEMENT_WORDS = 'this month has a statement — replace it';
+export const NOTHING_TO_REPLACE_STATEMENT_WORDS = 'this month has no statement to replace — attach one';
+export const STATEMENT_REPLACED_MEANWHILE_WORDS = 'the statement was replaced while you chose the file — read the month again';
 export const ATTACH_WORDS = 'attach';
 export const REPLACE_WORDS = 'replace';
 export const OPEN_WORDS = 'open';
@@ -135,6 +167,21 @@ export function typeWords(contentType: string): string {
 export function receiptLineWords(r: Pick<ReceiptMeta, 'file_name' | 'byte_size' | 'content_type'>): string {
   return `${RECEIPT_WORDS}: ${r.file_name} · ${sizeWords(r.byte_size)} · ${typeWords(r.content_type)}`;
 }
+
+/** The reconciliation's line for a kept statement: "Statement: <name> · 1.2 MiB · PDF" (DOCUMENTS-02). */
+export function statementLineWords(r: Pick<ReceiptMeta, 'file_name' | 'byte_size' | 'content_type'>): string {
+  return `${STATEMENT_WORDS}: ${r.file_name} · ${sizeWords(r.byte_size)} · ${typeWords(r.content_type)}`;
+}
+
+/** The words a document kind speaks on its line and in its panel — the one place they are chosen. */
+export interface DocumentKindWords {
+  readonly noun: string;
+  readonly none: string;
+  readonly loading: string;
+  readonly line: (r: Pick<ReceiptMeta, 'file_name' | 'byte_size' | 'content_type'>) => string;
+}
+export const RECEIPT_KIND_WORDS: DocumentKindWords = { noun: RECEIPT_WORDS, none: NO_RECEIPT_WORDS, loading: RECEIPTS_LOADING_WORDS, line: receiptLineWords };
+export const STATEMENT_KIND_WORDS: DocumentKindWords = { noun: STATEMENT_WORDS, none: NO_STATEMENT_WORDS, loading: STATEMENTS_LOADING_WORDS, line: statementLineWords };
 
 // ─── the refusals ────────────────────────────────────────────────────────────
 
@@ -231,6 +278,41 @@ export function currentRule(hasCurrent: boolean, replace: boolean): { ok: true }
   return { ok: true };
 }
 
+/** One current statement per account-month — the same rule in the month's words (DOCUMENTS-02). */
+export function statementCurrentRule(hasCurrent: boolean, replace: boolean): { ok: true } | Refusal {
+  if (hasCurrent && !replace) return refuse(409, HAS_STATEMENT_WORDS);
+  if (!hasCurrent && replace) return refuse(409, NOTHING_TO_REPLACE_STATEMENT_WORDS);
+  return { ok: true };
+}
+
+/** The statement's account: the caller's (404), and a bank (depository) account (409) — DOCUMENTS-02 ruling A. */
+export function statementAccountRule<T extends { readonly type: string }>(account: T | null): { ok: true; account: T } | Refusal {
+  if (account === null) return refuse(404, NOT_YOUR_ACCOUNT_WORDS);
+  if (account.type !== 'depository') return refuse(409, NOT_DEPOSITORY_WORDS);
+  return { ok: true, account };
+}
+
+/**
+ * The upload form's address — exactly one: journal_entry_id (a receipt), or account_id + period (a statement).
+ * Each field at most once, non-blank; the period 'YYYY-MM' (period.ts); the posting id a uuid.
+ */
+export function uploadAddressRule(fields: { readonly entry: readonly FormDataEntryValue[]; readonly account: readonly FormDataEntryValue[]; readonly period: readonly FormDataEntryValue[] }):
+  { ok: true; address: { kind: 'receipt'; entryId: string } | { kind: 'statement'; accountId: string; period: Period } } | Refusal {
+  const one = (v: readonly FormDataEntryValue[]): string | null => (v.length === 1 && typeof v[0] === 'string' && v[0].trim() !== '' ? v[0].trim() : null);
+  const entry = one(fields.entry), account = one(fields.account), period = one(fields.period);
+  const named = (fields.entry.length > 0 ? 1 : 0) + (fields.account.length > 0 || fields.period.length > 0 ? 1 : 0);
+  if (named !== 1) return refuse(400, ONE_ADDRESS_WORDS);
+  if (fields.entry.length > 0) {
+    if (entry === null) return refuse(400, NO_ENTRY_WORDS);
+    if (!UUID.test(entry)) return refuse(400, BAD_ENTRY_WORDS);
+    return { ok: true, address: { kind: 'receipt', entryId: entry } };
+  }
+  if (account === null) return refuse(400, NO_ACCOUNT_WORDS);
+  const p = periodRule(period);
+  if (!p.ok) return p;
+  return { ok: true, address: { kind: 'statement', accountId: account, period: p.value } };
+}
+
 /** The replace flag: absent, or 'true' — any other word is refused, never read as a guess. */
 export function replaceRule(raw: FormDataEntryValue | null): { ok: true; replace: boolean } | Refusal {
   if (raw === null) return { ok: true, replace: false };
@@ -250,6 +332,32 @@ export function listInput(entry: string | null, entries: string | null): { ok: t
   if (bad !== undefined) return refuse(400, badListIdWords(bad));
   if (ids.length > MAX_ENTRIES_PER_READ) return refuse(400, tooManyEntriesWords(ids.length));
   return { ok: true, ids };
+}
+
+export const tooManyMonthsWords = (n: number): string => `${n} months named — at most ${MAX_ENTRIES_PER_READ} in one read`;
+
+/**
+ * DOCUMENTS-02 (ruling A): the list read names postings (entry= / entries=) OR an account's months
+ * (account=<id>&periods=YYYY-MM,…) — one of the three readers, else 400 by name. Months each once, at most 200.
+ */
+export function documentsListInput(q: { readonly entry: string | null; readonly entries: string | null; readonly account: string | null; readonly periods: string | null }):
+  { ok: true; kind: 'receipt'; ids: string[] } | { ok: true; kind: 'statement'; accountId: string; months: Period[] } | Refusal {
+  const postings = q.entry !== null || q.entries !== null;
+  const statements = q.account !== null || q.periods !== null;
+  if (postings === statements) return refuse(400, LIST_ONE_OF_WORDS);
+  if (postings) {
+    const input = listInput(q.entry, q.entries);
+    return input.ok ? { ok: true, kind: 'receipt', ids: input.ids } : input;
+  }
+  if (q.account === null || q.account.trim() === '' || q.periods === null) return refuse(400, LIST_ONE_OF_WORDS);
+  const months: Period[] = [];
+  for (const raw of new Set(q.periods.split(',').map((s) => s.trim()))) {
+    const p = periodRule(raw);
+    if (!p.ok) return p;
+    months.push(p.value);
+  }
+  if (months.length > MAX_ENTRIES_PER_READ) return refuse(400, tooManyMonthsWords(months.length));
+  return { ok: true, kind: 'statement', accountId: q.account.trim(), months };
 }
 
 /** The ledger's pages of ids — each at most MAX_ENTRIES_PER_READ, every id once, in order. */

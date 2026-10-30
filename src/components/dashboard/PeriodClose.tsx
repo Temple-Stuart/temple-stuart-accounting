@@ -9,10 +9,11 @@ interface Transaction {
   accountCode: string | null;
 }
 
+/** DOCUMENTS-02 (Alex, 2026-10-30, ruling F): a reconciliation's period is a month on the wire — 'YYYY-MM', read by string. */
 interface Reconciliation {
   id: string;
   accountId: string;
-  periodEnd: string;
+  period: string;
   status: string;
 }
 
@@ -69,15 +70,13 @@ export default function PeriodClose({ transactions, reconciliations, periodClose
     return counts;
   }, [transactions, selectedYear]);
 
-  // Check if month is reconciled (has at least one reconciled account for that period)
+  // Check if month is reconciled (has at least one reconciled account for that period).
+  // DOCUMENTS-02: the period is 'YYYY-MM' — its year and month read by string, never through a Date in a zone.
   const reconciledMonths = useMemo(() => {
     const months = new Set<number>();
     reconciliations.forEach(r => {
-      if (r.status === 'reconciled') {
-        const d = new Date(r.periodEnd);
-        if (d.getFullYear() === selectedYear) {
-          months.add(d.getMonth());
-        }
+      if (r.status === 'reconciled' && Number(r.period.slice(0, 4)) === selectedYear) {
+        months.add(Number(r.period.slice(5, 7)) - 1);
       }
     });
     return months;
