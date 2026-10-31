@@ -238,7 +238,8 @@ import {
 } from '@/lib/operations/journal';
 import { DONE_WORD, NOT_RECORDED_WORDS, SKIPPED_WORD, starsWords, type StopRecordPlan, type StopRecordRow } from '@/lib/operations/stopRecord';
 import { ALSO_TODAY_WORDS, allDayBandWords, allDayCentsWords } from '@/lib/operations/stopRole';
-import { BACKLOG_READ_NAME, MOVED_READ_NAME, readBacklog, readDayReport, readJournal, readMovedToday, readStays, readStopRecords, type JournalAnswer, type StaysAnswer, type StopRecordsAnswer } from './dayReads';
+import type { TravelDay } from '@/lib/operations/travelDay';
+import { BACKLOG_READ_NAME, MOVED_READ_NAME, readBacklog, readDayReport, readJournal, readMovedToday, readStays, readStopRecords, readTravelDay, type JournalAnswer, type StaysAnswer, type StopRecordsAnswer } from './dayReads';
 import {
   ACTUAL_WORD, BADGE_WORDS, BRAND_WORDS, PLAN_WORD, TASK_WORD, TODAY_WORD, badDateWords, badStepWords, completenessWords, dayStops, deltaWords, focusStop,
   bandNameOf, headerWords, heroWord, HOOK_WORDS, linesUnreadWords, linesWithoutStopWords, minutesLine, notPlacedWords, planDollars, progressPercent, provenanceWords,
@@ -253,6 +254,7 @@ import {
   type DeltaWords, type ReelReads, type ReelText,
   DAY_CARD_PATH,
   DECK_FULL_CARD_WORDS, SWIPE_HINT_WORDS, journalHeaderWords, journalImageName, openJournalWords,
+  NOT_JOINED_WORDS, travelArrivalWords, travelClockWords, travelLineWords, travelMatchWords, travelPriceWords, travelRecordWords, travelSaidWords, travelSmallWords, travelStatusLineWords, travelTotals,
   type Focus, type StayState, type Stop,
 } from './dayCard';
 
@@ -270,6 +272,8 @@ const boldOf = (s: Stop): string => stopName(s);
 function smallOf(s: Stop): string | null {
   if (s.kind === 'task') return TASK_WORD;
   if (s.kind === 'routine') return null;
+  // TRAVEL-01b: the kind and the source under a travel stop's name ("Flight · segment").
+  if (s.kind === 'travel') return travelSmallWords(s);
   return s.label;
 }
 
@@ -517,6 +521,9 @@ export default function DayCard() {
   // STOP-01: the records, the same way — kept with their day, read again after a write from the form under the plate.
   const [records, setRecords] = useState<{ readonly day: string; readonly read: Read<StopRecordsAnswer> } | null>(null);
   const [recordReads, setRecordReads] = useState(0);
+  // TRAVEL-01b (Alex, 2026-10-31, ruling A): the day's travel facts as stated — the ninth read, kept WITH its day as the records are;
+  // read again after a write the card knows of (dayWrites). The deck waits for it as it waits for the records: a travel stop is one of its cards.
+  const [travel, setTravel] = useState<{ readonly day: string; readonly read: Read<TravelDay> } | null>(null);
   // ROLE-01: the report read again after a vendor is planned from the step card — in place, never blanking the plate first.
   const [reportReads, setReportReads] = useState(0);
   // JOURNAL-01: the day's journal and yesterday's — each kept WITH the card's day it was read for; the journal
@@ -617,6 +624,17 @@ export default function DayCard() {
     return () => { live = false; };
   }, [day, recordReads, dayWrites]);
 
+  // TRAVEL-01b: the travel-day read, the same way — with its day, under the live guard.
+  useEffect(() => {
+    if (day === null) return;
+    let live = true;
+    (async () => {
+      const t = await readTravelDay(day);
+      if (live) setTravel({ day, read: t });
+    })();
+    return () => { live = false; };
+  }, [day, dayWrites]);
+
   useEffect(() => {
     if (day === null || today === null || reportReads === 0) return;
     let live = true;
@@ -686,7 +704,11 @@ export default function DayCard() {
   const recordsRead = records !== null && records.day === day ? records.read : null;
   const recordRows = recordsRead !== null && recordsRead.ok ? recordsRead.value.records : null;
   const unplacedRecords = recordsRead !== null && recordsRead.ok ? recordsRead.value.unplaced : [];
-  const loaded = dayRead !== null && report !== null && items !== null && recordsRead !== null;
+  // TRAVEL-01b: the travel covering THIS day — unread (in flight, or read for another day), failed, or read; null to dayStops while not read.
+  const travelRead = travel !== null && travel.day === day ? travel.read : null;
+  const travelRows = travelRead !== null && travelRead.ok ? travelRead.value : null;
+  const travelOk = travelRead !== null && travelRead.ok;
+  const loaded = dayRead !== null && report !== null && items !== null && recordsRead !== null && travelRead !== null;
   const dayFailed = dayRead !== null && !dayRead.ok;
   const entries = dayRead !== null && dayRead.ok ? dayRead.value.entries : [];
   const refused = dayRead !== null && dayRead.ok ? dayRead.value.refused : [];
@@ -696,7 +718,7 @@ export default function DayCard() {
   const strandedRows = strandedRowsOf(plans);
   const notPlaced = report !== null && report.ok ? report.value.notPlaced : [];
   const dayItems = items !== null && items.ok ? items.value : [];
-  const result = dayStops({ day, entries, lines, notPlaced, items: dayItems, viewerZone: zone, records: recordRows });
+  const result = dayStops({ day, entries, lines, notPlaced, items: dayItems, viewerZone: zone, records: recordRows, travel: travelRows });
   // The hero is the Budget's figure — '—' while the report cannot be read, never a sum of the stops.
   const plannedCents = report !== null && report.ok ? result.plannedCents : null;
 
@@ -720,7 +742,7 @@ export default function DayCard() {
   const deckIndex = deckStop === null ? 0 : (n as number);
   const reportRead = report !== null && report.ok;
   const recordsOk = recordsRead !== null && recordsRead.ok;
-  const completeness = completenessWords(result, { day: !dayFailed, report: reportRead, records: recordsOk });
+  const completeness = completenessWords(result, { day: !dayFailed, report: reportRead, records: recordsOk, travel: travelOk });
   // CLEAN-01 (2026-10-14): the full card's spent — unknown ('—', null) while the records are unread or no stop carries an actual (PLAN-01: never $0);
   // the meter against the planned total, and the verdict only once every stop that asks an amount carries one.
   // TOTALS-01 (2026-10-14): the TOTAL row's figures (dayTotals) — the spent is its ACTUAL total, one rule for the row and the meter.
@@ -731,6 +753,8 @@ export default function DayCard() {
   const spent = totals.actualCents;
   const meter = dayMeter(spent, totals.budgetCents);
   const verdict = dayVerdict(result, totals.budgetCents);
+  // TRAVEL-01b (ruling F): the TRAVEL line(s) under the TOTAL row — per currency present, never into the TOTAL (dayTotals sees no travel figure).
+  const travelLines = travelLineWords(travelTotals(result.stops));
   // PLAN-01 (2026-10-13): two bars on the step view against the day's planned total — PLAN (gold) the planned money of stops 1..n,
   // SPENT (green) their actuals. No spent bar while the records are unread or nothing so far carries an actual (unknown, not zero).
   // TOTALS-01 amendment II (Alex, 2026-10-15): against the TOTAL row's BUDGET (totals.budgetCents), as the meter and the verdict are —
@@ -801,6 +825,8 @@ export default function DayCard() {
     report: report === null ? 'waiting' : report.ok && report.value.plans.listed ? 'ok' : 'failed',
     records: recordsRead === null ? 'waiting' : recordsRead.ok ? 'ok' : 'failed',
     stay: staysRead === null ? 'waiting' : staysRead.ok ? 'ok' : 'failed',
+    // TRAVEL-01b (ruling A): the travel, every day — the reel waits for it as it waits for the others.
+    travel: travelRead === null ? 'waiting' : travelRead.ok ? 'ok' : 'failed',
     journal: !hasJournalStop ? null : journalRead === null ? 'waiting' : journalRead.ok ? 'ok' : 'failed',
     // WORK-03 (Alex, 2026-10-26): the backlog, on a day with an execute stop — in once it carries the day's done tasks (read with the window).
     backlog: !hasExecuteStop ? null : backlog === null || backlog.day !== day ? 'waiting' : !backlog.read.ok ? 'failed' : carriesDoneTasks(backlog.read.value) ? 'ok' : 'waiting',
@@ -837,7 +863,8 @@ export default function DayCard() {
     return { ok: true, text: reflectionPromptText({
       dayWords: dayShortWords(day),
       journal: reelJournal,
-      stops: result.stops.map((s) => (asksAmount(s.role)
+      // TRAVEL-01b: a travel stop is not a budget-vs-actual line — the prompt lists the routines' and tasks' stops, as the TOTAL row does.
+      stops: result.stops.filter((s) => s.kind !== 'travel').map((s) => (asksAmount(s.role)
         ? { name: stopName(s), vendor: s.vendor, asksAmount: true, budgetWords: factOf(s.cents === null ? null : planDollars(s.cents)), actualWords: s.status === 'skipped' ? SKIPPED_WORD : s.actualCents === null ? factOf(null) : rowActualWords(s.actualCents, s.cents) }
         : { name: stopName(s), vendor: s.vendor, asksAmount: false, outcomeWords: s.status === 'done' ? DONE_WORD : s.status === 'skipped' ? SKIPPED_WORD : NOT_RECORDED_WORDS })),
       budgetWords: factOf(totals.budgetCents === null ? null : planDollars(totals.budgetCents)),
@@ -932,7 +959,32 @@ export default function DayCard() {
     );
   };
 
-  /** The full card: where, the hero, the hook, the table with its TOTAL row, the meter and the verdict, the all-day band. */
+  /**
+   * TRAVEL-01b (Alex, 2026-10-31, ruling G): a travel stop's card — the kind and the name (a flight's route as the booking states
+   * it), the stated clock ('as the airline states it' for a segment), the arrival when stated, the stated price through the one
+   * function or 'price not stated', the booking status, the match line (the matched bank figure on its day, else the leaf's bank
+   * words), the leaf's said words, and the closing sentence: the booking is the record — nothing to tick (a planned row: planned —
+   * not a booking). No amount input, no ✓ done, no rating, no skip, no bars: every word is dayCard.ts's.
+   */
+  const travelPlate = (stop: Stop) => (
+    <div className="flex flex-col" style={{ gap: 13 }} data-day-focus data-day-travel>
+      <div className="flex flex-col pt-1" style={{ gap: 4 }}>
+        <div className="font-extrabold text-text-primary break-words" style={{ fontSize: 43, lineHeight: 1, letterSpacing: '-0.01em' }} data-day-bold>{boldOf(stop)}</div>
+        <div className="font-medium text-text-muted break-words" style={{ fontSize: 27, lineHeight: 1.1 }} data-day-small>{travelSmallWords(stop)}</div>
+      </div>
+      <div className="flex flex-col border-t border-border" style={{ gap: 6, paddingTop: 13 }}>
+        <div className="font-semibold text-text-primary break-words" style={plateLine} data-day-travel-clock>{travelClockWords(stop)}</div>
+        {travelArrivalWords(stop) !== null && <div className="font-medium text-text-secondary break-words" style={plateSmall} data-day-travel-arrival>{travelArrivalWords(stop)}</div>}
+        <div className="font-extrabold text-text-primary tabular-nums break-words" style={{ fontSize: 37, lineHeight: 1 }} data-day-travel-price>{travelPriceWords(stop)}</div>
+        {travelStatusLineWords(stop) !== null && <div className="font-medium text-text-secondary break-words" style={plateSmall} data-day-travel-status>{travelStatusLineWords(stop)}</div>}
+        {travelMatchWords(stop) !== null && <div className="font-medium text-text-secondary break-words" style={plateSmall} data-day-travel-match>{travelMatchWords(stop)}</div>}
+        {travelSaidWords(stop) !== null && <div className="font-medium text-text-muted break-words" style={plateSmall} data-day-travel-said>{travelSaidWords(stop)}</div>}
+      </div>
+      <div className="font-medium text-text-muted border-t border-border break-words" style={{ ...plateSmall, paddingTop: 13 }} data-day-travel-record>{travelRecordWords(stop)}</div>
+    </div>
+  );
+
+  /** The full card: where, the hero, the hook, the table with its TOTAL row (TRAVEL-01b: the TRAVEL lines under it), the meter and the verdict, the all-day band. */
   const fullPlate = (
     <>
       {/* CLEAN-01 (2026-10-14): the order, top to bottom — where, the hero, the hook, the spent line, the meter, the verdict, the table.
@@ -1007,6 +1059,12 @@ export default function DayCard() {
                   <span className={`block font-extrabold tabular-nums ${totals.actualCents === null ? 'text-text-faint' : actualTone(totals.over)}`} style={{ fontSize: 19, lineHeight: 1.1 }} data-day-total-actual>{planDollars(totals.actualCents)}</span>
                 </td>
               </tr>
+              {/* TRAVEL-01b (Alex, 2026-10-31, ruling F): one TRAVEL line per currency present, under the TOTAL row — the stated prices by their own code, never into the TOTAL, never converted. */}
+              {travelLines.map((line) => (
+                <tr key={line} className="border-t border-border align-top" data-day-travel-line>
+                  <td colSpan={5} className="text-left font-bold text-text-secondary tabular-nums break-words" style={{ fontSize: 15, lineHeight: 1.2, padding: CELL_PADDING }}>{line}</td>
+                </tr>
+              ))}
             </tfoot>
           </table>
           <div className="border-t border-border" aria-hidden="true" />
@@ -1029,7 +1087,8 @@ export default function DayCard() {
               <span className={`font-bold tabular-nums shrink-0 ${s.cents === null ? 'text-text-faint' : 'text-text-secondary'}`} style={{ fontSize: 23, lineHeight: 1.1 }} data-day-all-day-amount>{planDollars(s.cents)}</span>
             </div>
           ))}
-          <div className="font-medium text-text-muted" style={{ fontSize: 20, lineHeight: 1.2 }} data-day-all-day-words>{allDayBandWords(result.allDay.filter((s) => s.cents === null).length)}</div>
+          {/* TRAVEL-01b: a planned stay on the band carries no plan line — it is not "with no amount, not in the plan"; the count is the all-day lines'. */}
+          <div className="font-medium text-text-muted" style={{ fontSize: 20, lineHeight: 1.2 }} data-day-all-day-words>{allDayBandWords(result.allDay.filter((s) => s.kind !== 'travel' && s.cents === null).length)}</div>
         </div>
       )}
     </>
@@ -1078,7 +1137,7 @@ export default function DayCard() {
             <Plate key="all" plateRef={(el) => { plateRefs.current[0] = el; }} right={headerWords(stayState, day)}>{fullPlate}</Plate>,
             ...deckStops.map(({ stop, at }, i) => (
               <Plate key={stop.key} plateRef={(el) => { plateRefs.current[i + 1] = el; }} step={i + 1} right={stepHeaderWords(i + 1, N, stop.time)}>
-                {stopPlate(focusOf(at))}
+                {stop.kind === 'travel' ? travelPlate(stop) : stopPlate(focusOf(at))}
               </Plate>
             )),
           ]}
@@ -1118,6 +1177,10 @@ export default function DayCard() {
           {focus === null && totals.beyondCents !== null && <p data-day-beyond>{planBeyondStopsWords(totals.beyondCents)}</p>}
           {/* TOTALS-01 amendment II (2026-10-15): why there are no bars, now that they measure the TOTAL row's BUDGET (barsWhyWords) — a day whose plan is all off the table says so, never "nothing is planned". */}
           {focus !== null && planBar === null && <p data-day-bars-why>{barsWhyWords(plannedCents, totals.budgetCents)}</p>}
+          {/* TRAVEL-01b (ruling D): a planned flight and a booked flight on one day are not joined — said once. */}
+          {focus === null && result.travelNotJoined && <p data-day-travel-not-joined>{NOT_JOINED_WORDS}</p>}
+          {/* TRAVEL-01b (ruling A): a failed travel read is named by name — never an empty day passed off as no travel. */}
+          {travelRead !== null && !travelRead.ok && <p className="text-brand-red" data-day-travel-failed>{travelRead.words}</p>}
           <p className="font-mono" data-day-provenance>{provenanceWords(today, reportRead, recordsOk)}</p>
         </div>
       )}

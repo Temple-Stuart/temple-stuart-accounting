@@ -91,9 +91,11 @@ const gym = routine({ id: 'gym', name: 'Gym', location: 'Fitness First', schedul
 const GYM_AT = '2026-10-11T13:00:00.000Z';
 
 /** records: null — not read (STOP-01); the record-side rules are stop01.test.ts's. */
-const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: null, ...over });
+// TRAVEL-01b (Alex, 2026-10-31): the input gains `travel` (the ninth read) — null here, as the records are: unknown, never none.
+const input = (over: Partial<DayCardInput> = {}): DayCardInput => ({ day: DAY, entries: [], lines: [], notPlaced: [], items: [], viewerZone: BKK, records: null, travel: null, ...over });
 /** STOP-01: what every stop carries when the records were not read — the status its routine's (or the task's), nothing recorded. */
-const unrecorded = (statusSource: 'routine' | 'task' = 'routine') => ({ statusSource, record: null, actualCents: null, actualSource: null, doneAt: null, lateMinutes: null, actualMinutes: null, role: 'none' as const, planLine: null, planLineState: 'none' as const });
+// TRAVEL-01b (Alex, 2026-10-31): a Stop gains `travel` (a travel stop's own facts) — null for every other kind; the pins below moved with it.
+const unrecorded = (statusSource: 'routine' | 'task' = 'routine') => ({ statusSource, record: null, actualCents: null, actualSource: null, doneAt: null, lateMinutes: null, actualMinutes: null, role: 'none' as const, planLine: null, planLineState: 'none' as const, travel: null });
 
 /** Each step found AFTER the one before it — a missing or out-of-order step fails by name (TABLE-01). */
 function inOrderOf(body: string, steps: readonly string[], what: string): void {
@@ -456,7 +458,8 @@ test('T3 the reel plate’s words, exact (DAYCARD-01b): whole dollars, the day o
   // The completeness line counts; the sentences name.
   // VENDOR-02 (2026-10-14): completenessWords lost its stranded count (the second argument) — every call below moved
   // with it; the words are the same but for "vendors stranded", which left the line (Alex's ruling: Budget's to show and clear).
-  const READ = { day: true, report: true, records: true };
+  // TRAVEL-01b (Alex, 2026-10-31): completenessWords reads the travel read's state too — `travel: true` here keeps every word below as it was (travel01b.test.ts pins 'travel not read').
+  const READ = { day: true, report: true, records: true, travel: true };
   const empty = dayStops(input({ records: [] }));
   assert.equal(completenessWords(empty, READ), null);
   // What was not read is unknown, not zero: said as such, never counted.
@@ -464,7 +467,7 @@ test('T3 the reel plate’s words, exact (DAYCARD-01b): whole dollars, the day o
   assert.equal(completenessWords(dayStops(input({ entries: [entry(morning)], records: [] })), { ...READ, report: false }), 'amounts not read · 3 not recorded', 'three unpriced stops are not "3 not priced" while the amounts were not read');
   const unread = dayStops(input({ lines: [line({ address: { kind: 'routine_line', id: 'coffee', instant: AT }, cents: 500, label: 'Morning', line: 'Coffee' })], records: [] }));
   assert.equal(completenessWords(unread, { ...READ, day: false }), 'stops not read · 1 line, its stop not read');
-  assert.equal(completenessWords(empty, { day: false, report: false, records: false }), 'stops not read · amounts not read · records not read');
+  assert.equal(completenessWords(empty, { day: false, report: false, records: false, travel: true }), 'stops not read · amounts not read · records not read');
   assert.equal(completenessWords(dayStops(input({ entries: [entry(morning)] })), { ...READ, records: false }), 'records not read · 3 not priced', 'three unrecorded stops are not "3 not recorded" while the records were not read (STOP-01) — their prices were read, so "3 not priced" stands');
   const r = dayStops(input({
     entries: [entry(morning)],
@@ -516,7 +519,8 @@ test('T4 readJson is the week’s, exported; readDayReport asks the one URL and 
   assert.match(code(CARD), /import \{ readDay, readItems, type DayAnswer, type Read \} from '\.\.\/week\/weekReads';/);
   // JOURNAL-01 (2026-10-13): the journal read joins the line — the pin moved with it.
   // JOURNAL-06 (Alex, 2026-10-20): the reflection prompt's two reads and their names joined the import — the pin moved with it, as exact.
-  assert.match(code(CARD), /import \{ BACKLOG_READ_NAME, MOVED_READ_NAME, readBacklog, readDayReport, readJournal, readMovedToday, readStays, readStopRecords, type JournalAnswer, type StaysAnswer, type StopRecordsAnswer \} from '\.\/dayReads';/);
+  // TRAVEL-01b (Alex, 2026-10-31): the travel-day read joins the import — the pin moved with it, as exact.
+  assert.match(code(CARD), /import \{ BACKLOG_READ_NAME, MOVED_READ_NAME, readBacklog, readDayReport, readJournal, readMovedToday, readStays, readStopRecords, readTravelDay, type JournalAnswer, type StaysAnswer, type StopRecordsAnswer \} from '\.\/dayReads';/);
   assert.match(reads, /await readJson\(`\/api\/operations\/stops\?\$\{new URLSearchParams\(\{ day \}\)\.toString\(\)\}`\)/, 'the records read, through the one reader (STOP-01)');
   assert.match(reads, /await readJson\(`\/api\/operations\/stays\?\$\{new URLSearchParams\(\{ day \}\)\.toString\(\)\}`\)/, 'the stays read, through the one reader (STAY-01)');
   for (const f of [CARD, RULES]) assert.doesNotMatch(code(f), /\bfetch\s*\(/, `${f} fetches nothing of its own`);
@@ -577,7 +581,8 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   // DECK-01 (Alex, 2026-10-16): the header words are handed to each Plate — the full card's count the stay (STAY-01); a stop card's count
   // the deck's stops (i + 1 OF N, the journal not one); the journal card's are the time alone.
   assert.match(c, /<Plate key="all" plateRef=\{\(el\) => \{ plateRefs\.current\[0\] = el; \}\} right=\{headerWords\(stayState, day\)\}>\{fullPlate\}<\/Plate>,/, 'the header counts the stay (STAY-01)');
-  assert.match(c, /<Plate key=\{stop\.key\} plateRef=\{\(el\) => \{ plateRefs\.current\[i \+ 1\] = el; \}\} step=\{i \+ 1\} right=\{stepHeaderWords\(i \+ 1, N, stop\.time\)\}>\n\s*\{stopPlate\(focusOf\(at\)\)\}\n\s*<\/Plate>/, 'a stop card: n OF N of the deck, its time');
+  // TRAVEL-01b (Alex, 2026-10-31): a travel stop's card is the travel plate (ruling G); every other stop's the stop plate. Moved, not loosened.
+  assert.match(c, /<Plate key=\{stop\.key\} plateRef=\{\(el\) => \{ plateRefs\.current\[i \+ 1\] = el; \}\} step=\{i \+ 1\} right=\{stepHeaderWords\(i \+ 1, N, stop\.time\)\}>\n\s*\{stop\.kind === 'travel' \? travelPlate\(stop\) : stopPlate\(focusOf\(at\)\)\}\n\s*<\/Plate>/, 'a stop card: n OF N of the deck, its time');
   assert.match(c, /<Plate plateRef=\{\(el\) => \{ journalPlateRef\.current = el; \}\} journal right=\{journalHeaderWords\(journalStop\.time\)\}>/, 'the journal card: the time alone');
   // The stays are kept WITH the day they were read for: a day change never pairs the old answer with the new day (that pairing threw).
   assert.match(c, /useState<\{ readonly day: string; readonly read: Read<StaysAnswer> \} \| null>\(null\)/);
@@ -624,7 +629,8 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   assert.doesNotMatch(row![1], /<button[^>]*onClick/, 'the button has no handler of its own — its click reaches the row’s one onClick, so a step opens once');
   assert.match(row![1], /\{smallOf\(s\) !== null && <span className="block font-medium text-text-muted break-words" style=\{\{ fontSize: 14, lineHeight: 1\.15 \}\} data-day-small>\{smallOf\(s\)\}<\/span>\}/, 'the routine under its line');
   assert.match(c, /const factOf = \(fact: string \| null\): string => \(fact === null \? '—' : fact\);/);
-  assert.match(c, /function smallOf\(s: Stop\): string \| null \{\n\s*if \(s\.kind === 'task'\) return TASK_WORD;\n\s*if \(s\.kind === 'routine'\) return null;\n\s*return s\.label;\n\}/, 'the small text names no place — the vendor and the location have their columns');
+  // TRAVEL-01b (Alex, 2026-10-31): a travel stop's small text is its kind and its source (travelSmallWords) — still no place ({ } is its dated comment once stripped). Moved, not loosened.
+  assert.match(c, /function smallOf\(s: Stop\): string \| null \{\n\s*if \(s\.kind === 'task'\) return TASK_WORD;\n\s*if \(s\.kind === 'routine'\) return null;\n(?:\s*\{\s*\}\n)?\s*if \(s\.kind === 'travel'\) return travelSmallWords\(s\);\n\s*return s\.label;\n\}/, 'the small text names no place — the vendor and the location have their columns');
   assert.doesNotMatch(c, /\.place\b|placeOf/, 'no place in the screen');
   const cellClasses = [...row![1].matchAll(/<td className=(?:"([^"]*)"|\{`([^`]*)`\})/g)].map((m) => m[1] ?? m[2]);
   assert.equal(cellClasses.length, 5, 'CLEAN-01: five cells in the row');
@@ -663,7 +669,8 @@ test('T6 the plate, the hero, the rows, the focus, the URL — pinned in the scr
   // the step card kept its own source line on its plate. CLEAN-02 (2026-10-14): the stop card's moved to the same fine print — one
   // source line in the screen, under the plate, for both views (the journal card has none).
   // VENDOR-02 (2026-10-14): the stranded count left the call — the card counts no stranded vendor (Budget's to show and clear).
-  assert.match(c, /const reportRead = report !== null && report\.ok;\n\s*const recordsOk = recordsRead !== null && recordsRead\.ok;\n\s*const completeness = completenessWords\(result, \{ day: !dayFailed, report: reportRead, records: recordsOk \}\);/, 'the count knows what was not read');
+  // TRAVEL-01b (Alex, 2026-10-31): the count knows whether the travel was read too. Moved, not loosened.
+  assert.match(c, /const reportRead = report !== null && report\.ok;\n\s*const recordsOk = recordsRead !== null && recordsRead\.ok;\n\s*const completeness = completenessWords\(result, \{ day: !dayFailed, report: reportRead, records: recordsOk, travel: travelOk \}\);/, 'the count knows what was not read');
   assert.match(c, /data-day-count>\{completeness\}/);
   assert.equal((c.match(/data-day-provenance>\{provenanceWords\(today, reportRead, recordsOk\)\}/g) ?? []).length, 1, 'one source line, in the fine print under the full card and the stop card — the records a source too (STOP-01)');
   assert.ok(c.indexOf('data-day-fine-print') < c.indexOf('data-day-foot'), 'the fine print first under the plate; the sentences after it');
@@ -843,7 +850,7 @@ test('T7 CLEAN-01 the full card’s order — where under the header, the hero, 
     'const fullPlate = (', 'data-day-where>', 'data-day-hero>', 'data-day-hook>{HOOK_WORDS}</div>',
     'data-day-stops>', '<tfoot>', 'data-day-total>', '</table>', 'data-day-meter=', 'data-day-verdict>', 'const under = ',
   ], 'the full card, top to bottom');
-  inOrderOf(c, ['<DayDeck ', '<Plate key="all"', '{fullPlate}</Plate>', '...deckStops.map(({ stop, at }, i) => (', '{stopPlate(focusOf(at))}', '</DayDeck>'], 'the deck: the full card first, then one card per stop');
+  inOrderOf(c, ['<DayDeck ', '<Plate key="all"', '{fullPlate}</Plate>', '...deckStops.map(({ stop, at }, i) => (', "{stop.kind === 'travel' ? travelPlate(stop) : stopPlate(focusOf(at))}", '</DayDeck>'], 'the deck: the full card first, then one card per stop'); // TRAVEL-01b (Alex, 2026-10-31): the travel plate for a travel stop
   assert.doesNotMatch(c, /data-day-spent>|spentOutOfWords/, 'TOTALS-01: no spent line — the TOTAL row carries the spent');
   assert.doesNotMatch(code(RULES), /hookWords/, 'hookWords is gone — nothing reads it');
   assert.doesNotMatch(c, /hookWords|spentLineWords|stopsWords|doneOfWords|withoutAmountWords/, 'no stop count on the hook; no "without an amount" or "of M done" on the spent line');
@@ -959,7 +966,8 @@ test('T7 CLEAN-01 the fine print — the completeness and source lines render af
   // bars measure the TOTAL row's BUDGET (totals01 T3 drives every case) — with its dated comment above it ({ } once stripped). Moved, not loosened.
   // DECK-01 (Alex, 2026-10-16): the fine print follows the card in view under the deck (the journal is never in view there — its card has
   // none), at `under` (the plate's width, or the screen's). Lines and words unchanged.
-  assert.match(after, /\{loaded && \(\n\s*<div className="mx-auto space-y-1 text-xs text-text-muted" style=\{under\} data-day-fine-print>\n\s*\{focus === null && completeness !== null && <p data-day-count>\{completeness\}<\/p>\}\n\s*\{\s*\}\n\s*\{focus === null && totals\.beyondCents !== null && <p data-day-beyond>\{planBeyondStopsWords\(totals\.beyondCents\)\}<\/p>\}\n\s*\{\s*\}\n\s*\{focus !== null && planBar === null && <p data-day-bars-why>\{barsWhyWords\(plannedCents, totals\.budgetCents\)\}<\/p>\}\n\s*<p className="font-mono" data-day-provenance>\{provenanceWords\(today, reportRead, recordsOk\)\}<\/p>\n\s*<\/div>\n\s*\)\}/, 'under the deck: the completeness line (full card) or the why-line (stop card), then the source line — small, muted, at the plate’s width');
+  // TRAVEL-01b (Alex, 2026-10-31): two lines join the fine print between the why-line and the source line — the not-joined sentence (full card) and a failed travel read's words — each with its dated comment ({ } once stripped). Moved, not loosened.
+  assert.match(after, /\{loaded && \(\n\s*<div className="mx-auto space-y-1 text-xs text-text-muted" style=\{under\} data-day-fine-print>\n\s*\{focus === null && completeness !== null && <p data-day-count>\{completeness\}<\/p>\}\n\s*\{\s*\}\n\s*\{focus === null && totals\.beyondCents !== null && <p data-day-beyond>\{planBeyondStopsWords\(totals\.beyondCents\)\}<\/p>\}\n\s*\{\s*\}\n\s*\{focus !== null && planBar === null && <p data-day-bars-why>\{barsWhyWords\(plannedCents, totals\.budgetCents\)\}<\/p>\}\n\s*\{\s*\}\n\s*\{focus === null && result\.travelNotJoined && <p data-day-travel-not-joined>\{NOT_JOINED_WORDS\}<\/p>\}\n\s*\{\s*\}\n\s*\{travelRead !== null && !travelRead\.ok && <p className="text-brand-red" data-day-travel-failed>\{travelRead\.words\}<\/p>\}\n\s*<p className="font-mono" data-day-provenance>\{provenanceWords\(today, reportRead, recordsOk\)\}<\/p>\n\s*<\/div>\n\s*\)\}/, 'under the deck: the completeness line (full card) or the why-line (stop card), the travel sentences, then the source line — small, muted, at the plate’s width');
   // VENDOR-02 (2026-10-14): the stranded-vendor line left the foot; the order holds through the foot's first sentence instead,
   // and the stop's VENDOR row joins it — after the hint, directly above the record row (vendor02.test.ts pins it fully).
   // DECK-01 (2026-10-16): the journal card's section sits after the record row and before the sentences.

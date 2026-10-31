@@ -176,9 +176,11 @@ test('B the rationale speaks the account’s currency: USD → the one formatter
   const src = code(MATCHER);
   const chargePass = src.slice(0, src.indexOf('export const MATCH_REFUND_DATE_WINDOW_DAYS'));
   assert.doesNotMatch(chargePass, /\$\$\{|toFixed\(2\)\} vs booked/);
-  assert.match(src, /import \{ FUNCTIONAL_CURRENCY, bankMoneyWords, decimalStringOfCents, functionalMoneyWords \} from '\.\.\/books\/functionalCurrency';/);
-  assert.match(src, /`amount: \$\{bankMoneyWords\(t\.amount, account\)\} vs booked \$\{bookedMoneyWords\(r\.finalPriceCents!, r\.currency\)\} ` \+/);
-  assert.match(src, /return upper === FUNCTIONAL_CURRENCY \? functionalMoneyWords\(cents\) : `\$\{decimalStringOfCents\(cents\)\} \$\{upper\}`;/);
+  // TRAVEL-01b (Alex, 2026-10-31), ruling C: the booked helper moved to the currency home as statedMoneyWords — the matcher imports it and declares no money words of its own; the words above are unchanged. Moved, not loosened.
+  assert.match(src, /import \{ bankMoneyWords, statedMoneyWords \} from '\.\.\/books\/functionalCurrency';/);
+  assert.match(src, /`amount: \$\{bankMoneyWords\(t\.amount, account\)\} vs booked \$\{statedMoneyWords\(r\.finalPriceCents!, r\.currency\)\} ` \+/);
+  assert.doesNotMatch(src, /bookedMoneyWords|function \w*MoneyWords|FUNCTIONAL_CURRENCY \?/, 'no money words declared in the matcher');
+  assert.match(code('src/lib/books/functionalCurrency.ts'), /return upper === FUNCTIONAL_CURRENCY \? functionalMoneyWords\(minor\) : `\$\{decimalStringOfCents\(minor\)\} \$\{upper\}`;/);
   assert.ok(comments(MATCHER).includes("THE RATIONALE'S CURRENCY (FX-01b"));
 });
 

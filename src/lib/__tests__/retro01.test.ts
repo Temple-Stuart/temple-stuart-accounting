@@ -139,6 +139,7 @@ test('T1 ledgerOf lists a record only when its plan’s role takes money (asksAm
 const stopOf = (over: Partial<Stop> & { key: string }): Stop => ({
   kind: 'routine', time: '11:00', label: 'Brunch', line: null, vendor: null, location: null, minutes: null, cents: 2500, status: 'open', statusSource: 'routine', role: 'place',
   planLine: null, planLineState: 'none', address: { kind: 'routine', id: 'brunch', instant: BRUNCH_13 }, zone: BKK, record: null, actualCents: null, actualSource: null, doneAt: null, lateMinutes: null, actualMinutes: null,
+  travel: null, // TRAVEL-01b (Alex, 2026-10-31): a Stop carries its travel facts — null for every routine stop
   ...over,
 } as Stop);
 

@@ -140,6 +140,7 @@ test('C the re-read: a clear bumps the report-reads counter, and the counter rea
   assert.match(c, /useEffect\(\(\) => \{\n\s*if \(day === null \|\| today === null \|\| reportReads === 0\) return;\n\s*let live = true;\n\s*\(async \(\) => \{\n\s*const r = await readDayReport\(day, today\);\n\s*if \(live\) setReport\(r\);/);
   // Nothing else changed: the vendor box's mount, the completeness line (no stranded count), /budget's page.
   assert.match(code(STOP_VENDOR), /export default function StopVendor\(\{ slot, bookName, reload \}: \{ slot: VendorSlot; bookName: string; reload: \(\) => void \}\) \{/);
-  assert.match(c, /const completeness = completenessWords\(result, \{ day: !dayFailed, report: reportRead, records: recordsOk \}\);/);
+  // TRAVEL-01b (Alex, 2026-10-31): the completeness line reads the travel read's state too. Moved, not loosened.
+  assert.match(c, /const completeness = completenessWords\(result, \{ day: !dayFailed, report: reportRead, records: recordsOk, travel: travelOk \}\);/);
   assert.doesNotMatch(code(BUDGET), /vendors-stranded|VENDORS STRANDED|ClearVendor|StrandedVendors/, '/budget unchanged — it lists none');
 });

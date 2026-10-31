@@ -71,10 +71,39 @@
  * TASKS-ONE-02 (2026-10-14): week/weekPlan.ts and week/WeekSection.tsx, cited
  * here as this file's models, are deleted (Alex's ruling: the day card replaces
  * the week grid); the words and rules this file took from them are its own.
+ *
+ * TRAVEL-01b (Alex, 2026-10-31, rulings D–I) — THE FOURTH SOURCE: TRAVEL STOPS IN
+ * THE CLOCK THEY STATE. The travel-day read (dayReads.ts readTravelDay → GET
+ * /api/operations/travel-day, src/lib/operations/travelDay.ts — the ONE shape)
+ * hands dayStops the day's travel facts as stated, and this file makes one stop
+ * of kind 'travel' per planned ONCE row, per check-in / check-out and per flight
+ * segment — each labelled by its source, role 'none' (a stop, not a routine), no
+ * plan line (cents null), status 'open' from the booking (statusSource 'booking':
+ * the booking is the record — nothing claims done; a cancelled or cancel-pending
+ * booking is 'skipped' with the leaf's reason), its clock THE STATED CLOCK — a
+ * planned row's homeTime in its own zone, a segment's startTime with no zone ('as
+ * the airline states it'), a booking none (the untimed bucket) — never converted
+ * to the viewer's or a routine's zone, and its minutes by the one rule
+ * (plannedMinutesOf 'travel'). A planned DAILY row is not a stop: it goes to the
+ * band with the planned-stay words. A planned flight and a booked flight on one
+ * day are NOT joined (no key): both are stops, and the day says so once. The TOTAL
+ * row stays the routines' and tasks' (dayTotals sees cents null); under it one
+ * TRAVEL line per currency present (travelTotals → travelLineWords), the stated
+ * minor units summed by code and written through statedMoneyWords — never into the
+ * TOTAL, never converted, never a `$` on a figure that is not dollars; a price not
+ * stated (a planned row's cost states no currency) is counted, never summed. The
+ * verdict excludes travel by KIND. The deck's travel card, the reel's travel scene
+ * and the caption's travel block print only from the words here.
  */
 import { centsFromDecimalString, type NotPlaced } from '@/lib/budget/days';
 import { formatCents } from '@/lib/budget/format';
 import type { PlanLine } from '@/lib/budget/planLines';
+import { bankMoneyWords, statedMoneyWords } from '@/lib/books/functionalCurrency';
+import {
+  BOOKING_NO_CLOCK_WORDS, CANCELLED_WORDS, CANCEL_PENDING_WORDS, NO_ZONE_WORDS, PRICE_NOT_STATED_WORDS, VENDOR_NAME_NOT_STATED_WORDS,
+  type BankFigure, type BookingLinks, type PlannedRow, type TravelBookingRow, type TravelDay, type TravelSegmentRow,
+} from '@/lib/operations/travelDay';
+import type { BookingRow } from '@/lib/reservations/bookingRow';
 import { NO_STAY_WORDS, STAY_NOT_READ_WORDS, placeParts, stayDay, stayDayWords, type StayRow } from '@/lib/operations/stay';
 import type { Answers } from '@/lib/operations/journal';
 import {
@@ -105,14 +134,45 @@ export interface DayCardInput {
   readonly viewerZone: string;
   /** STOP-01: the day's stop records when read; null while they were not (unread or failed) — unknown, never none. */
   readonly records: readonly StopRecordRow[] | null;
+  /** TRAVEL-01b: the day's travel facts as stated when read; null while they were not (unread or failed) — unknown, never none. */
+  readonly travel: TravelDay | null;
 }
 
 // ── OUTPUT ──────────────────────────────────────────────────────────────────
 
-export type StopKind = 'line' | 'routine' | 'task';
+export type StopKind = 'line' | 'routine' | 'task' | 'travel';
 export type StopStatus = 'done' | 'missed' | 'open' | 'later' | 'skipped';
-/** Where a stop's status came from: its own record, its routine's completion, or the task. */
-export type StatusSource = 'record' | 'routine' | 'task';
+/** Where a stop's status came from: its own record, its routine's completion, the task, or (TRAVEL-01b) the booking. */
+export type StatusSource = 'record' | 'routine' | 'task' | 'booking';
+
+// ── TRAVEL-01b (Alex, 2026-10-31, ruling D): A TRAVEL STOP'S OWN FACTS ────────
+
+export type TravelSource = 'planned' | 'booking' | 'segment';
+/** A planned row's kind by its category (other → 'other'); a booking's check-in or check-out; a segment is a flight. */
+export type TravelKind = 'flight' | 'transfer' | 'activity' | 'lodging' | 'other' | 'check-in' | 'check-out';
+
+export interface TravelStop {
+  readonly source: TravelSource;
+  readonly kind: TravelKind;
+  /** The booking's name through the one reader (bookingRowOf — reservations.displayName as stated); a planned row's vendorName, else its legacy title (said). */
+  readonly name: string;
+  /** The vendor's stated price in its own minor unit with its code; null when none is stated — a planned row's cost states no currency (said), a booking may state no price (said). */
+  readonly stated: { readonly minor: number; readonly currency: string } | null;
+  /** The leaf's said words, carried through. */
+  readonly said: readonly string[];
+  readonly startAt: string | null;
+  readonly endAt: string | null;
+  readonly startZone: string | null;
+  readonly endZone: string | null;
+  /** The arrival clock as stated — a planned row's destTime, a segment's endTime; null for a booking, or when none is stated. */
+  readonly endTime: string | null;
+  /** reservations.status as stored; null for a planned row. */
+  readonly bookingStatus: string | null;
+  /** The booking's charge facts — matched, posted, the bank figure (ruling B); null for a planned row. */
+  readonly charge: BookingLinks['charge'] | null;
+  /** The one leaf's words for the booking (bookingRowOf): its status and its bank words; null for a planned row. */
+  readonly row: BookingRow | null;
+}
 /** Where a stop's actual came from: the record (typed on the day) or the task's own column. */
 export type ActualSource = 'typed' | 'task';
 
@@ -164,6 +224,8 @@ export interface Stop {
   readonly lateMinutes: number | null;
   /** The record's minutes, or a task's own; null when neither states them. */
   readonly actualMinutes: number | null;
+  /** TRAVEL-01b: a travel stop's own facts; null for every other kind. */
+  readonly travel: TravelStop | null;
 }
 
 export type UnmatchedReason = 'instant differs' | 'two plan lines for one stop';
@@ -217,6 +279,8 @@ export interface DayStops {
   readonly notRecorded: number;
   /** Records of the day whose key matches no stop — named, never dropped. */
   readonly recordsWithoutStop: readonly StopRecordRow[];
+  /** TRAVEL-01b: a planned flight and a booked flight (a segment) both on the day — not joined (no key); the card says NOT_JOINED_WORDS once. */
+  readonly travelNotJoined: boolean;
 }
 
 export interface Focus {
@@ -244,12 +308,20 @@ const clockOf = (time: string): string => time.slice(11, 16);
 /** What the planned-minutes rule reads: a line (its duration_minutes) or a stepless routine (its window — @db.Time values: a Date on the server, its JSON '1970-01-01THH:MM:SS.000Z' on the card). */
 export type PlannedMinutesPlan =
   | { readonly kind: 'line'; readonly duration_minutes: number | null }
-  | { readonly kind: 'routine'; readonly start_time: Date | string | null; readonly end_time: Date | string | null };
+  | { readonly kind: 'routine'; readonly start_time: Date | string | null; readonly end_time: Date | string | null }
+  /** TRAVEL-01b: a travel stop — its stated duration, else its stated start and end clocks ('HH:MM', the leaf's) when the end is stated on the same day. */
+  | { readonly kind: 'travel'; readonly duration_minutes: number | null; readonly start: string | null; readonly end: string | null; readonly endSameDay: boolean };
 /** Minutes past midnight of a routine's @db.Time; null for none; a value that is no time is the read's error, thrown by name. */
 const windowMinutesOf = (what: 'start_time' | 'end_time', v: Date | string | null): number | null => {
   if (v === null) return null;
   const m = minutesOf(clockOf(v instanceof Date ? v.toISOString() : v));
   if (m === null) throw new Error(`dayCard: ${what} ${JSON.stringify(v)} is not a time — a @db.Time arrives as 1970-01-01THH:MM:SS.000Z`);
+  return m;
+};
+/** TRAVEL-01b: minutes past midnight of a stated 'HH:MM' clock (the travel leaf's); a value that is no clock is the read's error, thrown by name. */
+const clockMinutesOf = (what: 'start' | 'end', clock: string): number => {
+  const m = minutesOf(clock);
+  if (m === null) throw new Error(`dayCard: a travel ${what} ${JSON.stringify(clock)} is not a clock — the travel read hands HH:MM`);
   return m;
 };
 /**
@@ -260,9 +332,22 @@ const windowMinutesOf = (what: 'start_time' | 'end_time', v: Date | string | nul
  * (rruleHelpers.ts EMPTY_WINDOW_WORDS — MOVE-01's window convention); an end equal to the start is 0 — refused on write, and
  * no length here (blockWindowOf: ≤ 0 is none). Else null: a line that states none, a stepless routine without a window.
  * Applied here for the card's stops and in the ledger route for a record's plan; no reader restates it.
+ * TRAVEL-01b (Alex, 2026-10-31, ruling D): a travel stop → its stated duration_minutes; else the stated start→end clock
+ * difference when the end is stated on the SAME day and is after the start (vendor-commit writes a transfer's destTime
+ * equal to its start — zero length is no length → null; an end before the start on the same day is no length either);
+ * else null. Nothing converts a clock across zones: the clocks are as stated.
  */
 export function plannedMinutesOf(plan: PlannedMinutesPlan): number | null {
   if (plan.kind === 'line') return plan.duration_minutes;
+  if (plan.kind === 'travel') {
+    if (plan.duration_minutes !== null) return plan.duration_minutes;
+    if (plan.start === null) return null;
+    if (plan.end === null) return null;
+    if (!plan.endSameDay) return null;
+    const start = clockMinutesOf('start', plan.start);
+    const end = clockMinutesOf('end', plan.end);
+    return end > start ? end - start : null;
+  }
   const start = windowMinutesOf('start_time', plan.start_time);
   const end = windowMinutesOf('end_time', plan.end_time);
   if (start === null || end === null) return null;
@@ -414,6 +499,7 @@ export function dayStops(input: DayCardInput): DayStops {
         address: { kind: 'routine', id: r.id, instant: entry.expected_at },
         zone: r.timezone,
         ...recorded(recordFor(key), status, r.timezone, input.day, occurrence),
+        travel: null,
       });
       continue;
     }
@@ -439,6 +525,7 @@ export function dayStops(input: DayCardInput): DayStops {
         address: { kind: 'routine_line', id: step.id, instant: entry.expected_at },
         zone: r.timezone,
         ...recorded(recordFor(key), status, r.timezone, input.day, planned),
+        travel: null,
       });
     }
   }
@@ -479,10 +566,20 @@ export function dayStops(input: DayCardInput): DayStops {
       // A task's block is when it was planned to start, its completed-at when it was marked done — no lateness is drawn between the two.
       lateMinutes: null,
       actualMinutes: item.task === null ? null : item.task.actual_minutes,
+      travel: null,
     });
   }
 
-  // Clock order: time, then label, then line; stops with no time last, as they arrived (routines, then items).
+  // TRAVEL-01b (ruling D): the travel stops — one per planned ONCE row, per check-in / check-out and per flight segment, each
+  // labelled by its source; a planned DAILY row is not a stop and goes to the band by its role (push routes it). Null while the
+  // travel was not read: unknown, never none.
+  if (input.travel !== null) {
+    for (const row of input.travel.planned) push(plannedTravelStop(row));
+    for (const row of input.travel.bookings) push(bookingTravelStop(row));
+    for (const row of input.travel.segments) push(segmentTravelStop(row));
+  }
+
+  // Clock order: time, then label, then line; stops with no time last, as they arrived (routines, then items, then travel).
   timed.sort((a, b) => cmp(a.time as string, b.time as string) || cmp(a.label, b.label) || cmpMaybe(a.line, b.line));
   const stops = [...timed, ...untimed];
 
@@ -495,24 +592,27 @@ export function dayStops(input: DayCardInput): DayStops {
   const read = input.records !== null;
   // The band keeps the clock order too, so a day's subscriptions read the same way every day.
   allDay.sort((a, b) => cmpMaybe(a.time, b.time) || cmp(a.label, b.label) || cmpMaybe(a.line, b.line));
+  // TRAVEL-01b: a travel stop takes no plan line and no record — the priced, actual and recorded counts are the other stops'.
+  const recordable = stops.filter((s) => s.kind !== 'travel');
   return {
     stops,
     allDay,
     allDayCents: allDay.map((s) => s.cents).filter((c): c is number => c !== null).reduce((sum, c) => sum + c, 0),
     plannedCents: dayLines.reduce((sum, l) => sum + l.cents, 0),
-    notPriced: stops.filter((s) => s.cents === null).length,
+    notPriced: recordable.filter((s) => s.cents === null).length,
     unmatched,
     routineFigures: unused.filter(isRoutineFigure),
     linesWithoutStop: unused.filter((l) => !isRoutineFigure(l)),
     notPlacedToday: input.notPlaced.filter((n) => n.day === null || n.day === input.day),
     // The sum of the actuals that exist — the stops without one are COUNTED beside it (withoutActual), never summed as zero.
     spentCents: read ? stops.map((s) => s.actualCents).filter((c): c is number => c !== null).reduce((sum, c) => sum + c, 0) : null,
-    withoutActual: read ? stops.filter((s) => s.actualCents === null).length : 0,
-    withActual: read ? stops.filter((s) => s.actualCents !== null).length : 0,
+    withoutActual: read ? recordable.filter((s) => s.actualCents === null).length : 0,
+    withActual: read ? recordable.filter((s) => s.actualCents !== null).length : 0,
     done: stops.filter((s) => s.status === 'done').length,
     skipped: stops.filter((s) => s.status === 'skipped').length,
-    notRecorded: read ? stops.filter((s) => s.kind !== 'task' && s.record === null).length : 0,
+    notRecorded: read ? recordable.filter((s) => s.kind !== 'task' && s.record === null).length : 0,
     recordsWithoutStop: records.filter((r) => !taken.has(recordKey(r))),
+    travelNotJoined: travelNotJoinedOf(input.travel),
   };
 }
 
@@ -531,6 +631,236 @@ export function focusStop(result: DayStops, n: number): Focus | null {
     withoutActualSoFar: result.spentCents === null ? 0 : upTo.length - actuals.length,
     withActualSoFar: result.spentCents === null ? 0 : actuals.length,
   };
+}
+
+// ── TRAVEL-01b (Alex, 2026-10-31, rulings D–I): THE TRAVEL STOPS, THEIR WORDS, THE TRAVEL LINE ──────────────────────
+//
+// Every sentence a travel stop prints is a constant or a function here; the leaf's words (travelDay.ts) are imported,
+// never retyped. A travel figure prints only through statedMoneyWords (a vendor's stated price, in its own code) or
+// bankMoneyWords (the matched bank row, in the account's currency) — never formatCents or planDollars, never a `$`
+// on a figure that is not dollars, never a conversion. No `||`, no `?? <default>` in this section.
+
+export const TRAVEL_WORD = 'TRAVEL';
+export const TRAVEL_NOT_READ_WORDS = 'travel not read';
+export const AS_AIRLINE_STATES_WORDS = 'as the airline states it';
+export const PLANNED_NOT_BOOKING_WORDS = 'planned — not a booking';
+export const TRAVEL_RECORD_WORDS = 'the booking is the record — nothing to tick';
+export const NOT_JOINED_WORDS = 'a planned flight and a booked flight — not joined';
+export const PLANNED_STAY_WORDS = 'planned stay';
+/** A planned row or a segment that states no clock (a booking's words are the leaf's BOOKING_NO_CLOCK_WORDS). */
+export const NO_CLOCK_WORDS = 'no clock stated';
+export const STATED_WORD = 'stated';
+export const ARRIVES_WORD = 'arrives';
+export const CAPTION_TRAVEL_HEAD_WORDS = 'Travel:';
+
+/** The kind word, as the card prints it before the name. */
+export const TRAVEL_KIND_WORDS: Readonly<Record<TravelKind, string>> = {
+  flight: 'Flight', transfer: 'Transfer', activity: 'Activity', lodging: 'Stay', other: 'Travel', 'check-in': 'Check-in', 'check-out': 'Check-out',
+};
+/** The source word, under the name — which of the three sources the stop came from. */
+export const TRAVEL_SOURCE_WORDS: Readonly<Record<TravelSource, string>> = { planned: 'planned', booking: 'booking', segment: 'segment' };
+
+/** The planned categories that are their own kind; any other category is 'other'. */
+const PLANNED_KINDS: readonly TravelKind[] = ['flight', 'transfer', 'activity', 'lodging'];
+export const plannedKindOf = (category: string): TravelKind => {
+  const kind = PLANNED_KINDS.find((k) => k === category);
+  return kind === undefined ? 'other' : kind;
+};
+
+/** A planned row's name: the clean name as captured, else the legacy title — the leaf's said[] names the absence on the stop. */
+export const plannedNameOf = (row: Pick<PlannedRow, 'vendorName' | 'vendor'>): string => (row.vendorName !== null ? row.vendorName : row.vendor);
+/** The same name for the band, which prints no said line: the legacy title carries the leaf's words beside it. */
+export const plannedNameSaidWords = (row: Pick<PlannedRow, 'vendorName' | 'vendor'>): string =>
+  (row.vendorName !== null ? row.vendorName : `${row.vendor} (${VENDOR_NAME_NOT_STATED_WORDS})`);
+/** "planned stay · Hotel Proof (vendor name not stated — legacy title shown) · 16:00 → 11:00" — a daily planned row on the band; a window not stated prints '—'. */
+export const plannedStayBandWords = (row: Pick<PlannedRow, 'vendorName' | 'vendor' | 'blockStartTime' | 'blockEndTime'>): string =>
+  `${PLANNED_STAY_WORDS} · ${plannedNameSaidWords(row)} · ${row.blockStartTime === null ? '—' : row.blockStartTime} → ${row.blockEndTime === null ? '—' : row.blockEndTime}`;
+
+/** A booking's stated price in its own minor unit with its code, or null when the vendor stated none. */
+const statedOf = (r: { readonly finalPriceCents: number | null; readonly currency: string }): TravelStop['stated'] =>
+  (r.finalPriceCents === null ? null : { minor: r.finalPriceCents, currency: r.currency });
+
+/** A booking's status as a stop's: cancelled or cancel-pending is skipped (the booking is the record); anything else is open — nothing claims done. */
+const travelStatusOf = (bookingStatus: string): StopStatus => (bookingStatus === 'cancelled' ? 'skipped' : bookingStatus === 'cancel_pending' ? 'skipped' : 'open');
+
+/** The travel facts of a stop of kind 'travel'; a travel stop without them is this file's error. */
+export function travelOf(s: Pick<Stop, 'kind' | 'key' | 'travel'>): TravelStop {
+  if (s.kind !== 'travel') throw new Error(`dayCard: ${s.key} is a ${s.kind} stop, not a travel stop`);
+  if (s.travel === null) throw new Error(`dayCard: ${s.key} is a travel stop with no travel facts`);
+  return s.travel;
+}
+
+/** What every travel stop shares: no plan line, no record, no address (nothing to tick), role 'none'. */
+const TRAVEL_STOP_BASE = {
+  kind: 'travel' as const, line: null, vendor: null, location: null, cents: null, statusSource: 'booking' as const,
+  planLine: null, planLineState: 'none' as const, address: null, record: null, actualCents: null, actualSource: null, doneAt: null, lateMinutes: null, actualMinutes: null,
+};
+
+/** A planned row: a once row is a timed stop in its own stated zone; a daily row goes to the band (role all_day) with the planned-stay words. */
+export function plannedTravelStop(row: PlannedRow): Stop {
+  const daily = row.recurrence === 'daily';
+  const travel: TravelStop = {
+    source: 'planned', kind: plannedKindOf(row.category), name: plannedNameOf(row), stated: null, said: row.said,
+    startAt: row.startAt, endAt: row.endAt, startZone: row.startZone, endZone: row.endZone, endTime: row.destTime, bookingStatus: null, charge: null, row: null,
+  };
+  return {
+    ...TRAVEL_STOP_BASE,
+    key: `travel:planned:${row.id}`,
+    time: daily ? row.blockStartTime : row.homeTime,
+    label: daily ? plannedStayBandWords(row) : travel.name,
+    minutes: daily ? null : plannedMinutesOf({ kind: 'travel', duration_minutes: row.durationMinutes, start: row.homeTime, end: row.destTime, endSameDay: row.destDate === row.homeDate }),
+    status: 'open',
+    role: daily ? 'all_day' : 'none',
+    zone: row.startZone,
+    travel,
+  };
+}
+
+/** A check-in or a check-out: an untimed stop (a booking states no time) with the booking's stated price, status and charge. */
+export function bookingTravelStop(row: TravelBookingRow): Stop {
+  const r = row.reservation;
+  const travel: TravelStop = {
+    source: 'booking', kind: row.kind, name: row.row.name, stated: statedOf(r), said: row.said,
+    startAt: null, endAt: null, startZone: null, endZone: null, endTime: null, bookingStatus: r.status, charge: row.charge, row: row.row,
+  };
+  return { ...TRAVEL_STOP_BASE, key: `travel:booking:${r.id}:${row.kind}`, time: null, label: travel.name, minutes: null, status: travelStatusOf(r.status), role: 'none', zone: null, travel };
+}
+
+/** A flight segment: a timed stop at the clock the airline states, no zone; its minutes from the stated clocks when the end is stated on the same day. */
+export function segmentTravelStop(row: TravelSegmentRow): Stop {
+  const r = row.reservation;
+  const travel: TravelStop = {
+    source: 'segment', kind: 'flight', name: row.row.name, stated: statedOf(r), said: row.said,
+    startAt: row.startAt, endAt: row.endAt, startZone: row.startZone, endZone: row.endZone, endTime: row.endTime, bookingStatus: r.status, charge: row.charge, row: row.row,
+  };
+  return {
+    ...TRAVEL_STOP_BASE,
+    key: `travel:segment:${row.sourceId}`,
+    time: row.startTime,
+    label: travel.name,
+    minutes: plannedMinutesOf({ kind: 'travel', duration_minutes: null, start: row.startTime, end: row.endTime, endSameDay: row.endDate === row.startDate }),
+    status: travelStatusOf(r.status),
+    role: 'none',
+    zone: null,
+    travel,
+  };
+}
+
+/** A planned ONCE flight and a booked flight (a segment) both on the day — not joined: no key joins them (TRAVEL-00). */
+export const travelNotJoinedOf = (travel: TravelDay | null): boolean =>
+  (travel !== null && travel.segments.length > 0 && travel.planned.some((p) => p.recurrence !== 'daily' && plannedKindOf(p.category) === 'flight'));
+
+/** "Flight · segment" · "Check-in · booking" · "Transfer · planned" — the small line under a travel stop's name. */
+export const travelSmallWords = (s: Stop): string => {
+  const t = travelOf(s);
+  return `${TRAVEL_KIND_WORDS[t.kind]} · ${TRAVEL_SOURCE_WORDS[t.source]}`;
+};
+
+/**
+ * THE CLOCK IS THE STATED CLOCK (ruling E): "14:10 as the airline states it" for a segment (the card's said line adds
+ * 'no zone'); "14:10 Asia/Bangkok" for a planned row with a zone, "14:10 · no zone" without; a booking states no time.
+ */
+export function travelClockWords(s: Stop): string {
+  const t = travelOf(s);
+  if (t.source === 'booking') return BOOKING_NO_CLOCK_WORDS;
+  if (s.time === null) return NO_CLOCK_WORDS;
+  if (t.source === 'segment') return `${s.time} ${AS_AIRLINE_STATES_WORDS}`;
+  return t.startZone === null ? `${s.time} · ${NO_ZONE_WORDS}` : `${s.time} ${t.startZone}`;
+}
+
+/** "arrives 17:05" when the end is stated (a planned row's destTime, a segment's endTime); null otherwise. */
+export const travelArrivalWords = (s: Stop): string | null => {
+  const t = travelOf(s);
+  return t.endTime === null ? null : `${ARRIVES_WORD} ${t.endTime}`;
+};
+
+/** The stated price through the one function, or the leaf's words when none is stated. */
+export const travelPriceWords = (s: Stop): string => {
+  const t = travelOf(s);
+  return t.stated === null ? PRICE_NOT_STATED_WORDS : statedMoneyWords(t.stated.minor, t.stated.currency);
+};
+
+/** "matched: $189.50 on 2026-10-31" — the matched bank row in the ACCOUNT's currency, on the transaction's day. */
+export const matchedWords = (bank: BankFigure): string => `matched: ${bankMoneyWords(bank.amount, bank.currency)} on ${bank.date}`;
+
+/** The match line: the bank figure when the charge is matched, else the leaf's own bank words ('not matched'); null for a planned row. */
+export function travelMatchWords(s: Stop): string | null {
+  const t = travelOf(s);
+  if (t.charge === null) return null;
+  if (t.row === null) return null;
+  return t.charge.bank === null ? t.row.bank : matchedWords(t.charge.bank);
+}
+
+/** The booking's status in the leaf's words ('confirmed', 'cancelled', …); null for a planned row. */
+export const travelStatusLineWords = (s: Stop): string | null => {
+  const t = travelOf(s);
+  return t.row === null ? null : t.row.status;
+};
+
+/** The card's closing sentence: a booking is the record; a planned row is not a booking. */
+export const travelRecordWords = (s: Stop): string => (travelOf(s).source === 'planned' ? PLANNED_NOT_BOOKING_WORDS : TRAVEL_RECORD_WORDS);
+
+/** The leaf's said words, joined; null when it said nothing. */
+export const travelSaidWords = (s: Stop): string | null => {
+  const t = travelOf(s);
+  return t.said.length === 0 ? null : t.said.join(' · ');
+};
+
+/** A travel stop's status line (statusWords' 'booking' branch): skipped with the leaf's reason, else open. */
+export function travelStatusWords(s: Stop): string {
+  const t = travelOf(s);
+  if (s.status !== 'skipped') return OPEN_WORD;
+  if (t.bookingStatus === 'cancelled') return skippedWords(CANCELLED_WORDS);
+  if (t.bookingStatus === 'cancel_pending') return skippedWords(CANCEL_PENDING_WORDS);
+  throw new Error(`dayCard: ${s.key} is skipped but its booking status is ${JSON.stringify(t.bookingStatus)} — only a cancelled or cancel-pending booking is skipped`);
+}
+
+/** R5 (ruling H): one scene per travel stop — "Flight AirAsia CNX → DPS · 14:10 as the airline states it · $189.50 stated". */
+export const travelSceneWords = (s: Stop): string => {
+  const t = travelOf(s);
+  return `${TRAVEL_KIND_WORDS[t.kind]} ${t.name} · ${travelClockWords(s)} · ${t.stated === null ? PRICE_NOT_STATED_WORDS : `${statedMoneyWords(t.stated.minor, t.stated.currency)} ${STATED_WORD}`}`;
+};
+
+// THE TRAVEL LINE (ruling F): one line per currency present, never into the TOTAL, never converted.
+
+export interface TravelTotals {
+  /** Travel stops with a stated price. */
+  readonly stated: number;
+  /** Per code (sorted): the stated minor units summed and how many stops they came from. */
+  readonly byCurrency: readonly { readonly currency: string; readonly minor: number; readonly count: number }[];
+  /** Travel stops with no stated price — a planned row's cost (no currency) among them — counted, never summed. */
+  readonly notStated: number;
+}
+
+/** The day's travel stops' stated prices, by their own code — lanes never sum across (decision 11); the band's planned stay is not a stop. */
+export function travelTotals(stops: readonly Stop[]): TravelTotals {
+  const travel = stops.filter((s) => s.kind === 'travel').map(travelOf);
+  const sums = new Map<string, { minor: number; count: number }>();
+  let notStated = 0;
+  for (const t of travel) {
+    if (t.stated === null) {
+      notStated += 1;
+      continue;
+    }
+    const code = t.stated.currency.toUpperCase();
+    const at = sums.get(code);
+    sums.set(code, at === undefined ? { minor: t.stated.minor, count: 1 } : { minor: at.minor + t.stated.minor, count: at.count + 1 });
+  }
+  const byCurrency = [...sums.entries()].map(([currency, x]) => ({ currency, minor: x.minor, count: x.count })).sort((a, b) => cmp(a.currency, b.currency));
+  return { stated: travel.length - notStated, byCurrency, notStated };
+}
+
+/**
+ * "TRAVEL · 2 stated · 12345.00 PHP · 1 price not stated" — one line per currency present (its count and its sum through
+ * statedMoneyWords); the stops with no stated price are counted once, on the last line, or alone when no price is stated.
+ * No travel stop: no line.
+ */
+export function travelLineWords(t: TravelTotals): string[] {
+  const lines = t.byCurrency.map((c) => `${TRAVEL_WORD} · ${c.count} ${STATED_WORD} · ${statedMoneyWords(c.minor, c.currency)}`);
+  if (t.notStated === 0) return lines;
+  const tail = `${t.notStated} ${PRICE_NOT_STATED_WORDS}`;
+  if (lines.length === 0) return [`${TRAVEL_WORD} · 0 ${STATED_WORD} · ${tail}`];
+  return [...lines.slice(0, -1), `${lines[lines.length - 1]} · ${tail}`];
 }
 
 // ── VENDOR-02 (2026-10-14): THE VENDOR UNDER THE CARD ───────────────────────
@@ -670,6 +1000,8 @@ export function statusWords(stop: Stop, day: string): string {
     return stop.lateMinutes === null ? doneWords(when) : `${doneWords(when)} · ${lateWords(stop.lateMinutes)}`;
   }
   if (stop.statusSource === 'task') return stop.status === 'done' ? (when === null ? TASK_DONE_WORDS : `${TASK_DONE_WORDS} ${when}`) : TASK_OPEN_WORDS;
+  // TRAVEL-01b: the booking is the record — skipped with the leaf's reason when cancelled or cancel-pending, else open.
+  if (stop.statusSource === 'booking') return travelStatusWords(stop);
   if (stop.status === 'done') return ROUTINE_DONE_WORDS;
   if (stop.status === 'missed') return ROUTINE_MISSED_WORDS;
   return stop.status === 'later' ? LATER_WORD : OPEN_WORD;
@@ -827,12 +1159,14 @@ export function progressPercent(soFarCents: number | null, plannedCents: number 
  * (stops/StrandedVendors.tsx, src/lib/operations/strandedVendors.ts). This line
  * still counts none of them.
  */
-export function completenessWords(result: DayStops, read: { readonly day: boolean; readonly report: boolean; readonly records: boolean }): string | null {
+export function completenessWords(result: DayStops, read: { readonly day: boolean; readonly report: boolean; readonly records: boolean; readonly travel: boolean }): string | null {
   const parts: string[] = [];
   // What was not read is unknown, not zero — said as such, never counted as "not priced", "no stop" or "not recorded".
   if (!read.day) parts.push(STOPS_NOT_READ_WORDS);
   if (!read.report) parts.push('amounts not read');
   if (!read.records) parts.push(RECORDS_NOT_READ_WORDS);
+  // TRAVEL-01b (ruling A): the travel not read is unknown, never "no travel".
+  if (!read.travel) parts.push(TRAVEL_NOT_READ_WORDS);
   if (read.day && read.report && result.notPriced > 0) parts.push(notPricedWords(result.notPriced));
   // STOP-01: the stops with no record of their own, and the skipped ones — counted here, named on their rows.
   if (read.day && read.records && result.notRecorded > 0) parts.push(notRecordedWords(result.notRecorded));
@@ -1034,7 +1368,8 @@ export function dayMeter(spentCents: number | null, plannedCents: number | null)
  */
 export function dayVerdict(result: DayStops, plannedCents: number | null): DeltaWords | null {
   if (result.spentCents === null || plannedCents === null || result.withActual === 0) return null;
-  if (result.stops.some((s) => asksAmount(s.role) && s.actualCents === null)) return null;
+  // TRAVEL-01b (ruling F): a travel stop asks no amount — excluded by KIND; asksAmount's own text is unchanged.
+  if (result.stops.some((s) => s.kind !== 'travel' && asksAmount(s.role) && s.actualCents === null)) return null;
   if (result.spentCents === plannedCents) return { text: ON_BUDGET_WORDS, over: false };
   return deltaWords(result.spentCents, plannedCents);
 }
@@ -1128,6 +1463,7 @@ export type ReelRead = 'waiting' | 'failed' | 'ok';
  * The reads behind the reel outputs. The journal is read only on a day with a journal stop; null when the output does not use it.
  * WORK-03 (Alex, 2026-10-26): the backlog too — read with the day's window on a day with an execute stop (its done tasks are the
  * execute stops' scene lines); null on a day with none. A failed backlog read names itself; the reel never makes a scene without it.
+ * TRAVEL-01b (Alex, 2026-10-31, ruling A): the travel too, every day — its stops are scenes; the reel waits for it as for the others.
  */
 export interface ReelReads {
   readonly day: ReelRead;
@@ -1137,13 +1473,14 @@ export interface ReelReads {
   readonly stay: ReelRead;
   readonly journal: ReelRead | null;
   readonly backlog: ReelRead | null;
+  readonly travel: ReelRead;
 }
 
 /** Each read by the name the waiting and failure words give it, in this order. */
 export const REEL_READ_NAMES: Readonly<Record<keyof ReelReads, string>> = {
-  day: 'the day’s routines', tasks: 'the day’s tasks', report: 'the budget report', records: 'the stop records', stay: 'the stay', journal: 'the journal', backlog: 'the backlog',
+  day: 'the day’s routines', tasks: 'the day’s tasks', report: 'the budget report', records: 'the stop records', stay: 'the stay', journal: 'the journal', backlog: 'the backlog', travel: 'the day’s travel',
 };
-const REEL_READ_ORDER: readonly (keyof ReelReads)[] = ['day', 'tasks', 'report', 'records', 'stay', 'journal', 'backlog'];
+const REEL_READ_ORDER: readonly (keyof ReelReads)[] = ['day', 'tasks', 'report', 'records', 'stay', 'journal', 'backlog', 'travel'];
 
 export const reelWaitingWords = (names: readonly string[]): string => `not ready — waiting for ${names.join(', ')}`;
 export const reelFailedWords = (names: readonly string[]): string => `not made — ${names.join(', ')} could not be read`;
@@ -1357,6 +1694,9 @@ export function captionText(d: ReelDay): ReelText {
     if (ticked > 0) block.push(doneCountWords(stopName(s), ticked));
     sections.push(block);
   }
+  // TRAVEL-01b (ruling H): one block names the day's travel stops, each by its scene line — no money of theirs in the totals.
+  const travel = d.stops.filter((s) => s.kind === 'travel');
+  if (travel.length > 0) sections.push([CAPTION_TRAVEL_HEAD_WORDS, ...travel.map(travelSceneWords)]);
   sections.push([`Total budget: ${planDollars(d.totals.budgetCents)}`, `Spent: ${planDollars(d.totals.actualCents)}`, ...(d.verdict !== null ? [d.verdict.text] : [])]);
   if (d.journal !== null && d.journal.next !== null) sections.push([tomorrowWords(d.journal.next)]);
   sections.push([captionTags(d.stay.place).join(' ')]);
@@ -1382,6 +1722,8 @@ export const SCRIPT_HOOK_TAIL_WORDS = 'Let’s find out.';
  * the caller's error.
  */
 export function stopSceneLines(s: Stop, done?: readonly ReelDoneTask[] | null): string[] {
+  // TRAVEL-01b (ruling H): a travel stop's scene is its one line — no budget, no actual, no stars.
+  if (s.kind === 'travel') return [travelSceneWords(s)];
   const block = ((): string | null => {
     if (!showsWorkBlock(s)) return null;
     if (done === undefined) throw new Error(`dayCard: ${s.key} is an execute stop — its scene needs the tasks done in its block`);
@@ -1430,7 +1772,12 @@ export function scriptText(d: ReelDay): ReelText {
     if (journal.length > 0) blocks.push(journal);
   }
   // WORK-03: an execute stop gets a scene when it shows money OR has at least one task done in its block; every other stop as before.
+  // TRAVEL-01b (ruling H): every travel stop gets its one-line scene, in the table's order.
   for (const s of d.stops) {
+    if (s.kind === 'travel') {
+      blocks.push(stopSceneLines(s));
+      continue;
+    }
     const done = reelDoneOf(d, s);
     if (s.cents !== null || s.actualCents !== null || (done !== null && done.length > 0)) blocks.push(stopSceneLines(s, done));
   }

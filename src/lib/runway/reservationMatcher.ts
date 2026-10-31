@@ -35,8 +35,12 @@
 // figure as its cents with the RESERVATION's code — the one formatter (`$`)
 // only when the code is the functional currency. The rationale never writes a
 // `$` on a figure that is not dollars.
+// TRAVEL-01b (Alex, 2026-10-31, ruling C): the booked figure's words moved to
+// the currency home as statedMoneyWords (functionalCurrency.ts) — the day card's
+// travel stops write a stated price through the same function; the words here
+// are unchanged (match02's pins hold). This file declares no money words of its own.
 
-import { FUNCTIONAL_CURRENCY, bankMoneyWords, decimalStringOfCents, functionalMoneyWords } from '../books/functionalCurrency';
+import { bankMoneyWords, statedMoneyWords } from '../books/functionalCurrency';
 
 export interface MatcherReservation {
   id: string;
@@ -115,12 +119,6 @@ function round3(n: number): number {
   return Math.round(n * 1000) / 1000;
 }
 
-/** The booked figure as its cents with its code — the one formatter only when it is the functional currency (FX-01b). */
-function bookedMoneyWords(cents: number, currency: string): string {
-  const upper = currency.toUpperCase();
-  return upper === FUNCTIONAL_CURRENCY ? functionalMoneyWords(cents) : `${decimalStringOfCents(cents)} ${upper}`;
-}
-
 /** Words usable as descriptor tokens from a hotel name (≥4 chars keeps 'the',
  *  'inn'-noise out while 'hilton'/'marriott'/'canggu' survive). */
 function hotelTokens(hotelName: string | null): string[] {
@@ -189,7 +187,7 @@ export function proposeMatches({
         const s = 1 - driftPct / opts.amountTolerancePct;
         scores.push({ w: W_AMOUNT, s });
         parts.push(
-          `amount: ${bankMoneyWords(t.amount, account)} vs booked ${bookedMoneyWords(r.finalPriceCents!, r.currency)} ` +
+          `amount: ${bankMoneyWords(t.amount, account)} vs booked ${statedMoneyWords(r.finalPriceCents!, r.currency)} ` +
           `(drift ${(driftPct * 100).toFixed(1)}% ≤ ${(opts.amountTolerancePct * 100).toFixed(1)}% tolerance)`
         );
       } else if (account === null) {

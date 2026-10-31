@@ -146,6 +146,19 @@ export function isWholeCents(n: number): boolean {
 export const CURRENCY_NOT_STATED_WORDS = 'currency not stated';
 export const NOT_WHOLE_CENTS_WORDS = 'not whole cents';
 
+/**
+ * TRAVEL-01b (Alex, 2026-10-31, ruling C): A STATED PRICE — a vendor's figure in its own minor unit with its
+ * ISO code (reservations.finalPriceCents + reservations.currency): the one formatter when the code is the
+ * functional currency, else the figure with its code ('12345.00 PHP'). ONE function: the matcher's rationale
+ * (src/lib/runway/reservationMatcher.ts, where it was FX-01b's local bookedMoneyWords — the words are unchanged)
+ * and the day card's travel stops both write through it; nothing converts, nothing writes a `$` on a figure
+ * that is not dollars. A figure that is not whole minor units is the caller's bug, refused by centsOf.
+ */
+export function statedMoneyWords(minor: bigint | number, currency: string): string {
+  const upper = currency.toUpperCase();
+  return upper === FUNCTIONAL_CURRENCY ? functionalMoneyWords(minor) : `${decimalStringOfCents(minor)} ${upper}`;
+}
+
 // ─── THE CURRENCY CODE (FX-01b, ruling C) ────────────────────────────────────
 
 /** ISO 4217: three capitals — the manual route's own rule, stated once here for the form's typed path. */

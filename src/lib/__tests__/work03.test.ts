@@ -191,7 +191,7 @@ test('C ReelDay carries each execute stop’s done tasks (workBlock.ts doneInBlo
   assert.deepEqual([...doneInBlocksOf(stepless.stops, DAY, [project([A])]).values()], [null], 'Co-working has no length: null, even with a task done at 11:00');
   assert.equal(NO_DONE_IN_BLOCKS.size, 0);
   // The wait: the backlog is a named read, last in the order; null on a day with no execute stop.
-  const ok: ReelReads = { day: 'ok', tasks: 'ok', report: 'ok', records: 'ok', stay: 'ok', journal: 'ok', backlog: 'ok' };
+  const ok: ReelReads = { day: 'ok', tasks: 'ok', report: 'ok', records: 'ok', stay: 'ok', journal: 'ok', backlog: 'ok', travel: 'ok' }; // TRAVEL-01b (Alex, 2026-10-31): the travel read joins the reel's reads
   assert.equal(reelReadsWords(ok), null);
   assert.equal(reelReadsWords({ ...ok, backlog: null }), null, 'no execute stop: the reel does not use it');
   assert.equal(reelReadsWords({ ...ok, backlog: 'waiting' }), 'not ready — waiting for the backlog');
@@ -200,8 +200,9 @@ test('C ReelDay carries each execute stop’s done tasks (workBlock.ts doneInBlo
   assert.equal(reelReadsWords({ ...ok, stay: 'failed', backlog: 'failed' }), 'not made — the stay, the backlog could not be read');
   assert.equal(REEL_READ_NAMES.backlog, 'the backlog');
   const rules = code(RULES);
-  assert.match(rules, /const REEL_READ_ORDER: readonly \(keyof ReelReads\)\[\] = \['day', 'tasks', 'report', 'records', 'stay', 'journal', 'backlog'\];/);
-  assert.match(rules, /readonly journal: ReelRead \| null;\n\s*readonly backlog: ReelRead \| null;\n\}/);
+  // TRAVEL-01b (Alex, 2026-10-31): the travel read is last in the order and the shape — every day, never null. Moved, not loosened.
+  assert.match(rules, /const REEL_READ_ORDER: readonly \(keyof ReelReads\)\[\] = \['day', 'tasks', 'report', 'records', 'stay', 'journal', 'backlog', 'travel'\];/);
+  assert.match(rules, /readonly journal: ReelRead \| null;\n\s*readonly backlog: ReelRead \| null;\n\s*readonly travel: ReelRead;\n\}/);
   assert.match(rules, /readonly done: ReadonlyMap<string, readonly ReelDoneTask\[\] \| null>;\n\}/); // WORK-03b (2026-10-26): null for a block with no length
   assert.match(rules, /import \{ showsWorkBlock \} from '@\/lib\/operations\/workBlock';/);
   // The card: the backlog's state on a day with an execute stop, in once it carries the day's done tasks; the lists from the read it holds; both stop scripts hand the list in.
