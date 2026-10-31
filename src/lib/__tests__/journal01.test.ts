@@ -274,7 +274,8 @@ test('T2 CLEAN-02: yesterday’s tally is gone — the journal card shows no mon
   assert.deepEqual([asksAmount('place'), asksAmount('none'), asksAmount('journal'), asksAmount('plan'), asksAmount('execute'), asksAmount('all_day')], [true, true, false, false, false, false], 'StopForm’s asks: a place and no role ask the amount');
   assert.match(code(CARD_RULES), /export const asksAmount = \(role: StopRole\): boolean => role === 'place' \|\| role === 'none';/);
   // TRAVEL-01b (Alex, 2026-10-31), ruling F: the verdict excludes a travel stop by KIND (it asks no amount — the booking is the record); asksAmount's own text is unchanged, pinned above. Moved, not loosened.
-  assert.match(code(CARD_RULES), /if \(result\.stops\.some\(\(s\) => s\.kind !== 'travel' && asksAmount\(s\.role\) && s\.actualCents === null\)\) return null;/, 'the verdict waits on every stop that asks an amount — a travel stop asks none');
+  // TRAVEL-01c (Alex, 2026-10-31), ruling D: a superseded stop is not in the day's plan — excluded too; asksAmount's text still unchanged. Moved, not loosened.
+  assert.match(code(CARD_RULES), /if \(result\.stops\.some\(\(s\) => s\.kind !== 'travel' && s\.superseded === null && asksAmount\(s\.role\) && s\.actualCents === null\)\) return null;/, 'the verdict waits on every stop that asks an amount — a travel stop asks none, a superseded one is out of the plan');
   assert.doesNotMatch(code(CARD_RULES), /\bfetch\b|new Date\(\)|Date\.now\(|from 'react'|@prisma\/client/, 'still pure');
 });
 
